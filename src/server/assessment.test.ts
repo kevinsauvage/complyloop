@@ -128,4 +128,55 @@ describe("runAssessment", () => {
         ?.exception?.note,
     ).toBe("Out of scope for this release");
   });
+
+  it("records a snapshot and attributes file changes on re-assessment", () => {
+    const first = runAssessment(db, project.id);
+    expect(first.snapshot?.fileHashes["Hero.tsx"]).toBeDefined();
+
+    fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
+    const second = runAssessment(db, project.id);
+    expect(second.changesSincePrevious?.some((c) => c.filePath === "Hero.tsx")).toBe(
+      true,
+    );
+    expect(
+      db.evidence.some((record) => record.kind === "monitoring_changes_detected"),
+    ).toBe(true);
+  });
+
+  it("clears expired temporary exceptions and re-derives status", () => {
+    runAssessment(db, project.id);
+    const requirement = db.requirements.find(
+      (candidate) => candidate.controlId === "ctl-img-alt",
+    );
+    if (!requirement) throw new Error("expected requirement");
+    requirement.determination = "human_review";
+    requirement.exception = {
+      reason: "temporary",
+      note: "Fix landing next sprint",
+      at: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2026-01-02T00:00:00.000Z",
+    };
+
+    runAssessment(db, project.id);
+    const refreshed = db.requirements.find(
+      (candidate) => candidate.controlId === "ctl-img-alt",
+    );
+    expect(refreshed?.exception).toBeUndefined();
+    expect(refreshed?.status).toBe("failed");
+    expect(
+      db.evidence.some(
+        (record) =>
+          record.kind === "requirement_exception_cleared" &&
+          record.detail?.expired === true,
+      ),
+    ).toBe(true);
+  });
+
+  it("only assesses controls in the project scope", () => {
+    project.inScopeControlIds = ["ctl-button-name"];
+    runAssessment(db, project.id);
+    expect(db.findings).toHaveLength(0);
+    expect(requirementStatus("ctl-button-name")).toBe("passed");
+    expect(requirementStatus("ctl-img-alt")).toBeUndefined();
+  });
 });

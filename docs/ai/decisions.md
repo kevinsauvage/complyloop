@@ -4,6 +4,19 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-04 — Continuous monitoring, requirement intake, PR/CI, clustering
+
+**Context:** Spec §7–9, §15, §17, §20, §22, success #1/#8/#11 were still thin after the narrow assess→fix→evidence loop.
+
+**Decision:**
+- **Monitoring:** each assessment stores a content-hash snapshot; re-assessment diffs the tree, attributes via `git log` when available, and attaches change context to regression evidence (`monitoring_changes_detected`).
+- **Requirement intake:** project `inScopeControlIds` plus import of custom (manual) controls under `fw-custom`; unscoped controls are not assessed.
+- **PR/CI:** `npm run check` scans a tree and fails on violations; finding handoff can create a branch/commit and optionally `gh pr create` when git/`gh` are present.
+- **Root cause:** cluster open findings by check + shared file/directory (`src/core/root-cause.ts`).
+- **Temporary exceptions:** `temporary` + `expiresAt`; assessment clears expired ones with evidence, then re-derives status.
+
+**Consequence:** Continuous compliance shows *what changed / who*; teams can bring their own checklist; CI and branch/PR paths exist without requiring GitHub OAuth in the MVP.
+
 ## 2026-08-04 — AI remediation, reports, exceptions, PR handoff
 
 **Context:** Closing the remaining MVP gaps after local/git connect.

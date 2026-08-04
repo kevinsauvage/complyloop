@@ -60,17 +60,25 @@ export interface Project {
    */
   sourceRef?: string;
   createdAt: string;
+  /**
+   * Control IDs in scope for this project. `undefined` means every control
+   * on the connected frameworks is in scope.
+   */
+  inScopeControlIds?: string[];
 }
 
 export type RequirementExceptionReason =
   | "not_applicable"
   | "accepted_risk"
-  | "compensating_control";
+  | "compensating_control"
+  | "temporary";
 
 export interface RequirementException {
   reason: RequirementExceptionReason;
   note: string;
   at: string;
+  /** ISO timestamp; when set, assessment clears the exception after this time. */
+  expiresAt?: string;
 }
 
 export interface Requirement {
@@ -84,6 +92,20 @@ export interface Requirement {
   exception?: RequirementException;
 }
 
+export interface FileChange {
+  filePath: string;
+  /** Present when the tree is a git checkout. */
+  author?: string;
+  commitSha?: string;
+  commitSubject?: string;
+}
+
+export interface AssessmentSnapshot {
+  /** Relative path → content hash for source files at assessment time. */
+  fileHashes: Record<string, string>;
+  gitHead?: string;
+}
+
 export interface Assessment {
   id: string;
   projectId: string;
@@ -91,6 +113,9 @@ export interface Assessment {
   completedAt: string;
   filesScanned: number;
   summary: Record<RequirementStatus, number>;
+  snapshot?: AssessmentSnapshot;
+  /** Files that changed since the previous assessment, when detectable. */
+  changesSincePrevious?: FileChange[];
 }
 
 export interface Span {
@@ -198,7 +223,21 @@ export type EvidenceKind =
   | "ai_remediation_suggested"
   | "requirement_status_changed"
   | "requirement_exception_set"
-  | "requirement_exception_cleared";
+  | "requirement_exception_cleared"
+  | "requirements_imported"
+  | "pull_request_prepared"
+  | "monitoring_changes_detected";
+
+/** Groups findings that share a common technical cause. */
+export interface FindingCluster {
+  id: string;
+  label: string;
+  checkId: string;
+  /** Shared path prefix or file pattern, e.g. "components/" or "ProductCard.tsx". */
+  sharedLocation: string;
+  findingIds: string[];
+  controlIds: string[];
+}
 
 export interface EvidenceRecord {
   id: string;

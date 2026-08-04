@@ -7,6 +7,7 @@ import { ConnectProjectForm } from "@/components/connect-project-form";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
 import { severityRank } from "@/core/labels";
+import { clusterFindings } from "@/core/root-cause";
 import type { RequirementStatus } from "@/core/types";
 import { resetProjectAction, runAssessmentAction } from "@/server/actions";
 import { controlById, getWorkspace } from "@/server/workspace";
@@ -61,6 +62,11 @@ export default async function DashboardPage() {
     .filter((record) => record.projectId === project.id || !record.projectId)
     .slice(-6)
     .reverse();
+  const clusters = clusterFindings(
+    db.findings.filter((finding) => finding.projectId === project.id),
+    db.controls,
+  ).slice(0, 5);
+  const recentChanges = latestAssessment?.changesSincePrevious ?? [];
 
   const counts = new Map<RequirementStatus, number>();
   for (const requirement of requirements) {
@@ -135,6 +141,46 @@ export default async function DashboardPage() {
                     {record.summary}
                     <span className="ml-2 text-xs text-zinc-400">
                       {formatDateTime(record.at)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
+          {recentChanges.length > 0 ? (
+            <Card title="Changes since previous assessment">
+              <ul className="flex flex-col gap-2">
+                {recentChanges.slice(0, 8).map((change) => (
+                  <li
+                    key={change.filePath}
+                    className="font-mono text-sm text-zinc-700"
+                  >
+                    {change.filePath}
+                    {change.author ? (
+                      <span className="ml-2 font-sans text-xs text-zinc-500">
+                        {change.author}
+                        {change.commitSubject
+                          ? ` — ${change.commitSubject}`
+                          : ""}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
+          {clusters.length > 0 ? (
+            <Card title="Likely shared root causes">
+              <ul className="flex flex-col gap-2">
+                {clusters.map((cluster) => (
+                  <li key={cluster.id} className="text-sm text-zinc-700">
+                    <Link href="/findings" className="hover:underline">
+                      {cluster.label}
+                    </Link>
+                    <span className="ml-2 text-xs text-zinc-400">
+                      {cluster.findingIds.length} findings
                     </span>
                   </li>
                 ))}

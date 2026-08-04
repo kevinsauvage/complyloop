@@ -62,6 +62,7 @@ npm run lint         # ESLint
 npm run typecheck    # tsc --noEmit
 npm run test         # Vitest, single run
 npm run test:watch   # Vitest, watch mode
+npm run check -- [path]  # CI gate: fail on accessibility violations in a tree
 ```
 
 ## Domain Vocabulary

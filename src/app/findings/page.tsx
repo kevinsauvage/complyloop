@@ -5,6 +5,7 @@ import {
 } from "@/components/badges";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { severityRank } from "@/core/labels";
+import { clusterFindings } from "@/core/root-cause";
 import type { Finding, FindingStatus } from "@/core/types";
 import {
   controlById,
@@ -30,6 +31,7 @@ export default async function FindingsPage() {
     findings
       .filter((finding) => finding.status === status)
       .sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
+  const clusters = clusterFindings(findings, db.controls);
 
   return (
     <>
@@ -43,6 +45,37 @@ export default async function FindingsPage() {
         </EmptyState>
       ) : (
         <div className="flex flex-col gap-6">
+          {clusters.length > 0 ? (
+            <Card title={`Shared root causes (${clusters.length})`}>
+              <ul className="flex flex-col gap-3">
+                {clusters.map((cluster) => (
+                  <li key={cluster.id}>
+                    <p className="text-sm font-medium text-zinc-900">
+                      {cluster.label}
+                    </p>
+                    <ul className="mt-1 flex flex-wrap gap-2">
+                      {cluster.findingIds.map((findingId) => {
+                        const finding = findings.find(
+                          (candidate) => candidate.id === findingId,
+                        );
+                        if (!finding) return null;
+                        return (
+                          <li key={findingId}>
+                            <Link
+                              href={`/findings/${findingId}`}
+                              className="font-mono text-xs text-zinc-600 hover:underline"
+                            >
+                              {finding.location.filePath}:{finding.location.line}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
           {SECTIONS.map(({ status, title }) => {
             const sectionFindings = byStatus(status);
             if (sectionFindings.length === 0) return null;

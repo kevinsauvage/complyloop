@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { aiExplanationAvailable } from "@/ai/explainer";
@@ -182,6 +184,9 @@ export default async function FindingPage({
   const handoff = buildDeveloperHandoff(project, control, finding, remediation);
   const showHandoff =
     remediation.suggestion !== null || finding.fix !== null;
+  const canCreatePr =
+    Boolean(finding.fix) &&
+    fs.existsSync(path.join(project.rootPath, ".git"));
 
   return (
     <>
@@ -360,7 +365,13 @@ export default async function FindingPage({
           </details>
         </Card>
 
-        {showHandoff ? <DeveloperHandoffCard handoff={handoff} /> : null}
+        {showHandoff ? (
+          <DeveloperHandoffCard
+            handoff={handoff}
+            findingId={finding.id}
+            canCreatePr={canCreatePr}
+          />
+        ) : null}
 
         {finding.status === "open" ? (
           <Card title="Dismiss this finding">

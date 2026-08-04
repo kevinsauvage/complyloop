@@ -25,6 +25,11 @@ import {
   setActiveProject,
 } from "./connect";
 import { addEvidence, saveDb, type Db } from "./db";
+import { preparePullRequest } from "./pr";
+import {
+  importCustomControl,
+  setProjectScope,
+} from "./requirements-intake";
 import { resetSampleWorkspace } from "./seed";
 import {
   controlById,
@@ -432,7 +437,8 @@ function isRequirementExceptionReason(
   return (
     value === "not_applicable" ||
     value === "accepted_risk" ||
-    value === "compensating_control"
+    value === "compensating_control" ||
+    value === "temporary"
   );
 }
 
@@ -450,20 +456,31 @@ export async function markRequirementExceptionAction(
 
   const reason = formData.get("reason");
   const noteRaw = formData.get("note");
+  const expiresRaw = formData.get("expiresAt");
   if (!isRequirementExceptionReason(reason)) {
     throw new Error("A valid exception reason is required.");
   }
   if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
     throw new Error("A note is required when setting a requirement exception.");
   }
+  if (reason === "temporary") {
+    if (typeof expiresRaw !== "string" || expiresRaw.trim().length === 0) {
+      throw new Error("Temporary exceptions require an expiry date.");
+    }
+  }
 
   const note = noteRaw.trim();
   const previous = requirement.status;
+  const expiresAt =
+    reason === "temporary" && typeof expiresRaw === "string"
+      ? new Date(expiresRaw).toISOString()
+      : undefined;
 
   requirement.exception = {
     reason,
     note,
     at: new Date().toISOString(),
+    expiresAt,
   };
   requirement.determination = "human_review";
   if (reason === "not_applicable") {
@@ -474,10 +491,16 @@ export async function markRequirementExceptionAction(
   const control = controlById(db, requirement.controlId);
   addEvidence(db, {
     kind: "requirement_exception_set",
-    summary: `${control.code} exception (${reason}): ${note}`,
+    summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
     projectId: project.id,
     controlId: requirement.controlId,
-    detail: { reason, note, from: previous, to: requirement.status },
+    detail: {
+      reason,
+      note,
+      expiresAt,
+      from: previous,
+      to: requirement.status,
+    },
   });
   if (previous !== requirement.status) {
     addEvidence(db, {
@@ -490,6 +513,100 @@ export async function markRequirementExceptionAction(
   }
   saveDb(db);
   refresh();
+}
+
+export async function updateRequirementScopeAction(
+  formData: FormData,
+): Promise<void> {
+  const { db, project } = getWorkspace();
+  const selected = formData
+    .getAll("controlId")
+    .filter((value): value is string => typeof value === "string");
+  setProjectScope(db, project, selected);
+  saveDb(db);
+  refresh();
+}
+
+export async function importCustomControlAction(
+  formData: FormData,
+): Promise<void> {
+  const { db, project } = getWorkspace();
+  const code = formData.get("code");
+  const title = formData.get("title");
+  const description = formData.get("description");
+  const secondaryCode = formData.get("secondaryCode");
+  if (
+    typeof code !== "string" ||
+    typeof title !== "string" ||
+    typeof description !== "string"
+  ) {
+    throw new Error("Code, title, and description are required.");
+  }
+  importCustomControl(db, project, {
+    code,
+    title,
+    description,
+    secondaryCode:
+      typeof secondaryCode === "string" ? secondaryCode : undefined,
+  });
+  saveDb(db);
+  refresh();
+}
+
+export type CreatePrFormState = {
+  error: string | null;
+  message: string | null;
+  prUrl: string | null;
+};
+
+export async function createPullRequestAction(
+  findingId: string,
+  previous: CreatePrFormState,
+  formData: FormData,
+): Promise<CreatePrFormState> {
+  void previous;
+  void formData;
+  const { db } = getWorkspace();
+  const finding = findingById(db, findingId);
+  const control = controlById(db, finding.controlId);
+  const remediation = remediationForFinding(db, findingId);
+  const project = db.projects.find(
+    (candidate) => candidate.id === finding.projectId,
+  );
+  if (!project) {
+    return { error: "Unknown project.", message: null, prUrl: null };
+  }
+
+  try {
+    const result = preparePullRequest(project, control, finding, remediation);
+    addEvidence(db, {
+      kind: "pull_request_prepared",
+      summary: result.prUrl
+        ? `Pull request prepared for ${finding.checkId}: ${result.prUrl}`
+        : `Branch ${result.branch} prepared for ${finding.checkId}`,
+      projectId: project.id,
+      controlId: finding.controlId,
+      findingId: finding.id,
+      detail: {
+        branch: result.branch,
+        prUrl: result.prUrl,
+        title: result.title,
+      },
+    });
+    saveDb(db);
+    refresh();
+    return {
+      error: null,
+      message: result.message,
+      prUrl: result.prUrl,
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to prepare PR.",
+      message: null,
+      prUrl: null,
+    };
+  }
 }
 
 export async function clearRequirementExceptionAction(
