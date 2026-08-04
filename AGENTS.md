@@ -106,7 +106,18 @@ Always distinguish *automatically verified* results from *human-reviewed* result
 - Deterministic checks and AI features are separated at the module boundary; AI output is always typed, validated, and labeled as AI-generated
 - Evidence records are append-only
 - Our own UI must meet the accessibility bar we assess others against (jsx-a11y strict is enforced by ESLint)
-- Tests live next to the code they test as `*.test.ts(x)`
+- Tests live next to the code they test as `*.test.ts(x)`; test behavior, not implementation — query by accessible role/name
+- Full code quality standards: `.cursor/rules/code-quality.mdc`
+
+## Definition of Done
+
+Work is not done until all of these pass locally:
+
+```bash
+npm run lint && npm run typecheck && npm run test && npm run build
+```
+
+Never disable a lint rule, skip a test, or loosen tsconfig to make the gate pass — fix the underlying issue, or change the rule deliberately and record why in `docs/ai/decisions.md`.
 
 ## Repository Layout
 

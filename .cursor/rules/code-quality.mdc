@@ -1,0 +1,42 @@
+---
+description: Code quality standards all AI-generated code must meet
+alwaysApply: true
+---
+
+# Code Quality
+
+## Simplicity first
+
+- Do the simplest thing that solves the task well. No premature abstraction, no helpers for one-shot logic, no features "for later".
+- Don't add error handling, fallbacks, or validation for scenarios that cannot happen. Validate at system boundaries only (user input, external APIs, AI output).
+- Prefer pure functions in the domain core; push side effects (DB, network, filesystem) to the edges.
+
+## Structure
+
+- Single responsibility per function and per module. Split files that grow past ~300 lines.
+- Use the domain vocabulary from `domain-model.mdc` for names — no synonyms, no generic names like `data`, `item`, `manager`, `util` when a domain term exists.
+- No barrel files that just re-export; import from the defining module.
+- Dependency direction: UI and adapters import from the core, never the reverse.
+
+## Hygiene
+
+- No dead code, commented-out code, unused exports, or leftover `console.log`.
+- Comments explain *why* (intent, trade-offs, constraints), never *what* the code does. No narration comments.
+- Fail loud: never swallow errors in empty `catch` blocks; either handle meaningfully or rethrow with context.
+- No `any` (ESLint enforces this); no `as` casts to silence the compiler — fix the types instead.
+
+## Tests
+
+- Colocate tests as `*.test.ts(x)` next to the code under test.
+- Test observable behavior, not implementation details. Query the DOM by accessible role/name, not by CSS class or test id, unless there is no accessible alternative.
+- Every module in the domain core ships with tests; status transitions and exhaustive-switch logic must be covered.
+
+## Definition of done
+
+Work is not done until all of these pass locally:
+
+```bash
+npm run lint && npm run typecheck && npm run test && npm run build
+```
+
+Never disable a lint rule, skip a test, or loosen tsconfig to make the gate pass — fix the underlying issue. If a rule is genuinely wrong for this codebase, change it deliberately and record why in `docs/ai/decisions.md`.
