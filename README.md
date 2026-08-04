@@ -21,7 +21,9 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). A sample project
 (`fixtures/sample-shop`, copied to a disposable workspace under `.data/`) is
-connected automatically — click **Run assessment** and walk the loop:
+connected automatically. On the dashboard you can also **connect a local path**
+(assessed in place) or a **git URL** (shallow-cloned into `.data/workspaces/`).
+Then click **Run assessment** and walk the loop:
 
 1. **Assess** — six deterministic AST checks scan the connected code.
 2. **Understand** — each finding explains what failed, why, where, its impact,
@@ -31,12 +33,17 @@ connected automatically — click **Run assessment** and walk the loop:
 4. **Verify** — the platform re-runs the check and only then marks the fix
    verified.
 5. **Evidence** — every step lands in an append-only evidence log, exportable
-   as JSON.
+   as JSON, Markdown compliance report, or printable HTML.
 6. **Monitor** — re-assessments detect regressions (try **Reset sample
    project**, then run the assessment again).
 
-Set `AI_GATEWAY_API_KEY` to enable AI-generated explanations; deterministic
-explanations remain the baseline either way — AI is never the source of truth.
+On each finding you can also copy a **unified diff + PR body**, mark work
+**implemented outside** the platform, **verify manually** with a note, and on
+Requirements record **N/A / accepted risk / compensating control** exceptions.
+
+Set `AI_GATEWAY_API_KEY` to enable AI explanations and AI remediation
+suggestions; deterministic explanations/fixes remain the happy-path baseline —
+AI is never the source of truth.
 
 ## Commands
 

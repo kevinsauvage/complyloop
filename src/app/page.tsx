@@ -3,6 +3,8 @@ import {
   RequirementStatusBadge,
   SeverityBadge,
 } from "@/components/badges";
+import { ConnectProjectForm } from "@/components/connect-project-form";
+import { ProjectSwitcher } from "@/components/project-switcher";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
 import { severityRank } from "@/core/labels";
 import type { RequirementStatus } from "@/core/types";
@@ -19,6 +21,22 @@ const STATUS_ORDER: RequirementStatus[] = [
   "unable_to_verify",
 ];
 
+function projectDescription(
+  project: { name: string; source: string; rootPath: string; sourceRef?: string },
+  latestAssessment: { completedAt: string; filesScanned: number } | undefined,
+): string {
+  const sourceBit =
+    project.source === "git"
+      ? `cloned from ${project.sourceRef ?? "git"}`
+      : project.source === "local"
+        ? project.rootPath
+        : "sample workspace";
+  const assessmentBit = latestAssessment
+    ? `last assessed ${formatDateTime(latestAssessment.completedAt)}, ${latestAssessment.filesScanned} files scanned`
+    : "not assessed yet";
+  return `Project "${project.name}" (${sourceBit}) — ${assessmentBit}`;
+}
+
 export default async function DashboardPage() {
   const { db, project } = getWorkspace();
   const latestAssessment = db.assessments
@@ -33,12 +51,16 @@ export default async function DashboardPage() {
   const regressions = db.evidence
     .filter(
       (record) =>
+        record.projectId === project.id &&
         record.kind === "requirement_status_changed" &&
         record.detail?.regression === true,
     )
     .slice(-3)
     .reverse();
-  const recentEvidence = db.evidence.slice(-6).reverse();
+  const recentEvidence = db.evidence
+    .filter((record) => record.projectId === project.id || !record.projectId)
+    .slice(-6)
+    .reverse();
 
   const counts = new Map<RequirementStatus, number>();
   for (const requirement of requirements) {
@@ -49,20 +71,18 @@ export default async function DashboardPage() {
     <>
       <PageHeader
         title="Dashboard"
-        description={`Project "${project.name}" — ${
-          latestAssessment
-            ? `last assessed ${formatDateTime(latestAssessment.completedAt)}, ${latestAssessment.filesScanned} files scanned`
-            : "not assessed yet"
-        }`}
+        description={projectDescription(project, latestAssessment)}
       >
-        <form action={resetProjectAction}>
-          <button
-            type="submit"
-            className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            Reset sample project
-          </button>
-        </form>
+        {project.source === "sample" ? (
+          <form action={resetProjectAction}>
+            <button
+              type="submit"
+              className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Reset sample project
+            </button>
+          </form>
+        ) : null}
         <form action={runAssessmentAction}>
           <button
             type="submit"
@@ -73,11 +93,25 @@ export default async function DashboardPage() {
         </form>
       </PageHeader>
 
+      <div className="mb-6 flex flex-wrap items-center gap-4">
+        <ProjectSwitcher
+          projects={db.projects}
+          activeProjectId={project.id}
+        />
+      </div>
+
+      <div className="mb-6">
+        <Card title="Connect a project">
+          <ConnectProjectForm />
+        </Card>
+      </div>
+
       {!latestAssessment ? (
         <EmptyState title="Run your first assessment">
           <p>
-            The sample project &quot;{project.name}&quot; is connected. Run an
-            assessment to evaluate it against the RGAA/WCAG requirements.
+            &quot;{project.name}&quot; is connected. Run an assessment to evaluate it
+            against the RGAA/WCAG requirements, or connect another local path / git
+            URL above.
           </p>
         </EmptyState>
       ) : (

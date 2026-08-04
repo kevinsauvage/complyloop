@@ -7,6 +7,7 @@ import {
   RemediationStatusBadge,
   SeverityBadge,
 } from "@/components/badges";
+import { DeveloperHandoffCard } from "@/components/developer-handoff";
 import { Card, CodeBlock, PageHeader, formatDateTime } from "@/components/ui";
 import { remediationStatusLabel } from "@/core/labels";
 import type { Finding, Remediation, RemediationStatus } from "@/core/types";
@@ -15,8 +16,12 @@ import {
   approveRemediationAction,
   dismissFindingAction,
   generateAiExplanationAction,
+  generateAiRemediationAction,
+  manualVerifyRemediationAction,
+  markRemediationImplementedAction,
   verifyRemediationAction,
 } from "@/server/actions";
+import { buildDeveloperHandoff } from "@/server/handoff";
 import { controlById, getWorkspace, remediationForFinding } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +37,8 @@ const LIFECYCLE: RemediationStatus[] = [
 
 const primaryButton =
   "rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700";
+const secondaryButton =
+  "rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50";
 
 function ActionPanel({
   finding,
@@ -45,9 +52,8 @@ function ActionPanel({
     case "investigating":
       return (
         <p className="text-sm text-zinc-500">
-          No automated fix is available for this finding — it requires human
-          judgment. Fix it manually and re-run the assessment, or dismiss it below
-          with a documented reason.
+          No automated fix template yet. Generate an AI remediation suggestion,
+          fix the code manually, or dismiss the finding with a documented reason.
         </p>
       );
     case "suggested": {
@@ -81,24 +87,73 @@ function ActionPanel({
     }
     case "approved":
       return (
-        <form action={applyRemediationAction.bind(null, finding.id)}>
-          <button type="submit" className={primaryButton}>
-            Apply change to the file
-          </button>
-        </form>
+        <div className="flex flex-col gap-3">
+          {finding.fix ? (
+            <form action={applyRemediationAction.bind(null, finding.id)}>
+              <button type="submit" className={primaryButton}>
+                Apply change to the file
+              </button>
+            </form>
+          ) : null}
+          <form
+            action={markRemediationImplementedAction.bind(null, finding.id)}
+            className="flex flex-col gap-2"
+          >
+            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+              Or mark implemented (applied outside ComplyLoop)
+              <input
+                type="text"
+                name="note"
+                placeholder="e.g. Fixed in PR #42"
+                className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
+              />
+            </label>
+            <div>
+              <button type="submit" className={secondaryButton}>
+                Mark as implemented
+              </button>
+            </div>
+          </form>
+        </div>
       );
     case "implemented":
       return (
-        <form action={verifyRemediationAction.bind(null, finding.id)}>
-          <button type="submit" className={primaryButton}>
-            Verify fix
-          </button>
-        </form>
+        <div className="flex flex-col gap-4">
+          <form action={verifyRemediationAction.bind(null, finding.id)}>
+            <button type="submit" className={primaryButton}>
+              Verify fix (automated re-check)
+            </button>
+          </form>
+          <form
+            action={manualVerifyRemediationAction.bind(null, finding.id)}
+            className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-3"
+          >
+            <p className="text-sm text-zinc-600">
+              Manual verification — use when the automated check cannot confirm
+              the fix (or after verifying by other means). Requires a note.
+            </p>
+            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+              Verification note
+              <textarea
+                name="note"
+                required
+                rows={2}
+                className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
+              />
+            </label>
+            <div>
+              <button type="submit" className={secondaryButton}>
+                Verify manually
+              </button>
+            </div>
+          </form>
+        </div>
       );
     case "verified":
       return (
         <p className="text-sm font-medium text-emerald-700">
-          Fix verified: the automated check no longer fails on this file.
+          {finding.resolvedNote ??
+            "Fix verified: the automated check no longer fails on this file."}
         </p>
       );
     default: {
@@ -114,7 +169,7 @@ export default async function FindingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { db } = getWorkspace();
+  const { db, project } = getWorkspace();
   const finding = db.findings.find((candidate) => candidate.id === id);
   if (!finding) notFound();
 
@@ -124,6 +179,9 @@ export default async function FindingPage({
     .filter((record) => record.findingId === finding.id)
     .reverse();
   const aiAvailable = aiExplanationAvailable();
+  const handoff = buildDeveloperHandoff(project, control, finding, remediation);
+  const showHandoff =
+    remediation.suggestion !== null || finding.fix !== null;
 
   return (
     <>
@@ -142,7 +200,7 @@ export default async function FindingPage({
         <RemediationStatusBadge status={remediation.status} />
         {finding.status === "dismissed" && finding.dismissal ? (
           <span className="text-sm text-zinc-500">
-            Dismissed ({finding.dismissal.reason.replace("_", " ")}):{" "}
+            Dismissed ({finding.dismissal.reason.replace(/_/g, " ")}):{" "}
             {finding.dismissal.note || "no note"}
           </span>
         ) : null}
@@ -160,57 +218,65 @@ export default async function FindingPage({
           <CodeBlock>{finding.location.snippet}</CodeBlock>
         </Card>
 
-        {finding.explanations.map((explanation, index) => (
-          <Card
-            key={`${explanation.provenance}-${explanation.generatedAt}-${index}`}
-            title="Explanation"
-          >
-            <div className="mb-3 flex items-center gap-2">
-              <ProvenanceBadge provenance={explanation.provenance} />
-              {explanation.model ? (
-                <span className="text-xs text-zinc-400">{explanation.model}</span>
-              ) : null}
-            </div>
-            <dl className="flex flex-col gap-3 text-sm">
-              <div>
-                <dt className="font-medium text-zinc-900">Why it failed</dt>
-                <dd className="mt-0.5 text-zinc-600">{explanation.whyItFailed}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-zinc-900">Impact</dt>
-                <dd className="mt-0.5 text-zinc-600">{explanation.impact}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-zinc-900">How to fix</dt>
-                <dd className="mt-0.5 text-zinc-600">{explanation.howToFix}</dd>
-              </div>
-            </dl>
-          </Card>
-        ))}
-
-        {finding.status === "open" ? (
-          <form action={generateAiExplanationAction.bind(null, finding.id)}>
-            <button
-              type="submit"
-              disabled={!aiAvailable}
-              className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+        <Card title="Explanation">
+          <p className="mb-3 text-xs text-zinc-500">
+            Deterministic baseline is always present. AI explanations are optional
+            enrichment and never set compliance status.
+          </p>
+          {finding.explanations.map((explanation, index) => (
+            <div
+              key={`${explanation.provenance}-${explanation.generatedAt}-${index}`}
+              className={index > 0 ? "mt-5 border-t border-zinc-100 pt-5" : undefined}
             >
-              Generate AI explanation
-            </button>
-            {!aiAvailable ? (
-              <p className="mt-1 text-xs text-zinc-400">
-                Set AI_GATEWAY_API_KEY to enable AI explanations. Deterministic
-                explanations remain the baseline either way.
-              </p>
-            ) : null}
-          </form>
-        ) : null}
+              <div className="mb-3 flex items-center gap-2">
+                <ProvenanceBadge provenance={explanation.provenance} />
+                {explanation.model ? (
+                  <span className="text-xs text-zinc-400">{explanation.model}</span>
+                ) : null}
+              </div>
+              <dl className="flex flex-col gap-3 text-sm">
+                <div>
+                  <dt className="font-medium text-zinc-900">Why it failed</dt>
+                  <dd className="mt-0.5 text-zinc-600">{explanation.whyItFailed}</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-zinc-900">Impact</dt>
+                  <dd className="mt-0.5 text-zinc-600">{explanation.impact}</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-zinc-900">How to fix</dt>
+                  <dd className="mt-0.5 text-zinc-600">{explanation.howToFix}</dd>
+                </div>
+              </dl>
+            </div>
+          ))}
+          {finding.status === "open" ? (
+            <form
+              action={generateAiExplanationAction.bind(null, finding.id)}
+              className="mt-4"
+            >
+              <button
+                type="submit"
+                disabled={!aiAvailable}
+                className={`${secondaryButton} disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                Generate AI explanation
+              </button>
+              {!aiAvailable ? (
+                <p className="mt-1 text-xs text-zinc-400">
+                  Set <code className="font-mono">AI_GATEWAY_API_KEY</code> to
+                  enrich with AI. The deterministic explanation above remains the
+                  happy-path baseline.
+                </p>
+              ) : null}
+            </form>
+          ) : null}
+        </Card>
 
         <Card title="Remediation">
           <ol className="mb-4 flex flex-wrap items-center gap-1 text-xs">
             {LIFECYCLE.map((status, index) => {
-              const reached =
-                LIFECYCLE.indexOf(remediation.status) >= index;
+              const reached = LIFECYCLE.indexOf(remediation.status) >= index;
               return (
                 <li key={status} className="flex items-center gap-1">
                   {index > 0 ? <span className="text-zinc-300">→</span> : null}
@@ -230,11 +296,49 @@ export default async function FindingPage({
 
           {remediation.suggestion ? (
             <div className="mb-4">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <ProvenanceBadge
+                  provenance={remediation.suggestion.provenance ?? "deterministic"}
+                />
+                {remediation.suggestion.confidence ? (
+                  <ConfidenceBadge confidence={remediation.suggestion.confidence} />
+                ) : null}
+                {remediation.suggestion.model ? (
+                  <span className="text-xs text-zinc-400">
+                    {remediation.suggestion.model}
+                  </span>
+                ) : null}
+              </div>
               <p className="mb-2 text-sm text-zinc-600">
                 {remediation.suggestion.description}
               </p>
               <CodeBlock>{remediation.suggestion.proposedSnippet}</CodeBlock>
             </div>
+          ) : null}
+
+          {finding.status === "open" &&
+          (remediation.status === "detected" ||
+            remediation.status === "suggested") ? (
+            <form
+              action={generateAiRemediationAction.bind(null, finding.id)}
+              className="mb-4"
+            >
+              <button
+                type="submit"
+                disabled={!aiAvailable}
+                className={`${secondaryButton} disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                {remediation.suggestion
+                  ? "Refine with AI remediation"
+                  : "Generate AI remediation"}
+              </button>
+              {!aiAvailable ? (
+                <p className="mt-1 text-xs text-zinc-400">
+                  Without AI credentials, use the deterministic suggestion (when
+                  present) or fix manually and mark implemented after approval.
+                </p>
+              ) : null}
+            </form>
           ) : null}
 
           {finding.status === "open" || remediation.status === "verified" ? (
@@ -255,6 +359,8 @@ export default async function FindingPage({
             </ul>
           </details>
         </Card>
+
+        {showHandoff ? <DeveloperHandoffCard handoff={handoff} /> : null}
 
         {finding.status === "open" ? (
           <Card title="Dismiss this finding">
@@ -282,10 +388,7 @@ export default async function FindingPage({
                 />
               </label>
               <div>
-                <button
-                  type="submit"
-                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                >
+                <button type="submit" className={secondaryButton}>
                   Dismiss finding
                 </button>
               </div>

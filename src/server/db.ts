@@ -8,6 +8,7 @@ import type {
   Framework,
   Project,
   Remediation,
+  RemediationSuggestion,
   Requirement,
 } from "@/core/types";
 
@@ -15,6 +16,8 @@ export interface Db {
   frameworks: Framework[];
   controls: Control[];
   projects: Project[];
+  /** Which project the UI and actions currently target. */
+  activeProjectId: string | null;
   requirements: Requirement[];
   assessments: Assessment[];
   findings: Finding[];
@@ -27,12 +30,65 @@ function emptyDb(): Db {
     frameworks: [],
     controls: [],
     projects: [],
+    activeProjectId: null,
     requirements: [],
     assessments: [],
     findings: [],
     remediations: [],
     evidence: [],
   };
+}
+
+type StoredProject = Omit<Project, "source"> & {
+  source?: Project["source"];
+};
+
+type StoredSuggestion = Omit<RemediationSuggestion, "provenance"> & {
+  provenance?: RemediationSuggestion["provenance"];
+};
+
+type StoredRemediation = Omit<Remediation, "suggestion"> & {
+  suggestion: StoredSuggestion | null;
+};
+
+type StoredDb = Omit<Db, "projects" | "activeProjectId" | "remediations"> & {
+  projects: StoredProject[];
+  activeProjectId?: string | null;
+  remediations: StoredRemediation[];
+};
+
+/** Normalizes records written before `source` / `activeProjectId` existed. */
+function migrateDb(raw: StoredDb): Db {
+  const projects: Project[] = raw.projects.map((project) => {
+    if (project.source) {
+      return { ...project, source: project.source };
+    }
+    const isSample =
+      project.name === "sample-shop" ||
+      project.rootPath.includes(`${path.sep}workspaces${path.sep}sample-shop`);
+    return {
+      ...project,
+      source: isSample ? "sample" : "local",
+      sourceRef: isSample ? undefined : project.rootPath,
+    };
+  });
+  const activeProjectId =
+    raw.activeProjectId && projects.some((project) => project.id === raw.activeProjectId)
+      ? raw.activeProjectId
+      : (projects[0]?.id ?? null);
+
+  const remediations: Remediation[] = raw.remediations.map((remediation) => {
+    if (!remediation.suggestion) {
+      return { ...remediation, suggestion: null };
+    }
+    const suggestion: RemediationSuggestion = {
+      ...remediation.suggestion,
+      provenance: remediation.suggestion.provenance ?? "deterministic",
+    };
+    return { ...remediation, suggestion };
+  });
+
+  return { ...raw, projects, activeProjectId, remediations };
 }
 
 function dataDir(): string {
@@ -49,7 +105,7 @@ function dbFilePath(): string {
 
 export function loadDb(): Db {
   if (!fs.existsSync(dbFilePath())) return emptyDb();
-  return JSON.parse(fs.readFileSync(dbFilePath(), "utf8")) as Db;
+  return migrateDb(JSON.parse(fs.readFileSync(dbFilePath(), "utf8")) as StoredDb);
 }
 
 export function saveDb(db: Db): void {

@@ -59,6 +59,9 @@ export function buildSuggestion(
   return {
     description: describeFix(raw.fix),
     proposedSnippet: previewFixedLine(text, raw.fix, raw.location.line),
+    provenance: "deterministic",
+    confidence: "high",
+    generatedAt: new Date().toISOString(),
   };
 }
 
@@ -135,11 +138,9 @@ export function refreshRequirementStatuses(
       (candidate) =>
         candidate.projectId === projectId && candidate.controlId === control.id,
     );
-    if (
-      requirement &&
-      requirement.status === "not_applicable" &&
-      requirement.determination === "human_review"
-    ) {
+    // Human exceptions (N/A, accepted risk, compensating control) are sticky
+    // until explicitly cleared — assessment must not overwrite them.
+    if (requirement?.exception && requirement.determination === "human_review") {
       continue;
     }
 

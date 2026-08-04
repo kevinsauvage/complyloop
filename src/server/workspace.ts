@@ -11,7 +11,14 @@ export interface Workspace {
 export function getWorkspace(): Workspace {
   const db = loadDb();
   if (ensureSeeded(db)) saveDb(db);
-  const project = db.projects[0];
+  const project =
+    db.projects.find((candidate) => candidate.id === db.activeProjectId) ??
+    db.projects[0];
+  if (!project) throw new Error("No projects connected.");
+  if (db.activeProjectId !== project.id) {
+    db.activeProjectId = project.id;
+    saveDb(db);
+  }
   return { db, project };
 }
 

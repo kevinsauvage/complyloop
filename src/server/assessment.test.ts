@@ -21,12 +21,15 @@ beforeEach(() => {
     id: "p1",
     name: "test-project",
     rootPath,
+    source: "local",
+    sourceRef: rootPath,
     createdAt: new Date().toISOString(),
   };
   db = {
     frameworks: [rgaaFramework],
     controls: rgaaControls,
     projects: [project],
+    activeProjectId: project.id,
     requirements: [],
     assessments: [],
     findings: [],
@@ -54,6 +57,7 @@ describe("runAssessment", () => {
     expect(db.findings[0].explanations[0].provenance).toBe("deterministic");
     expect(db.remediations[0].status).toBe("suggested");
     expect(db.remediations[0].suggestion?.proposedSnippet).toContain("alt=");
+    expect(db.remediations[0].suggestion?.provenance).toBe("deterministic");
     expect(requirementStatus("ctl-img-alt")).toBe("failed");
     expect(requirementStatus("ctl-button-name")).toBe("passed");
     expect(db.evidence.some((record) => record.kind === "assessment_completed")).toBe(true);
@@ -101,5 +105,27 @@ describe("runAssessment", () => {
     runAssessment(db, project.id);
     expect(db.findings).toHaveLength(1);
     expect(db.findings[0].status).toBe("dismissed");
+  });
+
+  it("does not overwrite a human requirement exception on re-assessment", () => {
+    runAssessment(db, project.id);
+    const requirement = db.requirements.find(
+      (candidate) => candidate.controlId === "ctl-img-alt",
+    );
+    if (!requirement) throw new Error("expected requirement");
+    requirement.status = "not_applicable";
+    requirement.determination = "human_review";
+    requirement.exception = {
+      reason: "not_applicable",
+      note: "Out of scope for this release",
+      at: new Date().toISOString(),
+    };
+
+    runAssessment(db, project.id);
+    expect(requirementStatus("ctl-img-alt")).toBe("not_applicable");
+    expect(
+      db.requirements.find((candidate) => candidate.controlId === "ctl-img-alt")
+        ?.exception?.note,
+    ).toBe("Out of scope for this release");
   });
 });

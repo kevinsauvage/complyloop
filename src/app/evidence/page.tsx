@@ -14,6 +14,21 @@ export default async function EvidencePage() {
         description="Append-only record of everything checked, found, changed, and verified."
       >
         <a
+          href="/evidence/report"
+          download
+          className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          Report (Markdown)
+        </a>
+        <a
+          href="/evidence/report/html"
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          Report (HTML)
+        </a>
+        <a
           href="/evidence/export"
           download="evidence.json"
           className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"

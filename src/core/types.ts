@@ -45,11 +45,32 @@ export interface Control {
   checkId: string | null;
 }
 
+/** Where the assessed tree comes from. */
+export type ProjectSource = "sample" | "local" | "git";
+
 export interface Project {
   id: string;
   name: string;
+  /** Absolute path scanned and written by remediations. */
   rootPath: string;
+  source: ProjectSource;
+  /**
+   * Original user input: absolute local path, or git remote URL.
+   * For `sample`, omitted. For `local`, usually equals `rootPath`.
+   */
+  sourceRef?: string;
   createdAt: string;
+}
+
+export type RequirementExceptionReason =
+  | "not_applicable"
+  | "accepted_risk"
+  | "compensating_control";
+
+export interface RequirementException {
+  reason: RequirementExceptionReason;
+  note: string;
+  at: string;
 }
 
 export interface Requirement {
@@ -59,6 +80,8 @@ export interface Requirement {
   status: RequirementStatus;
   determination: DeterminationMethod;
   updatedAt: string;
+  /** Set when a human marks the requirement N/A or similar; blocks automated overwrite. */
+  exception?: RequirementException;
 }
 
 export interface Assessment {
@@ -141,6 +164,10 @@ export interface RemediationSuggestion {
   description: string;
   /** The offending line as it would look after the fix. */
   proposedSnippet: string;
+  provenance: ExplanationProvenance;
+  confidence?: Confidence;
+  model?: string;
+  generatedAt?: string;
 }
 
 export interface RemediationHistoryEntry {
@@ -167,7 +194,11 @@ export type EvidenceKind =
   | "remediation_approved"
   | "remediation_implemented"
   | "remediation_verified"
-  | "requirement_status_changed";
+  | "remediation_manually_verified"
+  | "ai_remediation_suggested"
+  | "requirement_status_changed"
+  | "requirement_exception_set"
+  | "requirement_exception_cleared";
 
 export interface EvidenceRecord {
   id: string;

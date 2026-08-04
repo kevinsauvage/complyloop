@@ -4,6 +4,25 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-04 — AI remediation, reports, exceptions, PR handoff
+
+**Context:** Closing the remaining MVP gaps after local/git connect.
+
+**Decision:**
+- Deterministic explanations remain the happy-path baseline; AI explanation/remediation are optional, provenance-tagged, and never set statuses.
+- Compliance report is Markdown (download) + printable HTML generated from requirements, findings, exceptions, and evidence.
+- Requirement-level exceptions (`not_applicable` / `accepted_risk` / `compensating_control`) are sticky human decisions; assessments skip them until cleared.
+- Manual verify and “mark implemented” cover remediations applied outside the platform.
+- Developer handoff exposes a unified diff + PR title/body for copy/download without GitHub API.
+
+## 2026-08-04 — Connect local path or git URL
+
+**Context:** MVP success requires connecting real software, not only the seeded sample.
+
+**Decision:** Dashboard accepts a single field that is either an absolute/relative local directory (assessed and remediated in place) or a git remote URL (shallow-cloned into `.data/workspaces/`). Multiple projects are stored; `activeProjectId` selects the current target. Sample reset remains sample-only.
+
+**Consequence:** Real apps can be assessed without GitHub OAuth. Local connects write remediations into the user's tree; git connects keep clones under `.data/`.
+
 ## 2026-08-04 — MVP implementation choices
 
 **Context:** First working MVP of the full loop (assess → explain → remediate → verify → evidence) built and verified end-to-end in the browser.
