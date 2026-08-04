@@ -1,0 +1,29 @@
+---
+description: TypeScript and React conventions for this codebase
+globs: **/*.ts,**/*.tsx
+alwaysApply: false
+---
+
+# TypeScript & React Conventions
+
+- Strict mode; no `any` unless justified with a comment explaining why.
+- Imports at the top of the module — no inline imports.
+- Exhaustive `switch` over discriminated unions/enums with a `never` check in `default`:
+
+```typescript
+switch (status) {
+  case "passed": /* ... */ break;
+  case "failed": /* ... */ break;
+  // ...all variants...
+  default: {
+    const _exhaustive: never = status;
+    throw new Error(`Unhandled status: ${_exhaustive}`);
+  }
+}
+```
+
+- Prefer discriminated unions over boolean flags for state (`{ kind: "verified", verifiedAt } | { kind: "suggested" }`).
+- Functional React components; extract custom hooks for reusable logic.
+- Server Components by default in Next.js; add `"use client"` only when needed.
+- Domain types live in the framework-agnostic core; UI and adapters import from it, never the reverse.
+- The product assesses *other* codebases for accessibility — hold our own UI to the same standard: semantic HTML, labeled controls, keyboard navigability.

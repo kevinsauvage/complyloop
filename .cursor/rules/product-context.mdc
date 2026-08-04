@@ -1,0 +1,31 @@
+---
+description: Core product context and non-negotiable principles for the compliance engineering platform
+alwaysApply: true
+---
+
+# Product Context
+
+This repo is a **compliance engineering platform**: it turns compliance requirements into actionable, verifiable engineering work. Source of truth: `compliance-engineering-product-spec.md`.
+
+The core loop every feature must serve:
+
+```
+Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Continuous monitoring
+```
+
+MVP: accessibility compliance (RGAA/WCAG) for React/Next.js/TypeScript apps — but the domain model stays framework-agnostic so other frameworks (SOC 2, ISO 27001, EU CRA, EAA, custom) can be added later.
+
+## Non-Negotiable Principles
+
+- **Evidence over claims**: never set a compliance status without recorded evidence.
+- **Verification over AI confidence**: AI output never determines a requirement status. Statuses come from deterministic checks or explicit human decisions only.
+- **Human in the loop**: AI remediations are suggestions until approved by a human. Decisions and exceptions keep history — never hard-delete decision records; evidence is append-only.
+- **Explainability**: every finding answers — what failed, why, where, impact, how to fix, how we know it's fixed.
+- **Continuous**: design for re-assessment and regression detection, not one-time audits.
+- **Developer language**: findings and remediation copy are written for engineers, not lawyers.
+
+## Architectural Rules
+
+- Core domain modules are framework-agnostic; RGAA/WCAG specifics live behind adapters/plugins.
+- Deterministic analysis and AI features are separated at module boundaries; AI output is typed, validated, and labeled as AI-generated.
+- Always distinguish automatically verified results from human-reviewed results in data model and UI.

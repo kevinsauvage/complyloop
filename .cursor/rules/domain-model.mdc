@@ -1,0 +1,40 @@
+---
+description: Canonical domain vocabulary, entities, and status enums for the compliance platform
+alwaysApply: true
+---
+
+# Domain Model
+
+Use this vocabulary consistently across code, schema, APIs, and UI. Do not invent synonyms (e.g. don't call a Finding an "issue" or "violation" in code).
+
+## Entities
+
+- **Framework** — a compliance framework (RGAA, WCAG, SOC 2, custom checklist).
+- **Control** — a machine-understandable obligation derived from a framework.
+- **Requirement** — a control applied to a target (repo/app), carrying a status.
+- **Assessment** — one evaluation run of requirements against connected software.
+- **Finding** — a specific failure with: requirement, reason, location, impact, confidence, supporting evidence.
+- **Remediation** — the workflow resolving a finding.
+- **Verification** — automated or human confirmation a fix works.
+- **Evidence** — append-only record: what was checked, found, changed, when, how verified, which control it satisfies.
+- **Exception** — documented deviation (accepted risk, temporary exception, compensating control, false positive, N/A) with retained context and history.
+
+## Canonical Status Enums
+
+Requirement status:
+
+```typescript
+type RequirementStatus = "passed" | "failed" | "needs_review" | "not_applicable" | "unable_to_verify";
+```
+
+Remediation lifecycle:
+
+```typescript
+type RemediationStatus = "detected" | "investigating" | "suggested" | "approved" | "implemented" | "verified";
+```
+
+Rules:
+
+- Model these as typed unions/enums; every `switch` over them is exhaustive with a `never` default check.
+- A fix is never "complete" at `implemented` — only `verified` closes the loop.
+- Every status-bearing record also tracks *how* the status was determined: `automated` vs `human_review`.

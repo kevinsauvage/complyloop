@@ -1,0 +1,31 @@
+---
+description: Rules for implementing AI-powered features (explanation, remediation, summarization) inside the product
+globs: **/ai/**,**/*ai*.ts,**/*ai*.tsx
+alwaysApply: false
+---
+
+# AI Feature Rules
+
+AI accelerates the product but is never the source of truth.
+
+## AI may
+
+- Explain findings and requirements in developer language
+- Locate relevant code and likely root causes
+- Propose remediations and generate candidate code/config changes
+- Generate tests and summarize evidence
+
+## AI must never
+
+- Set or change a requirement/finding status directly
+- Mark a remediation as `verified`
+- Produce evidence records on its own authority
+- Auto-apply changes without an explicit human approval step
+
+## Implementation requirements
+
+- All AI output is parsed into typed, validated structures (e.g. zod schemas) before use; reject or flag unparseable output.
+- Persisted AI-generated content carries provenance metadata: model, timestamp, prompt/feature identifier, and an `ai_generated: true` flag surfaced in the UI.
+- AI-suggested remediations enter the workflow at `suggested`, never further.
+- Include a confidence field on AI explanations/suggestions and display it to users.
+- Deterministic checks (static analysis, tests) are the only automated path to `passed`/`failed`/`verified`.
