@@ -1,0 +1,274 @@
+import fs from "node:fs";
+import path from "node:path";
+import { guidanceFor } from "@/adapters/rgaa/guidance";
+import { deterministicExplanation } from "@/ai/explainer";
+import { describeFix, previewFixedLine } from "@/analysis/fixes";
+import { scanProject } from "@/analysis/scan";
+import type { RawFinding } from "@/analysis/types";
+import { deriveRequirementStatus } from "@/core/requirement-status";
+import type {
+  Assessment,
+  Finding,
+  Project,
+  ProposedFix,
+  Remediation,
+  RemediationSuggestion,
+  RequirementStatus,
+} from "@/core/types";
+import { addEvidence, type Db } from "./db";
+
+/**
+ * Findings are matched across assessments by file plus snippet (or line as a
+ * fallback) so remediation state survives re-assessment and dismissals stick.
+ */
+function sameInstance(
+  finding: Pick<Finding, "location">,
+  raw: RawFinding,
+): boolean {
+  return (
+    finding.location.filePath === raw.location.filePath &&
+    (finding.location.snippet === raw.location.snippet ||
+      finding.location.line === raw.location.line)
+  );
+}
+
+/** Carries a human-edited fix value over to the freshly scanned fix. */
+export function mergeFix(
+  existing: ProposedFix | null,
+  fresh: ProposedFix | null,
+): ProposedFix | null {
+  if (
+    existing?.kind === "insert_attribute" &&
+    fresh?.kind === "insert_attribute" &&
+    existing.editable
+  ) {
+    return { ...fresh, value: existing.value };
+  }
+  return fresh;
+}
+
+export function buildSuggestion(
+  project: Project,
+  raw: Pick<RawFinding, "location" | "fix">,
+): RemediationSuggestion | null {
+  if (!raw.fix) return null;
+  const text = fs.readFileSync(
+    path.join(project.rootPath, raw.location.filePath),
+    "utf8",
+  );
+  return {
+    description: describeFix(raw.fix),
+    proposedSnippet: previewFixedLine(text, raw.fix, raw.location.line),
+  };
+}
+
+function createFinding(
+  db: Db,
+  project: Project,
+  controlId: string,
+  assessmentId: string,
+  raw: RawFinding,
+): void {
+  const now = new Date().toISOString();
+  const guidance = guidanceFor(raw.checkId) ?? {
+    impact: "Impact not documented for this check.",
+    howToFix: "See the requirement description.",
+  };
+  const finding: Finding = {
+    id: crypto.randomUUID(),
+    projectId: project.id,
+    controlId,
+    assessmentId,
+    checkId: raw.checkId,
+    status: "open",
+    kind: raw.kind,
+    severity: raw.severity,
+    confidence: raw.confidence,
+    reason: raw.reason,
+    location: raw.location,
+    fix: raw.fix,
+    explanations: [deterministicExplanation(raw.reason, guidance)],
+    detectedAt: now,
+  };
+  db.findings.push(finding);
+
+  const suggestion = buildSuggestion(project, raw);
+  const remediation: Remediation = {
+    id: crypto.randomUUID(),
+    findingId: finding.id,
+    status: suggestion ? "suggested" : "detected",
+    suggestion,
+    history: suggestion
+      ? [
+          { status: "detected", at: now },
+          { status: "suggested", at: now, note: suggestion.description },
+        ]
+      : [{ status: "detected", at: now }],
+  };
+  db.remediations.push(remediation);
+
+  addEvidence(db, {
+    kind: "finding_detected",
+    summary: `${raw.checkId}: ${raw.location.filePath}:${raw.location.line} — ${raw.reason}`,
+    projectId: project.id,
+    controlId,
+    findingId: finding.id,
+    assessmentId,
+  });
+}
+
+/**
+ * Re-derives requirement statuses from the findings currently open in the db,
+ * recording status changes (and regressions) as evidence. Used both after a
+ * full assessment and after single-finding events like verification.
+ */
+export function refreshRequirementStatuses(
+  db: Db,
+  projectId: string,
+  assessmentId?: string,
+): void {
+  const now = new Date().toISOString();
+  for (const control of db.controls) {
+    if (control.checkId === null) continue;
+
+    let requirement = db.requirements.find(
+      (candidate) =>
+        candidate.projectId === projectId && candidate.controlId === control.id,
+    );
+    if (
+      requirement &&
+      requirement.status === "not_applicable" &&
+      requirement.determination === "human_review"
+    ) {
+      continue;
+    }
+
+    const openFindings = db.findings.filter(
+      (finding) =>
+        finding.projectId === projectId &&
+        finding.controlId === control.id &&
+        finding.status === "open",
+    );
+    const status = deriveRequirementStatus(openFindings);
+
+    if (!requirement) {
+      requirement = {
+        id: crypto.randomUUID(),
+        projectId,
+        controlId: control.id,
+        status,
+        determination: "automated",
+        updatedAt: now,
+      };
+      db.requirements.push(requirement);
+      continue;
+    }
+
+    if (requirement.status !== status) {
+      const regression = requirement.status === "passed" && status === "failed";
+      addEvidence(db, {
+        kind: "requirement_status_changed",
+        summary: `${control.code} (${control.title}): ${requirement.status} → ${status}${regression ? " — compliance regression" : ""}`,
+        projectId,
+        controlId: control.id,
+        assessmentId,
+        detail: { from: requirement.status, to: status, regression },
+      });
+      requirement.status = status;
+      requirement.determination = "automated";
+      requirement.updatedAt = now;
+    }
+  }
+}
+
+export function runAssessment(db: Db, projectId: string): Assessment {
+  const project = db.projects.find((candidate) => candidate.id === projectId);
+  if (!project) throw new Error(`Unknown project: ${projectId}`);
+
+  const startedAt = new Date().toISOString();
+  const { findings: rawFindings, filesScanned } = scanProject(project.rootPath);
+  const assessmentId = crypto.randomUUID();
+
+  for (const control of db.controls) {
+    if (control.checkId === null) continue;
+    const rawForControl = rawFindings.filter(
+      (raw) => raw.checkId === control.checkId,
+    );
+    const openFindings = db.findings.filter(
+      (finding) =>
+        finding.projectId === projectId &&
+        finding.controlId === control.id &&
+        finding.status === "open",
+    );
+    const dismissedFindings = db.findings.filter(
+      (finding) =>
+        finding.projectId === projectId &&
+        finding.controlId === control.id &&
+        finding.status === "dismissed",
+    );
+
+    const matchedIds = new Set<string>();
+    for (const raw of rawForControl) {
+      if (dismissedFindings.some((finding) => sameInstance(finding, raw))) {
+        continue;
+      }
+      const existing = openFindings.find(
+        (finding) => !matchedIds.has(finding.id) && sameInstance(finding, raw),
+      );
+      if (existing) {
+        matchedIds.add(existing.id);
+        existing.assessmentId = assessmentId;
+        existing.fix = mergeFix(existing.fix, raw.fix);
+        existing.location = raw.location;
+      } else {
+        createFinding(db, project, control.id, assessmentId, raw);
+      }
+    }
+
+    for (const finding of openFindings) {
+      if (matchedIds.has(finding.id)) continue;
+      finding.status = "resolved";
+      finding.resolvedNote = "No longer detected by the latest assessment.";
+      addEvidence(db, {
+        kind: "finding_resolved",
+        summary: `${finding.checkId}: ${finding.location.filePath}:${finding.location.line} no longer detected`,
+        projectId,
+        controlId: control.id,
+        findingId: finding.id,
+        assessmentId,
+      });
+    }
+  }
+
+  refreshRequirementStatuses(db, projectId, assessmentId);
+
+  const summary: Record<RequirementStatus, number> = {
+    passed: 0,
+    failed: 0,
+    needs_review: 0,
+    not_applicable: 0,
+    unable_to_verify: 0,
+  };
+  for (const requirement of db.requirements) {
+    if (requirement.projectId === projectId) summary[requirement.status] += 1;
+  }
+
+  const assessment: Assessment = {
+    id: assessmentId,
+    projectId,
+    startedAt,
+    completedAt: new Date().toISOString(),
+    filesScanned,
+    summary,
+  };
+  db.assessments.push(assessment);
+  addEvidence(db, {
+    kind: "assessment_completed",
+    summary: `Assessment of "${project.name}": ${filesScanned} files scanned — ${summary.passed} passed, ${summary.failed} failed, ${summary.needs_review} need review`,
+    projectId,
+    assessmentId,
+    detail: { ...summary, filesScanned },
+  });
+
+  return assessment;
+}

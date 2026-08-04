@@ -44,10 +44,10 @@ The domain model must stay **framework-agnostic** (requirements/controls, not "a
 
 - **Language:** TypeScript (strict mode) everywhere
 - **Frontend/App:** Next.js 16 (App Router) + React 19
-- **Styling/UI:** Tailwind CSS 4 + shadcn/ui
-- **Database:** PostgreSQL with a typed ORM (Prisma or Drizzle)
-- **Analysis engine:** deterministic static analysis (e.g. axe-core, eslint-plugin-jsx-a11y, custom AST checks) as the source of truth; AI augments, never replaces it
-- **AI:** Vercel AI SDK for explanation/remediation features; provider-agnostic
+- **Styling/UI:** Tailwind CSS 4 (hand-rolled components for the MVP; shadcn/ui can be adopted later)
+- **Persistence:** JSON file store in `.data/db.json` behind `src/server/db.ts` for the MVP; PostgreSQL with a typed ORM is the target when multi-user needs arrive
+- **Analysis engine:** deterministic TypeScript AST checks in `src/analysis/` as the source of truth; AI augments, never replaces it
+- **AI:** Vercel AI SDK for explanations (optional, gated by `AI_GATEWAY_API_KEY`); deterministic explanations are the baseline
 - **Testing:** Vitest + React Testing Library (jsdom)
 - **Linting:** ESLint 9 flat config with `eslint-config-next` + strict `eslint-plugin-jsx-a11y`
 
@@ -126,12 +126,19 @@ compliance-engineering-product-spec.md   Product spec (source of truth)
 AGENTS.md                                This file
 docs/ai/                                 AI-facing design docs (architecture, decisions)
 .cursor/rules/                           Cursor rules (product context, conventions)
+src/core/                                Framework-agnostic domain core (types, statuses, transitions)
+src/analysis/                            Deterministic analysis engine (AST checks, scanner, fixes)
+src/adapters/rgaa/                       RGAA/WCAG framework adapter (controls, guidance)
+src/ai/                                  AI explainer (optional, provenance-tagged)
+src/server/                              JSON store, seed, assessment service, server actions
 src/app/                                 Next.js App Router routes
-src/core/                                Framework-agnostic domain core (to be created)
-src/adapters/                            Framework adapters, e.g. RGAA/WCAG (to be created)
-src/analysis/                            Deterministic analysis engine (to be created)
-src/ai/                                  AI services (to be created)
+src/components/                          Shared UI (badges, cards, nav)
+fixtures/sample-shop/                    Sample project with deliberate violations — never linted
+.data/                                   Local store + assessed workspaces (gitignored)
 ```
+
+`fixtures/` and `.data/` are excluded from tsconfig, ESLint, and Vitest on
+purpose: they contain code that must keep its accessibility violations.
 
 ## When Building Features
 

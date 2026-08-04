@@ -1,6 +1,6 @@
 # Architecture Overview (AI-facing)
 
-High-level target architecture derived from the product spec. Update this document as the system takes shape — it is the map AI agents use before touching code.
+High-level architecture derived from the product spec. The MVP implements every box below: core in `src/core/`, adapters in `src/adapters/`, analysis in `src/analysis/`, AI services in `src/ai/`, and the store/assessment service/server actions in `src/server/`. The repo connector is currently a seeded local workspace copy of `fixtures/sample-shop` (GitHub connectors come later), and persistence is a JSON file store behind `src/server/db.ts` (see the decision log).
 
 ## System Shape
 

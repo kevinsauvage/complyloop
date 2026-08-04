@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ComplyLoop — Compliance Engineering Platform
 
-## Getting Started
+A developer-first compliance engineering platform that turns compliance
+requirements into actionable, verifiable engineering work:
 
-First, run the development server:
+> **Requirement → Assessment → Finding → Explanation → Remediation →
+> Verification → Evidence → Continuous monitoring**
+
+The MVP covers **accessibility compliance (RGAA 4 / WCAG 2.1)** for
+React/Next.js/TypeScript codebases. The domain core is framework-agnostic so
+other compliance frameworks (SOC 2, ISO 27001, EU CRA, EAA, custom controls)
+can be added as adapters. Full product specification:
+[`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md).
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). A sample project
+(`fixtures/sample-shop`, copied to a disposable workspace under `.data/`) is
+connected automatically — click **Run assessment** and walk the loop:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Assess** — six deterministic AST checks scan the connected code.
+2. **Understand** — each finding explains what failed, why, where, its impact,
+   and confidence.
+3. **Remediate** — review the suggested fix (edit e.g. the proposed alt text),
+   approve it, and apply it to the file.
+4. **Verify** — the platform re-runs the check and only then marks the fix
+   verified.
+5. **Evidence** — every step lands in an append-only evidence log, exportable
+   as JSON.
+6. **Monitor** — re-assessments detect regressions (try **Reset sample
+   project**, then run the assessment again).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Set `AI_GATEWAY_API_KEY` to enable AI-generated explanations; deterministic
+explanations remain the baseline either way — AI is never the source of truth.
 
-## Learn More
+## Commands
 
-To learn more about Next.js, take a look at the following resources:
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Dev server (Turbopack) |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint (incl. strict jsx-a11y) |
+| `npm run typecheck` | TypeScript, strict |
+| `npm run test` | Vitest test suite |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Architecture
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/core/       Framework-agnostic domain: entities, statuses, transitions
+src/analysis/   Deterministic engine: TS AST checks, scanner, fix applier
+src/adapters/   Framework adapters (RGAA/WCAG first)
+src/ai/         AI explainer (optional, provenance-tagged, never sets statuses)
+src/server/     JSON store, seeding, assessment service, server actions
+src/app/        Next.js App Router UI
+fixtures/       Sample project with deliberate violations (never linted)
+```
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [`docs/ai/architecture.md`](./docs/ai/architecture.md) for the full
+picture and [`docs/ai/decisions.md`](./docs/ai/decisions.md) for the decision
+log. Agent-facing conventions live in [`AGENTS.md`](./AGENTS.md).

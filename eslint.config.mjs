@@ -21,12 +21,16 @@ const eslintConfig = defineConfig([
     },
   },
   // Override default ignores of eslint-config-next.
+  // `fixtures/` and `.data/` contain sample code with deliberate accessibility
+  // violations for the platform to detect — they must not be linted.
   globalIgnores([
     ".next/**",
     "out/**",
     "build/**",
     "coverage/**",
     "next-env.d.ts",
+    "fixtures/**",
+    ".data/**",
   ]),
 ]);
 

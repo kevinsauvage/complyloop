@@ -4,6 +4,20 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-04 — MVP implementation choices
+
+**Context:** First working MVP of the full loop (assess → explain → remediate → verify → evidence) built and verified end-to-end in the browser.
+
+**Decision:**
+- **Persistence:** JSON file store (`.data/db.json`) behind `src/server/db.ts` instead of PostgreSQL — no external service required to run the demo; the module boundary keeps a later Postgres swap contained. Evidence stays append-only at the API level (`addEvidence`).
+- **UI:** hand-rolled Tailwind components instead of shadcn/ui — the MVP needs only badges/cards/tables/forms; fewer moving parts. shadcn remains an option later.
+- **Analysis:** custom TypeScript-AST checks (six RGAA/WCAG criteria) instead of axe-core — axe audits rendered DOM, but the product assesses *source code* and must map findings to exact file/line/element spans to power auto-fixes.
+- **AI:** deterministic explanations generated at detection are the baseline; AI explanations are an optional enhancement gated by `AI_GATEWAY_API_KEY`, provenance-tagged, and never set statuses.
+- **Sample target:** `fixtures/sample-shop` is copied into a `.data/` workspace at seed time so fixes and resets never touch the committed fixtures.
+- **Verification semantics:** a remediation is verified by re-scanning the file and confirming the *specific violation instance* (matched by snippet, then line) is gone; warnings never block verification.
+
+**Consequence:** The demo runs with `npm install && npm run dev` and nothing else; every seam that will change at scale (store, checks registry, AI) sits behind a small module boundary.
+
 ## 2026-08-04 — Project scaffold, lint, and test tooling
 
 **Context:** First concrete setup after the stack decision. Needed a working app skeleton plus quality gates.
