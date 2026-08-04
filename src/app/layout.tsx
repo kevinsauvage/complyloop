@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthControls } from "@/components/auth-controls";
 import { NavLinks } from "@/components/nav-links";
 import "./globals.css";
 
@@ -37,9 +38,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <nav aria-label="Main">
               <NavLinks />
             </nav>
-            <p className="mt-auto px-3 text-xs text-zinc-400">
-              MVP — RGAA / WCAG for React &amp; Next.js
-            </p>
+            <div className="mt-auto flex flex-col gap-4">
+              <AuthControls />
+              <p className="px-3 text-xs text-zinc-400">
+                MVP — RGAA / WCAG for React &amp; Next.js
+              </p>
+            </div>
           </aside>
           <main className="min-w-0 flex-1 px-8 py-8">
             <div className="mx-auto max-w-5xl">{children}</div>

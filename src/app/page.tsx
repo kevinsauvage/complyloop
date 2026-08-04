@@ -3,12 +3,12 @@ import {
   RequirementStatusBadge,
   SeverityBadge,
 } from "@/components/badges";
-import { ConnectProjectForm } from "@/components/connect-project-form";
+import { ConnectProjectPanel } from "@/components/connect-project-panel";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
 import { severityRank } from "@/core/labels";
 import { clusterFindings } from "@/core/root-cause";
-import type { RequirementStatus } from "@/core/types";
+import type { Project, RequirementStatus } from "@/core/types";
 import { resetProjectAction, runAssessmentAction } from "@/server/actions";
 import { controlById, getWorkspace } from "@/server/workspace";
 
@@ -23,15 +23,28 @@ const STATUS_ORDER: RequirementStatus[] = [
 ];
 
 function projectDescription(
-  project: { name: string; source: string; rootPath: string; sourceRef?: string },
+  project: Project,
   latestAssessment: { completedAt: string; filesScanned: number } | undefined,
 ): string {
-  const sourceBit =
-    project.source === "git"
-      ? `cloned from ${project.sourceRef ?? "git"}`
-      : project.source === "local"
-        ? project.rootPath
-        : "sample workspace";
+  let sourceBit: string;
+  switch (project.source) {
+    case "github":
+      sourceBit = `GitHub ${project.github?.fullName ?? project.sourceRef ?? "repo"}`;
+      break;
+    case "git":
+      sourceBit = `cloned from ${project.sourceRef ?? "git"}`;
+      break;
+    case "local":
+      sourceBit = project.rootPath;
+      break;
+    case "sample":
+      sourceBit = "sample workspace";
+      break;
+    default: {
+      const _exhaustive: never = project.source;
+      throw new Error(`Unhandled project source: ${_exhaustive}`);
+    }
+  }
   const assessmentBit = latestAssessment
     ? `last assessed ${formatDateTime(latestAssessment.completedAt)}, ${latestAssessment.filesScanned} files scanned`
     : "not assessed yet";
@@ -39,7 +52,7 @@ function projectDescription(
 }
 
 export default async function DashboardPage() {
-  const { db, project } = getWorkspace();
+  const { db, project, visibleProjects } = await getWorkspace();
   const latestAssessment = db.assessments
     .filter((assessment) => assessment.projectId === project.id)
     .at(-1);
@@ -101,14 +114,14 @@ export default async function DashboardPage() {
 
       <div className="mb-6 flex flex-wrap items-center gap-4">
         <ProjectSwitcher
-          projects={db.projects}
+          projects={visibleProjects}
           activeProjectId={project.id}
         />
       </div>
 
       <div className="mb-6">
         <Card title="Connect a project">
-          <ConnectProjectForm />
+          <ConnectProjectPanel />
         </Card>
       </div>
 
@@ -116,8 +129,8 @@ export default async function DashboardPage() {
         <EmptyState title="Run your first assessment">
           <p>
             &quot;{project.name}&quot; is connected. Run an assessment to evaluate it
-            against the RGAA/WCAG requirements, or connect another local path / git
-            URL above.
+            against the RGAA/WCAG requirements, or connect a GitHub repository /
+            local path above.
           </p>
         </EmptyState>
       ) : (

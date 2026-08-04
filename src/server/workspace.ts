@@ -1,25 +1,35 @@
+import { auth } from "@/auth";
 import type { Control, Finding, Project, Remediation } from "@/core/types";
 import { loadDb, saveDb, type Db } from "./db";
+import { resolveActiveProject, visibleProjects } from "./project-visibility";
 import { ensureSeeded } from "./seed";
 
 export interface Workspace {
   db: Db;
   project: Project;
+  /** Auth.js user id when signed in; null for the unsigned demo. */
+  userId: string | null;
+  /** Projects the current viewer may switch between. */
+  visibleProjects: Project[];
 }
 
 /** Loads the store, seeding the framework and sample project on first use. */
-export function getWorkspace(): Workspace {
+export async function getWorkspace(): Promise<Workspace> {
   const db = loadDb();
   if (ensureSeeded(db)) saveDb(db);
-  const project =
-    db.projects.find((candidate) => candidate.id === db.activeProjectId) ??
-    db.projects[0];
+
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  const visible = visibleProjects(db.projects, userId);
+  const project = resolveActiveProject(db.projects, db.activeProjectId, userId);
   if (!project) throw new Error("No projects connected.");
+
   if (db.activeProjectId !== project.id) {
     db.activeProjectId = project.id;
     saveDb(db);
   }
-  return { db, project };
+
+  return { db, project, userId, visibleProjects: visible };
 }
 
 export function controlById(db: Db, controlId: string): Control {

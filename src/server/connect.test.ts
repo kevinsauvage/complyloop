@@ -7,10 +7,12 @@ import {
   ConnectError,
   connectLocalPath,
   deriveProjectName,
+  disconnectGitHubRepo,
   isLikelyGitUrl,
   setActiveProject,
 } from "./connect";
 import type { Db } from "./db";
+import { workspacesDir } from "./db";
 
 function emptyDb(): Db {
   return {
@@ -110,5 +112,99 @@ describe("setActiveProject", () => {
 
     setActiveProject(db, projectA.id);
     expect(db.activeProjectId).toBe(projectA.id);
+  });
+});
+
+describe("disconnectGitHubRepo", () => {
+  it("removes the project, workspace clone, and records evidence", () => {
+    const sampleRoot = makeProjectDir({
+      "sample.tsx": `export const S = () => null;`,
+    });
+    const cloneRoot = path.join(
+      workspacesDir(),
+      `disconnect-test-${crypto.randomUUID()}`,
+    );
+    fs.mkdirSync(cloneRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(cloneRoot, "App.tsx"),
+      `export const App = () => null;\n`,
+    );
+    tempDirs.push(cloneRoot);
+
+    const db = emptyDb();
+    db.projects.push({
+      id: "sample",
+      name: "sample-shop",
+      rootPath: sampleRoot,
+      source: "sample",
+      createdAt: new Date().toISOString(),
+    });
+    db.projects.push({
+      id: "gh-1",
+      name: "shop",
+      rootPath: cloneRoot,
+      source: "github",
+      sourceRef: "https://github.com/acme/shop",
+      ownerUserId: "user-a",
+      github: {
+        fullName: "acme/shop",
+        defaultBranch: "main",
+        private: false,
+      },
+      createdAt: new Date().toISOString(),
+    });
+    db.activeProjectId = "gh-1";
+    db.findings.push({
+      id: "f1",
+      projectId: "gh-1",
+      controlId: "ctl-img-alt",
+      assessmentId: "a1",
+      checkId: "img-alt",
+      status: "open",
+      kind: "violation",
+      severity: "serious",
+      confidence: "high",
+      reason: "fail",
+      location: {
+        filePath: "App.tsx",
+        line: 1,
+        column: 1,
+        snippet: "<x />",
+        span: { start: 0, end: 1 },
+      },
+      fix: null,
+      explanations: [],
+      detectedAt: new Date().toISOString(),
+    });
+
+    disconnectGitHubRepo(db, "gh-1", "user-a");
+
+    expect(db.projects.map((project) => project.id)).toEqual(["sample"]);
+    expect(db.activeProjectId).toBe("sample");
+    expect(db.findings).toHaveLength(0);
+    expect(fs.existsSync(cloneRoot)).toBe(false);
+    expect(
+      db.evidence.some((record) => record.kind === "project_disconnected"),
+    ).toBe(true);
+  });
+
+  it("rejects disconnecting another user's project", () => {
+    const db = emptyDb();
+    db.projects.push({
+      id: "gh-1",
+      name: "shop",
+      rootPath: "/tmp/shop",
+      source: "github",
+      ownerUserId: "user-a",
+      github: {
+        fullName: "acme/shop",
+        defaultBranch: "main",
+        private: false,
+      },
+      createdAt: new Date().toISOString(),
+    });
+    expect(() => disconnectGitHubRepo(db, "gh-1", "user-b")).toThrow(
+      /your own GitHub projects/,
+    );
   });
 });

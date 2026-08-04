@@ -7,6 +7,7 @@ import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
 import { applyFix } from "@/analysis/fixes";
 import { scanFile } from "@/analysis/scan";
+import { auth, getGitHubAccessToken } from "@/auth";
 import { advanceRemediation } from "@/core/remediation";
 import type {
   Dismissal,
@@ -21,10 +22,13 @@ import {
 } from "./assessment";
 import {
   ConnectError,
+  connectGitHubRepo,
   connectProjectInput,
+  disconnectGitHubRepo,
   setActiveProject,
 } from "./connect";
 import { addEvidence, saveDb, type Db } from "./db";
+import { fetchGitHubRepo } from "./github";
 import { preparePullRequest } from "./pr";
 import {
   importCustomControl,
@@ -83,14 +87,14 @@ function locateViolation(db: Db, finding: Finding) {
 }
 
 export async function runAssessmentAction(): Promise<void> {
-  const { db, project } = getWorkspace();
+  const { db, project } = await getWorkspace();
   runAssessment(db, project.id);
   saveDb(db);
   refresh();
 }
 
 export async function resetProjectAction(): Promise<void> {
-  const { db, project } = getWorkspace();
+  const { db, project } = await getWorkspace();
   if (project.source !== "sample") {
     throw new Error("Only the sample project can be reset.");
   }
@@ -113,7 +117,7 @@ export async function connectProjectAction(
     return { error: "Enter a local path or a git repository URL." };
   }
 
-  const { db } = getWorkspace();
+  const { db } = await getWorkspace();
   try {
     connectProjectInput(db, input);
     saveDb(db);
@@ -132,17 +136,110 @@ export async function switchProjectAction(formData: FormData): Promise<void> {
   if (typeof projectId !== "string" || projectId.length === 0) {
     throw new Error("A project id is required.");
   }
-  const { db } = getWorkspace();
-  setActiveProject(db, projectId);
+  const { db, userId } = await getWorkspace();
+  setActiveProject(db, projectId, userId);
   saveDb(db);
   refresh();
+}
+
+export type ConnectGitHubFormState = {
+  error: string | null;
+};
+
+export async function connectGitHubRepoAction(
+  _previous: ConnectGitHubFormState,
+  formData: FormData,
+): Promise<ConnectGitHubFormState> {
+  const fullNameRaw = formData.get("fullName");
+  if (typeof fullNameRaw !== "string" || fullNameRaw.trim().length === 0) {
+    return { error: "Select a GitHub repository." };
+  }
+  const fullName = fullNameRaw.trim();
+
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return { error: "Sign in with GitHub to connect a repository." };
+  }
+
+  const accessToken = await getGitHubAccessToken();
+  if (!accessToken) {
+    return {
+      error:
+        "GitHub access token missing. Sign out and sign in again to grant repo access.",
+    };
+  }
+
+  const { db } = await getWorkspace();
+  const alreadyConnected = db.projects.some(
+    (project) =>
+      project.source === "github" &&
+      project.ownerUserId === userId &&
+      project.github?.fullName === fullName,
+  );
+  if (alreadyConnected) {
+    return { error: `${fullName} is already connected. Disconnect it first.` };
+  }
+
+  try {
+    const repo = await fetchGitHubRepo(accessToken, fullName);
+    connectGitHubRepo(db, {
+      fullName: repo.fullName,
+      cloneUrl: repo.cloneUrl,
+      defaultBranch: repo.defaultBranch,
+      private: repo.private,
+      ownerUserId: userId,
+      accessToken,
+    });
+    saveDb(db);
+    refresh();
+    return { error: null };
+  } catch (error) {
+    if (error instanceof ConnectError) {
+      return { error: error.message };
+    }
+    throw error;
+  }
+}
+
+export type DisconnectGitHubFormState = {
+  error: string | null;
+};
+
+export async function disconnectGitHubRepoAction(
+  _previous: DisconnectGitHubFormState,
+  formData: FormData,
+): Promise<DisconnectGitHubFormState> {
+  const projectIdRaw = formData.get("projectId");
+  if (typeof projectIdRaw !== "string" || projectIdRaw.length === 0) {
+    return { error: "Select a connected project to disconnect." };
+  }
+
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return { error: "Sign in with GitHub to disconnect a repository." };
+  }
+
+  const { db } = await getWorkspace();
+  try {
+    disconnectGitHubRepo(db, projectIdRaw, userId);
+    saveDb(db);
+    refresh();
+    return { error: null };
+  } catch (error) {
+    if (error instanceof ConnectError) {
+      return { error: error.message };
+    }
+    throw error;
+  }
 }
 
 export async function approveRemediationAction(
   findingId: string,
   formData: FormData,
 ): Promise<void> {
-  const { db } = getWorkspace();
+  const { db } = await getWorkspace();
   const finding = findingById(db, findingId);
   const remediation = remediationForFinding(db, findingId);
 
@@ -181,7 +278,7 @@ export async function approveRemediationAction(
 }
 
 export async function applyRemediationAction(findingId: string): Promise<void> {
-  const { db } = getWorkspace();
+  const { db } = await getWorkspace();
   const finding = findingById(db, findingId);
   const remediation = remediationForFinding(db, findingId);
   if (!finding.fix) throw new Error("This finding has no automatable fix.");
@@ -214,7 +311,7 @@ export async function applyRemediationAction(findingId: string): Promise<void> {
 }
 
 export async function verifyRemediationAction(findingId: string): Promise<void> {
-  const { db } = getWorkspace();
+  const { db } = await getWorkspace();
   const finding = findingById(db, findingId);
   const remediation = remediationForFinding(db, findingId);
 
@@ -256,7 +353,7 @@ export async function dismissFindingAction(
   findingId: string,
   formData: FormData,
 ): Promise<void> {
-  const { db } = getWorkspace();
+  const { db } = await getWorkspace();
   const finding = findingById(db, findingId);
 
   const reason = formData.get("reason");
@@ -285,7 +382,7 @@ export async function dismissFindingAction(
 }
 
 export async function generateAiExplanationAction(findingId: string): Promise<void> {
-  const { db } = getWorkspace();
+  const { db } = await getWorkspace();
   const finding = findingById(db, findingId);
   const control = controlById(db, finding.controlId);
 
@@ -298,7 +395,7 @@ export async function generateAiExplanationAction(findingId: string): Promise<vo
 }
 
 export async function generateAiRemediationAction(findingId: string): Promise<void> {
-  const { db } = getWorkspace();
+  const { db } = await getWorkspace();
   const finding = findingById(db, findingId);
   const control = controlById(db, finding.controlId);
   const remediation = remediationForFinding(db, findingId);
@@ -369,7 +466,7 @@ export async function markRemediationImplementedAction(
   findingId: string,
   formData: FormData,
 ): Promise<void> {
-  const { db } = getWorkspace();
+  const { db } = await getWorkspace();
   const finding = findingById(db, findingId);
   const remediation = remediationForFinding(db, findingId);
   const noteRaw = formData.get("note");
@@ -399,7 +496,7 @@ export async function manualVerifyRemediationAction(
   findingId: string,
   formData: FormData,
 ): Promise<void> {
-  const { db } = getWorkspace();
+  const { db } = await getWorkspace();
   const finding = findingById(db, findingId);
   const remediation = remediationForFinding(db, findingId);
   const noteRaw = formData.get("note");
@@ -446,7 +543,7 @@ export async function markRequirementExceptionAction(
   requirementId: string,
   formData: FormData,
 ): Promise<void> {
-  const { db, project } = getWorkspace();
+  const { db, project } = await getWorkspace();
   const requirement = db.requirements.find(
     (candidate) => candidate.id === requirementId,
   );
@@ -518,7 +615,7 @@ export async function markRequirementExceptionAction(
 export async function updateRequirementScopeAction(
   formData: FormData,
 ): Promise<void> {
-  const { db, project } = getWorkspace();
+  const { db, project } = await getWorkspace();
   const selected = formData
     .getAll("controlId")
     .filter((value): value is string => typeof value === "string");
@@ -530,7 +627,7 @@ export async function updateRequirementScopeAction(
 export async function importCustomControlAction(
   formData: FormData,
 ): Promise<void> {
-  const { db, project } = getWorkspace();
+  const { db, project } = await getWorkspace();
   const code = formData.get("code");
   const title = formData.get("title");
   const description = formData.get("description");
@@ -566,7 +663,7 @@ export async function createPullRequestAction(
 ): Promise<CreatePrFormState> {
   void previous;
   void formData;
-  const { db } = getWorkspace();
+  const { db } = await getWorkspace();
   const finding = findingById(db, findingId);
   const control = controlById(db, finding.controlId);
   const remediation = remediationForFinding(db, findingId);
@@ -612,7 +709,7 @@ export async function createPullRequestAction(
 export async function clearRequirementExceptionAction(
   requirementId: string,
 ): Promise<void> {
-  const { db, project } = getWorkspace();
+  const { db, project } = await getWorkspace();
   const requirement = db.requirements.find(
     (candidate) => candidate.id === requirementId,
   );

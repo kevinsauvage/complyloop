@@ -21,8 +21,23 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). A sample project
 (`fixtures/sample-shop`, copied to a disposable workspace under `.data/`) is
-connected automatically. On the dashboard you can also **connect a local path**
-(assessed in place) or a **git URL** (shallow-cloned into `.data/workspaces/`).
+connected automatically — no sign-in required for the demo.
+
+### Connect a GitHub repository (recommended)
+
+1. Create a GitHub OAuth App under
+   [Developer settings](https://github.com/settings/developers):
+   - Homepage URL: `http://localhost:3000`
+   - Authorization callback URL: `http://localhost:3000/api/auth/callback/github`
+2. Copy `.env.example` to `.env.local` and set `AUTH_SECRET`,
+   `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET`.
+3. Restart `npm run dev`, click **Sign in with GitHub**, then **Connect** a
+   repository from the dashboard picker.
+
+Without those env vars the sample project and **Advanced: local path or git
+URL** still work. Local paths are assessed in place; git/GitHub clones land in
+`.data/workspaces/`.
+
 Then click **Run assessment** and walk the loop:
 
 1. **Assess** — six deterministic AST checks scan the connected code.
@@ -54,6 +69,7 @@ AI is never the source of truth.
 | `npm run lint` | ESLint (incl. strict jsx-a11y) |
 | `npm run typecheck` | TypeScript, strict |
 | `npm run test` | Vitest test suite |
+| `npm run check -- [path]` | CI gate: fail on accessibility violations |
 
 ## Architecture
 

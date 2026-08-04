@@ -4,6 +4,19 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-04 — Auth.js + GitHub repo connect
+
+**Context:** Spec success requires connecting real software easily; pasting a path/URL is awkward. Users should sign in and pick a GitHub repository.
+
+**Decision:**
+- **Auth.js v5** (`next-auth`) with the GitHub provider (`read:user user:email repo`). No global route lock — sample + local/git URL remain available unsigned.
+- Access token lives in the encrypted JWT; `getGitHubAccessToken()` reads it server-side only. Session exposes `user.id` / `user.login` for UI.
+- Connected GitHub projects get `source: "github"`, `ownerUserId`, and soft visibility filtering (unowned/sample stay public to the demo).
+- Clone via `https://x-access-token:…@github.com/…` then rewrite `origin` to a clean HTTPS URL so the token is not persisted in the workspace remotes.
+- When `AUTH_*` env vars are missing, sign-in UI is hidden and the advanced local/URL form still works.
+
+**Consequence:** Demo works offline; with a GitHub OAuth App + `.env.local`, users browse and connect repos in one click. Callback URL: `{origin}/api/auth/callback/github`.
+
 ## 2026-08-04 — Continuous monitoring, requirement intake, PR/CI, clustering
 
 **Context:** Spec §7–9, §15, §17, §20, §22, success #1/#8/#11 were still thin after the narrow assess→fix→evidence loop.

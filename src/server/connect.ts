@@ -1,8 +1,9 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import type { Project } from "@/core/types";
+import type { Project, ProjectGitHubMeta } from "@/core/types";
 import { addEvidence, workspacesDir, type Db } from "./db";
+import { isProjectVisible, resolveActiveProject } from "./project-visibility";
 
 const SOURCE_EXTENSIONS = new Set([".tsx", ".jsx", ".ts", ".js"]);
 const IGNORED_DIRECTORIES = new Set(["node_modules", ".next", ".git", "dist", "out"]);
@@ -232,9 +233,186 @@ export function connectProjectInput(db: Db, input: string): Project {
     : connectLocalPath(db, trimmed);
 }
 
-export function setActiveProject(db: Db, projectId: string): Project {
+/** Builds an authenticated HTTPS clone URL for GitHub (token never stored). */
+export function githubCloneUrl(fullName: string, accessToken: string): string {
+  const encoded = encodeURIComponent(accessToken);
+  return `https://x-access-token:${encoded}@github.com/${fullName}.git`;
+}
+
+export interface ConnectGitHubRepoInput {
+  fullName: string;
+  cloneUrl: string;
+  defaultBranch: string;
+  private: boolean;
+  ownerUserId: string;
+  accessToken: string;
+}
+
+/**
+ * Shallow-clones a GitHub repo the user selected after OAuth into
+ * `.data/workspaces/` and scopes it to that user.
+ */
+export function connectGitHubRepo(
+  db: Db,
+  input: ConnectGitHubRepoInput,
+): Project {
+  const fullName = input.fullName.trim();
+  if (!/^[\w.-]+\/[\w.-]+$/.test(fullName)) {
+    throw new ConnectError(`Invalid GitHub repository name: ${fullName}`);
+  }
+
+  const sourceRef = `https://github.com/${fullName}`;
+  const existing = db.projects.find(
+    (project) =>
+      project.source === "github" &&
+      project.ownerUserId === input.ownerUserId &&
+      (project.github?.fullName === fullName || project.sourceRef === sourceRef),
+  );
+  if (existing && fs.existsSync(existing.rootPath)) {
+    db.activeProjectId = existing.id;
+    return existing;
+  }
+
+  const name = uniqueProjectName(db, deriveProjectName(fullName));
+  const rootPath = uniqueWorkspacePath(name);
+  fs.mkdirSync(workspacesDir(), { recursive: true });
+
+  const authenticatedUrl = githubCloneUrl(fullName, input.accessToken);
+
+  try {
+    execFileSync("git", ["clone", "--depth", "1", authenticatedUrl, rootPath], {
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 120_000,
+      env: {
+        ...process.env,
+        // Avoid writing credentials into helper logs.
+        GIT_TERMINAL_PROMPT: "0",
+      },
+    });
+  } catch (error) {
+    fs.rmSync(rootPath, { recursive: true, force: true });
+    const detail =
+      error instanceof Error && "stderr" in error
+        ? String((error as { stderr?: Buffer }).stderr?.toString() ?? error.message)
+        : error instanceof Error
+          ? error.message
+          : "unknown error";
+    throw new ConnectError(`git clone failed: ${detail.trim().slice(0, 400)}`);
+  }
+
+  // Strip embedded token from the remote URL stored in the clone.
+  try {
+    execFileSync(
+      "git",
+      ["-C", rootPath, "remote", "set-url", "origin", sourceRef],
+      { stdio: ["ignore", "pipe", "pipe"] },
+    );
+  } catch {
+    /* non-fatal — assessment does not need origin */
+  }
+
+  try {
+    assertAssessableRoot(rootPath);
+  } catch (error) {
+    fs.rmSync(rootPath, { recursive: true, force: true });
+    throw error;
+  }
+
+  const github: ProjectGitHubMeta = {
+    fullName,
+    defaultBranch: input.defaultBranch || "main",
+    private: input.private,
+  };
+
+  return addConnectedProject(
+    db,
+    {
+      id: crypto.randomUUID(),
+      name,
+      rootPath,
+      source: "github",
+      sourceRef,
+      ownerUserId: input.ownerUserId,
+      github,
+      createdAt: new Date().toISOString(),
+    },
+    `Connected GitHub repository ${fullName}`,
+  );
+}
+
+export function setActiveProject(
+  db: Db,
+  projectId: string,
+  userId?: string | null,
+): Project {
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) throw new ConnectError(`Unknown project: ${projectId}`);
+  if (!isProjectVisible(project, userId)) {
+    throw new ConnectError("You do not have access to that project.");
+  }
   db.activeProjectId = project.id;
   return project;
+}
+
+/**
+ * Disconnects a GitHub project owned by the user: drops project-scoped records,
+ * removes the workspace clone, and records append-only evidence.
+ */
+export function disconnectGitHubRepo(
+  db: Db,
+  projectId: string,
+  userId: string,
+): void {
+  const project = db.projects.find((candidate) => candidate.id === projectId);
+  if (!project) {
+    throw new ConnectError("Unknown project.");
+  }
+  if (project.source !== "github" || project.ownerUserId !== userId) {
+    throw new ConnectError("You can only disconnect your own GitHub projects.");
+  }
+
+  const fullName = project.github?.fullName ?? project.name;
+  const findingIds = new Set(
+    db.findings
+      .filter((finding) => finding.projectId === projectId)
+      .map((finding) => finding.id),
+  );
+
+  db.requirements = db.requirements.filter(
+    (requirement) => requirement.projectId !== projectId,
+  );
+  db.assessments = db.assessments.filter(
+    (assessment) => assessment.projectId !== projectId,
+  );
+  db.findings = db.findings.filter(
+    (finding) => finding.projectId !== projectId,
+  );
+  db.remediations = db.remediations.filter(
+    (remediation) => !findingIds.has(remediation.findingId),
+  );
+  db.projects = db.projects.filter((candidate) => candidate.id !== projectId);
+
+  // Only remove clones we own under the workspaces directory.
+  const workspacesRoot = path.resolve(workspacesDir());
+  const projectRoot = path.resolve(project.rootPath);
+  if (
+    projectRoot === workspacesRoot ||
+    projectRoot.startsWith(`${workspacesRoot}${path.sep}`)
+  ) {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+
+  addEvidence(db, {
+    kind: "project_disconnected",
+    summary: `Disconnected GitHub repository ${fullName}`,
+    projectId: project.id,
+    detail: {
+      source: "github",
+      fullName,
+      rootPath: project.rootPath,
+    },
+  });
+
+  const next = resolveActiveProject(db.projects, db.activeProjectId, userId);
+  db.activeProjectId = next?.id ?? null;
 }

@@ -46,7 +46,13 @@ export interface Control {
 }
 
 /** Where the assessed tree comes from. */
-export type ProjectSource = "sample" | "local" | "git";
+export type ProjectSource = "sample" | "local" | "git" | "github";
+
+export interface ProjectGitHubMeta {
+  fullName: string;
+  defaultBranch: string;
+  private: boolean;
+}
 
 export interface Project {
   id: string;
@@ -57,9 +63,17 @@ export interface Project {
   /**
    * Original user input: absolute local path, or git remote URL.
    * For `sample`, omitted. For `local`, usually equals `rootPath`.
+   * For `github`, the canonical https://github.com/org/repo URL.
    */
   sourceRef?: string;
   createdAt: string;
+  /**
+   * Auth.js user id that connected this project. Undefined = shared demo
+   * (sample / local path) visible without sign-in.
+   */
+  ownerUserId?: string;
+  /** Present when source is `github`. */
+  github?: ProjectGitHubMeta;
   /**
    * Control IDs in scope for this project. `undefined` means every control
    * on the connected frameworks is in scope.
@@ -211,6 +225,7 @@ export interface Remediation {
 
 export type EvidenceKind =
   | "project_connected"
+  | "project_disconnected"
   | "project_reset"
   | "assessment_completed"
   | "finding_detected"

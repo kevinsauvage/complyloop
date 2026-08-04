@@ -7,7 +7,7 @@ import { getWorkspace } from "@/server/workspace";
 export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<Response> {
-  const { db, project } = getWorkspace();
+  const { db, project } = await getWorkspace();
   const markdown = buildComplianceReportMarkdown({
     project,
     framework: db.frameworks[0],

@@ -11,6 +11,8 @@ function sourceLabel(project: Project): string {
       return "local";
     case "git":
       return "git";
+    case "github":
+      return "github";
     default: {
       const _exhaustive: never = project.source;
       throw new Error(`Unhandled project source: ${_exhaustive}`);

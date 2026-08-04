@@ -171,7 +171,7 @@ export default async function FindingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { db, project } = getWorkspace();
+  const { db, project } = await getWorkspace();
   const finding = db.findings.find((candidate) => candidate.id === id);
   if (!finding) notFound();
 

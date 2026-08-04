@@ -14,7 +14,7 @@ import { getWorkspace } from "@/server/workspace";
 export const dynamic = "force-dynamic";
 
 export default async function RequirementsPage() {
-  const { db, project } = getWorkspace();
+  const { db, project } = await getWorkspace();
   const frameworks = db.frameworks;
   const requirements = db.requirements.filter(
     (requirement) => requirement.projectId === project.id,

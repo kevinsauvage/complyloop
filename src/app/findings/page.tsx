@@ -22,7 +22,7 @@ const SECTIONS: Array<{ status: FindingStatus; title: string }> = [
 ];
 
 export default async function FindingsPage() {
-  const { db, project } = getWorkspace();
+  const { db, project } = await getWorkspace();
   const findings = db.findings.filter(
     (finding) => finding.projectId === project.id,
   );

@@ -4,7 +4,7 @@ import { getWorkspace } from "@/server/workspace";
 export const dynamic = "force-dynamic";
 
 export default async function EvidencePage() {
-  const { db } = getWorkspace();
+  const { db } = await getWorkspace();
   const evidence = [...db.evidence].reverse();
 
   return (
