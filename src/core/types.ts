@@ -43,6 +43,11 @@ export interface Control {
   description: string;
   /** Identifier of the automated check that evaluates this control, if any. */
   checkId: string | null;
+  /**
+   * Relative compliance weight for prioritization (default 1).
+   * Higher = fix sooner when severity/confidence are equal.
+   */
+  complianceWeight?: number;
 }
 
 /** Where the assessed tree comes from. */
@@ -137,6 +142,8 @@ export interface Assessment {
   startedAt: string;
   completedAt: string;
   filesScanned: number;
+  /** Whether this run scanned the full tree or only changed JSX files. */
+  scanMode?: "full" | "scoped";
   summary: Record<RequirementStatus, number>;
   snapshot?: AssessmentSnapshot;
   /** Files that changed since the previous assessment, when detectable. */
@@ -173,6 +180,12 @@ export type ProposedFix =
       /** Exact source text that replaces the current attribute value. */
       replacementText: string;
       /** Span of the current attribute value expression. */
+      span: Span;
+    }
+  | {
+      kind: "remove_attribute";
+      attribute: string;
+      /** Span of the attribute including leading whitespace. */
       span: Span;
     };
 

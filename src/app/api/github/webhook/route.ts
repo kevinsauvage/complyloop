@@ -3,6 +3,10 @@ import {
   isWebhookConfigured,
   verifyGitHubSignature,
 } from "@/server/webhook";
+import {
+  hasProcessedWebhookDelivery,
+  recordWebhookDelivery,
+} from "@/server/webhook-deliveries";
 
 export const runtime = "nodejs";
 
@@ -20,6 +24,14 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Invalid signature." }, { status: 401 });
   }
 
+  const deliveryId = request.headers.get("x-github-delivery");
+  if (deliveryId && hasProcessedWebhookDelivery(deliveryId)) {
+    return Response.json(
+      { duplicate: true, deliveryId, message: "Delivery already processed." },
+      { status: 200 },
+    );
+  }
+
   const eventName = request.headers.get("x-github-event") ?? "";
   let payload: Record<string, unknown>;
   try {
@@ -29,5 +41,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const result = await handleGitHubWebhookEvent(eventName, payload);
-  return Response.json(result, { status: result.handled ? 200 : 202 });
+  if (deliveryId) {
+    recordWebhookDelivery(deliveryId);
+  }
+  return Response.json(
+    { ...result, deliveryId: deliveryId ?? undefined },
+    { status: result.handled ? 200 : 202 },
+  );
 }

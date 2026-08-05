@@ -33,7 +33,12 @@ export const rgaaPresets: FrameworkPreset[] = [
     name: "Forms & accessible names",
     description: "Labels, buttons, and links.",
     frameworkId: rgaaFramework.id,
-    controlIds: ["ctl-input-label", "ctl-button-name", "ctl-link-name"],
+    controlIds: [
+      "ctl-input-label",
+      "ctl-button-name",
+      "ctl-link-name",
+      "ctl-form-error-association",
+    ],
   },
   {
     id: "preset-structure",
@@ -45,6 +50,8 @@ export const rgaaPresets: FrameworkPreset[] = [
       "ctl-heading-order",
       "ctl-empty-heading",
       "ctl-focus-order",
+      "ctl-duplicate-id",
+      "ctl-aria-hidden-focusable",
     ],
   },
 ];

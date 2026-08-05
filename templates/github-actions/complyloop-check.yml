@@ -1,5 +1,8 @@
 # Copy into your assessed app as .github/workflows/complyloop-check.yml
-# Requires the ComplyLoop CLI available via npm (or npx from this package).
+#
+# Prerequisites: add @complyloop/check as a dependency, e.g.
+#   npm install ../path-to-complyloop/packages/check
+# (or, once published: npm install @complyloop/check)
 name: ComplyLoop check
 
 on:
@@ -17,5 +20,4 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      # Point at the tree you assess (often ".")
-      - run: npx --yes tsx path/to/complyloop/src/cli/check.ts .
+      - run: npx complyloop-check .

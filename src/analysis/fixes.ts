@@ -17,6 +17,8 @@ export function applyFix(text: string, fix: ProposedFix): string {
         fix.replacementText +
         text.slice(fix.span.end)
       );
+    case "remove_attribute":
+      return text.slice(0, fix.span.start) + text.slice(fix.span.end);
     default: {
       const _exhaustive: never = fix;
       throw new Error(`Unhandled fix kind: ${JSON.stringify(_exhaustive)}`);
@@ -36,6 +38,8 @@ export function describeFix(fix: ProposedFix): string {
       return `Add ${fix.attribute}="${fix.value}" to the element`;
     case "replace_attribute_value":
       return `Replace the ${fix.attribute} value with ${fix.replacementText}`;
+    case "remove_attribute":
+      return `Remove the ${fix.attribute} attribute`;
     default: {
       const _exhaustive: never = fix;
       throw new Error(`Unhandled fix kind: ${JSON.stringify(_exhaustive)}`);

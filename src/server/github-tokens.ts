@@ -140,3 +140,12 @@ export function getStoredGitHubToken(userId: string): string | null {
   }
   return token;
 }
+
+/** Removes a stored token (e.g. on sign-out). */
+export function clearStoredGitHubToken(userId: string): void {
+  if (!userId) return;
+  const store = loadStore();
+  if (!(userId in store.tokens)) return;
+  delete store.tokens[userId];
+  saveStore(store);
+}

@@ -1,4 +1,5 @@
 import {
+  attributeRemovalSpan,
   getAttribute,
   locationOf,
   tagNameOf,
@@ -13,7 +14,8 @@ export const autoplayMediaCheck: AccessibilityCheck = {
     visitJsxTags(source.sourceFile, (node) => {
       const tag = tagNameOf(node);
       if (tag !== "video" && tag !== "audio") return;
-      const autoPlay = getAttribute(node, "autoPlay") ?? getAttribute(node, "autoplay");
+      const autoPlay =
+        getAttribute(node, "autoPlay") ?? getAttribute(node, "autoplay");
       if (!autoPlay) return;
 
       findings.push({
@@ -23,7 +25,15 @@ export const autoplayMediaCheck: AccessibilityCheck = {
         confidence: "high",
         reason: `<${tag}> uses autoPlay, which can disorient users and conflict with accessibility preferences for motion and sound.`,
         location: locationOf(source, node),
-        fix: null,
+        fix: {
+          kind: "remove_attribute",
+          attribute: autoPlay.name.getText(),
+          span: attributeRemovalSpan(
+            autoPlay,
+            source.sourceFile,
+            source.text,
+          ),
+        },
       });
     });
     return findings;

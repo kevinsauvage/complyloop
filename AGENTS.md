@@ -48,7 +48,8 @@ The domain model must stay **framework-agnostic** (requirements/controls, not "a
 - **Persistence:** JSON file store in `.data/db.json` behind `src/server/db.ts` for the MVP; PostgreSQL with a typed ORM is the target when multi-user needs arrive
 - **Auth / GitHub connect:** Auth.js v5 (`next-auth`) with GitHub OAuth (`AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`); sample + local path stay available unsigned; GitHub repo picker requires sign-in
 - **GitHub API / git:** `@octokit/rest` + `@octokit/webhooks-methods`; clones and PR push via `simple-git`; handoff patches via `diff`; source walks via `fast-glob`
-- **Analysis engine:** deterministic TypeScript AST checks in `src/analysis/` as the source of truth; AI augments, never replaces it
+- **Analysis engine:** deterministic TypeScript AST checks in `src/analysis/` as the source of truth (13 checks); AI augments, never replaces it
+- **CI package:** `@complyloop/check` / `npx complyloop-check` (`packages/check`)
 - **AI:** Vercel AI SDK for explanations (optional, gated by `AI_GATEWAY_API_KEY`); deterministic explanations are the baseline
 - **Testing:** Vitest + React Testing Library (jsdom)
 - **Linting:** ESLint 9 flat config with `eslint-config-next` + strict `eslint-plugin-jsx-a11y`

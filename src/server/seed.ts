@@ -37,6 +37,18 @@ export function ensureSeeded(db: Db): boolean {
       if (!existingIds.has(control.id)) {
         db.controls.push(control);
         changed = true;
+      } else {
+        const existing = db.controls.find(
+          (candidate) => candidate.id === control.id,
+        );
+        if (
+          existing &&
+          control.complianceWeight !== undefined &&
+          existing.complianceWeight !== control.complianceWeight
+        ) {
+          existing.complianceWeight = control.complianceWeight;
+          changed = true;
+        }
       }
     }
     if (!db.frameworks.some((framework) => framework.id === rgaaFramework.id)) {

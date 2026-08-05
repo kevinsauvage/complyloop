@@ -28,11 +28,12 @@ DATA_DIR=/data
 AUTH_SECRET=...          # required; also encrypts github-tokens.json
 AUTH_GITHUB_ID=...
 AUTH_GITHUB_SECRET=...
-AUTH_URL=https://complyloop.example.com
+AUTH_URL=https://complyloop.example.com   # required in production with GitHub auth
 GITHUB_WEBHOOK_SECRET=...
 # AI_GATEWAY_API_KEY=...
 ```
 
+OAuth scopes today: `read:user user:email repo` (private clones, PRs, Check Runs). Prefer a GitHub App with tighter permissions before multi-tenant production. Sign-out clears stored encrypted tokens.
 Run `npm run build && npm run start` (or your platform’s Next.js start command). Ensure the volume is writable by the process user.
 
 ### 2. Local / laptop demo

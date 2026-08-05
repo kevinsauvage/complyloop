@@ -44,15 +44,15 @@ const guidance: Record<CheckId, CheckGuidance> = {
   },
   "heading-order": {
     impact:
-      "Skipped heading levels break the document outline that screen reader users rely on to navigate by section.",
+      "Skipped heading levels break the document outline that screen reader users rely on to navigate by section. Jumping from h2 to h4 hides the missing h3 as a landmark.",
     howToFix:
-      "Use consecutive heading levels (h1 → h2 → h3). Do not jump from h2 to h4.",
+      "Rework the outline so levels increase by one (h1 → h2 → h3). Prefer changing the skipped heading\u2019s level rather than inserting empty headings. Do not auto-renumber mechanically — structure must match the page\u2019s real sections.",
   },
   "empty-heading": {
     impact:
-      "Empty headings appear in the outline with no label, confusing screen reader navigation.",
+      "Empty headings appear in the outline with no label, so screen reader users hear \u201cheading level N\u201d with nothing to identify the section.",
     howToFix:
-      "Put descriptive text inside the heading, or provide aria-label when the visible text is elsewhere.",
+      "Put concise, descriptive text inside the heading that names the section. If the visible title lives elsewhere, keep that text and add aria-label on the heading that matches it — never leave an empty <h*>. Removing the heading is correct only when the section should not be in the outline.",
   },
   "iframe-title": {
     impact:
@@ -64,7 +64,25 @@ const guidance: Record<CheckId, CheckGuidance> = {
     impact:
       "Autoplaying audio/video interrupts screen readers, surprises users, and can violate motion or sound preferences.",
     howToFix:
-      "Remove autoPlay. Let users start playback with an explicit control.",
+      "Remove the autoPlay attribute and provide visible play controls (controls is fine). Users must start playback themselves.",
+  },
+  "duplicate-id": {
+    impact:
+      "Duplicate IDs break label associations, aria-labelledby / aria-describedby targets, and in-page links — assistive tech may announce the wrong element.",
+    howToFix:
+      "Give each element a unique id within the document (and within this file as a minimum). Prefer generated ids for lists/maps.",
+  },
+  "form-error-association": {
+    impact:
+      "When an error is not linked to its field, screen reader users may not hear why the form failed or which value to fix.",
+    howToFix:
+      "Put the error text in an element with an id, set aria-describedby on the invalid field to that id, and keep aria-invalid=\"true\" while the error applies.",
+  },
+  "aria-hidden-focusable": {
+    impact:
+      "Keyboard users can focus an element that assistive technologies skip, creating a silent focus trap or dead control.",
+    howToFix:
+      "Remove aria-hidden from focusable elements, or remove them from the tab order (tabIndex={-1} / disabled / inert) when they must stay visually hidden.",
   },
 };
 

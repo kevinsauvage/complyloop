@@ -2,44 +2,46 @@
 
 Snapshot against [`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md) and the current codebase (Aug 2026).
 
-**Status:** Spec §25 first-time loop (connect → assess → explain → remediate → verify → evidence → re-assess) works for a local/demo MVP. Remaining work is PR-native polish, safety for deploy, check depth, and productization.
+**Status:** Spec §25 first-time loop works for a local/demo MVP. P0 and P1 are done; light P2 (auth/webhooks/check package) landed. Remaining productization is Postgres + tenants.
 
 ---
 
 ## Done enough (do not re-open)
 
 - [x] Domain core + statuses + remediation transitions
-- [x] 10 AST accessibility checks + RGAA/WCAG adapter + fixtures
+- [x] 13 AST accessibility checks + RGAA/WCAG adapter + fixtures
 - [x] Connect sample / local / git URL / GitHub OAuth (+ connect/disconnect)
 - [x] Assessment, findings, explanations, AI optional remediations
 - [x] Approve → apply → verify (+ manual verify / mark implemented)
 - [x] Exceptions (N/A, risk, compensating, temporary + expiry)
 - [x] Evidence log + MD/HTML/JSON reports
-- [x] Root-cause clustering + priority scoring (dashboard)
+- [x] Root-cause clustering + priority scoring (dashboard + findings list)
 - [x] Monitoring snapshots, change attribution, webhook re-assess + alerts
-- [x] Native GitHub PR create + handoff diff; `npm run check` + Actions template
+- [x] Native GitHub PR create + handoff diff; `npm run check` / `@complyloop/check` + Actions template
 - [x] Requirement presets + checklist import
+- [x] Human pass, Check Runs, encrypted tokens, durable deploy docs
+- [x] Scoped re-scan, platform CI, auth hardening, webhook idempotency
 
 ---
 
 ## P0 — core loop gaps & safety
 
-1. [x] **Human pass for manual controls** — let reviewers set a custom/checklist requirement to `passed` with a required note + evidence (today imports stay `unable_to_verify` or only exceptions).
-2. [x] **GitHub Check Runs on PR webhooks** — after PR-triggered re-assess, post pass/fail + finding summary on the PR (spec §9).
-3. [x] **Encrypt stored GitHub tokens** — stop plaintext `.data/github-tokens.json`; encrypt at rest with `AUTH_SECRET` (or equivalent) before any shared host.
-4. [x] **Durable deploy story** — document or implement a target with persistent disk (or migrate store first); serverless ephemeral FS breaks `.data/`, clones, and webhooks.
+1. [x] **Human pass for manual controls**
+2. [x] **GitHub Check Runs on PR webhooks**
+3. [x] **Encrypt stored GitHub tokens**
+4. [x] **Durable deploy story**
 
 ---
 
 ## P1 — continuous DX, CI, depth, prioritization
 
-5. [ ] **Customer-friendly CI install** — one-command / published CLI so assessed apps don’t need a monorepo path in the Actions template.
-6. [ ] **Platform quality CI** — GitHub Action running `lint && typecheck && test && build` (current workflow only smoke-checks the violating fixture).
-7. [ ] **Scoped re-scan on change** — when a snapshot diff exists, re-run checks on changed files first (full tree remains fallback).
-8. [ ] **Fixes for newer checks** — safe automatable fixes where missing (`iframe-title` has one; heading-order / empty-heading / autoplay need clear guidance or fixes).
-9. [ ] **Next high-value AST checks** — e.g. form error association, duplicate `id`, common `aria-*` misuse (credibility beyond the current 10).
-10. [ ] **Prioritize Findings list** — use `prioritizeFindings` on `/findings` (dashboard already prioritizes; list still severity-only).
-11. [ ] **Richer priority model** — add control-level compliance weight (and optional remediation difficulty) on top of severity × confidence × cluster.
+5. [x] **Customer-friendly CI install** — `@complyloop/check` / `npx complyloop-check` (workspace package; npm publish later).
+6. [x] **Platform quality CI** — `.github/workflows/ci.yml` runs `lint && typecheck && test && build`.
+7. [x] **Scoped re-scan on change** — changed JSX when snapshot diff exists; full tree fallback.
+8. [x] **Fixes for newer checks** — autoplay `remove_attribute`; stronger heading-order / empty-heading guidance.
+9. [x] **Next high-value AST checks** — duplicate-id, form-error-association, aria-hidden-focusable.
+10. [x] **Prioritize Findings list** — `prioritizeFindings` on `/findings`.
+11. [x] **Richer priority model** — control `complianceWeight`.
 
 ---
 
@@ -47,18 +49,18 @@ Snapshot against [`compliance-engineering-product-spec.md`](./compliance-enginee
 
 12. [ ] **Postgres behind `src/server/db.ts`** — pick Drizzle or Prisma; keep append-only evidence; record choice in `docs/ai/decisions.md`.
 13. [ ] **Orgs / tenants + RBAC** — replace soft `ownerUserId` filtering with real membership and project ACL.
-14. [ ] **Auth production hardening** — require `AUTH_URL`, document least-privilege scopes, revoke/clear stored tokens on sign-out.
-15. [ ] **Webhook idempotency** — dedupe by GitHub delivery id; optional admin re-deliver for failed events.
-16. [ ] **Publishable check package** — e.g. `npx @complyloop/check` for customer repos.
+14. [x] **Auth production hardening** — require `AUTH_URL` when serving production; document scopes; clear tokens on sign-out.
+15. [x] **Webhook idempotency** — dedupe by GitHub delivery id (admin re-deliver still optional).
+16. [x] **Publishable check package** — local `@complyloop/check` bin (npm publish still later).
 
 ---
 
 ## P3 — docs, polish, later
 
-17. [ ] **Rewrite `docs/ai/architecture.md`** — still says sample-only / “GitHub later” and lists axe-core as analysis truth.
-18. [ ] **Align README + old decisions** — “six checks” → ten; mark superseded Initial stack (shadcn / Postgres / axe) as historical.
-19. [ ] **Richer alert UI** — surface who/what changed from monitoring evidence on regression alerts.
-20. [ ] **Later (explicitly deferred)** — shadcn, axe/DOM layer, SOC 2 / ISO adapters, AI test generation, multi-app portfolio risk.
+17. [x] **Rewrite `docs/ai/architecture.md`**
+18. [x] **Align README + old decisions**
+19. [x] **Richer alert UI** — trigger / from→to / change context on regression alerts.
+20. [ ] **Later (explicitly deferred)** — shadcn, axe/DOM layer, SOC 2 / ISO adapters, AI test generation, multi-app portfolio risk; npm publish of `@complyloop/check`.
 
 ---
 
@@ -66,10 +68,10 @@ Snapshot against [`compliance-engineering-product-spec.md`](./compliance-enginee
 
 | Order | Item | Why |
 |------:|------|-----|
-| 1 | Findings list prioritization (P1.10) | Small, high UX value |
-| 2 | Platform quality CI (P1.6) | Protects the gate |
-| 3 | Customer-friendly CI install (P1.5) | Removes monorepo path friction |
-| 4 | Fixes for newer checks (P1.8) | Depth without new rules |
-| 5 | Scoped re-scan on change (P1.7) | Faster continuous loop |
+| 1 | Postgres behind `db.ts` (P2.12) | Durable multi-instance store |
+| 2 | Orgs / tenants + RBAC (P2.13) | Real multi-user ACL |
+| 3 | Publish `@complyloop/check` to npm | Customer install without path |
+| 4 | Admin webhook re-deliver | Ops recovery |
+| 5 | Deferred polish (P3.20) | Only as needed |
 
-When leaving the laptop demo: follow [`docs/deploy.md`](./docs/deploy.md), then **P2.12–13** (Postgres + tenants) before inviting real multi-user traffic.
+When leaving the laptop demo: follow [`docs/deploy.md`](./docs/deploy.md), then **P2.12–13** before inviting real multi-user traffic.

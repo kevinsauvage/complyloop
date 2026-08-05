@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { parseSource } from "../parse";
 import { anchorNameCheck } from "./anchor-name";
+import { ariaHiddenFocusableCheck } from "./aria-hidden-focusable";
 import { buttonNameCheck } from "./button-name";
+import { duplicateIdCheck } from "./duplicate-id";
+import { formErrorAssociationCheck } from "./form-error-association";
 import { htmlLangCheck } from "./html-lang";
 import { imgAltCheck } from "./img-alt";
 import { inputLabelCheck } from "./input-label";
@@ -151,10 +154,45 @@ describe("iframe-title", () => {
 });
 
 describe("autoplay-media", () => {
-  it("flags video with autoPlay", () => {
+  it("flags video with autoPlay and proposes removing the attribute", () => {
     const findings = run(
       autoplayMediaCheck,
       `const A = () => <video src="/x.mp4" autoPlay />;`,
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0].fix).toMatchObject({
+      kind: "remove_attribute",
+      attribute: "autoPlay",
+    });
+  });
+});
+
+describe("duplicate-id", () => {
+  it("flags repeated id values in a file", () => {
+    const findings = run(
+      duplicateIdCheck,
+      `const A = () => (<div><span id="x" /><button id="x" /></div>);`,
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0].reason).toContain('id="x"');
+  });
+});
+
+describe("form-error-association", () => {
+  it("flags aria-invalid without aria-describedby", () => {
+    const findings = run(
+      formErrorAssociationCheck,
+      `const A = () => <input aria-invalid="true" />;`,
+    );
+    expect(findings.some((f) => f.kind === "violation")).toBe(true);
+  });
+});
+
+describe("aria-hidden-focusable", () => {
+  it("flags focusable elements with aria-hidden", () => {
+    const findings = run(
+      ariaHiddenFocusableCheck,
+      `const A = () => <button aria-hidden="true">x</button>;`,
     );
     expect(findings).toHaveLength(1);
   });

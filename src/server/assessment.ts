@@ -3,7 +3,7 @@ import path from "node:path";
 import { guidanceFor } from "@/adapters/rgaa/guidance";
 import { deterministicExplanation } from "@/ai/explainer";
 import { describeFix, previewFixedLine } from "@/analysis/fixes";
-import { scanProject } from "@/analysis/scan";
+import { scanChangedFiles, scanProject } from "@/analysis/scan";
 import type { RawFinding } from "@/analysis/types";
 import { deriveRequirementStatus } from "@/core/requirement-status";
 import type {
@@ -302,7 +302,18 @@ export function runAssessment(db: Db, projectId: string): Assessment {
     });
   }
 
-  const { findings: rawFindings, filesScanned } = scanProject(project.rootPath);
+  const changedJsx = changes
+    .map((change) => change.filePath)
+    .filter((filePath) => /\.(tsx|jsx)$/i.test(filePath));
+  const useScoped = Boolean(previous?.snapshot) && changedJsx.length > 0;
+  const {
+    findings: rawFindings,
+    filesScanned,
+    scanMode,
+  } = useScoped
+    ? scanChangedFiles(project.rootPath, changedJsx)
+    : scanProject(project.rootPath);
+  const scopedFileSet = useScoped ? new Set(changedJsx) : null;
   const assessmentId = crypto.randomUUID();
   const scoped = controlsInScope(db, project);
 
@@ -344,6 +355,13 @@ export function runAssessment(db: Db, projectId: string): Assessment {
 
     for (const finding of openFindings) {
       if (matchedIds.has(finding.id)) continue;
+      // Scoped scans must not resolve findings outside the changed file set.
+      if (
+        scopedFileSet &&
+        !scopedFileSet.has(finding.location.filePath)
+      ) {
+        continue;
+      }
       finding.status = "resolved";
       finding.resolvedNote = "No longer detected by the latest assessment.";
       addEvidence(db, {
@@ -383,6 +401,7 @@ export function runAssessment(db: Db, projectId: string): Assessment {
     startedAt,
     completedAt: new Date().toISOString(),
     filesScanned,
+    scanMode,
     summary,
     snapshot,
     changesSincePrevious: changes,
@@ -390,12 +409,13 @@ export function runAssessment(db: Db, projectId: string): Assessment {
   db.assessments.push(assessment);
   addEvidence(db, {
     kind: "assessment_completed",
-    summary: `Assessment of "${project.name}": ${filesScanned} files scanned — ${summary.passed} passed, ${summary.failed} failed, ${summary.needs_review} need review${changes.length > 0 ? `; ${changes.length} file(s) changed since previous` : ""}`,
+    summary: `Assessment of "${project.name}": ${filesScanned} files scanned (${scanMode})${summary.passed !== undefined ? ` — ${summary.passed} passed, ${summary.failed} failed, ${summary.needs_review} need review` : ""}${changes.length > 0 ? `; ${changes.length} file(s) changed since previous` : ""}`,
     projectId,
     assessmentId,
     detail: {
       ...summary,
       filesScanned,
+      scanMode,
       changedFiles: changes.map((change) => change.filePath),
     },
   });

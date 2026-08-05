@@ -68,6 +68,18 @@ describe("prioritization", () => {
     expect(["1", "2"]).toContain(ordered[0].id);
   });
 
+  it("applies control complianceWeight to the score", () => {
+    const weighted: Control[] = [
+      { ...controls[0], id: "ctl-hi", complianceWeight: 2 },
+      { ...controls[0], id: "ctl-lo", complianceWeight: 1 },
+    ];
+    const hi = { ...finding("1", "img-alt", "a.tsx", "serious"), controlId: "ctl-hi" };
+    const lo = { ...finding("2", "img-alt", "b.tsx", "serious"), controlId: "ctl-lo" };
+    expect(findingPriorityScore(hi, 1, weighted)).toBeGreaterThan(
+      findingPriorityScore(lo, 1, weighted),
+    );
+  });
+
   it("ranks clusters by combined priority", () => {
     const clusters = prioritizeClusters(
       [

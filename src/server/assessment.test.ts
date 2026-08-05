@@ -214,4 +214,27 @@ describe("runAssessment", () => {
         ?.humanPass?.note,
     ).toBe("Verified on staging footer");
   });
+
+  it("scoped re-scan does not resolve findings outside changed files", () => {
+    fs.writeFileSync(path.join(rootPath, "Other.tsx"), BROKEN);
+    runAssessment(db, project.id);
+    const otherFinding = db.findings.find(
+      (finding) => finding.location.filePath === "Other.tsx",
+    );
+    if (!otherFinding) throw new Error("expected Other.tsx finding");
+    expect(otherFinding.status).toBe("open");
+
+    // Only Hero.tsx changes; Other.tsx must stay open under scoped scan.
+    fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
+    const second = runAssessment(db, project.id);
+    expect(second.scanMode).toBe("scoped");
+    expect(
+      db.findings.find((finding) => finding.location.filePath === "Other.tsx")
+        ?.status,
+    ).toBe("open");
+    expect(
+      db.findings.find((finding) => finding.location.filePath === "Hero.tsx")
+        ?.status,
+    ).toBe("resolved");
+  });
 });

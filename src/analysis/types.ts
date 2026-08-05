@@ -17,7 +17,10 @@ export type CheckId =
   | "heading-order"
   | "empty-heading"
   | "iframe-title"
-  | "autoplay-media";
+  | "autoplay-media"
+  | "duplicate-id"
+  | "form-error-association"
+  | "aria-hidden-focusable";
 
 export interface RawFinding {
   checkId: CheckId;

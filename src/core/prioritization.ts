@@ -8,18 +8,29 @@ const CONFIDENCE_BONUS: Record<Finding["confidence"], number> = {
   low: 1,
 };
 
+function controlWeight(
+  finding: Finding,
+  controls: ReadonlyArray<Control>,
+): number {
+  const control = controls.find((candidate) => candidate.id === finding.controlId);
+  const weight = control?.complianceWeight ?? 1;
+  return weight > 0 ? weight : 1;
+}
+
 /**
- * Higher score = fix sooner. Combines severity, confidence, and how many
- * findings share the same root-cause cluster (spec §16–17).
+ * Higher score = fix sooner. Combines severity, confidence, cluster size,
+ * and optional control complianceWeight (spec §16–17).
  */
 export function findingPriorityScore(
   finding: Finding,
   clusterSize: number,
+  controls: ReadonlyArray<Control> = [],
 ): number {
   const severityScore = (4 - severityRank(finding.severity)) * 10;
   const confidenceScore = CONFIDENCE_BONUS[finding.confidence];
   const clusterBonus = Math.max(0, clusterSize - 1) * 4;
-  return severityScore + confidenceScore + clusterBonus;
+  const base = severityScore + confidenceScore + clusterBonus;
+  return base * controlWeight(finding, controls);
 }
 
 export function prioritizeFindings(
@@ -38,9 +49,18 @@ export function prioritizeFindings(
   return [...findings]
     .filter((finding) => finding.status === "open")
     .sort((a, b) => {
-      const scoreA = findingPriorityScore(a, sizeByFinding.get(a.id) ?? 1);
-      const scoreB = findingPriorityScore(b, sizeByFinding.get(b.id) ?? 1);
-      return scoreB - scoreA;
+      const scoreA = findingPriorityScore(
+        a,
+        sizeByFinding.get(a.id) ?? 1,
+        controls,
+      );
+      const scoreB = findingPriorityScore(
+        b,
+        sizeByFinding.get(b.id) ?? 1,
+        controls,
+      );
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      return severityRank(a.severity) - severityRank(b.severity);
     });
 }
 
@@ -59,7 +79,8 @@ export function prioritizeClusters(
         .filter((finding): finding is Finding => finding !== undefined);
       const priorityScore = members.reduce(
         (sum, finding) =>
-          sum + findingPriorityScore(finding, cluster.findingIds.length),
+          sum +
+          findingPriorityScore(finding, cluster.findingIds.length, controls),
         0,
       );
       return {

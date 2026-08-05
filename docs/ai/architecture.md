@@ -1,6 +1,14 @@
 # Architecture Overview (AI-facing)
 
-High-level architecture derived from the product spec. The MVP implements every box below: core in `src/core/`, adapters in `src/adapters/`, analysis in `src/analysis/`, AI services in `src/ai/`, and the store/assessment service/server actions in `src/server/`. The repo connector is currently a seeded local workspace copy of `fixtures/sample-shop` (GitHub connectors come later), and persistence is a JSON file store behind `src/server/db.ts` (see the decision log).
+High-level architecture for ComplyLoop. The MVP implements the core loop in
+`src/core/`, RGAA/WCAG in `src/adapters/rgaa/`, deterministic AST analysis in
+`src/analysis/`, optional AI in `src/ai/`, and persistence/assessment/actions in
+`src/server/`.
+
+**Current connectors:** sample workspace, local path, git URL, and GitHub OAuth
+repo connect. **Persistence:** JSON under `$DATA_DIR` (default `.data/`) behind
+`src/server/db.ts` — Postgres is deferred (no half-migration). See
+`docs/ai/decisions.md` and `docs/deploy.md`.
 
 ## System Shape
 
@@ -14,38 +22,44 @@ High-level architecture derived from the product spec. The MVP implements every 
 │                  Framework-Agnostic Core                │
 │  Frameworks · Controls · Requirements · Assessments     │
 │  Findings · Remediations · Verifications · Evidence     │
-│  Exceptions · Status engine · Prioritization            │
+│  Exceptions · Human pass · Status engine · Priority     │
 └──────┬──────────────────┬──────────────────┬────────────┘
        │                  │                  │
 ┌──────▼───────┐  ┌───────▼────────┐  ┌──────▼───────────┐
 │  Framework   │  │  Analysis      │  │  AI Services     │
 │  Adapters    │  │  Engine        │  │  (explain,       │
-│  (RGAA/WCAG  │  │  (deterministic│  │   suggest,       │
-│   first)     │  │   checks)      │  │   summarize)     │
+│  (RGAA/WCAG  │  │  (TS AST       │  │   remediate;     │
+│   first)     │  │   checks)      │  │   never status)  │
 └──────────────┘  └───────┬────────┘  └──────────────────┘
                           │
                   ┌───────▼────────┐
                   │  Repo Connectors│
-                  │  (GitHub first) │
+                  │  sample/local/  │
+                  │  git/GitHub     │
                   └────────────────┘
 ```
 
 ## Module Responsibilities
 
-- **Framework-agnostic core**: owns the domain model and all status transitions. Knows nothing about accessibility, RGAA, or any specific framework. This is the only module allowed to change requirement/remediation statuses.
-- **Framework adapters**: translate a framework (RGAA/WCAG first) into controls the core understands, and map analysis results back to those controls.
-- **Analysis engine**: deterministic checks only — axe-core, eslint-plugin-jsx-a11y, custom AST checks. Its results are the automated source of truth for pass/fail.
-- **AI services**: explanation, root-cause hypotheses, remediation suggestions, evidence summaries. Output is typed, validated, provenance-tagged, and never sets statuses (see `.cursor/rules/ai-features.mdc`).
-- **Repo connectors**: clone/read connected repositories, watch changes (webhooks/PRs) to trigger re-assessment and regression detection.
+- **Framework-agnostic core**: domain model and status transitions. Knows nothing about RGAA. Only place that changes requirement/remediation statuses.
+- **Framework adapters**: map RGAA/WCAG into controls + developer guidance.
+- **Analysis engine**: **deterministic TypeScript AST checks** (`src/analysis/`) — the automated source of truth for pass/fail. AI and runtime tools (axe, jsx-a11y ESLint for *this* app) do not set requirement status.
+- **AI services**: explanation and remediation suggestions; typed, provenance-tagged, never statuses.
+- **Repo connectors**: sample copy, local path, git clone, GitHub OAuth clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.
 
 ## Key Flows
 
-1. **Assessment**: connector fetches code → adapter selects applicable controls → analysis engine runs checks → core records findings + statuses + evidence.
-2. **Remediation**: finding → AI suggestion (`suggested`) → human approval (`approved`) → change/PR (`implemented`) → automated re-check (`verified`) → evidence appended.
-3. **Continuous monitoring**: repo change event → scoped re-assessment → regression finding if a previously `passed` requirement now fails, with the introducing change attached.
+1. **Assessment**: connector provides a tree → scoped or full AST scan → findings + requirement statuses + append-only evidence. Manual controls stay `unable_to_verify` until human pass or exception.
+2. **Remediation**: finding → suggestion → human approve → apply/PR → re-check → `verified` → evidence.
+3. **Continuous monitoring**: webhook or re-assess → snapshot diff → **scoped re-scan of changed JSX when possible** (full tree otherwise) → regression alerts + optional Check Run on PR heads.
 
 ## Data Invariants
 
 - Evidence is append-only; decisions and exceptions are historized, never hard-deleted.
-- Every status records its determination method (`automated` vs `human_review`).
-- `verified` is only reachable via a deterministic check or an explicit, recorded human verification.
+- Every status records `automated` vs `human_review`.
+- `verified` only via deterministic re-check or recorded human verification.
+- GitHub tokens at rest are encrypted with `AUTH_SECRET`; webhook deliveries are idempotent by `x-github-delivery`.
+
+## Analysis checks (current)
+
+Thirteen AST checks: img-alt, button-name, anchor-name, html-lang, positive-tabindex, input-label, heading-order, empty-heading, iframe-title, autoplay-media, duplicate-id, form-error-association, aria-hidden-focusable. CI gate: `npx complyloop-check` / `@complyloop/check`.

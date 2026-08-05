@@ -69,6 +69,21 @@ export function spanOf(node: ts.Node, sourceFile: ts.SourceFile): Span {
   return { start: node.getStart(sourceFile), end: node.getEnd() };
 }
 
+/** Span of a JSX attribute including leading whitespace (for safe removal). */
+export function attributeRemovalSpan(
+  attr: ts.JsxAttribute,
+  sourceFile: ts.SourceFile,
+  text: string,
+): Span {
+  const start = attr.getStart(sourceFile);
+  const end = attr.getEnd();
+  let adjustedStart = start;
+  while (adjustedStart > 0 && /[ \t\n\r]/.test(text[adjustedStart - 1]!)) {
+    adjustedStart -= 1;
+  }
+  return { start: adjustedStart, end };
+}
+
 export function locationOf(source: ParsedSource, node: ts.Node): CodeLocation {
   const start = node.getStart(source.sourceFile);
   const position = source.sourceFile.getLineAndCharacterOfPosition(start);

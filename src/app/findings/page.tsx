@@ -5,7 +5,10 @@ import {
 } from "@/components/badges";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { severityRank } from "@/core/labels";
-import { prioritizeClusters } from "@/core/prioritization";
+import {
+  prioritizeClusters,
+  prioritizeFindings,
+} from "@/core/prioritization";
 import type { Finding, FindingStatus } from "@/core/types";
 import {
   controlById,
@@ -27,10 +30,15 @@ export default async function FindingsPage() {
     (finding) => finding.projectId === project.id,
   );
 
-  const byStatus = (status: FindingStatus): Finding[] =>
-    findings
-      .filter((finding) => finding.status === status)
-      .sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
+  const byStatus = (status: FindingStatus): Finding[] => {
+    const filtered = findings.filter((finding) => finding.status === status);
+    if (status === "open") {
+      return prioritizeFindings(filtered, db.controls);
+    }
+    return filtered.sort(
+      (a, b) => severityRank(a.severity) - severityRank(b.severity),
+    );
+  };
   const clusters = prioritizeClusters(findings, db.controls);
 
   return (

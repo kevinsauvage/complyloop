@@ -2,7 +2,7 @@
  * CI gate: scan a project tree and exit non-zero when violation findings exist.
  *
  * Usage:
- *   npx tsx src/cli/check.ts [path]
+ *   npx complyloop-check [path]
  *   npm run check -- [path]
  *
  * Defaults to the current working directory when no path is given.

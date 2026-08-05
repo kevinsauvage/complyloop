@@ -4,6 +4,26 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-05 — P1 depth + light P2 (defer Postgres/orgs)
+
+**Context:** Continuous DX, CI, check depth, prioritization, and light deploy safety without rewriting the store.
+
+**Decision:**
+- **CI package:** workspace `@complyloop/check` (`packages/check`) with `complyloop-check` bin; template uses `npx complyloop-check .`. Not published to npm yet.
+- **Platform CI:** `.github/workflows/ci.yml` runs lint/typecheck/test/build.
+- **Scoped re-scan:** when a previous snapshot exists and JSX/TSX files changed, scan those files only; do not resolve findings outside the changed set; else full tree. `assessment.scanMode` recorded.
+- **Checks:** +3 AST rules (duplicate-id, form-error-association, aria-hidden-focusable) → 13 total; autoplay gets `remove_attribute` fix; heading-order/empty-heading guidance strengthened.
+- **Priority:** `/findings` open list uses `prioritizeFindings`; controls carry `complianceWeight`.
+- **Auth:** require `AUTH_URL` when serving production with GitHub auth (skip Next build phase); clear encrypted tokens on Auth.js `signOut`.
+- **Webhooks:** idempotent via `x-github-delivery` → `.data/webhook-deliveries.json`.
+- **Postgres / orgs:** still deferred — JSON + soft `ownerUserId` remains.
+
+**Consequence:** Faster continuous loop, clearer CI install, deeper a11y coverage, safer auth/webhooks — without a database rewrite.
+
+## Historical — Initial stack notes (superseded)
+
+Early drafts assumed shadcn/ui, Postgres-first, and axe-core as analysis truth. The shipped MVP uses hand-rolled Tailwind UI, JSON behind `db.ts`, and **TypeScript AST checks** as the deterministic source of truth. Treat those early notes as historical only.
+
 ## 2026-08-05 — Prefer maintained packages for infra glue
 
 **Context:** Hand-rolled GitHub `fetch`, recursive `readdirSync` (×3), naive unified diffs, and raw `git` argv wrappers reinvented common tooling.

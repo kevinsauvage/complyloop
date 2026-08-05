@@ -164,6 +164,27 @@ export default async function DashboardPage() {
                   >
                     <div>
                       <p>{alert.summary}</p>
+                      {(() => {
+                        const bits: string[] = [];
+                        if (typeof alert.detail?.trigger === "string") {
+                          bits.push(`Trigger: ${alert.detail.trigger}`);
+                        }
+                        if (
+                          typeof alert.detail?.from === "string" &&
+                          typeof alert.detail?.to === "string"
+                        ) {
+                          bits.push(`${alert.detail.from} → ${alert.detail.to}`);
+                        }
+                        if (typeof alert.detail?.changeContext === "string") {
+                          bits.push(alert.detail.changeContext);
+                        }
+                        if (bits.length === 0) return null;
+                        return (
+                          <p className="mt-1 text-xs text-red-700/80">
+                            {bits.join(" · ")}
+                          </p>
+                        );
+                      })()}
                       <p className="mt-0.5 text-xs text-zinc-400">
                         {formatDateTime(alert.at)}
                       </p>

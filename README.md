@@ -52,13 +52,15 @@ serverless ephemeral FS is not supported for production. See
 [`docs/deploy.md`](./docs/deploy.md) (`DATA_DIR` on Fly/Railway/VPS, or migrate
 the store later).
 
-CI for assessed apps: copy
-[`templates/github-actions/complyloop-check.yml`](./templates/github-actions/complyloop-check.yml)
-or run `npm run check -- .` in your pipeline.
+CI for assessed apps: add `@complyloop/check` as a dependency (workspace
+`packages/check` until published), copy
+[`templates/github-actions/complyloop-check.yml`](./templates/github-actions/complyloop-check.yml),
+or run `npx complyloop-check .` / `npm run check -- .`.
 
 Then click **Run assessment** and walk the loop:
 
-1. **Assess** — deterministic AST checks scan the connected code.
+1. **Assess** — thirteen deterministic AST checks scan the connected code
+   (scoped to changed JSX when re-assessing after a snapshot diff).
 2. **Understand** — each finding explains what failed, why, where, its impact,
    and confidence.
 3. **Remediate** — review the suggested fix (edit e.g. the proposed alt text),
@@ -88,7 +90,7 @@ AI is never the source of truth.
 | `npm run lint` | ESLint (incl. strict jsx-a11y) |
 | `npm run typecheck` | TypeScript, strict |
 | `npm run test` | Vitest test suite |
-| `npm run check -- [path]` | CI gate: fail on accessibility violations |
+| `npm run check -- [path]` / `npx complyloop-check` | CI gate: fail on accessibility violations |
 
 ## Architecture
 
@@ -99,6 +101,7 @@ src/adapters/   Framework adapters (RGAA/WCAG first)
 src/ai/         AI explainer (optional, provenance-tagged, never sets statuses)
 src/server/     JSON store, seeding, assessment service, server actions
 src/app/        Next.js App Router UI
+packages/check  Customer-facing CI bin (@complyloop/check)
 fixtures/       Sample project with deliberate violations (never linted)
 ```
 

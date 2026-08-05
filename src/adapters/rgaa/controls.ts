@@ -3,7 +3,7 @@ import type { Control, Framework } from "@/core/types";
 export const rgaaFramework: Framework = {
   id: "fw-rgaa-wcag",
   name: "RGAA 4 / WCAG 2.1 (accessibility subset)",
-  version: "2026.1",
+  version: "2026.2",
 };
 
 export const rgaaControls: Control[] = [
@@ -16,6 +16,7 @@ export const rgaaControls: Control[] = [
     description:
       "Every informative image exposes a text alternative; decorative images are explicitly marked as such.",
     checkId: "img-alt",
+    complianceWeight: 1.4,
   },
   {
     id: "ctl-button-name",
@@ -26,6 +27,7 @@ export const rgaaControls: Control[] = [
     description:
       "Every button exposes a name describing its action, via text content or an ARIA label.",
     checkId: "button-name",
+    complianceWeight: 1.3,
   },
   {
     id: "ctl-link-name",
@@ -36,6 +38,7 @@ export const rgaaControls: Control[] = [
     description:
       "Every link exposes a name describing its destination, via text content, image alternatives, or an ARIA label.",
     checkId: "anchor-name",
+    complianceWeight: 1.2,
   },
   {
     id: "ctl-html-lang",
@@ -46,6 +49,7 @@ export const rgaaControls: Control[] = [
     description:
       "The document's default human language is programmatically determinable via the lang attribute.",
     checkId: "html-lang",
+    complianceWeight: 1.5,
   },
   {
     id: "ctl-focus-order",
@@ -56,6 +60,7 @@ export const rgaaControls: Control[] = [
     description:
       "Keyboard focus follows the natural document order; no element forces a custom order with a positive tabindex.",
     checkId: "positive-tabindex",
+    complianceWeight: 1.2,
   },
   {
     id: "ctl-input-label",
@@ -66,6 +71,7 @@ export const rgaaControls: Control[] = [
     description:
       "Every form field exposes a label telling users what to enter, via <label> association or ARIA attributes.",
     checkId: "input-label",
+    complianceWeight: 1.4,
   },
   {
     id: "ctl-heading-order",
@@ -76,6 +82,7 @@ export const rgaaControls: Control[] = [
     description:
       "Headings do not skip levels in the document outline (e.g. h2 must not jump to h4).",
     checkId: "heading-order",
+    complianceWeight: 1.1,
   },
   {
     id: "ctl-empty-heading",
@@ -86,6 +93,7 @@ export const rgaaControls: Control[] = [
     description:
       "Every heading exposes text or an ARIA name so the outline is usable.",
     checkId: "empty-heading",
+    complianceWeight: 1.1,
   },
   {
     id: "ctl-iframe-title",
@@ -96,6 +104,7 @@ export const rgaaControls: Control[] = [
     description:
       "Every iframe exposes a title describing its purpose to assistive technologies.",
     checkId: "iframe-title",
+    complianceWeight: 1.2,
   },
   {
     id: "ctl-autoplay-media",
@@ -106,5 +115,39 @@ export const rgaaControls: Control[] = [
     description:
       "Audio and video do not start automatically; users control playback.",
     checkId: "autoplay-media",
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-duplicate-id",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 4.1.1",
+    secondaryCode: "RGAA 8.2",
+    title: "IDs are unique",
+    description:
+      "id attributes are unique within a document so labels and ARIA references resolve correctly.",
+    checkId: "duplicate-id",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-form-error-association",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 3.3.1",
+    secondaryCode: "RGAA 11.10",
+    title: "Form errors are associated with fields",
+    description:
+      "When a field is invalid, its error message is programmatically associated (e.g. aria-describedby).",
+    checkId: "form-error-association",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-aria-hidden-focusable",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 8.9",
+    title: "Hidden elements are not focusable",
+    description:
+      "Elements with aria-hidden must not be reachable by keyboard focus.",
+    checkId: "aria-hidden-focusable",
+    complianceWeight: 1.4,
   },
 ];

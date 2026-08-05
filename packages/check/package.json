@@ -1,0 +1,18 @@
+{
+  "name": "@complyloop/check",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ComplyLoop accessibility CI gate — scan a React/TSX tree and fail on violations",
+  "bin": {
+    "complyloop-check": "./bin.js",
+    "@complyloop/check": "./bin.js"
+  },
+  "type": "module",
+  "files": [
+    "bin.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
