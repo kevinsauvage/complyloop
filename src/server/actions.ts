@@ -91,7 +91,7 @@ function locateViolation(db: Db, finding: Finding) {
 export async function runAssessmentAction(): Promise<void> {
   const { db, project } = await getWorkspace();
   runAssessment(db, project.id);
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -106,7 +106,7 @@ export async function resetProjectAction(): Promise<void> {
     summary: `Workspace of "${project.name}" restored to its original state`,
     projectId: project.id,
   });
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -122,7 +122,7 @@ export async function connectProjectAction(
   const { db } = await getWorkspace();
   try {
     await connectProjectInput(db, input);
-    saveDb(db);
+    await saveDb(db);
     refresh();
     return { error: null };
   } catch (error) {
@@ -140,7 +140,7 @@ export async function switchProjectAction(formData: FormData): Promise<void> {
   }
   const { db, userId } = await getWorkspace();
   setActiveProject(db, projectId, userId);
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -193,7 +193,7 @@ export async function connectGitHubRepoAction(
       ownerUserId: userId,
       accessToken,
     });
-    saveDb(db);
+    await saveDb(db);
     refresh();
     return { error: null };
   } catch (error) {
@@ -226,7 +226,7 @@ export async function disconnectGitHubRepoAction(
   const { db } = await getWorkspace();
   try {
     disconnectGitHubRepo(db, projectIdRaw, userId);
-    saveDb(db);
+    await saveDb(db);
     refresh();
     return { error: null };
   } catch (error) {
@@ -275,7 +275,7 @@ export async function approveRemediationAction(
     findingId: finding.id,
     detail: finding.fix ? { fix: { ...finding.fix } } : undefined,
   });
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -308,7 +308,7 @@ export async function applyRemediationAction(findingId: string): Promise<void> {
     findingId: finding.id,
     detail: { fix: { ...fix } },
   });
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -324,7 +324,7 @@ export async function verifyRemediationAction(findingId: string): Promise<void> 
       at: new Date().toISOString(),
       note: "Verification failed: the violation is still detected at this location.",
     });
-    saveDb(db);
+    await saveDb(db);
     refresh();
     return;
   }
@@ -347,7 +347,7 @@ export async function verifyRemediationAction(findingId: string): Promise<void> 
     findingId: finding.id,
   });
   refreshRequirementStatuses(db, finding.projectId);
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -379,7 +379,7 @@ export async function dismissFindingAction(
     detail: { reason, note: finding.dismissal.note },
   });
   refreshRequirementStatuses(db, finding.projectId);
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -391,7 +391,7 @@ export async function generateAiExplanationAction(findingId: string): Promise<vo
   const explanation = await generateAiExplanation(finding, control);
   if (explanation) {
     finding.explanations.push(explanation);
-    saveDb(db);
+    await saveDb(db);
   }
   refresh();
 }
@@ -456,7 +456,7 @@ export async function generateAiRemediationAction(findingId: string): Promise<vo
       description: result.suggestion.description,
     },
   });
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -486,7 +486,7 @@ export async function markRemediationImplementedAction(
     findingId: finding.id,
     detail: { manual: true, note },
   });
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -526,7 +526,7 @@ export async function manualVerifyRemediationAction(
     detail: { note, determination: "human_review" },
   });
   refreshRequirementStatuses(db, finding.projectId);
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -611,7 +611,7 @@ export async function markRequirementExceptionAction(
       detail: { from: previous, to: requirement.status, regression: false },
     });
   }
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -671,7 +671,7 @@ export async function markRequirementPassedAction(
       },
     });
   }
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -704,7 +704,7 @@ export async function clearRequirementHumanPassAction(
   });
 
   refreshRequirementStatuses(db, project.id);
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -716,7 +716,7 @@ export async function updateRequirementScopeAction(
     .getAll("controlId")
     .filter((value): value is string => typeof value === "string");
   setProjectScope(db, project, selected);
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -742,7 +742,7 @@ export async function importCustomControlAction(
     secondaryCode:
       typeof secondaryCode === "string" ? secondaryCode : undefined,
   });
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -755,7 +755,7 @@ export async function applyFrameworkPresetAction(
   }
   const { db, project } = await getWorkspace();
   applyFrameworkPreset(db, project, presetId);
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -768,7 +768,7 @@ export async function importChecklistAction(
   }
   const { db, project } = await getWorkspace();
   importChecklist(db, project, checklist);
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -780,7 +780,7 @@ export async function markAlertReadAction(alertId: string): Promise<void> {
   );
   if (!alert) throw new Error("Unknown alert.");
   alert.read = true;
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }
 
@@ -829,7 +829,7 @@ export async function createPullRequestAction(
         title: result.title,
       },
     });
-    saveDb(db);
+    await saveDb(db);
     refresh();
     return {
       error: null,
@@ -875,6 +875,6 @@ export async function clearRequirementExceptionAction(
 
   // Re-derive status from current open findings now that the exception is gone.
   refreshRequirementStatuses(db, project.id);
-  saveDb(db);
+  await saveDb(db);
   refresh();
 }

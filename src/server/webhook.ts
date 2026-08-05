@@ -129,7 +129,7 @@ export async function handleGitHubWebhookEvent(
     };
   }
 
-  const db = loadDb();
+  const db = await loadDb();
   const project = db.projects.find(
     (candidate) =>
       candidate.source === "github" &&
@@ -238,7 +238,7 @@ export async function handleGitHubWebhookEvent(
     },
   });
 
-  saveDb(db);
+  await saveDb(db);
   return {
     handled: true,
     message: `Re-assessed ${fullName}; ${alerts.length} regression alert(s)`,

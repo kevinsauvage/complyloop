@@ -1,59 +1,75 @@
 # Deploying ComplyLoop
 
-ComplyLoop’s MVP store and workspaces live on the local filesystem:
+ComplyLoop stores app state either as JSON or in Postgres. Clones and token
+files still use the local filesystem under `$DATA_DIR`.
 
-| Path | Purpose |
-|------|---------|
-| `$DATA_DIR/db.json` (default `.data/db.json`) | Projects, assessments, findings, evidence |
+| Path / env | Purpose |
+|------------|---------|
+| `$DATA_DIR/db.json` | App state when `DATABASE_URL` is unset |
+| `DATABASE_URL` | Postgres (Drizzle) for frameworks → evidence when set |
 | `$DATA_DIR/workspaces/` | Git/GitHub clones assessed in place |
-| `$DATA_DIR/github-tokens.json` | Encrypted GitHub OAuth tokens for webhooks / PR push |
+| `$DATA_DIR/github-tokens.json` | Encrypted GitHub OAuth tokens |
+| `$DATA_DIR/webhook-deliveries.json` | Webhook delivery idempotency |
 
-**Ephemeral serverless disks (typical Vercel serverless / Lambda) are not a supported production target** for this MVP. Instances lose `.data/` between invocations, so assessments, clones, webhook re-pulls, and token persistence break.
+**Ephemeral serverless disks alone are not enough** — clones and token files need
+durable disk (or you move those later). App state can live in managed Postgres
+(Neon, Supabase, RDS, etc.).
 
 ## Supported shapes
 
-### 1. Persistent disk (recommended for the JSON store)
+### 1. Postgres for app state (recommended beyond the laptop)
 
-Run a long-lived Node process with a mounted volume:
+1. Provision Postgres 16+ and set `DATABASE_URL`.
+2. Apply schema: `npm run db:migrate`
+3. Keep a volume (or other durable disk) for `DATA_DIR` workspaces + tokens, **or**
+   accept that GitHub connect/webhooks need disk separately.
 
-- **Fly.io**, **Railway**, **Render**, **Docker on a VPS**, or any host with a durable volume
-- Set `DATA_DIR` to the mount path (e.g. `/data`)
-- Point GitHub webhooks at a stable public HTTPS URL
-- Keep `AUTH_SECRET` stable across deploys (token encryption key)
+Local example:
 
-Example env for a volume-backed host:
+```bash
+docker compose up -d
+export DATABASE_URL=postgres://complyloop:complyloop@localhost:5432/complyloop
+npm run db:migrate
+npm run dev
+```
+
+Evidence rows are **insert-only** in Postgres (never updated or deleted by the app).
+
+### 2. Persistent disk + JSON store
+
+Omit `DATABASE_URL`. Run a long-lived Node process with a mounted volume:
 
 ```bash
 DATA_DIR=/data
-AUTH_SECRET=...          # required; also encrypts github-tokens.json
+AUTH_SECRET=...
 AUTH_GITHUB_ID=...
 AUTH_GITHUB_SECRET=...
-AUTH_URL=https://complyloop.example.com   # required in production with GitHub auth
+AUTH_URL=https://complyloop.example.com
 GITHUB_WEBHOOK_SECRET=...
-# AI_GATEWAY_API_KEY=...
 ```
 
-OAuth scopes today: `read:user user:email repo` (private clones, PRs, Check Runs). Prefer a GitHub App with tighter permissions before multi-tenant production. Sign-out clears stored encrypted tokens.
-Run `npm run build && npm run start` (or your platform’s Next.js start command). Ensure the volume is writable by the process user.
+### 3. Laptop demo
 
-### 2. Local / laptop demo
+Default: no `DATABASE_URL`, `DATA_DIR` unset → `.data/`. Fine for development.
 
-Default: `DATA_DIR` unset → `.data/` under the repo. Fine for development; do not treat this as multi-user SaaS.
+## Auth notes
 
-### 3. Future: Postgres (deferred)
-
-When leaving single-node demo traffic, migrate the store behind `src/server/db.ts` to Postgres (see `todo.md` P2 and `docs/ai/decisions.md`). Clones may still need disk or an alternate fetch strategy; webhooks still need a durable app process.
+OAuth scopes today: `read:user user:email repo`. Prefer a GitHub App with tighter
+permissions before multi-tenant production. Sign-out clears stored encrypted tokens.
+`AUTH_URL` is required when serving production with GitHub auth configured.
 
 ## What not to do
 
-- Deploy only to Vercel serverless **without** a persistent volume / external DB and expect webhooks or connected GitHub workspaces to survive.
-- Share a host without setting `AUTH_SECRET` — GitHub tokens will not be persisted (and must never be written plaintext).
+- Deploy only to Vercel serverless without Postgres **and** without durable disk for clones/tokens.
+- Share a host without `AUTH_SECRET`.
 - Commit `.data/` or token files to git.
+- `UPDATE`/`DELETE` evidence rows outside the app’s append-only contract.
 
 ## Checklist before inviting real users
 
-1. Persistent `DATA_DIR` (or Postgres migration).
-2. Stable `AUTH_SECRET` and `AUTH_URL`.
-3. GitHub OAuth App callback + webhook secret configured.
-4. Backups for `DATA_DIR` (or DB).
-5. Orgs/RBAC (still deferred) before multi-tenant production.
+1. `DATABASE_URL` + migrated schema (or durable `DATA_DIR` JSON).
+2. Durable disk for workspaces/tokens (or a follow-up to remove that need).
+3. Stable `AUTH_SECRET` and `AUTH_URL`.
+4. GitHub OAuth + webhook secret.
+5. Backups for Postgres (and `DATA_DIR` if used).
+6. Orgs/RBAC (still deferred) before multi-tenant production.

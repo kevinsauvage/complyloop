@@ -45,7 +45,7 @@ The domain model must stay **framework-agnostic** (requirements/controls, not "a
 - **Language:** TypeScript (strict mode) everywhere (`typescript` is a runtime dependency for AST analysis)
 - **Frontend/App:** Next.js 16 (App Router) + React 19
 - **Styling/UI:** Tailwind CSS 4 (hand-rolled components for the MVP; shadcn/ui can be adopted later)
-- **Persistence:** JSON file store in `.data/db.json` behind `src/server/db.ts` for the MVP; PostgreSQL with a typed ORM is the target when multi-user needs arrive
+- **Persistence:** JSON file store in `.data/db.json` by default; set `DATABASE_URL` for Postgres via Drizzle (`src/server/db-store/`). Evidence is insert-only in Postgres. Workspaces/tokens still under `$DATA_DIR`.
 - **Auth / GitHub connect:** Auth.js v5 (`next-auth`) with GitHub OAuth (`AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`); sample + local path stay available unsigned; GitHub repo picker requires sign-in
 - **GitHub API / git:** `@octokit/rest` + `@octokit/webhooks-methods`; clones and PR push via `simple-git`; handoff patches via `diff`; source walks via `fast-glob`
 - **Analysis engine:** deterministic TypeScript AST checks in `src/analysis/` as the source of truth (13 checks); AI augments, never replaces it

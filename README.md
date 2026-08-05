@@ -47,10 +47,10 @@ Regressions appear as dashboard alerts.
 
 ### Deploying beyond the laptop
 
-The JSON store, clones, and webhook re-pulls need a **persistent disk**. Plain
-serverless ephemeral FS is not supported for production. See
-[`docs/deploy.md`](./docs/deploy.md) (`DATA_DIR` on Fly/Railway/VPS, or migrate
-the store later).
+App state can use **Postgres** (`DATABASE_URL` + `npm run db:migrate`) or a
+JSON file on a **persistent disk**. Clones and encrypted tokens still need
+durable `DATA_DIR` (or a later move off disk). See
+[`docs/deploy.md`](./docs/deploy.md).
 
 CI for assessed apps: add `@complyloop/check` as a dependency (workspace
 `packages/check` until published), copy

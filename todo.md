@@ -21,6 +21,7 @@ Snapshot against [`compliance-engineering-product-spec.md`](./compliance-enginee
 - [x] Requirement presets + checklist import
 - [x] Human pass, Check Runs, encrypted tokens, durable deploy docs
 - [x] Scoped re-scan, platform CI, auth hardening, webhook idempotency
+- [x] Postgres via Drizzle behind `db.ts` (`DATABASE_URL`; JSON fallback)
 
 ---
 
@@ -47,7 +48,7 @@ Snapshot against [`compliance-engineering-product-spec.md`](./compliance-enginee
 
 ## P2 — productization
 
-12. [ ] **Postgres behind `src/server/db.ts`** — pick Drizzle or Prisma; keep append-only evidence; record choice in `docs/ai/decisions.md`.
+12. [x] **Postgres behind `src/server/db.ts`** — Drizzle + `DATABASE_URL`; JSON fallback; evidence insert-only (see `docs/ai/decisions.md`).
 13. [ ] **Orgs / tenants + RBAC** — replace soft `ownerUserId` filtering with real membership and project ACL.
 14. [x] **Auth production hardening** — require `AUTH_URL` when serving production; document scopes; clear tokens on sign-out.
 15. [x] **Webhook idempotency** — dedupe by GitHub delivery id (admin re-deliver still optional).
@@ -68,10 +69,10 @@ Snapshot against [`compliance-engineering-product-spec.md`](./compliance-enginee
 
 | Order | Item | Why |
 |------:|------|-----|
-| 1 | Postgres behind `db.ts` (P2.12) | Durable multi-instance store |
-| 2 | Orgs / tenants + RBAC (P2.13) | Real multi-user ACL |
-| 3 | Publish `@complyloop/check` to npm | Customer install without path |
+| 1 | Orgs / tenants + RBAC (P2.13) | Real multi-user ACL |
+| 2 | Publish `@complyloop/check` to npm | Customer install without path |
+| 3 | Move tokens/webhook deliveries into Postgres | Fewer disk dependencies |
 | 4 | Admin webhook re-deliver | Ops recovery |
 | 5 | Deferred polish (P3.20) | Only as needed |
 
-When leaving the laptop demo: follow [`docs/deploy.md`](./docs/deploy.md), then **P2.12–13** before inviting real multi-user traffic.
+When leaving the laptop demo: set `DATABASE_URL`, run `npm run db:migrate`, follow [`docs/deploy.md`](./docs/deploy.md), then **P2.13** before inviting real multi-user traffic.

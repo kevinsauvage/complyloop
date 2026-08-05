@@ -15,8 +15,8 @@ export interface Workspace {
 
 /** Loads the store, seeding the framework and sample project on first use. */
 export async function getWorkspace(): Promise<Workspace> {
-  const db = loadDb();
-  if (ensureSeeded(db)) saveDb(db);
+  const db = await loadDb();
+  if (ensureSeeded(db)) await saveDb(db);
 
   const session = await auth();
   const userId = session?.user?.id ?? null;
@@ -26,7 +26,7 @@ export async function getWorkspace(): Promise<Workspace> {
 
   if (db.activeProjectId !== project.id) {
     db.activeProjectId = project.id;
-    saveDb(db);
+    await saveDb(db);
   }
 
   return { db, project, userId, visibleProjects: visible };

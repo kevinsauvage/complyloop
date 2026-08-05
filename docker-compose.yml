@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: complyloop
+      POSTGRES_PASSWORD: complyloop
+      POSTGRES_DB: complyloop
+    volumes:
+      - complyloop_pg:/var/lib/postgresql/data
+
+volumes:
+  complyloop_pg:
