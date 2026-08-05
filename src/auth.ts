@@ -2,6 +2,10 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
+import {
+  getStoredGitHubToken,
+  storeUserGitHubToken,
+} from "@/server/github-tokens";
 
 /** True when GitHub OAuth env vars are present — otherwise sign-in is hidden. */
 export function isGitHubAuthConfigured(): boolean {
@@ -30,6 +34,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, account, profile }) {
       if (account?.access_token) {
         token.accessToken = account.access_token;
+        if (token.sub) {
+          storeUserGitHubToken(token.sub, account.access_token);
+        }
       }
       if (profile && typeof profile === "object" && "login" in profile) {
         const login = profile.login;
@@ -67,5 +74,9 @@ export async function getGitHubAccessToken(): Promise<string | null> {
     secret: process.env.AUTH_SECRET,
     secureCookie: process.env.NODE_ENV === "production",
   });
-  return typeof token?.accessToken === "string" ? token.accessToken : null;
+  if (typeof token?.accessToken === "string") return token.accessToken;
+  if (typeof token?.sub === "string") {
+    return getStoredGitHubToken(token.sub);
+  }
+  return null;
 }

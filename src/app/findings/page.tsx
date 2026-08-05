@@ -5,7 +5,7 @@ import {
 } from "@/components/badges";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { severityRank } from "@/core/labels";
-import { clusterFindings } from "@/core/root-cause";
+import { prioritizeClusters } from "@/core/prioritization";
 import type { Finding, FindingStatus } from "@/core/types";
 import {
   controlById,
@@ -31,7 +31,7 @@ export default async function FindingsPage() {
     findings
       .filter((finding) => finding.status === status)
       .sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
-  const clusters = clusterFindings(findings, db.controls);
+  const clusters = prioritizeClusters(findings, db.controls);
 
   return (
     <>

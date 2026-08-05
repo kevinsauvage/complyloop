@@ -4,6 +4,21 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-04 — Continuous GitHub loop, checks, import, prioritization
+
+**Context:** Spec gaps after GitHub connect: webhooks, native PRs, check depth, requirement intake, root-cause/priority. Postgres/multi-tenant listed for when leaving the laptop demo.
+
+**Decision:**
+- **Webhooks:** `POST /api/github/webhook` verifies `GITHUB_WEBHOOK_SECRET`, pulls the owned clone with a token stored at sign-in (`.data/github-tokens.json`), re-assesses, and writes `alerts` for regressions.
+- **Native PR:** `preparePullRequest` pushes with the OAuth token and opens a PR via GitHub REST (`POST /repos/.../pulls`), not only `gh`.
+- **CI:** `.github/workflows/complyloop-check.yml` + `templates/github-actions/` wrapping `npm run check`.
+- **Checks:** +4 AST rules (heading-order, empty-heading, iframe-title, autoplay-media) → 10 total; seed migrates new control ids.
+- **Import:** framework presets + `CODE | Title | Description` checklist paste.
+- **Priority:** `src/core/prioritization.ts` scores severity × confidence × cluster size.
+- **Postgres / multi-tenant:** deferred. Keep the `src/server/db.ts` boundary; JSON + soft `ownerUserId` remains until multi-user SaaS needs arrive. No half-migration.
+
+**Consequence:** Continuous re-assess works when a webhook secret + signed-in token exist; engineering PR/CI paths are first-class; a11y credibility and intake improve without a database rewrite.
+
 ## 2026-08-04 — Auth.js + GitHub repo connect
 
 **Context:** Spec success requires connecting real software easily; pasting a path/URL is awkward. Users should sign in and pick a GitHub repository.

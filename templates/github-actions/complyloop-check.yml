@@ -1,0 +1,21 @@
+# Copy into your assessed app as .github/workflows/complyloop-check.yml
+# Requires the ComplyLoop CLI available via npm (or npx from this package).
+name: ComplyLoop check
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  complyloop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      # Point at the tree you assess (often ".")
+      - run: npx --yes tsx path/to/complyloop/src/cli/check.ts .

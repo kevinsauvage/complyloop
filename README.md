@@ -38,6 +38,15 @@ Without those env vars the sample project and **Advanced: local path or git
 URL** still work. Local paths are assessed in place; git/GitHub clones land in
 `.data/workspaces/`.
 
+Optional continuous monitoring: set `GITHUB_WEBHOOK_SECRET` and point a GitHub
+repo webhook (push + pull_request) at
+`{origin}/api/github/webhook`. After you sign in once, tokens are stored so
+webhooks can pull and re-assess; regressions appear as dashboard alerts.
+
+CI for assessed apps: copy
+[`templates/github-actions/complyloop-check.yml`](./templates/github-actions/complyloop-check.yml)
+or run `npm run check -- .` in your pipeline.
+
 Then click **Run assessment** and walk the loop:
 
 1. **Assess** — six deterministic AST checks scan the connected code.

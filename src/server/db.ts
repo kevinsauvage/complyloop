@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type {
+  Alert,
   Assessment,
   Control,
   EvidenceRecord,
@@ -12,6 +13,11 @@ import type {
   Requirement,
 } from "@/core/types";
 
+/**
+ * Persistence boundary for the MVP (JSON file today).
+ * When leaving the single-laptop demo, swap the load/save implementation for
+ * PostgreSQL + org/RBAC without changing callers that depend on this shape.
+ */
 export interface Db {
   frameworks: Framework[];
   controls: Control[];
@@ -23,6 +29,8 @@ export interface Db {
   findings: Finding[];
   remediations: Remediation[];
   evidence: EvidenceRecord[];
+  /** Regression / monitoring alerts (append-friendly, markable as read). */
+  alerts: Alert[];
 }
 
 function emptyDb(): Db {
@@ -36,6 +44,7 @@ function emptyDb(): Db {
     findings: [],
     remediations: [],
     evidence: [],
+    alerts: [],
   };
 }
 
@@ -51,10 +60,14 @@ type StoredRemediation = Omit<Remediation, "suggestion"> & {
   suggestion: StoredSuggestion | null;
 };
 
-type StoredDb = Omit<Db, "projects" | "activeProjectId" | "remediations"> & {
+type StoredDb = Omit<
+  Db,
+  "projects" | "activeProjectId" | "remediations" | "alerts"
+> & {
   projects: StoredProject[];
   activeProjectId?: string | null;
   remediations: StoredRemediation[];
+  alerts?: Alert[];
 };
 
 /** Normalizes records written before `source` / `activeProjectId` existed. */
@@ -88,7 +101,13 @@ function migrateDb(raw: StoredDb): Db {
     return { ...remediation, suggestion };
   });
 
-  return { ...raw, projects, activeProjectId, remediations };
+  return {
+    ...raw,
+    projects,
+    activeProjectId,
+    remediations,
+    alerts: raw.alerts ?? [],
+  };
 }
 
 function dataDir(): string {

@@ -5,6 +5,10 @@ import { buttonNameCheck } from "./button-name";
 import { htmlLangCheck } from "./html-lang";
 import { imgAltCheck } from "./img-alt";
 import { inputLabelCheck } from "./input-label";
+import { autoplayMediaCheck } from "./autoplay-media";
+import { emptyHeadingCheck } from "./empty-heading";
+import { headingOrderCheck } from "./heading-order";
+import { iframeTitleCheck } from "./iframe-title";
 import { positiveTabindexCheck } from "./positive-tabindex";
 import type { AccessibilityCheck } from "../types";
 
@@ -116,3 +120,43 @@ describe("input-label", () => {
     expect(run(inputLabelCheck, source)).toHaveLength(0);
   });
 });
+
+describe("heading-order", () => {
+  it("flags skipped heading levels", () => {
+    const findings = run(
+      headingOrderCheck,
+      `const A = () => (<div><h1>Title</h1><h3>Skip</h3></div>);`,
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0].checkId).toBe("heading-order");
+  });
+});
+
+describe("empty-heading", () => {
+  it("flags headings with no text", () => {
+    const findings = run(emptyHeadingCheck, `const A = () => <h2></h2>;`);
+    expect(findings).toHaveLength(1);
+  });
+});
+
+describe("iframe-title", () => {
+  it("flags iframe without title and suggests a fix", () => {
+    const findings = run(
+      iframeTitleCheck,
+      `const A = () => <iframe src="https://example.com" />;`,
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0].fix).toMatchObject({ attribute: "title" });
+  });
+});
+
+describe("autoplay-media", () => {
+  it("flags video with autoPlay", () => {
+    const findings = run(
+      autoplayMediaCheck,
+      `const A = () => <video src="/x.mp4" autoPlay />;`,
+    );
+    expect(findings).toHaveLength(1);
+  });
+});
+

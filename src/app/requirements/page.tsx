@@ -1,10 +1,13 @@
+import { rgaaPresets } from "@/adapters/rgaa/presets";
 import {
   DeterminationBadge,
   RequirementStatusBadge,
 } from "@/components/badges";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
 import {
+  applyFrameworkPresetAction,
   clearRequirementExceptionAction,
+  importChecklistAction,
   importCustomControlAction,
   markRequirementExceptionAction,
   updateRequirementScopeAction,
@@ -31,6 +34,72 @@ export default async function RequirementsPage() {
       />
 
       <div className="mb-6 flex flex-col gap-6">
+        <Card title="Framework presets">
+          <p className="mb-3 text-sm text-zinc-600">
+            Apply a curated RGAA/WCAG subset in one click. You can still fine-tune
+            checkboxes below.
+          </p>
+          <ul className="flex flex-col gap-3">
+            {rgaaPresets.map((preset) => (
+              <li
+                key={preset.id}
+                className="flex flex-wrap items-center justify-between gap-3"
+              >
+                <div>
+                  <p className="text-sm font-medium text-zinc-900">
+                    {preset.name}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {preset.description} · {preset.controlIds.length} controls
+                  </p>
+                </div>
+                <form action={applyFrameworkPresetAction}>
+                  <input type="hidden" name="presetId" value={preset.id} />
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
+                    Apply
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </Card>
+
+        <Card title="Import checklist">
+          <p className="mb-3 text-sm text-zinc-600">
+            Paste audit or customer lines as{" "}
+            <code className="font-mono text-xs">
+              CODE | Title | Description
+            </code>
+            . Each becomes a manual control (unable to verify until human
+            review).
+          </p>
+          <form action={importChecklistAction} className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+              Checklist
+              <textarea
+                name="checklist"
+                required
+                rows={5}
+                placeholder={
+                  "CUST-1 | Privacy link present | Marketing pages link to the privacy notice\nCUST-2 | Cookie banner | Consent UI is keyboard accessible"
+                }
+                className="rounded-lg border border-zinc-300 px-3 py-2 font-mono text-sm font-normal"
+              />
+            </label>
+            <div>
+              <button
+                type="submit"
+                className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                Import checklist
+              </button>
+            </div>
+          </form>
+        </Card>
+
         <Card title="In-scope controls">
           <p className="mb-3 text-sm text-zinc-600">
             Select which controls apply to this project. Assessment only evaluates

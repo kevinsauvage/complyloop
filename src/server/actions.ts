@@ -31,6 +31,8 @@ import { addEvidence, saveDb, type Db } from "./db";
 import { fetchGitHubRepo } from "./github";
 import { preparePullRequest } from "./pr";
 import {
+  applyFrameworkPreset,
+  importChecklist,
   importCustomControl,
   setProjectScope,
 } from "./requirements-intake";
@@ -650,6 +652,44 @@ export async function importCustomControlAction(
   refresh();
 }
 
+export async function applyFrameworkPresetAction(
+  formData: FormData,
+): Promise<void> {
+  const presetId = formData.get("presetId");
+  if (typeof presetId !== "string" || presetId.length === 0) {
+    throw new Error("A framework preset is required.");
+  }
+  const { db, project } = await getWorkspace();
+  applyFrameworkPreset(db, project, presetId);
+  saveDb(db);
+  refresh();
+}
+
+export async function importChecklistAction(
+  formData: FormData,
+): Promise<void> {
+  const checklist = formData.get("checklist");
+  if (typeof checklist !== "string" || checklist.trim().length === 0) {
+    throw new Error("Paste a checklist to import.");
+  }
+  const { db, project } = await getWorkspace();
+  importChecklist(db, project, checklist);
+  saveDb(db);
+  refresh();
+}
+
+export async function markAlertReadAction(alertId: string): Promise<void> {
+  const { db, project } = await getWorkspace();
+  const alert = db.alerts.find(
+    (candidate) =>
+      candidate.id === alertId && candidate.projectId === project.id,
+  );
+  if (!alert) throw new Error("Unknown alert.");
+  alert.read = true;
+  saveDb(db);
+  refresh();
+}
+
 export type CreatePrFormState = {
   error: string | null;
   message: string | null;
@@ -675,7 +715,12 @@ export async function createPullRequestAction(
   }
 
   try {
-    const result = preparePullRequest(project, control, finding, remediation);
+    const result = await preparePullRequest(
+      project,
+      control,
+      finding,
+      remediation,
+    );
     addEvidence(db, {
       kind: "pull_request_prepared",
       summary: result.prUrl

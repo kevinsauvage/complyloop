@@ -6,10 +6,16 @@ import {
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
-import { severityRank } from "@/core/labels";
-import { clusterFindings } from "@/core/root-cause";
+import {
+  prioritizeClusters,
+  prioritizeFindings,
+} from "@/core/prioritization";
 import type { Project, RequirementStatus } from "@/core/types";
-import { resetProjectAction, runAssessmentAction } from "@/server/actions";
+import {
+  markAlertReadAction,
+  resetProjectAction,
+  runAssessmentAction,
+} from "@/server/actions";
 import { controlById, getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
@@ -59,9 +65,14 @@ export default async function DashboardPage() {
   const requirements = db.requirements.filter(
     (requirement) => requirement.projectId === project.id,
   );
-  const openFindings = db.findings
-    .filter((finding) => finding.projectId === project.id && finding.status === "open")
-    .sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
+  const projectFindings = db.findings.filter(
+    (finding) => finding.projectId === project.id,
+  );
+  const openFindings = prioritizeFindings(projectFindings, db.controls);
+  const unreadAlerts = db.alerts
+    .filter((alert) => alert.projectId === project.id && !alert.read)
+    .slice()
+    .reverse();
   const regressions = db.evidence
     .filter(
       (record) =>
@@ -75,10 +86,7 @@ export default async function DashboardPage() {
     .filter((record) => record.projectId === project.id || !record.projectId)
     .slice(-6)
     .reverse();
-  const clusters = clusterFindings(
-    db.findings.filter((finding) => finding.projectId === project.id),
-    db.controls,
-  ).slice(0, 5);
+  const clusters = prioritizeClusters(projectFindings, db.controls).slice(0, 5);
   const recentChanges = latestAssessment?.changesSincePrevious ?? [];
 
   const counts = new Map<RequirementStatus, number>();
@@ -146,8 +154,36 @@ export default async function DashboardPage() {
             ))}
           </div>
 
+          {unreadAlerts.length > 0 ? (
+            <Card title="Regression alerts" className="border-red-200">
+              <ul className="flex flex-col gap-3">
+                {unreadAlerts.map((alert) => (
+                  <li
+                    key={alert.id}
+                    className="flex flex-wrap items-start justify-between gap-3 text-sm text-red-800"
+                  >
+                    <div>
+                      <p>{alert.summary}</p>
+                      <p className="mt-0.5 text-xs text-zinc-400">
+                        {formatDateTime(alert.at)}
+                      </p>
+                    </div>
+                    <form action={markAlertReadAction.bind(null, alert.id)}>
+                      <button
+                        type="submit"
+                        className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-50"
+                      >
+                        Dismiss
+                      </button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
           {regressions.length > 0 ? (
-            <Card title="Compliance regressions" className="border-red-200">
+            <Card title="Recent compliance regressions" className="border-red-200">
               <ul className="flex flex-col gap-2">
                 {regressions.map((record) => (
                   <li key={record.id} className="text-sm text-red-800">

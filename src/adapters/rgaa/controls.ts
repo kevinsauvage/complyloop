@@ -67,4 +67,44 @@ export const rgaaControls: Control[] = [
       "Every form field exposes a label telling users what to enter, via <label> association or ARIA attributes.",
     checkId: "input-label",
   },
+  {
+    id: "ctl-heading-order",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 1.3.1",
+    secondaryCode: "RGAA 9.1",
+    title: "Heading levels follow a logical order",
+    description:
+      "Headings do not skip levels in the document outline (e.g. h2 must not jump to h4).",
+    checkId: "heading-order",
+  },
+  {
+    id: "ctl-empty-heading",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 1.3.1",
+    secondaryCode: "RGAA 9.2",
+    title: "Headings have accessible names",
+    description:
+      "Every heading exposes text or an ARIA name so the outline is usable.",
+    checkId: "empty-heading",
+  },
+  {
+    id: "ctl-iframe-title",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 2.1",
+    title: "Frames have a title",
+    description:
+      "Every iframe exposes a title describing its purpose to assistive technologies.",
+    checkId: "iframe-title",
+  },
+  {
+    id: "ctl-autoplay-media",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 1.4.2",
+    secondaryCode: "RGAA 4.1",
+    title: "Media does not autoplay",
+    description:
+      "Audio and video do not start automatically; users control playback.",
+    checkId: "autoplay-media",
+  },
 ];

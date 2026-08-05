@@ -1,3 +1,4 @@
+import { presetById } from "@/adapters/rgaa/presets";
 import type { Control, Framework, Project } from "@/core/types";
 import { addEvidence, type Db } from "./db";
 
@@ -105,4 +106,65 @@ export function setProjectScope(
     projectId: project.id,
     detail: { inScopeControlIds: project.inScopeControlIds ?? allIds },
   });
+}
+
+/** Applies a curated framework preset as the project's in-scope controls. */
+export function applyFrameworkPreset(
+  db: Db,
+  project: Project,
+  presetId: string,
+): void {
+  const preset = presetById(presetId);
+  if (!preset) throw new Error(`Unknown framework preset: ${presetId}`);
+  setProjectScope(db, project, preset.controlIds);
+  addEvidence(db, {
+    kind: "requirements_imported",
+    summary: `Applied framework preset "${preset.name}" (${preset.controlIds.length} controls)`,
+    projectId: project.id,
+    detail: { presetId: preset.id, controlIds: preset.controlIds },
+  });
+}
+
+export interface ChecklistLine {
+  code: string;
+  title: string;
+  description: string;
+  secondaryCode?: string;
+}
+
+/**
+ * Parses a simple checklist: one control per line as
+ * `CODE | Title | Description` (optional 4th `| secondary`).
+ */
+export function parseChecklistText(text: string): ChecklistLine[] {
+  const lines: ChecklistLine[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const parts = line.split("|").map((part) => part.trim());
+    if (parts.length < 3) {
+      throw new Error(
+        `Invalid checklist line (need CODE | Title | Description): ${line}`,
+      );
+    }
+    const [code, title, description, secondaryCode] = parts;
+    if (!code || !title || !description) {
+      throw new Error(`Incomplete checklist line: ${line}`);
+    }
+    lines.push({ code, title, description, secondaryCode });
+  }
+  return lines;
+}
+
+/** Imports many custom (manual) controls from a pasted checklist. */
+export function importChecklist(
+  db: Db,
+  project: Project,
+  text: string,
+): Control[] {
+  const parsed = parseChecklistText(text);
+  if (parsed.length === 0) {
+    throw new Error("Checklist is empty.");
+  }
+  return parsed.map((line) => importCustomControl(db, project, line));
 }

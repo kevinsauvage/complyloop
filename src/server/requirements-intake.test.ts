@@ -4,7 +4,9 @@ import type { Project } from "@/core/types";
 import type { Db } from "./db";
 import {
   CUSTOM_FRAMEWORK_ID,
+  importChecklist,
   importCustomControl,
+  parseChecklistText,
   setProjectScope,
 } from "./requirements-intake";
 
@@ -19,6 +21,7 @@ function emptyDb(project: Project): Db {
     findings: [],
     remediations: [],
     evidence: [],
+    alerts: [],
   };
 }
 
@@ -62,5 +65,20 @@ describe("requirements intake", () => {
       rgaaControls.map((control) => control.id),
     );
     expect(project.inScopeControlIds).toBeUndefined();
+  });
+
+  it("parses and imports a multi-line checklist", () => {
+    const db = emptyDb(project);
+    const text = [
+      "# comment",
+      "CUST-1 | Privacy link | Pages link to privacy",
+      "CUST-2 | Cookie banner | Banner is keyboard accessible | Audit §4",
+    ].join("\n");
+    expect(parseChecklistText(text)).toHaveLength(2);
+    const controls = importChecklist(db, project, text);
+    expect(controls).toHaveLength(2);
+    expect(db.controls.filter((c) => c.frameworkId === CUSTOM_FRAMEWORK_ID)).toHaveLength(
+      2,
+    );
   });
 });

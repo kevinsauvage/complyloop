@@ -1,0 +1,83 @@
+import { describe, expect, it } from "vitest";
+import {
+  findingPriorityScore,
+  prioritizeClusters,
+  prioritizeFindings,
+} from "./prioritization";
+import type { Control, Finding } from "./types";
+
+function finding(
+  id: string,
+  checkId: string,
+  filePath: string,
+  severity: Finding["severity"] = "serious",
+): Finding {
+  return {
+    id,
+    projectId: "p1",
+    controlId: "ctl",
+    assessmentId: "a1",
+    checkId,
+    status: "open",
+    kind: "violation",
+    severity,
+    confidence: "high",
+    reason: "fail",
+    location: {
+      filePath,
+      line: 1,
+      column: 1,
+      snippet: "<x />",
+      span: { start: 0, end: 1 },
+    },
+    fix: null,
+    explanations: [],
+    detectedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+const controls: Control[] = [
+  {
+    id: "ctl",
+    frameworkId: "fw",
+    code: "WCAG",
+    secondaryCode: "RGAA",
+    title: "Images have a text alternative",
+    description: "d",
+    checkId: "img-alt",
+  },
+];
+
+describe("prioritization", () => {
+  it("scores critical findings higher than moderate ones", () => {
+    const critical = finding("1", "img-alt", "a.tsx", "critical");
+    const moderate = finding("2", "img-alt", "b.tsx", "moderate");
+    expect(findingPriorityScore(critical, 1)).toBeGreaterThan(
+      findingPriorityScore(moderate, 1),
+    );
+  });
+
+  it("boosts findings that share a root-cause cluster", () => {
+    const list = [
+      finding("1", "img-alt", "components/Card.tsx", "serious"),
+      finding("2", "img-alt", "components/Card.tsx", "serious"),
+      finding("3", "img-alt", "solo.tsx", "moderate"),
+    ];
+    const ordered = prioritizeFindings(list, controls);
+    expect(ordered[0].id).not.toBe("3");
+    expect(["1", "2"]).toContain(ordered[0].id);
+  });
+
+  it("ranks clusters by combined priority", () => {
+    const clusters = prioritizeClusters(
+      [
+        finding("1", "img-alt", "components/A.tsx"),
+        finding("2", "img-alt", "components/B.tsx"),
+        finding("3", "img-alt", "components/C.tsx"),
+      ],
+      controls,
+    );
+    expect(clusters[0]?.occurrenceCount).toBe(3);
+    expect(clusters[0]?.priorityScore).toBeGreaterThan(0);
+  });
+});

@@ -241,7 +241,8 @@ export type EvidenceKind =
   | "requirement_exception_cleared"
   | "requirements_imported"
   | "pull_request_prepared"
-  | "monitoring_changes_detected";
+  | "monitoring_changes_detected"
+  | "webhook_reassessment";
 
 /** Groups findings that share a common technical cause. */
 export interface FindingCluster {
@@ -252,6 +253,24 @@ export interface FindingCluster {
   sharedLocation: string;
   findingIds: string[];
   controlIds: string[];
+  /** How many open findings this cluster covers. */
+  occurrenceCount?: number;
+  /** Priority score (higher = fix first). */
+  priorityScore?: number;
+}
+
+export type AlertKind = "compliance_regression";
+
+/** User-facing alert produced by continuous monitoring / webhooks. */
+export interface Alert {
+  id: string;
+  projectId: string;
+  kind: AlertKind;
+  summary: string;
+  at: string;
+  read: boolean;
+  assessmentId?: string;
+  detail?: Record<string, unknown>;
 }
 
 export interface EvidenceRecord {

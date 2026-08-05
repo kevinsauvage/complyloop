@@ -30,6 +30,19 @@ export function ensureSeeded(db: Db): boolean {
     db.frameworks.push(rgaaFramework);
     db.controls.push(...rgaaControls);
     changed = true;
+  } else {
+    // Pick up newly shipped RGAA controls without wiping custom ones.
+    const existingIds = new Set(db.controls.map((control) => control.id));
+    for (const control of rgaaControls) {
+      if (!existingIds.has(control.id)) {
+        db.controls.push(control);
+        changed = true;
+      }
+    }
+    if (!db.frameworks.some((framework) => framework.id === rgaaFramework.id)) {
+      db.frameworks.push(rgaaFramework);
+      changed = true;
+    }
   }
 
   if (db.projects.length === 0) {

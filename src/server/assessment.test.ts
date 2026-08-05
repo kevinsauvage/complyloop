@@ -35,6 +35,7 @@ beforeEach(() => {
     findings: [],
     remediations: [],
     evidence: [],
+    alerts: [],
   };
 });
 

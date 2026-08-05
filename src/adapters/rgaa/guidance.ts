@@ -42,6 +42,30 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Associate a <label htmlFor> with the input\u2019s id, or add aria-label / aria-labelledby when a visible label is not possible.",
   },
+  "heading-order": {
+    impact:
+      "Skipped heading levels break the document outline that screen reader users rely on to navigate by section.",
+    howToFix:
+      "Use consecutive heading levels (h1 → h2 → h3). Do not jump from h2 to h4.",
+  },
+  "empty-heading": {
+    impact:
+      "Empty headings appear in the outline with no label, confusing screen reader navigation.",
+    howToFix:
+      "Put descriptive text inside the heading, or provide aria-label when the visible text is elsewhere.",
+  },
+  "iframe-title": {
+    impact:
+      "Without a title, assistive technologies announce only \u201cframe\u201d with no context for the embedded content.",
+    howToFix:
+      'Add title="…" describing the iframe\u2019s purpose (e.g. title="Payment form").',
+  },
+  "autoplay-media": {
+    impact:
+      "Autoplaying audio/video interrupts screen readers, surprises users, and can violate motion or sound preferences.",
+    howToFix:
+      "Remove autoPlay. Let users start playback with an explicit control.",
+  },
 };
 
 export function guidanceFor(checkId: string): CheckGuidance | undefined {

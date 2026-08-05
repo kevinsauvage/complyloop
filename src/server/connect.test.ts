@@ -25,6 +25,7 @@ function emptyDb(): Db {
     findings: [],
     remediations: [],
     evidence: [],
+    alerts: [],
   };
 }
 

@@ -1,0 +1,21 @@
+name: ComplyLoop accessibility check
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Fail on accessibility violations in fixtures/sample-shop
+        # Template for assessed apps: point -- at your app root instead.
+        run: npm run check -- fixtures/sample-shop
+        continue-on-error: true

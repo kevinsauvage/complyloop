@@ -1,4 +1,5 @@
 import { Footer } from "../components/Footer";
+import { MediaEmbed } from "../components/MediaEmbed";
 import { NewsletterForm } from "../components/NewsletterForm";
 import { ProductCard } from "../components/ProductCard";
 
@@ -18,6 +19,7 @@ export default function HomePage() {
         <ProductCard name="Trail runner shoes" price="89€" image="/shoes.png" />
         <ProductCard name="Insulated bottle" price="25€" image="/bottle.png" />
       </section>
+      <MediaEmbed />
       <NewsletterForm />
       <Footer />
     </main>

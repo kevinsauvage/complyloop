@@ -13,7 +13,11 @@ export type CheckId =
   | "html-lang"
   | "positive-tabindex"
   | "input-label"
-  | "anchor-name";
+  | "anchor-name"
+  | "heading-order"
+  | "empty-heading"
+  | "iframe-title"
+  | "autoplay-media";
 
 export interface RawFinding {
   checkId: CheckId;
