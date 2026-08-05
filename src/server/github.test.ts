@@ -25,9 +25,8 @@ describe("listGitHubRepos", () => {
   it("maps GitHub API payloads and filters by query", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => [
+      vi.fn().mockResolvedValue(
+        Response.json([
           {
             full_name: "acme/shop",
             name: "shop",
@@ -48,8 +47,8 @@ describe("listGitHubRepos", () => {
             html_url: "https://github.com/acme/docs",
             clone_url: "https://github.com/acme/docs.git",
           },
-        ],
-      }),
+        ]),
+      ),
     );
 
     const repos = await listGitHubRepos({
@@ -64,11 +63,9 @@ describe("listGitHubRepos", () => {
   it("throws ConnectError when GitHub responds with an error", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 401,
-        text: async () => "Bad credentials",
-      }),
+      vi.fn().mockResolvedValue(
+        Response.json({ message: "Bad credentials" }, { status: 401 }),
+      ),
     );
 
     await expect(

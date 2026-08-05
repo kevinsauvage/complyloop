@@ -33,13 +33,15 @@ describe("summarizeAssessmentForCheckRun", () => {
 
 describe("postPullRequestCheckRun", () => {
   it("posts a completed check run to the GitHub Checks API", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: 42,
-        html_url: "https://github.com/acme/shop/runs/42",
-      }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          id: 42,
+          html_url: "https://github.com/acme/shop/runs/42",
+        },
+        { status: 201 },
+      ),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await postPullRequestCheckRun({
@@ -53,18 +55,14 @@ describe("postPullRequestCheckRun", () => {
 
     expect(result.ok).toBe(true);
     expect(result.checkRunId).toBe(42);
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.github.com/repos/acme/shop/check-runs",
-      expect.objectContaining({
-        method: "POST",
-        headers: expect.objectContaining({
-          Authorization: "Bearer gho_token",
-        }),
-      }),
-    );
-    const body = JSON.parse(
-      (fetchMock.mock.calls[0][1] as { body: string }).body,
-    ) as {
+    expect(fetchMock).toHaveBeenCalled();
+    const [url, init] = fetchMock.mock.calls[0] as [
+      string,
+      { method?: string; body?: string },
+    ];
+    expect(url).toContain("/repos/acme/shop/check-runs");
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body ?? "{}") as {
       head_sha: string;
       conclusion: string;
       name: string;
@@ -77,11 +75,9 @@ describe("postPullRequestCheckRun", () => {
   it("surfaces API errors", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 403,
-        text: async () => "Resource not accessible",
-      }),
+      vi.fn().mockResolvedValue(
+        Response.json({ message: "Resource not accessible" }, { status: 403 }),
+      ),
     );
     const result = await postPullRequestCheckRun({
       fullName: "acme/shop",
@@ -92,6 +88,6 @@ describe("postPullRequestCheckRun", () => {
       summary: "ok",
     });
     expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/403/);
+    expect(result.error).toMatch(/403|Checks API/i);
   });
 });

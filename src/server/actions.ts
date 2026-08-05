@@ -121,7 +121,7 @@ export async function connectProjectAction(
 
   const { db } = await getWorkspace();
   try {
-    connectProjectInput(db, input);
+    await connectProjectInput(db, input);
     saveDb(db);
     refresh();
     return { error: null };
@@ -185,7 +185,7 @@ export async function connectGitHubRepoAction(
 
   try {
     const repo = await fetchGitHubRepo(accessToken, fullName);
-    connectGitHubRepo(db, {
+    await connectGitHubRepo(db, {
       fullName: repo.fullName,
       cloneUrl: repo.cloneUrl,
       defaultBranch: repo.defaultBranch,

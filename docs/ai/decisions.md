@@ -4,6 +4,20 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-05 — Prefer maintained packages for infra glue
+
+**Context:** Hand-rolled GitHub `fetch`, recursive `readdirSync` (×3), naive unified diffs, and raw `git` argv wrappers reinvented common tooling.
+
+**Decision:**
+- **GitHub HTTP:** `@octokit/rest` for repos / pulls / check runs; `@octokit/webhooks-methods` for signature verify.
+- **Diffs:** `diff` (`createTwoFilesPatch`) for developer handoff patches.
+- **File walk:** `fast-glob` via shared `src/analysis/source-files.ts` (jsx vs script extension sets).
+- **Git clone/PR/webhook pull:** `simple-git`. Tiny sync `git` one-liners in `monitor.ts` stay as `execFileSync` to keep assessment sync.
+- **Stay custom:** domain core, AST checks + fixes, assessment stickiness, RGAA adapter, evidence, AES token file store.
+- **`typescript`:** moved to `dependencies` (runtime AST analysis).
+
+**Consequence:** Less fragile HTTP/git/diff/walk glue; product loop unchanged.
+
 ## 2026-08-05 — Human pass, Check Runs, encrypted tokens, durable deploy
 
 **Context:** P0 gaps: checklist imports stuck on `unable_to_verify`; PR webhooks assessed but did not surface on GitHub; tokens were plaintext on disk; serverless FS cannot host `.data/`.

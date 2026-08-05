@@ -1,6 +1,6 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
 import fs from "node:fs";
+import simpleGit from "simple-git";
 import type { Alert } from "@/core/types";
 import { runAssessment } from "./assessment";
 import { addEvidence, loadDb, saveDb, type Db } from "./db";
@@ -15,59 +15,43 @@ export function isWebhookConfigured(): boolean {
   return Boolean(process.env.GITHUB_WEBHOOK_SECRET);
 }
 
-export function verifyGitHubSignature(
+export async function verifyGitHubSignature(
   rawBody: string,
   signatureHeader: string | null,
-): boolean {
+): Promise<boolean> {
   const secret = process.env.GITHUB_WEBHOOK_SECRET;
-  if (!secret || !signatureHeader?.startsWith("sha256=")) return false;
-  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-  const provided = signatureHeader.slice("sha256=".length);
+  if (!secret || !signatureHeader) return false;
   try {
-    return timingSafeEqual(
-      Buffer.from(expected, "utf8"),
-      Buffer.from(provided, "utf8"),
-    );
+    return await verifyWebhookSignature(secret, rawBody, signatureHeader);
   } catch {
     return false;
   }
 }
 
-function pullLatest(rootPath: string, fullName: string, token: string): void {
+async function pullLatest(
+  rootPath: string,
+  fullName: string,
+  token: string,
+): Promise<void> {
   const remote = githubCloneUrl(fullName, token);
-  execFileSync("git", ["-C", rootPath, "remote", "set-url", "origin", remote], {
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  const git = simpleGit({
+    baseDir: rootPath,
+    config: ["core.askPass="],
+  }).env({ ...process.env, GIT_TERMINAL_PROMPT: "0" });
+
+  await git.remote(["set-url", "origin", remote]);
   try {
-    execFileSync("git", ["-C", rootPath, "fetch", "--depth", "1", "origin"], {
-      stdio: ["ignore", "pipe", "pipe"],
-      timeout: 120_000,
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
-    });
-    const branch = execFileSync(
-      "git",
-      ["-C", rootPath, "rev-parse", "--abbrev-ref", "HEAD"],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-    ).trim();
-    const target =
-      branch === "HEAD" ? "origin/HEAD" : `origin/${branch}`;
-    execFileSync("git", ["-C", rootPath, "reset", "--hard", target], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    await git.fetch(["--depth", "1", "origin"]);
+    const branch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
+    const target = branch === "HEAD" ? "origin/HEAD" : `origin/${branch}`;
+    await git.reset(["--hard", target]);
   } finally {
     // Never leave the token in the remote URL on disk.
-    execFileSync(
-      "git",
-      [
-        "-C",
-        rootPath,
-        "remote",
-        "set-url",
-        "origin",
-        `https://github.com/${fullName}.git`,
-      ],
-      { stdio: ["ignore", "pipe", "ignore"] },
-    );
+    await git.remote([
+      "set-url",
+      "origin",
+      `https://github.com/${fullName}.git`,
+    ]);
   }
 }
 
@@ -187,7 +171,7 @@ export async function handleGitHubWebhookEvent(
     ? `push ${typeof payload.ref === "string" ? payload.ref : ""}`.trim()
     : `pull_request ${String(payload.action)}`;
 
-  pullLatest(project.rootPath, fullName, token);
+  await pullLatest(project.rootPath, fullName, token);
   const assessment = runAssessment(db, project.id);
   const alerts = collectRegressionAlerts(
     db,

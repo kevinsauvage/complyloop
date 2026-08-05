@@ -2,27 +2,8 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { listSourceFiles } from "@/analysis/source-files";
 import type { AssessmentSnapshot, FileChange } from "@/core/types";
-
-const SOURCE_EXTENSIONS = new Set([".tsx", ".jsx", ".ts", ".js"]);
-const IGNORED_DIRECTORIES = new Set(["node_modules", ".next", ".git", "dist", "out"]);
-
-function collectSourceFiles(rootPath: string): string[] {
-  const files: string[] = [];
-  const walk = (dir: string): void => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        if (!IGNORED_DIRECTORIES.has(entry.name)) walk(path.join(dir, entry.name));
-        continue;
-      }
-      if (SOURCE_EXTENSIONS.has(path.extname(entry.name))) {
-        files.push(path.join(dir, entry.name));
-      }
-    }
-  };
-  walk(rootPath);
-  return files.sort();
-}
 
 export function hashFileContents(absolutePath: string): string {
   const buffer = fs.readFileSync(absolutePath);
@@ -31,7 +12,7 @@ export function hashFileContents(absolutePath: string): string {
 
 export function captureSnapshot(rootPath: string): AssessmentSnapshot {
   const fileHashes: Record<string, string> = {};
-  for (const absolute of collectSourceFiles(rootPath)) {
+  for (const absolute of listSourceFiles(rootPath, "script")) {
     const relative = path.relative(rootPath, absolute);
     fileHashes[relative] = hashFileContents(absolute);
   }

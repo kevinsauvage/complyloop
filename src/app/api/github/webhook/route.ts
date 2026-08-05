@@ -16,7 +16,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const rawBody = await request.text();
   const signature = request.headers.get("x-hub-signature-256");
-  if (!verifyGitHubSignature(rawBody, signature)) {
+  if (!(await verifyGitHubSignature(rawBody, signature))) {
     return Response.json({ error: "Invalid signature." }, { status: 401 });
   }
 

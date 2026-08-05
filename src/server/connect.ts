@@ -1,12 +1,10 @@
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import simpleGit from "simple-git";
+import { hasSourceFiles } from "@/analysis/source-files";
 import type { Project, ProjectGitHubMeta } from "@/core/types";
 import { addEvidence, workspacesDir, type Db } from "./db";
 import { isProjectVisible, resolveActiveProject } from "./project-visibility";
-
-const SOURCE_EXTENSIONS = new Set([".tsx", ".jsx", ".ts", ".js"]);
-const IGNORED_DIRECTORIES = new Set(["node_modules", ".next", ".git", "dist", "out"]);
 
 export class ConnectError extends Error {
   constructor(message: string) {
@@ -46,29 +44,6 @@ export function isLikelyGitUrl(value: string): boolean {
   return false;
 }
 
-function countSourceFiles(rootPath: string, limit = 1): number {
-  let found = 0;
-  const walk = (dir: string): void => {
-    if (found >= limit) return;
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (found >= limit) return;
-      if (entry.isDirectory()) {
-        if (!IGNORED_DIRECTORIES.has(entry.name)) walk(path.join(dir, entry.name));
-        continue;
-      }
-      if (SOURCE_EXTENSIONS.has(path.extname(entry.name))) found += 1;
-    }
-  };
-  walk(rootPath);
-  return found;
-}
-
 export function assertAssessableRoot(rootPath: string): void {
   if (!fs.existsSync(rootPath)) {
     throw new ConnectError(`Path does not exist: ${rootPath}`);
@@ -77,7 +52,7 @@ export function assertAssessableRoot(rootPath: string): void {
   if (!stats.isDirectory()) {
     throw new ConnectError(`Path is not a directory: ${rootPath}`);
   }
-  if (countSourceFiles(rootPath) === 0) {
+  if (!hasSourceFiles(rootPath, "script")) {
     throw new ConnectError(
       `No .tsx/.jsx/.ts/.js source files found under ${rootPath}. Connect a React/TypeScript project.`,
     );
@@ -157,7 +132,7 @@ export function connectLocalPath(db: Db, rawPath: string): Project {
  * Shallow-clones a git remote into `.data/workspaces/` and connects it.
  * Requires `git` on PATH.
  */
-export function connectGitUrl(db: Db, rawUrl: string): Project {
+export async function connectGitUrl(db: Db, rawUrl: string): Promise<Project> {
   const url = rawUrl.trim();
   if (url.length === 0) {
     throw new ConnectError("Enter a git repository URL.");
@@ -183,18 +158,10 @@ export function connectGitUrl(db: Db, rawUrl: string): Project {
   fs.mkdirSync(workspacesDir(), { recursive: true });
 
   try {
-    execFileSync("git", ["clone", "--depth", "1", url, rootPath], {
-      stdio: ["ignore", "pipe", "pipe"],
-      timeout: 120_000,
-    });
+    await simpleGit().clone(url, rootPath, ["--depth", "1"]);
   } catch (error) {
     fs.rmSync(rootPath, { recursive: true, force: true });
-    const detail =
-      error instanceof Error && "stderr" in error
-        ? String((error as { stderr?: Buffer }).stderr?.toString() ?? error.message)
-        : error instanceof Error
-          ? error.message
-          : "unknown error";
+    const detail = error instanceof Error ? error.message : "unknown error";
     throw new ConnectError(`git clone failed: ${detail.trim().slice(0, 400)}`);
   }
 
@@ -223,7 +190,10 @@ export function connectGitUrl(db: Db, rawUrl: string): Project {
  * Connect from a single form field: git URL if it looks like one, otherwise
  * treat the value as a local filesystem path.
  */
-export function connectProjectInput(db: Db, input: string): Project {
+export async function connectProjectInput(
+  db: Db,
+  input: string,
+): Promise<Project> {
   const trimmed = input.trim();
   if (trimmed.length === 0) {
     throw new ConnectError("Enter a local path or a git repository URL.");
@@ -252,10 +222,10 @@ export interface ConnectGitHubRepoInput {
  * Shallow-clones a GitHub repo the user selected after OAuth into
  * `.data/workspaces/` and scopes it to that user.
  */
-export function connectGitHubRepo(
+export async function connectGitHubRepo(
   db: Db,
   input: ConnectGitHubRepoInput,
-): Project {
+): Promise<Project> {
   const fullName = input.fullName.trim();
   if (!/^[\w.-]+\/[\w.-]+$/.test(fullName)) {
     throw new ConnectError(`Invalid GitHub repository name: ${fullName}`);
@@ -280,33 +250,22 @@ export function connectGitHubRepo(
   const authenticatedUrl = githubCloneUrl(fullName, input.accessToken);
 
   try {
-    execFileSync("git", ["clone", "--depth", "1", authenticatedUrl, rootPath], {
-      stdio: ["ignore", "pipe", "pipe"],
-      timeout: 120_000,
-      env: {
-        ...process.env,
-        // Avoid writing credentials into helper logs.
-        GIT_TERMINAL_PROMPT: "0",
-      },
-    });
+    await simpleGit()
+      .env({ ...process.env, GIT_TERMINAL_PROMPT: "0" })
+      .clone(authenticatedUrl, rootPath, ["--depth", "1"]);
   } catch (error) {
     fs.rmSync(rootPath, { recursive: true, force: true });
-    const detail =
-      error instanceof Error && "stderr" in error
-        ? String((error as { stderr?: Buffer }).stderr?.toString() ?? error.message)
-        : error instanceof Error
-          ? error.message
-          : "unknown error";
+    const detail = error instanceof Error ? error.message : "unknown error";
     throw new ConnectError(`git clone failed: ${detail.trim().slice(0, 400)}`);
   }
 
   // Strip embedded token from the remote URL stored in the clone.
   try {
-    execFileSync(
-      "git",
-      ["-C", rootPath, "remote", "set-url", "origin", sourceRef],
-      { stdio: ["ignore", "pipe", "pipe"] },
-    );
+    await simpleGit({ baseDir: rootPath }).remote([
+      "set-url",
+      "origin",
+      sourceRef,
+    ]);
   } catch {
     /* non-fatal — assessment does not need origin */
   }

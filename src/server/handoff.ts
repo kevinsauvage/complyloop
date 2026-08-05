@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createTwoFilesPatch } from "diff";
 import { applyFix } from "@/analysis/fixes";
 import type {
   Control,
@@ -17,41 +18,6 @@ export interface DeveloperHandoff {
   filePath: string | null;
 }
 
-function unifiedHunk(
-  filePath: string,
-  original: string,
-  fixed: string,
-  focusLine: number,
-): string {
-  const before = original.split("\n");
-  const after = fixed.split("\n");
-  const context = 2;
-  const start = Math.max(0, focusLine - 1 - context);
-  const endBefore = Math.min(before.length, focusLine + context);
-  const endAfter = Math.min(after.length, focusLine + context + (after.length - before.length));
-
-  const oldLines = before.slice(start, endBefore);
-  const newLines = after.slice(start, endAfter);
-  const header = [
-    `--- a/${filePath}`,
-    `+++ b/${filePath}`,
-    `@@ -${start + 1},${oldLines.length} +${start + 1},${newLines.length} @@`,
-  ];
-  const body: string[] = [];
-  const max = Math.max(oldLines.length, newLines.length);
-  for (let i = 0; i < max; i += 1) {
-    const a = oldLines[i];
-    const b = newLines[i];
-    if (a === b) {
-      body.push(` ${a ?? ""}`);
-    } else {
-      if (a !== undefined) body.push(`-${a}`);
-      if (b !== undefined) body.push(`+${b}`);
-    }
-  }
-  return [...header, ...body].join("\n");
-}
-
 export function buildDiffForFix(
   project: Project,
   finding: Finding,
@@ -60,11 +26,14 @@ export function buildDiffForFix(
   const absolute = path.join(project.rootPath, finding.location.filePath);
   const original = fs.readFileSync(absolute, "utf8");
   const fixed = applyFix(original, fix);
-  return unifiedHunk(
-    finding.location.filePath,
+  return createTwoFilesPatch(
+    `a/${finding.location.filePath}`,
+    `b/${finding.location.filePath}`,
     original,
     fixed,
-    finding.location.line,
+    undefined,
+    undefined,
+    { context: 3 },
   );
 }
 
@@ -127,13 +96,15 @@ export function buildDeveloperHandoff(
   }
   // Fall back when the file already changed (stale spans) or there is no automatable fix.
   if (!diff && suggestion?.proposedSnippet) {
-    diff = [
-      `--- a/${finding.location.filePath}`,
-      `+++ b/${finding.location.filePath}`,
-      `@@ suggested (review before apply) @@`,
-      `-${finding.location.snippet}`,
-      `+${suggestion.proposedSnippet}`,
-    ].join("\n");
+    diff = createTwoFilesPatch(
+      `a/${finding.location.filePath}`,
+      `b/${finding.location.filePath}`,
+      `${finding.location.snippet}\n`,
+      `${suggestion.proposedSnippet}\n`,
+      "current",
+      "suggested",
+      { context: 0 },
+    );
   }
 
   return {

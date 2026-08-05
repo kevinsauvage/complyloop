@@ -80,8 +80,8 @@ describe("developer handoff", () => {
 
     const diff = buildDiffForFix(project, finding, raw.fix);
     expect(diff).toContain("--- a/Hero.tsx");
-    expect(diff).toContain("+");
-    expect(diff).toContain("alt=");
+    expect(diff).toContain("+++ b/Hero.tsx");
+    expect(diff).toMatch(/\+.*alt=/);
 
     const handoff = buildDeveloperHandoff(project, control, finding, remediation);
     expect(handoff.title).toContain("WCAG 1.1.1");

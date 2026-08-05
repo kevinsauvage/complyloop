@@ -42,11 +42,12 @@ The domain model must stay **framework-agnostic** (requirements/controls, not "a
 
 ## Tech Stack
 
-- **Language:** TypeScript (strict mode) everywhere
+- **Language:** TypeScript (strict mode) everywhere (`typescript` is a runtime dependency for AST analysis)
 - **Frontend/App:** Next.js 16 (App Router) + React 19
 - **Styling/UI:** Tailwind CSS 4 (hand-rolled components for the MVP; shadcn/ui can be adopted later)
 - **Persistence:** JSON file store in `.data/db.json` behind `src/server/db.ts` for the MVP; PostgreSQL with a typed ORM is the target when multi-user needs arrive
 - **Auth / GitHub connect:** Auth.js v5 (`next-auth`) with GitHub OAuth (`AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`); sample + local path stay available unsigned; GitHub repo picker requires sign-in
+- **GitHub API / git:** `@octokit/rest` + `@octokit/webhooks-methods`; clones and PR push via `simple-git`; handoff patches via `diff`; source walks via `fast-glob`
 - **Analysis engine:** deterministic TypeScript AST checks in `src/analysis/` as the source of truth; AI augments, never replaces it
 - **AI:** Vercel AI SDK for explanations (optional, gated by `AI_GATEWAY_API_KEY`); deterministic explanations are the baseline
 - **Testing:** Vitest + React Testing Library (jsdom)

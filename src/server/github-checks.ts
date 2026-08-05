@@ -1,3 +1,5 @@
+import { createOctokit, octokitErrorMessage } from "./octokit";
+
 export interface CheckRunInput {
   fullName: string;
   headSha: string;
@@ -26,46 +28,31 @@ export async function postPullRequestCheckRun(
     return { ok: false, error: `Invalid repository full name: ${input.fullName}` };
   }
 
-  const response = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/check-runs`,
-    {
-      method: "POST",
-      headers: {
-        Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${input.token}`,
-        "X-GitHub-Api-Version": "2022-11-28",
-        "Content-Type": "application/json",
+  const octokit = createOctokit(input.token);
+  try {
+    const { data } = await octokit.rest.checks.create({
+      owner,
+      repo,
+      name: "ComplyLoop",
+      head_sha: input.headSha,
+      status: "completed",
+      conclusion: input.conclusion,
+      output: {
+        title: input.title,
+        summary: input.summary,
       },
-      body: JSON.stringify({
-        name: "ComplyLoop",
-        head_sha: input.headSha,
-        status: "completed",
-        conclusion: input.conclusion,
-        output: {
-          title: input.title,
-          summary: input.summary,
-        },
-      }),
-    },
-  );
-
-  if (!response.ok) {
-    const body = await response.text();
+    });
+    return {
+      ok: true,
+      checkRunId: data.id,
+      htmlUrl: data.html_url ?? undefined,
+    };
+  } catch (error) {
     return {
       ok: false,
-      error: `GitHub Checks API ${response.status}: ${body.slice(0, 500)}`,
+      error: octokitErrorMessage(error, "GitHub Checks API"),
     };
   }
-
-  const payload = (await response.json()) as {
-    id?: number;
-    html_url?: string;
-  };
-  return {
-    ok: true,
-    checkRunId: payload.id,
-    htmlUrl: payload.html_url,
-  };
 }
 
 export function summarizeAssessmentForCheckRun(input: {
