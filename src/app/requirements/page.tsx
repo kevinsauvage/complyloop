@@ -7,9 +7,11 @@ import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
 import {
   applyFrameworkPresetAction,
   clearRequirementExceptionAction,
+  clearRequirementHumanPassAction,
   importChecklistAction,
   importCustomControlAction,
   markRequirementExceptionAction,
+  markRequirementPassedAction,
   updateRequirementScopeAction,
 } from "@/server/actions";
 import { getWorkspace } from "@/server/workspace";
@@ -73,8 +75,8 @@ export default async function RequirementsPage() {
             <code className="font-mono text-xs">
               CODE | Title | Description
             </code>
-            . Each becomes a manual control (unable to verify until human
-            review).
+            . Each becomes a manual control (unable to verify until a human
+            marks it passed or records an exception).
           </p>
           <form action={importChecklistAction} className="flex flex-col gap-3">
             <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
@@ -242,6 +244,32 @@ export default async function RequirementsPage() {
                     </div>
                   </div>
 
+                  {requirement.humanPass ? (
+                    <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                      <p>
+                        Human pass: {requirement.humanPass.note}
+                      </p>
+                      <p className="mt-1 text-xs text-emerald-800">
+                        Set {formatDateTime(requirement.humanPass.at)} — sticky
+                        until cleared (assessments will not overwrite).
+                      </p>
+                      <form
+                        action={clearRequirementHumanPassAction.bind(
+                          null,
+                          requirement.id,
+                        )}
+                        className="mt-2"
+                      >
+                        <button
+                          type="submit"
+                          className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
+                        >
+                          Clear human pass &amp; return to unable to verify
+                        </button>
+                      </form>
+                    </div>
+                  ) : null}
+
                   {requirement.exception ? (
                     <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                       <p>
@@ -272,59 +300,94 @@ export default async function RequirementsPage() {
                       </form>
                     </div>
                   ) : (
-                    <details className="mt-4">
-                      <summary className="cursor-pointer text-xs font-medium text-zinc-500">
-                        Mark requirement exception (N/A / accepted risk /
-                        compensating / temporary)
-                      </summary>
-                      <form
-                        action={markRequirementExceptionAction.bind(
-                          null,
-                          requirement.id,
-                        )}
-                        className="mt-3 flex flex-col gap-2"
-                      >
-                        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-                          Reason
-                          <select
-                            name="reason"
-                            className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
+                    <div className="mt-4 flex flex-col gap-3">
+                      {control.checkId === null && !requirement.humanPass ? (
+                        <details>
+                          <summary className="cursor-pointer text-xs font-medium text-zinc-500">
+                            Mark passed (human review)
+                          </summary>
+                          <form
+                            action={markRequirementPassedAction.bind(
+                              null,
+                              requirement.id,
+                            )}
+                            className="mt-3 flex flex-col gap-2"
                           >
-                            <option value="not_applicable">Not applicable</option>
-                            <option value="accepted_risk">Accepted risk</option>
-                            <option value="compensating_control">
-                              Compensating control
-                            </option>
-                            <option value="temporary">Temporary</option>
-                          </select>
-                        </label>
-                        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-                          Expires (required for temporary)
-                          <input
-                            type="date"
-                            name="expiresAt"
-                            className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-                          Note (required, kept as evidence)
-                          <textarea
-                            name="note"
-                            required
-                            rows={2}
-                            className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
-                          />
-                        </label>
-                        <div>
-                          <button
-                            type="submit"
-                            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                          >
-                            Record exception
-                          </button>
-                        </div>
-                      </form>
-                    </details>
+                            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+                              Evidence note (required)
+                              <textarea
+                                name="note"
+                                required
+                                rows={2}
+                                placeholder="What was reviewed and why this control passes"
+                                className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
+                              />
+                            </label>
+                            <div>
+                              <button
+                                type="submit"
+                                className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                              >
+                                Record human pass
+                              </button>
+                            </div>
+                          </form>
+                        </details>
+                      ) : null}
+                      <details>
+                        <summary className="cursor-pointer text-xs font-medium text-zinc-500">
+                          Mark requirement exception (N/A / accepted risk /
+                          compensating / temporary)
+                        </summary>
+                        <form
+                          action={markRequirementExceptionAction.bind(
+                            null,
+                            requirement.id,
+                          )}
+                          className="mt-3 flex flex-col gap-2"
+                        >
+                          <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+                            Reason
+                            <select
+                              name="reason"
+                              className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
+                            >
+                              <option value="not_applicable">Not applicable</option>
+                              <option value="accepted_risk">Accepted risk</option>
+                              <option value="compensating_control">
+                                Compensating control
+                              </option>
+                              <option value="temporary">Temporary</option>
+                            </select>
+                          </label>
+                          <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+                            Expires (required for temporary)
+                            <input
+                              type="date"
+                              name="expiresAt"
+                              className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+                            Note (required, kept as evidence)
+                            <textarea
+                              name="note"
+                              required
+                              rows={2}
+                              className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
+                            />
+                          </label>
+                          <div>
+                            <button
+                              type="submit"
+                              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                            >
+                              Record exception
+                            </button>
+                          </div>
+                        </form>
+                      </details>
+                    </div>
                   )}
                 </Card>
               );

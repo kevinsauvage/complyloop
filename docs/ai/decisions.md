@@ -4,12 +4,24 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-05 — Human pass, Check Runs, encrypted tokens, durable deploy
+
+**Context:** P0 gaps: checklist imports stuck on `unable_to_verify`; PR webhooks assessed but did not surface on GitHub; tokens were plaintext on disk; serverless FS cannot host `.data/`.
+
+**Decision:**
+- **Human pass:** Manual controls (`checkId === null`) can be marked `passed` with a required note (`requirement.humanPass`). Sticky across assessments the same way as exceptions; evidence kinds `requirement_human_passed` / `requirement_human_pass_cleared`. Automated checks still cannot be human-passed (exceptions remain the override path).
+- **Check Runs:** After PR webhook re-assess (`opened` / `synchronize` / `reopened`), post a completed ComplyLoop check run on `pull_request.head.sha` via the Checks API (`src/server/github-checks.ts`).
+- **Token encryption:** `.data/github-tokens.json` stores AES-256-GCM ciphertext keyed from `AUTH_SECRET`; plaintext entries migrate on read/write. No disk persistence without `AUTH_SECRET`.
+- **Deploy:** Documented in `docs/deploy.md` — require persistent `DATA_DIR` (Fly/Railway/VPS/Docker volume). Ephemeral serverless FS is explicitly unsupported until Postgres (or equivalent) lands.
+
+**Consequence:** Checklist loop closes with human evidence; PRs show pass/fail; tokens are safer to leave on a shared volume; operators know not to put the MVP on bare serverless.
+
 ## 2026-08-04 — Continuous GitHub loop, checks, import, prioritization
 
 **Context:** Spec gaps after GitHub connect: webhooks, native PRs, check depth, requirement intake, root-cause/priority. Postgres/multi-tenant listed for when leaving the laptop demo.
 
 **Decision:**
-- **Webhooks:** `POST /api/github/webhook` verifies `GITHUB_WEBHOOK_SECRET`, pulls the owned clone with a token stored at sign-in (`.data/github-tokens.json`), re-assesses, and writes `alerts` for regressions.
+- **Webhooks:** `POST /api/github/webhook` verifies `GITHUB_WEBHOOK_SECRET`, pulls the owned clone with a token stored at sign-in (`.data/github-tokens.json`, now encrypted — see 2026-08-05), re-assesses, and writes `alerts` for regressions.
 - **Native PR:** `preparePullRequest` pushes with the OAuth token and opens a PR via GitHub REST (`POST /repos/.../pulls`), not only `gh`.
 - **CI:** `.github/workflows/complyloop-check.yml` + `templates/github-actions/` wrapping `npm run check`.
 - **Checks:** +4 AST rules (heading-order, empty-heading, iframe-title, autoplay-media) → 10 total; seed migrates new control ids.

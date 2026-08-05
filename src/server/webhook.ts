@@ -5,6 +5,10 @@ import type { Alert } from "@/core/types";
 import { runAssessment } from "./assessment";
 import { addEvidence, loadDb, saveDb, type Db } from "./db";
 import { githubCloneUrl } from "./connect";
+import {
+  postPullRequestCheckRun,
+  summarizeAssessmentForCheckRun,
+} from "./github-checks";
 import { getStoredGitHubToken } from "./github-tokens";
 
 export function isWebhookConfigured(): boolean {
@@ -95,20 +99,30 @@ function collectRegressionAlerts(
   return alerts;
 }
 
+function pullRequestHeadSha(payload: Record<string, unknown>): string | null {
+  const pr = payload.pull_request as
+    | { head?: { sha?: string } }
+    | undefined;
+  const sha = pr?.head?.sha;
+  return typeof sha === "string" && sha.length > 0 ? sha : null;
+}
+
 export interface WebhookHandleResult {
   handled: boolean;
   message: string;
   alerts: Alert[];
+  checkRun?: { ok: boolean; error?: string; htmlUrl?: string };
 }
 
 /**
  * Handles push / pull_request GitHub events for connected projects.
- * Re-pulls the clone, re-assesses, and emits regression alerts.
+ * Re-pulls the clone, re-assesses, emits regression alerts, and on PR events
+ * posts a Check Run on the head commit.
  */
-export function handleGitHubWebhookEvent(
+export async function handleGitHubWebhookEvent(
   eventName: string,
   payload: Record<string, unknown>,
-): WebhookHandleResult {
+): Promise<WebhookHandleResult> {
   const repo = payload.repository as
     | { full_name?: string; private?: boolean }
     | undefined;
@@ -184,9 +198,51 @@ export function handleGitHubWebhookEvent(
 
   db.alerts.push(...alerts);
 
+  let checkRun: WebhookHandleResult["checkRun"];
+  if (isPr) {
+    const headSha = pullRequestHeadSha(payload);
+    if (headSha) {
+      const openViolations = db.findings.filter(
+        (finding) =>
+          finding.projectId === project.id &&
+          finding.status === "open" &&
+          finding.kind === "violation",
+      ).length;
+      const failedRequirements = db.requirements.filter(
+        (requirement) =>
+          requirement.projectId === project.id &&
+          requirement.status === "failed",
+      ).length;
+      const summary = summarizeAssessmentForCheckRun({
+        openViolations,
+        failedRequirements,
+        assessmentId: assessment.id,
+      });
+      const posted = await postPullRequestCheckRun({
+        fullName,
+        headSha,
+        token,
+        ...summary,
+      });
+      checkRun = {
+        ok: posted.ok,
+        error: posted.error,
+        htmlUrl: posted.htmlUrl,
+      };
+    } else {
+      checkRun = { ok: false, error: "Missing pull_request.head.sha" };
+    }
+  }
+
   addEvidence(db, {
     kind: "webhook_reassessment",
-    summary: `Webhook re-assessment of ${fullName} after ${trigger}${alerts.length > 0 ? ` — ${alerts.length} regression(s)` : ""}`,
+    summary: `Webhook re-assessment of ${fullName} after ${trigger}${alerts.length > 0 ? ` — ${alerts.length} regression(s)` : ""}${
+      checkRun
+        ? checkRun.ok
+          ? " — Check Run posted"
+          : ` — Check Run failed: ${checkRun.error ?? "unknown"}`
+        : ""
+    }`,
     projectId: project.id,
     assessmentId: assessment.id,
     detail: {
@@ -194,6 +250,7 @@ export function handleGitHubWebhookEvent(
       fullName,
       trigger,
       regressionCount: alerts.length,
+      checkRun,
     },
   });
 
@@ -202,5 +259,6 @@ export function handleGitHubWebhookEvent(
     handled: true,
     message: `Re-assessed ${fullName}; ${alerts.length} regression alert(s)`,
     alerts,
+    checkRun,
   };
 }

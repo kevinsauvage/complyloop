@@ -180,4 +180,38 @@ describe("runAssessment", () => {
     expect(requirementStatus("ctl-button-name")).toBe("passed");
     expect(requirementStatus("ctl-img-alt")).toBeUndefined();
   });
+
+  it("keeps a human pass on a manual control across re-assessment", () => {
+    db.controls.push({
+      id: "ctl-manual",
+      frameworkId: rgaaFramework.id,
+      code: "CUST-1",
+      secondaryCode: "checklist",
+      title: "Privacy link present",
+      description: "Marketing pages link to the privacy notice",
+      checkId: null,
+    });
+    project.inScopeControlIds = ["ctl-manual"];
+
+    runAssessment(db, project.id);
+    expect(requirementStatus("ctl-manual")).toBe("unable_to_verify");
+
+    const requirement = db.requirements.find(
+      (candidate) => candidate.controlId === "ctl-manual",
+    );
+    if (!requirement) throw new Error("expected requirement");
+    requirement.status = "passed";
+    requirement.determination = "human_review";
+    requirement.humanPass = {
+      note: "Verified on staging footer",
+      at: new Date().toISOString(),
+    };
+
+    runAssessment(db, project.id);
+    expect(requirementStatus("ctl-manual")).toBe("passed");
+    expect(
+      db.requirements.find((candidate) => candidate.controlId === "ctl-manual")
+        ?.humanPass?.note,
+    ).toBe("Verified on staging footer");
+  });
 });

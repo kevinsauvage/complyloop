@@ -28,6 +28,6 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const result = handleGitHubWebhookEvent(eventName, payload);
+  const result = await handleGitHubWebhookEvent(eventName, payload);
   return Response.json(result, { status: result.handled ? 200 : 202 });
 }

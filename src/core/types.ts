@@ -95,6 +95,12 @@ export interface RequirementException {
   expiresAt?: string;
 }
 
+/** Human attestation that a manual (no-check) control passed, with retained evidence. */
+export interface RequirementHumanPass {
+  note: string;
+  at: string;
+}
+
 export interface Requirement {
   id: string;
   projectId: string;
@@ -104,6 +110,11 @@ export interface Requirement {
   updatedAt: string;
   /** Set when a human marks the requirement N/A or similar; blocks automated overwrite. */
   exception?: RequirementException;
+  /**
+   * Set when a human marks a manual control passed with a note.
+   * Sticky across assessments until cleared (same as exceptions).
+   */
+  humanPass?: RequirementHumanPass;
 }
 
 export interface FileChange {
@@ -239,6 +250,8 @@ export type EvidenceKind =
   | "requirement_status_changed"
   | "requirement_exception_set"
   | "requirement_exception_cleared"
+  | "requirement_human_passed"
+  | "requirement_human_pass_cleared"
   | "requirements_imported"
   | "pull_request_prepared"
   | "monitoring_changes_detected"

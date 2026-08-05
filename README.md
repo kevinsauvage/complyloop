@@ -40,8 +40,17 @@ URL** still work. Local paths are assessed in place; git/GitHub clones land in
 
 Optional continuous monitoring: set `GITHUB_WEBHOOK_SECRET` and point a GitHub
 repo webhook (push + pull_request) at
-`{origin}/api/github/webhook`. After you sign in once, tokens are stored so
-webhooks can pull and re-assess; regressions appear as dashboard alerts.
+`{origin}/api/github/webhook`. After you sign in once, tokens are stored
+**encrypted at rest** (AES-256-GCM via `AUTH_SECRET`) so webhooks can pull and
+re-assess; PR events also post a **ComplyLoop Check Run** on the head commit.
+Regressions appear as dashboard alerts.
+
+### Deploying beyond the laptop
+
+The JSON store, clones, and webhook re-pulls need a **persistent disk**. Plain
+serverless ephemeral FS is not supported for production. See
+[`docs/deploy.md`](./docs/deploy.md) (`DATA_DIR` on Fly/Railway/VPS, or migrate
+the store later).
 
 CI for assessed apps: copy
 [`templates/github-actions/complyloop-check.yml`](./templates/github-actions/complyloop-check.yml)
@@ -49,7 +58,7 @@ or run `npm run check -- .` in your pipeline.
 
 Then click **Run assessment** and walk the loop:
 
-1. **Assess** — six deterministic AST checks scan the connected code.
+1. **Assess** — deterministic AST checks scan the connected code.
 2. **Understand** — each finding explains what failed, why, where, its impact,
    and confidence.
 3. **Remediate** — review the suggested fix (edit e.g. the proposed alt text),
@@ -63,7 +72,8 @@ Then click **Run assessment** and walk the loop:
 
 On each finding you can also copy a **unified diff + PR body**, mark work
 **implemented outside** the platform, **verify manually** with a note, and on
-Requirements record **N/A / accepted risk / compensating control** exceptions.
+Requirements record a **human pass** for manual/checklist controls or
+**N/A / accepted risk / compensating control** exceptions.
 
 Set `AI_GATEWAY_API_KEY` to enable AI explanations and AI remediation
 suggestions; deterministic explanations/fixes remain the happy-path baseline —

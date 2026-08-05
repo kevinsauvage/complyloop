@@ -14,10 +14,21 @@ import type {
   ProposedFix,
   Remediation,
   RemediationSuggestion,
+  Requirement,
   RequirementStatus,
 } from "@/core/types";
 import { addEvidence, type Db } from "./db";
 import { detectChanges, summarizeChanges } from "./monitor";
+
+/** Human exceptions and human passes block automated status overwrite. */
+function isStickyHumanDecision(
+  requirement: Requirement | undefined,
+): boolean {
+  if (!requirement || requirement.determination !== "human_review") {
+    return false;
+  }
+  return Boolean(requirement.exception || requirement.humanPass);
+}
 
 /**
  * Findings are matched across assessments by file plus snippet (or line as a
@@ -180,12 +191,12 @@ export function refreshRequirementStatuses(
   for (const control of scoped) {
     if (control.checkId === null) {
       // Manual / custom controls without a check stay unable_to_verify unless
-      // a human exception already sets a different status.
+      // a human pass or exception already sets a different status.
       const requirement = db.requirements.find(
         (candidate) =>
           candidate.projectId === projectId && candidate.controlId === control.id,
       );
-      if (requirement?.exception && requirement.determination === "human_review") {
+      if (isStickyHumanDecision(requirement)) {
         continue;
       }
       if (!requirement) {
@@ -197,10 +208,7 @@ export function refreshRequirementStatuses(
           determination: "automated",
           updatedAt: now,
         });
-      } else if (
-        !requirement.exception &&
-        requirement.status !== "unable_to_verify"
-      ) {
+      } else if (requirement.status !== "unable_to_verify") {
         requirement.status = "unable_to_verify";
         requirement.determination = "automated";
         requirement.updatedAt = now;
@@ -212,9 +220,9 @@ export function refreshRequirementStatuses(
       (candidate) =>
         candidate.projectId === projectId && candidate.controlId === control.id,
     );
-    // Human exceptions (N/A, accepted risk, compensating, temporary) are sticky
-    // until explicitly cleared or (for temporary) expired.
-    if (requirement?.exception && requirement.determination === "human_review") {
+    // Human exceptions / human passes are sticky until explicitly cleared
+    // (temporary exceptions may expire earlier — see clearExpiredExceptions).
+    if (isStickyHumanDecision(requirement)) {
       continue;
     }
 

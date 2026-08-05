@@ -581,6 +581,7 @@ export async function markRequirementExceptionAction(
     at: new Date().toISOString(),
     expiresAt,
   };
+  delete requirement.humanPass;
   requirement.determination = "human_review";
   if (reason === "not_applicable") {
     requirement.status = "not_applicable";
@@ -610,6 +611,99 @@ export async function markRequirementExceptionAction(
       detail: { from: previous, to: requirement.status, regression: false },
     });
   }
+  saveDb(db);
+  refresh();
+}
+
+export async function markRequirementPassedAction(
+  requirementId: string,
+  formData: FormData,
+): Promise<void> {
+  const { db, project } = await getWorkspace();
+  const requirement = db.requirements.find(
+    (candidate) => candidate.id === requirementId,
+  );
+  if (!requirement || requirement.projectId !== project.id) {
+    throw new Error("Unknown requirement.");
+  }
+
+  const control = controlById(db, requirement.controlId);
+  if (control.checkId !== null) {
+    throw new Error(
+      "Only manual controls (no automated check) can be marked passed by human review.",
+    );
+  }
+
+  const noteRaw = formData.get("note");
+  if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
+    throw new Error("A note is required when marking a requirement passed.");
+  }
+  const note = noteRaw.trim();
+  const previous = requirement.status;
+
+  delete requirement.exception;
+  requirement.humanPass = {
+    note,
+    at: new Date().toISOString(),
+  };
+  requirement.status = "passed";
+  requirement.determination = "human_review";
+  requirement.updatedAt = new Date().toISOString();
+
+  addEvidence(db, {
+    kind: "requirement_human_passed",
+    summary: `${control.code} marked passed (human review): ${note}`,
+    projectId: project.id,
+    controlId: requirement.controlId,
+    detail: { note, from: previous, to: "passed" },
+  });
+  if (previous !== "passed") {
+    addEvidence(db, {
+      kind: "requirement_status_changed",
+      summary: `${control.code} (${control.title}): ${previous} → passed — human review`,
+      projectId: project.id,
+      controlId: requirement.controlId,
+      detail: {
+        from: previous,
+        to: "passed",
+        regression: false,
+        humanPass: true,
+      },
+    });
+  }
+  saveDb(db);
+  refresh();
+}
+
+export async function clearRequirementHumanPassAction(
+  requirementId: string,
+): Promise<void> {
+  const { db, project } = await getWorkspace();
+  const requirement = db.requirements.find(
+    (candidate) => candidate.id === requirementId,
+  );
+  if (!requirement || requirement.projectId !== project.id) {
+    throw new Error("Unknown requirement.");
+  }
+  if (!requirement.humanPass) {
+    throw new Error("This requirement has no human pass to clear.");
+  }
+
+  const control = controlById(db, requirement.controlId);
+  const previousPass = requirement.humanPass;
+  delete requirement.humanPass;
+  requirement.determination = "automated";
+  requirement.updatedAt = new Date().toISOString();
+
+  addEvidence(db, {
+    kind: "requirement_human_pass_cleared",
+    summary: `${control.code} human pass cleared`,
+    projectId: project.id,
+    controlId: requirement.controlId,
+    detail: { previousPass },
+  });
+
+  refreshRequirementStatuses(db, project.id);
   saveDb(db);
   refresh();
 }
