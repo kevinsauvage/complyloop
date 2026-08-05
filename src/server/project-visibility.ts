@@ -1,22 +1,34 @@
-import type { Project } from "@/core/types";
+import type { OrgMembership, Organization, Project } from "@/core/types";
+import { canOnProject, type Permission } from "@/core/rbac";
+
+export interface AccessContext {
+  userId: string | null | undefined;
+  githubLogin?: string | null;
+  organizations: ReadonlyArray<Organization>;
+  memberships: ReadonlyArray<OrgMembership>;
+}
 
 /**
- * Sample and unowned (local/demo) projects are always visible. GitHub-connected
- * projects are visible only to the owning signed-in user.
+ * Sample and unowned demo projects (no org) stay visible without sign-in.
+ * Org-scoped projects require membership (or legacy connector ownership).
  */
 export function isProjectVisible(
   project: Project,
-  userId: string | null | undefined,
+  ctx: AccessContext,
 ): boolean {
-  if (!project.ownerUserId) return true;
-  return Boolean(userId && project.ownerUserId === userId);
+  return canOnProject(
+    project,
+    ctx.memberships,
+    ctx.userId,
+    "project.view",
+  );
 }
 
 export function visibleProjects(
   projects: ReadonlyArray<Project>,
-  userId: string | null | undefined,
+  ctx: AccessContext,
 ): Project[] {
-  return projects.filter((project) => isProjectVisible(project, userId));
+  return projects.filter((project) => isProjectVisible(project, ctx));
 }
 
 /**
@@ -26,9 +38,9 @@ export function visibleProjects(
 export function resolveActiveProject(
   projects: ReadonlyArray<Project>,
   activeProjectId: string | null | undefined,
-  userId: string | null | undefined,
+  ctx: AccessContext,
 ): Project | undefined {
-  const visible = visibleProjects(projects, userId);
+  const visible = visibleProjects(projects, ctx);
   if (visible.length === 0) return undefined;
 
   const preferred = visible.find((project) => project.id === activeProjectId);
@@ -36,4 +48,14 @@ export function resolveActiveProject(
 
   const sample = visible.find((project) => project.source === "sample");
   return sample ?? visible[0];
+}
+
+export function assertProjectPermission(
+  project: Project,
+  ctx: AccessContext,
+  permission: Permission,
+): void {
+  if (!canOnProject(project, ctx.memberships, ctx.userId, permission)) {
+    throw new Error(`Not allowed: missing permission ${permission}.`);
+  }
 }

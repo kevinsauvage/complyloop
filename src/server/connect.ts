@@ -3,8 +3,14 @@ import path from "node:path";
 import simpleGit from "simple-git";
 import { hasSourceFiles } from "@/analysis/source-files";
 import type { Project, ProjectGitHubMeta } from "@/core/types";
+import { canOnProject } from "@/core/rbac";
 import { addEvidence, workspacesDir, type Db } from "./db";
-import { isProjectVisible, resolveActiveProject } from "./project-visibility";
+import { defaultOrgIdForUser } from "./orgs";
+import {
+  type AccessContext,
+  isProjectVisible,
+  resolveActiveProject,
+} from "./project-visibility";
 
 export class ConnectError extends Error {
   constructor(message: string) {
@@ -215,6 +221,8 @@ export interface ConnectGitHubRepoInput {
   defaultBranch: string;
   private: boolean;
   ownerUserId: string;
+  /** Organization that owns the connected project (personal org by default). */
+  orgId?: string;
   accessToken: string;
 }
 
@@ -283,6 +291,9 @@ export async function connectGitHubRepo(
     private: input.private,
   };
 
+  const orgId =
+    input.orgId ?? defaultOrgIdForUser(db, input.ownerUserId);
+
   return addConnectedProject(
     db,
     {
@@ -292,11 +303,20 @@ export async function connectGitHubRepo(
       source: "github",
       sourceRef,
       ownerUserId: input.ownerUserId,
+      orgId,
       github,
       createdAt: new Date().toISOString(),
     },
     `Connected GitHub repository ${fullName}`,
   );
+}
+
+function accessForUser(db: Db, userId: string | null | undefined): AccessContext {
+  return {
+    userId,
+    organizations: db.organizations,
+    memberships: db.memberships,
+  };
 }
 
 export function setActiveProject(
@@ -306,7 +326,7 @@ export function setActiveProject(
 ): Project {
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) throw new ConnectError(`Unknown project: ${projectId}`);
-  if (!isProjectVisible(project, userId)) {
+  if (!isProjectVisible(project, accessForUser(db, userId))) {
     throw new ConnectError("You do not have access to that project.");
   }
   db.activeProjectId = project.id;
@@ -314,8 +334,8 @@ export function setActiveProject(
 }
 
 /**
- * Disconnects a GitHub project owned by the user: drops project-scoped records,
- * removes the workspace clone, and records append-only evidence.
+ * Disconnects a GitHub project when the actor has `project.connect`:
+ * drops project-scoped records, removes the workspace clone, and records evidence.
  */
 export function disconnectGitHubRepo(
   db: Db,
@@ -326,8 +346,15 @@ export function disconnectGitHubRepo(
   if (!project) {
     throw new ConnectError("Unknown project.");
   }
-  if (project.source !== "github" || project.ownerUserId !== userId) {
-    throw new ConnectError("You can only disconnect your own GitHub projects.");
+  if (project.source !== "github") {
+    throw new ConnectError("Only GitHub projects can be disconnected.");
+  }
+  if (
+    !canOnProject(project, db.memberships, userId, "project.connect")
+  ) {
+    throw new ConnectError(
+      "You do not have permission to disconnect this project.",
+    );
   }
 
   const fullName = project.github?.fullName ?? project.name;
@@ -372,6 +399,10 @@ export function disconnectGitHubRepo(
     },
   });
 
-  const next = resolveActiveProject(db.projects, db.activeProjectId, userId);
+  const next = resolveActiveProject(
+    db.projects,
+    db.activeProjectId,
+    accessForUser(db, userId),
+  );
   db.activeProjectId = next?.id ?? null;
 }

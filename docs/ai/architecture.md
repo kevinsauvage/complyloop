@@ -6,7 +6,7 @@ High-level architecture for ComplyLoop. The MVP implements the core loop in
 `src/server/`.
 
 **Current connectors:** sample workspace, local path, git URL, and GitHub OAuth
-repo connect. **Persistence:** JSON under `$DATA_DIR` (default `.data/`) behind `src/server/db.ts`, or **Postgres via Drizzle** when `DATABASE_URL` is set. Evidence is append-only (insert-only in Postgres). See `docs/ai/decisions.md` and `docs/deploy.md`. Orgs/RBAC still deferred.
+repo connect. **Persistence:** JSON under `$DATA_DIR` (default `.data/`) behind `src/server/db.ts`, or **Postgres via Drizzle** when `DATABASE_URL` is set. Evidence is append-only (insert-only in Postgres). **Tenancy:** organizations + memberships with role RBAC (`src/core/rbac.ts`); projects carry `orgId`. See `docs/ai/decisions.md` and `docs/deploy.md`.
 
 ## System Shape
 

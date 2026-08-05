@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/requirements", label: "Requirements" },
   { href: "/findings", label: "Findings" },
   { href: "/evidence", label: "Evidence" },
+  { href: "/org", label: "Organization" },
 ] as const;
 
 export function NavLinks() {

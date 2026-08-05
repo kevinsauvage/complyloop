@@ -22,18 +22,27 @@ type StoredRemediation = Omit<Remediation, "suggestion"> & {
 
 type StoredDb = Omit<
   Db,
-  "projects" | "activeProjectId" | "remediations" | "alerts"
+  | "projects"
+  | "activeProjectId"
+  | "remediations"
+  | "alerts"
+  | "organizations"
+  | "memberships"
 > & {
   projects: StoredProject[];
   activeProjectId?: string | null;
   remediations: StoredRemediation[];
   alerts?: Alert[];
+  organizations?: Db["organizations"];
+  memberships?: Db["memberships"];
 };
 
 export function emptyDb(): Db {
   return {
     frameworks: [],
     controls: [],
+    organizations: [],
+    memberships: [],
     projects: [],
     activeProjectId: null,
     requirements: [],
@@ -45,7 +54,7 @@ export function emptyDb(): Db {
   };
 }
 
-/** Normalizes records written before `source` / `activeProjectId` existed. */
+/** Normalizes records written before `source` / `activeProjectId` / orgs existed. */
 export function migrateDb(raw: StoredDb): Db {
   const projects: Project[] = raw.projects.map((project) => {
     if (project.source) {
@@ -78,10 +87,17 @@ export function migrateDb(raw: StoredDb): Db {
   });
 
   return {
-    ...raw,
+    frameworks: raw.frameworks,
+    controls: raw.controls,
+    organizations: raw.organizations ?? [],
+    memberships: raw.memberships ?? [],
     projects,
     activeProjectId,
+    requirements: raw.requirements,
+    assessments: raw.assessments,
+    findings: raw.findings,
     remediations,
+    evidence: raw.evidence,
     alerts: raw.alerts ?? [],
   };
 }

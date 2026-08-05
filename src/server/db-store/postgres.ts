@@ -10,6 +10,8 @@ import {
   evidence,
   findings,
   frameworks,
+  memberships,
+  organizations,
   projects,
   remediations,
   requirements,
@@ -59,6 +61,8 @@ export async function loadDbFromPostgres(drizzle: DrizzleDb): Promise<Db> {
   const [
     frameworkRows,
     controlRows,
+    organizationRows,
+    membershipRows,
     projectRows,
     requirementRows,
     assessmentRows,
@@ -70,6 +74,8 @@ export async function loadDbFromPostgres(drizzle: DrizzleDb): Promise<Db> {
   ] = await Promise.all([
     drizzle.select().from(frameworks),
     drizzle.select().from(controls),
+    drizzle.select().from(organizations),
+    drizzle.select().from(memberships),
     drizzle.select().from(projects),
     drizzle.select().from(requirements),
     drizzle.select().from(assessments),
@@ -91,6 +97,8 @@ export async function loadDbFromPostgres(drizzle: DrizzleDb): Promise<Db> {
   return {
     frameworks: frameworkRows.map((row) => row.payload),
     controls: controlRows.map((row) => row.payload),
+    organizations: organizationRows.map((row) => row.payload),
+    memberships: membershipRows.map((row) => row.payload),
     projects: projectRows.map((row) => row.payload),
     activeProjectId,
     requirements: requirementRows.map((row) => row.payload),
@@ -159,6 +167,68 @@ export async function saveDbToPostgres(
       );
     }
 
+    // Organizations
+    if (db.organizations.length === 0) {
+      await tx.delete(organizations);
+    } else {
+      await tx
+        .insert(organizations)
+        .values(
+          db.organizations.map((item) => ({
+            id: item.id,
+            slug: item.slug,
+            payload: item,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: organizations.id,
+          set: {
+            slug: sql`excluded.slug`,
+            payload: sql`excluded.payload`,
+          },
+        });
+      await tx.delete(organizations).where(
+        notInArray(
+          organizations.id,
+          db.organizations.map((item) => item.id),
+        ),
+      );
+    }
+
+    // Memberships
+    if (db.memberships.length === 0) {
+      await tx.delete(memberships);
+    } else {
+      await tx
+        .insert(memberships)
+        .values(
+          db.memberships.map((item) => ({
+            id: item.id,
+            orgId: item.orgId,
+            userId: item.userId ?? null,
+            githubLogin: item.githubLogin,
+            role: item.role,
+            payload: item,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: memberships.id,
+          set: {
+            orgId: sql`excluded.org_id`,
+            userId: sql`excluded.user_id`,
+            githubLogin: sql`excluded.github_login`,
+            role: sql`excluded.role`,
+            payload: sql`excluded.payload`,
+          },
+        });
+      await tx.delete(memberships).where(
+        notInArray(
+          memberships.id,
+          db.memberships.map((item) => item.id),
+        ),
+      );
+    }
+
     // Projects
     if (db.projects.length === 0) {
       await tx.delete(projects);
@@ -170,6 +240,7 @@ export async function saveDbToPostgres(
             id: item.id,
             name: item.name,
             ownerUserId: item.ownerUserId ?? null,
+            orgId: item.orgId ?? null,
             payload: item,
           })),
         )
@@ -178,6 +249,7 @@ export async function saveDbToPostgres(
           set: {
             name: sql`excluded.name`,
             ownerUserId: sql`excluded.owner_user_id`,
+            orgId: sql`excluded.org_id`,
             payload: sql`excluded.payload`,
           },
         });

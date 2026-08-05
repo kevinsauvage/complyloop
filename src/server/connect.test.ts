@@ -18,6 +18,8 @@ function emptyDb(): Db {
   return {
     frameworks: [rgaaFramework],
     controls: rgaaControls,
+    organizations: [],
+    memberships: [],
     projects: [],
     activeProjectId: null,
     requirements: [],
@@ -205,7 +207,7 @@ describe("disconnectGitHubRepo", () => {
       createdAt: new Date().toISOString(),
     });
     expect(() => disconnectGitHubRepo(db, "gh-1", "user-b")).toThrow(
-      /your own GitHub projects/,
+      /permission to disconnect/,
     );
   });
 });

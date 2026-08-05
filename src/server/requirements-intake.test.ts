@@ -14,6 +14,8 @@ function emptyDb(project: Project): Db {
   return {
     frameworks: [rgaaFramework],
     controls: [...rgaaControls],
+    organizations: [],
+    memberships: [],
     projects: [project],
     activeProjectId: project.id,
     requirements: [],

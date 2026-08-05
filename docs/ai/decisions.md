@@ -4,6 +4,19 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-05 — Orgs / tenants + RBAC
+
+**Context:** Soft `ownerUserId` filtering was not real multi-user ACL; todo P2.13.
+
+**Decision:**
+- **Tenants:** `Organization` + `OrgMembership` in the store (JSON + Postgres tables). Sign-in auto-provisions a personal org (role `owner`) and migrates legacy owned projects onto it.
+- **Roles:** `owner` | `admin` | `member` | `viewer` with permissions `project.view|assess|remediate|connect` and `org.manage_members` (`src/core/rbac.ts`).
+- **Projects:** `project.orgId` is the ACL key; `ownerUserId` remains for GitHub token/webhook lookup. Demo projects without org/owner stay publicly assessable.
+- **Invites:** by GitHub login; claimed on next sign-in when `login` matches. UI at `/org`.
+- **Actions:** server actions assert the matching permission on the active/finding project before mutating.
+
+**Consequence:** Teammates can share an org with role-scoped access; sample/local demos still work unsigned.
+
 ## 2026-08-05 — Postgres behind `db.ts` with Drizzle
 
 **Context:** JSON `.data/db.json` cannot survive multi-instance or serverless hosts; todo P2.12.
@@ -11,11 +24,10 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 **Decision:**
 - **ORM:** Drizzle + `postgres` (postgres.js). Lighter than Prisma for a typed SQL-first boundary; migrations via `drizzle/` SQL + `npm run db:migrate`.
 - **Activation:** when `DATABASE_URL` is set, `loadDb`/`saveDb` use Postgres; otherwise keep the JSON file store for the laptop demo.
-- **Shape:** callers still use the in-memory `Db` object. Tables hold JSONB `payload` per entity (frameworks, controls, projects, requirements, assessments, findings, remediations, alerts) plus typed index columns. `app_meta` stores `activeProjectId`.
+- **Shape:** callers still use the in-memory `Db` object. Tables hold JSONB `payload` per entity (frameworks, controls, organizations, memberships, projects, requirements, assessments, findings, remediations, alerts) plus typed index columns. `app_meta` stores `activeProjectId`.
 - **Evidence:** dedicated `evidence` table; saves **insert only** missing ids — never UPDATE/DELETE evidence rows (append-only at the storage layer).
 - **Async boundary:** `loadDb`/`saveDb` are async; server actions / webhook / workspace await them.
 - **Still on disk:** workspaces, encrypted GitHub tokens, webhook delivery ids (until a later pass).
-- **Orgs/RBAC:** still deferred.
 
 **Consequence:** Production can put domain state on managed Postgres without rewriting assessment/actions; local demo stays zero-infra JSON.
 

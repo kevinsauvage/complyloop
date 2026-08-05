@@ -11,6 +11,8 @@ import type {
   Control,
   Finding,
   Framework,
+  OrgMembership,
+  Organization,
   Project,
   Remediation,
   Requirement,
@@ -33,10 +35,26 @@ export const controls = pgTable("controls", {
   payload: jsonb("payload").$type<Control>().notNull(),
 });
 
+export const organizations = pgTable("organizations", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull(),
+  payload: jsonb("payload").$type<Organization>().notNull(),
+});
+
+export const memberships = pgTable("memberships", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull(),
+  userId: text("user_id"),
+  githubLogin: text("github_login").notNull(),
+  role: text("role").notNull(),
+  payload: jsonb("payload").$type<OrgMembership>().notNull(),
+});
+
 export const projects = pgTable("projects", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   ownerUserId: text("owner_user_id"),
+  orgId: text("org_id"),
   payload: jsonb("payload").$type<Project>().notNull(),
 });
 

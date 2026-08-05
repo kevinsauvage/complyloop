@@ -2,7 +2,7 @@
 
 Snapshot against [`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md) and the current codebase (Aug 2026).
 
-**Status:** Spec §25 first-time loop works for a local/demo MVP. P0 and P1 are done; light P2 (auth/webhooks/check package) landed. Remaining productization is Postgres + tenants.
+**Status:** Spec §25 first-time loop works for a local/demo MVP. P0–P2 productization (Postgres + orgs/RBAC) landed; remaining is publish/polish.
 
 ---
 
@@ -22,6 +22,7 @@ Snapshot against [`compliance-engineering-product-spec.md`](./compliance-enginee
 - [x] Human pass, Check Runs, encrypted tokens, durable deploy docs
 - [x] Scoped re-scan, platform CI, auth hardening, webhook idempotency
 - [x] Postgres via Drizzle behind `db.ts` (`DATABASE_URL`; JSON fallback)
+- [x] Orgs / tenants + RBAC (personal org, invite by GitHub login, role ACL)
 
 ---
 
@@ -49,7 +50,7 @@ Snapshot against [`compliance-engineering-product-spec.md`](./compliance-enginee
 ## P2 — productization
 
 12. [x] **Postgres behind `src/server/db.ts`** — Drizzle + `DATABASE_URL`; JSON fallback; evidence insert-only (see `docs/ai/decisions.md`).
-13. [ ] **Orgs / tenants + RBAC** — replace soft `ownerUserId` filtering with real membership and project ACL.
+13. [x] **Orgs / tenants + RBAC** — organizations + memberships; role permissions on project actions; `/org` invite UI.
 14. [x] **Auth production hardening** — require `AUTH_URL` when serving production; document scopes; clear tokens on sign-out.
 15. [x] **Webhook idempotency** — dedupe by GitHub delivery id (admin re-deliver still optional).
 16. [x] **Publishable check package** — local `@complyloop/check` bin (npm publish still later).
@@ -69,10 +70,9 @@ Snapshot against [`compliance-engineering-product-spec.md`](./compliance-enginee
 
 | Order | Item | Why |
 |------:|------|-----|
-| 1 | Orgs / tenants + RBAC (P2.13) | Real multi-user ACL |
-| 2 | Publish `@complyloop/check` to npm | Customer install without path |
-| 3 | Move tokens/webhook deliveries into Postgres | Fewer disk dependencies |
-| 4 | Admin webhook re-deliver | Ops recovery |
-| 5 | Deferred polish (P3.20) | Only as needed |
+| 1 | Publish `@complyloop/check` to npm | Customer install without path |
+| 2 | Move tokens/webhook deliveries into Postgres | Fewer disk dependencies |
+| 3 | Admin webhook re-deliver | Ops recovery |
+| 4 | Deferred polish (P3.20) | Only as needed |
 
-When leaving the laptop demo: set `DATABASE_URL`, run `npm run db:migrate`, follow [`docs/deploy.md`](./docs/deploy.md), then **P2.13** before inviting real multi-user traffic.
+When leaving the laptop demo: set `DATABASE_URL`, run `npm run db:migrate`, follow [`docs/deploy.md`](./docs/deploy.md), sign in, and invite teammates from **Organization**.

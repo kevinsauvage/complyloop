@@ -53,6 +53,32 @@ export interface Control {
 /** Where the assessed tree comes from. */
 export type ProjectSource = "sample" | "local" | "git" | "github";
 
+/** Role within an organization (tenant). */
+export type OrgRole = "owner" | "admin" | "member" | "viewer";
+
+export interface Organization {
+  id: string;
+  name: string;
+  /** URL-safe unique key within the store. */
+  slug: string;
+  createdAt: string;
+}
+
+/**
+ * Membership in an organization. `userId` is the Auth.js subject when known;
+ * `githubLogin` is used to invite teammates before/until they sign in.
+ */
+export interface OrgMembership {
+  id: string;
+  orgId: string;
+  role: OrgRole;
+  /** Auth.js user id once claimed. */
+  userId?: string;
+  /** GitHub login used for invite + claim on sign-in. */
+  githubLogin: string;
+  createdAt: string;
+}
+
 export interface ProjectGitHubMeta {
   fullName: string;
   defaultBranch: string;
@@ -73,8 +99,13 @@ export interface Project {
   sourceRef?: string;
   createdAt: string;
   /**
-   * Auth.js user id that connected this project. Undefined = shared demo
-   * (sample / local path) visible without sign-in.
+   * Organization (tenant) that owns this project. When set, access is via
+   * org membership RBAC. Sample / unsigned local demos may omit it.
+   */
+  orgId?: string;
+  /**
+   * Auth.js user id of the connector — used for GitHub token lookup
+   * (webhooks / PR push). Not the sole ACL; prefer org membership.
    */
   ownerUserId?: string;
   /** Present when source is `github`. */

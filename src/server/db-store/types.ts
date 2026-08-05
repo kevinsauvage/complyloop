@@ -5,6 +5,8 @@ import type {
   EvidenceRecord,
   Finding,
   Framework,
+  OrgMembership,
+  Organization,
   Project,
   Remediation,
   Requirement,
@@ -17,6 +19,8 @@ import type {
 export interface Db {
   frameworks: Framework[];
   controls: Control[];
+  organizations: Organization[];
+  memberships: OrgMembership[];
   projects: Project[];
   /** Which project the UI and actions currently target. */
   activeProjectId: string | null;

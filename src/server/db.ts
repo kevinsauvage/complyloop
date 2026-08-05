@@ -17,14 +17,14 @@ export function workspacesDir(): string {
 
 export async function loadDb(): Promise<Db> {
   if (isPostgresConfigured()) {
-    return loadDbFromPostgres(getDrizzle());
+    return loadDbFromPostgres(await getDrizzle());
   }
   return loadDbFromJson();
 }
 
 export async function saveDb(db: Db): Promise<void> {
   if (isPostgresConfigured()) {
-    await saveDbToPostgres(getDrizzle(), db);
+    await saveDbToPostgres(await getDrizzle(), db);
     return;
   }
   saveDbToJson(db);

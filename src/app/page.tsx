@@ -31,6 +31,7 @@ const STATUS_ORDER: RequirementStatus[] = [
 function projectDescription(
   project: Project,
   latestAssessment: { completedAt: string; filesScanned: number } | undefined,
+  orgName?: string,
 ): string {
   let sourceBit: string;
   switch (project.source) {
@@ -54,11 +55,15 @@ function projectDescription(
   const assessmentBit = latestAssessment
     ? `last assessed ${formatDateTime(latestAssessment.completedAt)}, ${latestAssessment.filesScanned} files scanned`
     : "not assessed yet";
-  return `Project "${project.name}" (${sourceBit}) — ${assessmentBit}`;
+  const orgBit = orgName ? ` · org ${orgName}` : "";
+  return `Project "${project.name}" (${sourceBit}${orgBit}) — ${assessmentBit}`;
 }
 
 export default async function DashboardPage() {
   const { db, project, visibleProjects } = await getWorkspace();
+  const orgName = project.orgId
+    ? db.organizations.find((org) => org.id === project.orgId)?.name
+    : undefined;
   const latestAssessment = db.assessments
     .filter((assessment) => assessment.projectId === project.id)
     .at(-1);
@@ -98,7 +103,7 @@ export default async function DashboardPage() {
     <>
       <PageHeader
         title="Dashboard"
-        description={projectDescription(project, latestAssessment)}
+        description={projectDescription(project, latestAssessment, orgName)}
       >
         {project.source === "sample" ? (
           <form action={resetProjectAction}>

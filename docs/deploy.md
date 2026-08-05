@@ -55,7 +55,7 @@ Default: no `DATABASE_URL`, `DATA_DIR` unset → `.data/`. Fine for development.
 ## Auth notes
 
 OAuth scopes today: `read:user user:email repo`. Prefer a GitHub App with tighter
-permissions before multi-tenant production. Sign-out clears stored encrypted tokens.
+permissions for multi-user use. Sign-out clears stored encrypted tokens.
 `AUTH_URL` is required when serving production with GitHub auth configured.
 
 ## What not to do
@@ -72,4 +72,4 @@ permissions before multi-tenant production. Sign-out clears stored encrypted tok
 3. Stable `AUTH_SECRET` and `AUTH_URL`.
 4. GitHub OAuth + webhook secret.
 5. Backups for Postgres (and `DATA_DIR` if used).
-6. Orgs/RBAC (still deferred) before multi-tenant production.
+6. Invite teammates from **Organization** (`/org`) once GitHub auth is live.
