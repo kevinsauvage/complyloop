@@ -3,8 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  claimWebhookDelivery,
   hasProcessedWebhookDelivery,
-  recordWebhookDelivery,
 } from "./webhook-deliveries";
 
 let dataDir: string;
@@ -22,10 +22,24 @@ afterEach(() => {
 });
 
 describe("webhook delivery idempotency", () => {
-  it("records and detects duplicate delivery ids", async () => {
-    expect(await hasProcessedWebhookDelivery("del-1")).toBe(false);
-    await recordWebhookDelivery("del-1");
+  it("claims a delivery once and rejects duplicates", async () => {
+    expect(await claimWebhookDelivery("del-1")).toBe(true);
     expect(await hasProcessedWebhookDelivery("del-1")).toBe(true);
-    expect(await hasProcessedWebhookDelivery("del-2")).toBe(false);
+    expect(await claimWebhookDelivery("del-1")).toBe(false);
+    expect(await claimWebhookDelivery("del-2")).toBe(true);
+  });
+
+  it("allows concurrent claimants for the same id to produce one winner", async () => {
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () => claimWebhookDelivery("concurrent-1")),
+    );
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(await hasProcessedWebhookDelivery("concurrent-1")).toBe(true);
+  });
+
+  it("cannot dedupe empty delivery ids", async () => {
+    expect(await claimWebhookDelivery("")).toBe(true);
+    expect(await claimWebhookDelivery("")).toBe(true);
+    expect(await hasProcessedWebhookDelivery("")).toBe(false);
   });
 });

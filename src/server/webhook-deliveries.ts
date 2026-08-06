@@ -3,9 +3,10 @@ import path from "node:path";
 import { asc, count, eq, inArray } from "drizzle-orm";
 import { getDrizzle, isPostgresConfigured } from "./db-store/client";
 import { webhookDeliveries } from "./db-store/schema";
+import { withProcessWriteLock } from "./db-store/write-lock";
 
 interface DeliveryStore {
-  /** delivery id → ISO timestamp when processed */
+  /** delivery id → ISO timestamp when claimed */
   deliveries: Record<string, string>;
 }
 
@@ -68,7 +69,41 @@ async function prunePostgres(): Promise<void> {
     );
 }
 
-/** Returns true when this GitHub delivery id was already processed. */
+/**
+ * Atomically claim a GitHub delivery id for processing.
+ * Returns true only for the first claimant; later callers get false (duplicate).
+ * Empty ids cannot be deduped — always returns true.
+ */
+export async function claimWebhookDelivery(
+  deliveryId: string,
+): Promise<boolean> {
+  if (!deliveryId) return true;
+
+  const processedAt = new Date().toISOString();
+
+  if (isPostgresConfigured()) {
+    const drizzle = await getDrizzle();
+    const inserted = await drizzle
+      .insert(webhookDeliveries)
+      .values({ deliveryId, processedAt })
+      .onConflictDoNothing()
+      .returning({ deliveryId: webhookDeliveries.deliveryId });
+    if (inserted.length === 0) return false;
+    await prunePostgres();
+    return true;
+  }
+
+  return withProcessWriteLock(async () => {
+    const store = loadJsonStore();
+    if (deliveryId in store.deliveries) return false;
+    store.deliveries[deliveryId] = processedAt;
+    pruneJson(store);
+    saveJsonStore(store);
+    return true;
+  });
+}
+
+/** Returns true when this GitHub delivery id was already claimed. */
 export async function hasProcessedWebhookDelivery(
   deliveryId: string,
 ): Promise<boolean> {
@@ -83,22 +118,4 @@ export async function hasProcessedWebhookDelivery(
     return rows.length > 0;
   }
   return deliveryId in loadJsonStore().deliveries;
-}
-
-export async function recordWebhookDelivery(deliveryId: string): Promise<void> {
-  if (!deliveryId) return;
-  const processedAt = new Date().toISOString();
-  if (isPostgresConfigured()) {
-    const drizzle = await getDrizzle();
-    await drizzle
-      .insert(webhookDeliveries)
-      .values({ deliveryId, processedAt })
-      .onConflictDoNothing();
-    await prunePostgres();
-    return;
-  }
-  const store = loadJsonStore();
-  store.deliveries[deliveryId] = processedAt;
-  pruneJson(store);
-  saveJsonStore(store);
 }

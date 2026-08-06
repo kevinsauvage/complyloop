@@ -3,10 +3,7 @@ import {
   isWebhookConfigured,
   verifyGitHubSignature,
 } from "@/server/webhook";
-import {
-  hasProcessedWebhookDelivery,
-  recordWebhookDelivery,
-} from "@/server/webhook-deliveries";
+import { claimWebhookDelivery } from "@/server/webhook-deliveries";
 
 export const runtime = "nodejs";
 
@@ -25,7 +22,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const deliveryId = request.headers.get("x-github-delivery");
-  if (deliveryId && (await hasProcessedWebhookDelivery(deliveryId))) {
+  if (deliveryId && !(await claimWebhookDelivery(deliveryId))) {
     return Response.json(
       { duplicate: true, deliveryId, message: "Delivery already processed." },
       { status: 200 },
@@ -41,9 +38,6 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const result = await handleGitHubWebhookEvent(eventName, payload);
-  if (deliveryId) {
-    await recordWebhookDelivery(deliveryId);
-  }
   return Response.json(
     { ...result, deliveryId: deliveryId ?? undefined },
     { status: result.handled ? 200 : 202 },

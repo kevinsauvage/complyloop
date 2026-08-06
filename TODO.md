@@ -94,7 +94,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** In production, throw when `AUTH_SECRET` is missing (you already have `assertProductionAuthUrl`; add the same guard for the secret) instead of falling back.
   - **Acceptance criteria:** Production boot fails loudly without `AUTH_SECRET`; dev is unaffected.
 
-- [ ] **Webhook idempotency is check-then-act (TOCTOU)** 🟡
+- [x] **Webhook idempotency is check-then-act (TOCTOU)** 🟡
   - **Problem:** The route checks `hasProcessedWebhookDelivery` then later `recordWebhookDelivery`; two concurrent deliveries of the same id can both pass the check and both re-assess.
   - **Why:** Duplicate assessments, duplicate alerts, wasted compute; races worsen under load.
   - **Location:** `src/app/api/github/webhook/route.ts:28-45`; `src/server/webhook-deliveries.ts:72-104`.
