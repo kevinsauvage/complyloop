@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { guidanceFor } from "@/adapters/rgaa/guidance";
 import { deterministicExplanation } from "@/ai/explainer";
 import { describeFix, previewFixedLine } from "@/analysis/fixes";
-import { scanChangedFiles, scanProject } from "@/analysis/scan";
+import { scanChangedFiles, scanFile, scanProject } from "@/analysis/scan";
 import type { RawFinding } from "@/analysis/types";
 import { resolveInside } from "@/analysis/workspace-path";
 import { deriveRequirementStatus } from "@/core/requirement-status";
@@ -58,6 +58,29 @@ export function mergeFix(
     return { ...fresh, value: existing.value };
   }
   return fresh;
+}
+
+/**
+ * Re-scans the finding's file and re-locates this violation instance (by
+ * snippet, then line) so fixes use current character offsets after drift.
+ * Warnings are ignored — they carry no fix.
+ */
+export function locateViolationInProject(
+  project: Project,
+  finding: Pick<Finding, "checkId" | "location">,
+): RawFinding | undefined {
+  const violations = scanFile(
+    project.rootPath,
+    finding.location.filePath,
+  ).filter(
+    (candidate) =>
+      candidate.checkId === finding.checkId && candidate.kind === "violation",
+  );
+  return violations.find(
+    (candidate) =>
+      candidate.location.snippet === finding.location.snippet ||
+      candidate.location.line === finding.location.line,
+  );
 }
 
 export function buildSuggestion(

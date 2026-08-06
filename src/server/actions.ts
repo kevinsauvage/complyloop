@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
 import { applyFix } from "@/analysis/fixes";
-import { scanFile } from "@/analysis/scan";
 import { resolveInside } from "@/analysis/workspace-path";
 import { auth, getGitHubAccessToken } from "@/auth";
 import { advanceRemediation } from "@/core/remediation";
@@ -18,6 +17,7 @@ import type {
 } from "@/core/types";
 import {
   buildSuggestion,
+  locateViolationInProject,
   mergeFix,
   refreshRequirementStatuses,
   runAssessment,
@@ -98,26 +98,12 @@ function requireOnFindingProject(
   assertProjectPermission(project, workspace.access, permission);
 }
 
-/**
- * Re-scans the finding's file and re-locates this specific violation instance
- * (by snippet, falling back to line), so fixes and verification work on
- * current character offsets even after the file changed. Warnings are ignored:
- * they carry no fix and are not what a remediation verifies.
- */
 function locateViolation(db: Db, finding: Finding) {
   const project = db.projects.find((candidate) => candidate.id === finding.projectId);
   if (!project) throw new Error(`Unknown project: ${finding.projectId}`);
-  const violations = scanFile(project.rootPath, finding.location.filePath).filter(
-    (candidate) =>
-      candidate.checkId === finding.checkId && candidate.kind === "violation",
-  );
   return {
     project,
-    match: violations.find(
-      (candidate) =>
-        candidate.location.snippet === finding.location.snippet ||
-        candidate.location.line === finding.location.line,
-    ),
+    match: locateViolationInProject(project, finding),
   };
 }
 

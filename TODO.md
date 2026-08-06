@@ -39,7 +39,7 @@ Issues that could prevent the product from being safely or professionally sold.
   - **Recommendation:** Add a single `resolveInside(root, relative)` helper that resolves and asserts the result starts with `root + path.sep`; throw otherwise. Use it everywhere the app reads/writes a project file.
   - **Acceptance criteria:** A finding with `location.filePath = "../../etc/x"` is rejected before any read/write; unit test covers containment.
 
-- [ ] **PR apply uses stale spans and can corrupt customer source** 🟡
+- [x] **PR apply uses stale spans and can corrupt customer source** 🟡
   - **Problem:** `preparePullRequest` calls `applyFix(original, finding.fix)` with the *stored* span, without the re-scan/`locateViolation` safeguard the in-app apply path uses. If the file drifted since detection, the fix inserts/removes at the wrong offset.
   - **Why:** Silently corrupting a customer's source in an automated PR is a severe trust failure and hard to detect.
   - **Location:** `src/server/pr.ts:75-86`; contrast the safe path `src/server/actions.ts:105-119` (`locateViolation`) and `449-466`.

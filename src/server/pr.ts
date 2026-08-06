@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { applyFix } from "@/analysis/fixes";
 import { resolveInside } from "@/analysis/workspace-path";
 import type { Control, Finding, Project, Remediation } from "@/core/types";
+import { locateViolationInProject, mergeFix } from "./assessment";
 import { githubCloneUrl } from "./connect";
 import { createGit } from "./git";
 import { getStoredGitHubToken } from "./github-tokens";
@@ -67,6 +68,17 @@ export async function preparePullRequest(
     throw new Error("This finding has no automatable fix to commit.");
   }
 
+  const match = locateViolationInProject(project, finding);
+  if (!match?.fix) {
+    throw new Error(
+      "The violation could not be re-located in the current file. Re-run the assessment, then try again.",
+    );
+  }
+  const fix = mergeFix(finding.fix, match.fix);
+  if (!fix) {
+    throw new Error("No applicable fix after re-locating the violation.");
+  }
+
   const handoff = buildDeveloperHandoff(project, control, finding, remediation);
   const shortId = finding.id.slice(0, 8);
   const branch = `complyloop/fix-${finding.checkId}-${shortId}`;
@@ -74,7 +86,7 @@ export async function preparePullRequest(
   const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
   const absolute = resolveInside(project.rootPath, finding.location.filePath);
   const original = fs.readFileSync(absolute, "utf8");
-  const fixed = applyFix(original, finding.fix);
+  const fixed = applyFix(original, fix);
 
   try {
     const branches = await git.branchLocal();
