@@ -69,7 +69,9 @@ Default: no `DATABASE_URL`, `DATA_DIR` unset → `.data/`. Fine for development.
 
 OAuth scopes today: `read:user user:email repo`. Prefer a GitHub App with tighter
 permissions for multi-user use. Sign-out clears stored encrypted tokens.
-`AUTH_URL` is required when serving production with GitHub auth configured.
+`AUTH_SECRET` is required in production (the app refuses the known dev-only
+fallback). `AUTH_URL` is required when serving production with GitHub auth
+configured.
 
 **Local path connects** (`ALLOW_LOCAL_PROJECT_CONNECT`) default **off** in
 production. Hosted deployments must not enable them — they resolve arbitrary

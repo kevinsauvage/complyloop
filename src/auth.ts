@@ -2,11 +2,14 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
+import { isProductionRuntime, resolveAuthSecret } from "@/auth-secret";
 import {
   clearStoredGitHubToken,
   getStoredGitHubToken,
   storeUserGitHubToken,
 } from "@/server/github-tokens";
+
+export { resolveAuthSecret } from "@/auth-secret";
 
 /** True when GitHub OAuth env vars are present — otherwise sign-in is hidden. */
 export function isGitHubAuthConfigured(): boolean {
@@ -22,8 +25,7 @@ export function isGitHubAuthConfigured(): boolean {
  * Skips the Next.js production-build phase so `next build` still works.
  */
 export function assertProductionAuthUrl(): void {
-  if (process.env.NODE_ENV !== "production") return;
-  if (process.env.NEXT_PHASE === "phase-production-build") return;
+  if (!isProductionRuntime()) return;
   if (!isGitHubAuthConfigured()) return;
   if (!process.env.AUTH_URL) {
     throw new Error(
@@ -33,6 +35,7 @@ export function assertProductionAuthUrl(): void {
 }
 
 const githubConfigured = isGitHubAuthConfigured();
+const authSecret = resolveAuthSecret();
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: githubConfigured
@@ -46,7 +49,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }),
       ]
     : [],
-  secret: process.env.AUTH_SECRET ?? "dev-only-auth-secret-not-for-production",
+  secret: authSecret,
   trustHost: true,
   events: {
     async signOut(message) {
@@ -101,7 +104,7 @@ export async function getGitHubAccessToken(): Promise<string | null> {
 
   const token = await getToken({
     req: { headers: { cookie: cookieHeader } },
-    secret: process.env.AUTH_SECRET,
+    secret: resolveAuthSecret(),
     secureCookie: process.env.NODE_ENV === "production",
   });
   if (typeof token?.accessToken === "string") return token.accessToken;

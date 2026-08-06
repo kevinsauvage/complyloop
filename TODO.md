@@ -87,7 +87,7 @@ Issues that could prevent the product from being safely or professionally sold.
 
 Important for quality, security, maintainability, UX, or reliability.
 
-- [ ] **Dev-only auth secret fallback can silently ship to production** 🟢
+- [x] **Dev-only auth secret fallback can silently ship to production** 🟢
   - **Problem:** `secret: process.env.AUTH_SECRET ?? "dev-only-auth-secret-not-for-production"`. If `AUTH_SECRET` is unset in prod, sessions and encrypted tokens use a known constant.
   - **Why:** Anyone can forge sessions / decrypt tokens; catastrophic if it reaches prod.
   - **Location:** `src/auth.ts:49`.
