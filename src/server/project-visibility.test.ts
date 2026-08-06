@@ -1,9 +1,21 @@
 import { describe, expect, it } from "vitest";
-import type { OrgMembership, Organization, Project } from "@/core/types";
+import type {
+  EvidenceRecord,
+  Finding,
+  OrgMembership,
+  Organization,
+  Project,
+  Requirement,
+} from "@/core/types";
 import {
   type AccessContext,
+  evidenceForProject,
+  findingsForProject,
   isProjectVisible,
+  requirementsForProject,
   resolveActiveProject,
+  resolveVisibleFinding,
+  visibleProjectIds,
   visibleProjects,
 } from "./project-visibility";
 
@@ -25,6 +37,53 @@ function ctx(
   organizations: Organization[] = [],
 ): AccessContext {
   return { userId, memberships, organizations };
+}
+
+function finding(partial: Pick<Finding, "id" | "projectId">): Finding {
+  return {
+    controlId: "ctrl-1",
+    assessmentId: "assess-1",
+    checkId: "img-alt",
+    kind: "violation",
+    status: "open",
+    severity: "serious",
+    confidence: "high",
+    reason: "missing alt",
+    location: {
+      filePath: "src/Card.tsx",
+      line: 1,
+      column: 1,
+      snippet: "<img />",
+      span: { start: 0, end: 10 },
+    },
+    explanations: [],
+    fix: null,
+    detectedAt: "2026-01-01T00:00:00.000Z",
+    ...partial,
+  };
+}
+
+function evidence(
+  partial: Pick<EvidenceRecord, "id" | "projectId">,
+): EvidenceRecord {
+  return {
+    at: "2026-01-01T00:00:00.000Z",
+    kind: "assessment_completed",
+    summary: "done",
+    ...partial,
+  };
+}
+
+function requirement(
+  partial: Pick<Requirement, "id" | "projectId">,
+): Requirement {
+  return {
+    controlId: "ctrl-1",
+    status: "failed",
+    determination: "automated",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    ...partial,
+  };
 }
 
 describe("project visibility", () => {
@@ -94,5 +153,121 @@ describe("project visibility", () => {
       ctx("user-a"),
     );
     expect(resolved?.id).toBe("sample");
+  });
+});
+
+describe("tenant-scoped read helpers", () => {
+  const aliceProject = project({
+    id: "proj-a",
+    source: "github",
+    orgId: "org-a",
+    ownerUserId: "user-a",
+  });
+  const bobProject = project({
+    id: "proj-b",
+    source: "github",
+    orgId: "org-b",
+    ownerUserId: "user-b",
+  });
+  const aliceMembership: OrgMembership = {
+    id: "m-a",
+    orgId: "org-a",
+    role: "owner",
+    userId: "user-a",
+    githubLogin: "alice",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
+  const bobMembership: OrgMembership = {
+    id: "m-b",
+    orgId: "org-b",
+    role: "owner",
+    userId: "user-b",
+    githubLogin: "bob",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
+
+  const aliceFinding = finding({ id: "f-a", projectId: "proj-a" });
+  const bobFinding = finding({ id: "f-b", projectId: "proj-b" });
+  const aliceEvidence = evidence({ id: "e-a", projectId: "proj-a" });
+  const bobEvidence = evidence({ id: "e-b", projectId: "proj-b" });
+  const unscopedEvidence = evidence({ id: "e-x", projectId: undefined });
+  const aliceRequirement = requirement({ id: "r-a", projectId: "proj-a" });
+  const bobRequirement = requirement({ id: "r-b", projectId: "proj-b" });
+
+  it("scopes evidence and requirements to the active project only", () => {
+    expect(
+      evidenceForProject(
+        [aliceEvidence, bobEvidence, unscopedEvidence],
+        "proj-a",
+      ).map((record) => record.id),
+    ).toEqual(["e-a"]);
+    expect(
+      requirementsForProject(
+        [aliceRequirement, bobRequirement],
+        "proj-a",
+      ).map((requirement) => requirement.id),
+    ).toEqual(["r-a"]);
+    expect(
+      findingsForProject([aliceFinding, bobFinding], "proj-a").map(
+        (finding) => finding.id,
+      ),
+    ).toEqual(["f-a"]);
+  });
+
+  it("does not resolve another tenant's finding by id", () => {
+    const aliceCtx = ctx("user-a", [aliceMembership]);
+    expect(
+      resolveVisibleFinding(
+        "f-b",
+        [aliceFinding, bobFinding],
+        [aliceProject, bobProject],
+        aliceCtx,
+      ),
+    ).toBeNull();
+    expect(
+      resolveVisibleFinding(
+        "f-a",
+        [aliceFinding, bobFinding],
+        [aliceProject, bobProject],
+        aliceCtx,
+      )?.finding.id,
+    ).toBe("f-a");
+  });
+
+  it("does not resolve a finding when the project is missing", () => {
+    expect(
+      resolveVisibleFinding(
+        "f-a",
+        [aliceFinding],
+        [],
+        ctx("user-a", [aliceMembership]),
+      ),
+    ).toBeNull();
+  });
+
+  it("lists only visible project ids for export scoping", () => {
+    const ids = visibleProjectIds(
+      [aliceProject, bobProject],
+      ctx("user-a", [aliceMembership]),
+    );
+    expect([...ids]).toEqual(["proj-a"]);
+    expect(ids.has("proj-b")).toBe(false);
+  });
+
+  it("keeps bob from reading alice evidence via project filter", () => {
+    const bobVisible = visibleProjectIds(
+      [aliceProject, bobProject],
+      ctx("user-b", [bobMembership]),
+    );
+    const leaked = evidenceForProject(
+      [aliceEvidence, bobEvidence],
+      "proj-a",
+    ).filter((record) => bobVisible.has(record.projectId ?? ""));
+    expect(leaked).toEqual([]);
+    expect(
+      evidenceForProject([aliceEvidence, bobEvidence], "proj-b").map(
+        (record) => record.id,
+      ),
+    ).toEqual(["e-b"]);
   });
 });

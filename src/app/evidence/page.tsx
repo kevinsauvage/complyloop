@@ -1,11 +1,12 @@
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
+import { evidenceForProject } from "@/server/project-visibility";
 import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function EvidencePage() {
-  const { db } = await getWorkspace();
-  const evidence = [...db.evidence].reverse();
+  const { db, project } = await getWorkspace();
+  const evidence = [...evidenceForProject(db.evidence, project.id)].reverse();
 
   return (
     <>

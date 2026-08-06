@@ -1,3 +1,8 @@
+import {
+  evidenceForProject,
+  findingsForProject,
+  requirementsForProject,
+} from "@/server/project-visibility";
 import { buildComplianceReportMarkdown } from "@/server/report";
 import { getWorkspace } from "@/server/workspace";
 
@@ -5,22 +10,19 @@ export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<Response> {
   const { db, project } = await getWorkspace();
+  const projectFindings = findingsForProject(db.findings, project.id);
   const markdown = buildComplianceReportMarkdown({
     project,
     framework: db.frameworks[0],
     controls: db.controls,
-    requirements: db.requirements.filter(
-      (requirement) => requirement.projectId === project.id,
-    ),
-    findings: db.findings.filter((finding) => finding.projectId === project.id),
+    requirements: requirementsForProject(db.requirements, project.id),
+    findings: projectFindings,
     remediations: db.remediations.filter((remediation) =>
-      db.findings.some(
-        (finding) =>
-          finding.id === remediation.findingId &&
-          finding.projectId === project.id,
+      projectFindings.some(
+        (finding) => finding.id === remediation.findingId,
       ),
     ),
-    evidence: db.evidence,
+    evidence: evidenceForProject(db.evidence, project.id),
     exportedAt: new Date().toISOString(),
   });
 

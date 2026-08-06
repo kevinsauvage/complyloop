@@ -10,6 +10,7 @@ import {
   prioritizeFindings,
 } from "@/core/prioritization";
 import type { Finding, FindingStatus } from "@/core/types";
+import { findingsForProject } from "@/server/project-visibility";
 import {
   controlById,
   getWorkspace,
@@ -26,9 +27,7 @@ const SECTIONS: Array<{ status: FindingStatus; title: string }> = [
 
 export default async function FindingsPage() {
   const { db, project } = await getWorkspace();
-  const findings = db.findings.filter(
-    (finding) => finding.projectId === project.id,
-  );
+  const findings = findingsForProject(db.findings, project.id);
 
   const byStatus = (status: FindingStatus): Finding[] => {
     const filtered = findings.filter((finding) => finding.status === status);

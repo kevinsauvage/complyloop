@@ -1,3 +1,7 @@
+import {
+  evidenceForProject,
+  requirementsForProject,
+} from "@/server/project-visibility";
 import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
@@ -9,8 +13,8 @@ export async function GET(): Promise<Response> {
     project: { name: project.name, connectedAt: project.createdAt },
     framework: db.frameworks[0],
     controls: db.controls,
-    requirements: db.requirements,
-    evidence: db.evidence,
+    requirements: requirementsForProject(db.requirements, project.id),
+    evidence: evidenceForProject(db.evidence, project.id),
   };
   return new Response(JSON.stringify(payload, null, 2), {
     headers: {

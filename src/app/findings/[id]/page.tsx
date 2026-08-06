@@ -24,6 +24,7 @@ import {
   verifyRemediationAction,
 } from "@/server/actions";
 import { buildDeveloperHandoff } from "@/server/handoff";
+import { resolveVisibleFinding } from "@/server/project-visibility";
 import { controlById, getWorkspace, remediationForFinding } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
@@ -171,9 +172,15 @@ export default async function FindingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { db, project } = await getWorkspace();
-  const finding = db.findings.find((candidate) => candidate.id === id);
-  if (!finding) notFound();
+  const { db, access } = await getWorkspace();
+  const resolved = resolveVisibleFinding(
+    id,
+    db.findings,
+    db.projects,
+    access,
+  );
+  if (!resolved) notFound();
+  const { finding, project } = resolved;
 
   const control = controlById(db, finding.controlId);
   const remediation = remediationForFinding(db, finding.id);
