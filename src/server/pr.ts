@@ -5,7 +5,7 @@ import type { Control, Finding, Project, Remediation } from "@/core/types";
 import { locateViolationInProject, mergeFix } from "./assessment";
 import { githubCloneUrl } from "./connect";
 import { createGit } from "./git";
-import { getStoredGitHubToken } from "./github-tokens";
+import { resolveProjectGitHubToken } from "./github-access";
 import { buildDeveloperHandoff } from "./handoff";
 import { createOctokit, octokitErrorMessage } from "./octokit";
 
@@ -118,10 +118,7 @@ export async function preparePullRequest(
   let message = `Branch \`${branch}\` created with the fix committed. Push and open a PR from the developer handoff.`;
 
   const fullName = project.github?.fullName;
-  const token =
-    project.ownerUserId != null
-      ? await getStoredGitHubToken(project.ownerUserId)
-      : null;
+  const token = await resolveProjectGitHubToken(project);
 
   if (fullName && token) {
     const remote = githubCloneUrl(fullName, token);

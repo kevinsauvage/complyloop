@@ -4,6 +4,18 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-06 — GitHub App for least-privilege repo access
+
+**Context:** Classic OAuth `repo` scope grants read/write to every repo the user can access — unacceptable for multi-tenant production.
+
+**Decision:**
+- When `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY` are set, Auth.js requests only `read:user user:email`; the picker lists App installation repos; projects store `github.installationId`; clone/PR/Checks mint installation tokens via `@octokit/auth-app`.
+- Production with GitHub auth configured **requires** App credentials (fail loud). Laptop demo may omit App and keep the broad `repo` scope.
+
+**Consequence:** Customers grant access only to selected repos; webhooks/PRs no longer depend on a user’s full-account OAuth token when the project was connected under an App install.
+
+---
+
 ## 2026-08-06 — Active org, tokens/webhooks in Postgres, write lock
 
 **Context:** P0 multi-user gaps: `/org` always used personal `defaultOrgIdForUser`; tokens and webhook deliveries still required `$DATA_DIR`; whole-`Db` load/mutate/save raced under concurrent actions + webhooks.

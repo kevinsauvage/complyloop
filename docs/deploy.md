@@ -67,11 +67,17 @@ Default: no `DATABASE_URL`, `DATA_DIR` unset → `.data/`. Fine for development.
 
 ## Auth notes
 
-OAuth scopes today: `read:user user:email repo`. Prefer a GitHub App with tighter
-permissions for multi-user use. Sign-out clears stored encrypted tokens.
-`AUTH_SECRET` is required in production (the app refuses the known dev-only
-fallback). `AUTH_URL` is required when serving production with GitHub auth
-configured.
+**Production GitHub access must use a GitHub App** (`GITHUB_APP_ID` +
+`GITHUB_APP_PRIVATE_KEY`). Set `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` to the
+App’s OAuth client credentials. Users install the App on selected repositories;
+clone / PR / Checks use short-lived installation tokens — never the classic
+`repo` scope over a whole account.
+
+Laptop demo without App credentials still requests `read:user user:email repo`.
+
+Sign-out clears stored encrypted user tokens. `AUTH_SECRET` is required in
+production (the app refuses the known dev-only fallback). `AUTH_URL` is required
+when serving production with GitHub auth configured.
 
 **Local path connects** (`ALLOW_LOCAL_PROJECT_CONNECT`) default **off** in
 production. Hosted deployments must not enable them — they resolve arbitrary
@@ -92,7 +98,7 @@ connect requires sign-in (admin/owner) when local connects are disabled.
 1. `DATABASE_URL` + migrated schema (or durable `DATA_DIR` JSON).
 2. **Single instance** + durable disk for workspaces/clones.
 3. Stable `AUTH_SECRET` and `AUTH_URL`.
-4. GitHub OAuth + webhook secret.
+4. GitHub App (`GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`) + App OAuth client + webhook secret.
 5. Backups for Postgres (and `DATA_DIR` if used for JSON/clones).
 6. Optional `SENTRY_DSN` for error tracking (structured logs always emit).
 7. Invite teammates from **Organization** (`/org`) — switch to the shared org first if you use team orgs.

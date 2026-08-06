@@ -15,10 +15,13 @@ const disconnectInitial: DisconnectGitHubFormState = { error: null };
 export function GitHubRepoPicker({
   repos,
   connectedByFullName,
+  usesGitHubApp = false,
 }: {
   repos: GitHubRepoSummary[];
   /** GitHub fullName → connected project id for the signed-in user. */
   connectedByFullName: Record<string, string>;
+  /** When true, empty state explains App installation instead of OAuth `repo`. */
+  usesGitHubApp?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [connectState, connectAction, connectPending] = useActionState(
@@ -46,8 +49,18 @@ export function GitHubRepoPicker({
   if (repos.length === 0) {
     return (
       <p className="text-sm text-zinc-500">
-        No repositories returned from GitHub. Check that your OAuth app has the{" "}
-        <code className="font-mono text-xs">repo</code> scope.
+        {usesGitHubApp ? (
+          <>
+            No repositories from your GitHub App installations. Install the App
+            on the repos you want to assess, then refresh.
+          </>
+        ) : (
+          <>
+            No repositories returned from GitHub. Check that your OAuth app has
+            the <code className="font-mono text-xs">repo</code> scope (laptop
+            demo), or configure a GitHub App for production.
+          </>
+        )}
       </p>
     );
   }
@@ -77,7 +90,7 @@ export function GitHubRepoPicker({
           const connected = Boolean(projectId);
           return (
             <li
-              key={repo.fullName}
+              key={`${repo.installationId ?? "oauth"}:${repo.fullName}`}
               className="flex flex-wrap items-center justify-between gap-3 px-3 py-3"
             >
               <div className="min-w-0">
@@ -108,6 +121,13 @@ export function GitHubRepoPicker({
               ) : (
                 <form action={connectAction}>
                   <input type="hidden" name="fullName" value={repo.fullName} />
+                  {repo.installationId != null ? (
+                    <input
+                      type="hidden"
+                      name="installationId"
+                      value={String(repo.installationId)}
+                    />
+                  ) : null}
                   <button
                     type="submit"
                     disabled={pending}

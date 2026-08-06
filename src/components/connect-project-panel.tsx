@@ -8,6 +8,7 @@ import { ConnectProjectForm } from "@/components/connect-project-form";
 import { GitHubRepoPicker } from "@/components/github-repo-picker";
 import { isLocalProjectConnectAllowed } from "@/server/connect-policy";
 import { listGitHubRepos } from "@/server/github";
+import { isGitHubAppConfigured } from "@/server/github-app";
 import { getWorkspace } from "@/server/workspace";
 
 export async function ConnectProjectPanel() {
@@ -92,6 +93,7 @@ export async function ConnectProjectPanel() {
             <GitHubRepoPicker
               repos={repos}
               connectedByFullName={connectedByFullName}
+              usesGitHubApp={isGitHubAppConfigured()}
             />
           </div>
         )}

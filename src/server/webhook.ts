@@ -9,7 +9,7 @@ import {
   postPullRequestCheckRun,
   summarizeAssessmentForCheckRun,
 } from "./github-checks";
-import { getStoredGitHubToken } from "./github-tokens";
+import { resolveProjectGitHubToken } from "./github-access";
 import { reportError, reportWarning } from "./observability";
 
 export function isWebhookConfigured(): boolean {
@@ -169,10 +169,11 @@ export async function handleGitHubWebhookEvent(
     };
   }
 
-  const token = await getStoredGitHubToken(previewProject.ownerUserId);
+  const token = await resolveProjectGitHubToken(previewProject);
   if (!token) {
-    const message =
-      "No stored GitHub token for project owner — sign in again to refresh the token.";
+    const message = previewProject.github?.installationId
+      ? "Could not mint a GitHub App installation token for this repository."
+      : "No stored GitHub token for project owner — sign in again to refresh the token.";
     reportWarning(message, {
       code: "github_token_missing",
       projectId: previewProject.id,

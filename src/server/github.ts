@@ -1,4 +1,8 @@
 import { ConnectError } from "./connect";
+import {
+  isGitHubAppConfigured,
+  listReposViaInstallations,
+} from "./github-app";
 import { createOctokit, octokitErrorMessage } from "./octokit";
 
 export interface GitHubRepoSummary {
@@ -10,6 +14,8 @@ export interface GitHubRepoSummary {
   updatedAt: string;
   htmlUrl: string;
   cloneUrl: string;
+  /** Present when listed via a GitHub App installation. */
+  installationId?: number;
 }
 
 function mapRepo(repo: {
@@ -35,8 +41,9 @@ function mapRepo(repo: {
 }
 
 /**
- * Lists repositories the authenticated GitHub user can access.
- * Optional `q` filters by full name / description (client-friendly substring).
+ * Lists repositories available to connect.
+ * With a GitHub App configured: only repos on installations the user can access.
+ * Without: classic OAuth `repo` scope listing (laptop demo only).
  */
 export async function listGitHubRepos(options: {
   accessToken: string;
@@ -44,6 +51,14 @@ export async function listGitHubRepos(options: {
   perPage?: number;
   q?: string;
 }): Promise<GitHubRepoSummary[]> {
+  if (isGitHubAppConfigured()) {
+    return listReposViaInstallations({
+      userAccessToken: options.accessToken,
+      perPage: options.perPage,
+      q: options.q,
+    });
+  }
+
   const octokit = createOctokit(options.accessToken);
   const page = options.page ?? 1;
   const perPage = Math.min(options.perPage ?? 30, 100);

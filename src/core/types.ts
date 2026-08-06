@@ -83,6 +83,11 @@ export interface ProjectGitHubMeta {
   fullName: string;
   defaultBranch: string;
   private: boolean;
+  /**
+   * GitHub App installation that granted access to this repo.
+   * When set, clone/PR/Checks use installation tokens (selected repos only).
+   */
+  installationId?: number;
 }
 
 export interface Project {

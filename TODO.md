@@ -101,7 +101,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Atomic claim: `INSERT ... ON CONFLICT DO NOTHING` and only process when a row was inserted. Apply the same for the JSON fallback under the write lock.
   - **Acceptance criteria:** Two parallel identical deliveries result in exactly one assessment; test covers the concurrent case.
 
-- [ ] **Over-broad `repo` OAuth scope** 🟡
+- [x] **Over-broad `repo` OAuth scope** 🟡
   - **Problem:** OAuth requests `repo` (full read/write to all of a user's repos) for every user, even those only assessing one public repo.
   - **Why:** Excessive permissions are a security and trust liability; enterprises will reject it in review.
   - **Location:** `src/auth.ts:41-45`; noted in `docs/deploy.md:57`.

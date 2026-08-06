@@ -4,6 +4,10 @@ import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
 import { isProductionRuntime, resolveAuthSecret } from "@/auth-secret";
 import {
+  assertProductionGitHubApp,
+  githubAuthorizationScopes,
+} from "@/server/github-app";
+import {
   clearStoredGitHubToken,
   getStoredGitHubToken,
   storeUserGitHubToken,
@@ -34,6 +38,11 @@ export function assertProductionAuthUrl(): void {
   }
 }
 
+function assertProductionGitHubAuth(): void {
+  assertProductionAuthUrl();
+  assertProductionGitHubApp();
+}
+
 const githubConfigured = isGitHubAuthConfigured();
 const authSecret = resolveAuthSecret();
 
@@ -42,9 +51,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ? [
         GitHub({
           authorization: {
-            // `repo` is required for private clones, PR create, and Check Runs.
-            // Prefer a GitHub App with least privilege when leaving the laptop demo.
-            params: { scope: "read:user user:email repo" },
+            params: { scope: githubAuthorizationScopes() },
           },
         }),
       ]
@@ -63,7 +70,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, account, profile }) {
-      assertProductionAuthUrl();
+      assertProductionGitHubAuth();
       if (account?.access_token) {
         token.accessToken = account.access_token;
         if (token.sub) {
@@ -94,7 +101,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
  */
 export async function getGitHubAccessToken(): Promise<string | null> {
   if (!isGitHubAuthConfigured()) return null;
-  assertProductionAuthUrl();
+  assertProductionGitHubAuth();
   const cookieStore = await cookies();
   const cookieHeader = cookieStore
     .getAll()

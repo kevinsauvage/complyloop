@@ -37,6 +37,10 @@ import { assertConnectProjectAllowed } from "./connect-policy";
 import { addEvidence, type Db } from "./db";
 import { reportWarning } from "./observability";
 import { fetchGitHubRepo } from "./github";
+import {
+  createInstallationAccessToken,
+  isGitHubAppConfigured,
+} from "./github-app";
 import { writeActiveOrgCookie } from "./active-org";
 import { writeActiveProjectCookie } from "./active-project";
 import {
@@ -338,15 +342,38 @@ export async function connectGitHubRepoAction(
     return { error: "Sign in with GitHub to connect a repository." };
   }
 
-  const accessToken = await getGitHubAccessToken();
-  if (!accessToken) {
-    return {
-      error:
-        "GitHub access token missing. Sign out and sign in again to grant repo access.",
-    };
-  }
+  const installationIdRaw = formData.get("installationId");
+  const installationId =
+    typeof installationIdRaw === "string" && installationIdRaw.length > 0
+      ? Number(installationIdRaw)
+      : undefined;
 
   try {
+    const resolvedInstallationId =
+      installationId != null && Number.isFinite(installationId)
+        ? installationId
+        : undefined;
+
+    let accessToken: string | null = null;
+    if (isGitHubAppConfigured()) {
+      if (resolvedInstallationId == null) {
+        return {
+          error:
+            "Select a repository from a GitHub App installation (install the App on the target repos first).",
+        };
+      }
+      accessToken = await createInstallationAccessToken(resolvedInstallationId);
+    } else {
+      accessToken = await getGitHubAccessToken();
+    }
+
+    if (!accessToken) {
+      return {
+        error:
+          "GitHub access token missing. Sign out and sign in again to grant repo access.",
+      };
+    }
+
     const repo = await fetchGitHubRepo(accessToken, fullName);
     await withWorkspaceWrite(async ({ db, activeOrgId }) => {
       const orgId = activeOrgId;
@@ -369,6 +396,7 @@ export async function connectGitHubRepoAction(
         ownerUserId: userId,
         orgId: orgId ?? undefined,
         accessToken,
+        installationId: resolvedInstallationId,
       });
       await writeActiveProjectCookie(project.id);
     });

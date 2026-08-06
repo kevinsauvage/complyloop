@@ -211,6 +211,8 @@ export interface ConnectGitHubRepoInput {
   /** Organization that owns the connected project (personal org by default). */
   orgId?: string;
   accessToken: string;
+  /** GitHub App installation id when connecting under least-privilege App access. */
+  installationId?: number;
 }
 
 /**
@@ -274,6 +276,9 @@ export async function connectGitHubRepo(
     fullName,
     defaultBranch: input.defaultBranch || "main",
     private: input.private,
+    ...(input.installationId != null
+      ? { installationId: input.installationId }
+      : {}),
   };
 
   const orgId =
