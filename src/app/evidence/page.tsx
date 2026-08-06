@@ -1,12 +1,20 @@
+import { PaginationNav } from "@/components/pagination-nav";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
+import { paginateSlice, parsePageParam } from "@/core/pagination";
 import { evidenceForProject } from "@/server/project-visibility";
 import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
 
-export default async function EvidencePage() {
+export default async function EvidencePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page: pageRaw } = await searchParams;
   const { db, project } = await getWorkspace();
   const evidence = [...evidenceForProject(db.evidence, project.id)].reverse();
+  const slice = paginateSlice(evidence, parsePageParam(pageRaw));
 
   return (
     <>
@@ -52,7 +60,7 @@ export default async function EvidencePage() {
               </tr>
             </thead>
             <tbody>
-              {evidence.map((record) => (
+              {slice.items.map((record) => (
                 <tr key={record.id} className="border-b border-zinc-100 last:border-0">
                   <td className="py-2.5 pr-4 whitespace-nowrap text-xs text-zinc-500">
                     {formatDateTime(record.at)}
@@ -67,6 +75,13 @@ export default async function EvidencePage() {
               ))}
             </tbody>
           </table>
+          <PaginationNav
+            page={slice.page}
+            totalPages={slice.totalPages}
+            total={slice.total}
+            basePath="/evidence"
+            label="Evidence pagination"
+          />
         </Card>
       )}
     </>

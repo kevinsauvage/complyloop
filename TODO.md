@@ -143,7 +143,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Move project + org context/switcher into the layout so it's always visible; show current project in each `PageHeader`.
   - **Acceptance criteria:** Every workflow page shows the active project/org and lets the user switch.
 
-- [ ] **Pagination for unbounded lists (findings, evidence, requirements, history)** 🟠
+- [x] **Pagination for unbounded lists (findings, evidence, requirements, history)** 🟠
   - **Problem:** No pagination anywhere; pages hydrate the full store and render entire arrays. Evidence is append-only and never pruned, so it grows forever.
   - **Why:** Memory/render/IO blow up as real projects accumulate months of assessments; pages get slow then unusable.
   - **Location:** `src/app/findings/page.tsx`; `src/app/evidence/page.tsx:54-66`; `src/app/requirements/page.tsx:212-396`; store load in `src/server/db.ts:68-79`.
