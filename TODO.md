@@ -53,7 +53,7 @@ Issues that could prevent the product from being safely or professionally sold.
   - **Recommendation:** Build a self-contained, bundled artifact (e.g. tsup/esbuild) that inlines the analysis engine and its runtime deps (`typescript`), drop `private`, set correct `files`/`bin`/`exports`, and add a publish workflow. Until then, update README/templates to stop implying `npm i @complyloop/check` works.
   - **Acceptance criteria:** `npm pack` produces a tarball that runs `complyloop-check .` in a clean directory with no workspace present; a smoke test installs the packed tarball and runs it.
 
-- [ ] **Global `activeProjectId` is shared across all users** 🟡
+- [x] **Global `activeProjectId` is shared across all users** 🟡
   - **Problem:** Active project is a single value in `app_meta` / the JSON root, not per-user. Two concurrent users overwrite each other's context, and actions that operate on "the active project" can act on the wrong tenant's project.
   - **Why:** Correctness and isolation bug that gets worse with every additional user; can cause a user to assess/remediate another org's project.
   - **Location:** `src/server/db-store/postgres.ts:20,89-95,444-453`; `src/server/workspace.ts:84-95`.

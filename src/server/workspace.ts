@@ -7,6 +7,7 @@ import type {
   Remediation,
 } from "@/core/types";
 import { readActiveOrgCookie } from "./active-org";
+import { readActiveProjectCookie } from "./active-project";
 import { loadDb, withDbWrite, type Db } from "./db";
 import { ensurePersonalOrg, orgsForUser, resolveActiveOrgId } from "./orgs";
 import {
@@ -65,6 +66,7 @@ function prepareWorkspaceState(
   userId: string | null,
   githubLogin: string | null,
   preferredOrgId: string | null,
+  preferredProjectId: string | null,
 ): { changed: boolean; workspace: Omit<Workspace, "db"> & { db: Db } } {
   let changed = false;
   if (ensureSeeded(db)) changed = true;
@@ -82,14 +84,17 @@ function prepareWorkspaceState(
       : null;
 
   const scoped = projectsForActiveOrg(db.projects, access, activeOrgId);
+  // Prefer the per-browser cookie; fall back to legacy store field for seed/demo.
   const project = resolveActiveProject(
     scoped.length > 0 ? scoped : db.projects,
-    db.activeProjectId,
+    preferredProjectId ?? db.activeProjectId,
     access,
   );
   if (!project) throw new Error("No projects connected.");
 
-  if (db.activeProjectId !== project.id) {
+  // Keep a demo/seed fallback in the store, but never overwrite it from another
+  // user's cookie preference (active selection is cookie-scoped).
+  if (!db.activeProjectId) {
     db.activeProjectId = project.id;
     changed = true;
   }
@@ -115,6 +120,7 @@ export async function getWorkspace(): Promise<Workspace> {
   const userId = session?.user?.id ?? null;
   const githubLogin = session?.user?.login ?? null;
   const preferredOrgId = userId ? await readActiveOrgCookie() : null;
+  const preferredProjectId = await readActiveProjectCookie();
 
   const db = await loadDb();
   const prepared = prepareWorkspaceState(
@@ -122,6 +128,7 @@ export async function getWorkspace(): Promise<Workspace> {
     userId,
     githubLogin,
     preferredOrgId,
+    preferredProjectId,
   );
   if (prepared.changed) {
     // Re-run under the write lock so seed/org provisioning cannot race.
@@ -131,6 +138,7 @@ export async function getWorkspace(): Promise<Workspace> {
         userId,
         githubLogin,
         preferredOrgId,
+        preferredProjectId,
       );
       return again.workspace;
     });
@@ -149,6 +157,7 @@ export async function withWorkspaceWrite<T>(
   const userId = session?.user?.id ?? null;
   const githubLogin = session?.user?.login ?? null;
   const preferredOrgId = userId ? await readActiveOrgCookie() : null;
+  const preferredProjectId = await readActiveProjectCookie();
 
   return withDbWrite(async (db) => {
     const { workspace } = prepareWorkspaceState(
@@ -156,6 +165,7 @@ export async function withWorkspaceWrite<T>(
       userId,
       githubLogin,
       preferredOrgId,
+      preferredProjectId,
     );
     return fn(workspace);
   });

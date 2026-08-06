@@ -33,6 +33,7 @@ import { assertConnectProjectAllowed } from "./connect-policy";
 import { addEvidence, type Db } from "./db";
 import { fetchGitHubRepo } from "./github";
 import { writeActiveOrgCookie } from "./active-org";
+import { writeActiveProjectCookie } from "./active-project";
 import {
   canManageOrgMembers,
   createOrganization,
@@ -156,6 +157,7 @@ export async function connectProjectAction(
           workspace.activeOrgId ??
           defaultOrgIdForUser(workspace.db, workspace.userId);
       }
+      await writeActiveProjectCookie(project.id);
     });
     refresh();
     return { error: null };
@@ -175,6 +177,7 @@ export async function switchProjectAction(formData: FormData): Promise<void> {
   await withWorkspaceWrite(({ db, userId }) => {
     setActiveProject(db, projectId, userId);
   });
+  await writeActiveProjectCookie(projectId);
   refresh();
 }
 
@@ -196,16 +199,20 @@ export async function switchOrgAction(formData: FormData): Promise<void> {
     throw new Error("An organization id is required.");
   }
 
+  let projectIdToActivate: string | null = null;
   await withWorkspaceWrite(({ organizations, db }) => {
     if (!organizations.some((org) => org.id === orgId)) {
       throw new Error("You are not a member of that organization.");
     }
     const projectInOrg = db.projects.find((project) => project.orgId === orgId);
     if (projectInOrg) {
-      db.activeProjectId = projectInOrg.id;
+      projectIdToActivate = projectInOrg.id;
     }
   });
   await writeActiveOrgCookie(orgId);
+  if (projectIdToActivate) {
+    await writeActiveProjectCookie(projectIdToActivate);
+  }
   refresh();
 }
 
@@ -349,7 +356,7 @@ export async function connectGitHubRepoAction(
           `${fullName} is already connected. Disconnect it first.`,
         );
       }
-      await connectGitHubRepo(db, {
+      const project = await connectGitHubRepo(db, {
         fullName: repo.fullName,
         cloneUrl: repo.cloneUrl,
         defaultBranch: repo.defaultBranch,
@@ -358,6 +365,7 @@ export async function connectGitHubRepoAction(
         orgId: orgId ?? undefined,
         accessToken,
       });
+      await writeActiveProjectCookie(project.id);
     });
     refresh();
     return { error: null };
@@ -389,9 +397,14 @@ export async function disconnectGitHubRepoAction(
   }
 
   try {
+    let nextProjectId: string | null = null;
     await withWorkspaceWrite((workspace) => {
       disconnectGitHubRepo(workspace.db, projectIdRaw, userId);
+      nextProjectId = workspace.db.activeProjectId;
     });
+    if (nextProjectId) {
+      await writeActiveProjectCookie(nextProjectId);
+    }
     refresh();
     return { error: null };
   } catch (error) {

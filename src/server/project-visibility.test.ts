@@ -270,4 +270,21 @@ describe("tenant-scoped read helpers", () => {
       ),
     ).toEqual(["e-b"]);
   });
+
+  it("resolves independent preferred projects without a shared store field", () => {
+    const aliceCtx = ctx("user-a", [aliceMembership]);
+    const bobCtx = ctx("user-b", [bobMembership]);
+    const aliceActive = resolveActiveProject(
+      [aliceProject],
+      "proj-a",
+      aliceCtx,
+    );
+    const bobActive = resolveActiveProject([bobProject], "proj-b", bobCtx);
+    expect(aliceActive?.id).toBe("proj-a");
+    expect(bobActive?.id).toBe("proj-b");
+    // Another tenant's project id in the cookie is ignored.
+    expect(
+      resolveActiveProject([aliceProject], "proj-b", aliceCtx)?.id,
+    ).toBe("proj-a");
+  });
 });
