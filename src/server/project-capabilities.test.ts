@@ -1,0 +1,51 @@
+import { describe, expect, it } from "vitest";
+import type { OrgMembership, Project } from "@/core/types";
+import { projectCapabilities } from "./project-capabilities";
+import type { AccessContext } from "./project-visibility";
+
+const project: Project = {
+  id: "p1",
+  name: "Shop",
+  rootPath: "/tmp/shop",
+  source: "github",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  orgId: "org-1",
+  ownerUserId: "owner-1",
+};
+
+function access(role: OrgMembership["role"], userId = "user-1"): AccessContext {
+  const membership: OrgMembership = {
+    id: "m1",
+    orgId: "org-1",
+    userId,
+    role,
+    githubLogin: "alice",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
+  return {
+    userId,
+    githubLogin: "alice",
+    organizations: [],
+    memberships: [membership],
+  };
+}
+
+describe("projectCapabilities", () => {
+  it("gives viewers read-only access", () => {
+    expect(projectCapabilities(project, access("viewer"))).toEqual({
+      canView: true,
+      canAssess: false,
+      canRemediate: false,
+      canConnect: false,
+    });
+  });
+
+  it("lets members assess and remediate but not connect", () => {
+    expect(projectCapabilities(project, access("member"))).toEqual({
+      canView: true,
+      canAssess: true,
+      canRemediate: true,
+      canConnect: false,
+    });
+  });
+});

@@ -129,7 +129,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Return a typed outcome and render a prominent `role="alert"` ("Still failing — the violation is still detected") on failed verification.
   - **Acceptance criteria:** A failed verify shows an explicit, announced message; test asserts the message appears.
 
-- [ ] **RBAC not reflected in UI (viewers see actions that will throw)** 🟡
+- [x] **RBAC not reflected in UI (viewers see actions that will throw)** 🟡
   - **Problem:** Viewers see Approve/Apply/Run assessment/Dismiss; the server throws "Not allowed". No disabled states or role-aware copy.
   - **Why:** Confusing dead-end UX; makes the permission model feel broken.
   - **Location:** finding ActionPanel + dashboard buttons vs `src/core/rbac.ts:11-12`.

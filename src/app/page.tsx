@@ -6,6 +6,7 @@ import {
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { ProjectSwitcher } from "@/components/project-switcher";
+import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
 import {
@@ -18,6 +19,7 @@ import {
   resetProjectAction,
   runAssessmentAction,
 } from "@/server/actions";
+import { projectCapabilities } from "@/server/project-capabilities";
 import { controlById, getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
@@ -62,8 +64,9 @@ function projectDescription(
 }
 
 export default async function DashboardPage() {
-  const { db, project, visibleProjects, organizations, activeOrgId } =
+  const { db, project, visibleProjects, organizations, activeOrgId, access } =
     await getWorkspace();
+  const caps = projectCapabilities(project, access);
   const orgName = project.orgId
     ? db.organizations.find((org) => org.id === project.orgId)?.name
     : undefined;
@@ -108,7 +111,7 @@ export default async function DashboardPage() {
         title="Dashboard"
         description={projectDescription(project, latestAssessment, orgName)}
       >
-        {project.source === "sample" ? (
+        {project.source === "sample" && caps.canRemediate ? (
           <StatefulActionForm
             action={resetProjectAction}
             submitLabel="Reset sample project"
@@ -116,12 +119,18 @@ export default async function DashboardPage() {
             submitClassName="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
           />
         ) : null}
-        <StatefulActionForm
-          action={runAssessmentAction}
-          submitLabel="Run assessment"
-          pendingLabel="Assessing…"
-          submitClassName="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-        />
+        {caps.canAssess ? (
+          <StatefulActionForm
+            action={runAssessmentAction}
+            submitLabel="Run assessment"
+            pendingLabel="Assessing…"
+            submitClassName="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+          />
+        ) : (
+          <PermissionNotice>
+            View-only role — you can browse results but not run assessments.
+          </PermissionNotice>
+        )}
       </PageHeader>
 
       <div className="mb-6 flex flex-wrap items-center gap-4">

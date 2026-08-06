@@ -10,6 +10,7 @@ import {
   SeverityBadge,
 } from "@/components/badges";
 import { DeveloperHandoffCard } from "@/components/developer-handoff";
+import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, CodeBlock, PageHeader, formatDateTime } from "@/components/ui";
 import { remediationStatusLabel } from "@/core/labels";
@@ -25,6 +26,7 @@ import {
   verifyRemediationAction,
 } from "@/server/actions";
 import { buildDeveloperHandoff } from "@/server/handoff";
+import { projectCapabilities } from "@/server/project-capabilities";
 import { resolveVisibleFinding } from "@/server/project-visibility";
 import { controlById, getWorkspace, remediationForFinding } from "@/server/workspace";
 
@@ -47,10 +49,21 @@ const secondaryButton =
 function ActionPanel({
   finding,
   remediation,
+  canRemediate,
 }: {
   finding: Finding;
   remediation: Remediation;
+  canRemediate: boolean;
 }) {
+  if (!canRemediate && remediation.status !== "verified") {
+    return (
+      <PermissionNotice>
+        You have view-only access on this project. Ask a member or admin to
+        approve, apply, or verify remediations.
+      </PermissionNotice>
+    );
+  }
+
   switch (remediation.status) {
     case "detected":
     case "investigating":
@@ -175,6 +188,7 @@ export default async function FindingPage({
   );
   if (!resolved) notFound();
   const { finding, project } = resolved;
+  const caps = projectCapabilities(project, access);
 
   const control = controlById(db, finding.controlId);
   const remediation = remediationForFinding(db, finding.id);
@@ -186,6 +200,7 @@ export default async function FindingPage({
   const showHandoff =
     remediation.suggestion !== null || finding.fix !== null;
   const canCreatePr =
+    caps.canRemediate &&
     Boolean(finding.fix) &&
     fs.existsSync(path.join(project.rootPath, ".git"));
 
@@ -256,7 +271,7 @@ export default async function FindingPage({
               </dl>
             </div>
           ))}
-          {finding.status === "open" ? (
+          {finding.status === "open" && caps.canRemediate ? (
             <form
               action={generateAiExplanationAction.bind(null, finding.id)}
               className="mt-4"
@@ -323,6 +338,7 @@ export default async function FindingPage({
           ) : null}
 
           {finding.status === "open" &&
+          caps.canRemediate &&
           (remediation.status === "detected" ||
             remediation.status === "suggested") ? (
             <form
@@ -348,7 +364,11 @@ export default async function FindingPage({
           ) : null}
 
           {finding.status === "open" || remediation.status === "verified" ? (
-            <ActionPanel finding={finding} remediation={remediation} />
+            <ActionPanel
+              finding={finding}
+              remediation={remediation}
+              canRemediate={caps.canRemediate}
+            />
           ) : null}
 
           <details className="mt-4">
@@ -374,7 +394,7 @@ export default async function FindingPage({
           />
         ) : null}
 
-        {finding.status === "open" ? (
+        {finding.status === "open" && caps.canRemediate ? (
           <Card title="Dismiss this finding">
             <StatefulActionForm
               action={dismissFindingAction.bind(null, finding.id)}

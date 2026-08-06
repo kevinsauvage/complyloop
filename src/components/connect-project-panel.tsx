@@ -9,7 +9,9 @@ import { GitHubRepoPicker } from "@/components/github-repo-picker";
 import { isLocalProjectConnectAllowed } from "@/server/connect-policy";
 import { listGitHubRepos } from "@/server/github";
 import { isGitHubAppConfigured } from "@/server/github-app";
+import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
+import { PermissionNotice } from "@/components/permission-notice";
 
 export async function ConnectProjectPanel() {
   const configured = isGitHubAuthConfigured();
@@ -17,13 +19,15 @@ export async function ConnectProjectPanel() {
   const signedIn = Boolean(session?.user);
   const userId = session?.user?.id ?? null;
   const localPathAllowed = isLocalProjectConnectAllowed();
+  const workspace = await getWorkspace();
+  const caps = projectCapabilities(workspace.project, workspace.access);
 
   let repos: Awaited<ReturnType<typeof listGitHubRepos>> = [];
   let listError: string | null = null;
   const connectedByFullName: Record<string, string> = {};
 
-  if (configured && signedIn && userId) {
-    const { db } = await getWorkspace();
+  if (configured && signedIn && userId && caps.canConnect) {
+    const { db } = workspace;
     for (const project of db.projects) {
       if (
         project.source === "github" &&
@@ -48,6 +52,15 @@ export async function ConnectProjectPanel() {
             : "Failed to list GitHub repositories.";
       }
     }
+  }
+
+  if (!caps.canConnect) {
+    return (
+      <PermissionNotice>
+        Connecting repositories requires an admin or owner role in the active
+        organization.
+      </PermissionNotice>
+    );
   }
 
   return (
