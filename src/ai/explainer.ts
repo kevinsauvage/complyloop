@@ -1,6 +1,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import type { Control, Explanation, Finding } from "@/core/types";
+import type { Confidence, Control, Explanation, Finding } from "@/core/types";
+import { reportWarning } from "@/server/observability";
 
 const AI_MODEL = "openai/gpt-4o-mini";
 
@@ -8,6 +9,7 @@ const explanationSchema = z.object({
   whyItFailed: z.string(),
   impact: z.string(),
   howToFix: z.string(),
+  confidence: z.enum(["high", "medium", "low"]),
 });
 
 export function deterministicExplanation(
@@ -19,6 +21,7 @@ export function deterministicExplanation(
     impact: guidance.impact,
     howToFix: guidance.howToFix,
     provenance: "deterministic",
+    confidence: "high",
     generatedAt: new Date().toISOString(),
   };
 }
@@ -49,16 +52,27 @@ export async function generateAiExplanation(
         `Location: ${finding.location.filePath}:${finding.location.line}`,
         `Code: ${finding.location.snippet}`,
         "Write whyItFailed, impact (who is affected and how), and howToFix (concrete code-level guidance for this exact snippet).",
+        "Set confidence to high/medium/low for how sure you are about this explanation.",
         "Be concise and practical; no legal language.",
       ].join("\n"),
     });
+    const confidence: Confidence = object.confidence;
     return {
-      ...object,
+      whyItFailed: object.whyItFailed,
+      impact: object.impact,
+      howToFix: object.howToFix,
+      confidence,
       provenance: "ai",
       model: AI_MODEL,
       generatedAt: new Date().toISOString(),
     };
-  } catch {
+  } catch (error) {
+    reportWarning("AI explanation unavailable or failed", {
+      code: "ai_explanation_failed",
+      findingId: finding.id,
+      controlId: control.id,
+      detail: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }

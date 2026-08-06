@@ -198,21 +198,21 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Responsive nav (collapsible drawer) and fluid main content.
   - **Acceptance criteria:** App is usable at 375px width.
 
-- [ ] **Tests for `actions.ts` (approve/apply/verify/dismiss) and action-level authz** 🟠
+- [x] **Tests for `actions.ts` (approve/apply/verify/dismiss) and action-level authz** 🟠
   - **Problem:** The 1088-line action layer — the largest and most security-sensitive surface — has essentially no direct tests; the permission matrix is untested.
   - **Why:** Regressions here corrupt state or bypass RBAC; this is business-critical behavior.
   - **Location:** `src/server/actions.ts`; `src/auth.ts`.
   - **Recommendation:** Add tests exercising the remediation lifecycle actions (including verify-failure) and a permission matrix (viewer/member/admin/owner × action).
   - **Acceptance criteria:** Each action has a happy-path test and a denied-permission test.
 
-- [ ] **Webhook end-to-end test** 🟡
+- [x] **Webhook end-to-end test** 🟡
   - **Problem:** Only signature verification is unit-tested; the route → pull → reassess → alert flow is untested.
   - **Why:** Continuous monitoring is a headline feature and touches disk, git, and the store.
   - **Location:** `src/server/webhook.ts`; `src/app/api/github/webhook/route.ts`.
   - **Recommendation:** Integration test with a fake repo + signed payload asserting reassessment + regression alert + idempotency.
   - **Acceptance criteria:** A signed push/PR payload drives a full reassessment in test.
 
-- [ ] **AI explanations missing `confidence`; AI failures swallowed** 🟢
+- [x] **AI explanations missing `confidence`; AI failures swallowed** 🟢
   - **Problem:** AI remediations carry `confidence` but explanations don't, violating `.cursor/rules/ai-features.mdc`; AI errors are silently `null`.
   - **Location:** `src/ai/explainer.ts:7-11,56-63`; `src/ai/remediation.ts:65-67`.
   - **Recommendation:** Add `confidence` to explanation schema/UI; log AI failures via the new error tracking.

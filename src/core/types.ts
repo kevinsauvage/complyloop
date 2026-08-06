@@ -230,6 +230,8 @@ export interface Explanation {
   impact: string;
   howToFix: string;
   provenance: ExplanationProvenance;
+  /** Present for AI explanations; deterministic baseline may omit or use high. */
+  confidence?: Confidence;
   model?: string;
   generatedAt: string;
 }

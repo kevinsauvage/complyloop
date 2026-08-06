@@ -250,8 +250,11 @@ export default async function FindingPage({
               key={`${explanation.provenance}-${explanation.generatedAt}-${index}`}
               className={index > 0 ? "mt-5 border-t border-zinc-100 pt-5" : undefined}
             >
-              <div className="mb-3 flex items-center gap-2">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
                 <ProvenanceBadge provenance={explanation.provenance} />
+                {explanation.confidence ? (
+                  <ConfidenceBadge confidence={explanation.confidence} />
+                ) : null}
                 {explanation.model ? (
                   <span className="text-xs text-zinc-500">{explanation.model}</span>
                 ) : null}

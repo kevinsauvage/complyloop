@@ -1,14 +1,47 @@
 import { createHmac } from "node:crypto";
+import fs from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleGitHubWebhookEvent, verifyGitHubSignature } from "./webhook";
 
+const runAssessment = vi.hoisted(() =>
+  vi.fn(() => ({ id: "assessment-1" })),
+);
+const resolveProjectGitHubToken = vi.hoisted(() =>
+  vi.fn(async () => "ghs_test"),
+);
+const createGit = vi.hoisted(() =>
+  vi.fn(() => ({
+    remote: vi.fn(async () => undefined),
+    fetch: vi.fn(async () => undefined),
+    revparse: vi.fn(async () => "main"),
+    reset: vi.fn(async () => undefined),
+  })),
+);
+
 vi.mock("./db", async () => {
   const actual = await vi.importActual<typeof import("./db")>("./db");
+  const loadDb = vi.fn();
   return {
     ...actual,
-    loadDb: vi.fn(),
+    loadDb,
+    withDbWrite: vi.fn(async (fn: (db: unknown) => unknown) => {
+      const db = await loadDb();
+      return fn(db);
+    }),
   };
 });
+
+vi.mock("./assessment", () => ({
+  runAssessment,
+}));
+
+vi.mock("./github-access", () => ({
+  resolveProjectGitHubToken,
+}));
+
+vi.mock("./git", () => ({
+  createGit,
+}));
 
 import { loadDb } from "./db";
 
@@ -77,5 +110,56 @@ describe("handleGitHubWebhookEvent workspace missing", () => {
       code: string;
     };
     expect(payload.code).toBe("workspace_missing");
+  });
+});
+
+describe("handleGitHubWebhookEvent reassessment", () => {
+  it("pulls, re-assesses, and records webhook evidence for a push", async () => {
+    const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    const db = {
+      frameworks: [],
+      controls: [],
+      organizations: [],
+      memberships: [],
+      projects: [
+        {
+          id: "p1",
+          name: "acme/app",
+          rootPath: "/tmp/complyloop-webhook-workspace",
+          source: "github" as const,
+          ownerUserId: "user-1",
+          github: {
+            fullName: "acme/app",
+            defaultBranch: "main",
+            private: false,
+            installationId: 42,
+          },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      activeProjectId: "p1",
+      requirements: [],
+      assessments: [],
+      findings: [],
+      remediations: [],
+      evidence: [] as Array<Record<string, unknown>>,
+      alerts: [],
+    };
+    vi.mocked(loadDb).mockResolvedValue(db as never);
+
+    const result = await handleGitHubWebhookEvent("push", {
+      repository: { full_name: "acme/app" },
+      ref: "refs/heads/main",
+    });
+
+    expect(resolveProjectGitHubToken).toHaveBeenCalled();
+    expect(createGit).toHaveBeenCalled();
+    expect(runAssessment).toHaveBeenCalledWith(db, "p1");
+    expect(result.handled).toBe(true);
+    expect(result.message).toMatch(/Re-assessed acme\/app/);
+    expect(db.evidence.some((row) => row.kind === "webhook_reassessment")).toBe(
+      true,
+    );
+    existsSpy.mockRestore();
   });
 });

@@ -6,6 +6,7 @@ import type {
   Finding,
   RemediationSuggestion,
 } from "@/core/types";
+import { reportWarning } from "@/server/observability";
 import { aiExplanationAvailable } from "./explainer";
 
 const AI_MODEL = "openai/gpt-4o-mini";
@@ -62,7 +63,13 @@ export async function generateAiRemediation(
       },
       attributeValue: object.attributeValue?.trim() || undefined,
     };
-  } catch {
+  } catch (error) {
+    reportWarning("AI remediation unavailable or failed", {
+      code: "ai_remediation_failed",
+      findingId: finding.id,
+      controlId: control.id,
+      detail: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }

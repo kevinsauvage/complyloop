@@ -32,6 +32,30 @@ describe("rbac", () => {
     expect(roleHasPermission("admin", "org.manage_members")).toBe(true);
   });
 
+  it("covers the role × permission matrix for project actions", () => {
+    const roles = ["viewer", "member", "admin", "owner"] as const;
+    const permissions = [
+      "project.view",
+      "project.assess",
+      "project.remediate",
+      "project.connect",
+      "org.manage_members",
+    ] as const;
+    const expected: Record<(typeof roles)[number], boolean[]> = {
+      viewer: [true, false, false, false, false],
+      member: [true, true, true, false, false],
+      admin: [true, true, true, true, true],
+      owner: [true, true, true, true, true],
+    };
+    for (const role of roles) {
+      for (const [index, permission] of permissions.entries()) {
+        expect(roleHasPermission(role, permission)).toBe(
+          expected[role][index],
+        );
+      }
+    }
+  });
+
   it("allows members to assess but not connect", () => {
     const memberships = [membership("member", "u1")];
     expect(canOnProject(project, memberships, "u1", "project.assess")).toBe(
