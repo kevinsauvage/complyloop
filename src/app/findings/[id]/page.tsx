@@ -10,6 +10,7 @@ import {
   SeverityBadge,
 } from "@/components/badges";
 import { DeveloperHandoffCard } from "@/components/developer-handoff";
+import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, CodeBlock, PageHeader, formatDateTime } from "@/components/ui";
 import { remediationStatusLabel } from "@/core/labels";
 import type { Finding, Remediation, RemediationStatus } from "@/core/types";
@@ -65,8 +66,10 @@ function ActionPanel({
           ? finding.fix
           : null;
       return (
-        <form
+        <StatefulActionForm
           action={approveRemediationAction.bind(null, finding.id)}
+          submitLabel="Approve remediation"
+          submitClassName={primaryButton}
           className="flex flex-col gap-3"
         >
           {editable ? (
@@ -80,26 +83,24 @@ function ActionPanel({
               />
             </label>
           ) : null}
-          <div>
-            <button type="submit" className={primaryButton}>
-              Approve remediation
-            </button>
-          </div>
-        </form>
+        </StatefulActionForm>
       );
     }
     case "approved":
       return (
         <div className="flex flex-col gap-3">
           {finding.fix ? (
-            <form action={applyRemediationAction.bind(null, finding.id)}>
-              <button type="submit" className={primaryButton}>
-                Apply change to the file
-              </button>
-            </form>
+            <StatefulActionForm
+              action={applyRemediationAction.bind(null, finding.id)}
+              submitLabel="Apply change to the file"
+              pendingLabel="Applying…"
+              submitClassName={primaryButton}
+            />
           ) : null}
-          <form
+          <StatefulActionForm
             action={markRemediationImplementedAction.bind(null, finding.id)}
+            submitLabel="Mark as implemented"
+            submitClassName={secondaryButton}
             className="flex flex-col gap-2"
           >
             <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
@@ -111,24 +112,22 @@ function ActionPanel({
                 className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
               />
             </label>
-            <div>
-              <button type="submit" className={secondaryButton}>
-                Mark as implemented
-              </button>
-            </div>
-          </form>
+          </StatefulActionForm>
         </div>
       );
     case "implemented":
       return (
         <div className="flex flex-col gap-4">
-          <form action={verifyRemediationAction.bind(null, finding.id)}>
-            <button type="submit" className={primaryButton}>
-              Verify fix (automated re-check)
-            </button>
-          </form>
-          <form
+          <StatefulActionForm
+            action={verifyRemediationAction.bind(null, finding.id)}
+            submitLabel="Verify fix (automated re-check)"
+            pendingLabel="Verifying…"
+            submitClassName={primaryButton}
+          />
+          <StatefulActionForm
             action={manualVerifyRemediationAction.bind(null, finding.id)}
+            submitLabel="Verify manually"
+            submitClassName={secondaryButton}
             className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-3"
           >
             <p className="text-sm text-zinc-600">
@@ -144,12 +143,7 @@ function ActionPanel({
                 className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
               />
             </label>
-            <div>
-              <button type="submit" className={secondaryButton}>
-                Verify manually
-              </button>
-            </div>
-          </form>
+          </StatefulActionForm>
         </div>
       );
     case "verified":
@@ -382,8 +376,10 @@ export default async function FindingPage({
 
         {finding.status === "open" ? (
           <Card title="Dismiss this finding">
-            <form
+            <StatefulActionForm
               action={dismissFindingAction.bind(null, finding.id)}
+              submitLabel="Dismiss finding"
+              submitClassName={secondaryButton}
               className="flex flex-col gap-3"
             >
               <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
@@ -405,12 +401,7 @@ export default async function FindingPage({
                   className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
                 />
               </label>
-              <div>
-                <button type="submit" className={secondaryButton}>
-                  Dismiss finding
-                </button>
-              </div>
-            </form>
+            </StatefulActionForm>
           </Card>
         ) : null}
 

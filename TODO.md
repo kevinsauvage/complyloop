@@ -60,7 +60,7 @@ Issues that could prevent the product from being safely or professionally sold.
   - **Recommendation:** Move active project selection to a per-user cookie/session (mirror the existing `active-org.ts` cookie pattern) and resolve it within the viewer's visible projects.
   - **Acceptance criteria:** Two users hitting the app concurrently keep independent active projects; no shared write to `app_meta.activeProjectId`.
 
-- [ ] **`error.tsx` / `not-found.tsx` are missing; most mutations throw raw errors** 🟡
+- [x] **`error.tsx` / `not-found.tsx` are missing; most mutations throw raw errors** 🟡
   - **Problem:** There are zero route-level `error.tsx`/`not-found.tsx` files, and most server actions `throw new Error(...)`. Failures surface as Next's default digest screen instead of an in-product recovery path.
   - **Why:** A paying user hitting a raw error page looks broken and loses trust; they get stuck with no next step.
   - **Location:** entire `src/app/`; throws in `src/server/actions.ts` (e.g. `455-462`, `536`, `686`, `741-748`).
