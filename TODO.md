@@ -32,7 +32,7 @@ Issues that could prevent the product from being safely or professionally sold.
   - **Recommendation:** Require a session + `project.connect` permission on an active org before connecting. Disable the raw local-path connector in hosted mode (gate behind an env flag that is off by default); keep it only for the local laptop demo. Validate/deny-list git URL hosts and internal IP ranges before clone.
   - **Acceptance criteria:** Anonymous connect returns an auth error in hosted mode; local-path connect is unavailable unless an explicit "local mode" flag is set; clones to private/link-local addresses are rejected.
 
-- [ ] **Path containment on remediation apply and PR write** 🟡
+- [x] **Path containment on remediation apply and PR write** 🟡
   - **Problem:** File writes use `path.join(project.rootPath, finding.location.filePath)` with no check that the resolved path stays under `rootPath`. A `../` in a stored/poisoned `filePath` writes outside the workspace.
   - **Why:** Arbitrary file write on the server; also risks corrupting unrelated files.
   - **Location:** `src/server/actions.ts:464-466`; `src/server/pr.ts:75-86`; `src/server/assessment.ts` file reads.

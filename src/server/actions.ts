@@ -1,12 +1,12 @@
 "use server";
 
 import fs from "node:fs";
-import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
 import { applyFix } from "@/analysis/fixes";
 import { scanFile } from "@/analysis/scan";
+import { resolveInside } from "@/analysis/workspace-path";
 import { auth, getGitHubAccessToken } from "@/auth";
 import { advanceRemediation } from "@/core/remediation";
 import { isOrgRole } from "@/core/rbac";
@@ -475,7 +475,10 @@ export async function applyRemediationAction(findingId: string): Promise<void> {
   const fix = mergeFix(finding.fix, match.fix);
   if (!fix) throw new Error("No applicable fix.");
 
-  const absolutePath = path.join(project.rootPath, finding.location.filePath);
+  const absolutePath = resolveInside(
+    project.rootPath,
+    finding.location.filePath,
+  );
   const text = fs.readFileSync(absolutePath, "utf8");
   fs.writeFileSync(absolutePath, applyFix(text, fix));
 

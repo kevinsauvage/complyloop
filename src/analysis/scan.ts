@@ -4,6 +4,7 @@ import { listSourceFiles } from "./source-files";
 import { allChecks } from "./checks/registry";
 import { parseSource } from "./parse";
 import type { RawFinding } from "./types";
+import { resolveInside } from "./workspace-path";
 
 export interface ScanResult {
   findings: RawFinding[];
@@ -13,7 +14,12 @@ export interface ScanResult {
 
 /** Runs every check against a single file. `filePath` is relative to `rootPath`. */
 export function scanFile(rootPath: string, filePath: string): RawFinding[] {
-  const absolute = path.join(rootPath, filePath);
+  let absolute: string;
+  try {
+    absolute = resolveInside(rootPath, filePath);
+  } catch {
+    return [];
+  }
   if (!fs.existsSync(absolute)) return [];
   const text = fs.readFileSync(absolute, "utf8");
   const parsed = parseSource(filePath, text);
@@ -46,9 +52,13 @@ export function scanChangedFiles(
     ),
   ].sort();
   const findings = jsxPaths.flatMap((filePath) => scanFile(rootPath, filePath));
-  const existing = jsxPaths.filter((filePath) =>
-    fs.existsSync(path.join(rootPath, filePath)),
-  );
+  const existing = jsxPaths.filter((filePath) => {
+    try {
+      return fs.existsSync(resolveInside(rootPath, filePath));
+    } catch {
+      return false;
+    }
+  });
   return {
     findings,
     filesScanned: existing.length,

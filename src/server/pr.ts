@@ -1,6 +1,6 @@
 import fs from "node:fs";
-import path from "node:path";
 import { applyFix } from "@/analysis/fixes";
+import { resolveInside } from "@/analysis/workspace-path";
 import type { Control, Finding, Project, Remediation } from "@/core/types";
 import { githubCloneUrl } from "./connect";
 import { createGit } from "./git";
@@ -72,7 +72,7 @@ export async function preparePullRequest(
   const branch = `complyloop/fix-${finding.checkId}-${shortId}`;
 
   const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
-  const absolute = path.join(project.rootPath, finding.location.filePath);
+  const absolute = resolveInside(project.rootPath, finding.location.filePath);
   const original = fs.readFileSync(absolute, "utf8");
   const fixed = applyFix(original, finding.fix);
 

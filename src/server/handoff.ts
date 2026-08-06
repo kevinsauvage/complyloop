@@ -1,7 +1,7 @@
 import fs from "node:fs";
-import path from "node:path";
 import { createTwoFilesPatch } from "diff";
 import { applyFix } from "@/analysis/fixes";
+import { resolveInside } from "@/analysis/workspace-path";
 import type {
   Control,
   Finding,
@@ -23,7 +23,7 @@ export function buildDiffForFix(
   finding: Finding,
   fix: ProposedFix,
 ): string {
-  const absolute = path.join(project.rootPath, finding.location.filePath);
+  const absolute = resolveInside(project.rootPath, finding.location.filePath);
   const original = fs.readFileSync(absolute, "utf8");
   const fixed = applyFix(original, fix);
   return createTwoFilesPatch(
@@ -112,7 +112,7 @@ export function buildDeveloperHandoff(
     body,
     diff,
     filePath: finding.fix
-      ? path.join(project.rootPath, finding.location.filePath)
+      ? resolveInside(project.rootPath, finding.location.filePath)
       : null,
   };
 }

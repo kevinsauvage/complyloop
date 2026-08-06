@@ -1,10 +1,10 @@
 import fs from "node:fs";
-import path from "node:path";
 import { guidanceFor } from "@/adapters/rgaa/guidance";
 import { deterministicExplanation } from "@/ai/explainer";
 import { describeFix, previewFixedLine } from "@/analysis/fixes";
 import { scanChangedFiles, scanProject } from "@/analysis/scan";
 import type { RawFinding } from "@/analysis/types";
+import { resolveInside } from "@/analysis/workspace-path";
 import { deriveRequirementStatus } from "@/core/requirement-status";
 import type {
   Assessment,
@@ -66,7 +66,7 @@ export function buildSuggestion(
 ): RemediationSuggestion | null {
   if (!raw.fix) return null;
   const text = fs.readFileSync(
-    path.join(project.rootPath, raw.location.filePath),
+    resolveInside(project.rootPath, raw.location.filePath),
     "utf8",
   );
   return {
