@@ -10,6 +10,7 @@ import {
   summarizeAssessmentForCheckRun,
 } from "./github-checks";
 import { getStoredGitHubToken } from "./github-tokens";
+import { reportError, reportWarning } from "./observability";
 
 export function isWebhookConfigured(): boolean {
   return Boolean(process.env.GITHUB_WEBHOOK_SECRET);
@@ -151,19 +152,36 @@ export async function handleGitHubWebhookEvent(
     };
   }
   if (!fs.existsSync(previewProject.rootPath)) {
+    const message =
+      `Workspace missing for ${fullName} at ${previewProject.rootPath}. ` +
+      "ComplyLoop requires a single instance with durable DATA_DIR for clones " +
+      "(see docs/deploy.md). Re-connect the repository or restore the volume.";
+    reportError(new Error(message), {
+      code: "workspace_missing",
+      projectId: previewProject.id,
+      fullName,
+      rootPath: previewProject.rootPath,
+    });
     return {
       handled: false,
-      message: `Workspace missing for ${fullName}`,
+      message,
       alerts: [],
     };
   }
 
   const token = await getStoredGitHubToken(previewProject.ownerUserId);
   if (!token) {
+    const message =
+      "No stored GitHub token for project owner — sign in again to refresh the token.";
+    reportWarning(message, {
+      code: "github_token_missing",
+      projectId: previewProject.id,
+      ownerUserId: previewProject.ownerUserId,
+      fullName,
+    });
     return {
       handled: false,
-      message:
-        "No stored GitHub token for project owner — sign in again to refresh the token.",
+      message,
       alerts: [],
     };
   }

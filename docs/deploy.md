@@ -3,6 +3,22 @@
 ComplyLoop stores app state either as JSON or in Postgres. Git clones still use
 the local filesystem under `$DATA_DIR`.
 
+## Hard launch constraint (read this first)
+
+Until clone-per-job / ephemeral workspace support lands:
+
+1. **Run a single long-lived Node instance** (one replica). Do not horizontally
+   scale app servers that each have their own empty disk.
+2. **Mount durable disk** at `DATA_DIR` for `$DATA_DIR/workspaces/` (git clones).
+   Ephemeral serverless disks are unsupported for clones.
+3. Prefer `DATABASE_URL` (Postgres) for app state, tokens, and webhook
+   idempotency so those do not require a shared volume.
+
+If a webhook fires and the workspace path is missing, the handler returns a
+clear `handled: false` message and emits a structured error
+(`code: workspace_missing`) — it does not crash the process. Fix by restoring
+the volume or re-connecting the repository on that instance.
+
 | Path / env | Purpose |
 |------------|---------|
 | `$DATA_DIR/db.json` | App state when `DATABASE_URL` is unset |
@@ -10,10 +26,7 @@ the local filesystem under `$DATA_DIR`.
 | `$DATA_DIR/workspaces/` | Git/GitHub clones assessed in place |
 | `$DATA_DIR/github-tokens.json` | Encrypted tokens when `DATABASE_URL` is unset (laptop fallback) |
 | `$DATA_DIR/webhook-deliveries.json` | Delivery idempotency when `DATABASE_URL` is unset |
-
-**Ephemeral serverless disks alone are not enough for clones** — workspaces need
-durable disk (or a later remote/ephemeral clone strategy). With `DATABASE_URL`,
-app state, tokens, and webhook idempotency do **not** need a shared volume.
+| `SENTRY_DSN` | Optional — captures server errors via `@sentry/node` |
 
 ## Supported shapes
 
@@ -65,6 +78,8 @@ connect requires sign-in (admin/owner) when local connects are disabled.
 
 ## What not to do
 
+- Deploy multi-instance / autoscaled replicas that do not share the same durable
+  `DATA_DIR` for clones (webhooks and remediations will hit `workspace_missing`).
 - Deploy only to Vercel serverless without Postgres **and** without durable disk for clones.
 - Share a host without `AUTH_SECRET`.
 - Commit `.data/` or token files to git.
@@ -73,8 +88,9 @@ connect requires sign-in (admin/owner) when local connects are disabled.
 ## Checklist before inviting real users
 
 1. `DATABASE_URL` + migrated schema (or durable `DATA_DIR` JSON).
-2. Durable disk for workspaces/clones (or a follow-up remote clone strategy).
+2. **Single instance** + durable disk for workspaces/clones.
 3. Stable `AUTH_SECRET` and `AUTH_URL`.
 4. GitHub OAuth + webhook secret.
 5. Backups for Postgres (and `DATA_DIR` if used for JSON/clones).
-6. Invite teammates from **Organization** (`/org`) — switch to the shared org first if you use team orgs.
+6. Optional `SENTRY_DSN` for error tracking (structured logs always emit).
+7. Invite teammates from **Organization** (`/org`) — switch to the shared org first if you use team orgs.

@@ -67,14 +67,14 @@ Issues that could prevent the product from being safely or professionally sold.
   - **Recommendation:** Add a root `app/error.tsx` and `app/not-found.tsx` with recovery UI; convert user-triggerable throws in actions to typed form-state errors surfaced in the UI (extend the `useActionState` pattern already used by connect/invite).
   - **Acceptance criteria:** A forced action failure renders an in-app error with a retry/back path, not the Next digest screen.
 
-- [ ] **Durable workspace strategy before any multi-instance / serverless deploy** 🟠
+- [x] **Durable workspace strategy before any multi-instance / serverless deploy** 🟠
   - **Problem:** Clones live on local disk under `$DATA_DIR/workspaces`; another instance can't see them and serverless disks are ephemeral. Webhook re-assessment hard-fails when the workspace path is missing.
   - **Why:** The moment you scale past one long-lived node (the default for real SaaS), continuous monitoring and remediation silently break.
   - **Location:** `src/server/db.ts:25-27`; `src/server/connect.ts:68-74`; `src/server/webhook.ts:153-158`; documented in `docs/deploy.md:14-16,63-64`.
   - **Recommendation:** For launch, pin deployment to a single instance with a durable volume and document it as a hard requirement. Track a follow-up to clone-per-job into ephemeral storage or object storage so horizontal scaling is possible.
   - **Acceptance criteria:** Deploy runbook states the single-instance + durable-disk constraint explicitly; webhook path returns a clear, monitored error (not a crash) when a workspace is missing.
 
-- [ ] **No error tracking / monitoring anywhere** 🟡
+- [x] **No error tracking / monitoring anywhere** 🟡
   - **Problem:** No Sentry/OTel/structured logger under `src/`. Several failures are swallowed (`catch { return null }`) with no signal.
   - **Why:** In production you will be blind to auth failures, corrupt-store recoveries, webhook failures, and PR/clone errors — you cannot operate a paid service this way.
   - **Location:** `src/ai/explainer.ts:61-63`; `src/ai/remediation.ts:65-67`; `src/server/github-tokens.ts:88-91,104-108`; `src/server/webhook.ts:26-28`.

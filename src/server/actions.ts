@@ -35,6 +35,7 @@ import {
 } from "./action-state";
 import { assertConnectProjectAllowed } from "./connect-policy";
 import { addEvidence, type Db } from "./db";
+import { reportWarning } from "./observability";
 import { fetchGitHubRepo } from "./github";
 import { writeActiveOrgCookie } from "./active-org";
 import { writeActiveProjectCookie } from "./active-project";
@@ -635,6 +636,12 @@ export async function generateAiExplanationAction(findingId: string): Promise<vo
   const explanation = await generateAiExplanation(finding, control);
   if (explanation) {
     finding.explanations.push(explanation);
+  } else {
+    reportWarning("AI explanation unavailable or failed", {
+      code: "ai_explanation_failed",
+      findingId,
+      projectId: finding.projectId,
+    });
   }
   });
   refresh();
@@ -659,6 +666,11 @@ export async function generateAiRemediationAction(findingId: string): Promise<vo
 
   const result = await generateAiRemediation(finding, control);
   if (!result) {
+    reportWarning("AI remediation unavailable or failed", {
+      code: "ai_remediation_failed",
+      findingId,
+      projectId: finding.projectId,
+    });
     refresh();
     return;
   }

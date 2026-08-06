@@ -11,7 +11,17 @@ export default function AppError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    // Client boundary: structured log for log drains; Sentry browser SDK can
+    // be added later. Server actions already report via reportError.
+    console.error(
+      JSON.stringify({
+        severity: "error",
+        code: "app_error_boundary",
+        message: error.message,
+        digest: error.digest,
+        at: new Date().toISOString(),
+      }),
+    );
   }, [error]);
 
   return (

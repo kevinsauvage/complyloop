@@ -1,15 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { actionErrorState, emptyActionMessageState } from "./action-state";
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("actionErrorState", () => {
-  it("maps Error instances to form-state errors", () => {
+  it("maps Error instances to form-state errors and reports them", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(actionErrorState(new Error("Not allowed."))).toEqual({
       error: "Not allowed.",
       message: null,
     });
+    expect(spy).toHaveBeenCalled();
   });
 
   it("falls back for unknown throwables", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(actionErrorState("boom")).toEqual({
       error: "Something went wrong.",
       message: null,
