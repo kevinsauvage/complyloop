@@ -29,12 +29,14 @@ import {
   disconnectGitHubRepo,
   setActiveProject,
 } from "./connect";
+import { assertConnectProjectAllowed } from "./connect-policy";
 import { addEvidence, type Db } from "./db";
 import { fetchGitHubRepo } from "./github";
 import { writeActiveOrgCookie } from "./active-org";
 import {
   canManageOrgMembers,
   createOrganization,
+  defaultOrgIdForUser,
   inviteOrgMember,
   removeOrgMember,
 } from "./orgs";
@@ -155,7 +157,19 @@ export async function connectProjectAction(
 
   try {
     await withWorkspaceWrite(async (workspace) => {
-      await connectProjectInput(workspace.db, input);
+      assertConnectProjectAllowed({
+        userId: workspace.userId,
+        activeOrgId: workspace.activeOrgId,
+        memberships: workspace.db.memberships,
+        target: input,
+      });
+      const project = await connectProjectInput(workspace.db, input);
+      if (workspace.userId) {
+        project.ownerUserId = workspace.userId;
+        project.orgId =
+          workspace.activeOrgId ??
+          defaultOrgIdForUser(workspace.db, workspace.userId);
+      }
     });
     refresh();
     return { error: null };

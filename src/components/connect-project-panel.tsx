@@ -6,6 +6,7 @@ import {
 } from "@/auth";
 import { ConnectProjectForm } from "@/components/connect-project-form";
 import { GitHubRepoPicker } from "@/components/github-repo-picker";
+import { isLocalProjectConnectAllowed } from "@/server/connect-policy";
 import { listGitHubRepos } from "@/server/github";
 import { getWorkspace } from "@/server/workspace";
 
@@ -14,6 +15,7 @@ export async function ConnectProjectPanel() {
   const session = configured ? await auth() : null;
   const signedIn = Boolean(session?.user);
   const userId = session?.user?.id ?? null;
+  const localPathAllowed = isLocalProjectConnectAllowed();
 
   let repos: Awaited<ReturnType<typeof listGitHubRepos>> = [];
   let listError: string | null = null;
@@ -95,14 +97,24 @@ export async function ConnectProjectPanel() {
         )}
       </div>
 
-      <details className="border-t border-zinc-100 pt-4">
-        <summary className="cursor-pointer text-sm font-medium text-zinc-700">
-          Advanced: local path or git URL
-        </summary>
-        <div className="mt-3">
-          <ConnectProjectForm />
-        </div>
-      </details>
+      {localPathAllowed || signedIn ? (
+        <details className="border-t border-zinc-100 pt-4">
+          <summary className="cursor-pointer text-sm font-medium text-zinc-700">
+            {localPathAllowed
+              ? "Advanced: local path or git URL"
+              : "Advanced: git URL"}
+          </summary>
+          <div className="mt-3">
+            {!signedIn && !localPathAllowed ? (
+              <p className="text-sm text-zinc-600">
+                Sign in to connect a repository by URL.
+              </p>
+            ) : (
+              <ConnectProjectForm localPathAllowed={localPathAllowed} />
+            )}
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }

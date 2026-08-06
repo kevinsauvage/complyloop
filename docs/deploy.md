@@ -58,6 +58,11 @@ OAuth scopes today: `read:user user:email repo`. Prefer a GitHub App with tighte
 permissions for multi-user use. Sign-out clears stored encrypted tokens.
 `AUTH_URL` is required when serving production with GitHub auth configured.
 
+**Local path connects** (`ALLOW_LOCAL_PROJECT_CONNECT`) default **off** in
+production. Hosted deployments must not enable them — they resolve arbitrary
+server filesystem paths. Use the GitHub picker or git URLs instead. Advanced
+connect requires sign-in (admin/owner) when local connects are disabled.
+
 ## What not to do
 
 - Deploy only to Vercel serverless without Postgres **and** without durable disk for clones.

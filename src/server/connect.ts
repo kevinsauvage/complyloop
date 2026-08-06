@@ -6,18 +6,15 @@ import { canOnProject } from "@/core/rbac";
 import { addEvidence, workspacesDir, type Db } from "./db";
 import { createGit } from "./git";
 import { defaultOrgIdForUser } from "./orgs";
+import { assertSafeGitRemoteUrl, isLocalProjectConnectAllowed } from "./connect-policy";
+import { ConnectError, isLikelyGitUrl } from "./connect-url";
 import {
   type AccessContext,
   isProjectVisible,
   resolveActiveProject,
 } from "./project-visibility";
 
-export class ConnectError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ConnectError";
-  }
-}
+export { ConnectError, isLikelyGitUrl } from "./connect-url";
 
 /** Turns a path or git URL into a short, filesystem-safe project name. */
 export function deriveProjectName(input: string): string {
@@ -37,17 +34,6 @@ export function deriveProjectName(input: string): string {
     .replace(/[^a-zA-Z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return cleaned.length > 0 ? cleaned.slice(0, 80) : "project";
-}
-
-export function isLikelyGitUrl(value: string): boolean {
-  const trimmed = value.trim();
-  if (/^https?:\/\/.+\.git$/i.test(trimmed)) return true;
-  if (/^https?:\/\/(github\.com|gitlab\.com|bitbucket\.org)\//i.test(trimmed)) {
-    return true;
-  }
-  if (/^git@[^:]+:.+\.git$/i.test(trimmed)) return true;
-  if (/^ssh:\/\/git@/i.test(trimmed)) return true;
-  return false;
 }
 
 export function assertAssessableRoot(rootPath: string): void {
@@ -103,6 +89,11 @@ function addConnectedProject(
 
 /** Connect an existing directory on disk; remediations write in place. */
 export function connectLocalPath(db: Db, rawPath: string): Project {
+  if (!isLocalProjectConnectAllowed()) {
+    throw new ConnectError(
+      "Local path connects are disabled. Set ALLOW_LOCAL_PROJECT_CONNECT=true for the laptop demo, or use a git URL / GitHub picker.",
+    );
+  }
   const trimmed = rawPath.trim();
   if (trimmed.length === 0) {
     throw new ConnectError("Enter a local project path.");
@@ -143,11 +134,7 @@ export async function connectGitUrl(db: Db, rawUrl: string): Promise<Project> {
   if (url.length === 0) {
     throw new ConnectError("Enter a git repository URL.");
   }
-  if (!isLikelyGitUrl(url)) {
-    throw new ConnectError(
-      "That does not look like a git URL. Use https://github.com/org/repo or git@host:org/repo.git.",
-    );
-  }
+  assertSafeGitRemoteUrl(url);
 
   const existing = db.projects.find(
     (project) => project.source === "git" && project.sourceRef === url,

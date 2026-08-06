@@ -25,7 +25,7 @@ Issues that could prevent the product from being safely or professionally sold.
   - **Recommendation:** Introduce a helper that returns evidence/findings filtered to `visibleProjects(db, access)` for the current session, and use it on every read page and every `route.ts` download. On finding detail, resolve the finding, then assert `isProjectVisible(project, access)` (reuse `project-visibility.ts`) → `notFound()` otherwise.
   - **Acceptance criteria:** A user in org A cannot load org B's finding detail, evidence rows, JSON export, or report; automated test covers the negative case for each surface.
 
-- [ ] **Unauthenticated `connectProjectAction` = arbitrary path/URL connect on a hosted deploy** 🟡
+- [x] **Unauthenticated `connectProjectAction` = arbitrary path/URL connect on a hosted deploy** 🟡
   - **Problem:** `connectProjectAction` takes a `target` form field and calls `connectProjectInput` (local path or git URL) with no `auth()` / permission check. `connectLocalPath` does `path.resolve(target)` against the host filesystem; git URL triggers a server-side clone.
   - **Why:** On any hosted instance this lets an anonymous visitor mount arbitrary server directories as a "project" and, combined with remediation apply, read/write files outside intended scope (SSRF-adjacent for the git clone path too).
   - **Location:** `src/server/actions.ts:147-168`; `src/server/connect.ts:104-135` (`connectLocalPath` resolves any host path); `connect.ts:141-193` (`connectGitUrl`).
