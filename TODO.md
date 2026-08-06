@@ -108,7 +108,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Move to a GitHub App with least-privilege, per-repo installation permissions before multi-tenant launch (already flagged as the intended path in code comments).
   - **Acceptance criteria:** Connecting a repo grants access only to selected repos; scope is documented and minimal.
 
-- [ ] **`sslmode=require` disables cert verification** 🟢
+- [x] **`sslmode=require` disables cert verification** 🟢
   - **Problem:** Postgres URL handling maps `sslmode=require` to `rejectUnauthorized: false`.
   - **Why:** MITM risk on the DB connection in production.
   - **Location:** `src/server/db-store/postgres-url.ts:20-22`.

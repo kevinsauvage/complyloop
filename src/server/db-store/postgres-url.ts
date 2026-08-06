@@ -1,10 +1,18 @@
 import dns from "node:dns/promises";
 import postgres from "postgres";
+import {
+  isDatabaseSslInsecureEnabled,
+  resolvePostgresSslOptions,
+} from "./postgres-ssl";
 
 /**
  * Opens a postgres.js client from DATABASE_URL.
  * If the OS resolver NXDOMAINs the host (common right after Aiven create),
  * falls back to public DNS and connects by IP with the original TLS servername.
+ *
+ * TLS: `sslmode=require` verifies the server certificate by default. Set
+ * `DATABASE_SSL_INSECURE=true` only when you intentionally skip CA verification
+ * (e.g. temporary Aiven CA until `sslrootcert` is configured).
  */
 export async function createPostgresClient(
   connectionString: string,
@@ -14,15 +22,11 @@ export async function createPostgresClient(
   const hostname = parsed.hostname;
   const host = await resolveHostname(hostname);
 
-  // Aiven uses its own CA; `sslmode=require` means encrypt. Full CA verify
-  // needs their downloaded cert (`verify-full` / `sslrootcert`).
-  const sslmode = parsed.searchParams.get("sslmode");
-  const ssl =
-    sslmode === "require" || sslmode === "prefer"
-      ? { rejectUnauthorized: false as const, servername: hostname }
-      : sslmode === "verify-full" || sslmode === "verify-ca"
-        ? { rejectUnauthorized: true as const, servername: hostname }
-        : undefined;
+  const ssl = resolvePostgresSslOptions({
+    sslmode: parsed.searchParams.get("sslmode"),
+    hostname,
+    allowInsecureSsl: isDatabaseSslInsecureEnabled(),
+  });
 
   return postgres({
     host,
