@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { CreateOrgForm } from "@/components/create-org-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
-import { OrgSwitcher } from "@/components/org-switcher";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
 import {
@@ -33,7 +32,7 @@ export default async function OrgPage() {
     );
   }
 
-  const { db, organizations, activeOrgId } = await getWorkspace();
+  const { db, activeOrgId } = await getWorkspace();
   const org = activeOrgId
     ? db.organizations.find((candidate) => candidate.id === activeOrgId)
     : undefined;
@@ -62,10 +61,6 @@ export default async function OrgPage() {
         title={org.name}
         description={`Slug ${org.slug} · ${projectCount} project${projectCount === 1 ? "" : "s"} · your role: ${role ?? "none"}`}
       />
-
-      <div className="mb-6 flex flex-wrap items-center gap-4">
-        <OrgSwitcher organizations={organizations} activeOrgId={activeOrgId} />
-      </div>
 
       <div className="flex flex-col gap-6">
         <Card title="Members">

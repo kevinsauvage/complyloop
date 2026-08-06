@@ -4,8 +4,6 @@ import {
   SeverityBadge,
 } from "@/components/badges";
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
-import { OrgSwitcher } from "@/components/org-switcher";
-import { ProjectSwitcher } from "@/components/project-switcher";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
@@ -64,8 +62,7 @@ function projectDescription(
 }
 
 export default async function DashboardPage() {
-  const { db, project, visibleProjects, organizations, activeOrgId, access } =
-    await getWorkspace();
+  const { db, project, access } = await getWorkspace();
   const caps = projectCapabilities(project, access);
   const orgName = project.orgId
     ? db.organizations.find((org) => org.id === project.orgId)?.name
@@ -132,19 +129,6 @@ export default async function DashboardPage() {
           </PermissionNotice>
         )}
       </PageHeader>
-
-      <div className="mb-6 flex flex-wrap items-center gap-4">
-        {activeOrgId ? (
-          <OrgSwitcher
-            organizations={organizations}
-            activeOrgId={activeOrgId}
-          />
-        ) : null}
-        <ProjectSwitcher
-          projects={visibleProjects}
-          activeProjectId={project.id}
-        />
-      </div>
 
       <div className="mb-6">
         <Card title="Connect a project">

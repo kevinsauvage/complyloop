@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthControls } from "@/components/auth-controls";
 import { NavLinks } from "@/components/nav-links";
+import { WorkspaceContext } from "@/components/workspace-context";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -46,7 +47,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </div>
           </aside>
           <main className="min-w-0 flex-1 px-8 py-8">
-            <div className="mx-auto max-w-5xl">{children}</div>
+            <div className="mx-auto max-w-5xl">
+              <WorkspaceContext />
+              {children}
+            </div>
           </main>
         </div>
       </body>

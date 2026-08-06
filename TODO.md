@@ -136,7 +136,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Pass the viewer's permissions to pages and hide/disable actions the role can't perform, with explanatory copy.
   - **Acceptance criteria:** A viewer sees read-only UI with no throwing action buttons.
 
-- [ ] **No global project/org context on Findings/Evidence/Requirements** 🟡
+- [x] **No global project/org context on Findings/Evidence/Requirements** 🟡
   - **Problem:** Active project switcher only exists on the dashboard; other pages give no indication of which project/org you're acting on.
   - **Why:** Users can act on the wrong project without realizing it — dangerous once multiple projects exist.
   - **Location:** switchers only in `src/app/page.tsx:130-141` and `src/app/org/page.tsx:65-67`.
@@ -157,7 +157,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Add a confirm step (native dialog or a small confirm component) for destructive actions.
   - **Acceptance criteria:** Each destructive action requires explicit confirmation.
 
-- [ ] **`getWorkspace()` not memoized → duplicate loads + double `auth()` per request** 🟡
+- [x] **`getWorkspace()` not memoized → duplicate loads + double `auth()` per request** 🟡
   - **Problem:** Dashboard calls `getWorkspace()`, then `ConnectProjectPanel` calls it again, and `auth()` runs in the panel, the layout, and the workspace loader — a per-request waterfall of full-store loads.
   - **Why:** Every page pays 2–3× the store/auth cost; scales badly and adds latency.
   - **Location:** `src/app/page.tsx:65`; `src/components/connect-project-panel.tsx:14-23`; `src/app/layout.tsx` → `auth-controls.tsx:14`; `src/server/workspace.ts:113-138`.

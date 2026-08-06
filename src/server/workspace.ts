@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { auth } from "@/auth";
 import type {
   Control,
@@ -114,8 +115,11 @@ function prepareWorkspaceState(
   };
 }
 
-/** Loads the store, seeding the framework and sample project on first use. */
-export async function getWorkspace(): Promise<Workspace> {
+/**
+ * Loads the store, seeding the framework and sample project on first use.
+ * Memoized per React request so layout + page share one load/auth.
+ */
+export const getWorkspace = cache(async (): Promise<Workspace> => {
   const session = await auth();
   const userId = session?.user?.id ?? null;
   const githubLogin = session?.user?.login ?? null;
@@ -144,7 +148,7 @@ export async function getWorkspace(): Promise<Workspace> {
     });
   }
   return prepared.workspace;
-}
+});
 
 /**
  * Exclusive workspace mutation: reloads under the store write lock, runs `fn`,
