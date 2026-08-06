@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 import type { OrgMemberFormState } from "@/server/actions";
 
 const initial: OrgMemberFormState = { error: null };
@@ -16,6 +16,7 @@ export function InviteMemberForm({
   orgId: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
+  const errorId = useId();
 
   return (
     <form action={formAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -31,6 +32,8 @@ export function InviteMemberForm({
           autoComplete="off"
           required
           placeholder="octocat"
+          aria-invalid={state.error ? true : undefined}
+          aria-describedby={state.error ? errorId : undefined}
           className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
         />
       </div>
@@ -57,7 +60,7 @@ export function InviteMemberForm({
         {pending ? "Inviting…" : "Invite"}
       </button>
       {state.error ? (
-        <p className="basis-full text-sm text-red-700" role="alert">
+        <p id={errorId} className="basis-full text-sm text-red-700" role="alert">
           {state.error}
         </p>
       ) : null}

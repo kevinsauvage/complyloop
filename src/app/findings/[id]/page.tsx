@@ -253,7 +253,7 @@ export default async function FindingPage({
               <div className="mb-3 flex items-center gap-2">
                 <ProvenanceBadge provenance={explanation.provenance} />
                 {explanation.model ? (
-                  <span className="text-xs text-zinc-400">{explanation.model}</span>
+                  <span className="text-xs text-zinc-500">{explanation.model}</span>
                 ) : null}
               </div>
               <dl className="flex flex-col gap-3 text-sm">
@@ -285,7 +285,7 @@ export default async function FindingPage({
                 Generate AI explanation
               </button>
               {!aiAvailable ? (
-                <p className="mt-1 text-xs text-zinc-400">
+                <p className="mt-1 text-xs text-zinc-500">
                   Set <code className="font-mono">AI_GATEWAY_API_KEY</code> to
                   enrich with AI. The deterministic explanation above remains the
                   happy-path baseline.
@@ -306,7 +306,7 @@ export default async function FindingPage({
                     className={`rounded-full px-2 py-0.5 ${
                       reached
                         ? "bg-zinc-900 text-white"
-                        : "bg-zinc-100 text-zinc-400"
+                        : "bg-zinc-100 text-zinc-500"
                     }`}
                   >
                     {remediationStatusLabel(status)}
@@ -326,7 +326,7 @@ export default async function FindingPage({
                   <ConfidenceBadge confidence={remediation.suggestion.confidence} />
                 ) : null}
                 {remediation.suggestion.model ? (
-                  <span className="text-xs text-zinc-400">
+                  <span className="text-xs text-zinc-500">
                     {remediation.suggestion.model}
                   </span>
                 ) : null}
@@ -356,7 +356,7 @@ export default async function FindingPage({
                   : "Generate AI remediation"}
               </button>
               {!aiAvailable ? (
-                <p className="mt-1 text-xs text-zinc-400">
+                <p className="mt-1 text-xs text-zinc-500">
                   Without AI credentials, use the deterministic suggestion (when
                   present) or fix manually and mark implemented after approval.
                 </p>
@@ -435,7 +435,7 @@ export default async function FindingPage({
               {evidence.map((record) => (
                 <li key={record.id} className="text-sm text-zinc-600">
                   {record.summary}
-                  <span className="ml-2 text-xs text-zinc-400">
+                  <span className="ml-2 text-xs text-zinc-500">
                     {formatDateTime(record.at)}
                   </span>
                 </li>

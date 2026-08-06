@@ -189,7 +189,7 @@ export default async function DashboardPage() {
                           </p>
                         );
                       })()}
-                      <p className="mt-0.5 text-xs text-zinc-400">
+                      <p className="mt-0.5 text-xs text-zinc-500">
                         {formatDateTime(alert.at)}
                       </p>
                     </div>
@@ -213,7 +213,7 @@ export default async function DashboardPage() {
                 {regressions.map((record) => (
                   <li key={record.id} className="text-sm text-red-800">
                     {record.summary}
-                    <span className="ml-2 text-xs text-zinc-400">
+                    <span className="ml-2 text-xs text-zinc-500">
                       {formatDateTime(record.at)}
                     </span>
                   </li>
@@ -253,7 +253,7 @@ export default async function DashboardPage() {
                     <Link href="/findings" className="hover:underline">
                       {cluster.label}
                     </Link>
-                    <span className="ml-2 text-xs text-zinc-400">
+                    <span className="ml-2 text-xs text-zinc-500">
                       {cluster.findingIds.length} findings
                     </span>
                   </li>
@@ -298,7 +298,7 @@ export default async function DashboardPage() {
               {recentEvidence.map((record) => (
                 <li key={record.id} className="text-sm text-zinc-600">
                   {record.summary}
-                  <span className="ml-2 text-xs text-zinc-400">
+                  <span className="ml-2 text-xs text-zinc-500">
                     {formatDateTime(record.at)}
                   </span>
                 </li>

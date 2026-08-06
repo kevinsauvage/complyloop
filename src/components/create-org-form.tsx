@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 import type { CreateOrgFormState } from "@/server/actions";
 
 const initial: CreateOrgFormState = { error: null };
@@ -14,6 +14,7 @@ export function CreateOrgForm({
   ) => Promise<CreateOrgFormState>;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
+  const errorId = useId();
 
   return (
     <form action={formAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -27,6 +28,8 @@ export function CreateOrgForm({
           type="text"
           required
           placeholder="Acme Engineering"
+          aria-invalid={state.error ? true : undefined}
+          aria-describedby={state.error ? errorId : undefined}
           className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
         />
       </div>
@@ -38,7 +41,7 @@ export function CreateOrgForm({
         {pending ? "Creating…" : "Create organization"}
       </button>
       {state.error ? (
-        <p className="basis-full text-sm text-red-700" role="alert">
+        <p id={errorId} className="basis-full text-sm text-red-700" role="alert">
           {state.error}
         </p>
       ) : null}

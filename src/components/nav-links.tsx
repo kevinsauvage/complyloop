@@ -11,7 +11,7 @@ const LINKS = [
   { href: "/org", label: "Organization" },
 ] as const;
 
-export function NavLinks() {
+export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
     <ul className="flex flex-col gap-1">
@@ -25,6 +25,7 @@ export function NavLinks() {
             <Link
               href={link.href}
               aria-current={active ? "page" : undefined}
+              onClick={() => onNavigate?.()}
               className={`block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 active
                   ? "bg-zinc-900 text-white"

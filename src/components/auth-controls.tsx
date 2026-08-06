@@ -3,7 +3,7 @@ import { auth, isGitHubAuthConfigured, signIn, signOut } from "@/auth";
 export async function AuthControls() {
   if (!isGitHubAuthConfigured()) {
     return (
-      <p className="px-3 text-xs text-zinc-400">
+      <p className="px-3 text-xs text-zinc-500">
         GitHub sign-in not configured. Set{" "}
         <code className="font-mono">AUTH_GITHUB_*</code> in{" "}
         <code className="font-mono">.env.local</code>.

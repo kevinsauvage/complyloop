@@ -117,7 +117,7 @@ export default async function FindingsPage({
                             <span className="text-sm text-zinc-600">
                               {finding.reason}
                             </span>
-                            <span className="font-mono text-xs text-zinc-400">
+                            <span className="font-mono text-xs text-zinc-500">
                               {finding.location.filePath}:{finding.location.line}
                             </span>
                           </Link>
@@ -160,7 +160,7 @@ export default async function FindingsPage({
                             </span>
                           </span>
                           <span className="text-sm text-zinc-600">{finding.reason}</span>
-                          <span className="font-mono text-xs text-zinc-400">
+                          <span className="font-mono text-xs text-zinc-500">
                             {finding.location.filePath}:{finding.location.line}
                           </span>
                         </Link>

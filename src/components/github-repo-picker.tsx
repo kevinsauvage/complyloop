@@ -142,7 +142,7 @@ export function GitHubRepoPicker({
         })}
       </ul>
       {filtered.length > 20 ? (
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-zinc-500">
           Showing 20 of {filtered.length} matches — refine the filter to narrow
           results.
         </p>

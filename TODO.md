@@ -171,27 +171,27 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Treat explicit `FalseKeyword` / `{false}` as not-hidden; only flag boolean-shorthand or `"true"`. Add a regression test.
   - **Acceptance criteria:** `<button aria-hidden={false} />` produces no finding; test covers it.
 
-- [ ] **Programmatic form-error association on our own forms** 🟡
+- [x] **Programmatic form-error association on our own forms** 🟡
   - **Problem:** Forms show `role="alert"` blocks but don't wire `aria-invalid` / `aria-describedby` to inputs — the exact pattern the product's `form-error-association` check flags in customers' code.
   - **Why:** Credibility: the accessibility product should pass its own checks. Also a real screen-reader gap.
   - **Location:** `src/components/connect-project-form.tsx:31-34`; `src/components/invite-member-form.tsx:59-63`; finding/requirements forms.
   - **Recommendation:** Add `aria-invalid` + `aria-describedby` linking inputs to their error text.
   - **Acceptance criteria:** Invalid fields expose their error to assistive tech via `aria-describedby`.
 
-- [ ] **Color contrast: `text-zinc-400` fails WCAG AA** 🟢
+- [x] **Color contrast: `text-zinc-400` fails WCAG AA** 🟢
   - **Problem:** `text-zinc-400` (~2.5:1 on white) is used for timestamps, footer, muted meta.
   - **Why:** Same credibility gap — the a11y product must meet AA. Real low-vision impact.
   - **Location:** `src/app/layout.tsx:43`; `src/app/findings/page.tsx:110`; many pages.
   - **Recommendation:** Use `zinc-500`+ for text on light backgrounds (≥4.5:1).
   - **Acceptance criteria:** All body/meta text meets AA contrast.
 
-- [ ] **Skip link + focus management** 🟢
+- [x] **Skip link + focus management** 🟢
   - **Problem:** No skip-to-main link; sidebar-first tab order on every page; no focus move after navigation/actions.
   - **Location:** `src/app/layout.tsx:29-51`.
   - **Recommendation:** Add a skip link to `<main>`; move focus to the page `<h1>` on route change/action completion.
   - **Acceptance criteria:** Keyboard users can skip nav; focus lands sensibly after actions.
 
-- [ ] **Mobile / responsive layout** 🟡
+- [x] **Mobile / responsive layout** 🟡
   - **Problem:** Fixed `w-60` sidebar, no mobile nav or collapse.
   - **Why:** Broken/cramped on phones and small windows; reviewers and buyers will notice.
   - **Location:** `src/app/layout.tsx:30-47`.
@@ -218,7 +218,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Add `confidence` to explanation schema/UI; log AI failures via the new error tracking.
   - **Acceptance criteria:** AI explanations display confidence; AI failures are captured.
 
-- [ ] **Legal + product surfaces for a paid SaaS** 🟡
+- [x] **Legal + product surfaces for a paid SaaS** 🟡
   - **Problem:** No Terms of Service, Privacy Policy, data-processing/subprocessor info, or in-app links to them; nothing describing data handling for a product that ingests customers' source and stores compliance evidence.
   - **Why:** Required for B2B sales and for handling source code / audit data; procurement will block without it.
   - **Location:** app chrome (`src/app/layout.tsx`); no legal routes exist.

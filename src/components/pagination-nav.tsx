@@ -25,7 +25,7 @@ export function PaginationNav({
     >
       <p>
         Page {page} of {totalPages}
-        <span className="text-zinc-400"> · {total} total</span>
+        <span className="text-zinc-500"> · {total} total</span>
       </p>
       <div className="flex gap-2">
         {page > 1 ? (

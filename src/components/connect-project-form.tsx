@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 import {
   connectProjectAction,
   type ConnectFormState,
@@ -15,6 +15,7 @@ export function ConnectProjectForm({
   localPathAllowed?: boolean;
 }) {
   const [state, action, pending] = useActionState(connectProjectAction, initialState);
+  const errorId = useId();
 
   return (
     <form action={action} className="flex flex-col gap-3">
@@ -30,6 +31,8 @@ export function ConnectProjectForm({
               ? "/path/to/my-app or https://github.com/org/repo"
               : "https://github.com/org/repo"
           }
+          aria-invalid={state.error ? true : undefined}
+          aria-describedby={state.error ? errorId : undefined}
           className="w-full rounded-lg border border-zinc-300 px-3 py-2 font-mono text-sm font-normal"
         />
       </label>
@@ -49,7 +52,7 @@ export function ConnectProjectForm({
         )}
       </p>
       {state.error ? (
-        <p className="text-sm text-red-700" role="alert">
+        <p id={errorId} className="text-sm text-red-700" role="alert">
           {state.error}
         </p>
       ) : null}
