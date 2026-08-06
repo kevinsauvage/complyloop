@@ -196,5 +196,21 @@ describe("aria-hidden-focusable", () => {
     );
     expect(findings).toHaveLength(1);
   });
+
+  it("does not flag aria-hidden={false}", () => {
+    const findings = run(
+      ariaHiddenFocusableCheck,
+      `const A = () => <button aria-hidden={false}>x</button>;`,
+    );
+    expect(findings).toHaveLength(0);
+  });
+
+  it("flags boolean shorthand aria-hidden on a focusable control", () => {
+    const findings = run(
+      ariaHiddenFocusableCheck,
+      `const A = () => <button aria-hidden>x</button>;`,
+    );
+    expect(findings).toHaveLength(1);
+  });
 });
 

@@ -164,7 +164,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Wrap `getWorkspace` (and a session getter) in `React.cache` so a request computes them once.
   - **Acceptance criteria:** A single page render loads the store and session once each.
 
-- [ ] **`aria-hidden={false}` false positive in the analysis engine** 🟢
+- [x] **`aria-hidden={false}` false positive in the analysis engine** 🟢
   - **Problem:** `stringValueOf` returns `undefined` for the `{false}` expression, and the check treats `value === undefined` as hidden, flagging `aria-hidden={false}` as a violation. `form-error-association` handles `FalseKeyword` correctly; this check doesn't.
   - **Why:** The product's own accessibility engine emitting false positives undermines the core value proposition and erodes user trust.
   - **Location:** `src/analysis/checks/aria-hidden-focusable.ts:19-27`; contrast `src/analysis/checks/form-error-association.ts:13-31`.

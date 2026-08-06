@@ -1,5 +1,5 @@
-import ts from "typescript";
 import {
+  booleanAttributeValue,
   getAttribute,
   locationOf,
   stringValueOf,
@@ -11,24 +11,9 @@ import type { AccessibilityCheck, RawFinding } from "../types";
 const FORM_CONTROLS = new Set(["input", "select", "textarea"]);
 
 function isAriaTrue(attr: ReturnType<typeof getAttribute>): boolean {
-  if (!attr) return false;
-  if (!attr.initializer) return true;
-  const lit = stringValueOf(attr);
-  if (lit !== undefined) return lit !== "false";
-  if (
-    ts.isJsxExpression(attr.initializer) &&
-    attr.initializer.expression?.kind === ts.SyntaxKind.TrueKeyword
-  ) {
-    return true;
-  }
-  if (
-    ts.isJsxExpression(attr.initializer) &&
-    attr.initializer.expression?.kind === ts.SyntaxKind.FalseKeyword
-  ) {
-    return false;
-  }
+  const value = booleanAttributeValue(attr);
   // Dynamic expression — treat as potentially invalid so humans can review.
-  return true;
+  return value === true || value === null;
 }
 
 /**

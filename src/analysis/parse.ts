@@ -65,6 +65,26 @@ export function stringValueOf(attr: ts.JsxAttribute): string | undefined {
   return undefined;
 }
 
+/**
+ * Interprets a JSX ARIA/boolean attribute as true/false when statically known.
+ * Boolean shorthand (`aria-hidden`) and `"true"` / `{true}` → true;
+ * `"false"` / `{false}` → false; dynamic expressions → null (unknown).
+ */
+export function booleanAttributeValue(
+  attr: ts.JsxAttribute | undefined,
+): boolean | null {
+  if (!attr) return false;
+  if (!attr.initializer) return true;
+  const lit = stringValueOf(attr);
+  if (lit !== undefined) return lit !== "false";
+  if (ts.isJsxExpression(attr.initializer) && attr.initializer.expression) {
+    const kind = attr.initializer.expression.kind;
+    if (kind === ts.SyntaxKind.TrueKeyword) return true;
+    if (kind === ts.SyntaxKind.FalseKeyword) return false;
+  }
+  return null;
+}
+
 export function spanOf(node: ts.Node, sourceFile: ts.SourceFile): Span {
   return { start: node.getStart(sourceFile), end: node.getEnd() };
 }

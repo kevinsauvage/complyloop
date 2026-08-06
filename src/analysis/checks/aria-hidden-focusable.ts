@@ -1,4 +1,5 @@
 import {
+  booleanAttributeValue,
   getAttribute,
   locationOf,
   stringValueOf,
@@ -20,10 +21,9 @@ function isAriaHiddenTrue(
   node: Parameters<typeof getAttribute>[0],
 ): boolean {
   const attr = getAttribute(node, "aria-hidden");
-  if (!attr) return false;
-  const value = stringValueOf(attr);
-  // aria-hidden or aria-hidden="true" (boolean attribute in JSX is rare)
-  return value === undefined || value === "true";
+  const value = booleanAttributeValue(attr);
+  // Unknown/dynamic expressions are treated as potentially hidden.
+  return value === true || value === null;
 }
 
 function isFocusable(node: Parameters<typeof getAttribute>[0]): boolean {
