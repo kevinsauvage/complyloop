@@ -114,6 +114,7 @@ export default async function DashboardPage() {
             submitLabel="Reset sample project"
             pendingLabel="Resetting…"
             submitClassName="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            confirmMessage="Reset the sample project workspace to its original files? Unsaved local edits in the sample will be lost."
           />
         ) : null}
         {caps.canAssess ? (

@@ -150,7 +150,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Add server-side pagination/limits for evidence and findings; longer term, query by tenant/project instead of hydrating the whole store (see Architecture).
   - **Acceptance criteria:** Evidence and findings pages render a bounded page size with next/prev and stay responsive with 10k+ evidence rows.
 
-- [ ] **Confirmation on destructive/disk-mutating actions** 🟢
+- [x] **Confirmation on destructive/disk-mutating actions** 🟢
   - **Problem:** Reset sample, Apply change (writes to disk), Remove member, Dismiss finding fire on a single click with no confirmation.
   - **Why:** Easy accidental data/file changes; member removal and applying fixes are hard to undo.
   - **Location:** `src/app/page.tsx:111-118`; `src/app/findings/[id]/page.tsx:94-97,376-406`; `src/app/org/page.tsx:96-109`.

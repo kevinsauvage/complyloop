@@ -108,6 +108,7 @@ function ActionPanel({
               submitLabel="Apply change to the file"
               pendingLabel="Applying…"
               submitClassName={primaryButton}
+              confirmMessage="Apply this change to the project file on disk? This writes to the workspace."
             />
           ) : null}
           <StatefulActionForm
@@ -401,6 +402,7 @@ export default async function FindingPage({
               submitLabel="Dismiss finding"
               submitClassName={secondaryButton}
               className="flex flex-col gap-3"
+              confirmMessage="Dismiss this finding? The reason and note are kept as evidence."
             >
               <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
                 Reason

@@ -2,6 +2,7 @@
 
 import { useActionState, type ReactNode } from "react";
 import type { ActionMessageState } from "@/server/action-state";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 
 const initialState: ActionMessageState = { error: null, message: null };
 
@@ -12,6 +13,7 @@ export function StatefulActionForm({
   submitClassName,
   children,
   className,
+  confirmMessage,
 }: {
   action: (
     previous: ActionMessageState,
@@ -22,6 +24,8 @@ export function StatefulActionForm({
   submitClassName: string;
   children?: ReactNode;
   className?: string;
+  /** When set, requires native confirm before the form submits. */
+  confirmMessage?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
 
@@ -39,13 +43,22 @@ export function StatefulActionForm({
         </p>
       ) : null}
       <div>
-        <button
-          type="submit"
-          disabled={pending}
-          className={`${submitClassName} disabled:opacity-50`}
-        >
-          {pending ? (pendingLabel ?? "Working…") : submitLabel}
-        </button>
+        {confirmMessage ? (
+          <ConfirmSubmitButton
+            label={submitLabel}
+            pendingLabel={pendingLabel}
+            confirmMessage={confirmMessage}
+            className={submitClassName}
+          />
+        ) : (
+          <button
+            type="submit"
+            disabled={pending}
+            className={`${submitClassName} disabled:opacity-50`}
+          >
+            {pending ? (pendingLabel ?? "Working…") : submitLabel}
+          </button>
+        )}
       </div>
     </form>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import {
   connectGitHubRepoAction,
   disconnectGitHubRepoAction,
@@ -110,13 +111,12 @@ export function GitHubRepoPicker({
               {connected && projectId ? (
                 <form action={disconnectAction}>
                   <input type="hidden" name="projectId" value={projectId} />
-                  <button
-                    type="submit"
-                    disabled={pending}
-                    className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
-                  >
-                    {disconnectPending ? "Disconnecting…" : "Disconnect"}
-                  </button>
+                  <ConfirmSubmitButton
+                    label={disconnectPending ? "Disconnecting…" : "Disconnect"}
+                    pendingLabel="Disconnecting…"
+                    confirmMessage={`Disconnect ${repo.fullName}? The local workspace clone will be removed.`}
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                  />
                 </form>
               ) : (
                 <form action={connectAction}>

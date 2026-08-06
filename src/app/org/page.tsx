@@ -94,6 +94,7 @@ export default async function OrgPage() {
                     submitLabel="Remove"
                     pendingLabel="Removing…"
                     submitClassName="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                    confirmMessage="Remove this member from the organization?"
                   >
                     <input type="hidden" name="orgId" value={org.id} />
                     <input
