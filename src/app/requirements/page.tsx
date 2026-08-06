@@ -3,6 +3,7 @@ import {
   DeterminationBadge,
   RequirementStatusBadge,
 } from "@/components/badges";
+import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
 import {
   applyFrameworkPresetAction,
@@ -55,15 +56,14 @@ export default async function RequirementsPage() {
                     {preset.description} · {preset.controlIds.length} controls
                   </p>
                 </div>
-                <form action={applyFrameworkPresetAction}>
+                <StatefulActionForm
+                  action={applyFrameworkPresetAction}
+                  submitLabel="Apply"
+                  pendingLabel="Applying…"
+                  submitClassName="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                >
                   <input type="hidden" name="presetId" value={preset.id} />
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                  >
-                    Apply
-                  </button>
-                </form>
+                </StatefulActionForm>
               </li>
             ))}
           </ul>
@@ -78,7 +78,13 @@ export default async function RequirementsPage() {
             . Each becomes a manual control (unable to verify until a human
             marks it passed or records an exception).
           </p>
-          <form action={importChecklistAction} className="flex flex-col gap-3">
+          <StatefulActionForm
+            action={importChecklistAction}
+            submitLabel="Import checklist"
+            pendingLabel="Importing…"
+            submitClassName="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            className="flex flex-col gap-3"
+          >
             <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
               Checklist
               <textarea
@@ -91,15 +97,7 @@ export default async function RequirementsPage() {
                 className="rounded-lg border border-zinc-300 px-3 py-2 font-mono text-sm font-normal"
               />
             </label>
-            <div>
-              <button
-                type="submit"
-                className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-              >
-                Import checklist
-              </button>
-            </div>
-          </form>
+          </StatefulActionForm>
         </Card>
 
         <Card title="In-scope controls">
@@ -107,7 +105,13 @@ export default async function RequirementsPage() {
             Select which controls apply to this project. Assessment only evaluates
             the selected set.
           </p>
-          <form action={updateRequirementScopeAction} className="flex flex-col gap-3">
+          <StatefulActionForm
+            action={updateRequirementScopeAction}
+            submitLabel="Save scope"
+            pendingLabel="Saving…"
+            submitClassName="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+            className="flex flex-col gap-3"
+          >
             <ul className="flex flex-col gap-2">
               {db.controls.map((control) => {
                 const framework = frameworks.find(
@@ -137,15 +141,7 @@ export default async function RequirementsPage() {
                 );
               })}
             </ul>
-            <div>
-              <button
-                type="submit"
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-              >
-                Save scope
-              </button>
-            </div>
-          </form>
+          </StatefulActionForm>
         </Card>
 
         <Card title="Import a custom control">
@@ -154,8 +150,11 @@ export default async function RequirementsPage() {
             automated check it stays <em>unable to verify</em> until a human
             records a decision.
           </p>
-          <form
+          <StatefulActionForm
             action={importCustomControlAction}
+            submitLabel="Import control"
+            pendingLabel="Importing…"
+            submitClassName="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
             className="flex max-w-xl flex-col gap-3"
           >
             <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
@@ -192,15 +191,7 @@ export default async function RequirementsPage() {
                 className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
               />
             </label>
-            <div>
-              <button
-                type="submit"
-                className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-              >
-                Import control
-              </button>
-            </div>
-          </form>
+          </StatefulActionForm>
         </Card>
       </div>
 
@@ -253,20 +244,16 @@ export default async function RequirementsPage() {
                         Set {formatDateTime(requirement.humanPass.at)} — sticky
                         until cleared (assessments will not overwrite).
                       </p>
-                      <form
+                      <StatefulActionForm
                         action={clearRequirementHumanPassAction.bind(
                           null,
                           requirement.id,
                         )}
+                        submitLabel="Clear human pass & return to unable to verify"
+                        pendingLabel="Clearing…"
+                        submitClassName="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
                         className="mt-2"
-                      >
-                        <button
-                          type="submit"
-                          className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
-                        >
-                          Clear human pass &amp; return to unable to verify
-                        </button>
-                      </form>
+                      />
                     </div>
                   ) : null}
 
@@ -284,20 +271,16 @@ export default async function RequirementsPage() {
                           : " — sticky until cleared (assessments will not overwrite)"}
                         .
                       </p>
-                      <form
+                      <StatefulActionForm
                         action={clearRequirementExceptionAction.bind(
                           null,
                           requirement.id,
                         )}
+                        submitLabel="Clear exception & return to automated status"
+                        pendingLabel="Clearing…"
+                        submitClassName="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
                         className="mt-2"
-                      >
-                        <button
-                          type="submit"
-                          className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
-                        >
-                          Clear exception &amp; return to automated status
-                        </button>
-                      </form>
+                      />
                     </div>
                   ) : (
                     <div className="mt-4 flex flex-col gap-3">
@@ -306,11 +289,14 @@ export default async function RequirementsPage() {
                           <summary className="cursor-pointer text-xs font-medium text-zinc-500">
                             Mark passed (human review)
                           </summary>
-                          <form
+                          <StatefulActionForm
                             action={markRequirementPassedAction.bind(
                               null,
                               requirement.id,
                             )}
+                            submitLabel="Record human pass"
+                            pendingLabel="Saving…"
+                            submitClassName="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
                             className="mt-3 flex flex-col gap-2"
                           >
                             <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
@@ -323,15 +309,7 @@ export default async function RequirementsPage() {
                                 className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
                               />
                             </label>
-                            <div>
-                              <button
-                                type="submit"
-                                className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                              >
-                                Record human pass
-                              </button>
-                            </div>
-                          </form>
+                          </StatefulActionForm>
                         </details>
                       ) : null}
                       <details>
@@ -339,11 +317,14 @@ export default async function RequirementsPage() {
                           Mark requirement exception (N/A / accepted risk /
                           compensating / temporary)
                         </summary>
-                        <form
+                        <StatefulActionForm
                           action={markRequirementExceptionAction.bind(
                             null,
                             requirement.id,
                           )}
+                          submitLabel="Record exception"
+                          pendingLabel="Saving…"
+                          submitClassName="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
                           className="mt-3 flex flex-col gap-2"
                         >
                           <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
@@ -377,15 +358,7 @@ export default async function RequirementsPage() {
                               className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
                             />
                           </label>
-                          <div>
-                            <button
-                              type="submit"
-                              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                            >
-                              Record exception
-                            </button>
-                          </div>
-                        </form>
+                        </StatefulActionForm>
                       </details>
                     </div>
                   )}

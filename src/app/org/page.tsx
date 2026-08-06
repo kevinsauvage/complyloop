@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { CreateOrgForm } from "@/components/create-org-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { OrgSwitcher } from "@/components/org-switcher";
+import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
 import {
   createOrgAction,
@@ -93,20 +94,19 @@ export default async function OrgPage() {
                   </p>
                 </div>
                 {canManage && membership.role !== "owner" ? (
-                  <form action={removeOrgMemberAction}>
+                  <StatefulActionForm
+                    action={removeOrgMemberAction}
+                    submitLabel="Remove"
+                    pendingLabel="Removing…"
+                    submitClassName="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                  >
                     <input type="hidden" name="orgId" value={org.id} />
                     <input
                       type="hidden"
                       name="membershipId"
                       value={membership.id}
                     />
-                    <button
-                      type="submit"
-                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                    >
-                      Remove
-                    </button>
-                  </form>
+                  </StatefulActionForm>
                 ) : null}
               </li>
             ))}

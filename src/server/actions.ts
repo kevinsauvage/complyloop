@@ -31,6 +31,7 @@ import {
 } from "./connect";
 import {
   actionErrorState,
+  runActionMessage,
   type ActionMessageState,
 } from "./action-state";
 import { assertConnectProjectAllowed } from "./connect-policy";
@@ -117,29 +118,43 @@ function locateViolation(db: Db, finding: Finding) {
   };
 }
 
-export async function runAssessmentAction(): Promise<void> {
-  await withWorkspaceWrite(async (workspace) => {
-  requireOnActive(workspace, "project.assess");
-  runAssessment(workspace.db, workspace.project.id);
+export async function runAssessmentAction(
+  _previous: ActionMessageState,
+  _formData: FormData,
+): Promise<ActionMessageState> {
+  void _formData;
+  return runActionMessage(async () => {
+    await withWorkspaceWrite(async (workspace) => {
+      requireOnActive(workspace, "project.assess");
+      runAssessment(workspace.db, workspace.project.id);
+    });
+    refresh();
+    return "Assessment complete.";
   });
-  refresh();
 }
 
-export async function resetProjectAction(): Promise<void> {
-  await withWorkspaceWrite(async (workspace) => {
-  requireOnActive(workspace, "project.remediate");
-  const { db, project } = workspace;
-  if (project.source !== "sample") {
-    throw new Error("Only the sample project can be reset.");
-  }
-  resetSampleWorkspace(project);
-  addEvidence(db, {
-    kind: "project_reset",
-    summary: `Workspace of "${project.name}" restored to its original state`,
-    projectId: project.id,
+export async function resetProjectAction(
+  _previous: ActionMessageState,
+  _formData: FormData,
+): Promise<ActionMessageState> {
+  void _formData;
+  return runActionMessage(async () => {
+    await withWorkspaceWrite(async (workspace) => {
+      requireOnActive(workspace, "project.remediate");
+      const { db, project } = workspace;
+      if (project.source !== "sample") {
+        throw new Error("Only the sample project can be reset.");
+      }
+      resetSampleWorkspace(project);
+      addEvidence(db, {
+        kind: "project_reset",
+        summary: `Workspace of "${project.name}" restored to its original state`,
+        projectId: project.id,
+      });
+    });
+    refresh();
+    return "Sample project reset.";
   });
-  });
-  refresh();
 }
 
 export async function connectProjectAction(
@@ -298,28 +313,32 @@ export async function inviteOrgMemberAction(
 }
 
 export async function removeOrgMemberAction(
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<void> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) throw new Error("Sign in to manage organization members.");
+): Promise<ActionMessageState> {
+  return runActionMessage(async () => {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("Sign in to manage organization members.");
 
-  const orgIdRaw = formData.get("orgId");
-  const membershipId = formData.get("membershipId");
-  if (typeof orgIdRaw !== "string" || orgIdRaw.length === 0) {
-    throw new Error("Organization id is required.");
-  }
-  if (typeof membershipId !== "string" || membershipId.length === 0) {
-    throw new Error("Membership id is required.");
-  }
-
-  await withWorkspaceWrite(({ db }) => {
-    if (!canManageOrgMembers(db, orgIdRaw, userId)) {
-      throw new Error("Only org owners and admins can remove members.");
+    const orgIdRaw = formData.get("orgId");
+    const membershipId = formData.get("membershipId");
+    if (typeof orgIdRaw !== "string" || orgIdRaw.length === 0) {
+      throw new Error("Organization id is required.");
     }
-    removeOrgMember(db, orgIdRaw, userId, membershipId);
+    if (typeof membershipId !== "string" || membershipId.length === 0) {
+      throw new Error("Membership id is required.");
+    }
+
+    await withWorkspaceWrite(({ db }) => {
+      if (!canManageOrgMembers(db, orgIdRaw, userId)) {
+        throw new Error("Only org owners and admins can remove members.");
+      }
+      removeOrgMember(db, orgIdRaw, userId, membershipId);
+    });
+    refresh();
+    return "Member removed.";
   });
-  refresh();
 }
 
 export type ConnectGitHubFormState = {
@@ -853,261 +872,303 @@ function isRequirementExceptionReason(
 }
 export async function markRequirementExceptionAction(
   requirementId: string,
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<void> {
-  await withWorkspaceWrite(async (workspace) => {
-  requireOnActive(workspace, "project.remediate");
-  const { db, project } = workspace;
-  const requirement = db.requirements.find(
-    (candidate) => candidate.id === requirementId,
-  );
-  if (!requirement || requirement.projectId !== project.id) {
-    throw new Error("Unknown requirement.");
-  }
+): Promise<ActionMessageState> {
+  return runActionMessage(async () => {
+    await withWorkspaceWrite(async (workspace) => {
+      requireOnActive(workspace, "project.remediate");
+      const { db, project } = workspace;
+      const requirement = db.requirements.find(
+        (candidate) => candidate.id === requirementId,
+      );
+      if (!requirement || requirement.projectId !== project.id) {
+        throw new Error("Unknown requirement.");
+      }
 
-  const reason = formData.get("reason");
-  const noteRaw = formData.get("note");
-  const expiresRaw = formData.get("expiresAt");
-  if (!isRequirementExceptionReason(reason)) {
-    throw new Error("A valid exception reason is required.");
-  }
-  if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
-    throw new Error("A note is required when setting a requirement exception.");
-  }
-  if (reason === "temporary") {
-    if (typeof expiresRaw !== "string" || expiresRaw.trim().length === 0) {
-      throw new Error("Temporary exceptions require an expiry date.");
-    }
-  }
+      const reason = formData.get("reason");
+      const noteRaw = formData.get("note");
+      const expiresRaw = formData.get("expiresAt");
+      if (!isRequirementExceptionReason(reason)) {
+        throw new Error("A valid exception reason is required.");
+      }
+      if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
+        throw new Error(
+          "A note is required when setting a requirement exception.",
+        );
+      }
+      if (reason === "temporary") {
+        if (typeof expiresRaw !== "string" || expiresRaw.trim().length === 0) {
+          throw new Error("Temporary exceptions require an expiry date.");
+        }
+      }
 
-  const note = noteRaw.trim();
-  const previous = requirement.status;
-  const expiresAt =
-    reason === "temporary" && typeof expiresRaw === "string"
-      ? new Date(expiresRaw).toISOString()
-      : undefined;
+      const note = noteRaw.trim();
+      const previous = requirement.status;
+      const expiresAt =
+        reason === "temporary" && typeof expiresRaw === "string"
+          ? new Date(expiresRaw).toISOString()
+          : undefined;
 
-  requirement.exception = {
-    reason,
-    note,
-    at: new Date().toISOString(),
-    expiresAt,
-  };
-  delete requirement.humanPass;
-  requirement.determination = "human_review";
-  if (reason === "not_applicable") {
-    requirement.status = "not_applicable";
-  }
-  requirement.updatedAt = new Date().toISOString();
+      requirement.exception = {
+        reason,
+        note,
+        at: new Date().toISOString(),
+        expiresAt,
+      };
+      delete requirement.humanPass;
+      requirement.determination = "human_review";
+      if (reason === "not_applicable") {
+        requirement.status = "not_applicable";
+      }
+      requirement.updatedAt = new Date().toISOString();
 
-  const control = controlById(db, requirement.controlId);
-  addEvidence(db, {
-    kind: "requirement_exception_set",
-    summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
-    projectId: project.id,
-    controlId: requirement.controlId,
-    detail: {
-      reason,
-      note,
-      expiresAt,
-      from: previous,
-      to: requirement.status,
-    },
-  });
-  if (previous !== requirement.status) {
-    addEvidence(db, {
-      kind: "requirement_status_changed",
-      summary: `${control.code} (${control.title}): ${previous} → ${requirement.status} — human exception`,
-      projectId: project.id,
-      controlId: requirement.controlId,
-      detail: { from: previous, to: requirement.status, regression: false },
+      const control = controlById(db, requirement.controlId);
+      addEvidence(db, {
+        kind: "requirement_exception_set",
+        summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
+        projectId: project.id,
+        controlId: requirement.controlId,
+        detail: {
+          reason,
+          note,
+          expiresAt,
+          from: previous,
+          to: requirement.status,
+        },
+      });
+      if (previous !== requirement.status) {
+        addEvidence(db, {
+          kind: "requirement_status_changed",
+          summary: `${control.code} (${control.title}): ${previous} → ${requirement.status} — human exception`,
+          projectId: project.id,
+          controlId: requirement.controlId,
+          detail: { from: previous, to: requirement.status, regression: false },
+        });
+      }
     });
-  }
+    refresh();
+    return "Exception recorded.";
   });
-  refresh();
 }
 
 export async function markRequirementPassedAction(
   requirementId: string,
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<void> {
-  await withWorkspaceWrite(async (workspace) => {
-  requireOnActive(workspace, "project.remediate");
-  const { db, project } = workspace;
-  const requirement = db.requirements.find(
-    (candidate) => candidate.id === requirementId,
-  );
-  if (!requirement || requirement.projectId !== project.id) {
-    throw new Error("Unknown requirement.");
-  }
+): Promise<ActionMessageState> {
+  return runActionMessage(async () => {
+    await withWorkspaceWrite(async (workspace) => {
+      requireOnActive(workspace, "project.remediate");
+      const { db, project } = workspace;
+      const requirement = db.requirements.find(
+        (candidate) => candidate.id === requirementId,
+      );
+      if (!requirement || requirement.projectId !== project.id) {
+        throw new Error("Unknown requirement.");
+      }
 
-  const control = controlById(db, requirement.controlId);
-  if (control.checkId !== null) {
-    throw new Error(
-      "Only manual controls (no automated check) can be marked passed by human review.",
-    );
-  }
+      const control = controlById(db, requirement.controlId);
+      if (control.checkId !== null) {
+        throw new Error(
+          "Only manual controls (no automated check) can be marked passed by human review.",
+        );
+      }
 
-  const noteRaw = formData.get("note");
-  if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
-    throw new Error("A note is required when marking a requirement passed.");
-  }
-  const note = noteRaw.trim();
-  const previous = requirement.status;
+      const noteRaw = formData.get("note");
+      if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
+        throw new Error("A note is required when marking a requirement passed.");
+      }
+      const note = noteRaw.trim();
+      const previous = requirement.status;
 
-  delete requirement.exception;
-  requirement.humanPass = {
-    note,
-    at: new Date().toISOString(),
-  };
-  requirement.status = "passed";
-  requirement.determination = "human_review";
-  requirement.updatedAt = new Date().toISOString();
+      delete requirement.exception;
+      requirement.humanPass = {
+        note,
+        at: new Date().toISOString(),
+      };
+      requirement.status = "passed";
+      requirement.determination = "human_review";
+      requirement.updatedAt = new Date().toISOString();
 
-  addEvidence(db, {
-    kind: "requirement_human_passed",
-    summary: `${control.code} marked passed (human review): ${note}`,
-    projectId: project.id,
-    controlId: requirement.controlId,
-    detail: { note, from: previous, to: "passed" },
-  });
-  if (previous !== "passed") {
-    addEvidence(db, {
-      kind: "requirement_status_changed",
-      summary: `${control.code} (${control.title}): ${previous} → passed — human review`,
-      projectId: project.id,
-      controlId: requirement.controlId,
-      detail: {
-        from: previous,
-        to: "passed",
-        regression: false,
-        humanPass: true,
-      },
+      addEvidence(db, {
+        kind: "requirement_human_passed",
+        summary: `${control.code} marked passed (human review): ${note}`,
+        projectId: project.id,
+        controlId: requirement.controlId,
+        detail: { note, from: previous, to: "passed" },
+      });
+      if (previous !== "passed") {
+        addEvidence(db, {
+          kind: "requirement_status_changed",
+          summary: `${control.code} (${control.title}): ${previous} → passed — human review`,
+          projectId: project.id,
+          controlId: requirement.controlId,
+          detail: {
+            from: previous,
+            to: "passed",
+            regression: false,
+            humanPass: true,
+          },
+        });
+      }
     });
-  }
+    refresh();
+    return "Human pass recorded.";
   });
-  refresh();
 }
 
 export async function clearRequirementHumanPassAction(
   requirementId: string,
-): Promise<void> {
-  await withWorkspaceWrite(async (workspace) => {
-  requireOnActive(workspace, "project.remediate");
-  const { db, project } = workspace;
-  const requirement = db.requirements.find(
-    (candidate) => candidate.id === requirementId,
-  );
-  if (!requirement || requirement.projectId !== project.id) {
-    throw new Error("Unknown requirement.");
-  }
-  if (!requirement.humanPass) {
-    throw new Error("This requirement has no human pass to clear.");
-  }
+  _previous: ActionMessageState,
+  _formData: FormData,
+): Promise<ActionMessageState> {
+  void _formData;
+  return runActionMessage(async () => {
+    await withWorkspaceWrite(async (workspace) => {
+      requireOnActive(workspace, "project.remediate");
+      const { db, project } = workspace;
+      const requirement = db.requirements.find(
+        (candidate) => candidate.id === requirementId,
+      );
+      if (!requirement || requirement.projectId !== project.id) {
+        throw new Error("Unknown requirement.");
+      }
+      if (!requirement.humanPass) {
+        throw new Error("This requirement has no human pass to clear.");
+      }
 
-  const control = controlById(db, requirement.controlId);
-  const previousPass = requirement.humanPass;
-  delete requirement.humanPass;
-  requirement.determination = "automated";
-  requirement.updatedAt = new Date().toISOString();
+      const control = controlById(db, requirement.controlId);
+      const previousPass = requirement.humanPass;
+      delete requirement.humanPass;
+      requirement.determination = "automated";
+      requirement.updatedAt = new Date().toISOString();
 
-  addEvidence(db, {
-    kind: "requirement_human_pass_cleared",
-    summary: `${control.code} human pass cleared`,
-    projectId: project.id,
-    controlId: requirement.controlId,
-    detail: { previousPass },
+      addEvidence(db, {
+        kind: "requirement_human_pass_cleared",
+        summary: `${control.code} human pass cleared`,
+        projectId: project.id,
+        controlId: requirement.controlId,
+        detail: { previousPass },
+      });
+
+      refreshRequirementStatuses(db, project.id);
+    });
+    refresh();
+    return "Human pass cleared.";
   });
-
-  refreshRequirementStatuses(db, project.id);
-  });
-  refresh();
 }
 
 export async function updateRequirementScopeAction(
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<void> {
-  await withWorkspaceWrite(async (workspace) => {
-  requireOnActive(workspace, "project.assess");
-  const { db, project } = workspace;
-  const selected = formData
-    .getAll("controlId")
-    .filter((value): value is string => typeof value === "string");
-  setProjectScope(db, project, selected);
+): Promise<ActionMessageState> {
+  return runActionMessage(async () => {
+    await withWorkspaceWrite(async (workspace) => {
+      requireOnActive(workspace, "project.assess");
+      const { db, project } = workspace;
+      const selected = formData
+        .getAll("controlId")
+        .filter((value): value is string => typeof value === "string");
+      setProjectScope(db, project, selected);
+    });
+    refresh();
+    return "Scope saved.";
   });
-  refresh();
 }
 
 export async function importCustomControlAction(
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<void> {
-  await withWorkspaceWrite(async (workspace) => {
-  requireOnActive(workspace, "project.assess");
-  const { db, project } = workspace;
-  const code = formData.get("code");
-  const title = formData.get("title");
-  const description = formData.get("description");
-  const secondaryCode = formData.get("secondaryCode");
-  if (
-    typeof code !== "string" ||
-    typeof title !== "string" ||
-    typeof description !== "string"
-  ) {
-    throw new Error("Code, title, and description are required.");
-  }
-  importCustomControl(db, project, {
-    code,
-    title,
-    description,
-    secondaryCode:
-      typeof secondaryCode === "string" ? secondaryCode : undefined,
+): Promise<ActionMessageState> {
+  return runActionMessage(async () => {
+    await withWorkspaceWrite(async (workspace) => {
+      requireOnActive(workspace, "project.assess");
+      const { db, project } = workspace;
+      const code = formData.get("code");
+      const title = formData.get("title");
+      const description = formData.get("description");
+      const secondaryCode = formData.get("secondaryCode");
+      if (
+        typeof code !== "string" ||
+        typeof title !== "string" ||
+        typeof description !== "string"
+      ) {
+        throw new Error("Code, title, and description are required.");
+      }
+      importCustomControl(db, project, {
+        code,
+        title,
+        description,
+        secondaryCode:
+          typeof secondaryCode === "string" ? secondaryCode : undefined,
+      });
+    });
+    refresh();
+    return "Control imported.";
   });
-  });
-  refresh();
 }
 
 export async function applyFrameworkPresetAction(
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<void> {
-  const presetId = formData.get("presetId");
-  if (typeof presetId !== "string" || presetId.length === 0) {
-    throw new Error("A framework preset is required.");
-  }
-  await withWorkspaceWrite(async (workspace) => {
-  requireOnActive(workspace, "project.assess");
-  const { db, project } = workspace;
-  applyFrameworkPreset(db, project, presetId);
+): Promise<ActionMessageState> {
+  return runActionMessage(async () => {
+    const presetId = formData.get("presetId");
+    if (typeof presetId !== "string" || presetId.length === 0) {
+      throw new Error("A framework preset is required.");
+    }
+    await withWorkspaceWrite(async (workspace) => {
+      requireOnActive(workspace, "project.assess");
+      const { db, project } = workspace;
+      applyFrameworkPreset(db, project, presetId);
+    });
+    refresh();
+    return "Preset applied.";
   });
-  refresh();
 }
 
 export async function importChecklistAction(
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<void> {
-  const checklist = formData.get("checklist");
-  if (typeof checklist !== "string" || checklist.trim().length === 0) {
-    throw new Error("Paste a checklist to import.");
-  }
-  await withWorkspaceWrite(async (workspace) => {
-  requireOnActive(workspace, "project.assess");
-  const { db, project } = workspace;
-  importChecklist(db, project, checklist);
+): Promise<ActionMessageState> {
+  return runActionMessage(async () => {
+    const checklist = formData.get("checklist");
+    if (typeof checklist !== "string" || checklist.trim().length === 0) {
+      throw new Error("Paste a checklist to import.");
+    }
+    await withWorkspaceWrite(async (workspace) => {
+      requireOnActive(workspace, "project.assess");
+      const { db, project } = workspace;
+      importChecklist(db, project, checklist);
+    });
+    refresh();
+    return "Checklist imported.";
   });
-  refresh();
 }
 
-export async function markAlertReadAction(alertId: string): Promise<void> {
-  await withWorkspaceWrite(async (workspace) => {
-  requireOnActive(workspace, "project.view");
-  const { db, project } = workspace;
-  const alert = db.alerts.find(
-    (candidate) =>
-      candidate.id === alertId && candidate.projectId === project.id,
-  );
-  if (!alert) throw new Error("Unknown alert.");
-  alert.read = true;
+export async function markAlertReadAction(
+  _previous: ActionMessageState,
+  formData: FormData,
+): Promise<ActionMessageState> {
+  return runActionMessage(async () => {
+    const alertId = formData.get("alertId");
+    if (typeof alertId !== "string" || alertId.length === 0) {
+      throw new Error("Unknown alert.");
+    }
+    await withWorkspaceWrite(async (workspace) => {
+      requireOnActive(workspace, "project.view");
+      const { db, project } = workspace;
+      const alert = db.alerts.find(
+        (candidate) =>
+          candidate.id === alertId && candidate.projectId === project.id,
+      );
+      if (!alert) throw new Error("Unknown alert.");
+      alert.read = true;
+    });
+    refresh();
+    return "Alert dismissed.";
   });
-  refresh();
 }
 
 export type CreatePrFormState = {
@@ -1184,36 +1245,42 @@ export async function createPullRequestAction(
 
 export async function clearRequirementExceptionAction(
   requirementId: string,
-): Promise<void> {
-  await withWorkspaceWrite(async (workspace) => {
-  requireOnActive(workspace, "project.remediate");
-  const { db, project } = workspace;
-  const requirement = db.requirements.find(
-    (candidate) => candidate.id === requirementId,
-  );
-  if (!requirement || requirement.projectId !== project.id) {
-    throw new Error("Unknown requirement.");
-  }
-  if (!requirement.exception) {
-    throw new Error("This requirement has no exception to clear.");
-  }
+  _previous: ActionMessageState,
+  _formData: FormData,
+): Promise<ActionMessageState> {
+  void _formData;
+  return runActionMessage(async () => {
+    await withWorkspaceWrite(async (workspace) => {
+      requireOnActive(workspace, "project.remediate");
+      const { db, project } = workspace;
+      const requirement = db.requirements.find(
+        (candidate) => candidate.id === requirementId,
+      );
+      if (!requirement || requirement.projectId !== project.id) {
+        throw new Error("Unknown requirement.");
+      }
+      if (!requirement.exception) {
+        throw new Error("This requirement has no exception to clear.");
+      }
 
-  const control = controlById(db, requirement.controlId);
-  const previousException = requirement.exception;
-  delete requirement.exception;
-  requirement.determination = "automated";
-  requirement.updatedAt = new Date().toISOString();
+      const control = controlById(db, requirement.controlId);
+      const previousException = requirement.exception;
+      delete requirement.exception;
+      requirement.determination = "automated";
+      requirement.updatedAt = new Date().toISOString();
 
-  addEvidence(db, {
-    kind: "requirement_exception_cleared",
-    summary: `${control.code} exception cleared (was ${previousException.reason})`,
-    projectId: project.id,
-    controlId: requirement.controlId,
-    detail: { previousException },
+      addEvidence(db, {
+        kind: "requirement_exception_cleared",
+        summary: `${control.code} exception cleared (was ${previousException.reason})`,
+        projectId: project.id,
+        controlId: requirement.controlId,
+        detail: { previousException },
+      });
+
+      // Re-derive status from current open findings now that the exception is gone.
+      refreshRequirementStatuses(db, project.id);
+    });
+    refresh();
+    return "Exception cleared.";
   });
-
-  // Re-derive status from current open findings now that the exception is gone.
-  refreshRequirementStatuses(db, project.id);
-  });
-  refresh();
 }

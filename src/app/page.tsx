@@ -6,6 +6,7 @@ import {
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { ProjectSwitcher } from "@/components/project-switcher";
+import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
 import {
   prioritizeClusters,
@@ -108,23 +109,19 @@ export default async function DashboardPage() {
         description={projectDescription(project, latestAssessment, orgName)}
       >
         {project.source === "sample" ? (
-          <form action={resetProjectAction}>
-            <button
-              type="submit"
-              className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-            >
-              Reset sample project
-            </button>
-          </form>
+          <StatefulActionForm
+            action={resetProjectAction}
+            submitLabel="Reset sample project"
+            pendingLabel="Resetting…"
+            submitClassName="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          />
         ) : null}
-        <form action={runAssessmentAction}>
-          <button
-            type="submit"
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-          >
-            Run assessment
-          </button>
-        </form>
+        <StatefulActionForm
+          action={runAssessmentAction}
+          submitLabel="Run assessment"
+          pendingLabel="Assessing…"
+          submitClassName="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+        />
       </PageHeader>
 
       <div className="mb-6 flex flex-wrap items-center gap-4">
@@ -202,14 +199,14 @@ export default async function DashboardPage() {
                         {formatDateTime(alert.at)}
                       </p>
                     </div>
-                    <form action={markAlertReadAction.bind(null, alert.id)}>
-                      <button
-                        type="submit"
-                        className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-50"
-                      >
-                        Dismiss
-                      </button>
-                    </form>
+                    <StatefulActionForm
+                      action={markAlertReadAction}
+                      submitLabel="Dismiss"
+                      pendingLabel="Dismissing…"
+                      submitClassName="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-50"
+                    >
+                      <input type="hidden" name="alertId" value={alert.id} />
+                    </StatefulActionForm>
                   </li>
                 ))}
               </ul>

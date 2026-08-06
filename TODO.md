@@ -115,7 +115,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Default to verified TLS (`verify-full`) for managed Postgres; only relax with an explicit, documented opt-in.
   - **Acceptance criteria:** Prod DB connections verify the server certificate by default.
 
-- [ ] **Action feedback: pending/success/error missing on most mutations** 🟠
+- [x] **Action feedback: pending/success/error missing on most mutations** 🟠
   - **Problem:** Only connect / GitHub picker / invite / create-org / create-PR use `useActionState`. Run assessment, approve/apply/verify/dismiss, requirement imports, and remove-member are bare `<form action>` with no pending/disabled/success state → double-submit and no confirmation.
   - **Why:** Users can't tell if an action worked; double-submits cause duplicate writes; feels unfinished.
   - **Location:** `src/app/page.tsx:111-127`; `src/app/findings/[id]/page.tsx:67-151`; `src/app/requirements/page.tsx:58-66`; `src/app/org/page.tsx:96-109`.
