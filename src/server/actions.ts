@@ -34,6 +34,7 @@ import {
   runActionMessage,
   type ActionMessageState,
 } from "./action-state";
+import { STILL_FAILING_VERIFY_MESSAGE } from "./verify-messages";
 import { assertConnectProjectAllowed } from "./connect-policy";
 import { addEvidence, type Db } from "./db";
 import { reportWarning } from "./observability";
@@ -622,8 +623,7 @@ export async function verifyRemediationAction(
     refresh();
     if (stillFailing) {
       return {
-        error:
-          "Still failing — the violation is still detected at this location.",
+        error: STILL_FAILING_VERIFY_MESSAGE,
         message: null,
       };
     }

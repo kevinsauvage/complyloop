@@ -122,7 +122,7 @@ Important for quality, security, maintainability, UX, or reliability.
   - **Recommendation:** Standardize a small submit-button component using `useFormStatus` for pending/disabled, and surface success via `role="status"`. Apply across all mutating forms.
   - **Acceptance criteria:** Every mutating form disables during submit and shows a success or error message afterward.
 
-- [ ] **Failed automated verification is nearly invisible** 🟡
+- [x] **Failed automated verification is nearly invisible** 🟡
   - **Problem:** When re-check still finds the violation, status stays `implemented` and a note is pushed into collapsed history; no visible alert.
   - **Why:** Users believe "verify" did nothing and get stuck mid-loop — the core product loop breaks for them.
   - **Location:** `src/server/actions.ts:492-499`; UI `src/app/findings/[id]/page.tsx:121-152,353-365`.
