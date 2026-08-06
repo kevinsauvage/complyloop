@@ -190,6 +190,7 @@ export function removeOrgMember(
   );
 }
 
+/** Personal owner org — fallback when no active org is selected. */
 export function defaultOrgIdForUser(db: Db, userId: string): string | undefined {
   const owned = db.memberships.find(
     (membership) =>
@@ -198,7 +199,77 @@ export function defaultOrgIdForUser(db: Db, userId: string): string | undefined 
   return owned?.orgId;
 }
 
+/** Organizations the user belongs to (claimed memberships only). */
+export function orgsForUser(db: Db, userId: string): Organization[] {
+  const orgIds = new Set(
+    db.memberships
+      .filter((membership) => membership.userId === userId)
+      .map((membership) => membership.orgId),
+  );
+  return db.organizations.filter((org) => orgIds.has(org.id));
+}
+
+/**
+ * Picks the org the signed-in user is working in: preferred id when still a
+ * member, otherwise personal owner org, otherwise first membership.
+ */
+export function resolveActiveOrgId(
+  db: Db,
+  userId: string,
+  preferredOrgId: string | null | undefined,
+): string | undefined {
+  const membershipOrgs = orgsForUser(db, userId);
+  if (membershipOrgs.length === 0) return undefined;
+
+  if (
+    preferredOrgId &&
+    membershipOrgs.some((org) => org.id === preferredOrgId)
+  ) {
+    return preferredOrgId;
+  }
+
+  return defaultOrgIdForUser(db, userId) ?? membershipOrgs[0]?.id;
+}
+
+export function createOrganization(
+  db: Db,
+  input: { name: string; creatorUserId: string; githubLogin: string },
+): Organization {
+  const name = input.name.trim();
+  if (!name) throw new Error("Organization name is required.");
+  const login = input.githubLogin.trim();
+  if (!login) throw new Error("GitHub login is required.");
+
+  const org: Organization = {
+    id: crypto.randomUUID(),
+    name,
+    slug: uniqueSlug(db, slugify(name)),
+    createdAt: new Date().toISOString(),
+  };
+  const membership: OrgMembership = {
+    id: crypto.randomUUID(),
+    orgId: org.id,
+    role: "owner",
+    userId: input.creatorUserId,
+    githubLogin: login,
+    createdAt: new Date().toISOString(),
+  };
+  db.organizations.push(org);
+  db.memberships.push(membership);
+  return org;
+}
+
 export function projectOrg(db: Db, project: Project): Organization | undefined {
   if (!project.orgId) return undefined;
   return db.organizations.find((org) => org.id === project.orgId);
+}
+
+/** True when the user may invite/remove members for this org. */
+export function canManageOrgMembers(
+  db: Db,
+  orgId: string,
+  userId: string,
+): boolean {
+  const role = userRoleInOrg(db, orgId, userId);
+  return role === "owner" || role === "admin";
 }

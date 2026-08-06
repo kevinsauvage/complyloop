@@ -55,16 +55,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token && typeof token === "object" && typeof token.sub === "string"
           ? token.sub
           : undefined;
-      if (sub) clearStoredGitHubToken(sub);
+      if (sub) await clearStoredGitHubToken(sub);
     },
   },
   callbacks: {
-    jwt({ token, account, profile }) {
+    async jwt({ token, account, profile }) {
       assertProductionAuthUrl();
       if (account?.access_token) {
         token.accessToken = account.access_token;
         if (token.sub) {
-          storeUserGitHubToken(token.sub, account.access_token);
+          await storeUserGitHubToken(token.sub, account.access_token);
         }
       }
       if (profile && typeof profile === "object" && "login" in profile) {
@@ -110,3 +110,4 @@ export async function getGitHubAccessToken(): Promise<string | null> {
   }
   return null;
 }
+

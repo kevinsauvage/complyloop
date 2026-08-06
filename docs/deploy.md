@@ -1,19 +1,19 @@
 # Deploying ComplyLoop
 
-ComplyLoop stores app state either as JSON or in Postgres. Clones and token
-files still use the local filesystem under `$DATA_DIR`.
+ComplyLoop stores app state either as JSON or in Postgres. Git clones still use
+the local filesystem under `$DATA_DIR`.
 
 | Path / env | Purpose |
 |------------|---------|
 | `$DATA_DIR/db.json` | App state when `DATABASE_URL` is unset |
-| `DATABASE_URL` | Postgres (Drizzle) for frameworks → evidence when set |
+| `DATABASE_URL` | Postgres (Drizzle) for frameworks → evidence, orgs, encrypted GitHub tokens, webhook delivery ids |
 | `$DATA_DIR/workspaces/` | Git/GitHub clones assessed in place |
-| `$DATA_DIR/github-tokens.json` | Encrypted GitHub OAuth tokens |
-| `$DATA_DIR/webhook-deliveries.json` | Webhook delivery idempotency |
+| `$DATA_DIR/github-tokens.json` | Encrypted tokens when `DATABASE_URL` is unset (laptop fallback) |
+| `$DATA_DIR/webhook-deliveries.json` | Delivery idempotency when `DATABASE_URL` is unset |
 
-**Ephemeral serverless disks alone are not enough** — clones and token files need
-durable disk (or you move those later). App state can live in managed Postgres
-(Neon, Supabase, RDS, etc.).
+**Ephemeral serverless disks alone are not enough for clones** — workspaces need
+durable disk (or a later remote/ephemeral clone strategy). With `DATABASE_URL`,
+app state, tokens, and webhook idempotency do **not** need a shared volume.
 
 ## Supported shapes
 
@@ -21,8 +21,8 @@ durable disk (or you move those later). App state can live in managed Postgres
 
 1. Provision Postgres 16+ and set `DATABASE_URL`.
 2. Apply schema: `npm run db:migrate`
-3. Keep a volume (or other durable disk) for `DATA_DIR` workspaces + tokens, **or**
-   accept that GitHub connect/webhooks need disk separately.
+3. Keep a volume (or other durable disk) for `DATA_DIR` workspaces (clones), **or**
+   accept that GitHub connect needs disk for clones until that gap is closed.
 
 Local example:
 
@@ -60,7 +60,7 @@ permissions for multi-user use. Sign-out clears stored encrypted tokens.
 
 ## What not to do
 
-- Deploy only to Vercel serverless without Postgres **and** without durable disk for clones/tokens.
+- Deploy only to Vercel serverless without Postgres **and** without durable disk for clones.
 - Share a host without `AUTH_SECRET`.
 - Commit `.data/` or token files to git.
 - `UPDATE`/`DELETE` evidence rows outside the app’s append-only contract.
@@ -68,8 +68,8 @@ permissions for multi-user use. Sign-out clears stored encrypted tokens.
 ## Checklist before inviting real users
 
 1. `DATABASE_URL` + migrated schema (or durable `DATA_DIR` JSON).
-2. Durable disk for workspaces/tokens (or a follow-up to remove that need).
+2. Durable disk for workspaces/clones (or a follow-up remote clone strategy).
 3. Stable `AUTH_SECRET` and `AUTH_URL`.
 4. GitHub OAuth + webhook secret.
-5. Backups for Postgres (and `DATA_DIR` if used).
-6. Invite teammates from **Organization** (`/org`) once GitHub auth is live.
+5. Backups for Postgres (and `DATA_DIR` if used for JSON/clones).
+6. Invite teammates from **Organization** (`/org`) — switch to the shared org first if you use team orgs.

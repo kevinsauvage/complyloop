@@ -2,14 +2,25 @@ import path from "node:path";
 import type { EvidenceRecord } from "@/core/types";
 import { getDrizzle, isPostgresConfigured } from "./db-store/client";
 import { dataDir, loadDbFromJson, saveDbToJson } from "./db-store/json";
-import { loadDbFromPostgres, saveDbToPostgres } from "./db-store/postgres";
+import {
+  loadDbFromPostgres,
+  persistDbToPostgres,
+  saveDbToPostgres,
+} from "./db-store/postgres";
 import type { Db } from "./db-store/types";
+import {
+  withPostgresAdvisoryLock,
+  withProcessWriteLock,
+} from "./db-store/write-lock";
 
 export type { Db } from "./db-store/types";
 
 /**
  * Persistence boundary: JSON under `$DATA_DIR/db.json` by default, or Postgres
  * via Drizzle when `DATABASE_URL` is set. Callers keep the in-memory `Db` shape.
+ *
+ * Prefer {@link withDbWrite} for mutations so concurrent writers cannot clobber
+ * each other (process mutex + Postgres advisory lock around load→mutate→save).
  */
 export function workspacesDir(): string {
   return path.join(dataDir(), "workspaces");
@@ -28,6 +39,30 @@ export async function saveDb(db: Db): Promise<void> {
     return;
   }
   saveDbToJson(db);
+}
+
+/**
+ * Exclusive read-modify-write of the store. Use for all mutating server paths
+ * (actions, webhooks, seed/org provisioning).
+ */
+export async function withDbWrite<T>(
+  fn: (db: Db) => Promise<T> | T,
+): Promise<T> {
+  return withProcessWriteLock(async () => {
+    if (isPostgresConfigured()) {
+      const drizzle = await getDrizzle();
+      return withPostgresAdvisoryLock(drizzle, async (tx) => {
+        const db = await loadDbFromPostgres(tx);
+        const result = await fn(db);
+        await persistDbToPostgres(tx, db);
+        return result;
+      });
+    }
+    const db = await loadDbFromJson();
+    const result = await fn(db);
+    saveDbToJson(db);
+    return result;
+  });
 }
 
 /** Evidence is append-only: records are added here and never mutated or removed. */

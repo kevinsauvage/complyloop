@@ -22,10 +22,10 @@ afterEach(() => {
 });
 
 describe("webhook delivery idempotency", () => {
-  it("records and detects duplicate delivery ids", () => {
-    expect(hasProcessedWebhookDelivery("del-1")).toBe(false);
-    recordWebhookDelivery("del-1");
-    expect(hasProcessedWebhookDelivery("del-1")).toBe(true);
-    expect(hasProcessedWebhookDelivery("del-2")).toBe(false);
+  it("records and detects duplicate delivery ids", async () => {
+    expect(await hasProcessedWebhookDelivery("del-1")).toBe(false);
+    await recordWebhookDelivery("del-1");
+    expect(await hasProcessedWebhookDelivery("del-1")).toBe(true);
+    expect(await hasProcessedWebhookDelivery("del-2")).toBe(false);
   });
 });

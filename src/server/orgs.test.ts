@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { Db } from "./db";
 import {
   claimMembershipsForLogin,
+  createOrganization,
   ensurePersonalOrg,
   inviteOrgMember,
+  orgsForUser,
   removeOrgMember,
+  resolveActiveOrgId,
+  userRoleInOrg,
 } from "./orgs";
 
 function emptyDb(): Db {
@@ -70,5 +74,49 @@ describe("orgs", () => {
     expect(() => removeOrgMember(db, orgId, "user-a", ownerId)).toThrow(
       /owner/,
     );
+  });
+
+  it("lets an invited admin manage a shared team org (not only personal)", () => {
+    const db = emptyDb();
+    ensurePersonalOrg(db, "user-a", "alice");
+    const team = createOrganization(db, {
+      name: "Shared Team",
+      creatorUserId: "user-a",
+      githubLogin: "alice",
+    });
+    inviteOrgMember(db, team.id, "user-a", "bob", "admin");
+    claimMembershipsForLogin(db, "user-b", "bob");
+
+    expect(userRoleInOrg(db, team.id, "user-b")).toBe("admin");
+    expect(orgsForUser(db, "user-b").map((org) => org.id)).toContain(team.id);
+
+    // Active org can be the shared team even though bob also has a personal org.
+    ensurePersonalOrg(db, "user-b", "bob");
+    expect(resolveActiveOrgId(db, "user-b", team.id)).toBe(team.id);
+
+    inviteOrgMember(db, team.id, "user-b", "carol", "member");
+    expect(
+      db.memberships.some(
+        (membership) =>
+          membership.orgId === team.id && membership.githubLogin === "carol",
+      ),
+    ).toBe(true);
+  });
+
+  it("creates named team orgs with unique slugs", () => {
+    const db = emptyDb();
+    const first = createOrganization(db, {
+      name: "Acme",
+      creatorUserId: "user-a",
+      githubLogin: "alice",
+    });
+    const second = createOrganization(db, {
+      name: "Acme",
+      creatorUserId: "user-a",
+      githubLogin: "alice",
+    });
+    expect(first.slug).toBe("acme");
+    expect(second.slug).toBe("acme-2");
+    expect(db.memberships.filter((m) => m.role === "owner")).toHaveLength(2);
   });
 });

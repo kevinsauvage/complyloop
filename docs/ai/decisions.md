@@ -4,6 +4,17 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-06 — Active org, tokens/webhooks in Postgres, write lock
+
+**Context:** P0 multi-user gaps: `/org` always used personal `defaultOrgIdForUser`; tokens and webhook deliveries still required `$DATA_DIR`; whole-`Db` load/mutate/save raced under concurrent actions + webhooks.
+
+**Decision:**
+- **Active org:** HTTP-only cookie `complyloop_active_org` + `resolveActiveOrgId` (preferred membership, else personal owner org). `/org`, invites, removes, and GitHub connect target the active org. `createOrganization` + org switcher; projects on the dashboard are scoped to the active org (unscoped sample/demo still visible).
+- **Tokens / webhook deliveries:** when `DATABASE_URL` is set, encrypted GitHub tokens and delivery ids live in Postgres (`github_tokens`, `webhook_deliveries` via migration `0002_tokens_webhooks.sql`). JSON under `$DATA_DIR` remains the laptop fallback. APIs are async. Workspaces/clones stay on disk (P1.9).
+- **Multi-writer safety:** `withDbWrite` / `withWorkspaceWrite` serialize writers with an in-process mutex and a Postgres transaction advisory lock around load→mutate→persist. Server actions and webhooks use these helpers instead of bare `loadDb` + `saveDb`.
+
+**Consequence:** Invited admins can manage the shared org; auth/webhook durability no longer needs a shared volume when Postgres is configured; concurrent writers no longer last-clobber each other on a single Node instance (and Postgres multi-instance is locked).
+
 ## 2026-08-05 — Orgs / tenants + RBAC
 
 **Context:** Soft `ownerUserId` filtering was not real multi-user ACL; todo P2.13.
@@ -27,7 +38,7 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 - **Shape:** callers still use the in-memory `Db` object. Tables hold JSONB `payload` per entity (frameworks, controls, organizations, memberships, projects, requirements, assessments, findings, remediations, alerts) plus typed index columns. `app_meta` stores `activeProjectId`.
 - **Evidence:** dedicated `evidence` table; saves **insert only** missing ids — never UPDATE/DELETE evidence rows (append-only at the storage layer).
 - **Async boundary:** `loadDb`/`saveDb` are async; server actions / webhook / workspace await them.
-- **Still on disk:** workspaces, encrypted GitHub tokens, webhook delivery ids (until a later pass).
+- **Still on disk (as of 2026-08-05):** workspaces, encrypted GitHub tokens, webhook delivery ids — tokens/deliveries moved to Postgres on 2026-08-06 when `DATABASE_URL` is set; clones remain on disk.
 
 **Consequence:** Production can put domain state on managed Postgres without rewriting assessment/actions; local demo stays zero-infra JSON.
 

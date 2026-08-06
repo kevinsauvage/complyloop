@@ -1,7 +1,14 @@
 import { auth } from "@/auth";
-import type { Control, Finding, Project, Remediation } from "@/core/types";
-import { loadDb, saveDb, type Db } from "./db";
-import { ensurePersonalOrg } from "./orgs";
+import type {
+  Control,
+  Finding,
+  Organization,
+  Project,
+  Remediation,
+} from "@/core/types";
+import { readActiveOrgCookie } from "./active-org";
+import { loadDb, withDbWrite, type Db } from "./db";
+import { ensurePersonalOrg, orgsForUser, resolveActiveOrgId } from "./orgs";
 import {
   type AccessContext,
   resolveActiveProject,
@@ -16,8 +23,12 @@ export interface Workspace {
   userId: string | null;
   githubLogin: string | null;
   access: AccessContext;
-  /** Projects the current viewer may switch between. */
+  /** Projects the current viewer may switch between (scoped to active org). */
   visibleProjects: Project[];
+  /** Orgs the signed-in user belongs to. */
+  organizations: Organization[];
+  /** Selected org for management + new connects; null when unsigned. */
+  activeOrgId: string | null;
 }
 
 function accessFromDb(
@@ -33,25 +44,46 @@ function accessFromDb(
   };
 }
 
-/** Loads the store, seeding the framework and sample project on first use. */
-export async function getWorkspace(): Promise<Workspace> {
-  const db = await loadDb();
-  if (ensureSeeded(db)) await saveDb(db);
+/**
+ * Projects visible in the active org: that org's projects, plus unscoped
+ * demo/sample projects (no orgId) so the laptop demo still works.
+ */
+export function projectsForActiveOrg(
+  projects: ReadonlyArray<Project>,
+  access: AccessContext,
+  activeOrgId: string | null,
+): Project[] {
+  const visible = visibleProjects(projects, access);
+  if (!activeOrgId) return visible;
+  return visible.filter(
+    (project) => !project.orgId || project.orgId === activeOrgId,
+  );
+}
 
-  const session = await auth();
-  const userId = session?.user?.id ?? null;
-  const githubLogin = session?.user?.login ?? null;
-
+function prepareWorkspaceState(
+  db: Db,
+  userId: string | null,
+  githubLogin: string | null,
+  preferredOrgId: string | null,
+): { changed: boolean; workspace: Omit<Workspace, "db"> & { db: Db } } {
   let changed = false;
+  if (ensureSeeded(db)) changed = true;
+
   if (userId && githubLogin) {
     const result = ensurePersonalOrg(db, userId, githubLogin);
     if (result.changed) changed = true;
   }
 
   const access = accessFromDb(db, userId, githubLogin);
-  const visible = visibleProjects(db.projects, access);
+  const organizations = userId ? orgsForUser(db, userId) : [];
+  const activeOrgId =
+    userId != null
+      ? (resolveActiveOrgId(db, userId, preferredOrgId) ?? null)
+      : null;
+
+  const scoped = projectsForActiveOrg(db.projects, access, activeOrgId);
   const project = resolveActiveProject(
-    db.projects,
+    scoped.length > 0 ? scoped : db.projects,
     db.activeProjectId,
     access,
   );
@@ -62,16 +94,71 @@ export async function getWorkspace(): Promise<Workspace> {
     changed = true;
   }
 
-  if (changed) await saveDb(db);
-
   return {
+    changed,
+    workspace: {
+      db,
+      project,
+      userId,
+      githubLogin,
+      access,
+      visibleProjects: scoped.length > 0 ? scoped : visibleProjects(db.projects, access),
+      organizations,
+      activeOrgId,
+    },
+  };
+}
+
+/** Loads the store, seeding the framework and sample project on first use. */
+export async function getWorkspace(): Promise<Workspace> {
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  const githubLogin = session?.user?.login ?? null;
+  const preferredOrgId = userId ? await readActiveOrgCookie() : null;
+
+  const db = await loadDb();
+  const prepared = prepareWorkspaceState(
     db,
-    project,
     userId,
     githubLogin,
-    access,
-    visibleProjects: visible,
-  };
+    preferredOrgId,
+  );
+  if (prepared.changed) {
+    // Re-run under the write lock so seed/org provisioning cannot race.
+    return withDbWrite(async (locked) => {
+      const again = prepareWorkspaceState(
+        locked,
+        userId,
+        githubLogin,
+        preferredOrgId,
+      );
+      return again.workspace;
+    });
+  }
+  return prepared.workspace;
+}
+
+/**
+ * Exclusive workspace mutation: reloads under the store write lock, runs `fn`,
+ * and persists. Prefer this over getWorkspace + saveDb in server actions.
+ */
+export async function withWorkspaceWrite<T>(
+  fn: (workspace: Workspace) => Promise<T> | T,
+): Promise<T> {
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  const githubLogin = session?.user?.login ?? null;
+  const preferredOrgId = userId ? await readActiveOrgCookie() : null;
+
+  return withDbWrite(async (db) => {
+    const { workspace } = prepareWorkspaceState(
+      db,
+      userId,
+      githubLogin,
+      preferredOrgId,
+    );
+    return fn(workspace);
+  });
 }
 
 export function controlById(db: Db, controlId: string): Control {

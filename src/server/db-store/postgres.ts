@@ -112,12 +112,22 @@ export async function loadDbFromPostgres(drizzle: DrizzleDb): Promise<Db> {
 
 /**
  * Replaces mutable collections; evidence is insert-only (never updated/deleted).
+ * Prefer `withDbWrite` for mutations so load + save share one lock.
  */
 export async function saveDbToPostgres(
   drizzle: DrizzleDb,
   db: Db,
 ): Promise<void> {
   await drizzle.transaction(async (tx) => {
+    await persistDbToPostgres(tx as unknown as DrizzleDb, db);
+  });
+}
+
+/** Persist within an existing transaction (used by advisory-locked writers). */
+export async function persistDbToPostgres(
+  tx: DrizzleDb,
+  db: Db,
+): Promise<void> {
     // Frameworks
     if (db.frameworks.length === 0) {
       await tx.delete(frameworks);
@@ -441,5 +451,4 @@ export async function saveDbToPostgres(
         target: appMeta.key,
         set: { value: sql`excluded.value` },
       });
-  });
 }

@@ -25,7 +25,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const deliveryId = request.headers.get("x-github-delivery");
-  if (deliveryId && hasProcessedWebhookDelivery(deliveryId)) {
+  if (deliveryId && (await hasProcessedWebhookDelivery(deliveryId))) {
     return Response.json(
       { duplicate: true, deliveryId, message: "Delivery already processed." },
       { status: 200 },
@@ -42,7 +42,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const result = await handleGitHubWebhookEvent(eventName, payload);
   if (deliveryId) {
-    recordWebhookDelivery(deliveryId);
+    await recordWebhookDelivery(deliveryId);
   }
   return Response.json(
     { ...result, deliveryId: deliveryId ?? undefined },

@@ -1,5 +1,6 @@
 import {
   boolean,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -110,6 +111,25 @@ export const evidence = pgTable("evidence", {
 export const appMeta = pgTable("app_meta", {
   key: text("key").primaryKey(),
   value: jsonb("value").notNull(),
+});
+
+/** Encrypted GitHub OAuth tokens (AES-256-GCM fields; plaintext never stored). */
+export const githubTokens = pgTable("github_tokens", {
+  userId: text("user_id").primaryKey(),
+  v: integer("v").notNull(),
+  iv: text("iv").notNull(),
+  tag: text("tag").notNull(),
+  ciphertext: text("ciphertext").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+});
+
+/** Idempotency keys for GitHub webhook deliveries (`x-github-delivery`). */
+export const webhookDeliveries = pgTable("webhook_deliveries", {
+  deliveryId: text("delivery_id").primaryKey(),
+  processedAt: timestamp("processed_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
 });
 
 export type EvidenceRow = typeof evidence.$inferSelect;

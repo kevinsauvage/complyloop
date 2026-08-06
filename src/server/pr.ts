@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import simpleGit from "simple-git";
 import { applyFix } from "@/analysis/fixes";
 import type { Control, Finding, Project, Remediation } from "@/core/types";
 import { githubCloneUrl } from "./connect";
+import { createGit } from "./git";
 import { getStoredGitHubToken } from "./github-tokens";
 import { buildDeveloperHandoff } from "./handoff";
 import { createOctokit, octokitErrorMessage } from "./octokit";
@@ -56,7 +56,7 @@ export async function preparePullRequest(
   finding: Finding,
   remediation: Remediation,
 ): Promise<PullRequestResult> {
-  const git = simpleGit({ baseDir: project.rootPath });
+  const git = createGit({ baseDir: project.rootPath });
   const inside = await git.checkIsRepo();
   if (!inside) {
     throw new Error(
@@ -108,7 +108,7 @@ export async function preparePullRequest(
   const fullName = project.github?.fullName;
   const token =
     project.ownerUserId != null
-      ? getStoredGitHubToken(project.ownerUserId)
+      ? await getStoredGitHubToken(project.ownerUserId)
       : null;
 
   if (fullName && token) {

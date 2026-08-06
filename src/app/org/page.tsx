@@ -1,15 +1,14 @@
 import { auth } from "@/auth";
-import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
+import { CreateOrgForm } from "@/components/create-org-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
+import { OrgSwitcher } from "@/components/org-switcher";
+import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
 import {
+  createOrgAction,
   inviteOrgMemberAction,
   removeOrgMemberAction,
 } from "@/server/actions";
-import {
-  defaultOrgIdForUser,
-  membershipsForOrg,
-  userRoleInOrg,
-} from "@/server/orgs";
+import { membershipsForOrg, userRoleInOrg } from "@/server/orgs";
 import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
@@ -33,13 +32,12 @@ export default async function OrgPage() {
     );
   }
 
-  const { db } = await getWorkspace();
-  const orgId = defaultOrgIdForUser(db, userId);
-  const org = orgId
-    ? db.organizations.find((candidate) => candidate.id === orgId)
+  const { db, organizations, activeOrgId } = await getWorkspace();
+  const org = activeOrgId
+    ? db.organizations.find((candidate) => candidate.id === activeOrgId)
     : undefined;
 
-  if (!org) {
+  if (!org || !activeOrgId) {
     return (
       <>
         <PageHeader title="Organization" />
@@ -63,6 +61,10 @@ export default async function OrgPage() {
         title={org.name}
         description={`Slug ${org.slug} · ${projectCount} project${projectCount === 1 ? "" : "s"} · your role: ${role ?? "none"}`}
       />
+
+      <div className="mb-6 flex flex-wrap items-center gap-4">
+        <OrgSwitcher organizations={organizations} activeOrgId={activeOrgId} />
+      </div>
 
       <div className="flex flex-col gap-6">
         <Card title="Members">
@@ -92,6 +94,7 @@ export default async function OrgPage() {
                 </div>
                 {canManage && membership.role !== "owner" ? (
                   <form action={removeOrgMemberAction}>
+                    <input type="hidden" name="orgId" value={org.id} />
                     <input
                       type="hidden"
                       name="membershipId"
@@ -114,17 +117,26 @@ export default async function OrgPage() {
           <Card title="Invite by GitHub username">
             <p className="mb-3 text-sm text-zinc-600">
               Teammates claim the invite on their next sign-in when their GitHub
-              login matches.
+              login matches. Invites apply to the organization selected above.
             </p>
-            <InviteMemberForm action={inviteOrgMemberAction} />
+            <InviteMemberForm action={inviteOrgMemberAction} orgId={org.id} />
           </Card>
         ) : (
           <Card title="Invite">
             <p className="text-sm text-zinc-600">
-              Only owners and admins can invite or remove members.
+              Only owners and admins can invite or remove members for this
+              organization.
             </p>
           </Card>
         )}
+
+        <Card title="Create a team organization">
+          <p className="mb-3 text-sm text-zinc-600">
+            Create a named org, switch to it, then invite teammates. Your
+            personal workspace stays available in the switcher.
+          </p>
+          <CreateOrgForm action={createOrgAction} />
+        </Card>
       </div>
     </>
   );

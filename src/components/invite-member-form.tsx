@@ -7,16 +7,19 @@ const initial: OrgMemberFormState = { error: null };
 
 export function InviteMemberForm({
   action,
+  orgId,
 }: {
   action: (
     previous: OrgMemberFormState,
     formData: FormData,
   ) => Promise<OrgMemberFormState>;
+  orgId: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
 
   return (
     <form action={formAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <input type="hidden" name="orgId" value={orgId} />
       <div className="flex-1">
         <label htmlFor="githubLogin" className="mb-1 block text-xs font-medium text-zinc-600">
           GitHub username

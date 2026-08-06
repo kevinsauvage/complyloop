@@ -6,6 +6,9 @@ import {
 } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { eq } from "drizzle-orm";
+import { getDrizzle, isPostgresConfigured } from "./db-store/client";
+import { githubTokens } from "./db-store/schema";
 
 /** Legacy plaintext entry — migrated to encrypted on next write. */
 interface PlainTokenEntry {
@@ -80,7 +83,7 @@ export function decryptToken(entry: EncryptedTokenEntry): string {
   return plaintext.toString("utf8");
 }
 
-function loadStore(): TokenStore {
+function loadJsonStore(): TokenStore {
   if (!fs.existsSync(tokenFilePath())) return { tokens: {} };
   try {
     return JSON.parse(fs.readFileSync(tokenFilePath(), "utf8")) as TokenStore;
@@ -89,7 +92,7 @@ function loadStore(): TokenStore {
   }
 }
 
-function saveStore(store: TokenStore): void {
+function saveJsonStore(store: TokenStore): void {
   fs.mkdirSync(dataDir(), { recursive: true });
   fs.writeFileSync(tokenFilePath(), JSON.stringify(store, null, 2), {
     mode: 0o600,
@@ -107,45 +110,115 @@ function resolveAccessToken(entry: TokenEntry): string | null {
   return entry.accessToken;
 }
 
+async function storeTokenPostgres(
+  userId: string,
+  entry: EncryptedTokenEntry,
+): Promise<void> {
+  const drizzle = await getDrizzle();
+  await drizzle
+    .insert(githubTokens)
+    .values({
+      userId,
+      v: entry.v,
+      iv: entry.iv,
+      tag: entry.tag,
+      ciphertext: entry.ciphertext,
+      updatedAt: entry.updatedAt,
+    })
+    .onConflictDoUpdate({
+      target: githubTokens.userId,
+      set: {
+        v: entry.v,
+        iv: entry.iv,
+        tag: entry.tag,
+        ciphertext: entry.ciphertext,
+        updatedAt: entry.updatedAt,
+      },
+    });
+}
+
+async function getTokenPostgres(userId: string): Promise<string | null> {
+  const drizzle = await getDrizzle();
+  const rows = await drizzle
+    .select()
+    .from(githubTokens)
+    .where(eq(githubTokens.userId, userId))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  try {
+    return decryptToken({
+      v: 1,
+      iv: row.iv,
+      tag: row.tag,
+      ciphertext: row.ciphertext,
+      updatedAt: row.updatedAt,
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function clearTokenPostgres(userId: string): Promise<void> {
+  const drizzle = await getDrizzle();
+  await drizzle.delete(githubTokens).where(eq(githubTokens.userId, userId));
+}
+
 /**
  * Persists the user's GitHub OAuth token encrypted at rest (AES-256-GCM via
- * AUTH_SECRET). Migrates any leftover plaintext entries on write.
+ * AUTH_SECRET). Uses Postgres when `DATABASE_URL` is set; otherwise JSON under
+ * `$DATA_DIR`. Migrates leftover plaintext JSON entries on write.
  */
-export function storeUserGitHubToken(userId: string, accessToken: string): void {
+export async function storeUserGitHubToken(
+  userId: string,
+  accessToken: string,
+): Promise<void> {
   if (!userId || !accessToken) return;
   if (!process.env.AUTH_SECRET) {
-    // Dev without Auth.js — skip disk persistence rather than store plaintext.
+    // Dev without Auth.js — skip persistence rather than store plaintext.
     return;
   }
-  const store = loadStore();
-  store.tokens[userId] = encryptToken(accessToken);
-  // Opportunistically migrate any remaining plaintext neighbors.
+  const encrypted = encryptToken(accessToken);
+  if (isPostgresConfigured()) {
+    await storeTokenPostgres(userId, encrypted);
+    return;
+  }
+  const store = loadJsonStore();
+  store.tokens[userId] = encrypted;
   for (const [id, entry] of Object.entries(store.tokens)) {
     if (id === userId || isEncrypted(entry)) continue;
     store.tokens[id] = encryptToken(entry.accessToken);
   }
-  saveStore(store);
+  saveJsonStore(store);
 }
 
-export function getStoredGitHubToken(userId: string): string | null {
-  const entry = loadStore().tokens[userId];
+export async function getStoredGitHubToken(
+  userId: string,
+): Promise<string | null> {
+  if (isPostgresConfigured()) {
+    return getTokenPostgres(userId);
+  }
+  const entry = loadJsonStore().tokens[userId];
   if (!entry) return null;
   const token = resolveAccessToken(entry);
   if (!token) return null;
-  // Rewrite plaintext to encrypted when AUTH_SECRET is available.
   if (!isEncrypted(entry) && process.env.AUTH_SECRET) {
-    const store = loadStore();
+    const store = loadJsonStore();
     store.tokens[userId] = encryptToken(token);
-    saveStore(store);
+    saveJsonStore(store);
   }
   return token;
 }
 
 /** Removes a stored token (e.g. on sign-out). */
-export function clearStoredGitHubToken(userId: string): void {
+export async function clearStoredGitHubToken(userId: string): Promise<void> {
   if (!userId) return;
-  const store = loadStore();
+  if (isPostgresConfigured()) {
+    await clearTokenPostgres(userId);
+    return;
+  }
+  const store = loadJsonStore();
   if (!(userId in store.tokens)) return;
   delete store.tokens[userId];
-  saveStore(store);
+  saveJsonStore(store);
 }

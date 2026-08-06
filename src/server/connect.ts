@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import simpleGit from "simple-git";
 import { hasSourceFiles } from "@/analysis/source-files";
 import type { Project, ProjectGitHubMeta } from "@/core/types";
 import { canOnProject } from "@/core/rbac";
 import { addEvidence, workspacesDir, type Db } from "./db";
+import { createGit } from "./git";
 import { defaultOrgIdForUser } from "./orgs";
 import {
   type AccessContext,
@@ -164,7 +164,7 @@ export async function connectGitUrl(db: Db, rawUrl: string): Promise<Project> {
   fs.mkdirSync(workspacesDir(), { recursive: true });
 
   try {
-    await simpleGit().clone(url, rootPath, ["--depth", "1"]);
+    await createGit().clone(url, rootPath, ["--depth", "1"]);
   } catch (error) {
     fs.rmSync(rootPath, { recursive: true, force: true });
     const detail = error instanceof Error ? error.message : "unknown error";
@@ -258,9 +258,7 @@ export async function connectGitHubRepo(
   const authenticatedUrl = githubCloneUrl(fullName, input.accessToken);
 
   try {
-    await simpleGit()
-      .env({ ...process.env, GIT_TERMINAL_PROMPT: "0" })
-      .clone(authenticatedUrl, rootPath, ["--depth", "1"]);
+    await createGit().clone(authenticatedUrl, rootPath, ["--depth", "1"]);
   } catch (error) {
     fs.rmSync(rootPath, { recursive: true, force: true });
     const detail = error instanceof Error ? error.message : "unknown error";
@@ -269,7 +267,7 @@ export async function connectGitHubRepo(
 
   // Strip embedded token from the remote URL stored in the clone.
   try {
-    await simpleGit({ baseDir: rootPath }).remote([
+    await createGit({ baseDir: rootPath }).remote([
       "set-url",
       "origin",
       sourceRef,

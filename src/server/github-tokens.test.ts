@@ -35,8 +35,8 @@ describe("github token encryption", () => {
     expect(decryptToken(entry)).toBe("gho_secret_token");
   });
 
-  it("stores encrypted tokens on disk and reads them back", () => {
-    storeUserGitHubToken("user-1", "gho_live_token");
+  it("stores encrypted tokens on disk and reads them back", async () => {
+    await storeUserGitHubToken("user-1", "gho_live_token");
     const raw = JSON.parse(
       fs.readFileSync(path.join(dataDir, "github-tokens.json"), "utf8"),
     ) as {
@@ -44,10 +44,10 @@ describe("github token encryption", () => {
     };
     expect(raw.tokens["user-1"].accessToken).toBeUndefined();
     expect(raw.tokens["user-1"].ciphertext).toBeDefined();
-    expect(getStoredGitHubToken("user-1")).toBe("gho_live_token");
+    expect(await getStoredGitHubToken("user-1")).toBe("gho_live_token");
   });
 
-  it("migrates plaintext entries on read", () => {
+  it("migrates plaintext entries on read", async () => {
     fs.writeFileSync(
       path.join(dataDir, "github-tokens.json"),
       JSON.stringify({
@@ -59,7 +59,7 @@ describe("github token encryption", () => {
         },
       }),
     );
-    expect(getStoredGitHubToken("user-legacy")).toBe("gho_plain");
+    expect(await getStoredGitHubToken("user-legacy")).toBe("gho_plain");
     const raw = JSON.parse(
       fs.readFileSync(path.join(dataDir, "github-tokens.json"), "utf8"),
     ) as {
@@ -69,9 +69,9 @@ describe("github token encryption", () => {
     expect(raw.tokens["user-legacy"].ciphertext).toBeDefined();
   });
 
-  it("skips persistence when AUTH_SECRET is missing", () => {
+  it("skips persistence when AUTH_SECRET is missing", async () => {
     delete process.env.AUTH_SECRET;
-    storeUserGitHubToken("user-1", "gho_should_not_land");
+    await storeUserGitHubToken("user-1", "gho_should_not_land");
     expect(fs.existsSync(path.join(dataDir, "github-tokens.json"))).toBe(false);
   });
 });

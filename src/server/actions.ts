@@ -29,10 +29,12 @@ import {
   disconnectGitHubRepo,
   setActiveProject,
 } from "./connect";
-import { addEvidence, saveDb, type Db } from "./db";
+import { addEvidence, type Db } from "./db";
 import { fetchGitHubRepo } from "./github";
+import { writeActiveOrgCookie } from "./active-org";
 import {
-  defaultOrgIdForUser,
+  canManageOrgMembers,
+  createOrganization,
   inviteOrgMember,
   removeOrgMember,
 } from "./orgs";
@@ -50,6 +52,7 @@ import {
   findingById,
   getWorkspace,
   remediationForFinding,
+  withWorkspaceWrite,
   type Workspace,
 } from "./workspace";
 
@@ -117,15 +120,15 @@ function locateViolation(db: Db, finding: Finding) {
 }
 
 export async function runAssessmentAction(): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   requireOnActive(workspace, "project.assess");
   runAssessment(workspace.db, workspace.project.id);
-  await saveDb(workspace.db);
+  });
   refresh();
 }
 
 export async function resetProjectAction(): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   requireOnActive(workspace, "project.remediate");
   const { db, project } = workspace;
   if (project.source !== "sample") {
@@ -137,7 +140,7 @@ export async function resetProjectAction(): Promise<void> {
     summary: `Workspace of "${project.name}" restored to its original state`,
     projectId: project.id,
   });
-  await saveDb(db);
+  });
   refresh();
 }
 
@@ -150,10 +153,10 @@ export async function connectProjectAction(
     return { error: "Enter a local path or a git repository URL." };
   }
 
-  const workspace = await getWorkspace();
   try {
-    await connectProjectInput(workspace.db, input);
-    await saveDb(workspace.db);
+    await withWorkspaceWrite(async (workspace) => {
+      await connectProjectInput(workspace.db, input);
+    });
     refresh();
     return { error: null };
   } catch (error) {
@@ -169,15 +172,77 @@ export async function switchProjectAction(formData: FormData): Promise<void> {
   if (typeof projectId !== "string" || projectId.length === 0) {
     throw new Error("A project id is required.");
   }
-  const { db, userId } = await getWorkspace();
-  setActiveProject(db, projectId, userId);
-  await saveDb(db);
+  await withWorkspaceWrite(({ db, userId }) => {
+    setActiveProject(db, projectId, userId);
+  });
   refresh();
 }
 
 export type OrgMemberFormState = {
   error: string | null;
 };
+
+export type CreateOrgFormState = {
+  error: string | null;
+};
+
+export async function switchOrgAction(formData: FormData): Promise<void> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error("Sign in to switch organizations.");
+
+  const orgId = formData.get("orgId");
+  if (typeof orgId !== "string" || orgId.length === 0) {
+    throw new Error("An organization id is required.");
+  }
+
+  await withWorkspaceWrite(({ organizations, db }) => {
+    if (!organizations.some((org) => org.id === orgId)) {
+      throw new Error("You are not a member of that organization.");
+    }
+    const projectInOrg = db.projects.find((project) => project.orgId === orgId);
+    if (projectInOrg) {
+      db.activeProjectId = projectInOrg.id;
+    }
+  });
+  await writeActiveOrgCookie(orgId);
+  refresh();
+}
+
+export async function createOrgAction(
+  _previous: CreateOrgFormState,
+  formData: FormData,
+): Promise<CreateOrgFormState> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  const githubLogin = session?.user?.login;
+  if (!userId || !githubLogin) {
+    return { error: "Sign in with GitHub to create an organization." };
+  }
+
+  const nameRaw = formData.get("name");
+  if (typeof nameRaw !== "string" || nameRaw.trim().length === 0) {
+    return { error: "Enter an organization name." };
+  }
+
+  try {
+    const org = await withWorkspaceWrite((workspace) =>
+      createOrganization(workspace.db, {
+        name: nameRaw,
+        creatorUserId: userId,
+        githubLogin,
+      }),
+    );
+    await writeActiveOrgCookie(org.id);
+    refresh();
+    return { error: null };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Could not create organization.",
+    };
+  }
+}
 
 export async function inviteOrgMemberAction(
   _previous: OrgMemberFormState,
@@ -187,8 +252,12 @@ export async function inviteOrgMemberAction(
   const userId = session?.user?.id;
   if (!userId) return { error: "Sign in to manage organization members." };
 
+  const orgIdRaw = formData.get("orgId");
   const loginRaw = formData.get("githubLogin");
   const roleRaw = formData.get("role");
+  if (typeof orgIdRaw !== "string" || orgIdRaw.length === 0) {
+    return { error: "Select an organization." };
+  }
   if (typeof loginRaw !== "string" || loginRaw.trim().length === 0) {
     return { error: "Enter a GitHub username." };
   }
@@ -196,13 +265,13 @@ export async function inviteOrgMemberAction(
     return { error: "Choose a role: admin, member, or viewer." };
   }
 
-  const { db } = await getWorkspace();
-  const orgId = defaultOrgIdForUser(db, userId);
-  if (!orgId) return { error: "No organization found for your account." };
-
   try {
-    inviteOrgMember(db, orgId, userId, loginRaw, roleRaw as OrgRole);
-    await saveDb(db);
+    await withWorkspaceWrite(({ db }) => {
+      if (!canManageOrgMembers(db, orgIdRaw, userId)) {
+        throw new Error("Only org owners and admins can invite members.");
+      }
+      inviteOrgMember(db, orgIdRaw, userId, loginRaw, roleRaw as OrgRole);
+    });
     refresh();
     return { error: null };
   } catch (error) {
@@ -219,17 +288,21 @@ export async function removeOrgMemberAction(
   const userId = session?.user?.id;
   if (!userId) throw new Error("Sign in to manage organization members.");
 
+  const orgIdRaw = formData.get("orgId");
   const membershipId = formData.get("membershipId");
+  if (typeof orgIdRaw !== "string" || orgIdRaw.length === 0) {
+    throw new Error("Organization id is required.");
+  }
   if (typeof membershipId !== "string" || membershipId.length === 0) {
     throw new Error("Membership id is required.");
   }
 
-  const { db } = await getWorkspace();
-  const orgId = defaultOrgIdForUser(db, userId);
-  if (!orgId) throw new Error("No organization found for your account.");
-
-  removeOrgMember(db, orgId, userId, membershipId);
-  await saveDb(db);
+  await withWorkspaceWrite(({ db }) => {
+    if (!canManageOrgMembers(db, orgIdRaw, userId)) {
+      throw new Error("Only org owners and admins can remove members.");
+    }
+    removeOrgMember(db, orgIdRaw, userId, membershipId);
+  });
   refresh();
 }
 
@@ -261,30 +334,31 @@ export async function connectGitHubRepoAction(
     };
   }
 
-  const { db } = await getWorkspace();
-  const orgId = defaultOrgIdForUser(db, userId);
-  const alreadyConnected = db.projects.some(
-    (project) =>
-      project.source === "github" &&
-      (project.orgId === orgId || project.ownerUserId === userId) &&
-      project.github?.fullName === fullName,
-  );
-  if (alreadyConnected) {
-    return { error: `${fullName} is already connected. Disconnect it first.` };
-  }
-
   try {
     const repo = await fetchGitHubRepo(accessToken, fullName);
-    await connectGitHubRepo(db, {
-      fullName: repo.fullName,
-      cloneUrl: repo.cloneUrl,
-      defaultBranch: repo.defaultBranch,
-      private: repo.private,
-      ownerUserId: userId,
-      orgId,
-      accessToken,
+    await withWorkspaceWrite(async ({ db, activeOrgId }) => {
+      const orgId = activeOrgId;
+      const alreadyConnected = db.projects.some(
+        (project) =>
+          project.source === "github" &&
+          (project.orgId === orgId || project.ownerUserId === userId) &&
+          project.github?.fullName === fullName,
+      );
+      if (alreadyConnected) {
+        throw new ConnectError(
+          `${fullName} is already connected. Disconnect it first.`,
+        );
+      }
+      await connectGitHubRepo(db, {
+        fullName: repo.fullName,
+        cloneUrl: repo.cloneUrl,
+        defaultBranch: repo.defaultBranch,
+        private: repo.private,
+        ownerUserId: userId,
+        orgId: orgId ?? undefined,
+        accessToken,
+      });
     });
-    await saveDb(db);
     refresh();
     return { error: null };
   } catch (error) {
@@ -314,10 +388,10 @@ export async function disconnectGitHubRepoAction(
     return { error: "Sign in with GitHub to disconnect a repository." };
   }
 
-  const workspace = await getWorkspace();
   try {
-    disconnectGitHubRepo(workspace.db, projectIdRaw, userId);
-    await saveDb(workspace.db);
+    await withWorkspaceWrite((workspace) => {
+      disconnectGitHubRepo(workspace.db, projectIdRaw, userId);
+    });
     refresh();
     return { error: null };
   } catch (error) {
@@ -332,7 +406,7 @@ export async function approveRemediationAction(
   findingId: string,
   formData: FormData,
 ): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   const { db } = workspace;
   const finding = findingById(db, findingId);
   requireOnFindingProject(workspace, finding, "project.remediate");
@@ -368,12 +442,12 @@ export async function approveRemediationAction(
     findingId: finding.id,
     detail: finding.fix ? { fix: { ...finding.fix } } : undefined,
   });
-  await saveDb(db);
+  });
   refresh();
 }
 
 export async function applyRemediationAction(findingId: string): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   const { db } = workspace;
   const finding = findingById(db, findingId);
   requireOnFindingProject(workspace, finding, "project.remediate");
@@ -403,12 +477,12 @@ export async function applyRemediationAction(findingId: string): Promise<void> {
     findingId: finding.id,
     detail: { fix: { ...fix } },
   });
-  await saveDb(db);
+  });
   refresh();
 }
 
 export async function verifyRemediationAction(findingId: string): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   const { db } = workspace;
   const finding = findingById(db, findingId);
   requireOnFindingProject(workspace, finding, "project.remediate");
@@ -421,7 +495,6 @@ export async function verifyRemediationAction(findingId: string): Promise<void> 
       at: new Date().toISOString(),
       note: "Verification failed: the violation is still detected at this location.",
     });
-    await saveDb(db);
     refresh();
     return;
   }
@@ -444,7 +517,7 @@ export async function verifyRemediationAction(findingId: string): Promise<void> 
     findingId: finding.id,
   });
   refreshRequirementStatuses(db, finding.projectId);
-  await saveDb(db);
+  });
   refresh();
 }
 
@@ -452,7 +525,7 @@ export async function dismissFindingAction(
   findingId: string,
   formData: FormData,
 ): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   const { db } = workspace;
   const finding = findingById(db, findingId);
   requireOnFindingProject(workspace, finding, "project.remediate");
@@ -478,12 +551,12 @@ export async function dismissFindingAction(
     detail: { reason, note: finding.dismissal.note },
   });
   refreshRequirementStatuses(db, finding.projectId);
-  await saveDb(db);
+  });
   refresh();
 }
 
 export async function generateAiExplanationAction(findingId: string): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   const { db } = workspace;
   const finding = findingById(db, findingId);
   requireOnFindingProject(workspace, finding, "project.view");
@@ -492,13 +565,13 @@ export async function generateAiExplanationAction(findingId: string): Promise<vo
   const explanation = await generateAiExplanation(finding, control);
   if (explanation) {
     finding.explanations.push(explanation);
-    await saveDb(db);
   }
+  });
   refresh();
 }
 
 export async function generateAiRemediationAction(findingId: string): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   const { db } = workspace;
   const finding = findingById(db, findingId);
   requireOnFindingProject(workspace, finding, "project.remediate");
@@ -559,7 +632,7 @@ export async function generateAiRemediationAction(findingId: string): Promise<vo
       description: result.suggestion.description,
     },
   });
-  await saveDb(db);
+  });
   refresh();
 }
 
@@ -571,7 +644,7 @@ export async function markRemediationImplementedAction(
   findingId: string,
   formData: FormData,
 ): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   const { db } = workspace;
   const finding = findingById(db, findingId);
   requireOnFindingProject(workspace, finding, "project.remediate");
@@ -591,7 +664,7 @@ export async function markRemediationImplementedAction(
     findingId: finding.id,
     detail: { manual: true, note },
   });
-  await saveDb(db);
+  });
   refresh();
 }
 
@@ -603,7 +676,7 @@ export async function manualVerifyRemediationAction(
   findingId: string,
   formData: FormData,
 ): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   const { db } = workspace;
   const finding = findingById(db, findingId);
   requireOnFindingProject(workspace, finding, "project.remediate");
@@ -633,7 +706,7 @@ export async function manualVerifyRemediationAction(
     detail: { note, determination: "human_review" },
   });
   refreshRequirementStatuses(db, finding.projectId);
-  await saveDb(db);
+  });
   refresh();
 }
 
@@ -647,12 +720,11 @@ function isRequirementExceptionReason(
     value === "temporary"
   );
 }
-
 export async function markRequirementExceptionAction(
   requirementId: string,
   formData: FormData,
 ): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   requireOnActive(workspace, "project.remediate");
   const { db, project } = workspace;
   const requirement = db.requirements.find(
@@ -720,7 +792,7 @@ export async function markRequirementExceptionAction(
       detail: { from: previous, to: requirement.status, regression: false },
     });
   }
-  await saveDb(db);
+  });
   refresh();
 }
 
@@ -728,7 +800,7 @@ export async function markRequirementPassedAction(
   requirementId: string,
   formData: FormData,
 ): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   requireOnActive(workspace, "project.remediate");
   const { db, project } = workspace;
   const requirement = db.requirements.find(
@@ -782,14 +854,14 @@ export async function markRequirementPassedAction(
       },
     });
   }
-  await saveDb(db);
+  });
   refresh();
 }
 
 export async function clearRequirementHumanPassAction(
   requirementId: string,
 ): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   requireOnActive(workspace, "project.remediate");
   const { db, project } = workspace;
   const requirement = db.requirements.find(
@@ -817,28 +889,28 @@ export async function clearRequirementHumanPassAction(
   });
 
   refreshRequirementStatuses(db, project.id);
-  await saveDb(db);
+  });
   refresh();
 }
 
 export async function updateRequirementScopeAction(
   formData: FormData,
 ): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   requireOnActive(workspace, "project.assess");
   const { db, project } = workspace;
   const selected = formData
     .getAll("controlId")
     .filter((value): value is string => typeof value === "string");
   setProjectScope(db, project, selected);
-  await saveDb(db);
+  });
   refresh();
 }
 
 export async function importCustomControlAction(
   formData: FormData,
 ): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   requireOnActive(workspace, "project.assess");
   const { db, project } = workspace;
   const code = formData.get("code");
@@ -859,7 +931,7 @@ export async function importCustomControlAction(
     secondaryCode:
       typeof secondaryCode === "string" ? secondaryCode : undefined,
   });
-  await saveDb(db);
+  });
   refresh();
 }
 
@@ -870,11 +942,11 @@ export async function applyFrameworkPresetAction(
   if (typeof presetId !== "string" || presetId.length === 0) {
     throw new Error("A framework preset is required.");
   }
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   requireOnActive(workspace, "project.assess");
   const { db, project } = workspace;
   applyFrameworkPreset(db, project, presetId);
-  await saveDb(db);
+  });
   refresh();
 }
 
@@ -885,16 +957,16 @@ export async function importChecklistAction(
   if (typeof checklist !== "string" || checklist.trim().length === 0) {
     throw new Error("Paste a checklist to import.");
   }
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   requireOnActive(workspace, "project.assess");
   const { db, project } = workspace;
   importChecklist(db, project, checklist);
-  await saveDb(db);
+  });
   refresh();
 }
 
 export async function markAlertReadAction(alertId: string): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   requireOnActive(workspace, "project.view");
   const { db, project } = workspace;
   const alert = db.alerts.find(
@@ -903,7 +975,7 @@ export async function markAlertReadAction(alertId: string): Promise<void> {
   );
   if (!alert) throw new Error("Unknown alert.");
   alert.read = true;
-  await saveDb(db);
+  });
   refresh();
 }
 
@@ -920,11 +992,10 @@ export async function createPullRequestAction(
 ): Promise<CreatePrFormState> {
   void previous;
   void formData;
-  const workspace = await getWorkspace();
-  const { db } = workspace;
-  const finding = findingById(db, findingId);
+  const preview = await getWorkspace();
+  const finding = findingById(preview.db, findingId);
   try {
-    requireOnFindingProject(workspace, finding, "project.remediate");
+    requireOnFindingProject(preview, finding, "project.remediate");
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Not allowed.",
@@ -932,9 +1003,9 @@ export async function createPullRequestAction(
       prUrl: null,
     };
   }
-  const control = controlById(db, finding.controlId);
-  const remediation = remediationForFinding(db, findingId);
-  const project = db.projects.find(
+  const control = controlById(preview.db, finding.controlId);
+  const remediation = remediationForFinding(preview.db, findingId);
+  const project = preview.db.projects.find(
     (candidate) => candidate.id === finding.projectId,
   );
   if (!project) {
@@ -948,21 +1019,23 @@ export async function createPullRequestAction(
       finding,
       remediation,
     );
-    addEvidence(db, {
-      kind: "pull_request_prepared",
-      summary: result.prUrl
-        ? `Pull request prepared for ${finding.checkId}: ${result.prUrl}`
-        : `Branch ${result.branch} prepared for ${finding.checkId}`,
-      projectId: project.id,
-      controlId: finding.controlId,
-      findingId: finding.id,
-      detail: {
-        branch: result.branch,
-        prUrl: result.prUrl,
-        title: result.title,
-      },
+    await withWorkspaceWrite(({ db }) => {
+      const liveFinding = findingById(db, findingId);
+      addEvidence(db, {
+        kind: "pull_request_prepared",
+        summary: result.prUrl
+          ? `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`
+          : `Branch ${result.branch} prepared for ${liveFinding.checkId}`,
+        projectId: project.id,
+        controlId: liveFinding.controlId,
+        findingId: liveFinding.id,
+        detail: {
+          branch: result.branch,
+          prUrl: result.prUrl,
+          title: result.title,
+        },
+      });
     });
-    await saveDb(db);
     refresh();
     return {
       error: null,
@@ -981,7 +1054,7 @@ export async function createPullRequestAction(
 export async function clearRequirementExceptionAction(
   requirementId: string,
 ): Promise<void> {
-  const workspace = await getWorkspace();
+  await withWorkspaceWrite(async (workspace) => {
   requireOnActive(workspace, "project.remediate");
   const { db, project } = workspace;
   const requirement = db.requirements.find(
@@ -1010,6 +1083,6 @@ export async function clearRequirementExceptionAction(
 
   // Re-derive status from current open findings now that the exception is gone.
   refreshRequirementStatuses(db, project.id);
-  await saveDb(db);
+  });
   refresh();
 }
