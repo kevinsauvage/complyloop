@@ -22,6 +22,8 @@
 
 # production
 /build
+/packages/check/dist
+*.tgz
 
 # misc
 .DS_Store

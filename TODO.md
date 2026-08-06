@@ -46,7 +46,7 @@ Issues that could prevent the product from being safely or professionally sold.
   - **Recommendation:** Re-locate the violation in `pr.ts` (reuse `locateViolation` + `mergeFix`) before writing; if it can't be re-located, refuse to open the PR with a clear message. Optionally re-run the check on the fixed file before commit.
   - **Acceptance criteria:** PR generation on a drifted file either applies at the correct current offset or aborts; test simulates drift.
 
-- [ ] **`@complyloop/check` is not installable — the advertised CI story is broken** 🟠
+- [x] **`@complyloop/check` is not installable — the advertised CI story is broken** 🟠
   - **Problem:** The customer-facing CI package is `"private": true`, ships only `bin.js` + README, and `bin.js` resolves `../../src/cli/check.ts` via monorepo `tsx` and the full workspace `src/analysis`. `npx complyloop-check` / installing `@complyloop/check` will fail outside this repo.
   - **Why:** CI gating is a core selling point (README, templates). Selling a package that cannot be installed is a launch blocker.
   - **Location:** `packages/check/package.json`; `packages/check/bin.js:12-25`; `src/cli/check.ts`; `templates/github-actions/complyloop-check.yml`.

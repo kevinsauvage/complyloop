@@ -2,27 +2,39 @@
 
 CI gate for assessed apps: scan a React/TypeScript tree and exit non-zero on accessibility **violations**.
 
-## Usage (this monorepo)
+## Install
+
+```bash
+npm install @complyloop/check
+# or from a local checkout of this monorepo (after build):
+npm run build:check
+npm install /path/to/Compliance-Engineering-Platform/packages/check
+```
+
+## Usage
 
 ```bash
 npx complyloop-check .
 # or
-npm run check -- .
+npx complyloop-check path/to/app
 ```
 
-## GitHub Actions (customer app)
+Exit codes: `0` clean, `1` violations found, `2` usage/IO error.
 
-Until the package is published to npm, install from this repo (or copy the workflow from `templates/github-actions/`):
+## GitHub Actions
+
+See [`templates/github-actions/complyloop-check.yml`](../../templates/github-actions/complyloop-check.yml):
 
 ```yaml
-- run: npx --yes --package=tsx --package=file:../path-to-complyloop/packages/check complyloop-check .
+- run: npm ci
+- run: npx complyloop-check .
 ```
 
-Prefer linking the workspace when ComplyLoop is a sibling checkout:
+## Monorepo development
+
+From the ComplyLoop repo root:
 
 ```bash
-npm install ../Compliance-Engineering-Platform/packages/check
-npx complyloop-check .
+npm run build:check   # produce packages/check/dist/cli.js
+npm run check -- .    # runs the bin (bundle if present, else tsx fallback)
 ```
-
-After a future npm publish: `npx @complyloop/check .`

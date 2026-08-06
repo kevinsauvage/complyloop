@@ -1,33 +1,41 @@
 #!/usr/bin/env node
 /**
- * Customer-facing CLI entry. Resolves the monorepo check script via tsx so
- * assessed apps can run `npx @complyloop/check .` (or `npx complyloop-check .`)
- * without hard-coding a source path.
+ * Customer-facing CLI entry. Prefers the bundled dist (publishable). Falls
+ * back to the monorepo TypeScript source via tsx when dist is missing (local
+ * development before `npm run build:check`).
  */
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "../..");
-const cli = path.join(repoRoot, "src/cli/check.ts");
-const require = createRequire(import.meta.url);
+const bundled = path.join(__dirname, "dist", "cli.js");
 
-let tsxCli;
-try {
-  tsxCli = require.resolve("tsx/cli", { paths: [repoRoot, __dirname] });
-} catch {
-  console.error(
-    "tsx is required to run @complyloop/check. Install it in the ComplyLoop repo (devDependency) or globally.",
+if (existsSync(bundled)) {
+  await import(pathToFileURL(bundled).href);
+} else {
+  const repoRoot = path.resolve(__dirname, "../..");
+  const cli = path.join(repoRoot, "src/cli/check.ts");
+  const require = createRequire(import.meta.url);
+  let tsxCli;
+  try {
+    tsxCli = require.resolve("tsx/cli", { paths: [repoRoot, __dirname] });
+  } catch {
+    console.error(
+      "@complyloop/check is missing dist/cli.js. Run `npm run build:check` in the ComplyLoop repo, or install a published package that includes the bundle.",
+    );
+    process.exit(2);
+  }
+  const result = spawnSync(
+    process.execPath,
+    [tsxCli, cli, ...process.argv.slice(2)],
+    {
+      stdio: "inherit",
+      cwd: process.cwd(),
+      env: process.env,
+    },
   );
-  process.exit(2);
+  process.exit(result.status ?? 1);
 }
-
-const result = spawnSync(process.execPath, [tsxCli, cli, ...process.argv.slice(2)], {
-  stdio: "inherit",
-  cwd: process.cwd(),
-  env: process.env,
-});
-
-process.exit(result.status ?? 1);

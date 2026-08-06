@@ -52,8 +52,8 @@ JSON file on a **persistent disk**. Clones and encrypted tokens still need
 durable `DATA_DIR` (or a later move off disk). See
 [`docs/deploy.md`](./docs/deploy.md).
 
-CI for assessed apps: add `@complyloop/check` as a dependency (workspace
-`packages/check` until published), copy
+CI for assessed apps: `npm install @complyloop/check` (build the workspace
+package with `npm run build:check` first when installing from this repo), copy
 [`templates/github-actions/complyloop-check.yml`](./templates/github-actions/complyloop-check.yml),
 or run `npx complyloop-check .` / `npm run check -- .`.
 

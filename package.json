@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "complyloop-check",
+    "build:check": "node scripts/build-check.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:studio": "drizzle-kit studio"
@@ -49,6 +50,7 @@
     "@vitejs/plugin-react": "^6.0.5",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
+    "esbuild": "^0.28.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
