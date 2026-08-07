@@ -6,56 +6,24 @@ import {
   type FormErrorState,
 } from "../action-state";
 import { writeActiveProjectCookie } from "../active-project";
-import { assertConnectProjectAllowed } from "../connect-policy";
 import { ConnectError } from "../connect-url";
 import { setActiveProject } from "../connect-active";
-import { connectGitHubRepo, disconnectGitHubRepo, findConnectedGitHubProject } from "../connect-github";
-import { connectProjectInput } from "../connect-local";
+import {
+  connectGitHubRepo,
+  disconnectGitHubRepo,
+  findConnectedGitHubProject,
+} from "../connect-github";
+import { userCanConnectProjects } from "../connect-policy";
 import { fetchGitHubRepo } from "../github";
 import {
   createInstallationAccessToken,
   isGitHubAppConfigured,
 } from "../github-app";
-import { defaultOrgIdForUser } from "../orgs";
 import { withWorkspaceWrite } from "../workspace";
 import { refresh } from "./shared";
 
-export type ConnectFormState = FormErrorState;
 export type ConnectGitHubFormState = FormErrorState;
 export type DisconnectGitHubFormState = FormErrorState;
-
-export async function connectProjectAction(
-  _previous: ConnectFormState,
-  formData: FormData,
-): Promise<ConnectFormState> {
-  const input = formData.get("target");
-  if (typeof input !== "string") {
-    return { error: "Enter a local path or a git repository URL." };
-  }
-
-  try {
-    await withWorkspaceWrite(async (workspace) => {
-      assertConnectProjectAllowed({
-        userId: workspace.userId,
-        activeOrgId: workspace.activeOrgId,
-        memberships: workspace.db.memberships,
-        target: input,
-      });
-      const project = await connectProjectInput(workspace.db, input);
-      if (workspace.userId) {
-        project.ownerUserId = workspace.userId;
-        project.orgId =
-          workspace.activeOrgId ??
-          defaultOrgIdForUser(workspace.db, workspace.userId);
-      }
-      await writeActiveProjectCookie(project.id);
-    });
-    refresh();
-    return { error: null };
-  } catch (error) {
-    return connectFormError(error);
-  }
-}
 
 export async function switchProjectAction(formData: FormData): Promise<void> {
   const projectId = formData.get("projectId");
@@ -118,7 +86,14 @@ export async function connectGitHubRepoAction(
     }
 
     const repo = await fetchGitHubRepo(accessToken, fullName);
-    await withWorkspaceWrite(async ({ db, activeOrgId }) => {
+    await withWorkspaceWrite(async ({ db, activeOrgId, access }) => {
+      if (
+        !userCanConnectProjects(access.memberships, userId, activeOrgId)
+      ) {
+        throw new ConnectError(
+          "You need admin or owner access in the active organization to connect a project.",
+        );
+      }
       const alreadyConnected = findConnectedGitHubProject(
         db.projects,
         fullName,

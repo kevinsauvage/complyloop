@@ -68,8 +68,8 @@ export function canOnProject(
   userId: string | null | undefined,
   permission: Permission,
 ): boolean {
-  // Unscoped demos (sample / unsigned local): anyone can view/assess/remediate.
   // Owned projects without orgId yet (pre-migration) stay private to the owner.
+  // Unscoped projects without an owner are treated as public read/assess/remediate.
   if (!project.orgId) {
     if (project.ownerUserId) {
       if (!userId || project.ownerUserId !== userId) return false;

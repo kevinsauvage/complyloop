@@ -46,7 +46,7 @@ The domain model must stay **framework-agnostic** (requirements/controls, not "a
 - **Frontend/App:** Next.js 16 (App Router) + React 19
 - **Styling/UI:** Tailwind CSS 4 + shadcn/ui (Radix, dark zinc theme by default); app helpers in `src/components/page-primitives.tsx`
 - **Persistence:** JSON file store in `.data/db.json` by default; set `DATABASE_URL` for Postgres via Drizzle (`src/server/db-store/`). Evidence is insert-only in Postgres. Encrypted GitHub tokens + webhook deliveries use Postgres when configured (JSON fallback under `$DATA_DIR`). Workspaces/clones still under `$DATA_DIR`.
-- **Auth / GitHub connect:** Auth.js v5 (`next-auth`) with GitHub OAuth (`AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`); sample + local path stay available unsigned; GitHub repo picker requires sign-in
+- **Auth / GitHub connect:** Auth.js v5 (`next-auth`) with GitHub OAuth (`AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`); projects are GitHub-only (sign-in required to connect)
 - **GitHub API / git:** `@octokit/rest` + `@octokit/webhooks-methods`; clones and PR push via `simple-git`; handoff patches via `diff`; source walks via `fast-glob`
 - **Analysis engine:** deterministic TypeScript AST checks in `src/analysis/` as the source of truth for local/CI defects (13 checks); optional **runtime DOM audits** (Playwright + axe-core) when a project has `runtimeBaseUrl` — composition-sensitive rules (labels, names, …) then use the rendered page as status truth. AI augments, never replaces either engine.
 - **CI package:** `@complyloop/check` / `npx complyloop-check` (`packages/check`)
@@ -138,12 +138,12 @@ src/server/                              Store, seed, assessment, connect, webho
 src/server/actions/                      Server Actions split by domain (no barrel)
 src/app/                                 Next.js App Router routes
 src/components/                          Shared UI (badges, cards, nav, findings/, requirements/, dashboard/)
-fixtures/sample-shop/                    Sample project with deliberate violations — never linted
+packages/check/testdata/                 Deliberate violations for the CI check package
 .data/                                   Local store + assessed workspaces (gitignored)
 ```
 
-`fixtures/` and `.data/` are excluded from tsconfig, ESLint, and Vitest on
-purpose: they contain code that must keep its accessibility violations.
+`.data/` and `packages/check/testdata/` are excluded from lint/typecheck on
+purpose where they hold assessed clones or deliberate violations.
 
 ## When Building Features
 

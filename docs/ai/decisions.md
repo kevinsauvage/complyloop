@@ -4,6 +4,29 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-07 — Runtime axe inject from disk (not bundled source)
+
+**Context:** `@axe-core/playwright` injects `axe-core`'s `source` string via `page.evaluate`. Under Next.js the bundler rewrites `typeof module` inside that string, so the browser throws `ReferenceError: module is not defined` at `axeFunction`.
+
+**Decision:** Load `axe-core/axe.min.js` with `page.addScriptTag({ path })` resolved at runtime from `node_modules`, then call `window.axe.run()`. Drop `@axe-core/playwright`.
+
+**Consequence:** Runtime audits work in the Next server; iframe recursion from AxeBuilder is deferred (main frame only for now).
+
+---
+
+## 2026-08-07 — GitHub-only project connect
+
+**Context:** Sample/local/git URL connects complicated multi-tenant security (shared writable sample, arbitrary FS paths) and diluted the primary product path.
+
+**Decision:**
+- `ProjectSource` is `"github"` only. Seed frameworks/controls; purge sample/local/git on load.
+- Remove local path / git URL connect UI and `ALLOW_LOCAL_PROJECT_CONNECT`.
+- Workspace `project` may be `null` until a GitHub repo is connected (sign-in required).
+
+**Consequence:** First run is Sign in with GitHub → pick a repo. CI check package uses `packages/check/testdata`.
+
+---
+
 ## 2026-08-07 — Hybrid runtime DOM + AST analysis authority
 
 **Context:** AST-only checks false-positive on design-system primitives (e.g. `<input {...props} />` in `ui/primitives/input.tsx`) because labels live at call sites. Customers need trustworthy failures for selling; auto-fixing primitives with generic `aria-label` is harmful.
@@ -60,7 +83,7 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 **Context:** P0 multi-user gaps: `/org` always used personal `defaultOrgIdForUser`; tokens and webhook deliveries still required `$DATA_DIR`; whole-`Db` load/mutate/save raced under concurrent actions + webhooks.
 
 **Decision:**
-- **Active org:** HTTP-only cookie `complyloop_active_org` + `resolveActiveOrgId` (preferred membership, else personal owner org). `/org`, invites, removes, and GitHub connect target the active org. `createOrganization` + org switcher; projects on the dashboard are scoped to the active org (unscoped sample/demo still visible).
+- **Active org:** HTTP-only cookie `complyloop_active_org` + `resolveActiveOrgId` (preferred membership, else personal owner org). `/org`, invites, removes, and GitHub connect target the active org. `createOrganization` + org switcher; projects on the dashboard are scoped to the active org (unscoped local demos still visible when present).
 - **Tokens / webhook deliveries:** when `DATABASE_URL` is set, encrypted GitHub tokens and delivery ids live in Postgres (`github_tokens`, `webhook_deliveries` via migration `0002_tokens_webhooks.sql`). JSON under `$DATA_DIR` remains the laptop fallback. APIs are async. Workspaces/clones stay on disk (P1.9).
 - **Multi-writer safety:** `withDbWrite` / `withWorkspaceWrite` serialize writers with an in-process mutex and a Postgres transaction advisory lock around load→mutate→persist. Server actions and webhooks use these helpers instead of bare `loadDb` + `saveDb`.
 
@@ -77,7 +100,7 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 - **Invites:** by GitHub login; claimed on next sign-in when `login` matches. UI at `/org`.
 - **Actions:** server actions assert the matching permission on the active/finding project before mutating.
 
-**Consequence:** Teammates can share an org with role-scoped access; sample/local demos still work unsigned.
+**Consequence:** Teammates can share an org with role-scoped access; unscoped local demos still work unsigned when connected.
 
 ## 2026-08-05 — Postgres behind `db.ts` with Drizzle
 
@@ -159,9 +182,9 @@ Early drafts assumed shadcn/ui, Postgres-first, and axe-core as analysis truth. 
 **Context:** Spec success requires connecting real software easily; pasting a path/URL is awkward. Users should sign in and pick a GitHub repository.
 
 **Decision:**
-- **Auth.js v5** (`next-auth`) with the GitHub provider (`read:user user:email repo`). No global route lock — sample + local/git URL remain available unsigned.
+- **Auth.js v5** (`next-auth`) with the GitHub provider (`read:user user:email repo`). No global route lock — local/git URL remain available unsigned in development.
 - Access token lives in the encrypted JWT; `getGitHubAccessToken()` reads it server-side only. Session exposes `user.id` / `user.login` for UI.
-- Connected GitHub projects get `source: "github"`, `ownerUserId`, and soft visibility filtering (unowned/sample stay public to the demo).
+- Connected GitHub projects get `source: "github"`, `ownerUserId`, and soft visibility filtering (unowned demos stay public when present).
 - Clone via `https://x-access-token:…@github.com/…` then rewrite `origin` to a clean HTTPS URL so the token is not persisted in the workspace remotes.
 - When `AUTH_*` env vars are missing, sign-in UI is hidden and the advanced local/URL form still works.
 
@@ -193,9 +216,9 @@ Early drafts assumed shadcn/ui, Postgres-first, and axe-core as analysis truth. 
 
 ## 2026-08-04 — Connect local path or git URL
 
-**Context:** MVP success requires connecting real software, not only the seeded sample.
+**Context:** MVP success requires connecting real software, not only a canned demo.
 
-**Decision:** Dashboard accepts a single field that is either an absolute/relative local directory (assessed and remediated in place) or a git remote URL (shallow-cloned into `.data/workspaces/`). Multiple projects are stored; `activeProjectId` selects the current target. Sample reset remains sample-only.
+**Decision:** Dashboard accepts a single field that is either an absolute/relative local directory (assessed and remediated in place) or a git remote URL (shallow-cloned into `.data/workspaces/`). Multiple projects are stored; `activeProjectId` selects the current target.
 
 **Consequence:** Real apps can be assessed without GitHub OAuth. Local connects write remediations into the user's tree; git connects keep clones under `.data/`.
 
@@ -208,10 +231,9 @@ Early drafts assumed shadcn/ui, Postgres-first, and axe-core as analysis truth. 
 - **UI:** hand-rolled Tailwind components instead of shadcn/ui — the MVP needs only badges/cards/tables/forms; fewer moving parts. shadcn remains an option later.
 - **Analysis:** custom TypeScript-AST checks (six RGAA/WCAG criteria) instead of axe-core — axe audits rendered DOM, but the product assesses *source code* and must map findings to exact file/line/element spans to power auto-fixes.
 - **AI:** deterministic explanations generated at detection are the baseline; AI explanations are an optional enhancement gated by `AI_GATEWAY_API_KEY`, provenance-tagged, and never set statuses.
-- **Sample target:** `fixtures/sample-shop` is copied into a `.data/` workspace at seed time so fixes and resets never touch the committed fixtures.
-- **Verification semantics:** a remediation is verified by re-scanning the file and confirming the *specific violation instance* (matched by snippet, then line) is gone; warnings never block verification.
+- **Verification semantics:** a remediation is verified by re-scanning the file and confirming the *specific violation instance* (matched by snippet, then line) is gone; warnings never block verification. (Seeded sample project later removed — see 2026-08-07 entry.)
 
-**Consequence:** The demo runs with `npm install && npm run dev` and nothing else; every seam that will change at scale (store, checks registry, AI) sits behind a small module boundary.
+**Consequence:** Early demos ran with `npm install && npm run dev` against a seeded sample; that sample path was retired in favor of explicit project connect.
 
 ## 2026-08-04 — Project scaffold, lint, and test tooling
 

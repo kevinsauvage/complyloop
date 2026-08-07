@@ -30,7 +30,7 @@ describe("developer handoff", () => {
       id: "p1",
       name: "shop",
       rootPath: root,
-      source: "local",
+      source: "github",
       createdAt: new Date().toISOString(),
     };
     const control: Control = {

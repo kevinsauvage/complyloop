@@ -128,7 +128,7 @@ describe("buildSuggestion", () => {
           id: "p1",
           name: "Demo",
           rootPath: "/tmp",
-          source: "sample",
+          source: "github",
           createdAt: "2026-01-01T00:00:00.000Z",
         },
         {
@@ -154,7 +154,7 @@ describe("buildSuggestion", () => {
         id: "p1",
         name: "Demo",
         rootPath: root,
-        source: "sample",
+        source: "github",
         createdAt: "2026-01-01T00:00:00.000Z",
       },
       {

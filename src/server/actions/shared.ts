@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { advanceRemediation } from "@/core/remediation";
-import type { Finding } from "@/core/types";
+import type { Finding, Project } from "@/core/types";
 import { locateViolationInProject } from "../assessment-helpers";
 import type { Db } from "../db";
 import { assertProjectPermission } from "../project-visibility";
@@ -21,7 +21,10 @@ export function replaceRemediation(
 export function requireOnActive(
   workspace: Workspace,
   permission: Parameters<typeof assertProjectPermission>[2],
-): void {
+): asserts workspace is Workspace & { project: Project } {
+  if (!workspace.project) {
+    throw new Error("No project connected.");
+  }
   assertProjectPermission(workspace.project, workspace.access, permission);
 }
 

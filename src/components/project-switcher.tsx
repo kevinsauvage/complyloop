@@ -4,23 +4,6 @@ import type { Project } from "@/core/types";
 import { switchProjectAction } from "@/server/actions/connect";
 import { Label } from "@/components/ui/label";
 
-function sourceLabel(project: Project): string {
-  switch (project.source) {
-    case "sample":
-      return "sample";
-    case "local":
-      return "local";
-    case "git":
-      return "git";
-    case "github":
-      return "github";
-    default: {
-      const _exhaustive: never = project.source;
-      throw new Error(`Unhandled project source: ${_exhaustive}`);
-    }
-  }
-}
-
 export function ProjectSwitcher({
   projects,
   activeProjectId,
@@ -44,7 +27,8 @@ export function ProjectSwitcher({
       >
         {projects.map((project) => (
           <option key={project.id} value={project.id}>
-            {project.name} ({sourceLabel(project)})
+            {project.name}
+            {project.github?.fullName ? ` (${project.github.fullName})` : ""}
           </option>
         ))}
       </select>

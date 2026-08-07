@@ -1,10 +1,12 @@
-import AxeBuilder from "@axe-core/playwright";
-import { chromium, type Browser } from "playwright";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { chromium, type Browser, type Page } from "playwright";
 import type { RawFinding } from "../types";
 import {
   findingsFromAxePages,
   joinRuntimeUrl,
   runtimeRoutesFor,
+  type AxeViolationLike,
   type RuntimeScanPageResult,
   type RuntimeScanResult,
 } from "./findings";
@@ -22,6 +24,62 @@ async function getBrowser(): Promise<Browser> {
   return sharedBrowser;
 }
 
+/**
+ * Resolve axe.min.js from node_modules at runtime.
+ * Do not import `axe-core`'s `source` string — Next/webpack rewrites
+ * `typeof module` inside it, which throws in the browser (`module is not defined`).
+ */
+export function resolveAxeMinJsPath(): string {
+  const require = createRequire(path.join(process.cwd(), "package.json"));
+  return require.resolve("axe-core/axe.min.js");
+}
+
+interface AxeRunResult {
+  violations: Array<{
+    id: string;
+    impact?: string | null;
+    description: string;
+    help: string;
+    nodes: Array<{
+      html: string;
+      target: Array<string | string[]>;
+      failureSummary?: string;
+    }>;
+  }>;
+}
+
+/**
+ * Inject axe from disk and analyze the current page (main frame).
+ * Prefer this over `@axe-core/playwright` under Next.js server bundles.
+ */
+export async function runAxeOnPage(page: Page): Promise<{
+  violations: AxeViolationLike[];
+}> {
+  await page.addScriptTag({ path: resolveAxeMinJsPath() });
+  const results = await page.evaluate(async () => {
+    const axe = (
+      window as unknown as {
+        axe: { run: () => Promise<AxeRunResult> };
+      }
+    ).axe;
+    return axe.run();
+  });
+
+  return {
+    violations: results.violations.map((violation) => ({
+      id: violation.id,
+      impact: violation.impact,
+      description: violation.description,
+      help: violation.help,
+      nodes: violation.nodes.map((node) => ({
+        html: node.html,
+        target: node.target.map(String),
+        failureSummary: node.failureSummary,
+      })),
+    })),
+  };
+}
+
 /** Default Playwright + axe-core page scanner. */
 export const playwrightAxeScanner: RuntimePageScanner = async (urls) => {
   const browser = await getBrowser();
@@ -32,19 +90,10 @@ export const playwrightAxeScanner: RuntimePageScanner = async (urls) => {
       const page = await context.newPage();
       try {
         await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
-        const results = await new AxeBuilder({ page }).analyze();
+        const results = await runAxeOnPage(page);
         pages.push({
           url,
-          violations: results.violations.map((violation) => ({
-            id: violation.id,
-            impact: violation.impact,
-            description: violation.description,
-            help: violation.help,
-            nodes: violation.nodes.map((node) => ({
-              html: node.html,
-              target: node.target.map(String),
-            })),
-          })),
+          violations: results.violations,
         });
       } finally {
         await page.close();

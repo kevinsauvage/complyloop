@@ -33,7 +33,7 @@ export function accessFromStore(
 }
 
 /**
- * Sample and unowned demo projects (no org) stay visible without sign-in.
+ * Unowned projects (no org) stay visible without sign-in.
  * Org-scoped projects require membership (or legacy connector ownership).
  */
 export function isProjectVisible(
@@ -108,7 +108,7 @@ export function resolveVisibleFinding(
 
 /**
  * Picks the active project among visible ones, preferring the current id when
- * still allowed, otherwise sample, otherwise the first visible project.
+ * still allowed, otherwise the first visible project.
  */
 export function resolveActiveProject(
   projects: ReadonlyArray<Project>,
@@ -121,8 +121,7 @@ export function resolveActiveProject(
   const preferred = visible.find((project) => project.id === activeProjectId);
   if (preferred) return preferred;
 
-  const sample = visible.find((project) => project.source === "sample");
-  return sample ?? visible[0];
+  return visible[0];
 }
 
 export function assertProjectPermission(

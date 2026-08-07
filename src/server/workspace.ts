@@ -21,8 +21,9 @@ import { ensureSeeded } from "./seed";
 
 export interface Workspace {
   db: Db;
-  project: Project;
-  /** Auth.js user id when signed in; null for the unsigned demo. */
+  /** Null when the viewer has no connected project yet. */
+  project: Project | null;
+  /** Auth.js user id when signed in; null when unsigned. */
   userId: string | null;
   githubLogin: string | null;
   access: AccessContext;
@@ -35,8 +36,8 @@ export interface Workspace {
 }
 
 /**
- * Projects visible in the active org: that org's projects, plus unscoped
- * demo/sample projects (no orgId) so the laptop demo still works.
+ * Projects visible in the active org: that org's projects (and any still-unscoped
+ * legacy projects with no orgId).
  */
 export function projectsForActiveOrg(
   projects: ReadonlyArray<Project>,
@@ -73,18 +74,25 @@ function prepareWorkspaceState(
       : null;
 
   const scoped = projectsForActiveOrg(db.projects, access, activeOrgId);
-  // Prefer the per-browser cookie; fall back to legacy store field for seed/demo.
-  const project = resolveActiveProject(
-    scoped.length > 0 ? scoped : db.projects,
-    preferredProjectId ?? db.activeProjectId,
-    access,
-  );
-  if (!project) throw new Error("No projects connected.");
+  // Prefer the per-browser cookie; fall back to legacy store field.
+  const project =
+    resolveActiveProject(
+      scoped.length > 0 ? scoped : db.projects,
+      preferredProjectId ?? db.activeProjectId,
+      access,
+    ) ?? null;
 
-  // Keep a demo/seed fallback in the store, but never overwrite it from another
+  // Persist a store-level active id only when empty; never overwrite another
   // user's cookie preference (active selection is cookie-scoped).
-  if (!db.activeProjectId) {
+  if (project && !db.activeProjectId) {
     db.activeProjectId = project.id;
+    changed = true;
+  }
+  if (
+    db.activeProjectId &&
+    !db.projects.some((candidate) => candidate.id === db.activeProjectId)
+  ) {
+    db.activeProjectId = db.projects[0]?.id ?? null;
     changed = true;
   }
 
@@ -96,7 +104,8 @@ function prepareWorkspaceState(
       userId,
       githubLogin,
       access,
-      visibleProjects: scoped.length > 0 ? scoped : visibleProjects(db.projects, access),
+      visibleProjects:
+        scoped.length > 0 ? scoped : visibleProjects(db.projects, access),
       organizations,
       activeOrgId,
     },
@@ -104,7 +113,7 @@ function prepareWorkspaceState(
 }
 
 /**
- * Loads the store, seeding the framework and sample project on first use.
+ * Loads the store, seeding the framework and controls on first use.
  * Memoized per React request so layout + page share one load/auth.
  */
 export const getWorkspace = cache(async (): Promise<Workspace> => {

@@ -32,6 +32,19 @@ export default async function EvidencePage({
 }) {
   const { page: pageRaw } = await searchParams;
   const { db, project } = await getWorkspace();
+  if (!project) {
+    return (
+      <>
+        <PageHeader
+          title="Evidence"
+          description="Append-only record of everything checked, found, changed, and verified."
+        />
+        <EmptyState title="No project connected">
+          <p>Connect a repository from the dashboard to collect evidence.</p>
+        </EmptyState>
+      </>
+    );
+  }
   const evidence = [...evidenceForProject(db.evidence, project.id)].reverse();
   const slice = paginateSlice(evidence, parsePageParam(pageRaw));
 

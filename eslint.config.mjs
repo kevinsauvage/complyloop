@@ -21,15 +21,15 @@ const eslintConfig = defineConfig([
     },
   },
   // Override default ignores of eslint-config-next.
-  // `fixtures/` and `.data/` contain sample code with deliberate accessibility
-  // violations for the platform to detect — they must not be linted.
+  // `.data/` holds assessed clones; `packages/check/testdata` has deliberate
+  // accessibility violations for the CI check package — do not lint them.
   globalIgnores([
     ".next/**",
     "out/**",
     "build/**",
     "coverage/**",
     "next-env.d.ts",
-    "fixtures/**",
+    "packages/check/testdata/**",
     ".data/**",
   ]),
 ]);

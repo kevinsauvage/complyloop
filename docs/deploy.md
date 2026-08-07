@@ -83,10 +83,8 @@ Sign-out clears stored encrypted user tokens. `AUTH_SECRET` is required in
 production (the app refuses the known dev-only fallback). `AUTH_URL` is required
 when serving production with GitHub auth configured.
 
-**Local path connects** (`ALLOW_LOCAL_PROJECT_CONNECT`) default **off** in
-production. Hosted deployments must not enable them — they resolve arbitrary
-server filesystem paths. Use the GitHub picker or git URLs instead. Advanced
-connect requires sign-in (admin/owner) when local connects are disabled.
+Projects are **GitHub-only**. Connect via the repository picker after Sign in
+with GitHub (admin/owner role in the active organization).
 
 ## What not to do
 

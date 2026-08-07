@@ -5,8 +5,8 @@ High-level architecture for ComplyLoop. The MVP implements the core loop in
 `src/analysis/`, optional AI in `src/ai/`, and persistence/assessment/actions in
 `src/server/`.
 
-**Current connectors:** sample workspace, local path, git URL, and GitHub OAuth
-repo connect. **Persistence:** JSON under `$DATA_DIR` (default `.data/`) behind `src/server/db.ts`, or **Postgres via Drizzle** when `DATABASE_URL` is set (domain state, encrypted GitHub tokens, webhook delivery ids). Evidence is append-only (insert-only in Postgres). Writers use `withDbWrite` / `withWorkspaceWrite`. **Tenancy:** organizations + memberships with role RBAC (`src/core/rbac.ts`); active org via cookie; projects carry `orgId`. Clones remain under `$DATA_DIR/workspaces`. See `docs/ai/decisions.md` and `docs/deploy.md`.
+**Current connectors:** GitHub OAuth / GitHub App repo connect only.
+**Persistence:** JSON under `$DATA_DIR` (default `.data/`) behind `src/server/db.ts`, or **Postgres via Drizzle** when `DATABASE_URL` is set (domain state, encrypted GitHub tokens, webhook delivery ids). Evidence is append-only (insert-only in Postgres). Writers use `withDbWrite` / `withWorkspaceWrite`. **Tenancy:** organizations + memberships with role RBAC (`src/core/rbac.ts`); active org via cookie; projects carry `orgId`. Clones remain under `$DATA_DIR/workspaces`. See `docs/ai/decisions.md` and `docs/deploy.md`.
 
 ## System Shape
 
@@ -32,8 +32,7 @@ repo connect. **Persistence:** JSON under `$DATA_DIR` (default `.data/`) behind 
                           │
                   ┌───────▼────────┐
                   │  Repo Connectors│
-                  │  sample/local/  │
-                  │  git/GitHub     │
+                  │  GitHub         │
                   └────────────────┘
 ```
 
@@ -43,7 +42,7 @@ repo connect. **Persistence:** JSON under `$DATA_DIR` (default `.data/`) behind 
 - **Framework adapters**: map RGAA/WCAG into controls + developer guidance.
 - **Analysis engine**: dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`) for local/CI/auto-fix, and optional **runtime DOM audits** (Playwright + axe-core in `src/analysis/runtime/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs; AI never sets requirement status.
 - **AI services**: explanation and remediation suggestions; typed, provenance-tagged, never statuses.
-- **Repo connectors**: sample copy, local path, git clone, GitHub OAuth clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.
+- **Repo connectors**: GitHub OAuth / App clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.
 
 ## Key Flows
 

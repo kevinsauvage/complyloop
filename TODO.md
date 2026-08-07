@@ -40,13 +40,8 @@ Issues that could prevent the product from being safely or professionally sold.
   * **Acceptance criteria:** Connecting with another user’s installation id fails with a permission error; tests cover allowed vs foreign installation ids.
   * **Effort:** 🟡 Medium
 
-* [ ] **Enforce `project.connect` RBAC on GitHub repo connect**
-  * **Problem:** Path/git connect uses `assertConnectProjectAllowed` (admin/owner). GitHub picker connect only requires a session. Disconnect correctly checks `project.connect`.
-  * **Why:** A `viewer`/`member` with the shared org active can attach repos into that org, expanding tenant attack surface and compliance data.
-  * **Location:** `src/server/actions/connect.ts` (`connectGitHubRepoAction`); contrast `src/server/connect-policy.ts`, `src/server/connect-github.ts` (disconnect)
-  * **Recommendation:** Call the same connect authorization helper (active org + `project.connect`) inside `connectGitHubRepoAction` before cloning.
-  * **Acceptance criteria:** Non-admin members cannot connect GitHub repos into an org; test asserts denial.
-  * **Effort:** 🟢 Small
+* [x] **Enforce `project.connect` RBAC on GitHub repo connect**
+  * **Done:** `connectGitHubRepoAction` requires admin/owner on the active org (local/git connect removed).
 
 * [ ] **Replace draft Terms & Privacy with counsel-reviewed legal**
   * **Problem:** `/legal/terms` and `/legal/privacy` are explicitly labeled draft / counsel-needed and incomplete for commercial sale (no DPA, subprocessors incomplete, no EU rights exercise path).
@@ -64,13 +59,8 @@ Issues that could prevent the product from being safely or professionally sold.
   * **Acceptance criteria:** Deploy runbook matches one supported shape; health endpoint verifies writable workspaces; webhook failure mode remains clear when volume is missing.
   * **Effort:** 🟡 Medium (ops) / 🔴 Very large (ephemeral workspaces)
 
-* [ ] **Disable or isolate the shared writable sample project on hosted multi-tenant**
-  * **Problem:** Seeded sample has no `orgId`/`ownerUserId`; RBAC grants view/assess/remediate to everyone including anonymous. Remediations mutate the shared workspace under `$DATA_DIR`.
-  * **Why:** On a shared deployment, any visitor can vandalize demo findings/files and interfere with other users’ first impression.
-  * **Location:** `src/server/seed.ts`, `src/core/rbac.ts` (`canOnProject` for unscoped projects)
-  * **Recommendation:** Hosted mode: per-user sample copies, or read-only sample with remediations disabled unless signed in to a personal copy. Keep current behavior for laptop `NODE_ENV=development` only.
-  * **Acceptance criteria:** Unsigned users on production cannot mutate sample workspace; signed-in users get an isolated copy or read-only demo.
-  * **Effort:** 🟡 Medium
+* [x] **Disable or isolate the shared writable sample project on hosted multi-tenant**
+  * **Done:** Sample + local/git connect removed; GitHub-only projects.
 
 * [ ] **Add operator backups + health check before inviting paying orgs**
   * **Problem:** `docs/deploy.md` checklist mentions backups; there is no health/ready endpoint, no Dockerfile for the app, and no backup script/runbook automation. Compose only runs Postgres.
@@ -86,13 +76,8 @@ Issues that could prevent the product from being safely or professionally sold.
 
 Important improvements for quality, maintainability, security, UX, or reliability.
 
-* [ ] **DNS-aware / allowlisted git remote URLs (SSRF hardening)**
-  * **Problem:** `assertSafeGitRemoteUrl` blocks literal private IPs and some hostnames but does not resolve DNS or follow redirects. A public hostname can resolve to metadata/RFC1918.
-  * **Why:** Hosted connect via git URL can SSRF internal services from the app host during `git clone`.
-  * **Location:** `src/server/connect-policy.ts`, `src/server/connect-url.ts`, `src/server/connect-shared.ts`
-  * **Recommendation:** Resolve A/AAAA after parse and re-check IPs; in hosted mode allowlist `github.com` / known hosts only (GitHub picker already preferred).
-  * **Acceptance criteria:** Hostnames resolving to private/link-local IPs are rejected; tests cover DNS-mocked cases or allowlist-only mode.
-  * **Effort:** 🟡 Medium
+* [x] **DNS-aware / allowlisted git remote URLs (SSRF hardening)**
+  * **Done:** Arbitrary git URL connect removed; clones only via GitHub picker / App.
 
 * [ ] **Stop embedding GitHub OAuth access tokens in the JWT session cookie**
   * **Problem:** On sign-in, `token.accessToken = account.access_token` is stored in the Auth.js JWT in addition to encrypted server-side storage.
@@ -154,8 +139,8 @@ Important improvements for quality, maintainability, security, UX, or reliabilit
   * **Problem:** ~52 unit tests; no browser e2e for connect → assess → remediate → verify → evidence.
   * **Why:** Regressions in the sold loop will ship undetected by unit mocks.
   * **Location:** No Playwright/Cypress; CI is unit-only (`.github/workflows/ci.yml`)
-  * **Recommendation:** One happy-path e2e against sample project (unsigned laptop mode) plus one authz denial case. Run in CI on PRs.
-  * **Acceptance criteria:** CI fails if assessment → verify → evidence export breaks on sample.
+  * **Recommendation:** One happy-path e2e against a connected local fixture/repo plus one authz denial case. Run in CI on PRs.
+  * **Acceptance criteria:** CI fails if assessment → verify → evidence export breaks on the connected project.
   * **Effort:** 🟠 Large
 
 * [ ] **Production monitoring baseline**
@@ -184,13 +169,13 @@ Useful improvements that should not block a carefully scoped initial pilot launc
 * [ ] **Foreign keys, unique constraints, and indexes for hot paths** — e.g. membership `(org_id, user_id)` unique; indexes on `findings.status`, `remediations.finding_id`, `alerts.project_id`. **Location:** `drizzle/`, `src/server/db-store/schema.ts`. **Effort:** 🟡 Medium
 * [ ] **Clear orphan alerts on project disconnect** — findings pruned; alerts for `projectId` not cleared in `connect-github.ts`. **Effort:** 🟢 Small
 * [ ] **Assessment/evidence retention policy** — unbounded assessment payloads (`fileHashes`) and evidence growth. **Effort:** 🟠 Large
-* [ ] **Tighten local-path connect if ever enabled** — require auth, force owner, allowlist roots under `$HOME`/`$DATA_DIR`. **Location:** `src/server/connect-local.ts`, `connect-policy.ts`. **Effort:** 🟡 Medium
+* [x] **Tighten local-path connect if ever enabled** — **Done:** local/git connect removed (GitHub-only).
 * [ ] **Zod (or shared schemas) at server-action boundaries** — today mostly `FormData` + typeof; zod used mainly for AI. **Effort:** 🟠 Large
 * [ ] **Findings URL state** — tab + pagination for open findings only; resolved/dismissed capped without pagination (`src/app/findings/page.tsx`). **Effort:** 🟡 Medium
 * [ ] **Sanitize report download filename** — `Content-Disposition` uses unsanitized `project.name` (`src/app/evidence/report/route.ts`). **Effort:** 🟢 Small
 * [ ] **Coverage gate on core + actions** — `test:coverage` exists but CI has no threshold. **Effort:** 🟢 Small
 * [ ] **Stabilize Auth.js** — `next-auth@5.0.0-beta.32`; track stable release / security advisories. **Effort:** 🟡 Medium (wait + upgrade)
-* [ ] **Guided first-run onboarding** — sample → connect GitHub App → first assessment checklist (beyond README). **Effort:** 🟠 Large
+* [ ] **Guided first-run onboarding** — connect GitHub App → first assessment checklist (beyond README). **Effort:** 🟠 Large
 * [ ] **Remove legacy `app_meta.activeProjectId` stomps** — UI uses cookies; global field still written on connect/seed. **Effort:** 🟢 Small
 * [ ] **Decouple `src/ai/` from `src/server/observability`** — inject logger at boundary. **Effort:** 🟢 Small
 
@@ -278,8 +263,8 @@ Optional improvements with relatively low near-term business impact.
 |----------|---------|----------|
 | **Critical** | GitHub App installation token minting not bound to caller | `src/server/actions/connect.ts`, `src/server/github-app.ts` |
 | **High** | GitHub connect skips `project.connect` RBAC | `connectGitHubRepoAction` |
-| **High** | Local path connect = arbitrary FS read/write when enabled; unsigned allowed when flag on | `connect-local.ts`, `connect-policy.ts` |
-| **High** | Shared sample project world-writable by design | `seed.ts`, `rbac.ts` |
+| ~~**High**~~ | ~~Local path connect = arbitrary FS read/write~~ | Removed (GitHub-only) |
+| ~~**High**~~ | ~~Shared sample project world-writable by design~~ | Removed |
 | **Medium** | Git URL SSRF: host blocklist without DNS resolution | `connect-policy.ts` |
 | **Medium** | OAuth access token in JWT cookie | `auth.ts` |
 | **Medium** | No rate limiting on connect/assess/AI/webhook | actions + webhook route |
@@ -327,7 +312,7 @@ Do **not** chase micro-optimizations until persistence is project-scoped.
 Prioritize business-critical and high-risk areas (not line coverage vanity):
 
 1. **Security:** foreign GitHub `installationId` minting; GitHub connect without `project.connect`; org role escalation admin→admin.
-2. **E2E smoke:** sample assess → remediate → verify → evidence export (Playwright).
+2. **E2E smoke:** connect → assess → remediate → verify → evidence export (Playwright).
 3. **Webhook:** missing delivery id; `workspace_missing` path; signature failure.
 4. **Authz regressions:** already partly covered in `actions.remediation.test.ts` — keep expanding for connect/org.
 5. **SSRF/DNS policy** once implemented.
@@ -340,7 +325,7 @@ CI today: lint, typecheck, unit test, build — good foundation, not sufficient 
 # Production Checklist
 
 * [ ] Authentication — GitHub App + `AUTH_URL` + strong `AUTH_SECRET` in prod
-* [ ] Authorization — fix GitHub connect RBAC + installation binding; sample isolation
+* [ ] Authorization — fix GitHub connect RBAC + installation binding (sample removed)
 * [ ] Security — rate limits; JWT token removal; DNS/allowlist git URLs; local connect off
 * [ ] Validation — action-boundary schemas for connect/org ids at minimum
 * [ ] Error handling — user-safe messages; keep Sentry for internals
@@ -372,7 +357,7 @@ CI today: lint, typecheck, unit test, build — good foundation, not sufficient 
 
 - One org / few seats, single long-lived Node instance, durable disk, Postgres
 - GitHub App only (no local-path connect)
-- Security P0s fixed (installation binding + connect RBAC + sample isolation)
+- Security P0s fixed (installation binding + connect RBAC; sample removed)
 - Counsel-reviewed legal + backups + health + Sentry
 
 ### Top 10 priorities (by business / risk impact)
@@ -380,7 +365,7 @@ CI today: lint, typecheck, unit test, build — good foundation, not sufficient 
 1. **Bind GitHub App installation tokens to the caller** (Critical security)
 2. **Enforce `project.connect` on GitHub connect** (High security)
 3. **Counsel-reviewed Terms & Privacy** (legal/trust)
-4. **Isolate or lock down shared sample on hosted** (integrity/trust)
+4. ~~**Isolate or lock down shared sample on hosted**~~ (removed)
 5. **Commit to supported deploy topology + health + backups** (ops survival)
 6. **Remove OAuth token from JWT; rate-limit connect/assess/AI** (security/cost)
 7. **DNS/allowlist hardening for git URLs** (SSRF)

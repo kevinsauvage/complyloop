@@ -115,8 +115,7 @@ function requirement(
 }
 
 describe("project visibility", () => {
-  const sample = project({ id: "sample", source: "sample" });
-  const local = project({ id: "local", source: "local" });
+  const local = project({ id: "local", source: "github" });
   const aliceLegacy = project({
     id: "alice-repo",
     source: "github",
@@ -143,7 +142,7 @@ describe("project visibility", () => {
   };
 
   it("shows unowned projects to everyone", () => {
-    expect(isProjectVisible(sample, ctx(null))).toBe(true);
+    expect(isProjectVisible(local, ctx(null))).toBe(true);
     expect(isProjectVisible(local, ctx(undefined))).toBe(true);
   });
 
@@ -162,25 +161,23 @@ describe("project visibility", () => {
   });
 
   it("filters the switcher list for the signed-in user", () => {
-    const all = [sample, local, aliceLegacy, bobLegacy];
+    const all = [local, aliceLegacy, bobLegacy];
     expect(visibleProjects(all, ctx(null)).map((p) => p.id)).toEqual([
-      "sample",
       "local",
     ]);
     expect(visibleProjects(all, ctx("user-a")).map((p) => p.id)).toEqual([
-      "sample",
       "local",
       "alice-repo",
     ]);
   });
 
-  it("falls back to sample when the active project is not visible", () => {
+  it("falls back to the first visible project when the active one is not", () => {
     const resolved = resolveActiveProject(
-      [sample, aliceLegacy, bobLegacy],
+      [local, aliceLegacy, bobLegacy],
       bobLegacy.id,
       ctx("user-a"),
     );
-    expect(resolved?.id).toBe("sample");
+    expect(resolved?.id).toBe("local");
   });
 });
 

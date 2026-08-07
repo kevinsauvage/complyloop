@@ -22,7 +22,7 @@ describe("runAssessment with runtime engine", () => {
       id: "proj-runtime",
       name: "Runtime",
       rootPath,
-      source: "local",
+      source: "github",
       createdAt: new Date().toISOString(),
       runtimeBaseUrl: "https://preview.example",
       runtimeRoutes: ["/"],

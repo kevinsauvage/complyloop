@@ -92,6 +92,19 @@ export default async function FindingsPage({
   const { page: pageRaw } = await searchParams;
   const page = parsePageParam(pageRaw);
   const { db, project } = await getWorkspace();
+  if (!project) {
+    return (
+      <>
+        <PageHeader
+          title="Findings"
+          description="Every failure with its reason, location, remediation state, and evidence."
+        />
+        <EmptyState title="No project connected">
+          <p>Connect a repository from the dashboard to see findings.</p>
+        </EmptyState>
+      </>
+    );
+  }
   const findings = findingsForProject(db.findings, project.id);
 
   const byStatus = (status: FindingStatus): Finding[] => {

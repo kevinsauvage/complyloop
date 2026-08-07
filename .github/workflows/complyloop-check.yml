@@ -15,7 +15,7 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - name: Fail on accessibility violations in fixtures/sample-shop
+      - name: Fail on accessibility violations in packages/check/testdata
         # Template for assessed apps: point -- at your app root instead.
-        run: npm run check -- fixtures/sample-shop
+        run: npm run check -- packages/check/testdata
         continue-on-error: true

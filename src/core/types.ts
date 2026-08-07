@@ -50,8 +50,8 @@ export interface Control {
   complianceWeight?: number;
 }
 
-/** Where the assessed tree comes from. */
-export type ProjectSource = "sample" | "local" | "git" | "github";
+/** Where the assessed tree comes from. GitHub-only for now. */
+export type ProjectSource = "github";
 
 /** Role within an organization (tenant). */
 export type OrgRole = "owner" | "admin" | "member" | "viewer";
@@ -96,16 +96,12 @@ export interface Project {
   /** Absolute path scanned and written by remediations. */
   rootPath: string;
   source: ProjectSource;
-  /**
-   * Original user input: absolute local path, or git remote URL.
-   * For `sample`, omitted. For `local`, usually equals `rootPath`.
-   * For `github`, the canonical https://github.com/org/repo URL.
-   */
+  /** Canonical https://github.com/org/repo URL. */
   sourceRef?: string;
   createdAt: string;
   /**
    * Organization (tenant) that owns this project. When set, access is via
-   * org membership RBAC. Sample / unsigned local demos may omit it.
+   * org membership RBAC.
    */
   orgId?: string;
   /**

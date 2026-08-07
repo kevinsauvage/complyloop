@@ -19,10 +19,7 @@ import {
   prioritizeFindings,
 } from "@/core/prioritization";
 import type { RequirementStatus } from "@/core/types";
-import {
-  resetProjectAction,
-  runAssessmentAction,
-} from "@/server/actions/assessment";
+import { runAssessmentAction } from "@/server/actions/assessment";
 import { projectCapabilities } from "@/server/project-capabilities";
 import {
   findingsForProject,
@@ -33,11 +30,41 @@ import { controlById, getWorkspace } from "@/server/workspace";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const { db, project, access, visibleProjects } = await getWorkspace();
-  const caps = projectCapabilities(project, access);
-  const hasConnectedProject = visibleProjects.some(
-    (candidate) => candidate.source !== "sample",
-  );
+  const { db, project, access, visibleProjects, activeOrgId } =
+    await getWorkspace();
+  const caps = projectCapabilities(project, access, activeOrgId);
+  const hasConnectedProject = visibleProjects.length > 0;
+
+  if (!project) {
+    return (
+      <>
+        <PageHeader
+          title="Dashboard"
+          description="Connect a repository to start the compliance loop."
+        />
+        <div className="mb-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Connect a project</CardTitle>
+              <CardDescription>
+                Link a GitHub repository to assess against RGAA/WCAG.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ConnectProjectPanel defaultOpen />
+            </CardContent>
+          </Card>
+        </div>
+        <EmptyState title="Connect a repository to get started" action={undefined}>
+          <p>
+            Connect a GitHub project above, then run an assessment to walk the
+            compliance loop.
+          </p>
+        </EmptyState>
+      </>
+    );
+  }
+
   const latestAssessment = db.assessments
     .filter((assessment) => assessment.projectId === project.id)
     .at(-1);
@@ -87,16 +114,6 @@ export default async function DashboardPage() {
         title="Dashboard"
         description={projectDescription(project, latestAssessment)}
       >
-        {project.source === "sample" && caps.canRemediate ? (
-          <StatefulActionForm
-            action={resetProjectAction}
-            submitLabel="Reset sample project"
-            pendingLabel="Resetting…"
-            variant="outline"
-            confirmTitle="Reset sample project?"
-            confirmMessage="Reset the sample project workspace to its original files? Unsaved local edits in the sample will be lost."
-          />
-        ) : null}
         {caps.canAssess ? assessAction : null}
       </PageHeader>
 
@@ -108,7 +125,7 @@ export default async function DashboardPage() {
             <CardHeader>
               <CardTitle>Connect a project</CardTitle>
               <CardDescription>
-                Link a GitHub repository or local path to assess against RGAA/WCAG.
+                Link a GitHub repository to assess against RGAA/WCAG.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -130,19 +147,7 @@ export default async function DashboardPage() {
         </EmptyState>
       ) : null}
 
-      {!latestAssessment && !hasConnectedProject ? (
-        <EmptyState
-          title="Connect a repository to get started"
-          action={undefined}
-        >
-          <p>
-            Connect a GitHub project above, then run an assessment to walk the
-            compliance loop.
-          </p>
-        </EmptyState>
-      ) : null}
-
-      {hasConnectedProject && project.source !== "sample" && caps.canConnect ? (
+      {hasConnectedProject && caps.canConnect ? (
         <div className="mb-6">
           <Card>
             <CardHeader>

@@ -45,7 +45,7 @@ export default async function FindingPage({
   );
   if (!resolved) notFound();
   const { finding, project } = resolved;
-  const caps = projectCapabilities(project, access);
+  const caps = projectCapabilities(project, access, project.orgId);
 
   const control = controlById(db, finding.controlId);
   const remediation = remediationForFinding(db, finding.id);

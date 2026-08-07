@@ -3,8 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
-import { ConnectError, isLikelyGitUrl } from "./connect-url";
-import { connectLocalPath, connectProjectInput } from "./connect-local";
+import type { Project } from "@/core/types";
+import { isLikelyGitUrl } from "./connect-url";
 import {
   connectedGitHubProjectsByFullName,
   disconnectGitHubRepo,
@@ -57,10 +57,28 @@ function makeProjectDir(files: Record<string, string>): string {
   return root;
 }
 
+function githubProject(
+  partial: Pick<Project, "id" | "name" | "rootPath"> &
+    Partial<Omit<Project, "id" | "name" | "rootPath" | "source">>,
+): Project {
+  return {
+    source: "github",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    github: {
+      fullName: `${partial.name}/repo`,
+      defaultBranch: "main",
+      private: false,
+    },
+    ...partial,
+  };
+}
+
 describe("deriveProjectName", () => {
-  it("uses the last path segment for local paths and git URLs", () => {
+  it("uses the last path segment for paths and git URLs", () => {
     expect(deriveProjectName("/Users/me/apps/my-shop")).toBe("my-shop");
-    expect(deriveProjectName("https://github.com/acme/my-shop.git")).toBe("my-shop");
+    expect(deriveProjectName("https://github.com/acme/my-shop.git")).toBe(
+      "my-shop",
+    );
     expect(deriveProjectName("git@github.com:acme/my-shop.git")).toBe("my-shop");
   });
 
@@ -76,7 +94,6 @@ describe("unique helpers", () => {
     fs.mkdirSync(sibling, { recursive: true });
     tempDirs.push(sibling);
 
-    // uniqueWorkspacePath joins under workspacesDir — seed a collision there.
     const name = `uniq-${crypto.randomUUID().slice(0, 8)}`;
     const first = uniqueWorkspacePath(name);
     fs.mkdirSync(first, { recursive: true });
@@ -85,13 +102,9 @@ describe("unique helpers", () => {
     expect(second).toBe(`${first}-2`);
 
     const db = emptyDb();
-    db.projects.push({
-      id: "p1",
-      name: "shop",
-      rootPath: "/tmp/a",
-      source: "sample",
-      createdAt: "2026-01-01T00:00:00.000Z",
-    });
+    db.projects.push(
+      githubProject({ id: "p1", name: "shop", rootPath: "/tmp/a" }),
+    );
     expect(uniqueProjectName(db, "shop")).toBe("shop-2");
     expect(uniqueProjectName(db, "fresh")).toBe("fresh");
   });
@@ -156,23 +169,6 @@ describe("findConnectedGitHubProject", () => {
   });
 });
 
-describe("connectProjectInput", () => {
-  it("routes local paths to connectLocalPath", async () => {
-    const root = makeProjectDir({
-      "App.tsx": `export const App = () => null;\n`,
-    });
-    const db = emptyDb();
-    const project = await connectProjectInput(db, root);
-    expect(project.source).toBe("local");
-  });
-
-  it("rejects empty input", async () => {
-    await expect(connectProjectInput(emptyDb(), "  ")).rejects.toThrow(
-      ConnectError,
-    );
-  });
-});
-
 describe("isLikelyGitUrl", () => {
   it("recognizes common git remotes and rejects bare paths", () => {
     expect(isLikelyGitUrl("https://github.com/acme/repo")).toBe(true);
@@ -182,62 +178,39 @@ describe("isLikelyGitUrl", () => {
   });
 });
 
-describe("connectLocalPath", () => {
-  it("connects an assessable directory and makes it active", () => {
-    const root = makeProjectDir({
-      "src/App.tsx": `export const App = () => <img src="/x.png" />;\n`,
-    });
-    const db = emptyDb();
-    const project = connectLocalPath(db, root);
-
-    expect(project.source).toBe("local");
-    expect(project.rootPath).toBe(path.resolve(root));
-    expect(project.sourceRef).toBe(path.resolve(root));
-    expect(db.activeProjectId).toBe(project.id);
-    expect(db.evidence.some((record) => record.kind === "project_connected")).toBe(
-      true,
-    );
-  });
-
-  it("reuses an existing connection to the same path", () => {
-    const root = makeProjectDir({
-      "page.tsx": `export default () => <main />;`,
-    });
-    const db = emptyDb();
-    const first = connectLocalPath(db, root);
-    const second = connectLocalPath(db, root);
-    expect(second.id).toBe(first.id);
-    expect(db.projects).toHaveLength(1);
-  });
-
-  it("rejects missing paths and directories without source files", () => {
-    const db = emptyDb();
-    expect(() => connectLocalPath(db, "/no/such/path-xyz")).toThrow(ConnectError);
-
-    const emptyDir = makeProjectDir({ "README.md": "# empty\n" });
-    expect(() => connectLocalPath(db, emptyDir)).toThrow(/No .* source files/);
-  });
-});
-
 describe("setActiveProject", () => {
   it("switches the active project", () => {
-    const a = makeProjectDir({ "a.tsx": `export const A = () => null;` });
-    const b = makeProjectDir({ "b.tsx": `export const B = () => null;` });
     const db = emptyDb();
-    const projectA = connectLocalPath(db, a);
-    const projectB = connectLocalPath(db, b);
-    expect(db.activeProjectId).toBe(projectB.id);
+    const projectA = githubProject({
+      id: "a",
+      name: "a",
+      rootPath: "/tmp/a",
+      ownerUserId: "user-a",
+    });
+    const projectB = githubProject({
+      id: "b",
+      name: "b",
+      rootPath: "/tmp/b",
+      ownerUserId: "user-a",
+    });
+    db.projects.push(projectA, projectB);
+    db.activeProjectId = projectB.id;
 
-    setActiveProject(db, projectA.id);
+    setActiveProject(db, projectA.id, "user-a");
     expect(db.activeProjectId).toBe(projectA.id);
   });
 
   it("rejects unknown and inaccessible projects", () => {
-    const root = makeProjectDir({ "a.tsx": `export const A = () => null;` });
     const db = emptyDb();
-    const connected = connectLocalPath(db, root);
-    connected.orgId = "org-secret";
-    connected.ownerUserId = "owner-a";
+    const connected = githubProject({
+      id: "gh-1",
+      name: "shop",
+      rootPath: "/tmp/shop",
+      orgId: "org-secret",
+      ownerUserId: "owner-a",
+    });
+    db.projects.push(connected);
+    db.activeProjectId = connected.id;
 
     expect(() => setActiveProject(db, "missing")).toThrow(/Unknown project/);
     expect(() => setActiveProject(db, connected.id, "other-user")).toThrow(
@@ -248,9 +221,6 @@ describe("setActiveProject", () => {
 
 describe("disconnectGitHubRepo", () => {
   it("removes the project, workspace clone, and records evidence", () => {
-    const sampleRoot = makeProjectDir({
-      "sample.tsx": `export const S = () => null;`,
-    });
     const cloneRoot = path.join(
       workspacesDir(),
       `disconnect-test-${crypto.randomUUID()}`,
@@ -263,13 +233,6 @@ describe("disconnectGitHubRepo", () => {
     tempDirs.push(cloneRoot);
 
     const db = emptyDb();
-    db.projects.push({
-      id: "sample",
-      name: "sample-shop",
-      rootPath: sampleRoot,
-      source: "sample",
-      createdAt: new Date().toISOString(),
-    });
     db.projects.push({
       id: "gh-1",
       name: "shop",
@@ -311,8 +274,8 @@ describe("disconnectGitHubRepo", () => {
 
     disconnectGitHubRepo(db, "gh-1", "user-a");
 
-    expect(db.projects.map((project) => project.id)).toEqual(["sample"]);
-    expect(db.activeProjectId).toBe("sample");
+    expect(db.projects).toHaveLength(0);
+    expect(db.activeProjectId).toBeNull();
     expect(db.findings).toHaveLength(0);
     expect(fs.existsSync(cloneRoot)).toBe(false);
     expect(

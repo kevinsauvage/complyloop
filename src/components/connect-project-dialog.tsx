@@ -30,7 +30,7 @@ export function ConnectProjectDialog({
         <DialogHeader>
           <DialogTitle>{triggerLabel}</DialogTitle>
           <DialogDescription>
-            Connect another GitHub repository or local path to this organization.
+            Connect another GitHub repository to this organization.
           </DialogDescription>
         </DialogHeader>
         {children}

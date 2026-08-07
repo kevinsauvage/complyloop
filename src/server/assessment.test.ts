@@ -22,7 +22,7 @@ beforeEach(() => {
     id: "p1",
     name: "test-project",
     rootPath,
-    source: "local",
+    source: "github",
     sourceRef: rootPath,
     createdAt: new Date().toISOString(),
   };

@@ -19,11 +19,10 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). A sample project
-(`fixtures/sample-shop`, copied to a disposable workspace under `.data/`) is
-connected automatically — no sign-in required for the demo.
+Open [http://localhost:3000](http://localhost:3000), sign in with GitHub, and
+connect a repository.
 
-### Connect a GitHub repository (recommended)
+### Connect a GitHub repository
 
 1. Create a GitHub OAuth App under
    [Developer settings](https://github.com/settings/developers):
@@ -34,9 +33,8 @@ connected automatically — no sign-in required for the demo.
 3. Restart `npm run dev`, click **Sign in with GitHub**, then **Connect** a
    repository from the dashboard picker.
 
-Without those env vars the sample project and **Advanced: local path or git
-URL** still work. Local paths are assessed in place; git/GitHub clones land in
-`.data/workspaces/`.
+Without those env vars the repository picker stays unavailable — set them to
+connect GitHub projects. Clones land in `.data/workspaces/`.
 
 Optional continuous monitoring: set `GITHUB_WEBHOOK_SECRET` and point a GitHub
 repo webhook (push + pull_request) at
@@ -74,8 +72,8 @@ Then click **Run assessment** and walk the loop:
    then marks the fix verified.
 5. **Evidence** — every step lands in an append-only evidence log, exportable
    as JSON, Markdown compliance report, or printable HTML.
-6. **Monitor** — re-assessments detect regressions (try **Reset sample
-   project**, then run the assessment again).
+6. **Monitor** — re-assessments detect regressions when the connected tree
+   changes.
 
 On each finding you can also copy a **unified diff + PR body**, mark work
 **implemented outside** the platform, **verify manually** with a note, and on
@@ -108,7 +106,6 @@ src/ai/         AI explainer (optional, provenance-tagged, never sets statuses)
 src/server/     JSON/Postgres store, seeding, assessment service, server actions
 src/app/        Next.js App Router UI
 packages/check  Customer-facing CI bin (@complyloop/check)
-fixtures/       Sample project with deliberate violations (never linted)
 ```
 
 See [`docs/ai/architecture.md`](./docs/ai/architecture.md) for the full

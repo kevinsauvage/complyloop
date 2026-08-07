@@ -4,12 +4,15 @@ import type { Db } from "./types";
 import type {
   Alert,
   Project,
+  ProjectSource,
   Remediation,
   RemediationSuggestion,
 } from "@/core/types";
 
+type LegacyProjectSource = ProjectSource | "sample" | "local" | "git";
+
 type StoredProject = Omit<Project, "source"> & {
-  source?: Project["source"];
+  source?: LegacyProjectSource;
 };
 
 type StoredSuggestion = Omit<RemediationSuggestion, "provenance"> & {
@@ -54,37 +57,39 @@ export function emptyDb(): Db {
   };
 }
 
+function isGitHubProject(project: StoredProject): boolean {
+  return project.source === "github";
+}
+
 /** Normalizes records written before `source` / `activeProjectId` / orgs existed. */
 export function migrateDb(raw: StoredDb): Db {
-  const projects: Project[] = raw.projects.map((project) => {
-    if (project.source) {
-      return { ...project, source: project.source };
-    }
-    const isSample =
-      project.name === "sample-shop" ||
-      project.rootPath.includes(`${path.sep}workspaces${path.sep}sample-shop`);
-    return {
-      ...project,
-      source: isSample ? "sample" : "local",
-      sourceRef: isSample ? undefined : project.rootPath,
-    };
-  });
+  const projects: Project[] = raw.projects
+    .filter((project) => isGitHubProject(project))
+    .map((project) => ({ ...project, source: "github" as const }));
+
+  const projectIds = new Set(projects.map((project) => project.id));
+  const findings = raw.findings.filter((finding) =>
+    projectIds.has(finding.projectId),
+  );
+  const findingIds = new Set(findings.map((finding) => finding.id));
+
   const activeProjectId =
-    raw.activeProjectId &&
-    projects.some((project) => project.id === raw.activeProjectId)
+    raw.activeProjectId && projectIds.has(raw.activeProjectId)
       ? raw.activeProjectId
       : (projects[0]?.id ?? null);
 
-  const remediations: Remediation[] = raw.remediations.map((remediation) => {
-    if (!remediation.suggestion) {
-      return { ...remediation, suggestion: null };
-    }
-    const suggestion: RemediationSuggestion = {
-      ...remediation.suggestion,
-      provenance: remediation.suggestion.provenance ?? "deterministic",
-    };
-    return { ...remediation, suggestion };
-  });
+  const remediations: Remediation[] = raw.remediations
+    .filter((remediation) => findingIds.has(remediation.findingId))
+    .map((remediation) => {
+      if (!remediation.suggestion) {
+        return { ...remediation, suggestion: null };
+      }
+      const suggestion: RemediationSuggestion = {
+        ...remediation.suggestion,
+        provenance: remediation.suggestion.provenance ?? "deterministic",
+      };
+      return { ...remediation, suggestion };
+    });
 
   return {
     frameworks: raw.frameworks,
@@ -93,12 +98,18 @@ export function migrateDb(raw: StoredDb): Db {
     memberships: raw.memberships ?? [],
     projects,
     activeProjectId,
-    requirements: raw.requirements,
-    assessments: raw.assessments,
-    findings: raw.findings,
+    requirements: raw.requirements.filter((requirement) =>
+      projectIds.has(requirement.projectId),
+    ),
+    assessments: raw.assessments.filter((assessment) =>
+      projectIds.has(assessment.projectId),
+    ),
+    findings,
     remediations,
     evidence: raw.evidence,
-    alerts: raw.alerts ?? [],
+    alerts: (raw.alerts ?? []).filter((alert) =>
+      projectIds.has(alert.projectId),
+    ),
   };
 }
 

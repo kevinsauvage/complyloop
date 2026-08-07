@@ -7,8 +7,21 @@ import { getWorkspace } from "@/server/workspace";
 export const dynamic = "force-dynamic";
 
 export default async function RequirementsPage() {
-  const { db, project, access } = await getWorkspace();
-  const caps = projectCapabilities(project, access);
+  const { db, project, access, activeOrgId } = await getWorkspace();
+  const caps = projectCapabilities(project, access, activeOrgId);
+  if (!project) {
+    return (
+      <>
+        <PageHeader
+          title="Requirements"
+          description="Connect a repository to bring in and scope controls."
+        />
+        <EmptyState title="No project connected">
+          <p>Connect a repository from the dashboard to manage requirements.</p>
+        </EmptyState>
+      </>
+    );
+  }
   const frameworks = db.frameworks;
   const requirements = db.requirements.filter(
     (requirement) => requirement.projectId === project.id,
