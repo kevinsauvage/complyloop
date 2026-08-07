@@ -127,7 +127,7 @@ function isBlockedIpv6(host: string): boolean {
   return false;
 }
 
-export interface ConnectAuthorizationInput {
+interface ConnectAuthorizationInput {
   userId: string | null;
   activeOrgId: string | null;
   memberships: ReadonlyArray<OrgMembership>;

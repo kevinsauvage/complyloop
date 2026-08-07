@@ -6,11 +6,12 @@ import { addEvidence, workspacesDir, type Db } from "./db";
 import { createGit } from "./git";
 import { defaultOrgIdForUser } from "./orgs";
 import { ConnectError } from "./connect-url";
-import { resolveActiveProject } from "./project-visibility";
-import { accessForUser } from "./connect-active";
+import { accessFromStore, resolveActiveProject } from "./project-visibility";
+import { reportWarning } from "./observability";
 import {
   addConnectedProject,
-  assertAssessableRoot,
+  assertAssessableOrRemove,
+  cloneShallow,
   deriveProjectName,
   uniqueProjectName,
   uniqueWorkspacePath,
@@ -22,9 +23,8 @@ export function githubCloneUrl(fullName: string, accessToken: string): string {
   return `https://x-access-token:${encoded}@github.com/${fullName}.git`;
 }
 
-export interface ConnectGitHubRepoInput {
+interface ConnectGitHubRepoInput {
   fullName: string;
-  cloneUrl: string;
   defaultBranch: string;
   private: boolean;
   ownerUserId: string;
@@ -62,17 +62,7 @@ export async function connectGitHubRepo(
 
   const name = uniqueProjectName(db, deriveProjectName(fullName));
   const rootPath = uniqueWorkspacePath(name);
-  fs.mkdirSync(workspacesDir(), { recursive: true });
-
-  const authenticatedUrl = githubCloneUrl(fullName, input.accessToken);
-
-  try {
-    await createGit().clone(authenticatedUrl, rootPath, ["--depth", "1"]);
-  } catch (error) {
-    fs.rmSync(rootPath, { recursive: true, force: true });
-    const detail = error instanceof Error ? error.message : "unknown error";
-    throw new ConnectError(`git clone failed: ${detail.trim().slice(0, 400)}`);
-  }
+  await cloneShallow(githubCloneUrl(fullName, input.accessToken), rootPath);
 
   // Strip embedded token from the remote URL stored in the clone.
   try {
@@ -81,16 +71,15 @@ export async function connectGitHubRepo(
       "origin",
       sourceRef,
     ]);
-  } catch {
-    /* non-fatal — assessment does not need origin */
+  } catch (error) {
+    reportWarning("Could not rewrite git remote origin after clone", {
+      code: "git_remote_set_url_failed",
+      fullName,
+      detail: error instanceof Error ? error.message : String(error),
+    });
   }
 
-  try {
-    assertAssessableRoot(rootPath);
-  } catch (error) {
-    fs.rmSync(rootPath, { recursive: true, force: true });
-    throw error;
-  }
+  assertAssessableOrRemove(rootPath);
 
   const github: ProjectGitHubMeta = {
     fullName,
@@ -190,7 +179,7 @@ export function disconnectGitHubRepo(
   const next = resolveActiveProject(
     db.projects,
     db.activeProjectId,
-    accessForUser(db, userId),
+    accessFromStore(db, userId),
   );
   db.activeProjectId = next?.id ?? null;
 }

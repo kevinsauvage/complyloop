@@ -1,14 +1,28 @@
 "use server";
 
-import type { RequirementExceptionReason } from "@/core/types";
+import type { Requirement, RequirementExceptionReason } from "@/core/types";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
 import { refreshRequirementStatuses } from "../assessment-status";
-import { addEvidence } from "../db";
+import { addEvidence, type Db } from "../db";
 import { controlById, withWorkspaceWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
+
+function requireRequirement(
+  db: Db,
+  projectId: string,
+  requirementId: string,
+): Requirement {
+  const requirement = db.requirements.find(
+    (candidate) => candidate.id === requirementId,
+  );
+  if (!requirement || requirement.projectId !== projectId) {
+    throw new Error("Unknown requirement.");
+  }
+  return requirement;
+}
 
 function isRequirementExceptionReason(
   value: unknown,
@@ -30,12 +44,11 @@ export async function markRequirementExceptionAction(
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
-      const requirement = db.requirements.find(
-        (candidate) => candidate.id === requirementId,
+      const requirement = requireRequirement(
+        db,
+        project.id,
+        requirementId,
       );
-      if (!requirement || requirement.projectId !== project.id) {
-        throw new Error("Unknown requirement.");
-      }
 
       const reason = formData.get("reason");
       const noteRaw = formData.get("note");
@@ -112,12 +125,11 @@ export async function markRequirementPassedAction(
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
-      const requirement = db.requirements.find(
-        (candidate) => candidate.id === requirementId,
+      const requirement = requireRequirement(
+        db,
+        project.id,
+        requirementId,
       );
-      if (!requirement || requirement.projectId !== project.id) {
-        throw new Error("Unknown requirement.");
-      }
 
       const control = controlById(db, requirement.controlId);
       if (control.checkId !== null) {
@@ -179,12 +191,11 @@ export async function clearRequirementHumanPassAction(
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
-      const requirement = db.requirements.find(
-        (candidate) => candidate.id === requirementId,
+      const requirement = requireRequirement(
+        db,
+        project.id,
+        requirementId,
       );
-      if (!requirement || requirement.projectId !== project.id) {
-        throw new Error("Unknown requirement.");
-      }
       if (!requirement.humanPass) {
         throw new Error("This requirement has no human pass to clear.");
       }
@@ -220,12 +231,11 @@ export async function clearRequirementExceptionAction(
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
-      const requirement = db.requirements.find(
-        (candidate) => candidate.id === requirementId,
+      const requirement = requireRequirement(
+        db,
+        project.id,
+        requirementId,
       );
-      if (!requirement || requirement.projectId !== project.id) {
-        throw new Error("Unknown requirement.");
-      }
       if (!requirement.exception) {
         throw new Error("This requirement has no exception to clear.");
       }

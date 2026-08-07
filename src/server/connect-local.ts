@@ -1,13 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Project } from "@/core/types";
-import { workspacesDir, type Db } from "./db";
-import { createGit } from "./git";
+import { type Db } from "./db";
 import { assertSafeGitRemoteUrl, isLocalProjectConnectAllowed } from "./connect-policy";
 import { ConnectError, isLikelyGitUrl } from "./connect-url";
 import {
   addConnectedProject,
+  assertAssessableOrRemove,
   assertAssessableRoot,
+  cloneShallow,
   deriveProjectName,
   uniqueProjectName,
   uniqueWorkspacePath,
@@ -74,22 +75,8 @@ export async function connectGitUrl(db: Db, rawUrl: string): Promise<Project> {
 
   const name = uniqueProjectName(db, deriveProjectName(url));
   const rootPath = uniqueWorkspacePath(name);
-  fs.mkdirSync(workspacesDir(), { recursive: true });
-
-  try {
-    await createGit().clone(url, rootPath, ["--depth", "1"]);
-  } catch (error) {
-    fs.rmSync(rootPath, { recursive: true, force: true });
-    const detail = error instanceof Error ? error.message : "unknown error";
-    throw new ConnectError(`git clone failed: ${detail.trim().slice(0, 400)}`);
-  }
-
-  try {
-    assertAssessableRoot(rootPath);
-  } catch (error) {
-    fs.rmSync(rootPath, { recursive: true, force: true });
-    throw error;
-  }
+  await cloneShallow(url, rootPath);
+  assertAssessableOrRemove(rootPath);
 
   return addConnectedProject(
     db,
@@ -121,4 +108,3 @@ export async function connectProjectInput(
     ? connectGitUrl(db, trimmed)
     : connectLocalPath(db, trimmed);
 }
-

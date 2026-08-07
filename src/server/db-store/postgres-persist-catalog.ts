@@ -8,37 +8,37 @@ import {
   organizations,
   projects,
 } from "./schema";
+import { syncPayloadTable } from "./postgres-sync";
 
 export async function persistCatalogToPostgres(
   tx: DrizzleDb,
   db: Db,
 ): Promise<void> {
-    // Frameworks
-    if (db.frameworks.length === 0) {
-      await tx.delete(frameworks);
-    } else {
-      await tx
+  await syncPayloadTable({
+    length: db.frameworks.length,
+    deleteAll: () => tx.delete(frameworks),
+    upsert: () =>
+      tx
         .insert(frameworks)
-        .values(
-          db.frameworks.map((item) => ({ id: item.id, payload: item })),
-        )
+        .values(db.frameworks.map((item) => ({ id: item.id, payload: item })))
         .onConflictDoUpdate({
           target: frameworks.id,
           set: { payload: sql`excluded.payload` },
-        });
-      await tx.delete(frameworks).where(
+        }),
+    prune: () =>
+      tx.delete(frameworks).where(
         notInArray(
           frameworks.id,
           db.frameworks.map((item) => item.id),
         ),
-      );
-    }
+      ),
+  });
 
-    // Controls
-    if (db.controls.length === 0) {
-      await tx.delete(controls);
-    } else {
-      await tx
+  await syncPayloadTable({
+    length: db.controls.length,
+    deleteAll: () => tx.delete(controls),
+    upsert: () =>
+      tx
         .insert(controls)
         .values(
           db.controls.map((item) => ({
@@ -53,20 +53,21 @@ export async function persistCatalogToPostgres(
             frameworkId: sql`excluded.framework_id`,
             payload: sql`excluded.payload`,
           },
-        });
-      await tx.delete(controls).where(
+        }),
+    prune: () =>
+      tx.delete(controls).where(
         notInArray(
           controls.id,
           db.controls.map((item) => item.id),
         ),
-      );
-    }
+      ),
+  });
 
-    // Organizations
-    if (db.organizations.length === 0) {
-      await tx.delete(organizations);
-    } else {
-      await tx
+  await syncPayloadTable({
+    length: db.organizations.length,
+    deleteAll: () => tx.delete(organizations),
+    upsert: () =>
+      tx
         .insert(organizations)
         .values(
           db.organizations.map((item) => ({
@@ -81,20 +82,21 @@ export async function persistCatalogToPostgres(
             slug: sql`excluded.slug`,
             payload: sql`excluded.payload`,
           },
-        });
-      await tx.delete(organizations).where(
+        }),
+    prune: () =>
+      tx.delete(organizations).where(
         notInArray(
           organizations.id,
           db.organizations.map((item) => item.id),
         ),
-      );
-    }
+      ),
+  });
 
-    // Memberships
-    if (db.memberships.length === 0) {
-      await tx.delete(memberships);
-    } else {
-      await tx
+  await syncPayloadTable({
+    length: db.memberships.length,
+    deleteAll: () => tx.delete(memberships),
+    upsert: () =>
+      tx
         .insert(memberships)
         .values(
           db.memberships.map((item) => ({
@@ -115,20 +117,21 @@ export async function persistCatalogToPostgres(
             role: sql`excluded.role`,
             payload: sql`excluded.payload`,
           },
-        });
-      await tx.delete(memberships).where(
+        }),
+    prune: () =>
+      tx.delete(memberships).where(
         notInArray(
           memberships.id,
           db.memberships.map((item) => item.id),
         ),
-      );
-    }
+      ),
+  });
 
-    // Projects
-    if (db.projects.length === 0) {
-      await tx.delete(projects);
-    } else {
-      await tx
+  await syncPayloadTable({
+    length: db.projects.length,
+    deleteAll: () => tx.delete(projects),
+    upsert: () =>
+      tx
         .insert(projects)
         .values(
           db.projects.map((item) => ({
@@ -147,12 +150,13 @@ export async function persistCatalogToPostgres(
             orgId: sql`excluded.org_id`,
             payload: sql`excluded.payload`,
           },
-        });
-      await tx.delete(projects).where(
+        }),
+    prune: () =>
+      tx.delete(projects).where(
         notInArray(
           projects.id,
           db.projects.map((item) => item.id),
         ),
-      );
-    }
+      ),
+  });
 }

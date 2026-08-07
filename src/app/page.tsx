@@ -1,3 +1,4 @@
+import { primaryButton, secondaryButton } from "@/components/action-button-styles";
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
 import { DashboardActivitySections } from "@/components/dashboard/dashboard-activity-sections";
 import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-card";
@@ -16,6 +17,10 @@ import {
   runAssessmentAction,
 } from "@/server/actions/assessment";
 import { projectCapabilities } from "@/server/project-capabilities";
+import {
+  findingsForProject,
+  requirementsForProject,
+} from "@/server/project-visibility";
 import { controlById, getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
@@ -29,12 +34,8 @@ export default async function DashboardPage() {
   const latestAssessment = db.assessments
     .filter((assessment) => assessment.projectId === project.id)
     .at(-1);
-  const requirements = db.requirements.filter(
-    (requirement) => requirement.projectId === project.id,
-  );
-  const projectFindings = db.findings.filter(
-    (finding) => finding.projectId === project.id,
-  );
+  const requirements = requirementsForProject(db.requirements, project.id);
+  const projectFindings = findingsForProject(db.findings, project.id);
   const openFindings = prioritizeFindings(projectFindings, db.controls);
   const unreadAlerts = db.alerts
     .filter((alert) => alert.projectId === project.id && !alert.read)
@@ -72,7 +73,7 @@ export default async function DashboardPage() {
             action={resetProjectAction}
             submitLabel="Reset sample project"
             pendingLabel="Resetting…"
-            submitClassName="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            submitClassName={secondaryButton}
             confirmMessage="Reset the sample project workspace to its original files? Unsaved local edits in the sample will be lost."
           />
         ) : null}
@@ -81,7 +82,7 @@ export default async function DashboardPage() {
             action={runAssessmentAction}
             submitLabel="Run assessment"
             pendingLabel="Assessing…"
-            submitClassName="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+            submitClassName={primaryButton}
           />
         ) : (
           <PermissionNotice>

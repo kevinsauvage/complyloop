@@ -100,7 +100,9 @@ export function runAssessment(db: Db, projectId: string): Assessment {
         files: changes.map((change) => change.filePath),
         authors: [
           ...new Set(
-            changes.map((change) => change.author).filter(Boolean) as string[],
+            changes
+              .map((change) => change.author)
+              .filter((author): author is string => Boolean(author)),
           ),
         ],
         previousGitHead: previous?.snapshot?.gitHead,

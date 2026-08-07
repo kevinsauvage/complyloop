@@ -1,8 +1,14 @@
 import { reportError } from "./observability";
+import { ConnectError } from "./connect-url";
 
 export type ActionMessageState = {
   error: string | null;
   message: string | null;
+};
+
+/** Shared shape for forms that only surface an error string. */
+export type FormErrorState = {
+  error: string | null;
 };
 
 export const emptyActionMessageState: ActionMessageState = {
@@ -32,4 +38,12 @@ export async function runActionMessage(
   } catch (error) {
     return actionErrorState(error);
   }
+}
+
+/** Maps ConnectError to form state; rethrows unexpected errors. */
+export function connectFormError(error: unknown): FormErrorState {
+  if (error instanceof ConnectError) {
+    return { error: error.message };
+  }
+  throw error;
 }

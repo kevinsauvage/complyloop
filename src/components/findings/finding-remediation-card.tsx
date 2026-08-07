@@ -7,7 +7,7 @@ import { remediationStatusLabel } from "@/core/labels";
 import type { Finding, Remediation, RemediationStatus } from "@/core/types";
 import { generateAiRemediationAction } from "@/server/actions/remediation-ai";
 import { FindingActionPanel } from "./finding-action-panel";
-import { secondaryButton } from "./finding-styles";
+import { secondaryButtonDisabled } from "@/components/action-button-styles";
 
 const LIFECYCLE: RemediationStatus[] = [
   "detected",
@@ -84,7 +84,7 @@ export function FindingRemediationCard({
           <button
             type="submit"
             disabled={!aiAvailable}
-            className={`${secondaryButton} disabled:cursor-not-allowed disabled:opacity-50`}
+            className={secondaryButtonDisabled}
           >
             {remediation.suggestion
               ? "Refine with AI remediation"

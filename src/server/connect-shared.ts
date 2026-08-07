@@ -3,6 +3,7 @@ import path from "node:path";
 import { hasSourceFiles } from "@/analysis/source-files";
 import type { Project } from "@/core/types";
 import { addEvidence, workspacesDir, type Db } from "./db";
+import { createGit } from "./git";
 import { ConnectError } from "./connect-url";
 
 /** Turns a path or git URL into a short, filesystem-safe project name. */
@@ -76,3 +77,27 @@ export function addConnectedProject(
   return project;
 }
 
+/** Shallow-clones into `rootPath`; removes the directory on clone failure. */
+export async function cloneShallow(
+  cloneUrl: string,
+  rootPath: string,
+): Promise<void> {
+  fs.mkdirSync(workspacesDir(), { recursive: true });
+  try {
+    await createGit().clone(cloneUrl, rootPath, ["--depth", "1"]);
+  } catch (error) {
+    fs.rmSync(rootPath, { recursive: true, force: true });
+    const detail = error instanceof Error ? error.message : "unknown error";
+    throw new ConnectError(`git clone failed: ${detail.trim().slice(0, 400)}`);
+  }
+}
+
+/** Asserts the clone is assessable; removes the directory on failure. */
+export function assertAssessableOrRemove(rootPath: string): void {
+  try {
+    assertAssessableRoot(rootPath);
+  } catch (error) {
+    fs.rmSync(rootPath, { recursive: true, force: true });
+    throw error;
+  }
+}

@@ -1,7 +1,7 @@
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card } from "@/components/ui";
 import { dismissFindingAction } from "@/server/actions/remediation-dismiss";
-import { secondaryButton } from "./finding-styles";
+import { secondaryButton } from "@/components/action-button-styles";
 
 export function FindingDismissCard({ findingId }: { findingId: string }) {
   return (

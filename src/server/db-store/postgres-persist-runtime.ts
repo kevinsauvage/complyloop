@@ -12,16 +12,17 @@ import {
 } from "./schema";
 import { evidenceRecordsToInsert, evidenceToRow } from "./postgres-evidence";
 import { ACTIVE_PROJECT_KEY } from "./postgres-meta";
+import { syncPayloadTable } from "./postgres-sync";
 
 export async function persistRuntimeToPostgres(
   tx: DrizzleDb,
   db: Db,
 ): Promise<void> {
-    // Requirements
-    if (db.requirements.length === 0) {
-      await tx.delete(requirements);
-    } else {
-      await tx
+  await syncPayloadTable({
+    length: db.requirements.length,
+    deleteAll: () => tx.delete(requirements),
+    upsert: () =>
+      tx
         .insert(requirements)
         .values(
           db.requirements.map((item) => ({
@@ -38,20 +39,21 @@ export async function persistRuntimeToPostgres(
             controlId: sql`excluded.control_id`,
             payload: sql`excluded.payload`,
           },
-        });
-      await tx.delete(requirements).where(
+        }),
+    prune: () =>
+      tx.delete(requirements).where(
         notInArray(
           requirements.id,
           db.requirements.map((item) => item.id),
         ),
-      );
-    }
+      ),
+  });
 
-    // Assessments
-    if (db.assessments.length === 0) {
-      await tx.delete(assessments);
-    } else {
-      await tx
+  await syncPayloadTable({
+    length: db.assessments.length,
+    deleteAll: () => tx.delete(assessments),
+    upsert: () =>
+      tx
         .insert(assessments)
         .values(
           db.assessments.map((item) => ({
@@ -66,20 +68,21 @@ export async function persistRuntimeToPostgres(
             projectId: sql`excluded.project_id`,
             payload: sql`excluded.payload`,
           },
-        });
-      await tx.delete(assessments).where(
+        }),
+    prune: () =>
+      tx.delete(assessments).where(
         notInArray(
           assessments.id,
           db.assessments.map((item) => item.id),
         ),
-      );
-    }
+      ),
+  });
 
-    // Findings
-    if (db.findings.length === 0) {
-      await tx.delete(findings);
-    } else {
-      await tx
+  await syncPayloadTable({
+    length: db.findings.length,
+    deleteAll: () => tx.delete(findings),
+    upsert: () =>
+      tx
         .insert(findings)
         .values(
           db.findings.map((item) => ({
@@ -100,20 +103,21 @@ export async function persistRuntimeToPostgres(
             status: sql`excluded.status`,
             payload: sql`excluded.payload`,
           },
-        });
-      await tx.delete(findings).where(
+        }),
+    prune: () =>
+      tx.delete(findings).where(
         notInArray(
           findings.id,
           db.findings.map((item) => item.id),
         ),
-      );
-    }
+      ),
+  });
 
-    // Remediations
-    if (db.remediations.length === 0) {
-      await tx.delete(remediations);
-    } else {
-      await tx
+  await syncPayloadTable({
+    length: db.remediations.length,
+    deleteAll: () => tx.delete(remediations),
+    upsert: () =>
+      tx
         .insert(remediations)
         .values(
           db.remediations.map((item) => ({
@@ -130,20 +134,21 @@ export async function persistRuntimeToPostgres(
             status: sql`excluded.status`,
             payload: sql`excluded.payload`,
           },
-        });
-      await tx.delete(remediations).where(
+        }),
+    prune: () =>
+      tx.delete(remediations).where(
         notInArray(
           remediations.id,
           db.remediations.map((item) => item.id),
         ),
-      );
-    }
+      ),
+  });
 
-    // Alerts
-    if (db.alerts.length === 0) {
-      await tx.delete(alerts);
-    } else {
-      await tx
+  await syncPayloadTable({
+    length: db.alerts.length,
+    deleteAll: () => tx.delete(alerts),
+    upsert: () =>
+      tx
         .insert(alerts)
         .values(
           db.alerts.map((item) => ({
@@ -160,41 +165,42 @@ export async function persistRuntimeToPostgres(
             read: sql`excluded.read`,
             payload: sql`excluded.payload`,
           },
-        });
-      await tx.delete(alerts).where(
+        }),
+    prune: () =>
+      tx.delete(alerts).where(
         notInArray(
           alerts.id,
           db.alerts.map((item) => item.id),
         ),
+      ),
+  });
+
+  // Evidence: append-only — insert missing ids, never update or delete.
+  if (db.evidence.length > 0) {
+    const existing = await tx
+      .select({ id: evidence.id })
+      .from(evidence)
+      .where(
+        inArray(
+          evidence.id,
+          db.evidence.map((record) => record.id),
+        ),
       );
+    const existingIds = new Set(existing.map((row) => row.id));
+    const fresh = evidenceRecordsToInsert(db.evidence, existingIds);
+    if (fresh.length > 0) {
+      await tx.insert(evidence).values(fresh.map(evidenceToRow));
     }
+  }
 
-    // Evidence: append-only — insert missing ids, never update or delete.
-    if (db.evidence.length > 0) {
-      const existing = await tx
-        .select({ id: evidence.id })
-        .from(evidence)
-        .where(
-          inArray(
-            evidence.id,
-            db.evidence.map((record) => record.id),
-          ),
-        );
-      const existingIds = new Set(existing.map((row) => row.id));
-      const fresh = evidenceRecordsToInsert(db.evidence, existingIds);
-      if (fresh.length > 0) {
-        await tx.insert(evidence).values(fresh.map(evidenceToRow));
-      }
-    }
-
-    await tx
-      .insert(appMeta)
-      .values({
-        key: ACTIVE_PROJECT_KEY,
-        value: db.activeProjectId,
-      })
-      .onConflictDoUpdate({
-        target: appMeta.key,
-        set: { value: sql`excluded.value` },
-      });
+  await tx
+    .insert(appMeta)
+    .values({
+      key: ACTIVE_PROJECT_KEY,
+      value: db.activeProjectId,
+    })
+    .onConflictDoUpdate({
+      target: appMeta.key,
+      set: { value: sql`excluded.value` },
+    });
 }

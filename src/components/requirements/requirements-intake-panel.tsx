@@ -1,4 +1,5 @@
 import { rgaaPresets } from "@/adapters/rgaa/presets";
+import { primaryButton, secondaryButton } from "@/components/action-button-styles";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card } from "@/components/ui";
@@ -53,7 +54,7 @@ export function RequirementsIntakePanel({
                   action={applyFrameworkPresetAction}
                   submitLabel="Apply"
                   pendingLabel="Applying…"
-                  submitClassName="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                  submitClassName={secondaryButton}
                 >
                   <input type="hidden" name="presetId" value={preset.id} />
                 </StatefulActionForm>
@@ -78,7 +79,7 @@ export function RequirementsIntakePanel({
               action={importChecklistAction}
               submitLabel="Import checklist"
               pendingLabel="Importing…"
-              submitClassName="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              submitClassName={secondaryButton}
               className="flex flex-col gap-3"
             >
               <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
@@ -105,7 +106,7 @@ export function RequirementsIntakePanel({
               action={updateRequirementScopeAction}
               submitLabel="Save scope"
               pendingLabel="Saving…"
-              submitClassName="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+              submitClassName={primaryButton}
               className="flex flex-col gap-3"
             >
               <ul className="flex flex-col gap-2">
@@ -156,7 +157,7 @@ export function RequirementsIntakePanel({
               action={importCustomControlAction}
               submitLabel="Import control"
               pendingLabel="Importing…"
-              submitClassName="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              submitClassName={secondaryButton}
               className="flex max-w-xl flex-col gap-3"
             >
               <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">

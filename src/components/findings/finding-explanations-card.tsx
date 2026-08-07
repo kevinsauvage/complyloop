@@ -5,7 +5,7 @@ import {
 import { Card } from "@/components/ui";
 import type { Finding } from "@/core/types";
 import { generateAiExplanationAction } from "@/server/actions/remediation-ai";
-import { secondaryButton } from "./finding-styles";
+import { secondaryButtonDisabled } from "@/components/action-button-styles";
 
 export function FindingExplanationsCard({
   finding,
@@ -60,7 +60,7 @@ export function FindingExplanationsCard({
           <button
             type="submit"
             disabled={!aiAvailable}
-            className={`${secondaryButton} disabled:cursor-not-allowed disabled:opacity-50`}
+            className={secondaryButtonDisabled}
           >
             Generate AI explanation
           </button>

@@ -13,6 +13,7 @@ import { loadDb, withDbWrite, type Db } from "./db";
 import { ensurePersonalOrg, orgsForUser, resolveActiveOrgId } from "./orgs";
 import {
   type AccessContext,
+  accessFromStore,
   resolveActiveProject,
   visibleProjects,
 } from "./project-visibility";
@@ -31,19 +32,6 @@ export interface Workspace {
   organizations: Organization[];
   /** Selected org for management + new connects; null when unsigned. */
   activeOrgId: string | null;
-}
-
-function accessFromDb(
-  db: Db,
-  userId: string | null,
-  githubLogin: string | null,
-): AccessContext {
-  return {
-    userId,
-    githubLogin,
-    organizations: db.organizations,
-    memberships: db.memberships,
-  };
 }
 
 /**
@@ -77,7 +65,7 @@ function prepareWorkspaceState(
     if (result.changed) changed = true;
   }
 
-  const access = accessFromDb(db, userId, githubLogin);
+  const access = accessFromStore(db, userId, githubLogin);
   const organizations = userId ? orgsForUser(db, userId) : [];
   const activeOrgId =
     userId != null

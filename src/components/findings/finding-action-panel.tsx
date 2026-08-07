@@ -8,7 +8,7 @@ import {
   markRemediationImplementedAction,
   verifyRemediationAction,
 } from "@/server/actions/remediation";
-import { primaryButton, secondaryButton } from "./finding-styles";
+import { primaryButton, secondaryButton } from "@/components/action-button-styles";
 
 export function FindingActionPanel({
   finding,

@@ -15,6 +15,23 @@ export interface AccessContext {
   memberships: ReadonlyArray<OrgMembership>;
 }
 
+/** Builds AccessContext from the in-memory store collections. */
+export function accessFromStore(
+  store: {
+    organizations: ReadonlyArray<Organization>;
+    memberships: ReadonlyArray<OrgMembership>;
+  },
+  userId: string | null | undefined,
+  githubLogin?: string | null,
+): AccessContext {
+  return {
+    userId,
+    githubLogin,
+    organizations: store.organizations,
+    memberships: store.memberships,
+  };
+}
+
 /**
  * Sample and unowned demo projects (no org) stay visible without sign-in.
  * Org-scoped projects require membership (or legacy connector ownership).

@@ -6,6 +6,7 @@ import type { OrgRole } from "@/core/types";
 import {
   runActionMessage,
   type ActionMessageState,
+  type FormErrorState,
 } from "../action-state";
 import { writeActiveOrgCookie } from "../active-org";
 import { writeActiveProjectCookie } from "../active-project";
@@ -18,13 +19,8 @@ import {
 import { withWorkspaceWrite } from "../workspace";
 import { refresh } from "./shared";
 
-export type OrgMemberFormState = {
-  error: string | null;
-};
-
-export type CreateOrgFormState = {
-  error: string | null;
-};
+export type OrgMemberFormState = FormErrorState;
+export type CreateOrgFormState = FormErrorState;
 
 export async function switchOrgAction(formData: FormData): Promise<void> {
   const session = await auth();
@@ -108,13 +104,14 @@ export async function inviteOrgMemberAction(
   if (!isOrgRole(roleRaw) || roleRaw === "owner") {
     return { error: "Choose a role: admin, member, or viewer." };
   }
+  const role: OrgRole = roleRaw;
 
   try {
     await withWorkspaceWrite(({ db }) => {
       if (!canManageOrgMembers(db, orgIdRaw, userId)) {
         throw new Error("Only org owners and admins can invite members.");
       }
-      inviteOrgMember(db, orgIdRaw, userId, loginRaw, roleRaw as OrgRole);
+      inviteOrgMember(db, orgIdRaw, userId, loginRaw, role);
     });
     refresh();
     return { error: null };

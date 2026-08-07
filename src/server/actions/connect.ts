@@ -1,6 +1,10 @@
 "use server";
 
 import { auth, getGitHubAccessToken } from "@/auth";
+import {
+  connectFormError,
+  type FormErrorState,
+} from "../action-state";
 import { writeActiveProjectCookie } from "../active-project";
 import { assertConnectProjectAllowed } from "../connect-policy";
 import { ConnectError } from "../connect-url";
@@ -16,9 +20,9 @@ import { defaultOrgIdForUser } from "../orgs";
 import { withWorkspaceWrite } from "../workspace";
 import { refresh } from "./shared";
 
-export type ConnectFormState = {
-  error: string | null;
-};
+export type ConnectFormState = FormErrorState;
+export type ConnectGitHubFormState = FormErrorState;
+export type DisconnectGitHubFormState = FormErrorState;
 
 export async function connectProjectAction(
   _previous: ConnectFormState,
@@ -49,10 +53,7 @@ export async function connectProjectAction(
     refresh();
     return { error: null };
   } catch (error) {
-    if (error instanceof ConnectError) {
-      return { error: error.message };
-    }
-    throw error;
+    return connectFormError(error);
   }
 }
 
@@ -67,10 +68,6 @@ export async function switchProjectAction(formData: FormData): Promise<void> {
   await writeActiveProjectCookie(projectId);
   refresh();
 }
-
-export type ConnectGitHubFormState = {
-  error: string | null;
-};
 
 export async function connectGitHubRepoAction(
   _previous: ConnectGitHubFormState,
@@ -136,7 +133,6 @@ export async function connectGitHubRepoAction(
       }
       const project = await connectGitHubRepo(db, {
         fullName: repo.fullName,
-        cloneUrl: repo.cloneUrl,
         defaultBranch: repo.defaultBranch,
         private: repo.private,
         ownerUserId: userId,
@@ -149,16 +145,9 @@ export async function connectGitHubRepoAction(
     refresh();
     return { error: null };
   } catch (error) {
-    if (error instanceof ConnectError) {
-      return { error: error.message };
-    }
-    throw error;
+    return connectFormError(error);
   }
 }
-
-export type DisconnectGitHubFormState = {
-  error: string | null;
-};
 
 export async function disconnectGitHubRepoAction(
   _previous: DisconnectGitHubFormState,
@@ -187,9 +176,6 @@ export async function disconnectGitHubRepoAction(
     refresh();
     return { error: null };
   } catch (error) {
-    if (error instanceof ConnectError) {
-      return { error: error.message };
-    }
-    throw error;
+    return connectFormError(error);
   }
 }

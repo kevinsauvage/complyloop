@@ -1,5 +1,5 @@
 import { deriveRequirementStatus } from "@/core/requirement-status";
-import type { Control, Project, Requirement, RequirementStatus } from "@/core/types";
+import type { Control, Project, Requirement } from "@/core/types";
 import { addEvidence, type Db } from "./db";
 
 /** Human exceptions and human passes block automated status overwrite. */
