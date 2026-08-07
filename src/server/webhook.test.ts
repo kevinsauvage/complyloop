@@ -1,5 +1,4 @@
 import { createHmac } from "node:crypto";
-import fs from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleGitHubWebhookEvent, verifyGitHubSignature } from "./webhook";
 
@@ -9,13 +8,13 @@ const runAssessment = vi.hoisted(() =>
 const resolveProjectGitHubToken = vi.hoisted(() =>
   vi.fn(async () => "ghs_test"),
 );
-const createGit = vi.hoisted(() =>
-  vi.fn(() => ({
-    remote: vi.fn(async () => undefined),
-    fetch: vi.fn(async () => undefined),
-    revparse: vi.fn(async () => "main"),
-    reset: vi.fn(async () => undefined),
-  })),
+const withRepoCheckout = vi.hoisted(() =>
+  vi.fn(
+    async (
+      _options: unknown,
+      fn: (rootPath: string) => Promise<unknown>,
+    ) => fn("/tmp/ephemeral-checkout"),
+  ),
 );
 
 vi.mock("./db", async () => {
@@ -39,8 +38,12 @@ vi.mock("./github-access", () => ({
   resolveProjectGitHubToken,
 }));
 
-vi.mock("./git", () => ({
-  createGit,
+vi.mock("./repo-checkout", () => ({
+  withRepoCheckout: (
+    options: unknown,
+    fn: (rootPath: string) => Promise<unknown>,
+  ) => withRepoCheckout(options, fn),
+  withProjectCheckout: vi.fn(),
 }));
 
 import { loadDb } from "./db";
@@ -65,37 +68,42 @@ describe("verifyGitHubSignature", () => {
   });
 });
 
-describe("handleGitHubWebhookEvent workspace missing", () => {
-  it("returns a clear durable-disk error when the clone path is gone", async () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(loadDb).mockResolvedValue({
-      frameworks: [],
-      controls: [],
-      organizations: [],
-      memberships: [],
-      projects: [
-        {
-          id: "p1",
-          name: "acme/app",
-          rootPath: "/tmp/definitely-missing-complyloop-workspace",
-          source: "github",
-          ownerUserId: "user-1",
-          github: {
-            fullName: "acme/app",
-            defaultBranch: "main",
-            private: false,
-          },
-          createdAt: "2026-01-01T00:00:00.000Z",
+function projectDb() {
+  return {
+    frameworks: [],
+    controls: [],
+    organizations: [],
+    memberships: [],
+    projects: [
+      {
+        id: "p1",
+        name: "acme/app",
+        source: "github" as const,
+        ownerUserId: "user-1",
+        github: {
+          fullName: "acme/app",
+          defaultBranch: "main",
+          private: false,
+          installationId: 42,
         },
-      ],
-      activeProjectId: "p1",
-      requirements: [],
-      assessments: [],
-      findings: [],
-      remediations: [],
-      evidence: [],
-      alerts: [],
-    });
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
+    activeProjectId: "p1",
+    requirements: [],
+    assessments: [],
+    findings: [],
+    remediations: [],
+    evidence: [] as Array<Record<string, unknown>>,
+    alerts: [],
+  };
+}
+
+describe("handleGitHubWebhookEvent clone failure", () => {
+  it("returns a clear error when ephemeral checkout fails", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(loadDb).mockResolvedValue(projectDb() as never);
+    withRepoCheckout.mockRejectedValueOnce(new Error("git clone failed: auth"));
 
     const result = await handleGitHubWebhookEvent("push", {
       repository: { full_name: "acme/app" },
@@ -103,49 +111,24 @@ describe("handleGitHubWebhookEvent workspace missing", () => {
     });
 
     expect(result.handled).toBe(false);
-    expect(result.message).toMatch(/Workspace missing/);
-    expect(result.message).toMatch(/durable DATA_DIR/);
+    expect(result.message).toMatch(/Failed to clone acme\/app/);
+    expect(result.message).toMatch(/git clone failed/);
     expect(spy).toHaveBeenCalled();
     const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
       code: string;
     };
-    expect(payload.code).toBe("workspace_missing");
+    expect(payload.code).toBe("webhook_clone_failed");
   });
 });
 
 describe("handleGitHubWebhookEvent reassessment", () => {
-  it("pulls, re-assesses, and records webhook evidence for a push", async () => {
-    const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
-    const db = {
-      frameworks: [],
-      controls: [],
-      organizations: [],
-      memberships: [],
-      projects: [
-        {
-          id: "p1",
-          name: "acme/app",
-          rootPath: "/tmp/complyloop-webhook-workspace",
-          source: "github" as const,
-          ownerUserId: "user-1",
-          github: {
-            fullName: "acme/app",
-            defaultBranch: "main",
-            private: false,
-            installationId: 42,
-          },
-          createdAt: "2026-01-01T00:00:00.000Z",
-        },
-      ],
-      activeProjectId: "p1",
-      requirements: [],
-      assessments: [],
-      findings: [],
-      remediations: [],
-      evidence: [] as Array<Record<string, unknown>>,
-      alerts: [],
-    };
+  it("checks out ephemerally, re-assesses, and records webhook evidence for a push", async () => {
+    const db = projectDb();
     vi.mocked(loadDb).mockResolvedValue(db as never);
+    withRepoCheckout.mockImplementation(
+      async (_options, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/ephemeral-checkout"),
+    );
 
     const result = await handleGitHubWebhookEvent("push", {
       repository: { full_name: "acme/app" },
@@ -153,13 +136,20 @@ describe("handleGitHubWebhookEvent reassessment", () => {
     });
 
     expect(resolveProjectGitHubToken).toHaveBeenCalled();
-    expect(createGit).toHaveBeenCalled();
-    expect(runAssessment).toHaveBeenCalledWith(db, "p1");
+    expect(withRepoCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fullName: "acme/app",
+        accessToken: "ghs_test",
+      }),
+      expect.any(Function),
+    );
+    expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
+      rootPath: "/tmp/ephemeral-checkout",
+    });
     expect(result.handled).toBe(true);
     expect(result.message).toMatch(/Re-assessed acme\/app/);
     expect(db.evidence.some((row) => row.kind === "webhook_reassessment")).toBe(
       true,
     );
-    existsSpy.mockRestore();
   });
 });

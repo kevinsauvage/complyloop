@@ -6,7 +6,7 @@ High-level architecture for ComplyLoop. The MVP implements the core loop in
 `src/server/`.
 
 **Current connectors:** GitHub OAuth / GitHub App repo connect only.
-**Persistence:** JSON under `$DATA_DIR` (default `.data/`) behind `src/server/db.ts`, or **Postgres via Drizzle** when `DATABASE_URL` is set (domain state, encrypted GitHub tokens, webhook delivery ids). Evidence is append-only (insert-only in Postgres). Writers use `withDbWrite` / `withWorkspaceWrite`. **Tenancy:** organizations + memberships with role RBAC (`src/core/rbac.ts`); active org via cookie; projects carry `orgId`. Clones remain under `$DATA_DIR/workspaces`. See `docs/ai/decisions.md` and `docs/deploy.md`.
+**Persistence:** **Postgres via Drizzle** (`DATABASE_URL` required) for domain state, encrypted GitHub tokens, and webhook delivery ids. Evidence is append-only (insert-only). Writers use `withDbWrite` / `withWorkspaceWrite`. **Tenancy:** organizations + memberships with role RBAC (`src/core/rbac.ts`); active org via cookie; projects carry `orgId`. Source trees are ephemeral temp clones per job (`src/server/repo-checkout.ts`). See `docs/ai/decisions.md` and `docs/deploy.md`.
 
 ## System Shape
 

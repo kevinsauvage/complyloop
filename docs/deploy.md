@@ -1,36 +1,28 @@
 # Deploying ComplyLoop
 
-ComplyLoop stores app state either as JSON or in Postgres. Git clones still use
-the local filesystem under `$DATA_DIR`.
+ComplyLoop stores all app state in Postgres (`DATABASE_URL`). Source trees are
+**ephemeral**: each assess / webhook / remediation / PR job shallow-clones into
+a temp directory, works, then deletes the tree. No durable workspace volume.
 
-## Hard launch constraint (read this first)
+## Hard launch constraint
 
-Until clone-per-job / ephemeral workspace support lands:
+1. **`DATABASE_URL` is required** — apply schema with `npm run db:migrate`.
+2. Instances need enough **local disk + git** for temporary clones (OS temp).
+   Jobs run in-process on the request/webhook handler (no separate worker yet).
+3. Multi-instance is fine for app state (Postgres). Concurrent clones of the
+   same repo may hit GitHub rate limits — monitor as you scale.
 
-1. **Run a single long-lived Node instance** (one replica). Do not horizontally
-   scale app servers that each have their own empty disk.
-2. **Mount durable disk** at `DATA_DIR` for `$DATA_DIR/workspaces/` (git clones).
-   Ephemeral serverless disks are unsupported for clones.
-3. Prefer `DATABASE_URL` (Postgres) for app state, tokens, and webhook
-   idempotency so those do not require a shared volume.
-
-If a webhook fires and the workspace path is missing, the handler returns a
-clear `handled: false` message and emits a structured error
-(`code: workspace_missing`) — it does not crash the process. Fix by restoring
-the volume or re-connecting the repository on that instance.
+If a webhook cannot clone, the handler returns `handled: false` with a clear
+message (`code: webhook_clone_failed`) — it does not crash the process.
 
 | Path / env | Purpose |
 |------------|---------|
-| `$DATA_DIR/db.json` | App state when `DATABASE_URL` is unset |
-| `DATABASE_URL` | Postgres (Drizzle) for frameworks → evidence, orgs, encrypted GitHub tokens, webhook delivery ids |
-| `$DATA_DIR/workspaces/` | Git/GitHub clones assessed in place |
-| `$DATA_DIR/github-tokens.json` | Encrypted tokens when `DATABASE_URL` is unset (laptop fallback) |
-| `$DATA_DIR/webhook-deliveries.json` | Delivery idempotency when `DATABASE_URL` is unset |
+| `DATABASE_URL` | Postgres (Drizzle) — frameworks → evidence, orgs, encrypted GitHub tokens, webhook delivery ids |
 | `SENTRY_DSN` | Optional — captures server errors via `@sentry/node` |
 
-## Supported shapes
+## Supported shape
 
-### 1. Postgres for app state (recommended beyond the laptop)
+### Postgres (required)
 
 1. Provision Postgres 16+ and set `DATABASE_URL`.
    With `sslmode=require`, TLS certificates are verified by default. Aiven and
@@ -38,8 +30,6 @@ the volume or re-connecting the repository on that instance.
    until a CA/`sslrootcert` path is configured. Never leave that flag on in
    production without understanding the MITM risk.
 2. Apply schema: `npm run db:migrate`
-3. Keep a volume (or other durable disk) for `DATA_DIR` workspaces (clones), **or**
-   accept that GitHub connect needs disk for clones until that gap is closed.
 
 Local example:
 
@@ -51,23 +41,6 @@ npm run dev
 ```
 
 Evidence rows are **insert-only** in Postgres (never updated or deleted by the app).
-
-### 2. Persistent disk + JSON store
-
-Omit `DATABASE_URL`. Run a long-lived Node process with a mounted volume:
-
-```bash
-DATA_DIR=/data
-AUTH_SECRET=...
-AUTH_GITHUB_ID=...
-AUTH_GITHUB_SECRET=...
-AUTH_URL=https://complyloop.example.com
-GITHUB_WEBHOOK_SECRET=...
-```
-
-### 3. Laptop demo
-
-Default: no `DATABASE_URL`, `DATA_DIR` unset → `.data/`. Fine for development.
 
 ## Auth notes
 
@@ -88,19 +61,16 @@ with GitHub (admin/owner role in the active organization).
 
 ## What not to do
 
-- Deploy multi-instance / autoscaled replicas that do not share the same durable
-  `DATA_DIR` for clones (webhooks and remediations will hit `workspace_missing`).
-- Deploy only to Vercel serverless without Postgres **and** without durable disk for clones.
+- Omit `DATABASE_URL` (the app will not start usefully without Postgres).
 - Share a host without `AUTH_SECRET`.
-- Commit `.data/` or token files to git.
+- Commit leftover `.data/` or token files to git.
 - `UPDATE`/`DELETE` evidence rows outside the app’s append-only contract.
 
 ## Checklist before inviting real users
 
-1. `DATABASE_URL` + migrated schema (or durable `DATA_DIR` JSON).
-2. **Single instance** + durable disk for workspaces/clones.
-3. Stable `AUTH_SECRET` and `AUTH_URL`.
-4. GitHub App (`GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`) + App OAuth client + webhook secret.
-5. Backups for Postgres (and `DATA_DIR` if used for JSON/clones).
-6. Optional `SENTRY_DSN` for error tracking (structured logs always emit).
-7. Invite teammates from **Organization** (`/org`) — switch to the shared org first if you use team orgs.
+1. `DATABASE_URL` + migrated schema.
+2. Stable `AUTH_SECRET` and `AUTH_URL`.
+3. GitHub App (`GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`) + App OAuth client + webhook secret.
+4. Backups for Postgres (restore tested once).
+5. Optional `SENTRY_DSN` for error tracking (structured logs always emit).
+6. Invite teammates from **Organization** (`/org`) — switch to the shared org first if you use team orgs.

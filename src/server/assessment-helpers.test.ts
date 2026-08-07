@@ -123,19 +123,10 @@ describe("mergeFix", () => {
 describe("buildSuggestion", () => {
   it("returns null when there is no fix", () => {
     expect(
-      buildSuggestion(
-        {
-          id: "p1",
-          name: "Demo",
-          rootPath: "/tmp",
-          source: "github",
-          createdAt: "2026-01-01T00:00:00.000Z",
-        },
-        {
-          location: sourceLoc({ filePath: "App.tsx", line: 1, snippet: "x" }),
-          fix: null,
-        },
-      ),
+      buildSuggestion("/tmp", {
+        location: sourceLoc({ filePath: "App.tsx", line: 1, snippet: "x" }),
+        fix: null,
+      }),
     ).toBeNull();
   });
 
@@ -149,30 +140,21 @@ describe("buildSuggestion", () => {
       "utf8",
     );
 
-    const suggestion = buildSuggestion(
-      {
-        id: "p1",
-        name: "Demo",
-        rootPath: root,
-        source: "github",
-        createdAt: "2026-01-01T00:00:00.000Z",
+    const suggestion = buildSuggestion(root, {
+      location: sourceLoc({
+        filePath,
+        line: 1,
+        snippet: '<img src="/x.png" />',
+        span: { start: 0, end: 20 },
+      }),
+      fix: {
+        kind: "insert_attribute",
+        attribute: "alt",
+        value: "",
+        editable: true,
+        span: { start: 4, end: 4 },
       },
-      {
-        location: sourceLoc({
-          filePath,
-          line: 1,
-          snippet: '<img src="/x.png" />',
-          span: { start: 0, end: 20 },
-        }),
-        fix: {
-          kind: "insert_attribute",
-          attribute: "alt",
-          value: "",
-          editable: true,
-          span: { start: 4, end: 4 },
-        },
-      },
-    );
+    });
 
     expect(suggestion).not.toBeNull();
     expect(suggestion?.provenance).toBe("deterministic");

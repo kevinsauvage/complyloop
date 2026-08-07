@@ -16,27 +16,8 @@ import {
   assertAssessableOrRemove,
   deriveProjectName,
   uniqueProjectName,
-  uniqueWorkspacePath,
 } from "./connect-shared";
-import type { Db } from "./db";
-import { workspacesDir } from "./db";
-
-function emptyDb(): Db {
-  return {
-    frameworks: [rgaaFramework],
-    controls: rgaaControls,
-    organizations: [],
-    memberships: [],
-    projects: [],
-    activeProjectId: null,
-    requirements: [],
-    assessments: [],
-    findings: [],
-    remediations: [],
-    evidence: [],
-    alerts: [],
-  };
-}
+import { emptyDb, type Db } from "./db";
 
 const tempDirs: string[] = [];
 
@@ -58,8 +39,8 @@ function makeProjectDir(files: Record<string, string>): string {
 }
 
 function githubProject(
-  partial: Pick<Project, "id" | "name" | "rootPath"> &
-    Partial<Omit<Project, "id" | "name" | "rootPath" | "source">>,
+  partial: Pick<Project, "id" | "name"> &
+    Partial<Omit<Project, "id" | "name" | "source">>,
 ): Project {
   return {
     source: "github",
@@ -71,6 +52,13 @@ function githubProject(
     },
     ...partial,
   };
+}
+
+function seededDb(): Db {
+  const db = emptyDb();
+  db.frameworks = [rgaaFramework];
+  db.controls = rgaaControls;
+  return db;
 }
 
 describe("deriveProjectName", () => {
@@ -87,24 +75,10 @@ describe("deriveProjectName", () => {
   });
 });
 
-describe("unique helpers", () => {
-  it("allocates a free workspace path and project name", () => {
-    const taken = makeProjectDir({ "x.tsx": "export {};" });
-    const sibling = `${taken}-2`;
-    fs.mkdirSync(sibling, { recursive: true });
-    tempDirs.push(sibling);
-
-    const name = `uniq-${crypto.randomUUID().slice(0, 8)}`;
-    const first = uniqueWorkspacePath(name);
-    fs.mkdirSync(first, { recursive: true });
-    tempDirs.push(first);
-    const second = uniqueWorkspacePath(name);
-    expect(second).toBe(`${first}-2`);
-
-    const db = emptyDb();
-    db.projects.push(
-      githubProject({ id: "p1", name: "shop", rootPath: "/tmp/a" }),
-    );
+describe("uniqueProjectName", () => {
+  it("allocates a free project name", () => {
+    const db = seededDb();
+    db.projects.push(githubProject({ id: "p1", name: "shop" }));
     expect(uniqueProjectName(db, "shop")).toBe("shop-2");
     expect(uniqueProjectName(db, "fresh")).toBe("fresh");
   });
@@ -130,7 +104,6 @@ describe("findConnectedGitHubProject", () => {
   const base = {
     id: "gh-1",
     name: "shop",
-    rootPath: "/tmp/shop",
     source: "github" as const,
     createdAt: "2026-01-01T00:00:00.000Z",
     github: {
@@ -180,17 +153,15 @@ describe("isLikelyGitUrl", () => {
 
 describe("setActiveProject", () => {
   it("switches the active project", () => {
-    const db = emptyDb();
+    const db = seededDb();
     const projectA = githubProject({
       id: "a",
       name: "a",
-      rootPath: "/tmp/a",
       ownerUserId: "user-a",
     });
     const projectB = githubProject({
       id: "b",
       name: "b",
-      rootPath: "/tmp/b",
       ownerUserId: "user-a",
     });
     db.projects.push(projectA, projectB);
@@ -201,11 +172,10 @@ describe("setActiveProject", () => {
   });
 
   it("rejects unknown and inaccessible projects", () => {
-    const db = emptyDb();
+    const db = seededDb();
     const connected = githubProject({
       id: "gh-1",
       name: "shop",
-      rootPath: "/tmp/shop",
       orgId: "org-secret",
       ownerUserId: "owner-a",
     });
@@ -220,23 +190,11 @@ describe("setActiveProject", () => {
 });
 
 describe("disconnectGitHubRepo", () => {
-  it("removes the project, workspace clone, and records evidence", () => {
-    const cloneRoot = path.join(
-      workspacesDir(),
-      `disconnect-test-${crypto.randomUUID()}`,
-    );
-    fs.mkdirSync(cloneRoot, { recursive: true });
-    fs.writeFileSync(
-      path.join(cloneRoot, "App.tsx"),
-      `export const App = () => null;\n`,
-    );
-    tempDirs.push(cloneRoot);
-
-    const db = emptyDb();
+  it("removes the project and related DB records without durable clone cleanup", () => {
+    const db = seededDb();
     db.projects.push({
       id: "gh-1",
       name: "shop",
-      rootPath: cloneRoot,
       source: "github",
       sourceRef: "https://github.com/acme/shop",
       ownerUserId: "user-a",
@@ -277,18 +235,16 @@ describe("disconnectGitHubRepo", () => {
     expect(db.projects).toHaveLength(0);
     expect(db.activeProjectId).toBeNull();
     expect(db.findings).toHaveLength(0);
-    expect(fs.existsSync(cloneRoot)).toBe(false);
     expect(
       db.evidence.some((record) => record.kind === "project_disconnected"),
     ).toBe(true);
   });
 
   it("rejects disconnecting another user's project", () => {
-    const db = emptyDb();
+    const db = seededDb();
     db.projects.push({
       id: "gh-1",
       name: "shop",
-      rootPath: "/tmp/shop",
       source: "github",
       ownerUserId: "user-a",
       github: {

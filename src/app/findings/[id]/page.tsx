@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { aiExplanationAvailable } from "@/ai/explainer";
@@ -59,7 +57,7 @@ export default async function FindingPage({
   const canCreatePr =
     caps.canRemediate &&
     Boolean(finding.fix) &&
-    fs.existsSync(path.join(project.rootPath, ".git"));
+    Boolean(project.github?.fullName);
 
   return (
     <>

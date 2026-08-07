@@ -11,6 +11,9 @@ Issues that could prevent the product from being safely or professionally sold.
 - [x] **Bind GitHub App installation tokens to the authenticated user**
   - **Done:** `resolveUserInstallationForRepo` verifies claimed installation ids against `listInstallationsForAuthenticatedUser` and confirms the target repo is on that install before `createInstallationAccessToken`. Foreign installation ids are rejected.
 
+- [x] **Postgres-only + ephemeral clone-per-job (was: lock topology / DATA_DIR)**
+  - **Done:** JSON/`DATA_DIR` removed; `DATABASE_URL` required. `withRepoCheckout` clones per assess/webhook/remediation/PR job into OS temp and deletes afterward. No durable workspace volume. See `docs/deploy.md` and `docs/ai/decisions.md`.
+
 - [ ] **Replace draft Terms & Privacy with counsel-reviewed legal**
   - **Problem:** `/legal/terms` and `/legal/privacy` are explicitly labeled draft / counsel-needed and incomplete for commercial sale (no DPA, subprocessors incomplete, no EU rights exercise path).
   - **Why:** Selling without enforceable ToS/Privacy (and GDPR basis where applicable) is a legal and trust blocker.
@@ -19,20 +22,12 @@ Issues that could prevent the product from being safely or professionally sold.
   - **Acceptance criteria:** Pages no longer say “draft”; counsel sign-off recorded; footer links visible.
   - **Effort:** 🟠 Large (mostly legal, not engineering)
 
-- [ ] **Lock production topology: single instance + durable disk + Postgres (or ship ephemeral workspaces)**
-  - **Problem:** Clones live under `$DATA_DIR/workspaces`. Multi-replica / ephemeral serverless disks cause `workspace_missing` on webhooks and remediations. Documented in `docs/deploy.md` but easy to violate on Vercel-style deploys.
-  - **Why:** First production outage for paying GitHub customers will be “webhook assessed nothing / remediations can’t find files.”
-  - **Location:** `docs/deploy.md`, `src/server/webhook.ts`, `src/server/connect-shared.ts`, workspace under `$DATA_DIR`
-  - **Recommendation (near-term):** Document and enforce a supported deploy shape (one Node replica, volume for `DATA_DIR`, `DATABASE_URL`). Add a health/ready check that fails if `DATA_DIR` is not writable. **(Follow-up architecture):** ephemeral clone-per-job so horizontal scale is possible (see Architecture Improvements).
-  - **Acceptance criteria:** Deploy runbook matches one supported shape; health endpoint verifies writable workspaces; webhook failure mode remains clear when volume is missing.
-  - **Effort:** 🟡 Medium (ops) / 🔴 Very large (ephemeral workspaces)
-
 - [ ] **Add operator backups + health check before inviting paying orgs**
   - **Problem:** `docs/deploy.md` checklist mentions backups; there is no health/ready endpoint, no Dockerfile for the app, and no backup script/runbook automation. Compose only runs Postgres.
-  - **Why:** Without health checks and restore-tested backups, a disk/Postgres failure is an unrecoverable customer incident.
+  - **Why:** Without health checks and restore-tested backups, a Postgres failure is an unrecoverable customer incident.
   - **Location:** `docs/deploy.md`, `docker-compose.yml` (Postgres only); no `Dockerfile`, no `/api/health`
-  - **Recommendation:** Add `GET /api/health` (process up + optional DB ping + `DATA_DIR` writable). Document Postgres + volume backup/restore steps; practice restore once. Optionally add an app Dockerfile for the supported single-instance shape.
-  - **Acceptance criteria:** Health returns non-200 when DB or workspaces are unavailable; backup/restore documented and tested once.
+  - **Recommendation:** Add `GET /api/health` (process up + DB ping). Document Postgres backup/restore steps; practice restore once. Optionally add an app Dockerfile.
+  - **Acceptance criteria:** Health returns non-200 when DB is unavailable; backup/restore documented and tested once.
   - **Effort:** 🟡 Medium
 
 ---
@@ -174,11 +169,11 @@ Optional improvements with relatively low near-term business impact.
 
 |                           |                                                                                                                                                                          |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Current architecture**  | `git clone` into `$DATA_DIR/workspaces/{projectId}`; remediations and webhooks assume the tree stays on that instance.                                                   |
-| **Problem**               | Blocks horizontal scale and serverless; volume loss = broken monitoring.                                                                                                 |
-| **Proposed architecture** | Clone (or sparse checkout) per assessment/remediation job into ephemeral storage; cache by commit SHA; optional remote-only patch apply via GitHub API for remediations. |
-| **Migration strategy**    | Keep current path for single-instance; add job runner behind a feature flag; move webhook assess onto jobs first.                                                        |
-| **Priority**              | P0 constraint documented now; implementation P2 unless multi-instance is required at launch.                                                                             |
+| **Current architecture**  | Ephemeral clone-per-job via `withRepoCheckout` (temp dir → assess/remediate/PR → delete). No durable workspace volume. |
+| **Problem**               | In-process clones on every job; no SHA cache; long assessments block the request.                                      |
+| **Proposed architecture** | Optional commit-SHA cache; background job runner for webhook/assess.                                                   |
+| **Migration strategy**    | Done for sticky clones; next: cache + queue if latency/rate-limits hurt.                                               |
+| **Priority**              | Cache/queue P2 unless multi-tenant load demands it.                                                                    |
 
 ### 3. Tenant isolation: app RBAC → DB constraints (+ optional RLS)
 
@@ -294,7 +289,7 @@ CI today: lint, typecheck, unit test, build — good foundation, not sufficient 
 - [ ] Logging — structured JSON on (already present)
 - [ ] Monitoring — Sentry (or equiv) + alerts for webhook/assessment failures
 - [ ] Database — `DATABASE_URL` + migrations; evidence insert-only enforced at DB
-- [ ] Backups — Postgres + `DATA_DIR` restore tested
+- [ ] Backups — Postgres restore tested
 - [ ] Testing — unit CI green + core-loop e2e
 - [ ] Accessibility — P1 feedback/copy/lifecycle fixes; lint remains strict
 - [ ] Performance — single-instance OK for pilot; plan project-scoped DB before scale

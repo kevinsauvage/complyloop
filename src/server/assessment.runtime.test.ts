@@ -21,7 +21,6 @@ describe("runAssessment with runtime engine", () => {
     project = {
       id: "proj-runtime",
       name: "Runtime",
-      rootPath,
       source: "github",
       createdAt: new Date().toISOString(),
       runtimeBaseUrl: "https://preview.example",
@@ -56,6 +55,7 @@ describe("runAssessment with runtime engine", () => {
 
   it("creates DOM findings from the injected scanner and skips AST input-label", async () => {
     const assessment = await runAssessment(db, project.id, {
+      rootPath,
       runtimeScanner: async (urls) => [
         {
           url: urls[0]!,
@@ -91,6 +91,7 @@ describe("runAssessment with runtime engine", () => {
 
   it("records runtimeError without failing the whole assessment", async () => {
     const assessment = await runAssessment(db, project.id, {
+      rootPath,
       runtimeScanner: async () => {
         throw new Error("net::ERR_CONNECTION_REFUSED");
       },

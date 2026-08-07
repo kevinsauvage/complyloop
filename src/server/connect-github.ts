@@ -1,27 +1,19 @@
-import fs from "node:fs";
-import path from "node:path";
 import type { Project, ProjectGitHubMeta } from "@/core/types";
 import { canOnProject } from "@/core/rbac";
-import { addEvidence, workspacesDir, type Db } from "./db";
-import { createGit } from "./git";
+import { addEvidence, type Db } from "./db";
 import { defaultOrgIdForUser } from "./orgs";
 import { ConnectError } from "./connect-url";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
-import { reportWarning } from "./observability";
+import { withRepoCheckout } from "./repo-checkout";
 import {
   addConnectedProject,
-  assertAssessableOrRemove,
-  cloneShallow,
+  assertAssessableRoot,
   deriveProjectName,
+  githubCloneUrl,
   uniqueProjectName,
-  uniqueWorkspacePath,
 } from "./connect-shared";
 
-/** Builds an authenticated HTTPS clone URL for GitHub (token never stored). */
-export function githubCloneUrl(fullName: string, accessToken: string): string {
-  const encoded = encodeURIComponent(accessToken);
-  return `https://x-access-token:${encoded}@github.com/${fullName}.git`;
-}
+export { githubCloneUrl };
 
 /** GitHub full names are case-insensitive; normalize for map keys and equality. */
 export function normalizeGitHubFullName(fullName: string): string {
@@ -87,8 +79,8 @@ interface ConnectGitHubRepoInput {
 }
 
 /**
- * Shallow-clones a GitHub repo the user selected after OAuth into
- * `.data/workspaces/` and scopes it to that user.
+ * Validates a GitHub repo via ephemeral clone, then records the project in the
+ * store (no durable workspace on disk).
  */
 export async function connectGitHubRepo(
   db: Db,
@@ -106,32 +98,19 @@ export async function connectGitHubRepo(
       project.ownerUserId === input.ownerUserId &&
       (project.github?.fullName === fullName || project.sourceRef === sourceRef),
   );
-  if (existing && fs.existsSync(existing.rootPath)) {
+  if (existing) {
     db.activeProjectId = existing.id;
     return existing;
   }
 
+  await withRepoCheckout(
+    { fullName, accessToken: input.accessToken },
+    async (rootPath) => {
+      assertAssessableRoot(rootPath);
+    },
+  );
+
   const name = uniqueProjectName(db, deriveProjectName(fullName));
-  const rootPath = uniqueWorkspacePath(name);
-  await cloneShallow(githubCloneUrl(fullName, input.accessToken), rootPath);
-
-  // Strip embedded token from the remote URL stored in the clone.
-  try {
-    await createGit({ baseDir: rootPath }).remote([
-      "set-url",
-      "origin",
-      sourceRef,
-    ]);
-  } catch (error) {
-    reportWarning("Could not rewrite git remote origin after clone", {
-      code: "git_remote_set_url_failed",
-      fullName,
-      detail: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  assertAssessableOrRemove(rootPath);
-
   const github: ProjectGitHubMeta = {
     fullName,
     defaultBranch: input.defaultBranch || "main",
@@ -141,15 +120,13 @@ export async function connectGitHubRepo(
       : {}),
   };
 
-  const orgId =
-    input.orgId ?? defaultOrgIdForUser(db, input.ownerUserId);
+  const orgId = input.orgId ?? defaultOrgIdForUser(db, input.ownerUserId);
 
   return addConnectedProject(
     db,
     {
       id: crypto.randomUUID(),
       name,
-      rootPath,
       source: "github",
       sourceRef,
       ownerUserId: input.ownerUserId,
@@ -163,7 +140,7 @@ export async function connectGitHubRepo(
 
 /**
  * Disconnects a GitHub project when the actor has `project.connect`:
- * drops project-scoped records, removes the workspace clone, and records evidence.
+ * drops project-scoped records and records evidence.
  */
 export function disconnectGitHubRepo(
   db: Db,
@@ -177,9 +154,7 @@ export function disconnectGitHubRepo(
   if (project.source !== "github") {
     throw new ConnectError("Only GitHub projects can be disconnected.");
   }
-  if (
-    !canOnProject(project, db.memberships, userId, "project.connect")
-  ) {
+  if (!canOnProject(project, db.memberships, userId, "project.connect")) {
     throw new ConnectError(
       "You do not have permission to disconnect this project.",
     );
@@ -206,16 +181,6 @@ export function disconnectGitHubRepo(
   );
   db.projects = db.projects.filter((candidate) => candidate.id !== projectId);
 
-  // Only remove clones we own under the workspaces directory.
-  const workspacesRoot = path.resolve(workspacesDir());
-  const projectRoot = path.resolve(project.rootPath);
-  if (
-    projectRoot === workspacesRoot ||
-    projectRoot.startsWith(`${workspacesRoot}${path.sep}`)
-  ) {
-    fs.rmSync(projectRoot, { recursive: true, force: true });
-  }
-
   addEvidence(db, {
     kind: "project_disconnected",
     summary: `Disconnected GitHub repository ${fullName}`,
@@ -223,7 +188,6 @@ export function disconnectGitHubRepo(
     detail: {
       source: "github",
       fullName,
-      rootPath: project.rootPath,
     },
   });
 

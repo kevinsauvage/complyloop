@@ -34,6 +34,7 @@ import {
 function createFinding(
   db: Db,
   project: Project,
+  rootPath: string,
   controlId: string,
   assessmentId: string,
   raw: RawFinding,
@@ -62,7 +63,7 @@ function createFinding(
   };
   db.findings.push(finding);
 
-  const suggestion = buildSuggestion(project, raw);
+  const suggestion = buildSuggestion(rootPath, raw);
   const remediation: Remediation = {
     id: crypto.randomUUID(),
     findingId: finding.id,
@@ -101,6 +102,8 @@ function mergeRawFindings(
 }
 
 export interface RunAssessmentOptions {
+  /** Absolute path of the current ephemeral (or test) checkout to scan. */
+  rootPath: string;
   /** Injected Playwright/axe scanner for tests. */
   runtimeScanner?: RuntimePageScanner;
 }
@@ -108,10 +111,11 @@ export interface RunAssessmentOptions {
 export async function runAssessment(
   db: Db,
   projectId: string,
-  options: RunAssessmentOptions = {},
+  options: RunAssessmentOptions,
 ): Promise<Assessment> {
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) throw new Error(`Unknown project: ${projectId}`);
+  const { rootPath } = options;
 
   const startedAt = new Date().toISOString();
   clearExpiredExceptions(db, projectId);
@@ -119,7 +123,7 @@ export async function runAssessment(
   const previous = [...db.assessments]
     .reverse()
     .find((assessment) => assessment.projectId === projectId);
-  const { snapshot, changes } = detectChanges(project.rootPath, previous?.snapshot);
+  const { snapshot, changes } = detectChanges(rootPath, previous?.snapshot);
   const changeContext = changes.length > 0 ? summarizeChanges(changes) : undefined;
 
   if (changes.length > 0) {
@@ -151,8 +155,8 @@ export async function runAssessment(
     filesScanned,
     scanMode,
   } = useScoped
-    ? scanChangedFiles(project.rootPath, changedJsx)
-    : scanProject(project.rootPath);
+    ? scanChangedFiles(rootPath, changedJsx)
+    : scanProject(rootPath);
   const scopedFileSet = useScoped ? new Set(changedJsx) : null;
 
   const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
@@ -217,7 +221,7 @@ export async function runAssessment(
         existing.location = raw.location;
         existing.engine = raw.engine ?? existing.engine ?? "ast";
       } else {
-        createFinding(db, project, control.id, assessmentId, raw);
+        createFinding(db, project, rootPath, control.id, assessmentId, raw);
       }
     }
 

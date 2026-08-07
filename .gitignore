@@ -13,7 +13,7 @@
 # testing
 /coverage
 
-# local data store and assessed workspaces
+# local leftover data (unused; Postgres is the store)
 /.data
 
 # next.js

@@ -1,61 +1,40 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { addEvidence, isPostgresConfigured, loadDb, saveDb } from "../db";
-import { emptyDb, loadDbFromJson, saveDbToJson } from "./json";
+import { describe, expect, it } from "vitest";
+import { addEvidence, emptyDb } from "../db";
 import { evidenceRecordsToInsert } from "./postgres-evidence";
 
-describe("JSON store", () => {
-  let dir: string;
-  const previous = process.env.DATA_DIR;
-  const previousUrl = process.env.DATABASE_URL;
-
-  beforeEach(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), "db-json-"));
-    process.env.DATA_DIR = dir;
-    delete process.env.DATABASE_URL;
-  });
-
-  afterEach(() => {
-    fs.rmSync(dir, { recursive: true, force: true });
-    if (previous === undefined) delete process.env.DATA_DIR;
-    else process.env.DATA_DIR = previous;
-    if (previousUrl === undefined) delete process.env.DATABASE_URL;
-    else process.env.DATABASE_URL = previousUrl;
-  });
-
-  it("round-trips through loadDb/saveDb when DATABASE_URL is unset", async () => {
-    expect(isPostgresConfigured()).toBe(false);
+describe("emptyDb + addEvidence", () => {
+  it("starts empty and appends evidence records", () => {
     const db = emptyDb();
+    expect(db.projects).toEqual([]);
+    expect(db.evidence).toEqual([]);
+
     db.activeProjectId = "p1";
     db.projects.push({
       id: "p1",
       name: "demo",
-      rootPath: "/tmp/demo",
       source: "github",
       createdAt: "2026-01-01T00:00:00.000Z",
     });
-    addEvidence(db, {
+    const first = addEvidence(db, {
       kind: "project_connected",
       summary: "connected",
       projectId: "p1",
     });
-    await saveDb(db);
+    const second = addEvidence(db, {
+      kind: "assessment_completed",
+      summary: "done",
+      projectId: "p1",
+    });
 
-    const loaded = await loadDb();
-    expect(loaded.projects).toHaveLength(1);
-    expect(loaded.evidence).toHaveLength(1);
-    expect(loaded.evidence[0].kind).toBe("project_connected");
-  });
-
-  it("saveDbToJson / loadDbFromJson preserve evidence appends", () => {
-    const db = emptyDb();
-    addEvidence(db, { kind: "assessment_completed", summary: "a1" });
-    addEvidence(db, { kind: "assessment_completed", summary: "a2" });
-    saveDbToJson(db);
-    const loaded = loadDbFromJson();
-    expect(loaded.evidence.map((e) => e.summary)).toEqual(["a1", "a2"]);
+    expect(db.projects).toHaveLength(1);
+    expect(db.evidence).toHaveLength(2);
+    expect(first.id).toBeTruthy();
+    expect(first.at).toBeTruthy();
+    expect(second.kind).toBe("assessment_completed");
+    expect(db.evidence.map((record) => record.summary)).toEqual([
+      "connected",
+      "done",
+    ]);
   });
 });
 

@@ -2,9 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { hasSourceFiles } from "@/analysis/source-files";
 import type { Project } from "@/core/types";
-import { addEvidence, workspacesDir, type Db } from "./db";
+import { addEvidence, type Db } from "./db";
 import { createGit } from "./git";
 import { ConnectError } from "./connect-url";
+
+/** Builds an authenticated HTTPS clone URL for GitHub (token never stored). */
+export function githubCloneUrl(fullName: string, accessToken: string): string {
+  const encoded = encodeURIComponent(accessToken);
+  return `https://x-access-token:${encoded}@github.com/${fullName}.git`;
+}
 
 /** Turns a path or git URL into a short, filesystem-safe project name. */
 export function deriveProjectName(input: string): string {
@@ -41,14 +47,6 @@ export function assertAssessableRoot(rootPath: string): void {
   }
 }
 
-export function uniqueWorkspacePath(name: string): string {
-  const base = path.join(workspacesDir(), name);
-  if (!fs.existsSync(base)) return base;
-  let index = 2;
-  while (fs.existsSync(`${base}-${index}`)) index += 1;
-  return `${base}-${index}`;
-}
-
 export function uniqueProjectName(db: Db, desired: string): string {
   const taken = new Set(db.projects.map((project) => project.name));
   if (!taken.has(desired)) return desired;
@@ -70,8 +68,8 @@ export function addConnectedProject(
     projectId: project.id,
     detail: {
       source: project.source,
-      rootPath: project.rootPath,
       sourceRef: project.sourceRef,
+      fullName: project.github?.fullName,
     },
   });
   return project;
@@ -82,7 +80,7 @@ export async function cloneShallow(
   cloneUrl: string,
   rootPath: string,
 ): Promise<void> {
-  fs.mkdirSync(workspacesDir(), { recursive: true });
+  fs.mkdirSync(path.dirname(rootPath), { recursive: true });
   try {
     await createGit().clone(cloneUrl, rootPath, ["--depth", "1"]);
   } catch (error) {

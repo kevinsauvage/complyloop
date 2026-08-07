@@ -93,8 +93,6 @@ export interface ProjectGitHubMeta {
 export interface Project {
   id: string;
   name: string;
-  /** Absolute path scanned and written by remediations. */
-  rootPath: string;
   source: ProjectSource;
   /** Canonical https://github.com/org/repo URL. */
   sourceRef?: string;

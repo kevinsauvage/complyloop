@@ -1,16 +1,14 @@
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
-import fs from "node:fs";
 import type { Alert } from "@/core/types";
 import { runAssessment } from "./assessment";
-import { githubCloneUrl } from "./connect-github";
 import { addEvidence, loadDb, withDbWrite, type Db } from "./db";
-import { createGit } from "./git";
 import {
   postPullRequestCheckRun,
   summarizeAssessmentForCheckRun,
 } from "./github-checks";
 import { resolveProjectGitHubToken } from "./github-access";
 import { reportError, reportWarning } from "./observability";
+import { withRepoCheckout } from "./repo-checkout";
 
 export function isWebhookConfigured(): boolean {
   return Boolean(process.env.GITHUB_WEBHOOK_SECRET);
@@ -26,33 +24,6 @@ export async function verifyGitHubSignature(
     return await verifyWebhookSignature(secret, rawBody, signatureHeader);
   } catch {
     return false;
-  }
-}
-
-async function pullLatest(
-  rootPath: string,
-  fullName: string,
-  token: string,
-): Promise<void> {
-  const remote = githubCloneUrl(fullName, token);
-  const git = createGit({
-    baseDir: rootPath,
-    config: ["core.askPass="],
-  });
-
-  await git.remote(["set-url", "origin", remote]);
-  try {
-    await git.fetch(["--depth", "1", "origin"]);
-    const branch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
-    const target = branch === "HEAD" ? "origin/HEAD" : `origin/${branch}`;
-    await git.reset(["--hard", target]);
-  } finally {
-    // Never leave the token in the remote URL on disk.
-    await git.remote([
-      "set-url",
-      "origin",
-      `https://github.com/${fullName}.git`,
-    ]);
   }
 }
 
@@ -92,6 +63,13 @@ function pullRequestHeadSha(payload: Record<string, unknown>): string | null {
   return typeof sha === "string" && sha.length > 0 ? sha : null;
 }
 
+function pushHeadSha(payload: Record<string, unknown>): string | null {
+  const after = payload.after;
+  return typeof after === "string" && /^[0-9a-f]{40}$/i.test(after)
+    ? after
+    : null;
+}
+
 export interface WebhookHandleResult {
   handled: boolean;
   message: string;
@@ -101,8 +79,8 @@ export interface WebhookHandleResult {
 
 /**
  * Handles push / pull_request GitHub events for connected projects.
- * Re-pulls the clone, re-assesses, emits regression alerts, and on PR events
- * posts a Check Run on the head commit.
+ * Ephemeral-clones the repo (at the event SHA when available), re-assesses,
+ * emits regression alerts, and on PR events posts a Check Run.
  */
 export async function handleGitHubWebhookEvent(
   eventName: string,
@@ -130,7 +108,6 @@ export async function handleGitHubWebhookEvent(
     };
   }
 
-  // Resolve project + token without holding the write lock (clone pull is slow).
   const preview = await loadDb();
   const previewProject = preview.projects.find(
     (candidate) =>
@@ -148,23 +125,6 @@ export async function handleGitHubWebhookEvent(
     return {
       handled: false,
       message: "Connected project has no owner",
-      alerts: [],
-    };
-  }
-  if (!fs.existsSync(previewProject.rootPath)) {
-    const message =
-      `Workspace missing for ${fullName} at ${previewProject.rootPath}. ` +
-      "ComplyLoop requires a single instance with durable DATA_DIR for clones " +
-      "(see docs/deploy.md). Re-connect the repository or restore the volume.";
-    reportError(new Error(message), {
-      code: "workspace_missing",
-      projectId: previewProject.id,
-      fullName,
-      rootPath: previewProject.rootPath,
-    });
-    return {
-      handled: false,
-      message,
       alerts: [],
     };
   }
@@ -191,93 +151,114 @@ export async function handleGitHubWebhookEvent(
     ? `push ${typeof payload.ref === "string" ? payload.ref : ""}`.trim()
     : `pull_request ${String(payload.action)}`;
 
-  await pullLatest(previewProject.rootPath, fullName, token);
+  const ref =
+    (isPr ? pullRequestHeadSha(payload) : null) ??
+    (isPush ? pushHeadSha(payload) : null) ??
+    undefined;
 
-  return withDbWrite(async (db) => {
-    const project = db.projects.find(
-      (candidate) =>
-        candidate.source === "github" &&
-        candidate.github?.fullName === fullName,
+  try {
+    return await withRepoCheckout(
+      { fullName, accessToken: token, ref },
+      async (rootPath) =>
+        withDbWrite(async (db) => {
+          const project = db.projects.find(
+            (candidate) =>
+              candidate.source === "github" &&
+              candidate.github?.fullName === fullName,
+          );
+          if (!project) {
+            return {
+              handled: false,
+              message: `No connected project for ${fullName}`,
+              alerts: [],
+            };
+          }
+
+          const assessment = await runAssessment(db, project.id, { rootPath });
+          const alerts = collectRegressionAlerts(
+            db,
+            project.id,
+            assessment.id,
+            trigger,
+          );
+
+          db.alerts.push(...alerts);
+
+          let checkRun: WebhookHandleResult["checkRun"];
+          if (isPr) {
+            const headSha = pullRequestHeadSha(payload);
+            if (headSha) {
+              const openViolations = db.findings.filter(
+                (finding) =>
+                  finding.projectId === project.id &&
+                  finding.status === "open" &&
+                  finding.kind === "violation",
+              ).length;
+              const failedRequirements = db.requirements.filter(
+                (requirement) =>
+                  requirement.projectId === project.id &&
+                  requirement.status === "failed",
+              ).length;
+              const summary = summarizeAssessmentForCheckRun({
+                openViolations,
+                failedRequirements,
+                assessmentId: assessment.id,
+              });
+              const posted = await postPullRequestCheckRun({
+                fullName,
+                headSha,
+                token,
+                ...summary,
+              });
+              checkRun = {
+                ok: posted.ok,
+                error: posted.error,
+                htmlUrl: posted.htmlUrl,
+              };
+            } else {
+              checkRun = { ok: false, error: "Missing pull_request.head.sha" };
+            }
+          }
+
+          addEvidence(db, {
+            kind: "webhook_reassessment",
+            summary: `Webhook re-assessment of ${fullName} after ${trigger}${alerts.length > 0 ? ` — ${alerts.length} regression(s)` : ""}${
+              checkRun
+                ? checkRun.ok
+                  ? " — Check Run posted"
+                  : ` — Check Run failed: ${checkRun.error ?? "unknown"}`
+                : ""
+            }`,
+            projectId: project.id,
+            assessmentId: assessment.id,
+            detail: {
+              eventName,
+              fullName,
+              trigger,
+              regressionCount: alerts.length,
+              checkRun,
+              ref: ref ?? null,
+            },
+          });
+
+          return {
+            handled: true,
+            message: `Re-assessed ${fullName}; ${alerts.length} regression alert(s)`,
+            alerts,
+            checkRun,
+          };
+        }),
     );
-    if (!project) {
-      return {
-        handled: false,
-        message: `No connected project for ${fullName}`,
-        alerts: [],
-      };
-    }
-
-    const assessment = await runAssessment(db, project.id);
-    const alerts = collectRegressionAlerts(
-      db,
-      project.id,
-      assessment.id,
-      trigger,
-    );
-
-    db.alerts.push(...alerts);
-
-    let checkRun: WebhookHandleResult["checkRun"];
-    if (isPr) {
-      const headSha = pullRequestHeadSha(payload);
-      if (headSha) {
-        const openViolations = db.findings.filter(
-          (finding) =>
-            finding.projectId === project.id &&
-            finding.status === "open" &&
-            finding.kind === "violation",
-        ).length;
-        const failedRequirements = db.requirements.filter(
-          (requirement) =>
-            requirement.projectId === project.id &&
-            requirement.status === "failed",
-        ).length;
-        const summary = summarizeAssessmentForCheckRun({
-          openViolations,
-          failedRequirements,
-          assessmentId: assessment.id,
-        });
-        const posted = await postPullRequestCheckRun({
-          fullName,
-          headSha,
-          token,
-          ...summary,
-        });
-        checkRun = {
-          ok: posted.ok,
-          error: posted.error,
-          htmlUrl: posted.htmlUrl,
-        };
-      } else {
-        checkRun = { ok: false, error: "Missing pull_request.head.sha" };
-      }
-    }
-
-    addEvidence(db, {
-      kind: "webhook_reassessment",
-      summary: `Webhook re-assessment of ${fullName} after ${trigger}${alerts.length > 0 ? ` — ${alerts.length} regression(s)` : ""}${
-        checkRun
-          ? checkRun.ok
-            ? " — Check Run posted"
-            : ` — Check Run failed: ${checkRun.error ?? "unknown"}`
-          : ""
-      }`,
-      projectId: project.id,
-      assessmentId: assessment.id,
-      detail: {
-        eventName,
-        fullName,
-        trigger,
-        regressionCount: alerts.length,
-        checkRun,
-      },
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? `Failed to clone ${fullName} for webhook assessment: ${error.message}`
+        : `Failed to clone ${fullName} for webhook assessment.`;
+    reportError(error instanceof Error ? error : new Error(message), {
+      code: "webhook_clone_failed",
+      projectId: previewProject.id,
+      fullName,
     });
-
-    return {
-      handled: true,
-      message: `Re-assessed ${fullName}; ${alerts.length} regression alert(s)`,
-      alerts,
-      checkRun,
-    };
-  });
+    return { handled: false, message, alerts: [] };
+  }
 }

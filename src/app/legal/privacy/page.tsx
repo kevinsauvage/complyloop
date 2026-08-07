@@ -19,7 +19,8 @@ export default function PrivacyPage() {
               clone, PR, and Checks
             </li>
             <li>
-              Cloned repository workspaces under the server <code className="font-mono text-xs text-foreground">DATA_DIR</code>
+              Ephemeral clones of connected repositories during assessment,
+              remediation, and PR jobs (deleted after each job)
             </li>
             <li>
               Assessments, findings, remediations, exceptions, and append-only

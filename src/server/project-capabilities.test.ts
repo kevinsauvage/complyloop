@@ -6,7 +6,6 @@ import type { AccessContext } from "./project-visibility";
 const project: Project = {
   id: "p1",
   name: "Shop",
-  rootPath: "/tmp/shop",
   source: "github",
   createdAt: "2026-01-01T00:00:00.000Z",
   orgId: "org-1",

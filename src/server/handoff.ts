@@ -20,14 +20,14 @@ export interface DeveloperHandoff {
 }
 
 export function buildDiffForFix(
-  project: Project,
+  rootPath: string,
   finding: Finding,
   fix: ProposedFix,
 ): string {
   if (!isSourceLocation(finding.location)) {
     throw new Error("Diffs require a source location.");
   }
-  const absolute = resolveInside(project.rootPath, finding.location.filePath);
+  const absolute = resolveInside(rootPath, finding.location.filePath);
   const original = fs.readFileSync(absolute, "utf8");
   const fixed = applyFix(original, fix);
   return createTwoFilesPatch(
@@ -46,6 +46,8 @@ export function buildDeveloperHandoff(
   control: Control,
   finding: Finding,
   remediation: Remediation,
+  /** When set, builds a file-based diff from the checkout; otherwise snippet fallback. */
+  rootPath?: string,
 ): DeveloperHandoff {
   const title = `fix(a11y): ${control.code} — ${control.title}`;
   const suggestion = remediation.suggestion;
@@ -106,9 +108,9 @@ export function buildDeveloperHandoff(
     .join("\n");
 
   let diff: string | null = null;
-  if (finding.fix && isSourceLocation(finding.location)) {
+  if (finding.fix && isSourceLocation(finding.location) && rootPath) {
     try {
-      diff = buildDiffForFix(project, finding, finding.fix);
+      diff = buildDiffForFix(rootPath, finding, finding.fix);
     } catch {
       diff = null;
     }
@@ -134,8 +136,8 @@ export function buildDeveloperHandoff(
     body,
     diff,
     filePath:
-      finding.fix && isSourceLocation(finding.location)
-        ? resolveInside(project.rootPath, finding.location.filePath)
+      finding.fix && isSourceLocation(finding.location) && rootPath
+        ? resolveInside(rootPath, finding.location.filePath)
         : null,
   };
 }

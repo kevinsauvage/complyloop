@@ -5,7 +5,6 @@ import type { OrgMembership, Project } from "./types";
 const project: Project = {
   id: "p1",
   name: "shop",
-  rootPath: "/tmp/shop",
   source: "github",
   orgId: "org-1",
   ownerUserId: "owner-1",

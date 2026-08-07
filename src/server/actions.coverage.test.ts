@@ -12,6 +12,7 @@ import type { Db } from "./db";
 import type { Workspace } from "./workspace";
 
 const withWorkspaceWrite = vi.hoisted(() => vi.fn());
+const getWorkspace = vi.hoisted(() => vi.fn());
 const locateViolationInProject = vi.hoisted(() => vi.fn());
 const refreshRequirementStatuses = vi.hoisted(() => vi.fn());
 
@@ -29,10 +30,19 @@ vi.mock("./workspace", async () => {
   const actual = await vi.importActual<typeof import("./workspace")>("./workspace");
   return {
     ...actual,
+    getWorkspace: () => getWorkspace(),
     withWorkspaceWrite: (fn: (workspace: Workspace) => unknown) =>
       withWorkspaceWrite(fn),
   };
 });
+
+vi.mock("./repo-checkout", () => ({
+  withProjectCheckout: async (
+    _project: unknown,
+    fn: (rootPath: string) => Promise<unknown>,
+  ) => fn("/tmp/ephemeral-checkout"),
+  withRepoCheckout: vi.fn(),
+}));
 
 vi.mock("./observability", () => ({
   reportError: vi.fn(),
@@ -63,7 +73,6 @@ import {
 const project: Project = {
   id: "p1",
   name: "Shop",
-  rootPath: "/tmp/shop",
   source: "github",
   orgId: "org-1",
   ownerUserId: "owner-1",
@@ -172,6 +181,7 @@ afterEach(() => {
 describe("verifyRemediationAction", () => {
   it("reports still-failing when the violation is still located", async () => {
     const workspace = baseWorkspace();
+    getWorkspace.mockResolvedValue(workspace);
     withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
     locateViolationInProject.mockReturnValue({
       checkId: "img-alt",
@@ -195,6 +205,7 @@ describe("verifyRemediationAction", () => {
 
   it("marks verified when the violation is gone", async () => {
     const workspace = baseWorkspace();
+    getWorkspace.mockResolvedValue(workspace);
     withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
     locateViolationInProject.mockReturnValue(undefined);
 

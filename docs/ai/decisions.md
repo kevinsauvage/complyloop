@@ -4,6 +4,19 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-07 — Postgres-only + ephemeral clone-per-job
+
+**Context:** Dual JSON/`DATA_DIR` persistence blocked multi-instance deploys; durable clones caused `workspace_missing` when disks were ephemeral.
+
+**Decision:**
+- Require `DATABASE_URL`; delete the JSON store and all `$DATA_DIR` fallbacks (tokens, webhook deliveries).
+- Drop durable `Project.rootPath`. Every job that needs source uses `withRepoCheckout` / `withProjectCheckout` (temp shallow clone → work → delete).
+- Connect validates via ephemeral clone then stores GitHub metadata only.
+
+**Consequence:** No workspace volume. Multi-instance OK for app state; jobs still run in-process. Dev requires Postgres (`docker compose` + migrate).
+
+---
+
 ## 2026-08-07 — Bind GitHub App installation tokens to the user
 
 **Context:** `connectGitHubRepoAction` minted installation tokens from a client-supplied `installationId` with the App private key — no check that the signed-in user could access that install (cross-tenant clone risk).

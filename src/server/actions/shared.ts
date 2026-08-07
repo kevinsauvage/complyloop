@@ -40,11 +40,15 @@ export function requireOnFindingProject(
   assertProjectPermission(project, workspace.access, permission);
 }
 
-export function locateViolation(db: Db, finding: Finding) {
+export function locateViolation(
+  db: Db,
+  finding: Finding,
+  rootPath: string,
+) {
   const project = db.projects.find((candidate) => candidate.id === finding.projectId);
   if (!project) throw new Error(`Unknown project: ${finding.projectId}`);
   return {
     project,
-    match: locateViolationInProject(project, finding),
+    match: locateViolationInProject(rootPath, finding),
   };
 }

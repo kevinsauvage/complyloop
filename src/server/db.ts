@@ -1,7 +1,5 @@
-import path from "node:path";
 import type { EvidenceRecord } from "@/core/types";
-import { getDrizzle, isPostgresConfigured } from "./db-store/client";
-import { dataDir, loadDbFromJson, saveDbToJson } from "./db-store/json";
+import { getDrizzle } from "./db-store/client";
 import { loadDbFromPostgres } from "./db-store/postgres-load";
 import {
   persistDbToPostgres,
@@ -14,31 +12,21 @@ import {
 } from "./db-store/write-lock";
 
 export type { Db } from "./db-store/types";
+export { emptyDb } from "./db-store/types";
 
 /**
- * Persistence boundary: JSON under `$DATA_DIR/db.json` by default, or Postgres
- * via Drizzle when `DATABASE_URL` is set. Callers keep the in-memory `Db` shape.
+ * Persistence boundary: Postgres via Drizzle (`DATABASE_URL` required).
+ * Callers keep the in-memory {@link Db} shape.
  *
  * Prefer {@link withDbWrite} for mutations so concurrent writers cannot clobber
  * each other (process mutex + Postgres advisory lock around load→mutate→save).
  */
-export function workspacesDir(): string {
-  return path.join(dataDir(), "workspaces");
-}
-
 export async function loadDb(): Promise<Db> {
-  if (isPostgresConfigured()) {
-    return loadDbFromPostgres(await getDrizzle());
-  }
-  return loadDbFromJson();
+  return loadDbFromPostgres(await getDrizzle());
 }
 
 export async function saveDb(db: Db): Promise<void> {
-  if (isPostgresConfigured()) {
-    await saveDbToPostgres(await getDrizzle(), db);
-    return;
-  }
-  saveDbToJson(db);
+  await saveDbToPostgres(await getDrizzle(), db);
 }
 
 /**
@@ -49,19 +37,13 @@ export async function withDbWrite<T>(
   fn: (db: Db) => Promise<T> | T,
 ): Promise<T> {
   return withProcessWriteLock(async () => {
-    if (isPostgresConfigured()) {
-      const drizzle = await getDrizzle();
-      return withPostgresAdvisoryLock(drizzle, async (tx) => {
-        const db = await loadDbFromPostgres(tx);
-        const result = await fn(db);
-        await persistDbToPostgres(tx, db);
-        return result;
-      });
-    }
-    const db = await loadDbFromJson();
-    const result = await fn(db);
-    saveDbToJson(db);
-    return result;
+    const drizzle = await getDrizzle();
+    return withPostgresAdvisoryLock(drizzle, async (tx) => {
+      const db = await loadDbFromPostgres(tx);
+      const result = await fn(db);
+      await persistDbToPostgres(tx, db);
+      return result;
+    });
   });
 }
 
@@ -78,5 +60,3 @@ export function addEvidence(
   db.evidence.push(record);
   return record;
 }
-
-export { isPostgresConfigured } from "./db-store/client";

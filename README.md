@@ -16,11 +16,14 @@ can be added as adapters. Full product specification:
 
 ```bash
 npm install
+docker compose up -d
+# set DATABASE_URL in .env.local (see .env.example)
+npm run db:migrate
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000), sign in with GitHub, and
-connect a repository.
+connect a repository. Postgres (`DATABASE_URL`) is required.
 
 ### Connect a GitHub repository
 
@@ -34,20 +37,20 @@ connect a repository.
    repository from the dashboard picker.
 
 Without those env vars the repository picker stays unavailable — set them to
-connect GitHub projects. Clones land in `.data/workspaces/`.
+connect GitHub projects. Assessment jobs shallow-clone into a temp directory
+and delete it when finished (no durable workspace on disk).
 
 Optional continuous monitoring: set `GITHUB_WEBHOOK_SECRET` and point a GitHub
 repo webhook (push + pull_request) at
 `{origin}/api/github/webhook`. After you sign in once, tokens are stored
-**encrypted at rest** (AES-256-GCM via `AUTH_SECRET`) so webhooks can pull and
+**encrypted at rest** (AES-256-GCM via `AUTH_SECRET`) so webhooks can clone and
 re-assess; PR events also post a **ComplyLoop Check Run** on the head commit.
 Regressions appear as dashboard alerts.
 
 ### Deploying beyond the laptop
 
-App state can use **Postgres** (`DATABASE_URL` + `npm run db:migrate`) or a
-JSON file on a **persistent disk**. Clones and encrypted tokens still need
-durable `DATA_DIR` (or a later move off disk). See
+**Postgres is required** (`DATABASE_URL` + `npm run db:migrate`). Clones are
+ephemeral per job — no durable workspace volume. See
 [`docs/deploy.md`](./docs/deploy.md).
 
 CI for assessed apps: `npm install @complyloop/check` (build the workspace

@@ -63,7 +63,9 @@ export function buildComplianceReportMarkdown(input: ReportInput): string {
     `**Exported:** ${exportedAt}`,
     `**Framework:** ${framework.name} (${framework.version})`,
     `**Project source:** ${project.source}${project.sourceRef ? ` — ${project.sourceRef}` : ""}`,
-    `**Assessed path:** \`${project.rootPath}\``,
+    project.github?.fullName
+      ? `**GitHub repository:** \`${project.github.fullName}\``
+      : "",
     ``,
     `## Summary`,
     ``,

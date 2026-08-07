@@ -5,6 +5,7 @@ import type { Db } from "./db";
 import type { Workspace } from "./workspace";
 
 const withWorkspaceWrite = vi.hoisted(() => vi.fn());
+const getWorkspace = vi.hoisted(() => vi.fn());
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -29,10 +30,19 @@ vi.mock("./workspace", async () => {
   const actual = await vi.importActual<typeof import("./workspace")>("./workspace");
   return {
     ...actual,
+    getWorkspace: () => getWorkspace(),
     withWorkspaceWrite: (fn: (workspace: Workspace) => unknown) =>
       withWorkspaceWrite(fn),
   };
 });
+
+vi.mock("./repo-checkout", () => ({
+  withProjectCheckout: async (
+    _project: unknown,
+    fn: (rootPath: string) => Promise<unknown>,
+  ) => fn("/tmp/ephemeral-checkout"),
+  withRepoCheckout: vi.fn(),
+}));
 
 vi.mock("./observability", () => ({
   reportError: vi.fn(),
@@ -60,7 +70,6 @@ import { approveRemediationAction } from "./actions/remediation";
 const project: Project = {
   id: "p1",
   name: "Shop",
-  rootPath: "/tmp/shop",
   source: "github",
   orgId: "org-1",
   ownerUserId: "owner-1",
@@ -193,7 +202,7 @@ describe("remediation action authz", () => {
   });
 
   it("denies run assessment for viewers", async () => {
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspaceFor("viewer")));
+    getWorkspace.mockResolvedValue(workspaceFor("viewer"));
     const result = await runAssessmentAction(
       emptyActionMessageState,
       new FormData(),

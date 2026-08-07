@@ -29,7 +29,6 @@ describe("developer handoff", () => {
     const project: Project = {
       id: "p1",
       name: "shop",
-      rootPath: root,
       source: "github",
       createdAt: new Date().toISOString(),
     };
@@ -78,12 +77,18 @@ describe("developer handoff", () => {
       history: [],
     };
 
-    const diff = buildDiffForFix(project, finding, raw.fix);
+    const diff = buildDiffForFix(root, finding, raw.fix);
     expect(diff).toContain("--- a/Hero.tsx");
     expect(diff).toContain("+++ b/Hero.tsx");
     expect(diff).toMatch(/\+.*alt=/);
 
-    const handoff = buildDeveloperHandoff(project, control, finding, remediation);
+    const handoff = buildDeveloperHandoff(
+      project,
+      control,
+      finding,
+      remediation,
+      root,
+    );
     expect(handoff.title).toContain("WCAG 1.1.1");
     expect(handoff.body).toContain("## Requirement");
     expect(handoff.body).toContain("## Verification");

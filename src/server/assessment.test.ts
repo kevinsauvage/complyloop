@@ -21,9 +21,8 @@ beforeEach(() => {
   project = {
     id: "p1",
     name: "test-project",
-    rootPath,
     source: "github",
-    sourceRef: rootPath,
+    sourceRef: "https://github.com/acme/test-project",
     createdAt: new Date().toISOString(),
   };
   db = {
@@ -53,7 +52,7 @@ function requirementStatus(controlId: string) {
 
 describe("runAssessment", () => {
   it("creates findings, remediations with suggestions, and requirement statuses", async () => {
-    const assessment = await runAssessment(db, project.id);
+    const assessment = await runAssessment(db, project.id, { rootPath });
 
     expect(assessment.filesScanned).toBe(1);
     expect(db.findings).toHaveLength(1);
@@ -68,25 +67,25 @@ describe("runAssessment", () => {
   });
 
   it("carries the same finding across re-assessments instead of duplicating it", async () => {
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     const originalId = db.findings[0].id;
 
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     expect(db.findings).toHaveLength(1);
     expect(db.findings[0].id).toBe(originalId);
     expect(db.findings[0].status).toBe("open");
   });
 
   it("resolves findings that disappear and detects regressions when they return", async () => {
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     expect(db.findings[0].status).toBe("resolved");
     expect(requirementStatus("ctl-img-alt")).toBe("passed");
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), BROKEN);
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     expect(requirementStatus("ctl-img-alt")).toBe("failed");
 
     const regression = db.evidence.find(
@@ -98,7 +97,7 @@ describe("runAssessment", () => {
   });
 
   it("keeps dismissed findings dismissed on re-assessment", async () => {
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     db.findings[0].status = "dismissed";
     db.findings[0].dismissal = {
       reason: "accepted_risk",
@@ -106,13 +105,13 @@ describe("runAssessment", () => {
       at: new Date().toISOString(),
     };
 
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     expect(db.findings).toHaveLength(1);
     expect(db.findings[0].status).toBe("dismissed");
   });
 
   it("does not overwrite a human requirement exception on re-assessment", async () => {
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     const requirement = db.requirements.find(
       (candidate) => candidate.controlId === "ctl-img-alt",
     );
@@ -125,7 +124,7 @@ describe("runAssessment", () => {
       at: new Date().toISOString(),
     };
 
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     expect(requirementStatus("ctl-img-alt")).toBe("not_applicable");
     expect(
       db.requirements.find((candidate) => candidate.controlId === "ctl-img-alt")
@@ -134,11 +133,11 @@ describe("runAssessment", () => {
   });
 
   it("records a snapshot and attributes file changes on re-assessment", async () => {
-    const first = await runAssessment(db, project.id);
+    const first = await runAssessment(db, project.id, { rootPath });
     expect(first.snapshot?.fileHashes["Hero.tsx"]).toBeDefined();
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    const second = await runAssessment(db, project.id);
+    const second = await runAssessment(db, project.id, { rootPath });
     expect(second.changesSincePrevious?.some((c) => c.filePath === "Hero.tsx")).toBe(
       true,
     );
@@ -148,7 +147,7 @@ describe("runAssessment", () => {
   });
 
   it("clears expired temporary exceptions and re-derives status", async () => {
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     const requirement = db.requirements.find(
       (candidate) => candidate.controlId === "ctl-img-alt",
     );
@@ -161,7 +160,7 @@ describe("runAssessment", () => {
       expiresAt: "2026-01-02T00:00:00.000Z",
     };
 
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     const refreshed = db.requirements.find(
       (candidate) => candidate.controlId === "ctl-img-alt",
     );
@@ -178,7 +177,7 @@ describe("runAssessment", () => {
 
   it("only assesses controls in the project scope", async () => {
     project.inScopeControlIds = ["ctl-button-name"];
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     expect(db.findings).toHaveLength(0);
     expect(requirementStatus("ctl-button-name")).toBe("passed");
     expect(requirementStatus("ctl-img-alt")).toBeUndefined();
@@ -196,7 +195,7 @@ describe("runAssessment", () => {
     });
     project.inScopeControlIds = ["ctl-manual"];
 
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     expect(requirementStatus("ctl-manual")).toBe("unable_to_verify");
 
     const requirement = db.requirements.find(
@@ -210,7 +209,7 @@ describe("runAssessment", () => {
       at: new Date().toISOString(),
     };
 
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     expect(requirementStatus("ctl-manual")).toBe("passed");
     expect(
       db.requirements.find((candidate) => candidate.controlId === "ctl-manual")
@@ -220,7 +219,7 @@ describe("runAssessment", () => {
 
   it("scoped re-scan does not resolve findings outside changed files", async () => {
     fs.writeFileSync(path.join(rootPath, "Other.tsx"), BROKEN);
-    await runAssessment(db, project.id);
+    await runAssessment(db, project.id, { rootPath });
     const otherFinding = db.findings.find(
       (finding) =>
         isSourceLocation(finding.location) &&
@@ -231,7 +230,7 @@ describe("runAssessment", () => {
 
     // Only Hero.tsx changes; Other.tsx must stay open under scoped scan.
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    const second = await runAssessment(db, project.id);
+    const second = await runAssessment(db, project.id, { rootPath });
     expect(second.scanMode).toBe("scoped");
     expect(
       db.findings.find(

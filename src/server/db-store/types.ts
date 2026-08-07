@@ -13,8 +13,8 @@ import type {
 } from "@/core/types";
 
 /**
- * In-memory persistence shape. Callers mutate this object and call saveDb.
- * Backed by JSON file or Postgres depending on DATABASE_URL.
+ * In-memory persistence shape. Callers mutate this object and persist via
+ * `withDbWrite` / `saveDb` (Postgres).
  */
 export interface Db {
   frameworks: Framework[];
@@ -31,4 +31,21 @@ export interface Db {
   evidence: EvidenceRecord[];
   /** Regression / monitoring alerts (append-friendly, markable as read). */
   alerts: Alert[];
+}
+
+export function emptyDb(): Db {
+  return {
+    frameworks: [],
+    controls: [],
+    organizations: [],
+    memberships: [],
+    projects: [],
+    activeProjectId: null,
+    requirements: [],
+    assessments: [],
+    findings: [],
+    remediations: [],
+    evidence: [],
+    alerts: [],
+  };
 }

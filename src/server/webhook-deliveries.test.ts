@@ -1,24 +1,66 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const claimed = vi.hoisted(() => new Set<string>());
+
+vi.mock("drizzle-orm", async () => {
+  const actual = await vi.importActual<typeof import("drizzle-orm")>(
+    "drizzle-orm",
+  );
+  return {
+    ...actual,
+    eq: (_column: unknown, value: unknown) => ({ __eqValue: value }),
+  };
+});
+
+vi.mock("./db-store/client", () => ({
+  getDrizzle: async () => ({
+    insert: () => ({
+      values: (value: { deliveryId: string; processedAt: string }) => ({
+        onConflictDoNothing: () => ({
+          returning: async () => {
+            if (claimed.has(value.deliveryId)) return [];
+            claimed.add(value.deliveryId);
+            return [{ deliveryId: value.deliveryId }];
+          },
+        }),
+      }),
+    }),
+    select: (shape?: { total?: unknown }) => {
+      if (shape && "total" in shape) {
+        return {
+          from: async () => [{ total: claimed.size }],
+        };
+      }
+      return {
+        from: () => ({
+          where: (clause: { __eqValue?: unknown }) => ({
+            limit: async () => {
+              const id = clause.__eqValue;
+              if (typeof id === "string" && claimed.has(id)) {
+                return [{ deliveryId: id }];
+              }
+              return [];
+            },
+          }),
+          orderBy: () => ({
+            limit: async () => [],
+          }),
+        }),
+      };
+    },
+    delete: () => ({
+      where: async () => undefined,
+    }),
+  }),
+}));
+
 import {
   claimWebhookDelivery,
   hasProcessedWebhookDelivery,
 } from "./webhook-deliveries";
 
-let dataDir: string;
-const previousDataDir = process.env.DATA_DIR;
-
 beforeEach(() => {
-  dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "webhook-del-"));
-  process.env.DATA_DIR = dataDir;
-});
-
-afterEach(() => {
-  fs.rmSync(dataDir, { recursive: true, force: true });
-  if (previousDataDir === undefined) delete process.env.DATA_DIR;
-  else process.env.DATA_DIR = previousDataDir;
+  claimed.clear();
 });
 
 describe("webhook delivery idempotency", () => {

@@ -8,7 +8,6 @@ import { isDomLocation, isSourceLocation } from "@/core/location";
 import type {
   Finding,
   FindingLocation,
-  Project,
   ProposedFix,
   RemediationSuggestion,
 } from "@/core/types";
@@ -60,12 +59,12 @@ export function mergeFix(
  * Warnings are ignored — they carry no fix. DOM findings are not relocatable here.
  */
 export function locateViolationInProject(
-  project: Project,
+  rootPath: string,
   finding: Pick<Finding, "checkId" | "location">,
 ): RawFinding | undefined {
   const location = finding.location;
   if (!isSourceLocation(location)) return undefined;
-  const violations = scanFile(project.rootPath, location.filePath).filter(
+  const violations = scanFile(rootPath, location.filePath).filter(
     (candidate) =>
       candidate.checkId === finding.checkId && candidate.kind === "violation",
   );
@@ -79,13 +78,13 @@ export function locateViolationInProject(
 }
 
 export function buildSuggestion(
-  project: Project,
+  rootPath: string,
   raw: Pick<RawFinding, "location" | "fix">,
 ): RemediationSuggestion | null {
   if (!raw.fix) return null;
   if (!isSourceLocation(raw.location)) return null;
   const text = fs.readFileSync(
-    resolveInside(project.rootPath, raw.location.filePath),
+    resolveInside(rootPath, raw.location.filePath),
     "utf8",
   );
   return {

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { imgAltCheck } from "@/analysis/checks/img-alt";
 import { applyFix } from "@/analysis/fixes";
 import { parseSource } from "@/analysis/parse";
@@ -9,6 +9,32 @@ import { scanFile } from "@/analysis/scan";
 import type { Control, Finding, Project, Remediation } from "@/core/types";
 import { locateViolationInProject, mergeFix } from "./assessment-helpers";
 import { createGit } from "./git";
+
+const withProjectCheckout = vi.hoisted(() =>
+  vi.fn(
+    async <T>(
+      _project: unknown,
+      fn: (rootPath: string) => Promise<T>,
+      _ref?: string,
+    ): Promise<T> => {
+      throw new Error("withProjectCheckout mock not configured");
+    },
+  ),
+);
+
+vi.mock("./repo-checkout", () => ({
+  withProjectCheckout: (
+    project: unknown,
+    fn: (rootPath: string) => Promise<unknown>,
+    ref?: string,
+  ) => withProjectCheckout(project, fn, ref),
+  withRepoCheckout: vi.fn(),
+}));
+
+vi.mock("./github-access", () => ({
+  resolveProjectGitHubToken: vi.fn(async () => null),
+}));
+
 import { preparePullRequest } from "./pr";
 
 const tempDirs: string[] = [];
@@ -17,6 +43,7 @@ afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+  vi.clearAllMocks();
 });
 
 async function initRepo(source: string): Promise<{
@@ -45,8 +72,12 @@ async function initRepo(source: string): Promise<{
   const project: Project = {
     id: "p1",
     name: "shop",
-    rootPath: root,
     source: "github",
+    github: {
+      fullName: "acme/shop",
+      defaultBranch: "main",
+      private: false,
+    },
     createdAt: new Date().toISOString(),
   };
   const control: Control = {
@@ -85,6 +116,9 @@ async function initRepo(source: string): Promise<{
     },
     history: [],
   };
+
+  withProjectCheckout.mockImplementation(async (_project, fn) => fn(root));
+
   return { root, relative, project, control, finding, remediation };
 }
 
@@ -98,7 +132,7 @@ describe("locateViolationInProject + PR apply", () => {
     const drifted = `/* banner */\n\n${initial}`;
     fs.writeFileSync(path.join(root, relative), drifted);
 
-    const match = locateViolationInProject(project, finding);
+    const match = locateViolationInProject(root, finding);
     expect(match?.fix).toBeTruthy();
     expect(match?.location.kind).toBe("source");
     expect(

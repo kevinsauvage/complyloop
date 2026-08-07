@@ -11,9 +11,8 @@ import { buildComplianceReportMarkdown } from "./report";
 const project: Project = {
   id: "p1",
   name: "demo-app",
-  rootPath: "/tmp/demo-app",
   source: "github",
-  sourceRef: "/tmp/demo-app",
+  sourceRef: "https://github.com/acme/demo-app",
   createdAt: "2026-01-01T00:00:00.000Z",
 };
 
