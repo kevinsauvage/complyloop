@@ -14,8 +14,7 @@ export default defineConfig({
     testTimeout: 15_000,
     coverage: {
       provider: "v8",
-      // Launch-risk surfaces with focused suites. Sparse action stubs stay out so
-      // thresholds track real guards (webhook/SSRF/account/error mapping/core).
+      // Scoped to launch-risk modules with real behavioral suites.
       include: [
         "src/core/**",
         "src/server/action-state.ts",
@@ -33,8 +32,6 @@ export default defineConfig({
         "src/server/actions/requirements.ts",
         "src/server/actions/shared.ts",
       ],
-      // Raised from 40/45/30/40 after webhook route, org lifecycle, SSRF, and
-      // error-mapping suites. Bump only with new behavioral tests.
       thresholds: {
         lines: 65,
         functions: 65,

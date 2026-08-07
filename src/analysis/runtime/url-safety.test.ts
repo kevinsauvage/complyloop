@@ -4,8 +4,6 @@ import {
   allowRuntimeNavigation,
   assertSafeRuntimeBaseUrl,
   assertSafeRuntimeUrl,
-  isBlockedHostname,
-  isBlockedIpAddress,
   type DnsLookup,
 } from "./url-safety";
 import { scanRuntime } from "./scan";
@@ -26,52 +24,6 @@ const loopbackLookup: DnsLookup = async () => [
   { address: "127.0.0.1", family: 4 },
 ];
 
-describe("isBlockedIpAddress", () => {
-  it("blocks private IPv4, loopback, link-local, and CGNAT", () => {
-    expect(isBlockedIpAddress("10.0.0.1")).toBe(true);
-    expect(isBlockedIpAddress("127.0.0.1")).toBe(true);
-    expect(isBlockedIpAddress("192.168.1.1")).toBe(true);
-    expect(isBlockedIpAddress("172.16.0.1")).toBe(true);
-    expect(isBlockedIpAddress("169.254.169.254")).toBe(true);
-    expect(isBlockedIpAddress("100.64.0.1")).toBe(true);
-    expect(isBlockedIpAddress("0.0.0.0")).toBe(true);
-  });
-
-  it("allows public IPv4", () => {
-    expect(isBlockedIpAddress("93.184.216.34")).toBe(false);
-    expect(isBlockedIpAddress("8.8.8.8")).toBe(false);
-  });
-
-  it("blocks loopback, ULA, link-local, and IPv4-mapped IPv6", () => {
-    expect(isBlockedIpAddress("::1")).toBe(true);
-    expect(isBlockedIpAddress("fd12:3456:789a::1")).toBe(true);
-    expect(isBlockedIpAddress("fe80::1")).toBe(true);
-    expect(isBlockedIpAddress("::ffff:127.0.0.1")).toBe(true);
-    expect(isBlockedIpAddress("::ffff:10.1.2.3")).toBe(true);
-  });
-
-  it("allows public IPv6", () => {
-    expect(isBlockedIpAddress("2606:2800:220:1:248:1893:25c8:1946")).toBe(
-      false,
-    );
-  });
-});
-
-describe("isBlockedHostname", () => {
-  it("blocks localhost, metadata, and special suffixes", () => {
-    expect(isBlockedHostname("localhost")).toBe(true);
-    expect(isBlockedHostname("app.localhost")).toBe(true);
-    expect(isBlockedHostname("printer.local")).toBe(true);
-    expect(isBlockedHostname("svc.internal")).toBe(true);
-    expect(isBlockedHostname("metadata.google.internal")).toBe(true);
-    expect(isBlockedHostname("metadata")).toBe(true);
-  });
-
-  it("allows ordinary public hostnames", () => {
-    expect(isBlockedHostname("preview.example.com")).toBe(false);
-  });
-});
-
 describe("assertSafeRuntimeBaseUrl", () => {
   it("accepts public https origins", () => {
     expect(assertSafeRuntimeBaseUrl("https://preview.example.com/app")).toBe(
@@ -79,25 +31,41 @@ describe("assertSafeRuntimeBaseUrl", () => {
     );
   });
 
-  it("rejects localhost and private IP literals", () => {
-    expect(() => assertSafeRuntimeBaseUrl("http://localhost:3000")).toThrow(
-      UNSAFE_RUNTIME_URL_MESSAGE,
+  it("rejects localhost, private, metadata, and reserved hostnames", () => {
+    const blocked = [
+      "http://localhost:3000",
+      "http://app.localhost",
+      "http://printer.local",
+      "http://svc.internal",
+      "http://metadata.google.internal",
+      "http://metadata",
+      "http://127.0.0.1",
+      "http://10.0.0.5",
+      "http://192.168.1.1",
+      "http://172.16.0.1",
+      "http://169.254.169.254/latest",
+      "http://100.64.0.1",
+      "http://0.0.0.0",
+      "http://[::1]",
+      "http://[fd12:3456:789a::1]",
+      "http://[fe80::1]",
+      "http://[::ffff:127.0.0.1]",
+      "http://[::ffff:10.1.2.3]",
+    ];
+    for (const url of blocked) {
+      expect(() => assertSafeRuntimeBaseUrl(url), url).toThrow(
+        UNSAFE_RUNTIME_URL_MESSAGE,
+      );
+    }
+  });
+
+  it("allows public IPv4 and IPv6 literals", () => {
+    expect(assertSafeRuntimeBaseUrl("http://93.184.216.34")).toBe(
+      "http://93.184.216.34",
     );
-    expect(() => assertSafeRuntimeBaseUrl("http://127.0.0.1")).toThrow(
-      UNSAFE_RUNTIME_URL_MESSAGE,
-    );
-    expect(() => assertSafeRuntimeBaseUrl("http://10.0.0.5")).toThrow(
-      UNSAFE_RUNTIME_URL_MESSAGE,
-    );
-    expect(() => assertSafeRuntimeBaseUrl("http://192.168.1.1")).toThrow(
-      UNSAFE_RUNTIME_URL_MESSAGE,
-    );
-    expect(() =>
-      assertSafeRuntimeBaseUrl("http://169.254.169.254/latest"),
-    ).toThrow(UNSAFE_RUNTIME_URL_MESSAGE);
-    expect(() => assertSafeRuntimeBaseUrl("http://[::1]/")).toThrow(
-      UNSAFE_RUNTIME_URL_MESSAGE,
-    );
+    expect(
+      assertSafeRuntimeBaseUrl("http://[2606:2800:220:1:248:1893:25c8:1946]"),
+    ).toBe("http://[2606:2800:220:1:248:1893:25c8:1946]");
   });
 
   it("rejects credentials and non-http schemes", () => {
@@ -119,23 +87,17 @@ describe("assertSafeRuntimeUrl", () => {
     ).resolves.toBe("https://preview.example.com/app");
   });
 
-  it("rejects hostnames that resolve to private IPs", async () => {
+  it("rejects hostnames that resolve to private, metadata, or loopback IPs", async () => {
     await expect(
       assertSafeRuntimeUrl("https://evil.example.com", {
         lookup: privateLookup,
       }),
     ).rejects.toThrow(UNSAFE_RUNTIME_URL_MESSAGE);
-  });
-
-  it("rejects hostnames that resolve to metadata addresses", async () => {
     await expect(
       assertSafeRuntimeUrl("https://metadata.example.com", {
         lookup: metadataLookup,
       }),
     ).rejects.toThrow(UNSAFE_RUNTIME_URL_MESSAGE);
-  });
-
-  it("rejects hostnames that resolve to loopback", async () => {
     await expect(
       assertSafeRuntimeUrl("https://loopback.example.com", {
         lookup: loopbackLookup,
@@ -205,8 +167,8 @@ describe("scanRuntime SSRF gate", () => {
   });
 });
 
-describe("allowRuntimeNavigation (redirect hops)", () => {
-  it("denies private and metadata redirect targets with a user-safe message", async () => {
+describe("allowRuntimeNavigation", () => {
+  it("denies private and metadata redirect targets", async () => {
     await expect(
       allowRuntimeNavigation("http://169.254.169.254/latest"),
     ).resolves.toEqual({
@@ -219,9 +181,7 @@ describe("allowRuntimeNavigation (redirect hops)", () => {
       ok: false,
       message: UNSAFE_RUNTIME_URL_MESSAGE,
     });
-    await expect(
-      allowRuntimeNavigation("http://[::1]/"),
-    ).resolves.toEqual({
+    await expect(allowRuntimeNavigation("http://[::1]/")).resolves.toEqual({
       ok: false,
       message: UNSAFE_RUNTIME_URL_MESSAGE,
     });

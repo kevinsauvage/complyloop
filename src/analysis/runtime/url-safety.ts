@@ -1,12 +1,11 @@
 /**
  * SSRF policy for runtime axe audits.
- * IP/hostname classification and DNS validation via `ssrf-guard`;
- * this module maps failures to product-safe errors and keeps an injectable
- * lookup for tests (Playwright cannot use undici IP pinning).
+ * Classification via `ssrf-guard`; this module maps failures to product-safe
+ * errors and keeps an injectable lookup for tests (Playwright cannot use
+ * undici IP pinning).
  */
 
 import {
-  isPrivateIp,
   isPublicHostname,
   validateResolvedAddresses,
   type BlockedHostnamePolicy,
@@ -18,35 +17,20 @@ export const UNSAFE_RUNTIME_URL_MESSAGE =
   "Runtime audit URL cannot target localhost, private, or metadata hosts.";
 
 /** Extra hosts beyond ssrf-guard's built-in localhost/.local policy. */
-const BLOCKED_HOSTNAMES: BlockedHostnamePolicy = {
+const EXTRA_BLOCKED_HOSTNAMES: BlockedHostnamePolicy = {
   exact: ["metadata.google.internal", "metadata.goog", "metadata"],
   suffixes: [".internal"],
 };
 
-/** `validateUrl` does not merge the localhost policy — pass the full set. */
+// `validateUrl` does not merge the localhost policy — pass the full set.
 const VALIDATE_URL_POLICY: BlockedHostnamePolicy = {
-  exact: [
-    "localhost",
-    "metadata.google.internal",
-    "metadata.goog",
-    "metadata",
-  ],
-  suffixes: [".localhost", ".local", ".internal"],
+  exact: ["localhost", ...EXTRA_BLOCKED_HOSTNAMES.exact],
+  suffixes: [".localhost", ".local", ...EXTRA_BLOCKED_HOSTNAMES.suffixes],
 };
 
 export type DnsLookup = (
   hostname: string,
 ) => Promise<ReadonlyArray<{ address: string; family: number }>>;
-
-/** True when an IP address must not be contacted by a runtime audit. */
-export function isBlockedIpAddress(address: string): boolean {
-  return isPrivateIp(address);
-}
-
-/** True when a hostname is blocked before DNS (literals + reserved names). */
-export function isBlockedHostname(hostname: string): boolean {
-  return !isPublicHostname(hostname, { blockedHostnames: BLOCKED_HOSTNAMES });
-}
 
 function parseHttpUrl(raw: string): URL {
   let parsed: URL;
@@ -65,15 +49,14 @@ function parseHttpUrl(raw: string): URL {
 }
 
 function assertPublicHostname(hostname: string): void {
-  if (!isPublicHostname(hostname, { blockedHostnames: BLOCKED_HOSTNAMES })) {
+  if (
+    !isPublicHostname(hostname, { blockedHostnames: EXTRA_BLOCKED_HOSTNAMES })
+  ) {
     throw new Error(UNSAFE_RUNTIME_URL_MESSAGE);
   }
 }
 
-/**
- * Sync check for form saves: scheme, credentials, and literal private hosts.
- * Does not resolve DNS — call `assertSafeRuntimeUrl` before navigation.
- */
+/** Sync check for form saves: scheme, credentials, and literal private hosts. */
 export function assertSafeRuntimeBaseUrl(raw: string): string {
   const parsed = parseHttpUrl(raw);
   assertPublicHostname(parsed.hostname);
@@ -81,8 +64,8 @@ export function assertSafeRuntimeBaseUrl(raw: string): string {
 }
 
 /**
- * Full SSRF check: literal policy plus DNS resolution of all addresses.
- * Use before Playwright navigation and for each redirect target.
+ * Full SSRF check before Playwright navigation (and each redirect hop).
+ * Injectable `lookup` is for tests; production uses `validateUrl`.
  */
 export async function assertSafeRuntimeUrl(
   raw: string,
@@ -126,10 +109,7 @@ export async function assertSafeRuntimeUrl(
   return parsed.href;
 }
 
-/**
- * Route-handler helper: allow or deny a navigation/redirect request.
- * Playwright's `context.route` calls this for every hop, including redirects.
- */
+/** Route-handler helper for Playwright navigation/redirect hops. */
 export async function allowRuntimeNavigation(
   url: string,
   options?: { lookup?: DnsLookup },

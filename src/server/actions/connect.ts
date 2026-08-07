@@ -7,7 +7,7 @@ import {
   formSuccess,
   readFormString,
   requireFormString,
-  type FormErrorState,
+  type ActionMessageState,
 } from "../action-state";
 import { writeActiveProjectCookie } from "../active-cookies";
 import { ConnectError } from "../connect-error";
@@ -28,8 +28,8 @@ import { RateLimitError, assertConnectRateLimit } from "../rate-limit";
 import { withWorkspaceWrite } from "../workspace";
 import { refresh } from "./shared";
 
-export type ConnectGitHubFormState = FormErrorState;
-export type DisconnectGitHubFormState = FormErrorState;
+export type ConnectGitHubFormState = ActionMessageState;
+export type DisconnectGitHubFormState = ActionMessageState;
 
 export async function switchProjectAction(formData: FormData): Promise<void> {
   const projectId = requireFormString(

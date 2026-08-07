@@ -1,6 +1,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { OrgDataLifecycle } from "./org-data-lifecycle";
 
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
@@ -45,7 +46,6 @@ describe("OrgDataLifecycle", () => {
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => undefined);
 
-    const { OrgDataLifecycle } = await import("./org-data-lifecycle");
     render(<OrgDataLifecycle orgId="org-1" orgName="Acme" />);
 
     await user.click(
@@ -68,7 +68,6 @@ describe("OrgDataLifecycle", () => {
 
   it("requires typing DELETE before permanent deletion submits", async () => {
     const user = userEvent.setup();
-    const { OrgDataLifecycle } = await import("./org-data-lifecycle");
     render(<OrgDataLifecycle orgId="org-1" orgName="Acme" />);
 
     await user.click(
@@ -92,7 +91,6 @@ describe("OrgDataLifecycle", () => {
       error: "Only the organization owner can export data.",
       json: null,
     });
-    const { OrgDataLifecycle } = await import("./org-data-lifecycle");
     render(<OrgDataLifecycle orgId="org-1" orgName="Acme" />);
 
     await user.click(
@@ -103,6 +101,8 @@ describe("OrgDataLifecycle", () => {
     await waitFor(() => {
       expect(toastError).toHaveBeenCalled();
     });
-    expect(screen.getByRole("alert")).toHaveTextContent(/only the organization owner/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /only the organization owner/i,
+    );
   });
 });

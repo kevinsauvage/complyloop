@@ -72,7 +72,23 @@ const project: Project = {
   createdAt: "2026-01-01T00:00:00.000Z",
 };
 
-function workspace(db: Db): Workspace {
+function emptyDb(): Db {
+  return {
+    frameworks: [],
+    controls: [],
+    organizations: [org],
+    memberships: [],
+    projects: [project],
+    requirements: [],
+    assessments: [],
+    findings: [],
+    remediations: [],
+    evidence: [],
+    alerts: [],
+  };
+}
+
+function fixtureWorkspace(db: Db = emptyDb()): Workspace {
   return {
     db,
     project,
@@ -100,38 +116,10 @@ beforeEach(() => {
   writeActiveOrgCookie.mockReset();
   refresh.mockReset();
   auth.mockResolvedValue({ user: { id: "user-1", login: "alice" } });
-  withWorkspaceWrite.mockImplementation(async (fn: (ws: Workspace) => unknown) => {
-    const db = {
-      frameworks: [],
-      controls: [],
-      organizations: [org],
-      memberships: [],
-      projects: [project],
-      requirements: [],
-      assessments: [],
-      findings: [],
-      remediations: [],
-      evidence: [],
-      alerts: [],
-    } satisfies Db;
-    return fn(workspace(db));
-  });
-  getWorkspace.mockImplementation(async () => {
-    const db = {
-      frameworks: [],
-      controls: [],
-      organizations: [org],
-      memberships: [],
-      projects: [project],
-      requirements: [],
-      assessments: [],
-      findings: [],
-      remediations: [],
-      evidence: [],
-      alerts: [],
-    } satisfies Db;
-    return workspace(db);
-  });
+  withWorkspaceWrite.mockImplementation(async (fn: (ws: Workspace) => unknown) =>
+    fn(fixtureWorkspace()),
+  );
+  getWorkspace.mockResolvedValue(fixtureWorkspace());
 });
 
 afterEach(() => {

@@ -10,7 +10,6 @@ import {
   requireFormString,
   runActionMessage,
   type ActionMessageState,
-  type FormErrorState,
 } from "../action-state";
 import {
   writeActiveOrgCookie,
@@ -29,8 +28,8 @@ import {
 import { getWorkspace, withWorkspaceWrite } from "../workspace";
 import { refresh } from "./shared";
 
-export type OrgMemberFormState = FormErrorState;
-export type CreateOrgFormState = FormErrorState;
+export type OrgMemberFormState = ActionMessageState;
+export type CreateOrgFormState = ActionMessageState;
 
 export async function switchOrgAction(formData: FormData): Promise<void> {
   const session = await auth();

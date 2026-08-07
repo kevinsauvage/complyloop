@@ -6,9 +6,6 @@ export type ActionMessageState = {
   message: string | null;
 };
 
-/** Shared shape alias used by connect/org forms. */
-export type FormErrorState = ActionMessageState;
-
 export const emptyActionMessageState: ActionMessageState = {
   error: null,
   message: null,
@@ -22,7 +19,6 @@ export function formSuccess(message: string): ActionMessageState {
   return { error: null, message };
 }
 
-/** Non-empty FormData string field, or null when missing/blank. */
 export function readFormString(
   formData: FormData,
   key: string,
@@ -32,7 +28,6 @@ export function readFormString(
   return value;
 }
 
-/** Non-empty FormData string field; throws when missing/blank. */
 export function requireFormString(
   formData: FormData,
   key: string,
@@ -43,7 +38,6 @@ export function requireFormString(
   return value;
 }
 
-/** Maps a thrown Error into a form-state error (for useActionState handlers). */
 export function actionErrorState(error: unknown): ActionMessageState {
   reportError(error, { code: "server_action_error" });
   return {
@@ -52,7 +46,6 @@ export function actionErrorState(error: unknown): ActionMessageState {
   };
 }
 
-/** Runs a mutation and returns success/error form state for `useActionState`. */
 export async function runActionMessage(
   run: () => Promise<string | void>,
 ): Promise<ActionMessageState> {

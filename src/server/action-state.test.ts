@@ -19,11 +19,12 @@ describe("formError / formSuccess", () => {
   it("builds toastable form states", () => {
     expect(formError("Nope.")).toEqual({ error: "Nope.", message: null });
     expect(formSuccess("Saved.")).toEqual({ error: null, message: "Saved." });
+    expect(emptyActionMessageState).toEqual({ error: null, message: null });
   });
 });
 
-describe("actionErrorState", () => {
-  it("returns a success message from runActionMessage", async () => {
+describe("runActionMessage", () => {
+  it("returns a success message from the runner", async () => {
     await expect(runActionMessage(async () => "Saved.")).resolves.toEqual({
       error: null,
       message: "Saved.",
@@ -37,6 +38,33 @@ describe("actionErrorState", () => {
     });
   });
 
+  it("maps failures through actionErrorState", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await expect(
+      runActionMessage(async () => {
+        throw new Error("Not allowed: missing permission project.connect.");
+      }),
+    ).resolves.toEqual({
+      error: "Not allowed: missing permission project.connect.",
+      message: null,
+    });
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("uses a generic message for non-Error throwables", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await expect(
+      runActionMessage(async () => {
+        throw "unexpected";
+      }),
+    ).resolves.toEqual({
+      error: "Something went wrong.",
+      message: null,
+    });
+  });
+});
+
+describe("actionErrorState", () => {
   it("maps Error instances to form-state errors and reports them", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(actionErrorState(new Error("Not allowed."))).toEqual({
@@ -52,35 +80,6 @@ describe("actionErrorState", () => {
       error: "Something went wrong.",
       message: null,
     });
-  });
-
-  it("maps runActionMessage failures through actionErrorState", async () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    await expect(
-      runActionMessage(async () => {
-        throw new Error("Not allowed: missing permission project.connect.");
-      }),
-    ).resolves.toEqual({
-      error: "Not allowed: missing permission project.connect.",
-      message: null,
-    });
-    expect(spy).toHaveBeenCalled();
-  });
-
-  it("uses a generic message for non-Error throwables in runActionMessage", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    await expect(
-      runActionMessage(async () => {
-        throw "unexpected";
-      }),
-    ).resolves.toEqual({
-      error: "Something went wrong.",
-      message: null,
-    });
-  });
-
-  it("exposes an empty initial state", () => {
-    expect(emptyActionMessageState).toEqual({ error: null, message: null });
   });
 });
 

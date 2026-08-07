@@ -31,11 +31,6 @@ import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
 
-function supportEmailFromEnv(): string | null {
-  const value = process.env.COMPLYLOOP_SUPPORT_EMAIL?.trim();
-  return value && value.length > 0 ? value : null;
-}
-
 export default async function OrgPage() {
   const session = await auth();
   const userId = session?.user?.id ?? null;
@@ -78,8 +73,13 @@ export default async function OrgPage() {
   const projectCount = db.projects.filter(
     (project) => project.orgId === org.id,
   ).length;
-  const pendingInvites = members.filter((membership) => !membership.userId)
-    .length;
+  let memberCount = 0;
+  let pendingInviteCount = 0;
+  for (const membership of members) {
+    if (membership.userId) memberCount += 1;
+    else pendingInviteCount += 1;
+  }
+  const supportEmail = process.env.COMPLYLOOP_SUPPORT_EMAIL?.trim() || null;
 
   return (
     <>
@@ -137,9 +137,9 @@ export default async function OrgPage() {
           ownerGithubLogin={owner?.githubLogin ?? null}
           viewerRole={role ?? null}
           projectCount={projectCount}
-          memberCount={members.filter((membership) => membership.userId).length}
-          pendingInviteCount={pendingInvites}
-          supportEmail={supportEmailFromEnv()}
+          memberCount={memberCount}
+          pendingInviteCount={pendingInviteCount}
+          supportEmail={supportEmail}
         />
 
         <Card>

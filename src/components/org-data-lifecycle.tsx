@@ -30,7 +30,8 @@ import {
 } from "@/server/actions/org";
 import type { ActionMessageState } from "@/server/action-state";
 
-const initial: ActionMessageState = { error: null, message: null };
+// Local constant — do not import values from action-state (pulls server observability).
+const initialState: ActionMessageState = { error: null, message: null };
 
 export function OrgDataLifecycle({
   orgId,
@@ -49,7 +50,7 @@ export function OrgDataLifecycle({
   const [confirmText, setConfirmText] = useState("");
   const [deleteState, deleteAction, deletePending] = useActionState(
     deleteOrgAction,
-    initial,
+    initialState,
   );
   useActionToast(deleteState);
 

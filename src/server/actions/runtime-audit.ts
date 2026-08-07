@@ -4,10 +4,7 @@ import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import {
-  assertSafeRuntimeBaseUrl,
-  assertSafeRuntimeUrl,
-} from "@/analysis/runtime/url-safety";
+import { assertSafeRuntimeUrl } from "@/analysis/runtime/url-safety";
 import { withWorkspaceWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
@@ -37,7 +34,6 @@ export async function updateRuntimeAuditAction(
     // DNS check outside the write lock so a slow lookup does not block writers.
     let normalized: string | null = null;
     if (base.length > 0) {
-      assertSafeRuntimeBaseUrl(base);
       const resolved = await assertSafeRuntimeUrl(base);
       normalized = new URL(resolved).origin;
     }

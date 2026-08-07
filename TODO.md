@@ -76,10 +76,6 @@ Important improvements for quality, maintainability, security, UX, or reliabilit
   - **Acceptance criteria:** `npm audit --audit-level=moderate` passes or has a documented, time-boxed exception with owner and due date.
   - **Estimated effort:** 🟡 Medium: 2–8 hours.
 
-- [x] **Finish commercial account lifecycle UX**
-  - **Done:** Organization account page shows ownership, early-access plan state, support contact (`COMPLYLOOP_SUPPORT_EMAIL`), retention copy, confirmed export/delete flows, and toast + `role=status`/`alert` feedback. Full billing/quotas remain a separate P2.
-  - **Location:** `src/app/org/page.tsx`, `src/components/org-account-overview.tsx`, `src/components/org-data-lifecycle.tsx`
-
 ## 🟡 P2 — Post-Launch Improvements
 
 Useful improvements that should not block the initial controlled launch.
@@ -97,9 +93,6 @@ Useful improvements that should not block the initial controlled launch.
   - **Location:** `src/analysis/runtime/scan.ts`
   - **Recommendation:** Add browser lifecycle controls, per-job time budgets, route limits, and metrics for pages scanned/failures.
   - **Acceptance criteria:** Runtime audits enforce max pages, max duration, and safe browser cleanup.
-
-- [x] **Raise coverage thresholds around business-critical paths**
-  - **Done:** Focused suites for webhook route claim/retry semantics, SSRF (`url-safety`), org lifecycle actions/UI, and `actionErrorState` / `runActionMessage` mapping. Coverage include scoped to launch-risk modules; thresholds raised to lines/statements/functions 65, branches 50 (`vitest.config.mts`). Webhook post-claim retry safety remains a separate P1 fix.
 
 - [ ] **Turn the self-check workflow into a meaningful gate or remove it**
   - **Problem:** `.github/workflows/complyloop-check.yml` intentionally runs against known-bad testdata and uses `continue-on-error: true`.
