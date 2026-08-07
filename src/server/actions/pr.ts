@@ -9,7 +9,11 @@ import {
   remediationForFinding,
   withWorkspaceWrite,
 } from "../workspace";
-import { refresh, requireOnFindingProject } from "./shared";
+import {
+  refresh,
+  requireOnFindingProject,
+  sessionCheckoutTokenOptions,
+} from "./shared";
 
 export type CreatePrFormState = {
   error: string | null;
@@ -45,11 +49,13 @@ export async function createPullRequestAction(
   }
 
   try {
+    const tokenOptions = await sessionCheckoutTokenOptions(preview.userId);
     const result = await preparePullRequest(
       project,
       control,
       finding,
       remediation,
+      tokenOptions,
     );
     await withWorkspaceWrite(({ db }) => {
       const liveFinding = findingById(db, findingId);

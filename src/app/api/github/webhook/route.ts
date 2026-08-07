@@ -21,8 +21,14 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Invalid signature." }, { status: 401 });
   }
 
-  const deliveryId = request.headers.get("x-github-delivery");
-  if (deliveryId && !(await claimWebhookDelivery(deliveryId))) {
+  const deliveryId = request.headers.get("x-github-delivery")?.trim() ?? "";
+  if (!deliveryId) {
+    return Response.json(
+      { error: "x-github-delivery header is required." },
+      { status: 400 },
+    );
+  }
+  if (!(await claimWebhookDelivery(deliveryId))) {
     return Response.json(
       { duplicate: true, deliveryId, message: "Delivery already processed." },
       { status: 200 },
@@ -39,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const result = await handleGitHubWebhookEvent(eventName, payload);
   return Response.json(
-    { ...result, deliveryId: deliveryId ?? undefined },
+    { ...result, deliveryId },
     { status: result.handled ? 200 : 202 },
   );
 }

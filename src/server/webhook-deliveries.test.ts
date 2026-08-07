@@ -79,9 +79,10 @@ describe("webhook delivery idempotency", () => {
     expect(await hasProcessedWebhookDelivery("concurrent-1")).toBe(true);
   });
 
-  it("cannot dedupe empty delivery ids", async () => {
-    expect(await claimWebhookDelivery("")).toBe(true);
-    expect(await claimWebhookDelivery("")).toBe(true);
+  it("rejects empty delivery ids", async () => {
+    await expect(claimWebhookDelivery("")).rejects.toThrow(
+      /x-github-delivery/,
+    );
     expect(await hasProcessedWebhookDelivery("")).toBe(false);
   });
 });

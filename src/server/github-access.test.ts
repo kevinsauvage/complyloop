@@ -54,4 +54,45 @@ describe("resolveProjectGitHubToken", () => {
     await expect(resolveProjectGitHubToken(project)).resolves.toBe("gho_user");
     expect(getStoredGitHubToken).toHaveBeenCalledWith("user-1");
   });
+
+  it("uses the session token when the project owner has none", async () => {
+    isGitHubAppConfigured.mockReturnValue(false);
+    getStoredGitHubToken.mockImplementation(async (userId: string) =>
+      userId === "session-1" ? "gho_session" : null,
+    );
+    const project = {
+      ownerUserId: "orphan-uuid",
+      github: {
+        fullName: "acme/shop",
+        defaultBranch: "main",
+        private: false,
+      },
+    } as Project;
+
+    await expect(
+      resolveProjectGitHubToken(project, {
+        sessionUserId: "session-1",
+        sessionAccessToken: null,
+      }),
+    ).resolves.toBe("gho_session");
+  });
+
+  it("prefers an explicit session access token", async () => {
+    isGitHubAppConfigured.mockReturnValue(false);
+    const project = {
+      ownerUserId: "user-1",
+      github: {
+        fullName: "acme/shop",
+        defaultBranch: "main",
+        private: false,
+      },
+    } as Project;
+
+    await expect(
+      resolveProjectGitHubToken(project, {
+        sessionAccessToken: "gho_live",
+      }),
+    ).resolves.toBe("gho_live");
+    expect(getStoredGitHubToken).not.toHaveBeenCalled();
+  });
 });

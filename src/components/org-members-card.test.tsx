@@ -30,7 +30,7 @@ function member(
 }
 
 describe("OrgMembersCard", () => {
-  it("lets admins change roles and revoke pending invites", async () => {
+  it("lets managers change member/viewer roles and revoke pending invites", async () => {
     const user = userEvent.setup();
     const { OrgMembersCard } = await import("./org-members-card");
 
@@ -54,7 +54,7 @@ describe("OrgMembersCard", () => {
           member({
             id: "m-member",
             githubLogin: "bob",
-            role: "admin",
+            role: "member",
             userId: "user-b",
           }),
         ]}
@@ -69,11 +69,34 @@ describe("OrgMembersCard", () => {
 
     await user.selectOptions(
       screen.getByRole("combobox", { name: /role for @bob/i }),
-      "member",
+      "viewer",
     );
     await user.click(
       screen.getAllByRole("button", { name: /update role/i })[1]!,
     );
+  });
+
+  it("hides admin peer controls unless canAssignAdmin", async () => {
+    const { OrgMembersCard } = await import("./org-members-card");
+    render(
+      <OrgMembersCard
+        orgId="org-1"
+        currentUserId="user-a"
+        canManage
+        canAssignAdmin={false}
+        members={[
+          member({
+            id: "m-admin",
+            githubLogin: "bob",
+            role: "admin",
+            userId: "user-b",
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /update role/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /remove/i })).toBeNull();
   });
 
   it("hides management controls when canManage is false", async () => {

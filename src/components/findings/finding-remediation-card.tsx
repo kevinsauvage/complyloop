@@ -9,12 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { remediationStatusLabel } from "@/core/labels";
 import type { RemediationStatus } from "@/core/statuses";
 import type { Finding, Remediation } from "@/core/finding-types";
 import { generateAiRemediationAction } from "@/server/actions/remediation-ai";
+import { AiActionForm } from "./ai-action-form";
 import { FindingActionPanel } from "./finding-action-panel";
 
 const LIFECYCLE: RemediationStatus[] = [
@@ -55,6 +55,7 @@ export function FindingRemediationCard({
                   <span className="text-muted-foreground/40" aria-hidden>→</span>
                 ) : null}
                 <span
+                  aria-current={isCurrent ? "step" : undefined}
                   className={`rounded-full px-2 py-0.5 font-medium transition-colors ${
                     isCurrent
                       ? "bg-primary text-primary-foreground"
@@ -97,20 +98,16 @@ export function FindingRemediationCard({
         (remediation.status === "detected" ||
           remediation.status === "suggested") ? (
           <div>
-            <form
+            <AiActionForm
               action={generateAiRemediationAction.bind(null, finding.id)}
-            >
-              <Button
-                type="submit"
-                variant="outline"
-                size="sm"
-                disabled={!aiAvailable}
-              >
-                {remediation.suggestion
+              submitLabel={
+                remediation.suggestion
                   ? "Refine with AI remediation"
-                  : "Generate AI remediation"}
-              </Button>
-            </form>
+                  : "Generate AI remediation"
+              }
+              pendingLabel="Generating…"
+              disabled={!aiAvailable}
+            />
             {!aiAvailable ? (
               <p className="mt-1.5 text-xs text-muted-foreground">
                 Without AI credentials, use the deterministic suggestion (when

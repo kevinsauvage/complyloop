@@ -17,6 +17,15 @@ export interface ReportContext {
 
 let sentryInitialized = false;
 
+function resolveTracesSampleRate(): number {
+  const raw = process.env.SENTRY_TRACES_SAMPLE_RATE?.trim();
+  if (raw != null && raw.length > 0) {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 1) return parsed;
+  }
+  return process.env.NODE_ENV === "production" ? 0.05 : 0;
+}
+
 function ensureSentry(): boolean {
   const dsn = process.env.SENTRY_DSN;
   if (!dsn) return false;
@@ -24,7 +33,7 @@ function ensureSentry(): boolean {
     Sentry.init({
       dsn,
       environment: process.env.NODE_ENV ?? "development",
-      tracesSampleRate: 0,
+      tracesSampleRate: resolveTracesSampleRate(),
     });
     sentryInitialized = true;
   }

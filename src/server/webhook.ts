@@ -133,7 +133,7 @@ export async function handleGitHubWebhookEvent(
   if (!token) {
     const message = previewProject.github?.installationId
       ? "Could not mint a GitHub App installation token for this repository."
-      : "No stored GitHub token for project owner — sign in again to refresh the token.";
+      : "No stored GitHub token for project owner - sign in again to refresh the token.";
     reportWarning(message, {
       code: "github_token_missing",
       projectId: previewProject.id,

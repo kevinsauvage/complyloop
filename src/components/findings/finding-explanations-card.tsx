@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { Finding } from "@/core/finding-types";
 import { generateAiExplanationAction } from "@/server/actions/remediation-ai";
+import { AiActionForm } from "./ai-action-form";
 
 export function FindingExplanationsCard({
   finding,
@@ -72,16 +72,12 @@ export function FindingExplanationsCard({
 
         {finding.status === "open" && canRemediate ? (
           <div>
-            <form action={generateAiExplanationAction.bind(null, finding.id)}>
-              <Button
-                type="submit"
-                variant="outline"
-                size="sm"
-                disabled={!aiAvailable}
-              >
-                Generate AI explanation
-              </Button>
-            </form>
+            <AiActionForm
+              action={generateAiExplanationAction.bind(null, finding.id)}
+              submitLabel="Generate AI explanation"
+              pendingLabel="Generating…"
+              disabled={!aiAvailable}
+            />
             {!aiAvailable ? (
               <p className="mt-1.5 text-xs text-muted-foreground">
                 Set <code className="font-mono">AI_GATEWAY_API_KEY</code> to

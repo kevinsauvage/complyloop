@@ -7,7 +7,10 @@ import type { Finding, Remediation } from "@/core/finding-types";
 import { locateViolationInProject, mergeFix } from "./assessment-helpers";
 import { githubCloneUrl } from "./connect-shared";
 import { createGit } from "./git";
-import { resolveProjectGitHubToken } from "./github-access";
+import {
+  resolveProjectGitHubToken,
+  type ResolveProjectGitHubTokenOptions,
+} from "./github-access";
 import { parseOwnerRepo } from "./github-repo";
 import { buildDeveloperHandoff } from "./handoff";
 import { createOctokit, octokitErrorMessage } from "./octokit";
@@ -57,6 +60,7 @@ export async function preparePullRequest(
   control: Control,
   finding: Finding,
   remediation: Remediation,
+  tokenOptions?: ResolveProjectGitHubTokenOptions,
 ): Promise<PullRequestResult> {
   if (!finding.fix) {
     throw new Error("This finding has no automatable fix to commit.");
@@ -68,7 +72,9 @@ export async function preparePullRequest(
     );
   }
 
-  return withProjectCheckout(project, async (rootPath) => {
+  return withProjectCheckout(
+    project,
+    async (rootPath) => {
     const git = createGit({ baseDir: rootPath });
     const inside = await git.checkIsRepo();
     if (!inside) {
@@ -133,7 +139,7 @@ export async function preparePullRequest(
     let message = `Branch \`${branch}\` created with the fix committed. Push and open a PR from the developer handoff.`;
 
     const fullName = project.github?.fullName;
-    const token = await resolveProjectGitHubToken(project);
+    const token = await resolveProjectGitHubToken(project, tokenOptions);
 
     if (fullName && token) {
       const remote = githubCloneUrl(fullName, token);
@@ -165,5 +171,8 @@ export async function preparePullRequest(
       prUrl,
       message,
     };
-  });
+    },
+    undefined,
+    tokenOptions,
+  );
 }

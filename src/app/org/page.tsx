@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { CreateOrgForm } from "@/components/create-org-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
+import { OrgDataLifecycle } from "@/components/org-data-lifecycle";
 import { OrgMembersCard } from "@/components/org-members-card";
 import { EmptyState, PageHeader } from "@/components/page-primitives";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -85,7 +86,11 @@ export default async function OrgPage() {
                   GitHub login matches.
                 </DialogDescription>
               </DialogHeader>
-              <InviteMemberForm action={inviteOrgMemberAction} orgId={org.id} />
+              <InviteMemberForm
+                action={inviteOrgMemberAction}
+                orgId={org.id}
+                canAssignAdmin={role === "owner"}
+              />
             </DialogContent>
           </Dialog>
         ) : null}
@@ -120,9 +125,14 @@ export default async function OrgPage() {
               members={members}
               currentUserId={userId}
               canManage={canManage}
+              canAssignAdmin={role === "owner"}
             />
           </CardContent>
         </Card>
+
+        {role === "owner" ? (
+          <OrgDataLifecycle orgId={org.id} orgName={org.name} />
+        ) : null}
 
         {!canManage ? (
           <Alert className="border-border/60 bg-muted/40">

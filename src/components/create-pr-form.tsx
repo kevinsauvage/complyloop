@@ -57,6 +57,29 @@ export function CreatePrForm({ findingId }: { findingId: string }) {
           {pending ? "Preparing…" : "Create branch / PR"}
         </Button>
       </div>
+      {state.error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {state.error}
+        </p>
+      ) : null}
+      {state.message ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          {state.message}
+          {state.prUrl ? (
+            <>
+              {" "}
+              <a
+                href={state.prUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2"
+              >
+                Open pull request
+              </a>
+            </>
+          ) : null}
+        </p>
+      ) : null}
     </form>
   );
 }

@@ -1,3 +1,4 @@
+import { sanitizeDownloadFilename } from "@/server/download-filename";
 import {
   evidenceForProject,
   findingsForProject,
@@ -29,10 +30,11 @@ export async function GET(): Promise<Response> {
     exportedAt: new Date().toISOString(),
   });
 
+  const safeName = sanitizeDownloadFilename(project.name, "project");
   return new Response(markdown, {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
-      "Content-Disposition": `attachment; filename="compliance-report-${project.name}.md"`,
+      "Content-Disposition": `attachment; filename="compliance-report-${safeName}.md"`,
     },
   });
 }

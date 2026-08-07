@@ -25,6 +25,7 @@
     "playwright:install": "playwright install chromium",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db-migrate.ts",
+    "db:reset": "tsx scripts/db-reset.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

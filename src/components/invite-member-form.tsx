@@ -12,12 +12,15 @@ const initial: OrgMemberFormState = { error: null, message: null };
 export function InviteMemberForm({
   action,
   orgId,
+  canAssignAdmin = false,
 }: {
   action: (
     previous: OrgMemberFormState,
     formData: FormData,
   ) => Promise<OrgMemberFormState>;
   orgId: string;
+  /** Owners may invite admins; admins may only invite member/viewer. */
+  canAssignAdmin?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
   useActionToast(state);
@@ -45,7 +48,7 @@ export function InviteMemberForm({
           defaultValue="member"
           className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <option value="admin">Admin</option>
+          {canAssignAdmin ? <option value="admin">Admin</option> : null}
           <option value="member">Member</option>
           <option value="viewer">Viewer</option>
         </select>

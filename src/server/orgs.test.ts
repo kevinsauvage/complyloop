@@ -4,7 +4,9 @@ import {
   claimMembershipsForLogin,
   changeOrgMemberRole,
   createOrganization,
+  deleteOrganization,
   ensurePersonalOrg,
+  exportOrgData,
   inviteOrgMember,
   orgsForUser,
   removeOrgMember,
@@ -158,5 +160,66 @@ describe("orgs", () => {
     expect(
       db.memberships.some((membership) => membership.githubLogin === "carol"),
     ).toBe(false);
+  });
+
+  it("exports and deletes org data as owner only", () => {
+    const db = emptyDb();
+    ensurePersonalOrg(db, "user-a", "alice");
+    const orgId = db.organizations[0]!.id;
+    db.projects.push({
+      id: "p1",
+      name: "shop",
+      source: "github",
+      orgId,
+      ownerUserId: "user-a",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    db.evidence.push({
+      id: "e1",
+      at: "2026-01-01T00:00:00.000Z",
+      kind: "assessment_completed",
+      summary: "ran",
+      projectId: "p1",
+    });
+    inviteOrgMember(db, orgId, "user-a", "bob", "admin");
+    claimMembershipsForLogin(db, "user-b", "bob");
+
+    expect(() => exportOrgData(db, orgId, "user-b")).toThrow(/owner/);
+    const exported = exportOrgData(db, orgId, "user-a");
+    expect(exported.projects).toHaveLength(1);
+    expect(exported.evidence).toHaveLength(1);
+
+    expect(() => deleteOrganization(db, orgId, "user-b")).toThrow(/owner/);
+    deleteOrganization(db, orgId, "user-a");
+    expect(db.organizations.find((org) => org.id === orgId)).toBeUndefined();
+    expect(db.projects.find((project) => project.id === "p1")).toBeUndefined();
+    // Evidence retained for audit history.
+    expect(db.evidence.find((entry) => entry.id === "e1")).toBeDefined();
+  });
+
+  it("denies admins inviting, changing, or removing other admins", () => {
+    const db = emptyDb();
+    ensurePersonalOrg(db, "user-a", "alice");
+    const orgId = db.organizations[0]!.id;
+    const adminInvite = inviteOrgMember(db, orgId, "user-a", "bob", "admin");
+    claimMembershipsForLogin(db, "user-b", "bob");
+
+    expect(() =>
+      inviteOrgMember(db, orgId, "user-b", "carol", "admin"),
+    ).toThrow(/owners can invite or assign admins/);
+
+    expect(() =>
+      changeOrgMemberRole(db, orgId, "user-b", adminInvite.id, "member"),
+    ).toThrow(/owners can change or remove admins/);
+
+    const peer = inviteOrgMember(db, orgId, "user-a", "dana", "admin");
+    expect(() => removeOrgMember(db, orgId, "user-b", peer.id)).toThrow(
+      /owners can change or remove admins/,
+    );
+
+    // Admins may still manage members/viewers.
+    const member = inviteOrgMember(db, orgId, "user-b", "erin", "member");
+    changeOrgMemberRole(db, orgId, "user-b", member.id, "viewer");
+    expect(member.role).toBe("viewer");
   });
 });

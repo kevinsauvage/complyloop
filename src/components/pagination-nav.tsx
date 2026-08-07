@@ -7,17 +7,25 @@ export function PaginationNav({
   total,
   basePath,
   label = "Pagination",
+  query,
 }: {
   page: number;
   totalPages: number;
   total: number;
   basePath: string;
   label?: string;
+  /** Extra query params preserved on page links (e.g. `{ tab: "resolved" }`). */
+  query?: Record<string, string>;
 }) {
   if (totalPages <= 1) return null;
 
-  const hrefFor = (target: number) =>
-    target <= 1 ? basePath : `${basePath}?page=${target}`;
+  const hrefFor = (target: number) => {
+    const params = new URLSearchParams(query);
+    if (target > 1) params.set("page", String(target));
+    else params.delete("page");
+    const qs = params.toString();
+    return qs ? `${basePath}?${qs}` : basePath;
+  };
 
   return (
     <nav

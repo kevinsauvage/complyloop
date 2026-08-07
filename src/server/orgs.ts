@@ -2,6 +2,7 @@ import type { OrgMembership, OrgRole, Organization, Project } from "@/core/proje
 import { isOrgRole } from "@/core/rbac";
 import type { Db } from "./db";
 import { slugifyOrgName, uniqueOrgSlug } from "./org-slug";
+import { removeProjectScopedRecords } from "./project-cascade";
 
 /** Claims invite rows that match this GitHub login by attaching userId. */
 export function claimMembershipsForLogin(
@@ -109,6 +110,32 @@ export function userRoleInOrg(
   )?.role;
 }
 
+function assertCanAssignRole(actorRole: OrgRole, role: OrgRole): void {
+  if (role === "owner") {
+    throw new Error("Cannot invite another owner; transfer is not supported.");
+  }
+  if (role === "admin" && actorRole !== "owner") {
+    throw new Error("Only org owners can invite or assign admins.");
+  }
+}
+
+function assertCanManageTarget(
+  actorRole: OrgRole,
+  targetRole: OrgRole,
+  action: "remove" | "change",
+): void {
+  if (targetRole === "owner") {
+    throw new Error(
+      action === "remove"
+        ? "Cannot remove the organization owner."
+        : "Cannot change the organization owner's role.",
+    );
+  }
+  if (targetRole === "admin" && actorRole !== "owner") {
+    throw new Error("Only org owners can change or remove admins.");
+  }
+}
+
 export function inviteOrgMember(
   db: Db,
   orgId: string,
@@ -116,13 +143,11 @@ export function inviteOrgMember(
   githubLogin: string,
   role: OrgRole,
 ): OrgMembership {
-  if (role === "owner") {
-    throw new Error("Cannot invite another owner; transfer is not supported.");
-  }
   const actorRole = userRoleInOrg(db, orgId, actorUserId);
   if (actorRole !== "owner" && actorRole !== "admin") {
     throw new Error("Only org owners and admins can invite members.");
   }
+  assertCanAssignRole(actorRole, role);
   const login = githubLogin.trim().replace(/^@/, "");
   if (!login) throw new Error("GitHub login is required.");
   if (!isOrgRole(role)) {
@@ -135,6 +160,8 @@ export function inviteOrgMember(
       membership.githubLogin.toLowerCase() === login.toLowerCase(),
   );
   if (existing) {
+    assertCanManageTarget(actorRole, existing.role, "change");
+    assertCanAssignRole(actorRole, role);
     existing.role = role;
     return existing;
   }
@@ -165,9 +192,7 @@ export function removeOrgMember(
       membership.id === membershipId && membership.orgId === orgId,
   );
   if (!target) throw new Error("Membership not found.");
-  if (target.role === "owner") {
-    throw new Error("Cannot remove the organization owner.");
-  }
+  assertCanManageTarget(actorRole, target.role, "remove");
   db.memberships = db.memberships.filter(
     (membership) => membership.id !== membershipId,
   );
@@ -185,9 +210,6 @@ export function changeOrgMemberRole(
   membershipId: string,
   role: OrgRole,
 ): OrgMembership {
-  if (role === "owner") {
-    throw new Error("Cannot assign owner; transfer is not supported.");
-  }
   if (!isOrgRole(role)) {
     throw new Error("Invalid role.");
   }
@@ -195,14 +217,13 @@ export function changeOrgMemberRole(
   if (actorRole !== "owner" && actorRole !== "admin") {
     throw new Error("Only org owners and admins can change member roles.");
   }
+  assertCanAssignRole(actorRole, role);
   const target = db.memberships.find(
     (membership) =>
       membership.id === membershipId && membership.orgId === orgId,
   );
   if (!target) throw new Error("Membership not found.");
-  if (target.role === "owner") {
-    throw new Error("Cannot change the organization owner's role.");
-  }
+  assertCanManageTarget(actorRole, target.role, "change");
   target.role = role;
   return target;
 }
@@ -289,4 +310,82 @@ export function canManageOrgMembers(
 ): boolean {
   const role = userRoleInOrg(db, orgId, userId);
   return role === "owner" || role === "admin";
+}
+
+/** Machine-readable export of org-scoped, user-visible product data. */
+export function exportOrgData(
+  db: Db,
+  orgId: string,
+  actorUserId: string,
+): Record<string, unknown> {
+  if (userRoleInOrg(db, orgId, actorUserId) !== "owner") {
+    throw new Error("Only the organization owner can export data.");
+  }
+  const org = db.organizations.find((candidate) => candidate.id === orgId);
+  if (!org) throw new Error("Organization not found.");
+
+  const projects = db.projects.filter((project) => project.orgId === orgId);
+  const projectIds = new Set(projects.map((project) => project.id));
+  const findings = db.findings.filter((finding) =>
+    projectIds.has(finding.projectId),
+  );
+  const findingIds = new Set(findings.map((finding) => finding.id));
+
+  return {
+    exportedAt: new Date().toISOString(),
+    organization: org,
+    memberships: membershipsForOrg(db, orgId).map((membership) => ({
+      id: membership.id,
+      orgId: membership.orgId,
+      role: membership.role,
+      userId: membership.userId ?? null,
+      githubLogin: membership.githubLogin,
+      createdAt: membership.createdAt,
+    })),
+    projects,
+    requirements: db.requirements.filter((requirement) =>
+      projectIds.has(requirement.projectId),
+    ),
+    assessments: db.assessments.filter((assessment) =>
+      projectIds.has(assessment.projectId),
+    ),
+    findings,
+    remediations: db.remediations.filter((remediation) =>
+      findingIds.has(remediation.findingId),
+    ),
+    evidence: db.evidence.filter(
+      (entry) => entry.projectId != null && projectIds.has(entry.projectId),
+    ),
+    alerts: db.alerts.filter((alert) => projectIds.has(alert.projectId)),
+  };
+}
+
+/**
+ * Deletes an organization owned by the actor: projects + mutable scoped
+ * records + memberships. Evidence rows are retained (append-only).
+ */
+export function deleteOrganization(
+  db: Db,
+  orgId: string,
+  actorUserId: string,
+): void {
+  if (userRoleInOrg(db, orgId, actorUserId) !== "owner") {
+    throw new Error("Only the organization owner can delete the organization.");
+  }
+  const org = db.organizations.find((candidate) => candidate.id === orgId);
+  if (!org) throw new Error("Organization not found.");
+
+  const projectIds = db.projects
+    .filter((project) => project.orgId === orgId)
+    .map((project) => project.id);
+  for (const projectId of projectIds) {
+    removeProjectScopedRecords(db, projectId);
+  }
+  db.projects = db.projects.filter((project) => project.orgId !== orgId);
+  db.memberships = db.memberships.filter(
+    (membership) => membership.orgId !== orgId,
+  );
+  db.organizations = db.organizations.filter(
+    (candidate) => candidate.id !== orgId,
+  );
 }

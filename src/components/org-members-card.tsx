@@ -19,11 +19,14 @@ export function OrgMembersCard({
   members,
   currentUserId,
   canManage,
+  canAssignAdmin = false,
 }: {
   orgId: string;
   members: OrgMembership[];
   currentUserId: string;
   canManage: boolean;
+  /** Owners may change/remove admins; admins may not. */
+  canAssignAdmin?: boolean;
 }) {
   return (
     <Table>
@@ -39,7 +42,10 @@ export function OrgMembersCard({
         {members.map((membership) => {
           const isYou = membership.userId === currentUserId;
           const isOwner = membership.role === "owner";
+          const isAdmin = membership.role === "admin";
           const pending = !membership.userId;
+          const canActOnMember =
+            !isOwner && (!isAdmin || canAssignAdmin);
 
           return (
             <TableRow key={membership.id}>
@@ -62,7 +68,7 @@ export function OrgMembersCard({
               </TableCell>
               {canManage ? (
                 <TableCell className="pr-4">
-                  {!isOwner ? (
+                  {canActOnMember ? (
                     <div className="flex flex-wrap items-end justify-end gap-2">
                       <StatefulActionForm
                         action={changeOrgMemberRoleAction}
@@ -82,11 +88,17 @@ export function OrgMembersCard({
                           Role
                           <select
                             name="role"
-                            defaultValue={membership.role}
+                            defaultValue={
+                              membership.role === "admin" && !canAssignAdmin
+                                ? "member"
+                                : membership.role
+                            }
                             aria-label={`Role for @${membership.githubLogin}`}
                             className="h-8 rounded-lg border border-input bg-transparent px-2 py-1 text-xs text-foreground focus-visible:outline-none focus-visible:border-ring"
                           >
-                            <option value="admin">Admin</option>
+                            {canAssignAdmin ? (
+                              <option value="admin">Admin</option>
+                            ) : null}
                             <option value="member">Member</option>
                             <option value="viewer">Viewer</option>
                           </select>

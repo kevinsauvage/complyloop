@@ -1,9 +1,11 @@
 import { revalidatePath } from "next/cache";
+import { getGitHubAccessToken } from "@/auth";
 import { advanceRemediation } from "@/core/remediation";
 import type { Project } from "@/core/project-types";
 import type { Finding } from "@/core/finding-types";
 import { locateViolationInProject } from "../assessment-helpers";
 import type { Db } from "../db";
+import type { ResolveProjectGitHubTokenOptions } from "../github-access";
 import { assertProjectPermission } from "../project-visibility";
 import type { Workspace } from "../workspace";
 
@@ -51,5 +53,15 @@ export function locateViolation(
   return {
     project,
     match: locateViolationInProject(rootPath, finding),
+  };
+}
+
+/** Session token options for ephemeral GitHub checkouts. */
+export async function sessionCheckoutTokenOptions(
+  userId: string | null,
+): Promise<ResolveProjectGitHubTokenOptions> {
+  return {
+    sessionUserId: userId,
+    sessionAccessToken: await getGitHubAccessToken(),
   };
 }

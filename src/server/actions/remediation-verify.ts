@@ -28,6 +28,7 @@ import {
   refresh,
   replaceRemediation,
   requireOnFindingProject,
+  sessionCheckoutTokenOptions,
 } from "./shared";
 
 export async function verifyRemediationAction(
@@ -87,8 +88,11 @@ export async function verifyRemediationAction(
         (candidate) => candidate.id === finding.projectId,
       );
       if (!project) throw new Error(`Unknown project: ${finding.projectId}`);
+      const tokenOptions = await sessionCheckoutTokenOptions(preview.userId);
 
-      await withProjectCheckout(project, async (rootPath) => {
+      await withProjectCheckout(
+        project,
+        async (rootPath) => {
         await withWorkspaceWrite(async (workspace) => {
           const { db } = workspace;
           const live = findingById(db, findingId);
@@ -140,7 +144,10 @@ export async function verifyRemediationAction(
           });
           refreshRequirementStatuses(db, live.projectId);
         });
-      });
+        },
+        undefined,
+        tokenOptions,
+      );
     }
 
     refresh();

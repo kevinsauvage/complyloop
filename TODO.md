@@ -1,104 +1,20 @@
 # Production Readiness TODO
 
-> Audit date: 2026-08-07
-> Scope: full repository review (code, docs, CI, deploy, tests). **No application code was changed** for this audit.
+> Audit date: 2026-08-07 (updated 2026-08-07 after engineering pass)
+> Scope: full repository review (code, docs, CI, deploy, tests).
 > Product: ComplyLoop — accessibility compliance engineering (RGAA/WCAG) for React/Next.js/TypeScript apps.
 
 ## 🔴 P0 — Must Fix Before Launch
 
 Issues that could prevent the product from being safely or professionally sold.
 
-- [ ] **Replace draft Terms & Privacy with counsel-reviewed legal**
+- [ ] **Replace draft Terms & Privacy with counsel-reviewed legal** — **BLOCKED (legal calendar)**
   - **Problem:** `/legal/terms` and `/legal/privacy` are explicitly labeled draft / counsel-needed and incomplete for commercial sale (no DPA, subprocessors incomplete, no EU rights exercise path).
   - **Why:** Selling without enforceable ToS/Privacy (and GDPR basis where applicable) is a legal and trust blocker.
   - **Location:** `src/app/legal/terms/page.tsx`, `src/app/legal/privacy/page.tsx`
-  - **Recommendation:** Ship counsel-reviewed documents covering code processing, AI subprocessors, retention, deletion, liability limits, and customer responsibilities for remediations. Link from sign-in and footer.
+  - **Engineering note:** Privacy page documents export/deletion product paths; draft labels remain honest until counsel sign-off.
   - **Acceptance criteria:** Pages no longer say “draft”; counsel sign-off recorded; footer links visible.
   - **Effort:** 🟠 Large (mostly legal, not engineering)
-
-- [ ] **Add operator backups + health check before inviting paying orgs**
-  - **Problem:** `docs/deploy.md` checklist mentions backups; there is no health/ready endpoint, no Dockerfile for the app, and no backup script/runbook automation. Compose only runs Postgres.
-  - **Why:** Without health checks and restore-tested backups, a Postgres failure is an unrecoverable customer incident.
-  - **Location:** `docs/deploy.md`, `docker-compose.yml` (Postgres only); no `Dockerfile`, no `/api/health`
-  - **Recommendation:** Add `GET /api/health` (process up + DB ping). Document Postgres backup/restore steps; practice restore once. Optionally add an app Dockerfile.
-  - **Acceptance criteria:** Health returns non-200 when DB is unavailable; backup/restore documented and tested once.
-  - **Effort:** 🟡 Medium
-
----
-
-## 🟠 P1 — Important Before Launch
-
-Important improvements for quality, maintainability, security, UX, or reliability.
-
-- [ ] **Stop embedding GitHub OAuth access tokens in the JWT session cookie**
-  - **Problem:** On sign-in, `token.accessToken = account.access_token` is stored in the Auth.js JWT in addition to encrypted server-side storage.
-  - **Why:** Cookie blast radius includes live GitHub tokens if `AUTH_SECRET` leaks; server store already exists.
-  - **Location:** `src/auth.ts` (jwt callback ≈72–78; `getGitHubAccessToken` ≈102–120), `src/types/next-auth.d.ts`
-  - **Recommendation:** Persist only via `storeUserGitHubToken`; load via `getStoredGitHubToken(sub)`. Prefer installation tokens when App is configured.
-  - **Acceptance criteria:** JWT payload no longer contains `accessToken`; GitHub connect/PR/Checks still work.
-  - **Effort:** 🟢 Small
-
-- [ ] **Rate-limit expensive operations**
-  - **Problem:** No application-level rate limits on connect/clone, assessment, AI explain/remediate, webhook, or auth.
-  - **Why:** Authenticated users (or stolen webhook secret) can burn CPU, disk, GitHub API quota, and AI cost.
-  - **Location:** `src/server/actions/connect.ts`, `assessment.ts`, `remediation-ai.ts`, `src/app/api/github/webhook/route.ts`; no `middleware.ts`
-  - **Recommendation:** Per-user/IP limits (WAF or in-app) on connect, assess, AI; reject webhooks missing `x-github-delivery` after signature verify (`src/server/webhook-deliveries.ts` currently treats empty id as always-new).
-  - **Acceptance criteria:** Burst connect/assess returns 429 / form error; webhook without delivery id returns 400.
-  - **Effort:** 🟡 Medium
-
-- [ ] **Restrict admin privilege over other admins**
-  - **Problem:** `canManageOrgMembers` treats `admin` and `owner` equally — admins can invite/promote/remove peer admins.
-  - **Why:** Lateral privilege expansion after over-invite or single admin compromise.
-  - **Location:** `src/server/orgs.ts`, `src/server/actions/org.ts`, `src/core/rbac.ts`
-  - **Recommendation:** Only `owner` may invite/change/remove `admin`; admins manage `member`/`viewer` only.
-  - **Acceptance criteria:** Tests deny admin→admin role changes; owners retain full control.
-  - **Effort:** 🟢 Small
-
-- [ ] **Account / data lifecycle for paying customers (GDPR-ready minimum)**
-  - **Problem:** Sign-in/out only. No account deletion, no customer-initiated data export of all personal/project data, no clear operator deletion path for clones + tokens + evidence.
-  - **Why:** EU/enterprise buyers expect deletion and export; privacy page already describes retention without a product path.
-  - **Location:** `src/components/auth-controls.tsx`, `src/app/legal/privacy/page.tsx`, org/project disconnect paths
-  - **Recommendation:** Org owner “delete org / export data” flows; user sign-out already clears tokens — extend with delete-account that removes memberships, owned projects, clones, and stored tokens. Document evidence retention exceptions.
-  - **Acceptance criteria:** Documented self-serve or support-assisted deletion within a stated SLA; export produces machine-readable archive of user-visible data.
-  - **Effort:** 🟠 Large
-
-- [ ] **Brand-critical accessibility polish on feedback surfaces**
-  - **Problem:** Product sells accessibility compliance. Success on PR create uses default `Alert` → `role="alert"` (should be polite `status`). `CopyButton` has no live region. Remediation lifecycle step is visual-only.
-  - **Why:** Screen-reader users get incorrect urgency or miss confirmation — brand trust failure.
-  - **Location:** `src/components/create-pr-form.tsx`, `src/components/ui/alert.tsx`, `src/components/copy-button.tsx`, `src/components/findings/finding-remediation-card.tsx`, `src/components/stateful-action-form.tsx` (good pattern to mirror)
-  - **Recommendation:** Match `StatefulActionForm` (`role="status"` for success). Add `aria-live="polite"` for copy. Mark current remediation stage with `aria-current`.
-  - **Acceptance criteria:** RTL tests assert status vs alert roles; copy announces “Copied”.
-  - **Effort:** 🟢 Small
-
-- [ ] **Pending/error UX for AI explanation & remediation forms**
-  - **Problem:** AI forms are plain `<form action>` without pending labels or inline errors (unlike `StatefulActionForm`). No route-level `loading.tsx` anywhere.
-  - **Why:** Users get stuck wondering if Generate did anything; slow AI looks like a hang.
-  - **Location:** `src/components/findings/finding-explanations-card.tsx`, `finding-remediation-card.tsx`; `src/app/**` (0 `loading.tsx`)
-  - **Recommendation:** Use `useActionState` / `StatefulActionForm` pattern; add `loading.tsx` for findings and dashboard at minimum.
-  - **Acceptance criteria:** AI buttons show pending; failures surface as `role="alert"`.
-  - **Effort:** 🟡 Medium
-
-- [x] **Move `shadcn` CLI out of runtime dependencies**
-  - **Done:** `shadcn` is in `devDependencies`; runtime UI uses generated `src/components/ui/*` + `radix-ui` / CVA.
-
-- [x] **Playwright smoke of the core loop in CI**
-  - **Done:** `@playwright/test` suite (`e2e/`) with fixture checkout harness, route coverage, authz denial, axe serious+, and assess→remediate→verify→evidence. CI job `e2e` in `.github/workflows/ci.yml`.
-
-- [ ] **Production monitoring baseline**
-  - **Problem:** Structured logs + optional Sentry (`src/server/observability.ts`); `tracesSampleRate: 0`; no latency/error SLOs, no alerting runbook.
-  - **Why:** Paying customers need someone to notice webhook storms and assessment failures.
-  - **Location:** `src/server/observability.ts`, `.env.example` (`SENTRY_DSN`)
-  - **Recommendation:** Require `SENTRY_DSN` in production checklist; alert on webhook `workspace_missing`, assessment failures, auth misconfig. Keep logs JSON for aggregation.
-  - **Acceptance criteria:** Staging/prod has Sentry (or equivalent) with at least error alerts to an on-call channel.
-  - **Effort:** 🟡 Medium
-
-- [ ] **Evidence append-only enforced beyond app convention**
-  - **Problem:** Postgres persist path inserts missing evidence ids only; no DB trigger/privilege denying UPDATE/DELETE.
-  - **Why:** Accidental code or DBA ops can destroy audit trail — the product’s core promise.
-  - **Location:** `src/server/db-store/postgres-persist-runtime.ts`, `drizzle/0000_init.sql`
-  - **Recommendation:** DB role without UPDATE/DELETE on `evidence`, or trigger raising exception; document operator policy.
-  - **Acceptance criteria:** Migration + test/manual proof that UPDATE/DELETE on evidence fails under app role.
-  - **Effort:** 🟡 Medium
 
 ---
 
@@ -106,34 +22,21 @@ Important improvements for quality, maintainability, security, UX, or reliabilit
 
 Useful improvements that should not block a carefully scoped initial pilot launch.
 
-- [ ] **Replace whole-Db load/save with query-scoped persistence** (see Architecture Improvements) — required before ~1k tenants. **Effort:** 🔴 Very large
-- [ ] **Foreign keys, unique constraints, and indexes for hot paths** — e.g. membership `(org_id, user_id)` unique; indexes on `findings.status`, `remediations.finding_id`, `alerts.project_id`. **Location:** `drizzle/`, `src/server/db-store/schema.ts`. **Effort:** 🟡 Medium
-- [x] **Clear orphan alerts on project disconnect** — **Done:** `removeProjectScopedRecords` clears alerts on disconnect/purge.
-- [ ] **Assessment/evidence retention policy** — unbounded assessment payloads (`fileHashes`) and evidence growth. **Effort:** 🟠 Large
-- [x] **Tighten local-path connect if ever enabled** — **Done:** local/git connect removed (GitHub-only).
-- [ ] **Zod (or shared schemas) at server-action boundaries** — today mostly `FormData` + typeof; zod used mainly for AI. **Effort:** 🟠 Large
-- [ ] **Findings URL state** — tab + pagination for open findings only; resolved/dismissed capped without pagination (`src/app/findings/page.tsx`). **Effort:** 🟡 Medium
-- [ ] **Sanitize report download filename** — `Content-Disposition` uses unsanitized `project.name` (`src/app/evidence/report/route.ts`). **Effort:** 🟢 Small
-- [ ] **Coverage gate on core + actions** — `test:coverage` exists but CI has no threshold. **Effort:** 🟢 Small
-- [ ] **Stabilize Auth.js** — `next-auth@5.0.0-beta.32`; track stable release / security advisories. **Effort:** 🟡 Medium (wait + upgrade)
-- [ ] **Guided first-run onboarding** — connect GitHub App → first assessment checklist (beyond README). **Effort:** 🟠 Large
-- [x] **Remove legacy `app_meta.activeProjectId` stomps** — **Done:** cookie-only active project; field removed from `Db` / persist.
-- [ ] **Decouple `src/ai/` from `src/server/observability`** — inject logger at boundary. **Effort:** 🟢 Small
+- [ ] **Replace whole-Db load/save with query-scoped persistence** — **DEFERRED (Architecture #1, multi-sprint)**
+- [ ] **Assessment/evidence retention policy** — **DEFERRED (large product/ops policy)**
+- [ ] **Zod (or shared schemas) at server-action boundaries** — **DEFERRED (large)**
+- [ ] **Stabilize Auth.js** — **DEFERRED (wait for stable next-auth v5)**
+- [ ] **Guided first-run onboarding** — **DEFERRED (large UX)**
 
 ---
 
 ## 🟢 P3 — Nice to Have
 
-Optional improvements with relatively low near-term business impact.
-
-- [ ] **Billing / plans / quotas** — none today; add when monetizing beyond manual invoicing. Spec MVP does not require it.
-- [ ] **Runtime axe in CI** on product UI (lint ≠ runtime).
-- [ ] **Static legal pages** — drop unnecessary `force-dynamic` on `/legal/*`.
-- [ ] **Reduce `"use client"` on static UI** (e.g. `table.tsx` wrapping SSR evidence).
-- [ ] **App container image** + compose profile for full stack demo.
-- [ ] **Transactional email** (org invites currently assume user id/login knowledge — no invite email flow).
+- [ ] **Billing / plans / quotas** — **DEFERRED until monetization model**
+- [ ] **Reduce `"use client"` on static UI** — **DEFERRED (low impact)**
+- [ ] **Transactional email** — **DEFERRED**
 - [ ] **Multi-framework adapters** (SOC 2, ISO) — explicitly post-MVP per product spec.
-- [ ] **Human-readable severity beyond color+text** already OK; optional icon+text patterns.
+- [ ] **Human-readable severity beyond color+text** — optional polish.
 
 ---
 
@@ -141,18 +44,18 @@ Optional improvements with relatively low near-term business impact.
 
 ### 1. Persistence: document store → query engine
 
-|                           |                                                                                                                                                                                                                                                                                                                                        |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|                           |                                                                                                                                                                                                                                                                                                                              |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Current architecture**  | Postgres-only store still models the world as one in-memory `Db`. Every request can `loadDb()` all tables; every write re-syncs mutable tables under a **global** process mutex + `pg_advisory_xact_lock` (`src/server/db.ts`, `postgres-load.ts`, `write-lock.ts`). Postgres stores JSONB payloads + a few indexed columns. |
-| **Problem**               | Throughput and memory scale with **total** tenant data, not the active project. One writer for all orgs. Pool max 3 (`client.ts`) reinforces serialization. Fine for demos; unsafe past small pilots.                                                                                                                                  |
-| **Proposed architecture** | Project-scoped repositories: load/mutate only the active org/project. Real columns for query filters; transactions per project write. Keep evidence insert-only. Retire whole-Db sync.                                                                                                                                                 |
-| **Migration strategy**    | 1) Add project-scoped read APIs beside `loadDb`. 2) Move hot paths (workspace, assessment persist) off full reload. 3) Stop pruning-via-full-upsert. 4) Drop in-memory `Db` as the write API.                                                                                                                                          |
-| **Priority**              | P2 for pilot; **P0 for scale** beyond ~tens of orgs / concurrent assessments.                                                                                                                                                                                                                                                          |
+| **Problem**               | Throughput and memory scale with **total** tenant data, not the active project. One writer for all orgs. Pool max 3 (`client.ts`) reinforces serialization. Fine for demos; unsafe past small pilots.                                                                                                                        |
+| **Proposed architecture** | Project-scoped repositories: load/mutate only the active org/project. Real columns for query filters; transactions per project write. Keep evidence insert-only. Retire whole-Db sync.                                                                                                                                       |
+| **Migration strategy**    | 1) Add project-scoped read APIs beside `loadDb`. 2) Move hot paths (workspace, assessment persist) off full reload. 3) Stop pruning-via-full-upsert. 4) Drop in-memory `Db` as the write API.                                                                                                                                |
+| **Priority**              | P2 for pilot; **P0 for scale** beyond ~tens of orgs / concurrent assessments. **Status: deferred.**                                                                                                                                                                                                                          |
 
 ### 2. Workspaces: durable local clones → ephemeral job workspaces
 
-|                           |                                                                                                                                                                          |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+|                           |                                                                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | **Current architecture**  | Ephemeral clone-per-job via `withRepoCheckout` (temp dir → assess/remediate/PR → delete). No durable workspace volume. |
 | **Problem**               | In-process clones on every job; no SHA cache; long assessments block the request.                                      |
 | **Proposed architecture** | Optional commit-SHA cache; background job runner for webhook/assess.                                                   |
@@ -161,126 +64,111 @@ Optional improvements with relatively low near-term business impact.
 
 ### 3. Tenant isolation: app RBAC → DB constraints (+ optional RLS)
 
-|                           |                                                                                                              |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Current architecture**  | Isolation is TypeScript filters (`project-visibility`, `rbac`). No FKs, no RLS.                              |
-| **Problem**               | Any missed filter is a cross-tenant leak; compromised process sees all rows.                                 |
-| **Proposed architecture** | FKs + unique membership; eventually Postgres RLS by `org_id` for defense in depth.                           |
-| **Migration strategy**    | Add constraints first (safe, high value); RLS after query-scoped persistence (RLS fights whole-table loads). |
-| **Priority**              | P1 constraints; P2 RLS.                                                                                      |
+|                           |                                                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Current architecture**  | Isolation is TypeScript filters (`project-visibility`, `rbac`). Membership uniqueness + hot indexes added. |
+| **Problem**               | Any missed filter is a cross-tenant leak; compromised process sees all rows.                               |
+| **Proposed architecture** | FKs + unique membership; eventually Postgres RLS by `org_id` for defense in depth.                         |
+| **Migration strategy**    | Membership unique indexes shipped; full FKs/RLS after query-scoped persistence.                            |
+| **Priority**              | P1 uniqueness done; P2 RLS.                                                                                |
 
 ### 4. Keep module boundaries; fix small leaks only
 
-|                           |                                                                                                                           |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **Current architecture**  | Clear layers (core / analysis / adapters / ai / server / app). Domain-split server actions (no barrels).                  |
-| **Problem**               | Minor: AI → server observability; assessment orchestration couples adapters + AI (acceptable for MVP).                    |
-| **Proposed architecture** | Inject observability ports into AI; keep RGAA behind adapter. **Do not** introduce enterprise packaging for its own sake. |
-| **Priority**              | P2/P3.                                                                                                                    |
+|                           |                                                                                                                 |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Current architecture**  | Clear layers (core / analysis / adapters / ai / server / app). Domain-split server actions (no barrels).        |
+| **Problem**               | Assessment orchestration couples adapters + AI (acceptable for MVP). AI observability leak fixed via `ai/warn`. |
+| **Proposed architecture** | Keep RGAA behind adapter. **Do not** introduce enterprise packaging for its own sake.                           |
+| **Priority**              | P2/P3.                                                                                                          |
 
 ---
 
 # Technical Debt
 
-| Item                                       | Notes                                                   |
-| ------------------------------------------ | ------------------------------------------------------- |
-| Whole-Db sync abstraction                  | Largest structural debt — see Architecture #1           |
-| Ad-hoc FormData validation                 | Inconsistent vs zod on AI paths                         |
-| Shared unscoped projects ACL               | Intentional for demo; dangerous if left on in prod      |
-| Auth.js beta                               | Track upgrades                                          |
-| ~~No e2e~~                                 | Playwright product suite in CI                          |
-| Assessment snapshot bloat                  | `fileHashes` in JSONB payloads                          |
-| Global write lock + pool size 3            | Correct for free-tier demo; wrong for multi-tenant SaaS |
-| Client-visible raw `Error.message`         | `action-state.ts` may leak internal paths               |
+| Item                               | Notes                                                   |
+| ---------------------------------- | ------------------------------------------------------- |
+| Whole-Db sync abstraction          | Largest structural debt — see Architecture #1           |
+| Ad-hoc FormData validation         | Inconsistent vs zod on AI paths                         |
+| Shared unscoped projects ACL       | Intentional for demo; dangerous if left on in prod      |
+| Auth.js beta                       | Track upgrades                                          |
+| ~~No e2e~~                         | Playwright product suite in CI                          |
+| Assessment snapshot bloat          | `fileHashes` in JSONB payloads                          |
+| Global write lock + pool size 3    | Correct for free-tier demo; wrong for multi-tenant SaaS |
+| Client-visible raw `Error.message` | `action-state.ts` may leak internal paths               |
 
 ---
 
 # Security Findings
 
-| Severity     | Finding                                                                  | Location                                                    |
-| ------------ | ------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| **Critical** | GitHub App installation token minting not bound to caller                | `src/server/actions/connect.ts`, `src/server/github-app.ts` |
-| **High**     | GitHub connect skips `project.connect` RBAC                              | `connectGitHubRepoAction`                                   |
-| ~~**High**~~ | ~~Local path connect = arbitrary FS read/write~~                         | Removed (GitHub-only)                                       |
-| ~~**High**~~ | ~~Shared sample project world-writable by design~~                       | Removed                                                     |
-| **Medium**   | Git URL SSRF: host blocklist without DNS resolution                      | `connect-policy.ts`                                         |
-| **Medium**   | OAuth access token in JWT cookie                                         | `auth.ts`                                                   |
-| **Medium**   | No rate limiting on connect/assess/AI/webhook                            | actions + webhook route                                     |
-| **Medium**   | Admins can manage other admins                                           | `orgs.ts`                                                   |
-| **Low**      | Webhook replay if `x-github-delivery` missing                            | `webhook-deliveries.ts`                                     |
-| **Low**      | Unsanitized `Content-Disposition` filename                               | `evidence/report/route.ts`                                  |
-| **Low**      | `trustHost: true` — mitigate with always-set `AUTH_URL` in deployed envs | `auth.ts`                                                   |
+| Severity         | Finding                                                                  | Status                                                           |
+| ---------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| ~~**Critical**~~ | ~~GitHub App installation token minting not bound to caller~~            | Fixed (`resolveUserInstallationForRepo`)                         |
+| ~~**High**~~     | ~~GitHub connect skips `project.connect` RBAC~~                          | Fixed                                                            |
+| ~~**High**~~     | ~~Local path connect = arbitrary FS read/write~~                         | Removed (GitHub-only)                                            |
+| ~~**High**~~     | ~~Shared sample project world-writable by design~~                       | Removed                                                          |
+| ~~**Medium**~~   | ~~OAuth access token in JWT cookie~~                                     | Fixed (server-side store only)                                   |
+| ~~**Medium**~~   | ~~No rate limiting on connect/assess/AI/webhook~~                        | Fixed (in-process + delivery id required)                        |
+| ~~**Medium**~~   | ~~Admins can manage other admins~~                                       | Fixed                                                            |
+| ~~**Low**~~      | ~~Webhook replay if `x-github-delivery` missing~~                        | Fixed (400)                                                      |
+| ~~**Low**~~      | ~~Unsanitized `Content-Disposition` filename~~                           | Fixed                                                            |
+| **Medium**       | Git URL SSRF: host blocklist without DNS resolution                      | Largely mitigated (GitHub-only clone URLs); runtime URL hardened |
+| **Low**          | `trustHost: true` — mitigate with always-set `AUTH_URL` in deployed envs | `auth.ts`                                                        |
 
-**Already solid:** production secret hard-fail; GitHub App required in prod; webhook HMAC; token encryption at rest; path traversal guard on remediations (`workspace-path.ts`); finding/project IDOR checks on most mutations; httpOnly/sameSite cookies for active org/project; SSRF hostname blocklist (literal); git env scrubbing.
+**Already solid:** production secret hard-fail; GitHub App required in prod; webhook HMAC; token encryption at rest; path traversal guard on remediations (`workspace-path.ts`); finding/project IDOR checks on most mutations; httpOnly/sameSite cookies for active org/project; git env scrubbing.
 
 ---
 
 # Performance Findings
 
-| Finding                                                | Impact                                    | When it matters                     |
-| ------------------------------------------------------ | ----------------------------------------- | ----------------------------------- |
-| Full multi-table `loadDb` per request                  | Latency + memory grow with all tenants    | > tens of projects / large evidence |
-| Global advisory lock on every write                    | Serializes all tenant writes              | Concurrent assessments/webhooks     |
-| Assessment stores full `fileHashes` snapshots          | DB/JSONB growth                           | Frequent re-assess                  |
-| GitHub repo list during server render of connect panel | Slow first paint when signed in           | Large installation repos            |
-| Pool max 3 + global lock                               | Queueing before CPU saturates             | Multi-user hosted                   |
-| All pages `force-dynamic`                              | No CDN caching (acceptable for app shell) | Legal pages unnecessarily dynamic   |
-| No route `loading.tsx`                                 | Perceived hang on slow assessments/AI     | UX, not throughput                  |
-
-Do **not** chase micro-optimizations until persistence is project-scoped.
+Unchanged structurally — do **not** chase micro-optimizations until persistence is project-scoped. Route `loading.tsx` added for perceived hang on navigation.
 
 ---
 
 # Accessibility Findings
 
-| Severity   | Finding                                                     | Location                             |
-| ---------- | ----------------------------------------------------------- | ------------------------------------ |
-| **High**   | Success feedback uses `role="alert"` via default `Alert`    | `create-pr-form.tsx`, `ui/alert.tsx` |
-| **High**   | Copy confirmation not announced                             | `copy-button.tsx`                    |
-| **Medium** | Remediation lifecycle stage not exposed to AT               | `finding-remediation-card.tsx`       |
-| **Medium** | Error page nests interactive recovery inside `role="alert"` | `error.tsx`                          |
-| **Gap**    | No runtime axe/Playwright a11y CI (lint-only)               | `.github/workflows/ci.yml`           |
-
-**Already solid:** strict jsx-a11y; skip link; focus to `h1` on nav; labeled forms with `aria-invalid`/`aria-describedby`; `AlertDialog` instead of `window.confirm`; pagination labels; verify-feedback tests for alert/status roles.
+| Severity       | Finding                                                      | Status                        |
+| -------------- | ------------------------------------------------------------ | ----------------------------- |
+| ~~**High**~~   | ~~Success feedback uses `role="alert"` via default `Alert`~~ | Fixed (PR form status region) |
+| ~~**High**~~   | ~~Copy confirmation not announced~~                          | Fixed (polite live region)    |
+| ~~**Medium**~~ | ~~Remediation lifecycle stage not exposed to AT~~            | Fixed (`aria-current="step"`) |
+| **Medium**     | Error page nests interactive recovery inside `role="alert"`  | Open                          |
+| ~~**Gap**~~    | ~~No runtime axe/Playwright a11y CI~~                        | Playwright a11y specs in e2e  |
 
 ---
 
 # Testing Gaps
 
-Prioritize business-critical and high-risk areas (not line coverage vanity):
+Prioritize remaining:
 
-1. **Security:** foreign GitHub `installationId` minting; GitHub connect without `project.connect`; org role escalation admin→admin.
-2. **E2E smoke:** connect → assess → remediate → verify → evidence export (Playwright).
-3. **Webhook:** missing delivery id; `workspace_missing` path; signature failure.
-4. **Authz regressions:** already partly covered in `actions.remediation.test.ts` — keep expanding for connect/org.
-5. **SSRF/DNS policy** once implemented.
-6. **Page-level** dashboard/requirements/evidence smoke (optional after e2e).
+1. Broader action-level coverage (connect/org/AI) to raise coverage thresholds over time.
+2. SSRF/DNS policy for any future non-GitHub URL inputs.
+3. Page-level smoke beyond e2e core loop (optional).
 
-CI today: lint, typecheck, unit test, build — good foundation, not sufficient alone for launch confidence.
+CI today: lint, typecheck, unit test, coverage gate, build, Playwright e2e.
 
 ---
 
 # Production Checklist
 
 - [ ] Authentication — GitHub App + `AUTH_URL` + strong `AUTH_SECRET` in prod
-- [ ] Authorization — fix GitHub connect RBAC + installation binding (sample removed)
-- [ ] Security — rate limits; JWT token removal; DNS/allowlist git URLs (local connect removed)
-- [ ] Validation — action-boundary schemas for connect/org ids at minimum
+- [x] Authorization — GitHub connect RBAC + installation binding
+- [x] Security — rate limits; JWT token removal; runtime URL hardening (GitHub-only connect)
+- [ ] Validation — action-boundary schemas for connect/org ids at minimum (deferred)
 - [ ] Error handling — user-safe messages; keep Sentry for internals
-- [ ] Logging — structured JSON on (already present)
-- [ ] Monitoring — Sentry (or equiv) + alerts for webhook/assessment failures
-- [ ] Database — `DATABASE_URL` + migrations; evidence insert-only enforced at DB
-- [ ] Backups — Postgres restore tested
-- [x] Testing — unit CI green + core-loop e2e
-- [ ] Accessibility — P1 feedback/copy/lifecycle fixes; lint remains strict
+- [x] Logging — structured JSON on (already present)
+- [x] Monitoring — Sentry checklist + sample rate; wire on-call channel in deploy
+- [x] Database — `DATABASE_URL` + migrations; evidence insert-only enforced at DB
+- [x] Backups — Postgres restore documented (operator must practice once)
+- [x] Testing — unit CI green + core-loop e2e + coverage gate
+- [x] Accessibility — P1 feedback/copy/lifecycle fixes; lint remains strict
 - [ ] Performance — single-instance OK for pilot; plan project-scoped DB before scale
-- [x] CI/CD — quality gate + Playwright e2e job
+- [x] CI/CD — quality gate + Playwright e2e job + coverage
 - [ ] Environment configuration — `.env.example` / `docs/deploy.md` followed exactly
-- [ ] Documentation — runbook for supported deploy shape; customer-facing help later
-- [ ] UX — AI pending states; loading UI; empty states already decent
+- [x] Documentation — deploy runbook (health, backups, monitoring)
+- [x] UX — AI pending states; loading UI; empty states already decent
 - [ ] Mobile — Sheet nav present; re-check findings/detail on small screens
-- [ ] Legal/product — counsel-reviewed Terms/Privacy; account deletion/export path
-- [ ] Health checks — `/api/health` (or equivalent)
+- [ ] Legal/product — counsel-reviewed Terms/Privacy (**blocked**); account deletion/export path shipped
+- [x] Health checks — `/api/health`
 - [ ] Billing — optional until monetization model chosen
 
 ---
@@ -289,52 +177,24 @@ CI today: lint, typecheck, unit test, build — good foundation, not sufficient 
 
 ### Current readiness
 
-**❌ Not ready** for general commercial multi-tenant sale.
+**❌ Not ready** for general commercial multi-tenant sale (legal + persistence scale).
 
 **⚠️ Almost ready** for a **paid early-access pilot** with constraints:
 
-- One org / few seats, single long-lived Node instance, durable disk, Postgres
-- GitHub App only (no local-path connect)
-- Security P0s fixed (installation binding + connect RBAC; sample removed)
-- Counsel-reviewed legal + backups + health + Sentry
+- One org / few seats, single long-lived Node instance, Postgres
+- GitHub App only
+- Security engineering items addressed (installation binding, connect RBAC, JWT, rate limits, admin RBAC, evidence DB lock)
+- Counsel-reviewed legal still required before broader sale
+- Operator must configure `SENTRY_DSN` and practice Postgres restore once
 
-### Top 10 priorities (by business / risk impact)
+### Top remaining priorities
 
-1. **Bind GitHub App installation tokens to the caller** (Critical security)
-2. **Enforce `project.connect` on GitHub connect** (High security)
-3. **Counsel-reviewed Terms & Privacy** (legal/trust)
-4. ~~**Isolate or lock down shared sample on hosted**~~ (removed)
-5. **Commit to supported deploy topology + health + backups** (ops survival)
-6. **Remove OAuth token from JWT; rate-limit connect/assess/AI** (security/cost)
-7. **DNS/allowlist hardening for git URLs** (SSRF)
-8. **Brand a11y polish** (success roles, copy live region, lifecycle)
-9. **Account/data deletion + export minimum** (enterprise/GDPR readiness)
-10. **Playwright core-loop smoke in CI** (ship confidence)
-
-### Estimated effort (P0 / P1)
-
-| Item                                         | Effort           |
-| -------------------------------------------- | ---------------- |
-| Bind installation tokens to user             | 🟡 Medium        |
-| Enforce GitHub connect RBAC                  | 🟢 Small         |
-| Counsel-reviewed legal                       | 🟠 Large (legal) |
-| Deploy topology + health + backups           | 🟡 Medium        |
-| Sample project isolation                     | 🟡 Medium        |
-| Git URL SSRF hardening                       | 🟡 Medium        |
-| Drop access token from JWT                   | 🟢 Small         |
-| Rate limiting + webhook delivery id required | 🟡 Medium        |
-| Admin cannot manage admins                   | 🟢 Small         |
-| Account deletion / export                    | 🟠 Large         |
-| A11y feedback polish                         | 🟢 Small         |
-| AI form pending/errors + loading UI          | 🟡 Medium        |
-| ~~Move `shadcn` to devDependencies~~         | Done             |
-| ~~Playwright smoke e2e~~                     | Done             |
-| Production monitoring baseline               | 🟡 Medium        |
-| Evidence DB append-only enforcement          | 🟡 Medium        |
-
-**Rough total to early-access pilot (engineering only, excl. legal calendar):** ~2–4 engineer-weeks if focused.
-**Rough total to scalable multi-tenant SaaS (incl. persistence + ephemeral workspaces):** additional multi-week / multi-sprint program — do not pretend the current store is that product.
+1. Counsel-reviewed Terms & Privacy
+2. Query-scoped persistence before multi-tenant scale
+3. On-call alerts wired to a real channel
+4. Broader action coverage / Zod boundaries
+5. Auth.js stable upgrade when available
 
 ---
 
-_This file is the master implementation roadmap from the 2026-08-07 production readiness audit. Prefer closing P0s before net-new features that do not advance the sold compliance loop._
+_This file is the master implementation roadmap from the 2026-08-07 production readiness audit. Prefer closing remaining blocked/deferred items deliberately rather than reopening finished engineering work._

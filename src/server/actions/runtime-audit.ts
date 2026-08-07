@@ -4,6 +4,7 @@ import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
+import { assertSafeRuntimeBaseUrl } from "../runtime-url";
 import { withWorkspaceWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
@@ -38,17 +39,7 @@ export async function updateRuntimeAuditAction(
         return;
       }
 
-      let parsed: URL;
-      try {
-        parsed = new URL(base);
-      } catch {
-        throw new Error("Enter a valid http(s) preview URL.");
-      }
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        throw new Error("Runtime audit URL must be http or https.");
-      }
-
-      project.runtimeBaseUrl = `${parsed.protocol}//${parsed.host}`;
+      project.runtimeBaseUrl = assertSafeRuntimeBaseUrl(base);
       project.runtimeRoutes = parseRoutes(formData.get("runtimeRoutes"));
     });
     refresh();

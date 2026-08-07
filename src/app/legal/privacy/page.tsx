@@ -1,13 +1,11 @@
 import { PageHeader } from "@/components/page-primitives";
 
-export const dynamic = "force-dynamic";
-
 export default function PrivacyPage() {
   return (
     <>
       <PageHeader
         title="Privacy Policy"
-        description="How ComplyLoop handles account, repository, and compliance data. Draft for early access."
+        description="How ComplyLoop handles account, repository, and compliance data. Draft for early access — not counsel-reviewed."
       />
       <div className="flex flex-col gap-6 text-sm text-muted-foreground">
         <section>
@@ -31,11 +29,26 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-base font-medium text-foreground">Retention</h2>
           <p className="mt-2">
-            Evidence is append-only and retained for the life of the project
-            record. Disconnecting a GitHub project removes project-scoped
+            Evidence is append-only and retained for audit history. Disconnecting
+            a GitHub project or deleting an organization removes project-scoped
             mutable records (requirements, assessments, findings, remediations,
-            alerts); evidence tied to that project may be retained for audit
-            history until deleted by an operator.
+            alerts); evidence rows remain unless an operator purges them outside
+            the app role.
+          </p>
+        </section>
+        <section>
+          <h2 className="text-base font-medium text-foreground">
+            Export and deletion
+          </h2>
+          <p className="mt-2">
+            Organization owners can download a machine-readable JSON export of
+            org-scoped product data and delete the organization from{" "}
+            <a href="/org" className="text-foreground underline underline-offset-2">
+              Organization
+            </a>
+            . Sign-out clears stored encrypted GitHub tokens for that user.
+            Support-assisted deletion requests are handled within 30 days for
+            early-access pilots.
           </p>
         </section>
         <section>

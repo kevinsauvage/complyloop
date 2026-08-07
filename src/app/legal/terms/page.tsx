@@ -1,7 +1,5 @@
 import { PageHeader } from "@/components/page-primitives";
 
-export const dynamic = "force-dynamic";
-
 export default function TermsPage() {
   return (
     <>

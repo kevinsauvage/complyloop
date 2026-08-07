@@ -16,10 +16,13 @@ import {
   canManageOrgMembers,
   changeOrgMemberRole,
   createOrganization,
+  deleteOrganization,
+  exportOrgData,
   inviteOrgMember,
   removeOrgMember,
+  resolveActiveOrgId,
 } from "../orgs";
-import { withWorkspaceWrite } from "../workspace";
+import { getWorkspace, withWorkspaceWrite } from "../workspace";
 import { refresh } from "./shared";
 
 export type OrgMemberFormState = FormErrorState;
@@ -190,5 +193,57 @@ export async function changeOrgMemberRoleAction(
     });
     refresh();
     return `Role updated to ${role}.`;
+  });
+}
+
+export async function exportOrgDataAction(
+  orgId: string,
+): Promise<{ error: string | null; json: string | null }> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return { error: "Sign in to export organization data.", json: null };
+  }
+  try {
+    const { db } = await getWorkspace();
+    const payload = exportOrgData(db, orgId, userId);
+    return { error: null, json: JSON.stringify(payload, null, 2) };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Could not export organization data.",
+      json: null,
+    };
+  }
+}
+
+export async function deleteOrgAction(
+  _previous: ActionMessageState,
+  formData: FormData,
+): Promise<ActionMessageState> {
+  return runActionMessage(async () => {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("Sign in to delete an organization.");
+
+    const orgIdRaw = formData.get("orgId");
+    const confirm = formData.get("confirm");
+    if (typeof orgIdRaw !== "string" || orgIdRaw.length === 0) {
+      throw new Error("Organization id is required.");
+    }
+    if (confirm !== "DELETE") {
+      throw new Error('Type DELETE to confirm organization deletion.');
+    }
+
+    let nextOrgId: string | undefined;
+    await withWorkspaceWrite(({ db }) => {
+      deleteOrganization(db, orgIdRaw, userId);
+      nextOrgId = resolveActiveOrgId(db, userId, null);
+    });
+    if (nextOrgId) {
+      await writeActiveOrgCookie(nextOrgId);
+    }
+    refresh();
+    return "Organization deleted. Evidence history was retained for audit.";
   });
 }

@@ -9,7 +9,10 @@ import {
   isE2EHarnessEnabled,
 } from "./e2e-harness";
 import { createGit } from "./git";
-import { resolveProjectGitHubToken } from "./github-access";
+import {
+  resolveProjectGitHubToken,
+  type ResolveProjectGitHubTokenOptions,
+} from "./github-access";
 
 export interface RepoCheckoutOptions {
   fullName: string;
@@ -76,6 +79,7 @@ export async function withProjectCheckout<T>(
   project: Project,
   fn: (rootPath: string) => Promise<T>,
   ref?: string,
+  tokenOptions?: ResolveProjectGitHubTokenOptions,
 ): Promise<T> {
   if (isE2EHarnessEnabled()) {
     return withFixtureCheckout(fn);
@@ -85,12 +89,12 @@ export async function withProjectCheckout<T>(
   if (!fullName) {
     throw new ConnectError("Project has no GitHub repository metadata.");
   }
-  const accessToken = await resolveProjectGitHubToken(project);
+  const accessToken = await resolveProjectGitHubToken(project, tokenOptions);
   if (!accessToken) {
     throw new ConnectError(
       project.github?.installationId
         ? "Could not mint a GitHub App installation token for this repository."
-        : "No stored GitHub token for project owner — sign in again to refresh the token.",
+        : "No stored GitHub token for this session - sign out and sign in with GitHub again.",
     );
   }
   return withRepoCheckout({ fullName, accessToken, ref }, fn);

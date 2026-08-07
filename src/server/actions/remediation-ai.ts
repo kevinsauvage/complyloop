@@ -2,10 +2,20 @@
 
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
+import { setAiWarn } from "@/ai/warn";
 import { formatLocationRef } from "@/core/location";
 import { advanceRemediation } from "@/core/remediation";
+import {
+  runActionMessage,
+  type ActionMessageState,
+} from "../action-state";
 import { addEvidence } from "../db";
 import { reportWarning } from "../observability";
+import { assertAiRateLimit } from "../rate-limit";
+
+setAiWarn((message, context) => {
+  reportWarning(message, context);
+});
 import {
   controlById,
   findingById,
@@ -18,94 +28,122 @@ import {
   requireOnFindingProject,
 } from "./shared";
 
-export async function generateAiExplanationAction(findingId: string): Promise<void> {
-  await withWorkspaceWrite(async (workspace) => {
-    const { db } = workspace;
-    const finding = findingById(db, findingId);
-    requireOnFindingProject(workspace, finding, "project.view");
-    const control = controlById(db, finding.controlId);
+export type AiActionState = ActionMessageState;
 
-    const explanation = await generateAiExplanation(finding, control);
-    if (explanation) {
+export async function generateAiExplanationAction(
+  findingId: string,
+  _previous: AiActionState,
+  _formData: FormData,
+): Promise<AiActionState> {
+  void _previous;
+  void _formData;
+  return runActionMessage(async () => {
+    await withWorkspaceWrite(async (workspace) => {
+      if (workspace.userId) assertAiRateLimit(workspace.userId);
+      const { db } = workspace;
+      const finding = findingById(db, findingId);
+      requireOnFindingProject(workspace, finding, "project.view");
+      const control = controlById(db, finding.controlId);
+
+      const explanation = await generateAiExplanation(finding, control);
+      if (!explanation) {
+        reportWarning("AI explanation unavailable or failed", {
+          code: "ai_explanation_failed",
+          findingId,
+          projectId: finding.projectId,
+        });
+        throw new Error(
+          "AI explanation unavailable. Check AI credentials or try again.",
+        );
+      }
       finding.explanations.push(explanation);
-    } else {
-      reportWarning("AI explanation unavailable or failed", {
-        code: "ai_explanation_failed",
-        findingId,
-        projectId: finding.projectId,
-      });
-    }
+    });
+    refresh();
+    return "AI explanation added.";
   });
-  refresh();
 }
 
-export async function generateAiRemediationAction(findingId: string): Promise<void> {
-  await withWorkspaceWrite(async (workspace) => {
-    const { db } = workspace;
-    const finding = findingById(db, findingId);
-    requireOnFindingProject(workspace, finding, "project.remediate");
-    const control = controlById(db, finding.controlId);
-    const remediation = remediationForFinding(db, findingId);
+export async function generateAiRemediationAction(
+  findingId: string,
+  _previous: AiActionState,
+  _formData: FormData,
+): Promise<AiActionState> {
+  void _previous;
+  void _formData;
+  return runActionMessage(async () => {
+    await withWorkspaceWrite(async (workspace) => {
+      if (workspace.userId) assertAiRateLimit(workspace.userId);
+      const { db } = workspace;
+      const finding = findingById(db, findingId);
+      requireOnFindingProject(workspace, finding, "project.remediate");
+      const control = controlById(db, finding.controlId);
+      const remediation = remediationForFinding(db, findingId);
 
-    if (finding.status !== "open") {
-      throw new Error("AI remediation is only available for open findings.");
-    }
-    if (remediation.status !== "detected" && remediation.status !== "suggested") {
-      throw new Error(
-        "AI remediation can only refine suggestions before approval.",
-      );
-    }
+      if (finding.status !== "open") {
+        throw new Error("AI remediation is only available for open findings.");
+      }
+      if (
+        remediation.status !== "detected" &&
+        remediation.status !== "suggested"
+      ) {
+        throw new Error(
+          "AI remediation can only refine suggestions before approval.",
+        );
+      }
 
-    const result = await generateAiRemediation(finding, control);
-    if (!result) {
-      reportWarning("AI remediation unavailable or failed", {
-        code: "ai_remediation_failed",
-        findingId,
+      const result = await generateAiRemediation(finding, control);
+      if (!result) {
+        reportWarning("AI remediation unavailable or failed", {
+          code: "ai_remediation_failed",
+          findingId,
+          projectId: finding.projectId,
+        });
+        throw new Error(
+          "AI remediation unavailable. Check AI credentials or try again.",
+        );
+      }
+
+      remediation.suggestion = result.suggestion;
+      if (
+        result.attributeValue &&
+        finding.fix?.kind === "insert_attribute" &&
+        finding.fix.editable
+      ) {
+        finding.fix = { ...finding.fix, value: result.attributeValue };
+      }
+
+      if (remediation.status === "detected") {
+        replaceRemediation(
+          db,
+          advanceRemediation(
+            remediation,
+            "suggested",
+            `AI suggestion: ${result.suggestion.description}`,
+          ),
+        );
+      } else {
+        remediation.history.push({
+          status: "suggested",
+          at: new Date().toISOString(),
+          note: `AI suggestion refreshed: ${result.suggestion.description}`,
+        });
+      }
+
+      addEvidence(db, {
+        kind: "ai_remediation_suggested",
+        summary: `AI remediation suggested for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,
+        controlId: finding.controlId,
+        findingId: finding.id,
+        detail: {
+          provenance: "ai",
+          model: result.suggestion.model,
+          confidence: result.suggestion.confidence,
+          description: result.suggestion.description,
+        },
       });
-      refresh();
-      return;
-    }
-
-    remediation.suggestion = result.suggestion;
-    if (
-      result.attributeValue &&
-      finding.fix?.kind === "insert_attribute" &&
-      finding.fix.editable
-    ) {
-      finding.fix = { ...finding.fix, value: result.attributeValue };
-    }
-
-    if (remediation.status === "detected") {
-      replaceRemediation(
-        db,
-        advanceRemediation(
-          remediation,
-          "suggested",
-          `AI suggestion: ${result.suggestion.description}`,
-        ),
-      );
-    } else {
-      remediation.history.push({
-        status: "suggested",
-        at: new Date().toISOString(),
-        note: `AI suggestion refreshed: ${result.suggestion.description}`,
-      });
-    }
-
-    addEvidence(db, {
-      kind: "ai_remediation_suggested",
-      summary: `AI remediation suggested for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
-      projectId: finding.projectId,
-      controlId: finding.controlId,
-      findingId: finding.id,
-      detail: {
-        provenance: "ai",
-        model: result.suggestion.model,
-        confidence: result.suggestion.confidence,
-        description: result.suggestion.description,
-      },
     });
+    refresh();
+    return "AI remediation suggestion saved.";
   });
-  refresh();
 }

@@ -88,9 +88,6 @@ export function AppShell({
     const main = document.getElementById("main-content");
     const heading = main?.querySelector("h1");
     if (heading instanceof HTMLElement) {
-      if (!heading.hasAttribute("tabindex")) {
-        heading.tabIndex = -1;
-      }
       heading.focus({ preventScroll: true });
     }
   }, [pathname]);

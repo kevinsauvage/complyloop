@@ -76,12 +76,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (account) {
         assertProductionGitHubAuth();
       }
-      if (account?.access_token) {
-        token.accessToken = account.access_token;
-        if (token.sub) {
-          await storeUserGitHubToken(token.sub, account.access_token);
-        }
+
+      // Definitive identity: Auth.js v5 mints a random UUID as user.id on each
+      // OAuth sign-in without a DB adapter. Always use GitHub's stable account
+      // id so ownerUserId, memberships, and github_tokens stay aligned.
+      if (account?.provider === "github" && account.providerAccountId) {
+        token.sub = String(account.providerAccountId);
       }
+
+      // Persist OAuth tokens server-side only — never embed in the JWT cookie.
+      if (account?.access_token && typeof token.sub === "string") {
+        await storeUserGitHubToken(token.sub, account.access_token);
+      }
+
       if (profile && typeof profile === "object" && "login" in profile) {
         const login = profile.login;
         if (typeof login === "string") token.login = login;
@@ -101,7 +108,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 });
 
 /**
- * Reads the GitHub OAuth access token from the encrypted JWT cookie.
+ * Reads the GitHub OAuth access token from encrypted server-side storage.
  * Server-only — never pass the result into client components.
  */
 export async function getGitHubAccessToken(): Promise<string | null> {
@@ -119,10 +126,7 @@ export async function getGitHubAccessToken(): Promise<string | null> {
     secret: resolveAuthSecret(),
     secureCookie: process.env.NODE_ENV === "production",
   });
-  if (typeof token?.accessToken === "string") return token.accessToken;
-  if (typeof token?.sub === "string") {
-    return getStoredGitHubToken(token.sub);
-  }
-  return null;
-}
+  if (typeof token?.sub !== "string") return null;
 
+  return getStoredGitHubToken(token.sub);
+}

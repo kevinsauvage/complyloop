@@ -4,7 +4,7 @@ import type { Confidence } from "@/core/statuses";
 import type { Control } from "@/core/project-types";
 import type { Explanation, Finding } from "@/core/finding-types";
 import { formatLocationRef } from "@/core/location";
-import { reportWarning } from "@/server/observability";
+import { aiWarn } from "./warn";
 
 const AI_MODEL = "openai/gpt-4o-mini";
 
@@ -73,7 +73,7 @@ export async function generateAiExplanation(
       generatedAt: new Date().toISOString(),
     };
   } catch (error) {
-    reportWarning("AI explanation unavailable or failed", {
+    aiWarn("AI explanation unavailable or failed", {
       code: "ai_explanation_failed",
       findingId: finding.id,
       controlId: control.id,

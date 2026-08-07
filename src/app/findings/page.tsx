@@ -35,62 +35,63 @@ import {
 
 export const dynamic = "force-dynamic";
 
+type FindingsTab = "open" | "resolved" | "dismissed";
+
+function parseTab(raw: string | undefined): FindingsTab | undefined {
+  if (raw === "open" || raw === "resolved" || raw === "dismissed") return raw;
+  return undefined;
+}
+
 function FindingRows({
   findings,
   db,
-  maxCount,
 }: {
   findings: Finding[];
   db: Parameters<typeof controlById>[0];
-  maxCount?: number;
 }) {
-  const slice = maxCount ? findings.slice(0, maxCount) : findings;
   return (
-    <>
-      <ul className="divide-y divide-border">
-        {slice.map((finding) => {
-          const control = controlById(db, finding.controlId);
-          const remediation = remediationForFinding(db, finding.id);
-          return (
-            <li key={finding.id} className="py-3 first:pt-0 last:pb-0">
-              <Link
-                href={`/findings/${finding.id}`}
-                className="group flex flex-col gap-1"
-              >
-                <span className="flex flex-wrap items-center gap-2">
-                  <SeverityBadge severity={finding.severity} />
-                  <RemediationStatusBadge status={remediation.status} />
-                  <EngineBadge engine={finding.engine ?? "ast"} />
-                  <span className="text-sm font-medium group-hover:underline">
-                    {control.code} — {control.title}
-                  </span>
+    <ul className="divide-y divide-border">
+      {findings.map((finding) => {
+        const control = controlById(db, finding.controlId);
+        const remediation = remediationForFinding(db, finding.id);
+        return (
+          <li key={finding.id} className="py-3 first:pt-0 last:pb-0">
+            <Link
+              href={`/findings/${finding.id}`}
+              className="group flex flex-col gap-1"
+            >
+              <span className="flex flex-wrap items-center gap-2">
+                <SeverityBadge severity={finding.severity} />
+                <RemediationStatusBadge status={remediation.status} />
+                <EngineBadge engine={finding.engine ?? "ast"} />
+                <span className="text-sm font-medium group-hover:underline">
+                  {control.code} — {control.title}
                 </span>
-                <span className="text-sm text-muted-foreground">
-                  {finding.reason}
-                </span>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {formatLocationRef(finding.location)}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-      {maxCount && findings.length > maxCount ? (
-        <p className="mt-3 text-xs text-muted-foreground">
-          Showing first {maxCount} of {findings.length}.
-        </p>
-      ) : null}
-    </>
+              </span>
+              <span className="text-sm text-muted-foreground">
+                {finding.reason}
+              </span>
+              <span className="font-mono text-xs text-muted-foreground">
+                {formatLocationRef(finding.location)}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
+}
+
+function tabHref(tab: FindingsTab): string {
+  return tab === "open" ? "/findings" : `/findings?tab=${tab}`;
 }
 
 export default async function FindingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; tab?: string }>;
 }) {
-  const { page: pageRaw } = await searchParams;
+  const { page: pageRaw, tab: tabRaw } = await searchParams;
   const page = parsePageParam(pageRaw);
   const { db, project } = await getWorkspace();
   if (!project) {
@@ -118,15 +119,16 @@ export default async function FindingsPage({
 
   const clusters = prioritizeClusters(findings, db.controls).slice(0, 10);
   const openSlice = paginateSlice(byStatus("open"), page);
-  const resolved = byStatus("resolved");
-  const dismissed = byStatus("dismissed");
+  const resolvedSlice = paginateSlice(byStatus("resolved"), page);
+  const dismissedSlice = paginateSlice(byStatus("dismissed"), page);
 
-  const defaultTab =
-    openSlice.total > 0
+  const defaultTab: FindingsTab =
+    parseTab(tabRaw) ??
+    (openSlice.total > 0
       ? "open"
-      : resolved.length > 0
+      : resolvedSlice.total > 0
         ? "resolved"
-        : "dismissed";
+        : "dismissed");
 
   if (findings.length === 0) {
     return (
@@ -187,16 +189,24 @@ export default async function FindingsPage({
           </Card>
         ) : null}
 
-        <Tabs defaultValue={defaultTab}>
+        <Tabs key={defaultTab} defaultValue={defaultTab}>
           <TabsList>
-            <TabsTrigger value="open">
-              Open{openSlice.total > 0 ? ` (${openSlice.total})` : ""}
+            <TabsTrigger value="open" asChild>
+              <Link href={tabHref("open")}>
+                Open{openSlice.total > 0 ? ` (${openSlice.total})` : ""}
+              </Link>
             </TabsTrigger>
-            <TabsTrigger value="resolved">
-              Resolved{resolved.length > 0 ? ` (${resolved.length})` : ""}
+            <TabsTrigger value="resolved" asChild>
+              <Link href={tabHref("resolved")}>
+                Resolved
+                {resolvedSlice.total > 0 ? ` (${resolvedSlice.total})` : ""}
+              </Link>
             </TabsTrigger>
-            <TabsTrigger value="dismissed">
-              Dismissed{dismissed.length > 0 ? ` (${dismissed.length})` : ""}
+            <TabsTrigger value="dismissed" asChild>
+              <Link href={tabHref("dismissed")}>
+                Dismissed
+                {dismissedSlice.total > 0 ? ` (${dismissedSlice.total})` : ""}
+              </Link>
             </TabsTrigger>
           </TabsList>
 
@@ -220,17 +230,21 @@ export default async function FindingsPage({
           </TabsContent>
 
           <TabsContent value="resolved" className="mt-4">
-            {resolved.length === 0 ? (
+            {resolvedSlice.total === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No resolved findings.
               </p>
             ) : (
               <Card>
                 <CardContent className="pt-4">
-                  <FindingRows
-                    findings={resolved}
-                    db={db}
-                    maxCount={DEFAULT_PAGE_SIZE}
+                  <FindingRows findings={resolvedSlice.items} db={db} />
+                  <PaginationNav
+                    page={resolvedSlice.page}
+                    totalPages={resolvedSlice.totalPages}
+                    total={resolvedSlice.total}
+                    basePath="/findings"
+                    query={{ tab: "resolved" }}
+                    label="Resolved findings pagination"
                   />
                 </CardContent>
               </Card>
@@ -238,17 +252,21 @@ export default async function FindingsPage({
           </TabsContent>
 
           <TabsContent value="dismissed" className="mt-4">
-            {dismissed.length === 0 ? (
+            {dismissedSlice.total === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No dismissed findings.
               </p>
             ) : (
               <Card>
                 <CardContent className="pt-4">
-                  <FindingRows
-                    findings={dismissed}
-                    db={db}
-                    maxCount={DEFAULT_PAGE_SIZE}
+                  <FindingRows findings={dismissedSlice.items} db={db} />
+                  <PaginationNav
+                    page={dismissedSlice.page}
+                    totalPages={dismissedSlice.totalPages}
+                    total={dismissedSlice.total}
+                    basePath="/findings"
+                    query={{ tab: "dismissed" }}
+                    label="Dismissed findings pagination"
                   />
                 </CardContent>
               </Card>

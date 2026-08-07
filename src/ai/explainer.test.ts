@@ -2,12 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Control } from "@/core/project-types";
 import type { Finding } from "@/core/finding-types";
 import { deterministicExplanation, generateAiExplanation } from "./explainer";
-
-const reportWarning = vi.hoisted(() => vi.fn());
-
-vi.mock("@/server/observability", () => ({
-  reportWarning: (...args: unknown[]) => reportWarning(...args),
-}));
+import { setAiWarn } from "./warn";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(async () => {
@@ -15,9 +10,12 @@ vi.mock("ai", () => ({
   }),
 }));
 
+const warn = vi.fn();
+
 afterEach(() => {
   vi.unstubAllEnvs();
-  reportWarning.mockClear();
+  warn.mockClear();
+  setAiWarn(() => {});
 });
 
 const finding = {
@@ -50,9 +48,10 @@ describe("deterministicExplanation", () => {
 
 describe("generateAiExplanation", () => {
   it("logs and returns null when the AI call fails", async () => {
+    setAiWarn(warn);
     vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     await expect(generateAiExplanation(finding, control)).resolves.toBeNull();
-    expect(reportWarning).toHaveBeenCalledWith(
+    expect(warn).toHaveBeenCalledWith(
       "AI explanation unavailable or failed",
       expect.objectContaining({ code: "ai_explanation_failed" }),
     );

@@ -22,6 +22,7 @@ import {
   isGitHubAppConfigured,
   resolveUserInstallationForRepo,
 } from "../github-app";
+import { RateLimitError, assertConnectRateLimit } from "../rate-limit";
 import { withWorkspaceWrite } from "../workspace";
 import { refresh } from "./shared";
 
@@ -54,6 +55,12 @@ export async function connectGitHubRepoAction(
   const userId = session?.user?.id;
   if (!userId) {
     return formError("Sign in with GitHub to connect a repository.");
+  }
+  try {
+    assertConnectRateLimit(userId);
+  } catch (error) {
+    if (error instanceof RateLimitError) return formError(error.message);
+    throw error;
   }
 
   const installationIdRaw = formData.get("installationId");
