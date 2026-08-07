@@ -47,11 +47,24 @@ repo webhook (push + pull_request) at
 re-assess; PR events also post a **ComplyLoop Check Run** on the head commit.
 Regressions appear as dashboard alerts.
 
+### Playwright product e2e
+
+```bash
+npm run playwright:install
+npm run test:e2e
+```
+
+Uses a gated harness (`E2E_AUTH_ENABLED` + local fixture checkout) — never enable
+those env vars on customer deploys. See [`docs/deploy.md`](./docs/deploy.md).
+
 ### Deploying beyond the laptop
 
 **Postgres is required** (`DATABASE_URL` + `npm run db:migrate`). Clones are
 ephemeral per job — no durable workspace volume. See
 [`docs/deploy.md`](./docs/deploy.md).
+
+Local `docker compose` publishes Postgres on **5433** (avoids clashing with a
+Homebrew/Postgres.app on 5432).
 
 CI for assessed apps: `npm install @complyloop/check` (build the workspace
 package with `npm run build:check` first when installing from this repo), copy

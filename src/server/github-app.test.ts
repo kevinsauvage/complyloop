@@ -59,12 +59,25 @@ describe("GitHub App configuration", () => {
   it("requires App credentials in production when GitHub auth is configured", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PHASE", "");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
     vi.stubEnv("AUTH_SECRET", "secret");
     vi.stubEnv("AUTH_GITHUB_ID", "client");
     vi.stubEnv("AUTH_GITHUB_SECRET", "client-secret");
     vi.stubEnv("GITHUB_APP_ID", "");
     vi.stubEnv("GITHUB_APP_PRIVATE_KEY", "");
     expect(() => assertProductionGitHubApp()).toThrow(/GITHUB_APP_ID/);
+  });
+
+  it("skips App enforcement under the e2e harness", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PHASE", "");
+    vi.stubEnv("E2E_AUTH_ENABLED", "1");
+    vi.stubEnv("AUTH_SECRET", "secret");
+    vi.stubEnv("AUTH_GITHUB_ID", "client");
+    vi.stubEnv("AUTH_GITHUB_SECRET", "client-secret");
+    vi.stubEnv("GITHUB_APP_ID", "");
+    vi.stubEnv("GITHUB_APP_PRIVATE_KEY", "");
+    expect(() => assertProductionGitHubApp()).not.toThrow();
   });
 
   it("allows production when App credentials are set", () => {

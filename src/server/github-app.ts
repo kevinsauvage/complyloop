@@ -8,6 +8,7 @@ import {
   mapGitHubRepo,
   type GitHubRepoSummary,
 } from "./github-repo";
+import { isE2EHarnessEnabled } from "./e2e-harness";
 import { createOctokit, octokitErrorMessage } from "./octokit";
 
 /** True when a GitHub App can mint per-installation tokens. */
@@ -31,8 +32,10 @@ export function githubAuthorizationScopes(): string {
 /**
  * Production with GitHub sign-in must use a GitHub App so customers never grant
  * the classic `repo` scope over their entire account.
+ * Skipped under the Playwright e2e harness (local fixture, no App).
  */
 export function assertProductionGitHubApp(): void {
+  if (isE2EHarnessEnabled()) return;
   if (!isProductionRuntime()) return;
   if (
     !process.env.AUTH_SECRET ||

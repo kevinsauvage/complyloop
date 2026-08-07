@@ -70,7 +70,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, account, profile }) {
-      assertProductionGitHubAuth();
+      // Only enforce production GitHub App / AUTH_URL on fresh OAuth sign-in.
+      // Decoding an existing session (including Playwright-minted JWTs) must not
+      // throw JWTSessionError when App env is absent.
+      if (account) {
+        assertProductionGitHubAuth();
+      }
       if (account?.access_token) {
         token.accessToken = account.access_token;
         if (token.sub) {

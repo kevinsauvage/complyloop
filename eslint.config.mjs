@@ -21,8 +21,8 @@ const eslintConfig = defineConfig([
     },
   },
   // Override default ignores of eslint-config-next.
-  // `.data/` is legacy local junk (gitignored); `packages/check/testdata` has
-  // deliberate accessibility violations for the CI check package — do not lint.
+  // `.data/` is legacy local junk (gitignored); `packages/check/testdata` and
+  // `e2e/fixtures` have deliberate accessibility violations — do not lint.
   globalIgnores([
     ".next/**",
     "out/**",
@@ -30,6 +30,7 @@ const eslintConfig = defineConfig([
     "coverage/**",
     "next-env.d.ts",
     "packages/check/testdata/**",
+    "e2e/fixtures/**",
     ".data/**",
   ]),
 ]);

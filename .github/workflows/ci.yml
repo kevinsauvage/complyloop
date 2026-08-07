@@ -20,3 +20,46 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: complyloop
+          POSTGRES_PASSWORD: complyloop
+          POSTGRES_DB: complyloop
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U complyloop -d complyloop"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://complyloop:complyloop@localhost:5432/complyloop
+      AUTH_SECRET: e2e-secret
+      AUTH_GITHUB_ID: e2e
+      AUTH_GITHUB_SECRET: e2e
+      AUTH_URL: http://localhost:3000
+      E2E_AUTH_ENABLED: "1"
+      E2E_FIXTURE_ROOT: ${{ github.workspace }}/e2e/fixtures/sample-app
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

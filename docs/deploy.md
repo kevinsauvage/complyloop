@@ -35,7 +35,7 @@ Local example:
 
 ```bash
 docker compose up -d
-export DATABASE_URL=postgres://complyloop:complyloop@localhost:5432/complyloop
+export DATABASE_URL=postgres://complyloop:complyloop@localhost:5433/complyloop
 npm run db:migrate
 npm run dev
 ```
@@ -59,12 +59,27 @@ when serving production with GitHub auth configured.
 Projects are **GitHub-only**. Connect via the repository picker after Sign in
 with GitHub (admin/owner role in the active organization).
 
+## Playwright e2e (CI / local)
+
+Browser tests use a gated harness (`E2E_AUTH_ENABLED=1` + `E2E_FIXTURE_ROOT`).
+Sessions are minted as Auth.js JWTs; checkouts copy the local fixture instead of
+cloning GitHub. **Never enable these variables on customer-facing deploys.**
+
+```bash
+docker compose up -d
+npm run db:migrate
+npm run playwright:install
+npm run test:e2e
+```
+
 ## What not to do
 
 - Omit `DATABASE_URL` (the app will not start usefully without Postgres).
 - Share a host without `AUTH_SECRET`.
 - Commit leftover `.data/` or token files to git.
 - `UPDATE`/`DELETE` evidence rows outside the app’s append-only contract.
+- Set `E2E_AUTH_ENABLED` / `E2E_FIXTURE_ROOT` outside CI and local Playwright runs.
+
 
 ## Checklist before inviting real users
 

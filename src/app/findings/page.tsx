@@ -68,7 +68,7 @@ function FindingRows({
                 <span className="text-sm text-muted-foreground">
                   {finding.reason}
                 </span>
-                <span className="font-mono text-xs text-muted-foreground/60">
+                <span className="font-mono text-xs text-muted-foreground">
                   {formatLocationRef(finding.location)}
                 </span>
               </Link>

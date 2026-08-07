@@ -81,13 +81,8 @@ Important improvements for quality, maintainability, security, UX, or reliabilit
 - [x] **Move `shadcn` CLI out of runtime dependencies**
   - **Done:** `shadcn` is in `devDependencies`; runtime UI uses generated `src/components/ui/*` + `radix-ui` / CVA.
 
-- [ ] **Playwright smoke of the core loop in CI**
-  - **Problem:** ~52 unit tests; no browser e2e for connect → assess → remediate → verify → evidence.
-  - **Why:** Regressions in the sold loop will ship undetected by unit mocks.
-  - **Location:** No Playwright/Cypress; CI is unit-only (`.github/workflows/ci.yml`)
-  - **Recommendation:** One happy-path e2e against a connected local fixture/repo plus one authz denial case. Run in CI on PRs.
-  - **Acceptance criteria:** CI fails if assessment → verify → evidence export breaks on the connected project.
-  - **Effort:** 🟠 Large
+- [x] **Playwright smoke of the core loop in CI**
+  - **Done:** `@playwright/test` suite (`e2e/`) with fixture checkout harness, route coverage, authz denial, axe serious+, and assess→remediate→verify→evidence. CI job `e2e` in `.github/workflows/ci.yml`.
 
 - [ ] **Production monitoring baseline**
   - **Problem:** Structured logs + optional Sentry (`src/server/observability.ts`); `tracesSampleRate: 0`; no latency/error SLOs, no alerting runbook.
@@ -193,7 +188,7 @@ Optional improvements with relatively low near-term business impact.
 | Ad-hoc FormData validation                 | Inconsistent vs zod on AI paths                         |
 | Shared unscoped projects ACL               | Intentional for demo; dangerous if left on in prod      |
 | Auth.js beta                               | Track upgrades                                          |
-| No e2e                                     | Unit-heavy, browser-light                               |
+| ~~No e2e~~                                 | Playwright product suite in CI                          |
 | Assessment snapshot bloat                  | `fileHashes` in JSONB payloads                          |
 | Global write lock + pool size 3            | Correct for free-tier demo; wrong for multi-tenant SaaS |
 | Client-visible raw `Error.message`         | `action-state.ts` may leak internal paths               |
@@ -276,10 +271,10 @@ CI today: lint, typecheck, unit test, build — good foundation, not sufficient 
 - [ ] Monitoring — Sentry (or equiv) + alerts for webhook/assessment failures
 - [ ] Database — `DATABASE_URL` + migrations; evidence insert-only enforced at DB
 - [ ] Backups — Postgres restore tested
-- [ ] Testing — unit CI green + core-loop e2e
+- [x] Testing — unit CI green + core-loop e2e
 - [ ] Accessibility — P1 feedback/copy/lifecycle fixes; lint remains strict
 - [ ] Performance — single-instance OK for pilot; plan project-scoped DB before scale
-- [ ] CI/CD — existing quality gate; add e2e job
+- [x] CI/CD — quality gate + Playwright e2e job
 - [ ] Environment configuration — `.env.example` / `docs/deploy.md` followed exactly
 - [ ] Documentation — runbook for supported deploy shape; customer-facing help later
 - [ ] UX — AI pending states; loading UI; empty states already decent
@@ -333,7 +328,7 @@ CI today: lint, typecheck, unit test, build — good foundation, not sufficient 
 | A11y feedback polish                         | 🟢 Small         |
 | AI form pending/errors + loading UI          | 🟡 Medium        |
 | ~~Move `shadcn` to devDependencies~~         | Done             |
-| Playwright smoke e2e                         | 🟠 Large         |
+| ~~Playwright smoke e2e~~                     | Done             |
 | Production monitoring baseline               | 🟡 Medium        |
 | Evidence DB append-only enforcement          | 🟡 Medium        |
 
