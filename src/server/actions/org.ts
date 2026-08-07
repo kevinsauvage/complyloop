@@ -12,6 +12,7 @@ import { writeActiveOrgCookie } from "../active-org";
 import { writeActiveProjectCookie } from "../active-project";
 import {
   canManageOrgMembers,
+  changeOrgMemberRole,
   createOrganization,
   inviteOrgMember,
   removeOrgMember,
@@ -140,13 +141,53 @@ export async function removeOrgMemberAction(
       throw new Error("Membership id is required.");
     }
 
+    let revokedInvite = false;
     await withWorkspaceWrite(({ db }) => {
       if (!canManageOrgMembers(db, orgIdRaw, userId)) {
         throw new Error("Only org owners and admins can remove members.");
       }
+      const target = db.memberships.find(
+        (membership) =>
+          membership.id === membershipId && membership.orgId === orgIdRaw,
+      );
+      revokedInvite = Boolean(target && !target.userId);
       removeOrgMember(db, orgIdRaw, userId, membershipId);
     });
     refresh();
-    return "Member removed.";
+    return revokedInvite ? "Invite revoked." : "Member removed.";
+  });
+}
+
+export async function changeOrgMemberRoleAction(
+  _previous: ActionMessageState,
+  formData: FormData,
+): Promise<ActionMessageState> {
+  return runActionMessage(async () => {
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("Sign in to manage organization members.");
+
+    const orgIdRaw = formData.get("orgId");
+    const membershipId = formData.get("membershipId");
+    const roleRaw = formData.get("role");
+    if (typeof orgIdRaw !== "string" || orgIdRaw.length === 0) {
+      throw new Error("Organization id is required.");
+    }
+    if (typeof membershipId !== "string" || membershipId.length === 0) {
+      throw new Error("Membership id is required.");
+    }
+    if (!isOrgRole(roleRaw) || roleRaw === "owner") {
+      throw new Error("Choose a role: admin, member, or viewer.");
+    }
+    const role: OrgRole = roleRaw;
+
+    await withWorkspaceWrite(({ db }) => {
+      if (!canManageOrgMembers(db, orgIdRaw, userId)) {
+        throw new Error("Only org owners and admins can change member roles.");
+      }
+      changeOrgMemberRole(db, orgIdRaw, userId, membershipId, role);
+    });
+    refresh();
+    return `Role updated to ${role}.`;
   });
 }

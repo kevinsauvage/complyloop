@@ -1,24 +1,7 @@
 import type { OrgMembership, OrgRole, Organization, Project } from "@/core/types";
 import { isOrgRole } from "@/core/rbac";
 import type { Db } from "./db";
-
-function slugify(input: string): string {
-  const cleaned = input
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-  return cleaned.length > 0 ? cleaned : "org";
-}
-
-function uniqueSlug(db: Db, base: string): string {
-  if (!db.organizations.some((org) => org.slug === base)) return base;
-  let index = 2;
-  while (db.organizations.some((org) => org.slug === `${base}-${index}`)) {
-    index += 1;
-  }
-  return `${base}-${index}`;
-}
+import { slugifyOrgName, uniqueOrgSlug } from "./org-slug";
 
 /** Claims invite rows that match this GitHub login by attaching userId. */
 export function claimMembershipsForLogin(
@@ -76,7 +59,7 @@ export function ensurePersonalOrg(
   const org: Organization = {
     id: crypto.randomUUID(),
     name: `${label}'s workspace`,
-    slug: uniqueSlug(db, slugify(label)),
+    slug: uniqueOrgSlug(db, slugifyOrgName(label)),
     createdAt: new Date().toISOString(),
   };
   const membership: OrgMembership = {
@@ -190,6 +173,40 @@ export function removeOrgMember(
   );
 }
 
+/**
+ * Updates a non-owner member's role. Cannot promote to owner (transfer is
+ * unsupported). Pending invites (no userId yet) can have their role adjusted
+ * before they sign in.
+ */
+export function changeOrgMemberRole(
+  db: Db,
+  orgId: string,
+  actorUserId: string,
+  membershipId: string,
+  role: OrgRole,
+): OrgMembership {
+  if (role === "owner") {
+    throw new Error("Cannot assign owner; transfer is not supported.");
+  }
+  if (!isOrgRole(role)) {
+    throw new Error("Invalid role.");
+  }
+  const actorRole = userRoleInOrg(db, orgId, actorUserId);
+  if (actorRole !== "owner" && actorRole !== "admin") {
+    throw new Error("Only org owners and admins can change member roles.");
+  }
+  const target = db.memberships.find(
+    (membership) =>
+      membership.id === membershipId && membership.orgId === orgId,
+  );
+  if (!target) throw new Error("Membership not found.");
+  if (target.role === "owner") {
+    throw new Error("Cannot change the organization owner's role.");
+  }
+  target.role = role;
+  return target;
+}
+
 /** Personal owner org — fallback when no active org is selected. */
 export function defaultOrgIdForUser(db: Db, userId: string): string | undefined {
   const owned = db.memberships.find(
@@ -243,7 +260,7 @@ export function createOrganization(
   const org: Organization = {
     id: crypto.randomUUID(),
     name,
-    slug: uniqueSlug(db, slugify(name)),
+    slug: uniqueOrgSlug(db, slugifyOrgName(name)),
     createdAt: new Date().toISOString(),
   };
   const membership: OrgMembership = {

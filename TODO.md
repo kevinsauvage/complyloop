@@ -33,7 +33,7 @@ Effort legend: 🟢 Small (<2h) · 🟡 Medium (2–8h) · 🟠 Large (1–3d) �
   - **Recommendation:** Wrap each migration's apply + record in a single transaction.
   - **Acceptance criteria:** A mid-migration crash leaves the migration either fully applied+recorded or not at all.
 
-- [ ] **Account & org management UI for SaaS** 🟠
+- [x] **Account & org management UI for SaaS** 🟠
   - **Problem:** Only sign-in/out and a minimal org page exist. No change-member-role, transfer/leave org, invite revoke, org rename/delete, account/profile/security settings, or project settings.
   - **Location:** `src/app/org/page.tsx`; `src/components/*`.
   - **Recommendation:** Build account and org settings surfaces incrementally; start with change-role and invite revoke (both are natural extensions of existing actions).

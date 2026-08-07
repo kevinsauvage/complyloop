@@ -1,12 +1,11 @@
 import { auth } from "@/auth";
 import { CreateOrgForm } from "@/components/create-org-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
-import { StatefulActionForm } from "@/components/stateful-action-form";
-import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
+import { OrgMembersCard } from "@/components/org-members-card";
+import { Card, EmptyState, PageHeader } from "@/components/ui";
 import {
   createOrgAction,
   inviteOrgMemberAction,
-  removeOrgMemberAction,
 } from "@/server/actions/org";
 import { membershipsForOrg, userRoleInOrg } from "@/server/orgs";
 import { getWorkspace } from "@/server/workspace";
@@ -54,59 +53,28 @@ export default async function OrgPage() {
   const projectCount = db.projects.filter(
     (project) => project.orgId === org.id,
   ).length;
+  const pendingInvites = members.filter((membership) => !membership.userId)
+    .length;
 
   return (
     <>
       <PageHeader
         title={org.name}
-        description={`Slug ${org.slug} · ${projectCount} project${projectCount === 1 ? "" : "s"} · your role: ${role ?? "none"}`}
+        description={`Slug ${org.slug} · ${projectCount} project${projectCount === 1 ? "" : "s"} · your role: ${role ?? "none"}${pendingInvites > 0 ? ` · ${pendingInvites} pending invite${pendingInvites === 1 ? "" : "s"}` : ""}`}
       />
 
       <div className="flex flex-col gap-6">
         <Card title="Members">
-          <ul className="divide-y divide-zinc-100">
-            {members.map((membership) => (
-              <li
-                key={membership.id}
-                className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-              >
-                <div>
-                  <p className="text-sm font-medium text-zinc-900">
-                    @{membership.githubLogin}
-                    {membership.userId === userId ? (
-                      <span className="ml-2 text-xs font-normal text-zinc-500">
-                        (you)
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    {membership.role}
-                    {membership.userId
-                      ? " · signed in"
-                      : " · invite pending"}
-                    {" · "}
-                    joined {formatDateTime(membership.createdAt)}
-                  </p>
-                </div>
-                {canManage && membership.role !== "owner" ? (
-                  <StatefulActionForm
-                    action={removeOrgMemberAction}
-                    submitLabel="Remove"
-                    pendingLabel="Removing…"
-                    submitClassName="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                    confirmMessage="Remove this member from the organization?"
-                  >
-                    <input type="hidden" name="orgId" value={org.id} />
-                    <input
-                      type="hidden"
-                      name="membershipId"
-                      value={membership.id}
-                    />
-                  </StatefulActionForm>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          <p className="mb-3 text-sm text-zinc-600">
+            Owners and admins can change roles and revoke pending invites.
+            Owner transfer is not supported yet.
+          </p>
+          <OrgMembersCard
+            orgId={org.id}
+            members={members}
+            currentUserId={userId}
+            canManage={canManage}
+          />
         </Card>
 
         {canManage ? (
@@ -120,8 +88,8 @@ export default async function OrgPage() {
         ) : (
           <Card title="Invite">
             <p className="text-sm text-zinc-600">
-              Only owners and admins can invite or remove members for this
-              organization.
+              Only owners and admins can invite, change roles, or revoke invites
+              for this organization.
             </p>
           </Card>
         )}

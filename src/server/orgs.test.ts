@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Db } from "./db";
 import {
   claimMembershipsForLogin,
+  changeOrgMemberRole,
   createOrganization,
   ensurePersonalOrg,
   inviteOrgMember,
@@ -118,5 +119,46 @@ describe("orgs", () => {
     expect(first.slug).toBe("acme");
     expect(second.slug).toBe("acme-2");
     expect(db.memberships.filter((m) => m.role === "owner")).toHaveLength(2);
+  });
+
+  it("changes a member role and rejects owner / invalid promotions", () => {
+    const db = emptyDb();
+    ensurePersonalOrg(db, "user-a", "alice");
+    const orgId = db.organizations[0]!.id;
+    const invite = inviteOrgMember(db, orgId, "user-a", "bob", "viewer");
+
+    const updated = changeOrgMemberRole(
+      db,
+      orgId,
+      "user-a",
+      invite.id,
+      "admin",
+    );
+    expect(updated.role).toBe("admin");
+
+    expect(() =>
+      changeOrgMemberRole(db, orgId, "user-a", invite.id, "owner"),
+    ).toThrow(/owner/);
+
+    const ownerId = db.memberships.find((m) => m.role === "owner")!.id;
+    expect(() =>
+      changeOrgMemberRole(db, orgId, "user-a", ownerId, "member"),
+    ).toThrow(/owner's role/);
+  });
+
+  it("lets admins revoke pending invites via remove", () => {
+    const db = emptyDb();
+    ensurePersonalOrg(db, "user-a", "alice");
+    const orgId = db.organizations[0]!.id;
+    inviteOrgMember(db, orgId, "user-a", "bob", "admin");
+    claimMembershipsForLogin(db, "user-b", "bob");
+
+    const pending = inviteOrgMember(db, orgId, "user-b", "carol", "member");
+    expect(pending.userId).toBeUndefined();
+
+    removeOrgMember(db, orgId, "user-b", pending.id);
+    expect(
+      db.memberships.some((membership) => membership.githubLogin === "carol"),
+    ).toBe(false);
   });
 });
