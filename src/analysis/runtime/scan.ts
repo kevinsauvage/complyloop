@@ -10,6 +10,12 @@ import {
   type RuntimeScanPageResult,
   type RuntimeScanResult,
 } from "./findings";
+import {
+  allowRuntimeNavigation,
+  assertSafeRuntimeUrl,
+  UNSAFE_RUNTIME_URL_MESSAGE,
+  type DnsLookup,
+} from "./url-safety";
 
 export type RuntimePageScanner = (
   urls: ReadonlyArray<string>,
@@ -80,36 +86,79 @@ export async function runAxeOnPage(page: Page): Promise<{
   };
 }
 
-/** Default Playwright + axe-core page scanner. */
-const playwrightAxeScanner: RuntimePageScanner = async (urls) => {
-  const browser = await getBrowser();
-  const context = await browser.newContext();
-  const pages: RuntimeScanPageResult[] = [];
-  try {
-    for (const url of urls) {
-      const page = await context.newPage();
-      try {
-        await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
-        const results = await runAxeOnPage(page);
-        pages.push({
-          url,
-          violations: results.violations,
-        });
-      } finally {
-        await page.close();
+/**
+ * Playwright + axe-core scanner with DNS/redirect SSRF checks on every request.
+ */
+export function createPlaywrightAxeScanner(options?: {
+  lookup?: DnsLookup;
+}): RuntimePageScanner {
+  const lookupOptions = options?.lookup ? { lookup: options.lookup } : undefined;
+
+  return async (urls) => {
+    const browser = await getBrowser();
+    const context = await browser.newContext();
+    const pages: RuntimeScanPageResult[] = [];
+    let blockedReason: string | null = null;
+
+    // Intercept every hop (including redirects) before the browser connects.
+    await context.route("**/*", async (route) => {
+      const decision = await allowRuntimeNavigation(
+        route.request().url(),
+        lookupOptions,
+      );
+      if (!decision.ok) {
+        blockedReason = decision.message;
+        await route.abort("blockedbyclient");
+        return;
       }
+      await route.continue();
+    });
+
+    try {
+      for (const url of urls) {
+        blockedReason = null;
+        // Re-check near navigation (narrows the DNS rebinding window).
+        const precheck = await allowRuntimeNavigation(url, lookupOptions);
+        if (!precheck.ok) {
+          throw new Error(precheck.message);
+        }
+        const page = await context.newPage();
+        try {
+          try {
+            await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
+          } catch (error) {
+            if (blockedReason) throw new Error(blockedReason);
+            throw error;
+          }
+          if (blockedReason) {
+            throw new Error(blockedReason);
+          }
+          const results = await runAxeOnPage(page);
+          pages.push({
+            url,
+            violations: results.violations,
+          });
+        } finally {
+          await page.close();
+        }
+      }
+    } finally {
+      await context.close();
     }
-  } finally {
-    await context.close();
-  }
-  return pages;
-};
+    return pages;
+  };
+}
+
+/** Default Playwright + axe-core page scanner. */
+const playwrightAxeScanner: RuntimePageScanner = createPlaywrightAxeScanner();
 
 export interface ScanRuntimeOptions {
   runtimeBaseUrl?: string;
   runtimeRoutes?: string[];
   /** Injected in tests; defaults to Playwright + axe. */
   scanner?: RuntimePageScanner;
+  /** Injected DNS lookup for tests. */
+  lookup?: DnsLookup;
 }
 
 /**
@@ -125,9 +174,32 @@ export async function scanRuntime(
     return { findings: [], pagesScanned: 0 };
   }
 
-  const urls = routes.map((route) => joinRuntimeUrl(base, route));
-  const scanner = options.scanner ?? playwrightAxeScanner;
   try {
+    // Resolve + reject private addresses before opening a browser.
+    await assertSafeRuntimeUrl(
+      base,
+      options.lookup ? { lookup: options.lookup } : undefined,
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : UNSAFE_RUNTIME_URL_MESSAGE;
+    return { findings: [], pagesScanned: 0, error: message };
+  }
+
+  const urls = routes.map((route) => joinRuntimeUrl(base, route));
+  const scanner =
+    options.scanner ??
+    (options.lookup
+      ? createPlaywrightAxeScanner({ lookup: options.lookup })
+      : playwrightAxeScanner);
+  try {
+    // Re-validate each navigation URL (path may differ from base origin).
+    for (const url of urls) {
+      await assertSafeRuntimeUrl(
+        url,
+        options.lookup ? { lookup: options.lookup } : undefined,
+      );
+    }
     const pages = await scanner(urls);
     return {
       findings: findingsFromAxePages(pages),
@@ -152,6 +224,7 @@ export async function runtimeViolationStillPresent(
   const url = finding.location.url;
   const selector = finding.location.selector;
   const snippet = finding.location.snippet;
+  await assertSafeRuntimeUrl(url);
   const pages = await scanner([url]);
   const raw = findingsFromAxePages(pages);
   return raw.some(

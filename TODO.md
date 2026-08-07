@@ -1,200 +1,302 @@
 # Production Readiness TODO
 
-> Audit date: 2026-08-07 (updated 2026-08-07 after engineering pass)
-> Scope: full repository review (code, docs, CI, deploy, tests).
-> Product: ComplyLoop — accessibility compliance engineering (RGAA/WCAG) for React/Next.js/TypeScript apps.
+> Audit date: 2026-08-07
+> Scope: full repository inspection, local quality gates, production build diagnostic, and dependency audit.
+> Product: ComplyLoop, a developer-first compliance engineering platform for RGAA/WCAG accessibility assessment, remediation, verification, evidence, and monitoring for React/Next.js/TypeScript repositories.
 
 ## 🔴 P0 — Must Fix Before Launch
 
 Issues that could prevent the product from being safely or professionally sold.
 
-- [ ] **Replace draft Terms & Privacy with counsel-reviewed legal** — **BLOCKED (legal calendar)**
-  - **Problem:** `/legal/terms` and `/legal/privacy` are explicitly labeled draft / counsel-needed and incomplete for commercial sale (no DPA, subprocessors incomplete, no EU rights exercise path).
-  - **Why:** Selling without enforceable ToS/Privacy (and GDPR basis where applicable) is a legal and trust blocker.
+- [ ] **Replace draft legal pages with counsel-reviewed commercial terms**
+  - **Problem:** Terms and privacy pages explicitly say they are draft / not counsel-reviewed.
+  - **Why:** A paid SaaS that processes source code, GitHub identities, repository metadata, evidence, AI prompts, and deletion/export requests needs enforceable ToS, privacy, retention, DPA/subprocessor, support, and liability language before sale.
   - **Location:** `src/app/legal/terms/page.tsx`, `src/app/legal/privacy/page.tsx`
-  - **Engineering note:** Privacy page documents export/deletion product paths; draft labels remain honest until counsel sign-off.
-  - **Acceptance criteria:** Pages no longer say “draft”; counsel sign-off recorded; footer links visible.
-  - **Effort:** 🟠 Large (mostly legal, not engineering)
+  - **Recommendation:** Have counsel review the current product behavior and replace the draft pages with final commercial terms, privacy policy, retention policy, subprocessor list, and support/deletion process.
+  - **Acceptance criteria:** Pages no longer state draft status; legal owner signs off; footer links remain visible; privacy language matches actual storage, AI, Sentry, GitHub, evidence retention, export, and deletion behavior.
+  - **Estimated effort:** 🟠 Large: 1–3 days, mostly legal/product.
 
----
+- [x] **Harden runtime audit URLs against DNS-based SSRF**
+  - **Done:** Literal + DNS resolution checks in `src/analysis/runtime/url-safety.ts`; Playwright `context.route` blocks private redirect hops; form save and scan/verify re-check before navigation. Residual: DNS rebinding race / network isolation still optional follow-up (P2).
+  - **Location:** `src/analysis/runtime/url-safety.ts`, `src/analysis/runtime/scan.ts`, `src/server/actions/runtime-audit.ts`
+
+## 🟠 P1 — Important Before Launch
+
+Important improvements for quality, maintainability, security, UX, or reliability.
+
+- [ ] **Move long-running assessments and webhook work out of request-time writes**
+  - **Problem:** Assessments, runtime scans, and some verification paths run inside request/webhook handlers and often inside the global write transaction. AI calls also wait inside `withWorkspaceWrite`.
+  - **Why:** Slow clones, Playwright audits, AI calls, or large repos can block all writers, cause request timeouts, and create a poor experience for other tenants.
+  - **Location:** `src/server/actions/assessment.ts`, `src/server/webhook.ts`, `src/server/actions/remediation-ai.ts`, `src/server/actions/remediation-verify.ts`, `src/server/db.ts`
+  - **Recommendation:** Add a small durable job table/queue for assessment, runtime verification, AI generation, and webhook reassessment. Persist job state quickly, do external work outside the global write lock, then write final results in a short transaction.
+  - **Acceptance criteria:** Triggering an assessment returns quickly with job status; concurrent org actions are not blocked by a running scan; job failures are visible in UI/evidence/logs; webhook jobs can retry safely.
+  - **Estimated effort:** 🔴 Very large: > 3 days.
+
+- [ ] **Replace whole-store persistence with project-scoped queries for hot paths**
+  - **Problem:** The app loads all tables into an in-memory `Db`, mutates arrays, then upserts/prunes broad tables under a global advisory lock.
+  - **Why:** Throughput and memory scale with total customer data, not the active project. This is a scale ceiling for multi-tenant sale.
+  - **Location:** `src/server/db.ts`, `src/server/db-store/postgres-load.ts`, `src/server/db-store/postgres-persist-runtime.ts`, `src/server/db-store/postgres-persist-catalog.ts`, `src/server/db-store/schema.ts`
+  - **Recommendation:** Introduce project/org-scoped repository functions for dashboard reads, evidence reads, assessment writes, finding updates, and org administration. Keep evidence append-only, but stop rewriting unrelated rows.
+  - **Acceptance criteria:** Dashboard/findings/evidence routes query only visible project/org data; write paths update only affected rows; no hot path requires loading every tenant’s data.
+  - **Estimated effort:** 🔴 Very large: > 3 days.
+
+- [ ] **Add real database constraints and indexes for tenant data**
+  - **Problem:** Most relationships are stored as JSONB payloads plus text ids without foreign keys, check constraints, uniqueness constraints, or project-scoped composite indexes.
+  - **Why:** Application-level filters are good, but production data integrity should not rely only on TypeScript. Missing constraints allow orphaned records and make large tenant queries slower.
+  - **Location:** `src/server/db-store/schema.ts`, `drizzle/0004_constraints_indexes.sql`
+  - **Recommendation:** Add foreign keys where compatible with append-only evidence, unique constraints for org slugs and project identity, status check constraints, and indexes such as `(project_id, status)`, `(project_id, assessment_id)`, and evidence `(project_id, at)`.
+  - **Acceptance criteria:** Migrations enforce core relationships; query plans for dashboard/findings/evidence use project-scoped indexes; invalid statuses cannot be inserted.
+  - **Estimated effort:** 🟠 Large: 1–3 days.
+
+- [ ] **Make webhook delivery processing retry-safe**
+  - **Problem:** The webhook route claims a delivery id before parsing and handling the payload; failures after claim return non-200/202 states but the delivery is already marked processed.
+  - **Why:** A transient clone, GitHub API, DB, or JSON handling failure can permanently suppress a valid GitHub redelivery.
+  - **Location:** `src/app/api/github/webhook/route.ts`, `src/server/webhook-deliveries.ts`, `src/server/webhook.ts`
+  - **Recommendation:** Store delivery status (`processing`, `processed`, `failed`) with attempts and timestamps. Only mark processed after successful handling; allow safe retries for failed or stale processing records.
+  - **Acceptance criteria:** Failed processing can be retried by GitHub; duplicate successful deliveries are ignored; tests cover parse failure, clone failure, success, duplicate, and stale in-progress retry.
+  - **Estimated effort:** 🟡 Medium: 2–8 hours.
+
+- [ ] **Replace in-process rate limits with durable org/user limits**
+  - **Problem:** Rate limits live in a process-local `Map` and reset on restart or across instances.
+  - **Why:** Paid SaaS needs reliable abuse protection, AI cost control, and fair usage across multiple instances.
+  - **Location:** `src/server/rate-limit.ts`, `src/server/actions/assessment.ts`, `src/server/actions/connect.ts`, `src/server/actions/remediation-ai.ts`
+  - **Recommendation:** Move rate limits to Postgres or the deployment edge and key limits by user, org, action, and possibly project. Add visible errors and operator metrics.
+  - **Acceptance criteria:** Limits work across restarts and multiple app instances; AI/assessment/connect limits are configurable; tests cover limit windows and resets.
+  - **Estimated effort:** 🟡 Medium: 2–8 hours.
+
+- [ ] **Sanitize user-facing server errors**
+  - **Problem:** Generic action handling returns raw `Error.message` to users, and the global error page renders `error.message`.
+  - **Why:** Internal paths, provider errors, token/clone details, or infrastructure messages can leak into the UI and reduce customer trust.
+  - **Location:** `src/server/action-state.ts`, `src/app/error.tsx`, server actions under `src/server/actions/`
+  - **Recommendation:** Introduce typed public errors with safe messages and internal error codes. Log full details through observability, but render only product-safe copy.
+  - **Acceptance criteria:** Expected validation/auth/connect errors show helpful public messages; unexpected errors show a generic message plus trace id/digest; tests cover server-action error mapping.
+  - **Estimated effort:** 🟡 Medium: 2–8 hours.
+
+- [ ] **Resolve dependency audit findings**
+  - **Problem:** `npm audit --audit-level=moderate` reports 20 moderate vulnerabilities through `@sentry/node` OpenTelemetry dependencies and `drizzle-kit`’s esbuild chain.
+  - **Why:** Even moderate findings matter before sale when the app handles source-code-adjacent data and customer compliance evidence.
+  - **Location:** `package.json`, `package-lock.json`
+  - **Recommendation:** Upgrade Sentry/OpenTelemetry to a non-vulnerable path, evaluate drizzle-kit/esbuild remediation, and document any accepted residual risk if a breaking upgrade is deferred.
+  - **Acceptance criteria:** `npm audit --audit-level=moderate` passes or has a documented, time-boxed exception with owner and due date.
+  - **Estimated effort:** 🟡 Medium: 2–8 hours.
+
+- [ ] **Finish commercial account lifecycle UX**
+  - **Problem:** Organization creation, invites, export, deletion, roles, and sign-out exist, but there is no polished account/settings surface for billing owner, support contact, retention expectations, plan state, or transactional confirmations.
+  - **Why:** Paying customers need to understand who owns the workspace, how access is controlled, and what happens to their data.
+  - **Location:** `src/app/org/page.tsx`, `src/components/org-data-lifecycle.tsx`, `src/components/org-members-card.tsx`, `src/app/legal/privacy/page.tsx`
+  - **Recommendation:** Add a production-grade organization/account settings page with owner/support contact, data retention copy, export/delete confirmation, and clear post-action feedback.
+  - **Acceptance criteria:** Owners can identify ownership and lifecycle controls; destructive actions are clearly confirmed; successful export/delete/member changes produce accessible feedback.
+  - **Estimated effort:** 🟠 Large: 1–3 days.
 
 ## 🟡 P2 — Post-Launch Improvements
 
-Useful improvements that should not block a carefully scoped initial pilot launch.
+Useful improvements that should not block the initial controlled launch.
 
-- [ ] **Replace whole-Db load/save with query-scoped persistence** — **DEFERRED (Architecture #1, multi-sprint)**
-- [ ] **Assessment/evidence retention policy** — **DEFERRED (large product/ops policy)**
-- [ ] **Zod (or shared schemas) at server-action boundaries** — **DEFERRED (large)**
-- [ ] **Stabilize Auth.js** — **DEFERRED (wait for stable next-auth v5)**
-- [ ] **Guided first-run onboarding** — **DEFERRED (large UX)**
+- [ ] **Add structured FormData validation schemas**
+  - **Problem:** Server actions use ad hoc `FormData` parsing while AI responses use Zod.
+  - **Why:** Shared schemas would make validation, tests, and error messages more consistent.
+  - **Location:** `src/server/action-state.ts`, `src/server/actions/`
+  - **Recommendation:** Add small Zod schemas for connect, org, runtime, remediation, and PR actions.
+  - **Acceptance criteria:** Critical actions validate all ids/enums/strings through schemas and expose safe field-level messages.
 
----
+- [ ] **Add runtime-scan isolation and concurrency controls**
+  - **Problem:** Runtime audits use a shared Playwright browser in-process and scan routes serially.
+  - **Why:** One bad preview app can consume browser resources or delay unrelated work.
+  - **Location:** `src/analysis/runtime/scan.ts`
+  - **Recommendation:** Add browser lifecycle controls, per-job time budgets, route limits, and metrics for pages scanned/failures.
+  - **Acceptance criteria:** Runtime audits enforce max pages, max duration, and safe browser cleanup.
+
+- [ ] **Raise coverage thresholds around business-critical paths**
+  - **Problem:** Coverage thresholds are intentionally low and focused mainly on core/actions.
+  - **Why:** The highest-risk behavior is authorization, evidence, verification, GitHub connection, and webhook processing.
+  - **Location:** `vitest.config.mts`, `src/server/actions/*.test.ts`, `e2e/*.spec.ts`
+  - **Recommendation:** Add focused tests for webhook retry semantics, SSRF URL policy, account lifecycle, and safe error mapping before increasing thresholds.
+  - **Acceptance criteria:** New tests protect top launch risks; coverage thresholds increase without encouraging low-value snapshots.
+
+- [ ] **Turn the self-check workflow into a meaningful gate or remove it**
+  - **Problem:** `.github/workflows/complyloop-check.yml` intentionally runs against known-bad testdata and uses `continue-on-error: true`.
+  - **Why:** Non-blocking red workflows can desensitize the team and confuse contributors.
+  - **Location:** `.github/workflows/complyloop-check.yml`
+  - **Recommendation:** Either make it a documented demo workflow only, or run `npm run check -- src` as a real blocking self-check.
+  - **Acceptance criteria:** The workflow signal is unambiguous: either green when product code passes or clearly marked as a non-production example.
+
+- [ ] **Add customer-facing onboarding and help states**
+  - **Problem:** Empty states exist, but first-run setup still assumes the user understands GitHub App installation, runtime URL setup, evidence exports, and remediation workflow.
+  - **Why:** Paying teams will include compliance, product, and engineering stakeholders with different context.
+  - **Location:** `src/app/page.tsx`, `src/components/connect-project-panel.tsx`, `src/app/settings/page.tsx`, `README.md`
+  - **Recommendation:** Add a concise first-run checklist and inline help for GitHub App install, first assessment, runtime audit, remediation, PR, and evidence export.
+  - **Acceptance criteria:** A new admin can connect a repo and run the first assessment without reading the README.
+
+- [ ] **Add billing, plan, and quota model when monetization is chosen**
+  - **Problem:** There is no billing/subscription, seat limit, project limit, AI quota, or plan state.
+  - **Why:** This is not required for a manually invoiced pilot, but it is required for self-serve SaaS revenue.
+  - **Location:** Product/system-wide; no billing files currently exist.
+  - **Recommendation:** Define commercial packaging first, then add billing and quotas around orgs/projects/seats/AI/runtime audits.
+  - **Acceptance criteria:** Plan limits are enforced server-side and visible to owners.
 
 ## 🟢 P3 — Nice to Have
 
-- [ ] **Billing / plans / quotas** — **DEFERRED until monetization model**
-- [ ] **Reduce `"use client"` on static UI** — **DEFERRED (low impact)**
-- [ ] **Transactional email** — **DEFERRED**
-- [ ] **Multi-framework adapters** (SOC 2, ISO) — explicitly post-MVP per product spec.
-- [ ] **Human-readable severity beyond color+text** — optional polish.
+Optional improvements with relatively low business impact.
 
----
+- [ ] **Track Auth.js v5 stabilization**
+  - **Problem:** The app uses `next-auth` beta.
+  - **Why:** Beta auth dependencies can shift APIs and behavior.
+  - **Location:** `package.json`, `src/auth.ts`
+  - **Recommendation:** Keep the current implementation if stable in CI, but schedule dependency review before broad launch.
+  - **Acceptance criteria:** Upgrade notes reviewed; no auth regressions in e2e.
+
+- [ ] **Add optional bundle analysis**
+  - **Problem:** No bundle-size budget or analysis command is configured.
+  - **Why:** The current app is mostly server-rendered, so this is not urgent, but it helps as UI grows.
+  - **Location:** `package.json`, `next.config.ts`
+  - **Recommendation:** Add an occasional bundle analysis workflow after build stability is fixed.
+  - **Acceptance criteria:** Team can inspect large client chunks before release.
+
+- [ ] **Polish mobile dense views**
+  - **Problem:** Mobile nav exists, but finding detail, evidence tables, and org member controls should be manually checked on small screens with real data volume.
+  - **Why:** Compliance tools are mostly desktop, but mobile review should not be broken.
+  - **Location:** `src/app/findings/page.tsx`, `src/app/findings/[id]/page.tsx`, `src/app/evidence/page.tsx`, `src/app/org/page.tsx`
+  - **Recommendation:** Add responsive QA pass and adjust dense tables/lists where needed.
+  - **Acceptance criteria:** Core read-only workflows are usable at common mobile widths.
 
 # Architecture Improvements
 
-### 1. Persistence: document store → query engine
+- **Persistence Layer**
+  - **Current architecture:** Postgres is used, but the app keeps an in-memory `Db` shape and rewrites broad tables under a global lock.
+  - **Problem:** Correct and simple for an MVP, but total tenant data controls read/write cost.
+  - **Proposed architecture:** Project/org-scoped repository functions with row-level mutations and query-level filtering; evidence remains append-only.
+  - **Migration strategy:** Add read APIs beside `loadDb`; move dashboard/findings/evidence reads first; move assessment/finding writes next; then retire broad table prune/upsert.
+  - **Priority:** P1.
 
-|                           |                                                                                                                                                                                                                                                                                                                              |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current architecture**  | Postgres-only store still models the world as one in-memory `Db`. Every request can `loadDb()` all tables; every write re-syncs mutable tables under a **global** process mutex + `pg_advisory_xact_lock` (`src/server/db.ts`, `postgres-load.ts`, `write-lock.ts`). Postgres stores JSONB payloads + a few indexed columns. |
-| **Problem**               | Throughput and memory scale with **total** tenant data, not the active project. One writer for all orgs. Pool max 3 (`client.ts`) reinforces serialization. Fine for demos; unsafe past small pilots.                                                                                                                        |
-| **Proposed architecture** | Project-scoped repositories: load/mutate only the active org/project. Real columns for query filters; transactions per project write. Keep evidence insert-only. Retire whole-Db sync.                                                                                                                                       |
-| **Migration strategy**    | 1) Add project-scoped read APIs beside `loadDb`. 2) Move hot paths (workspace, assessment persist) off full reload. 3) Stop pruning-via-full-upsert. 4) Drop in-memory `Db` as the write API.                                                                                                                                |
-| **Priority**              | P2 for pilot; **P0 for scale** beyond ~tens of orgs / concurrent assessments. **Status: deferred.**                                                                                                                                                                                                                          |
+- **Job Execution**
+  - **Current architecture:** Assessments, webhooks, runtime scans, PR creation, and AI calls run inside request-time flows.
+  - **Problem:** Slow external work can block requests and global writes.
+  - **Proposed architecture:** Durable jobs with `queued/running/succeeded/failed` state, retry policy, and short final write transactions.
+  - **Migration strategy:** Start with assessment and webhook reassessment; then move AI/runtime verification.
+  - **Priority:** P1.
 
-### 2. Workspaces: durable local clones → ephemeral job workspaces
+- **Security Boundary For Runtime Audits**
+  - **Current architecture:** Literal host/IP blocklist + DNS resolution of all addresses + Playwright route guard on every hop (including redirects). Policy in `src/analysis/runtime/url-safety.ts`.
+  - **Residual:** DNS rebinding between check and connect; no network isolation or preview-domain allowlist yet.
+  - **Proposed follow-up:** Route limits, isolated browser network, optional allowlisted preview domains for production tenants.
+  - **Priority:** P2 residual.
 
-|                           |                                                                                                                        |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| **Current architecture**  | Ephemeral clone-per-job via `withRepoCheckout` (temp dir → assess/remediate/PR → delete). No durable workspace volume. |
-| **Problem**               | In-process clones on every job; no SHA cache; long assessments block the request.                                      |
-| **Proposed architecture** | Optional commit-SHA cache; background job runner for webhook/assess.                                                   |
-| **Migration strategy**    | Done for sticky clones; next: cache + queue if latency/rate-limits hurt.                                               |
-| **Priority**              | Cache/queue P2 unless multi-tenant load demands it.                                                                    |
-
-### 3. Tenant isolation: app RBAC → DB constraints (+ optional RLS)
-
-|                           |                                                                                                            |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Current architecture**  | Isolation is TypeScript filters (`project-visibility`, `rbac`). Membership uniqueness + hot indexes added. |
-| **Problem**               | Any missed filter is a cross-tenant leak; compromised process sees all rows.                               |
-| **Proposed architecture** | FKs + unique membership; eventually Postgres RLS by `org_id` for defense in depth.                         |
-| **Migration strategy**    | Membership unique indexes shipped; full FKs/RLS after query-scoped persistence.                            |
-| **Priority**              | P1 uniqueness done; P2 RLS.                                                                                |
-
-### 4. Keep module boundaries; fix small leaks only
-
-|                           |                                                                                                                 |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Current architecture**  | Clear layers (core / analysis / adapters / ai / server / app). Domain-split server actions (no barrels).        |
-| **Problem**               | Assessment orchestration couples adapters + AI (acceptable for MVP). AI observability leak fixed via `ai/warn`. |
-| **Proposed architecture** | Keep RGAA behind adapter. **Do not** introduce enterprise packaging for its own sake.                           |
-| **Priority**              | P2/P3.                                                                                                          |
-
----
+- **Domain Boundaries**
+  - **Current architecture:** Strong separation exists across `core`, `analysis`, `adapters`, `ai`, `server`, and `app`; AI is typed and provenance-tagged.
+  - **Problem:** The largest boundary leak is persistence/job orchestration, not React component structure.
+  - **Proposed architecture:** Keep current module boundaries; avoid a broad rewrite; improve only hot persistence and job boundaries.
+  - **Migration strategy:** Make focused changes around repositories/jobs while preserving framework-agnostic domain types.
+  - **Priority:** P1/P2.
 
 # Technical Debt
 
-| Item                               | Notes                                                   |
-| ---------------------------------- | ------------------------------------------------------- |
-| Whole-Db sync abstraction          | Largest structural debt — see Architecture #1           |
-| Ad-hoc FormData validation         | Inconsistent vs zod on AI paths                         |
-| Shared unscoped projects ACL       | Intentional for demo; dangerous if left on in prod      |
-| Auth.js beta                       | Track upgrades                                          |
-| ~~No e2e~~                         | Playwright product suite in CI                          |
-| Assessment snapshot bloat          | `fileHashes` in JSONB payloads                          |
-| Global write lock + pool size 3    | Correct for free-tier demo; wrong for multi-tenant SaaS |
-| Client-visible raw `Error.message` | `action-state.ts` may leak internal paths               |
-
----
+- Whole-store load/save and global advisory lock on every write.
+- JSONB-first schema with limited constraints and indexes.
+- Request-time long-running jobs.
+- In-process rate limiting.
+- Server actions return raw unexpected error messages.
+- Runtime audit SSRF: DNS rebinding race / network isolation still open (literal+DNS+redirect checks shipped).
+- Build path relies on Turbopack and build-time Google Fonts.
+- Dependency audit currently has moderate unresolved findings.
+- `next-auth` beta should be tracked deliberately.
+- Self-check workflow is non-blocking by design and can confuse CI signal.
 
 # Security Findings
 
-| Severity         | Finding                                                                  | Status                                                           |
-| ---------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| ~~**Critical**~~ | ~~GitHub App installation token minting not bound to caller~~            | Fixed (`resolveUserInstallationForRepo`)                         |
-| ~~**High**~~     | ~~GitHub connect skips `project.connect` RBAC~~                          | Fixed                                                            |
-| ~~**High**~~     | ~~Local path connect = arbitrary FS read/write~~                         | Removed (GitHub-only)                                            |
-| ~~**High**~~     | ~~Shared sample project world-writable by design~~                       | Removed                                                          |
-| ~~**Medium**~~   | ~~OAuth access token in JWT cookie~~                                     | Fixed (server-side store only)                                   |
-| ~~**Medium**~~   | ~~No rate limiting on connect/assess/AI/webhook~~                        | Fixed (in-process + delivery id required)                        |
-| ~~**Medium**~~   | ~~Admins can manage other admins~~                                       | Fixed                                                            |
-| ~~**Low**~~      | ~~Webhook replay if `x-github-delivery` missing~~                        | Fixed (400)                                                      |
-| ~~**Low**~~      | ~~Unsanitized `Content-Disposition` filename~~                           | Fixed                                                            |
-| **Medium**       | Git URL SSRF: host blocklist without DNS resolution                      | Largely mitigated (GitHub-only clone URLs); runtime URL hardened |
-| **Low**          | `trustHost: true` — mitigate with always-set `AUTH_URL` in deployed envs | `auth.ts`                                                        |
-
-**Already solid:** production secret hard-fail; GitHub App required in prod; webhook HMAC; token encryption at rest; path traversal guard on remediations (`workspace-path.ts`); finding/project IDOR checks on most mutations; httpOnly/sameSite cookies for active org/project; git env scrubbing.
-
----
+- **Low (residual):** Runtime audit SSRF still has a DNS-rebinding window between resolve and connect; network isolation / allowlists not yet applied. Location: `src/analysis/runtime/url-safety.ts`, `src/analysis/runtime/scan.ts`.
+- **Medium:** In-process rate limits reset on restart and do not work across instances. Location: `src/server/rate-limit.ts`.
+- **Medium:** Dependency audit reports 20 moderate vulnerabilities through Sentry/OpenTelemetry and drizzle-kit/esbuild chains. Location: `package.json`, `package-lock.json`.
+- **Medium:** Unexpected server errors can be rendered to users through generic action state and the global error page. Location: `src/server/action-state.ts`, `src/app/error.tsx`.
+- **Already strong:** GitHub App is required in production, OAuth tokens are stored server-side encrypted at rest, webhooks use HMAC verification, clone URLs are GitHub-only, git environment variables are scrubbed, RBAC exists for projects/orgs, evidence has append-only DB enforcement, runtime audits resolve DNS and block private/metadata redirect targets, and tests cover many authz and workflow paths.
 
 # Performance Findings
 
-Unchanged structurally — do **not** chase micro-optimizations until persistence is project-scoped. Route `loading.tsx` added for perceived hang on navigation.
-
----
+- **High:** Whole-store reads/writes and global lock will degrade as tenants, evidence, findings, and assessments grow.
+- **High:** In-process assessment/runtime scan work can block request handling and all writers.
+- **Medium:** Runtime audits launch/use Playwright in the app process and scan routes serially with 30s page timeouts.
+- **Medium:** Evidence and findings are paginated in UI, but underlying workspace loads still retrieve broad data.
+- **Low:** Client bundle risk appears moderate because most pages are server components; defer bundle tuning until build stability and job/persistence work are done.
 
 # Accessibility Findings
 
-| Severity       | Finding                                                      | Status                        |
-| -------------- | ------------------------------------------------------------ | ----------------------------- |
-| ~~**High**~~   | ~~Success feedback uses `role="alert"` via default `Alert`~~ | Fixed (PR form status region) |
-| ~~**High**~~   | ~~Copy confirmation not announced~~                          | Fixed (polite live region)    |
-| ~~**Medium**~~ | ~~Remediation lifecycle stage not exposed to AT~~            | Fixed (`aria-current="step"`) |
-| **Medium**     | Error page nests interactive recovery inside `role="alert"`  | Open                          |
-| ~~**Gap**~~    | ~~No runtime axe/Playwright a11y CI~~                        | Playwright a11y specs in e2e  |
-
----
+- **Medium:** The global error page places recovery controls inside a destructive `Alert`, which may create noisy screen-reader behavior for interactive recovery UI. Location: `src/app/error.tsx`.
+- **Low:** Mobile dense data views need manual QA with realistic data volumes. Location: `src/app/findings/page.tsx`, `src/app/evidence/page.tsx`, `src/app/org/page.tsx`.
+- **Already strong:** The app uses semantic headings/landmarks, a skip link, strict `eslint-plugin-jsx-a11y`, accessible labels in forms, permission notices, pagination labels, Playwright a11y e2e coverage, and visible empty/loading states.
 
 # Testing Gaps
 
-Prioritize remaining:
-
-1. Broader action-level coverage (connect/org/AI) to raise coverage thresholds over time.
-2. SSRF/DNS policy for any future non-GitHub URL inputs.
-3. Page-level smoke beyond e2e core loop (optional).
-
-CI today: lint, typecheck, unit test, coverage gate, build, Playwright e2e.
-
----
+- Webhook retry/idempotency failure paths after delivery claim.
+- Safe public error mapping for unexpected server errors.
+- Job lifecycle tests once background assessment work exists.
+- Higher-coverage action tests for org lifecycle, connect, runtime URL, AI, and PR flows.
+- CI verification that `npm run build` succeeds on the intended production bundler path.
 
 # Production Checklist
 
-- [ ] Authentication — GitHub App + `AUTH_URL` + strong `AUTH_SECRET` in prod
-- [x] Authorization — GitHub connect RBAC + installation binding
-- [x] Security — rate limits; JWT token removal; runtime URL hardening (GitHub-only connect)
-- [ ] Validation — action-boundary schemas for connect/org ids at minimum (deferred)
-- [ ] Error handling — user-safe messages; keep Sentry for internals
-- [x] Logging — structured JSON on (already present)
-- [x] Monitoring — Sentry checklist + sample rate; wire on-call channel in deploy
-- [x] Database — `DATABASE_URL` + migrations; evidence insert-only enforced at DB
-- [x] Backups — Postgres restore documented (operator must practice once)
-- [x] Testing — unit CI green + core-loop e2e + coverage gate
-- [x] Accessibility — P1 feedback/copy/lifecycle fixes; lint remains strict
-- [ ] Performance — single-instance OK for pilot; plan project-scoped DB before scale
-- [x] CI/CD — quality gate + Playwright e2e job + coverage
-- [ ] Environment configuration — `.env.example` / `docs/deploy.md` followed exactly
-- [x] Documentation — deploy runbook (health, backups, monitoring)
-- [x] UX — AI pending states; loading UI; empty states already decent
-- [ ] Mobile — Sheet nav present; re-check findings/detail on small screens
-- [ ] Legal/product — counsel-reviewed Terms/Privacy (**blocked**); account deletion/export path shipped
-- [x] Health checks — `/api/health`
-- [ ] Billing — optional until monetization model chosen
+- [ ] Authentication
+- [ ] Authorization
+- [ ] Security
+- [ ] Validation
+- [ ] Error handling
+- [ ] Logging
+- [ ] Monitoring
+- [ ] Database
+- [ ] Backups
+- [ ] Testing
+- [ ] Accessibility
+- [ ] Performance
+- [ ] CI/CD
+- [ ] Environment configuration
+- [ ] Documentation
+- [ ] UX
+- [ ] Mobile
+- [ ] Legal/product requirements where applicable
 
----
+Notes:
+
+- Authentication is well-designed for GitHub App production, but depends on correct `AUTH_SECRET`, `AUTH_URL`, GitHub App env, and tracking `next-auth` beta.
+- Authorization has meaningful RBAC and tests; add database constraints and keep removing legacy/public fallbacks before broad multi-tenant sale.
+- Logging/monitoring exist through structured logs and optional Sentry; production launch still needs real alert routing and runbooks.
+- Backups are documented in `docs/deploy.md`; operators must perform a restore drill before inviting paying customers.
 
 # Launch Recommendation
 
 ### Current readiness
 
-**❌ Not ready** for general commercial multi-tenant sale (legal + persistence scale).
+❌ Not ready
 
-**⚠️ Almost ready** for a **paid early-access pilot** with constraints:
+The product has a strong MVP foundation: clear domain model, GitHub App support, RBAC, deterministic accessibility checks, runtime axe support with DNS/redirect SSRF checks, evidence trail, CI, e2e tests, docs, and a focused scope. It is not ready for broad commercial sale because legal is draft, the default production build is not yet deterministic, and persistence/job execution will not hold up under real multi-tenant load.
 
-- One org / few seats, single long-lived Node instance, Postgres
-- GitHub App only
-- Security engineering items addressed (installation binding, connect RBAC, JWT, rate limits, admin RBAC, evidence DB lock)
-- Counsel-reviewed legal still required before broader sale
-- Operator must configure `SENTRY_DSN` and practice Postgres restore once
+### Top 10 priorities
 
-### Top remaining priorities
+1. Replace draft Terms and Privacy with counsel-reviewed commercial legal.
+2. Make `npm run build` pass deterministically in CI and remove build-time Google Fonts dependency.
+3. Move assessments/webhooks/runtime verification to durable background jobs.
+4. Replace whole-store writes with project-scoped persistence on hot paths.
+5. Add database constraints and project-scoped indexes.
+6. Make webhook delivery processing retry-safe.
+7. Replace process-local rate limits with durable user/org limits.
+8. Sanitize unexpected server errors before rendering them to users.
+9. Resolve or document dependency audit findings.
+10. Finish commercial account lifecycle UX.
 
-1. Counsel-reviewed Terms & Privacy
-2. Query-scoped persistence before multi-tenant scale
-3. On-call alerts wired to a real channel
-4. Broader action coverage / Zod boundaries
-5. Auth.js stable upgrade when available
+### Estimated effort
 
----
+- **P0 legal:** 🟠 Large: 1–3 days, mostly legal/product.
+- **P0 deterministic build:** 🟡 Medium: 2–8 hours.
+- **P1 background jobs:** 🔴 Very large: > 3 days.
+- **P1 project-scoped persistence:** 🔴 Very large: > 3 days.
+- **P1 database constraints/indexes:** 🟠 Large: 1–3 days.
+- **P1 webhook retry safety:** 🟡 Medium: 2–8 hours.
+- **P1 durable rate limits:** 🟡 Medium: 2–8 hours.
+- **P1 safe error mapping:** 🟡 Medium: 2–8 hours.
+- **P1 dependency audit remediation:** 🟡 Medium: 2–8 hours.
+- **P1 commercial account lifecycle UX:** 🟠 Large: 1–3 days.
 
-_This file is the master implementation roadmap from the 2026-08-07 production readiness audit. Prefer closing remaining blocked/deferred items deliberately rather than reopening finished engineering work._
+# Verified During Audit
+
+- `npm run lint` passed.
+- `npm run typecheck` passed.
+- `npm run test` passed outside sandbox: 63 passed, 1 skipped test file; 243 passed, 1 skipped tests.
+- `npm run build` failed on default Turbopack path in this environment; `npx next build --webpack` passed with warnings.
+- `npm audit --audit-level=moderate` failed with 20 moderate vulnerabilities.

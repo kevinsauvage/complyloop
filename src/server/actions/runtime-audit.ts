@@ -4,7 +4,10 @@ import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { assertSafeRuntimeBaseUrl } from "../runtime-url";
+import {
+  assertSafeRuntimeBaseUrl,
+  assertSafeRuntimeUrl,
+} from "@/analysis/runtime/url-safety";
 import { withWorkspaceWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
@@ -27,20 +30,30 @@ export async function updateRuntimeAuditAction(
   formData: FormData,
 ): Promise<RuntimeAuditFormState> {
   return runActionMessage(async () => {
+    const baseRaw = formData.get("runtimeBaseUrl");
+    const base = typeof baseRaw === "string" ? baseRaw.trim() : "";
+    const routes = parseRoutes(formData.get("runtimeRoutes"));
+
+    // DNS check outside the write lock so a slow lookup does not block writers.
+    let normalized: string | null = null;
+    if (base.length > 0) {
+      assertSafeRuntimeBaseUrl(base);
+      const resolved = await assertSafeRuntimeUrl(base);
+      normalized = new URL(resolved).origin;
+    }
+
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.connect");
       const { project } = workspace;
-      const baseRaw = formData.get("runtimeBaseUrl");
-      const base = typeof baseRaw === "string" ? baseRaw.trim() : "";
 
-      if (base.length === 0) {
+      if (normalized == null) {
         delete project.runtimeBaseUrl;
         delete project.runtimeRoutes;
         return;
       }
 
-      project.runtimeBaseUrl = assertSafeRuntimeBaseUrl(base);
-      project.runtimeRoutes = parseRoutes(formData.get("runtimeRoutes"));
+      project.runtimeBaseUrl = normalized;
+      project.runtimeRoutes = routes;
     });
     refresh();
     return "Runtime audit settings saved. Run assessment to audit the pages.";

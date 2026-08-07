@@ -52,9 +52,14 @@ describe("runAssessment with runtime engine", () => {
     fs.rmSync(rootPath, { recursive: true, force: true });
   });
 
+  const publicLookup = async () => [
+    { address: "93.184.216.34", family: 4 },
+  ];
+
   it("creates DOM findings from the injected scanner and skips AST input-label", async () => {
     const assessment = await runAssessment(db, project.id, {
       rootPath,
+      runtimeLookup: publicLookup,
       runtimeScanner: async (urls) => [
         {
           url: urls[0]!,
@@ -91,11 +96,26 @@ describe("runAssessment with runtime engine", () => {
   it("records runtimeError without failing the whole assessment", async () => {
     const assessment = await runAssessment(db, project.id, {
       rootPath,
+      runtimeLookup: publicLookup,
       runtimeScanner: async () => {
         throw new Error("net::ERR_CONNECTION_REFUSED");
       },
     });
     expect(assessment.engines?.runtime).toBe(false);
     expect(assessment.engines?.runtimeError).toMatch(/CONNECTION_REFUSED/);
+  });
+
+  it("records a user-safe error when the preview URL resolves privately", async () => {
+    const assessment = await runAssessment(db, project.id, {
+      rootPath,
+      runtimeLookup: async () => [{ address: "10.0.0.5", family: 4 }],
+      runtimeScanner: async () => {
+        throw new Error("scanner should not run");
+      },
+    });
+    expect(assessment.engines?.runtime).toBe(false);
+    expect(assessment.engines?.runtimeError).toMatch(
+      /localhost, private, or metadata/,
+    );
   });
 });

@@ -4,6 +4,7 @@ import {
   scanRuntime,
   type RuntimePageScanner,
 } from "@/analysis/runtime/scan";
+import type { DnsLookup } from "@/analysis/runtime/url-safety";
 import { formatLocationRef } from "@/core/location";
 import type { RequirementStatus } from "@/core/statuses";
 import type { Assessment, AssessmentEngines } from "@/core/finding-types";
@@ -29,6 +30,8 @@ export interface RunAssessmentOptions {
   rootPath: string;
   /** Injected Playwright/axe scanner for tests. */
   runtimeScanner?: RuntimePageScanner;
+  /** Injected DNS lookup for runtime SSRF checks in tests. */
+  runtimeLookup?: DnsLookup;
 }
 
 export async function runAssessment(
@@ -88,6 +91,7 @@ export async function runAssessment(
         runtimeBaseUrl: project.runtimeBaseUrl,
         runtimeRoutes: project.runtimeRoutes,
         scanner: options.runtimeScanner,
+        lookup: options.runtimeLookup,
       })
     : { findings: [], pagesScanned: 0 };
   const runtimeRan =

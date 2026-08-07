@@ -4,6 +4,19 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-07 — Runtime audit SSRF via `ssrf-guard`
+
+**Context:** Runtime preview URLs were validated with a hand-rolled host/IP blocklist. Homegrown IP classification is easy to get wrong (IPv4-mapped IPv6, odd literal forms, CGNAT, etc.).
+
+**Decision:**
+- Depend on [`ssrf-guard`](https://www.npmjs.com/package/ssrf-guard) (`isPrivateIp`, `isPublicHostname`, `validateUrl` / `validateResolvedAddresses`).
+- Thin adapter in `src/analysis/runtime/url-safety.ts`: product-safe error messages, credential rejection, metadata hostname policy, injectable DNS for tests.
+- Playwright `context.route` re-runs the check on every hop (including redirects). Undici IP pinning from `ssrf-guard` does not apply to Playwright; residual DNS-rebinding risk remains.
+
+**Consequence:** IP/hostname classification is maintained upstream. Requires Node.js ≥ 24. Network isolation / preview allowlists remain optional follow-ups.
+
+---
+
 ## 2026-08-07 — Postgres-only + ephemeral clone-per-job
 
 **Context:** Dual JSON/`DATA_DIR` persistence blocked multi-instance deploys; durable clones caused `workspace_missing` when disks were ephemeral.
