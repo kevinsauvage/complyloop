@@ -18,7 +18,7 @@ const LINKS = [
   { href: "/findings", label: "Findings", icon: FileSearch },
   { href: "/evidence", label: "Evidence", icon: ScrollText },
   { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/org", label: "Organization", icon: Building2 },
+  { href: "/org", label: "Account", icon: Building2 },
 ] as const;
 
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

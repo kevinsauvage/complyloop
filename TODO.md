@@ -16,10 +16,6 @@ Issues that could prevent the product from being safely or professionally sold.
   - **Acceptance criteria:** Pages no longer state draft status; legal owner signs off; footer links remain visible; privacy language matches actual storage, AI, Sentry, GitHub, evidence retention, export, and deletion behavior.
   - **Estimated effort:** 🟠 Large: 1–3 days, mostly legal/product.
 
-- [x] **Harden runtime audit URLs against DNS-based SSRF**
-  - **Done:** Literal + DNS resolution checks in `src/analysis/runtime/url-safety.ts`; Playwright `context.route` blocks private redirect hops; form save and scan/verify re-check before navigation. Residual: DNS rebinding race / network isolation still optional follow-up (P2).
-  - **Location:** `src/analysis/runtime/url-safety.ts`, `src/analysis/runtime/scan.ts`, `src/server/actions/runtime-audit.ts`
-
 ## 🟠 P1 — Important Before Launch
 
 Important improvements for quality, maintainability, security, UX, or reliability.
@@ -80,13 +76,9 @@ Important improvements for quality, maintainability, security, UX, or reliabilit
   - **Acceptance criteria:** `npm audit --audit-level=moderate` passes or has a documented, time-boxed exception with owner and due date.
   - **Estimated effort:** 🟡 Medium: 2–8 hours.
 
-- [ ] **Finish commercial account lifecycle UX**
-  - **Problem:** Organization creation, invites, export, deletion, roles, and sign-out exist, but there is no polished account/settings surface for billing owner, support contact, retention expectations, plan state, or transactional confirmations.
-  - **Why:** Paying customers need to understand who owns the workspace, how access is controlled, and what happens to their data.
-  - **Location:** `src/app/org/page.tsx`, `src/components/org-data-lifecycle.tsx`, `src/components/org-members-card.tsx`, `src/app/legal/privacy/page.tsx`
-  - **Recommendation:** Add a production-grade organization/account settings page with owner/support contact, data retention copy, export/delete confirmation, and clear post-action feedback.
-  - **Acceptance criteria:** Owners can identify ownership and lifecycle controls; destructive actions are clearly confirmed; successful export/delete/member changes produce accessible feedback.
-  - **Estimated effort:** 🟠 Large: 1–3 days.
+- [x] **Finish commercial account lifecycle UX**
+  - **Done:** Organization account page shows ownership, early-access plan state, support contact (`COMPLYLOOP_SUPPORT_EMAIL`), retention copy, confirmed export/delete flows, and toast + `role=status`/`alert` feedback. Full billing/quotas remain a separate P2.
+  - **Location:** `src/app/org/page.tsx`, `src/components/org-account-overview.tsx`, `src/components/org-data-lifecycle.tsx`
 
 ## 🟡 P2 — Post-Launch Improvements
 
@@ -278,7 +270,7 @@ The product has a strong MVP foundation: clear domain model, GitHub App support,
 7. Replace process-local rate limits with durable user/org limits.
 8. Sanitize unexpected server errors before rendering them to users.
 9. Resolve or document dependency audit findings.
-10. Finish commercial account lifecycle UX.
+10. Add billing/plan quotas when monetization is chosen (P2).
 
 ### Estimated effort
 
@@ -291,7 +283,6 @@ The product has a strong MVP foundation: clear domain model, GitHub App support,
 - **P1 durable rate limits:** 🟡 Medium: 2–8 hours.
 - **P1 safe error mapping:** 🟡 Medium: 2–8 hours.
 - **P1 dependency audit remediation:** 🟡 Medium: 2–8 hours.
-- **P1 commercial account lifecycle UX:** 🟠 Large: 1–3 days.
 
 # Verified During Audit
 

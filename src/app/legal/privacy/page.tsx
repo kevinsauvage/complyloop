@@ -44,11 +44,12 @@ export default function PrivacyPage() {
             Organization owners can download a machine-readable JSON export of
             org-scoped product data and delete the organization from{" "}
             <a href="/org" className="text-foreground underline underline-offset-2">
-              Organization
+              Organization account
             </a>
             . Sign-out clears stored encrypted GitHub tokens for that user.
             Support-assisted deletion requests are handled within 30 days for
-            early-access pilots.
+            early-access pilots (see the support contact on that page when
+            configured).
           </p>
         </section>
         <section>

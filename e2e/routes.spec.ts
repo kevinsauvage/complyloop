@@ -6,7 +6,7 @@ const routes: Array<{ path: string; heading: string | RegExp }> = [
   { path: "/findings", heading: "Findings" },
   { path: "/evidence", heading: "Evidence" },
   { path: "/settings", heading: "Settings" },
-  { path: "/org", heading: /Organization|Workspace/i },
+  { path: "/org", heading: /Organization account/i },
 ];
 
 test.describe("authenticated routes", () => {
