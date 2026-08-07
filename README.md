@@ -59,7 +59,7 @@ Then click **Run assessment** and walk the loop:
 
 1. **Assess** — thirteen deterministic AST checks scan the connected code
    (scoped to changed JSX when re-assessing after a snapshot diff). Optionally
-   set a **preview / staging URL** on the dashboard (**Runtime audit**) so
+   set a **preview / staging URL** under **Settings → Runtime audit** so
    composition-sensitive rules (labels, names, headings…) are audited on the
    **rendered page** with Playwright + axe — that avoids false positives on
    design-system primitives like `<input {...props} />`. First time: `npm run playwright:install`.

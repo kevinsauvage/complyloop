@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   ListChecks,
   ScrollText,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ const LINKS = [
   { href: "/requirements", label: "Requirements", icon: ListChecks },
   { href: "/findings", label: "Findings", icon: FileSearch },
   { href: "/evidence", label: "Evidence", icon: ScrollText },
+  { href: "/settings", label: "Settings", icon: Settings },
   { href: "/org", label: "Organization", icon: Building2 },
 ] as const;
 

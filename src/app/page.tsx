@@ -1,12 +1,12 @@
+import Link from "next/link";
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
 import { DashboardActivitySections } from "@/components/dashboard/dashboard-activity-sections";
 import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-card";
 import { DashboardStatusCounts } from "@/components/dashboard/dashboard-status-counts";
 import { projectDescription } from "@/components/dashboard/project-description";
-import { PermissionNotice } from "@/components/permission-notice";
-import { RuntimeAuditForm } from "@/components/runtime-audit-form";
-import { StatefulActionForm } from "@/components/stateful-action-form";
 import { EmptyState, PageHeader } from "@/components/page-primitives";
+import { PermissionNotice } from "@/components/permission-notice";
+import { StatefulActionForm } from "@/components/stateful-action-form";
 import {
   Card,
   CardContent,
@@ -143,33 +143,21 @@ export default async function DashboardPage() {
           <p>
             &quot;{project.name}&quot; is connected. Run an assessment to evaluate
             it against the RGAA/WCAG requirements.
+            {caps.canConnect ? (
+              <>
+                {" "}
+                Optionally set a{" "}
+                <Link
+                  href="/settings"
+                  className="underline underline-offset-4 hover:text-foreground"
+                >
+                  preview URL in Settings
+                </Link>{" "}
+                for rendered-page checks.
+              </>
+            ) : null}
           </p>
         </EmptyState>
-      ) : null}
-
-      {hasConnectedProject && caps.canConnect ? (
-        <div className="mb-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Runtime audit (preview URL)</CardTitle>
-              <CardDescription>
-                Staging or preview URL used for rendered-page checks (labels,
-                names, headings). Leave empty to assess source only.
-                {latestAssessment?.engines?.runtime
-                  ? ` Last run audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s).`
-                  : latestAssessment?.engines?.runtimeError
-                    ? ` Last runtime attempt failed: ${latestAssessment.engines.runtimeError}`
-                    : ""}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RuntimeAuditForm
-                runtimeBaseUrl={project.runtimeBaseUrl}
-                runtimeRoutes={project.runtimeRoutes}
-              />
-            </CardContent>
-          </Card>
-        </div>
       ) : null}
 
       {latestAssessment ? (
