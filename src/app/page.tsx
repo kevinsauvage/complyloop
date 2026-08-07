@@ -33,8 +33,11 @@ import { controlById, getWorkspace } from "@/server/workspace";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const { db, project, access } = await getWorkspace();
+  const { db, project, access, visibleProjects } = await getWorkspace();
   const caps = projectCapabilities(project, access);
+  const hasConnectedProject = visibleProjects.some(
+    (candidate) => candidate.source !== "sample",
+  );
   const latestAssessment = db.assessments
     .filter((assessment) => assessment.projectId === project.id)
     .at(-1);
@@ -95,14 +98,11 @@ export default async function DashboardPage() {
           />
         ) : null}
         {caps.canAssess ? assessAction : null}
-        {latestAssessment ? (
-          <ConnectProjectPanel defaultOpen={false} />
-        ) : null}
       </PageHeader>
 
       {!caps.canAssess ? <div className="mb-6">{assessAction}</div> : null}
 
-      {!latestAssessment ? (
+      {!hasConnectedProject ? (
         <div className="mb-6">
           <Card>
             <CardHeader>
@@ -118,41 +118,57 @@ export default async function DashboardPage() {
         </div>
       ) : null}
 
-      {!latestAssessment ? (
+      {!latestAssessment && hasConnectedProject ? (
         <EmptyState
           title="Run your first assessment"
           action={caps.canAssess ? assessAction : undefined}
         >
           <p>
             &quot;{project.name}&quot; is connected. Run an assessment to evaluate
-            it against the RGAA/WCAG requirements, or connect a GitHub repository
-            / local path above.
+            it against the RGAA/WCAG requirements.
           </p>
         </EmptyState>
-      ) : (
+      ) : null}
+
+      {!latestAssessment && !hasConnectedProject ? (
+        <EmptyState
+          title="Connect a repository to get started"
+          action={undefined}
+        >
+          <p>
+            Connect a GitHub project above, then run an assessment to walk the
+            compliance loop.
+          </p>
+        </EmptyState>
+      ) : null}
+
+      {hasConnectedProject && project.source !== "sample" && caps.canConnect ? (
+        <div className="mb-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Runtime audit (preview URL)</CardTitle>
+              <CardDescription>
+                Staging or preview URL used for rendered-page checks (labels,
+                names, headings). Leave empty to assess source only.
+                {latestAssessment?.engines?.runtime
+                  ? ` Last run audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s).`
+                  : latestAssessment?.engines?.runtimeError
+                    ? ` Last runtime attempt failed: ${latestAssessment.engines.runtimeError}`
+                    : ""}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RuntimeAuditForm
+                runtimeBaseUrl={project.runtimeBaseUrl}
+                runtimeRoutes={project.runtimeRoutes}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+
+      {latestAssessment ? (
         <div className="flex flex-col gap-6">
-          {caps.canConnect ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Runtime audit</CardTitle>
-                <CardDescription>
-                  Optional preview URL so label/name checks use the rendered DOM
-                  instead of design-system primitives in source.
-                  {latestAssessment?.engines?.runtime
-                    ? ` Last run audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s).`
-                    : latestAssessment?.engines?.runtimeError
-                      ? ` Last runtime attempt failed: ${latestAssessment.engines.runtimeError}`
-                      : ""}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RuntimeAuditForm
-                  runtimeBaseUrl={project.runtimeBaseUrl}
-                  runtimeRoutes={project.runtimeRoutes}
-                />
-              </CardContent>
-            </Card>
-          ) : null}
           <DashboardStatusCounts counts={counts} />
           <DashboardAlertsCard alerts={unreadAlerts} />
           <DashboardActivitySections
@@ -164,7 +180,7 @@ export default async function DashboardPage() {
             controlById={(controlId) => controlById(db, controlId)}
           />
         </div>
-      )}
+      ) : null}
     </>
   );
 }

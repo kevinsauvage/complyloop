@@ -39,7 +39,17 @@ vi.mock("@/server/workspace", () => ({
       { id: "org-2", name: "Beta", slug: "beta", createdAt: "" },
     ],
     activeOrgId: "org-1",
+    access: { userId: "u1", githubLogin: "u1", memberships: [] },
   })),
+}));
+
+vi.mock("@/server/project-capabilities", () => ({
+  projectCapabilities: () => ({
+    canView: true,
+    canAssess: true,
+    canRemediate: true,
+    canConnect: true,
+  }),
 }));
 
 vi.mock("@/components/org-switcher", () => ({
@@ -50,6 +60,10 @@ vi.mock("@/components/project-switcher", () => ({
   ProjectSwitcher: () => <span>Project switcher</span>,
 }));
 
+vi.mock("@/components/connect-project-panel", () => ({
+  ConnectProjectPanel: () => <button type="button">Add project</button>,
+}));
+
 describe("WorkspaceContext", () => {
   it("shows org and project switchers when multiple options exist", async () => {
     const { WorkspaceContext } = await import("./workspace-context");
@@ -57,5 +71,8 @@ describe("WorkspaceContext", () => {
     render(ui);
     expect(screen.getByText("Org switcher")).toBeInTheDocument();
     expect(screen.getByText("Project switcher")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add project" }),
+    ).toBeInTheDocument();
   });
 });
