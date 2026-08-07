@@ -1,20 +1,26 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from "@/components/ui/card";
 
 export default function NotFound() {
   return (
-    <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-12 text-center">
-      <h1 className="text-xl font-semibold text-zinc-900">Page not found</h1>
-      <p className="mt-2 text-sm text-zinc-500">
-        That page does not exist, or you do not have access to it.
-      </p>
-      <p className="mt-6">
-        <Link
-          href="/"
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-        >
-          Back to dashboard
-        </Link>
-      </p>
-    </div>
+    <Card className="border-dashed bg-card/40 shadow-none">
+      <CardHeader className="items-center text-center">
+        <h1 className="text-base font-medium">Page not found</h1>
+        <CardDescription className="max-w-lg text-balance">
+          That page does not exist, or you do not have access to it.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex justify-center">
+        <Button asChild>
+          <Link href="/">Back to dashboard</Link>
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

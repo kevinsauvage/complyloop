@@ -33,12 +33,6 @@ Effort legend: 🟢 Small (<2h) · 🟡 Medium (2–8h) · 🟠 Large (1–3d) �
   - **Recommendation:** Wrap each migration's apply + record in a single transaction.
   - **Acceptance criteria:** A mid-migration crash leaves the migration either fully applied+recorded or not at all.
 
-- [x] **Account & org management UI for SaaS** 🟠
-  - **Problem:** Only sign-in/out and a minimal org page exist. No change-member-role, transfer/leave org, invite revoke, org rename/delete, account/profile/security settings, or project settings.
-  - **Location:** `src/app/org/page.tsx`; `src/components/*`.
-  - **Recommendation:** Build account and org settings surfaces incrementally; start with change-role and invite revoke (both are natural extensions of existing actions).
-  - **Acceptance criteria:** Admins can manage roles and invites from the UI.
-
 - [ ] **Rate limiting on webhook + auth + connect endpoints** 🟡
   - **Problem:** No rate limiting anywhere; webhook and connect trigger clones/assessments (expensive).
   - **Location:** `src/app/api/github/webhook/route.ts`; connect actions.
@@ -50,11 +44,6 @@ Effort legend: 🟢 Small (<2h) · 🟡 Medium (2–8h) · 🟠 Large (1–3d) �
   - **Location:** `src/server/actions.ts:558-619`; `src/server/webhook.ts:177-226`.
   - **Recommendation:** Do network I/O outside the lock; take the lock only to persist results.
   - **Acceptance criteria:** No outbound HTTP occurs while the write lock is held.
-
-- [x] **Split god files** 🟡
-  - **Problem:** Files well over the ~300-line guideline: `actions.ts` (1088), `postgres.ts` (454), `findings/[id]/page.tsx` (429), `assessment.ts` (424), `connect.ts` (406), `requirements/page.tsx` (399), `types.ts` (343), `page.tsx` (321).
-  - **Recommendation:** Split `actions.ts` by domain (remediation / org / requirements / connect); extract finding-detail and requirements sub-components.
-  - **Acceptance criteria:** No non-types module exceeds ~300 lines without justification.
 
 - [ ] **Toast/flash feedback after redirects** 🟢
   - **Problem:** No cross-navigation success feedback after actions that revalidate/redirect.

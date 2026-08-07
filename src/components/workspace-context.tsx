@@ -12,28 +12,39 @@ export async function WorkspaceContext() {
       ? organizations.find((org) => org.id === activeOrgId)?.name
       : undefined;
 
-  return (
-    <div className="mb-6 flex flex-wrap items-center gap-4 border-b border-zinc-100 pb-4">
-      <p className="text-sm text-zinc-600">
-        Active project{" "}
-        <span className="font-medium text-zinc-900">{project.name}</span>
+  const showOrgSwitcher = Boolean(activeOrgId) && organizations.length > 1;
+  const showProjectSwitcher = visibleProjects.length > 1;
+
+  // Nothing to switch — quiet identity strip only.
+  if (!showOrgSwitcher && !showProjectSwitcher) {
+    return (
+      <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-border pb-4 text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">{project.name}</span>
         {orgName ? (
           <>
-            {" "}
-            · org <span className="font-medium text-zinc-900">{orgName}</span>
+            <span aria-hidden>·</span>
+            <span>{orgName}</span>
           </>
         ) : null}
-      </p>
-      {activeOrgId ? (
-        <OrgSwitcher
-          organizations={organizations}
-          activeOrgId={activeOrgId}
-        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-border pb-4">
+      {showOrgSwitcher && activeOrgId ? (
+        <OrgSwitcher organizations={organizations} activeOrgId={activeOrgId} />
+      ) : orgName ? (
+        <span className="text-sm text-muted-foreground">{orgName}</span>
       ) : null}
-      <ProjectSwitcher
-        projects={visibleProjects}
-        activeProjectId={project.id}
-      />
+      {showProjectSwitcher ? (
+        <ProjectSwitcher
+          projects={visibleProjects}
+          activeProjectId={project.id}
+        />
+      ) : (
+        <span className="text-sm font-medium text-foreground">{project.name}</span>
+      )}
     </div>
   );
 }

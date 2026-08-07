@@ -12,7 +12,15 @@ import { DeveloperHandoffCard } from "@/components/developer-handoff";
 import { FindingDismissCard } from "@/components/findings/finding-dismiss-card";
 import { FindingExplanationsCard } from "@/components/findings/finding-explanations-card";
 import { FindingRemediationCard } from "@/components/findings/finding-remediation-card";
-import { Card, CodeBlock, PageHeader, formatDateTime } from "@/components/ui";
+import { CodeBlock, PageHeader, formatDateTime } from "@/components/page-primitives";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { buildDeveloperHandoff } from "@/server/handoff";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { resolveVisibleFinding } from "@/server/project-visibility";
@@ -53,44 +61,54 @@ export default async function FindingPage({
 
   return (
     <>
+      <div className="mb-4">
+        <Button variant="ghost" size="sm" className="-ml-2.5" asChild>
+          <Link href="/findings">← All findings</Link>
+        </Button>
+      </div>
       <PageHeader
         title={`${control.code} — ${control.title}`}
         description={`${control.secondaryCode} · ${control.description}`}
-      >
-        <Link href="/findings" className="text-sm text-zinc-500 hover:underline">
-          ← All findings
-        </Link>
-      </PageHeader>
+      />
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <SeverityBadge severity={finding.severity} />
         <ConfidenceBadge confidence={finding.confidence} />
         <RemediationStatusBadge status={remediation.status} />
         {finding.status === "dismissed" && finding.dismissal ? (
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-muted-foreground">
             Dismissed ({finding.dismissal.reason.replace(/_/g, " ")}):{" "}
             {finding.dismissal.note || "no note"}
           </span>
         ) : null}
         {finding.status === "resolved" && finding.resolvedNote ? (
-          <span className="text-sm text-emerald-700">{finding.resolvedNote}</span>
+          <span className="text-sm text-emerald-400">{finding.resolvedNote}</span>
         ) : null}
       </div>
 
       <div className="flex flex-col gap-6">
-        <Card title="Where">
-          <p className="mb-2 font-mono text-xs text-zinc-500">
-            {finding.location.filePath}:{finding.location.line}:
-            {finding.location.column}
-          </p>
-          <CodeBlock>{finding.location.snippet}</CodeBlock>
+        <Card>
+          <CardHeader>
+            <CardTitle>Where</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <p className="font-mono text-xs text-muted-foreground">
+              {finding.location.filePath}:{finding.location.line}:
+              {finding.location.column}
+            </p>
+            <CodeBlock>{finding.location.snippet}</CodeBlock>
+          </CardContent>
         </Card>
+
+        <Separator />
 
         <FindingExplanationsCard
           finding={finding}
           canRemediate={caps.canRemediate}
           aiAvailable={aiAvailable}
         />
+
+        <Separator />
 
         <FindingRemediationCard
           finding={finding}
@@ -100,32 +118,47 @@ export default async function FindingPage({
         />
 
         {showHandoff ? (
-          <DeveloperHandoffCard
-            handoff={handoff}
-            findingId={finding.id}
-            canCreatePr={canCreatePr}
-          />
+          <>
+            <Separator />
+            <DeveloperHandoffCard
+              handoff={handoff}
+              findingId={finding.id}
+              canCreatePr={canCreatePr}
+            />
+          </>
         ) : null}
 
         {finding.status === "open" && caps.canRemediate ? (
-          <FindingDismissCard findingId={finding.id} />
+          <>
+            <Separator />
+            <FindingDismissCard findingId={finding.id} />
+          </>
         ) : null}
 
-        <Card title="Evidence trail">
-          {evidence.length === 0 ? (
-            <p className="text-sm text-zinc-500">No evidence recorded yet.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {evidence.map((record) => (
-                <li key={record.id} className="text-sm text-zinc-600">
-                  {record.summary}
-                  <span className="ml-2 text-xs text-zinc-500">
-                    {formatDateTime(record.at)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+        <Separator />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Evidence trail</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {evidence.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No evidence recorded yet.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {evidence.map((record) => (
+                  <li key={record.id} className="text-sm text-muted-foreground">
+                    {record.summary}
+                    <span className="ml-2 text-xs opacity-70">
+                      {formatDateTime(record.at)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
         </Card>
       </div>
     </>

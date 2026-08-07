@@ -2,7 +2,18 @@ import { auth } from "@/auth";
 import { CreateOrgForm } from "@/components/create-org-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { OrgMembersCard } from "@/components/org-members-card";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { EmptyState, PageHeader } from "@/components/page-primitives";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   createOrgAction,
   inviteOrgMemberAction,
@@ -53,54 +64,74 @@ export default async function OrgPage() {
   const projectCount = db.projects.filter(
     (project) => project.orgId === org.id,
   ).length;
-  const pendingInvites = members.filter((membership) => !membership.userId)
-    .length;
+  const pendingInvites = members.filter((membership) => !membership.userId).length;
 
   return (
     <>
       <PageHeader
         title={org.name}
         description={`Slug ${org.slug} · ${projectCount} project${projectCount === 1 ? "" : "s"} · your role: ${role ?? "none"}${pendingInvites > 0 ? ` · ${pendingInvites} pending invite${pendingInvites === 1 ? "" : "s"}` : ""}`}
-      />
+      >
+        {canManage ? (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">Invite member</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Invite by GitHub username</DialogTitle>
+                <DialogDescription>
+                  Teammates claim the invite on their next sign-in when their
+                  GitHub login matches.
+                </DialogDescription>
+              </DialogHeader>
+              <InviteMemberForm action={inviteOrgMemberAction} orgId={org.id} />
+            </DialogContent>
+          </Dialog>
+        ) : null}
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">New organization</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create a team organization</DialogTitle>
+              <DialogDescription>
+                Create a named org, switch to it, then invite teammates. Your
+                personal workspace stays available in the switcher.
+              </DialogDescription>
+            </DialogHeader>
+            <CreateOrgForm action={createOrgAction} />
+          </DialogContent>
+        </Dialog>
+      </PageHeader>
 
       <div className="flex flex-col gap-6">
-        <Card title="Members">
-          <p className="mb-3 text-sm text-zinc-600">
-            Owners and admins can change roles and revoke pending invites.
-            Owner transfer is not supported yet.
-          </p>
-          <OrgMembersCard
-            orgId={org.id}
-            members={members}
-            currentUserId={userId}
-            canManage={canManage}
-          />
+        <Card>
+          <CardHeader>
+            <CardTitle>Members</CardTitle>
+            <CardDescription>
+              Owners and admins can change roles and revoke pending invites.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <OrgMembersCard
+              orgId={org.id}
+              members={members}
+              currentUserId={userId}
+              canManage={canManage}
+            />
+          </CardContent>
         </Card>
 
-        {canManage ? (
-          <Card title="Invite by GitHub username">
-            <p className="mb-3 text-sm text-zinc-600">
-              Teammates claim the invite on their next sign-in when their GitHub
-              login matches. Invites apply to the organization selected above.
-            </p>
-            <InviteMemberForm action={inviteOrgMemberAction} orgId={org.id} />
-          </Card>
-        ) : (
-          <Card title="Invite">
-            <p className="text-sm text-zinc-600">
+        {!canManage ? (
+          <Alert className="border-border/60 bg-muted/40">
+            <AlertDescription>
               Only owners and admins can invite, change roles, or revoke invites
               for this organization.
-            </p>
-          </Card>
-        )}
-
-        <Card title="Create a team organization">
-          <p className="mb-3 text-sm text-zinc-600">
-            Create a named org, switch to it, then invite teammates. Your
-            personal workspace stays available in the switcher.
-          </p>
-          <CreateOrgForm action={createOrgAction} />
-        </Card>
+            </AlertDescription>
+          </Alert>
+        ) : null}
       </div>
     </>
   );

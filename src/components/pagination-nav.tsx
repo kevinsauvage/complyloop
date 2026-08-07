@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export function PaginationNav({
   page,
@@ -21,28 +22,22 @@ export function PaginationNav({
   return (
     <nav
       aria-label={label}
-      className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600"
+      className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground"
     >
       <p>
         Page {page} of {totalPages}
-        <span className="text-zinc-500"> · {total} total</span>
+        <span> · {total} total</span>
       </p>
       <div className="flex gap-2">
         {page > 1 ? (
-          <Link
-            href={hrefFor(page - 1)}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            Previous
-          </Link>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={hrefFor(page - 1)}>Previous</Link>
+          </Button>
         ) : null}
         {page < totalPages ? (
-          <Link
-            href={hrefFor(page + 1)}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            Next
-          </Link>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={hrefFor(page + 1)}>Next</Link>
+          </Button>
         ) : null}
       </div>
     </nav>

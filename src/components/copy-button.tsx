@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export function CopyButton({
   label,
@@ -12,9 +13,10 @@ export function CopyButton({
   const [copied, setCopied] = useState(false);
 
   return (
-    <button
+    <Button
       type="button"
-      className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+      variant="outline"
+      size="xs"
       onClick={async () => {
         await navigator.clipboard.writeText(text);
         setCopied(true);
@@ -22,6 +24,6 @@ export function CopyButton({
       }}
     >
       {copied ? "Copied" : label}
-    </button>
+    </Button>
   );
 }

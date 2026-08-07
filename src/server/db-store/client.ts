@@ -5,9 +5,21 @@ import * as schema from "./schema";
 
 export type DrizzleDb = PostgresJsDatabase<typeof schema>;
 
-let client: ReturnType<typeof postgres> | null = null;
-let db: DrizzleDb | null = null;
-let init: Promise<DrizzleDb> | null = null;
+/**
+ * Free-tier Postgres (Neon/Aiven) often allows ~20 connections with a few
+ * reserved for superuser. Keep the pool small; concurrency is serialized by
+ * the store write lock anyway.
+ */
+const POOL_MAX = 3;
+
+type GlobalDb = {
+  __complyloopSql?: ReturnType<typeof postgres> | null;
+  __complyloopDb?: DrizzleDb | null;
+  __complyloopInit?: Promise<DrizzleDb> | null;
+};
+
+/** Survive Turbopack/HMR so we do not leak a new pool on every reload. */
+const globalForDb = globalThis as typeof globalThis & GlobalDb;
 
 export function isPostgresConfigured(): boolean {
   return Boolean(process.env.DATABASE_URL?.trim());
@@ -16,33 +28,41 @@ export function isPostgresConfigured(): boolean {
 export async function createDrizzleClient(
   connectionString: string,
 ): Promise<DrizzleDb> {
-  const sql = await createPostgresClient(connectionString, { max: 10 });
+  const sql = await createPostgresClient(connectionString, { max: POOL_MAX });
   return drizzle(sql, { schema });
 }
 
-/** Lazy singleton for the app process. */
+/** Lazy singleton for the app process (and across HMR in dev). */
 export async function getDrizzle(): Promise<DrizzleDb> {
-  if (db) return db;
-  if (!init) {
-    init = (async () => {
+  if (globalForDb.__complyloopDb) return globalForDb.__complyloopDb;
+  if (!globalForDb.__complyloopInit) {
+    globalForDb.__complyloopInit = (async () => {
       const url = process.env.DATABASE_URL?.trim();
       if (!url) {
         throw new Error("DATABASE_URL is not set.");
       }
-      client = await createPostgresClient(url, { max: 10 });
-      db = drizzle(client, { schema });
-      return db;
-    })();
+      globalForDb.__complyloopSql = await createPostgresClient(url, {
+        max: POOL_MAX,
+      });
+      globalForDb.__complyloopDb = drizzle(globalForDb.__complyloopSql, {
+        schema,
+      });
+      return globalForDb.__complyloopDb;
+    })().catch((error) => {
+      // Allow a later request to retry after a transient pool/slot failure.
+      globalForDb.__complyloopInit = null;
+      throw error;
+    });
   }
-  return init;
+  return globalForDb.__complyloopInit;
 }
 
 /** Test helper — closes the pool. */
 export async function closeDrizzle(): Promise<void> {
-  if (client) {
-    await client.end({ timeout: 5 });
-    client = null;
-    db = null;
-    init = null;
+  if (globalForDb.__complyloopSql) {
+    await globalForDb.__complyloopSql.end({ timeout: 5 });
   }
+  globalForDb.__complyloopSql = null;
+  globalForDb.__complyloopDb = null;
+  globalForDb.__complyloopInit = null;
 }

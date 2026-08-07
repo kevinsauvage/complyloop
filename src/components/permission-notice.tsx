@@ -1,7 +1,11 @@
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
+
 export function PermissionNotice({ children }: { children: string }) {
   return (
-    <p className="text-sm text-zinc-600" role="status">
-      {children}
-    </p>
+    <Alert className="border-border/60 bg-muted/40" role="status">
+      <Info aria-hidden />
+      <AlertDescription>{children}</AlertDescription>
+    </Alert>
   );
 }

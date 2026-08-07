@@ -4,6 +4,20 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-07 — Dark shadcn/ui as the product design system
+
+**Context:** Hand-rolled zinc Tailwind primitives (`ui.tsx`, `action-button-styles`) drifted across pages; the UI felt flat (“card soup”) and used native `confirm`/`select` inconsistently. Spec already allowed adopting shadcn later.
+
+**Decision:**
+- Initialize shadcn (radix / new-york-style tokens) under `src/components/ui/`; dark mode by default (`class="dark"` on `<html>`).
+- App-level helpers (`PageHeader`, `EmptyState`, `CodeBlock`, `formatDateTime`) live in `page-primitives.tsx` — not a barrel over shadcn.
+- Actions use shadcn `Button` variants; destructive gates use `AlertDialog` (no `window.confirm`); permissions use `Alert`.
+- Prefer theme tokens (`background`, `muted-foreground`, `border`) over ad-hoc zinc palette classes.
+
+**Consequence:** Product surfaces share one interaction language; custom class-string button helpers are removed. Form fields that must POST (scope checkboxes, dismiss reasons) stay native `<input>`/`<select>` styled to match tokens when Radix primitives do not participate in form submission.
+
+---
+
 ## 2026-08-07 — Split god files by domain (no barrels)
 
 **Context:** Several modules exceeded the ~300-line guideline (`actions.ts` ~1.3k, `postgres.ts`, `assessment.ts`, `connect.ts`, finding/requirements/dashboard pages).

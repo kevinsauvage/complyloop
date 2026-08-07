@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { AuthControls } from "@/components/auth-controls";
 import { WorkspaceContext } from "@/components/workspace-context";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,15 +26,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full">
-        <AppShell
-          workspaceContext={<WorkspaceContext />}
-          authControls={<AuthControls />}
-        >
-          {children}
-        </AppShell>
+      <body className="min-h-full bg-background text-foreground">
+        <TooltipProvider>
+          <AppShell
+            workspaceContext={<WorkspaceContext />}
+            authControls={<AuthControls />}
+          >
+            {children}
+          </AppShell>
+        </TooltipProvider>
       </body>
     </html>
   );

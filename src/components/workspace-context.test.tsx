@@ -51,12 +51,10 @@ vi.mock("@/components/project-switcher", () => ({
 }));
 
 describe("WorkspaceContext", () => {
-  it("shows the active project and org labels", async () => {
+  it("shows org and project switchers when multiple options exist", async () => {
     const { WorkspaceContext } = await import("./workspace-context");
     const ui = await WorkspaceContext();
     render(ui);
-    expect(screen.getByText("Shop")).toBeInTheDocument();
-    expect(screen.getByText("Acme")).toBeInTheDocument();
     expect(screen.getByText("Org switcher")).toBeInTheDocument();
     expect(screen.getByText("Project switcher")).toBeInTheDocument();
   });

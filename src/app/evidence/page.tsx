@@ -1,8 +1,27 @@
 import { PaginationNav } from "@/components/pagination-nav";
-import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
+import { EmptyState, PageHeader, formatDateTime } from "@/components/page-primitives";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { paginateSlice, parsePageParam } from "@/core/pagination";
 import { evidenceForProject } from "@/server/project-visibility";
 import { getWorkspace } from "@/server/workspace";
+import { ChevronDownIcon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -22,66 +41,75 @@ export default async function EvidencePage({
         title="Evidence"
         description="Append-only record of everything checked, found, changed, and verified."
       >
-        <a
-          href="/evidence/report"
-          download
-          className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-        >
-          Report (Markdown)
-        </a>
-        <a
-          href="/evidence/report/html"
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-        >
-          Report (HTML)
-        </a>
-        <a
-          href="/evidence/export"
-          download="evidence.json"
-          className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-        >
-          Export JSON
-        </a>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              Export <ChevronDownIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <a href="/evidence/report" download>
+                Report (Markdown)
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href="/evidence/report/html" target="_blank" rel="noreferrer">
+                Report (HTML)
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <a href="/evidence/export" download="evidence.json">
+                Export JSON
+              </a>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </PageHeader>
       {evidence.length === 0 ? (
         <EmptyState title="No evidence yet">
-          <p>Evidence accumulates as assessments run and remediations progress.</p>
+          Evidence accumulates as assessments run and remediations progress.
         </EmptyState>
       ) : (
         <Card>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500">
-                <th scope="col" className="py-2 pr-4">When</th>
-                <th scope="col" className="py-2 pr-4">Event</th>
-                <th scope="col" className="py-2">Record</th>
-              </tr>
-            </thead>
-            <tbody>
-              {slice.items.map((record) => (
-                <tr key={record.id} className="border-b border-zinc-100 last:border-0">
-                  <td className="py-2.5 pr-4 whitespace-nowrap text-xs text-zinc-500">
-                    {formatDateTime(record.at)}
-                  </td>
-                  <td className="py-2.5 pr-4">
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-mono text-xs text-zinc-600">
-                      {record.kind}
-                    </span>
-                  </td>
-                  <td className="py-2.5 text-zinc-700">{record.summary}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <PaginationNav
-            page={slice.page}
-            totalPages={slice.totalPages}
-            total={slice.total}
-            basePath="/evidence"
-            label="Evidence pagination"
-          />
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-36 pl-4">When</TableHead>
+                  <TableHead className="w-52">Event</TableHead>
+                  <TableHead>Record</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {slice.items.map((record) => (
+                  <TableRow key={record.id}>
+                    <TableCell className="pl-4 text-xs text-muted-foreground whitespace-nowrap">
+                      {formatDateTime(record.at)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-mono text-xs">
+                        {record.kind}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {record.summary}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+          <div className="border-t px-4 py-3">
+            <PaginationNav
+              page={slice.page}
+              totalPages={slice.totalPages}
+              total={slice.total}
+              basePath="/evidence"
+              label="Evidence pagination"
+            />
+          </div>
         </Card>
       )}
     </>

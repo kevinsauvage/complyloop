@@ -24,7 +24,7 @@ describe("StatefulActionForm", () => {
         action={action}
         submitLabel="Save"
         pendingLabel="Saving…"
-        submitClassName="btn"
+        variant="default"
       />,
     );
 
@@ -47,7 +47,7 @@ describe("StatefulActionForm", () => {
       <StatefulActionForm
         action={action}
         submitLabel="Confirm"
-        submitClassName="btn"
+        variant="default"
       />,
     );
 

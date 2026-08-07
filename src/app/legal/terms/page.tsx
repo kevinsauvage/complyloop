@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/page-primitives";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ export default function TermsPage() {
         title="Terms of Service"
         description="Draft terms for early access to ComplyLoop. Replace with counsel-reviewed terms before selling."
       />
-      <div className="prose prose-zinc max-w-none text-sm text-zinc-700">
+      <div className="flex flex-col gap-4 text-sm text-muted-foreground">
         <p>
           By using ComplyLoop you agree that the service analyzes source code and
           compliance artifacts you connect, stores assessment results and

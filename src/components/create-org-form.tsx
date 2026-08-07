@@ -1,6 +1,9 @@
 "use client";
 
 import { useActionState, useId } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { CreateOrgFormState } from "@/server/actions/org";
 
 const initial: CreateOrgFormState = { error: null };
@@ -17,12 +20,10 @@ export function CreateOrgForm({
   const errorId = useId();
 
   return (
-    <form action={formAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-      <div className="flex-1">
-        <label htmlFor="orgName" className="mb-1 block text-xs font-medium text-zinc-600">
-          Organization name
-        </label>
-        <input
+    <form action={formAction} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="orgName">Organization name</Label>
+        <Input
           id="orgName"
           name="name"
           type="text"
@@ -30,21 +31,16 @@ export function CreateOrgForm({
           placeholder="Acme Engineering"
           aria-invalid={state.error ? true : undefined}
           aria-describedby={state.error ? errorId : undefined}
-          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
         />
       </div>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-      >
-        {pending ? "Creating…" : "Create organization"}
-      </button>
       {state.error ? (
-        <p id={errorId} className="basis-full text-sm text-red-700" role="alert">
+        <p id={errorId} className="text-sm text-destructive" role="alert">
           {state.error}
         </p>
       ) : null}
+      <Button type="submit" disabled={pending}>
+        {pending ? "Creating…" : "Create organization"}
+      </Button>
     </form>
   );
 }

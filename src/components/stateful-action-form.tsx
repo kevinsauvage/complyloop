@@ -1,19 +1,27 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
-import type { ActionMessageState } from "@/server/action-state";
+import { useActionState, useId, type ReactNode } from "react";
+import type { VariantProps } from "class-variance-authority";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
+import type { ActionMessageState } from "@/server/action-state";
 
 const initialState: ActionMessageState = { error: null, message: null };
+
+type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
+type ButtonSize = VariantProps<typeof buttonVariants>["size"];
 
 export function StatefulActionForm({
   action,
   submitLabel,
   pendingLabel,
-  submitClassName,
+  variant = "default",
+  size = "default",
   children,
   className,
   confirmMessage,
+  confirmTitle,
 }: {
   action: (
     previous: ActionMessageState,
@@ -21,26 +29,31 @@ export function StatefulActionForm({
   ) => Promise<ActionMessageState>;
   submitLabel: string;
   pendingLabel?: string;
-  submitClassName: string;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   children?: ReactNode;
   className?: string;
-  /** When set, requires native confirm before the form submits. */
+  /** When set, requires AlertDialog confirmation before the form submits. */
   confirmMessage?: string;
+  confirmTitle?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
+  const formId = useId();
 
   return (
-    <form action={formAction} className={className}>
+    <form id={formId} action={formAction} className={className}>
       {children}
       {state.error ? (
-        <p className="text-sm text-red-700" role="alert">
-          {state.error}
-        </p>
+        <Alert variant="destructive" className="mb-2">
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
       ) : null}
       {state.message ? (
-        <p className="text-sm text-emerald-700" role="status">
-          {state.message}
-        </p>
+        <Alert role="status" className="mb-2 border-emerald-500/30 bg-emerald-500/10">
+          <AlertDescription className="text-emerald-400">
+            {state.message}
+          </AlertDescription>
+        </Alert>
       ) : null}
       <div>
         {confirmMessage ? (
@@ -48,16 +61,15 @@ export function StatefulActionForm({
             label={submitLabel}
             pendingLabel={pendingLabel}
             confirmMessage={confirmMessage}
-            className={submitClassName}
+            confirmTitle={confirmTitle}
+            variant={variant}
+            size={size}
+            formId={formId}
           />
         ) : (
-          <button
-            type="submit"
-            disabled={pending}
-            className={`${submitClassName} disabled:opacity-50`}
-          >
+          <Button type="submit" disabled={pending} variant={variant} size={size}>
             {pending ? (pendingLabel ?? "Working…") : submitLabel}
-          </button>
+          </Button>
         )}
       </div>
     </form>

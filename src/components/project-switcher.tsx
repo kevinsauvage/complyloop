@@ -2,6 +2,7 @@
 
 import type { Project } from "@/core/types";
 import { switchProjectAction } from "@/server/actions/connect";
+import { Label } from "@/components/ui/label";
 
 function sourceLabel(project: Project): string {
   switch (project.source) {
@@ -30,32 +31,23 @@ export function ProjectSwitcher({
   if (projects.length <= 1) return null;
 
   return (
-    <form
-      key={activeProjectId}
-      action={switchProjectAction}
-      className="flex flex-wrap items-center gap-2"
-    >
-      <label className="flex items-center gap-2 text-sm text-zinc-600">
+    <form key={activeProjectId} action={switchProjectAction} className="min-w-0">
+      <Label htmlFor="project-switcher" className="sr-only">
         Active project
-        <select
-          name="projectId"
-          defaultValue={activeProjectId}
-          className="rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900"
-          onChange={(event) => event.currentTarget.form?.requestSubmit()}
-        >
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.name} ({sourceLabel(project)})
-            </option>
-          ))}
-        </select>
-      </label>
-      <button
-        type="submit"
-        className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+      </Label>
+      <select
+        id="project-switcher"
+        name="projectId"
+        defaultValue={activeProjectId}
+        className="h-8 max-w-64 truncate rounded-lg border border-input bg-background px-2.5 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+        onChange={(event) => event.currentTarget.form?.requestSubmit()}
       >
-        Switch
-      </button>
+        {projects.map((project) => (
+          <option key={project.id} value={project.id}>
+            {project.name} ({sourceLabel(project)})
+          </option>
+        ))}
+      </select>
     </form>
   );
 }

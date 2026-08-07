@@ -6,51 +6,54 @@ import { ConfirmSubmitButton } from "./confirm-submit-button";
 
 afterEach(() => {
   cleanup();
-  vi.unstubAllGlobals();
 });
 
 describe("ConfirmSubmitButton", () => {
   it("blocks submit when the user cancels confirmation", async () => {
     const user = userEvent.setup();
-    const confirm = vi.fn(() => false);
-    vi.stubGlobal("confirm", confirm);
     const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
     });
 
     render(
-      <form onSubmit={onSubmit}>
+      <form id="test-form" onSubmit={onSubmit}>
         <ConfirmSubmitButton
           label="Delete"
           confirmMessage="Are you sure?"
-          className="btn"
+          formId="test-form"
+          variant="destructive"
         />
       </form>,
     );
 
     await user.click(screen.getByRole("button", { name: "Delete" }));
-    expect(confirm).toHaveBeenCalledWith("Are you sure?");
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("allows submit when the user confirms", async () => {
     const user = userEvent.setup();
-    vi.stubGlobal("confirm", vi.fn(() => true));
     const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
     });
 
     render(
-      <form onSubmit={onSubmit}>
+      <form id="test-form" onSubmit={onSubmit}>
         <ConfirmSubmitButton
           label="Delete"
           confirmMessage="Are you sure?"
-          className="btn"
+          formId="test-form"
+          variant="destructive"
         />
       </form>,
     );
 
     await user.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = screen.getByRole("alertdialog");
+    const confirmButtons = dialog.querySelectorAll('button[type="submit"]');
+    expect(confirmButtons.length).toBeGreaterThan(0);
+    await user.click(confirmButtons[0]!);
     expect(onSubmit).toHaveBeenCalled();
   });
 });

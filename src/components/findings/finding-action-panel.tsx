@@ -1,5 +1,8 @@
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { Finding, Remediation } from "@/core/types";
 import {
   applyRemediationAction,
@@ -8,7 +11,6 @@ import {
   markRemediationImplementedAction,
   verifyRemediationAction,
 } from "@/server/actions/remediation";
-import { primaryButton, secondaryButton } from "@/components/action-button-styles";
 
 export function FindingActionPanel({
   finding,
@@ -32,7 +34,7 @@ export function FindingActionPanel({
     case "detected":
     case "investigating":
       return (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           No automated fix template yet. Generate an AI remediation suggestion,
           fix the code manually, or dismiss the finding with a documented reason.
         </p>
@@ -46,50 +48,56 @@ export function FindingActionPanel({
         <StatefulActionForm
           action={approveRemediationAction.bind(null, finding.id)}
           submitLabel="Approve remediation"
-          submitClassName={primaryButton}
+          variant="default"
           className="flex flex-col gap-3"
         >
           {editable ? (
-            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-              {editable.attribute} value (review before approving)
-              <input
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="approve-value-input">
+                {editable.attribute} value (review before approving)
+              </Label>
+              <Input
+                id="approve-value-input"
                 type="text"
                 name="value"
                 defaultValue={editable.value}
-                className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
+                className="max-w-md"
               />
-            </label>
+            </div>
           ) : null}
         </StatefulActionForm>
       );
     }
     case "approved":
       return (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           {finding.fix ? (
             <StatefulActionForm
               action={applyRemediationAction.bind(null, finding.id)}
               submitLabel="Apply change to the file"
               pendingLabel="Applying…"
-              submitClassName={primaryButton}
+              variant="default"
               confirmMessage="Apply this change to the project file on disk? This writes to the workspace."
             />
           ) : null}
           <StatefulActionForm
             action={markRemediationImplementedAction.bind(null, finding.id)}
             submitLabel="Mark as implemented"
-            submitClassName={secondaryButton}
+            variant="outline"
             className="flex flex-col gap-2"
           >
-            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-              Or mark implemented (applied outside ComplyLoop)
-              <input
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="mark-implemented-note">
+                Or mark implemented (applied outside ComplyLoop)
+              </Label>
+              <Input
+                id="mark-implemented-note"
                 type="text"
                 name="note"
                 placeholder="e.g. Fixed in PR #42"
-                className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
+                className="max-w-md"
               />
-            </label>
+            </div>
           </StatefulActionForm>
         </div>
       );
@@ -100,33 +108,34 @@ export function FindingActionPanel({
             action={verifyRemediationAction.bind(null, finding.id)}
             submitLabel="Verify fix (automated re-check)"
             pendingLabel="Verifying…"
-            submitClassName={primaryButton}
+            variant="default"
           />
           <StatefulActionForm
             action={manualVerifyRemediationAction.bind(null, finding.id)}
             submitLabel="Verify manually"
-            submitClassName={secondaryButton}
-            className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-3"
+            variant="outline"
+            className="flex flex-col gap-3 rounded-xl border border-border p-4"
           >
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-muted-foreground">
               Manual verification — use when the automated check cannot confirm
               the fix (or after verifying by other means). Requires a note.
             </p>
-            <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-              Verification note
-              <textarea
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="manual-verify-note">Verification note</Label>
+              <Textarea
+                id="manual-verify-note"
                 name="note"
                 required
                 rows={2}
-                className="w-full max-w-md rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
+                className="max-w-md"
               />
-            </label>
+            </div>
           </StatefulActionForm>
         </div>
       );
     case "verified":
       return (
-        <p className="text-sm font-medium text-emerald-700">
+        <p className="text-sm font-medium text-emerald-400">
           {finding.resolvedNote ??
             "Fix verified: the automated check no longer fails on this file."}
         </p>

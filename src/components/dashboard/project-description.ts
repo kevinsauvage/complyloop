@@ -1,18 +1,17 @@
-import { formatDateTime } from "@/components/ui";
+import { formatDateTime } from "@/components/page-primitives";
 import type { Project } from "@/core/types";
 
 export function projectDescription(
   project: Project,
   latestAssessment: { completedAt: string; filesScanned: number } | undefined,
-  orgName?: string,
 ): string {
   let sourceBit: string;
   switch (project.source) {
     case "github":
-      sourceBit = `GitHub ${project.github?.fullName ?? project.sourceRef ?? "repo"}`;
+      sourceBit = project.github?.fullName ?? project.sourceRef ?? "GitHub repo";
       break;
     case "git":
-      sourceBit = `cloned from ${project.sourceRef ?? "git"}`;
+      sourceBit = project.sourceRef ?? "git clone";
       break;
     case "local":
       sourceBit = project.rootPath;
@@ -25,9 +24,8 @@ export function projectDescription(
       throw new Error(`Unhandled project source: ${_exhaustive}`);
     }
   }
-  const assessmentBit = latestAssessment
-    ? `last assessed ${formatDateTime(latestAssessment.completedAt)}, ${latestAssessment.filesScanned} files scanned`
-    : "not assessed yet";
-  const orgBit = orgName ? ` · org ${orgName}` : "";
-  return `Project "${project.name}" (${sourceBit}${orgBit}) — ${assessmentBit}`;
+  if (!latestAssessment) {
+    return `${sourceBit} · not assessed yet`;
+  }
+  return `${sourceBit} · assessed ${formatDateTime(latestAssessment.completedAt)} · ${latestAssessment.filesScanned} files`;
 }

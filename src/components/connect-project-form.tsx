@@ -5,6 +5,10 @@ import {
   connectProjectAction,
   type ConnectFormState,
 } from "@/server/actions/connect";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const initialState: ConnectFormState = { error: null };
 
@@ -16,12 +20,16 @@ export function ConnectProjectForm({
 }) {
   const [state, action, pending] = useActionState(connectProjectAction, initialState);
   const errorId = useId();
+  const inputId = useId();
 
   return (
     <form action={action} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-        {localPathAllowed ? "Local path or git URL" : "Git repository URL"}
-        <input
+      <div className="space-y-2">
+        <Label htmlFor={inputId}>
+          {localPathAllowed ? "Local path or git URL" : "Git repository URL"}
+        </Label>
+        <Input
+          id={inputId}
           type="text"
           name="target"
           required
@@ -33,10 +41,10 @@ export function ConnectProjectForm({
           }
           aria-invalid={state.error ? true : undefined}
           aria-describedby={state.error ? errorId : undefined}
-          className="w-full rounded-lg border border-zinc-300 px-3 py-2 font-mono text-sm font-normal"
+          className="font-mono"
         />
-      </label>
-      <p className="text-xs text-zinc-500">
+      </div>
+      <p className="text-xs text-muted-foreground">
         {localPathAllowed ? (
           <>
             Local paths are assessed in place (remediations write to that folder).
@@ -52,18 +60,14 @@ export function ConnectProjectForm({
         )}
       </p>
       {state.error ? (
-        <p id={errorId} className="text-sm text-red-700" role="alert">
-          {state.error}
-        </p>
+        <Alert variant="destructive" id={errorId}>
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
       ) : null}
       <div>
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={pending}>
           {pending ? "Connecting…" : "Connect project"}
-        </button>
+        </Button>
       </div>
     </form>
   );

@@ -36,22 +36,29 @@ export async function createPostgresClient(
     username: decodeURIComponent(parsed.username),
     password: decodeURIComponent(parsed.password),
     ssl,
-    max: options.max ?? 10,
+    max: options.max ?? 3,
+    // Release idle sockets so free-tier slot limits recover after spikes.
+    idle_timeout: 20,
+    max_lifetime: 60 * 30,
+    connect_timeout: 15,
     prepare: false,
   });
 
-  // Fail early with a actionable TLS hint (Aiven private CA is a common case).
+  // Fail early with a actionable TLS / capacity hint (Aiven private CA is common).
   try {
     await client`select 1`;
   } catch (error) {
     await client.end({ timeout: 1 }).catch(() => undefined);
-    throw wrapPostgresTlsError(error, allowInsecureSsl);
+    throw wrapPostgresConnectError(error, allowInsecureSsl);
   }
 
   return client;
 }
 
-function wrapPostgresTlsError(error: unknown, allowInsecureSsl: boolean): Error {
+function wrapPostgresConnectError(
+  error: unknown,
+  allowInsecureSsl: boolean,
+): Error {
   const message = error instanceof Error ? error.message : String(error);
   const cause =
     error instanceof Error && "cause" in error
@@ -62,12 +69,25 @@ function wrapPostgresTlsError(error: unknown, allowInsecureSsl: boolean): Error 
   const combined = `${message} ${causeMessage}`;
   const looksLikeTls =
     /SELF_SIGNED_CERT|unable to verify|certificate/i.test(combined);
+  const looksLikeSlotExhaustion =
+    /remaining connection slots|too many connections|maxclientsreached/i.test(
+      combined,
+    );
 
   if (looksLikeTls && !allowInsecureSsl) {
     return new Error(
       `Postgres TLS certificate verification failed (${message}). ` +
         `Providers with a private CA (e.g. Aiven) need either their CA configured ` +
         `or, for local/dev only, DATABASE_SSL_INSECURE=true.`,
+      { cause: error instanceof Error ? error : undefined },
+    );
+  }
+
+  if (looksLikeSlotExhaustion) {
+    return new Error(
+      `Postgres connection slots exhausted (${message}). ` +
+        `Restart the Next.js dev server to drop leaked pools, wait a minute for ` +
+        `idle connections to close, or raise the plan/connection limit on the host.`,
       { cause: error instanceof Error ? error : undefined },
     );
   }

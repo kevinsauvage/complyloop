@@ -1,6 +1,6 @@
 import { RequirementCard } from "@/components/requirements/requirement-card";
 import { RequirementsIntakePanel } from "@/components/requirements/requirements-intake-panel";
-import { EmptyState, PageHeader } from "@/components/ui";
+import { EmptyState, PageHeader } from "@/components/page-primitives";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 
@@ -16,6 +16,9 @@ export default async function RequirementsPage() {
   const inScope = new Set(
     project.inScopeControlIds ?? db.controls.map((control) => control.id),
   );
+  const inScopeControls = db.controls.filter((control) =>
+    inScope.has(control.id),
+  );
 
   return (
     <>
@@ -24,22 +27,20 @@ export default async function RequirementsPage() {
         description={`Bring in and scope controls for "${project.name}" — frameworks: ${frameworks.map((framework) => framework.name).join(", ")}`}
       />
 
-      <RequirementsIntakePanel
-        canAssess={caps.canAssess}
-        controls={db.controls}
-        frameworks={frameworks}
-        inScope={inScope}
-      />
-
-      {requirements.length === 0 ? (
-        <EmptyState title="No requirements assessed yet">
-          <p>Run an assessment from the dashboard to evaluate each in-scope requirement.</p>
-        </EmptyState>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {db.controls
-            .filter((control) => inScope.has(control.id))
-            .map((control) => {
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <section
+          aria-label="Assessed requirements"
+          className="flex flex-col gap-4 lg:col-span-2"
+        >
+          {requirements.length === 0 ? (
+            <EmptyState title="No requirements assessed yet">
+              <p>
+                Run an assessment from the dashboard to evaluate each in-scope
+                requirement.
+              </p>
+            </EmptyState>
+          ) : (
+            inScopeControls.map((control) => {
               const requirement = requirements.find(
                 (candidate) => candidate.controlId === control.id,
               );
@@ -59,9 +60,21 @@ export default async function RequirementsPage() {
                   canRemediate={caps.canRemediate}
                 />
               );
-            })}
-        </div>
-      )}
+            })
+          )}
+        </section>
+
+        <aside aria-label="Intake" className="lg:col-span-1">
+          <div className="lg:sticky lg:top-6">
+            <RequirementsIntakePanel
+              canAssess={caps.canAssess}
+              controls={db.controls}
+              frameworks={frameworks}
+              inScope={inScope}
+            />
+          </div>
+        </aside>
+      </div>
     </>
   );
 }

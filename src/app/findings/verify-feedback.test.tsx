@@ -21,7 +21,7 @@ describe("failed automated verification feedback", () => {
         action={action}
         submitLabel="Verify fix (automated re-check)"
         pendingLabel="Verifying…"
-        submitClassName="btn"
+        variant="default"
       />,
     );
 

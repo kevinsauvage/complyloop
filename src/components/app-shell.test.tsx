@@ -34,9 +34,6 @@ describe("AppShell", () => {
 
     const menu = screen.getByRole("button", { name: "Menu" });
     await user.click(menu);
-    expect(screen.getByRole("button", { name: "Close menu" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
+    expect(screen.getByRole("dialog", { name: "Main navigation" })).toBeInTheDocument();
   });
 });

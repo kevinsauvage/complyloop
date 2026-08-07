@@ -1,6 +1,9 @@
 "use client";
 
 import { useActionState, useId } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { OrgMemberFormState } from "@/server/actions/org";
 
 const initial: OrgMemberFormState = { error: null };
@@ -19,13 +22,11 @@ export function InviteMemberForm({
   const errorId = useId();
 
   return (
-    <form action={formAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+    <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="orgId" value={orgId} />
-      <div className="flex-1">
-        <label htmlFor="githubLogin" className="mb-1 block text-xs font-medium text-zinc-600">
-          GitHub username
-        </label>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="githubLogin">GitHub username</Label>
+        <Input
           id="githubLogin"
           name="githubLogin"
           type="text"
@@ -34,36 +35,29 @@ export function InviteMemberForm({
           placeholder="octocat"
           aria-invalid={state.error ? true : undefined}
           aria-describedby={state.error ? errorId : undefined}
-          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
         />
       </div>
-      <div>
-        <label htmlFor="role" className="mb-1 block text-xs font-medium text-zinc-600">
-          Role
-        </label>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="role">Role</Label>
         <select
           id="role"
           name="role"
           defaultValue="member"
-          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <option value="admin">Admin</option>
           <option value="member">Member</option>
           <option value="viewer">Viewer</option>
         </select>
       </div>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-      >
-        {pending ? "Inviting…" : "Invite"}
-      </button>
       {state.error ? (
-        <p id={errorId} className="basis-full text-sm text-red-700" role="alert">
+        <p id={errorId} className="text-sm text-destructive" role="alert">
           {state.error}
         </p>
       ) : null}
+      <Button type="submit" disabled={pending}>
+        {pending ? "Inviting…" : "Invite"}
+      </Button>
     </form>
   );
 }

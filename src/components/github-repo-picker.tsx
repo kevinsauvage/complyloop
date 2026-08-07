@@ -1,7 +1,12 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useId, useMemo, useState } from "react";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   connectGitHubRepoAction,
   disconnectGitHubRepoAction,
@@ -25,6 +30,7 @@ export function GitHubRepoPicker({
   usesGitHubApp?: boolean;
 }) {
   const [query, setQuery] = useState("");
+  const filterId = useId();
   const [connectState, connectAction, connectPending] = useActionState(
     connectGitHubRepoAction,
     connectInitial,
@@ -49,7 +55,7 @@ export function GitHubRepoPicker({
 
   if (repos.length === 0) {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-muted-foreground">
         {usesGitHubApp ? (
           <>
             No repositories from your GitHub App installations. Install the App
@@ -68,54 +74,59 @@ export function GitHubRepoPicker({
 
   return (
     <div className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-        Filter repositories
-        <input
+      <div className="space-y-2">
+        <Label htmlFor={filterId}>Filter repositories</Label>
+        <Input
+          id={filterId}
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="org/repo or description"
-          className="w-full rounded-lg border border-zinc-300 px-3 py-2 font-mono text-sm font-normal"
+          className="font-mono"
         />
-      </label>
+      </div>
 
       {error ? (
-        <p className="text-sm text-red-700" role="alert">
-          {error}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
 
-      <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200">
+      <ul className="divide-y divide-border rounded-lg border border-border">
         {filtered.slice(0, 20).map((repo) => {
           const projectId = connectedByFullName[repo.fullName];
           const connected = Boolean(projectId);
+          const formId = `disconnect-${repo.fullName}`;
           return (
             <li
               key={`${repo.installationId ?? "oauth"}:${repo.fullName}`}
               className="flex flex-wrap items-center justify-between gap-3 px-3 py-3"
             >
               <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-2 truncate font-mono text-sm font-medium text-zinc-900">
+                <p className="flex flex-wrap items-center gap-2 truncate font-mono text-sm font-medium">
                   {repo.fullName}
                   {connected ? (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-sans text-xs font-medium text-emerald-800">
+                    <Badge className="border-transparent bg-emerald-500/15 font-sans text-emerald-400">
                       Connected
-                    </span>
+                    </Badge>
                   ) : null}
                 </p>
-                <p className="mt-0.5 text-xs text-zinc-500">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {repo.private ? "Private" : "Public"}
                   {repo.description ? ` · ${repo.description}` : ""}
                 </p>
               </div>
               {connected && projectId ? (
-                <form action={disconnectAction}>
+                <form id={formId} action={disconnectAction}>
                   <input type="hidden" name="projectId" value={projectId} />
                   <ConfirmSubmitButton
                     label={disconnectPending ? "Disconnecting…" : "Disconnect"}
                     pendingLabel="Disconnecting…"
                     confirmMessage={`Disconnect ${repo.fullName}? The local workspace clone will be removed.`}
-                    className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                    confirmTitle="Disconnect repository"
+                    variant="outline"
+                    size="sm"
+                    formId={formId}
                   />
                 </form>
               ) : (
@@ -128,13 +139,9 @@ export function GitHubRepoPicker({
                       value={String(repo.installationId)}
                     />
                   ) : null}
-                  <button
-                    type="submit"
-                    disabled={pending}
-                    className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
-                  >
+                  <Button type="submit" size="sm" disabled={pending}>
                     {connectPending ? "Connecting…" : "Connect"}
-                  </button>
+                  </Button>
                 </form>
               )}
             </li>
@@ -142,7 +149,7 @@ export function GitHubRepoPicker({
         })}
       </ul>
       {filtered.length > 20 ? (
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-muted-foreground">
           Showing 20 of {filtered.length} matches — refine the filter to narrow
           results.
         </p>

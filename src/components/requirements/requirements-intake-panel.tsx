@@ -1,8 +1,11 @@
 import { rgaaPresets } from "@/adapters/rgaa/presets";
-import { primaryButton, secondaryButton } from "@/components/action-button-styles";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
-import { Card } from "@/components/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import type { Control, Framework } from "@/core/types";
 import {
   applyFrameworkPresetAction,
@@ -23,180 +26,221 @@ export function RequirementsIntakePanel({
   inScope: Set<string>;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {!canAssess ? (
         <PermissionNotice>
           View-only role — you can review requirement status but not change
           scope or import controls.
         </PermissionNotice>
       ) : null}
-      {canAssess ? (
-        <Card title="Framework presets">
-          <p className="mb-3 text-sm text-zinc-600">
-            Apply a curated RGAA/WCAG subset in one click. You can still fine-tune
-            checkboxes below.
-          </p>
-          <ul className="flex flex-col gap-3">
-            {rgaaPresets.map((preset) => (
-              <li
-                key={preset.id}
-                className="flex flex-wrap items-center justify-between gap-3"
-              >
-                <div>
-                  <p className="text-sm font-medium text-zinc-900">
-                    {preset.name}
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    {preset.description} · {preset.controlIds.length} controls
-                  </p>
-                </div>
-                <StatefulActionForm
-                  action={applyFrameworkPresetAction}
-                  submitLabel="Apply"
-                  pendingLabel="Applying…"
-                  submitClassName={secondaryButton}
-                >
-                  <input type="hidden" name="presetId" value={preset.id} />
-                </StatefulActionForm>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      ) : null}
 
       {canAssess ? (
-        <>
-          <Card title="Import checklist">
-            <p className="mb-3 text-sm text-zinc-600">
-              Paste audit or customer lines as{" "}
-              <code className="font-mono text-xs">
-                CODE | Title | Description
-              </code>
-              . Each becomes a manual control (unable to verify until a human
-              marks it passed or records an exception).
-            </p>
-            <StatefulActionForm
-              action={importChecklistAction}
-              submitLabel="Import checklist"
-              pendingLabel="Importing…"
-              submitClassName={secondaryButton}
-              className="flex flex-col gap-3"
-            >
-              <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-                Checklist
-                <textarea
-                  name="checklist"
-                  required
-                  rows={5}
-                  placeholder={
-                    "CUST-1 | Privacy link present | Marketing pages link to the privacy notice\nCUST-2 | Cookie banner | Consent UI is keyboard accessible"
-                  }
-                  className="rounded-lg border border-zinc-300 px-3 py-2 font-mono text-sm font-normal"
-                />
-              </label>
-            </StatefulActionForm>
-          </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Intake</CardTitle>
+            <CardDescription>
+              Configure scope, apply presets, and import controls for this
+              project.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="presets">
+              <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1">
+                <TabsTrigger value="presets">Presets</TabsTrigger>
+                <TabsTrigger value="scope">Scope</TabsTrigger>
+                <TabsTrigger value="import">Import</TabsTrigger>
+                <TabsTrigger value="custom">Custom</TabsTrigger>
+              </TabsList>
 
-          <Card title="In-scope controls">
-            <p className="mb-3 text-sm text-zinc-600">
-              Select which controls apply to this project. Assessment only
-              evaluates the selected set.
-            </p>
-            <StatefulActionForm
-              action={updateRequirementScopeAction}
-              submitLabel="Save scope"
-              pendingLabel="Saving…"
-              submitClassName={primaryButton}
-              className="flex flex-col gap-3"
-            >
-              <ul className="flex flex-col gap-2">
-                {controls.map((control) => {
-                  const framework = frameworks.find(
-                    (candidate) => candidate.id === control.frameworkId,
-                  );
-                  return (
-                    <li
-                      key={control.id}
-                      className="flex items-start gap-2 text-sm"
-                    >
-                      <input
-                        id={`scope-${control.id}`}
-                        type="checkbox"
-                        name="controlId"
-                        value={control.id}
-                        defaultChecked={inScope.has(control.id)}
-                        className="mt-1"
-                      />
-                      <label
-                        htmlFor={`scope-${control.id}`}
-                        className="text-zinc-800"
+              <TabsContent value="presets">
+                <div className="flex flex-col gap-4">
+                  <p className="text-sm text-muted-foreground">
+                    Apply a curated RGAA/WCAG subset in one click. You can
+                    still fine-tune the scope below.
+                  </p>
+                  <ul className="flex flex-col gap-3">
+                    {rgaaPresets.map((preset) => (
+                      <li
+                        key={preset.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5"
                       >
-                        <span className="font-medium">{control.title}</span>
-                        <span className="mt-0.5 block font-mono text-xs text-zinc-500">
-                          {control.code}
-                          {control.checkId
-                            ? ` · check ${control.checkId}`
-                            : " · manual (no automated check)"}
-                          {framework ? ` · ${framework.name}` : ""}
-                        </span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            </StatefulActionForm>
-          </Card>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium">
+                            {preset.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {preset.description} · {preset.controlIds.length}{" "}
+                            controls
+                          </p>
+                        </div>
+                        <StatefulActionForm
+                          action={applyFrameworkPresetAction}
+                          submitLabel="Apply"
+                          pendingLabel="Applying…"
+                          variant="secondary"
+                          size="sm"
+                        >
+                          <input
+                            type="hidden"
+                            name="presetId"
+                            value={preset.id}
+                          />
+                        </StatefulActionForm>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </TabsContent>
 
-          <Card title="Import a custom control">
-            <p className="mb-3 text-sm text-zinc-600">
-              Add a checklist item from an audit or customer requirement.
-              Without an automated check it stays <em>unable to verify</em>{" "}
-              until a human records a decision.
-            </p>
-            <StatefulActionForm
-              action={importCustomControlAction}
-              submitLabel="Import control"
-              pendingLabel="Importing…"
-              submitClassName={secondaryButton}
-              className="flex max-w-xl flex-col gap-3"
-            >
-              <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-                Code
-                <input
-                  name="code"
-                  required
-                  placeholder="e.g. CUST-PRIV-1"
-                  className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-                Title
-                <input
-                  name="title"
-                  required
-                  className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-                Description
-                <textarea
-                  name="description"
-                  required
-                  rows={2}
-                  className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-                Secondary reference (optional)
-                <input
-                  name="secondaryCode"
-                  placeholder="e.g. customer checklist §3"
-                  className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal"
-                />
-              </label>
-            </StatefulActionForm>
-          </Card>
-        </>
+              <TabsContent value="scope">
+                <div className="flex flex-col gap-4">
+                  <p className="text-sm text-muted-foreground">
+                    Select which controls apply to this project. Assessment only
+                    evaluates the selected set.
+                  </p>
+                  <StatefulActionForm
+                    action={updateRequirementScopeAction}
+                    submitLabel="Save scope"
+                    pendingLabel="Saving…"
+                    variant="default"
+                    size="sm"
+                    className="flex flex-col gap-3"
+                  >
+                    <div className="max-h-72 overflow-y-auto rounded-lg border border-border/60 p-1">
+                      <ul className="flex flex-col gap-0.5">
+                        {controls.map((control) => {
+                          const framework = frameworks.find(
+                            (candidate) => candidate.id === control.frameworkId,
+                          );
+                          return (
+                            <li
+                              key={control.id}
+                              className="flex items-start gap-2.5 rounded px-2 py-1.5 hover:bg-muted/40"
+                            >
+                              {/* Native checkbox — Radix Checkbox does not participate in form posts. */}
+                              <input
+                                id={`scope-${control.id}`}
+                                type="checkbox"
+                                name="controlId"
+                                value={control.id}
+                                defaultChecked={inScope.has(control.id)}
+                                className="mt-1 size-4 shrink-0 rounded border border-input accent-primary"
+                              />
+                              <Label
+                                htmlFor={`scope-${control.id}`}
+                                className="cursor-pointer font-normal"
+                              >
+                                <span className="font-medium">
+                                  {control.title}
+                                </span>
+                                <span className="mt-0.5 block font-mono text-xs text-muted-foreground">
+                                  {control.code}
+                                  {control.checkId
+                                    ? ` · check ${control.checkId}`
+                                    : " · manual (no automated check)"}
+                                  {framework ? ` · ${framework.name}` : ""}
+                                </span>
+                              </Label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  </StatefulActionForm>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="import">
+                <div className="flex flex-col gap-4">
+                  <p className="text-sm text-muted-foreground">
+                    Paste audit or customer lines as{" "}
+                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+                      CODE | Title | Description
+                    </code>
+                    . Each becomes a manual control (unable to verify until a
+                    human marks it passed or records an exception).
+                  </p>
+                  <StatefulActionForm
+                    action={importChecklistAction}
+                    submitLabel="Import checklist"
+                    pendingLabel="Importing…"
+                    variant="secondary"
+                    size="sm"
+                    className="flex flex-col gap-3"
+                  >
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="intake-checklist">Checklist</Label>
+                      <Textarea
+                        id="intake-checklist"
+                        name="checklist"
+                        required
+                        rows={5}
+                        placeholder={
+                          "CUST-1 | Privacy link present | Marketing pages link to the privacy notice\nCUST-2 | Cookie banner | Consent UI is keyboard accessible"
+                        }
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                  </StatefulActionForm>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="custom">
+                <div className="flex flex-col gap-4">
+                  <p className="text-sm text-muted-foreground">
+                    Add a checklist item from an audit or customer requirement.
+                    Without an automated check it stays{" "}
+                    <em>unable to verify</em> until a human records a decision.
+                  </p>
+                  <StatefulActionForm
+                    action={importCustomControlAction}
+                    submitLabel="Import control"
+                    pendingLabel="Importing…"
+                    variant="secondary"
+                    size="sm"
+                    className="flex flex-col gap-3"
+                  >
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="custom-code">Code</Label>
+                      <Input
+                        id="custom-code"
+                        name="code"
+                        required
+                        placeholder="e.g. CUST-PRIV-1"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="custom-title">Title</Label>
+                      <Input id="custom-title" name="title" required />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="custom-description">Description</Label>
+                      <Textarea
+                        id="custom-description"
+                        name="description"
+                        required
+                        rows={2}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="custom-secondary-code">
+                        Secondary reference{" "}
+                        <span className="text-muted-foreground font-normal">
+                          (optional)
+                        </span>
+                      </Label>
+                      <Input
+                        id="custom-secondary-code"
+                        name="secondaryCode"
+                        placeholder="e.g. customer checklist §3"
+                      />
+                    </div>
+                  </StatefulActionForm>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       ) : null}
     </div>
   );
