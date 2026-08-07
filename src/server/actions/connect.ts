@@ -9,7 +9,7 @@ import { writeActiveProjectCookie } from "../active-project";
 import { assertConnectProjectAllowed } from "../connect-policy";
 import { ConnectError } from "../connect-url";
 import { setActiveProject } from "../connect-active";
-import { connectGitHubRepo, disconnectGitHubRepo } from "../connect-github";
+import { connectGitHubRepo, disconnectGitHubRepo, findConnectedGitHubProject } from "../connect-github";
 import { connectProjectInput } from "../connect-local";
 import { fetchGitHubRepo } from "../github";
 import {
@@ -119,12 +119,11 @@ export async function connectGitHubRepoAction(
 
     const repo = await fetchGitHubRepo(accessToken, fullName);
     await withWorkspaceWrite(async ({ db, activeOrgId }) => {
-      const orgId = activeOrgId;
-      const alreadyConnected = db.projects.some(
-        (project) =>
-          project.source === "github" &&
-          (project.orgId === orgId || project.ownerUserId === userId) &&
-          project.github?.fullName === fullName,
+      const alreadyConnected = findConnectedGitHubProject(
+        db.projects,
+        fullName,
+        userId,
+        activeOrgId,
       );
       if (alreadyConnected) {
         throw new ConnectError(
@@ -136,7 +135,7 @@ export async function connectGitHubRepoAction(
         defaultBranch: repo.defaultBranch,
         private: repo.private,
         ownerUserId: userId,
-        orgId: orgId ?? undefined,
+        orgId: activeOrgId ?? undefined,
         accessToken,
         installationId: resolvedInstallationId,
       });

@@ -24,7 +24,7 @@ export function GitHubRepoPicker({
   usesGitHubApp = false,
 }: {
   repos: GitHubRepoSummary[];
-  /** GitHub fullName → connected project id for the signed-in user. */
+  /** GitHub fullName (lowercase) → connected project id for this workspace. */
   connectedByFullName: Record<string, string>;
   /** When true, empty state explains App installation instead of OAuth `repo`. */
   usesGitHubApp?: boolean;
@@ -94,7 +94,8 @@ export function GitHubRepoPicker({
 
       <ul className="divide-y divide-border rounded-lg border border-border">
         {filtered.slice(0, 20).map((repo) => {
-          const projectId = connectedByFullName[repo.fullName];
+          const projectId =
+            connectedByFullName[repo.fullName.trim().toLowerCase()];
           const connected = Boolean(projectId);
           const formId = `disconnect-${repo.fullName}`;
           return (

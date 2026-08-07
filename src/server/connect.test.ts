@@ -5,7 +5,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { ConnectError, isLikelyGitUrl } from "./connect-url";
 import { connectLocalPath, connectProjectInput } from "./connect-local";
-import { disconnectGitHubRepo, githubCloneUrl } from "./connect-github";
+import {
+  connectedGitHubProjectsByFullName,
+  disconnectGitHubRepo,
+  findConnectedGitHubProject,
+  githubCloneUrl,
+} from "./connect-github";
 import { setActiveProject } from "./connect-active";
 import {
   assertAssessableOrRemove,
@@ -105,6 +110,49 @@ describe("githubCloneUrl", () => {
     expect(githubCloneUrl("acme/shop", "tok en")).toBe(
       "https://x-access-token:tok%20en@github.com/acme/shop.git",
     );
+  });
+});
+
+describe("findConnectedGitHubProject", () => {
+  const base = {
+    id: "gh-1",
+    name: "shop",
+    rootPath: "/tmp/shop",
+    source: "github" as const,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    github: {
+      fullName: "Acme/Shop",
+      defaultBranch: "main",
+      private: false,
+    },
+  };
+
+  it("matches by owner even when active org differs", () => {
+    const project = { ...base, ownerUserId: "user-a", orgId: "org-other" };
+    expect(
+      findConnectedGitHubProject([project], "acme/shop", "user-a", "org-active"),
+    ).toBe(project);
+  });
+
+  it("matches by active org when another member connected the repo", () => {
+    const project = { ...base, ownerUserId: "user-b", orgId: "org-team" };
+    expect(
+      findConnectedGitHubProject([project], "ACME/SHOP", "user-a", "org-team"),
+    ).toBe(project);
+  });
+
+  it("does not treat undefined orgId as matching a null active org for other users", () => {
+    const project = { ...base, ownerUserId: "user-b" };
+    expect(
+      findConnectedGitHubProject([project], "acme/shop", "user-a", null),
+    ).toBeUndefined();
+  });
+
+  it("builds a lowercase fullName map for the picker", () => {
+    const project = { ...base, ownerUserId: "user-a", orgId: "org-1" };
+    expect(
+      connectedGitHubProjectsByFullName([project], "user-a", "org-1"),
+    ).toEqual({ "acme/shop": "gh-1" });
   });
 });
 

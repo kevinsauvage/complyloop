@@ -23,6 +23,57 @@ export function githubCloneUrl(fullName: string, accessToken: string): string {
   return `https://x-access-token:${encoded}@github.com/${fullName}.git`;
 }
 
+/** GitHub full names are case-insensitive; normalize for map keys and equality. */
+export function normalizeGitHubFullName(fullName: string): string {
+  return fullName.trim().toLowerCase();
+}
+
+/**
+ * A GitHub repo is already connected for this session when it belongs to the
+ * active org, or was connected by this user (owner). Matches connect-action
+ * duplicate detection so the picker never shows Connect for those repos.
+ */
+export function findConnectedGitHubProject(
+  projects: ReadonlyArray<Project>,
+  fullName: string,
+  userId: string,
+  activeOrgId: string | null,
+): Project | undefined {
+  const needle = normalizeGitHubFullName(fullName);
+  return projects.find((project) => {
+    if (project.source !== "github" || !project.github?.fullName) return false;
+    if (normalizeGitHubFullName(project.github.fullName) !== needle) {
+      return false;
+    }
+    if (project.ownerUserId === userId) return true;
+    if (activeOrgId != null && project.orgId === activeOrgId) return true;
+    return false;
+  });
+}
+
+/**
+ * fullName (any casing) → project id for repos already connected in this
+ * workspace context — used by the GitHub picker Connected / Disconnect UI.
+ */
+export function connectedGitHubProjectsByFullName(
+  projects: ReadonlyArray<Project>,
+  userId: string,
+  activeOrgId: string | null,
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const project of projects) {
+    if (project.source !== "github" || !project.github?.fullName) continue;
+    if (
+      project.ownerUserId !== userId &&
+      !(activeOrgId != null && project.orgId === activeOrgId)
+    ) {
+      continue;
+    }
+    map[normalizeGitHubFullName(project.github.fullName)] = project.id;
+  }
+  return map;
+}
+
 interface ConnectGitHubRepoInput {
   fullName: string;
   defaultBranch: string;

@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { signInWithGitHubAction } from "@/server/actions/auth";
+import {
+  connectedGitHubProjectsByFullName,
+} from "@/server/connect-github";
 import { isLocalProjectConnectAllowed } from "@/server/connect-policy";
 import { listGitHubRepos } from "@/server/github";
 import { isGitHubAppConfigured } from "@/server/github-app";
@@ -42,16 +45,11 @@ export async function ConnectProjectPanel({
   const connectedByFullName: Record<string, string> = {};
 
   if (configured && signedIn && userId && caps.canConnect) {
-    const { db } = workspace;
-    for (const project of db.projects) {
-      if (
-        project.source === "github" &&
-        project.ownerUserId === userId &&
-        project.github?.fullName
-      ) {
-        connectedByFullName[project.github.fullName] = project.id;
-      }
-    }
+    const { db, activeOrgId } = workspace;
+    Object.assign(
+      connectedByFullName,
+      connectedGitHubProjectsByFullName(db.projects, userId, activeOrgId),
+    );
 
     const token = await getGitHubAccessToken();
     if (!token) {
