@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   actionErrorState,
+  connectFormError,
   emptyActionMessageState,
   runActionMessage,
 } from "./action-state";
+import { ConnectError } from "./connect-url";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -14,6 +16,13 @@ describe("actionErrorState", () => {
     await expect(runActionMessage(async () => "Saved.")).resolves.toEqual({
       error: null,
       message: "Saved.",
+    });
+  });
+
+  it("defaults the success message when the runner returns void", async () => {
+    await expect(runActionMessage(async () => undefined)).resolves.toEqual({
+      error: null,
+      message: "Done.",
     });
   });
 
@@ -36,5 +45,17 @@ describe("actionErrorState", () => {
 
   it("exposes an empty initial state", () => {
     expect(emptyActionMessageState).toEqual({ error: null, message: null });
+  });
+});
+
+describe("connectFormError", () => {
+  it("maps ConnectError to a form error state", () => {
+    expect(connectFormError(new ConnectError("Bad path."))).toEqual({
+      error: "Bad path.",
+    });
+  });
+
+  it("rethrows unexpected errors", () => {
+    expect(() => connectFormError(new Error("boom"))).toThrow("boom");
   });
 });

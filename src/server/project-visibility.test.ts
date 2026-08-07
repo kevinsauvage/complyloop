@@ -9,6 +9,7 @@ import type {
 } from "@/core/types";
 import {
   type AccessContext,
+  accessFromStore,
   evidenceForProject,
   findingsForProject,
   isProjectVisible,
@@ -38,6 +39,32 @@ function ctx(
 ): AccessContext {
   return { userId, memberships, organizations };
 }
+
+describe("accessFromStore", () => {
+  it("builds AccessContext from store collections", () => {
+    const organizations: Organization[] = [
+      { id: "o1", name: "Acme", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z" },
+    ];
+    const memberships: OrgMembership[] = [
+      {
+        id: "m1",
+        orgId: "o1",
+        role: "member",
+        userId: "u1",
+        githubLogin: "u1",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ];
+    expect(
+      accessFromStore({ organizations, memberships }, "u1", "login"),
+    ).toEqual({
+      userId: "u1",
+      githubLogin: "login",
+      organizations,
+      memberships,
+    });
+  });
+});
 
 function finding(partial: Pick<Finding, "id" | "projectId">): Finding {
   return {

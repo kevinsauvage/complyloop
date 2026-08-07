@@ -4,10 +4,15 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { ConnectError, isLikelyGitUrl } from "./connect-url";
-import { connectLocalPath } from "./connect-local";
-import { disconnectGitHubRepo } from "./connect-github";
+import { connectLocalPath, connectProjectInput } from "./connect-local";
+import { disconnectGitHubRepo, githubCloneUrl } from "./connect-github";
 import { setActiveProject } from "./connect-active";
-import { deriveProjectName } from "./connect-shared";
+import {
+  assertAssessableOrRemove,
+  deriveProjectName,
+  uniqueProjectName,
+  uniqueWorkspacePath,
+} from "./connect-shared";
 import type { Db } from "./db";
 import { workspacesDir } from "./db";
 
@@ -52,6 +57,71 @@ describe("deriveProjectName", () => {
     expect(deriveProjectName("/Users/me/apps/my-shop")).toBe("my-shop");
     expect(deriveProjectName("https://github.com/acme/my-shop.git")).toBe("my-shop");
     expect(deriveProjectName("git@github.com:acme/my-shop.git")).toBe("my-shop");
+  });
+
+  it("falls back to project when the name would be empty", () => {
+    expect(deriveProjectName("///")).toBe("project");
+  });
+});
+
+describe("unique helpers", () => {
+  it("allocates a free workspace path and project name", () => {
+    const taken = makeProjectDir({ "x.tsx": "export {};" });
+    const sibling = `${taken}-2`;
+    fs.mkdirSync(sibling, { recursive: true });
+    tempDirs.push(sibling);
+
+    // uniqueWorkspacePath joins under workspacesDir — seed a collision there.
+    const name = `uniq-${crypto.randomUUID().slice(0, 8)}`;
+    const first = uniqueWorkspacePath(name);
+    fs.mkdirSync(first, { recursive: true });
+    tempDirs.push(first);
+    const second = uniqueWorkspacePath(name);
+    expect(second).toBe(`${first}-2`);
+
+    const db = emptyDb();
+    db.projects.push({
+      id: "p1",
+      name: "shop",
+      rootPath: "/tmp/a",
+      source: "sample",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(uniqueProjectName(db, "shop")).toBe("shop-2");
+    expect(uniqueProjectName(db, "fresh")).toBe("fresh");
+  });
+});
+
+describe("assertAssessableOrRemove", () => {
+  it("removes a non-assessable clone directory", () => {
+    const root = makeProjectDir({ "README.md": "docs only\n" });
+    expect(() => assertAssessableOrRemove(root)).toThrow(/No .* source files/);
+    expect(fs.existsSync(root)).toBe(false);
+  });
+});
+
+describe("githubCloneUrl", () => {
+  it("embeds the token in an HTTPS clone URL", () => {
+    expect(githubCloneUrl("acme/shop", "tok en")).toBe(
+      "https://x-access-token:tok%20en@github.com/acme/shop.git",
+    );
+  });
+});
+
+describe("connectProjectInput", () => {
+  it("routes local paths to connectLocalPath", async () => {
+    const root = makeProjectDir({
+      "App.tsx": `export const App = () => null;\n`,
+    });
+    const db = emptyDb();
+    const project = await connectProjectInput(db, root);
+    expect(project.source).toBe("local");
+  });
+
+  it("rejects empty input", async () => {
+    await expect(connectProjectInput(emptyDb(), "  ")).rejects.toThrow(
+      ConnectError,
+    );
   });
 });
 
@@ -112,6 +182,19 @@ describe("setActiveProject", () => {
 
     setActiveProject(db, projectA.id);
     expect(db.activeProjectId).toBe(projectA.id);
+  });
+
+  it("rejects unknown and inaccessible projects", () => {
+    const root = makeProjectDir({ "a.tsx": `export const A = () => null;` });
+    const db = emptyDb();
+    const connected = connectLocalPath(db, root);
+    connected.orgId = "org-secret";
+    connected.ownerUserId = "owner-a";
+
+    expect(() => setActiveProject(db, "missing")).toThrow(/Unknown project/);
+    expect(() => setActiveProject(db, connected.id, "other-user")).toThrow(
+      /do not have access/,
+    );
   });
 });
 
