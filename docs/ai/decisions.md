@@ -4,6 +4,16 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-07 — Split god files by domain (no barrels)
+
+**Context:** Several modules exceeded the ~300-line guideline (`actions.ts` ~1.3k, `postgres.ts`, `assessment.ts`, `connect.ts`, finding/requirements/dashboard pages).
+
+**Decision:** Split by domain into defining modules and update imports to those paths — no barrel `index.ts` re-exports. `src/core/types.ts` stays as the type hub (justified exception). Server Actions live under `src/server/actions/{auth,connect,org,remediation*,requirements*,…}.ts`.
+
+**Consequence:** Imports are slightly more specific; file size stays reviewable; Next `"use server"` boundaries stay clear.
+
+---
+
 ## 2026-08-06 — GitHub App for least-privilege repo access
 
 **Context:** Classic OAuth `repo` scope grants read/write to every repo the user can access — unacceptable for multi-tenant production.

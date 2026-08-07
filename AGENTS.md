@@ -134,9 +134,10 @@ src/core/                                Framework-agnostic domain core (types, 
 src/analysis/                            Deterministic analysis engine (AST checks, scanner, fixes)
 src/adapters/rgaa/                       RGAA/WCAG framework adapter (controls, guidance)
 src/ai/                                  AI explainer (optional, provenance-tagged)
-src/server/                              JSON store, seed, assessment service, server actions
+src/server/                              Store, seed, assessment, connect, webhooks
+src/server/actions/                      Server Actions split by domain (no barrel)
 src/app/                                 Next.js App Router routes
-src/components/                          Shared UI (badges, cards, nav)
+src/components/                          Shared UI (badges, cards, nav, findings/, requirements/, dashboard/)
 fixtures/sample-shop/                    Sample project with deliberate violations — never linted
 .data/                                   Local store + assessed workspaces (gitignored)
 ```

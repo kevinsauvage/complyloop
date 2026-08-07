@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { addEvidence, isPostgresConfigured, loadDb, saveDb } from "../db";
 import { emptyDb, loadDbFromJson, saveDbToJson } from "./json";
-import { evidenceRecordsToInsert } from "./postgres";
+import { evidenceRecordsToInsert } from "./postgres-evidence";
 
 describe("JSON store", () => {
   let dir: string;

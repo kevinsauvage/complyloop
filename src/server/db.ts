@@ -2,11 +2,11 @@ import path from "node:path";
 import type { EvidenceRecord } from "@/core/types";
 import { getDrizzle, isPostgresConfigured } from "./db-store/client";
 import { dataDir, loadDbFromJson, saveDbToJson } from "./db-store/json";
+import { loadDbFromPostgres } from "./db-store/postgres-load";
 import {
-  loadDbFromPostgres,
   persistDbToPostgres,
   saveDbToPostgres,
-} from "./db-store/postgres";
+} from "./db-store/postgres-persist";
 import type { Db } from "./db-store/types";
 import {
   withPostgresAdvisoryLock,

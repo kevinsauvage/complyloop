@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { githubCloneUrl } from "./connect";
+import { githubCloneUrl } from "./connect-github";
 import { listGitHubRepos } from "./github";
 
 afterEach(() => {

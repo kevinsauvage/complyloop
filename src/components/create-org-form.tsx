@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useId } from "react";
-import type { CreateOrgFormState } from "@/server/actions";
+import type { CreateOrgFormState } from "@/server/actions/org";
 
 const initial: CreateOrgFormState = { error: null };
 

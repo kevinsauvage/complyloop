@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/server/actions", () => ({
+vi.mock("@/server/actions/connect", () => ({
   connectProjectAction: vi.fn(async () => ({
     error: "That path is not allowed.",
   })),

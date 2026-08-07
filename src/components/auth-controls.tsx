@@ -1,5 +1,5 @@
 import { auth, isGitHubAuthConfigured } from "@/auth";
-import { signInWithGitHubAction, signOutAction } from "@/server/actions";
+import { signInWithGitHubAction, signOutAction } from "@/server/actions/auth";
 
 export async function AuthControls() {
   if (!isGitHubAuthConfigured()) {

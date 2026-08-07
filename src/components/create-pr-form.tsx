@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import {
   createPullRequestAction,
   type CreatePrFormState,
-} from "@/server/actions";
+} from "@/server/actions/pr";
 
 const initial: CreatePrFormState = {
   error: null,

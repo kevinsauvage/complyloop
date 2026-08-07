@@ -7,7 +7,7 @@ import {
   createOrgAction,
   inviteOrgMemberAction,
   removeOrgMemberAction,
-} from "@/server/actions";
+} from "@/server/actions/org";
 import { membershipsForOrg, userRoleInOrg } from "@/server/orgs";
 import { getWorkspace } from "@/server/workspace";
 

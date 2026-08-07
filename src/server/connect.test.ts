@@ -3,14 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
-import {
-  ConnectError,
-  connectLocalPath,
-  deriveProjectName,
-  disconnectGitHubRepo,
-  isLikelyGitUrl,
-  setActiveProject,
-} from "./connect";
+import { ConnectError, isLikelyGitUrl } from "./connect-url";
+import { connectLocalPath } from "./connect-local";
+import { disconnectGitHubRepo } from "./connect-github";
+import { setActiveProject } from "./connect-active";
+import { deriveProjectName } from "./connect-shared";
 import type { Db } from "./db";
 import { workspacesDir } from "./db";
 

@@ -4,7 +4,7 @@ import { useActionState, useId } from "react";
 import {
   connectProjectAction,
   type ConnectFormState,
-} from "@/server/actions";
+} from "@/server/actions/connect";
 
 const initialState: ConnectFormState = { error: null };
 

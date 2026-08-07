@@ -2,7 +2,7 @@ import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
 import fs from "node:fs";
 import type { Alert } from "@/core/types";
 import { runAssessment } from "./assessment";
-import { githubCloneUrl } from "./connect";
+import { githubCloneUrl } from "./connect-github";
 import { addEvidence, loadDb, withDbWrite, type Db } from "./db";
 import { createGit } from "./git";
 import {

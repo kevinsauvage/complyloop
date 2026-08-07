@@ -40,18 +40,22 @@ vi.mock("./observability", () => ({
 }));
 
 vi.mock("./assessment", () => ({
-  buildSuggestion: vi.fn(),
-  locateViolationInProject: vi.fn(),
-  mergeFix: vi.fn(),
-  refreshRequirementStatuses: vi.fn(),
   runAssessment: vi.fn(),
 }));
 
-import {
-  approveRemediationAction,
-  dismissFindingAction,
-  runAssessmentAction,
-} from "./actions";
+vi.mock("./assessment-helpers", () => ({
+  buildSuggestion: vi.fn(),
+  locateViolationInProject: vi.fn(),
+  mergeFix: vi.fn(),
+}));
+
+vi.mock("./assessment-status", () => ({
+  refreshRequirementStatuses: vi.fn(),
+}));
+
+import { runAssessmentAction } from "./actions/assessment";
+import { dismissFindingAction } from "./actions/remediation-dismiss";
+import { approveRemediationAction } from "./actions/remediation";
 
 const project: Project = {
   id: "p1",

@@ -7,7 +7,7 @@ import {
   disconnectGitHubRepoAction,
   type ConnectGitHubFormState,
   type DisconnectGitHubFormState,
-} from "@/server/actions";
+} from "@/server/actions/connect";
 import type { GitHubRepoSummary } from "@/server/github";
 
 const connectInitial: ConnectGitHubFormState = { error: null };

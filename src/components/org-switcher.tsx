@@ -1,7 +1,7 @@
 "use client";
 
 import type { Organization } from "@/core/types";
-import { switchOrgAction } from "@/server/actions";
+import { switchOrgAction } from "@/server/actions/org";
 
 export function OrgSwitcher({
   organizations,

@@ -7,7 +7,7 @@ import { applyFix } from "@/analysis/fixes";
 import { parseSource } from "@/analysis/parse";
 import { scanFile } from "@/analysis/scan";
 import type { Control, Finding, Project, Remediation } from "@/core/types";
-import { locateViolationInProject, mergeFix } from "./assessment";
+import { locateViolationInProject, mergeFix } from "./assessment-helpers";
 import { createGit } from "./git";
 import { preparePullRequest } from "./pr";
 

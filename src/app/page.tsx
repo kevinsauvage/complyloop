@@ -1,65 +1,24 @@
-import Link from "next/link";
-import {
-  RequirementStatusBadge,
-  SeverityBadge,
-} from "@/components/badges";
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
+import { DashboardActivitySections } from "@/components/dashboard/dashboard-activity-sections";
+import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-card";
+import { DashboardStatusCounts } from "@/components/dashboard/dashboard-status-counts";
+import { projectDescription } from "@/components/dashboard/project-description";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
-import { Card, EmptyState, PageHeader, formatDateTime } from "@/components/ui";
+import { Card, EmptyState, PageHeader } from "@/components/ui";
 import {
   prioritizeClusters,
   prioritizeFindings,
 } from "@/core/prioritization";
-import type { Project, RequirementStatus } from "@/core/types";
+import type { RequirementStatus } from "@/core/types";
 import {
-  markAlertReadAction,
   resetProjectAction,
   runAssessmentAction,
-} from "@/server/actions";
+} from "@/server/actions/assessment";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { controlById, getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
-
-const STATUS_ORDER: RequirementStatus[] = [
-  "failed",
-  "needs_review",
-  "passed",
-  "not_applicable",
-  "unable_to_verify",
-];
-
-function projectDescription(
-  project: Project,
-  latestAssessment: { completedAt: string; filesScanned: number } | undefined,
-  orgName?: string,
-): string {
-  let sourceBit: string;
-  switch (project.source) {
-    case "github":
-      sourceBit = `GitHub ${project.github?.fullName ?? project.sourceRef ?? "repo"}`;
-      break;
-    case "git":
-      sourceBit = `cloned from ${project.sourceRef ?? "git"}`;
-      break;
-    case "local":
-      sourceBit = project.rootPath;
-      break;
-    case "sample":
-      sourceBit = "sample workspace";
-      break;
-    default: {
-      const _exhaustive: never = project.source;
-      throw new Error(`Unhandled project source: ${_exhaustive}`);
-    }
-  }
-  const assessmentBit = latestAssessment
-    ? `last assessed ${formatDateTime(latestAssessment.completedAt)}, ${latestAssessment.filesScanned} files scanned`
-    : "not assessed yet";
-  const orgBit = orgName ? ` · org ${orgName}` : "";
-  return `Project "${project.name}" (${sourceBit}${orgBit}) — ${assessmentBit}`;
-}
 
 export default async function DashboardPage() {
   const { db, project, access } = await getWorkspace();
@@ -147,164 +106,16 @@ export default async function DashboardPage() {
         </EmptyState>
       ) : (
         <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {STATUS_ORDER.map((status) => (
-              <Card key={status}>
-                <p className="text-3xl font-semibold">{counts.get(status) ?? 0}</p>
-                <div className="mt-2">
-                  <RequirementStatusBadge status={status} />
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          {unreadAlerts.length > 0 ? (
-            <Card title="Regression alerts" className="border-red-200">
-              <ul className="flex flex-col gap-3">
-                {unreadAlerts.map((alert) => (
-                  <li
-                    key={alert.id}
-                    className="flex flex-wrap items-start justify-between gap-3 text-sm text-red-800"
-                  >
-                    <div>
-                      <p>{alert.summary}</p>
-                      {(() => {
-                        const bits: string[] = [];
-                        if (typeof alert.detail?.trigger === "string") {
-                          bits.push(`Trigger: ${alert.detail.trigger}`);
-                        }
-                        if (
-                          typeof alert.detail?.from === "string" &&
-                          typeof alert.detail?.to === "string"
-                        ) {
-                          bits.push(`${alert.detail.from} → ${alert.detail.to}`);
-                        }
-                        if (typeof alert.detail?.changeContext === "string") {
-                          bits.push(alert.detail.changeContext);
-                        }
-                        if (bits.length === 0) return null;
-                        return (
-                          <p className="mt-1 text-xs text-red-700/80">
-                            {bits.join(" · ")}
-                          </p>
-                        );
-                      })()}
-                      <p className="mt-0.5 text-xs text-zinc-500">
-                        {formatDateTime(alert.at)}
-                      </p>
-                    </div>
-                    <StatefulActionForm
-                      action={markAlertReadAction}
-                      submitLabel="Dismiss"
-                      pendingLabel="Dismissing…"
-                      submitClassName="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-50"
-                    >
-                      <input type="hidden" name="alertId" value={alert.id} />
-                    </StatefulActionForm>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ) : null}
-
-          {regressions.length > 0 ? (
-            <Card title="Recent compliance regressions" className="border-red-200">
-              <ul className="flex flex-col gap-2">
-                {regressions.map((record) => (
-                  <li key={record.id} className="text-sm text-red-800">
-                    {record.summary}
-                    <span className="ml-2 text-xs text-zinc-500">
-                      {formatDateTime(record.at)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ) : null}
-
-          {recentChanges.length > 0 ? (
-            <Card title="Changes since previous assessment">
-              <ul className="flex flex-col gap-2">
-                {recentChanges.slice(0, 8).map((change) => (
-                  <li
-                    key={change.filePath}
-                    className="font-mono text-sm text-zinc-700"
-                  >
-                    {change.filePath}
-                    {change.author ? (
-                      <span className="ml-2 font-sans text-xs text-zinc-500">
-                        {change.author}
-                        {change.commitSubject
-                          ? ` — ${change.commitSubject}`
-                          : ""}
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ) : null}
-
-          {clusters.length > 0 ? (
-            <Card title="Likely shared root causes">
-              <ul className="flex flex-col gap-2">
-                {clusters.map((cluster) => (
-                  <li key={cluster.id} className="text-sm text-zinc-700">
-                    <Link href="/findings" className="hover:underline">
-                      {cluster.label}
-                    </Link>
-                    <span className="ml-2 text-xs text-zinc-500">
-                      {cluster.findingIds.length} findings
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ) : null}
-
-          <Card title="Needs attention">
-            {openFindings.length === 0 ? (
-              <p className="text-sm text-zinc-500">
-                No open findings. Everything detected has been fixed, verified, or
-                reviewed.
-              </p>
-            ) : (
-              <ul className="divide-y divide-zinc-100">
-                {openFindings.slice(0, 6).map((finding) => {
-                  const control = controlById(db, finding.controlId);
-                  return (
-                    <li key={finding.id} className="py-3 first:pt-0 last:pb-0">
-                      <Link
-                        href={`/findings/${finding.id}`}
-                        className="group flex flex-wrap items-center gap-3"
-                      >
-                        <SeverityBadge severity={finding.severity} />
-                        <span className="text-sm font-medium group-hover:underline">
-                          {control.code} — {control.title}
-                        </span>
-                        <span className="font-mono text-xs text-zinc-500">
-                          {finding.location.filePath}:{finding.location.line}
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
-
-          <Card title="Recent activity">
-            <ul className="flex flex-col gap-2">
-              {recentEvidence.map((record) => (
-                <li key={record.id} className="text-sm text-zinc-600">
-                  {record.summary}
-                  <span className="ml-2 text-xs text-zinc-500">
-                    {formatDateTime(record.at)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Card>
+          <DashboardStatusCounts counts={counts} />
+          <DashboardAlertsCard alerts={unreadAlerts} />
+          <DashboardActivitySections
+            regressions={regressions}
+            recentChanges={recentChanges}
+            clusters={clusters}
+            openFindings={openFindings}
+            recentEvidence={recentEvidence}
+            controlById={(controlId) => controlById(db, controlId)}
+          />
         </div>
       )}
     </>

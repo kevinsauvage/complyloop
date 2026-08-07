@@ -1,7 +1,7 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
 import { isProductionRuntime } from "@/auth-secret";
-import { ConnectError } from "./connect";
+import { ConnectError } from "./connect-url";
 import type { GitHubRepoSummary } from "./github";
 import { octokitErrorMessage } from "./octokit";
 

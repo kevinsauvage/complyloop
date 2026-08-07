@@ -1,7 +1,7 @@
 "use client";
 
 import type { Project } from "@/core/types";
-import { switchProjectAction } from "@/server/actions";
+import { switchProjectAction } from "@/server/actions/connect";
 
 function sourceLabel(project: Project): string {
   switch (project.source) {
