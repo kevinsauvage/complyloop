@@ -2,7 +2,7 @@ import { createAppAuth } from "@octokit/auth-app";
 import type { Octokit } from "@octokit/rest";
 import { isProductionRuntime } from "@/auth-secret";
 import { normalizeGitHubFullName } from "./connect-github";
-import { ConnectError } from "./connect-url";
+import { ConnectError } from "./connect-error";
 import {
   filterReposByQuery,
   mapGitHubRepo,

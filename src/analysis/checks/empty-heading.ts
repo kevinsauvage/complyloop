@@ -1,6 +1,6 @@
 import ts from "typescript";
+import { hasAriaName } from "../jsx-primitives";
 import {
-  getAttribute,
   hasTextContent,
   locationOf,
   tagNameOf,
@@ -10,20 +10,13 @@ import type { AccessibilityCheck, RawFinding } from "../types";
 
 const HEADING = /^h[1-6]$/i;
 
-function hasAriaName(node: ts.JsxOpeningElement | ts.JsxSelfClosingElement): boolean {
-  return (
-    getAttribute(node, "aria-label") !== undefined ||
-    getAttribute(node, "aria-labelledby") !== undefined
-  );
-}
-
 export const emptyHeadingCheck: AccessibilityCheck = {
   id: "empty-heading",
   run(source) {
     const findings: RawFinding[] = [];
     visitJsxTags(source.sourceFile, (node) => {
       if (!HEADING.test(tagNameOf(node))) return;
-      if (hasAriaName(node)) return;
+      if (hasAriaName(node, { includeTitle: false })) return;
 
       if (ts.isJsxSelfClosingElement(node)) {
         findings.push({

@@ -1,4 +1,4 @@
-import { ConnectError } from "./connect-url";
+import { ConnectError } from "./connect-error";
 
 export interface GitHubRepoSummary {
   fullName: string;

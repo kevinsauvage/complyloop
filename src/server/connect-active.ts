@@ -1,6 +1,6 @@
 import type { Project } from "@/core/project-types";
 import type { Db } from "./db";
-import { ConnectError } from "./connect-url";
+import { ConnectError } from "./connect-error";
 import { accessFromStore, isProjectVisible } from "./project-visibility";
 
 /** Validates the viewer can access `projectId` (active selection is cookie-scoped). */

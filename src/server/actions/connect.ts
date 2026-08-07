@@ -5,10 +5,12 @@ import {
   connectFormError,
   formError,
   formSuccess,
+  readFormString,
+  requireFormString,
   type FormErrorState,
 } from "../action-state";
-import { writeActiveProjectCookie } from "../active-project";
-import { ConnectError } from "../connect-url";
+import { writeActiveProjectCookie } from "../active-cookies";
+import { ConnectError } from "../connect-error";
 import { setActiveProject } from "../connect-active";
 import {
   connectGitHubRepo,
@@ -30,10 +32,11 @@ export type ConnectGitHubFormState = FormErrorState;
 export type DisconnectGitHubFormState = FormErrorState;
 
 export async function switchProjectAction(formData: FormData): Promise<void> {
-  const projectId = formData.get("projectId");
-  if (typeof projectId !== "string" || projectId.length === 0) {
-    throw new Error("A project id is required.");
-  }
+  const projectId = requireFormString(
+    formData,
+    "projectId",
+    "A project id is required.",
+  );
   await withWorkspaceWrite(({ db, userId }) => {
     setActiveProject(db, projectId, userId);
   });
@@ -45,8 +48,8 @@ export async function connectGitHubRepoAction(
   _previous: ConnectGitHubFormState,
   formData: FormData,
 ): Promise<ConnectGitHubFormState> {
-  const fullNameRaw = formData.get("fullName");
-  if (typeof fullNameRaw !== "string" || fullNameRaw.trim().length === 0) {
+  const fullNameRaw = readFormString(formData, "fullName");
+  if (fullNameRaw == null || fullNameRaw.trim().length === 0) {
     return formError("Select a GitHub repository.");
   }
   const fullName = fullNameRaw.trim();
@@ -63,11 +66,9 @@ export async function connectGitHubRepoAction(
     throw error;
   }
 
-  const installationIdRaw = formData.get("installationId");
+  const installationIdRaw = readFormString(formData, "installationId");
   const claimedInstallationId =
-    typeof installationIdRaw === "string" && installationIdRaw.length > 0
-      ? Number(installationIdRaw)
-      : undefined;
+    installationIdRaw != null ? Number(installationIdRaw) : undefined;
 
   try {
     const userAccessToken = await getGitHubAccessToken();
@@ -134,8 +135,8 @@ export async function disconnectGitHubRepoAction(
   _previous: DisconnectGitHubFormState,
   formData: FormData,
 ): Promise<DisconnectGitHubFormState> {
-  const projectIdRaw = formData.get("projectId");
-  if (typeof projectIdRaw !== "string" || projectIdRaw.length === 0) {
+  const projectIdRaw = readFormString(formData, "projectId");
+  if (projectIdRaw == null) {
     return formError("Select a connected project to disconnect.");
   }
 

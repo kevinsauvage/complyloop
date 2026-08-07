@@ -5,9 +5,11 @@ import {
   emptyActionMessageState,
   formError,
   formSuccess,
+  readFormString,
+  requireFormString,
   runActionMessage,
 } from "./action-state";
-import { ConnectError } from "./connect-url";
+import { ConnectError } from "./connect-error";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -67,5 +69,24 @@ describe("connectFormError", () => {
 
   it("rethrows unexpected errors", () => {
     expect(() => connectFormError(new Error("boom"))).toThrow("boom");
+  });
+});
+
+describe("readFormString / requireFormString", () => {
+  it("reads non-empty string fields", () => {
+    const formData = new FormData();
+    formData.set("orgId", "org-1");
+    expect(readFormString(formData, "orgId")).toBe("org-1");
+    expect(requireFormString(formData, "orgId", "required")).toBe("org-1");
+  });
+
+  it("treats missing and empty values as absent", () => {
+    const formData = new FormData();
+    formData.set("orgId", "");
+    expect(readFormString(formData, "orgId")).toBeNull();
+    expect(readFormString(formData, "missing")).toBeNull();
+    expect(() =>
+      requireFormString(formData, "orgId", "Organization id is required."),
+    ).toThrow("Organization id is required.");
   });
 });

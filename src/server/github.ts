@@ -1,4 +1,4 @@
-import { ConnectError } from "./connect-url";
+import { ConnectError } from "./connect-error";
 import {
   isGitHubAppConfigured,
   listReposViaInstallations,

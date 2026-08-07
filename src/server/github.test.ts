@@ -1,24 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { githubCloneUrl } from "./connect-github";
 import { listGitHubRepos } from "./github";
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-});
-
-describe("githubCloneUrl", () => {
-  it("embeds the token for HTTPS clone without storing it", () => {
-    expect(githubCloneUrl("acme/shop", "gho_secret")).toBe(
-      "https://x-access-token:gho_secret@github.com/acme/shop.git",
-    );
-  });
-
-  it("URL-encodes special characters in the token", () => {
-    expect(githubCloneUrl("acme/shop", "a/b")).toContain(
-      "x-access-token:a%2Fb@",
-    );
-  });
 });
 
 describe("listGitHubRepos", () => {

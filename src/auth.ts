@@ -13,8 +13,6 @@ import {
   storeUserGitHubToken,
 } from "@/server/github-tokens";
 
-export { resolveAuthSecret } from "@/auth-secret";
-
 /** True when GitHub OAuth env vars are present — otherwise sign-in is hidden. */
 export function isGitHubAuthConfigured(): boolean {
   return Boolean(
@@ -28,7 +26,7 @@ export function isGitHubAuthConfigured(): boolean {
  * Fail loud when serving in production without AUTH_URL.
  * Skips the Next.js production-build phase so `next build` still works.
  */
-export function assertProductionAuthUrl(): void {
+function assertProductionAuthUrl(): void {
   if (!isProductionRuntime()) return;
   if (!isGitHubAuthConfigured()) return;
   if (!process.env.AUTH_URL) {

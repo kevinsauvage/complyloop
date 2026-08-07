@@ -1,5 +1,5 @@
 import ts from "typescript";
-import type { JsxTagNode } from "./parse";
+import { getAttribute, type JsxTagNode } from "./parse";
 
 /**
  * True when the element spreads props onto a host tag (typical design-system
@@ -9,5 +9,21 @@ import type { JsxTagNode } from "./parse";
 export function isPropSpreadingHost(node: JsxTagNode): boolean {
   return node.attributes.properties.some((prop) =>
     ts.isJsxSpreadAttribute(prop),
+  );
+}
+
+/**
+ * Accessible-name ARIA attributes. `title` is included by default (buttons /
+ * links); headings typically ignore it.
+ */
+export function hasAriaName(
+  node: JsxTagNode,
+  options: { includeTitle?: boolean } = {},
+): boolean {
+  const includeTitle = options.includeTitle !== false;
+  return (
+    getAttribute(node, "aria-label") !== undefined ||
+    getAttribute(node, "aria-labelledby") !== undefined ||
+    (includeTitle && getAttribute(node, "title") !== undefined)
   );
 }

@@ -21,13 +21,6 @@ type GlobalDb = {
 /** Survive Turbopack/HMR so we do not leak a new pool on every reload. */
 const globalForDb = globalThis as typeof globalThis & GlobalDb;
 
-export async function createDrizzleClient(
-  connectionString: string,
-): Promise<DrizzleDb> {
-  const sql = await createPostgresClient(connectionString, { max: POOL_MAX });
-  return drizzle(sql, { schema });
-}
-
 /** Lazy singleton for the app process (and across HMR in dev). */
 export async function getDrizzle(): Promise<DrizzleDb> {
   if (globalForDb.__complyloopDb) return globalForDb.__complyloopDb;

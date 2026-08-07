@@ -4,7 +4,7 @@ import { hasSourceFiles } from "@/analysis/source-files";
 import type { Project } from "@/core/project-types";
 import { addEvidence, type Db } from "./db";
 import { createGit } from "./git";
-import { ConnectError } from "./connect-url";
+import { ConnectError } from "./connect-error";
 
 /** Builds an authenticated HTTPS clone URL for GitHub (token never stored). */
 export function githubCloneUrl(fullName: string, accessToken: string): string {

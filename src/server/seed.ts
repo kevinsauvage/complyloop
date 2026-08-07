@@ -14,7 +14,7 @@ function isRetiredNonGitHubProject(project: Project): boolean {
  * Drops retired sample/local/git projects and their scoped records from older
  * stores. Evidence rows are left for audit history.
  */
-export function purgeNonGitHubProjects(db: Db): boolean {
+function purgeNonGitHubProjects(db: Db): boolean {
   const retiredIds = [
     ...db.projects
       .filter((project) => isRetiredNonGitHubProject(project))

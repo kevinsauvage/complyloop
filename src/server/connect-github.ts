@@ -2,7 +2,7 @@ import type { Project, ProjectGitHubMeta } from "@/core/project-types";
 import { canOnProject } from "@/core/rbac";
 import { addEvidence, type Db } from "./db";
 import { defaultOrgIdForUser } from "./orgs";
-import { ConnectError } from "./connect-url";
+import { ConnectError } from "./connect-error";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
 import { removeProjectScopedRecords } from "./project-cascade";
 import { withRepoCheckout } from "./repo-checkout";
@@ -10,11 +10,8 @@ import {
   addConnectedProject,
   assertAssessableRoot,
   deriveProjectName,
-  githubCloneUrl,
   uniqueProjectName,
 } from "./connect-shared";
-
-export { githubCloneUrl };
 
 /** GitHub full names are case-insensitive; normalize for map keys and equality. */
 export function normalizeGitHubFullName(fullName: string): string {

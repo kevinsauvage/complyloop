@@ -5,7 +5,7 @@ import path from "node:path";
 import { listSourceFiles } from "@/analysis/source-files";
 import type { AssessmentSnapshot, FileChange } from "@/core/finding-types";
 
-export function hashFileContents(absolutePath: string): string {
+function hashFileContents(absolutePath: string): string {
   const buffer = fs.readFileSync(absolutePath);
   return createHash("sha256").update(buffer).digest("hex");
 }

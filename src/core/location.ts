@@ -19,9 +19,3 @@ export function formatLocationRef(location: FindingLocation): string {
   }
   return `${location.url} › ${location.selector}`;
 }
-
-/** Clustering / grouping key for findings that share a place. */
-export function locationClusterKey(location: FindingLocation): string {
-  if (location.kind === "source") return location.filePath;
-  return location.url;
-}

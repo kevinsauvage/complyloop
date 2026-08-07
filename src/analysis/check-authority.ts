@@ -5,7 +5,7 @@ import type { CheckId } from "./types";
  * When a project has `runtimeBaseUrl`, runtime DOM results own status for these.
  * AST still runs in CI (`complyloop-check`) with primitive suppressions.
  */
-export const COMPOSITION_SENSITIVE_CHECK_IDS: ReadonlySet<CheckId> = new Set([
+const COMPOSITION_SENSITIVE_CHECK_IDS: ReadonlySet<CheckId> = new Set([
   "input-label",
   "button-name",
   "anchor-name",

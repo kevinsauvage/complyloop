@@ -1,4 +1,4 @@
-import type { OrgMembership, OrgRole, Organization, Project } from "@/core/project-types";
+import type { OrgMembership, OrgRole, Organization } from "@/core/project-types";
 import { isOrgRole } from "@/core/rbac";
 import type { Db } from "./db";
 import { slugifyOrgName, uniqueOrgSlug } from "./org-slug";
@@ -57,22 +57,12 @@ export function ensurePersonalOrg(
   }
 
   const label = githubLogin.trim() || userId.slice(0, 8);
-  const org: Organization = {
-    id: crypto.randomUUID(),
+  const org = pushOrgWithOwner(db, {
     name: `${label}'s workspace`,
-    slug: uniqueOrgSlug(db, slugifyOrgName(label)),
-    createdAt: new Date().toISOString(),
-  };
-  const membership: OrgMembership = {
-    id: crypto.randomUUID(),
-    orgId: org.id,
-    role: "owner",
-    userId,
+    slugBase: label,
+    ownerUserId: userId,
     githubLogin: label,
-    createdAt: new Date().toISOString(),
-  };
-  db.organizations.push(org);
-  db.memberships.push(membership);
+  });
   attachLegacyProjects(db, userId, org.id);
   return { org, changed: true };
 }
@@ -278,28 +268,40 @@ export function createOrganization(
   const login = input.githubLogin.trim();
   if (!login) throw new Error("GitHub login is required.");
 
+  return pushOrgWithOwner(db, {
+    name,
+    slugBase: name,
+    ownerUserId: input.creatorUserId,
+    githubLogin: login,
+  });
+}
+
+function pushOrgWithOwner(
+  db: Db,
+  input: {
+    name: string;
+    slugBase: string;
+    ownerUserId: string;
+    githubLogin: string;
+  },
+): Organization {
   const org: Organization = {
     id: crypto.randomUUID(),
-    name,
-    slug: uniqueOrgSlug(db, slugifyOrgName(name)),
+    name: input.name,
+    slug: uniqueOrgSlug(db, slugifyOrgName(input.slugBase)),
     createdAt: new Date().toISOString(),
   };
   const membership: OrgMembership = {
     id: crypto.randomUUID(),
     orgId: org.id,
     role: "owner",
-    userId: input.creatorUserId,
-    githubLogin: login,
+    userId: input.ownerUserId,
+    githubLogin: input.githubLogin,
     createdAt: new Date().toISOString(),
   };
   db.organizations.push(org);
   db.memberships.push(membership);
   return org;
-}
-
-export function projectOrg(db: Db, project: Project): Organization | undefined {
-  if (!project.orgId) return undefined;
-  return db.organizations.find((org) => org.id === project.orgId);
 }
 
 /** True when the user may invite/remove members for this org. */

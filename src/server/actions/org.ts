@@ -6,12 +6,16 @@ import type { OrgRole } from "@/core/project-types";
 import {
   formError,
   formSuccess,
+  readFormString,
+  requireFormString,
   runActionMessage,
   type ActionMessageState,
   type FormErrorState,
 } from "../action-state";
-import { writeActiveOrgCookie } from "../active-org";
-import { writeActiveProjectCookie } from "../active-project";
+import {
+  writeActiveOrgCookie,
+  writeActiveProjectCookie,
+} from "../active-cookies";
 import {
   canManageOrgMembers,
   changeOrgMemberRole,
@@ -33,10 +37,11 @@ export async function switchOrgAction(formData: FormData): Promise<void> {
   const userId = session?.user?.id;
   if (!userId) throw new Error("Sign in to switch organizations.");
 
-  const orgId = formData.get("orgId");
-  if (typeof orgId !== "string" || orgId.length === 0) {
-    throw new Error("An organization id is required.");
-  }
+  const orgId = requireFormString(
+    formData,
+    "orgId",
+    "An organization id is required.",
+  );
 
   let projectIdToActivate: string | null = null;
   await withWorkspaceWrite(({ organizations, db }) => {
@@ -66,8 +71,8 @@ export async function createOrgAction(
     return formError("Sign in with GitHub to create an organization.");
   }
 
-  const nameRaw = formData.get("name");
-  if (typeof nameRaw !== "string" || nameRaw.trim().length === 0) {
+  const nameRaw = readFormString(formData, "name");
+  if (nameRaw == null || nameRaw.trim().length === 0) {
     return formError("Enter an organization name.");
   }
 
@@ -97,13 +102,13 @@ export async function inviteOrgMemberAction(
   const userId = session?.user?.id;
   if (!userId) return formError("Sign in to manage organization members.");
 
-  const orgIdRaw = formData.get("orgId");
-  const loginRaw = formData.get("githubLogin");
+  const orgIdRaw = readFormString(formData, "orgId");
+  const loginRaw = readFormString(formData, "githubLogin");
   const roleRaw = formData.get("role");
-  if (typeof orgIdRaw !== "string" || orgIdRaw.length === 0) {
+  if (orgIdRaw == null) {
     return formError("Select an organization.");
   }
-  if (typeof loginRaw !== "string" || loginRaw.trim().length === 0) {
+  if (loginRaw == null || loginRaw.trim().length === 0) {
     return formError("Enter a GitHub username.");
   }
   if (!isOrgRole(roleRaw) || roleRaw === "owner") {
@@ -136,14 +141,16 @@ export async function removeOrgMemberAction(
     const userId = session?.user?.id;
     if (!userId) throw new Error("Sign in to manage organization members.");
 
-    const orgIdRaw = formData.get("orgId");
-    const membershipId = formData.get("membershipId");
-    if (typeof orgIdRaw !== "string" || orgIdRaw.length === 0) {
-      throw new Error("Organization id is required.");
-    }
-    if (typeof membershipId !== "string" || membershipId.length === 0) {
-      throw new Error("Membership id is required.");
-    }
+    const orgIdRaw = requireFormString(
+      formData,
+      "orgId",
+      "Organization id is required.",
+    );
+    const membershipId = requireFormString(
+      formData,
+      "membershipId",
+      "Membership id is required.",
+    );
 
     let revokedInvite = false;
     await withWorkspaceWrite(({ db }) => {
@@ -171,15 +178,17 @@ export async function changeOrgMemberRoleAction(
     const userId = session?.user?.id;
     if (!userId) throw new Error("Sign in to manage organization members.");
 
-    const orgIdRaw = formData.get("orgId");
-    const membershipId = formData.get("membershipId");
+    const orgIdRaw = requireFormString(
+      formData,
+      "orgId",
+      "Organization id is required.",
+    );
+    const membershipId = requireFormString(
+      formData,
+      "membershipId",
+      "Membership id is required.",
+    );
     const roleRaw = formData.get("role");
-    if (typeof orgIdRaw !== "string" || orgIdRaw.length === 0) {
-      throw new Error("Organization id is required.");
-    }
-    if (typeof membershipId !== "string" || membershipId.length === 0) {
-      throw new Error("Membership id is required.");
-    }
     if (!isOrgRole(roleRaw) || roleRaw === "owner") {
       throw new Error("Choose a role: admin, member, or viewer.");
     }
@@ -226,12 +235,12 @@ export async function deleteOrgAction(
     const userId = session?.user?.id;
     if (!userId) throw new Error("Sign in to delete an organization.");
 
-    const orgIdRaw = formData.get("orgId");
-    const confirm = formData.get("confirm");
-    if (typeof orgIdRaw !== "string" || orgIdRaw.length === 0) {
-      throw new Error("Organization id is required.");
-    }
-    if (confirm !== "DELETE") {
+    const orgIdRaw = requireFormString(
+      formData,
+      "orgId",
+      "Organization id is required.",
+    );
+    if (formData.get("confirm") !== "DELETE") {
       throw new Error('Type DELETE to confirm organization deletion.');
     }
 

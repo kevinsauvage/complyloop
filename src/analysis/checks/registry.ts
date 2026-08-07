@@ -28,7 +28,3 @@ export const allChecks: AccessibilityCheck[] = [
   formErrorAssociationCheck,
   ariaHiddenFocusableCheck,
 ];
-
-export function checkById(id: string): AccessibilityCheck | undefined {
-  return allChecks.find((check) => check.id === id);
-}

@@ -4,8 +4,8 @@ import { encode } from "next-auth/jwt";
 import type { BrowserContextOptions } from "@playwright/test";
 import {
   ACTIVE_ORG_COOKIE,
-} from "../src/server/active-org";
-import { ACTIVE_PROJECT_COOKIE } from "../src/server/active-project";
+  ACTIVE_PROJECT_COOKIE,
+} from "../src/server/active-cookies";
 import {
   E2E_ORG_ID,
   E2E_OWNER,

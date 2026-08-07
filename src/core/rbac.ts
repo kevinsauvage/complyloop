@@ -26,10 +26,6 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   ],
 };
 
-export function permissionsForRole(role: OrgRole): readonly Permission[] {
-  return ROLE_PERMISSIONS[role];
-}
-
 export function roleHasPermission(role: OrgRole, permission: Permission): boolean {
   return ROLE_PERMISSIONS[role].includes(permission);
 }
@@ -47,7 +43,7 @@ export function isOrgRole(value: unknown): value is OrgRole {
  * Resolves the caller's membership for a project's org, if any.
  * Legacy projects without orgId fall back to connector ownership.
  */
-export function membershipForProject(
+function membershipForProject(
   project: Project,
   memberships: ReadonlyArray<OrgMembership>,
   userId: string | null | undefined,

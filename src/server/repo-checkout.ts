@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import type { Project } from "@/core/project-types";
 import { cloneShallow, githubCloneUrl } from "./connect-shared";
-import { ConnectError } from "./connect-url";
+import { ConnectError } from "./connect-error";
 import {
   assertE2EFixtureRoot,
   isE2EHarnessEnabled,

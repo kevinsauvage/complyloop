@@ -3,6 +3,12 @@ import type { Control, Framework, Project, Requirement } from "@/core/project-ty
 import type { EvidenceRecord, Finding, Remediation } from "@/core/finding-types";
 import { formatLocationRef } from "@/core/location";
 import { requirementStatusLabel } from "@/core/labels";
+import type { Db } from "./db";
+import {
+  evidenceForProject,
+  findingsForProject,
+  requirementsForProject,
+} from "./project-visibility";
 
 export interface ReportInput {
   project: Project;
@@ -13,6 +19,27 @@ export interface ReportInput {
   remediations: Remediation[];
   evidence: EvidenceRecord[];
   exportedAt: string;
+}
+
+/** Builds report input for a project's current store snapshot. */
+export function reportInputForProject(db: Db, project: Project): ReportInput {
+  const findings = findingsForProject(db.findings, project.id);
+  const framework = db.frameworks[0];
+  if (!framework) {
+    throw new Error("No compliance framework is configured.");
+  }
+  return {
+    project,
+    framework,
+    controls: db.controls,
+    requirements: requirementsForProject(db.requirements, project.id),
+    findings,
+    remediations: db.remediations.filter((remediation) =>
+      findings.some((finding) => finding.id === remediation.findingId),
+    ),
+    evidence: evidenceForProject(db.evidence, project.id),
+    exportedAt: new Date().toISOString(),
+  };
 }
 
 function statusCounts(requirements: Requirement[]): Record<RequirementStatus, number> {

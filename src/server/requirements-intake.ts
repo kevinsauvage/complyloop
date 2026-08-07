@@ -4,7 +4,7 @@ import { addEvidence, type Db } from "./db";
 
 export const CUSTOM_FRAMEWORK_ID = "fw-custom";
 
-export function ensureCustomFramework(db: Db): Framework {
+function ensureCustomFramework(db: Db): Framework {
   let framework = db.frameworks.find(
     (candidate) => candidate.id === CUSTOM_FRAMEWORK_ID,
   );

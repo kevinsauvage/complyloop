@@ -1,11 +1,7 @@
 import {
-  evidenceForProject,
-  findingsForProject,
-  requirementsForProject,
-} from "@/server/project-visibility";
-import {
   buildComplianceReportHtml,
   buildComplianceReportMarkdown,
+  reportInputForProject,
 } from "@/server/report";
 import { getWorkspace } from "@/server/workspace";
 
@@ -16,21 +12,9 @@ export async function GET(): Promise<Response> {
   if (!project) {
     return new Response("No project connected.", { status: 404 });
   }
-  const projectFindings = findingsForProject(db.findings, project.id);
-  const markdown = buildComplianceReportMarkdown({
-    project,
-    framework: db.frameworks[0],
-    controls: db.controls,
-    requirements: requirementsForProject(db.requirements, project.id),
-    findings: projectFindings,
-    remediations: db.remediations.filter((remediation) =>
-      projectFindings.some(
-        (finding) => finding.id === remediation.findingId,
-      ),
-    ),
-    evidence: evidenceForProject(db.evidence, project.id),
-    exportedAt: new Date().toISOString(),
-  });
+  const markdown = buildComplianceReportMarkdown(
+    reportInputForProject(db, project),
+  );
 
   return new Response(buildComplianceReportHtml(markdown, project.name), {
     headers: {

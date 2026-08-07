@@ -81,7 +81,7 @@ export async function runAxeOnPage(page: Page): Promise<{
 }
 
 /** Default Playwright + axe-core page scanner. */
-export const playwrightAxeScanner: RuntimePageScanner = async (urls) => {
+const playwrightAxeScanner: RuntimePageScanner = async (urls) => {
   const browser = await getBrowser();
   const context = await browser.newContext();
   const pages: RuntimeScanPageResult[] = [];

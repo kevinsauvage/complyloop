@@ -2,8 +2,10 @@ import { cache } from "react";
 import { auth } from "@/auth";
 import type { Control, Organization, Project } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
-import { readActiveOrgCookie } from "./active-org";
-import { readActiveProjectCookie } from "./active-project";
+import {
+  readActiveOrgCookie,
+  readActiveProjectCookie,
+} from "./active-cookies";
 import { loadDb, withDbWrite, type Db } from "./db";
 import { ensurePersonalOrg, orgsForUser, resolveActiveOrgId } from "./orgs";
 import {
@@ -34,7 +36,7 @@ export interface Workspace {
  * Projects visible in the active org: that org's projects (and any still-unscoped
  * legacy projects with no orgId).
  */
-export function projectsForActiveOrg(
+function projectsForActiveOrg(
   projects: ReadonlyArray<Project>,
   access: AccessContext,
   activeOrgId: string | null,

@@ -5,10 +5,13 @@ import {
   connectedGitHubProjectsByFullName,
   disconnectGitHubRepo,
   findConnectedGitHubProject,
-  githubCloneUrl,
 } from "./connect-github";
 import { setActiveProject } from "./connect-active";
-import { deriveProjectName, uniqueProjectName } from "./connect-shared";
+import {
+  deriveProjectName,
+  githubCloneUrl,
+  uniqueProjectName,
+} from "./connect-shared";
 import { emptyDb, type Db } from "./db";
 
 function githubProject(
@@ -58,6 +61,12 @@ describe("githubCloneUrl", () => {
   it("embeds the token in an HTTPS clone URL", () => {
     expect(githubCloneUrl("acme/shop", "tok en")).toBe(
       "https://x-access-token:tok%20en@github.com/acme/shop.git",
+    );
+  });
+
+  it("URL-encodes special characters in the token", () => {
+    expect(githubCloneUrl("acme/shop", "a/b")).toContain(
+      "x-access-token:a%2Fb@",
     );
   });
 });

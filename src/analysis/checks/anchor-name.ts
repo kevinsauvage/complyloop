@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { isPropSpreadingHost } from "../jsx-primitives";
+import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives";
 import {
   getAttribute,
   hasTextContent,
@@ -7,17 +7,8 @@ import {
   spanOf,
   tagNameOf,
   visitJsxTags,
-  type JsxTagNode,
 } from "../parse";
 import type { AccessibilityCheck, RawFinding } from "../types";
-
-function hasAriaName(node: JsxTagNode): boolean {
-  return (
-    getAttribute(node, "aria-label") !== undefined ||
-    getAttribute(node, "aria-labelledby") !== undefined ||
-    getAttribute(node, "title") !== undefined
-  );
-}
 
 export const anchorNameCheck: AccessibilityCheck = {
   id: "anchor-name",

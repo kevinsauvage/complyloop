@@ -1,5 +1,5 @@
 import { reportError } from "./observability";
-import { ConnectError } from "./connect-url";
+import { ConnectError } from "./connect-error";
 
 export type ActionMessageState = {
   error: string | null;
@@ -20,6 +20,27 @@ export function formError(error: string): ActionMessageState {
 
 export function formSuccess(message: string): ActionMessageState {
   return { error: null, message };
+}
+
+/** Non-empty FormData string field, or null when missing/blank. */
+export function readFormString(
+  formData: FormData,
+  key: string,
+): string | null {
+  const value = formData.get(key);
+  if (typeof value !== "string" || value.length === 0) return null;
+  return value;
+}
+
+/** Non-empty FormData string field; throws when missing/blank. */
+export function requireFormString(
+  formData: FormData,
+  key: string,
+  message: string,
+): string {
+  const value = readFormString(formData, key);
+  if (value == null) throw new Error(message);
+  return value;
 }
 
 /** Maps a thrown Error into a form-state error (for useActionState handlers). */
