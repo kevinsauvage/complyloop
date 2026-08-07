@@ -54,6 +54,31 @@ describe("actionErrorState", () => {
     });
   });
 
+  it("maps runActionMessage failures through actionErrorState", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await expect(
+      runActionMessage(async () => {
+        throw new Error("Not allowed: missing permission project.connect.");
+      }),
+    ).resolves.toEqual({
+      error: "Not allowed: missing permission project.connect.",
+      message: null,
+    });
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("uses a generic message for non-Error throwables in runActionMessage", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await expect(
+      runActionMessage(async () => {
+        throw "unexpected";
+      }),
+    ).resolves.toEqual({
+      error: "Something went wrong.",
+      message: null,
+    });
+  });
+
   it("exposes an empty initial state", () => {
     expect(emptyActionMessageState).toEqual({ error: null, message: null });
   });

@@ -98,12 +98,8 @@ Useful improvements that should not block the initial controlled launch.
   - **Recommendation:** Add browser lifecycle controls, per-job time budgets, route limits, and metrics for pages scanned/failures.
   - **Acceptance criteria:** Runtime audits enforce max pages, max duration, and safe browser cleanup.
 
-- [ ] **Raise coverage thresholds around business-critical paths**
-  - **Problem:** Coverage thresholds are intentionally low and focused mainly on core/actions.
-  - **Why:** The highest-risk behavior is authorization, evidence, verification, GitHub connection, and webhook processing.
-  - **Location:** `vitest.config.mts`, `src/server/actions/*.test.ts`, `e2e/*.spec.ts`
-  - **Recommendation:** Add focused tests for webhook retry semantics, SSRF URL policy, account lifecycle, and safe error mapping before increasing thresholds.
-  - **Acceptance criteria:** New tests protect top launch risks; coverage thresholds increase without encouraging low-value snapshots.
+- [x] **Raise coverage thresholds around business-critical paths**
+  - **Done:** Focused suites for webhook route claim/retry semantics, SSRF (`url-safety`), org lifecycle actions/UI, and `actionErrorState` / `runActionMessage` mapping. Coverage include scoped to launch-risk modules; thresholds raised to lines/statements/functions 65, branches 50 (`vitest.config.mts`). Webhook post-claim retry safety remains a separate P1 fix.
 
 - [ ] **Turn the self-check workflow into a meaningful gate or remove it**
   - **Problem:** `.github/workflows/complyloop-check.yml` intentionally runs against known-bad testdata and uses `continue-on-error: true`.
@@ -217,10 +213,10 @@ Optional improvements with relatively low business impact.
 
 # Testing Gaps
 
-- Webhook retry/idempotency failure paths after delivery claim.
-- Safe public error mapping for unexpected server errors.
+- Webhook delivery status machine so failed post-claim handling can retry (behavior covered; fix still open as P1).
+- Sanitize unexpected server errors to generic public copy (current mapping covered; product-safe messages still open as P1).
 - Job lifecycle tests once background assessment work exists.
-- Higher-coverage action tests for org lifecycle, connect, runtime URL, AI, and PR flows.
+- Higher-coverage action tests for connect, runtime-audit settings, AI, and PR flows.
 - CI verification that `npm run build` succeeds on the intended production bundler path.
 
 # Production Checklist
