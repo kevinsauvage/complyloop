@@ -1,15 +1,25 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { STILL_FAILING_VERIFY_MESSAGE } from "@/server/verify-messages";
 
+const toastError = vi.fn();
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: (...args: unknown[]) => toastError(...args),
+  },
+}));
+
 afterEach(() => {
   cleanup();
+  toastError.mockClear();
 });
 
 describe("failed automated verification feedback", () => {
-  it("announces the still-failing message with role=alert", async () => {
+  it("toasts the still-failing message", async () => {
     const user = userEvent.setup();
     const action = vi.fn(async () => ({
       error: STILL_FAILING_VERIFY_MESSAGE,
@@ -29,7 +39,8 @@ describe("failed automated verification feedback", () => {
       screen.getByRole("button", { name: "Verify fix (automated re-check)" }),
     );
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(STILL_FAILING_VERIFY_MESSAGE);
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(STILL_FAILING_VERIFY_MESSAGE);
+    });
   });
 });

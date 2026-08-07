@@ -4,6 +4,8 @@ import { auth } from "@/auth";
 import { isOrgRole } from "@/core/rbac";
 import type { OrgRole } from "@/core/types";
 import {
+  formError,
+  formSuccess,
   runActionMessage,
   type ActionMessageState,
   type FormErrorState,
@@ -58,12 +60,12 @@ export async function createOrgAction(
   const userId = session?.user?.id;
   const githubLogin = session?.user?.login;
   if (!userId || !githubLogin) {
-    return { error: "Sign in with GitHub to create an organization." };
+    return formError("Sign in with GitHub to create an organization.");
   }
 
   const nameRaw = formData.get("name");
   if (typeof nameRaw !== "string" || nameRaw.trim().length === 0) {
-    return { error: "Enter an organization name." };
+    return formError("Enter an organization name.");
   }
 
   try {
@@ -76,12 +78,11 @@ export async function createOrgAction(
     );
     await writeActiveOrgCookie(org.id);
     refresh();
-    return { error: null };
+    return formSuccess(`Created organization "${org.name}".`);
   } catch (error) {
-    return {
-      error:
-        error instanceof Error ? error.message : "Could not create organization.",
-    };
+    return formError(
+      error instanceof Error ? error.message : "Could not create organization.",
+    );
   }
 }
 
@@ -91,19 +92,19 @@ export async function inviteOrgMemberAction(
 ): Promise<OrgMemberFormState> {
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) return { error: "Sign in to manage organization members." };
+  if (!userId) return formError("Sign in to manage organization members.");
 
   const orgIdRaw = formData.get("orgId");
   const loginRaw = formData.get("githubLogin");
   const roleRaw = formData.get("role");
   if (typeof orgIdRaw !== "string" || orgIdRaw.length === 0) {
-    return { error: "Select an organization." };
+    return formError("Select an organization.");
   }
   if (typeof loginRaw !== "string" || loginRaw.trim().length === 0) {
-    return { error: "Enter a GitHub username." };
+    return formError("Enter a GitHub username.");
   }
   if (!isOrgRole(roleRaw) || roleRaw === "owner") {
-    return { error: "Choose a role: admin, member, or viewer." };
+    return formError("Choose a role: admin, member, or viewer.");
   }
   const role: OrgRole = roleRaw;
 
@@ -115,11 +116,11 @@ export async function inviteOrgMemberAction(
       inviteOrgMember(db, orgIdRaw, userId, loginRaw, role);
     });
     refresh();
-    return { error: null };
+    return formSuccess(`Invited @${loginRaw.trim()} as ${role}.`);
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Invite failed.",
-    };
+    return formError(
+      error instanceof Error ? error.message : "Invite failed.",
+    );
   }
 }
 

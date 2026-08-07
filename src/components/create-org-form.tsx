@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useActionToast } from "@/hooks/use-action-toast";
 import type { CreateOrgFormState } from "@/server/actions/org";
 
-const initial: CreateOrgFormState = { error: null };
+const initial: CreateOrgFormState = { error: null, message: null };
 
 export function CreateOrgForm({
   action,
@@ -17,7 +18,7 @@ export function CreateOrgForm({
   ) => Promise<CreateOrgFormState>;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
-  const errorId = useId();
+  useActionToast(state);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -30,14 +31,8 @@ export function CreateOrgForm({
           required
           placeholder="Acme Engineering"
           aria-invalid={state.error ? true : undefined}
-          aria-describedby={state.error ? errorId : undefined}
         />
       </div>
-      {state.error ? (
-        <p id={errorId} className="text-sm text-destructive" role="alert">
-          {state.error}
-        </p>
-      ) : null}
       <Button type="submit" disabled={pending}>
         {pending ? "Creating…" : "Create organization"}
       </Button>

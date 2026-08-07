@@ -3,12 +3,21 @@ import {
   actionErrorState,
   connectFormError,
   emptyActionMessageState,
+  formError,
+  formSuccess,
   runActionMessage,
 } from "./action-state";
 import { ConnectError } from "./connect-url";
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("formError / formSuccess", () => {
+  it("builds toastable form states", () => {
+    expect(formError("Nope.")).toEqual({ error: "Nope.", message: null });
+    expect(formSuccess("Saved.")).toEqual({ error: null, message: "Saved." });
+  });
 });
 
 describe("actionErrorState", () => {
@@ -52,6 +61,7 @@ describe("connectFormError", () => {
   it("maps ConnectError to a form error state", () => {
     expect(connectFormError(new ConnectError("Bad path."))).toEqual({
       error: "Bad path.",
+      message: null,
     });
   });
 

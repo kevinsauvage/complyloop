@@ -2,11 +2,11 @@
 
 import { useActionState, useId, useMemo, useState } from "react";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useActionToast } from "@/hooks/use-action-toast";
 import {
   connectGitHubRepoAction,
   disconnectGitHubRepoAction,
@@ -15,8 +15,11 @@ import {
 } from "@/server/actions/connect";
 import type { GitHubRepoSummary } from "@/server/github";
 
-const connectInitial: ConnectGitHubFormState = { error: null };
-const disconnectInitial: DisconnectGitHubFormState = { error: null };
+const connectInitial: ConnectGitHubFormState = { error: null, message: null };
+const disconnectInitial: DisconnectGitHubFormState = {
+  error: null,
+  message: null,
+};
 
 export function GitHubRepoPicker({
   repos,
@@ -39,6 +42,8 @@ export function GitHubRepoPicker({
     disconnectGitHubRepoAction,
     disconnectInitial,
   );
+  useActionToast(connectState);
+  useActionToast(disconnectState);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -50,7 +55,6 @@ export function GitHubRepoPicker({
     );
   }, [repos, query]);
 
-  const error = connectState.error ?? disconnectState.error;
   const pending = connectPending || disconnectPending;
 
   if (repos.length === 0) {
@@ -85,12 +89,6 @@ export function GitHubRepoPicker({
           className="font-mono"
         />
       </div>
-
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
 
       <ul className="divide-y divide-border rounded-lg border border-border">
         {filtered.slice(0, 20).map((repo) => {

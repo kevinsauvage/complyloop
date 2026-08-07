@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useActionToast } from "@/hooks/use-action-toast";
 import type { OrgMemberFormState } from "@/server/actions/org";
 
-const initial: OrgMemberFormState = { error: null };
+const initial: OrgMemberFormState = { error: null, message: null };
 
 export function InviteMemberForm({
   action,
@@ -19,7 +20,7 @@ export function InviteMemberForm({
   orgId: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
-  const errorId = useId();
+  useActionToast(state);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -34,7 +35,6 @@ export function InviteMemberForm({
           required
           placeholder="octocat"
           aria-invalid={state.error ? true : undefined}
-          aria-describedby={state.error ? errorId : undefined}
         />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -50,11 +50,6 @@ export function InviteMemberForm({
           <option value="viewer">Viewer</option>
         </select>
       </div>
-      {state.error ? (
-        <p id={errorId} className="text-sm text-destructive" role="alert">
-          {state.error}
-        </p>
-      ) : null}
       <Button type="submit" disabled={pending}>
         {pending ? "Inviting…" : "Invite"}
       </Button>

@@ -3,8 +3,8 @@
 import { useActionState, useId, type ReactNode } from "react";
 import type { VariantProps } from "class-variance-authority";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { useActionToast } from "@/hooks/use-action-toast";
 import type { ActionMessageState } from "@/server/action-state";
 
 const initialState: ActionMessageState = { error: null, message: null };
@@ -39,22 +39,11 @@ export function StatefulActionForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formId = useId();
+  useActionToast(state);
 
   return (
     <form id={formId} action={formAction} className={className}>
       {children}
-      {state.error ? (
-        <Alert variant="destructive" className="mb-2">
-          <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      ) : null}
-      {state.message ? (
-        <Alert role="status" className="mb-2 border-emerald-500/30 bg-emerald-500/10">
-          <AlertDescription className="text-emerald-400">
-            {state.message}
-          </AlertDescription>
-        </Alert>
-      ) : null}
       <div>
         {confirmMessage ? (
           <ConfirmSubmitButton

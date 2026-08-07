@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useActionState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   createPullRequestAction,
@@ -17,6 +17,34 @@ const initial: CreatePrFormState = {
 export function CreatePrForm({ findingId }: { findingId: string }) {
   const action = createPullRequestAction.bind(null, findingId);
   const [state, formAction, pending] = useActionState(action, initial);
+  const lastKey = useRef<string | null>(null);
+
+  useEffect(() => {
+    const key = state.error
+      ? `error:${state.error}`
+      : state.message
+        ? `message:${state.message}:${state.prUrl ?? ""}`
+        : null;
+    if (key == null || key === lastKey.current) return;
+    lastKey.current = key;
+
+    if (state.error) {
+      toast.error(state.error);
+      return;
+    }
+    if (state.message) {
+      toast.success(state.message, {
+        action: state.prUrl
+          ? {
+              label: "Open PR",
+              onClick: () => {
+                window.open(state.prUrl!, "_blank", "noopener,noreferrer");
+              },
+            }
+          : undefined,
+      });
+    }
+  }, [state.error, state.message, state.prUrl]);
 
   return (
     <form action={formAction} className="mt-4 flex flex-col gap-2">
@@ -29,31 +57,6 @@ export function CreatePrForm({ findingId }: { findingId: string }) {
           {pending ? "Preparing…" : "Create branch / PR"}
         </Button>
       </div>
-      {state.error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      ) : null}
-      {state.message ? (
-        <Alert className="border-emerald-500/30 bg-emerald-500/10">
-          <AlertDescription className="text-emerald-400">
-            {state.message}
-            {state.prUrl ? (
-              <>
-                {" "}
-                <a
-                  href={state.prUrl}
-                  className="underline"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open PR
-                </a>
-              </>
-            ) : null}
-          </AlertDescription>
-        </Alert>
-      ) : null}
     </form>
   );
 }

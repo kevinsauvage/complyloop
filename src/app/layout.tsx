@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { AuthControls } from "@/components/auth-controls";
 import { WorkspaceContext } from "@/components/workspace-context";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           >
             {children}
           </AppShell>
+          <Toaster />
         </TooltipProvider>
       </body>
     </html>

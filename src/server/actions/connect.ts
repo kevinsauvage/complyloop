@@ -3,6 +3,8 @@
 import { auth, getGitHubAccessToken } from "@/auth";
 import {
   connectFormError,
+  formError,
+  formSuccess,
   type FormErrorState,
 } from "../action-state";
 import { writeActiveProjectCookie } from "../active-project";
@@ -43,14 +45,14 @@ export async function connectGitHubRepoAction(
 ): Promise<ConnectGitHubFormState> {
   const fullNameRaw = formData.get("fullName");
   if (typeof fullNameRaw !== "string" || fullNameRaw.trim().length === 0) {
-    return { error: "Select a GitHub repository." };
+    return formError("Select a GitHub repository.");
   }
   const fullName = fullNameRaw.trim();
 
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) {
-    return { error: "Sign in with GitHub to connect a repository." };
+    return formError("Sign in with GitHub to connect a repository.");
   }
 
   const installationIdRaw = formData.get("installationId");
@@ -68,10 +70,9 @@ export async function connectGitHubRepoAction(
     let accessToken: string | null = null;
     if (isGitHubAppConfigured()) {
       if (resolvedInstallationId == null) {
-        return {
-          error:
-            "Select a repository from a GitHub App installation (install the App on the target repos first).",
-        };
+        return formError(
+          "Select a repository from a GitHub App installation (install the App on the target repos first).",
+        );
       }
       accessToken = await createInstallationAccessToken(resolvedInstallationId);
     } else {
@@ -79,10 +80,9 @@ export async function connectGitHubRepoAction(
     }
 
     if (!accessToken) {
-      return {
-        error:
-          "GitHub access token missing. Sign out and sign in again to grant repo access.",
-      };
+      return formError(
+        "GitHub access token missing. Sign out and sign in again to grant repo access.",
+      );
     }
 
     const repo = await fetchGitHubRepo(accessToken, fullName);
@@ -117,7 +117,7 @@ export async function connectGitHubRepoAction(
       await writeActiveProjectCookie(project.id);
     });
     refresh();
-    return { error: null };
+    return formSuccess(`Connected ${repo.fullName}.`);
   } catch (error) {
     return connectFormError(error);
   }
@@ -129,18 +129,23 @@ export async function disconnectGitHubRepoAction(
 ): Promise<DisconnectGitHubFormState> {
   const projectIdRaw = formData.get("projectId");
   if (typeof projectIdRaw !== "string" || projectIdRaw.length === 0) {
-    return { error: "Select a connected project to disconnect." };
+    return formError("Select a connected project to disconnect.");
   }
 
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) {
-    return { error: "Sign in with GitHub to disconnect a repository." };
+    return formError("Sign in with GitHub to disconnect a repository.");
   }
 
   try {
     let nextProjectId: string | null = null;
+    let disconnectedName = "repository";
     await withWorkspaceWrite((workspace) => {
+      const project = workspace.db.projects.find(
+        (candidate) => candidate.id === projectIdRaw,
+      );
+      disconnectedName = project?.github?.fullName ?? project?.name ?? "repository";
       disconnectGitHubRepo(workspace.db, projectIdRaw, userId);
       nextProjectId = workspace.db.activeProjectId;
     });
@@ -148,7 +153,7 @@ export async function disconnectGitHubRepoAction(
       await writeActiveProjectCookie(nextProjectId);
     }
     refresh();
-    return { error: null };
+    return formSuccess(`Disconnected ${disconnectedName}.`);
   } catch (error) {
     return connectFormError(error);
   }
