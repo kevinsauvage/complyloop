@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Finding, OrgMembership, Project, Remediation } from "@/core/types";
+import type { OrgMembership, Project } from "@/core/project-types";
+import type { Finding, Remediation } from "@/core/finding-types";
 import { emptyActionMessageState } from "./action-state";
 import type { Db } from "./db";
 import type { Workspace } from "./workspace";
@@ -131,7 +132,6 @@ function workspaceFor(role: OrgMembership["role"]): Workspace {
     organizations: [{ id: "org-1", name: "Acme", slug: "acme", createdAt: "" }],
     memberships: [membership(role, userId)],
     projects: [project],
-    activeProjectId: project.id,
     requirements: [],
     assessments: [],
     findings: [{ ...finding }],

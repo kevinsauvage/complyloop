@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Project } from "@/core/types";
+import type { Project } from "@/core/project-types";
 import { resolveProjectGitHubToken } from "./github-access";
 
 const createInstallationAccessToken = vi.hoisted(() => vi.fn());

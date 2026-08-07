@@ -1,9 +1,9 @@
 "use server";
 
-import type { Dismissal } from "@/core/types";
+import type { Dismissal } from "@/core/finding-types";
 import { formatLocationRef } from "@/core/location";
 import {
-  actionErrorState,
+  runActionMessage,
   type ActionMessageState,
 } from "../action-state";
 import { refreshRequirementStatuses } from "../assessment-status";
@@ -24,7 +24,7 @@ export async function dismissFindingAction(
   _previous: ActionMessageState,
   formData: FormData,
 ): Promise<ActionMessageState> {
-  try {
+  return runActionMessage(async () => {
     await withWorkspaceWrite(async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
@@ -53,9 +53,6 @@ export async function dismissFindingAction(
       refreshRequirementStatuses(db, finding.projectId);
     });
     refresh();
-    return { error: null, message: "Finding dismissed." };
-  } catch (error) {
-    return actionErrorState(error);
-  }
+    return "Finding dismissed.";
+  });
 }
-

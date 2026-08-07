@@ -13,7 +13,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { Control, Requirement, RequirementStatus } from "@/core/types";
+import type { RequirementStatus } from "@/core/statuses";
+import type { Control, Requirement } from "@/core/project-types";
 import {
   clearRequirementExceptionAction,
   clearRequirementHumanPassAction,

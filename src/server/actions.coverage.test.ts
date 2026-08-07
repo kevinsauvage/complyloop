@@ -1,12 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type {
-  Control,
-  Finding,
-  OrgMembership,
-  Project,
-  Remediation,
-  Requirement,
-} from "@/core/types";
+import type { Control, OrgMembership, Project, Requirement } from "@/core/project-types";
+import type { Finding, Remediation } from "@/core/finding-types";
 import { emptyActionMessageState } from "./action-state";
 import type { Db } from "./db";
 import type { Workspace } from "./workspace";
@@ -61,8 +55,10 @@ vi.mock("./assessment-status", () => ({
     refreshRequirementStatuses(...args),
 }));
 
-import { verifyRemediationAction } from "./actions/remediation";
-import { markRemediationImplementedAction } from "./actions/remediation";
+import {
+  markRemediationImplementedAction,
+  verifyRemediationAction,
+} from "./actions/remediation-verify";
 import { dismissFindingAction } from "./actions/remediation-dismiss";
 import {
   clearRequirementExceptionAction,
@@ -139,7 +135,6 @@ function baseWorkspace(overrides: Partial<Db> = {}): Workspace {
     organizations: [{ id: "org-1", name: "Acme", slug: "acme", createdAt: "" }],
     memberships: [membership("member", userId)],
     projects: [project],
-    activeProjectId: project.id,
     requirements: [] as Requirement[],
     assessments: [],
     findings: [{ ...finding }],

@@ -1,9 +1,10 @@
-import type { Project, ProjectGitHubMeta } from "@/core/types";
+import type { Project, ProjectGitHubMeta } from "@/core/project-types";
 import { canOnProject } from "@/core/rbac";
 import { addEvidence, type Db } from "./db";
 import { defaultOrgIdForUser } from "./orgs";
 import { ConnectError } from "./connect-url";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
+import { removeProjectScopedRecords } from "./project-cascade";
 import { withRepoCheckout } from "./repo-checkout";
 import {
   addConnectedProject,
@@ -99,7 +100,6 @@ export async function connectGitHubRepo(
       (project.github?.fullName === fullName || project.sourceRef === sourceRef),
   );
   if (existing) {
-    db.activeProjectId = existing.id;
     return existing;
   }
 
@@ -141,12 +141,13 @@ export async function connectGitHubRepo(
 /**
  * Disconnects a GitHub project when the actor has `project.connect`:
  * drops project-scoped records and records evidence.
+ * Returns the next visible project id for the cookie (or null).
  */
 export function disconnectGitHubRepo(
   db: Db,
   projectId: string,
   userId: string,
-): void {
+): string | null {
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) {
     throw new ConnectError("Unknown project.");
@@ -161,24 +162,7 @@ export function disconnectGitHubRepo(
   }
 
   const fullName = project.github?.fullName ?? project.name;
-  const findingIds = new Set(
-    db.findings
-      .filter((finding) => finding.projectId === projectId)
-      .map((finding) => finding.id),
-  );
-
-  db.requirements = db.requirements.filter(
-    (requirement) => requirement.projectId !== projectId,
-  );
-  db.assessments = db.assessments.filter(
-    (assessment) => assessment.projectId !== projectId,
-  );
-  db.findings = db.findings.filter(
-    (finding) => finding.projectId !== projectId,
-  );
-  db.remediations = db.remediations.filter(
-    (remediation) => !findingIds.has(remediation.findingId),
-  );
+  removeProjectScopedRecords(db, projectId);
   db.projects = db.projects.filter((candidate) => candidate.id !== projectId);
 
   addEvidence(db, {
@@ -191,10 +175,11 @@ export function disconnectGitHubRepo(
     },
   });
 
-  const next = resolveActiveProject(
-    db.projects,
-    db.activeProjectId,
-    accessFromStore(db, userId),
+  return (
+    resolveActiveProject(
+      db.projects,
+      null,
+      accessFromStore(db, userId),
+    )?.id ?? null
   );
-  db.activeProjectId = next?.id ?? null;
 }

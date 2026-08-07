@@ -1,5 +1,5 @@
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
-import type { Alert } from "@/core/types";
+import type { Alert } from "@/core/finding-types";
 import { runAssessment } from "./assessment";
 import { addEvidence, loadDb, withDbWrite, type Db } from "./db";
 import {

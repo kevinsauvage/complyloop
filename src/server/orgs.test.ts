@@ -19,7 +19,6 @@ function emptyDb(): Db {
     organizations: [],
     memberships: [],
     projects: [],
-    activeProjectId: null,
     requirements: [],
     assessments: [],
     findings: [],

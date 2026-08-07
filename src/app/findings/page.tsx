@@ -24,7 +24,8 @@ import {
   prioritizeClusters,
   prioritizeFindings,
 } from "@/core/prioritization";
-import type { Finding, FindingStatus } from "@/core/types";
+import type { FindingStatus } from "@/core/statuses";
+import type { Finding } from "@/core/finding-types";
 import { findingsForProject } from "@/server/project-visibility";
 import {
   controlById,

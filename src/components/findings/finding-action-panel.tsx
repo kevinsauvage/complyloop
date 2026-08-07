@@ -3,14 +3,16 @@ import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { Finding, Remediation } from "@/core/types";
+import type { Finding, Remediation } from "@/core/finding-types";
 import {
   applyRemediationAction,
   approveRemediationAction,
+} from "@/server/actions/remediation";
+import {
   manualVerifyRemediationAction,
   markRemediationImplementedAction,
   verifyRemediationAction,
-} from "@/server/actions/remediation";
+} from "@/server/actions/remediation-verify";
 
 export function FindingActionPanel({
   finding,

@@ -1,10 +1,5 @@
-import type {
-  Confidence,
-  FindingKind,
-  FindingLocation,
-  ProposedFix,
-  Severity,
-} from "@/core/types";
+import type { Confidence, FindingKind, Severity } from "@/core/statuses";
+import type { FindingLocation, ProposedFix } from "@/core/finding-types";
 import type { ParsedSource } from "./parse";
 
 export type CheckId =

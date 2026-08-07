@@ -1,10 +1,7 @@
-import type { EvidenceRecord } from "@/core/types";
+import type { EvidenceRecord } from "@/core/finding-types";
 import { getDrizzle } from "./db-store/client";
 import { loadDbFromPostgres } from "./db-store/postgres-load";
-import {
-  persistDbToPostgres,
-  saveDbToPostgres,
-} from "./db-store/postgres-persist";
+import { persistDbToPostgres } from "./db-store/postgres-persist";
 import type { Db } from "./db-store/types";
 import {
   withPostgresAdvisoryLock,
@@ -23,10 +20,6 @@ export { emptyDb } from "./db-store/types";
  */
 export async function loadDb(): Promise<Db> {
   return loadDbFromPostgres(await getDrizzle());
-}
-
-export async function saveDb(db: Db): Promise<void> {
-  await saveDbToPostgres(await getDrizzle(), db);
 }
 
 /**

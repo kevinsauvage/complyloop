@@ -5,12 +5,7 @@ import { scanFile } from "@/analysis/scan";
 import type { RawFinding } from "@/analysis/types";
 import { resolveInside } from "@/analysis/workspace-path";
 import { isDomLocation, isSourceLocation } from "@/core/location";
-import type {
-  Finding,
-  FindingLocation,
-  ProposedFix,
-  RemediationSuggestion,
-} from "@/core/types";
+import type { Finding, FindingLocation, ProposedFix, RemediationSuggestion } from "@/core/finding-types";
 
 /**
  * Findings are matched across assessments by location identity so remediation

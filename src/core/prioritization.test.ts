@@ -4,7 +4,8 @@ import {
   prioritizeClusters,
   prioritizeFindings,
 } from "./prioritization";
-import type { Control, Finding } from "./types";
+import type { Control } from "./project-types";
+import type { Finding } from "./finding-types";
 
 function finding(
   id: string,

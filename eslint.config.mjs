@@ -21,8 +21,8 @@ const eslintConfig = defineConfig([
     },
   },
   // Override default ignores of eslint-config-next.
-  // `.data/` holds assessed clones; `packages/check/testdata` has deliberate
-  // accessibility violations for the CI check package — do not lint them.
+  // `.data/` is legacy local junk (gitignored); `packages/check/testdata` has
+  // deliberate accessibility violations for the CI check package — do not lint.
   globalIgnores([
     ".next/**",
     "out/**",

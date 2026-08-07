@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { isOrgRole } from "@/core/rbac";
-import type { OrgRole } from "@/core/types";
+import type { OrgRole } from "@/core/project-types";
 import {
   formError,
   formSuccess,

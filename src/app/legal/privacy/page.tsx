@@ -32,9 +32,10 @@ export default function PrivacyPage() {
           <h2 className="text-base font-medium text-foreground">Retention</h2>
           <p className="mt-2">
             Evidence is append-only and retained for the life of the project
-            record. Disconnecting a GitHub project removes the local clone and
-            project-scoped mutable records; evidence tied to that project may be
-            retained for audit history until deleted by an operator.
+            record. Disconnecting a GitHub project removes project-scoped
+            mutable records (requirements, assessments, findings, remediations,
+            alerts); evidence tied to that project may be retained for audit
+            history until deleted by an operator.
           </p>
         </section>
         <section>

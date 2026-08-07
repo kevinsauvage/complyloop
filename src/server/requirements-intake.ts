@@ -1,5 +1,5 @@
 import { presetById } from "@/adapters/rgaa/presets";
-import type { Control, Framework, Project } from "@/core/types";
+import type { Control, Framework, Project } from "@/core/project-types";
 import { addEvidence, type Db } from "./db";
 
 export const CUSTOM_FRAMEWORK_ID = "fw-custom";

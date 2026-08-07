@@ -1,11 +1,8 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import type {
-  Confidence,
-  Control,
-  Finding,
-  RemediationSuggestion,
-} from "@/core/types";
+import type { Confidence } from "@/core/statuses";
+import type { Control } from "@/core/project-types";
+import type { Finding, RemediationSuggestion } from "@/core/finding-types";
 import { formatLocationRef } from "@/core/location";
 import { reportWarning } from "@/server/observability";
 import { aiExplanationAvailable } from "./explainer";

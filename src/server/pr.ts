@@ -2,11 +2,13 @@ import fs from "node:fs";
 import { applyFix } from "@/analysis/fixes";
 import { resolveInside } from "@/analysis/workspace-path";
 import { isSourceLocation } from "@/core/location";
-import type { Control, Finding, Project, Remediation } from "@/core/types";
+import type { Control, Project } from "@/core/project-types";
+import type { Finding, Remediation } from "@/core/finding-types";
 import { locateViolationInProject, mergeFix } from "./assessment-helpers";
 import { githubCloneUrl } from "./connect-shared";
 import { createGit } from "./git";
 import { resolveProjectGitHubToken } from "./github-access";
+import { parseOwnerRepo } from "./github-repo";
 import { buildDeveloperHandoff } from "./handoff";
 import { createOctokit, octokitErrorMessage } from "./octokit";
 import { withProjectCheckout } from "./repo-checkout";
@@ -28,10 +30,7 @@ async function createPullRequestViaApi(options: {
   title: string;
   body: string;
 }): Promise<string> {
-  const [owner, repo] = options.fullName.split("/");
-  if (!owner || !repo) {
-    throw new Error(`Invalid repository full name: ${options.fullName}`);
-  }
+  const { owner, repo } = parseOwnerRepo(options.fullName);
   const octokit = createOctokit(options.accessToken);
   try {
     const { data } = await octokit.rest.pulls.create({

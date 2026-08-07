@@ -1,13 +1,6 @@
-import type {
-  Control,
-  EvidenceRecord,
-  Finding,
-  Framework,
-  Project,
-  Remediation,
-  Requirement,
-  RequirementStatus,
-} from "@/core/types";
+import type { RequirementStatus } from "@/core/statuses";
+import type { Control, Framework, Project, Requirement } from "@/core/project-types";
+import type { EvidenceRecord, Finding, Remediation } from "@/core/finding-types";
 import { formatLocationRef } from "@/core/location";
 import { requirementStatusLabel } from "@/core/labels";
 

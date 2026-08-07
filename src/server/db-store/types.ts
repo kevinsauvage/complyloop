@@ -1,20 +1,9 @@
-import type {
-  Alert,
-  Assessment,
-  Control,
-  EvidenceRecord,
-  Finding,
-  Framework,
-  OrgMembership,
-  Organization,
-  Project,
-  Remediation,
-  Requirement,
-} from "@/core/types";
+import type { Control, Framework, OrgMembership, Organization, Project, Requirement } from "@/core/project-types";
+import type { Alert, Assessment, EvidenceRecord, Finding, Remediation } from "@/core/finding-types";
 
 /**
  * In-memory persistence shape. Callers mutate this object and persist via
- * `withDbWrite` / `saveDb` (Postgres).
+ * `withDbWrite` (Postgres).
  */
 export interface Db {
   frameworks: Framework[];
@@ -22,8 +11,6 @@ export interface Db {
   organizations: Organization[];
   memberships: OrgMembership[];
   projects: Project[];
-  /** Which project the UI and actions currently target. */
-  activeProjectId: string | null;
   requirements: Requirement[];
   assessments: Assessment[];
   findings: Finding[];
@@ -40,7 +27,6 @@ export function emptyDb(): Db {
     organizations: [],
     memberships: [],
     projects: [],
-    activeProjectId: null,
     requirements: [],
     assessments: [],
     findings: [],

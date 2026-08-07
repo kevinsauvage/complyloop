@@ -6,22 +6,19 @@ export type ActionMessageState = {
   message: string | null;
 };
 
-/** Shared shape for forms that surface error and optional success copy. */
-export type FormErrorState = {
-  error: string | null;
-  message: string | null;
-};
+/** Shared shape alias used by connect/org forms. */
+export type FormErrorState = ActionMessageState;
 
 export const emptyActionMessageState: ActionMessageState = {
   error: null,
   message: null,
 };
 
-export function formError(error: string): FormErrorState {
+export function formError(error: string): ActionMessageState {
   return { error, message: null };
 }
 
-export function formSuccess(message: string): FormErrorState {
+export function formSuccess(message: string): ActionMessageState {
   return { error: null, message };
 }
 
@@ -50,7 +47,7 @@ export async function runActionMessage(
 }
 
 /** Maps ConnectError to form state; rethrows unexpected errors. */
-export function connectFormError(error: unknown): FormErrorState {
+export function connectFormError(error: unknown): ActionMessageState {
   if (error instanceof ConnectError) {
     return { error: error.message, message: null };
   }

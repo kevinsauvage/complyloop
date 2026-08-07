@@ -1,5 +1,5 @@
 import { formatDateTime } from "@/components/page-primitives";
-import type { Project } from "@/core/types";
+import type { Project } from "@/core/project-types";
 
 export function projectDescription(
   project: Project,

@@ -6,17 +6,21 @@ import { imgAltCheck } from "@/analysis/checks/img-alt";
 import { applyFix } from "@/analysis/fixes";
 import { parseSource } from "@/analysis/parse";
 import { scanFile } from "@/analysis/scan";
-import type { Control, Finding, Project, Remediation } from "@/core/types";
+import type { Control, Project } from "@/core/project-types";
+import type { Finding, Remediation } from "@/core/finding-types";
 import { locateViolationInProject, mergeFix } from "./assessment-helpers";
 import { createGit } from "./git";
 
 const withProjectCheckout = vi.hoisted(() =>
   vi.fn(
     async <T>(
-      _project: unknown,
+      project: unknown,
       fn: (rootPath: string) => Promise<T>,
-      _ref?: string,
+      ref?: string,
     ): Promise<T> => {
+      void project;
+      void fn;
+      void ref;
       throw new Error("withProjectCheckout mock not configured");
     },
   ),

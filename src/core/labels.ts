@@ -1,8 +1,4 @@
-import type {
-  RemediationStatus,
-  RequirementStatus,
-  Severity,
-} from "./types";
+import type { RemediationStatus, RequirementStatus, Severity } from "./statuses";
 
 export function requirementStatusLabel(status: RequirementStatus): string {
   switch (status) {

@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { isDomLocation } from "@/core/location";
-import type { Project } from "@/core/types";
+import type { Project } from "@/core/project-types";
 import { runAssessment } from "./assessment";
 import type { Db } from "./db";
 
@@ -32,7 +32,6 @@ describe("runAssessment with runtime engine", () => {
       organizations: [],
       memberships: [],
       projects: [project],
-      activeProjectId: project.id,
       requirements: rgaaControls.map((control) => ({
         id: `req-${control.id}`,
         projectId: project.id,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { OrgMembership, Project } from "@/core/types";
+import type { OrgMembership, Project } from "@/core/project-types";
 import { projectCapabilities } from "./project-capabilities";
 import type { AccessContext } from "./project-visibility";
 

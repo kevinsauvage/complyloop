@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { hasSourceFiles } from "@/analysis/source-files";
-import type { Project } from "@/core/types";
+import type { Project } from "@/core/project-types";
 import { addEvidence, type Db } from "./db";
 import { createGit } from "./git";
 import { ConnectError } from "./connect-url";
@@ -12,20 +12,9 @@ export function githubCloneUrl(fullName: string, accessToken: string): string {
   return `https://x-access-token:${encoded}@github.com/${fullName}.git`;
 }
 
-/** Turns a path or git URL into a short, filesystem-safe project name. */
-export function deriveProjectName(input: string): string {
-  const trimmed = input.trim().replace(/\/+$/, "");
-  let base: string;
-  if (trimmed.includes("://") || trimmed.startsWith("git@")) {
-    const withoutGitSuffix = trimmed.replace(/\.git$/i, "");
-    // SSH form: git@host:org/repo
-    const afterColon = withoutGitSuffix.includes(":")
-      ? withoutGitSuffix.slice(withoutGitSuffix.lastIndexOf(":") + 1)
-      : withoutGitSuffix;
-    base = afterColon.split("/").filter(Boolean).at(-1) ?? "project";
-  } else {
-    base = path.basename(trimmed);
-  }
+/** Short filesystem-safe name from a GitHub `owner/repo` full name. */
+export function deriveProjectName(fullName: string): string {
+  const base = fullName.trim().split("/").filter(Boolean).at(-1) ?? "project";
   const cleaned = base
     .replace(/[^a-zA-Z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
@@ -61,7 +50,6 @@ export function addConnectedProject(
   summary: string,
 ): Project {
   db.projects.push(project);
-  db.activeProjectId = project.id;
   addEvidence(db, {
     kind: "project_connected",
     summary,
@@ -87,15 +75,5 @@ export async function cloneShallow(
     fs.rmSync(rootPath, { recursive: true, force: true });
     const detail = error instanceof Error ? error.message : "unknown error";
     throw new ConnectError(`git clone failed: ${detail.trim().slice(0, 400)}`);
-  }
-}
-
-/** Asserts the clone is assessable; removes the directory on failure. */
-export function assertAssessableOrRemove(rootPath: string): void {
-  try {
-    assertAssessableRoot(rootPath);
-  } catch (error) {
-    fs.rmSync(rootPath, { recursive: true, force: true });
-    throw error;
   }
 }

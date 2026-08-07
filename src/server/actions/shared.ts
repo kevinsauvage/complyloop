@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { advanceRemediation } from "@/core/remediation";
-import type { Finding, Project } from "@/core/types";
+import type { Project } from "@/core/project-types";
+import type { Finding } from "@/core/finding-types";
 import { locateViolationInProject } from "../assessment-helpers";
 import type { Db } from "../db";
 import { assertProjectPermission } from "../project-visibility";

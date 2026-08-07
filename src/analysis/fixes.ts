@@ -1,4 +1,4 @@
-import type { ProposedFix } from "@/core/types";
+import type { ProposedFix } from "@/core/finding-types";
 
 export function applyFix(text: string, fix: ProposedFix): string {
   switch (fix.kind) {

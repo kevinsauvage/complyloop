@@ -6,18 +6,8 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
-import type {
-  Alert,
-  Assessment,
-  Control,
-  Finding,
-  Framework,
-  OrgMembership,
-  Organization,
-  Project,
-  Remediation,
-  Requirement,
-} from "@/core/types";
+import type { Control, Framework, OrgMembership, Organization, Project, Requirement } from "@/core/project-types";
+import type { Alert, Assessment, Finding, Remediation } from "@/core/finding-types";
 
 /**
  * Domain rows store the typed payload as JSONB so nested Finding/Remediation

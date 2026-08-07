@@ -3,7 +3,6 @@ import type { Db } from "./types";
 import type { DrizzleDb } from "./client";
 import {
   alerts,
-  appMeta,
   assessments,
   evidence,
   findings,
@@ -11,7 +10,6 @@ import {
   requirements,
 } from "./schema";
 import { evidenceRecordsToInsert, evidenceToRow } from "./postgres-evidence";
-import { ACTIVE_PROJECT_KEY } from "./postgres-meta";
 import { syncPayloadTable } from "./postgres-sync";
 
 export async function persistRuntimeToPostgres(
@@ -192,15 +190,4 @@ export async function persistRuntimeToPostgres(
       await tx.insert(evidence).values(fresh.map(evidenceToRow));
     }
   }
-
-  await tx
-    .insert(appMeta)
-    .values({
-      key: ACTIVE_PROJECT_KEY,
-      value: db.activeProjectId,
-    })
-    .onConflictDoUpdate({
-      target: appMeta.key,
-      set: { value: sql`excluded.value` },
-    });
 }

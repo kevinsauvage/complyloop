@@ -2,7 +2,7 @@ import Link from "next/link";
 import { RequirementStatusBadge } from "@/components/badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { RequirementStatus } from "@/core/types";
+import type { RequirementStatus } from "@/core/statuses";
 
 const STATUS_ORDER: RequirementStatus[] = [
   "failed",

@@ -1,6 +1,6 @@
 "use server";
 
-import type { Requirement, RequirementExceptionReason } from "@/core/types";
+import type { Requirement, RequirementExceptionReason } from "@/core/project-types";
 import {
   runActionMessage,
   type ActionMessageState,

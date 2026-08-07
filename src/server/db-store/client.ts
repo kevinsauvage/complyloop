@@ -21,10 +21,6 @@ type GlobalDb = {
 /** Survive Turbopack/HMR so we do not leak a new pool on every reload. */
 const globalForDb = globalThis as typeof globalThis & GlobalDb;
 
-export function isPostgresConfigured(): boolean {
-  return Boolean(process.env.DATABASE_URL?.trim());
-}
-
 export async function createDrizzleClient(
   connectionString: string,
 ): Promise<DrizzleDb> {

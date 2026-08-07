@@ -1,36 +1,14 @@
 import { createAppAuth } from "@octokit/auth-app";
-import { Octokit } from "@octokit/rest";
+import type { Octokit } from "@octokit/rest";
 import { isProductionRuntime } from "@/auth-secret";
 import { normalizeGitHubFullName } from "./connect-github";
 import { ConnectError } from "./connect-url";
-import type { GitHubRepoSummary } from "./github";
-import { octokitErrorMessage } from "./octokit";
-
-function mapRepo(
-  repo: {
-    full_name: string;
-    name: string;
-    description: string | null;
-    private: boolean;
-    default_branch?: string | null;
-    updated_at?: string | null;
-    html_url: string;
-    clone_url: string;
-  },
-  installationId: number,
-): GitHubRepoSummary {
-  return {
-    fullName: repo.full_name,
-    name: repo.name,
-    description: repo.description,
-    private: repo.private,
-    defaultBranch: repo.default_branch ?? "main",
-    updatedAt: repo.updated_at ?? "",
-    htmlUrl: repo.html_url,
-    cloneUrl: repo.clone_url,
-    installationId,
-  };
-}
+import {
+  filterReposByQuery,
+  mapGitHubRepo,
+  type GitHubRepoSummary,
+} from "./github-repo";
+import { createOctokit, octokitErrorMessage } from "./octokit";
 
 /** True when a GitHub App can mint per-installation tokens. */
 export function isGitHubAppConfigured(): boolean {
@@ -133,7 +111,7 @@ export async function resolveUserInstallationForRepo(options: {
   /** Optional client hint — rejected when not on the user's installations. */
   claimedInstallationId?: number;
 }): Promise<number> {
-  const octokit = new Octokit({ auth: options.userAccessToken });
+  const octokit = createOctokit(options.userAccessToken);
   const target = normalizeGitHubFullName(options.fullName);
 
   let installationIds: number[];
@@ -198,7 +176,7 @@ export async function listReposViaInstallations(options: {
   perPage?: number;
   q?: string;
 }): Promise<GitHubRepoSummary[]> {
-  const octokit = new Octokit({ auth: options.userAccessToken });
+  const octokit = createOctokit(options.userAccessToken);
   const perPage = Math.min(options.perPage ?? 50, 100);
   const repos: GitHubRepoSummary[] = [];
 
@@ -211,7 +189,7 @@ export async function listReposViaInstallations(options: {
         { installation_id: installationId, per_page: perPage },
       );
       for (const repo of installedRepos) {
-        repos.push(mapRepo(repo, installationId));
+        repos.push(mapGitHubRepo(repo, installationId));
       }
       if (repos.length >= perPage) break;
     }
@@ -221,14 +199,5 @@ export async function listReposViaInstallations(options: {
     );
   }
 
-  const q = options.q?.trim().toLowerCase();
-  const filtered = q
-    ? repos.filter(
-        (repo) =>
-          repo.fullName.toLowerCase().includes(q) ||
-          (repo.description?.toLowerCase().includes(q) ?? false),
-      )
-    : repos;
-
-  return filtered.slice(0, perPage);
+  return filterReposByQuery(repos, options.q).slice(0, perPage);
 }

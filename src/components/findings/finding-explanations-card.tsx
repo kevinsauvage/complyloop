@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import type { Finding } from "@/core/types";
+import type { Finding } from "@/core/finding-types";
 import { generateAiExplanationAction } from "@/server/actions/remediation-ai";
 
 export function FindingExplanationsCard({

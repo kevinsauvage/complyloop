@@ -1,4 +1,5 @@
-import type { Remediation, RemediationStatus } from "./types";
+import type { RemediationStatus } from "./statuses";
+import type { Remediation } from "./finding-types";
 
 export function canTransition(
   from: RemediationStatus,

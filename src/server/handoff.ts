@@ -3,13 +3,8 @@ import { createTwoFilesPatch } from "diff";
 import { applyFix } from "@/analysis/fixes";
 import { resolveInside } from "@/analysis/workspace-path";
 import { formatLocationRef, isSourceLocation } from "@/core/location";
-import type {
-  Control,
-  Finding,
-  Project,
-  ProposedFix,
-  Remediation,
-} from "@/core/types";
+import type { Control, Project } from "@/core/project-types";
+import type { Finding, ProposedFix, Remediation } from "@/core/finding-types";
 
 export interface DeveloperHandoff {
   title: string;

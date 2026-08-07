@@ -10,13 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatLocationRef } from "@/core/location";
-import type {
-  Control,
-  EvidenceRecord,
-  FileChange,
-  Finding,
-  FindingCluster,
-} from "@/core/types";
+import type { Control } from "@/core/project-types";
+import type { EvidenceRecord, FileChange, Finding, FindingCluster } from "@/core/finding-types";
 
 export function DashboardActivitySections({
   regressions,

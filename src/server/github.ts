@@ -3,42 +3,15 @@ import {
   isGitHubAppConfigured,
   listReposViaInstallations,
 } from "./github-app";
+import {
+  filterReposByQuery,
+  mapGitHubRepo,
+  parseOwnerRepo,
+  type GitHubRepoSummary,
+} from "./github-repo";
 import { createOctokit, octokitErrorMessage } from "./octokit";
 
-export interface GitHubRepoSummary {
-  fullName: string;
-  name: string;
-  description: string | null;
-  private: boolean;
-  defaultBranch: string;
-  updatedAt: string;
-  htmlUrl: string;
-  cloneUrl: string;
-  /** Present when listed via a GitHub App installation. */
-  installationId?: number;
-}
-
-function mapRepo(repo: {
-  full_name: string;
-  name: string;
-  description: string | null;
-  private: boolean;
-  default_branch?: string | null;
-  updated_at?: string | null;
-  html_url: string;
-  clone_url: string;
-}): GitHubRepoSummary {
-  return {
-    fullName: repo.full_name,
-    name: repo.name,
-    description: repo.description,
-    private: repo.private,
-    defaultBranch: repo.default_branch ?? "main",
-    updatedAt: repo.updated_at ?? "",
-    htmlUrl: repo.html_url,
-    cloneUrl: repo.clone_url,
-  };
-}
+export type { GitHubRepoSummary } from "./github-repo";
 
 /**
  * Lists repositories available to connect.
@@ -71,16 +44,7 @@ export async function listGitHubRepos(options: {
       page,
       per_page: perPage,
     });
-    let repos = data.map(mapRepo);
-    const q = options.q?.trim().toLowerCase();
-    if (q) {
-      repos = repos.filter(
-        (repo) =>
-          repo.fullName.toLowerCase().includes(q) ||
-          (repo.description?.toLowerCase().includes(q) ?? false),
-      );
-    }
-    return repos;
+    return filterReposByQuery(data.map((repo) => mapGitHubRepo(repo)), options.q);
   } catch (error) {
     throw new ConnectError(
       octokitErrorMessage(error, "GitHub API error"),
@@ -92,14 +56,11 @@ export async function fetchGitHubRepo(
   accessToken: string,
   fullName: string,
 ): Promise<GitHubRepoSummary> {
-  const [owner, repo] = fullName.split("/");
-  if (!owner || !repo) {
-    throw new ConnectError(`Invalid repository full name: ${fullName}`);
-  }
+  const { owner, repo } = parseOwnerRepo(fullName);
   const octokit = createOctokit(accessToken);
   try {
     const { data } = await octokit.rest.repos.get({ owner, repo });
-    return mapRepo(data);
+    return mapGitHubRepo(data);
   } catch (error) {
     throw new ConnectError(
       octokitErrorMessage(error, `Could not load repository ${fullName}`),

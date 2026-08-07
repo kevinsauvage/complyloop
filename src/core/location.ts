@@ -1,4 +1,4 @@
-import type { DomLocation, FindingLocation, SourceLocation } from "./types";
+import type { DomLocation, FindingLocation, SourceLocation } from "./finding-types";
 
 export function isSourceLocation(
   location: FindingLocation,

@@ -4,7 +4,8 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseSource } from "@/analysis/parse";
 import { imgAltCheck } from "@/analysis/checks/img-alt";
-import type { Control, Finding, Project, Remediation } from "@/core/types";
+import type { Control, Project } from "@/core/project-types";
+import type { Finding, Remediation } from "@/core/finding-types";
 import { buildDeveloperHandoff, buildDiffForFix } from "./handoff";
 
 const tempDirs: string[] = [];

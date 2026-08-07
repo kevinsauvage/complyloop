@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
-import type { Project } from "@/core/types";
+import type { Project } from "@/core/project-types";
 import type { Db } from "./db";
 import {
   CUSTOM_FRAMEWORK_ID,
@@ -17,7 +17,6 @@ function emptyDb(project: Project): Db {
     organizations: [],
     memberships: [],
     projects: [project],
-    activeProjectId: project.id,
     requirements: [],
     assessments: [],
     findings: [],

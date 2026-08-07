@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Control, Finding } from "@/core/types";
+import type { Control } from "@/core/project-types";
+import type { Finding } from "@/core/finding-types";
 import { deterministicExplanation, generateAiExplanation } from "./explainer";
 
 const reportWarning = vi.hoisted(() => vi.fn());

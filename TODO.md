@@ -8,12 +8,6 @@
 
 Issues that could prevent the product from being safely or professionally sold.
 
-- [x] **Bind GitHub App installation tokens to the authenticated user**
-  - **Done:** `resolveUserInstallationForRepo` verifies claimed installation ids against `listInstallationsForAuthenticatedUser` and confirms the target repo is on that install before `createInstallationAccessToken`. Foreign installation ids are rejected.
-
-- [x] **Postgres-only + ephemeral clone-per-job (was: lock topology / DATA_DIR)**
-  - **Done:** JSON/`DATA_DIR` removed; `DATABASE_URL` required. `withRepoCheckout` clones per assess/webhook/remediation/PR job into OS temp and deletes afterward. No durable workspace volume. See `docs/deploy.md` and `docs/ai/decisions.md`.
-
 - [ ] **Replace draft Terms & Privacy with counsel-reviewed legal**
   - **Problem:** `/legal/terms` and `/legal/privacy` are explicitly labeled draft / counsel-needed and incomplete for commercial sale (no DPA, subprocessors incomplete, no EU rights exercise path).
   - **Why:** Selling without enforceable ToS/Privacy (and GDPR basis where applicable) is a legal and trust blocker.
@@ -84,13 +78,8 @@ Important improvements for quality, maintainability, security, UX, or reliabilit
   - **Acceptance criteria:** AI buttons show pending; failures surface as `role="alert"`.
   - **Effort:** 🟡 Medium
 
-- [ ] **Move `shadcn` CLI out of runtime dependencies**
-  - **Problem:** `shadcn@4.16.2` is in `dependencies` but not imported by app code (~scaffold CLI only).
-  - **Why:** Inflates production install size and attack surface for no runtime benefit.
-  - **Location:** `package.json`
-  - **Recommendation:** Move to `devDependencies` or remove after components are generated; keep `radix-ui` / CVA as needed by `src/components/ui/*`.
-  - **Acceptance criteria:** Production `npm ci --omit=dev` no longer installs `shadcn` CLI; UI still builds.
-  - **Effort:** 🟢 Small
+- [x] **Move `shadcn` CLI out of runtime dependencies**
+  - **Done:** `shadcn` is in `devDependencies`; runtime UI uses generated `src/components/ui/*` + `radix-ui` / CVA.
 
 - [ ] **Playwright smoke of the core loop in CI**
   - **Problem:** ~52 unit tests; no browser e2e for connect → assess → remediate → verify → evidence.
@@ -109,7 +98,7 @@ Important improvements for quality, maintainability, security, UX, or reliabilit
   - **Effort:** 🟡 Medium
 
 - [ ] **Evidence append-only enforced beyond app convention**
-  - **Problem:** Postgres persist path inserts missing evidence ids only; no DB trigger/privilege denying UPDATE/DELETE. JSON store can rewrite the whole array.
+  - **Problem:** Postgres persist path inserts missing evidence ids only; no DB trigger/privilege denying UPDATE/DELETE.
   - **Why:** Accidental code or DBA ops can destroy audit trail — the product’s core promise.
   - **Location:** `src/server/db-store/postgres-persist-runtime.ts`, `drizzle/0000_init.sql`
   - **Recommendation:** DB role without UPDATE/DELETE on `evidence`, or trigger raising exception; document operator policy.
@@ -124,7 +113,7 @@ Useful improvements that should not block a carefully scoped initial pilot launc
 
 - [ ] **Replace whole-Db load/save with query-scoped persistence** (see Architecture Improvements) — required before ~1k tenants. **Effort:** 🔴 Very large
 - [ ] **Foreign keys, unique constraints, and indexes for hot paths** — e.g. membership `(org_id, user_id)` unique; indexes on `findings.status`, `remediations.finding_id`, `alerts.project_id`. **Location:** `drizzle/`, `src/server/db-store/schema.ts`. **Effort:** 🟡 Medium
-- [ ] **Clear orphan alerts on project disconnect** — findings pruned; alerts for `projectId` not cleared in `connect-github.ts`. **Effort:** 🟢 Small
+- [x] **Clear orphan alerts on project disconnect** — **Done:** `removeProjectScopedRecords` clears alerts on disconnect/purge.
 - [ ] **Assessment/evidence retention policy** — unbounded assessment payloads (`fileHashes`) and evidence growth. **Effort:** 🟠 Large
 - [x] **Tighten local-path connect if ever enabled** — **Done:** local/git connect removed (GitHub-only).
 - [ ] **Zod (or shared schemas) at server-action boundaries** — today mostly `FormData` + typeof; zod used mainly for AI. **Effort:** 🟠 Large
@@ -133,7 +122,7 @@ Useful improvements that should not block a carefully scoped initial pilot launc
 - [ ] **Coverage gate on core + actions** — `test:coverage` exists but CI has no threshold. **Effort:** 🟢 Small
 - [ ] **Stabilize Auth.js** — `next-auth@5.0.0-beta.32`; track stable release / security advisories. **Effort:** 🟡 Medium (wait + upgrade)
 - [ ] **Guided first-run onboarding** — connect GitHub App → first assessment checklist (beyond README). **Effort:** 🟠 Large
-- [ ] **Remove legacy `app_meta.activeProjectId` stomps** — UI uses cookies; global field still written on connect/seed. **Effort:** 🟢 Small
+- [x] **Remove legacy `app_meta.activeProjectId` stomps** — **Done:** cookie-only active project; field removed from `Db` / persist.
 - [ ] **Decouple `src/ai/` from `src/server/observability`** — inject logger at boundary. **Effort:** 🟢 Small
 
 ---
@@ -159,7 +148,7 @@ Optional improvements with relatively low near-term business impact.
 
 |                           |                                                                                                                                                                                                                                                                                                                                        |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Current architecture**  | Dual store (JSON or Postgres) still models the world as one in-memory `Db`. Every request can `loadDb()` all tables; every write re-syncs mutable tables under a **global** process mutex + `pg_advisory_xact_lock` (`src/server/db.ts`, `postgres-load.ts`, `write-lock.ts`). Postgres stores JSONB payloads + a few indexed columns. |
+| **Current architecture**  | Postgres-only store still models the world as one in-memory `Db`. Every request can `loadDb()` all tables; every write re-syncs mutable tables under a **global** process mutex + `pg_advisory_xact_lock` (`src/server/db.ts`, `postgres-load.ts`, `write-lock.ts`). Postgres stores JSONB payloads + a few indexed columns. |
 | **Problem**               | Throughput and memory scale with **total** tenant data, not the active project. One writer for all orgs. Pool max 3 (`client.ts`) reinforces serialization. Fine for demos; unsafe past small pilots.                                                                                                                                  |
 | **Proposed architecture** | Project-scoped repositories: load/mutate only the active org/project. Real columns for query filters; transactions per project write. Keep evidence insert-only. Retire whole-Db sync.                                                                                                                                                 |
 | **Migration strategy**    | 1) Add project-scoped read APIs beside `loadDb`. 2) Move hot paths (workspace, assessment persist) off full reload. 3) Stop pruning-via-full-upsert. 4) Drop in-memory `Db` as the write API.                                                                                                                                          |
@@ -201,11 +190,8 @@ Optional improvements with relatively low near-term business impact.
 | Item                                       | Notes                                                   |
 | ------------------------------------------ | ------------------------------------------------------- |
 | Whole-Db sync abstraction                  | Largest structural debt — see Architecture #1           |
-| Dual active project (cookie vs `app_meta`) | Confusing for new contributors                          |
 | Ad-hoc FormData validation                 | Inconsistent vs zod on AI paths                         |
-| Disconnect leaves alerts                   | Orphan rows                                             |
 | Shared unscoped projects ACL               | Intentional for demo; dangerous if left on in prod      |
-| `shadcn` as runtime dependency             | Packaging hygiene                                       |
 | Auth.js beta                               | Track upgrades                                          |
 | No e2e                                     | Unit-heavy, browser-light                               |
 | Assessment snapshot bloat                  | `fileHashes` in JSONB payloads                          |
@@ -283,7 +269,7 @@ CI today: lint, typecheck, unit test, build — good foundation, not sufficient 
 
 - [ ] Authentication — GitHub App + `AUTH_URL` + strong `AUTH_SECRET` in prod
 - [ ] Authorization — fix GitHub connect RBAC + installation binding (sample removed)
-- [ ] Security — rate limits; JWT token removal; DNS/allowlist git URLs; local connect off
+- [ ] Security — rate limits; JWT token removal; DNS/allowlist git URLs (local connect removed)
 - [ ] Validation — action-boundary schemas for connect/org ids at minimum
 - [ ] Error handling — user-safe messages; keep Sentry for internals
 - [ ] Logging — structured JSON on (already present)
@@ -346,7 +332,7 @@ CI today: lint, typecheck, unit test, build — good foundation, not sufficient 
 | Account deletion / export                    | 🟠 Large         |
 | A11y feedback polish                         | 🟢 Small         |
 | AI form pending/errors + loading UI          | 🟡 Medium        |
-| Move `shadcn` to devDependencies             | 🟢 Small         |
+| ~~Move `shadcn` to devDependencies~~         | Done             |
 | Playwright smoke e2e                         | 🟠 Large         |
 | Production monitoring baseline               | 🟡 Medium        |
 | Evidence DB append-only enforcement          | 🟡 Medium        |

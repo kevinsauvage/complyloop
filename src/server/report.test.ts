@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
-import type {
-  Finding,
-  Project,
-  Remediation,
-  Requirement,
-} from "@/core/types";
+import type { Project, Requirement } from "@/core/project-types";
+import type { Finding, Remediation } from "@/core/finding-types";
 import { buildComplianceReportMarkdown } from "./report";
 
 const project: Project = {

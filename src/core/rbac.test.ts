@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canOnProject, roleHasPermission } from "./rbac";
-import type { OrgMembership, Project } from "./types";
+import type { OrgMembership, Project } from "./project-types";
 
 const project: Project = {
   id: "p1",

@@ -1,10 +1,6 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
-import type { Project } from "@/core/types";
-import { isLikelyGitUrl } from "./connect-url";
+import type { Project } from "@/core/project-types";
 import {
   connectedGitHubProjectsByFullName,
   disconnectGitHubRepo,
@@ -12,31 +8,8 @@ import {
   githubCloneUrl,
 } from "./connect-github";
 import { setActiveProject } from "./connect-active";
-import {
-  assertAssessableOrRemove,
-  deriveProjectName,
-  uniqueProjectName,
-} from "./connect-shared";
+import { deriveProjectName, uniqueProjectName } from "./connect-shared";
 import { emptyDb, type Db } from "./db";
-
-const tempDirs: string[] = [];
-
-afterEach(() => {
-  for (const dir of tempDirs.splice(0)) {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-function makeProjectDir(files: Record<string, string>): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "connect-test-"));
-  tempDirs.push(root);
-  for (const [relative, contents] of Object.entries(files)) {
-    const absolute = path.join(root, relative);
-    fs.mkdirSync(path.dirname(absolute), { recursive: true });
-    fs.writeFileSync(absolute, contents);
-  }
-  return root;
-}
 
 function githubProject(
   partial: Pick<Project, "id" | "name"> &
@@ -62,12 +35,9 @@ function seededDb(): Db {
 }
 
 describe("deriveProjectName", () => {
-  it("uses the last path segment for paths and git URLs", () => {
-    expect(deriveProjectName("/Users/me/apps/my-shop")).toBe("my-shop");
-    expect(deriveProjectName("https://github.com/acme/my-shop.git")).toBe(
-      "my-shop",
-    );
-    expect(deriveProjectName("git@github.com:acme/my-shop.git")).toBe("my-shop");
+  it("uses the repo segment of a GitHub full name", () => {
+    expect(deriveProjectName("acme/my-shop")).toBe("my-shop");
+    expect(deriveProjectName("acme/my shop")).toBe("my-shop");
   });
 
   it("falls back to project when the name would be empty", () => {
@@ -81,14 +51,6 @@ describe("uniqueProjectName", () => {
     db.projects.push(githubProject({ id: "p1", name: "shop" }));
     expect(uniqueProjectName(db, "shop")).toBe("shop-2");
     expect(uniqueProjectName(db, "fresh")).toBe("fresh");
-  });
-});
-
-describe("assertAssessableOrRemove", () => {
-  it("removes a non-assessable clone directory", () => {
-    const root = makeProjectDir({ "README.md": "docs only\n" });
-    expect(() => assertAssessableOrRemove(root)).toThrow(/No .* source files/);
-    expect(fs.existsSync(root)).toBe(false);
   });
 });
 
@@ -142,17 +104,8 @@ describe("findConnectedGitHubProject", () => {
   });
 });
 
-describe("isLikelyGitUrl", () => {
-  it("recognizes common git remotes and rejects bare paths", () => {
-    expect(isLikelyGitUrl("https://github.com/acme/repo")).toBe(true);
-    expect(isLikelyGitUrl("git@github.com:acme/repo.git")).toBe(true);
-    expect(isLikelyGitUrl("/Users/me/apps/repo")).toBe(false);
-    expect(isLikelyGitUrl("C:\\Users\\me\\apps\\repo")).toBe(false);
-  });
-});
-
 describe("setActiveProject", () => {
-  it("switches the active project", () => {
+  it("returns an accessible project", () => {
     const db = seededDb();
     const projectA = githubProject({
       id: "a",
@@ -165,10 +118,8 @@ describe("setActiveProject", () => {
       ownerUserId: "user-a",
     });
     db.projects.push(projectA, projectB);
-    db.activeProjectId = projectB.id;
 
-    setActiveProject(db, projectA.id, "user-a");
-    expect(db.activeProjectId).toBe(projectA.id);
+    expect(setActiveProject(db, projectA.id, "user-a")).toBe(projectA);
   });
 
   it("rejects unknown and inaccessible projects", () => {
@@ -180,7 +131,6 @@ describe("setActiveProject", () => {
       ownerUserId: "owner-a",
     });
     db.projects.push(connected);
-    db.activeProjectId = connected.id;
 
     expect(() => setActiveProject(db, "missing")).toThrow(/Unknown project/);
     expect(() => setActiveProject(db, connected.id, "other-user")).toThrow(
@@ -205,7 +155,6 @@ describe("disconnectGitHubRepo", () => {
       },
       createdAt: new Date().toISOString(),
     });
-    db.activeProjectId = "gh-1";
     db.findings.push({
       id: "f1",
       projectId: "gh-1",
@@ -229,12 +178,20 @@ describe("disconnectGitHubRepo", () => {
       explanations: [],
       detectedAt: new Date().toISOString(),
     });
+    db.alerts.push({
+      id: "alert-1",
+      projectId: "gh-1",
+      kind: "compliance_regression",
+      summary: "regressed",
+      at: new Date().toISOString(),
+      read: false,
+    });
 
-    disconnectGitHubRepo(db, "gh-1", "user-a");
+    expect(disconnectGitHubRepo(db, "gh-1", "user-a")).toBeNull();
 
     expect(db.projects).toHaveLength(0);
-    expect(db.activeProjectId).toBeNull();
     expect(db.findings).toHaveLength(0);
+    expect(db.alerts).toHaveLength(0);
     expect(
       db.evidence.some((record) => record.kind === "project_disconnected"),
     ).toBe(true);

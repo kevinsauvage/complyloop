@@ -1,3 +1,5 @@
+import { ConnectError } from "./connect-url";
+import { parseOwnerRepo } from "./github-repo";
 import { createOctokit, octokitErrorMessage } from "./octokit";
 
 export interface CheckRunInput {
@@ -23,9 +25,18 @@ export interface CheckRunResult {
 export async function postPullRequestCheckRun(
   input: CheckRunInput,
 ): Promise<CheckRunResult> {
-  const [owner, repo] = input.fullName.split("/");
-  if (!owner || !repo) {
-    return { ok: false, error: `Invalid repository full name: ${input.fullName}` };
+  let owner: string;
+  let repo: string;
+  try {
+    ({ owner, repo } = parseOwnerRepo(input.fullName));
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof ConnectError
+          ? error.message
+          : `Invalid repository full name: ${input.fullName}`,
+    };
   }
 
   const octokit = createOctokit(input.token);

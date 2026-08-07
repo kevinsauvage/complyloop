@@ -1,11 +1,5 @@
-import type {
-  EvidenceRecord,
-  Finding,
-  OrgMembership,
-  Organization,
-  Project,
-  Requirement,
-} from "@/core/types";
+import type { OrgMembership, Organization, Project, Requirement } from "@/core/project-types";
+import type { EvidenceRecord, Finding } from "@/core/finding-types";
 import { canOnProject, type Permission } from "@/core/rbac";
 
 export interface AccessContext {

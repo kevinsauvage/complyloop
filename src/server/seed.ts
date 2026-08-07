@@ -1,6 +1,7 @@
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
-import type { Project } from "@/core/types";
+import type { Project } from "@/core/project-types";
 import type { Db } from "./db";
+import { removeProjectScopedRecords } from "./project-cascade";
 
 type LegacyProjectSource = Project["source"] | "sample" | "local" | "git";
 
@@ -14,35 +15,18 @@ function isRetiredNonGitHubProject(project: Project): boolean {
  * stores. Evidence rows are left for audit history.
  */
 export function purgeNonGitHubProjects(db: Db): boolean {
-  const retiredIds = new Set(
-    db.projects
+  const retiredIds = [
+    ...db.projects
       .filter((project) => isRetiredNonGitHubProject(project))
       .map((project) => project.id),
-  );
-  if (retiredIds.size === 0) return false;
+  ];
+  if (retiredIds.length === 0) return false;
 
-  db.projects = db.projects.filter((project) => !retiredIds.has(project.id));
-  db.requirements = db.requirements.filter(
-    (requirement) => !retiredIds.has(requirement.projectId),
-  );
-  db.assessments = db.assessments.filter(
-    (assessment) => !retiredIds.has(assessment.projectId),
-  );
-  const removedFindingIds = new Set(
-    db.findings
-      .filter((finding) => retiredIds.has(finding.projectId))
-      .map((finding) => finding.id),
-  );
-  db.findings = db.findings.filter(
-    (finding) => !retiredIds.has(finding.projectId),
-  );
-  db.remediations = db.remediations.filter(
-    (remediation) => !removedFindingIds.has(remediation.findingId),
-  );
-  db.alerts = db.alerts.filter((alert) => !retiredIds.has(alert.projectId));
-  if (db.activeProjectId && retiredIds.has(db.activeProjectId)) {
-    db.activeProjectId = db.projects[0]?.id ?? null;
+  for (const projectId of retiredIds) {
+    removeProjectScopedRecords(db, projectId);
   }
+  const retired = new Set(retiredIds);
+  db.projects = db.projects.filter((project) => !retired.has(project.id));
   return true;
 }
 
@@ -79,11 +63,6 @@ export function ensureSeeded(db: Db): boolean {
       db.frameworks.push(rgaaFramework);
       changed = true;
     }
-  }
-
-  if (db.projects.length > 0 && !db.activeProjectId) {
-    db.activeProjectId = db.projects[0].id;
-    changed = true;
   }
 
   return changed;

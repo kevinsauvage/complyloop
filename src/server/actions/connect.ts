@@ -146,8 +146,11 @@ export async function disconnectGitHubRepoAction(
         (candidate) => candidate.id === projectIdRaw,
       );
       disconnectedName = project?.github?.fullName ?? project?.name ?? "repository";
-      disconnectGitHubRepo(workspace.db, projectIdRaw, userId);
-      nextProjectId = workspace.db.activeProjectId;
+      nextProjectId = disconnectGitHubRepo(
+        workspace.db,
+        projectIdRaw,
+        userId,
+      );
     });
     if (nextProjectId) {
       await writeActiveProjectCookie(nextProjectId);

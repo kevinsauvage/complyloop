@@ -1,4 +1,5 @@
-import type { Control, Finding, FindingCluster } from "./types";
+import type { Control } from "./project-types";
+import type { Finding, FindingCluster } from "./finding-types";
 import { isSourceLocation } from "./location";
 
 function directoryOf(filePath: string): string {

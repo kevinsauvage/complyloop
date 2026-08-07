@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type {
-  EvidenceRecord,
-  Finding,
-  OrgMembership,
-  Organization,
-  Project,
-  Requirement,
-} from "@/core/types";
+import type { OrgMembership, Organization, Project, Requirement } from "@/core/project-types";
+import type { EvidenceRecord, Finding } from "@/core/finding-types";
 import {
   type AccessContext,
   accessFromStore,

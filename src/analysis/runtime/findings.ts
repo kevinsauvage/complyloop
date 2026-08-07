@@ -1,4 +1,4 @@
-import type { Confidence, Severity } from "@/core/types";
+import type { Confidence, Severity } from "@/core/statuses";
 import type { RawFinding } from "../types";
 import { checkIdForAxeRule } from "./axe-map";
 

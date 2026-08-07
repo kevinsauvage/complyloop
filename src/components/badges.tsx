@@ -4,15 +4,8 @@ import {
   requirementStatusLabel,
   severityLabel,
 } from "@/core/labels";
-import type {
-  AssessmentEngine,
-  Confidence,
-  DeterminationMethod,
-  ExplanationProvenance,
-  RemediationStatus,
-  RequirementStatus,
-  Severity,
-} from "@/core/types";
+import type { Confidence, DeterminationMethod, ExplanationProvenance, RemediationStatus, RequirementStatus, Severity } from "@/core/statuses";
+import type { AssessmentEngine } from "@/core/finding-types";
 import { cn } from "@/lib/utils";
 
 export function RequirementStatusBadge({ status }: { status: RequirementStatus }) {

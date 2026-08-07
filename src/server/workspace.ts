@@ -1,12 +1,7 @@
 import { cache } from "react";
 import { auth } from "@/auth";
-import type {
-  Control,
-  Finding,
-  Organization,
-  Project,
-  Remediation,
-} from "@/core/types";
+import type { Control, Organization, Project } from "@/core/project-types";
+import type { Finding, Remediation } from "@/core/finding-types";
 import { readActiveOrgCookie } from "./active-org";
 import { readActiveProjectCookie } from "./active-project";
 import { loadDb, withDbWrite, type Db } from "./db";
@@ -74,27 +69,12 @@ function prepareWorkspaceState(
       : null;
 
   const scoped = projectsForActiveOrg(db.projects, access, activeOrgId);
-  // Prefer the per-browser cookie; fall back to legacy store field.
   const project =
     resolveActiveProject(
       scoped.length > 0 ? scoped : db.projects,
-      preferredProjectId ?? db.activeProjectId,
+      preferredProjectId,
       access,
     ) ?? null;
-
-  // Persist a store-level active id only when empty; never overwrite another
-  // user's cookie preference (active selection is cookie-scoped).
-  if (project && !db.activeProjectId) {
-    db.activeProjectId = project.id;
-    changed = true;
-  }
-  if (
-    db.activeProjectId &&
-    !db.projects.some((candidate) => candidate.id === db.activeProjectId)
-  ) {
-    db.activeProjectId = db.projects[0]?.id ?? null;
-    changed = true;
-  }
 
   return {
     changed,
@@ -149,7 +129,7 @@ export const getWorkspace = cache(async (): Promise<Workspace> => {
 
 /**
  * Exclusive workspace mutation: reloads under the store write lock, runs `fn`,
- * and persists. Prefer this over getWorkspace + saveDb in server actions.
+ * and persists. Prefer this over getWorkspace alone in server actions.
  */
 export async function withWorkspaceWrite<T>(
   fn: (workspace: Workspace) => Promise<T> | T,

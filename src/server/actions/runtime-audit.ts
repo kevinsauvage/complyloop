@@ -1,7 +1,7 @@
 "use server";
 
 import {
-  actionErrorState,
+  runActionMessage,
   type ActionMessageState,
 } from "../action-state";
 import { withWorkspaceWrite } from "../workspace";
@@ -25,7 +25,7 @@ export async function updateRuntimeAuditAction(
   _previous: RuntimeAuditFormState,
   formData: FormData,
 ): Promise<RuntimeAuditFormState> {
-  try {
+  return runActionMessage(async () => {
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.connect");
       const { project } = workspace;
@@ -52,12 +52,6 @@ export async function updateRuntimeAuditAction(
       project.runtimeRoutes = parseRoutes(formData.get("runtimeRoutes"));
     });
     refresh();
-    return {
-      error: null,
-      message:
-        "Runtime audit settings saved. Run assessment to audit the pages.",
-    };
-  } catch (error) {
-    return actionErrorState(error);
-  }
+    return "Runtime audit settings saved. Run assessment to audit the pages.";
+  });
 }

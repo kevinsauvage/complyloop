@@ -1,10 +1,9 @@
 import { asc } from "drizzle-orm";
-import type { Project } from "@/core/types";
+import type { Project } from "@/core/project-types";
 import type { Db } from "./types";
 import type { DrizzleDb } from "./client";
 import {
   alerts,
-  appMeta,
   assessments,
   controls,
   evidence,
@@ -17,14 +16,12 @@ import {
   requirements,
 } from "./schema";
 import { rowToEvidence } from "./postgres-evidence";
-import { ACTIVE_PROJECT_KEY } from "./postgres-meta";
 
 /** Drops legacy durable-clone `rootPath` from JSONB payloads. */
 function normalizeProject(payload: Project): Project {
   if (!("rootPath" in payload)) return payload;
-  const { rootPath: _removed, ...rest } = payload as Project & {
-    rootPath?: string;
-  };
+  const rest = { ...(payload as Project & { rootPath?: string }) };
+  delete rest.rootPath;
   return rest;
 }
 
@@ -41,7 +38,6 @@ export async function loadDbFromPostgres(drizzle: DrizzleDb): Promise<Db> {
     remediationRows,
     evidenceRows,
     alertRows,
-    metaRows,
   ] = await Promise.all([
     drizzle.select().from(frameworks),
     drizzle.select().from(controls),
@@ -54,16 +50,7 @@ export async function loadDbFromPostgres(drizzle: DrizzleDb): Promise<Db> {
     drizzle.select().from(remediations),
     drizzle.select().from(evidence).orderBy(asc(evidence.at)),
     drizzle.select().from(alerts),
-    drizzle.select().from(appMeta),
   ]);
-
-  const activeMeta = metaRows.find((row) => row.key === ACTIVE_PROJECT_KEY);
-  let activeProjectId: string | null = null;
-  if (activeMeta) {
-    const value = activeMeta.value;
-    if (typeof value === "string") activeProjectId = value;
-    else if (value === null) activeProjectId = null;
-  }
 
   return {
     frameworks: frameworkRows.map((row) => row.payload),
@@ -71,7 +58,6 @@ export async function loadDbFromPostgres(drizzle: DrizzleDb): Promise<Db> {
     organizations: organizationRows.map((row) => row.payload),
     memberships: membershipRows.map((row) => row.payload),
     projects: projectRows.map((row) => normalizeProject(row.payload)),
-    activeProjectId,
     requirements: requirementRows.map((row) => row.payload),
     assessments: assessmentRows.map((row) => row.payload),
     findings: findingRows.map((row) => row.payload),
@@ -80,4 +66,3 @@ export async function loadDbFromPostgres(drizzle: DrizzleDb): Promise<Db> {
     alerts: alertRows.map((row) => row.payload),
   };
 }
-

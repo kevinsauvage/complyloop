@@ -121,7 +121,7 @@ export function GitHubRepoPicker({
                   <ConfirmSubmitButton
                     label={disconnectPending ? "Disconnecting…" : "Disconnect"}
                     pendingLabel="Disconnecting…"
-                    confirmMessage={`Disconnect ${repo.fullName}? The local workspace clone will be removed.`}
+                    confirmMessage={`Disconnect ${repo.fullName}? Project findings and remediations will be removed.`}
                     confirmTitle="Disconnect repository"
                     variant="outline"
                     size="sm"

@@ -1,4 +1,5 @@
-import type { Finding, RequirementStatus } from "./types";
+import type { RequirementStatus } from "./statuses";
+import type { Finding } from "./finding-types";
 
 /**
  * Derives a requirement's status from the findings currently open against it.

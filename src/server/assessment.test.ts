@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { isSourceLocation } from "@/core/location";
-import type { Project } from "@/core/types";
+import type { Project } from "@/core/project-types";
 import { runAssessment } from "./assessment";
 import type { Db } from "./db";
 
@@ -31,7 +31,6 @@ beforeEach(() => {
     organizations: [],
     memberships: [],
     projects: [project],
-    activeProjectId: project.id,
     requirements: [],
     assessments: [],
     findings: [],

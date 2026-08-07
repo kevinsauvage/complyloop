@@ -1,26 +1,19 @@
-import { guidanceFor } from "@/adapters/rgaa/guidance";
-import { deterministicExplanation } from "@/ai/explainer";
 import { isCompositionSensitiveCheck } from "@/analysis/check-authority";
 import { scanChangedFiles, scanProject } from "@/analysis/scan";
 import {
   scanRuntime,
   type RuntimePageScanner,
 } from "@/analysis/runtime/scan";
-import type { RawFinding } from "@/analysis/types";
 import { formatLocationRef } from "@/core/location";
-import type {
-  Assessment,
-  AssessmentEngines,
-  Finding,
-  Project,
-  Remediation,
-  RequirementStatus,
-} from "@/core/types";
+import type { RequirementStatus } from "@/core/statuses";
+import type { Assessment, AssessmentEngines } from "@/core/finding-types";
 import { addEvidence, type Db } from "./db";
 import { detectChanges, summarizeChanges } from "./monitor";
 import {
-  buildSuggestion,
-  filterAstFindingsForAuthority,
+  createFinding,
+  mergeRawFindings,
+} from "./assessment-findings";
+import {
   findingLocationMatchesScope,
   mergeFix,
   sameInstance,
@@ -30,76 +23,6 @@ import {
   controlsInScope,
   refreshRequirementStatuses,
 } from "./assessment-status";
-
-function createFinding(
-  db: Db,
-  project: Project,
-  rootPath: string,
-  controlId: string,
-  assessmentId: string,
-  raw: RawFinding,
-): void {
-  const now = new Date().toISOString();
-  const guidance = guidanceFor(raw.checkId) ?? {
-    impact: "Impact not documented for this check.",
-    howToFix: "See the requirement description.",
-  };
-  const finding: Finding = {
-    id: crypto.randomUUID(),
-    projectId: project.id,
-    controlId,
-    assessmentId,
-    checkId: raw.checkId,
-    status: "open",
-    kind: raw.kind,
-    severity: raw.severity,
-    confidence: raw.confidence,
-    reason: raw.reason,
-    location: raw.location,
-    engine: raw.engine ?? "ast",
-    fix: raw.fix,
-    explanations: [deterministicExplanation(raw.reason, guidance)],
-    detectedAt: now,
-  };
-  db.findings.push(finding);
-
-  const suggestion = buildSuggestion(rootPath, raw);
-  const remediation: Remediation = {
-    id: crypto.randomUUID(),
-    findingId: finding.id,
-    status: suggestion ? "suggested" : "detected",
-    suggestion,
-    history: suggestion
-      ? [
-          { status: "detected", at: now },
-          { status: "suggested", at: now, note: suggestion.description },
-        ]
-      : [{ status: "detected", at: now }],
-  };
-  db.remediations.push(remediation);
-
-  addEvidence(db, {
-    kind: "finding_detected",
-    summary: `${raw.checkId}: ${formatLocationRef(raw.location)} — ${raw.reason}`,
-    projectId: project.id,
-    controlId,
-    findingId: finding.id,
-    assessmentId,
-    detail: { engine: raw.engine ?? "ast" },
-  });
-}
-
-function mergeRawFindings(
-  astFindings: RawFinding[],
-  runtimeFindings: RawFinding[],
-  runtimeRan: boolean,
-): RawFinding[] {
-  const filteredAst = filterAstFindingsForAuthority(
-    astFindings,
-    runtimeRan,
-  ).map((finding) => ({ ...finding, engine: finding.engine ?? ("ast" as const) }));
-  return [...filteredAst, ...runtimeFindings];
-}
 
 export interface RunAssessmentOptions {
   /** Absolute path of the current ephemeral (or test) checkout to scan. */

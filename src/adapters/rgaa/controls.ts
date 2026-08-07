@@ -1,4 +1,4 @@
-import type { Control, Framework } from "@/core/types";
+import type { Control, Framework } from "@/core/project-types";
 
 export const rgaaFramework: Framework = {
   id: "fw-rgaa-wcag",

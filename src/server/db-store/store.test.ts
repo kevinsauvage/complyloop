@@ -8,7 +8,6 @@ describe("emptyDb + addEvidence", () => {
     expect(db.projects).toEqual([]);
     expect(db.evidence).toEqual([]);
 
-    db.activeProjectId = "p1";
     db.projects.push({
       id: "p1",
       name: "demo",

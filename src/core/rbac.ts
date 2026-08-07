@@ -1,4 +1,4 @@
-import type { OrgMembership, OrgRole, Project } from "./types";
+import type { OrgMembership, OrgRole, Project } from "./project-types";
 
 export type Permission =
   | "project.view"

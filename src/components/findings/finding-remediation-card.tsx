@@ -12,7 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { remediationStatusLabel } from "@/core/labels";
-import type { Finding, Remediation, RemediationStatus } from "@/core/types";
+import type { RemediationStatus } from "@/core/statuses";
+import type { Finding, Remediation } from "@/core/finding-types";
 import { generateAiRemediationAction } from "@/server/actions/remediation-ai";
 import { FindingActionPanel } from "./finding-action-panel";
 

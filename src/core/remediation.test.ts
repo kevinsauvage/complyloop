@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { advanceRemediation, canTransition } from "./remediation";
-import type { Remediation } from "./types";
+import type { Remediation } from "./finding-types";
 
 function remediation(status: Remediation["status"]): Remediation {
   return {

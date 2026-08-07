@@ -1,4 +1,4 @@
-import type { EvidenceRecord } from "@/core/types";
+import type { EvidenceRecord } from "@/core/finding-types";
 import { evidence } from "./schema";
 
 export function evidenceToRow(record: EvidenceRecord) {

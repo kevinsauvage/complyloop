@@ -1,8 +1,9 @@
-import type { Project } from "@/core/types";
+import type { Project } from "@/core/project-types";
 import type { Db } from "./db";
 import { ConnectError } from "./connect-url";
 import { accessFromStore, isProjectVisible } from "./project-visibility";
 
+/** Validates the viewer can access `projectId` (active selection is cookie-scoped). */
 export function setActiveProject(
   db: Db,
   projectId: string,
@@ -13,6 +14,5 @@ export function setActiveProject(
   if (!isProjectVisible(project, accessFromStore(db, userId))) {
     throw new ConnectError("You do not have access to that project.");
   }
-  db.activeProjectId = project.id;
   return project;
 }

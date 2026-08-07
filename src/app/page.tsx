@@ -18,7 +18,7 @@ import {
   prioritizeClusters,
   prioritizeFindings,
 } from "@/core/prioritization";
-import type { RequirementStatus } from "@/core/types";
+import type { RequirementStatus } from "@/core/statuses";
 import { runAssessmentAction } from "@/server/actions/assessment";
 import { projectCapabilities } from "@/server/project-capabilities";
 import {

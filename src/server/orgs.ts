@@ -1,4 +1,4 @@
-import type { OrgMembership, OrgRole, Organization, Project } from "@/core/types";
+import type { OrgMembership, OrgRole, Organization, Project } from "@/core/project-types";
 import { isOrgRole } from "@/core/rbac";
 import type { Db } from "./db";
 import { slugifyOrgName, uniqueOrgSlug } from "./org-slug";
