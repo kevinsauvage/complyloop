@@ -22,13 +22,14 @@ export async function createPostgresClient(
   const hostname = parsed.hostname;
   const host = await resolveHostname(hostname);
 
+  const allowInsecureSsl = isDatabaseSslInsecureEnabled();
   const ssl = resolvePostgresSslOptions({
     sslmode: parsed.searchParams.get("sslmode"),
     hostname,
-    allowInsecureSsl: isDatabaseSslInsecureEnabled(),
+    allowInsecureSsl,
   });
 
-  return postgres({
+  const client = postgres({
     host,
     port: Number(parsed.port || 5432),
     database: decodeURIComponent(parsed.pathname.replace(/^\//, "")) || "postgres",
@@ -38,6 +39,40 @@ export async function createPostgresClient(
     max: options.max ?? 10,
     prepare: false,
   });
+
+  // Fail early with a actionable TLS hint (Aiven private CA is a common case).
+  try {
+    await client`select 1`;
+  } catch (error) {
+    await client.end({ timeout: 1 }).catch(() => undefined);
+    throw wrapPostgresTlsError(error, allowInsecureSsl);
+  }
+
+  return client;
+}
+
+function wrapPostgresTlsError(error: unknown, allowInsecureSsl: boolean): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  const cause =
+    error instanceof Error && "cause" in error
+      ? error.cause
+      : undefined;
+  const causeMessage =
+    cause instanceof Error ? cause.message : typeof cause === "string" ? cause : "";
+  const combined = `${message} ${causeMessage}`;
+  const looksLikeTls =
+    /SELF_SIGNED_CERT|unable to verify|certificate/i.test(combined);
+
+  if (looksLikeTls && !allowInsecureSsl) {
+    return new Error(
+      `Postgres TLS certificate verification failed (${message}). ` +
+        `Providers with a private CA (e.g. Aiven) need either their CA configured ` +
+        `or, for local/dev only, DATABASE_SSL_INSECURE=true.`,
+      { cause: error instanceof Error ? error : undefined },
+    );
+  }
+
+  return error instanceof Error ? error : new Error(message);
 }
 
 async function resolveHostname(hostname: string): Promise<string> {

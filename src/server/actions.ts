@@ -6,7 +6,7 @@ import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
 import { applyFix } from "@/analysis/fixes";
 import { resolveInside } from "@/analysis/workspace-path";
-import { auth, getGitHubAccessToken } from "@/auth";
+import { auth, getGitHubAccessToken, signIn, signOut } from "@/auth";
 import { advanceRemediation } from "@/core/remediation";
 import { isOrgRole } from "@/core/rbac";
 import type {
@@ -117,6 +117,14 @@ function locateViolation(db: Db, finding: Finding) {
     project,
     match: locateViolationInProject(project, finding),
   };
+}
+
+export async function signInWithGitHubAction(): Promise<void> {
+  await signIn("github", { redirectTo: "/" });
+}
+
+export async function signOutAction(): Promise<void> {
+  await signOut({ redirectTo: "/" });
 }
 
 export async function runAssessmentAction(

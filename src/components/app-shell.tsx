@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { AuthControls } from "@/components/auth-controls";
 import { NavLinks } from "@/components/nav-links";
 
 export function AppShell({
   workspaceContext,
+  authControls,
   children,
 }: {
   workspaceContext: ReactNode;
+  /** Server-rendered auth UI — must not be imported into this client module. */
+  authControls: ReactNode;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -68,7 +70,7 @@ export function AppShell({
             <NavLinks onNavigate={() => setNavOpen(false)} />
           </nav>
           <div className="mt-auto flex flex-col gap-4">
-            <AuthControls />
+            {authControls}
             <p className="px-3 text-xs text-zinc-500">
               MVP — RGAA / WCAG for React &amp; Next.js
             </p>

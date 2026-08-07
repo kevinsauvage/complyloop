@@ -2,16 +2,16 @@ import {
   auth,
   getGitHubAccessToken,
   isGitHubAuthConfigured,
-  signIn,
 } from "@/auth";
 import { ConnectProjectForm } from "@/components/connect-project-form";
 import { GitHubRepoPicker } from "@/components/github-repo-picker";
+import { PermissionNotice } from "@/components/permission-notice";
+import { signInWithGitHubAction } from "@/server/actions";
 import { isLocalProjectConnectAllowed } from "@/server/connect-policy";
 import { listGitHubRepos } from "@/server/github";
 import { isGitHubAppConfigured } from "@/server/github-app";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
-import { PermissionNotice } from "@/components/permission-notice";
 
 export async function ConnectProjectPanel() {
   const configured = isGitHubAuthConfigured();
@@ -83,12 +83,7 @@ export async function ConnectProjectPanel() {
               Sign in with GitHub to browse your repositories and connect one in
               a click.
             </p>
-            <form
-              action={async () => {
-                "use server";
-                await signIn("github", { redirectTo: "/" });
-              }}
-            >
+            <form action={signInWithGitHubAction}>
               <button
                 type="submit"
                 className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { AuthControls } from "@/components/auth-controls";
 import { WorkspaceContext } from "@/components/workspace-context";
 import "./globals.css";
 
@@ -27,7 +28,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        <AppShell workspaceContext={<WorkspaceContext />}>{children}</AppShell>
+        <AppShell
+          workspaceContext={<WorkspaceContext />}
+          authControls={<AuthControls />}
+        >
+          {children}
+        </AppShell>
       </body>
     </html>
   );

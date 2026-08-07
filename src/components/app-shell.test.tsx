@@ -6,10 +6,6 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/",
 }));
 
-vi.mock("@/components/auth-controls", () => ({
-  AuthControls: () => <div>Auth</div>,
-}));
-
 vi.mock("@/components/nav-links", () => ({
   NavLinks: () => <span>Findings</span>,
 }));
@@ -23,7 +19,10 @@ describe("AppShell", () => {
     const user = userEvent.setup();
     const { AppShell } = await import("./app-shell");
     render(
-      <AppShell workspaceContext={<div>Context</div>}>
+      <AppShell
+        workspaceContext={<div>Context</div>}
+        authControls={<div>Auth</div>}
+      >
         <h1>Dashboard</h1>
       </AppShell>,
     );

@@ -33,8 +33,10 @@ the volume or re-connecting the repository on that instance.
 ### 1. Postgres for app state (recommended beyond the laptop)
 
 1. Provision Postgres 16+ and set `DATABASE_URL`.
-   With `sslmode=require`, TLS certificates are verified by default. Only set
-   `DATABASE_SSL_INSECURE=true` if you must skip CA verification temporarily.
+   With `sslmode=require`, TLS certificates are verified by default. Aiven and
+   similar hosts use a private CA — for local/dev set `DATABASE_SSL_INSECURE=true`
+   until a CA/`sslrootcert` path is configured. Never leave that flag on in
+   production without understanding the MITM risk.
 2. Apply schema: `npm run db:migrate`
 3. Keep a volume (or other durable disk) for `DATA_DIR` workspaces (clones), **or**
    accept that GitHub connect needs disk for clones until that gap is closed.

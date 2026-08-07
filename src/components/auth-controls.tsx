@@ -1,4 +1,5 @@
-import { auth, isGitHubAuthConfigured, signIn, signOut } from "@/auth";
+import { auth, isGitHubAuthConfigured } from "@/auth";
+import { signInWithGitHubAction, signOutAction } from "@/server/actions";
 
 export async function AuthControls() {
   if (!isGitHubAuthConfigured()) {
@@ -15,13 +16,7 @@ export async function AuthControls() {
 
   if (!session?.user) {
     return (
-      <form
-        action={async () => {
-          "use server";
-          await signIn("github", { redirectTo: "/" });
-        }}
-        className="px-3"
-      >
+      <form action={signInWithGitHubAction} className="px-3">
         <button
           type="submit"
           className="w-full rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700"
@@ -39,12 +34,7 @@ export async function AuthControls() {
       <p className="truncate text-sm font-medium text-zinc-800" title={label}>
         {label}
       </p>
-      <form
-        action={async () => {
-          "use server";
-          await signOut({ redirectTo: "/" });
-        }}
-      >
+      <form action={signOutAction}>
         <button
           type="submit"
           className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
