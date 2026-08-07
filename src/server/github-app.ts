@@ -1,6 +1,7 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
 import { isProductionRuntime } from "@/auth-secret";
+import { normalizeGitHubFullName } from "./connect-github";
 import { ConnectError } from "./connect-url";
 import type { GitHubRepoSummary } from "./github";
 import { octokitErrorMessage } from "./octokit";
@@ -99,6 +100,95 @@ export async function createInstallationAccessToken(
   return token;
 }
 
+async function listUserInstallationIds(octokit: Octokit): Promise<number[]> {
+  const installations = await octokit.paginate(
+    octokit.rest.apps.listInstallationsForAuthenticatedUser,
+    { per_page: 100 },
+  );
+  return installations.map((installation) => installation.id);
+}
+
+async function installationHasRepo(
+  octokit: Octokit,
+  installationId: number,
+  fullNameNormalized: string,
+): Promise<boolean> {
+  const repos = await octokit.paginate(
+    octokit.rest.apps.listInstallationReposForAuthenticatedUser,
+    { installation_id: installationId, per_page: 100 },
+  );
+  return repos.some(
+    (repo) => normalizeGitHubFullName(repo.full_name) === fullNameNormalized,
+  );
+}
+
+/**
+ * Resolves a GitHub App installation id the signed-in user can access for
+ * `fullName`. Never trusts a client-claimed installation id unless it appears
+ * in `listInstallationsForAuthenticatedUser` and exposes that repo.
+ */
+export async function resolveUserInstallationForRepo(options: {
+  userAccessToken: string;
+  fullName: string;
+  /** Optional client hint — rejected when not on the user's installations. */
+  claimedInstallationId?: number;
+}): Promise<number> {
+  const octokit = new Octokit({ auth: options.userAccessToken });
+  const target = normalizeGitHubFullName(options.fullName);
+
+  let installationIds: number[];
+  try {
+    installationIds = await listUserInstallationIds(octokit);
+  } catch (error) {
+    throw new ConnectError(
+      octokitErrorMessage(error, "GitHub App installation API error"),
+    );
+  }
+
+  if (installationIds.length === 0) {
+    throw new ConnectError(
+      "No GitHub App installations found for your account. Install the App on the target repos first.",
+    );
+  }
+
+  const claimed = options.claimedInstallationId;
+  if (claimed != null && Number.isFinite(claimed)) {
+    if (!installationIds.includes(claimed)) {
+      throw new ConnectError(
+        "That GitHub App installation is not available on your account.",
+      );
+    }
+    try {
+      if (await installationHasRepo(octokit, claimed, target)) {
+        return claimed;
+      }
+    } catch (error) {
+      throw new ConnectError(
+        octokitErrorMessage(error, "GitHub App installation API error"),
+      );
+    }
+    throw new ConnectError(
+      `${options.fullName.trim()} is not accessible via the selected GitHub App installation.`,
+    );
+  }
+
+  try {
+    for (const installationId of installationIds) {
+      if (await installationHasRepo(octokit, installationId, target)) {
+        return installationId;
+      }
+    }
+  } catch (error) {
+    throw new ConnectError(
+      octokitErrorMessage(error, "GitHub App installation API error"),
+    );
+  }
+
+  throw new ConnectError(
+    `${options.fullName.trim()} is not available via your GitHub App installations. Install the App on that repository first.`,
+  );
+}
+
 /**
  * Lists repositories visible via GitHub App installations for this user.
  * Requires a user-to-server token from the App's OAuth client (Auth.js).
@@ -113,13 +203,9 @@ export async function listReposViaInstallations(options: {
   const repos: GitHubRepoSummary[] = [];
 
   try {
-    const installations = await octokit.paginate(
-      octokit.rest.apps.listInstallationsForAuthenticatedUser,
-      { per_page: 100 },
-    );
+    const installationIds = await listUserInstallationIds(octokit);
 
-    for (const installation of installations) {
-      const installationId = installation.id;
+    for (const installationId of installationIds) {
       const installedRepos = await octokit.paginate(
         octokit.rest.apps.listInstallationReposForAuthenticatedUser,
         { installation_id: installationId, per_page: perPage },

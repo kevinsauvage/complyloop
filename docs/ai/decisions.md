@@ -4,6 +4,16 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-07 — Bind GitHub App installation tokens to the user
+
+**Context:** `connectGitHubRepoAction` minted installation tokens from a client-supplied `installationId` with the App private key — no check that the signed-in user could access that install (cross-tenant clone risk).
+
+**Decision:** Before minting, `resolveUserInstallationForRepo` lists the user’s installations via their OAuth token. A claimed installation id must appear in that list and expose the selected repo; otherwise resolve by scanning the user’s installs. Foreign ids fail with a permission error.
+
+**Consequence:** Installation tokens are only minted for installs the connector can access; the picker may still send `installationId` as a verified hint.
+
+---
+
 ## 2026-08-07 — Runtime axe inject from disk (not bundled source)
 
 **Context:** `@axe-core/playwright` injects `axe-core`'s `source` string via `page.evaluate`. Under Next.js the bundler rewrites `typeof module` inside that string, so the browser throws `ReferenceError: module is not defined` at `axeFunction`.

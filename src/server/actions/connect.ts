@@ -20,6 +20,7 @@ import { fetchGitHubRepo } from "../github";
 import {
   createInstallationAccessToken,
   isGitHubAppConfigured,
+  resolveUserInstallationForRepo,
 } from "../github-app";
 import { withWorkspaceWrite } from "../workspace";
 import { refresh } from "./shared";
@@ -56,33 +57,32 @@ export async function connectGitHubRepoAction(
   }
 
   const installationIdRaw = formData.get("installationId");
-  const installationId =
+  const claimedInstallationId =
     typeof installationIdRaw === "string" && installationIdRaw.length > 0
       ? Number(installationIdRaw)
       : undefined;
 
   try {
-    const resolvedInstallationId =
-      installationId != null && Number.isFinite(installationId)
-        ? installationId
-        : undefined;
-
-    let accessToken: string | null = null;
-    if (isGitHubAppConfigured()) {
-      if (resolvedInstallationId == null) {
-        return formError(
-          "Select a repository from a GitHub App installation (install the App on the target repos first).",
-        );
-      }
-      accessToken = await createInstallationAccessToken(resolvedInstallationId);
-    } else {
-      accessToken = await getGitHubAccessToken();
-    }
-
-    if (!accessToken) {
+    const userAccessToken = await getGitHubAccessToken();
+    if (!userAccessToken) {
       return formError(
         "GitHub access token missing. Sign out and sign in again to grant repo access.",
       );
+    }
+
+    let accessToken = userAccessToken;
+    let installationId: number | undefined;
+
+    if (isGitHubAppConfigured()) {
+      installationId = await resolveUserInstallationForRepo({
+        userAccessToken,
+        fullName,
+        claimedInstallationId:
+          claimedInstallationId != null && Number.isFinite(claimedInstallationId)
+            ? claimedInstallationId
+            : undefined,
+      });
+      accessToken = await createInstallationAccessToken(installationId);
     }
 
     const repo = await fetchGitHubRepo(accessToken, fullName);
@@ -112,7 +112,7 @@ export async function connectGitHubRepoAction(
         ownerUserId: userId,
         orgId: activeOrgId ?? undefined,
         accessToken,
-        installationId: resolvedInstallationId,
+        installationId,
       });
       await writeActiveProjectCookie(project.id);
     });

@@ -4,16 +4,43 @@ import {
   githubAuthorizationScopes,
   isGitHubAppConfigured,
   normalizeGitHubAppPrivateKey,
+  resolveUserInstallationForRepo,
 } from "./github-app";
+
+const paginate = vi.fn();
+
+vi.mock("@octokit/rest", () => ({
+  Octokit: vi.fn(function MockOctokit(this: {
+    paginate: typeof paginate;
+    rest: {
+      apps: {
+        listInstallationsForAuthenticatedUser: ReturnType<typeof vi.fn>;
+        listInstallationReposForAuthenticatedUser: ReturnType<typeof vi.fn>;
+      };
+    };
+  }) {
+    this.paginate = paginate;
+    this.rest = {
+      apps: {
+        listInstallationsForAuthenticatedUser: vi.fn(),
+        listInstallationReposForAuthenticatedUser: vi.fn(),
+      },
+    };
+  }),
+}));
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  paginate.mockReset();
 });
 
 describe("GitHub App configuration", () => {
   it("detects when App credentials are present", () => {
     vi.stubEnv("GITHUB_APP_ID", "12345");
-    vi.stubEnv("GITHUB_APP_PRIVATE_KEY", "-----BEGIN RSA PRIVATE KEY-----\\nabc\\n-----END RSA PRIVATE KEY-----");
+    vi.stubEnv(
+      "GITHUB_APP_PRIVATE_KEY",
+      "-----BEGIN RSA PRIVATE KEY-----\\nabc\\n-----END RSA PRIVATE KEY-----",
+    );
     expect(isGitHubAppConfigured()).toBe(true);
     expect(githubAuthorizationScopes()).toBe("read:user user:email");
   });
@@ -49,5 +76,88 @@ describe("GitHub App configuration", () => {
     vi.stubEnv("GITHUB_APP_ID", "99");
     vi.stubEnv("GITHUB_APP_PRIVATE_KEY", "key");
     expect(() => assertProductionGitHubApp()).not.toThrow();
+  });
+});
+
+describe("resolveUserInstallationForRepo", () => {
+  it("rejects a claimed installation that is not on the user account", async () => {
+    paginate.mockResolvedValueOnce([{ id: 11 }, { id: 22 }]);
+
+    await expect(
+      resolveUserInstallationForRepo({
+        userAccessToken: "user-token",
+        fullName: "acme/shop",
+        claimedInstallationId: 999,
+      }),
+    ).rejects.toThrow(/not available on your account/);
+  });
+
+  it("accepts a claimed installation that exposes the repo", async () => {
+    paginate
+      .mockResolvedValueOnce([{ id: 11 }, { id: 22 }])
+      .mockResolvedValueOnce([
+        { full_name: "Acme/Shop" },
+        { full_name: "acme/other" },
+      ]);
+
+    await expect(
+      resolveUserInstallationForRepo({
+        userAccessToken: "user-token",
+        fullName: "acme/shop",
+        claimedInstallationId: 22,
+      }),
+    ).resolves.toBe(22);
+  });
+
+  it("rejects a claimed installation that does not include the repo", async () => {
+    paginate
+      .mockResolvedValueOnce([{ id: 11 }])
+      .mockResolvedValueOnce([{ full_name: "acme/other" }]);
+
+    await expect(
+      resolveUserInstallationForRepo({
+        userAccessToken: "user-token",
+        fullName: "acme/shop",
+        claimedInstallationId: 11,
+      }),
+    ).rejects.toThrow(/not accessible via the selected/);
+  });
+
+  it("resolves the installation by scanning when no claim is provided", async () => {
+    paginate
+      .mockResolvedValueOnce([{ id: 11 }, { id: 22 }])
+      .mockResolvedValueOnce([{ full_name: "acme/other" }])
+      .mockResolvedValueOnce([{ full_name: "acme/shop" }]);
+
+    await expect(
+      resolveUserInstallationForRepo({
+        userAccessToken: "user-token",
+        fullName: "Acme/Shop",
+      }),
+    ).resolves.toBe(22);
+  });
+
+  it("fails when the repo is not on any user installation", async () => {
+    paginate
+      .mockResolvedValueOnce([{ id: 11 }])
+      .mockResolvedValueOnce([{ full_name: "acme/other" }]);
+
+    await expect(
+      resolveUserInstallationForRepo({
+        userAccessToken: "user-token",
+        fullName: "acme/shop",
+      }),
+    ).rejects.toThrow(/not available via your GitHub App installations/);
+  });
+
+  it("fails when the user has no installations", async () => {
+    paginate.mockResolvedValueOnce([]);
+
+    await expect(
+      resolveUserInstallationForRepo({
+        userAccessToken: "user-token",
+        fullName: "acme/shop",
+      }),
+    ).rejects.toThrow(/No GitHub App installations found/);
   });
 });
