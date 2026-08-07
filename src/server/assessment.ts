@@ -1,9 +1,16 @@
 import { guidanceFor } from "@/adapters/rgaa/guidance";
 import { deterministicExplanation } from "@/ai/explainer";
+import { isCompositionSensitiveCheck } from "@/analysis/check-authority";
 import { scanChangedFiles, scanProject } from "@/analysis/scan";
+import {
+  scanRuntime,
+  type RuntimePageScanner,
+} from "@/analysis/runtime/scan";
 import type { RawFinding } from "@/analysis/types";
+import { formatLocationRef } from "@/core/location";
 import type {
   Assessment,
+  AssessmentEngines,
   Finding,
   Project,
   Remediation,
@@ -13,6 +20,8 @@ import { addEvidence, type Db } from "./db";
 import { detectChanges, summarizeChanges } from "./monitor";
 import {
   buildSuggestion,
+  filterAstFindingsForAuthority,
+  findingLocationMatchesScope,
   mergeFix,
   sameInstance,
 } from "./assessment-helpers";
@@ -46,6 +55,7 @@ function createFinding(
     confidence: raw.confidence,
     reason: raw.reason,
     location: raw.location,
+    engine: raw.engine ?? "ast",
     fix: raw.fix,
     explanations: [deterministicExplanation(raw.reason, guidance)],
     detectedAt: now,
@@ -69,16 +79,37 @@ function createFinding(
 
   addEvidence(db, {
     kind: "finding_detected",
-    summary: `${raw.checkId}: ${raw.location.filePath}:${raw.location.line} — ${raw.reason}`,
+    summary: `${raw.checkId}: ${formatLocationRef(raw.location)} — ${raw.reason}`,
     projectId: project.id,
     controlId,
     findingId: finding.id,
     assessmentId,
+    detail: { engine: raw.engine ?? "ast" },
   });
 }
 
+function mergeRawFindings(
+  astFindings: RawFinding[],
+  runtimeFindings: RawFinding[],
+  runtimeRan: boolean,
+): RawFinding[] {
+  const filteredAst = filterAstFindingsForAuthority(
+    astFindings,
+    runtimeRan,
+  ).map((finding) => ({ ...finding, engine: finding.engine ?? ("ast" as const) }));
+  return [...filteredAst, ...runtimeFindings];
+}
 
-export function runAssessment(db: Db, projectId: string): Assessment {
+export interface RunAssessmentOptions {
+  /** Injected Playwright/axe scanner for tests. */
+  runtimeScanner?: RuntimePageScanner;
+}
+
+export async function runAssessment(
+  db: Db,
+  projectId: string,
+  options: RunAssessmentOptions = {},
+): Promise<Assessment> {
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) throw new Error(`Unknown project: ${projectId}`);
 
@@ -116,13 +147,40 @@ export function runAssessment(db: Db, projectId: string): Assessment {
     .filter((filePath) => /\.(tsx|jsx)$/i.test(filePath));
   const useScoped = Boolean(previous?.snapshot) && changedJsx.length > 0;
   const {
-    findings: rawFindings,
+    findings: astFindings,
     filesScanned,
     scanMode,
   } = useScoped
     ? scanChangedFiles(project.rootPath, changedJsx)
     : scanProject(project.rootPath);
   const scopedFileSet = useScoped ? new Set(changedJsx) : null;
+
+  const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
+  const runtimeResult = runtimeConfigured
+    ? await scanRuntime({
+        runtimeBaseUrl: project.runtimeBaseUrl,
+        runtimeRoutes: project.runtimeRoutes,
+        scanner: options.runtimeScanner,
+      })
+    : { findings: [], pagesScanned: 0 };
+  const runtimeRan =
+    runtimeConfigured &&
+    runtimeResult.error === undefined &&
+    runtimeResult.pagesScanned > 0;
+
+  const engines: AssessmentEngines = {
+    ast: true,
+    runtime: runtimeRan,
+    runtimePagesScanned: runtimeResult.pagesScanned,
+    runtimeError: runtimeResult.error,
+  };
+
+  const rawFindings = mergeRawFindings(
+    astFindings,
+    runtimeResult.findings,
+    runtimeRan,
+  );
+
   const assessmentId = crypto.randomUUID();
   const scoped = controlsInScope(db, project);
 
@@ -157,6 +215,7 @@ export function runAssessment(db: Db, projectId: string): Assessment {
         existing.assessmentId = assessmentId;
         existing.fix = mergeFix(existing.fix, raw.fix);
         existing.location = raw.location;
+        existing.engine = raw.engine ?? existing.engine ?? "ast";
       } else {
         createFinding(db, project, control.id, assessmentId, raw);
       }
@@ -164,10 +223,17 @@ export function runAssessment(db: Db, projectId: string): Assessment {
 
     for (const finding of openFindings) {
       if (matchedIds.has(finding.id)) continue;
-      // Scoped scans must not resolve findings outside the changed file set.
+      // Scoped AST scans must not resolve findings outside the changed file set.
+      if (!findingLocationMatchesScope(finding.location, scopedFileSet)) {
+        continue;
+      }
+      // When runtime owns this check, do not resolve prior AST-only opens mid-flight
+      // on a failed runtime scan — only resolve when we have authority this run.
       if (
-        scopedFileSet &&
-        !scopedFileSet.has(finding.location.filePath)
+        runtimeConfigured &&
+        !runtimeRan &&
+        isCompositionSensitiveCheck(finding.checkId) &&
+        finding.engine === "runtime"
       ) {
         continue;
       }
@@ -175,7 +241,7 @@ export function runAssessment(db: Db, projectId: string): Assessment {
       finding.resolvedNote = "No longer detected by the latest assessment.";
       addEvidence(db, {
         kind: "finding_resolved",
-        summary: `${finding.checkId}: ${finding.location.filePath}:${finding.location.line} no longer detected`,
+        summary: `${finding.checkId}: ${formatLocationRef(finding.location)} no longer detected`,
         projectId,
         controlId: control.id,
         findingId: finding.id,
@@ -211,20 +277,29 @@ export function runAssessment(db: Db, projectId: string): Assessment {
     completedAt: new Date().toISOString(),
     filesScanned,
     scanMode,
+    engines,
     summary,
     snapshot,
     changesSincePrevious: changes,
   };
   db.assessments.push(assessment);
+
+  const engineSummary = runtimeConfigured
+    ? runtimeRan
+      ? `; runtime ${runtimeResult.pagesScanned} page(s)`
+      : `; runtime skipped (${runtimeResult.error ?? "no pages"})`
+    : "";
+
   addEvidence(db, {
     kind: "assessment_completed",
-    summary: `Assessment of "${project.name}": ${filesScanned} files scanned (${scanMode})${summary.passed !== undefined ? ` — ${summary.passed} passed, ${summary.failed} failed, ${summary.needs_review} need review` : ""}${changes.length > 0 ? `; ${changes.length} file(s) changed since previous` : ""}`,
+    summary: `Assessment of "${project.name}": ${filesScanned} files scanned (${scanMode})${engineSummary}${summary.passed !== undefined ? ` — ${summary.passed} passed, ${summary.failed} failed, ${summary.needs_review} need review` : ""}${changes.length > 0 ? `; ${changes.length} file(s) changed since previous` : ""}`,
     projectId,
     assessmentId,
     detail: {
       ...summary,
       filesScanned,
       scanMode,
+      engines,
       changedFiles: changes.map((change) => change.filePath),
     },
   });

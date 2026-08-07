@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { formatLocationRef } from "@/core/location";
 import type {
   Control,
   EvidenceRecord,
@@ -82,7 +83,7 @@ export function DashboardActivitySections({
                         {control.code} — {control.title}
                       </span>
                       <span className="font-mono text-xs text-muted-foreground">
-                        {finding.location.filePath}:{finding.location.line}
+                        {formatLocationRef(finding.location)}
                       </span>
                     </Link>
                   </li>

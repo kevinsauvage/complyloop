@@ -207,7 +207,7 @@ export async function handleGitHubWebhookEvent(
       };
     }
 
-    const assessment = runAssessment(db, project.id);
+    const assessment = await runAssessment(db, project.id);
     const alerts = collectRegressionAlerts(
       db,
       project.id,

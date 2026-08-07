@@ -4,6 +4,21 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-07 — Hybrid runtime DOM + AST analysis authority
+
+**Context:** AST-only checks false-positive on design-system primitives (e.g. `<input {...props} />` in `ui/primitives/input.tsx`) because labels live at call sites. Customers need trustworthy failures for selling; auto-fixing primitives with generic `aria-label` is harmful.
+
+**Decision:**
+- **Finding locations** are a discriminated union: `source` (AST) | `dom` (runtime).
+- **Runtime:** optional project `runtimeBaseUrl` + `runtimeRoutes`; Playwright + axe-core audits rendered pages (`src/analysis/runtime/`).
+- **Status authority:** when runtime succeeds, composition-sensitive checks (`input-label`, `button-name`, `anchor-name`, headings, etc.) use DOM findings only; AST findings for those ids are filtered out of assessment merge.
+- **AST** remains for local high-precision rules, CI (`complyloop-check`), and auto-fixable source spans. Prop-spreading hosts are never flagged by AST name/label checks.
+- **Verification** matches modality: re-axe for `dom`, re-scan file for `source`. DOM findings have no auto-apply patch.
+
+**Consequence:** Preview URL is a first-class project setting. Source-only mode still works for demos; design-system apps get accurate label/name status from the rendered page.
+
+---
+
 ## 2026-08-07 — Dark shadcn/ui as the product design system
 
 **Context:** Hand-rolled zinc Tailwind primitives (`ui.tsx`, `action-button-styles`) drifted across pages; the UI felt flat (“card soup”) and used native `confirm`/`select` inconsistently. Spec already allowed adopting shadcn later.

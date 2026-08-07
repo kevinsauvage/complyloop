@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { applyFix } from "@/analysis/fixes";
 import { resolveInside } from "@/analysis/workspace-path";
+import { isSourceLocation } from "@/core/location";
 import type { Control, Finding, Project, Remediation } from "@/core/types";
 import { locateViolationInProject, mergeFix } from "./assessment-helpers";
 import { githubCloneUrl } from "./connect-github";
@@ -66,6 +67,11 @@ export async function preparePullRequest(
   }
   if (!finding.fix) {
     throw new Error("This finding has no automatable fix to commit.");
+  }
+  if (!isSourceLocation(finding.location)) {
+    throw new Error(
+      "Runtime DOM findings cannot be committed automatically — open a manual PR from the handoff text.",
+    );
   }
 
   const match = locateViolationInProject(project, finding);

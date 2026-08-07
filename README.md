@@ -60,13 +60,18 @@ or run `npx complyloop-check .` / `npm run check -- .`.
 Then click **Run assessment** and walk the loop:
 
 1. **Assess** — thirteen deterministic AST checks scan the connected code
-   (scoped to changed JSX when re-assessing after a snapshot diff).
+   (scoped to changed JSX when re-assessing after a snapshot diff). Optionally
+   set a **preview / staging URL** on the dashboard (**Runtime audit**) so
+   composition-sensitive rules (labels, names, headings…) are audited on the
+   **rendered page** with Playwright + axe — that avoids false positives on
+   design-system primitives like `<input {...props} />`. First time: `npm run playwright:install`.
 2. **Understand** — each finding explains what failed, why, where, its impact,
-   and confidence.
+   and confidence (and whether it came from `ast` or `runtime`).
 3. **Remediate** — review the suggested fix (edit e.g. the proposed alt text),
-   approve it, and apply it to the file.
-4. **Verify** — the platform re-runs the check and only then marks the fix
-   verified.
+   approve it, and apply it to the file (source findings). Runtime findings get
+   call-site guidance — do not slap a generic `aria-label` on a shared Input.
+4. **Verify** — the platform re-runs the same engine (AST or runtime) and only
+   then marks the fix verified.
 5. **Evidence** — every step lands in an append-only evidence log, exportable
    as JSON, Markdown compliance report, or printable HTML.
 6. **Monitor** — re-assessments detect regressions (try **Reset sample
@@ -90,16 +95,17 @@ AI is never the source of truth.
 | `npm run lint` | ESLint (incl. strict jsx-a11y) |
 | `npm run typecheck` | TypeScript, strict |
 | `npm run test` | Vitest test suite |
+| `npm run playwright:install` | Chromium for runtime (axe) audits |
 | `npm run check -- [path]` / `npx complyloop-check` | CI gate: fail on accessibility violations |
 
 ## Architecture
 
 ```
 src/core/       Framework-agnostic domain: entities, statuses, transitions
-src/analysis/   Deterministic engine: TS AST checks, scanner, fix applier
+src/analysis/   AST checks + optional runtime (Playwright/axe) audits + fixes
 src/adapters/   Framework adapters (RGAA/WCAG first)
 src/ai/         AI explainer (optional, provenance-tagged, never sets statuses)
-src/server/     JSON store, seeding, assessment service, server actions
+src/server/     JSON/Postgres store, seeding, assessment service, server actions
 src/app/        Next.js App Router UI
 packages/check  Customer-facing CI bin (@complyloop/check)
 fixtures/       Sample project with deliberate violations (never linted)

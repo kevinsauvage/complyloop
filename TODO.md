@@ -1,215 +1,364 @@
 # Production Readiness TODO
 
-Master implementation roadmap to take ComplyLoop from a strong single-tenant MVP to a
-commercial, multi-tenant SaaS. Scope reviewed: `src/app`, `src/components`, `src/server`,
-`src/core`, `src/analysis`, `src/adapters`, `src/ai`, `packages/check`, docs, CI, deps.
+> Audit date: 2026-08-07  
+> Scope: full repository review (code, docs, CI, deploy, tests). **No application code was changed** for this audit.  
+> Product: ComplyLoop — accessibility compliance engineering (RGAA/WCAG) for React/Next.js/TypeScript apps.
 
-Effort legend: 🟢 Small (<2h) · 🟡 Medium (2–8h) · 🟠 Large (1–3d) · 🔴 Very large (>3d)
+### What’s already strong (do not rewrite)
 
-> Context that shapes every priority below: the product is architected as a **single
-> shared JSON/JSONB "whole-Db" document** loaded and rewritten on every request, with a
-> **global `activeProjectId`** and several **unscoped read paths**. Mutations are RBAC-guarded,
-> but reads and one connect action are not. That combination is the core blocker for selling
-> to more than one customer.
+These areas are production-minded for an MVP and should be preserved:
+
+- **Core loop is real**: connect → assess → findings → explain → remediate → verify → evidence → webhook monitoring.
+- **Domain boundaries**: `src/core/` (framework-agnostic), `src/analysis/` (deterministic AST), `src/adapters/rgaa/`, `src/ai/` (never sets status), `src/server/`.
+- **RBAC model**: typed roles/permissions in `src/core/rbac.ts`; most mutations use `requireOnActive` / `requireOnFindingProject`.
+- **Auth hardening**: production refuses known dev `AUTH_SECRET`; requires `AUTH_URL` + GitHub App when auth is on (`src/auth-secret.ts`, `src/auth.ts`, `src/server/github-app.ts`).
+- **Webhook security**: HMAC verification + delivery idempotency (`src/app/api/github/webhook/route.ts`).
+- **Token at rest**: AES-256-GCM encryption (`src/server/github-tokens.ts`).
+- **Evidence intent**: append-only inserts in Postgres persist path; evidence retained on disconnect.
+- **CI gate**: lint + typecheck + test + build + `build:check` (`.github/workflows/ci.yml`).
+- **A11y baseline**: strict `eslint-plugin-jsx-a11y`; skip link + route focus in `app-shell.tsx`.
+- **Honest ops docs**: `docs/deploy.md` documents the single-instance + durable disk constraint.
+- **Test depth**: ~52 colocated unit/integration tests across core, analysis, connect, webhooks, orgs, store, actions.
+
+### Current readiness
+
+**❌ Not ready** for commercial multi-tenant sale to paying customers.
+
+**⚠️ Almost ready** for a carefully scoped **early-access / single-org pilot** (one long-lived instance, Postgres, GitHub App, counsel-reviewed legal, security P0s fixed).
+
+---
+
+## 🔴 P0 — Must Fix Before Launch
+
+Issues that could prevent the product from being safely or professionally sold.
+
+* [ ] **Bind GitHub App installation tokens to the authenticated user**
+  * **Problem:** `connectGitHubRepoAction` accepts `installationId` from the client and calls `createInstallationAccessToken(installationId)` with the App private key — no check that the signed-in user can access that installation.
+  * **Why:** Any authenticated user who learns another tenant’s installation id can mint an installation token, clone private repos, and attach them to their workspace. Cross-tenant source-code exposure.
+  * **Location:** `src/server/actions/connect.ts` (≈88–108), `src/server/github-app.ts` (`createInstallationAccessToken`, `listReposViaInstallations`)
+  * **Recommendation:** Before minting, verify the installation appears in `apps.listInstallationsForAuthenticatedUser` for the user’s OAuth token. Prefer resolving `installationId` server-side from the selected repo after that check; never trust client-supplied installation ids alone.
+  * **Acceptance criteria:** Connecting with another user’s installation id fails with a permission error; tests cover allowed vs foreign installation ids.
+  * **Effort:** 🟡 Medium
+
+* [ ] **Enforce `project.connect` RBAC on GitHub repo connect**
+  * **Problem:** Path/git connect uses `assertConnectProjectAllowed` (admin/owner). GitHub picker connect only requires a session. Disconnect correctly checks `project.connect`.
+  * **Why:** A `viewer`/`member` with the shared org active can attach repos into that org, expanding tenant attack surface and compliance data.
+  * **Location:** `src/server/actions/connect.ts` (`connectGitHubRepoAction`); contrast `src/server/connect-policy.ts`, `src/server/connect-github.ts` (disconnect)
+  * **Recommendation:** Call the same connect authorization helper (active org + `project.connect`) inside `connectGitHubRepoAction` before cloning.
+  * **Acceptance criteria:** Non-admin members cannot connect GitHub repos into an org; test asserts denial.
+  * **Effort:** 🟢 Small
+
+* [ ] **Replace draft Terms & Privacy with counsel-reviewed legal**
+  * **Problem:** `/legal/terms` and `/legal/privacy` are explicitly labeled draft / counsel-needed and incomplete for commercial sale (no DPA, subprocessors incomplete, no EU rights exercise path).
+  * **Why:** Selling without enforceable ToS/Privacy (and GDPR basis where applicable) is a legal and trust blocker.
+  * **Location:** `src/app/legal/terms/page.tsx`, `src/app/legal/privacy/page.tsx`
+  * **Recommendation:** Ship counsel-reviewed documents covering code processing, AI subprocessors, retention, deletion, liability limits, and customer responsibilities for remediations. Link from sign-in and footer.
+  * **Acceptance criteria:** Pages no longer say “draft”; counsel sign-off recorded; footer links visible.
+  * **Effort:** 🟠 Large (mostly legal, not engineering)
+
+* [ ] **Lock production topology: single instance + durable disk + Postgres (or ship ephemeral workspaces)**
+  * **Problem:** Clones live under `$DATA_DIR/workspaces`. Multi-replica / ephemeral serverless disks cause `workspace_missing` on webhooks and remediations. Documented in `docs/deploy.md` but easy to violate on Vercel-style deploys.
+  * **Why:** First production outage for paying GitHub customers will be “webhook assessed nothing / remediations can’t find files.”
+  * **Location:** `docs/deploy.md`, `src/server/webhook.ts`, `src/server/connect-shared.ts`, workspace under `$DATA_DIR`
+  * **Recommendation (near-term):** Document and enforce a supported deploy shape (one Node replica, volume for `DATA_DIR`, `DATABASE_URL`). Add a health/ready check that fails if `DATA_DIR` is not writable. **(Follow-up architecture):** ephemeral clone-per-job so horizontal scale is possible (see Architecture Improvements).
+  * **Acceptance criteria:** Deploy runbook matches one supported shape; health endpoint verifies writable workspaces; webhook failure mode remains clear when volume is missing.
+  * **Effort:** 🟡 Medium (ops) / 🔴 Very large (ephemeral workspaces)
+
+* [ ] **Disable or isolate the shared writable sample project on hosted multi-tenant**
+  * **Problem:** Seeded sample has no `orgId`/`ownerUserId`; RBAC grants view/assess/remediate to everyone including anonymous. Remediations mutate the shared workspace under `$DATA_DIR`.
+  * **Why:** On a shared deployment, any visitor can vandalize demo findings/files and interfere with other users’ first impression.
+  * **Location:** `src/server/seed.ts`, `src/core/rbac.ts` (`canOnProject` for unscoped projects)
+  * **Recommendation:** Hosted mode: per-user sample copies, or read-only sample with remediations disabled unless signed in to a personal copy. Keep current behavior for laptop `NODE_ENV=development` only.
+  * **Acceptance criteria:** Unsigned users on production cannot mutate sample workspace; signed-in users get an isolated copy or read-only demo.
+  * **Effort:** 🟡 Medium
+
+* [ ] **Add operator backups + health check before inviting paying orgs**
+  * **Problem:** `docs/deploy.md` checklist mentions backups; there is no health/ready endpoint, no Dockerfile for the app, and no backup script/runbook automation. Compose only runs Postgres.
+  * **Why:** Without health checks and restore-tested backups, a disk/Postgres failure is an unrecoverable customer incident.
+  * **Location:** `docs/deploy.md`, `docker-compose.yml` (Postgres only); no `Dockerfile`, no `/api/health`
+  * **Recommendation:** Add `GET /api/health` (process up + optional DB ping + `DATA_DIR` writable). Document Postgres + volume backup/restore steps; practice restore once. Optionally add an app Dockerfile for the supported single-instance shape.
+  * **Acceptance criteria:** Health returns non-200 when DB or workspaces are unavailable; backup/restore documented and tested once.
+  * **Effort:** 🟡 Medium
+
+---
+
+## 🟠 P1 — Important Before Launch
+
+Important improvements for quality, maintainability, security, UX, or reliability.
+
+* [ ] **DNS-aware / allowlisted git remote URLs (SSRF hardening)**
+  * **Problem:** `assertSafeGitRemoteUrl` blocks literal private IPs and some hostnames but does not resolve DNS or follow redirects. A public hostname can resolve to metadata/RFC1918.
+  * **Why:** Hosted connect via git URL can SSRF internal services from the app host during `git clone`.
+  * **Location:** `src/server/connect-policy.ts`, `src/server/connect-url.ts`, `src/server/connect-shared.ts`
+  * **Recommendation:** Resolve A/AAAA after parse and re-check IPs; in hosted mode allowlist `github.com` / known hosts only (GitHub picker already preferred).
+  * **Acceptance criteria:** Hostnames resolving to private/link-local IPs are rejected; tests cover DNS-mocked cases or allowlist-only mode.
+  * **Effort:** 🟡 Medium
+
+* [ ] **Stop embedding GitHub OAuth access tokens in the JWT session cookie**
+  * **Problem:** On sign-in, `token.accessToken = account.access_token` is stored in the Auth.js JWT in addition to encrypted server-side storage.
+  * **Why:** Cookie blast radius includes live GitHub tokens if `AUTH_SECRET` leaks; server store already exists.
+  * **Location:** `src/auth.ts` (jwt callback ≈72–78; `getGitHubAccessToken` ≈102–120), `src/types/next-auth.d.ts`
+  * **Recommendation:** Persist only via `storeUserGitHubToken`; load via `getStoredGitHubToken(sub)`. Prefer installation tokens when App is configured.
+  * **Acceptance criteria:** JWT payload no longer contains `accessToken`; GitHub connect/PR/Checks still work.
+  * **Effort:** 🟢 Small
+
+* [ ] **Rate-limit expensive operations**
+  * **Problem:** No application-level rate limits on connect/clone, assessment, AI explain/remediate, webhook, or auth.
+  * **Why:** Authenticated users (or stolen webhook secret) can burn CPU, disk, GitHub API quota, and AI cost.
+  * **Location:** `src/server/actions/connect.ts`, `assessment.ts`, `remediation-ai.ts`, `src/app/api/github/webhook/route.ts`; no `middleware.ts`
+  * **Recommendation:** Per-user/IP limits (WAF or in-app) on connect, assess, AI; reject webhooks missing `x-github-delivery` after signature verify (`src/server/webhook-deliveries.ts` currently treats empty id as always-new).
+  * **Acceptance criteria:** Burst connect/assess returns 429 / form error; webhook without delivery id returns 400.
+  * **Effort:** 🟡 Medium
+
+* [ ] **Restrict admin privilege over other admins**
+  * **Problem:** `canManageOrgMembers` treats `admin` and `owner` equally — admins can invite/promote/remove peer admins.
+  * **Why:** Lateral privilege expansion after over-invite or single admin compromise.
+  * **Location:** `src/server/orgs.ts`, `src/server/actions/org.ts`, `src/core/rbac.ts`
+  * **Recommendation:** Only `owner` may invite/change/remove `admin`; admins manage `member`/`viewer` only.
+  * **Acceptance criteria:** Tests deny admin→admin role changes; owners retain full control.
+  * **Effort:** 🟢 Small
+
+* [ ] **Account / data lifecycle for paying customers (GDPR-ready minimum)**
+  * **Problem:** Sign-in/out only. No account deletion, no customer-initiated data export of all personal/project data, no clear operator deletion path for clones + tokens + evidence.
+  * **Why:** EU/enterprise buyers expect deletion and export; privacy page already describes retention without a product path.
+  * **Location:** `src/components/auth-controls.tsx`, `src/app/legal/privacy/page.tsx`, org/project disconnect paths
+  * **Recommendation:** Org owner “delete org / export data” flows; user sign-out already clears tokens — extend with delete-account that removes memberships, owned projects, clones, and stored tokens. Document evidence retention exceptions.
+  * **Acceptance criteria:** Documented self-serve or support-assisted deletion within a stated SLA; export produces machine-readable archive of user-visible data.
+  * **Effort:** 🟠 Large
+
+* [ ] **Brand-critical accessibility polish on feedback surfaces**
+  * **Problem:** Product sells accessibility compliance. Success on PR create uses default `Alert` → `role="alert"` (should be polite `status`). `CopyButton` has no live region. Remediation lifecycle step is visual-only.
+  * **Why:** Screen-reader users get incorrect urgency or miss confirmation — brand trust failure.
+  * **Location:** `src/components/create-pr-form.tsx`, `src/components/ui/alert.tsx`, `src/components/copy-button.tsx`, `src/components/findings/finding-remediation-card.tsx`, `src/components/stateful-action-form.tsx` (good pattern to mirror)
+  * **Recommendation:** Match `StatefulActionForm` (`role="status"` for success). Add `aria-live="polite"` for copy. Mark current remediation stage with `aria-current`.
+  * **Acceptance criteria:** RTL tests assert status vs alert roles; copy announces “Copied”.
+  * **Effort:** 🟢 Small
+
+* [ ] **Pending/error UX for AI explanation & remediation forms**
+  * **Problem:** AI forms are plain `<form action>` without pending labels or inline errors (unlike `StatefulActionForm`). No route-level `loading.tsx` anywhere.
+  * **Why:** Users get stuck wondering if Generate did anything; slow AI looks like a hang.
+  * **Location:** `src/components/findings/finding-explanations-card.tsx`, `finding-remediation-card.tsx`; `src/app/**` (0 `loading.tsx`)
+  * **Recommendation:** Use `useActionState` / `StatefulActionForm` pattern; add `loading.tsx` for findings and dashboard at minimum.
+  * **Acceptance criteria:** AI buttons show pending; failures surface as `role="alert"`.
+  * **Effort:** 🟡 Medium
+
+* [ ] **Move `shadcn` CLI out of runtime dependencies**
+  * **Problem:** `shadcn@4.16.2` is in `dependencies` but not imported by app code (~scaffold CLI only).
+  * **Why:** Inflates production install size and attack surface for no runtime benefit.
+  * **Location:** `package.json`
+  * **Recommendation:** Move to `devDependencies` or remove after components are generated; keep `radix-ui` / CVA as needed by `src/components/ui/*`.
+  * **Acceptance criteria:** Production `npm ci --omit=dev` no longer installs `shadcn` CLI; UI still builds.
+  * **Effort:** 🟢 Small
+
+* [ ] **Playwright smoke of the core loop in CI**
+  * **Problem:** ~52 unit tests; no browser e2e for connect → assess → remediate → verify → evidence.
+  * **Why:** Regressions in the sold loop will ship undetected by unit mocks.
+  * **Location:** No Playwright/Cypress; CI is unit-only (`.github/workflows/ci.yml`)
+  * **Recommendation:** One happy-path e2e against sample project (unsigned laptop mode) plus one authz denial case. Run in CI on PRs.
+  * **Acceptance criteria:** CI fails if assessment → verify → evidence export breaks on sample.
+  * **Effort:** 🟠 Large
+
+* [ ] **Production monitoring baseline**
+  * **Problem:** Structured logs + optional Sentry (`src/server/observability.ts`); `tracesSampleRate: 0`; no latency/error SLOs, no alerting runbook.
+  * **Why:** Paying customers need someone to notice webhook storms and assessment failures.
+  * **Location:** `src/server/observability.ts`, `.env.example` (`SENTRY_DSN`)
+  * **Recommendation:** Require `SENTRY_DSN` in production checklist; alert on webhook `workspace_missing`, assessment failures, auth misconfig. Keep logs JSON for aggregation.
+  * **Acceptance criteria:** Staging/prod has Sentry (or equivalent) with at least error alerts to an on-call channel.
+  * **Effort:** 🟡 Medium
+
+* [ ] **Evidence append-only enforced beyond app convention**
+  * **Problem:** Postgres persist path inserts missing evidence ids only; no DB trigger/privilege denying UPDATE/DELETE. JSON store can rewrite the whole array.
+  * **Why:** Accidental code or DBA ops can destroy audit trail — the product’s core promise.
+  * **Location:** `src/server/db-store/postgres-persist-runtime.ts`, `drizzle/0000_init.sql`
+  * **Recommendation:** DB role without UPDATE/DELETE on `evidence`, or trigger raising exception; document operator policy.
+  * **Acceptance criteria:** Migration + test/manual proof that UPDATE/DELETE on evidence fails under app role.
+  * **Effort:** 🟡 Medium
+
+---
 
 ## 🟡 P2 — Post-Launch Improvements
 
-- [ ] **Escape the whole-Db read-modify-write model** 🔴
-  - **Problem:** Every request hydrates all tenants' data; every write rewrites all mutable tables; one global advisory lock serializes all tenants' writes; the JSONB "payload" model requires a ~450-line hand-written upsert/delete.
-  - **Why:** Hard scaling ceiling and high maintenance risk; a missed table in the persist code corrupts state.
-  - **Location:** `src/server/db.ts:29-65`; `src/server/db-store/postgres.ts:60-454`; `src/server/db-store/write-lock.ts:8-35`.
-  - **Recommendation:** Migrate to real relational tables with per-project/tenant queries, append evidence directly, and replace the global lock with row/tenant-scoped transactions. (See Architecture.)
-  - **Acceptance criteria:** Reads/writes are scoped to a tenant and don't load unrelated data; no single global write lock.
+Useful improvements that should not block a carefully scoped initial pilot launch.
 
-- [ ] **Foreign keys + referential integrity in Postgres** 🟡
-  - **Problem:** No FKs/cascades; integrity depends on "rewrite from memory". Alerts aren't removed on disconnect; evidence is retained (correct) but unbounded.
-  - **Location:** `src/server/db-store/schema.ts`; disconnect in `src/server/connect.ts:365-398`.
-  - **Recommendation:** Add FKs + unique constraints (`requirements (project_id, control_id)`), and clean up orphaned alerts on disconnect.
-  - **Acceptance criteria:** DB rejects orphaned rows; disconnect leaves no dangling alerts.
-
-- [ ] **Transactional migration runner** 🟢
-  - **Problem:** Applying SQL and recording it in `_complyloop_migrations` aren't in one transaction; a crash between them leaves inconsistent bookkeeping.
-  - **Location:** `scripts/db-migrate.ts:42-55`.
-  - **Recommendation:** Wrap each migration's apply + record in a single transaction.
-  - **Acceptance criteria:** A mid-migration crash leaves the migration either fully applied+recorded or not at all.
-
-- [ ] **Rate limiting on webhook + auth + connect endpoints** 🟡
-  - **Problem:** No rate limiting anywhere; webhook and connect trigger clones/assessments (expensive).
-  - **Location:** `src/app/api/github/webhook/route.ts`; connect actions.
-  - **Recommendation:** Add per-IP/per-token rate limits on the webhook and connect/assess paths.
-  - **Acceptance criteria:** Abusive request volume is throttled with 429s.
-
-- [ ] **Shorten lock hold times (no network under the write lock)** 🟡
-  - **Problem:** AI generation and the webhook Check Run HTTP call happen while holding the store write lock, blocking all other writers.
-  - **Location:** `src/server/actions.ts:558-619`; `src/server/webhook.ts:177-226`.
-  - **Recommendation:** Do network I/O outside the lock; take the lock only to persist results.
-  - **Acceptance criteria:** No outbound HTTP occurs while the write lock is held.
-
-- [ ] **Toast/flash feedback after redirects** 🟢
-  - **Problem:** No cross-navigation success feedback after actions that revalidate/redirect.
-  - **Recommendation:** Add a lightweight flash mechanism (searchParams or cookie) surfaced as a toast.
-  - **Acceptance criteria:** Post-action success is visible after navigation.
-
-- [ ] **Onboarding flow for signed-in tenants** 🟡
-  - **Problem:** Onboarding is demo-first (sample project + always-on connect panel); no guided connect → scope → assess → first finding for a real tenant.
-  - **Location:** `src/app/page.tsx:143-156`; `src/app/org/page.tsx:40-48`.
-  - **Recommendation:** Add a first-run checklist for signed-in users with no real project yet.
-  - **Acceptance criteria:** A new tenant is guided to their first assessment.
+* [ ] **Replace whole-Db load/save with query-scoped persistence** (see Architecture Improvements) — required before ~1k tenants. **Effort:** 🔴 Very large
+* [ ] **Foreign keys, unique constraints, and indexes for hot paths** — e.g. membership `(org_id, user_id)` unique; indexes on `findings.status`, `remediations.finding_id`, `alerts.project_id`. **Location:** `drizzle/`, `src/server/db-store/schema.ts`. **Effort:** 🟡 Medium
+* [ ] **Clear orphan alerts on project disconnect** — findings pruned; alerts for `projectId` not cleared in `connect-github.ts`. **Effort:** 🟢 Small
+* [ ] **Assessment/evidence retention policy** — unbounded assessment payloads (`fileHashes`) and evidence growth. **Effort:** 🟠 Large
+* [ ] **Tighten local-path connect if ever enabled** — require auth, force owner, allowlist roots under `$HOME`/`$DATA_DIR`. **Location:** `src/server/connect-local.ts`, `connect-policy.ts`. **Effort:** 🟡 Medium
+* [ ] **Zod (or shared schemas) at server-action boundaries** — today mostly `FormData` + typeof; zod used mainly for AI. **Effort:** 🟠 Large
+* [ ] **Findings URL state** — tab + pagination for open findings only; resolved/dismissed capped without pagination (`src/app/findings/page.tsx`). **Effort:** 🟡 Medium
+* [ ] **Sanitize report download filename** — `Content-Disposition` uses unsanitized `project.name` (`src/app/evidence/report/route.ts`). **Effort:** 🟢 Small
+* [ ] **Coverage gate on core + actions** — `test:coverage` exists but CI has no threshold. **Effort:** 🟢 Small
+* [ ] **Stabilize Auth.js** — `next-auth@5.0.0-beta.32`; track stable release / security advisories. **Effort:** 🟡 Medium (wait + upgrade)
+* [ ] **Guided first-run onboarding** — sample → connect GitHub App → first assessment checklist (beyond README). **Effort:** 🟠 Large
+* [ ] **Remove legacy `app_meta.activeProjectId` stomps** — UI uses cookies; global field still written on connect/seed. **Effort:** 🟢 Small
+* [ ] **Decouple `src/ai/` from `src/server/observability`** — inject logger at boundary. **Effort:** 🟢 Small
 
 ---
 
 ## 🟢 P3 — Nice to Have
 
-- [ ] **Findings search / filter (severity, control, file)** 🟡 — only status sections today (`src/app/findings/page.tsx`).
-- [ ] **Move `activeProjectId` magic + `dataDir()` duplication into shared helpers** 🟢 — duplicated in `json.ts`, `github-tokens.ts`, `webhook-deliveries.ts`.
-- [ ] **`CheckId` boundary leak** 🟢 — `src/adapters/rgaa/guidance.ts:1` imports `CheckId` from `@/analysis`; move the id type to core.
-- [ ] **Broaden check coverage** 🟡 — `button-name`/`input-label` only match native tags, not `role="button"` / `select` / `textarea`; `iframe`/`aria-hidden` with dynamic expressions.
-- [ ] **Git hooks (pre-commit lint/typecheck)** 🟢 — no husky/lint-staged; gate is CI + manual only.
-- [ ] **Stricter tsconfig flags** 🟢 — add `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`.
-- [ ] **Import-boundary lint (core ↔ adapters/analysis)** 🟢 — enforce dependency direction with a rule.
-- [ ] **EmptyState/brand headings** 🟢 — `EmptyState` title is a `<p>`; brand mark is a non-link `<p>` (`src/app/layout.tsx:32-36`; `src/components/ui.tsx:56-61`).
+Optional improvements with relatively low near-term business impact.
+
+* [ ] **Billing / plans / quotas** — none today; add when monetizing beyond manual invoicing. Spec MVP does not require it.
+* [ ] **Runtime axe in CI** on product UI (lint ≠ runtime).
+* [ ] **Static legal pages** — drop unnecessary `force-dynamic` on `/legal/*`.
+* [ ] **Reduce `"use client"` on static UI** (e.g. `table.tsx` wrapping SSR evidence).
+* [ ] **App container image** + compose profile for full stack demo.
+* [ ] **Transactional email** (org invites currently assume user id/login knowledge — no invite email flow).
+* [ ] **Multi-framework adapters** (SOC 2, ISO) — explicitly post-MVP per product spec.
+* [ ] **Human-readable severity beyond color+text** already OK; optional icon+text patterns.
 
 ---
 
 # Architecture Improvements
 
-### 1. Tenant-scoped persistence (replace whole-Db RMW)
+### 1. Persistence: document store → query engine
 
-- **Current architecture:** One logical document (JSON file or a set of JSONB `payload` tables) is loaded in full on every request and rewritten in full on every mutation, serialized by a single global advisory lock. `activeProjectId` is a single global value.
-- **Problem:** No query-level tenant isolation; unbounded memory growth (evidence); global lock serializes all tenants; ~450 lines of hand-written persist logic that can silently drop a table.
-- **Proposed architecture:** Normalized relational schema with foreign keys; queries scoped by `orgId`/`projectId`; evidence appended (and paginated) directly; per-tenant/row transactions instead of one global lock; per-user active-project in session.
-- **Migration strategy:** Keep the `Db`-shaped facade for the domain/assessment code initially; behind it, replace whole-store load/save with scoped repository functions table by table (start with evidence + findings reads, then writes). Dual-run against the JSON store in tests during the transition.
-- **Priority:** P2 (the read-isolation _symptoms_ are fixed as P0 patches first; this is the durable fix).
+| | |
+|--|--|
+| **Current architecture** | Dual store (JSON or Postgres) still models the world as one in-memory `Db`. Every request can `loadDb()` all tables; every write re-syncs mutable tables under a **global** process mutex + `pg_advisory_xact_lock` (`src/server/db.ts`, `postgres-load.ts`, `write-lock.ts`). Postgres stores JSONB payloads + a few indexed columns. |
+| **Problem** | Throughput and memory scale with **total** tenant data, not the active project. One writer for all orgs. Pool max 3 (`client.ts`) reinforces serialization. Fine for demos; unsafe past small pilots. |
+| **Proposed architecture** | Project-scoped repositories: load/mutate only the active org/project. Real columns for query filters; transactions per project write. Keep evidence insert-only. Retire whole-Db sync. |
+| **Migration strategy** | 1) Add project-scoped read APIs beside `loadDb`. 2) Move hot paths (workspace, assessment persist) off full reload. 3) Stop pruning-via-full-upsert. 4) Drop in-memory `Db` as the write API. |
+| **Priority** | P2 for pilot; **P0 for scale** beyond ~tens of orgs / concurrent assessments. |
 
-### 2. GitHub App instead of broad OAuth `repo` scope
+### 2. Workspaces: durable local clones → ephemeral job workspaces
 
-- **Current:** OAuth with `repo` scope; user token stored (encrypted) and reused for clone/pull/PR/Check Runs.
-- **Problem:** Excessive standing permissions across all of a user's repos; enterprise procurement blocker.
-- **Proposed:** GitHub App with per-repo installation and least-privilege permissions; installation tokens minted on demand.
-- **Migration strategy:** Add App auth alongside OAuth; migrate connect/webhook/PR to installation tokens; deprecate the broad scope.
-- **Priority:** P1 for launch credibility, P2 for full migration.
+| | |
+|--|--|
+| **Current architecture** | `git clone` into `$DATA_DIR/workspaces/{projectId}`; remediations and webhooks assume the tree stays on that instance. |
+| **Problem** | Blocks horizontal scale and serverless; volume loss = broken monitoring. |
+| **Proposed architecture** | Clone (or sparse checkout) per assessment/remediation job into ephemeral storage; cache by commit SHA; optional remote-only patch apply via GitHub API for remediations. |
+| **Migration strategy** | Keep current path for single-instance; add job runner behind a feature flag; move webhook assess onto jobs first. |
+| **Priority** | P0 constraint documented now; implementation P2 unless multi-instance is required at launch. |
 
-### 3. Durable/ephemeral clone strategy
+### 3. Tenant isolation: app RBAC → DB constraints (+ optional RLS)
 
-- **Current:** Persistent clones on local disk; single-instance assumption.
-- **Problem:** Blocks horizontal scaling and serverless; webhook fails when disk is cold.
-- **Proposed:** Clone-per-job into ephemeral storage (or sparse fetch of changed files) so no long-lived shared disk is required.
-- **Migration strategy:** Introduce a workspace provider interface; keep the disk provider for local, add an ephemeral provider for hosted.
-- **Priority:** P0 constraint (document single-instance) now; P2 for the real fix.
+| | |
+|--|--|
+| **Current architecture** | Isolation is TypeScript filters (`project-visibility`, `rbac`). No FKs, no RLS. |
+| **Problem** | Any missed filter is a cross-tenant leak; compromised process sees all rows. |
+| **Proposed architecture** | FKs + unique membership; eventually Postgres RLS by `org_id` for defense in depth. |
+| **Migration strategy** | Add constraints first (safe, high value); RLS after query-scoped persistence (RLS fights whole-table loads). |
+| **Priority** | P1 constraints; P2 RLS. |
+
+### 4. Keep module boundaries; fix small leaks only
+
+| | |
+|--|--|
+| **Current architecture** | Clear layers (core / analysis / adapters / ai / server / app). Domain-split server actions (no barrels). |
+| **Problem** | Minor: AI → server observability; assessment orchestration couples adapters + AI (acceptable for MVP). |
+| **Proposed architecture** | Inject observability ports into AI; keep RGAA behind adapter. **Do not** introduce enterprise packaging for its own sake. |
+| **Priority** | P2/P3. |
 
 ---
 
 # Technical Debt
 
-- `actions.ts` at 1088 lines mixes many domains; high review risk for permission bugs.
-- JSONB document store requires ~450 lines of manual upsert/delete (`postgres.ts`) — brittle, easy to miss a table.
-- Duplicated helpers: `dataDir()` (3 modules), `hasAriaName` (3 checks), near-twin GitHub/git clone paths.
-- `saveDb` remains a public unlocked API — easy to misuse outside the write lock.
-- `next-auth` pinned to `^5.0.0-beta.32` (beta) — breaking-change exposure; plan to pin exactly and track upstream to GA.
-- Requirement statuses have no explicit transition graph in core (derived ad hoc in assessment/actions).
-- Migration runner is a custom ordered-SQL applier (fine for now, not journaled like Drizzle Kit).
+| Item | Notes |
+|------|--------|
+| Whole-Db sync abstraction | Largest structural debt — see Architecture #1 |
+| Dual active project (cookie vs `app_meta`) | Confusing for new contributors |
+| Ad-hoc FormData validation | Inconsistent vs zod on AI paths |
+| Disconnect leaves alerts | Orphan rows |
+| Shared unscoped projects ACL | Intentional for demo; dangerous if left on in prod |
+| `shadcn` as runtime dependency | Packaging hygiene |
+| Auth.js beta | Track upgrades |
+| No e2e | Unit-heavy, browser-light |
+| Assessment snapshot bloat | `fileHashes` in JSONB payloads |
+| Global write lock + pool size 3 | Correct for free-tier demo; wrong for multi-tenant SaaS |
+| Client-visible raw `Error.message` | `action-state.ts` may leak internal paths |
 
 ---
 
 # Security Findings
 
-**Critical**
+| Severity | Finding | Location |
+|----------|---------|----------|
+| **Critical** | GitHub App installation token minting not bound to caller | `src/server/actions/connect.ts`, `src/server/github-app.ts` |
+| **High** | GitHub connect skips `project.connect` RBAC | `connectGitHubRepoAction` |
+| **High** | Local path connect = arbitrary FS read/write when enabled; unsigned allowed when flag on | `connect-local.ts`, `connect-policy.ts` |
+| **High** | Shared sample project world-writable by design | `seed.ts`, `rbac.ts` |
+| **Medium** | Git URL SSRF: host blocklist without DNS resolution | `connect-policy.ts` |
+| **Medium** | OAuth access token in JWT cookie | `auth.ts` |
+| **Medium** | No rate limiting on connect/assess/AI/webhook | actions + webhook route |
+| **Medium** | Admins can manage other admins | `orgs.ts` |
+| **Low** | Webhook replay if `x-github-delivery` missing | `webhook-deliveries.ts` |
+| **Low** | Unsanitized `Content-Disposition` filename | `evidence/report/route.ts` |
+| **Low** | `trustHost: true` — mitigate with always-set `AUTH_URL` in deployed envs | `auth.ts` |
 
-- Cross-tenant read leak: findings detail, evidence page, JSON export, MD/HTML reports (P0).
-- Unauthenticated `connectProjectAction` → arbitrary local path connect + server-side clone (P0).
-- Path traversal on remediation apply / PR write (P0).
-
-**High**
-
-- Dev-secret fallback for `AUTH_SECRET` can reach production (`src/auth.ts:49`).
-- Global `activeProjectId` cross-user contamination.
-- Webhook idempotency TOCTOU (duplicate processing).
-- Over-broad `repo` OAuth scope.
-
-**Medium**
-
-- `sslmode=require` → `rejectUnauthorized: false` (DB MITM).
-- Silent token/store decrypt/parse failures look like "logged out" and hide tampering.
-- Local-path connector exposes host filesystem if enabled in a shared deployment.
-- No rate limiting on webhook/connect/auth.
-
-**Low**
-
-- Empty catches around non-fatal git/PR cleanup reduce diagnosability.
-- No structured logging/APM to detect abuse.
-
-_(No SQL injection found — Drizzle parameterizes; no `dangerouslySetInnerHTML`; git env is sanitized in `src/server/git.ts`; webhook HMAC verification and AES-256-GCM token encryption are correctly implemented.)_
+**Already solid:** production secret hard-fail; GitHub App required in prod; webhook HMAC; token encryption at rest; path traversal guard on remediations (`workspace-path.ts`); finding/project IDOR checks on most mutations; httpOnly/sameSite cookies for active org/project; SSRF hostname blocklist (literal); git env scrubbing.
 
 ---
 
 # Performance Findings
 
-- Full-store hydrate on every page/request; no query-level scoping (`getWorkspace`/`loadDb`).
-- No pagination on findings, evidence, requirements, remediation history.
-- Duplicate `getWorkspace()` + `auth()` per request (no `React.cache`).
-- O(controls × findings) loops in requirements/assessment; O(n²) cluster resolution in findings list.
-- Every page `force-dynamic`; no static/ISR/caching for read-mostly views.
-- Evidence append-only and never pruned → grows unbounded and is loaded in full each time.
+| Finding | Impact | When it matters |
+|---------|--------|-----------------|
+| Full multi-table `loadDb` per request | Latency + memory grow with all tenants | > tens of projects / large evidence |
+| Global advisory lock on every write | Serializes all tenant writes | Concurrent assessments/webhooks |
+| Assessment stores full `fileHashes` snapshots | DB/JSONB growth | Frequent re-assess |
+| GitHub repo list during server render of connect panel | Slow first paint when signed in | Large installation repos |
+| Pool max 3 + global lock | Queueing before CPU saturates | Multi-user hosted |
+| All pages `force-dynamic` | No CDN caching (acceptable for app shell) | Legal pages unnecessarily dynamic |
+| No route `loading.tsx` | Perceived hang on slow assessments/AI | UX, not throughput |
+
+Do **not** chase micro-optimizations until persistence is project-scoped.
 
 ---
 
 # Accessibility Findings
 
-**High**
+| Severity | Finding | Location |
+|----------|---------|----------|
+| **High** | Success feedback uses `role="alert"` via default `Alert` | `create-pr-form.tsx`, `ui/alert.tsx` |
+| **High** | Copy confirmation not announced | `copy-button.tsx` |
+| **Medium** | Remediation lifecycle stage not exposed to AT | `finding-remediation-card.tsx` |
+| **Medium** | Error page nests interactive recovery inside `role="alert"` | `error.tsx` |
+| **Gap** | No runtime axe/Playwright a11y CI (lint-only) | `.github/workflows/ci.yml` |
 
-- `text-zinc-400` body/meta text fails WCAG AA contrast (multiple pages).
-- Form errors not programmatically associated (`aria-invalid`/`aria-describedby`) — ironic vs the product's own check.
-- No skip link; sidebar-first tab order.
-- Async outcomes (failed verify, "Copied") not announced via live regions.
-
-**Medium**
-
-- `EmptyState` title and brand mark are `<p>`, weakening the heading outline.
-- Remediation lifecycle inactive steps rely on low-contrast `text-zinc-400`.
-- No focus management after navigation/actions.
-- `aria-hidden={false}` false positive in the engine (also a correctness bug).
-
-**Done well:** `lang="en"`, `<nav aria-label>` + `aria-current`, `<main>` landmark, semantic evidence table with `scope="col"`, labeled connect/invite/scope forms, provenance badges, `role="status"` on PR success.
+**Already solid:** strict jsx-a11y; skip link; focus to `h1` on nav; labeled forms with `aria-invalid`/`aria-describedby`; `AlertDialog` instead of `window.confirm`; pagination labels; verify-feedback tests for alert/status roles.
 
 ---
 
 # Testing Gaps
 
-Most important missing coverage (business-critical / high-risk first):
+Prioritize business-critical and high-risk areas (not line coverage vanity):
 
-1. `src/server/actions.ts` remediation lifecycle (apply/verify incl. failure) + RBAC permission matrix.
-2. Auth/session behavior and action-boundary authorization.
-3. Webhook end-to-end (route → pull → reassess → alert → idempotency).
-4. Multi-tenant read isolation (finding detail, evidence, exports) — negative tests.
-5. Path containment on apply/PR.
-6. `aria-hidden={false}` regression + dynamic-expression cases across checks.
-7. E2E happy path of the full loop (connect → assess → finding → remediate → verify → evidence) — none exist.
-8. Postgres load/persist + advisory-lock integration (currently only JSON round-trip).
+1. **Security:** foreign GitHub `installationId` minting; GitHub connect without `project.connect`; org role escalation admin→admin.
+2. **E2E smoke:** sample assess → remediate → verify → evidence export (Playwright).
+3. **Webhook:** missing delivery id; `workspace_missing` path; signature failure.
+4. **Authz regressions:** already partly covered in `actions.remediation.test.ts` — keep expanding for connect/org.
+5. **SSRF/DNS policy** once implemented.
+6. **Page-level** dashboard/requirements/evidence smoke (optional after e2e).
 
-_(Well covered already: domain core + transitions, per-check AST behavior, assessment stickiness/regressions, connect/disconnect, token encryption, webhook signature, orgs/RBAC helpers, monitor diffs, report markdown.)_
+CI today: lint, typecheck, unit test, build — good foundation, not sufficient alone for launch confidence.
 
 ---
 
 # Production Checklist
 
-- [ ] **Authentication** — remove dev-secret fallback in prod; keep `AUTH_URL` guard; plan GitHub App migration.
-- [ ] **Authorization** — add missing read-path visibility checks (finding detail, evidence, exports); reflect RBAC in UI; test the permission matrix.
-- [ ] **Security** — path containment; connect-action auth; rate limiting; verified DB TLS; least-privilege GitHub scope.
-- [ ] **Validation** — enforce required notes/expiry client + server; validate/deny-list git URLs; contain file paths.
-- [ ] **Error handling** — add `error.tsx`/`not-found.tsx`; convert throwing actions to surfaced errors; stop swallowing failures.
-- [ ] **Logging** — structured logging with tenant/request context; log currently-silent catches.
-- [ ] **Monitoring** — error tracking (Sentry) + basic metrics on assessments/webhooks/PRs.
-- [ ] **Database** — FKs/constraints; per-tenant queries; evidence pagination; transactional migrations.
-- [ ] **Backups** — Postgres backups (and `DATA_DIR` if JSON/clones used); documented restore.
-- [ ] **Testing** — actions/authz/webhook e2e + one full-loop E2E.
-- [ ] **Accessibility** — AA contrast; skip link; error association; focus management; fix `aria-hidden={false}`.
-- [ ] **Performance** — `React.cache(getWorkspace)`; pagination; no network under write lock.
-- [ ] **CI/CD** — keep the strong `ci.yml`; add a real publish pipeline for `@complyloop/check`; add git hooks.
-- [ ] **Environment configuration** — fail loudly on missing prod secrets; document single-instance + durable-disk requirement.
-- [ ] **Documentation** — accurate CI package install story; data-handling/retention docs.
-- [ ] **UX** — action feedback everywhere; surface failed verify; confirmations; onboarding.
-- [ ] **Mobile** — responsive nav and layout.
-- [ ] **Legal/product** — ToS, Privacy, data-processing info, in-app links.
+* [ ] Authentication — GitHub App + `AUTH_URL` + strong `AUTH_SECRET` in prod
+* [ ] Authorization — fix GitHub connect RBAC + installation binding; sample isolation
+* [ ] Security — rate limits; JWT token removal; DNS/allowlist git URLs; local connect off
+* [ ] Validation — action-boundary schemas for connect/org ids at minimum
+* [ ] Error handling — user-safe messages; keep Sentry for internals
+* [ ] Logging — structured JSON on (already present)
+* [ ] Monitoring — Sentry (or equiv) + alerts for webhook/assessment failures
+* [ ] Database — `DATABASE_URL` + migrations; evidence insert-only enforced at DB
+* [ ] Backups — Postgres + `DATA_DIR` restore tested
+* [ ] Testing — unit CI green + core-loop e2e
+* [ ] Accessibility — P1 feedback/copy/lifecycle fixes; lint remains strict
+* [ ] Performance — single-instance OK for pilot; plan project-scoped DB before scale
+* [ ] CI/CD — existing quality gate; add e2e job
+* [ ] Environment configuration — `.env.example` / `docs/deploy.md` followed exactly
+* [ ] Documentation — runbook for supported deploy shape; customer-facing help later
+* [ ] UX — AI pending states; loading UI; empty states already decent
+* [ ] Mobile — Sheet nav present; re-check findings/detail on small screens
+* [ ] Legal/product — counsel-reviewed Terms/Privacy; account deletion/export path
+* [ ] Health checks — `/api/health` (or equivalent)
+* [ ] Billing — optional until monetization model chosen
 
 ---
 
@@ -217,35 +366,52 @@ _(Well covered already: domain core + transitions, per-check AST behavior, asses
 
 ### Current readiness
 
-**❌ Not ready**
+**❌ Not ready** for general commercial multi-tenant sale.
 
-The engineering foundation is genuinely good for an MVP — a clean framework-agnostic
-domain core with exhaustive typed status handling, enforced remediation transitions,
-append-only evidence, HMAC-verified idempotent webhooks, AES-256-GCM token encryption,
-a real CI quality gate, and unusually accurate docs. The product loop
-(assess → explain → remediate → verify → evidence) works end to end.
+**⚠️ Almost ready** for a **paid early-access pilot** with constraints:
 
-But it is architected as a **single shared workspace**, not a multi-tenant SaaS. Any
-signed-in user can read other tenants' findings, evidence, and exports; one connect action
-is unauthenticated and can mount arbitrary server paths; automated PR fixes can corrupt
-source on file drift; the active project is global; and the advertised CI package cannot be
-installed. These are correctness/security/trust failures, not polish. They must be fixed
-before charging customers.
+- One org / few seats, single long-lived Node instance, durable disk, Postgres
+- GitHub App only (no local-path connect)
+- Security P0s fixed (installation binding + connect RBAC + sample isolation)
+- Counsel-reviewed legal + backups + health + Sentry
 
-### Top 10 priorities (ordered by real impact)
+### Top 10 priorities (by business / risk impact)
 
-1. **Scope all read paths by tenant** — finding detail, evidence page, JSON export, MD/HTML reports (P0).
-2. **Authenticate `connectProjectAction`** and gate/disable the raw local-path connector in hosted mode (P0).
-3. **Contain filesystem paths** under `rootPath` on every apply/PR read/write (P0).
-4. **Re-locate spans before PR apply** so automated fixes can't corrupt customer source (P0).
-5. **Remove the dev `AUTH_SECRET` fallback in production** (P1, but tiny and severe).
-6. **Make `@complyloop/check` installable** or stop advertising it (P0 for the CI value prop).
-7. **Per-user `activeProjectId`** via session/cookie (P0 correctness).
-8. **Add `error.tsx`/`not-found.tsx` + real action feedback** (pending/success/failed-verify) (P0/P1 UX).
-9. **Add error tracking + logging** so you can operate the service (P0 ops).
-10. **Document and enforce the single-instance + durable-disk deploy constraint**, and add tenant-isolation + actions/authz tests (P0/P1 reliability).
+1. **Bind GitHub App installation tokens to the caller** (Critical security)
+2. **Enforce `project.connect` on GitHub connect** (High security)
+3. **Counsel-reviewed Terms & Privacy** (legal/trust)
+4. **Isolate or lock down shared sample on hosted** (integrity/trust)
+5. **Commit to supported deploy topology + health + backups** (ops survival)
+6. **Remove OAuth token from JWT; rate-limit connect/assess/AI** (security/cost)
+7. **DNS/allowlist hardening for git URLs** (SSRF)
+8. **Brand a11y polish** (success roles, copy live region, lifecycle)
+9. **Account/data deletion + export minimum** (enterprise/GDPR readiness)
+10. **Playwright core-loop smoke in CI** (ship confidence)
 
-Only after 1–7 are done is this **⚠️ Almost ready**; with 8–10 and the P1 UX/a11y/security
-items, it becomes **✅ Ready with minor fixes** for a controlled/private beta. Broad
-horizontal scale (the whole-Db rewrite, GitHub App, ephemeral clones) is a post-launch
-program, not a launch blocker, provided you pin to a single durable instance at first.
+### Estimated effort (P0 / P1)
+
+| Item | Effort |
+|------|--------|
+| Bind installation tokens to user | 🟡 Medium |
+| Enforce GitHub connect RBAC | 🟢 Small |
+| Counsel-reviewed legal | 🟠 Large (legal) |
+| Deploy topology + health + backups | 🟡 Medium |
+| Sample project isolation | 🟡 Medium |
+| Git URL SSRF hardening | 🟡 Medium |
+| Drop access token from JWT | 🟢 Small |
+| Rate limiting + webhook delivery id required | 🟡 Medium |
+| Admin cannot manage admins | 🟢 Small |
+| Account deletion / export | 🟠 Large |
+| A11y feedback polish | 🟢 Small |
+| AI form pending/errors + loading UI | 🟡 Medium |
+| Move `shadcn` to devDependencies | 🟢 Small |
+| Playwright smoke e2e | 🟠 Large |
+| Production monitoring baseline | 🟡 Medium |
+| Evidence DB append-only enforcement | 🟡 Medium |
+
+**Rough total to early-access pilot (engineering only, excl. legal calendar):** ~2–4 engineer-weeks if focused.  
+**Rough total to scalable multi-tenant SaaS (incl. persistence + ephemeral workspaces):** additional multi-week / multi-sprint program — do not pretend the current store is that product.
+
+---
+
+*This file is the master implementation roadmap from the 2026-08-07 production readiness audit. Prefer closing P0s before net-new features that do not advance the sold compliance loop.*

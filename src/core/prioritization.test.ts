@@ -24,6 +24,7 @@ function finding(
     confidence: "high",
     reason: "fail",
     location: {
+      kind: "source",
       filePath,
       line: 1,
       column: 1,

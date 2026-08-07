@@ -249,6 +249,7 @@ describe("disconnectGitHubRepo", () => {
       confidence: "high",
       reason: "fail",
       location: {
+        kind: "source",
         filePath: "App.tsx",
         line: 1,
         column: 1,

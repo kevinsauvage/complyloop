@@ -52,7 +52,11 @@ describe("applyFix", () => {
     const [finding] = imgAltCheck.run(parseSource("a.tsx", source));
     if (!finding.fix) throw new Error("expected a fix");
 
-    const preview = previewFixedLine(source, finding.fix, finding.location.line);
+    const preview = previewFixedLine(
+      source,
+      finding.fix,
+      finding.location.kind === "source" ? finding.location.line : 1,
+    );
     expect(preview).toContain(`alt="Team"`);
     expect(source).not.toContain("alt=");
   });

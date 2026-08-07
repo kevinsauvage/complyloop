@@ -1,28 +1,42 @@
 import fs from "node:fs";
 import { describeFix, previewFixedLine } from "@/analysis/fixes";
+import { isCompositionSensitiveCheck } from "@/analysis/check-authority";
 import { scanFile } from "@/analysis/scan";
 import type { RawFinding } from "@/analysis/types";
 import { resolveInside } from "@/analysis/workspace-path";
+import { isDomLocation, isSourceLocation } from "@/core/location";
 import type {
   Finding,
+  FindingLocation,
   Project,
   ProposedFix,
   RemediationSuggestion,
 } from "@/core/types";
 
 /**
- * Findings are matched across assessments by file plus snippet (or line as a
- * fallback) so remediation state survives re-assessment and dismissals stick.
+ * Findings are matched across assessments by location identity so remediation
+ * state survives re-assessment and dismissals stick.
  */
 export function sameInstance(
-  finding: Pick<Finding, "location">,
-  raw: RawFinding,
+  finding: { location: FindingLocation },
+  raw: { location: FindingLocation },
 ): boolean {
-  return (
-    finding.location.filePath === raw.location.filePath &&
-    (finding.location.snippet === raw.location.snippet ||
-      finding.location.line === raw.location.line)
-  );
+  const left = finding.location;
+  const right = raw.location;
+  if (left.kind !== right.kind) return false;
+  if (isSourceLocation(left) && isSourceLocation(right)) {
+    return (
+      left.filePath === right.filePath &&
+      (left.snippet === right.snippet || left.line === right.line)
+    );
+  }
+  if (isDomLocation(left) && isDomLocation(right)) {
+    return (
+      left.url === right.url &&
+      (left.selector === right.selector || left.snippet === right.snippet)
+    );
+  }
+  return false;
 }
 
 /** Carries a human-edited fix value over to the freshly scanned fix. */
@@ -43,24 +57,25 @@ export function mergeFix(
 /**
  * Re-scans the finding's file and re-locates this violation instance (by
  * snippet, then line) so fixes use current character offsets after drift.
- * Warnings are ignored — they carry no fix.
+ * Warnings are ignored — they carry no fix. DOM findings are not relocatable here.
  */
 export function locateViolationInProject(
   project: Project,
   finding: Pick<Finding, "checkId" | "location">,
 ): RawFinding | undefined {
-  const violations = scanFile(
-    project.rootPath,
-    finding.location.filePath,
-  ).filter(
+  const location = finding.location;
+  if (!isSourceLocation(location)) return undefined;
+  const violations = scanFile(project.rootPath, location.filePath).filter(
     (candidate) =>
       candidate.checkId === finding.checkId && candidate.kind === "violation",
   );
-  return violations.find(
-    (candidate) =>
-      candidate.location.snippet === finding.location.snippet ||
-      candidate.location.line === finding.location.line,
-  );
+  return violations.find((candidate) => {
+    if (!isSourceLocation(candidate.location)) return false;
+    return (
+      candidate.location.snippet === location.snippet ||
+      candidate.location.line === location.line
+    );
+  });
 }
 
 export function buildSuggestion(
@@ -68,6 +83,7 @@ export function buildSuggestion(
   raw: Pick<RawFinding, "location" | "fix">,
 ): RemediationSuggestion | null {
   if (!raw.fix) return null;
+  if (!isSourceLocation(raw.location)) return null;
   const text = fs.readFileSync(
     resolveInside(project.rootPath, raw.location.filePath),
     "utf8",
@@ -81,3 +97,25 @@ export function buildSuggestion(
   };
 }
 
+/**
+ * When runtime owns composition-sensitive rules, drop AST findings for those
+ * check ids so requirement status is not driven by false primitive hits.
+ */
+export function filterAstFindingsForAuthority(
+  astFindings: ReadonlyArray<RawFinding>,
+  runtimeRan: boolean,
+): RawFinding[] {
+  if (!runtimeRan) return [...astFindings];
+  return astFindings.filter(
+    (finding) => !isCompositionSensitiveCheck(finding.checkId),
+  );
+}
+
+export function findingLocationMatchesScope(
+  location: FindingLocation,
+  scopedFileSet: Set<string> | null,
+): boolean {
+  if (!scopedFileSet) return true;
+  if (!isSourceLocation(location)) return true;
+  return scopedFileSet.has(location.filePath);
+}

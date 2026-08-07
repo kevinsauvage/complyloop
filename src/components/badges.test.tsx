@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
+  EngineBadge,
   ProvenanceBadge,
   RemediationStatusBadge,
   RequirementStatusBadge,
@@ -45,5 +46,16 @@ describe("badges", () => {
     );
     expect(screen.getByText("Verified")).toBeInTheDocument();
     expect(screen.getByText("Critical")).toBeInTheDocument();
+  });
+
+  it("labels AST vs runtime detection engines", () => {
+    render(
+      <>
+        <EngineBadge engine="ast" />
+        <EngineBadge engine="runtime" />
+      </>,
+    );
+    expect(screen.getByText("Source (AST)")).toBeInTheDocument();
+    expect(screen.getByText("Runtime (DOM)")).toBeInTheDocument();
   });
 });

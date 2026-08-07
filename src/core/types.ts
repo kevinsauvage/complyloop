@@ -120,6 +120,16 @@ export interface Project {
    * on the connected frameworks is in scope.
    */
   inScopeControlIds?: string[];
+  /**
+   * Staging / preview base URL for runtime (browser) accessibility audits.
+   * When set, composition-sensitive rules use the rendered DOM as status truth.
+   */
+  runtimeBaseUrl?: string;
+  /**
+   * Pathnames to audit under `runtimeBaseUrl` (e.g. `/`, `/login`).
+   * Defaults to `["/"]` when the base URL is set and this is omitted.
+   */
+  runtimeRoutes?: string[];
 }
 
 export type RequirementExceptionReason =
@@ -180,6 +190,8 @@ export interface Assessment {
   filesScanned: number;
   /** Whether this run scanned the full tree or only changed JSX files. */
   scanMode?: "full" | "scoped";
+  /** Which engines ran (AST always; runtime when a preview URL is configured). */
+  engines?: AssessmentEngines;
   summary: Record<RequirementStatus, number>;
   snapshot?: AssessmentSnapshot;
   /** Files that changed since the previous assessment, when detectable. */
@@ -191,13 +203,44 @@ export interface Span {
   end: number;
 }
 
-export interface CodeLocation {
+/** Source-file location from AST analysis (CI / auto-fixable defects). */
+export interface SourceLocation {
+  kind: "source";
   filePath: string;
   line: number;
   column: number;
   snippet: string;
   /** Character span of the offending JSX element in the source file. */
   span: Span;
+}
+
+/**
+ * Rendered-DOM location from a runtime (browser) audit.
+ * Source of truth for composition-sensitive a11y rules when a preview URL is set.
+ */
+export interface DomLocation {
+  kind: "dom";
+  /** Absolute page URL that was audited. */
+  url: string;
+  /** Primary CSS/selector target from the audit engine. */
+  selector: string;
+  /** HTML snippet of the failing node. */
+  snippet: string;
+}
+
+/** Where a finding was observed — source AST or rendered DOM. */
+export type FindingLocation = SourceLocation | DomLocation;
+
+/** Which analysis engines contributed to an assessment. */
+export type AssessmentEngine = "ast" | "runtime";
+
+export interface AssessmentEngines {
+  ast: boolean;
+  runtime: boolean;
+  /** Pages successfully audited when runtime ran. */
+  runtimePagesScanned?: number;
+  /** Non-fatal runtime errors (e.g. unreachable URL). */
+  runtimeError?: string;
 }
 
 export type ProposedFix =
@@ -253,7 +296,9 @@ export interface Finding {
   severity: Severity;
   confidence: Confidence;
   reason: string;
-  location: CodeLocation;
+  location: FindingLocation;
+  /** Detection engine that produced this finding. */
+  engine?: AssessmentEngine;
   fix: ProposedFix | null;
   explanations: Explanation[];
   detectedAt: string;

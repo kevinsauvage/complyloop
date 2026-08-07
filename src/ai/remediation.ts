@@ -6,6 +6,7 @@ import type {
   Finding,
   RemediationSuggestion,
 } from "@/core/types";
+import { formatLocationRef } from "@/core/location";
 import { reportWarning } from "@/server/observability";
 import { aiExplanationAvailable } from "./explainer";
 
@@ -42,8 +43,11 @@ export async function generateAiRemediation(
         "You propose accessibility remediations for React/TypeScript source.",
         `Requirement: ${control.code} / ${control.secondaryCode} — ${control.title}.`,
         `Finding: ${finding.reason}`,
-        `File: ${finding.location.filePath}:${finding.location.line}`,
-        `Current line: ${finding.location.snippet}`,
+        `Location: ${formatLocationRef(finding.location)}`,
+        `Current snippet: ${finding.location.snippet}`,
+        finding.engine === "runtime"
+          ? "Runtime finding — propose a call-site fix, not a generic aria-label on a shared Input/Button primitive."
+          : "",
         finding.fix
           ? `A deterministic fix template exists (${finding.fix.kind}). Improve the developer-facing description and the proposed fixed line. If an attribute value is needed, put the best value in attributeValue.`
           : "No automated fix template exists. Propose a concrete one-line (or short) code change as proposedSnippet and describe it.",

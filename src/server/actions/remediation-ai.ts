@@ -2,6 +2,7 @@
 
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
+import { formatLocationRef } from "@/core/location";
 import { advanceRemediation } from "@/core/remediation";
 import { addEvidence } from "../db";
 import { reportWarning } from "../observability";
@@ -94,7 +95,7 @@ export async function generateAiRemediationAction(findingId: string): Promise<vo
 
     addEvidence(db, {
       kind: "ai_remediation_suggested",
-      summary: `AI remediation suggested for ${finding.checkId} at ${finding.location.filePath}:${finding.location.line}`,
+      summary: `AI remediation suggested for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
       projectId: finding.projectId,
       controlId: finding.controlId,
       findingId: finding.id,

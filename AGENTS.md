@@ -48,7 +48,7 @@ The domain model must stay **framework-agnostic** (requirements/controls, not "a
 - **Persistence:** JSON file store in `.data/db.json` by default; set `DATABASE_URL` for Postgres via Drizzle (`src/server/db-store/`). Evidence is insert-only in Postgres. Encrypted GitHub tokens + webhook deliveries use Postgres when configured (JSON fallback under `$DATA_DIR`). Workspaces/clones still under `$DATA_DIR`.
 - **Auth / GitHub connect:** Auth.js v5 (`next-auth`) with GitHub OAuth (`AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`); sample + local path stay available unsigned; GitHub repo picker requires sign-in
 - **GitHub API / git:** `@octokit/rest` + `@octokit/webhooks-methods`; clones and PR push via `simple-git`; handoff patches via `diff`; source walks via `fast-glob`
-- **Analysis engine:** deterministic TypeScript AST checks in `src/analysis/` as the source of truth (13 checks); AI augments, never replaces it
+- **Analysis engine:** deterministic TypeScript AST checks in `src/analysis/` as the source of truth for local/CI defects (13 checks); optional **runtime DOM audits** (Playwright + axe-core) when a project has `runtimeBaseUrl` — composition-sensitive rules (labels, names, …) then use the rendered page as status truth. AI augments, never replaces either engine.
 - **CI package:** `@complyloop/check` / `npx complyloop-check` (`packages/check`)
 - **AI:** Vercel AI SDK for explanations (optional, gated by `AI_GATEWAY_API_KEY`); deterministic explanations are the baseline
 - **Testing:** Vitest + React Testing Library (jsdom)

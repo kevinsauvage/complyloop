@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { createTwoFilesPatch } from "diff";
 import { applyFix } from "@/analysis/fixes";
 import { resolveInside } from "@/analysis/workspace-path";
+import { formatLocationRef, isSourceLocation } from "@/core/location";
 import type {
   Control,
   Finding,
@@ -14,7 +15,7 @@ export interface DeveloperHandoff {
   title: string;
   body: string;
   diff: string | null;
-  /** Absolute path of the file that would change, when a fix exists. */
+  /** Absolute path of the file that would change, when a source fix exists. */
   filePath: string | null;
 }
 
@@ -23,6 +24,9 @@ export function buildDiffForFix(
   finding: Finding,
   fix: ProposedFix,
 ): string {
+  if (!isSourceLocation(finding.location)) {
+    throw new Error("Diffs require a source location.");
+  }
   const absolute = resolveInside(project.rootPath, finding.location.filePath);
   const original = fs.readFileSync(absolute, "utf8");
   const fixed = applyFix(original, fix);
@@ -46,6 +50,19 @@ export function buildDeveloperHandoff(
   const title = `fix(a11y): ${control.code} — ${control.title}`;
   const suggestion = remediation.suggestion;
   const explanation = finding.explanations[0];
+  const locationRef = formatLocationRef(finding.location);
+  const verificationSteps =
+    finding.location.kind === "dom"
+      ? [
+          `1. Fix the unlabeled/incorrect control in the form that renders on this page (not in a shared Input primitive unless every consumer is wrong).`,
+          `2. Re-run the runtime audit on \`${finding.location.url}\` — the \`${finding.checkId}\` issue at \`${finding.location.selector}\` must be gone.`,
+          `3. Keep the evidence trail (assessment + remediation history) for audit.`,
+        ]
+      : [
+          `1. Apply the patch (or approve/apply in ComplyLoop).`,
+          `2. Re-run the \`${finding.checkId}\` check — it must no longer fail at this location.`,
+          `3. Keep the evidence trail (assessment + remediation history) for audit.`,
+        ];
 
   const body = [
     `## Requirement`,
@@ -57,7 +74,8 @@ export function buildDeveloperHandoff(
     ``,
     finding.reason,
     ``,
-    `**Location:** \`${finding.location.filePath}:${finding.location.line}\``,
+    `**Location:** \`${locationRef}\``,
+    finding.engine ? `**Engine:** \`${finding.engine}\`` : "",
     ``,
     "```",
     finding.location.snippet,
@@ -65,7 +83,10 @@ export function buildDeveloperHandoff(
     ``,
     `## Proposed change`,
     ``,
-    suggestion?.description ?? "See finding detail for remediation guidance.",
+    suggestion?.description ??
+      (finding.location.kind === "dom"
+        ? "Locate the call site that renders this control and associate a visible `<label>` or accessible name. Do not add a generic aria-label on a shared primitive."
+        : "See finding detail for remediation guidance."),
     ``,
     suggestion
       ? ["```", suggestion.proposedSnippet, "```", ""].join("\n")
@@ -76,26 +97,27 @@ export function buildDeveloperHandoff(
     ``,
     `## Verification`,
     ``,
-    `1. Apply the patch (or approve/apply in ComplyLoop).`,
-    `2. Re-run the \`${finding.checkId}\` check — it must no longer fail at this location.`,
-    `3. Keep the evidence trail (assessment + remediation history) for audit.`,
+    ...verificationSteps,
     ``,
     `---`,
     `Generated for project \`${project.name}\` · remediation status: \`${remediation.status}\``,
   ]
-    .filter((line) => line !== undefined)
+    .filter((line) => line !== undefined && line !== "")
     .join("\n");
 
   let diff: string | null = null;
-  if (finding.fix) {
+  if (finding.fix && isSourceLocation(finding.location)) {
     try {
       diff = buildDiffForFix(project, finding, finding.fix);
     } catch {
       diff = null;
     }
   }
-  // Fall back when the file already changed (stale spans) or there is no automatable fix.
-  if (!diff && suggestion?.proposedSnippet) {
+  if (
+    !diff &&
+    suggestion?.proposedSnippet &&
+    isSourceLocation(finding.location)
+  ) {
     diff = createTwoFilesPatch(
       `a/${finding.location.filePath}`,
       `b/${finding.location.filePath}`,
@@ -111,8 +133,9 @@ export function buildDeveloperHandoff(
     title,
     body,
     diff,
-    filePath: finding.fix
-      ? resolveInside(project.rootPath, finding.location.filePath)
-      : null,
+    filePath:
+      finding.fix && isSourceLocation(finding.location)
+        ? resolveInside(project.rootPath, finding.location.filePath)
+        : null,
   };
 }

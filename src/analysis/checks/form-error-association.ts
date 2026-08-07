@@ -1,3 +1,4 @@
+import { isPropSpreadingHost } from "../jsx-primitives";
 import {
   booleanAttributeValue,
   getAttribute,
@@ -40,6 +41,7 @@ export const formErrorAssociationCheck: AccessibilityCheck = {
     visitJsxTags(source.sourceFile, (node) => {
       const tag = tagNameOf(node).toLowerCase();
       if (FORM_CONTROLS.has(tag)) {
+        if (isPropSpreadingHost(node)) return;
         const invalid = getAttribute(node, "aria-invalid");
         if (isAriaTrue(invalid) && !getAttribute(node, "aria-describedby")) {
           findings.push({

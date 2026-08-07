@@ -1,5 +1,5 @@
 import ts from "typescript";
-import type { CodeLocation, Span } from "@/core/types";
+import type { SourceLocation, Span } from "@/core/types";
 
 export interface ParsedSource {
   /** Path relative to the scanned project root. */
@@ -104,11 +104,12 @@ export function attributeRemovalSpan(
   return { start: adjustedStart, end };
 }
 
-export function locationOf(source: ParsedSource, node: ts.Node): CodeLocation {
+export function locationOf(source: ParsedSource, node: ts.Node): SourceLocation {
   const start = node.getStart(source.sourceFile);
   const position = source.sourceFile.getLineAndCharacterOfPosition(start);
   const lineText = source.text.split("\n")[position.line] ?? "";
   return {
+    kind: "source",
     filePath: source.filePath,
     line: position.line + 1,
     column: position.character + 1,

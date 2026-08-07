@@ -10,6 +10,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { scanProject } from "../analysis/scan";
+import { formatLocationRef } from "../core/location";
+import { isSourceLocation } from "../core/location";
 
 function main(): void {
   const targetArg = process.argv[2];
@@ -32,13 +34,16 @@ function main(): void {
   );
 
   for (const finding of violations) {
+    const where = isSourceLocation(finding.location)
+      ? formatLocationRef(finding.location)
+      : formatLocationRef(finding.location);
     console.log(
-      `  FAIL ${finding.checkId} ${finding.location.filePath}:${finding.location.line} — ${finding.reason}`,
+      `  FAIL ${finding.checkId} ${where} — ${finding.reason}`,
     );
   }
   for (const finding of warnings) {
     console.log(
-      `  WARN ${finding.checkId} ${finding.location.filePath}:${finding.location.line} — ${finding.reason}`,
+      `  WARN ${finding.checkId} ${formatLocationRef(finding.location)} — ${finding.reason}`,
     );
   }
 

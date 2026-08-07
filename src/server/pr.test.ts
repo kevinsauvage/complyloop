@@ -100,7 +100,12 @@ describe("locateViolationInProject + PR apply", () => {
 
     const match = locateViolationInProject(project, finding);
     expect(match?.fix).toBeTruthy();
-    expect(match?.location.span.start).not.toBe(finding.location.span.start);
+    expect(match?.location.kind).toBe("source");
+    expect(
+      match?.location.kind === "source" && finding.location.kind === "source"
+        ? match.location.span.start !== finding.location.span.start
+        : false,
+    ).toBe(true);
 
     const fix = mergeFix(finding.fix, match!.fix);
     expect(fix).toBeTruthy();

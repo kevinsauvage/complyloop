@@ -1,6 +1,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import type { Confidence, Control, Explanation, Finding } from "@/core/types";
+import { formatLocationRef } from "@/core/location";
 import { reportWarning } from "@/server/observability";
 
 const AI_MODEL = "openai/gpt-4o-mini";
@@ -49,8 +50,11 @@ export async function generateAiExplanation(
         "You explain accessibility compliance findings to web developers.",
         `Requirement: ${control.code} / ${control.secondaryCode} — ${control.title}. ${control.description}`,
         `Automated check result: ${finding.reason}`,
-        `Location: ${finding.location.filePath}:${finding.location.line}`,
+        `Location: ${formatLocationRef(finding.location)}`,
         `Code: ${finding.location.snippet}`,
+        finding.engine === "runtime"
+          ? "This finding came from a rendered-page audit — guide the developer to the call site that renders this control, not a shared UI primitive."
+          : "",
         "Write whyItFailed, impact (who is affected and how), and howToFix (concrete code-level guidance for this exact snippet).",
         "Set confidence to high/medium/low for how sure you are about this explanation.",
         "Be concise and practical; no legal language.",

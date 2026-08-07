@@ -51,6 +51,7 @@ describe("buildComplianceReportMarkdown", () => {
         confidence: "high",
         reason: "Button has no accessible name",
         location: {
+          kind: "source",
           filePath: "Button.tsx",
           line: 4,
           column: 1,

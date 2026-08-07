@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { isPropSpreadingHost } from "../jsx-primitives";
 import {
   getAttribute,
   hasTextContent,
@@ -24,6 +25,7 @@ export const buttonNameCheck: AccessibilityCheck = {
     const findings: RawFinding[] = [];
     visitJsxTags(source.sourceFile, (node) => {
       if (tagNameOf(node) !== "button") return;
+      if (isPropSpreadingHost(node)) return;
       if (hasAriaName(node)) return;
 
       const named =

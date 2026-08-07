@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { isPropSpreadingHost } from "../jsx-primitives";
 import {
   getAttribute,
   humanizeFileName,
@@ -44,6 +45,8 @@ export const inputLabelCheck: AccessibilityCheck = {
     const findings: RawFinding[] = [];
     visitJsxTags(source.sourceFile, (node) => {
       if (tagNameOf(node) !== "input") return;
+      // Design-system primitives spread props; labels live at call sites.
+      if (isPropSpreadingHost(node)) return;
 
       const type = getAttribute(node, "type");
       const typeValue = type ? stringValueOf(type) : undefined;

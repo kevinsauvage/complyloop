@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { ProposedFix } from "@/core/types";
+import type { ProposedFix, SourceLocation } from "@/core/types";
 import {
   buildSuggestion,
   mergeFix,
@@ -17,34 +17,26 @@ afterEach(() => {
   }
 });
 
+function sourceLoc(
+  partial: Omit<SourceLocation, "kind" | "column" | "span"> &
+    Partial<Pick<SourceLocation, "column" | "span">>,
+): SourceLocation {
+  return {
+    kind: "source",
+    column: partial.column ?? 1,
+    span: partial.span ?? { start: 0, end: 1 },
+    filePath: partial.filePath,
+    line: partial.line,
+    snippet: partial.snippet,
+  };
+}
+
 describe("sameInstance", () => {
   it("matches by snippet when lines differ", () => {
     expect(
       sameInstance(
-        {
-          location: {
-            filePath: "App.tsx",
-            line: 10,
-            column: 1,
-            snippet: '<img src="x" />',
-            span: { start: 0, end: 1 },
-          },
-        },
-        {
-          checkId: "img-alt",
-          kind: "violation",
-          severity: "serious",
-          confidence: "high",
-          reason: "missing alt",
-          location: {
-            filePath: "App.tsx",
-            line: 99,
-            column: 1,
-            snippet: '<img src="x" />',
-            span: { start: 0, end: 1 },
-          },
-          fix: null,
-        },
+        { location: sourceLoc({ filePath: "App.tsx", line: 10, snippet: '<img src="x" />' }) },
+        { location: sourceLoc({ filePath: "App.tsx", line: 99, snippet: '<img src="x" />' }) },
       ),
     ).toBe(true);
   });
@@ -52,30 +44,8 @@ describe("sameInstance", () => {
   it("matches by line when snippets differ", () => {
     expect(
       sameInstance(
-        {
-          location: {
-            filePath: "App.tsx",
-            line: 4,
-            column: 1,
-            snippet: "old",
-            span: { start: 0, end: 1 },
-          },
-        },
-        {
-          checkId: "img-alt",
-          kind: "violation",
-          severity: "serious",
-          confidence: "high",
-          reason: "missing alt",
-          location: {
-            filePath: "App.tsx",
-            line: 4,
-            column: 1,
-            snippet: "new",
-            span: { start: 0, end: 1 },
-          },
-          fix: null,
-        },
+        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "old" }) },
+        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "new" }) },
       ),
     ).toBe(true);
   });
@@ -83,32 +53,33 @@ describe("sameInstance", () => {
   it("rejects different files", () => {
     expect(
       sameInstance(
-        {
-          location: {
-            filePath: "A.tsx",
-            line: 1,
-            column: 1,
-            snippet: "x",
-            span: { start: 0, end: 1 },
-          },
-        },
-        {
-          checkId: "img-alt",
-          kind: "violation",
-          severity: "serious",
-          confidence: "high",
-          reason: "missing alt",
-          location: {
-            filePath: "B.tsx",
-            line: 1,
-            column: 1,
-            snippet: "x",
-            span: { start: 0, end: 1 },
-          },
-          fix: null,
-        },
+        { location: sourceLoc({ filePath: "A.tsx", line: 1, snippet: "x" }) },
+        { location: sourceLoc({ filePath: "B.tsx", line: 1, snippet: "x" }) },
       ),
     ).toBe(false);
+  });
+
+  it("matches DOM findings by url and selector", () => {
+    expect(
+      sameInstance(
+        {
+          location: {
+            kind: "dom",
+            url: "https://x.test/",
+            selector: "#email",
+            snippet: "<input>",
+          },
+        },
+        {
+          location: {
+            kind: "dom",
+            url: "https://x.test/",
+            selector: "#email",
+            snippet: "<input id=email>",
+          },
+        },
+      ),
+    ).toBe(true);
   });
 });
 
@@ -161,13 +132,7 @@ describe("buildSuggestion", () => {
           createdAt: "2026-01-01T00:00:00.000Z",
         },
         {
-          location: {
-            filePath: "App.tsx",
-            line: 1,
-            column: 1,
-            snippet: "x",
-            span: { start: 0, end: 1 },
-          },
+          location: sourceLoc({ filePath: "App.tsx", line: 1, snippet: "x" }),
           fix: null,
         },
       ),
@@ -193,13 +158,12 @@ describe("buildSuggestion", () => {
         createdAt: "2026-01-01T00:00:00.000Z",
       },
       {
-        location: {
+        location: sourceLoc({
           filePath,
           line: 1,
-          column: 1,
           snippet: '<img src="/x.png" />',
           span: { start: 0, end: 20 },
-        },
+        }),
         fix: {
           kind: "insert_attribute",
           attribute: "alt",

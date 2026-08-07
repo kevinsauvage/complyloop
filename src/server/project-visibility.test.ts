@@ -77,6 +77,7 @@ function finding(partial: Pick<Finding, "id" | "projectId">): Finding {
     confidence: "high",
     reason: "missing alt",
     location: {
+      kind: "source",
       filePath: "src/Card.tsx",
       line: 1,
       column: 1,

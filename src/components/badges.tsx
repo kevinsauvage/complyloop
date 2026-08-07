@@ -5,6 +5,7 @@ import {
   severityLabel,
 } from "@/core/labels";
 import type {
+  AssessmentEngine,
   Confidence,
   DeterminationMethod,
   ExplanationProvenance,
@@ -160,6 +161,28 @@ export function ProvenanceBadge({ provenance }: { provenance: ExplanationProvena
     default: {
       const _exhaustive: never = provenance;
       throw new Error(`Unhandled provenance: ${_exhaustive}`);
+    }
+  }
+}
+
+/** Which analysis engine produced a finding (AST source vs rendered DOM). */
+export function EngineBadge({ engine }: { engine: AssessmentEngine }) {
+  switch (engine) {
+    case "ast":
+      return (
+        <Badge variant="outline" className="text-muted-foreground">
+          Source (AST)
+        </Badge>
+      );
+    case "runtime":
+      return (
+        <Badge className="border-transparent bg-teal-500/15 text-teal-400">
+          Runtime (DOM)
+        </Badge>
+      );
+    default: {
+      const _exhaustive: never = engine;
+      throw new Error(`Unhandled assessment engine: ${_exhaustive}`);
     }
   }
 }

@@ -1,7 +1,7 @@
 import type {
-  CodeLocation,
   Confidence,
   FindingKind,
+  FindingLocation,
   ProposedFix,
   Severity,
 } from "@/core/types";
@@ -28,8 +28,10 @@ export interface RawFinding {
   severity: Severity;
   confidence: Confidence;
   reason: string;
-  location: CodeLocation;
+  location: FindingLocation;
   fix: ProposedFix | null;
+  /** Defaults to `ast` when omitted. */
+  engine?: "ast" | "runtime";
 }
 
 export interface AccessibilityCheck {

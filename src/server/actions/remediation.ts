@@ -2,7 +2,10 @@
 
 import fs from "node:fs";
 import { applyFix } from "@/analysis/fixes";
+import type { CheckId } from "@/analysis/types";
+import { runtimeViolationStillPresent } from "@/analysis/runtime/scan";
 import { resolveInside } from "@/analysis/workspace-path";
+import { formatLocationRef, isSourceLocation } from "@/core/location";
 import { advanceRemediation } from "@/core/remediation";
 import {
   actionErrorState,
@@ -62,7 +65,7 @@ export async function approveRemediationAction(
       );
       addEvidence(db, {
         kind: "remediation_approved",
-        summary: `Remediation approved for ${finding.checkId} at ${finding.location.filePath}:${finding.location.line}`,
+        summary: `Remediation approved for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,
         controlId: finding.controlId,
         findingId: finding.id,
@@ -90,6 +93,11 @@ export async function applyRemediationAction(
       requireOnFindingProject(workspace, finding, "project.remediate");
       const remediation = remediationForFinding(db, findingId);
       if (!finding.fix) throw new Error("This finding has no automatable fix.");
+      if (!isSourceLocation(finding.location)) {
+        throw new Error(
+          "Runtime DOM findings cannot be auto-applied — fix the call site and verify with a re-audit.",
+        );
+      }
 
       const { project, match } = locateViolation(db, finding);
       if (!match?.fix) {
@@ -117,7 +125,7 @@ export async function applyRemediationAction(
       );
       addEvidence(db, {
         kind: "remediation_implemented",
-        summary: `Change applied to ${finding.location.filePath}:${finding.location.line}`,
+        summary: `Change applied to ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,
         controlId: finding.controlId,
         findingId: finding.id,
@@ -146,6 +154,42 @@ export async function verifyRemediationAction(
       requireOnFindingProject(workspace, finding, "project.remediate");
       const remediation = remediationForFinding(db, findingId);
 
+      if (finding.location.kind === "dom") {
+        const present = await runtimeViolationStillPresent({
+          checkId: finding.checkId as CheckId,
+          location: finding.location,
+        });
+        if (present) {
+          stillFailing = true;
+          remediation.history.push({
+            status: remediation.status,
+            at: new Date().toISOString(),
+            note: "Verification failed: the violation is still detected on the page.",
+          });
+          return;
+        }
+        replaceRemediation(
+          db,
+          advanceRemediation(
+            remediation,
+            "verified",
+            "Runtime re-audit found no remaining violation on the page",
+          ),
+        );
+        finding.status = "resolved";
+        finding.resolvedNote = "Fix verified by re-running the runtime audit.";
+        addEvidence(db, {
+          kind: "remediation_verified",
+          summary: `Verified: ${finding.checkId} no longer fails at ${formatLocationRef(finding.location)}`,
+          projectId: finding.projectId,
+          controlId: finding.controlId,
+          findingId: finding.id,
+          detail: { engine: "runtime" },
+        });
+        refreshRequirementStatuses(db, finding.projectId);
+        return;
+      }
+
       const { match } = locateViolation(db, finding);
       if (match) {
         stillFailing = true;
@@ -169,10 +213,11 @@ export async function verifyRemediationAction(
       finding.resolvedNote = "Fix verified by re-running the automated check.";
       addEvidence(db, {
         kind: "remediation_verified",
-        summary: `Verified: ${finding.checkId} no longer fails in ${finding.location.filePath}`,
+        summary: `Verified: ${finding.checkId} no longer fails at ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,
         controlId: finding.controlId,
         findingId: finding.id,
+        detail: { engine: "ast" },
       });
       refreshRequirementStatuses(db, finding.projectId);
     });
@@ -216,7 +261,7 @@ export async function markRemediationImplementedAction(
       );
       addEvidence(db, {
         kind: "remediation_implemented",
-        summary: `Remediation marked implemented for ${finding.checkId} at ${finding.location.filePath}:${finding.location.line}`,
+        summary: `Remediation marked implemented for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,
         controlId: finding.controlId,
         findingId: finding.id,
@@ -269,7 +314,7 @@ export async function manualVerifyRemediationAction(
       finding.resolvedNote = `Manually verified by human review: ${note}`;
       addEvidence(db, {
         kind: "remediation_manually_verified",
-        summary: `Manually verified ${finding.checkId} at ${finding.location.filePath}:${finding.location.line}`,
+        summary: `Manually verified ${finding.checkId} at ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,
         controlId: finding.controlId,
         findingId: finding.id,

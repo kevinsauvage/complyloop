@@ -18,7 +18,7 @@ export async function runAssessmentAction(
   return runActionMessage(async () => {
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.assess");
-      runAssessment(workspace.db, workspace.project.id);
+      await runAssessment(workspace.db, workspace.project.id);
     });
     refresh();
     return "Assessment complete.";

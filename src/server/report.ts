@@ -8,6 +8,7 @@ import type {
   Requirement,
   RequirementStatus,
 } from "@/core/types";
+import { formatLocationRef } from "@/core/location";
 import { requirementStatusLabel } from "@/core/labels";
 
 export interface ReportInput {
@@ -118,11 +119,11 @@ export function buildComplianceReportMarkdown(input: ReportInput): string {
         (candidate) => candidate.findingId === finding.id,
       );
       lines.push(
-        `### ${finding.status.toUpperCase()} — ${control?.code ?? finding.controlId} @ \`${finding.location.filePath}:${finding.location.line}\``,
+        `### ${finding.status.toUpperCase()} — ${control?.code ?? finding.controlId} @ \`${formatLocationRef(finding.location)}\``,
       );
       lines.push(``);
       lines.push(`- **Kind / severity / confidence:** ${finding.kind} / ${finding.severity} / ${finding.confidence}`);
-      lines.push(`- **Check:** \`${finding.checkId}\``);
+      lines.push(`- **Check:** \`${finding.checkId}\`${finding.engine ? ` · **Engine:** \`${finding.engine}\`` : ""}`);
       lines.push(`- **Reason:** ${finding.reason}`);
       if (remediation) {
         lines.push(`- **Remediation:** ${remediation.status}`);

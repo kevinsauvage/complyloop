@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { aiExplanationAvailable } from "@/ai/explainer";
 import {
   ConfidenceBadge,
+  EngineBadge,
   RemediationStatusBadge,
   SeverityBadge,
 } from "@/components/badges";
@@ -12,6 +13,7 @@ import { DeveloperHandoffCard } from "@/components/developer-handoff";
 import { FindingDismissCard } from "@/components/findings/finding-dismiss-card";
 import { FindingExplanationsCard } from "@/components/findings/finding-explanations-card";
 import { FindingRemediationCard } from "@/components/findings/finding-remediation-card";
+import { formatLocationRef } from "@/core/location";
 import { CodeBlock, PageHeader, formatDateTime } from "@/components/page-primitives";
 import {
   Card,
@@ -75,6 +77,7 @@ export default async function FindingPage({
         <SeverityBadge severity={finding.severity} />
         <ConfidenceBadge confidence={finding.confidence} />
         <RemediationStatusBadge status={remediation.status} />
+        <EngineBadge engine={finding.engine ?? "ast"} />
         {finding.status === "dismissed" && finding.dismissal ? (
           <span className="text-sm text-muted-foreground">
             Dismissed ({finding.dismissal.reason.replace(/_/g, " ")}):{" "}
@@ -93,9 +96,15 @@ export default async function FindingPage({
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <p className="font-mono text-xs text-muted-foreground">
-              {finding.location.filePath}:{finding.location.line}:
-              {finding.location.column}
+              {formatLocationRef(finding.location)}
             </p>
+            {finding.location.kind === "dom" ? (
+              <p className="text-sm text-muted-foreground">
+                Runtime finding on the rendered page. Fix the form/call site that
+                renders this control — not a shared Input primitive unless every
+                consumer is wrong.
+              </p>
+            ) : null}
             <CodeBlock>{finding.location.snippet}</CodeBlock>
           </CardContent>
         </Card>

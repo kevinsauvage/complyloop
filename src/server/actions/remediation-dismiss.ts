@@ -1,6 +1,7 @@
 "use server";
 
 import type { Dismissal } from "@/core/types";
+import { formatLocationRef } from "@/core/location";
 import {
   actionErrorState,
   type ActionMessageState,
@@ -43,7 +44,7 @@ export async function dismissFindingAction(
       };
       addEvidence(db, {
         kind: "finding_dismissed",
-        summary: `Finding dismissed (${reason}): ${finding.checkId} at ${finding.location.filePath}:${finding.location.line}`,
+        summary: `Finding dismissed (${reason}): ${finding.checkId} at ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,
         controlId: finding.controlId,
         findingId: finding.id,

@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { isPropSpreadingHost } from "../jsx-primitives";
 import {
   getAttribute,
   hasTextContent,
@@ -25,6 +26,7 @@ export const anchorNameCheck: AccessibilityCheck = {
     visitJsxTags(source.sourceFile, (node) => {
       const tag = tagNameOf(node);
       if (tag !== "a" && tag !== "Link") return;
+      if (isPropSpreadingHost(node)) return;
       if (tag === "a" && getAttribute(node, "href") === undefined) return;
       if (hasAriaName(node)) return;
 

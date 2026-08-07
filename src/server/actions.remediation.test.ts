@@ -79,6 +79,7 @@ const finding: Finding = {
   confidence: "high",
   reason: "Missing alt",
   location: {
+    kind: "source",
     filePath: "App.tsx",
     line: 1,
     column: 1,

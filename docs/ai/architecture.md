@@ -41,15 +41,15 @@ repo connect. **Persistence:** JSON under `$DATA_DIR` (default `.data/`) behind 
 
 - **Framework-agnostic core**: domain model and status transitions. Knows nothing about RGAA. Only place that changes requirement/remediation statuses.
 - **Framework adapters**: map RGAA/WCAG into controls + developer guidance.
-- **Analysis engine**: **deterministic TypeScript AST checks** (`src/analysis/`) — the automated source of truth for pass/fail. AI and runtime tools (axe, jsx-a11y ESLint for *this* app) do not set requirement status.
+- **Analysis engine**: dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`) for local/CI/auto-fix, and optional **runtime DOM audits** (Playwright + axe-core in `src/analysis/runtime/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs; AI never sets requirement status.
 - **AI services**: explanation and remediation suggestions; typed, provenance-tagged, never statuses.
 - **Repo connectors**: sample copy, local path, git clone, GitHub OAuth clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.
 
 ## Key Flows
 
-1. **Assessment**: connector provides a tree → scoped or full AST scan → findings + requirement statuses + append-only evidence. Manual controls stay `unable_to_verify` until human pass or exception.
-2. **Remediation**: finding → suggestion → human approve → apply/PR → re-check → `verified` → evidence.
-3. **Continuous monitoring**: webhook or re-assess → snapshot diff → **scoped re-scan of changed JSX when possible** (full tree otherwise) → regression alerts + optional Check Run on PR heads.
+1. **Assessment**: AST scan of the connected tree; if a preview URL is configured, also audit routes with axe. Merge findings (runtime owns composition-sensitive checks). Update requirement statuses + append-only evidence. Manual controls stay `unable_to_verify` until human pass or exception.
+2. **Remediation**: finding → suggestion → human approve → apply/PR (source findings with fixes) or call-site handoff (DOM findings) → re-check with the same engine → `verified` → evidence.
+3. **Continuous monitoring**: webhook or re-assess → snapshot diff → **scoped re-scan of changed JSX when possible** (full tree otherwise) + optional runtime re-audit → regression alerts + optional Check Run on PR heads.
 
 ## Data Invariants
 

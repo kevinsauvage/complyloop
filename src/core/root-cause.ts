@@ -1,4 +1,5 @@
 import type { Control, Finding, FindingCluster } from "./types";
+import { isSourceLocation } from "./location";
 
 function directoryOf(filePath: string): string {
   const parts = filePath.split("/");
@@ -20,6 +21,7 @@ function componentKey(filePath: string): string | undefined {
 /**
  * Clusters open findings that share a check and a common location signal
  * (same file, shared component name, or same directory with 2+ findings). Spec §17.
+ * DOM findings cluster by URL.
  */
 export function clusterFindings(
   findings: ReadonlyArray<Finding>,
@@ -38,10 +40,21 @@ export function clusterFindings(
   for (const [checkId, group] of byCheck) {
     if (group.length < 2) continue;
 
+    const controlTitle =
+      controls.find((control) => control.checkId === checkId)?.title ?? checkId;
+
+    const sourceGroup = group.filter((finding) =>
+      isSourceLocation(finding.location),
+    );
+    const domGroup = group.filter(
+      (finding) => finding.location.kind === "dom",
+    );
+
     const byFile = new Map<string, Finding[]>();
     const byDir = new Map<string, Finding[]>();
     const byComponent = new Map<string, Finding[]>();
-    for (const finding of group) {
+    for (const finding of sourceGroup) {
+      if (!isSourceLocation(finding.location)) continue;
       const file = fileNameOf(finding.location.filePath);
       const dir = directoryOf(finding.location.filePath);
       byFile.set(file, [...(byFile.get(file) ?? []), finding]);
@@ -55,8 +68,14 @@ export function clusterFindings(
       }
     }
 
-    const controlTitle =
-      controls.find((control) => control.checkId === checkId)?.title ?? checkId;
+    const byUrl = new Map<string, Finding[]>();
+    for (const finding of domGroup) {
+      if (finding.location.kind !== "dom") continue;
+      byUrl.set(finding.location.url, [
+        ...(byUrl.get(finding.location.url) ?? []),
+        finding,
+      ]);
+    }
 
     for (const [file, members] of byFile) {
       if (members.length < 2) continue;
@@ -73,7 +92,13 @@ export function clusterFindings(
     for (const [component, members] of byComponent) {
       if (members.length < 2) continue;
       const distinctPaths = new Set(
-        members.map((finding) => finding.location.filePath),
+        members
+          .filter((finding) => isSourceLocation(finding.location))
+          .map((finding) =>
+            isSourceLocation(finding.location)
+              ? finding.location.filePath
+              : "",
+          ),
       );
       if (distinctPaths.size < 2) continue;
       clusters.push({
@@ -88,9 +113,14 @@ export function clusterFindings(
 
     for (const [dir, members] of byDir) {
       if (members.length < 2) continue;
-      // Skip directories already covered entirely by a single-file cluster.
       const fileKeys = new Set(
-        members.map((finding) => fileNameOf(finding.location.filePath)),
+        members
+          .filter((finding) => isSourceLocation(finding.location))
+          .map((finding) =>
+            isSourceLocation(finding.location)
+              ? fileNameOf(finding.location.filePath)
+              : "",
+          ),
       );
       if (fileKeys.size === 1) continue;
       clusters.push({
@@ -98,6 +128,18 @@ export function clusterFindings(
         label: `${members.length} ${controlTitle} findings share \`${dir}\``,
         checkId,
         sharedLocation: dir,
+        findingIds: members.map((finding) => finding.id),
+        controlIds: [...new Set(members.map((finding) => finding.controlId))],
+      });
+    }
+
+    for (const [url, members] of byUrl) {
+      if (members.length < 2) continue;
+      clusters.push({
+        id: `${checkId}:url:${url}`,
+        label: `${members.length} ${controlTitle} findings on \`${url}\``,
+        checkId,
+        sharedLocation: url,
         findingIds: members.map((finding) => finding.id),
         controlIds: [...new Set(members.map((finding) => finding.controlId))],
       });

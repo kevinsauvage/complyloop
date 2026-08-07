@@ -1,3 +1,4 @@
+import { isPropSpreadingHost } from "../jsx-primitives";
 import {
   getAttribute,
   humanizeFileName,
@@ -26,6 +27,7 @@ export const imgAltCheck: AccessibilityCheck = {
     visitJsxTags(source.sourceFile, (node) => {
       const tag = tagNameOf(node);
       if (tag !== "img" && tag !== "Image") return;
+      if (isPropSpreadingHost(node)) return;
 
       const alt = getAttribute(node, "alt");
       if (!alt) {

@@ -4,6 +4,7 @@ import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-car
 import { DashboardStatusCounts } from "@/components/dashboard/dashboard-status-counts";
 import { projectDescription } from "@/components/dashboard/project-description";
 import { PermissionNotice } from "@/components/permission-notice";
+import { RuntimeAuditForm } from "@/components/runtime-audit-form";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { EmptyState, PageHeader } from "@/components/page-primitives";
 import {
@@ -130,6 +131,28 @@ export default async function DashboardPage() {
         </EmptyState>
       ) : (
         <div className="flex flex-col gap-6">
+          {caps.canConnect ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Runtime audit</CardTitle>
+                <CardDescription>
+                  Optional preview URL so label/name checks use the rendered DOM
+                  instead of design-system primitives in source.
+                  {latestAssessment?.engines?.runtime
+                    ? ` Last run audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s).`
+                    : latestAssessment?.engines?.runtimeError
+                      ? ` Last runtime attempt failed: ${latestAssessment.engines.runtimeError}`
+                      : ""}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RuntimeAuditForm
+                  runtimeBaseUrl={project.runtimeBaseUrl}
+                  runtimeRoutes={project.runtimeRoutes}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
           <DashboardStatusCounts counts={counts} />
           <DashboardAlertsCard alerts={unreadAlerts} />
           <DashboardActivitySections

@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { RemediationStatusBadge, SeverityBadge } from "@/components/badges";
+import {
+  EngineBadge,
+  RemediationStatusBadge,
+  SeverityBadge,
+} from "@/components/badges";
 import { PaginationNav } from "@/components/pagination-nav";
 import { EmptyState, PageHeader } from "@/components/page-primitives";
 import {
@@ -9,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatLocationRef } from "@/core/location";
 import { severityRank } from "@/core/labels";
 import {
   DEFAULT_PAGE_SIZE,
@@ -54,6 +59,7 @@ function FindingRows({
                 <span className="flex flex-wrap items-center gap-2">
                   <SeverityBadge severity={finding.severity} />
                   <RemediationStatusBadge status={remediation.status} />
+                  <EngineBadge engine={finding.engine ?? "ast"} />
                   <span className="text-sm font-medium group-hover:underline">
                     {control.code} — {control.title}
                   </span>
@@ -62,7 +68,7 @@ function FindingRows({
                   {finding.reason}
                 </span>
                 <span className="font-mono text-xs text-muted-foreground/60">
-                  {finding.location.filePath}:{finding.location.line}
+                  {formatLocationRef(finding.location)}
                 </span>
               </Link>
             </li>
@@ -154,8 +160,7 @@ export default async function FindingsPage({
                                 href={`/findings/${findingId}`}
                                 className="font-mono text-xs text-muted-foreground hover:text-foreground hover:underline"
                               >
-                                {finding.location.filePath}:
-                                {finding.location.line}
+                                {formatLocationRef(finding.location)}
                               </Link>
                             </li>
                           );

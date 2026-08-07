@@ -22,7 +22,7 @@ afterEach(() => {
 const finding = {
   id: "f1",
   reason: "Missing alt",
-  location: { filePath: "A.tsx", line: 1, column: 1, snippet: "<img />" },
+  location: { kind: "source", filePath: "A.tsx", line: 1, column: 1, snippet: "<img />" },
 } as Finding;
 
 const control = {
