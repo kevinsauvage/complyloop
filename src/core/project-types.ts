@@ -28,7 +28,9 @@ export interface Control {
 export type ProjectSource = "github";
 
 /** Role within an organization (tenant). */
-export type OrgRole = "owner" | "admin" | "member" | "viewer";
+export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
+
+export type OrgRole = (typeof ORG_ROLES)[number];
 
 export interface Organization {
   id: string;

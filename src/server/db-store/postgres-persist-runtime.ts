@@ -27,6 +27,7 @@ export async function persistRuntimeToPostgres(
             id: item.id,
             projectId: item.projectId,
             controlId: item.controlId,
+            status: item.status,
             payload: item,
           })),
         )
@@ -35,6 +36,7 @@ export async function persistRuntimeToPostgres(
           set: {
             projectId: sql`excluded.project_id`,
             controlId: sql`excluded.control_id`,
+            status: sql`excluded.status`,
             payload: sql`excluded.payload`,
           },
         }),

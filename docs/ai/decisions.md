@@ -4,6 +4,21 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-14 — Database FKs, status checks, and project-scoped indexes
+
+**Context:** Tenant relationships lived as JSONB + text ids. Application filters prevented most orphans, but Postgres would accept invalid statuses and duplicate GitHub identities, and hot-path queries lacked composite indexes.
+
+**Decision:**
+- Mutable tables get foreign keys with `ON DELETE CASCADE` (persist still prunes parents before children).
+- Evidence has **no** FKs so append-only rows survive project disconnect and org deletion.
+- `CHECK` constraints on finding/remediation/requirement status and membership role.
+- Unique indexes: org slug (already `0001`); GitHub `fullName` per org and per owner (case-insensitive, from JSONB).
+- Requirements gain a `status` column (payload remains canonical) for `(project_id, status)` indexes alongside findings `(project_id, status)` / `(project_id, assessment_id)` and evidence `(project_id, at)`.
+
+**Consequence:** Invalid statuses and orphan mutable rows fail at insert. Query plans for project-scoped findings/requirements/evidence can use the new indexes. Whole-store load still uses `evidence_at_idx`.
+
+---
+
 ## 2026-08-07 — Runtime audit SSRF via `ssrf-guard`
 
 **Context:** Runtime preview URLs were validated with a hand-rolled host/IP blocklist. Homegrown IP classification is easy to get wrong (IPv4-mapped IPv6, odd literal forms, CGNAT, etc.).

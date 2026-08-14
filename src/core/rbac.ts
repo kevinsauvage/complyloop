@@ -1,4 +1,4 @@
-import type { OrgMembership, OrgRole, Project } from "./project-types";
+import { ORG_ROLES, type OrgMembership, type OrgRole, type Project } from "./project-types";
 
 export type Permission =
   | "project.view"
@@ -31,12 +31,7 @@ export function roleHasPermission(role: OrgRole, permission: Permission): boolea
 }
 
 export function isOrgRole(value: unknown): value is OrgRole {
-  return (
-    value === "owner" ||
-    value === "admin" ||
-    value === "member" ||
-    value === "viewer"
-  );
+  return typeof value === "string" && ORG_ROLES.some((role) => role === value);
 }
 
 /**

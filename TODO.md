@@ -36,13 +36,9 @@ Important improvements for quality, maintainability, security, UX, or reliabilit
   - **Acceptance criteria:** Dashboard/findings/evidence routes query only visible project/org data; write paths update only affected rows; no hot path requires loading every tenant’s data.
   - **Estimated effort:** 🔴 Very large: > 3 days.
 
-- [ ] **Add real database constraints and indexes for tenant data**
-  - **Problem:** Most relationships are stored as JSONB payloads plus text ids without foreign keys, check constraints, uniqueness constraints, or project-scoped composite indexes.
-  - **Why:** Application-level filters are good, but production data integrity should not rely only on TypeScript. Missing constraints allow orphaned records and make large tenant queries slower.
-  - **Location:** `src/server/db-store/schema.ts`, `drizzle/0004_constraints_indexes.sql`
-  - **Recommendation:** Add foreign keys where compatible with append-only evidence, unique constraints for org slugs and project identity, status check constraints, and indexes such as `(project_id, status)`, `(project_id, assessment_id)`, and evidence `(project_id, at)`.
-  - **Acceptance criteria:** Migrations enforce core relationships; query plans for dashboard/findings/evidence use project-scoped indexes; invalid statuses cannot be inserted.
-  - **Estimated effort:** 🟠 Large: 1–3 days.
+- [x] **Add real database constraints and indexes for tenant data**
+  - **Done:** Migration `0005_tenant_constraints.sql` adds FKs with `ON DELETE CASCADE` on mutable tables (not evidence), status/role check constraints, unique GitHub identity indexes, and project-scoped indexes `(project_id, status)`, `(project_id, assessment_id)`, `(project_id, at)`. Org slugs were already unique (`0001`). Invalid statuses cannot be inserted; evidence rows survive project delete.
+  - **Location:** `src/server/db-store/schema.ts`, `drizzle/0005_tenant_constraints.sql`
 
 - [ ] **Make webhook delivery processing retry-safe**
   - **Problem:** The webhook route claims a delivery id before parsing and handling the payload; failures after claim return non-200/202 states but the delivery is already marked processed.
@@ -172,7 +168,7 @@ Optional improvements with relatively low business impact.
 # Technical Debt
 
 - Whole-store load/save and global advisory lock on every write.
-- JSONB-first schema with limited constraints and indexes.
+- JSONB payloads remain; tenant FKs, status checks, and project-scoped indexes are in `0005`.
 - Request-time long-running jobs.
 - In-process rate limiting.
 - Server actions return raw unexpected error messages.

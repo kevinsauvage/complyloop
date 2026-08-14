@@ -3,9 +3,7 @@ import { sql } from "drizzle-orm";
 import { closeDrizzle, getDrizzle } from "./client";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`) and avoids stealing the pool during the default suite. */
-const enabled =
-  process.env.EVIDENCE_APPEND_ONLY_TEST === "1" &&
-  Boolean(process.env.DATABASE_URL?.trim());
+const enabled = Boolean(process.env.DATABASE_URL?.trim());
 
 describe.skipIf(!enabled)("evidence append-only DB trigger", () => {
   afterAll(async () => {
