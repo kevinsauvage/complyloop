@@ -9,6 +9,12 @@ const runAssessment = vi.hoisted(() =>
 const resolveProjectGitHubToken = vi.hoisted(() =>
   vi.fn(async () => "ghs_test"),
 );
+const postPullRequestCheckRun = vi.hoisted(() =>
+  vi.fn(async () => ({
+    ok: true,
+    htmlUrl: "https://github.com/acme/app/runs/1",
+  })),
+);
 const withRepoCheckout = vi.hoisted(() =>
   vi.fn(
     async (
@@ -39,6 +45,15 @@ vi.mock("./github-access", () => ({
   resolveProjectGitHubToken,
 }));
 
+vi.mock("./github-checks", () => ({
+  postPullRequestCheckRun,
+  summarizeAssessmentForCheckRun: () => ({
+    conclusion: "success" as const,
+    title: "ok",
+    summary: "ok",
+  }),
+}));
+
 vi.mock("./repo-checkout", () => ({
   withRepoCheckout: (
     options: unknown,
@@ -49,6 +64,10 @@ vi.mock("./repo-checkout", () => ({
 
 afterEach(() => {
   delete process.env.GITHUB_WEBHOOK_SECRET;
+  withRepoCheckout.mockClear();
+  postPullRequestCheckRun.mockClear();
+  runAssessment.mockClear();
+  resolveProjectGitHubToken.mockClear();
   vi.restoreAllMocks();
 });
 
@@ -149,5 +168,60 @@ describe("handleGitHubWebhookEvent reassessment", () => {
     expect(db.evidence.some((row) => row.kind === "webhook_reassessment")).toBe(
       true,
     );
+  });
+
+  it("ignores ping and unhandled pull_request actions without cloning", async () => {
+    vi.mocked(loadDb).mockResolvedValue(projectDb() as never);
+
+    await expect(
+      handleGitHubWebhookEvent("ping", { zen: "ok" }),
+    ).resolves.toMatchObject({
+      handled: false,
+      message: "Ignored event ping",
+    });
+    await expect(
+      handleGitHubWebhookEvent("pull_request", {
+        action: "closed",
+        repository: { full_name: "acme/app" },
+      }),
+    ).resolves.toMatchObject({
+      handled: false,
+      message: "Ignored event pull_request",
+    });
+    expect(withRepoCheckout).not.toHaveBeenCalled();
+  });
+
+  it("checks out the PR head SHA and posts a Check Run", async () => {
+    const db = projectDb();
+    vi.mocked(loadDb).mockResolvedValue(db as never);
+    const headSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    const result = await handleGitHubWebhookEvent("pull_request", {
+      action: "opened",
+      repository: { full_name: "acme/app" },
+      pull_request: { head: { sha: headSha } },
+    });
+
+    expect(withRepoCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fullName: "acme/app",
+        accessToken: "ghs_test",
+        ref: headSha,
+      }),
+      expect.any(Function),
+    );
+    expect(postPullRequestCheckRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fullName: "acme/app",
+        headSha,
+        token: "ghs_test",
+      }),
+    );
+    expect(result.handled).toBe(true);
+    expect(result.checkRun).toEqual({
+      ok: true,
+      error: undefined,
+      htmlUrl: "https://github.com/acme/app/runs/1",
+    });
   });
 });

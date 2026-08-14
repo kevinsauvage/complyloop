@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -36,6 +37,7 @@ describe("app error and not-found pages", () => {
 
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(reset).toHaveBeenCalledOnce();
+    expect(Sentry.captureException).toHaveBeenCalled();
   });
 
   it("renders not-found with a path back to the dashboard", () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { useEffect } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -21,6 +22,7 @@ export default function AppError({
         at: new Date().toISOString(),
       }),
     );
+    Sentry.captureException(error);
   }, [error]);
 
   return (

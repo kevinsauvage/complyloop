@@ -1,3 +1,4 @@
+import type { EmitterWebhookEvent } from "@octokit/webhooks";
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
 import type { Alert } from "@/core/finding-types";
 import { runAssessment } from "./assessment";
@@ -9,6 +10,12 @@ import {
 import { resolveProjectGitHubToken } from "./github-access";
 import { reportError, reportWarning } from "./observability";
 import { withRepoCheckout } from "./repo-checkout";
+
+type PushPayload = EmitterWebhookEvent<"push">["payload"];
+type PullRequestPayload = EmitterWebhookEvent<"pull_request">["payload"];
+
+const HANDLED_PR_ACTIONS = ["opened", "synchronize", "reopened"] as const;
+type HandledPrAction = (typeof HANDLED_PR_ACTIONS)[number];
 
 export function isWebhookConfigured(): boolean {
   return Boolean(process.env.GITHUB_WEBHOOK_SECRET);
@@ -55,19 +62,63 @@ function collectRegressionAlerts(
   return alerts;
 }
 
-function pullRequestHeadSha(payload: Record<string, unknown>): string | null {
-  const pr = payload.pull_request as
-    | { head?: { sha?: string } }
-    | undefined;
-  const sha = pr?.head?.sha;
+function isHandledPrAction(action: string): action is HandledPrAction {
+  return (HANDLED_PR_ACTIONS as readonly string[]).includes(action);
+}
+
+function repositoryFullName(
+  payload: PushPayload | PullRequestPayload,
+): string | undefined {
+  const fullName = payload.repository?.full_name;
+  return typeof fullName === "string" && fullName.length > 0
+    ? fullName
+    : undefined;
+}
+
+type HandledWebhookEvent =
+  | { kind: "push"; payload: PushPayload }
+  | {
+      kind: "pull_request";
+      payload: PullRequestPayload;
+      action: HandledPrAction;
+    };
+
+function pullRequestHeadSha(payload: PullRequestPayload): string | null {
+  const sha = payload.pull_request?.head?.sha;
   return typeof sha === "string" && sha.length > 0 ? sha : null;
 }
 
-function pushHeadSha(payload: Record<string, unknown>): string | null {
+function pushHeadSha(payload: PushPayload): string | null {
   const after = payload.after;
   return typeof after === "string" && /^[0-9a-f]{40}$/i.test(after)
     ? after
     : null;
+}
+
+function triggerFor(event: HandledWebhookEvent): string {
+  switch (event.kind) {
+    case "push":
+      return `push ${typeof event.payload.ref === "string" ? event.payload.ref : ""}`.trim();
+    case "pull_request":
+      return `pull_request ${event.action}`;
+    default: {
+      const _exhaustive: never = event;
+      throw new Error(`Unhandled webhook event: ${JSON.stringify(_exhaustive)}`);
+    }
+  }
+}
+
+function checkoutRefFor(event: HandledWebhookEvent): string | undefined {
+  switch (event.kind) {
+    case "push":
+      return pushHeadSha(event.payload) ?? undefined;
+    case "pull_request":
+      return pullRequestHeadSha(event.payload) ?? undefined;
+    default: {
+      const _exhaustive: never = event;
+      throw new Error(`Unhandled webhook event: ${JSON.stringify(_exhaustive)}`);
+    }
+  }
 }
 
 export interface WebhookHandleResult {
@@ -77,6 +128,41 @@ export interface WebhookHandleResult {
   checkRun?: { ok: boolean; error?: string; htmlUrl?: string };
 }
 
+function parseHandledWebhookEvent(
+  eventName: string,
+  payload: unknown,
+):
+  | { ok: true; event: HandledWebhookEvent }
+  | { ok: false; message: string } {
+  if (typeof payload !== "object" || payload === null) {
+    return { ok: false, message: "Invalid payload" };
+  }
+
+  if (eventName === "push") {
+    return { ok: true, event: { kind: "push", payload: payload as PushPayload } };
+  }
+
+  if (eventName === "pull_request") {
+    const prPayload = payload as PullRequestPayload;
+    if (
+      typeof prPayload.action !== "string" ||
+      !isHandledPrAction(prPayload.action)
+    ) {
+      return { ok: false, message: `Ignored event ${eventName}` };
+    }
+    return {
+      ok: true,
+      event: {
+        kind: "pull_request",
+        payload: prPayload,
+        action: prPayload.action,
+      },
+    };
+  }
+
+  return { ok: false, message: `Ignored event ${eventName}` };
+}
+
 /**
  * Handles push / pull_request GitHub events for connected projects.
  * Ephemeral-clones the repo (at the event SHA when available), re-assesses,
@@ -84,28 +170,17 @@ export interface WebhookHandleResult {
  */
 export async function handleGitHubWebhookEvent(
   eventName: string,
-  payload: Record<string, unknown>,
+  payload: unknown,
 ): Promise<WebhookHandleResult> {
-  const repo = payload.repository as
-    | { full_name?: string; private?: boolean }
-    | undefined;
-  const fullName = repo?.full_name;
-  if (!fullName) {
-    return { handled: false, message: "No repository in payload", alerts: [] };
+  const parsed = parseHandledWebhookEvent(eventName, payload);
+  if (!parsed.ok) {
+    return { handled: false, message: parsed.message, alerts: [] };
   }
 
-  const isPush = eventName === "push";
-  const isPr =
-    eventName === "pull_request" &&
-    typeof payload.action === "string" &&
-    ["opened", "synchronize", "reopened"].includes(payload.action);
-
-  if (!isPush && !isPr) {
-    return {
-      handled: false,
-      message: `Ignored event ${eventName}`,
-      alerts: [],
-    };
+  const { event } = parsed;
+  const fullName = repositoryFullName(event.payload);
+  if (!fullName) {
+    return { handled: false, message: "No repository in payload", alerts: [] };
   }
 
   const preview = await loadDb();
@@ -147,14 +222,8 @@ export async function handleGitHubWebhookEvent(
     };
   }
 
-  const trigger = isPush
-    ? `push ${typeof payload.ref === "string" ? payload.ref : ""}`.trim()
-    : `pull_request ${String(payload.action)}`;
-
-  const ref =
-    (isPr ? pullRequestHeadSha(payload) : null) ??
-    (isPush ? pushHeadSha(payload) : null) ??
-    undefined;
+  const trigger = triggerFor(event);
+  const ref = checkoutRefFor(event);
 
   try {
     return await withRepoCheckout(
@@ -185,8 +254,8 @@ export async function handleGitHubWebhookEvent(
           db.alerts.push(...alerts);
 
           let checkRun: WebhookHandleResult["checkRun"];
-          if (isPr) {
-            const headSha = pullRequestHeadSha(payload);
+          if (event.kind === "pull_request") {
+            const headSha = pullRequestHeadSha(event.payload);
             if (headSha) {
               const openViolations = db.findings.filter(
                 (finding) =>

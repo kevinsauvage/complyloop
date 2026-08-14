@@ -18,8 +18,10 @@ message (`code: webhook_clone_failed`) — it does not crash the process.
 | Path / env | Purpose |
 |------------|---------|
 | `DATABASE_URL` | Postgres (Drizzle) — frameworks → evidence, orgs, encrypted GitHub tokens, webhook delivery ids |
-| `SENTRY_DSN` | **Required for staging/prod** — captures server errors via `@sentry/node` |
+| `SENTRY_DSN` | **Required for staging/prod** — server/edge error capture via `@sentry/nextjs` |
+| `NEXT_PUBLIC_SENTRY_DSN` | Optional — same DSN for browser errors and App Router error boundaries |
 | `SENTRY_TRACES_SAMPLE_RATE` | Optional — default `0.05` when `NODE_ENV=production` and DSN is set |
+| `SENTRY_AUTH_TOKEN` / `SENTRY_ORG` / `SENTRY_PROJECT` | Optional build-time — upload source maps on `next build` |
 
 ## Supported shape
 
@@ -122,7 +124,7 @@ with GitHub (admin/owner role in the active organization).
 
 ## Monitoring
 
-With `SENTRY_DSN` set, server errors are reported via `@sentry/node`. Configure
+With `SENTRY_DSN` set, server errors are reported via `@sentry/nextjs`. Configure
 alerts (email/Slack/Pager) for at least:
 
 - Unhandled exceptions / `reportError` events

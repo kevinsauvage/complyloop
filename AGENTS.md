@@ -47,7 +47,8 @@ The domain model must stay **framework-agnostic** (requirements/controls, not "a
 - **Styling/UI:** Tailwind CSS 4 + shadcn/ui (Radix, dark zinc theme by default); app helpers in `src/components/page-primitives.tsx`
 - **Persistence:** Postgres via Drizzle (`DATABASE_URL` required; `src/server/db-store/`). Evidence is insert-only. Encrypted GitHub tokens + webhook deliveries live in Postgres. Source checkouts are ephemeral temp clones per job (`src/server/repo-checkout.ts`) — no durable workspace volume.
 - **Auth / GitHub connect:** Auth.js v5 (`next-auth`) with GitHub OAuth (`AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`); projects are GitHub-only (sign-in required to connect)
-- **GitHub API / git:** `@octokit/rest` + `@octokit/webhooks-methods`; clones and PR push via `simple-git`; handoff patches via `diff`; source walks via `fast-glob`
+- **GitHub API / git:** `@octokit/rest` + `@octokit/webhooks` (typed events) + `@octokit/webhooks-methods`; clones and PR push via `simple-git`; handoff patches via `diff`; source walks via `fast-glob`
+- **Observability:** `@sentry/nextjs` (`SENTRY_DSN` server/edge, optional `NEXT_PUBLIC_SENTRY_DSN` for the browser). `reportError` / `reportWarning` in `src/server/observability.ts` remain the product API.
 - **Analysis engine:** deterministic TypeScript AST checks in `src/analysis/` as the source of truth for local/CI defects (13 checks); optional **runtime DOM audits** (Playwright + axe-core) when a project has `runtimeBaseUrl` — composition-sensitive rules (labels, names, …) then use the rendered page as status truth. AI augments, never replaces either engine.
 - **CI package:** `@complyloop/check` / `npx complyloop-check` (`packages/check`)
 - **AI:** Vercel AI SDK for explanations (optional, gated by `AI_GATEWAY_API_KEY`); deterministic explanations are the baseline

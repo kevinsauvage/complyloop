@@ -36,9 +36,9 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const eventName = request.headers.get("x-github-event") ?? "";
-  let payload: Record<string, unknown>;
+  let payload: unknown;
   try {
-    payload = JSON.parse(rawBody) as Record<string, unknown>;
+    payload = JSON.parse(rawBody);
   } catch {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }

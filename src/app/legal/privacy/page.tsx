@@ -57,7 +57,9 @@ export default function PrivacyPage() {
           <p className="mt-2">
             Optional AI features send finding context to the configured AI
             gateway when <code className="font-mono text-xs text-foreground">AI_GATEWAY_API_KEY</code> is set. Error reporting
-            may send diagnostics to Sentry when <code className="font-mono text-xs text-foreground">SENTRY_DSN</code> is set.
+            may send diagnostics to Sentry when a Sentry DSN is configured
+            (<code className="font-mono text-xs text-foreground">SENTRY_DSN</code> on the server,
+            optionally <code className="font-mono text-xs text-foreground">NEXT_PUBLIC_SENTRY_DSN</code> in the browser).
             Hosting and Postgres providers hold application data when you deploy
             with those services.
           </p>

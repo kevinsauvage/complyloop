@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { reportError, reportWarning } from "./observability";
 
@@ -24,6 +25,9 @@ describe("observability", () => {
     expect(payload.message).toBe("workspace missing");
     expect(payload.code).toBe("workspace_missing");
     expect(payload.projectId).toBe("p1");
+    expect(Sentry.captureException).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "workspace missing" }),
+    );
   });
 
   it("emits structured warnings to console.warn", async () => {
@@ -36,5 +40,9 @@ describe("observability", () => {
     };
     expect(payload.severity).toBe("warning");
     expect(payload.message).toBe("token decrypt failed");
+    expect(Sentry.captureMessage).toHaveBeenCalledWith(
+      "token decrypt failed",
+      "warning",
+    );
   });
 });
