@@ -2,6 +2,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Control, OrgMembership, Project, Requirement } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
 import { emptyActionMessageState } from "./action-state";
+import {
+  markRemediationImplementedAction,
+  verifyRemediationAction,
+} from "./actions/remediation-verify";
+import { dismissFindingAction } from "./actions/remediation-dismiss";
+import {
+  clearRequirementExceptionAction,
+  markRequirementExceptionAction,
+  markRequirementPassedAction,
+} from "./actions/requirements";
 import type { Db } from "./db";
 import type { Workspace } from "./workspace";
 
@@ -54,17 +64,6 @@ vi.mock("./assessment-status", () => ({
   refreshRequirementStatuses: (...args: unknown[]) =>
     refreshRequirementStatuses(...args),
 }));
-
-import {
-  markRemediationImplementedAction,
-  verifyRemediationAction,
-} from "./actions/remediation-verify";
-import { dismissFindingAction } from "./actions/remediation-dismiss";
-import {
-  clearRequirementExceptionAction,
-  markRequirementExceptionAction,
-  markRequirementPassedAction,
-} from "./actions/requirements";
 
 const project: Project = {
   id: "p1",

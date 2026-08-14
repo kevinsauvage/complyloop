@@ -39,4 +39,4 @@ Work is not done until all of these pass locally:
 npm run lint && npm run typecheck && npm run test && npm run build
 ```
 
-Never disable a lint rule, skip a test, or loosen tsconfig to make the gate pass — fix the underlying issue. If a rule is genuinely wrong for this codebase, change it deliberately and record why in `docs/ai/decisions.md`.
+Never disable a lint rule, skip a test, or loosen tsconfig to make the gate pass — fix the underlying issue. If a rule is genuinely wrong for this codebase, change it deliberately and record why in `docs/ai/architecture.md`.

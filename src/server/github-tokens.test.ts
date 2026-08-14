@@ -1,16 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  decryptToken,
+  encryptToken,
+  storeUserGitHubToken,
+} from "./github-tokens";
 
 const getDrizzle = vi.hoisted(() => vi.fn());
 
 vi.mock("./db-store/client", () => ({
   getDrizzle: () => getDrizzle(),
 }));
-
-import {
-  decryptToken,
-  encryptToken,
-  storeUserGitHubToken,
-} from "./github-tokens";
 
 const previousSecret = process.env.AUTH_SECRET;
 

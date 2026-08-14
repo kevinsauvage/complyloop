@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicError } from "@/core/public-error";
 import type { Organization, Project } from "@/core/project-types";
 import { emptyActionMessageState } from "./action-state";
+import { deleteOrgAction, exportOrgDataAction } from "./actions/org";
 import type { Db } from "./db";
 import type { Workspace } from "./workspace";
 
@@ -54,8 +55,6 @@ vi.mock("./active-cookies", () => ({
 vi.mock("./actions/shared", () => ({
   refresh: () => refresh(),
 }));
-
-import { deleteOrgAction, exportOrgDataAction } from "./actions/org";
 
 const org: Organization = {
   id: "org-1",

@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OrgMembership, Project } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
 import { emptyActionMessageState } from "./action-state";
+import { runAssessmentAction } from "./actions/assessment";
+import { dismissFindingAction } from "./actions/remediation-dismiss";
+import { approveRemediationAction } from "./actions/remediation";
 import type { Db } from "./db";
 import type { Workspace } from "./workspace";
 
@@ -63,10 +66,6 @@ vi.mock("./assessment-helpers", () => ({
 vi.mock("./assessment-status", () => ({
   refreshRequirementStatuses: vi.fn(),
 }));
-
-import { runAssessmentAction } from "./actions/assessment";
-import { dismissFindingAction } from "./actions/remediation-dismiss";
-import { approveRemediationAction } from "./actions/remediation";
 
 const project: Project = {
   id: "p1",

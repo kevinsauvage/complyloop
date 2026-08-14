@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PublicError } from "@/core/public-error";
 import {
   actionErrorState,
-  connectFormError,
   emptyActionMessageState,
   formError,
   formSuccess,
@@ -103,24 +102,6 @@ describe("actionErrorState / publicErrorMessage", () => {
       message: null,
     });
     expect(spy).toHaveBeenCalled();
-  });
-});
-
-describe("connectFormError", () => {
-  it("maps ConnectError to a form error state", () => {
-    expect(connectFormError(new ConnectError("Bad path."))).toEqual({
-      error: "Bad path.",
-      message: null,
-    });
-  });
-
-  it("sanitizes unexpected errors instead of rethrowing", () => {
-    stubErrorRef();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    expect(connectFormError(new Error("boom"))).toEqual({
-      error: unexpectedActionMessage(ERROR_REF),
-      message: null,
-    });
   });
 });
 

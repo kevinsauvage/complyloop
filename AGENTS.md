@@ -121,14 +121,14 @@ Work is not done until all of these pass locally:
 npm run lint && npm run typecheck && npm run test && npm run build
 ```
 
-Never disable a lint rule, skip a test, or loosen tsconfig to make the gate pass — fix the underlying issue, or change the rule deliberately and record why in `docs/ai/decisions.md`.
+Never disable a lint rule, skip a test, or loosen tsconfig to make the gate pass — fix the underlying issue, or change the rule deliberately and record why in `docs/ai/architecture.md`.
 
 ## Repository Layout
 
 ```
 compliance-engineering-product-spec.md   Product spec (source of truth)
 AGENTS.md                                This file
-docs/ai/                                 AI-facing design docs (architecture, decisions)
+docs/ai/                                 AI-facing architecture notes
 .cursor/rules/                           Cursor rules (product context, conventions)
 src/core/                                Framework-agnostic domain core (types, statuses, transitions)
 src/analysis/                            Deterministic analysis engine (AST checks, scanner, fixes)
@@ -139,7 +139,6 @@ src/server/actions/                      Server Actions split by domain (no barr
 src/app/                                 Next.js App Router routes
 src/components/                          Shared UI (badges, cards, nav, findings/, requirements/, dashboard/)
 packages/check/testdata/                 Deliberate violations for the CI check package
-.data/                                   Legacy local junk (gitignored; unused)
 ```
 
 `packages/check/testdata/` is excluded from lint/typecheck on purpose (deliberate
@@ -151,4 +150,4 @@ violations). Leftover `.data/` dirs are gitignored only.
 2. Map the feature to the core loop stage(s) it serves.
 3. Keep the core domain framework-agnostic; put RGAA/WCAG specifics behind an adapter.
 4. Model statuses and workflow states as typed enums with exhaustive handling.
-5. Record architectural decisions in `docs/ai/decisions.md`.
+5. Update `docs/ai/architecture.md` when the system shape or persistence model changes.

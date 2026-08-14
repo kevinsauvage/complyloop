@@ -119,11 +119,10 @@ src/core/       Framework-agnostic domain: entities, statuses, transitions
 src/analysis/   AST checks + optional runtime (Playwright/axe) audits + fixes
 src/adapters/   Framework adapters (RGAA/WCAG first)
 src/ai/         AI explainer (optional, provenance-tagged, never sets statuses)
-src/server/     JSON/Postgres store, seeding, assessment service, server actions
+src/server/     Postgres store, seeding, assessment service, server actions
 src/app/        Next.js App Router UI
 packages/check  Customer-facing CI bin (@complyloop/check)
 ```
 
 See [`docs/ai/architecture.md`](./docs/ai/architecture.md) for the full
-picture and [`docs/ai/decisions.md`](./docs/ai/decisions.md) for the decision
-log. Agent-facing conventions live in [`AGENTS.md`](./AGENTS.md).
+picture. Agent-facing conventions live in [`AGENTS.md`](./AGENTS.md).

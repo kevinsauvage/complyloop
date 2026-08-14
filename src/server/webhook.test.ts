@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { loadDb } from "./db";
 import { handleGitHubWebhookEvent, verifyGitHubSignature } from "./webhook";
 
 const runAssessment = vi.hoisted(() =>
@@ -45,8 +46,6 @@ vi.mock("./repo-checkout", () => ({
   ) => withRepoCheckout(options, fn),
   withProjectCheckout: vi.fn(),
 }));
-
-import { loadDb } from "./db";
 
 afterEach(() => {
   delete process.env.GITHUB_WEBHOOK_SECRET;

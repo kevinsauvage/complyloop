@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { POST } from "./route";
 
 const isWebhookConfigured = vi.hoisted(() => vi.fn());
 const verifyGitHubSignature = vi.hoisted(() => vi.fn());
@@ -15,8 +16,6 @@ vi.mock("@/server/webhook", () => ({
 vi.mock("@/server/webhook-deliveries", () => ({
   claimWebhookDelivery: (...args: unknown[]) => claimWebhookDelivery(...args),
 }));
-
-import { POST } from "./route";
 
 function webhookRequest(
   body: string,

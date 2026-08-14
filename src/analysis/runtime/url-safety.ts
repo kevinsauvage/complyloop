@@ -5,6 +5,7 @@
  * undici IP pinning).
  */
 
+import net from "node:net";
 import { PublicError, publicMessage } from "@/core/public-error";
 import {
   isPublicHostname,
@@ -12,7 +13,6 @@ import {
   type BlockedHostnamePolicy,
 } from "ssrf-guard";
 import { UnsafeUrlError, validateUrl } from "ssrf-guard/node";
-import net from "node:net";
 
 export const UNSAFE_RUNTIME_URL_MESSAGE =
   "Runtime audit URL cannot target localhost, private, or metadata hosts.";

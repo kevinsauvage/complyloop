@@ -2,7 +2,7 @@
 
 import { auth, getGitHubAccessToken } from "@/auth";
 import {
-  connectFormError,
+  actionErrorState,
   formError,
   formSuccess,
   readFormString,
@@ -24,7 +24,7 @@ import {
   isGitHubAppConfigured,
   resolveUserInstallationForRepo,
 } from "../github-app";
-import { RateLimitError, assertConnectRateLimit } from "../rate-limit";
+import { assertConnectRateLimit } from "../rate-limit";
 import { withWorkspaceWrite } from "../workspace";
 import { refresh } from "./shared";
 
@@ -59,18 +59,13 @@ export async function connectGitHubRepoAction(
   if (!userId) {
     return formError("Sign in with GitHub to connect a repository.");
   }
-  try {
-    assertConnectRateLimit(userId);
-  } catch (error) {
-    if (error instanceof RateLimitError) return formError(error.message);
-    throw error;
-  }
 
   const installationIdRaw = readFormString(formData, "installationId");
   const claimedInstallationId =
     installationIdRaw != null ? Number(installationIdRaw) : undefined;
 
   try {
+    assertConnectRateLimit(userId);
     const userAccessToken = await getGitHubAccessToken();
     if (!userAccessToken) {
       return formError(
@@ -127,7 +122,7 @@ export async function connectGitHubRepoAction(
     refresh();
     return formSuccess(`Connected ${repo.fullName}.`);
   } catch (error) {
-    return connectFormError(error);
+    return actionErrorState(error);
   }
 }
 
@@ -166,6 +161,6 @@ export async function disconnectGitHubRepoAction(
     refresh();
     return formSuccess(`Disconnected ${disconnectedName}.`);
   } catch (error) {
-    return connectFormError(error);
+    return actionErrorState(error);
   }
 }

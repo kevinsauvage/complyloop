@@ -11,13 +11,13 @@ export const emptyActionMessageState: ActionMessageState = {
   message: null,
 };
 
-export const UNEXPECTED_ACTION_MESSAGE = "Something went wrong.";
+const UNEXPECTED_ACTION_MESSAGE = "Something went wrong.";
 
 export function unexpectedActionMessage(errorRef: string): string {
   return `${UNEXPECTED_ACTION_MESSAGE} Reference: ${errorRef}`;
 }
 
-export function createErrorRef(): string {
+function createErrorRef(): string {
   return crypto.randomUUID().replaceAll("-", "").slice(0, 12);
 }
 
@@ -73,9 +73,4 @@ export async function runActionMessage(
   } catch (error) {
     return actionErrorState(error);
   }
-}
-
-/** Connect/org forms: same public vs unexpected mapping as other actions. */
-export function connectFormError(error: unknown): ActionMessageState {
-  return actionErrorState(error);
 }

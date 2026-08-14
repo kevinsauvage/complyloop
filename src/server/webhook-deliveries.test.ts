@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  claimWebhookDelivery,
+  hasProcessedWebhookDelivery,
+} from "./webhook-deliveries";
 
 const claimed = vi.hoisted(() => new Set<string>());
 
@@ -53,11 +57,6 @@ vi.mock("./db-store/client", () => ({
     }),
   }),
 }));
-
-import {
-  claimWebhookDelivery,
-  hasProcessedWebhookDelivery,
-} from "./webhook-deliveries";
 
 beforeEach(() => {
   claimed.clear();

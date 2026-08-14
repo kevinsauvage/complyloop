@@ -13,10 +13,6 @@ import {
 import { addEvidence } from "../db";
 import { reportWarning } from "../observability";
 import { assertAiRateLimit } from "../rate-limit";
-
-setAiWarn((message, context) => {
-  reportWarning(message, context);
-});
 import {
   controlById,
   findingById,
@@ -28,6 +24,10 @@ import {
   replaceRemediation,
   requireOnFindingProject,
 } from "./shared";
+
+setAiWarn((message, context) => {
+  reportWarning(message, context);
+});
 
 export type AiActionState = ActionMessageState;
 

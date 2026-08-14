@@ -10,6 +10,7 @@ import type { Control, Project } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
 import { locateViolationInProject, mergeFix } from "./assessment-helpers";
 import { createGit } from "./git";
+import { preparePullRequest } from "./pr";
 
 const withProjectCheckout = vi.hoisted(() =>
   vi.fn(
@@ -38,8 +39,6 @@ vi.mock("./repo-checkout", () => ({
 vi.mock("./github-access", () => ({
   resolveProjectGitHubToken: vi.fn(async () => null),
 }));
-
-import { preparePullRequest } from "./pr";
 
 const tempDirs: string[] = [];
 
