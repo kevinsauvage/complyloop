@@ -1,21 +1,12 @@
+import { isFocusable } from "../a11y-model";
 import {
   booleanAttributeValue,
   getAttribute,
   locationOf,
-  stringValueOf,
   tagNameOf,
   visitJsxTags,
 } from "../parse";
 import type { AccessibilityCheck, RawFinding } from "../types";
-
-const FOCUSABLE_TAGS = new Set([
-  "a",
-  "button",
-  "input",
-  "select",
-  "textarea",
-  "summary",
-]);
 
 function isAriaHiddenTrue(
   node: Parameters<typeof getAttribute>[0],
@@ -24,28 +15,6 @@ function isAriaHiddenTrue(
   const value = booleanAttributeValue(attr);
   // Unknown/dynamic expressions are treated as potentially hidden.
   return value === true || value === null;
-}
-
-function isFocusable(node: Parameters<typeof getAttribute>[0]): boolean {
-  const tag = tagNameOf(node).toLowerCase();
-  if (FOCUSABLE_TAGS.has(tag)) {
-    if (tag === "a") {
-      return getAttribute(node, "href") !== undefined;
-    }
-    const disabled =
-      getAttribute(node, "disabled") ?? getAttribute(node, "aria-disabled");
-    if (disabled) {
-      const value = stringValueOf(disabled);
-      if (value === undefined || value === "true") return false;
-    }
-    return true;
-  }
-  const tabIndex = getAttribute(node, "tabIndex") ?? getAttribute(node, "tabindex");
-  if (!tabIndex) return false;
-  const value = stringValueOf(tabIndex);
-  if (value === undefined) return false;
-  const n = Number(value);
-  return !Number.isNaN(n) && n >= 0;
 }
 
 export const ariaHiddenFocusableCheck: AccessibilityCheck = {

@@ -41,7 +41,7 @@ High-level architecture for ComplyLoop. The MVP implements the core loop in
 
 - **Framework-agnostic core**: domain model and status transitions. Knows nothing about RGAA. Only place that changes requirement/remediation statuses.
 - **Framework adapters**: map RGAA/WCAG into controls + developer guidance.
-- **Analysis engine**: dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`) for local/CI/auto-fix, and optional **runtime DOM audits** (Playwright + axe-core in `src/analysis/runtime/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs; AI never sets requirement status.
+- **Analysis engine**: dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core in `src/analysis/runtime/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs; AI never sets requirement status.
 - **AI services**: explanation and remediation suggestions; typed, provenance-tagged, never statuses.
 - **Repo connectors**: GitHub OAuth / App clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.
 

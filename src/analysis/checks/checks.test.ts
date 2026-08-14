@@ -212,5 +212,47 @@ describe("aria-hidden-focusable", () => {
     );
     expect(findings).toHaveLength(1);
   });
+
+  it("flags widget roles, media, and tabindex that the old tag list missed", () => {
+    expect(
+      run(
+        ariaHiddenFocusableCheck,
+        `const A = () => <div role="button" aria-hidden="true">x</div>;`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      run(
+        ariaHiddenFocusableCheck,
+        `const A = () => <video aria-hidden="true" />;`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      run(
+        ariaHiddenFocusableCheck,
+        `const A = () => <div tabIndex={0} aria-hidden="true">x</div>;`,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("does not flag non-focusable or disabled hosts", () => {
+    expect(
+      run(
+        ariaHiddenFocusableCheck,
+        `const A = () => <a aria-hidden="true">x</a>;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      run(
+        ariaHiddenFocusableCheck,
+        `const A = () => <button disabled aria-hidden="true">x</button>;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      run(
+        ariaHiddenFocusableCheck,
+        `const A = () => <div aria-hidden="true">x</div>;`,
+      ),
+    ).toHaveLength(0);
+  });
 });
 
