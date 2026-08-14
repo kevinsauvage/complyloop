@@ -1,5 +1,6 @@
 "use server";
 
+import { PublicError } from "@/core/public-error";
 import {
   runActionMessage,
   type ActionMessageState,
@@ -48,7 +49,7 @@ export async function importCustomControlAction(
         typeof title !== "string" ||
         typeof description !== "string"
       ) {
-        throw new Error("Code, title, and description are required.");
+        throw new PublicError("Code, title, and description are required.");
       }
       importCustomControl(db, project, {
         code,
@@ -70,7 +71,7 @@ export async function applyFrameworkPresetAction(
   return runActionMessage(async () => {
     const presetId = formData.get("presetId");
     if (typeof presetId !== "string" || presetId.length === 0) {
-      throw new Error("A framework preset is required.");
+      throw new PublicError("A framework preset is required.");
     }
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.assess");
@@ -89,7 +90,7 @@ export async function importChecklistAction(
   return runActionMessage(async () => {
     const checklist = formData.get("checklist");
     if (typeof checklist !== "string" || checklist.trim().length === 0) {
-      throw new Error("Paste a checklist to import.");
+      throw new PublicError("Paste a checklist to import.");
     }
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.assess");

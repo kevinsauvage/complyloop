@@ -102,7 +102,7 @@ describe("runAssessment with runtime engine", () => {
       },
     });
     expect(assessment.engines?.runtime).toBe(false);
-    expect(assessment.engines?.runtimeError).toMatch(/CONNECTION_REFUSED/);
+    expect(assessment.engines?.runtimeError).toBe("Runtime scan failed.");
   });
 
   it("records a user-safe error when the preview URL resolves privately", async () => {

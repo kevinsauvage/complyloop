@@ -10,7 +10,7 @@ export function setActiveProject(
   userId?: string | null,
 ): Project {
   const project = db.projects.find((candidate) => candidate.id === projectId);
-  if (!project) throw new ConnectError(`Unknown project: ${projectId}`);
+  if (!project) throw new ConnectError("Unknown project.");
   if (!isProjectVisible(project, accessFromStore(db, userId))) {
     throw new ConnectError("You do not have access to that project.");
   }

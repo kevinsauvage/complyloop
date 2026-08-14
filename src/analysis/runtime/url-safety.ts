@@ -5,6 +5,7 @@
  * undici IP pinning).
  */
 
+import { PublicError, publicMessage } from "@/core/public-error";
 import {
   isPublicHostname,
   validateResolvedAddresses,
@@ -37,13 +38,13 @@ function parseHttpUrl(raw: string): URL {
   try {
     parsed = new URL(raw.trim());
   } catch {
-    throw new Error("Enter a valid http(s) preview URL.");
+    throw new PublicError("Enter a valid http(s) preview URL.");
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error("Runtime audit URL must be http or https.");
+    throw new PublicError("Runtime audit URL must be http or https.");
   }
   if (parsed.username || parsed.password) {
-    throw new Error("Runtime audit URL must not include credentials.");
+    throw new PublicError("Runtime audit URL must not include credentials.");
   }
   return parsed;
 }
@@ -52,7 +53,7 @@ function assertPublicHostname(hostname: string): void {
   if (
     !isPublicHostname(hostname, { blockedHostnames: EXTRA_BLOCKED_HOSTNAMES })
   ) {
-    throw new Error(UNSAFE_RUNTIME_URL_MESSAGE);
+    throw new PublicError(UNSAFE_RUNTIME_URL_MESSAGE);
   }
 }
 
@@ -85,15 +86,15 @@ export async function assertSafeRuntimeUrl(
     try {
       records = await options.lookup(hostname);
     } catch {
-      throw new Error("Runtime audit URL could not be resolved.");
+      throw new PublicError("Runtime audit URL could not be resolved.");
     }
     if (records.length === 0) {
-      throw new Error("Runtime audit URL could not be resolved.");
+      throw new PublicError("Runtime audit URL could not be resolved.");
     }
     try {
       validateResolvedAddresses(parsed.href, hostname, records);
     } catch {
-      throw new Error(UNSAFE_RUNTIME_URL_MESSAGE);
+      throw new PublicError(UNSAFE_RUNTIME_URL_MESSAGE);
     }
     return parsed.href;
   }
@@ -102,9 +103,9 @@ export async function assertSafeRuntimeUrl(
     await validateUrl(parsed.href, { blockedHostnames: VALIDATE_URL_POLICY });
   } catch (error) {
     if (error instanceof UnsafeUrlError) {
-      throw new Error(UNSAFE_RUNTIME_URL_MESSAGE);
+      throw new PublicError(UNSAFE_RUNTIME_URL_MESSAGE);
     }
-    throw new Error("Runtime audit URL could not be resolved.");
+    throw new PublicError("Runtime audit URL could not be resolved.");
   }
   return parsed.href;
 }
@@ -120,8 +121,7 @@ export async function allowRuntimeNavigation(
   } catch (error) {
     return {
       ok: false,
-      message:
-        error instanceof Error ? error.message : UNSAFE_RUNTIME_URL_MESSAGE,
+      message: publicMessage(error, UNSAFE_RUNTIME_URL_MESSAGE),
     };
   }
 }

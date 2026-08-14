@@ -2,6 +2,7 @@ import { cache } from "react";
 import { auth } from "@/auth";
 import type { Control, Organization, Project } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
+import { PublicError } from "@/core/public-error";
 import {
   readActiveOrgCookie,
   readActiveProjectCookie,
@@ -156,13 +157,13 @@ export async function withWorkspaceWrite<T>(
 
 export function controlById(db: Db, controlId: string): Control {
   const control = db.controls.find((candidate) => candidate.id === controlId);
-  if (!control) throw new Error(`Unknown control: ${controlId}`);
+  if (!control) throw new PublicError("Unknown control.");
   return control;
 }
 
 export function findingById(db: Db, findingId: string): Finding {
   const finding = db.findings.find((candidate) => candidate.id === findingId);
-  if (!finding) throw new Error(`Unknown finding: ${findingId}`);
+  if (!finding) throw new PublicError("Unknown finding.");
   return finding;
 }
 
@@ -170,6 +171,6 @@ export function remediationForFinding(db: Db, findingId: string): Remediation {
   const remediation = db.remediations.find(
     (candidate) => candidate.findingId === findingId,
   );
-  if (!remediation) throw new Error(`No remediation for finding: ${findingId}`);
+  if (!remediation) throw new PublicError("No remediation for that finding.");
   return remediation;
 }

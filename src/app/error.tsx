@@ -17,7 +17,6 @@ export default function AppError({
       JSON.stringify({
         severity: "error",
         code: "app_error_boundary",
-        message: error.message,
         digest: error.digest,
         at: new Date().toISOString(),
       }),
@@ -31,8 +30,8 @@ export default function AppError({
       </h1>
       <AlertDescription>
         <p className="mt-2 max-w-xl">
-          {error.message ||
-            "An unexpected error occurred while handling your request."}
+          An unexpected error occurred while handling your request.
+          {error.digest ? ` Reference: ${error.digest}` : ""}
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button type="button" onClick={reset}>

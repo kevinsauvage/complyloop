@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { applyFix } from "@/analysis/fixes";
 import { resolveInside } from "@/analysis/workspace-path";
 import { formatLocationRef, isSourceLocation } from "@/core/location";
+import { PublicError } from "@/core/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
   runActionMessage,
@@ -84,16 +85,16 @@ export async function applyRemediationAction(
     const preview = await getWorkspace();
     const finding = findingById(preview.db, findingId);
     requireOnFindingProject(preview, finding, "project.remediate");
-    if (!finding.fix) throw new Error("This finding has no automatable fix.");
+    if (!finding.fix) throw new PublicError("This finding has no automatable fix.");
     if (!isSourceLocation(finding.location)) {
-      throw new Error(
+      throw new PublicError(
         "Runtime DOM findings cannot be auto-applied — fix the call site and verify with a re-audit.",
       );
     }
     const project = preview.db.projects.find(
       (candidate) => candidate.id === finding.projectId,
     );
-    if (!project) throw new Error(`Unknown project: ${finding.projectId}`);
+    if (!project) throw new PublicError("Unknown project.");
     const tokenOptions = await sessionCheckoutTokenOptions(preview.userId);
 
     await withProjectCheckout(
@@ -105,19 +106,19 @@ export async function applyRemediationAction(
         requireOnFindingProject(workspace, live, "project.remediate");
         const remediation = remediationForFinding(db, findingId);
         if (!live.fix) {
-          throw new Error("This finding has no automatable fix.");
+          throw new PublicError("This finding has no automatable fix.");
         }
 
         const { match } = locateViolation(db, live, rootPath);
         if (!match?.fix) {
-          throw new Error(
+          throw new PublicError(
             "The violation could not be re-located in the current file.",
           );
         }
         const fix = mergeFix(live.fix, match.fix);
-        if (!fix) throw new Error("No applicable fix.");
+        if (!fix) throw new PublicError("No applicable fix.");
         if (!isSourceLocation(live.location)) {
-          throw new Error("Expected a source location.");
+          throw new PublicError("Expected a source location.");
         }
 
         // Prove the fix applies on a fresh checkout; durable change is via Create PR.

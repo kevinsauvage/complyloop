@@ -1,5 +1,6 @@
 import { presetById } from "@/adapters/rgaa/presets";
 import type { Control, Framework, Project } from "@/core/project-types";
+import { PublicError } from "@/core/public-error";
 import { addEvidence, type Db } from "./db";
 
 export const CUSTOM_FRAMEWORK_ID = "fw-custom";
@@ -36,7 +37,7 @@ export function importCustomControl(
   const title = input.title.trim();
   const description = input.description.trim();
   if (!code || !title || !description) {
-    throw new Error("Code, title, and description are required.");
+    throw new PublicError("Code, title, and description are required.");
   }
 
   ensureCustomFramework(db);
@@ -89,7 +90,7 @@ export function setProjectScope(
   const known = new Set(db.controls.map((control) => control.id));
   const unique = [...new Set(controlIds)].filter((id) => known.has(id));
   if (unique.length === 0) {
-    throw new Error("At least one control must remain in scope.");
+    throw new PublicError("At least one control must remain in scope.");
   }
 
   const allIds = db.controls.map((control) => control.id);
@@ -115,7 +116,7 @@ export function applyFrameworkPreset(
   presetId: string,
 ): void {
   const preset = presetById(presetId);
-  if (!preset) throw new Error(`Unknown framework preset: ${presetId}`);
+  if (!preset) throw new PublicError(`Unknown framework preset: ${presetId}`);
   setProjectScope(db, project, preset.controlIds);
   addEvidence(db, {
     kind: "requirements_imported",
@@ -143,13 +144,13 @@ export function parseChecklistText(text: string): ChecklistLine[] {
     if (!line || line.startsWith("#")) continue;
     const parts = line.split("|").map((part) => part.trim());
     if (parts.length < 3) {
-      throw new Error(
+      throw new PublicError(
         `Invalid checklist line (need CODE | Title | Description): ${line}`,
       );
     }
     const [code, title, description, secondaryCode] = parts;
     if (!code || !title || !description) {
-      throw new Error(`Incomplete checklist line: ${line}`);
+      throw new PublicError(`Incomplete checklist line: ${line}`);
     }
     lines.push({ code, title, description, secondaryCode });
   }
@@ -164,7 +165,7 @@ export function importChecklist(
 ): Control[] {
   const parsed = parseChecklistText(text);
   if (parsed.length === 0) {
-    throw new Error("Checklist is empty.");
+    throw new PublicError("Checklist is empty.");
   }
   return parsed.map((line) => importCustomControl(db, project, line));
 }

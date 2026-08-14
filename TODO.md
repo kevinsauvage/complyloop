@@ -36,10 +36,6 @@ Important improvements for quality, maintainability, security, UX, or reliabilit
   - **Acceptance criteria:** Dashboard/findings/evidence routes query only visible project/org data; write paths update only affected rows; no hot path requires loading every tenant’s data.
   - **Estimated effort:** 🔴 Very large: > 3 days.
 
-- [x] **Add real database constraints and indexes for tenant data**
-  - **Done:** Migration `0005_tenant_constraints.sql` adds FKs with `ON DELETE CASCADE` on mutable tables (not evidence), status/role check constraints, unique GitHub identity indexes, and project-scoped indexes `(project_id, status)`, `(project_id, assessment_id)`, `(project_id, at)`. Org slugs were already unique (`0001`). Invalid statuses cannot be inserted; evidence rows survive project delete.
-  - **Location:** `src/server/db-store/schema.ts`, `drizzle/0005_tenant_constraints.sql`
-
 - [ ] **Make webhook delivery processing retry-safe**
   - **Problem:** The webhook route claims a delivery id before parsing and handling the payload; failures after claim return non-200/202 states but the delivery is already marked processed.
   - **Why:** A transient clone, GitHub API, DB, or JSON handling failure can permanently suppress a valid GitHub redelivery.
@@ -55,18 +51,6 @@ Important improvements for quality, maintainability, security, UX, or reliabilit
   - **Recommendation:** Move rate limits to Postgres or the deployment edge and key limits by user, org, action, and possibly project. Add visible errors and operator metrics.
   - **Acceptance criteria:** Limits work across restarts and multiple app instances; AI/assessment/connect limits are configurable; tests cover limit windows and resets.
   - **Estimated effort:** 🟡 Medium: 2–8 hours.
-
-- [ ] **Sanitize user-facing server errors**
-  - **Problem:** Generic action handling returns raw `Error.message` to users, and the global error page renders `error.message`.
-  - **Why:** Internal paths, provider errors, token/clone details, or infrastructure messages can leak into the UI and reduce customer trust.
-  - **Location:** `src/server/action-state.ts`, `src/app/error.tsx`, server actions under `src/server/actions/`
-  - **Recommendation:** Introduce typed public errors with safe messages and internal error codes. Log full details through observability, but render only product-safe copy.
-  - **Acceptance criteria:** Expected validation/auth/connect errors show helpful public messages; unexpected errors show a generic message plus trace id/digest; tests cover server-action error mapping.
-  - **Estimated effort:** 🟡 Medium: 2–8 hours.
-
-- [x] **Resolve dependency audit findings**
-  - **Done:** `@sentry/node` 10.70.0 pulls patched OpenTelemetry (`@opentelemetry/core` ≥ 2.8.0). `overrides` pin `esbuild` to the direct `^0.28.1` (covers drizzle-kit’s nested `@esbuild-kit` 0.18 chain) and `nanoid` to `^3.3.18`. `npm audit --audit-level=moderate` reports 0 vulnerabilities.
-  - **Location:** `package.json`, `package-lock.json`
 
 ## 🟡 P2 — Post-Launch Improvements
 
@@ -110,13 +94,6 @@ Useful improvements that should not block the initial controlled launch.
 ## 🟢 P3 — Nice to Have
 
 Optional improvements with relatively low business impact.
-
-- [ ] **Track Auth.js v5 stabilization**
-  - **Problem:** The app uses `next-auth` beta.
-  - **Why:** Beta auth dependencies can shift APIs and behavior.
-  - **Location:** `package.json`, `src/auth.ts`
-  - **Recommendation:** Keep the current implementation if stable in CI, but schedule dependency review before broad launch.
-  - **Acceptance criteria:** Upgrade notes reviewed; no auth regressions in e2e.
 
 - [ ] **Add optional bundle analysis**
   - **Problem:** No bundle-size budget or analysis command is configured.
@@ -167,7 +144,6 @@ Optional improvements with relatively low business impact.
 - JSONB payloads remain; tenant FKs, status checks, and project-scoped indexes are in `0005`.
 - Request-time long-running jobs.
 - In-process rate limiting.
-- Server actions return raw unexpected error messages.
 - Runtime audit SSRF: DNS rebinding race / network isolation still open (literal+DNS+redirect checks shipped).
 - Build path relies on Turbopack and build-time Google Fonts.
 - `next-auth` beta should be tracked deliberately.
@@ -177,7 +153,6 @@ Optional improvements with relatively low business impact.
 
 - **Low (residual):** Runtime audit SSRF still has a DNS-rebinding window between resolve and connect; network isolation / allowlists not yet applied. Location: `src/analysis/runtime/url-safety.ts`, `src/analysis/runtime/scan.ts`.
 - **Medium:** In-process rate limits reset on restart and do not work across instances. Location: `src/server/rate-limit.ts`.
-- **Medium:** Unexpected server errors can be rendered to users through generic action state and the global error page. Location: `src/server/action-state.ts`, `src/app/error.tsx`.
 - **Already strong:** GitHub App is required in production, OAuth tokens are stored server-side encrypted at rest, webhooks use HMAC verification, clone URLs are GitHub-only, git environment variables are scrubbed, RBAC exists for projects/orgs, evidence has append-only DB enforcement, runtime audits resolve DNS and block private/metadata redirect targets, and tests cover many authz and workflow paths.
 
 # Performance Findings
@@ -197,7 +172,6 @@ Optional improvements with relatively low business impact.
 # Testing Gaps
 
 - Webhook delivery status machine so failed post-claim handling can retry (behavior covered; fix still open as P1).
-- Sanitize unexpected server errors to generic public copy (current mapping covered; product-safe messages still open as P1).
 - Job lifecycle tests once background assessment work exists.
 - Higher-coverage action tests for connect, runtime-audit settings, AI, and PR flows.
 - CI verification that `npm run build` succeeds on the intended production bundler path.
@@ -247,9 +221,7 @@ The product has a strong MVP foundation: clear domain model, GitHub App support,
 5. Add database constraints and project-scoped indexes.
 6. Make webhook delivery processing retry-safe.
 7. Replace process-local rate limits with durable user/org limits.
-8. Sanitize unexpected server errors before rendering them to users.
-9. ~~Resolve or document dependency audit findings.~~ Done (`@sentry/node` 10.70.0 + esbuild/nanoid overrides).
-10. Add billing/plan quotas when monetization is chosen (P2).
+8. Add billing/plan quotas when monetization is chosen (P2).
 
 ### Estimated effort
 

@@ -1,11 +1,14 @@
 "use server";
 
 import { auth } from "@/auth";
+import { PublicError } from "@/core/public-error";
 import { isOrgRole } from "@/core/rbac";
 import type { OrgRole } from "@/core/project-types";
 import {
+  actionErrorState,
   formError,
   formSuccess,
+  publicErrorMessage,
   readFormString,
   requireFormString,
   runActionMessage,
@@ -34,7 +37,7 @@ export type CreateOrgFormState = ActionMessageState;
 export async function switchOrgAction(formData: FormData): Promise<void> {
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) throw new Error("Sign in to switch organizations.");
+  if (!userId) throw new PublicError("Sign in to switch organizations.");
 
   const orgId = requireFormString(
     formData,
@@ -45,7 +48,7 @@ export async function switchOrgAction(formData: FormData): Promise<void> {
   let projectIdToActivate: string | null = null;
   await withWorkspaceWrite(({ organizations, db }) => {
     if (!organizations.some((org) => org.id === orgId)) {
-      throw new Error("You are not a member of that organization.");
+      throw new PublicError("You are not a member of that organization.");
     }
     const projectInOrg = db.projects.find((project) => project.orgId === orgId);
     if (projectInOrg) {
@@ -87,9 +90,7 @@ export async function createOrgAction(
     refresh();
     return formSuccess(`Created organization "${org.name}".`);
   } catch (error) {
-    return formError(
-      error instanceof Error ? error.message : "Could not create organization.",
-    );
+    return actionErrorState(error);
   }
 }
 
@@ -118,16 +119,14 @@ export async function inviteOrgMemberAction(
   try {
     await withWorkspaceWrite(({ db }) => {
       if (!canManageOrgMembers(db, orgIdRaw, userId)) {
-        throw new Error("Only org owners and admins can invite members.");
+        throw new PublicError("Only org owners and admins can invite members.");
       }
       inviteOrgMember(db, orgIdRaw, userId, loginRaw, role);
     });
     refresh();
     return formSuccess(`Invited @${loginRaw.trim()} as ${role}.`);
   } catch (error) {
-    return formError(
-      error instanceof Error ? error.message : "Invite failed.",
-    );
+    return actionErrorState(error);
   }
 }
 
@@ -138,7 +137,7 @@ export async function removeOrgMemberAction(
   return runActionMessage(async () => {
     const session = await auth();
     const userId = session?.user?.id;
-    if (!userId) throw new Error("Sign in to manage organization members.");
+    if (!userId) throw new PublicError("Sign in to manage organization members.");
 
     const orgIdRaw = requireFormString(
       formData,
@@ -154,7 +153,7 @@ export async function removeOrgMemberAction(
     let revokedInvite = false;
     await withWorkspaceWrite(({ db }) => {
       if (!canManageOrgMembers(db, orgIdRaw, userId)) {
-        throw new Error("Only org owners and admins can remove members.");
+        throw new PublicError("Only org owners and admins can remove members.");
       }
       const target = db.memberships.find(
         (membership) =>
@@ -175,7 +174,7 @@ export async function changeOrgMemberRoleAction(
   return runActionMessage(async () => {
     const session = await auth();
     const userId = session?.user?.id;
-    if (!userId) throw new Error("Sign in to manage organization members.");
+    if (!userId) throw new PublicError("Sign in to manage organization members.");
 
     const orgIdRaw = requireFormString(
       formData,
@@ -189,13 +188,13 @@ export async function changeOrgMemberRoleAction(
     );
     const roleRaw = formData.get("role");
     if (!isOrgRole(roleRaw) || roleRaw === "owner") {
-      throw new Error("Choose a role: admin, member, or viewer.");
+      throw new PublicError("Choose a role: admin, member, or viewer.");
     }
     const role: OrgRole = roleRaw;
 
     await withWorkspaceWrite(({ db }) => {
       if (!canManageOrgMembers(db, orgIdRaw, userId)) {
-        throw new Error("Only org owners and admins can change member roles.");
+        throw new PublicError("Only org owners and admins can change member roles.");
       }
       changeOrgMemberRole(db, orgIdRaw, userId, membershipId, role);
     });
@@ -218,8 +217,7 @@ export async function exportOrgDataAction(
     return { error: null, json: JSON.stringify(payload, null, 2) };
   } catch (error) {
     return {
-      error:
-        error instanceof Error ? error.message : "Could not export organization data.",
+      error: publicErrorMessage(error),
       json: null,
     };
   }
@@ -232,7 +230,7 @@ export async function deleteOrgAction(
   return runActionMessage(async () => {
     const session = await auth();
     const userId = session?.user?.id;
-    if (!userId) throw new Error("Sign in to delete an organization.");
+    if (!userId) throw new PublicError("Sign in to delete an organization.");
 
     const orgIdRaw = requireFormString(
       formData,
@@ -240,7 +238,7 @@ export async function deleteOrgAction(
       "Organization id is required.",
     );
     if (formData.get("confirm") !== "DELETE") {
-      throw new Error('Type DELETE to confirm organization deletion.');
+      throw new PublicError('Type DELETE to confirm organization deletion.');
     }
 
     let nextOrgId: string | undefined;

@@ -1,6 +1,7 @@
 "use server";
 
 import type { Requirement, RequirementExceptionReason } from "@/core/project-types";
+import { PublicError } from "@/core/public-error";
 import {
   runActionMessage,
   type ActionMessageState,
@@ -19,7 +20,7 @@ function requireRequirement(
     (candidate) => candidate.id === requirementId,
   );
   if (!requirement || requirement.projectId !== projectId) {
-    throw new Error("Unknown requirement.");
+    throw new PublicError("Unknown requirement.");
   }
   return requirement;
 }
@@ -54,16 +55,16 @@ export async function markRequirementExceptionAction(
       const noteRaw = formData.get("note");
       const expiresRaw = formData.get("expiresAt");
       if (!isRequirementExceptionReason(reason)) {
-        throw new Error("A valid exception reason is required.");
+        throw new PublicError("A valid exception reason is required.");
       }
       if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
-        throw new Error(
+        throw new PublicError(
           "A note is required when setting a requirement exception.",
         );
       }
       if (reason === "temporary") {
         if (typeof expiresRaw !== "string" || expiresRaw.trim().length === 0) {
-          throw new Error("Temporary exceptions require an expiry date.");
+          throw new PublicError("Temporary exceptions require an expiry date.");
         }
       }
 
@@ -133,14 +134,14 @@ export async function markRequirementPassedAction(
 
       const control = controlById(db, requirement.controlId);
       if (control.checkId !== null) {
-        throw new Error(
+        throw new PublicError(
           "Only manual controls (no automated check) can be marked passed by human review.",
         );
       }
 
       const noteRaw = formData.get("note");
       if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
-        throw new Error("A note is required when marking a requirement passed.");
+        throw new PublicError("A note is required when marking a requirement passed.");
       }
       const note = noteRaw.trim();
       const previous = requirement.status;
@@ -197,7 +198,7 @@ export async function clearRequirementHumanPassAction(
         requirementId,
       );
       if (!requirement.humanPass) {
-        throw new Error("This requirement has no human pass to clear.");
+        throw new PublicError("This requirement has no human pass to clear.");
       }
 
       const control = controlById(db, requirement.controlId);
@@ -237,7 +238,7 @@ export async function clearRequirementExceptionAction(
         requirementId,
       );
       if (!requirement.exception) {
-        throw new Error("This requirement has no exception to clear.");
+        throw new PublicError("This requirement has no exception to clear.");
       }
 
       const control = controlById(db, requirement.controlId);

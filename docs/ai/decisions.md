@@ -4,6 +4,19 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-14 — Public vs unexpected server errors
+
+**Context:** `actionErrorState` returned raw `Error.message`, and `src/app/error.tsx` rendered `error.message`. Clone paths, GitHub/provider text, and infrastructure errors could reach the UI.
+
+**Decision:**
+- Expected user-facing failures throw `PublicError` (`src/core/public-error.ts`). `ConnectError` and `RateLimitError` subclass it.
+- Action/form mapping (`publicErrorMessage` / `actionErrorState`) shows the public message; unexpected failures are logged via `reportError` and shown as `Something went wrong. Reference: <12-char id>`.
+- The App Router error page never renders `error.message` (custom class identity is lost across the RSC/client boundary). It shows generic copy plus Next.js `digest` when present.
+
+**Consequence:** Validation, authz, connect, and SSRF rejections stay helpful. Programmer/infra/GitHub API failures stay in logs/Sentry with a correlatable reference.
+
+---
+
 ## 2026-08-14 — Dependency audit: Sentry 10 + esbuild/nanoid overrides
 
 **Context:** `npm audit --audit-level=moderate` reported OpenTelemetry baggage DoS via `@sentry/node` 9.x, drizzle-kit’s nested `esbuild@0.18` (GHSA-67mh-4wv8-2f99), and `nanoid` < 3.3.18.

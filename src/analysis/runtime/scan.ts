@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
+import { PublicError, publicMessage } from "@/core/public-error";
 import type { RawFinding } from "../types";
 import {
   findingsFromAxePages,
@@ -120,18 +121,18 @@ export function createPlaywrightAxeScanner(options?: {
         // Re-check near navigation (narrows the DNS rebinding window).
         const precheck = await allowRuntimeNavigation(url, lookupOptions);
         if (!precheck.ok) {
-          throw new Error(precheck.message);
+          throw new PublicError(precheck.message);
         }
         const page = await context.newPage();
         try {
           try {
             await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
           } catch (error) {
-            if (blockedReason) throw new Error(blockedReason);
+            if (blockedReason) throw new PublicError(blockedReason);
             throw error;
           }
           if (blockedReason) {
-            throw new Error(blockedReason);
+            throw new PublicError(blockedReason);
           }
           const results = await runAxeOnPage(page);
           pages.push({
@@ -181,9 +182,11 @@ export async function scanRuntime(
       options.lookup ? { lookup: options.lookup } : undefined,
     );
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : UNSAFE_RUNTIME_URL_MESSAGE;
-    return { findings: [], pagesScanned: 0, error: message };
+    return {
+      findings: [],
+      pagesScanned: 0,
+      error: publicMessage(error, UNSAFE_RUNTIME_URL_MESSAGE),
+    };
   }
 
   const urls = routes.map((route) => joinRuntimeUrl(base, route));
@@ -206,9 +209,11 @@ export async function scanRuntime(
       pagesScanned: pages.length,
     };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Runtime scan failed.";
-    return { findings: [], pagesScanned: 0, error: message };
+    return {
+      findings: [],
+      pagesScanned: 0,
+      error: publicMessage(error, "Runtime scan failed."),
+    };
   }
 }
 

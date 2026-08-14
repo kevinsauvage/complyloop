@@ -1,5 +1,5 @@
+import { PublicError, isPublicError } from "@/core/public-error";
 import { reportError } from "./observability";
-import { ConnectError } from "./connect-error";
 
 export type ActionMessageState = {
   error: string | null;
@@ -10,6 +10,16 @@ export const emptyActionMessageState: ActionMessageState = {
   error: null,
   message: null,
 };
+
+export const UNEXPECTED_ACTION_MESSAGE = "Something went wrong.";
+
+export function unexpectedActionMessage(errorRef: string): string {
+  return `${UNEXPECTED_ACTION_MESSAGE} Reference: ${errorRef}`;
+}
+
+export function createErrorRef(): string {
+  return crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+}
 
 export function formError(error: string): ActionMessageState {
   return { error, message: null };
@@ -34,16 +44,21 @@ export function requireFormString(
   message: string,
 ): string {
   const value = readFormString(formData, key);
-  if (value == null) throw new Error(message);
+  if (value == null) throw new PublicError(message, "validation");
   return value;
 }
 
+/** Public copy, or a generic message plus a short reference after logging. */
+export function publicErrorMessage(error: unknown): string {
+  if (isPublicError(error)) return error.message;
+  const errorRef = createErrorRef();
+  reportError(error, { code: "server_action_error", errorRef });
+  return unexpectedActionMessage(errorRef);
+}
+
+/** Maps thrown errors to form state: public copy, or a generic message + ref. */
 export function actionErrorState(error: unknown): ActionMessageState {
-  reportError(error, { code: "server_action_error" });
-  return {
-    error: error instanceof Error ? error.message : "Something went wrong.",
-    message: null,
-  };
+  return { error: publicErrorMessage(error), message: null };
 }
 
 export async function runActionMessage(
@@ -60,10 +75,7 @@ export async function runActionMessage(
   }
 }
 
-/** Maps ConnectError to form state; rethrows unexpected errors. */
+/** Connect/org forms: same public vs unexpected mapping as other actions. */
 export function connectFormError(error: unknown): ActionMessageState {
-  if (error instanceof ConnectError) {
-    return { error: error.message, message: null };
-  }
-  throw error;
+  return actionErrorState(error);
 }

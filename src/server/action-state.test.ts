@@ -1,19 +1,30 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PublicError } from "@/core/public-error";
 import {
   actionErrorState,
   connectFormError,
   emptyActionMessageState,
   formError,
   formSuccess,
+  publicErrorMessage,
   readFormString,
   requireFormString,
   runActionMessage,
+  unexpectedActionMessage,
 } from "./action-state";
 import { ConnectError } from "./connect-error";
+import { RateLimitError } from "./rate-limit";
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+const ERROR_REF_UUID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+const ERROR_REF = "aaaaaaaabbbb";
+
+function stubErrorRef(): void {
+  vi.spyOn(crypto, "randomUUID").mockReturnValue(ERROR_REF_UUID);
+}
 
 describe("formError / formSuccess", () => {
   it("builds toastable form states", () => {
@@ -38,48 +49,60 @@ describe("runActionMessage", () => {
     });
   });
 
-  it("maps failures through actionErrorState", async () => {
+  it("keeps PublicError messages without reporting them", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     await expect(
       runActionMessage(async () => {
-        throw new Error("Not allowed: missing permission project.connect.");
+        throw new PublicError(
+          "Not allowed: missing permission project.connect.",
+        );
       }),
     ).resolves.toEqual({
       error: "Not allowed: missing permission project.connect.",
       message: null,
     });
-    expect(spy).toHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalled();
   });
 
-  it("uses a generic message for non-Error throwables", async () => {
+  it("sanitizes unexpected throwables with a reference", async () => {
+    stubErrorRef();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     await expect(
       runActionMessage(async () => {
         throw "unexpected";
       }),
     ).resolves.toEqual({
-      error: "Something went wrong.",
+      error: unexpectedActionMessage(ERROR_REF),
       message: null,
     });
   });
 });
 
-describe("actionErrorState", () => {
-  it("maps Error instances to form-state errors and reports them", () => {
+describe("actionErrorState / publicErrorMessage", () => {
+  it("maps PublicError instances to form-state errors without reporting", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    expect(actionErrorState(new Error("Not allowed."))).toEqual({
+    expect(actionErrorState(new PublicError("Not allowed."))).toEqual({
       error: "Not allowed.",
       message: null,
     });
-    expect(spy).toHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalled();
   });
 
-  it("falls back for unknown throwables", () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    expect(actionErrorState("boom")).toEqual({
-      error: "Something went wrong.",
+  it("maps RateLimitError and ConnectError as public copy", () => {
+    expect(publicErrorMessage(new RateLimitError())).toBe(
+      "Too many requests. Try again shortly.",
+    );
+    expect(publicErrorMessage(new ConnectError("Bad path."))).toBe("Bad path.");
+  });
+
+  it("sanitizes unexpected Error messages and reports them", () => {
+    stubErrorRef();
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(actionErrorState(new Error("ENOENT /tmp/clone"))).toEqual({
+      error: unexpectedActionMessage(ERROR_REF),
       message: null,
     });
+    expect(spy).toHaveBeenCalled();
   });
 });
 
@@ -91,8 +114,13 @@ describe("connectFormError", () => {
     });
   });
 
-  it("rethrows unexpected errors", () => {
-    expect(() => connectFormError(new Error("boom"))).toThrow("boom");
+  it("sanitizes unexpected errors instead of rethrowing", () => {
+    stubErrorRef();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(connectFormError(new Error("boom"))).toEqual({
+      error: unexpectedActionMessage(ERROR_REF),
+      message: null,
+    });
   });
 });
 

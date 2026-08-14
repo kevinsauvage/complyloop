@@ -25,6 +25,9 @@ describe("app error and not-found pages", () => {
       screen.getByRole("heading", { name: "Something went wrong" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent(
+      "An unexpected error occurred while handling your request. Reference: abc",
+    );
+    expect(screen.getByRole("alert")).not.toHaveTextContent(
       "Not allowed: missing permission.",
     );
     expect(

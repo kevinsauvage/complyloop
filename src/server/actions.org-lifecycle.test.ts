@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PublicError } from "@/core/public-error";
 import type { Organization, Project } from "@/core/project-types";
 import { emptyActionMessageState } from "./action-state";
 import type { Db } from "./db";
@@ -147,12 +148,26 @@ describe("org lifecycle actions", () => {
     });
   });
 
-  it("maps export failures to a user-visible error", async () => {
+  it("maps public export failures to their message", async () => {
     exportOrgData.mockImplementation(() => {
-      throw new Error("Only the organization owner can export data.");
+      throw new PublicError("Only the organization owner can export data.");
     });
     await expect(exportOrgDataAction("org-1")).resolves.toEqual({
       error: "Only the organization owner can export data.",
+      json: null,
+    });
+  });
+
+  it("sanitizes unexpected export failures", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    exportOrgData.mockImplementation(() => {
+      throw new Error("ECONNREFUSED 127.0.0.1:5432");
+    });
+    await expect(exportOrgDataAction("org-1")).resolves.toEqual({
+      error: "Something went wrong. Reference: aaaaaaaabbbb",
       json: null,
     });
   });

@@ -3,9 +3,11 @@
  * Resets on process restart — suitable for a single-instance pilot.
  */
 
-export class RateLimitError extends Error {
+import { PublicError } from "@/core/public-error";
+
+export class RateLimitError extends PublicError {
   constructor(message = "Too many requests. Try again shortly.") {
-    super(message);
+    super(message, "rate_limit");
     this.name = "RateLimitError";
   }
 }

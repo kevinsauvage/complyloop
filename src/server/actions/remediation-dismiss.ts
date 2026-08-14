@@ -2,6 +2,7 @@
 
 import type { Dismissal } from "@/core/finding-types";
 import { formatLocationRef } from "@/core/location";
+import { PublicError } from "@/core/public-error";
 import {
   runActionMessage,
   type ActionMessageState,
@@ -33,7 +34,7 @@ export async function dismissFindingAction(
       const reason = formData.get("reason");
       const note = formData.get("note");
       if (!isDismissalReason(reason)) {
-        throw new Error("A dismissal reason is required.");
+        throw new PublicError("A dismissal reason is required.");
       }
 
       finding.status = "dismissed";

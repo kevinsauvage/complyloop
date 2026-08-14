@@ -1,5 +1,6 @@
 import type { OrgMembership, Organization, Project, Requirement } from "@/core/project-types";
 import type { EvidenceRecord, Finding } from "@/core/finding-types";
+import { PublicError } from "@/core/public-error";
 import { canOnProject, type Permission } from "@/core/rbac";
 
 export interface AccessContext {
@@ -124,6 +125,6 @@ export function assertProjectPermission(
   permission: Permission,
 ): void {
   if (!canOnProject(project, ctx.memberships, ctx.userId, permission)) {
-    throw new Error(`Not allowed: missing permission ${permission}.`);
+    throw new PublicError(`Not allowed: missing permission ${permission}.`);
   }
 }

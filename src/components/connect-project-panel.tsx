@@ -9,6 +9,7 @@ import { PermissionNotice } from "@/components/permission-notice";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { signInWithGitHubAction } from "@/server/actions/auth";
+import { publicErrorMessage } from "@/server/action-state";
 import { connectedGitHubProjectsByFullName } from "@/server/connect-github";
 import { listGitHubRepos } from "@/server/github";
 import { isGitHubAppConfigured } from "@/server/github-app";
@@ -54,10 +55,7 @@ export async function ConnectProjectPanel({
       try {
         repos = await listGitHubRepos({ accessToken: token, perPage: 50 });
       } catch (error) {
-        listError =
-          error instanceof Error
-            ? error.message
-            : "Failed to list GitHub repositories.";
+        listError = publicErrorMessage(error);
       }
     }
   }

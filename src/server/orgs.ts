@@ -1,4 +1,5 @@
 import type { OrgMembership, OrgRole, Organization } from "@/core/project-types";
+import { PublicError } from "@/core/public-error";
 import { isOrgRole } from "@/core/rbac";
 import type { Db } from "./db";
 import { slugifyOrgName, uniqueOrgSlug } from "./org-slug";
@@ -102,10 +103,10 @@ export function userRoleInOrg(
 
 function assertCanAssignRole(actorRole: OrgRole, role: OrgRole): void {
   if (role === "owner") {
-    throw new Error("Cannot invite another owner; transfer is not supported.");
+    throw new PublicError("Cannot invite another owner; transfer is not supported.");
   }
   if (role === "admin" && actorRole !== "owner") {
-    throw new Error("Only org owners can invite or assign admins.");
+    throw new PublicError("Only org owners can invite or assign admins.");
   }
 }
 
@@ -115,14 +116,14 @@ function assertCanManageTarget(
   action: "remove" | "change",
 ): void {
   if (targetRole === "owner") {
-    throw new Error(
+    throw new PublicError(
       action === "remove"
         ? "Cannot remove the organization owner."
         : "Cannot change the organization owner's role.",
     );
   }
   if (targetRole === "admin" && actorRole !== "owner") {
-    throw new Error("Only org owners can change or remove admins.");
+    throw new PublicError("Only org owners can change or remove admins.");
   }
 }
 
@@ -135,13 +136,13 @@ export function inviteOrgMember(
 ): OrgMembership {
   const actorRole = userRoleInOrg(db, orgId, actorUserId);
   if (actorRole !== "owner" && actorRole !== "admin") {
-    throw new Error("Only org owners and admins can invite members.");
+    throw new PublicError("Only org owners and admins can invite members.");
   }
   assertCanAssignRole(actorRole, role);
   const login = githubLogin.trim().replace(/^@/, "");
-  if (!login) throw new Error("GitHub login is required.");
+  if (!login) throw new PublicError("GitHub login is required.");
   if (!isOrgRole(role)) {
-    throw new Error("Invalid role.");
+    throw new PublicError("Invalid role.");
   }
 
   const existing = db.memberships.find(
@@ -175,13 +176,13 @@ export function removeOrgMember(
 ): void {
   const actorRole = userRoleInOrg(db, orgId, actorUserId);
   if (actorRole !== "owner" && actorRole !== "admin") {
-    throw new Error("Only org owners and admins can remove members.");
+    throw new PublicError("Only org owners and admins can remove members.");
   }
   const target = db.memberships.find(
     (membership) =>
       membership.id === membershipId && membership.orgId === orgId,
   );
-  if (!target) throw new Error("Membership not found.");
+  if (!target) throw new PublicError("Membership not found.");
   assertCanManageTarget(actorRole, target.role, "remove");
   db.memberships = db.memberships.filter(
     (membership) => membership.id !== membershipId,
@@ -201,18 +202,18 @@ export function changeOrgMemberRole(
   role: OrgRole,
 ): OrgMembership {
   if (!isOrgRole(role)) {
-    throw new Error("Invalid role.");
+    throw new PublicError("Invalid role.");
   }
   const actorRole = userRoleInOrg(db, orgId, actorUserId);
   if (actorRole !== "owner" && actorRole !== "admin") {
-    throw new Error("Only org owners and admins can change member roles.");
+    throw new PublicError("Only org owners and admins can change member roles.");
   }
   assertCanAssignRole(actorRole, role);
   const target = db.memberships.find(
     (membership) =>
       membership.id === membershipId && membership.orgId === orgId,
   );
-  if (!target) throw new Error("Membership not found.");
+  if (!target) throw new PublicError("Membership not found.");
   assertCanManageTarget(actorRole, target.role, "change");
   target.role = role;
   return target;
@@ -264,9 +265,9 @@ export function createOrganization(
   input: { name: string; creatorUserId: string; githubLogin: string },
 ): Organization {
   const name = input.name.trim();
-  if (!name) throw new Error("Organization name is required.");
+  if (!name) throw new PublicError("Organization name is required.");
   const login = input.githubLogin.trim();
-  if (!login) throw new Error("GitHub login is required.");
+  if (!login) throw new PublicError("GitHub login is required.");
 
   return pushOrgWithOwner(db, {
     name,
@@ -321,10 +322,10 @@ export function exportOrgData(
   actorUserId: string,
 ): Record<string, unknown> {
   if (userRoleInOrg(db, orgId, actorUserId) !== "owner") {
-    throw new Error("Only the organization owner can export data.");
+    throw new PublicError("Only the organization owner can export data.");
   }
   const org = db.organizations.find((candidate) => candidate.id === orgId);
-  if (!org) throw new Error("Organization not found.");
+  if (!org) throw new PublicError("Organization not found.");
 
   const projects = db.projects.filter((project) => project.orgId === orgId);
   const projectIds = new Set(projects.map((project) => project.id));
@@ -372,10 +373,10 @@ export function deleteOrganization(
   actorUserId: string,
 ): void {
   if (userRoleInOrg(db, orgId, actorUserId) !== "owner") {
-    throw new Error("Only the organization owner can delete the organization.");
+    throw new PublicError("Only the organization owner can delete the organization.");
   }
   const org = db.organizations.find((candidate) => candidate.id === orgId);
-  if (!org) throw new Error("Organization not found.");
+  if (!org) throw new PublicError("Organization not found.");
 
   const projectIds = db.projects
     .filter((project) => project.orgId === orgId)

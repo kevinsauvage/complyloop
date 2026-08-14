@@ -1,5 +1,6 @@
 "use server";
 
+import { PublicError } from "@/core/public-error";
 import {
   runActionMessage,
   type ActionMessageState,
@@ -14,7 +15,7 @@ export async function markAlertReadAction(
   return runActionMessage(async () => {
     const alertId = formData.get("alertId");
     if (typeof alertId !== "string" || alertId.length === 0) {
-      throw new Error("Unknown alert.");
+      throw new PublicError("Unknown alert.");
     }
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.view");
@@ -23,7 +24,7 @@ export async function markAlertReadAction(
         (candidate) =>
           candidate.id === alertId && candidate.projectId === project.id,
       );
-      if (!alert) throw new Error("Unknown alert.");
+      if (!alert) throw new PublicError("Unknown alert.");
       alert.read = true;
     });
     refresh();

@@ -6,6 +6,7 @@ import type { CheckId } from "@/analysis/types";
 import { runtimeViolationStillPresent } from "@/analysis/runtime/scan";
 import { resolveInside } from "@/analysis/workspace-path";
 import { formatLocationRef, isSourceLocation } from "@/core/location";
+import { PublicError } from "@/core/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
   actionErrorState,
@@ -87,7 +88,7 @@ export async function verifyRemediationAction(
       const project = preview.db.projects.find(
         (candidate) => candidate.id === finding.projectId,
       );
-      if (!project) throw new Error(`Unknown project: ${finding.projectId}`);
+      if (!project) throw new PublicError("Unknown project.");
       const tokenOptions = await sessionCheckoutTokenOptions(preview.userId);
 
       await withProjectCheckout(
@@ -219,14 +220,14 @@ export async function manualVerifyRemediationAction(
       const remediation = remediationForFinding(db, findingId);
       const noteRaw = formData.get("note");
       if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
-        throw new Error(
+        throw new PublicError(
           "A verification note is required for manual verification.",
         );
       }
       const note = noteRaw.trim();
 
       if (remediation.status !== "implemented") {
-        throw new Error("Manual verification requires status implemented.");
+        throw new PublicError("Manual verification requires status implemented.");
       }
 
       replaceRemediation(

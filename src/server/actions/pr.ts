@@ -1,5 +1,6 @@
 "use server";
 
+import { publicErrorMessage } from "../action-state";
 import { addEvidence } from "../db";
 import { preparePullRequest } from "../pr";
 import {
@@ -34,7 +35,7 @@ export async function createPullRequestAction(
     requireOnFindingProject(preview, finding, "project.remediate");
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Not allowed.",
+      error: publicErrorMessage(error),
       message: null,
       prUrl: null,
     };
@@ -82,7 +83,7 @@ export async function createPullRequestAction(
     };
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Failed to prepare PR.",
+      error: publicErrorMessage(error),
       message: null,
       prUrl: null,
     };

@@ -6,6 +6,7 @@ import {
 } from "@/analysis/runtime/scan";
 import type { DnsLookup } from "@/analysis/runtime/url-safety";
 import { formatLocationRef } from "@/core/location";
+import { PublicError } from "@/core/public-error";
 import type { RequirementStatus } from "@/core/statuses";
 import type { Assessment, AssessmentEngines } from "@/core/finding-types";
 import { addEvidence, type Db } from "./db";
@@ -40,7 +41,7 @@ export async function runAssessment(
   options: RunAssessmentOptions,
 ): Promise<Assessment> {
   const project = db.projects.find((candidate) => candidate.id === projectId);
-  if (!project) throw new Error(`Unknown project: ${projectId}`);
+  if (!project) throw new PublicError("Unknown project.");
   const { rootPath } = options;
 
   const startedAt = new Date().toISOString();

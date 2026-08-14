@@ -4,6 +4,7 @@ import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
 import { setAiWarn } from "@/ai/warn";
 import { formatLocationRef } from "@/core/location";
+import { PublicError } from "@/core/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
   runActionMessage,
@@ -52,7 +53,7 @@ export async function generateAiExplanationAction(
           findingId,
           projectId: finding.projectId,
         });
-        throw new Error(
+        throw new PublicError(
           "AI explanation unavailable. Check AI credentials or try again.",
         );
       }
@@ -80,13 +81,13 @@ export async function generateAiRemediationAction(
       const remediation = remediationForFinding(db, findingId);
 
       if (finding.status !== "open") {
-        throw new Error("AI remediation is only available for open findings.");
+        throw new PublicError("AI remediation is only available for open findings.");
       }
       if (
         remediation.status !== "detected" &&
         remediation.status !== "suggested"
       ) {
-        throw new Error(
+        throw new PublicError(
           "AI remediation can only refine suggestions before approval.",
         );
       }
@@ -98,7 +99,7 @@ export async function generateAiRemediationAction(
           findingId,
           projectId: finding.projectId,
         });
-        throw new Error(
+        throw new PublicError(
           "AI remediation unavailable. Check AI credentials or try again.",
         );
       }

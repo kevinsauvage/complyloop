@@ -3,6 +3,7 @@ import { getGitHubAccessToken } from "@/auth";
 import { advanceRemediation } from "@/core/remediation";
 import type { Project } from "@/core/project-types";
 import type { Finding } from "@/core/finding-types";
+import { PublicError } from "@/core/public-error";
 import { locateViolationInProject } from "../assessment-helpers";
 import type { Db } from "../db";
 import type { ResolveProjectGitHubTokenOptions } from "../github-access";
@@ -26,7 +27,7 @@ export function requireOnActive(
   permission: Parameters<typeof assertProjectPermission>[2],
 ): asserts workspace is Workspace & { project: Project } {
   if (!workspace.project) {
-    throw new Error("No project connected.");
+    throw new PublicError("No project connected.");
   }
   assertProjectPermission(workspace.project, workspace.access, permission);
 }
@@ -39,7 +40,7 @@ export function requireOnFindingProject(
   const project = workspace.db.projects.find(
     (candidate) => candidate.id === finding.projectId,
   );
-  if (!project) throw new Error(`Unknown project: ${finding.projectId}`);
+  if (!project) throw new PublicError("Unknown project.");
   assertProjectPermission(project, workspace.access, permission);
 }
 
@@ -49,7 +50,7 @@ export function locateViolation(
   rootPath: string,
 ) {
   const project = db.projects.find((candidate) => candidate.id === finding.projectId);
-  if (!project) throw new Error(`Unknown project: ${finding.projectId}`);
+  if (!project) throw new PublicError("Unknown project.");
   return {
     project,
     match: locateViolationInProject(rootPath, finding),

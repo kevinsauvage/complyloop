@@ -4,6 +4,7 @@ import { resolveInside } from "@/analysis/workspace-path";
 import { isSourceLocation } from "@/core/location";
 import type { Control, Project } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
+import { PublicError } from "@/core/public-error";
 import { locateViolationInProject, mergeFix } from "./assessment-helpers";
 import { githubCloneUrl } from "./connect-shared";
 import { createGit } from "./git";
@@ -63,11 +64,11 @@ export async function preparePullRequest(
   tokenOptions?: ResolveProjectGitHubTokenOptions,
 ): Promise<PullRequestResult> {
   if (!finding.fix) {
-    throw new Error("This finding has no automatable fix to commit.");
+    throw new PublicError("This finding has no automatable fix to commit.");
   }
   const location = finding.location;
   if (!isSourceLocation(location)) {
-    throw new Error(
+    throw new PublicError(
       "Runtime DOM findings cannot be committed automatically — open a manual PR from the handoff text.",
     );
   }
@@ -78,20 +79,20 @@ export async function preparePullRequest(
     const git = createGit({ baseDir: rootPath });
     const inside = await git.checkIsRepo();
     if (!inside) {
-      throw new Error(
+      throw new PublicError(
         "Pull request preparation requires a git repository at the project root.",
       );
     }
 
     const match = locateViolationInProject(rootPath, finding);
     if (!match?.fix) {
-      throw new Error(
+      throw new PublicError(
         "The violation could not be re-located in the current file. Re-run the assessment, then try again.",
       );
     }
     const fix = mergeFix(finding.fix, match.fix);
     if (!fix) {
-      throw new Error("No applicable fix after re-locating the violation.");
+      throw new PublicError("No applicable fix after re-locating the violation.");
     }
 
     const handoff = buildDeveloperHandoff(

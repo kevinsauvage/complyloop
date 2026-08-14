@@ -165,6 +165,19 @@ describe("scanRuntime SSRF gate", () => {
     expect(result.pagesScanned).toBe(1);
     expect(scanner).toHaveBeenCalledOnce();
   });
+
+  it("does not surface unexpected scanner errors", async () => {
+    const result = await scanRuntime({
+      runtimeBaseUrl: "https://preview.example.com",
+      runtimeRoutes: ["/"],
+      scanner: async () => {
+        throw new Error("net::ERR_CONNECTION_REFUSED at /tmp/clone");
+      },
+      lookup: publicLookup,
+    });
+    expect(result.error).toBe("Runtime scan failed.");
+    expect(result.error).not.toContain("/tmp/clone");
+  });
 });
 
 describe("allowRuntimeNavigation", () => {
