@@ -12,6 +12,8 @@ describe("axe rule mapping", () => {
   it("maps label and button-name to check ids", () => {
     expect(checkIdForAxeRule("label")).toBe("input-label");
     expect(checkIdForAxeRule("button-name")).toBe("button-name");
+    expect(checkIdForAxeRule("color-contrast")).toBe("color-contrast");
+    expect(checkIdForAxeRule("aria-roles")).toBe("aria-role");
     expect(checkIdForAxeRule("unknown-rule")).toBeUndefined();
   });
 });

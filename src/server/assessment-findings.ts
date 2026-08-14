@@ -19,10 +19,7 @@ export function createFinding(
   raw: RawFinding,
 ): void {
   const now = new Date().toISOString();
-  const guidance = guidanceFor(raw.checkId) ?? {
-    impact: "Impact not documented for this check.",
-    howToFix: "See the requirement description.",
-  };
+  const guidance = guidanceFor(raw.checkId);
   const finding: Finding = {
     id: crypto.randomUUID(),
     projectId: project.id,

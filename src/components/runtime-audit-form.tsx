@@ -31,8 +31,9 @@ export function RuntimeAuditForm({
         />
         <p className="text-xs text-muted-foreground">
           When set, composition-sensitive checks (labels, names, headings…) use
-          the rendered page as the source of truth. Leave empty for source-only
-          AST assessment.
+          the rendered page as the source of truth, and runtime-only checks
+          (contrast, page title, skip link, landmarks, target size) can be
+          assessed. Leave empty for source-only AST assessment.
         </p>
       </div>
       <div className="flex flex-col gap-1.5">

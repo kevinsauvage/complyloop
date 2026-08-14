@@ -1,4 +1,7 @@
+import { isRuntimeOnlyCheck } from "@/analysis/check-authority";
 import { deriveRequirementStatus } from "@/core/requirement-status";
+import type { Finding } from "@/core/finding-types";
+import type { RequirementStatus } from "@/core/statuses";
 import type { Control, Project, Requirement } from "@/core/project-types";
 import { addEvidence, type Db } from "./db";
 
@@ -52,6 +55,27 @@ export function clearExpiredExceptions(
   }
 }
 
+export interface RefreshRequirementStatusesOptions {
+  assessmentId?: string;
+  changeContext?: string;
+  /** When false, runtime-only checks with no findings stay unable_to_verify. */
+  runtimeRan?: boolean;
+}
+
+function statusFromFindings(
+  checkId: string | null,
+  openFindings: ReadonlyArray<Pick<Finding, "kind">>,
+  runtimeRan: boolean | undefined,
+): RequirementStatus {
+  if (openFindings.length > 0) {
+    return deriveRequirementStatus(openFindings);
+  }
+  if (checkId !== null && isRuntimeOnlyCheck(checkId) && runtimeRan === false) {
+    return "unable_to_verify";
+  }
+  return deriveRequirementStatus(openFindings);
+}
+
 /**
  * Re-derives requirement statuses from the findings currently open in the db,
  * recording status changes (and regressions) as evidence. Used both after a
@@ -60,9 +84,9 @@ export function clearExpiredExceptions(
 export function refreshRequirementStatuses(
   db: Db,
   projectId: string,
-  assessmentId?: string,
-  changeContext?: string,
+  options: RefreshRequirementStatusesOptions = {},
 ): void {
+  const { assessmentId, changeContext, runtimeRan } = options;
   const now = new Date().toISOString();
   const project = db.projects.find((candidate) => candidate.id === projectId);
   const scoped = project ? controlsInScope(db, project) : db.controls;
@@ -111,7 +135,11 @@ export function refreshRequirementStatuses(
         finding.controlId === control.id &&
         finding.status === "open",
     );
-    const status = deriveRequirementStatus(openFindings);
+    const status = statusFromFindings(
+      control.checkId,
+      openFindings,
+      runtimeRan,
+    );
 
     if (!requirement) {
       requirement = {

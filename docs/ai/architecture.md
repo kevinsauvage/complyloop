@@ -41,13 +41,13 @@ High-level architecture for ComplyLoop. The MVP implements the core loop in
 
 - **Framework-agnostic core**: domain model and status transitions. Knows nothing about RGAA. Only place that changes requirement/remediation statuses.
 - **Framework adapters**: map RGAA/WCAG into controls + developer guidance.
-- **Analysis engine**: dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core in `src/analysis/runtime/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs; AI never sets requirement status.
+- **Analysis engine:** dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`, 18 checks) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core injected from `axe.min.js` on disk in `src/analysis/runtime/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs. Runtime-only rules (contrast, document title, bypass, landmarks, nested interactive, target size) stay `unable_to_verify` until axe runs. Do not add `@axe-core/playwright` — it injects the `axe-core` `source` string, which Next/webpack rewrites (`module is not defined`). AI never sets requirement status.
 - **AI services**: explanation and remediation suggestions; typed, provenance-tagged, never statuses.
 - **Repo connectors**: GitHub OAuth / App clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.
 
 ## Key Flows
 
-1. **Assessment**: AST scan of the connected tree; if a preview URL is configured, also audit routes with axe. Merge findings (runtime owns composition-sensitive checks). Update requirement statuses + append-only evidence. Manual controls stay `unable_to_verify` until human pass or exception.
+1. **Assessment**: AST scan of the connected tree; if a preview URL is configured, also audit routes with axe. Merge findings (runtime owns composition-sensitive checks). Runtime-only checks stay `unable_to_verify` until axe runs. Update requirement statuses + append-only evidence. Manual controls stay `unable_to_verify` until human pass or exception.
 2. **Remediation**: finding → suggestion → human approve → apply/PR (source findings with fixes) or call-site handoff (DOM findings) → re-check with the same engine → `verified` → evidence.
 3. **Continuous monitoring**: webhook or re-assess → snapshot diff → **scoped re-scan of changed JSX when possible** (full tree otherwise) + optional runtime re-audit → regression alerts + optional Check Run on PR heads.
 
@@ -60,4 +60,8 @@ High-level architecture for ComplyLoop. The MVP implements the core loop in
 
 ## Analysis checks (current)
 
-Thirteen AST checks: img-alt, button-name, anchor-name, html-lang, positive-tabindex, input-label, heading-order, empty-heading, iframe-title, autoplay-media, duplicate-id, form-error-association, aria-hidden-focusable. CI gate: `npx complyloop-check` / `@complyloop/check`.
+Eighteen AST checks: img-alt, button-name, anchor-name, html-lang, positive-tabindex, input-label, heading-order, empty-heading, iframe-title, autoplay-media, duplicate-id, form-error-association, aria-hidden-focusable, aria-role, aria-props, aria-required-attr, no-autofocus, keyboard-interaction.
+
+Six runtime-only checks (axe, require `runtimeBaseUrl`): color-contrast, document-title, bypass, landmark-one-main, nested-interactive, target-size. Without a successful runtime audit these stay `unable_to_verify`.
+
+CI gate: `npx complyloop-check` / `@complyloop/check` (AST only).

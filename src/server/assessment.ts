@@ -1,4 +1,4 @@
-import { isCompositionSensitiveCheck } from "@/analysis/check-authority";
+import { keepOpenWhenRuntimeScanSkipped } from "@/analysis/check-authority";
 import { scanChangedFiles, scanProject } from "@/analysis/scan";
 import {
   scanRuntime,
@@ -161,14 +161,14 @@ export async function runAssessment(
       }
       // When runtime owns this check, do not resolve prior AST-only opens mid-flight
       // on a failed runtime scan — only resolve when we have authority this run.
-      if (
-        runtimeConfigured &&
-        !runtimeRan &&
-        isCompositionSensitiveCheck(finding.checkId) &&
-        finding.engine === "runtime"
-      ) {
-        continue;
-      }
+    if (
+      runtimeConfigured &&
+      !runtimeRan &&
+      keepOpenWhenRuntimeScanSkipped(finding.checkId) &&
+      finding.engine === "runtime"
+    ) {
+      continue;
+    }
       finding.status = "resolved";
       finding.resolvedNote = "No longer detected by the latest assessment.";
       addEvidence(db, {
@@ -182,7 +182,11 @@ export async function runAssessment(
     }
   }
 
-  refreshRequirementStatuses(db, projectId, assessmentId, changeContext);
+  refreshRequirementStatuses(db, projectId, {
+    assessmentId,
+    changeContext,
+    runtimeRan,
+  });
 
   const summary: Record<RequirementStatus, number> = {
     passed: 0,

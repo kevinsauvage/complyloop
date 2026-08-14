@@ -57,7 +57,9 @@ interface AxeRunResult {
 
 /**
  * Inject axe from disk and analyze the current page (main frame).
- * Prefer this over `@axe-core/playwright` under Next.js server bundles.
+ * Do not switch to `@axe-core/playwright`: it injects `axe-core`'s `source`
+ * string by default, which Next/webpack rewrites (`module is not defined`).
+ * Disk `axe.min.js` plus our SSRF `context.route` interceptor is the adapter.
  */
 export async function runAxeOnPage(page: Page): Promise<{
   violations: AxeViolationLike[];

@@ -1,5 +1,8 @@
 import { anchorNameCheck } from "./anchor-name";
 import { ariaHiddenFocusableCheck } from "./aria-hidden-focusable";
+import { ariaPropsCheck } from "./aria-props";
+import { ariaRequiredAttrCheck } from "./aria-required-attr";
+import { ariaRoleCheck } from "./aria-role";
 import { autoplayMediaCheck } from "./autoplay-media";
 import { buttonNameCheck } from "./button-name";
 import { duplicateIdCheck } from "./duplicate-id";
@@ -10,6 +13,8 @@ import { htmlLangCheck } from "./html-lang";
 import { iframeTitleCheck } from "./iframe-title";
 import { imgAltCheck } from "./img-alt";
 import { inputLabelCheck } from "./input-label";
+import { keyboardInteractionCheck } from "./keyboard-interaction";
+import { noAutofocusCheck } from "./no-autofocus";
 import { positiveTabindexCheck } from "./positive-tabindex";
 import type { AccessibilityCheck } from "../types";
 
@@ -27,4 +32,9 @@ export const allChecks: AccessibilityCheck[] = [
   duplicateIdCheck,
   formErrorAssociationCheck,
   ariaHiddenFocusableCheck,
+  ariaRoleCheck,
+  ariaPropsCheck,
+  ariaRequiredAttrCheck,
+  noAutofocusCheck,
+  keyboardInteractionCheck,
 ];

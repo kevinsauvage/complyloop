@@ -62,6 +62,8 @@ describe("runAssessment", () => {
     expect(db.remediations[0].suggestion?.provenance).toBe("deterministic");
     expect(requirementStatus("ctl-img-alt")).toBe("failed");
     expect(requirementStatus("ctl-button-name")).toBe("passed");
+    expect(requirementStatus("ctl-color-contrast")).toBe("unable_to_verify");
+    expect(requirementStatus("ctl-aria-role")).toBe("passed");
     expect(db.evidence.some((record) => record.kind === "assessment_completed")).toBe(true);
   });
 

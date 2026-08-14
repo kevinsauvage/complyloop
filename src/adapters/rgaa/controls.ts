@@ -3,7 +3,7 @@ import type { Control, Framework } from "@/core/project-types";
 export const rgaaFramework: Framework = {
   id: "fw-rgaa-wcag",
   name: "RGAA 4 / WCAG 2.1 (accessibility subset)",
-  version: "2026.2",
+  version: "2026.3",
 };
 
 export const rgaaControls: Control[] = [
@@ -149,5 +149,126 @@ export const rgaaControls: Control[] = [
       "Elements with aria-hidden must not be reachable by keyboard focus.",
     checkId: "aria-hidden-focusable",
     complianceWeight: 1.4,
+  },
+  {
+    id: "ctl-aria-role",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 8.6",
+    title: "ARIA roles are valid",
+    description:
+      "role values are concrete ARIA roles, not abstract or invented names.",
+    checkId: "aria-role",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-aria-props",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 8.7",
+    title: "ARIA attributes are valid",
+    description:
+      "aria-* attributes exist in the ARIA specification (no typos or unknown properties).",
+    checkId: "aria-props",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-aria-required-attr",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 8.8",
+    title: "Roles include required ARIA properties",
+    description:
+      "An explicit ARIA role exposes every property that role requires (e.g. checkbox needs aria-checked).",
+    checkId: "aria-required-attr",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-no-autofocus",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 2.4.3",
+    secondaryCode: "RGAA 12.7",
+    title: "Pages do not steal focus on load",
+    description:
+      "autoFocus is not used; keyboard and screen reader users keep control of where focus starts.",
+    checkId: "no-autofocus",
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-keyboard-interaction",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 2.1.1",
+    secondaryCode: "RGAA 12.11",
+    title: "Pointer-only controls are also operable by keyboard",
+    description:
+      "Non-native elements with click or hover handlers are focusable, have an interactive role, and expose equivalent keyboard events.",
+    checkId: "keyboard-interaction",
+    complianceWeight: 1.4,
+  },
+  {
+    id: "ctl-color-contrast",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 1.4.3",
+    secondaryCode: "RGAA 3.2",
+    title: "Text contrast meets 4.5:1",
+    description:
+      "Foreground and background color of text meets WCAG AA contrast (measured on the rendered page).",
+    checkId: "color-contrast",
+    complianceWeight: 1.5,
+  },
+  {
+    id: "ctl-document-title",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 2.4.2",
+    secondaryCode: "RGAA 8.5",
+    title: "The page has a title",
+    description:
+      "The rendered document exposes a non-empty <title> describing the page.",
+    checkId: "document-title",
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-bypass",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 2.4.1",
+    secondaryCode: "RGAA 12.7",
+    title: "A mechanism skips repeated blocks",
+    description:
+      "The page provides a skip link, landmark, or heading structure so keyboard users can bypass repeated chrome.",
+    checkId: "bypass",
+    complianceWeight: 1.4,
+  },
+  {
+    id: "ctl-landmark-one-main",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 1.3.1",
+    secondaryCode: "RGAA 12.6",
+    title: "The page has one main landmark",
+    description:
+      "The rendered page exposes exactly one main landmark for the primary content.",
+    checkId: "landmark-one-main",
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-nested-interactive",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 8.9",
+    title: "Interactive controls are not nested",
+    description:
+      "Buttons, links, and other widgets are not placed inside other widgets (measured on the rendered tree).",
+    checkId: "nested-interactive",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-target-size",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 2.5.8",
+    secondaryCode: "RGAA 11.11",
+    title: "Pointer targets are large enough",
+    description:
+      "Interactive targets meet the WCAG 2.2 minimum size (24×24 CSS pixels) on the rendered page.",
+    checkId: "target-size",
+    complianceWeight: 1.1,
   },
 ];

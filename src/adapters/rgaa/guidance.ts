@@ -84,8 +84,74 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Remove aria-hidden from focusable elements, or remove them from the tab order (tabIndex={-1} / disabled / inert) when they must stay visually hidden.",
   },
+  "aria-role": {
+    impact:
+      "An invalid or abstract role is ignored or misinterpreted, so the control's name, state, and keyboard behavior never reach assistive technologies.",
+    howToFix:
+      "Use a concrete ARIA role from the spec (button, checkbox, dialog, …). Do not invent names or use abstract roles like widget or command.",
+  },
+  "aria-props": {
+    impact:
+      "Unknown aria-* attributes are ignored. The intended name, state, or relationship never reaches the accessibility tree.",
+    howToFix:
+      "Replace the typo with a real ARIA property (aria-label, aria-expanded, …). Remove attributes that are not in the specification.",
+  },
+  "aria-required-attr": {
+    impact:
+      "A role without its required properties exposes an incomplete control — screen readers omit checked state, expand/collapse, or value.",
+    howToFix:
+      "Add every property the role requires (checkbox → aria-checked, combobox → aria-controls and aria-expanded, slider → aria-valuenow).",
+  },
+  "no-autofocus": {
+    impact:
+      "Focus jumping to an unexpected field on load disorients keyboard and screen reader users and can skip page context.",
+    howToFix:
+      "Remove autoFocus. Let the user tab to the field, or move focus only after an explicit user action (opening a dialog).",
+  },
+  "keyboard-interaction": {
+    impact:
+      "Pointer-only handlers leave keyboard users unable to activate the control or perceive hover-only information.",
+    howToFix:
+      "Prefer a native <button> or <a href>. If you must use a non-native host, add an interactive role, tabIndex={0}, and keyboard equivalents (onKeyDown / onFocus / onBlur).",
+  },
+  "color-contrast": {
+    impact:
+      "Low-contrast text is unreadable for users with low vision and in bright environments; this can only be measured on the rendered page.",
+    howToFix:
+      "Raise the contrast between text and background to at least 4.5:1 (3:1 for large text). Check computed colors, not source tokens.",
+  },
+  "document-title": {
+    impact:
+      "Without a title, browser tabs and screen reader page lists are indistinguishable, so users cannot tell where they are.",
+    howToFix:
+      "Give every route a unique, descriptive <title> (Next.js: export metadata.title or a <title> in the document).",
+  },
+  bypass: {
+    impact:
+      "Keyboard users must tab through every repeated header/nav link on every page before reaching the content.",
+    howToFix:
+      "Provide a skip link to main content, or expose landmarks/headings that let users jump past repeated chrome.",
+  },
+  "landmark-one-main": {
+    impact:
+      "Missing or multiple main landmarks make it unclear where the primary content starts for landmark navigation.",
+    howToFix:
+      "Wrap the primary content in a single <main> (or role=\"main\") per page.",
+  },
+  "nested-interactive": {
+    impact:
+      "A control inside another control produces conflicting names and activation; assistive technologies announce an unusable composite.",
+    howToFix:
+      "Do not put a <button> or <a> inside another widget. Restructure so each interactive element is a sibling, not a descendant.",
+  },
+  "target-size": {
+    impact:
+      "Tiny click/tap targets are easy to miss, especially for motor impairments and touch users.",
+    howToFix:
+      "Make the clickable area at least 24×24 CSS pixels, or add sufficient spacing from adjacent targets.",
+  },
 };
 
-export function guidanceFor(checkId: string): CheckGuidance | undefined {
-  return (guidance as Record<string, CheckGuidance>)[checkId];
+export function guidanceFor(checkId: CheckId): CheckGuidance {
+  return guidance[checkId];
 }

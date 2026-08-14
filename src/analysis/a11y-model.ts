@@ -199,6 +199,25 @@ function explicitWidgetRole(node: JsxTagNode): boolean {
   return widgetRoleNames.has(role);
 }
 
+export function isExplicitWidgetRole(node: JsxTagNode): boolean {
+  return explicitWidgetRole(node);
+}
+
+/** Native HTML widgets (button, a[href], input, …), not explicit ARIA roles. */
+export function isNativeInteractive(node: JsxTagNode): boolean {
+  return isInherentInteractive(
+    tagNameOf(node).toLowerCase(),
+    staticAttributes(node),
+  );
+}
+
+export function hasTabIndexAttribute(node: JsxTagNode): boolean {
+  return (
+    getAttribute(node, "tabIndex") !== undefined ||
+    getAttribute(node, "tabindex") !== undefined
+  );
+}
+
 /**
  * Keyboard/programmatic focusability from ARIA + AXObject tables.
  * Native widgets stay focusable at tabindex={-1} (axe aria-hidden-focus);

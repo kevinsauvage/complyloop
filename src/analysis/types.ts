@@ -15,7 +15,18 @@ export type CheckId =
   | "autoplay-media"
   | "duplicate-id"
   | "form-error-association"
-  | "aria-hidden-focusable";
+  | "aria-hidden-focusable"
+  | "aria-role"
+  | "aria-props"
+  | "aria-required-attr"
+  | "no-autofocus"
+  | "keyboard-interaction"
+  | "color-contrast"
+  | "document-title"
+  | "bypass"
+  | "landmark-one-main"
+  | "nested-interactive"
+  | "target-size";
 
 export interface RawFinding {
   checkId: CheckId;

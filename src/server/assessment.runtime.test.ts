@@ -91,6 +91,10 @@ describe("runAssessment with runtime engine", () => {
     expect(labelFindings[0]?.engine).toBe("runtime");
     expect(isDomLocation(labelFindings[0]!.location)).toBe(true);
     expect(labelFindings[0]?.fix).toBeNull();
+    expect(
+      db.requirements.find((requirement) => requirement.controlId === "ctl-color-contrast")
+        ?.status,
+    ).toBe("passed");
   });
 
   it("records runtimeError without failing the whole assessment", async () => {
@@ -103,6 +107,10 @@ describe("runAssessment with runtime engine", () => {
     });
     expect(assessment.engines?.runtime).toBe(false);
     expect(assessment.engines?.runtimeError).toBe("Runtime scan failed.");
+    expect(
+      db.requirements.find((requirement) => requirement.controlId === "ctl-color-contrast")
+        ?.status,
+    ).toBe("unable_to_verify");
   });
 
   it("records a user-safe error when the preview URL resolves privately", async () => {
