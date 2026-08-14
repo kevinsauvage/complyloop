@@ -4,6 +4,19 @@ Record architectural and product-shaping decisions here so AI agents and humans 
 
 ---
 
+## 2026-08-14 — Dependency audit: Sentry 10 + esbuild/nanoid overrides
+
+**Context:** `npm audit --audit-level=moderate` reported OpenTelemetry baggage DoS via `@sentry/node` 9.x, drizzle-kit’s nested `esbuild@0.18` (GHSA-67mh-4wv8-2f99), and `nanoid` < 3.3.18.
+
+**Decision:**
+- Upgrade `@sentry/node` to `^10.70.0` (OTel core ≥ 2.8.0). App usage is `init` / `withScope` / `captureException` only — v10 API-compatible.
+- `overrides.esbuild` → `$esbuild` (`^0.28.1`) so drizzle-kit’s deprecated `@esbuild-kit/*` chain cannot keep 0.18. Stay on stable `drizzle-kit@0.31` rather than drizzle v1 beta.
+- `overrides.nanoid` → `^3.3.18`.
+
+**Consequence:** `npm audit --audit-level=moderate` is clean. Revisit drizzle-kit 1.x when it is stable to drop `@esbuild-kit` entirely.
+
+---
+
 ## 2026-08-14 — Database FKs, status checks, and project-scoped indexes
 
 **Context:** Tenant relationships lived as JSONB + text ids. Application filters prevented most orphans, but Postgres would accept invalid statuses and duplicate GitHub identities, and hot-path queries lacked composite indexes.

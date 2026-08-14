@@ -64,13 +64,9 @@ Important improvements for quality, maintainability, security, UX, or reliabilit
   - **Acceptance criteria:** Expected validation/auth/connect errors show helpful public messages; unexpected errors show a generic message plus trace id/digest; tests cover server-action error mapping.
   - **Estimated effort:** 🟡 Medium: 2–8 hours.
 
-- [ ] **Resolve dependency audit findings**
-  - **Problem:** `npm audit --audit-level=moderate` reports 20 moderate vulnerabilities through `@sentry/node` OpenTelemetry dependencies and `drizzle-kit`’s esbuild chain.
-  - **Why:** Even moderate findings matter before sale when the app handles source-code-adjacent data and customer compliance evidence.
+- [x] **Resolve dependency audit findings**
+  - **Done:** `@sentry/node` 10.70.0 pulls patched OpenTelemetry (`@opentelemetry/core` ≥ 2.8.0). `overrides` pin `esbuild` to the direct `^0.28.1` (covers drizzle-kit’s nested `@esbuild-kit` 0.18 chain) and `nanoid` to `^3.3.18`. `npm audit --audit-level=moderate` reports 0 vulnerabilities.
   - **Location:** `package.json`, `package-lock.json`
-  - **Recommendation:** Upgrade Sentry/OpenTelemetry to a non-vulnerable path, evaluate drizzle-kit/esbuild remediation, and document any accepted residual risk if a breaking upgrade is deferred.
-  - **Acceptance criteria:** `npm audit --audit-level=moderate` passes or has a documented, time-boxed exception with owner and due date.
-  - **Estimated effort:** 🟡 Medium: 2–8 hours.
 
 ## 🟡 P2 — Post-Launch Improvements
 
@@ -174,7 +170,6 @@ Optional improvements with relatively low business impact.
 - Server actions return raw unexpected error messages.
 - Runtime audit SSRF: DNS rebinding race / network isolation still open (literal+DNS+redirect checks shipped).
 - Build path relies on Turbopack and build-time Google Fonts.
-- Dependency audit currently has moderate unresolved findings.
 - `next-auth` beta should be tracked deliberately.
 - Self-check workflow is non-blocking by design and can confuse CI signal.
 
@@ -182,7 +177,6 @@ Optional improvements with relatively low business impact.
 
 - **Low (residual):** Runtime audit SSRF still has a DNS-rebinding window between resolve and connect; network isolation / allowlists not yet applied. Location: `src/analysis/runtime/url-safety.ts`, `src/analysis/runtime/scan.ts`.
 - **Medium:** In-process rate limits reset on restart and do not work across instances. Location: `src/server/rate-limit.ts`.
-- **Medium:** Dependency audit reports 20 moderate vulnerabilities through Sentry/OpenTelemetry and drizzle-kit/esbuild chains. Location: `package.json`, `package-lock.json`.
 - **Medium:** Unexpected server errors can be rendered to users through generic action state and the global error page. Location: `src/server/action-state.ts`, `src/app/error.tsx`.
 - **Already strong:** GitHub App is required in production, OAuth tokens are stored server-side encrypted at rest, webhooks use HMAC verification, clone URLs are GitHub-only, git environment variables are scrubbed, RBAC exists for projects/orgs, evidence has append-only DB enforcement, runtime audits resolve DNS and block private/metadata redirect targets, and tests cover many authz and workflow paths.
 
@@ -254,7 +248,7 @@ The product has a strong MVP foundation: clear domain model, GitHub App support,
 6. Make webhook delivery processing retry-safe.
 7. Replace process-local rate limits with durable user/org limits.
 8. Sanitize unexpected server errors before rendering them to users.
-9. Resolve or document dependency audit findings.
+9. ~~Resolve or document dependency audit findings.~~ Done (`@sentry/node` 10.70.0 + esbuild/nanoid overrides).
 10. Add billing/plan quotas when monetization is chosen (P2).
 
 ### Estimated effort
@@ -275,4 +269,4 @@ The product has a strong MVP foundation: clear domain model, GitHub App support,
 - `npm run typecheck` passed.
 - `npm run test` passed outside sandbox: 63 passed, 1 skipped test file; 243 passed, 1 skipped tests.
 - `npm run build` failed on default Turbopack path in this environment; `npx next build --webpack` passed with warnings.
-- `npm audit --audit-level=moderate` failed with 20 moderate vulnerabilities.
+- `npm audit --audit-level=moderate` passed (0 vulnerabilities) after `@sentry/node` 10.70.0 and esbuild/nanoid overrides.
