@@ -1,10 +1,12 @@
 /**
  * SSRF policy for runtime axe audits.
- * Classification via `ssrf-guard`; this module maps failures to product-safe
- * errors and keeps an injectable lookup for tests (Playwright cannot use
- * undici IP pinning).
+ * Classification via isomorphic `ssrf-guard` (hostname + resolved IPs).
+ * Do not import `ssrf-guard/node`: it loads undici 8 (`webidl.util.markAsUncloneable`),
+ * which Next SSR evaluates on any page that imports assessment actions.
+ * Playwright does its own DNS anyway, so undici IP pinning cannot apply.
  */
 
+import dns from "node:dns/promises";
 import net from "node:net";
 import { PublicError, publicMessage } from "@/core/public-error";
 import {
@@ -12,7 +14,6 @@ import {
   validateResolvedAddresses,
   type BlockedHostnamePolicy,
 } from "ssrf-guard";
-import { UnsafeUrlError, validateUrl } from "ssrf-guard/node";
 
 export const UNSAFE_RUNTIME_URL_MESSAGE =
   "Runtime audit URL cannot target localhost, private, or metadata hosts.";
@@ -23,15 +24,12 @@ const EXTRA_BLOCKED_HOSTNAMES: BlockedHostnamePolicy = {
   suffixes: [".internal"],
 };
 
-// `validateUrl` does not merge the localhost policy — pass the full set.
-const VALIDATE_URL_POLICY: BlockedHostnamePolicy = {
-  exact: ["localhost", ...EXTRA_BLOCKED_HOSTNAMES.exact],
-  suffixes: [".localhost", ".local", ...EXTRA_BLOCKED_HOSTNAMES.suffixes],
-};
-
 export type DnsLookup = (
   hostname: string,
 ) => Promise<ReadonlyArray<{ address: string; family: number }>>;
+
+const nodeDnsLookup: DnsLookup = (hostname) =>
+  dns.lookup(hostname, { all: true });
 
 function parseHttpUrl(raw: string): URL {
   let parsed: URL;
@@ -66,7 +64,7 @@ export function assertSafeRuntimeBaseUrl(raw: string): string {
 
 /**
  * Full SSRF check before Playwright navigation (and each redirect hop).
- * Injectable `lookup` is for tests; production uses `validateUrl`.
+ * Injectable `lookup` is for tests; production uses Node DNS.
  */
 export async function assertSafeRuntimeUrl(
   raw: string,
@@ -81,31 +79,20 @@ export async function assertSafeRuntimeUrl(
     return parsed.href;
   }
 
-  if (options?.lookup) {
-    let records: ReadonlyArray<{ address: string; family: number }>;
-    try {
-      records = await options.lookup(hostname);
-    } catch {
-      throw new PublicError("Runtime audit URL could not be resolved.");
-    }
-    if (records.length === 0) {
-      throw new PublicError("Runtime audit URL could not be resolved.");
-    }
-    try {
-      validateResolvedAddresses(parsed.href, hostname, records);
-    } catch {
-      throw new PublicError(UNSAFE_RUNTIME_URL_MESSAGE);
-    }
-    return parsed.href;
-  }
-
+  const lookup = options?.lookup ?? nodeDnsLookup;
+  let records: ReadonlyArray<{ address: string; family: number }>;
   try {
-    await validateUrl(parsed.href, { blockedHostnames: VALIDATE_URL_POLICY });
-  } catch (error) {
-    if (error instanceof UnsafeUrlError) {
-      throw new PublicError(UNSAFE_RUNTIME_URL_MESSAGE);
-    }
+    records = await lookup(hostname);
+  } catch {
     throw new PublicError("Runtime audit URL could not be resolved.");
+  }
+  if (records.length === 0) {
+    throw new PublicError("Runtime audit URL could not be resolved.");
+  }
+  try {
+    validateResolvedAddresses(parsed.href, hostname, records);
+  } catch {
+    throw new PublicError(UNSAFE_RUNTIME_URL_MESSAGE);
   }
   return parsed.href;
 }
