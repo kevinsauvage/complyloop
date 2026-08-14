@@ -4,15 +4,11 @@ import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { runAssessment } from "../assessment";
+import { enqueueAssessmentJob } from "../assessment-jobs";
+import { addEvidence } from "../db";
 import { assertAssessRateLimit } from "../rate-limit";
-import { withProjectCheckout } from "../repo-checkout";
 import { getWorkspace, withWorkspaceWrite } from "../workspace";
-import {
-  refresh,
-  requireOnActive,
-  sessionCheckoutTokenOptions,
-} from "./shared";
+import { refresh, requireOnActive } from "./shared";
 
 export async function runAssessmentAction(
   _previous: ActionMessageState,
@@ -22,24 +18,22 @@ export async function runAssessmentAction(
   return runActionMessage(async () => {
     const preview = await getWorkspace();
     requireOnActive(preview, "project.assess");
-    if (preview.userId) assertAssessRateLimit(preview.userId);
-    const project = preview.project;
-    const tokenOptions = await sessionCheckoutTokenOptions(preview.userId);
-
-    await withProjectCheckout(
-      project,
-      async (rootPath) => {
-        await withWorkspaceWrite(async (workspace) => {
-          requireOnActive(workspace, "project.assess");
-          await runAssessment(workspace.db, workspace.project.id, {
-            rootPath,
-          });
-        });
-      },
-      undefined,
-      tokenOptions,
-    );
+    if (preview.userId) await assertAssessRateLimit(preview.userId);
+    const job = await enqueueAssessmentJob({
+      projectId: preview.project.id,
+      trigger: "manual",
+      requestedByUserId: preview.userId,
+    });
+    await withWorkspaceWrite((workspace) => {
+      requireOnActive(workspace, "project.assess");
+      addEvidence(workspace.db, {
+        kind: "assessment_job_queued",
+        summary: `Assessment job ${job.id} queued for "${workspace.project.name}"`,
+        projectId: workspace.project.id,
+        detail: { jobId: job.id, trigger: "manual" },
+      });
+    });
     refresh();
-    return "Assessment complete.";
+    return "Assessment queued. Results will appear when the worker completes it.";
   });
 }

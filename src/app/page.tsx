@@ -3,6 +3,7 @@ import { ConnectProjectPanel } from "@/components/connect-project-panel";
 import { DashboardActivitySections } from "@/components/dashboard/dashboard-activity-sections";
 import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-card";
 import { DashboardStatusCounts } from "@/components/dashboard/dashboard-status-counts";
+import { AssessmentJobStatus } from "@/components/dashboard/assessment-job-status";
 import { projectDescription } from "@/components/dashboard/project-description";
 import { EmptyState, PageHeader } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
@@ -20,6 +21,7 @@ import {
 } from "@/core/prioritization";
 import type { RequirementStatus } from "@/core/statuses";
 import { runAssessmentAction } from "@/server/actions/assessment";
+import { recentAssessmentJobsForProject } from "@/server/assessment-jobs";
 import { projectCapabilities } from "@/server/project-capabilities";
 import {
   findingsForProject,
@@ -90,6 +92,7 @@ export default async function DashboardPage() {
     .reverse();
   const clusters = prioritizeClusters(projectFindings, db.controls).slice(0, 5);
   const recentChanges = latestAssessment?.changesSincePrevious ?? [];
+  const recentJobs = await recentAssessmentJobsForProject(project.id);
 
   const counts = new Map<RequirementStatus, number>();
   for (const requirement of requirements) {
@@ -163,6 +166,7 @@ export default async function DashboardPage() {
       {latestAssessment ? (
         <div className="flex flex-col gap-6">
           <DashboardStatusCounts counts={counts} />
+          <AssessmentJobStatus jobs={recentJobs} />
           <DashboardAlertsCard alerts={unreadAlerts} />
           <DashboardActivitySections
             regressions={regressions}

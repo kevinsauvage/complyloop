@@ -71,7 +71,7 @@ describe("POST /api/github/webhook", () => {
     expect(claimWebhookDelivery).not.toHaveBeenCalled();
   });
 
-  it("returns 200 for duplicate deliveries without reprocessing", async () => {
+  it("replays duplicate deliveries through idempotent queueing", async () => {
     claimWebhookDelivery.mockResolvedValue(false);
     const response = await POST(
       webhookRequest('{"zen":"ok"}', {
@@ -84,7 +84,11 @@ describe("POST /api/github/webhook", () => {
       duplicate: true,
       deliveryId: "del-dup",
     });
-    expect(handleGitHubWebhookEvent).not.toHaveBeenCalled();
+    expect(handleGitHubWebhookEvent).toHaveBeenCalledWith(
+      "ping",
+      { zen: "ok" },
+      "del-dup",
+    );
   });
 
   it("handles a valid event after claiming the delivery", async () => {
@@ -96,9 +100,11 @@ describe("POST /api/github/webhook", () => {
     );
     expect(response.status).toBe(200);
     expect(claimWebhookDelivery).toHaveBeenCalledWith("del-ok");
-    expect(handleGitHubWebhookEvent).toHaveBeenCalledWith("push", {
-      ref: "refs/heads/main",
-    });
+    expect(handleGitHubWebhookEvent).toHaveBeenCalledWith(
+      "push",
+      { ref: "refs/heads/main" },
+      "del-ok",
+    );
     await expect(response.json()).resolves.toMatchObject({
       handled: true,
       deliveryId: "del-ok",
@@ -119,7 +125,7 @@ describe("POST /api/github/webhook", () => {
     expect(response.status).toBe(202);
   });
 
-  it("claims before JSON parse so invalid bodies are not retryable as new work", async () => {
+  it("rejects malformed bodies before recording a delivery", async () => {
     const first = await POST(
       webhookRequest("{not-json", {
         "x-github-delivery": "del-bad-json",
@@ -127,11 +133,10 @@ describe("POST /api/github/webhook", () => {
       }),
     );
     expect(first.status).toBe(400);
-    expect(claimWebhookDelivery).toHaveBeenCalledWith("del-bad-json");
+    expect(claimWebhookDelivery).not.toHaveBeenCalled();
     expect(handleGitHubWebhookEvent).not.toHaveBeenCalled();
 
-    // GitHub redelivery of the same id is treated as already processed.
-    claimWebhookDelivery.mockResolvedValue(false);
+    // A valid redelivery can still queue work because the malformed body was not claimed.
     const retry = await POST(
       webhookRequest('{"ref":"refs/heads/main"}', {
         "x-github-delivery": "del-bad-json",
@@ -139,23 +144,26 @@ describe("POST /api/github/webhook", () => {
       }),
     );
     expect(retry.status).toBe(200);
-    await expect(retry.json()).resolves.toMatchObject({ duplicate: true });
-    expect(handleGitHubWebhookEvent).not.toHaveBeenCalled();
+    expect(handleGitHubWebhookEvent).toHaveBeenCalledWith(
+      "push",
+      { ref: "refs/heads/main" },
+      "del-bad-json",
+    );
   });
 
-  it("does not release a claimed delivery when handling throws", async () => {
+  it("returns a retryable response when queueing throws", async () => {
     handleGitHubWebhookEvent.mockRejectedValue(new Error("clone failed"));
-    await expect(
-      POST(
-        webhookRequest('{"ref":"refs/heads/main"}', {
-          "x-github-delivery": "del-throw",
-          "x-github-event": "push",
-        }),
-      ),
-    ).rejects.toThrow(/clone failed/);
+    const response = await POST(
+      webhookRequest('{"ref":"refs/heads/main"}', {
+        "x-github-delivery": "del-throw",
+        "x-github-event": "push",
+      }),
+    );
+    expect(response.status).toBe(503);
     expect(claimWebhookDelivery).toHaveBeenCalledWith("del-throw");
 
     claimWebhookDelivery.mockResolvedValue(false);
+    handleGitHubWebhookEvent.mockResolvedValue({ handled: true, message: "queued" });
     const retry = await POST(
       webhookRequest('{"ref":"refs/heads/main"}', {
         "x-github-delivery": "del-throw",

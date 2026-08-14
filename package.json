@@ -26,7 +26,10 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:reset": "tsx scripts/db-reset.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "worker": "tsx scripts/run-assessment-worker.ts",
+    "ops:check": "tsx scripts/operations-check.ts",
+    "ops:backup": "sh scripts/backup-postgres.sh"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.3.0",

@@ -264,5 +264,55 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
   }).notNull(),
 });
 
+export const assessmentJobs = pgTable(
+  "assessment_jobs",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    status: text("status").notNull(),
+    trigger: text("trigger").notNull(),
+    requestedByUserId: text("requested_by_user_id"),
+    idempotencyKey: text("idempotency_key"),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(3),
+    availableAt: timestamp("available_at", { withTimezone: true, mode: "string" }).notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true, mode: "string" }),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true, mode: "string" }),
+    completedAt: timestamp("completed_at", { withTimezone: true, mode: "string" }),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  },
+  (table) => [
+    index("assessment_jobs_ready_idx").on(table.status, table.availableAt),
+    index("assessment_jobs_project_idx").on(table.projectId, table.createdAt),
+    uniqueIndex("assessment_jobs_idempotency_uidx")
+      .on(table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} IS NOT NULL`),
+    check(
+      "assessment_jobs_status_check",
+      sql`${table.status} IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')`,
+    ),
+    check(
+      "assessment_jobs_trigger_check",
+      sql`${table.trigger} IN ('manual', 'webhook')`,
+    ),
+  ],
+);
+
+/** Persistent, cross-instance action limits. Rows expire logically by window. */
+export const rateLimitBuckets = pgTable("rate_limit_buckets", {
+  key: text("key").primaryKey(),
+  windowStartedAt: timestamp("window_started_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+  count: integer("count").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+});
+
 export type EvidenceRow = typeof evidence.$inferSelect;
 export type EvidenceInsert = typeof evidence.$inferInsert;

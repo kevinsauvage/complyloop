@@ -17,6 +17,7 @@ import {
   UNSAFE_RUNTIME_URL_MESSAGE,
   type DnsLookup,
 } from "./url-safety";
+import { maxRuntimePages } from "@/server/resource-limits";
 
 export type RuntimePageScanner = (
   urls: ReadonlyArray<string>,
@@ -192,6 +193,13 @@ export async function scanRuntime(
   }
 
   const urls = routes.map((route) => joinRuntimeUrl(base, route));
+  if (urls.length > maxRuntimePages()) {
+    return {
+      findings: [],
+      pagesScanned: 0,
+      error: `Runtime audit exceeds the ${maxRuntimePages()} page quota. Reduce configured routes or raise ASSESSMENT_MAX_RUNTIME_PAGES.`,
+    };
+  }
   const scanner =
     options.scanner ??
     (options.lookup

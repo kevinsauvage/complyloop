@@ -34,3 +34,18 @@ export async function withPostgresAdvisoryLock<T>(
     return fn(tx as unknown as DrizzleDb);
   });
 }
+
+/**
+ * Transaction-scoped lock for one logical resource. Use this for queue and
+ * rate-limit keys so unrelated projects remain concurrent across instances.
+ */
+export async function withNamedPostgresAdvisoryLock<T>(
+  drizzle: DrizzleDb,
+  key: string,
+  fn: (tx: DrizzleDb) => Promise<T>,
+): Promise<T> {
+  return drizzle.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
+    return fn(tx as unknown as DrizzleDb);
+  });
+}

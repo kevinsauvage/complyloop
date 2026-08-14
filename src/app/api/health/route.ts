@@ -1,4 +1,5 @@
 import { getDrizzle } from "@/server/db-store/client";
+import { queuedAssessmentJobCount } from "@/server/assessment-jobs";
 import { reportError } from "@/server/observability";
 import { sql } from "drizzle-orm";
 
@@ -13,11 +14,15 @@ export async function GET(): Promise<Response> {
   const started = Date.now();
   try {
     const drizzle = await getDrizzle();
-    await drizzle.execute(sql`SELECT 1`);
+    const [, queuedJobs] = await Promise.all([
+      drizzle.execute(sql`SELECT 1`),
+      queuedAssessmentJobCount(),
+    ]);
     return Response.json(
       {
         status: "ok",
         database: "up",
+        assessmentJobs: queuedJobs,
         latencyMs: Date.now() - started,
       },
       { status: 200 },

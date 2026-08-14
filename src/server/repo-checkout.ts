@@ -13,6 +13,7 @@ import {
   resolveProjectGitHubToken,
   type ResolveProjectGitHubTokenOptions,
 } from "./github-access";
+import { assertCheckoutWithinQuota } from "./resource-limits";
 
 export interface RepoCheckoutOptions {
   fullName: string;
@@ -65,6 +66,7 @@ export async function withRepoCheckout<T>(
       }
       await git.checkout([options.ref]);
     }
+    assertCheckoutWithinQuota(rootPath);
     return await fn(rootPath);
   } finally {
     fs.rmSync(rootPath, { recursive: true, force: true });

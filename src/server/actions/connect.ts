@@ -65,7 +65,7 @@ export async function connectGitHubRepoAction(
     installationIdRaw != null ? Number(installationIdRaw) : undefined;
 
   try {
-    assertConnectRateLimit(userId);
+    await assertConnectRateLimit(userId);
     const userAccessToken = await getGitHubAccessToken();
     if (!userAccessToken) {
       return formError(

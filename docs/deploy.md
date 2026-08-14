@@ -8,9 +8,12 @@ a temp directory, works, then deletes the tree. No durable workspace volume.
 
 1. **`DATABASE_URL` is required** — apply schema with `npm run db:migrate`.
 2. Instances need enough **local disk + git** for temporary clones (OS temp).
-   Jobs run in-process on the request/webhook handler (no separate worker yet).
-3. Multi-instance is fine for app state (Postgres). Concurrent clones of the
-   same repo may hit GitHub rate limits — monitor as you scale.
+   Assessment work is durable in Postgres and runs in a separate worker process;
+   webhooks acknowledge after queuing work rather than holding an HTTP request
+   open for a clone or Playwright scan.
+3. Run at least one worker (`npm run worker`) for every environment. Jobs are
+   leased, retried up to three times, and serialized per project. Multiple
+   workers are safe and may process different projects concurrently.
 
 If a webhook cannot clone, the handler returns `handled: false` with a clear
 message (`code: webhook_clone_failed`) — it does not crash the process.
@@ -19,6 +22,10 @@ message (`code: webhook_clone_failed`) — it does not crash the process.
 |------------|---------|
 | `DATABASE_URL` | Postgres (Drizzle) — frameworks → evidence, orgs, encrypted GitHub tokens, webhook delivery ids |
 | `SENTRY_DSN` | **Required for staging/prod** — server/edge error capture via `@sentry/nextjs` |
+| `WORKER_SECRET` | Required only when an external scheduler calls `POST /api/internal/jobs/run`; send as `Authorization: Bearer …` |
+| `WORKER_POLL_MS` | Worker poll interval; default 5000 |
+| `ASSESSMENT_MAX_CHECKOUT_BYTES` / `ASSESSMENT_MAX_CHECKOUT_FILES` | Checkout safety quotas; defaults 500 MB / 50,000 files |
+| `ASSESSMENT_MAX_RUNTIME_PAGES` | Browser-audit page quota; default 25 |
 | `NEXT_PUBLIC_SENTRY_DSN` | Optional — same DSN for browser errors and App Router error boundaries |
 | `SENTRY_TRACES_SAMPLE_RATE` | Optional — default `0.05` when `NODE_ENV=production` and DSN is set |
 | `SENTRY_AUTH_TOKEN` / `SENTRY_ORG` / `SENTRY_PROJECT` | Optional build-time — upload source maps on `next build` |
@@ -133,9 +140,45 @@ alerts (email/Slack/Pager) for at least:
 
 Structured JSON logs always emit on stdout for aggregation.
 
-Application rate limits (connect / assess / AI) are in-process and reset on
-restart — fine for a single-instance pilot; put a WAF or edge limit in front
-before multi-tenant scale.
+Application limits for connect, queued assessments, AI, and webhook enqueueing
+are stored in Postgres and therefore apply across app instances. Keep a WAF or
+edge limit in front of the application as an earlier, cheaper network boundary.
+
+## Worker and recovery operations
+
+Run one or more workers alongside the web process:
+
+```bash
+npm run worker
+```
+
+For a scheduler-based platform instead, invoke the authenticated worker route
+at a cadence shorter than `WORKER_POLL_MS`:
+
+```bash
+curl -X POST -H "Authorization: Bearer $WORKER_SECRET" \
+  "https://app.example.com/api/internal/jobs/run?limit=10"
+```
+
+Workers lease jobs for 30 minutes. A crashed worker's lease is reclaimed and
+retried by another worker; the dashboard surfaces queued, running, failed, and
+completed jobs. Alert on terminal `assessment_job_failed` evidence and on a
+steadily growing `assessmentJobs` value from `/api/health`.
+
+Run `npm run ops:check` from deployment and a scheduled monitor. It validates
+the database and production-required observability/auth configuration.
+
+Schedule logical backups with an explicit, encrypted destination:
+
+```bash
+export COMPLYLOOP_BACKUP_DIR=/srv/complyloop-backups
+npm run ops:backup
+```
+
+The host must provide `pg_dump`; copy each dump off-host using the platform's
+encrypted backup service. Restore into staging with the documented `pg_restore`
+command and run `npm run ops:check` before signing off the drill. Record the
+tested recovery time and accepted data-loss window in the operating runbook.
 
 ## Playwright e2e (CI / local)
 

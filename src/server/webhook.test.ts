@@ -1,75 +1,31 @@
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadDb } from "./db";
 import { handleGitHubWebhookEvent, verifyGitHubSignature } from "./webhook";
 
-const runAssessment = vi.hoisted(() =>
-  vi.fn(() => ({ id: "assessment-1" })),
-);
-const resolveProjectGitHubToken = vi.hoisted(() =>
-  vi.fn(async () => "ghs_test"),
-);
-const postPullRequestCheckRun = vi.hoisted(() =>
-  vi.fn(async () => ({
-    ok: true,
-    htmlUrl: "https://github.com/acme/app/runs/1",
-  })),
-);
-const withRepoCheckout = vi.hoisted(() =>
-  vi.fn(
-    async (
-      _options: unknown,
-      fn: (rootPath: string) => Promise<unknown>,
-    ) => fn("/tmp/ephemeral-checkout"),
-  ),
-);
+const loadDb = vi.hoisted(() => vi.fn());
+const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
+const assertRateLimit = vi.hoisted(() => vi.fn());
 
-vi.mock("./db", async () => {
-  const actual = await vi.importActual<typeof import("./db")>("./db");
-  const loadDb = vi.fn();
-  return {
-    ...actual,
-    loadDb,
-    withDbWrite: vi.fn(async (fn: (db: unknown) => unknown) => {
-      const db = await loadDb();
-      return fn(db);
-    }),
-  };
-});
-
-vi.mock("./assessment", () => ({
-  runAssessment,
-}));
-
-vi.mock("./github-access", () => ({
-  resolveProjectGitHubToken,
-}));
-
-vi.mock("./github-checks", () => ({
-  postPullRequestCheckRun,
-  summarizeAssessmentForCheckRun: () => ({
-    conclusion: "success" as const,
-    title: "ok",
-    summary: "ok",
-  }),
-}));
-
-vi.mock("./repo-checkout", () => ({
-  withRepoCheckout: (
-    options: unknown,
-    fn: (rootPath: string) => Promise<unknown>,
-  ) => withRepoCheckout(options, fn),
-  withProjectCheckout: vi.fn(),
-}));
+vi.mock("./db", () => ({ loadDb }));
+vi.mock("./assessment-jobs", () => ({ enqueueAssessmentJob }));
+vi.mock("./rate-limit", () => ({ assertRateLimit }));
 
 afterEach(() => {
   delete process.env.GITHUB_WEBHOOK_SECRET;
-  withRepoCheckout.mockClear();
-  postPullRequestCheckRun.mockClear();
-  runAssessment.mockClear();
-  resolveProjectGitHubToken.mockClear();
-  vi.restoreAllMocks();
+  vi.clearAllMocks();
 });
+
+function projectDb() {
+  return {
+    projects: [
+      {
+        id: "p1",
+        source: "github" as const,
+        github: { fullName: "acme/app", defaultBranch: "main", private: false },
+      },
+    ],
+  };
+}
 
 describe("verifyGitHubSignature", () => {
   it("accepts a valid HMAC SHA-256 signature", async () => {
@@ -86,142 +42,62 @@ describe("verifyGitHubSignature", () => {
   });
 });
 
-function projectDb() {
-  return {
-    frameworks: [],
-    controls: [],
-    organizations: [],
-    memberships: [],
-    projects: [
+describe("handleGitHubWebhookEvent", () => {
+  it("enqueues an idempotent push assessment without cloning in the request path", async () => {
+    loadDb.mockResolvedValue(projectDb());
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-1" });
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
       {
-        id: "p1",
-        name: "acme/app",
-        source: "github" as const,
-        ownerUserId: "user-1",
-        github: {
-          fullName: "acme/app",
-          defaultBranch: "main",
-          private: false,
-          installationId: 42,
-        },
-        createdAt: "2026-01-01T00:00:00.000Z",
-      },
-    ],
-    requirements: [],
-    assessments: [],
-    findings: [],
-    remediations: [],
-    evidence: [] as Array<Record<string, unknown>>,
-    alerts: [],
-  };
-}
-
-describe("handleGitHubWebhookEvent clone failure", () => {
-  it("returns a clear error when ephemeral checkout fails", async () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(loadDb).mockResolvedValue(projectDb() as never);
-    withRepoCheckout.mockRejectedValueOnce(new Error("git clone failed: auth"));
-
-    const result = await handleGitHubWebhookEvent("push", {
-      repository: { full_name: "acme/app" },
-      ref: "refs/heads/main",
-    });
-
-    expect(result.handled).toBe(false);
-    expect(result.message).toMatch(/Failed to clone acme\/app/);
-    expect(result.message).toMatch(/git clone failed/);
-    expect(spy).toHaveBeenCalled();
-    const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
-      code: string;
-    };
-    expect(payload.code).toBe("webhook_clone_failed");
-  });
-});
-
-describe("handleGitHubWebhookEvent reassessment", () => {
-  it("checks out ephemerally, re-assesses, and records webhook evidence for a push", async () => {
-    const db = projectDb();
-    vi.mocked(loadDb).mockResolvedValue(db as never);
-    withRepoCheckout.mockImplementation(
-      async (_options, fn: (rootPath: string) => Promise<unknown>) =>
-        fn("/tmp/ephemeral-checkout"),
-    );
-
-    const result = await handleGitHubWebhookEvent("push", {
-      repository: { full_name: "acme/app" },
-      ref: "refs/heads/main",
-    });
-
-    expect(resolveProjectGitHubToken).toHaveBeenCalled();
-    expect(withRepoCheckout).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fullName: "acme/app",
-        accessToken: "ghs_test",
-      }),
-      expect.any(Function),
-    );
-    expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
-      rootPath: "/tmp/ephemeral-checkout",
-    });
-    expect(result.handled).toBe(true);
-    expect(result.message).toMatch(/Re-assessed acme\/app/);
-    expect(db.evidence.some((row) => row.kind === "webhook_reassessment")).toBe(
-      true,
-    );
-  });
-
-  it("ignores ping and unhandled pull_request actions without cloning", async () => {
-    vi.mocked(loadDb).mockResolvedValue(projectDb() as never);
-
-    await expect(
-      handleGitHubWebhookEvent("ping", { zen: "ok" }),
-    ).resolves.toMatchObject({
-      handled: false,
-      message: "Ignored event ping",
-    });
-    await expect(
-      handleGitHubWebhookEvent("pull_request", {
-        action: "closed",
         repository: { full_name: "acme/app" },
-      }),
-    ).resolves.toMatchObject({
-      handled: false,
-      message: "Ignored event pull_request",
+        ref: "refs/heads/main",
+        after: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      "delivery-1",
+    );
+
+    expect(assertRateLimit).toHaveBeenCalledWith("webhook:p1", 60, 60_000);
+    expect(enqueueAssessmentJob).toHaveBeenCalledWith({
+      projectId: "p1",
+      trigger: "webhook",
+      idempotencyKey: "delivery-1",
+      payload: {
+        ref: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        eventName: "push",
+        pullRequestHeadSha: undefined,
+      },
     });
-    expect(withRepoCheckout).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      handled: true,
+      message: "Queued re-assessment of acme/app.",
+      jobId: "job-1",
+    });
   });
 
-  it("checks out the PR head SHA and posts a Check Run", async () => {
-    const db = projectDb();
-    vi.mocked(loadDb).mockResolvedValue(db as never);
-    const headSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  it("retains the PR head SHA for the worker Check Run", async () => {
+    loadDb.mockResolvedValue(projectDb());
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
+    const headSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
-    const result = await handleGitHubWebhookEvent("pull_request", {
+    await handleGitHubWebhookEvent("pull_request", {
       action: "opened",
       repository: { full_name: "acme/app" },
       pull_request: { head: { sha: headSha } },
     });
 
-    expect(withRepoCheckout).toHaveBeenCalledWith(
+    expect(enqueueAssessmentJob).toHaveBeenCalledWith(
       expect.objectContaining({
-        fullName: "acme/app",
-        accessToken: "ghs_test",
-        ref: headSha,
-      }),
-      expect.any(Function),
-    );
-    expect(postPullRequestCheckRun).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fullName: "acme/app",
-        headSha,
-        token: "ghs_test",
+        payload: expect.objectContaining({ ref: headSha, pullRequestHeadSha: headSha }),
       }),
     );
-    expect(result.handled).toBe(true);
-    expect(result.checkRun).toEqual({
-      ok: true,
-      error: undefined,
-      htmlUrl: "https://github.com/acme/app/runs/1",
+  });
+
+  it("ignores unsupported events without enqueuing work", async () => {
+    await expect(handleGitHubWebhookEvent("ping", { zen: "ok" })).resolves.toEqual({
+      handled: false,
+      message: "Ignored event ping",
     });
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
   });
 });

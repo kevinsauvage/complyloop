@@ -40,7 +40,7 @@ export async function generateAiExplanationAction(
   void _formData;
   return runActionMessage(async () => {
     await withWorkspaceWrite(async (workspace) => {
-      if (workspace.userId) assertAiRateLimit(workspace.userId);
+      if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.view");
@@ -73,7 +73,7 @@ export async function generateAiRemediationAction(
   void _formData;
   return runActionMessage(async () => {
     await withWorkspaceWrite(async (workspace) => {
-      if (workspace.userId) assertAiRateLimit(workspace.userId);
+      if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");

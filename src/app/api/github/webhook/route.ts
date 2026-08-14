@@ -28,13 +28,6 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  if (!(await claimWebhookDelivery(deliveryId))) {
-    return Response.json(
-      { duplicate: true, deliveryId, message: "Delivery already processed." },
-      { status: 200 },
-    );
-  }
-
   const eventName = request.headers.get("x-github-event") ?? "";
   let payload: unknown;
   try {
@@ -43,9 +36,21 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const result = await handleGitHubWebhookEvent(eventName, payload);
+  const firstDelivery = await claimWebhookDelivery(deliveryId);
+  let result: Awaited<ReturnType<typeof handleGitHubWebhookEvent>>;
+  try {
+    result = await handleGitHubWebhookEvent(eventName, payload, deliveryId);
+  } catch {
+    return Response.json(
+      {
+        error: "Could not queue the webhook assessment. GitHub may retry this delivery.",
+        deliveryId,
+      },
+      { status: 503 },
+    );
+  }
   return Response.json(
-    { ...result, deliveryId },
+    { ...result, duplicate: !firstDelivery, deliveryId },
     { status: result.handled ? 200 : 202 },
   );
 }
