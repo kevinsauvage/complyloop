@@ -23,4 +23,21 @@ test.describe("public pages", () => {
       page.getByText(/Connect a repository to get started|Link a GitHub repository/i).first(),
     ).toBeVisible();
   });
+
+  test("unsigned organization page requires sign-in", async ({ page }) => {
+    await page.goto("/org");
+    await expect(
+      page.getByRole("heading", { name: /Organization account/i }),
+    ).toBeVisible();
+    await expect(page.getByText(/Sign in required/i)).toBeVisible();
+  });
+
+  test("health endpoint reports ok", async ({ request }) => {
+    const response = await request.get("/api/health");
+    expect(response.ok()).toBeTruthy();
+    await expect(response.json()).resolves.toMatchObject({
+      status: "ok",
+      database: "up",
+    });
+  });
 });

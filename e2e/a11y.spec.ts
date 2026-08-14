@@ -42,6 +42,9 @@ const pages = [
   { path: "/", name: "dashboard" },
   { path: "/findings", name: "findings" },
   { path: "/evidence", name: "evidence" },
+  { path: "/settings", name: "settings" },
+  { path: "/org", name: "organization account" },
+  { path: "/requirements", name: "requirements" },
   { path: "/legal/terms", name: "terms" },
   { path: "/legal/privacy", name: "privacy" },
 ];
