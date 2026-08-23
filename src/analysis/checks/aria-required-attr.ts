@@ -17,8 +17,6 @@ import type { AccessibilityCheck, RawFinding } from "../types";
 
 function suggestedValue(prop: RequiredAriaProp): string {
   if (typeof prop.defaultValue === "string") return prop.defaultValue;
-  if (typeof prop.defaultValue === "number") return String(prop.defaultValue);
-  if (typeof prop.defaultValue === "boolean") return String(prop.defaultValue);
   switch (prop.name) {
     case "aria-checked":
     case "aria-selected":

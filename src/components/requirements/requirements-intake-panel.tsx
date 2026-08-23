@@ -1,4 +1,4 @@
-import { rgaaPresets } from "@/adapters/rgaa/presets";
+import { allFrameworkPresets } from "@/adapters/registry";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import {
   importCustomControlAction,
   updateRequirementScopeAction,
 } from "@/server/actions/requirements-intake";
+
+const frameworkPresets = allFrameworkPresets();
 
 export function RequirementsIntakePanel({
   canAssess,
@@ -59,7 +61,7 @@ export function RequirementsIntakePanel({
                     still fine-tune the scope below.
                   </p>
                   <ul className="flex flex-col gap-3">
-                    {rgaaPresets.map((preset) => (
+                    {frameworkPresets.map((preset) => (
                       <li
                         key={preset.id}
                         className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5"
@@ -155,10 +157,11 @@ export function RequirementsIntakePanel({
                   <p className="text-sm text-muted-foreground">
                     Paste audit or customer lines as{" "}
                     <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
-                      CODE | Title | Description
+                      CODE | Title | Description [| secondary [| checkId]]
                     </code>
-                    . Each becomes a manual control (unable to verify until a
-                    human marks it passed or records an exception).
+                    . Optional 5th field links to a shipped check (e.g.{" "}
+                    <code className="font-mono text-xs">img-alt</code>). Without
+                    a checkId each becomes a manual control.
                   </p>
                   <StatefulActionForm
                     action={importChecklistAction}
@@ -189,8 +192,9 @@ export function RequirementsIntakePanel({
                 <div className="flex flex-col gap-4">
                   <p className="text-sm text-muted-foreground">
                     Add a checklist item from an audit or customer requirement.
-                    Without an automated check it stays{" "}
-                    <em>unable to verify</em> until a human records a decision.
+                    Leave check id empty for a manual control (
+                    <em>unable to verify</em> until a human records a decision),
+                    or link an existing analysis check for automated status.
                   </p>
                   <StatefulActionForm
                     action={importCustomControlAction}
@@ -233,6 +237,20 @@ export function RequirementsIntakePanel({
                         id="custom-secondary-code"
                         name="secondaryCode"
                         placeholder="e.g. customer checklist §3"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="custom-check-id">
+                        Analysis check id{" "}
+                        <span className="text-muted-foreground font-normal">
+                          (optional)
+                        </span>
+                      </Label>
+                      <Input
+                        id="custom-check-id"
+                        name="checkId"
+                        placeholder="e.g. img-alt"
+                        className="font-mono text-xs"
                       />
                     </div>
                   </StatefulActionForm>

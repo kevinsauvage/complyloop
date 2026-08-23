@@ -4,10 +4,10 @@
 
 ### 1. Complete Accessibility Analysis Engine
 
-- [ ] Implement remaining WCAG 2.1 AA checks not yet covered by the 18 existing checks
-- [ ] Enhance runtime DOM audit capabilities with more comprehensive axe-core rules
-- [ ] Improve SSRF protection for runtime URL safety checks
-- [ ] Add support for custom framework adapters beyond RGAA/WCAG
+- [x] Implement remaining WCAG 2.1 AA checks not yet covered by the 18 existing checks
+- [x] Enhance runtime DOM audit capabilities with more comprehensive axe-core rules
+- [x] Improve SSRF protection for runtime URL safety checks
+- [x] Add support for custom framework adapters beyond RGAA/WCAG
 
 ### 2. Assessment Job System Reliability
 
@@ -61,7 +61,8 @@
 
 ### 7. Testing and Quality Assurance
 
-- [ ] Increase test coverage for edge cases in analysis engine
+- [x] Increase test coverage for analysis engine edge cases (form-error, lists, viewport, autocomplete, axe-map, SSRF)
+- [x] Raise unit coverage gate (~94%+ statements / ~96% lines on product surface via `npm run test:coverage`)
 - [ ] Add end-to-end tests for complete compliance loops
 - [ ] Improve error handling and user feedback mechanisms
 - [ ] Add performance testing for large codebase assessments

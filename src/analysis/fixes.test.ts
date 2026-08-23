@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { applyFix, previewFixedLine } from "./fixes";
+import { applyFix, describeFix, previewFixedLine } from "./fixes";
 import { parseSource } from "./parse";
 import { autoplayMediaCheck } from "./checks/autoplay-media";
 import { buttonNameCheck } from "./checks/button-name";
 import { imgAltCheck } from "./checks/img-alt";
 import { positiveTabindexCheck } from "./checks/positive-tabindex";
+import type { ProposedFix } from "@/core/finding-types";
 
 describe("applyFix", () => {
   it("inserts an attribute into a self-closing element and passes the re-check", () => {
@@ -59,5 +60,55 @@ describe("applyFix", () => {
     );
     expect(preview).toContain(`alt="Team"`);
     expect(source).not.toContain("alt=");
+  });
+
+  it("returns an empty preview when the line is out of range", () => {
+    const fix: ProposedFix = {
+      kind: "remove_attribute",
+      attribute: "autoPlay",
+      span: { start: 0, end: 0 },
+    };
+    expect(previewFixedLine("x", fix, 99)).toBe("");
+  });
+
+  it("throws on an unknown fix kind at runtime", () => {
+    expect(() =>
+      applyFix("x", { kind: "unknown" } as unknown as ProposedFix),
+    ).toThrow(/Unhandled fix kind/);
+  });
+});
+
+describe("describeFix", () => {
+  it("describes insert, replace, and remove fixes", () => {
+    expect(
+      describeFix({
+        kind: "insert_attribute",
+        attribute: "alt",
+        value: "Hero",
+        editable: true,
+        span: { start: 0, end: 1 },
+      }),
+    ).toBe('Add alt="Hero" to the element');
+    expect(
+      describeFix({
+        kind: "replace_attribute_value",
+        attribute: "tabIndex",
+        replacementText: "{0}",
+        span: { start: 0, end: 1 },
+      }),
+    ).toBe("Replace the tabIndex value with {0}");
+    expect(
+      describeFix({
+        kind: "remove_attribute",
+        attribute: "autoPlay",
+        span: { start: 0, end: 1 },
+      }),
+    ).toBe("Remove the autoPlay attribute");
+  });
+
+  it("throws on an unknown fix kind at runtime", () => {
+    expect(() =>
+      describeFix({ kind: "unknown" } as unknown as ProposedFix),
+    ).toThrow(/Unhandled fix kind/);
   });
 });

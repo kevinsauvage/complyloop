@@ -271,4 +271,37 @@ export const rgaaControls: Control[] = [
     checkId: "target-size",
     complianceWeight: 1.1,
   },
+  {
+    id: "ctl-meta-viewport",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 1.4.4",
+    secondaryCode: "RGAA 10.4",
+    title: "Viewport allows zoom",
+    description:
+      "The viewport meta tag must not disable zooming (no user-scalable=no or maximum-scale below 2).",
+    checkId: "meta-viewport",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-list-structure",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 1.3.1",
+    secondaryCode: "RGAA 9.3",
+    title: "Lists use correct structure",
+    description:
+      "List items are children of ul/ol/menu, and list containers only contain li children.",
+    checkId: "list-structure",
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-autocomplete-valid",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 1.3.5",
+    secondaryCode: "RGAA 11.13",
+    title: "Autocomplete tokens are valid",
+    description:
+      "Form controls that declare autocomplete use valid HTML autofill tokens so browsers and ATs can identify the expected input purpose.",
+    checkId: "autocomplete-valid",
+    complianceWeight: 1.2,
+  },
 ];

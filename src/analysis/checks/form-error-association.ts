@@ -1,3 +1,4 @@
+import ts from "typescript";
 import { isPropSpreadingHost } from "../jsx-primitives";
 import {
   booleanAttributeValue,
@@ -17,10 +18,48 @@ function isAriaTrue(attr: ReturnType<typeof getAttribute>): boolean {
   return value === true || value === null;
 }
 
+/** Collects static string literals nested in an expression (ternaries, &&, templates). */
+function collectStringLiterals(node: ts.Node, into: Set<string>): void {
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    for (const id of node.text.split(/\s+/)) {
+      if (id) into.add(id);
+    }
+    return;
+  }
+  if (ts.isTemplateExpression(node)) {
+    for (const span of node.templateSpans) {
+      collectStringLiterals(span.expression, into);
+    }
+    return;
+  }
+  ts.forEachChild(node, (child) => collectStringLiterals(child, into));
+}
+
+function describedByIdsFromAttribute(attr: ts.JsxAttribute): Set<string> {
+  const ids = new Set<string>();
+  const literal = stringValueOf(attr);
+  if (literal) {
+    for (const id of literal.split(/\s+/)) {
+      if (id) ids.add(id);
+    }
+    return ids;
+  }
+  const initializer = attr.initializer;
+  if (
+    initializer &&
+    ts.isJsxExpression(initializer) &&
+    initializer.expression
+  ) {
+    collectStringLiterals(initializer.expression, ids);
+  }
+  return ids;
+}
+
 /**
  * Pragmatic heuristics:
  * - aria-invalid without aria-describedby (error not associated)
  * - id containing "error" that nothing references via aria-describedby
+ *   (including string literals inside conditional expressions)
  */
 export const formErrorAssociationCheck: AccessibilityCheck = {
   id: "form-error-association",
@@ -30,11 +69,9 @@ export const formErrorAssociationCheck: AccessibilityCheck = {
 
     visitJsxTags(source.sourceFile, (node) => {
       const describedBy = getAttribute(node, "aria-describedby");
-      const value = describedBy ? stringValueOf(describedBy) : undefined;
-      if (value) {
-        for (const id of value.split(/\s+/)) {
-          if (id) describedByTargets.add(id);
-        }
+      if (!describedBy) return;
+      for (const id of describedByIdsFromAttribute(describedBy)) {
+        describedByTargets.add(id);
       }
     });
 

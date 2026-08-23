@@ -18,11 +18,23 @@ import {
 export const UNSAFE_RUNTIME_URL_MESSAGE =
   "Runtime audit URL cannot target localhost, private, or metadata hosts.";
 
+export const UNSAFE_RUNTIME_PORT_MESSAGE =
+  "Runtime audit URL must use port 80 or 443 (or the scheme default).";
+
+export const TOO_MANY_REDIRECTS_MESSAGE =
+  "Runtime audit stopped: too many redirects while loading the page.";
+
 /** Extra hosts beyond ssrf-guard's built-in localhost/.local policy. */
 const EXTRA_BLOCKED_HOSTNAMES: BlockedHostnamePolicy = {
   exact: ["metadata.google.internal", "metadata.goog", "metadata"],
   suffixes: [".internal"],
 };
+
+/** Allowed explicit ports for preview audits (scheme defaults always OK). */
+const ALLOWED_PORTS = new Set(["80", "443"]);
+
+/** Max redirect/navigation hops per page load (document + intermediate). */
+export const MAX_RUNTIME_REDIRECT_HOPS = 10;
 
 export type DnsLookup = (
   hostname: string,
@@ -55,10 +67,19 @@ function assertPublicHostname(hostname: string): void {
   }
 }
 
-/** Sync check for form saves: scheme, credentials, and literal private hosts. */
+function assertAllowedPort(parsed: URL): void {
+  // Empty port means scheme default (80/443) — always allowed.
+  if (!parsed.port) return;
+  if (!ALLOWED_PORTS.has(parsed.port)) {
+    throw new PublicError(UNSAFE_RUNTIME_PORT_MESSAGE);
+  }
+}
+
+/** Sync check for form saves: scheme, credentials, port, and literal private hosts. */
 export function assertSafeRuntimeBaseUrl(raw: string): string {
   const parsed = parseHttpUrl(raw);
   assertPublicHostname(parsed.hostname);
+  assertAllowedPort(parsed);
   return `${parsed.protocol}//${parsed.host}`;
 }
 
@@ -72,6 +93,7 @@ export async function assertSafeRuntimeUrl(
 ): Promise<string> {
   const parsed = parseHttpUrl(raw);
   assertPublicHostname(parsed.hostname);
+  assertAllowedPort(parsed);
 
   const hostname = parsed.hostname;
   // Literal IPs already covered by isPublicHostname; no DNS needed.
@@ -111,4 +133,27 @@ export async function allowRuntimeNavigation(
       message: publicMessage(error, UNSAFE_RUNTIME_URL_MESSAGE),
     };
   }
+}
+
+/**
+ * Tracks document/redirect hops for one page load.
+ * Call `countHop` for each main-frame document request; throws when over limit.
+ */
+export function createRedirectHopGuard(
+  maxHops: number = MAX_RUNTIME_REDIRECT_HOPS,
+): {
+  countHop: (resourceType: string) => void;
+  hops: () => number;
+} {
+  let hops = 0;
+  return {
+    countHop(resourceType: string) {
+      if (resourceType !== "document") return;
+      hops += 1;
+      if (hops > maxHops) {
+        throw new PublicError(TOO_MANY_REDIRECTS_MESSAGE);
+      }
+    },
+    hops: () => hops,
+  };
 }

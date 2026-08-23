@@ -25,6 +25,10 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000), sign in with GitHub, and
 connect a repository. Postgres (`DATABASE_URL`) is required.
 
+Assessments run **in-process during `npm run dev`** — no separate worker needed
+locally. For production (or to mirror prod), run `npm run worker` alongside the
+web app; see [`docs/deploy.md`](./docs/deploy.md).
+
 ### Connect a GitHub repository
 
 1. Create a GitHub OAuth App under
@@ -106,7 +110,8 @@ AI is never the source of truth.
 
 | Command | Purpose |
 |---------|---------|
-| `npm run dev` | Dev server (Turbopack) |
+| `npm run dev` | Dev server (Turbopack); assessments run in-process |
+| `npm run worker` | Assessment job worker (required in production) |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint (incl. strict jsx-a11y) |
 | `npm run typecheck` | TypeScript, strict |

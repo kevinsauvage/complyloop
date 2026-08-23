@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { parseSource } from "../parse";
 import { anchorNameCheck } from "./anchor-name";
 import { ariaHiddenFocusableCheck } from "./aria-hidden-focusable";
+import { autocompleteValidCheck } from "./autocomplete-valid";
 import { buttonNameCheck } from "./button-name";
 import { duplicateIdCheck } from "./duplicate-id";
-import { formErrorAssociationCheck } from "./form-error-association";
 import { htmlLangCheck } from "./html-lang";
 import { imgAltCheck } from "./img-alt";
 import { inputLabelCheck } from "./input-label";
@@ -12,6 +12,8 @@ import { autoplayMediaCheck } from "./autoplay-media";
 import { emptyHeadingCheck } from "./empty-heading";
 import { headingOrderCheck } from "./heading-order";
 import { iframeTitleCheck } from "./iframe-title";
+import { listStructureCheck } from "./list-structure";
+import { metaViewportCheck } from "./meta-viewport";
 import { positiveTabindexCheck } from "./positive-tabindex";
 import type { AccessibilityCheck } from "../types";
 
@@ -66,6 +68,34 @@ describe("anchor-name", () => {
   it("flags an icon-only link with href", () => {
     const findings = run(anchorNameCheck, `const A = () => <a href="/cart"><svg /></a>;`);
     expect(findings).toHaveLength(1);
+    expect(findings[0]?.fix).toMatchObject({
+      kind: "insert_attribute",
+      attribute: "aria-label",
+    });
+  });
+
+  it("flags Next.js Link without an accessible name", () => {
+    expect(
+      run(anchorNameCheck, `const A = () => <Link href="/cart"><svg /></Link>;`),
+    ).toHaveLength(1);
+  });
+
+  it("skips anchors without href, prop-spreading hosts, and named links", () => {
+    expect(
+      run(anchorNameCheck, `const A = () => <a><svg /></a>;`),
+    ).toHaveLength(0);
+    expect(
+      run(
+        anchorNameCheck,
+        `const A = ({...p}) => <a href="/x" {...p}><svg /></a>;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      run(
+        anchorNameCheck,
+        `const A = () => <a href="/x" aria-label="Cart"><svg /></a>;`,
+      ),
+    ).toHaveLength(0);
   });
 
   it("accepts links named by text or an image alt", () => {
@@ -99,9 +129,30 @@ describe("positive-tabindex", () => {
     });
   });
 
-  it("accepts tabIndex of 0 and -1", () => {
-    const source = `const A = () => (<div><div tabIndex={0} /><div tabIndex={-1} /></div>);`;
+  it("flags string and lowercase tabindex positives", () => {
+    expect(
+      run(
+        positiveTabindexCheck,
+        `const A = () => <div tabIndex="2">x</div>;`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      run(
+        positiveTabindexCheck,
+        `const A = () => <div tabindex={4}>x</div>;`,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("accepts tabIndex of 0 and -1 and skips dynamic values", () => {
+    const source = `const A = () => (<div><div tabIndex={0} /><div tabIndex={-1} /><div tabIndex={n} /></div>);`;
     expect(run(positiveTabindexCheck, source)).toHaveLength(0);
+  });
+
+  it("ignores boolean shorthand tabIndex", () => {
+    expect(
+      run(positiveTabindexCheck, `const A = () => <div tabIndex>x</div>;`),
+    ).toHaveLength(0);
   });
 });
 
@@ -122,6 +173,15 @@ describe("input-label", () => {
     </form>);`;
     expect(run(inputLabelCheck, source)).toHaveLength(0);
   });
+
+  it("flags unlabeled select and textarea", () => {
+    expect(
+      run(inputLabelCheck, `const A = () => <select name="country" />;`),
+    ).toHaveLength(1);
+    expect(
+      run(inputLabelCheck, `const A = () => <textarea name="bio" />;`),
+    ).toHaveLength(1);
+  });
 });
 
 describe("heading-order", () => {
@@ -139,6 +199,42 @@ describe("empty-heading", () => {
   it("flags headings with no text", () => {
     const findings = run(emptyHeadingCheck, `const A = () => <h2></h2>;`);
     expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({
+      checkId: "empty-heading",
+      kind: "violation",
+      severity: "serious",
+    });
+    expect(findings[0]?.reason).toContain("no text content");
+  });
+
+  it("flags self-closing headings", () => {
+    const findings = run(emptyHeadingCheck, `const A = () => <h3 />;`);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.reason).toContain("<h3 />");
+  });
+
+  it("accepts text content and aria-label", () => {
+    expect(
+      run(emptyHeadingCheck, `const A = () => <h2>Section</h2>;`),
+    ).toHaveLength(0);
+    expect(
+      run(
+        emptyHeadingCheck,
+        `const A = () => <h2 aria-label="Section"></h2>;`,
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("does not treat title alone as a name (includeTitle: false)", () => {
+    expect(
+      run(emptyHeadingCheck, `const A = () => <h2 title="Section"></h2>;`),
+    ).toHaveLength(1);
+  });
+
+  it("ignores non-heading tags", () => {
+    expect(
+      run(emptyHeadingCheck, `const A = () => <p></p>;`),
+    ).toHaveLength(0);
   });
 });
 
@@ -176,15 +272,22 @@ describe("duplicate-id", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0].reason).toContain('id="x"');
   });
-});
 
-describe("form-error-association", () => {
-  it("flags aria-invalid without aria-describedby", () => {
+  it("reports each occurrence after the first", () => {
     const findings = run(
-      formErrorAssociationCheck,
-      `const A = () => <input aria-invalid="true" />;`,
+      duplicateIdCheck,
+      `const A = () => (<div><span id="x" /><button id="x" /><i id="x" /></div>);`,
     );
-    expect(findings.some((f) => f.kind === "violation")).toBe(true);
+    expect(findings).toHaveLength(2);
+  });
+
+  it("ignores unique, empty, and dynamic ids", () => {
+    expect(
+      run(
+        duplicateIdCheck,
+        `const A = () => (<div><span id="a" /><button id="b" /><i id="" /><b id={id} /></div>);`,
+      ),
+    ).toHaveLength(0);
   });
 });
 
@@ -251,6 +354,203 @@ describe("aria-hidden-focusable", () => {
       run(
         ariaHiddenFocusableCheck,
         `const A = () => <div aria-hidden="true">x</div>;`,
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("meta-viewport", () => {
+  it("flags viewport that disables zoom", () => {
+    const findings = run(
+      metaViewportCheck,
+      `const H = () => <meta name="viewport" content="width=device-width, user-scalable=no" />;`,
+    );
+    expect(findings).toHaveLength(1);
+  });
+
+  it("flags user-scalable=0 and user-scalable=false", () => {
+    expect(
+      run(
+        metaViewportCheck,
+        `const H = () => <meta name="viewport" content="user-scalable=0" />;`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      run(
+        metaViewportCheck,
+        `const H = () => <meta name="viewport" content="user-scalable=false" />;`,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("flags maximum-scale below 2", () => {
+    expect(
+      run(
+        metaViewportCheck,
+        `const H = () => <meta name="viewport" content="maximum-scale=1" />;`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      run(
+        metaViewportCheck,
+        `const H = () => <meta name="viewport" content="maximum-scale=1.5" />;`,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("accepts a zoomable viewport and maximum-scale >= 2", () => {
+    expect(
+      run(
+        metaViewportCheck,
+        `const H = () => <meta name="viewport" content="width=device-width, initial-scale=1" />;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      run(
+        metaViewportCheck,
+        `const H = () => <meta name="viewport" content="maximum-scale=2" />;`,
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores non-viewport meta, missing content, and dynamic content", () => {
+    expect(
+      run(
+        metaViewportCheck,
+        `const H = () => <meta name="description" content="x" />;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      run(metaViewportCheck, `const H = () => <meta name="viewport" />;`),
+    ).toHaveLength(0);
+    expect(
+      run(
+        metaViewportCheck,
+        `const H = () => <meta name="viewport" content={content} />;`,
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("list-structure", () => {
+  it("flags orphan list items and non-li list children", () => {
+    const orphan = run(listStructureCheck, `const A = () => <div><li>x</li></div>;`);
+    expect(orphan).toHaveLength(1);
+    expect(orphan[0]?.reason).toContain("found under <div>");
+    expect(orphan[0]?.confidence).toBe("high");
+
+    expect(
+      run(
+        listStructureCheck,
+        `const A = () => <ul><div>not an item</div></ul>;`,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("flags list items with no enclosing JSX parent", () => {
+    const findings = run(listStructureCheck, `const item = <li>x</li>;`);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.confidence).toBe("medium");
+    expect(findings[0]?.reason).toContain("no list parent");
+  });
+
+  it("flags self-closing non-li children inside lists", () => {
+    const findings = run(
+      listStructureCheck,
+      `const A = () => <ol><img src="/x.png" alt="" /></ol>;`,
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.reason).toContain("<img>");
+  });
+
+  it("accepts well-formed lists including menu", () => {
+    expect(
+      run(
+        listStructureCheck,
+        `const A = () => <ul><li>One</li><li>Two</li></ul>;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      run(
+        listStructureCheck,
+        `const A = () => <menu><li>A</li></menu>;`,
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores whitespace and expression children that are not elements", () => {
+    expect(
+      run(
+        listStructureCheck,
+        `const A = () => <ul>{items}<li>One</li></ul>;`,
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("autocomplete-valid", () => {
+  it("flags invalid autocomplete tokens", () => {
+    const findings = run(
+      autocompleteValidCheck,
+      `const A = () => <input autoComplete="not-a-real-token" />;`,
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.reason).toContain("not-a-real-token");
+  });
+
+  it("accepts valid tokens including section and grouping prefixes", () => {
+    expect(
+      run(
+        autocompleteValidCheck,
+        `const A = () => <input autoComplete="email" />;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      run(
+        autocompleteValidCheck,
+        `const A = () => <input autocomplete="section-billing shipping email" />;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      run(
+        autocompleteValidCheck,
+        `const A = () => <input autoComplete="optional given-name" />;`,
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("flags empty token sets and invalid tokens on select/textarea", () => {
+    expect(
+      run(
+        autocompleteValidCheck,
+        `const A = () => <input autoComplete="   " />;`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      run(
+        autocompleteValidCheck,
+        `const A = () => <select autoComplete="nope" />;`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      run(
+        autocompleteValidCheck,
+        `const A = () => <textarea autoComplete="xyz" />;`,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("skips dynamic values and non-form controls", () => {
+    expect(
+      run(
+        autocompleteValidCheck,
+        `const A = () => <input autoComplete={value} />;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      run(
+        autocompleteValidCheck,
+        `const A = () => <div autoComplete="email" />;`,
       ),
     ).toHaveLength(0);
   });

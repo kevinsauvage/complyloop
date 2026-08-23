@@ -21,12 +21,15 @@ export type CheckId =
   | "aria-required-attr"
   | "no-autofocus"
   | "keyboard-interaction"
+  | "meta-viewport"
+  | "list-structure"
   | "color-contrast"
   | "document-title"
   | "bypass"
   | "landmark-one-main"
   | "nested-interactive"
-  | "target-size";
+  | "target-size"
+  | "autocomplete-valid";
 
 export interface RawFinding {
   checkId: CheckId;

@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicError } from "@/core/public-error";
-import type { Organization, Project } from "@/core/project-types";
+import type { Organization, OrgMembership, Project } from "@/core/project-types";
 import { emptyActionMessageState } from "./action-state";
-import { deleteOrgAction, exportOrgDataAction } from "./actions/org";
+import {
+  changeOrgMemberRoleAction,
+  createOrgAction,
+  deleteOrgAction,
+  exportOrgDataAction,
+  inviteOrgMemberAction,
+  removeOrgMemberAction,
+  switchOrgAction,
+} from "./actions/org";
 import type { Db } from "./db";
 import type { Workspace } from "./workspace";
 
@@ -13,6 +21,7 @@ const exportOrgData = vi.hoisted(() => vi.fn());
 const deleteOrganization = vi.hoisted(() => vi.fn());
 const resolveActiveOrgId = vi.hoisted(() => vi.fn());
 const writeActiveOrgCookie = vi.hoisted(() => vi.fn());
+const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 
 vi.mock("next/cache", () => ({
@@ -47,7 +56,8 @@ vi.mock("./orgs", async () => {
 
 vi.mock("./active-cookies", () => ({
   writeActiveOrgCookie: (...args: unknown[]) => writeActiveOrgCookie(...args),
-  writeActiveProjectCookie: vi.fn(),
+  writeActiveProjectCookie: (...args: unknown[]) =>
+    writeActiveProjectCookie(...args),
   readActiveOrgCookie: vi.fn(),
   readActiveProjectCookie: vi.fn(),
 }));
@@ -72,12 +82,21 @@ const project: Project = {
   createdAt: "2026-01-01T00:00:00.000Z",
 };
 
-function emptyDb(): Db {
+const ownerMembership: OrgMembership = {
+  id: "m-owner",
+  orgId: "org-1",
+  role: "owner",
+  userId: "user-1",
+  githubLogin: "alice",
+  createdAt: "2026-01-01T00:00:00.000Z",
+};
+
+function emptyDb(memberships: OrgMembership[] = [ownerMembership]): Db {
   return {
     frameworks: [],
     controls: [],
     organizations: [org],
-    memberships: [],
+    memberships: [...memberships],
     projects: [project],
     requirements: [],
     assessments: [],
@@ -98,7 +117,7 @@ function fixtureWorkspace(db: Db = emptyDb()): Workspace {
       userId: "user-1",
       githubLogin: "alice",
       organizations: [org],
-      memberships: [],
+      memberships: db.memberships,
     },
     visibleProjects: [project],
     organizations: [org],
@@ -114,6 +133,7 @@ beforeEach(() => {
   deleteOrganization.mockReset();
   resolveActiveOrgId.mockReset();
   writeActiveOrgCookie.mockReset();
+  writeActiveProjectCookie.mockReset();
   refresh.mockReset();
   auth.mockResolvedValue({ user: { id: "user-1", login: "alice" } });
   withWorkspaceWrite.mockImplementation(async (fn: (ws: Workspace) => unknown) =>
@@ -195,5 +215,146 @@ describe("org lifecycle actions", () => {
     );
     expect(writeActiveOrgCookie).toHaveBeenCalledWith("org-personal");
     expect(refresh).toHaveBeenCalled();
+  });
+});
+
+describe("switchOrgAction", () => {
+  it("switches org and activates a project in that org", async () => {
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    await switchOrgAction(form);
+    expect(writeActiveOrgCookie).toHaveBeenCalledWith("org-1");
+    expect(writeActiveProjectCookie).toHaveBeenCalledWith("p1");
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("rejects when unsigned", async () => {
+    auth.mockResolvedValue(null);
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    await expect(switchOrgAction(form)).rejects.toThrow(/Sign in/);
+  });
+
+  it("rejects orgs the user does not belong to", async () => {
+    const form = new FormData();
+    form.set("orgId", "org-other");
+    await expect(switchOrgAction(form)).rejects.toThrow(/not a member/);
+  });
+});
+
+describe("createOrgAction", () => {
+  it("creates an organization for a signed-in GitHub user", async () => {
+    const form = new FormData();
+    form.set("name", "New Co");
+    const result = await createOrgAction(emptyActionMessageState, form);
+    expect(result.error).toBeNull();
+    expect(result.message).toMatch(/Created organization "New Co"/);
+    expect(writeActiveOrgCookie).toHaveBeenCalled();
+  });
+
+  it("requires a name", async () => {
+    const result = await createOrgAction(
+      emptyActionMessageState,
+      new FormData(),
+    );
+    expect(result.error).toMatch(/organization name/i);
+  });
+
+  it("requires GitHub sign-in", async () => {
+    auth.mockResolvedValue({ user: { id: "user-1" } });
+    const form = new FormData();
+    form.set("name", "No Login");
+    const result = await createOrgAction(emptyActionMessageState, form);
+    expect(result.error).toMatch(/Sign in with GitHub/);
+  });
+});
+
+describe("org member management actions", () => {
+  it("invites a member", async () => {
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "bob");
+    form.set("role", "member");
+    const result = await inviteOrgMemberAction(emptyActionMessageState, form);
+    expect(result.message).toMatch(/Invited @bob as member/);
+  });
+
+  it("rejects owner role on invite", async () => {
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "bob");
+    form.set("role", "owner");
+    const result = await inviteOrgMemberAction(emptyActionMessageState, form);
+    expect(result.error).toMatch(/Choose a role/);
+  });
+
+  it("requires a GitHub username to invite", async () => {
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("role", "viewer");
+    const result = await inviteOrgMemberAction(emptyActionMessageState, form);
+    expect(result.error).toMatch(/GitHub username/);
+  });
+
+  it("removes a member", async () => {
+    const member: OrgMembership = {
+      id: "m-member",
+      orgId: "org-1",
+      role: "member",
+      userId: "user-2",
+      githubLogin: "bob",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const db = emptyDb([ownerMembership, member]);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(fixtureWorkspace(db)));
+
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("membershipId", "m-member");
+    const result = await removeOrgMemberAction(emptyActionMessageState, form);
+    expect(result.message).toBe("Member removed.");
+    expect(db.memberships.some((row) => row.id === "m-member")).toBe(false);
+  });
+
+  it("revokes a pending invite", async () => {
+    const invite: OrgMembership = {
+      id: "m-invite",
+      orgId: "org-1",
+      role: "viewer",
+      githubLogin: "carol",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const db = emptyDb([ownerMembership, invite]);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(fixtureWorkspace(db)));
+
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("membershipId", "m-invite");
+    const result = await removeOrgMemberAction(emptyActionMessageState, form);
+    expect(result.message).toBe("Invite revoked.");
+  });
+
+  it("changes a member role", async () => {
+    const member: OrgMembership = {
+      id: "m-member",
+      orgId: "org-1",
+      role: "member",
+      userId: "user-2",
+      githubLogin: "bob",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const db = emptyDb([ownerMembership, member]);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(fixtureWorkspace(db)));
+
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("membershipId", "m-member");
+    form.set("role", "admin");
+    const result = await changeOrgMemberRoleAction(
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.message).toBe("Role updated to admin.");
+    expect(member.role).toBe("admin");
   });
 });

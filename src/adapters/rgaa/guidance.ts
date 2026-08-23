@@ -150,6 +150,24 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Make the clickable area at least 24×24 CSS pixels, or add sufficient spacing from adjacent targets.",
   },
+  "meta-viewport": {
+    impact:
+      "Users with low vision cannot enlarge the page when the viewport meta disables zoom.",
+    howToFix:
+      'Remove user-scalable=no and set maximum-scale to at least 2 (or omit it). Prefer content="width=device-width, initial-scale=1".',
+  },
+  "list-structure": {
+    impact:
+      "Broken list markup hides the list semantics from screen readers, so items are announced as ordinary text.",
+    howToFix:
+      "Use <ul>/<ol>/<menu> with <li> children only. Do not place <div> or other elements as direct list children, and do not use orphan <li> outside a list.",
+  },
+  "autocomplete-valid": {
+    impact:
+      "Invalid autocomplete tokens prevent browsers and assistive technologies from identifying the purpose of a field (WCAG 1.3.5).",
+    howToFix:
+      'Use a valid HTML autofill token (e.g. autocomplete="email" or "shipping street-address"). Prefer "off" only when autofill is intentionally disabled.',
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {

@@ -3,6 +3,15 @@ import { chromium, type Browser } from "playwright";
 import { resolveAxeMinJsPath, runAxeOnPage } from "./scan";
 import fs from "node:fs";
 
+function chromiumExecutableAvailable(): boolean {
+  try {
+    const executablePath = chromium.executablePath();
+    return fs.existsSync(executablePath);
+  } catch {
+    return false;
+  }
+}
+
 describe("runAxeOnPage", () => {
   let browser: Browser | null = null;
 
@@ -18,7 +27,7 @@ describe("runAxeOnPage", () => {
     expect(head).toMatch(/axe/i);
   });
 
-  it(
+  it.skipIf(!chromiumExecutableAvailable())(
     "injects axe without ReferenceError: module is not defined",
     async () => {
       browser = await chromium.launch({ headless: true });

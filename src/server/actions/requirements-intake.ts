@@ -51,12 +51,14 @@ export async function importCustomControlAction(
       ) {
         throw new PublicError("Code, title, and description are required.");
       }
+      const checkId = formData.get("checkId");
       importCustomControl(db, project, {
         code,
         title,
         description,
         secondaryCode:
           typeof secondaryCode === "string" ? secondaryCode : undefined,
+        checkId: typeof checkId === "string" ? checkId : undefined,
       });
     });
     refresh();

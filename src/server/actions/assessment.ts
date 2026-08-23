@@ -4,6 +4,7 @@ import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
+import { drainAssessmentJobQueue, shouldDrainAssessmentJobsInline } from "../assessment-job-drain";
 import { enqueueAssessmentJob } from "../assessment-jobs";
 import { addEvidence } from "../db";
 import { assertAssessRateLimit } from "../rate-limit";
@@ -33,6 +34,13 @@ export async function runAssessmentAction(
         detail: { jobId: job.id, trigger: "manual" },
       });
     });
+
+    if (shouldDrainAssessmentJobsInline()) {
+      await drainAssessmentJobQueue();
+      refresh();
+      return "Assessment complete.";
+    }
+
     refresh();
     return "Assessment queued. Results will appear when the worker completes it.";
   });

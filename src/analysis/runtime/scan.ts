@@ -14,6 +14,8 @@ import {
 import {
   allowRuntimeNavigation,
   assertSafeRuntimeUrl,
+  createRedirectHopGuard,
+  TOO_MANY_REDIRECTS_MESSAGE,
   UNSAFE_RUNTIME_URL_MESSAGE,
   type DnsLookup,
 } from "./url-safety";
@@ -103,11 +105,23 @@ export function createPlaywrightAxeScanner(options?: {
     const context = await browser.newContext();
     const pages: RuntimeScanPageResult[] = [];
     let blockedReason: string | null = null;
+    let hopGuard = createRedirectHopGuard();
 
     // Intercept every hop (including redirects) before the browser connects.
     await context.route("**/*", async (route) => {
+      const request = route.request();
+      try {
+        hopGuard.countHop(request.resourceType());
+      } catch (error) {
+        blockedReason =
+          error instanceof PublicError
+            ? error.message
+            : TOO_MANY_REDIRECTS_MESSAGE;
+        await route.abort("blockedbyclient");
+        return;
+      }
       const decision = await allowRuntimeNavigation(
-        route.request().url(),
+        request.url(),
         lookupOptions,
       );
       if (!decision.ok) {
@@ -121,6 +135,7 @@ export function createPlaywrightAxeScanner(options?: {
     try {
       for (const url of urls) {
         blockedReason = null;
+        hopGuard = createRedirectHopGuard();
         // Re-check near navigation (narrows the DNS rebinding window).
         const precheck = await allowRuntimeNavigation(url, lookupOptions);
         if (!precheck.ok) {
@@ -129,6 +144,8 @@ export function createPlaywrightAxeScanner(options?: {
         const page = await context.newPage();
         try {
           try {
+            // Re-resolve DNS immediately before goto to shrink rebinding TOCTOU.
+            await assertSafeRuntimeUrl(url, lookupOptions);
             await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
           } catch (error) {
             if (blockedReason) throw new PublicError(blockedReason);

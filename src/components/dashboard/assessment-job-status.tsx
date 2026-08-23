@@ -21,12 +21,19 @@ const statusIndicator: Record<AssessmentJob["status"], string> = {
 
 export function AssessmentJobStatus({ jobs }: { jobs: AssessmentJob[] }) {
   if (jobs.length === 0) return null;
+  const hasQueued = jobs.some((job) => job.status === "queued");
   return (
     <Card className="shadow-none ring-1 ring-border/60">
       <CardHeader>
         <CardTitle>Assessment jobs</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-3">
+        {hasQueued && process.env.NODE_ENV === "production" ? (
+          <p className="text-xs text-muted-foreground">
+            Jobs stay queued until an assessment worker is running (
+            <code className="font-mono">npm run worker</code>).
+          </p>
+        ) : null}
         <ul className="flex flex-col gap-3" aria-label="Recent assessment jobs">
           {jobs.map((job) => (
             <li

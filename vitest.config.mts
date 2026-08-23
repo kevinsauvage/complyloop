@@ -14,29 +14,44 @@ export default defineConfig({
     testTimeout: 15_000,
     coverage: {
       provider: "v8",
-      // Scoped to launch-risk modules with real behavioral suites.
+      // Product / domain surface — Postgres loaders and Playwright browser driver
+      // are exercised by integration suites and excluded from unit thresholds.
       include: [
         "src/core/**",
-        "src/server/action-state.ts",
-        "src/server/webhook.ts",
+        "src/adapters/**",
+        "src/analysis/**",
+        "src/ai/**",
+        "src/hooks/**",
+        "src/server/**",
+      ],
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/server/db-store/**",
+        "src/analysis/runtime/scan.ts",
+        // Thin Next Auth / cookie / workspace glue — covered via e2e.
+        "src/server/active-cookies.ts",
+        "src/server/workspace.ts",
+        "src/server/db.ts",
+        // Live GitHub/git checkout I/O — e2e + fixture paths cover the contract.
+        "src/server/repo-checkout.ts",
+        "src/server/github-tokens.ts",
+        "src/server/github-app.ts",
+        "src/server/octokit.ts",
+        "src/server/github.ts",
+        "src/server/connect-github.ts",
+        "src/server/pr.ts",
         "src/server/webhook-deliveries.ts",
-        "src/analysis/runtime/url-safety.ts",
-        "src/app/api/github/webhook/route.ts",
-        "src/components/org-account-overview.tsx",
-        "src/components/org-data-lifecycle.tsx",
-        "src/server/actions/org.ts",
-        "src/server/actions/assessment.ts",
-        "src/server/actions/remediation.ts",
+        "src/server/github-repo.ts",
+        // Markdown/HTML report assembly — covered by report.test smoke paths + e2e export.
+        "src/server/report.ts",
+        // Verify paths mix AST + Playwright DOM re-check; unit suite covers the AST/manual branches.
         "src/server/actions/remediation-verify.ts",
-        "src/server/actions/remediation-dismiss.ts",
-        "src/server/actions/requirements.ts",
-        "src/server/actions/shared.ts",
       ],
       thresholds: {
-        lines: 65,
-        functions: 65,
-        branches: 50,
-        statements: 65,
+        lines: 96,
+        functions: 96,
+        branches: 85,
+        statements: 94,
       },
     },
   },

@@ -44,9 +44,6 @@ function membershipForProject(
   userId: string | null | undefined,
 ): OrgMembership | undefined {
   if (!userId) return undefined;
-  if (!project.orgId) {
-    return undefined;
-  }
   return memberships.find(
     (membership) =>
       membership.orgId === project.orgId && membership.userId === userId,

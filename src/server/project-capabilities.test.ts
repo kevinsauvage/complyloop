@@ -47,4 +47,51 @@ describe("projectCapabilities", () => {
       canConnect: false,
     });
   });
+
+  it("lets owners connect on a project", () => {
+    expect(projectCapabilities(project, access("owner"))).toEqual({
+      canView: true,
+      canAssess: true,
+      canRemediate: true,
+      canConnect: true,
+    });
+  });
+
+  it("allows unsigned users to see the connect panel when no project is active", () => {
+    expect(
+      projectCapabilities(null, {
+        userId: null,
+        githubLogin: null,
+        organizations: [],
+        memberships: [],
+      }),
+    ).toEqual({
+      canView: false,
+      canAssess: false,
+      canRemediate: false,
+      canConnect: true,
+    });
+  });
+
+  it("lets signed-in owners connect when no project is active", () => {
+    expect(
+      projectCapabilities(null, access("owner"), "org-1"),
+    ).toEqual({
+      canView: false,
+      canAssess: false,
+      canRemediate: false,
+      canConnect: true,
+    });
+  });
+
+  it("denies signed-in viewers from connecting with no project", () => {
+    expect(
+      projectCapabilities(null, access("viewer"), "org-1"),
+    ).toEqual({
+      canView: false,
+      canAssess: false,
+      canRemediate: false,
+      canConnect: false,
+    });
+  });
 });

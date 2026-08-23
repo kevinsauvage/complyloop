@@ -20,6 +20,8 @@ const UNLABELED_EXEMPT_TYPES = new Set([
   "image",
 ]);
 
+const LABELED_TAGS = new Set(["input", "select", "textarea"]);
+
 function collectLabelTargets(sourceFile: ts.SourceFile): Set<string> {
   const targets = new Set<string>();
   visitJsxTags(sourceFile, (node) => {
@@ -44,13 +46,16 @@ export const inputLabelCheck: AccessibilityCheck = {
     const labelTargets = collectLabelTargets(source.sourceFile);
     const findings: RawFinding[] = [];
     visitJsxTags(source.sourceFile, (node) => {
-      if (tagNameOf(node) !== "input") return;
+      const tag = tagNameOf(node);
+      if (!LABELED_TAGS.has(tag)) return;
       // Design-system primitives spread props; labels live at call sites.
       if (isPropSpreadingHost(node)) return;
 
-      const type = getAttribute(node, "type");
-      const typeValue = type ? stringValueOf(type) : undefined;
-      if (typeValue && UNLABELED_EXEMPT_TYPES.has(typeValue)) return;
+      if (tag === "input") {
+        const type = getAttribute(node, "type");
+        const typeValue = type ? stringValueOf(type) : undefined;
+        if (typeValue && UNLABELED_EXEMPT_TYPES.has(typeValue)) return;
+      }
 
       if (
         getAttribute(node, "aria-label") !== undefined ||
@@ -69,8 +74,7 @@ export const inputLabelCheck: AccessibilityCheck = {
         severity: "serious",
         // The label association is only checked within the same file.
         confidence: "medium",
-        reason:
-          "<input> has no associated <label>, aria-label, or aria-labelledby, so users cannot tell what to enter.",
+        reason: `<${tag}> has no associated <label>, aria-label, or aria-labelledby, so users cannot tell what to enter.`,
         location: locationOf(source, node),
         fix: {
           kind: "insert_attribute",

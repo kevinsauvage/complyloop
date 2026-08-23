@@ -1,0 +1,222 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Control, OrgMembership, Project } from "@/core/project-types";
+import type { Finding, Remediation } from "@/core/finding-types";
+import { PublicError } from "@/core/public-error";
+import type { Db } from "../db";
+import type { Workspace } from "../workspace";
+import { createPullRequestAction } from "./pr";
+
+const getWorkspace = vi.hoisted(() => vi.fn());
+const withWorkspaceWrite = vi.hoisted(() => vi.fn());
+const preparePullRequest = vi.hoisted(() => vi.fn());
+const getGitHubAccessToken = vi.hoisted(() => vi.fn());
+const refresh = vi.hoisted(() => vi.fn());
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
+vi.mock("@/auth", () => ({
+  getGitHubAccessToken: () => getGitHubAccessToken(),
+}));
+
+vi.mock("../workspace", async () => {
+  const actual = await vi.importActual<typeof import("../workspace")>(
+    "../workspace",
+  );
+  return {
+    ...actual,
+    getWorkspace: () => getWorkspace(),
+    withWorkspaceWrite: (fn: (workspace: Workspace) => unknown) =>
+      withWorkspaceWrite(fn),
+  };
+});
+
+vi.mock("../pr", () => ({
+  preparePullRequest: (...args: unknown[]) => preparePullRequest(...args),
+}));
+
+vi.mock("./shared", async () => {
+  const actual = await vi.importActual<typeof import("./shared")>("./shared");
+  return {
+    ...actual,
+    refresh: () => refresh(),
+  };
+});
+
+const project: Project = {
+  id: "p1",
+  name: "Shop",
+  source: "github",
+  orgId: "org-1",
+  ownerUserId: "owner-1",
+  createdAt: "2026-01-01T00:00:00.000Z",
+};
+
+const control: Control = {
+  id: "c1",
+  frameworkId: "fw",
+  code: "1.1.1",
+  secondaryCode: "WCAG",
+  title: "Images",
+  description: "Alt text",
+  checkId: "img-alt",
+};
+
+const finding: Finding = {
+  id: "f1",
+  projectId: "p1",
+  controlId: "c1",
+  assessmentId: "a1",
+  checkId: "img-alt",
+  kind: "violation",
+  status: "open",
+  severity: "serious",
+  confidence: "high",
+  reason: "Missing alt",
+  location: {
+    kind: "source",
+    filePath: "App.tsx",
+    line: 1,
+    column: 1,
+    snippet: '<img src="x" />',
+    span: { start: 0, end: 16 },
+  },
+  fix: null,
+  explanations: [],
+  detectedAt: "2026-01-01T00:00:00.000Z",
+};
+
+const remediation: Remediation = {
+  id: "r1",
+  findingId: "f1",
+  status: "approved",
+  suggestion: {
+    description: "Add alt",
+    proposedSnippet: '<img alt="" />',
+    provenance: "deterministic",
+  },
+  history: [],
+};
+
+function membership(role: OrgMembership["role"]): OrgMembership {
+  return {
+    id: "m1",
+    orgId: "org-1",
+    role,
+    userId: "user-1",
+    githubLogin: "alice",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+function workspaceFor(
+  role: OrgMembership["role"],
+  overrides: Partial<Db> = {},
+): Workspace {
+  const db = {
+    frameworks: [],
+    controls: [control],
+    organizations: [{ id: "org-1", name: "Acme", slug: "acme", createdAt: "" }],
+    memberships: [membership(role)],
+    projects: [project],
+    requirements: [],
+    assessments: [],
+    findings: [{ ...finding }],
+    remediations: [{ ...remediation }],
+    evidence: [],
+    alerts: [],
+    ...overrides,
+  } as Db;
+
+  return {
+    db,
+    project,
+    userId: "user-1",
+    githubLogin: "alice",
+    access: {
+      userId: "user-1",
+      githubLogin: "alice",
+      organizations: db.organizations,
+      memberships: db.memberships,
+    },
+    visibleProjects: [project],
+    organizations: db.organizations,
+    activeOrgId: "org-1",
+  };
+}
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("createPullRequestAction", () => {
+  it("denies viewers", async () => {
+    getWorkspace.mockResolvedValue(workspaceFor("viewer"));
+    const result = await createPullRequestAction("f1", {
+      error: null,
+      message: null,
+      prUrl: null,
+    }, new FormData());
+    expect(result.error).toMatch(/Not allowed/);
+    expect(result.prUrl).toBeNull();
+  });
+
+  it("returns an error when the project is missing", async () => {
+    getWorkspace.mockResolvedValue(
+      workspaceFor("member", { projects: [] }),
+    );
+    const result = await createPullRequestAction("f1", {
+      error: null,
+      message: null,
+      prUrl: null,
+    }, new FormData());
+    expect(result.error).toBe("Unknown project.");
+  });
+
+  it("records evidence when a PR is prepared", async () => {
+    const workspace = workspaceFor("member");
+    getWorkspace.mockResolvedValue(workspace);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    getGitHubAccessToken.mockResolvedValue("gho_token");
+    preparePullRequest.mockResolvedValue({
+      branch: "fix/img-alt",
+      prUrl: "https://github.com/acme/shop/pull/1",
+      title: "fix: alt text",
+      message: "Opened pull request.",
+    });
+
+    const result = await createPullRequestAction("f1", {
+      error: null,
+      message: null,
+      prUrl: null,
+    }, new FormData());
+
+    expect(result).toEqual({
+      error: null,
+      message: "Opened pull request.",
+      prUrl: "https://github.com/acme/shop/pull/1",
+    });
+    expect(workspace.db.evidence.some((row) => row.kind === "pull_request_prepared")).toBe(
+      true,
+    );
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("maps prepare failures into form state", async () => {
+    getWorkspace.mockResolvedValue(workspaceFor("member"));
+    getGitHubAccessToken.mockResolvedValue(null);
+    preparePullRequest.mockRejectedValue(
+      new PublicError("GitHub token unavailable."),
+    );
+
+    const result = await createPullRequestAction("f1", {
+      error: null,
+      message: null,
+      prUrl: null,
+    }, new FormData());
+
+    expect(result.error).toMatch(/GitHub token unavailable/);
+    expect(result.prUrl).toBeNull();
+  });
+});

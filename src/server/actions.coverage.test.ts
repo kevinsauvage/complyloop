@@ -4,14 +4,17 @@ import type { Finding, Remediation } from "@/core/finding-types";
 import { emptyActionMessageState } from "./action-state";
 import {
   markRemediationImplementedAction,
+  manualVerifyRemediationAction,
   verifyRemediationAction,
 } from "./actions/remediation-verify";
-import { dismissFindingAction } from "./actions/remediation-dismiss";
+import { dismissFindingAction, bulkDismissFindingsAction } from "./actions/remediation-dismiss";
 import {
   clearRequirementExceptionAction,
+  clearRequirementHumanPassAction,
   markRequirementExceptionAction,
   markRequirementPassedAction,
 } from "./actions/requirements";
+import { markAlertReadAction } from "./actions/alerts";
 import type { Db } from "./db";
 import type { Workspace } from "./workspace";
 
@@ -247,6 +250,65 @@ describe("markRemediationImplementedAction", () => {
   });
 });
 
+describe("manualVerifyRemediationAction", () => {
+  it("requires a verification note", async () => {
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(baseWorkspace()));
+    const result = await manualVerifyRemediationAction(
+      "f1",
+      emptyActionMessageState,
+      new FormData(),
+    );
+    expect(result.error).toMatch(/verification note is required/);
+  });
+
+  it("requires implemented status", async () => {
+    const workspace = baseWorkspace({
+      remediations: [
+        {
+          id: "r1",
+          findingId: "f1",
+          status: "approved",
+          suggestion: null,
+          history: [],
+        },
+      ],
+    });
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    const form = new FormData();
+    form.set("note", "Checked in staging");
+
+    const result = await manualVerifyRemediationAction(
+      "f1",
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/requires status implemented/);
+  });
+
+  it("manually verifies an implemented remediation", async () => {
+    const workspace = baseWorkspace();
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    const form = new FormData();
+    form.set("note", "Checked in staging");
+
+    const result = await manualVerifyRemediationAction(
+      "f1",
+      emptyActionMessageState,
+      form,
+    );
+
+    expect(result.message).toBe("Manually verified.");
+    expect(workspace.db.remediations[0]?.status).toBe("verified");
+    expect(workspace.db.findings[0]?.status).toBe("resolved");
+    expect(refreshRequirementStatuses).toHaveBeenCalledWith(workspace.db, "p1");
+    expect(
+      workspace.db.evidence.some(
+        (row) => row.kind === "remediation_manually_verified",
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("dismissFindingAction", () => {
   it("dismisses with a documented reason", async () => {
     const workspace = baseWorkspace({
@@ -285,6 +347,117 @@ describe("dismissFindingAction", () => {
       new FormData(),
     );
     expect(result.error).toMatch(/dismissal reason/i);
+  });
+});
+
+describe("bulkDismissFindingsAction", () => {
+  it("requires at least one finding id", async () => {
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(baseWorkspace()));
+    const form = new FormData();
+    form.set("reason", "accepted_risk");
+    const result = await bulkDismissFindingsAction(
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/Select at least one finding/);
+  });
+
+  it("requires a valid dismissal reason", async () => {
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(baseWorkspace()));
+    const form = new FormData();
+    form.append("findingIds", "f1");
+    const result = await bulkDismissFindingsAction(
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/dismissal reason/i);
+  });
+
+  it("dismisses open findings and skips closed ones", async () => {
+    const workspace = baseWorkspace({
+      findings: [
+        { ...finding, id: "f1", status: "open" },
+        { ...finding, id: "f2", status: "resolved" },
+      ],
+      remediations: [],
+    });
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    const form = new FormData();
+    form.append("findingIds", "f1");
+    form.append("findingIds", "f2");
+    form.set("reason", "not_applicable");
+    form.set("note", "out of scope");
+
+    const result = await bulkDismissFindingsAction(
+      emptyActionMessageState,
+      form,
+    );
+
+    expect(result).toEqual({
+      error: null,
+      message: "Dismissed 1 finding.",
+    });
+    expect(workspace.db.findings[0]?.status).toBe("dismissed");
+    expect(workspace.db.findings[0]?.dismissal?.reason).toBe("not_applicable");
+    expect(workspace.db.findings[1]?.status).toBe("resolved");
+    expect(refreshRequirementStatuses).toHaveBeenCalledWith(workspace.db, "p1");
+  });
+
+  it("errors when no open findings were dismissed", async () => {
+    const workspace = baseWorkspace({
+      findings: [{ ...finding, status: "dismissed" }],
+    });
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    const form = new FormData();
+    form.append("findingIds", "f1");
+    form.set("reason", "false_positive");
+
+    const result = await bulkDismissFindingsAction(
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/No open findings were dismissed/);
+  });
+});
+
+describe("markAlertReadAction", () => {
+  it("marks a project alert as read", async () => {
+    const workspace = baseWorkspace({
+      alerts: [
+        {
+          id: "alert-1",
+          projectId: "p1",
+          kind: "compliance_regression",
+          summary: "Regressed",
+          at: "2026-01-01T00:00:00.000Z",
+          read: false,
+        },
+      ],
+    });
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    const form = new FormData();
+    form.set("alertId", "alert-1");
+
+    const result = await markAlertReadAction(emptyActionMessageState, form);
+    expect(result.message).toBe("Alert dismissed.");
+    expect(workspace.db.alerts[0]?.read).toBe(true);
+  });
+
+  it("rejects an unknown alert id", async () => {
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(baseWorkspace()));
+    const form = new FormData();
+    form.set("alertId", "missing");
+    const result = await markAlertReadAction(emptyActionMessageState, form);
+    expect(result.error).toMatch(/Unknown alert/);
+  });
+
+  it("requires an alert id", async () => {
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(baseWorkspace()));
+    const result = await markAlertReadAction(
+      emptyActionMessageState,
+      new FormData(),
+    );
+    expect(result.error).toMatch(/Unknown alert/);
   });
 });
 
@@ -330,6 +503,83 @@ describe("requirement decision actions", () => {
     );
   });
 
+  it("records a temporary exception with expiry", async () => {
+    const requirement: Requirement = {
+      id: "req-temp",
+      projectId: "p1",
+      controlId: "c1",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+
+    const form = new FormData();
+    form.set("reason", "temporary");
+    form.set("note", "Fix landing next sprint");
+    form.set("expiresAt", "2026-12-31");
+
+    const result = await markRequirementExceptionAction(
+      "req-temp",
+      emptyActionMessageState,
+      form,
+    );
+
+    expect(result.message).toBe("Exception recorded.");
+    expect(workspace.db.requirements[0]?.status).toBe("failed");
+    expect(workspace.db.requirements[0]?.exception?.expiresAt).toMatch(
+      /^2026-12-31/,
+    );
+  });
+
+  it("requires expiry for temporary exceptions", async () => {
+    const requirement: Requirement = {
+      id: "req-temp-2",
+      projectId: "p1",
+      controlId: "c1",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+
+    const form = new FormData();
+    form.set("reason", "temporary");
+    form.set("note", "needs date");
+
+    const result = await markRequirementExceptionAction(
+      "req-temp-2",
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/expiry date/i);
+  });
+
+  it("requires a note for exceptions", async () => {
+    const requirement: Requirement = {
+      id: "req-note",
+      projectId: "p1",
+      controlId: "c1",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+
+    const form = new FormData();
+    form.set("reason", "accepted_risk");
+
+    const result = await markRequirementExceptionAction(
+      "req-note",
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/note is required/i);
+  });
+
   it("marks a manual control as human-passed", async () => {
     const requirement: Requirement = {
       id: "req-2",
@@ -354,6 +604,79 @@ describe("requirement decision actions", () => {
     expect(result.message).toMatch(/Human pass/);
     expect(workspace.db.requirements[0]?.status).toBe("passed");
     expect(workspace.db.requirements[0]?.humanPass?.note).toMatch(/staging/);
+  });
+
+  it("rejects human pass on automated controls", async () => {
+    const requirement: Requirement = {
+      id: "req-auto",
+      projectId: "p1",
+      controlId: "c1",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+
+    const form = new FormData();
+    form.set("note", "should not work");
+
+    const result = await markRequirementPassedAction(
+      "req-auto",
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/Only manual controls/);
+  });
+
+  it("clears a human pass and refreshes status", async () => {
+    const requirement: Requirement = {
+      id: "req-pass",
+      projectId: "p1",
+      controlId: "c-manual",
+      status: "passed",
+      determination: "human_review",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      humanPass: {
+        note: "ok",
+        at: "2026-01-01T00:00:00.000Z",
+      },
+    };
+    const workspace = requirementWorkspace(requirement);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+
+    const result = await clearRequirementHumanPassAction(
+      "req-pass",
+      emptyActionMessageState,
+      new FormData(),
+    );
+
+    expect(result.message).toBe("Human pass cleared.");
+    expect(workspace.db.requirements[0]?.humanPass).toBeUndefined();
+    expect(refreshRequirementStatuses).toHaveBeenCalledWith(
+      workspace.db,
+      "p1",
+    );
+  });
+
+  it("errors when clearing a missing human pass", async () => {
+    const requirement: Requirement = {
+      id: "req-no-pass",
+      projectId: "p1",
+      controlId: "c-manual",
+      status: "unable_to_verify",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+
+    const result = await clearRequirementHumanPassAction(
+      "req-no-pass",
+      emptyActionMessageState,
+      new FormData(),
+    );
+    expect(result.error).toMatch(/no human pass/i);
   });
 
   it("clears an exception and refreshes status", async () => {
@@ -385,5 +708,25 @@ describe("requirement decision actions", () => {
       workspace.db,
       "p1",
     );
+  });
+
+  it("errors when clearing a missing exception", async () => {
+    const requirement: Requirement = {
+      id: "req-no-ex",
+      projectId: "p1",
+      controlId: "c1",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+
+    const result = await clearRequirementExceptionAction(
+      "req-no-ex",
+      emptyActionMessageState,
+      new FormData(),
+    );
+    expect(result.error).toMatch(/no exception/i);
   });
 });

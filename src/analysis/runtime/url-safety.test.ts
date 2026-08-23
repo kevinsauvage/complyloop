@@ -1,9 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
+
+const dnsLookupMock = vi.hoisted(() =>
+  vi.fn(async () => [{ address: "93.184.216.34", family: 4 }]),
+);
+
+vi.mock("node:dns/promises", () => ({
+  default: {
+    lookup: dnsLookupMock,
+  },
+}));
+
 import {
+  UNSAFE_RUNTIME_PORT_MESSAGE,
   UNSAFE_RUNTIME_URL_MESSAGE,
   allowRuntimeNavigation,
   assertSafeRuntimeBaseUrl,
   assertSafeRuntimeUrl,
+  createRedirectHopGuard,
+  TOO_MANY_REDIRECTS_MESSAGE,
   type DnsLookup,
 } from "./url-safety";
 import { scanRuntime } from "./scan";
@@ -76,6 +90,30 @@ describe("assertSafeRuntimeBaseUrl", () => {
       /http or https/,
     );
   });
+
+  it("rejects unparseable URLs", () => {
+    expect(() => assertSafeRuntimeBaseUrl("not a url")).toThrow(
+      /valid http\(s\) preview URL/,
+    );
+  });
+
+  it("rejects non-standard ports", () => {
+    expect(() =>
+      assertSafeRuntimeBaseUrl("https://preview.example.com:8443"),
+    ).toThrow(UNSAFE_RUNTIME_PORT_MESSAGE);
+    expect(() =>
+      assertSafeRuntimeBaseUrl("http://preview.example.com:3000"),
+    ).toThrow(UNSAFE_RUNTIME_PORT_MESSAGE);
+  });
+
+  it("allows default and standard ports", () => {
+    expect(assertSafeRuntimeBaseUrl("https://preview.example.com:443")).toBe(
+      "https://preview.example.com",
+    );
+    expect(assertSafeRuntimeBaseUrl("http://preview.example.com:80")).toBe(
+      "http://preview.example.com",
+    );
+  });
 });
 
 describe("assertSafeRuntimeUrl", () => {
@@ -122,6 +160,31 @@ describe("assertSafeRuntimeUrl", () => {
     await expect(
       assertSafeRuntimeUrl("https://missing.example.com", { lookup: failing }),
     ).rejects.toThrow(/could not be resolved/);
+  });
+
+  it("fails closed when DNS returns no records", async () => {
+    const empty: DnsLookup = async () => [];
+    await expect(
+      assertSafeRuntimeUrl("https://empty.example.com", { lookup: empty }),
+    ).rejects.toThrow(/could not be resolved/);
+  });
+
+  it("accepts public IP literals without DNS lookup", async () => {
+    const lookup = vi.fn(publicLookup);
+    await expect(
+      assertSafeRuntimeUrl("http://93.184.216.34/app", { lookup }),
+    ).resolves.toBe("http://93.184.216.34/app");
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it("uses Node DNS when no lookup is injected", async () => {
+    dnsLookupMock.mockClear();
+    await expect(
+      assertSafeRuntimeUrl("https://preview.example.com/app"),
+    ).resolves.toBe("https://preview.example.com/app");
+    expect(dnsLookupMock).toHaveBeenCalledWith("preview.example.com", {
+      all: true,
+    });
   });
 });
 
@@ -217,5 +280,16 @@ describe("allowRuntimeNavigation", () => {
         lookup: publicLookup,
       }),
     ).resolves.toEqual({ ok: true });
+  });
+});
+
+describe("createRedirectHopGuard", () => {
+  it("allows up to the max document hops then throws", () => {
+    const guard = createRedirectHopGuard(2);
+    guard.countHop("document");
+    guard.countHop("script");
+    guard.countHop("document");
+    expect(guard.hops()).toBe(2);
+    expect(() => guard.countHop("document")).toThrow(TOO_MANY_REDIRECTS_MESSAGE);
   });
 });

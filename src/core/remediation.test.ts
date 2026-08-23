@@ -28,6 +28,15 @@ describe("canTransition", () => {
     expect(canTransition("approved", "suggested")).toBe(false);
     expect(canTransition("verified", "detected")).toBe(false);
   });
+
+  it("throws on an unknown remediation status at runtime", () => {
+    expect(() =>
+      canTransition(
+        "bogus" as unknown as Remediation["status"],
+        "suggested",
+      ),
+    ).toThrow(/Unhandled remediation status/);
+  });
 });
 
 describe("advanceRemediation", () => {

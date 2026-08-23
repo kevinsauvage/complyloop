@@ -46,7 +46,7 @@ here — do not re-paste stack/layout into agent markdown.
 
 - **Framework-agnostic core**: domain model and status transitions. Knows nothing about RGAA. Only place that changes requirement/remediation statuses.
 - **Framework adapters**: map RGAA/WCAG into controls + developer guidance.
-- **Analysis engine:** dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`, 18 checks) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core injected from `axe.min.js` on disk in `src/analysis/runtime/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs. Runtime-only rules (contrast, document title, bypass, landmarks, nested interactive, target size) stay `unable_to_verify` until axe runs. Do not add `@axe-core/playwright` — it injects the `axe-core` `source` string, which Next/webpack rewrites (`module is not defined`). Runtime URL SSRF uses isomorphic `ssrf-guard` plus Node DNS — never `ssrf-guard/node` (undici 8 breaks Next SSR). AI never sets requirement status.
+- **Analysis engine:** dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`, 21 checks) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core injected from `axe.min.js` on disk in `src/analysis/runtime/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs. Runtime-only rules (contrast, document title, bypass, landmarks, nested interactive, target size) stay `unable_to_verify` until axe runs. Axe → check mapping lives in `axe-map.ts` (~60+ rules). Do not add `@axe-core/playwright` — it injects the `axe-core` `source` string, which Next/webpack rewrites (`module is not defined`). Runtime URL SSRF uses isomorphic `ssrf-guard` plus Node DNS, port allowlist (80/443), and redirect hop limits — never `ssrf-guard/node` (undici 8 breaks Next SSR). Framework adapters register in `src/adapters/registry.ts`. AI never sets requirement status.
 - **AI services**: explanation and remediation suggestions; typed, provenance-tagged, never statuses.
 - **Repo connectors**: GitHub OAuth / App clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.
 
@@ -65,8 +65,12 @@ here — do not re-paste stack/layout into agent markdown.
 
 ## Analysis checks (current)
 
-Eighteen AST checks: img-alt, button-name, anchor-name, html-lang, positive-tabindex, input-label, heading-order, empty-heading, iframe-title, autoplay-media, duplicate-id, form-error-association, aria-hidden-focusable, aria-role, aria-props, aria-required-attr, no-autofocus, keyboard-interaction.
+Twenty-one AST checks: img-alt, button-name, anchor-name, html-lang, positive-tabindex, input-label, heading-order, empty-heading, iframe-title, autoplay-media, duplicate-id, form-error-association, aria-hidden-focusable, aria-role, aria-props, aria-required-attr, no-autofocus, keyboard-interaction, meta-viewport, list-structure, autocomplete-valid.
 
 Six runtime-only checks (axe, require `runtimeBaseUrl`): color-contrast, document-title, bypass, landmark-one-main, nested-interactive, target-size. Without a successful runtime audit these stay `unable_to_verify`.
 
 CI gate: `npx complyloop-check` / `@complyloop/check` (AST only).
+
+## Unit test coverage
+
+`npm run test:coverage` enforces high gates on the product surface (`src/core`, `src/adapters`, `src/analysis`, `src/ai`, `src/hooks`, most of `src/server`). Excluded from the unit gate (covered by e2e / worker / fixture paths instead): Postgres loaders (`db-store`), Playwright browser driver (`runtime/scan.ts`), live GitHub/git checkout I/O, and a few thin Next Auth/workspace glue modules. See `vitest.config.mts`.

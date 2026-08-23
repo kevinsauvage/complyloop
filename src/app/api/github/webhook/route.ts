@@ -3,7 +3,12 @@ import {
   isWebhookConfigured,
   verifyGitHubSignature,
 } from "@/server/webhook";
+import {
+  drainAssessmentJobQueue,
+  shouldDrainAssessmentJobsInline,
+} from "@/server/assessment-job-drain";
 import { claimWebhookDelivery } from "@/server/webhook-deliveries";
+import { after } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -48,6 +53,9 @@ export async function POST(request: Request): Promise<Response> {
       },
       { status: 503 },
     );
+  }
+  if (result.handled && shouldDrainAssessmentJobsInline()) {
+    after(() => drainAssessmentJobQueue());
   }
   return Response.json(
     { ...result, duplicate: !firstDelivery, deliveryId },

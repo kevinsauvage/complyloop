@@ -1,4 +1,4 @@
-import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
+import { mergeAdapterControls } from "@/adapters/registry";
 import type { Project } from "@/core/project-types";
 import type { Db } from "./db";
 import { removeProjectScopedRecords } from "./project-cascade";
@@ -30,39 +30,22 @@ function purgeNonGitHubProjects(db: Db): boolean {
   return true;
 }
 
-/** Seeds the RGAA framework and controls on first use. */
+/** Seeds registered framework adapters on first use and merges new controls. */
 export function ensureSeeded(db: Db): boolean {
   let changed = purgeNonGitHubProjects(db);
 
   if (db.frameworks.length === 0) {
-    db.frameworks.push(rgaaFramework);
-    db.controls.push(...rgaaControls);
+    const merged = mergeAdapterControls([], []);
+    db.frameworks.push(...merged.frameworks);
+    db.controls.push(...merged.controls);
+    return true;
+  }
+
+  const merged = mergeAdapterControls(db.frameworks, db.controls);
+  if (merged.changed) {
+    db.frameworks = merged.frameworks;
+    db.controls = merged.controls;
     changed = true;
-  } else {
-    // Pick up newly shipped RGAA controls without wiping custom ones.
-    const existingIds = new Set(db.controls.map((control) => control.id));
-    for (const control of rgaaControls) {
-      if (!existingIds.has(control.id)) {
-        db.controls.push(control);
-        changed = true;
-      } else {
-        const existing = db.controls.find(
-          (candidate) => candidate.id === control.id,
-        );
-        if (
-          existing &&
-          control.complianceWeight !== undefined &&
-          existing.complianceWeight !== control.complianceWeight
-        ) {
-          existing.complianceWeight = control.complianceWeight;
-          changed = true;
-        }
-      }
-    }
-    if (!db.frameworks.some((framework) => framework.id === rgaaFramework.id)) {
-      db.frameworks.push(rgaaFramework);
-      changed = true;
-    }
   }
 
   return changed;

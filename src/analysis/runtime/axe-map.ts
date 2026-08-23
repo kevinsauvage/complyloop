@@ -5,25 +5,57 @@ import type { CheckId } from "../types";
  * Unmapped axe rules are ignored (we only status controls we model).
  */
 const AXE_TO_CHECK: Record<string, CheckId> = {
+  // Images / media alternatives
   "image-alt": "img-alt",
   "input-image-alt": "img-alt",
+  "svg-img-alt": "img-alt",
+  "object-alt": "img-alt",
+  "role-img-alt": "img-alt",
+  "area-alt": "img-alt",
+
+  // Names
   "button-name": "button-name",
+  "input-button-name": "button-name",
   "link-name": "anchor-name",
+  "aria-command-name": "button-name",
+  "aria-input-field-name": "input-label",
+  "aria-toggle-field-name": "input-label",
+  "aria-tooltip-name": "button-name",
+  "aria-meter-name": "input-label",
+  "aria-progressbar-name": "input-label",
+
+  // Language
   "html-has-lang": "html-lang",
   "html-lang-valid": "html-lang",
+  "valid-lang": "html-lang",
+  "html-xml-lang-mismatch": "html-lang",
+
+  // Focus / keyboard
   tabindex: "positive-tabindex",
+  "scrollable-region-focusable": "keyboard-interaction",
+
+  // Forms / labels
   label: "input-label",
   "select-name": "input-label",
+  "form-field-multiple-labels": "input-label",
+  "label-content-name-mismatch": "input-label",
+
+  // Frames / media
   "frame-title": "iframe-title",
-  "video-caption": "autoplay-media",
-  "audio-caption": "autoplay-media",
+  "frame-title-unique": "iframe-title",
+  "no-autoplay-audio": "autoplay-media",
+
+  // IDs / headings
   "duplicate-id": "duplicate-id",
   "duplicate-id-active": "duplicate-id",
   "duplicate-id-aria": "duplicate-id",
   "empty-heading": "empty-heading",
   "heading-order": "heading-order",
+  "page-has-heading-one": "heading-order",
+
+  // ARIA
   "aria-hidden-focus": "aria-hidden-focusable",
-  "form-field-multiple-labels": "input-label",
+  "aria-hidden-body": "aria-hidden-focusable",
   "aria-roles": "aria-role",
   "aria-deprecated-role": "aria-role",
   "aria-allowed-attr": "aria-props",
@@ -35,15 +67,36 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "aria-required-children": "aria-required-attr",
   "aria-required-parent": "aria-required-attr",
   "aria-conditional-attr": "aria-required-attr",
+  "aria-braille-equivalent": "aria-props",
+
+  // Runtime-only / rendered
   "color-contrast": "color-contrast",
   "color-contrast-enhanced": "color-contrast",
+  "link-in-text-block": "color-contrast",
   "document-title": "document-title",
   bypass: "bypass",
+  "skip-link": "bypass",
   "landmark-one-main": "landmark-one-main",
+  "landmark-main-is-top-level": "landmark-one-main",
+  "landmark-no-duplicate-main": "landmark-one-main",
   "nested-interactive": "nested-interactive",
   "target-size": "target-size",
+
+  // Structure / zoom / autocomplete (new modeled checks)
+  list: "list-structure",
+  listitem: "list-structure",
+  "definition-list": "list-structure",
+  dlitem: "list-structure",
+  "meta-viewport": "meta-viewport",
+  "meta-viewport-large": "meta-viewport",
+  "autocomplete-valid": "autocomplete-valid",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {
   return AXE_TO_CHECK[axeRuleId];
+}
+
+/** Exposed for tests — count of axe rules we currently map. */
+export function mappedAxeRuleCount(): number {
+  return Object.keys(AXE_TO_CHECK).length;
 }
