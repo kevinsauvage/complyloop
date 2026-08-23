@@ -1,0 +1,14 @@
+---
+description: App UI patterns for pages and shared components
+globs: src/app/**/*,src/components/**/*
+alwaysApply: false
+---
+
+# UI Conventions
+
+- Prefer `PageHeader`, `EmptyState`, and helpers from `page-primitives.tsx` over one-off page chrome.
+- Compose shadcn primitives from `components/ui/` inside feature folders (`findings/`, `dashboard/`, `requirements/`).
+- Server Components by default; add `"use client"` only when interactivity requires it.
+- Meet the same accessibility bar we enforce on scanned apps: labels, keyboard access, semantic HTML (jsx-a11y is strict).
+- Use domain vocabulary in UI copy (Finding, Requirement, Remediation) — not "issue" or "violation" in chrome.
+- Status UI: reuse existing badges/tokens; surface automated vs `human_review` when the status source matters.

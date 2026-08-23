@@ -5,6 +5,11 @@ High-level architecture for ComplyLoop. The MVP implements the core loop in
 `src/analysis/`, optional AI in `src/ai/`, and persistence/assessment/actions in
 `src/server/`.
 
+**Agent docs:** orientation in `AGENTS.md` (Claude: thin pointer in `CLAUDE.md`);
+enforceable rules in `.cursor/rules/` (always-on: product, domain, quality;
+file-scoped: analysis, server, UI, AI, TypeScript). Keep durable architecture
+here — do not re-paste stack/layout into agent markdown.
+
 **Current connectors:** GitHub OAuth / GitHub App repo connect only.
 **Persistence:** **Postgres via Drizzle** (`DATABASE_URL` required) for domain state, encrypted GitHub tokens, and webhook delivery ids. Evidence is append-only (insert-only). Writers use `withDbWrite` / `withWorkspaceWrite`. **Tenancy:** organizations + memberships with role RBAC (`src/core/rbac.ts`); active org via cookie; projects carry `orgId`. Source trees are ephemeral temp clones per job (`src/server/repo-checkout.ts`). See `docs/deploy.md`.
 **Observability:** `@sentry/nextjs` via `src/instrumentation.ts` (Node/Edge) and `src/instrumentation-client.ts` (browser). Product code still calls `reportError` / `reportWarning`. GitHub webhook payloads are typed with `@octokit/webhooks`.

@@ -10,145 +10,70 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # AGENTS.md — AI Agent Guide
 
-Guide for AI agents working in this repository. Read this before making changes.
+Orientation for agents working in this repo. **Do not duplicate** product principles, domain vocabulary, or quality gates here — those live in `.cursor/rules/` (always applied in Cursor) and `docs/ai/architecture.md`.
 
-## What This Project Is
+| Doc | Role |
+|-----|------|
+| [`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md) | Product source of truth |
+| [`docs/ai/architecture.md`](./docs/ai/architecture.md) | System shape, persistence, analysis engines |
+| [`.cursor/rules/`](./.cursor/rules/) | Enforceable agent rules (domain, quality, AI, TS, analysis, server, UI) |
 
-A **compliance engineering platform** that turns compliance requirements into actionable, verifiable engineering work. It is developer-first: it doesn't just tell teams "you are not compliant" — it tells them *what* failed, *why*, *where*, *how to fix it*, and *proves the fix worked*.
+## What this is
 
-Full product specification: [`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md). Treat the spec as the source of truth for product decisions.
+A **compliance engineering platform**: turns requirements into verifiable engineering work (Finding → Remediation → Evidence). MVP is accessibility (RGAA/WCAG) for React/Next.js/TypeScript apps; the domain stays framework-agnostic.
 
-## The Core Product Loop
-
-Everything in this codebase exists to serve this loop:
+Core loop every feature must serve:
 
 ```
 Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Continuous monitoring
 ```
 
-If a feature doesn't advance this loop, question whether it belongs in the MVP.
+If a change does not advance that loop, question whether it belongs in the MVP.
 
-## MVP Scope
+## Tech stack
 
-Deliberately narrow — **accessibility compliance (RGAA/WCAG) for React/Next.js/TypeScript web applications**:
+- **App:** Next.js 16 (App Router) + React 19, TypeScript strict, Tailwind 4 + shadcn/ui
+- **DB:** Postgres via Drizzle (`DATABASE_URL`); evidence insert-only; GitHub tokens encrypted at rest
+- **Auth / GitHub:** Auth.js v5 + GitHub OAuth/App; ephemeral clones per job (`src/server/repo-checkout.ts`)
+- **Analysis:** AST checks in `src/analysis/` (18) + optional Playwright/axe runtime when `runtimeBaseUrl` is set
+- **Jobs:** Durable assessment worker (`npm run worker`)
+- **AI:** Vercel AI SDK, optional (`AI_GATEWAY_API_KEY`); never sets statuses
+- **CI package:** `@complyloop/check` / `npx complyloop-check`
+- **Tests:** Vitest + RTL; Playwright e2e (gated by `E2E_AUTH_ENABLED`)
 
-- Machine-checkable accessibility requirements as the first framework
-- Source-code analysis of connected repositories
-- AI-assisted explanation and remediation with human review
-- Automated verification of fixes
-- Evidence generation and export
-
-The domain model must stay **framework-agnostic** (requirements/controls, not "accessibility rules") so SOC 2, ISO 27001, EU CRA, EAA, and custom frameworks can be added later without redesign.
-
-## Tech Stack
-
-- **Language:** TypeScript (strict mode) everywhere (`typescript` is a runtime dependency for AST analysis)
-- **Frontend/App:** Next.js 16 (App Router) + React 19
-- **Styling/UI:** Tailwind CSS 4 + shadcn/ui (Radix, dark zinc theme by default); app helpers in `src/components/page-primitives.tsx`
-- **Persistence:** Postgres via Drizzle (`DATABASE_URL` required; `src/server/db-store/`). Evidence is insert-only. Encrypted GitHub tokens + webhook deliveries live in Postgres. Source checkouts are ephemeral temp clones per job (`src/server/repo-checkout.ts`) — no durable workspace volume.
-- **Auth / GitHub connect:** Auth.js v5 (`next-auth`) with GitHub OAuth (`AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`); projects are GitHub-only (sign-in required to connect)
-- **GitHub API / git:** `@octokit/rest` + `@octokit/webhooks` (typed events) + `@octokit/webhooks-methods`; clones and PR push via `simple-git`; handoff patches via `diff`; source walks via `fast-glob`
-- **Observability:** `@sentry/nextjs` (`SENTRY_DSN` server/edge, optional `NEXT_PUBLIC_SENTRY_DSN` for the browser). `reportError` / `reportWarning` in `src/server/observability.ts` remain the product API.
-- **Analysis engine:** deterministic TypeScript AST checks in `src/analysis/` as the source of truth for local/CI defects (18 checks). Role and focusability tables come from `aria-query` + `axobject-query`. Optional **runtime DOM audits** (Playwright + axe-core injected from disk) when a project has `runtimeBaseUrl` — composition-sensitive rules (labels, names, …) then use the rendered page as status truth; runtime-only rules (contrast, title, bypass, landmarks, nested interactive, target size) stay `unable_to_verify` until that audit runs. Do not add `@axe-core/playwright` (Next/webpack rewrites axe `source`). Runtime URL SSRF uses isomorphic `ssrf-guard` + Node DNS — never `ssrf-guard/node`. AI augments, never replaces either engine.
-- **CI package:** `@complyloop/check` / `npx complyloop-check` (`packages/check`)
-- **AI:** Vercel AI SDK for explanations (optional, gated by `AI_GATEWAY_API_KEY`); deterministic explanations are the baseline
-- **Testing:** Vitest + React Testing Library (jsdom)
-- **Linting:** ESLint 9 flat config with `eslint-config-next` + strict `eslint-plugin-jsx-a11y`
-
-If a stack decision is missing here, propose it and record it here once made.
+Missing stack decisions: propose them, then record in this file and `docs/ai/architecture.md` if the system shape changes.
 
 ## Commands
 
 ```bash
-npm run dev          # Start dev server (Turbopack)
-npm run build        # Production build
-npm run lint         # ESLint
-npm run typecheck    # tsc --noEmit
-npm run test         # Vitest, single run
-npm run test:watch   # Vitest, watch mode
-npm run check -- [path]  # CI gate: fail on accessibility violations in a tree
+npm run dev              # Dev server (Turbopack)
+npm run build            # Production build
+npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done
+npm run check -- [path]  # Local a11y CI gate on a tree
+npm run worker           # Assessment job worker
+npm run db:migrate       # Apply Drizzle migrations
+npm run test:e2e         # Playwright (after e2e:seed)
 ```
 
-## Domain Vocabulary
-
-Use these terms consistently in code, database schema, APIs, and UI. See `.cursor/rules/domain-model.mdc` for the full model.
-
-| Term | Meaning |
-|------|---------|
-| **Framework** | A compliance framework (RGAA, WCAG, SOC 2, custom checklist) |
-| **Control** | A machine-understandable obligation derived from a framework |
-| **Requirement** | A control applied to a specific target (repo/app) with a status |
-| **Assessment** | An evaluation run of requirements against connected software |
-| **Finding** | A specific failure: what, why, where, impact, confidence |
-| **Remediation** | The workflow that resolves a finding (Detected → … → Verified) |
-| **Verification** | Automated or human confirmation that a fix actually works |
-| **Evidence** | Immutable record of what was checked, found, changed, verified |
-| **Exception** | A documented, historized deviation (accepted risk, N/A, false positive) |
-
-## Non-Negotiable Product Principles
-
-1. **Evidence over claims** — never mark something compliant without recorded evidence.
-2. **Verification over AI confidence** — an AI saying "this looks compliant" is never a status source. Statuses come from deterministic checks or explicit human decisions.
-3. **Human in the loop** — AI-generated remediations are *suggestions* until a human approves them. Important decisions and exceptions keep their history (no hard deletes of decision records).
-4. **Explainability** — every finding must answer: what requirement failed, why, where, how to fix, how we know it's fixed.
-5. **Continuous, not one-time** — design for re-assessment and regression detection, not single audit snapshots.
-6. **Actionable for developers** — write finding/remediation copy in engineering language, not legal language.
-
-## Requirement Statuses
-
-The canonical status set (use an enum, exhaustive switches required):
-
-`passed` | `failed` | `needs_review` | `not_applicable` | `unable_to_verify`
-
-Always distinguish *automatically verified* results from *human-reviewed* results in the data model and UI.
-
-## Engineering Conventions
-
-- TypeScript strict; no `any` unless justified with a comment
-- Imports at the top of the module — no inline imports
-- Exhaustive `switch` over unions/enums with a `never` check in `default`
-- Domain logic lives in framework-agnostic modules; accessibility/RGAA specifics are plugins/adapters, never baked into the core
-- Deterministic checks and AI features are separated at the module boundary; AI output is always typed, validated, and labeled as AI-generated
-- Evidence records are append-only
-- Our own UI must meet the accessibility bar we assess others against (jsx-a11y strict is enforced by ESLint)
-- Tests live next to the code they test as `*.test.ts(x)`; test behavior, not implementation — query by accessible role/name
-- Full code quality standards: `.cursor/rules/code-quality.mdc`
-
-## Definition of Done
-
-Work is not done until all of these pass locally:
-
-```bash
-npm run lint && npm run typecheck && npm run test && npm run build
-```
-
-Never disable a lint rule, skip a test, or loosen tsconfig to make the gate pass — fix the underlying issue, or change the rule deliberately and record why in `docs/ai/architecture.md`.
-
-## Repository Layout
+## Layout (where to look)
 
 ```
-compliance-engineering-product-spec.md   Product spec (source of truth)
-AGENTS.md                                This file
-docs/ai/                                 AI-facing architecture notes
-.cursor/rules/                           Cursor rules (product context, conventions)
-src/core/                                Framework-agnostic domain core (types, statuses, transitions)
-src/analysis/                            Deterministic analysis engine (AST checks, scanner, fixes)
-src/adapters/rgaa/                       RGAA/WCAG framework adapter (controls, guidance)
-src/ai/                                  AI explainer (optional, provenance-tagged)
-src/server/                              Store, seed, assessment, connect, webhooks
-src/server/actions/                      Server Actions split by domain (no barrel)
-src/app/                                 Next.js App Router routes
-src/components/                          Shared UI (badges, cards, nav, findings/, requirements/, dashboard/)
-packages/check/testdata/                 Deliberate violations for the CI check package
+src/core/           Framework-agnostic domain (statuses, transitions, types)
+src/analysis/       Deterministic AST + runtime audits
+src/adapters/rgaa/  RGAA/WCAG controls and guidance
+src/ai/             Optional AI explainer / remediation (provenance-tagged)
+src/server/         Persistence, assessment, GitHub, webhooks, actions/
+src/app/            App Router pages + API routes
+src/components/     UI (feature folders + shadcn in ui/)
+packages/check/     CI gate CLI (testdata/ is deliberate violations — excluded from lint)
+docs/ai/            Architecture notes for agents
+.cursor/rules/      Cursor / agent rules
 ```
 
-`packages/check/testdata/` is excluded from lint/typecheck on purpose (deliberate
-violations). Leftover `.data/` dirs are gitignored only.
+## When building features
 
-## When Building Features
-
-1. Check the spec section relevant to the feature (sections are numbered).
-2. Map the feature to the core loop stage(s) it serves.
-3. Keep the core domain framework-agnostic; put RGAA/WCAG specifics behind an adapter.
-4. Model statuses and workflow states as typed enums with exhaustive handling.
-5. Update `docs/ai/architecture.md` when the system shape or persistence model changes.
+1. Check the relevant numbered section of the product spec.
+2. Map the change to a core-loop stage.
+3. Keep `src/core/` framework-agnostic; put RGAA/WCAG behind `src/adapters/`.
+4. Use canonical statuses with exhaustive switches (see `domain-model` rule).
+5. Update `docs/ai/architecture.md` when system shape or persistence changes.

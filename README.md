@@ -127,4 +127,5 @@ packages/check  Customer-facing CI bin (@complyloop/check)
 ```
 
 See [`docs/ai/architecture.md`](./docs/ai/architecture.md) for the full
-picture. Agent-facing conventions live in [`AGENTS.md`](./AGENTS.md).
+picture. Agent orientation: [`AGENTS.md`](./AGENTS.md); enforceable rules:
+[`.cursor/rules/`](./.cursor/rules/).

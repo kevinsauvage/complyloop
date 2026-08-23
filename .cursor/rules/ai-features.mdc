@@ -1,6 +1,6 @@
 ---
-description: Rules for implementing AI-powered features (explanation, remediation, summarization) inside the product
-globs: **/ai/**,**/*ai*.ts,**/*ai*.tsx
+description: Rules for product AI features (explanation, remediation, summarization)
+globs: src/ai/**/*,src/server/actions/remediation-ai.ts
 alwaysApply: false
 ---
 
@@ -22,10 +22,10 @@ AI accelerates the product but is never the source of truth.
 - Produce evidence records on its own authority
 - Auto-apply changes without an explicit human approval step
 
-## Implementation requirements
+## Implementation
 
-- All AI output is parsed into typed, validated structures (e.g. zod schemas) before use; reject or flag unparseable output.
-- Persisted AI-generated content carries provenance metadata: model, timestamp, prompt/feature identifier, and an `ai_generated: true` flag surfaced in the UI.
-- AI-suggested remediations enter the workflow at `suggested`, never further.
-- Include a confidence field on AI explanations/suggestions and display it to users.
-- Deterministic checks (static analysis, tests) are the only automated path to `passed`/`failed`/`verified`.
+- Parse AI output into typed Zod (or equivalent) schemas before use; reject or flag unparseable output.
+- Persist provenance: model, timestamp, feature id, and `ai_generated: true` (shown in UI).
+- Suggested remediations enter the workflow at `suggested` only.
+- Include a confidence field on explanations/suggestions and display it.
+- Only deterministic checks (or explicit human decisions) may set `passed` / `failed` / `verified`.

@@ -1,0 +1,15 @@
+---
+description: Conventions for the deterministic AST + runtime analysis engine
+globs: src/analysis/**/*
+alwaysApply: false
+---
+
+# Analysis Engine
+
+- AST checks in `checks/` are the source of truth for local/CI defects. Register every new check in `registry.ts`.
+- Implement `AccessibilityCheck` (`id` + `run`); emit `RawFinding` with developer-facing `reason` and optional structured `fix`.
+- Use `aria-query` / `axobject-query` for role and focusability — do not hardcode ARIA tables.
+- Runtime audits: Playwright + axe loaded from disk (`axe.min.js`). **Never** add `@axe-core/playwright` (Next/webpack rewrites axe `source`).
+- SSRF for runtime URLs: isomorphic `ssrf-guard` + Node DNS — **never** `ssrf-guard/node` (breaks Next SSR).
+- Analysis sets statuses; AI never does. Composition-sensitive rules defer to runtime when an audit ran.
+- Colocate tests next to checks; cover both violation and clean cases.

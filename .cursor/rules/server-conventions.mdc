@@ -1,0 +1,16 @@
+---
+description: Server Actions, persistence, GitHub, and assessment worker conventions
+globs: src/server/**/*
+alwaysApply: false
+---
+
+# Server Conventions
+
+- Server Actions: one domain file under `actions/` — no barrel re-exports. Shared helpers live in `actions/shared.ts`.
+- Authorize before mutating (`assertProjectPermission`, `requireOnActive`, `requireOnFindingProject`).
+- User-facing failures: throw `PublicError`. Unexpected errors: `reportError` / `reportWarning` from `observability.ts`.
+- Evidence is insert-only — never UPDATE/DELETE evidence rows (DB trigger enforces this).
+- Status changes go through core helpers (`advanceRemediation`, requirement-status transitions) — actions must not invent statuses.
+- Never log or return raw GitHub tokens. Source trees are ephemeral temp clones (`repo-checkout.ts`).
+- Long assessments: durable jobs + worker (`assessment-jobs`, `assessment-worker`), not long-running request handlers.
+- Webhook deliveries are idempotent by `x-github-delivery`.
