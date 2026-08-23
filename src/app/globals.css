@@ -112,34 +112,35 @@
   --secondary: oklch(0.26 0.025 240);
   --secondary-foreground: oklch(0.96 0.01 220);
   --muted: oklch(0.26 0.025 240);
-  --muted-foreground: oklch(0.7 0.02 230);
+  --muted-foreground: oklch(0.74 0.02 230);
   --accent: oklch(0.28 0.04 210);
   --accent-foreground: oklch(0.92 0.04 195);
-  --destructive: oklch(0.68 0.18 22);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.65 0.1 200);
-  --signal: oklch(0.72 0.12 195);
-  --signal-foreground: oklch(0.18 0.03 230);
-  --status-passed: oklch(0.72 0.14 155);
-  --status-failed: oklch(0.68 0.18 22);
-  --status-review: oklch(0.78 0.12 80);
-  --status-na: oklch(0.65 0.02 240);
-  --status-unverifiable: oklch(0.7 0.1 280);
-  --chart-1: oklch(0.72 0.12 195);
-  --chart-2: oklch(0.72 0.14 155);
-  --chart-3: oklch(0.78 0.12 80);
-  --chart-4: oklch(0.68 0.18 22);
-  --chart-5: oklch(0.65 0.08 250);
+  --destructive: oklch(0.74 0.17 22);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.7 0.11 200);
+  /* Brighter, higher-chroma accents so /15–/25 tints and text stay readable on dark cards */
+  --signal: oklch(0.78 0.13 195);
+  --signal-foreground: oklch(0.16 0.03 230);
+  --status-passed: oklch(0.8 0.16 155);
+  --status-failed: oklch(0.78 0.18 25);
+  --status-review: oklch(0.86 0.14 85);
+  --status-na: oklch(0.76 0.03 240);
+  --status-unverifiable: oklch(0.8 0.12 285);
+  --chart-1: oklch(0.78 0.13 195);
+  --chart-2: oklch(0.8 0.16 155);
+  --chart-3: oklch(0.86 0.14 85);
+  --chart-4: oklch(0.78 0.18 25);
+  --chart-5: oklch(0.72 0.1 250);
   --sidebar: oklch(0.14 0.02 240);
   --sidebar-foreground: oklch(0.96 0.01 220);
-  --sidebar-primary: oklch(0.72 0.12 195);
-  --sidebar-primary-foreground: oklch(0.18 0.03 230);
+  --sidebar-primary: oklch(0.78 0.13 195);
+  --sidebar-primary-foreground: oklch(0.16 0.03 230);
   --sidebar-accent: oklch(0.26 0.04 210);
   --sidebar-accent-foreground: oklch(0.92 0.04 195);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.65 0.1 200);
-  --surface-grid: oklch(1 0 0 / 0.04);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.7 0.11 200);
+  --surface-grid: oklch(1 0 0 / 0.045);
 }
 
 @layer base {

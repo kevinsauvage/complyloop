@@ -55,9 +55,9 @@
 - [x] Upgrade finding detail (location, evidence trail, dismiss, handoff)
 - [x] Align requirements cards/page with status tokens + summary chips
 - [x] Rebuild evidence page as a tone-coded timeline
-- [ ] Polish org/account page and connect-project flows
-- [ ] Improve evidence HTML report print styling
-- [ ] Dark mode contrast pass across status accents
+- [x] Polish org/account page and connect-project flows
+- [x] Improve evidence HTML report print styling
+- [x] Dark mode contrast pass across status accents
 
 ### 7. Testing and Quality Assurance
 

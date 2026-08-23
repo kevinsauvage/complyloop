@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { formatDateTime } from "@/components/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -8,6 +9,7 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import type { OrgRole } from "@/core/project-types";
+import { cn } from "@/lib/utils";
 
 type OrgAccountOverviewProps = {
   orgName: string;
@@ -21,6 +23,25 @@ type OrgAccountOverviewProps = {
   supportEmail: string | null;
 };
 
+function roleBadgeClass(role: OrgRole | null): string {
+  switch (role) {
+    case "owner":
+      return "border-transparent bg-signal/15 text-signal dark:bg-signal/25";
+    case "admin":
+      return "border-transparent bg-status-review/15 text-status-review dark:bg-status-review/25";
+    case "member":
+      return "border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25";
+    case "viewer":
+      return "border-transparent bg-status-na/15 text-status-na dark:bg-status-na/25";
+    case null:
+      return "";
+    default: {
+      const _exhaustive: never = role;
+      throw new Error(`Unhandled org role: ${_exhaustive}`);
+    }
+  }
+}
+
 export function OrgAccountOverview({
   orgName,
   orgSlug,
@@ -33,106 +54,92 @@ export function OrgAccountOverview({
   supportEmail,
 }: OrgAccountOverviewProps) {
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-none ring-1 ring-border/60">
+      <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center gap-2">
+          <span
+            className="hidden size-2 shrink-0 rounded-full bg-signal sm:block"
+            aria-hidden
+          />
           <h2 className="font-heading text-base font-medium leading-snug">
             Account
           </h2>
           <Badge variant="secondary">Early access pilot</Badge>
+          {viewerRole ? (
+            <Badge className={cn("capitalize", roleBadgeClass(viewerRole))}>
+              {viewerRole}
+            </Badge>
+          ) : null}
         </div>
         <CardDescription>
           Ownership, plan, and how this workspace&apos;s data is retained.
           Billing and self-serve plans are not enabled yet for this pilot.
         </CardDescription>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <SummaryChip
+            label="Projects"
+            value={String(projectCount)}
+          />
+          <SummaryChip label="Members" value={String(memberCount)} />
+          {pendingInviteCount > 0 ? (
+            <SummaryChip
+              label="Pending invites"
+              value={String(pendingInviteCount)}
+              tone="review"
+            />
+          ) : null}
+        </div>
       </CardHeader>
-      <CardContent className="grid gap-6 sm:grid-cols-2">
-        <dl className="space-y-4 text-sm">
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Organization
-            </dt>
-            <dd className="mt-1 font-medium text-foreground">{orgName}</dd>
-            <dd className="font-mono text-xs text-muted-foreground">{orgSlug}</dd>
-          </div>
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Workspace owner
-            </dt>
-            <dd className="mt-1 font-medium text-foreground">
-              {ownerGithubLogin ? `@${ownerGithubLogin}` : "Unknown"}
-            </dd>
-            <dd className="text-xs text-muted-foreground">
-              The owner controls export, deletion, and admin roles. Ownership
-              transfer is not supported yet.
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Your role
-            </dt>
-            <dd className="mt-1 font-medium capitalize text-foreground">
-              {viewerRole ?? "none"}
-            </dd>
-          </div>
-        </dl>
+      <CardContent className="grid gap-4 sm:grid-cols-2">
+        <MetaTile label="Organization">
+          <p className="font-medium text-foreground">{orgName}</p>
+          <p className="font-mono text-xs text-muted-foreground">{orgSlug}</p>
+        </MetaTile>
+        <MetaTile label="Workspace owner">
+          <p className="font-medium text-foreground">
+            {ownerGithubLogin ? `@${ownerGithubLogin}` : "Unknown"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Controls export, deletion, and admin roles. Ownership transfer is
+            not supported yet.
+          </p>
+        </MetaTile>
+        <MetaTile label="Plan">
+          <p className="text-sm text-muted-foreground">
+            Manually provisioned. Seat and project quotas are not enforced in
+            product yet.
+          </p>
+        </MetaTile>
+        <MetaTile label="Workspace age">
+          <p className="text-foreground">Created {formatDateTime(createdAt)}</p>
+        </MetaTile>
+        <MetaTile label="Support contact" className="sm:col-span-2">
+          {supportEmail ? (
+            <a
+              href={`mailto:${supportEmail}`}
+              className="font-medium text-signal underline-offset-4 hover:underline"
+            >
+              {supportEmail}
+            </a>
+          ) : (
+            <p className="text-muted-foreground">
+              Your ComplyLoop pilot operator
+            </p>
+          )}
+          <p className="mt-1 text-xs text-muted-foreground">
+            Export and delete from this page. Assisted deletion within 30 days —
+            see{" "}
+            <Link
+              href="/legal/privacy"
+              className="text-foreground underline underline-offset-2"
+            >
+              Privacy
+            </Link>
+            .
+          </p>
+        </MetaTile>
 
-        <dl className="space-y-4 text-sm">
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">Plan</dt>
-            <dd className="mt-1 text-xs text-muted-foreground">
-              Manually provisioned. Seat and project quotas are not enforced in
-              product yet.
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Workspace size
-            </dt>
-            <dd className="mt-1 text-foreground">
-              {projectCount} project{projectCount === 1 ? "" : "s"} ·{" "}
-              {memberCount} member{memberCount === 1 ? "" : "s"}
-              {pendingInviteCount > 0
-                ? ` · ${pendingInviteCount} pending invite${pendingInviteCount === 1 ? "" : "s"}`
-                : ""}
-            </dd>
-            <dd className="text-xs text-muted-foreground">
-              Created {formatDateTime(createdAt)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-              Support contact
-            </dt>
-            <dd className="mt-1 text-foreground">
-              {supportEmail ? (
-                <a
-                  href={`mailto:${supportEmail}`}
-                  className="font-medium underline underline-offset-2"
-                >
-                  {supportEmail}
-                </a>
-              ) : (
-                <span className="text-muted-foreground">
-                  Your ComplyLoop pilot operator
-                </span>
-              )}
-            </dd>
-            <dd className="text-xs text-muted-foreground">
-              Export and delete from this page. Assisted deletion within 30 days
-              — see{" "}
-              <Link
-                href="/legal/privacy"
-                className="text-foreground underline underline-offset-2"
-              >
-                Privacy
-              </Link>
-              .
-            </dd>
-          </div>
-        </dl>
-
-        <div className="sm:col-span-2 rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm">
+        <div className="sm:col-span-2 rounded-lg border border-signal/20 bg-signal/5 px-4 py-3 text-sm">
           <p className="font-medium text-foreground">Data retention</p>
           <p className="mt-1 text-muted-foreground">
             Evidence is kept for audit after disconnect or org deletion; mutable
@@ -148,5 +155,51 @@ export function OrgAccountOverview({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function SummaryChip({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "review";
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
+        tone === "review"
+          ? "border-status-review/30 bg-status-review/10 text-status-review"
+          : "border-border/60 bg-muted/40 text-muted-foreground",
+      )}
+    >
+      <span className="font-medium text-foreground">{value}</span>
+      {label}
+    </span>
+  );
+}
+
+function MetaTile({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5 text-sm",
+        className,
+      )}
+    >
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="mt-1">{children}</div>
+    </div>
   );
 }

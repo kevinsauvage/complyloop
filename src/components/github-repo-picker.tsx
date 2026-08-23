@@ -90,7 +90,7 @@ export function GitHubRepoPicker({
         />
       </div>
 
-      <ul className="divide-y divide-border rounded-lg border border-border">
+      <ul className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60 ring-1 ring-border/40">
         {filtered.slice(0, 20).map((repo) => {
           const projectId =
             connectedByFullName[repo.fullName.trim().toLowerCase()];
@@ -99,13 +99,13 @@ export function GitHubRepoPicker({
           return (
             <li
               key={`${repo.installationId ?? "oauth"}:${repo.fullName}`}
-              className="flex flex-wrap items-center justify-between gap-3 px-3 py-3"
+              className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 transition-colors hover:bg-accent/30"
             >
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2 truncate font-mono text-sm font-medium">
                   {repo.fullName}
                   {connected ? (
-                    <Badge className="border-transparent bg-emerald-500/15 font-sans text-emerald-400">
+                    <Badge className="border-transparent bg-status-passed/15 font-sans text-status-passed dark:bg-status-passed/25">
                       Connected
                     </Badge>
                   ) : null}

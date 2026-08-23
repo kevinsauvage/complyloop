@@ -1,5 +1,6 @@
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { formatDateTime } from "@/components/page-primitives";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -8,11 +9,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { OrgMembership } from "@/core/project-types";
+import type { OrgMembership, OrgRole } from "@/core/project-types";
 import {
   changeOrgMemberRoleAction,
   removeOrgMemberAction,
 } from "@/server/actions/org";
+import { cn } from "@/lib/utils";
+
+function roleBadgeClass(role: OrgRole): string {
+  switch (role) {
+    case "owner":
+      return "border-transparent bg-signal/15 text-signal dark:bg-signal/25";
+    case "admin":
+      return "border-transparent bg-status-review/15 text-status-review dark:bg-status-review/25";
+    case "member":
+      return "border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25";
+    case "viewer":
+      return "border-transparent bg-status-na/15 text-status-na dark:bg-status-na/25";
+    default: {
+      const _exhaustive: never = role;
+      throw new Error(`Unhandled org role: ${_exhaustive}`);
+    }
+  }
+}
 
 export function OrgMembersCard({
   orgId,
@@ -31,11 +50,14 @@ export function OrgMembersCard({
   return (
     <Table>
       <TableHeader>
-        <TableRow>
+        <TableRow className="hover:bg-transparent">
           <TableHead className="pl-4">Member</TableHead>
+          <TableHead>Role</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Joined</TableHead>
-          {canManage ? <TableHead className="text-right pr-4">Actions</TableHead> : null}
+          {canManage ? (
+            <TableHead className="pr-4 text-right">Actions</TableHead>
+          ) : null}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -44,11 +66,13 @@ export function OrgMembersCard({
           const isOwner = membership.role === "owner";
           const isAdmin = membership.role === "admin";
           const pending = !membership.userId;
-          const canActOnMember =
-            !isOwner && (!isAdmin || canAssignAdmin);
+          const canActOnMember = !isOwner && (!isAdmin || canAssignAdmin);
 
           return (
-            <TableRow key={membership.id}>
+            <TableRow
+              key={membership.id}
+              className="hover:bg-accent/30"
+            >
               <TableCell className="pl-4">
                 <p className="font-medium">
                   @{membership.githubLogin}
@@ -58,12 +82,29 @@ export function OrgMembersCard({
                     </span>
                   ) : null}
                 </p>
-                <p className="text-xs text-muted-foreground">{membership.role}</p>
               </TableCell>
-              <TableCell className="text-xs text-muted-foreground">
-                {pending ? "Invite pending" : "Signed in"}
+              <TableCell>
+                <Badge
+                  className={cn(
+                    "capitalize",
+                    roleBadgeClass(membership.role),
+                  )}
+                >
+                  {membership.role}
+                </Badge>
               </TableCell>
-              <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+              <TableCell>
+                {pending ? (
+                  <Badge className="border-transparent bg-status-review/15 text-status-review dark:bg-status-review/25">
+                    Invite pending
+                  </Badge>
+                ) : (
+                  <Badge className="border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25">
+                    Signed in
+                  </Badge>
+                )}
+              </TableCell>
+              <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                 {formatDateTime(membership.createdAt)}
               </TableCell>
               {canManage ? (
@@ -94,7 +135,7 @@ export function OrgMembersCard({
                                 : membership.role
                             }
                             aria-label={`Role for @${membership.githubLogin}`}
-                            className="h-8 rounded-lg border border-input bg-transparent px-2 py-1 text-xs text-foreground focus-visible:outline-none focus-visible:border-ring"
+                            className="h-8 rounded-lg border border-input bg-transparent px-2 py-1 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
                           >
                             {canAssignAdmin ? (
                               <option value="admin">Admin</option>
@@ -116,7 +157,9 @@ export function OrgMembersCard({
                             ? `Revoke the pending invite for @${membership.githubLogin}?`
                             : `Remove @${membership.githubLogin} from the organization?`
                         }
-                        confirmTitle={pending ? "Revoke invite" : "Remove member"}
+                        confirmTitle={
+                          pending ? "Revoke invite" : "Remove member"
+                        }
                       >
                         <input type="hidden" name="orgId" value={orgId} />
                         <input

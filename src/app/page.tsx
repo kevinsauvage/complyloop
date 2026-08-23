@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ConnectProjectPanel } from "@/components/connect-project-panel";
+import { ConnectProjectCard, ConnectProjectPanel } from "@/components/connect-project-panel";
 import { DashboardActivitySections } from "@/components/dashboard/dashboard-activity-sections";
 import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-card";
 import { DashboardStatusCounts } from "@/components/dashboard/dashboard-status-counts";
@@ -8,13 +8,6 @@ import { projectDescription } from "@/components/dashboard/project-description";
 import { EmptyState, PageHeader } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   prioritizeClusters,
   prioritizeFindings,
@@ -45,17 +38,9 @@ export default async function DashboardPage() {
           description="Connect a repository to start the compliance loop."
         />
         <div className="mb-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Connect a project</CardTitle>
-              <CardDescription>
-                Link a GitHub repository to assess against RGAA/WCAG.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ConnectProjectPanel defaultOpen />
-            </CardContent>
-          </Card>
+          <ConnectProjectCard>
+            <ConnectProjectPanel defaultOpen />
+          </ConnectProjectCard>
         </div>
         <EmptyState title="Connect a repository to get started" action={undefined}>
           <p>
@@ -124,17 +109,9 @@ export default async function DashboardPage() {
 
       {!hasConnectedProject ? (
         <div className="mb-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Connect a project</CardTitle>
-              <CardDescription>
-                Link a GitHub repository to assess against RGAA/WCAG.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ConnectProjectPanel defaultOpen />
-            </CardContent>
-          </Card>
+          <ConnectProjectCard>
+            <ConnectProjectPanel defaultOpen />
+          </ConnectProjectCard>
         </div>
       ) : null}
 

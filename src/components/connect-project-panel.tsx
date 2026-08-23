@@ -6,9 +6,16 @@ import {
 import { ConnectProjectDialog } from "@/components/connect-project-dialog";
 import { GitHubRepoPicker } from "@/components/github-repo-picker";
 import { PermissionNotice } from "@/components/permission-notice";
+import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { signInWithGitHubAction } from "@/server/actions/auth";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import type { ReactNode } from "react";
 import { publicErrorMessage } from "@/server/action-state";
 import { connectedGitHubProjectsByFullName } from "@/server/connect-github";
 import { listGitHubRepos } from "@/server/github";
@@ -72,38 +79,39 @@ export async function ConnectProjectPanel({
   }
 
   const body = (
-    <div>
-      <h3 className="text-sm font-medium">Connect from GitHub</h3>
+    <div className="space-y-4">
+      <div className="rounded-lg border border-signal/20 bg-signal/5 px-3 py-2.5 text-sm text-muted-foreground">
+        Connect a GitHub repository to run assessments, track findings, and
+        build an evidence trail for this organization.
+      </div>
       {!configured ? (
-        <p className="mt-2 text-sm text-muted-foreground">
-          Add <code className="font-mono text-xs">AUTH_SECRET</code>,{" "}
-          <code className="font-mono text-xs">AUTH_GITHUB_ID</code>, and{" "}
-          <code className="font-mono text-xs">AUTH_GITHUB_SECRET</code> to
-          enable Sign in with GitHub and repository picker. See{" "}
-          <code className="font-mono text-xs">.env.example</code>.
-        </p>
+        <Alert className="border-border/60 bg-muted/40">
+          <AlertDescription>
+            Add <code className="font-mono text-xs">AUTH_SECRET</code>,{" "}
+            <code className="font-mono text-xs">AUTH_GITHUB_ID</code>, and{" "}
+            <code className="font-mono text-xs">AUTH_GITHUB_SECRET</code> to
+            enable Sign in with GitHub and the repository picker. See{" "}
+            <code className="font-mono text-xs">.env.example</code>.
+          </AlertDescription>
+        </Alert>
       ) : !signedIn ? (
-        <div className="mt-3 flex flex-col gap-3">
+        <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border/60 bg-muted/20 px-4 py-5">
           <p className="text-sm text-muted-foreground">
             Sign in with GitHub to browse your repositories and connect one in a
             click.
           </p>
-          <form action={signInWithGitHubAction}>
-            <Button type="submit">Sign in with GitHub</Button>
-          </form>
+          <SignInWithGitHubButton />
         </div>
       ) : listError ? (
-        <Alert variant="destructive" className="mt-2">
+        <Alert variant="destructive">
           <AlertDescription>{listError}</AlertDescription>
         </Alert>
       ) : (
-        <div className="mt-3">
-          <GitHubRepoPicker
-            repos={repos}
-            connectedByFullName={connectedByFullName}
-            usesGitHubApp={isGitHubAppConfigured()}
-          />
-        </div>
+        <GitHubRepoPicker
+          repos={repos}
+          connectedByFullName={connectedByFullName}
+          usesGitHubApp={isGitHubAppConfigured()}
+        />
       )}
     </div>
   );
@@ -114,5 +122,26 @@ export async function ConnectProjectPanel({
 
   return (
     <ConnectProjectDialog triggerLabel={triggerLabel}>{body}</ConnectProjectDialog>
+  );
+}
+
+/** Full-page connect card used on the empty dashboard. */
+export function ConnectProjectCard({ children }: { children: ReactNode }) {
+  return (
+    <Card className="shadow-none ring-1 ring-border/60">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <span
+            className="size-2 shrink-0 rounded-full bg-signal"
+            aria-hidden
+          />
+          <CardTitle>Connect a project</CardTitle>
+        </div>
+        <CardDescription>
+          Link a GitHub repository to assess against RGAA/WCAG.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }

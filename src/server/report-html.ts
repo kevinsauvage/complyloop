@@ -383,35 +383,128 @@ code {
 @media print {
   @page {
     size: A4;
-    margin: 1.5cm;
+    margin: 1.6cm 1.4cm 2cm;
   }
 
-  body { background: #fff; }
+  @page :first {
+    margin-top: 1.4cm;
+  }
+
+  html {
+    font-size: 11pt;
+  }
+
+  body {
+    background: #fff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 
   .report {
     max-width: none;
     padding: 0;
   }
 
-  .no-print { display: none !important; }
+  .no-print {
+    display: none !important;
+  }
 
-  section { break-inside: avoid-page; }
+  .report-header {
+    border-bottom-width: 1.5pt;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+  }
 
-  section h2 { break-after: avoid; }
+  .report-header h1 {
+    font-size: 18pt;
+  }
 
-  .data-table { font-size: 0.75rem; }
+  .report-meta {
+    font-size: 9pt;
+    gap: 0.35rem 1rem;
+  }
+
+  section {
+    margin-bottom: 1.5rem;
+    break-inside: auto;
+  }
+
+  section h2 {
+    font-size: 12pt;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .summary-grid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .summary-stat {
+    border-color: #cbd5e1;
+    background: #f8fafc !important;
+  }
+
+  .data-table {
+    font-size: 8.5pt;
+    border-collapse: collapse;
+  }
+
+  .data-table thead {
+    display: table-header-group;
+  }
+
+  .data-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 
   .data-table th,
-  .data-table td { padding: 0.375rem 0.5rem; }
+  .data-table td {
+    padding: 0.3rem 0.4rem;
+    border-color: #cbd5e1;
+  }
+
+  .data-table th {
+    background: #f1f5f9 !important;
+  }
+
+  .finding-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 0.6rem;
+    border-color: #cbd5e1;
+  }
+
+  .snippet {
+    background: #f8fafc !important;
+    border-color: #cbd5e1;
+    font-size: 8pt;
+  }
 
   .finding-card,
   .summary-stat,
-  .badge {
+  .badge,
+  .data-table th {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  a[href]::after { content: none !important; }
+  .report-footer {
+    break-before: avoid;
+    margin-top: 1.5rem;
+    font-size: 8pt;
+  }
+
+  a[href]::after {
+    content: none !important;
+  }
+
+  p, li {
+    orphans: 2;
+    widows: 2;
+  }
 }
 `;
 

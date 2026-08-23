@@ -5,6 +5,7 @@ import { OrgAccountOverview } from "@/components/org-account-overview";
 import { OrgDataLifecycle } from "@/components/org-data-lifecycle";
 import { OrgMembersCard } from "@/components/org-members-card";
 import { EmptyState, PageHeader } from "@/components/page-primitives";
+import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,9 +43,12 @@ export default async function OrgPage() {
           title="Organization account"
           description="Sign in with GitHub to manage workspace ownership, members, and data lifecycle."
         />
-        <EmptyState title="Sign in required">
-          Use Sign in with GitHub in the sidebar to create your personal
-          organization and invite members by GitHub username.
+        <EmptyState
+          title="Sign in required"
+          action={<SignInWithGitHubButton />}
+        >
+          Use Sign in with GitHub to create your personal organization and
+          invite members by GitHub username.
         </EmptyState>
       </>
     );
@@ -58,9 +62,13 @@ export default async function OrgPage() {
   if (!org || !activeOrgId) {
     return (
       <>
-        <PageHeader title="Organization account" />
+        <PageHeader
+          title="Organization account"
+          description="A personal workspace is created on first sign-in."
+        />
         <EmptyState title="No organization yet">
-          Reload after signing in — a personal workspace is created automatically.
+          Reload after signing in — a personal workspace is created
+          automatically. If this persists, sign out and sign in again.
         </EmptyState>
       </>
     );
@@ -112,9 +120,7 @@ export default async function OrgPage() {
         ) : null}
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              New organization
-            </Button>
+            <Button size="sm">New organization</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -142,7 +148,7 @@ export default async function OrgPage() {
           supportEmail={supportEmail}
         />
 
-        <Card>
+        <Card className="shadow-none ring-1 ring-border/60">
           <CardHeader>
             <CardTitle>Members &amp; access</CardTitle>
             <CardDescription>

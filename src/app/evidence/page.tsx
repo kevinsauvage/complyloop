@@ -69,10 +69,10 @@ const TONE_DOT: Record<EvidenceTone, string> = {
 
 const TONE_BADGE: Record<EvidenceTone, string> = {
   default: "",
-  pass: "border-transparent bg-status-passed/15 text-status-passed",
-  fail: "border-transparent bg-status-failed/15 text-status-failed",
-  review: "border-transparent bg-status-review/15 text-status-review",
-  signal: "border-transparent bg-signal/15 text-signal",
+  pass: "border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25",
+  fail: "border-transparent bg-status-failed/15 text-status-failed dark:bg-status-failed/25",
+  review: "border-transparent bg-status-review/15 text-status-review dark:bg-status-review/25",
+  signal: "border-transparent bg-signal/15 text-signal dark:bg-signal/25",
 };
 
 export default async function EvidencePage({

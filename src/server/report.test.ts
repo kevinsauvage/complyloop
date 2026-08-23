@@ -122,6 +122,8 @@ describe("buildComplianceReportHtml", () => {
     expect(html).toContain("@media print");
     expect(html).toContain("window.print()");
     expect(html).toContain("print-color-adjust: exact");
+    expect(html).toContain("display: table-header-group");
+    expect(html).toContain("page-break-inside: avoid");
   });
 
   it("escapes HTML in user-controlled fields", () => {
