@@ -30,7 +30,7 @@ export async function WorkspaceContext() {
 
   if (!project) {
     return (
-      <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-border pb-4 text-sm text-muted-foreground">
+      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/50 px-3 py-2.5 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">No project connected</span>
         {orgName ? (
           <>
@@ -46,7 +46,7 @@ export async function WorkspaceContext() {
   // Nothing to switch — quiet identity strip (+ optional add project).
   if (!showOrgSwitcher && !showProjectSwitcher) {
     return (
-      <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-border pb-4 text-sm text-muted-foreground">
+      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/50 px-3 py-2.5 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">{project.name}</span>
         {orgName ? (
           <>
@@ -60,7 +60,7 @@ export async function WorkspaceContext() {
   }
 
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-border pb-4">
+    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card/50 px-3 py-2.5">
       {showOrgSwitcher && activeOrgId ? (
         <OrgSwitcher organizations={organizations} activeOrgId={activeOrgId} />
       ) : orgName ? (

@@ -10,20 +10,70 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import type { EvidenceKind } from "@/core/finding-types";
 import { paginateSlice, parsePageParam } from "@/core/pagination";
+import { cn } from "@/lib/utils";
 import { evidenceForProject } from "@/server/project-visibility";
 import { getWorkspace } from "@/server/workspace";
 import { ChevronDownIcon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+
+type EvidenceTone = "default" | "pass" | "fail" | "review" | "signal";
+
+function evidenceTone(kind: EvidenceKind): EvidenceTone {
+  switch (kind) {
+    case "finding_resolved":
+    case "remediation_verified":
+    case "remediation_manually_verified":
+    case "assessment_completed":
+    case "assessment_job_completed":
+    case "requirement_human_passed":
+      return "pass";
+    case "finding_detected":
+    case "assessment_job_failed":
+    case "monitoring_changes_detected":
+      return "fail";
+    case "finding_dismissed":
+    case "requirement_exception_set":
+    case "requirement_status_changed":
+      return "review";
+    case "remediation_approved":
+    case "remediation_implemented":
+    case "ai_remediation_suggested":
+    case "pull_request_prepared":
+    case "assessment_job_queued":
+    case "webhook_reassessment":
+      return "signal";
+    case "project_connected":
+    case "project_disconnected":
+    case "project_reset":
+    case "requirement_exception_cleared":
+    case "requirement_human_pass_cleared":
+    case "requirements_imported":
+      return "default";
+    default: {
+      const _exhaustive: never = kind;
+      throw new Error(`Unhandled evidence kind: ${_exhaustive}`);
+    }
+  }
+}
+
+const TONE_DOT: Record<EvidenceTone, string> = {
+  default: "bg-muted-foreground/40",
+  pass: "bg-status-passed",
+  fail: "bg-status-failed",
+  review: "bg-status-review",
+  signal: "bg-signal",
+};
+
+const TONE_BADGE: Record<EvidenceTone, string> = {
+  default: "",
+  pass: "border-transparent bg-status-passed/15 text-status-passed",
+  fail: "border-transparent bg-status-failed/15 text-status-failed",
+  review: "border-transparent bg-status-review/15 text-status-review",
+  signal: "border-transparent bg-signal/15 text-signal",
+};
 
 export default async function EvidencePage({
   searchParams,
@@ -85,36 +135,54 @@ export default async function EvidencePage({
           Evidence accumulates as assessments run and remediations progress.
         </EmptyState>
       ) : (
-        <Card>
+        <Card className="shadow-none ring-1 ring-border/60">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-36 pl-4">When</TableHead>
-                  <TableHead className="w-52">Event</TableHead>
-                  <TableHead>Record</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {slice.items.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell className="pl-4 text-xs text-muted-foreground whitespace-nowrap">
-                      {formatDateTime(record.at)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-mono text-xs">
-                        {record.kind}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {record.summary}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <ol
+              className="divide-y divide-border/60"
+              aria-label="Evidence records"
+            >
+              {slice.items.map((record) => {
+                const tone = evidenceTone(record.kind);
+                return (
+                  <li
+                    key={record.id}
+                    className="flex gap-3 px-4 py-3.5 transition-colors hover:bg-accent/20"
+                  >
+                    <span
+                      className={cn(
+                        "mt-1.5 size-2.5 shrink-0 rounded-full",
+                        TONE_DOT[tone],
+                      )}
+                      aria-hidden
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            "font-mono text-[10px]",
+                            TONE_BADGE[tone],
+                          )}
+                        >
+                          {record.kind}
+                        </Badge>
+                        <time
+                          dateTime={record.at}
+                          className="text-xs text-muted-foreground whitespace-nowrap"
+                        >
+                          {formatDateTime(record.at)}
+                        </time>
+                      </div>
+                      <p className="mt-1.5 text-sm text-muted-foreground">
+                        {record.summary}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           </CardContent>
-          <div className="border-t px-4 py-3">
+          <div className="border-t border-border/60 px-4 py-3">
             <PaginationNav
               page={slice.page}
               totalPages={slice.totalPages}

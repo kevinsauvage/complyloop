@@ -38,12 +38,18 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
               aria-current={active ? "page" : undefined}
               onClick={() => onNavigate?.()}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 active
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
               )}
             >
+              {active ? (
+                <span
+                  className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-signal"
+                  aria-hidden
+                />
+              ) : null}
               <Icon className="size-4 shrink-0" aria-hidden />
               {link.label}
             </Link>

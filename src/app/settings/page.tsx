@@ -53,7 +53,7 @@ export default async function SettingsPage() {
       />
 
       <div className="flex flex-col gap-6">
-        <Card>
+        <Card className="shadow-none ring-1 ring-border/60">
           <CardHeader>
             <CardTitle>Project</CardTitle>
             <CardDescription>
@@ -61,12 +61,12 @@ export default async function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div>
+            <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5">
               <p className="text-xs font-medium text-muted-foreground">Name</p>
               <p className="font-medium">{project.name}</p>
             </div>
             {githubFullName ? (
-              <div>
+              <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5">
                 <p className="text-xs font-medium text-muted-foreground">
                   GitHub repository
                 </p>
@@ -85,7 +85,7 @@ export default async function SettingsPage() {
               </div>
             ) : null}
             {project.runtimeBaseUrl ? (
-              <div>
+              <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5">
                 <p className="text-xs font-medium text-muted-foreground">
                   Runtime audit URL
                 </p>
@@ -94,14 +94,14 @@ export default async function SettingsPage() {
                 </p>
               </div>
             ) : (
-              <p className="text-muted-foreground">
+              <p className="rounded-lg border border-dashed border-border/60 px-3 py-2.5 text-muted-foreground">
                 Runtime audit is off — assessments use source (AST) checks only.
               </p>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-none ring-1 ring-border/60">
           <CardHeader>
             <CardTitle>Runtime audit</CardTitle>
             <CardDescription>

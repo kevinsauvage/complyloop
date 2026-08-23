@@ -4,7 +4,14 @@ import {
   requirementStatusLabel,
   severityLabel,
 } from "@/core/labels";
-import type { Confidence, DeterminationMethod, ExplanationProvenance, RemediationStatus, RequirementStatus, Severity } from "@/core/statuses";
+import type {
+  Confidence,
+  DeterminationMethod,
+  ExplanationProvenance,
+  RemediationStatus,
+  RequirementStatus,
+  Severity,
+} from "@/core/statuses";
 import type { AssessmentEngine } from "@/core/finding-types";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +20,7 @@ export function RequirementStatusBadge({ status }: { status: RequirementStatus }
   switch (status) {
     case "passed":
       return (
-        <Badge className="border-transparent bg-emerald-500/15 text-emerald-400">
+        <Badge className="border-transparent bg-status-passed/15 text-status-passed">
           {label}
         </Badge>
       );
@@ -21,7 +28,7 @@ export function RequirementStatusBadge({ status }: { status: RequirementStatus }
       return <Badge variant="destructive">{label}</Badge>;
     case "needs_review":
       return (
-        <Badge className="border-transparent bg-amber-500/15 text-amber-400">
+        <Badge className="border-transparent bg-status-review/15 text-status-review">
           {label}
         </Badge>
       );
@@ -29,7 +36,7 @@ export function RequirementStatusBadge({ status }: { status: RequirementStatus }
       return <Badge variant="secondary">{label}</Badge>;
     case "unable_to_verify":
       return (
-        <Badge className="border-transparent bg-violet-500/15 text-violet-400">
+        <Badge className="border-transparent bg-status-unverifiable/15 text-status-unverifiable">
           {label}
         </Badge>
       );
@@ -47,31 +54,31 @@ export function RemediationStatusBadge({ status }: { status: RemediationStatus }
       return <Badge variant="secondary">{label}</Badge>;
     case "investigating":
       return (
-        <Badge className="border-transparent bg-sky-500/15 text-sky-400">
+        <Badge className="border-transparent bg-sky-500/15 text-sky-600 dark:text-sky-400">
           {label}
         </Badge>
       );
     case "suggested":
       return (
-        <Badge className="border-transparent bg-blue-500/15 text-blue-400">
+        <Badge className="border-transparent bg-signal/15 text-signal">
           {label}
         </Badge>
       );
     case "approved":
       return (
-        <Badge className="border-transparent bg-indigo-500/15 text-indigo-400">
+        <Badge className="border-transparent bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
           {label}
         </Badge>
       );
     case "implemented":
       return (
-        <Badge className="border-transparent bg-violet-500/15 text-violet-400">
+        <Badge className="border-transparent bg-status-unverifiable/15 text-status-unverifiable">
           {label}
         </Badge>
       );
     case "verified":
       return (
-        <Badge className="border-transparent bg-emerald-500/15 text-emerald-400">
+        <Badge className="border-transparent bg-status-passed/15 text-status-passed">
           {label}
         </Badge>
       );
@@ -89,13 +96,13 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
       return <Badge variant="destructive">{label}</Badge>;
     case "serious":
       return (
-        <Badge className="border-transparent bg-orange-500/15 text-orange-400">
+        <Badge className="border-transparent bg-orange-500/15 text-orange-600 dark:text-orange-400">
           {label}
         </Badge>
       );
     case "moderate":
       return (
-        <Badge className="border-transparent bg-amber-500/15 text-amber-400">
+        <Badge className="border-transparent bg-status-review/15 text-status-review">
           {label}
         </Badge>
       );
@@ -120,13 +127,13 @@ export function DeterminationBadge({ method }: { method: DeterminationMethod }) 
   switch (method) {
     case "automated":
       return (
-        <Badge className="border-transparent bg-cyan-500/15 text-cyan-400">
+        <Badge className="border-transparent bg-signal/15 text-signal">
           Automated
         </Badge>
       );
     case "human_review":
       return (
-        <Badge className="border-transparent bg-fuchsia-500/15 text-fuchsia-400">
+        <Badge className="border-transparent bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400">
           Human review
         </Badge>
       );
@@ -141,13 +148,13 @@ export function ProvenanceBadge({ provenance }: { provenance: ExplanationProvena
   switch (provenance) {
     case "deterministic":
       return (
-        <Badge className="border-transparent bg-cyan-500/15 text-cyan-400">
+        <Badge className="border-transparent bg-signal/15 text-signal">
           Deterministic
         </Badge>
       );
     case "ai":
       return (
-        <Badge className="border-transparent bg-fuchsia-500/15 text-fuchsia-400">
+        <Badge className="border-transparent bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400">
           AI-generated
         </Badge>
       );
@@ -169,7 +176,7 @@ export function EngineBadge({ engine }: { engine: AssessmentEngine }) {
       );
     case "runtime":
       return (
-        <Badge className="border-transparent bg-teal-500/15 text-teal-400">
+        <Badge className="border-transparent bg-teal-500/15 text-teal-600 dark:text-teal-400">
           Runtime (DOM)
         </Badge>
       );

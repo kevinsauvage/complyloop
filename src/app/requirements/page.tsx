@@ -1,10 +1,20 @@
 import { RequirementCard } from "@/components/requirements/requirement-card";
 import { RequirementsIntakePanel } from "@/components/requirements/requirements-intake-panel";
+import { RequirementStatusBadge } from "@/components/badges";
 import { EmptyState, PageHeader } from "@/components/page-primitives";
+import type { RequirementStatus } from "@/core/statuses";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
+
+const STATUS_ORDER: RequirementStatus[] = [
+  "failed",
+  "needs_review",
+  "passed",
+  "not_applicable",
+  "unable_to_verify",
+];
 
 export default async function RequirementsPage() {
   const { db, project, access, activeOrgId } = await getWorkspace();
@@ -33,6 +43,14 @@ export default async function RequirementsPage() {
     inScope.has(control.id),
   );
 
+  const statusCounts = new Map<RequirementStatus, number>();
+  for (const requirement of requirements) {
+    statusCounts.set(
+      requirement.status,
+      (statusCounts.get(requirement.status) ?? 0) + 1,
+    );
+  }
+
   return (
     <>
       <PageHeader
@@ -40,10 +58,33 @@ export default async function RequirementsPage() {
         description={`Bring in and scope controls for "${project.name}" — frameworks: ${frameworks.map((framework) => framework.name).join(", ")}`}
       />
 
+      {requirements.length > 0 ? (
+        <ul
+          className="mb-6 flex flex-wrap gap-2"
+          aria-label="Requirement status summary"
+        >
+          {STATUS_ORDER.map((status) => {
+            const count = statusCounts.get(status) ?? 0;
+            if (count === 0) return null;
+            return (
+              <li
+                key={status}
+                className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-1.5"
+              >
+                <RequirementStatusBadge status={status} />
+                <span className="font-mono text-sm font-semibold tabular-nums">
+                  {count}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <section
           aria-label="Assessed requirements"
-          className="flex flex-col gap-4 lg:col-span-2"
+          className="flex flex-col gap-3 lg:col-span-2"
         >
           {requirements.length === 0 ? (
             <EmptyState title="No requirements assessed yet">

@@ -23,18 +23,16 @@ export function DeveloperHandoffCard({
   const prFile = `${handoff.title.replace(/[^\w.-]+/g, "-").toLowerCase()}-pr.md`;
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-none ring-1 ring-border/60">
+      <CardHeader className="gap-1">
         <CardTitle>Developer handoff (patch / PR)</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
         <p className="text-sm text-muted-foreground">
           Copy a unified diff and a pull-request body into your normal git
-          workflow, or create a branch/PR when the project root is a git
-          repository.
+          workflow, or create a branch/PR when GitHub is connected.
         </p>
-
-        <div className="flex flex-wrap items-center gap-2">
+      </CardHeader>
+      <CardContent className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
           <p className="text-sm font-medium">{handoff.title}</p>
           <CopyButton label="Copy title" text={handoff.title} />
         </div>

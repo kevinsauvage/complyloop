@@ -2,6 +2,7 @@ import { StatefulActionForm } from "@/components/stateful-action-form";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -11,9 +12,13 @@ import { dismissFindingAction } from "@/server/actions/remediation-dismiss";
 
 export function FindingDismissCard({ findingId }: { findingId: string }) {
   return (
-    <Card className="border-destructive/30">
-      <CardHeader>
+    <Card className="border-destructive/25 bg-destructive/[0.03] shadow-none ring-1 ring-destructive/20">
+      <CardHeader className="gap-1">
         <CardTitle>Dismiss this finding</CardTitle>
+        <CardDescription>
+          Records an exception with retained history — never a hard delete.
+          Reason and note stay in the evidence trail.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <StatefulActionForm

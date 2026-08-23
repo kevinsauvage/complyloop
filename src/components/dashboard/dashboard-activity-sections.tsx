@@ -71,7 +71,7 @@ export function DashboardActivitySections({
                   <li key={finding.id} className="py-3 first:pt-0 last:pb-0">
                     <Link
                       href={`/findings/${finding.id}`}
-                      className="group flex flex-wrap items-center gap-3"
+                      className="group flex flex-wrap items-center gap-3 rounded-lg outline-none transition-colors hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-ring -mx-2 px-2 py-1"
                     >
                       <SeverityBadge severity={finding.severity} />
                       <span className="text-sm font-medium group-hover:underline">

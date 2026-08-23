@@ -19,15 +19,23 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-      <div className="min-w-0 space-y-1">
-        <h1
-          tabIndex={-1}
-          className="text-2xl font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          {title}
-        </h1>
+      <div className="min-w-0 space-y-1.5">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="mt-0.5 hidden h-6 w-1 shrink-0 rounded-full bg-signal sm:block"
+            aria-hidden
+          />
+          <h1
+            tabIndex={-1}
+            className="text-2xl font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            {title}
+          </h1>
+        </div>
         {description ? (
-          <p className="max-w-2xl text-sm text-muted-foreground">{description}</p>
+          <p className="max-w-2xl text-sm text-muted-foreground sm:pl-3.5">
+            {description}
+          </p>
         ) : null}
       </div>
       {children ? (
@@ -51,11 +59,17 @@ export function EmptyState({
   return (
     <Card
       className={cn(
-        "border-dashed bg-card/40 shadow-none",
+        "border-dashed bg-card/50 shadow-none ring-1 ring-border/40",
         className,
       )}
     >
-      <CardHeader className="items-center text-center">
+      <CardHeader className="items-center gap-2 text-center">
+        <span
+          className="flex size-10 items-center justify-center rounded-full border border-dashed border-signal/40 bg-signal/10"
+          aria-hidden
+        >
+          <span className="size-2 rounded-full bg-signal/60" />
+        </span>
         <CardTitle className="text-base font-medium">{title}</CardTitle>
         {children ? (
           <CardDescription className="max-w-lg text-balance">
@@ -72,7 +86,7 @@ export function EmptyState({
 
 export function CodeBlock({ children }: { children: string }) {
   return (
-    <pre className="overflow-x-auto rounded-lg bg-muted px-4 py-3 font-mono text-xs leading-relaxed text-foreground">
+    <pre className="overflow-x-auto rounded-lg border border-border/50 bg-muted/60 px-4 py-3 font-mono text-xs leading-relaxed text-foreground">
       <code>{children}</code>
     </pre>
   );

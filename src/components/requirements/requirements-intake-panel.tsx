@@ -35,7 +35,7 @@ export function RequirementsIntakePanel({
       ) : null}
 
       {canAssess ? (
-        <Card>
+        <Card className="shadow-none ring-1 ring-border/60">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Intake</CardTitle>
             <CardDescription>
@@ -124,7 +124,7 @@ export function RequirementsIntakePanel({
                                 name="controlId"
                                 value={control.id}
                                 defaultChecked={inScope.has(control.id)}
-                                className="mt-1 size-4 shrink-0 rounded border border-input accent-primary"
+                                className="mt-1 size-4 shrink-0 rounded border border-input accent-signal"
                               />
                               <Label
                                 htmlFor={`scope-${control.id}`}

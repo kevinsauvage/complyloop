@@ -18,8 +18,14 @@ import {
 function BrandMark({ className }: { className?: string }) {
   return (
     <Link href="/" className={className}>
-      <span className="text-lg font-semibold tracking-tight">ComplyLoop</span>
-      <span className="mt-0.5 block text-xs text-muted-foreground">
+      <span className="flex items-center gap-2">
+        <span
+          className="size-2 shrink-0 rounded-full bg-signal shadow-[0_0_0_3px] shadow-signal/20"
+          aria-hidden
+        />
+        <span className="text-lg font-semibold tracking-tight">ComplyLoop</span>
+      </span>
+      <span className="mt-1 block pl-4 text-xs text-muted-foreground">
         Requirement → Fix → Verified → Evidence
       </span>
     </Link>
@@ -94,10 +100,7 @@ export function AppShell({
 
   return (
     <>
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
-      >
+      <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
       <div className="flex min-h-screen flex-col md:flex-row">
@@ -129,7 +132,7 @@ export function AppShell({
           </Sheet>
         </header>
 
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3 py-6 md:flex">
+        <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/90 px-3 py-6 backdrop-blur-sm md:flex">
           <SidebarBody authControls={authControls} />
         </aside>
 

@@ -26,34 +26,60 @@ export function DashboardAlertsCard({ alerts }: { alerts: AlertRecord[] }) {
   if (alerts.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-muted-foreground">
-        Regression alerts
-      </h2>
-      {alerts.map((alert) => {
-        const detailLine = alertDetailLine(alert);
-        return (
-          <Alert key={alert.id} variant="destructive">
-            <TriangleAlert />
-            <AlertTitle>{alert.summary}</AlertTitle>
-            <AlertDescription>
-              {detailLine ? <p>{detailLine}</p> : null}
-              <p className="mt-1 text-xs opacity-80">{formatDateTime(alert.at)}</p>
-              <div className="mt-3">
-                <StatefulActionForm
-                  action={markAlertReadAction}
-                  submitLabel="Dismiss"
-                  pendingLabel="Dismissing…"
-                  variant="outline"
-                  size="sm"
-                >
-                  <input type="hidden" name="alertId" value={alert.id} />
-                </StatefulActionForm>
-              </div>
-            </AlertDescription>
-          </Alert>
-        );
-      })}
-    </div>
+    <section className="flex flex-col gap-3" aria-labelledby="regression-alerts-heading">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2
+          id="regression-alerts-heading"
+          className="text-sm font-semibold tracking-tight text-foreground"
+        >
+          Regression alerts
+        </h2>
+        <p className="font-mono text-xs text-muted-foreground tabular-nums">
+          {alerts.length} unread
+        </p>
+      </div>
+      <ul className="flex flex-col gap-3">
+        {alerts.map((alert) => {
+          const detailLine = alertDetailLine(alert);
+          return (
+            <li key={alert.id}>
+              <Alert
+                variant="destructive"
+                className="border-destructive/40 bg-destructive/5 shadow-none"
+              >
+                <TriangleAlert aria-hidden />
+                <AlertTitle className="text-base leading-snug">
+                  {alert.summary}
+                </AlertTitle>
+                <AlertDescription>
+                  {detailLine ? (
+                    <p className="mt-1 font-mono text-xs leading-relaxed opacity-90">
+                      {detailLine}
+                    </p>
+                  ) : null}
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <time
+                      className="text-xs opacity-70"
+                      dateTime={alert.at}
+                    >
+                      {formatDateTime(alert.at)}
+                    </time>
+                    <StatefulActionForm
+                      action={markAlertReadAction}
+                      submitLabel="Dismiss"
+                      pendingLabel="Dismissing…"
+                      variant="outline"
+                      size="sm"
+                    >
+                      <input type="hidden" name="alertId" value={alert.id} />
+                    </StatefulActionForm>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

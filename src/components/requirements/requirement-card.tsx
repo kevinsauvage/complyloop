@@ -22,18 +22,18 @@ import {
   markRequirementPassedAction,
 } from "@/server/actions/requirements";
 
-function statusBorderClass(status: RequirementStatus): string {
+function statusAccentClass(status: RequirementStatus): string {
   switch (status) {
     case "passed":
-      return "border-l-emerald-500/60";
+      return "bg-status-passed";
     case "failed":
-      return "border-l-destructive/60";
+      return "bg-status-failed";
     case "needs_review":
-      return "border-l-amber-500/60";
+      return "bg-status-review";
     case "not_applicable":
-      return "border-l-muted-foreground/30";
+      return "bg-status-na";
     case "unable_to_verify":
-      return "border-l-violet-500/60";
+      return "bg-status-unverifiable";
     default: {
       const _exhaustive: never = status;
       throw new Error(`Unhandled requirement status: ${_exhaustive}`);
@@ -53,8 +53,15 @@ export function RequirementCard({
   canRemediate: boolean;
 }) {
   return (
-    <Card className={cn("border-l-4", statusBorderClass(requirement.status))}>
-      <CardHeader className="pb-2">
+    <Card className="relative overflow-hidden shadow-none ring-1 ring-border/60 transition-[box-shadow,border-color] hover:ring-signal/30">
+      <span
+        className={cn(
+          "absolute inset-y-0 left-0 w-1",
+          statusAccentClass(requirement.status),
+        )}
+        aria-hidden
+      />
+      <CardHeader className="pb-2 pl-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="font-medium text-foreground">{control.title}</p>
@@ -81,14 +88,14 @@ export function RequirementCard({
         </p>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-3 pt-0">
+      <CardContent className="flex flex-col gap-3 pt-0 pl-5">
         {requirement.humanPass ? (
-          <Alert className="border-emerald-500/30 bg-emerald-500/10">
-            <ShieldCheck className="size-4 text-emerald-400" aria-hidden />
-            <AlertTitle className="text-emerald-400">
+          <Alert className="border-status-passed/30 bg-status-passed/10">
+            <ShieldCheck className="size-4 text-status-passed" aria-hidden />
+            <AlertTitle className="text-status-passed">
               Human pass recorded
             </AlertTitle>
-            <AlertDescription className="text-emerald-300/80">
+            <AlertDescription className="text-muted-foreground">
               {requirement.humanPass.note}
               <span className="mt-1 block text-xs opacity-70">
                 Set {formatDateTime(requirement.humanPass.at)} — sticky until
@@ -113,13 +120,13 @@ export function RequirementCard({
         ) : null}
 
         {requirement.exception ? (
-          <Alert className="border-amber-500/30 bg-amber-500/10">
-            <AlertTriangle className="size-4 text-amber-400" aria-hidden />
-            <AlertTitle className="text-amber-400">
+          <Alert className="border-status-review/30 bg-status-review/10">
+            <AlertTriangle className="size-4 text-status-review" aria-hidden />
+            <AlertTitle className="text-status-review">
               Exception:{" "}
               {requirement.exception.reason.replace(/_/g, " ")}
             </AlertTitle>
-            <AlertDescription className="text-amber-300/80">
+            <AlertDescription className="text-muted-foreground">
               {requirement.exception.note}
               <span className="mt-1 block text-xs opacity-70">
                 Set {formatDateTime(requirement.exception.at)}
