@@ -42,7 +42,7 @@ export default defineConfig({
         "src/server/pr.ts",
         "src/server/webhook-deliveries.ts",
         "src/server/github-repo.ts",
-        // Markdown/HTML report assembly — covered by report.test smoke paths + e2e export.
+        // Markdown report assembly — HTML covered by report-html.ts tests.
         "src/server/report.ts",
         // Verify paths mix AST + Playwright DOM re-check; unit suite covers the AST/manual branches.
         "src/server/actions/remediation-verify.ts",

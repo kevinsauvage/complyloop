@@ -195,25 +195,3 @@ export function buildComplianceReportMarkdown(input: ReportInput): string {
   return lines.join("\n");
 }
 
-/** Minimal HTML wrapper around the Markdown report for browser viewing/printing. */
-export function buildComplianceReportHtml(markdown: string, projectName: string): string {
-  const escaped = markdown
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Compliance report — ${projectName.replace(/</g, "")}</title>
-  <style>
-    body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1.25rem; color: #18181b; line-height: 1.5; }
-    pre { white-space: pre-wrap; word-break: break-word; background: #f4f4f5; padding: 1rem 1.25rem; border-radius: 0.75rem; font-size: 0.875rem; }
-    @media print { body { margin: 0; } }
-  </style>
-</head>
-<body>
-  <pre>${escaped}</pre>
-</body>
-</html>`;
-}

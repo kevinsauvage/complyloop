@@ -18,7 +18,7 @@
 
 ### 3. Evidence Generation and Management
 
-- [ ] Enhance evidence HTML reports with better styling and printability
+- [x] Enhance evidence HTML reports with better styling and printability
 - [ ] Implement evidence export capabilities (PDF, JSON, CSV formats)
 - [ ] Add evidence verification and integrity checking
 - [ ] Implement evidence retention policies and archiving
