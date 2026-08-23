@@ -2,6 +2,7 @@
 
 import { useActionState, useId, type ReactNode } from "react";
 import type { VariantProps } from "class-variance-authority";
+import { ActionFeedback } from "@/components/action-feedback";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -44,7 +45,7 @@ export function StatefulActionForm({
   return (
     <form id={formId} action={formAction} className={className}>
       {children}
-      <div>
+      <div className="flex flex-col gap-2">
         {confirmMessage ? (
           <ConfirmSubmitButton
             label={submitLabel}
@@ -60,6 +61,7 @@ export function StatefulActionForm({
             {pending ? (pendingLabel ?? "Working…") : submitLabel}
           </Button>
         )}
+        <ActionFeedback state={state} />
       </div>
     </form>
   );

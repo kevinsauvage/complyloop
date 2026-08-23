@@ -40,7 +40,12 @@ describe("failed automated verification feedback", () => {
     );
 
     await waitFor(() => {
-      expect(toastError).toHaveBeenCalledWith(STILL_FAILING_VERIFY_MESSAGE);
+      expect(toastError).toHaveBeenCalledWith(STILL_FAILING_VERIFY_MESSAGE, {
+        duration: 8_000,
+      });
     });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      STILL_FAILING_VERIFY_MESSAGE,
+    );
   });
 });

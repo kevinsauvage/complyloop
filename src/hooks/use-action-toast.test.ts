@@ -34,7 +34,7 @@ describe("useActionToast", () => {
 
     rerender({ state: { error: "Nope.", message: null } });
     await waitFor(() => {
-      expect(toastError).toHaveBeenCalledWith("Nope.");
+      expect(toastError).toHaveBeenCalledWith("Nope.", { duration: 8_000 });
     });
 
     rerender({ state: { error: "Nope.", message: null } });
@@ -42,7 +42,7 @@ describe("useActionToast", () => {
 
     rerender({ state: { error: null, message: "Done." } });
     await waitFor(() => {
-      expect(toastSuccess).toHaveBeenCalledWith("Done.");
+      expect(toastSuccess).toHaveBeenCalledWith("Done.", { duration: 4_000 });
     });
   });
 });

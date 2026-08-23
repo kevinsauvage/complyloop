@@ -63,9 +63,8 @@
 
 - [x] Increase test coverage for analysis engine edge cases (form-error, lists, viewport, autocomplete, axe-map, SSRF)
 - [x] Raise unit coverage gate (~94%+ statements / ~96% lines on product surface via `npm run test:coverage`)
-- [ ] Add end-to-end tests for complete compliance loops
-- [ ] Improve error handling and user feedback mechanisms
-- [ ] Add performance testing for large codebase assessments
+- [x] Add end-to-end tests for complete compliance loops
+- [x] Improve error handling and user feedback mechanisms
 
 ### 8. Documentation and Onboarding
 

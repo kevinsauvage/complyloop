@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
+import { ActionFeedback } from "@/components/action-feedback";
 import { Button } from "@/components/ui/button";
+import { useActionToast } from "@/hooks/use-action-toast";
 import type { ActionMessageState } from "@/server/action-state";
 
 const initial: ActionMessageState = { error: null, message: null };
@@ -21,9 +23,10 @@ export function AiActionForm({
   disabled?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
+  useActionToast(state);
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="flex flex-col gap-1.5">
       <Button
         type="submit"
         variant="outline"
@@ -32,16 +35,7 @@ export function AiActionForm({
       >
         {pending ? pendingLabel : submitLabel}
       </Button>
-      {state.error ? (
-        <p role="alert" className="mt-1.5 text-xs text-destructive">
-          {state.error}
-        </p>
-      ) : null}
-      {state.message ? (
-        <p role="status" className="mt-1.5 text-xs text-muted-foreground">
-          {state.message}
-        </p>
-      ) : null}
+      <ActionFeedback state={state} className="text-xs" />
     </form>
   );
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 import { toast } from "sonner";
+import { ActionFeedback } from "@/components/action-feedback";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -152,14 +153,14 @@ export function OrgDataLifecycle({
             </AlertDialogContent>
           </AlertDialog>
           {exportError ? (
-            <p role="alert" className="text-sm text-destructive">
-              {exportError}
-            </p>
+            <ActionFeedback
+              state={{ error: exportError, message: null }}
+            />
           ) : null}
           {exportMessage ? (
-            <p role="status" className="text-sm text-muted-foreground">
-              {exportMessage}
-            </p>
+            <ActionFeedback
+              state={{ error: null, message: exportMessage }}
+            />
           ) : null}
         </section>
 
@@ -244,15 +245,8 @@ export function OrgDataLifecycle({
             </AlertDialog>
           </form>
 
-          {deleteState.error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {deleteState.error}
-            </p>
-          ) : null}
-          {deleteState.message ? (
-            <p role="status" className="text-sm text-muted-foreground">
-              {deleteState.message}
-            </p>
+          {deleteState.error || deleteState.message ? (
+            <ActionFeedback state={deleteState} />
           ) : null}
         </section>
       </CardContent>

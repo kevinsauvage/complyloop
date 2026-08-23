@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useId, useMemo, useState } from "react";
+import { ActionFeedback } from "@/components/action-feedback";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,9 @@ export function GitHubRepoPicker({
           className="font-mono"
         />
       </div>
+
+      <ActionFeedback state={connectState} />
+      <ActionFeedback state={disconnectState} />
 
       <ul className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60 ring-1 ring-border/40">
         {filtered.slice(0, 20).map((repo) => {

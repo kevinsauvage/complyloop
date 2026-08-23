@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { ActionFeedback } from "@/components/action-feedback";
 import { Button } from "@/components/ui/button";
 import {
   createPullRequestAction,
@@ -29,11 +30,12 @@ export function CreatePrForm({ findingId }: { findingId: string }) {
     lastKey.current = key;
 
     if (state.error) {
-      toast.error(state.error);
+      toast.error(state.error, { duration: 8_000 });
       return;
     }
     if (state.message) {
       toast.success(state.message, {
+        duration: 6_000,
         action: state.prUrl
           ? {
               label: "Open PR",
@@ -58,11 +60,8 @@ export function CreatePrForm({ findingId }: { findingId: string }) {
         </Button>
       </div>
       {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
-      {state.message ? (
+        <ActionFeedback state={{ error: state.error, message: null }} />
+      ) : state.message ? (
         <p role="status" className="text-sm text-muted-foreground">
           {state.message}
           {state.prUrl ? (

@@ -52,7 +52,7 @@ export default defineConfig({
     {
       name: "owner",
       testMatch:
-        /routes\.spec\.ts|core-loop\.spec\.ts|a11y\.spec\.ts|org-account\.spec\.ts|settings\.spec\.ts|evidence-export\.spec\.ts/,
+        /routes\.spec\.ts|core-loop\.spec\.ts|compliance-loops\.spec\.ts|a11y\.spec\.ts|org-account\.spec\.ts|settings\.spec\.ts|evidence-export\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         storageState: OWNER_STATE,

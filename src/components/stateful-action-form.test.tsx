@@ -46,8 +46,9 @@ describe("StatefulActionForm", () => {
 
     resolveAction?.({ error: null, message: "Saved." });
     await waitFor(() => {
-      expect(toastSuccess).toHaveBeenCalledWith("Saved.");
+      expect(toastSuccess).toHaveBeenCalledWith("Saved.", { duration: 4_000 });
     });
+    expect(screen.getByRole("status")).toHaveTextContent("Saved.");
   });
 
   it("toasts errors", async () => {
@@ -67,7 +68,10 @@ describe("StatefulActionForm", () => {
 
     await user.click(screen.getByRole("button", { name: "Confirm" }));
     await waitFor(() => {
-      expect(toastError).toHaveBeenCalledWith("Not allowed.");
+      expect(toastError).toHaveBeenCalledWith("Not allowed.", {
+        duration: 8_000,
+      });
     });
+    expect(screen.getByRole("alert")).toHaveTextContent("Not allowed.");
   });
 });

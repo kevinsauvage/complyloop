@@ -1,8 +1,12 @@
 import { processNextAssessmentJob } from "./assessment-worker";
+import { isE2EHarnessEnabled } from "./e2e-harness";
 
-/** In local dev, process jobs in-process so `npm run dev` alone is enough. */
+/**
+ * Process jobs in-process when a dedicated worker is not expected —
+ * local `next dev`, and Playwright (`E2E_AUTH_ENABLED=1` + `next start`).
+ */
 export function shouldDrainAssessmentJobsInline(): boolean {
-  return process.env.NODE_ENV === "development";
+  return process.env.NODE_ENV === "development" || isE2EHarnessEnabled();
 }
 
 /** Claims and runs ready jobs until the queue is idle or `maxJobs` is reached. */

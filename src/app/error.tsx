@@ -3,8 +3,13 @@
 import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { useEffect } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from "@/components/ui/card";
 
 export default function AppError({
   error,
@@ -26,24 +31,41 @@ export default function AppError({
   }, [error]);
 
   return (
-    <Alert variant="destructive" className="px-6 py-8">
-      <h1 className="text-xl font-semibold text-destructive">
-        Something went wrong
-      </h1>
-      <AlertDescription>
-        <p className="mt-2 max-w-xl">
-          An unexpected error occurred while handling your request.
-          {error.digest ? ` Reference: ${error.digest}` : ""}
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Button type="button" onClick={reset}>
-            Try again
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/">Back to dashboard</Link>
-          </Button>
+    <Card
+      className="border-destructive/30 bg-destructive/[0.04] shadow-none ring-1 ring-destructive/25"
+      role="alert"
+    >
+      <CardHeader className="gap-2">
+        <div className="flex items-center gap-2">
+          <span
+            className="size-2 shrink-0 rounded-full bg-destructive"
+            aria-hidden
+          />
+          <h1 className="text-xl font-semibold tracking-tight text-destructive">
+            Something went wrong
+          </h1>
         </div>
-      </AlertDescription>
-    </Alert>
+        <CardDescription className="max-w-xl text-base text-foreground/80">
+          An unexpected error occurred while handling your request.
+          {error.digest ? (
+            <>
+              {" "}
+              Reference:{" "}
+              <code className="font-mono text-sm text-foreground">
+                {error.digest}
+              </code>
+            </>
+          ) : null}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-3">
+        <Button type="button" onClick={reset}>
+          Try again
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/">Back to dashboard</Link>
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

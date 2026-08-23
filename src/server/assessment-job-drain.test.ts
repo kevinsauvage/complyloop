@@ -17,11 +17,19 @@ afterEach(() => {
 });
 
 describe("shouldDrainAssessmentJobsInline", () => {
-  it("is true only in development", () => {
+  it("is true in development and when the e2e harness is enabled", () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
     expect(shouldDrainAssessmentJobsInline()).toBe(true);
+
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
     expect(shouldDrainAssessmentJobsInline()).toBe(false);
+
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_AUTH_ENABLED", "1");
+    expect(shouldDrainAssessmentJobsInline()).toBe(true);
+
     vi.unstubAllEnvs();
   });
 });

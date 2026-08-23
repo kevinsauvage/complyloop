@@ -8,7 +8,7 @@ test.describe("compliance core loop", () => {
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 
     await page.getByRole("button", { name: "Run assessment" }).click();
-    await expect(page.getByText(/Assessment complete/i)).toBeVisible({
+    await expect(page.getByText(/Assessment complete/i).first()).toBeVisible({
       timeout: 60_000,
     });
 
