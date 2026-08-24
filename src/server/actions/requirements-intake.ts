@@ -75,13 +75,16 @@ export async function applyFrameworkPresetAction(
     if (typeof presetId !== "string" || presetId.length === 0) {
       throw new PublicError("A framework preset is required.");
     }
+    let added = 0;
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.assess");
       const { db, project } = workspace;
-      applyFrameworkPreset(db, project, presetId);
+      added = applyFrameworkPreset(db, project, presetId).added;
     });
     refresh();
-    return "Preset applied.";
+    return added > 0
+      ? "Preset applied."
+      : "Preset controls were already in scope — nothing changed.";
   });
 }
 

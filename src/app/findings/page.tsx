@@ -5,7 +5,7 @@ import {
 } from "@/components/findings/findings-bulk-list";
 import { toFindingListItems } from "@/components/findings/finding-list-items";
 import { PaginationNav } from "@/components/pagination-nav";
-import { EmptyState, PageHeader } from "@/components/page-primitives";
+import { EmptyState, PageActionLink, PageHeader } from "@/components/page-primitives";
 import {
   Card,
   CardContent,
@@ -62,7 +62,10 @@ export default async function FindingsPage({
           title="Findings"
           description="Every failure with its reason, location, remediation state, and evidence."
         />
-        <EmptyState title="No project connected">
+        <EmptyState
+          title="No project connected"
+          action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+        >
           <p>Connect a repository from the dashboard to see findings.</p>
         </EmptyState>
       </>
@@ -107,7 +110,10 @@ export default async function FindingsPage({
           title="Findings"
           description="Every failure with its reason, location, remediation state, and evidence."
         />
-        <EmptyState title="No findings yet">
+        <EmptyState
+          title="No findings yet"
+          action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+        >
           <p>Run an assessment from the dashboard to detect compliance gaps.</p>
         </EmptyState>
       </>

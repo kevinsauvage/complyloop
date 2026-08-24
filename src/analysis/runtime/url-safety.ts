@@ -34,7 +34,7 @@ const EXTRA_BLOCKED_HOSTNAMES: BlockedHostnamePolicy = {
 const ALLOWED_PORTS = new Set(["80", "443"]);
 
 /** Max redirect/navigation hops per page load (document + intermediate). */
-export const MAX_RUNTIME_REDIRECT_HOPS = 10;
+const MAX_RUNTIME_REDIRECT_HOPS = 10;
 
 export type DnsLookup = (
   hostname: string,

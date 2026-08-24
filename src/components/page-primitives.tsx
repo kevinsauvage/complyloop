@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -84,11 +86,47 @@ export function EmptyState({
   );
 }
 
+export function PageActionLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: ReactNode;
+}) {
+  return (
+    <Button asChild>
+      <Link href={href}>{children}</Link>
+    </Button>
+  );
+}
+
 export function CodeBlock({ children }: { children: string }) {
   return (
     <pre className="overflow-x-auto rounded-lg border border-border/50 bg-muted/60 px-4 py-3 font-mono text-xs leading-relaxed text-foreground">
       <code>{children}</code>
     </pre>
+  );
+}
+
+export function MetaTile({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5 text-sm",
+        className,
+      )}
+    >
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="mt-1">{children}</div>
+    </div>
   );
 }
 

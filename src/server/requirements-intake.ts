@@ -7,7 +7,7 @@ import { addEvidence, type Db } from "./db";
 export const CUSTOM_FRAMEWORK_ID = "fw-custom";
 
 /** Check ids custom controls may link to for automated assessment. */
-const KNOWN_CHECK_IDS = new Set<string>([
+export const CUSTOM_CHECK_IDS = [
   "img-alt",
   "button-name",
   "html-lang",
@@ -35,7 +35,9 @@ const KNOWN_CHECK_IDS = new Set<string>([
   "nested-interactive",
   "target-size",
   "autocomplete-valid",
-] satisfies CheckId[]);
+] as const satisfies readonly CheckId[];
+
+const KNOWN_CHECK_IDS = new Set<string>(CUSTOM_CHECK_IDS);
 
 function ensureCustomFramework(db: Db): Framework {
   let framework = db.frameworks.find(
@@ -162,21 +164,40 @@ export function setProjectScope(
   });
 }
 
-/** Applies a curated framework preset as the project's in-scope controls. */
+/**
+ * Applies a curated framework preset to the project's scope. Presets stack:
+ * each adds its controls to the current explicit scope, and a project with no
+ * explicit scope starts from the preset alone (the full adapter preset then
+ * covers every control, restoring the implicit all-controls scope).
+ */
 export function applyFrameworkPreset(
   db: Db,
   project: Project,
   presetId: string,
-): void {
+): { added: number } {
   const preset = presetById(presetId);
   if (!preset) throw new PublicError(`Unknown framework preset: ${presetId}`);
-  setProjectScope(db, project, preset.controlIds);
+  if (project.inScopeControlIds === undefined) {
+    const allIds = db.controls.map((control) => control.id);
+    const coversAll =
+      preset.controlIds.length === allIds.length &&
+      allIds.every((id) => preset.controlIds.includes(id));
+    if (coversAll) return { added: 0 };
+  }
+  const current = project.inScopeControlIds ?? [];
+  const merged = [...new Set([...current, ...preset.controlIds])];
+  const added = merged.length - current.length;
+  if (added === 0) {
+    return { added: 0 };
+  }
+  setProjectScope(db, project, merged);
   addEvidence(db, {
     kind: "requirements_imported",
-    summary: `Applied framework preset "${preset.name}" (${preset.controlIds.length} controls)`,
+    summary: `Applied framework preset "${preset.name}" (+${added} controls, ${merged.length} in scope)`,
     projectId: project.id,
     detail: { presetId: preset.id, controlIds: preset.controlIds },
   });
+  return { added };
 }
 
 export interface ChecklistLine {

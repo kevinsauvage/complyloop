@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  evidenceKindLabel,
   remediationStatusLabel,
   requirementStatusLabel,
   severityLabel,
   severityRank,
 } from "./labels";
+import type { EvidenceKind } from "./finding-types";
 import {
   REMEDIATION_STATUSES,
   REQUIREMENT_STATUSES,
@@ -59,6 +61,22 @@ describe("remediationStatusLabel", () => {
     expect(() =>
       remediationStatusLabel("bogus" as RemediationStatus),
     ).toThrow(/Unhandled remediation status/);
+  });
+});
+
+describe("evidenceKindLabel", () => {
+  it("uses engineer-facing copy instead of snake_case ids", () => {
+    expect(evidenceKindLabel("assessment_completed")).toBe(
+      "Assessment completed",
+    );
+    expect(evidenceKindLabel("requirements_imported")).toBe("Scope updated");
+    expect(evidenceKindLabel("finding_detected")).toBe("Finding detected");
+  });
+
+  it("throws on an unhandled kind", () => {
+    expect(() =>
+      evidenceKindLabel("bogus" as EvidenceKind),
+    ).toThrow(/Unhandled evidence kind/);
   });
 });
 

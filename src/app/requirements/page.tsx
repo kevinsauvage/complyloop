@@ -1,7 +1,7 @@
 import { RequirementCard } from "@/components/requirements/requirement-card";
 import { RequirementsIntakePanel } from "@/components/requirements/requirements-intake-panel";
 import { RequirementStatusBadge } from "@/components/badges";
-import { EmptyState, PageHeader } from "@/components/page-primitives";
+import { EmptyState, PageActionLink, PageHeader } from "@/components/page-primitives";
 import type { RequirementStatus } from "@/core/statuses";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
@@ -26,7 +26,10 @@ export default async function RequirementsPage() {
           title="Requirements"
           description="Connect a repository to bring in and scope controls."
         />
-        <EmptyState title="No project connected">
+        <EmptyState
+          title="No project connected"
+          action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+        >
           <p>Connect a repository from the dashboard to manage requirements.</p>
         </EmptyState>
       </>
@@ -42,6 +45,7 @@ export default async function RequirementsPage() {
   const inScopeControls = db.controls.filter((control) =>
     inScope.has(control.id),
   );
+  const hasExplicitScope = project.inScopeControlIds !== undefined;
 
   const statusCounts = new Map<RequirementStatus, number>();
   for (const requirement of requirements) {
@@ -87,7 +91,10 @@ export default async function RequirementsPage() {
           className="flex flex-col gap-3 lg:col-span-2"
         >
           {requirements.length === 0 ? (
-            <EmptyState title="No requirements assessed yet">
+            <EmptyState
+              title="No requirements assessed yet"
+              action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+            >
               <p>
                 Run an assessment from the dashboard to evaluate each in-scope
                 requirement.
@@ -119,12 +126,13 @@ export default async function RequirementsPage() {
         </section>
 
         <aside aria-label="Intake" className="lg:col-span-1">
-          <div className="lg:sticky lg:top-6">
+          <div className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
             <RequirementsIntakePanel
               canAssess={caps.canAssess}
               controls={db.controls}
               frameworks={frameworks}
               inScope={inScope}
+              hasExplicitScope={hasExplicitScope}
             />
           </div>
         </aside>

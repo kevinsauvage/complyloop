@@ -202,7 +202,7 @@ export function RequirementCard({
                   size="sm"
                   className="group h-auto justify-start gap-1.5 px-0 text-xs text-muted-foreground hover:text-foreground"
                 >
-                  Record exception (N/A · accepted risk · compensating · temporary)
+                  Record exception
                   <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-180" />
                 </Button>
               </CollapsibleTrigger>

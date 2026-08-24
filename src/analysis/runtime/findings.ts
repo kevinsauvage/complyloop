@@ -2,7 +2,7 @@ import type { Confidence, Severity } from "@/core/statuses";
 import type { RawFinding } from "../types";
 import { checkIdForAxeRule } from "./axe-map";
 
-export interface AxeNodeLike {
+interface AxeNodeLike {
   html: string;
   target: string[];
   failureSummary?: string;

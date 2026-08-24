@@ -189,6 +189,7 @@ describe("applyFrameworkPresetAction", () => {
   it("applies a preset for members", async () => {
     const workspace = workspaceFor("member");
     withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    applyFrameworkPreset.mockReturnValue({ added: 3 });
     const form = new FormData();
     form.set("presetId", "rgaa-core");
 
@@ -202,6 +203,24 @@ describe("applyFrameworkPresetAction", () => {
       workspace.db,
       project,
       "rgaa-core",
+    );
+  });
+
+  it("reports when preset controls were already in scope", async () => {
+    withWorkspaceWrite.mockImplementation(async (fn) =>
+      fn(workspaceFor("member")),
+    );
+    applyFrameworkPreset.mockReturnValue({ added: 0 });
+    const form = new FormData();
+    form.set("presetId", "rgaa-core");
+
+    const result = await applyFrameworkPresetAction(
+      emptyActionMessageState,
+      form,
+    );
+
+    expect(result.message).toBe(
+      "Preset controls were already in scope — nothing changed.",
     );
   });
 });

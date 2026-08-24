@@ -14,15 +14,15 @@ import {
 } from "./constants";
 import { resolveE2EAuthSecret } from "./env";
 
-export const AUTH_DIR = path.join(process.cwd(), "e2e", ".auth");
+const AUTH_DIR = path.join(process.cwd(), "e2e", ".auth");
 export const OWNER_STATE = path.join(AUTH_DIR, "owner.json");
 export const VIEWER_STATE = path.join(AUTH_DIR, "viewer.json");
 export const ANON_STATE = path.join(AUTH_DIR, "anon.json");
 
 /** Cookie name Auth.js uses for http:// AUTH_URL (no __Secure- prefix). */
-export const SESSION_COOKIE = "authjs.session-token";
+const SESSION_COOKIE = "authjs.session-token";
 
-export async function mintSessionCookie(user: {
+async function mintSessionCookie(user: {
   id: string;
   login: string;
   name: string;

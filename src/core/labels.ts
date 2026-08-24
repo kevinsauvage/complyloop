@@ -1,3 +1,4 @@
+import type { EvidenceKind } from "./finding-types";
 import type { RemediationStatus, RequirementStatus, Severity } from "./statuses";
 
 export function requirementStatusLabel(status: RequirementStatus): string {
@@ -54,6 +55,63 @@ export function severityRank(severity: Severity): number {
     default: {
       const _exhaustive: never = severity;
       throw new Error(`Unhandled severity: ${_exhaustive}`);
+    }
+  }
+}
+
+export function evidenceKindLabel(kind: EvidenceKind): string {
+  switch (kind) {
+    case "project_connected":
+      return "Project connected";
+    case "project_disconnected":
+      return "Project disconnected";
+    case "project_reset":
+      return "Project reset";
+    case "assessment_completed":
+      return "Assessment completed";
+    case "assessment_job_queued":
+      return "Assessment queued";
+    case "assessment_job_completed":
+      return "Assessment job completed";
+    case "assessment_job_failed":
+      return "Assessment job failed";
+    case "finding_detected":
+      return "Finding detected";
+    case "finding_resolved":
+      return "Finding resolved";
+    case "finding_dismissed":
+      return "Finding dismissed";
+    case "remediation_approved":
+      return "Remediation approved";
+    case "remediation_implemented":
+      return "Remediation implemented";
+    case "remediation_verified":
+      return "Remediation verified";
+    case "remediation_manually_verified":
+      return "Manually verified";
+    case "ai_remediation_suggested":
+      return "AI suggestion";
+    case "requirement_status_changed":
+      return "Requirement status";
+    case "requirement_exception_set":
+      return "Exception recorded";
+    case "requirement_exception_cleared":
+      return "Exception cleared";
+    case "requirement_human_passed":
+      return "Human pass";
+    case "requirement_human_pass_cleared":
+      return "Human pass cleared";
+    case "requirements_imported":
+      return "Scope updated";
+    case "pull_request_prepared":
+      return "Pull request prepared";
+    case "monitoring_changes_detected":
+      return "Repo changes detected";
+    case "webhook_reassessment":
+      return "Webhook reassessment";
+    default: {
+      const _exhaustive: never = kind;
+      throw new Error(`Unhandled evidence kind: ${_exhaustive}`);
     }
   }
 }

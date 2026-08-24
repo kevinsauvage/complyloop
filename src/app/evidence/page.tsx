@@ -1,5 +1,10 @@
 import { PaginationNav } from "@/components/pagination-nav";
-import { EmptyState, PageHeader, formatDateTime } from "@/components/page-primitives";
+import {
+  EmptyState,
+  PageActionLink,
+  PageHeader,
+  formatDateTime,
+} from "@/components/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { EvidenceKind } from "@/core/finding-types";
+import { evidenceKindLabel } from "@/core/labels";
 import { paginateSlice, parsePageParam } from "@/core/pagination";
 import { cn } from "@/lib/utils";
 import { evidenceForProject } from "@/server/project-visibility";
@@ -89,7 +95,10 @@ export default async function EvidencePage({
           title="Evidence"
           description="Append-only record of everything checked, found, changed, and verified."
         />
-        <EmptyState title="No project connected">
+        <EmptyState
+          title="No project connected"
+          action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+        >
           <p>Connect a repository from the dashboard to collect evidence.</p>
         </EmptyState>
       </>
@@ -164,7 +173,7 @@ export default async function EvidencePage({
                             TONE_BADGE[tone],
                           )}
                         >
-                          {record.kind}
+                          {evidenceKindLabel(record.kind)}
                         </Badge>
                         <time
                           dateTime={record.at}

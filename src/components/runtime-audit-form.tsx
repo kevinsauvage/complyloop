@@ -16,7 +16,7 @@ export function RuntimeAuditForm({
       action={updateRuntimeAuditAction}
       submitLabel="Save runtime audit"
       pendingLabel="Saving…"
-      variant="outline"
+      variant="default"
       className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-1.5">

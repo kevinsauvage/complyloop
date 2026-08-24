@@ -1,6 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { formatDateTime } from "@/components/page-primitives";
+import { formatDateTime, MetaTile } from "@/components/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -179,27 +178,5 @@ function SummaryChip({
       <span className="font-medium text-foreground">{value}</span>
       {label}
     </span>
-  );
-}
-
-function MetaTile({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5 text-sm",
-        className,
-      )}
-    >
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <div className="mt-1">{children}</div>
-    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { EmptyState, PageHeader } from "@/components/page-primitives";
+import { EmptyState, MetaTile, PageActionLink, PageHeader } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { RuntimeAuditForm } from "@/components/runtime-audit-form";
 import {
@@ -24,7 +24,10 @@ export default async function SettingsPage() {
           title="Settings"
           description="Configure the active project once a repository is connected."
         />
-        <EmptyState title="No project connected">
+        <EmptyState
+          title="No project connected"
+          action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+        >
           <p>Connect a GitHub repository from the dashboard to manage settings.</p>
         </EmptyState>
       </>
@@ -61,15 +64,11 @@ export default async function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5">
-              <p className="text-xs font-medium text-muted-foreground">Name</p>
+            <MetaTile label="Name">
               <p className="font-medium">{project.name}</p>
-            </div>
+            </MetaTile>
             {githubFullName ? (
-              <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5">
-                <p className="text-xs font-medium text-muted-foreground">
-                  GitHub repository
-                </p>
+              <MetaTile label="GitHub repository">
                 {repoUrl ? (
                   <a
                     href={repoUrl}
@@ -82,17 +81,14 @@ export default async function SettingsPage() {
                 ) : (
                   <p className="font-mono">{githubFullName}</p>
                 )}
-              </div>
+              </MetaTile>
             ) : null}
             {project.runtimeBaseUrl ? (
-              <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Runtime audit URL
-                </p>
+              <MetaTile label="Runtime audit URL">
                 <p className="font-mono text-sm break-all">
                   {project.runtimeBaseUrl}
                 </p>
-              </div>
+              </MetaTile>
             ) : (
               <p className="rounded-lg border border-dashed border-border/60 px-3 py-2.5 text-muted-foreground">
                 Runtime audit is off — assessments use source (AST) checks only.

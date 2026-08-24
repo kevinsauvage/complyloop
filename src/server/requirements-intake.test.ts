@@ -150,15 +150,60 @@ describe("requirements intake", () => {
     );
   });
 
+  it("full preset is a no-op when every control is already in implicit scope", () => {
+    const db = emptyDb(project);
+    project.inScopeControlIds = undefined;
+    const evidenceCount = db.evidence.length;
+    const result = applyFrameworkPreset(db, project, "preset-rgaa-full");
+    expect(result.added).toBe(0);
+    expect(project.inScopeControlIds).toBeUndefined();
+    expect(db.evidence).toHaveLength(evidenceCount);
+  });
+
   it("applies a framework preset", () => {
     const db = emptyDb(project);
+    project.inScopeControlIds = undefined;
     applyFrameworkPreset(db, project, "preset-images-media");
-    expect(project.inScopeControlIds?.length).toBeGreaterThan(0);
+    expect(project.inScopeControlIds).toContain("ctl-img-alt");
     expect(
       db.evidence.some((record) =>
         record.summary.includes("Applied framework preset"),
       ),
     ).toBe(true);
+  });
+
+  it("stacks presets instead of replacing earlier selections", () => {
+    const db = emptyDb(project);
+    project.inScopeControlIds = undefined;
+    applyFrameworkPreset(db, project, "preset-images-media");
+    applyFrameworkPreset(db, project, "preset-forms-names");
+    expect(project.inScopeControlIds).toEqual(
+      expect.arrayContaining(["ctl-img-alt", "ctl-input-label"]),
+    );
+    expect(project.inScopeControlIds).toHaveLength(8);
+  });
+
+  it("full preset restores every control after narrowing", () => {
+    const db = emptyDb(project);
+    project.inScopeControlIds = undefined;
+    applyFrameworkPreset(db, project, "preset-images-media");
+    expect(project.inScopeControlIds).toHaveLength(3);
+    applyFrameworkPreset(db, project, "preset-rgaa-full");
+    expect(project.inScopeControlIds).toBeUndefined();
+  });
+
+  it("applying an already in-scope preset is a no-op", () => {
+    const db = emptyDb(project);
+    project.inScopeControlIds = ["ctl-img-alt", "ctl-iframe-title", "ctl-autoplay-media"];
+    const evidenceCount = db.evidence.length;
+    const result = applyFrameworkPreset(db, project, "preset-images-media");
+    expect(result.added).toBe(0);
+    expect(project.inScopeControlIds).toEqual([
+      "ctl-img-alt",
+      "ctl-iframe-title",
+      "ctl-autoplay-media",
+    ]);
+    expect(db.evidence).toHaveLength(evidenceCount);
   });
 
   it("rejects an unknown preset", () => {

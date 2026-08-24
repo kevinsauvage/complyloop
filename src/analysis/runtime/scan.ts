@@ -95,7 +95,7 @@ export async function runAxeOnPage(page: Page): Promise<{
 /**
  * Playwright + axe-core scanner with DNS/redirect SSRF checks on every request.
  */
-export function createPlaywrightAxeScanner(options?: {
+function createPlaywrightAxeScanner(options?: {
   lookup?: DnsLookup;
 }): RuntimePageScanner {
   const lookupOptions = options?.lookup ? { lookup: options.lookup } : undefined;

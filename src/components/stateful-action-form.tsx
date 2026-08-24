@@ -23,6 +23,7 @@ export function StatefulActionForm({
   className,
   confirmMessage,
   confirmTitle,
+  disabled = false,
 }: {
   action: (
     previous: ActionMessageState,
@@ -37,6 +38,8 @@ export function StatefulActionForm({
   /** When set, requires AlertDialog confirmation before the form submits. */
   confirmMessage?: string;
   confirmTitle?: string;
+  /** Disables the submit button (state already satisfied). */
+  disabled?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formId = useId();
@@ -57,7 +60,12 @@ export function StatefulActionForm({
             formId={formId}
           />
         ) : (
-          <Button type="submit" disabled={pending} variant={variant} size={size}>
+          <Button
+            type="submit"
+            disabled={pending || disabled}
+            variant={variant}
+            size={size}
+          >
             {pending ? (pendingLabel ?? "Working…") : submitLabel}
           </Button>
         )}

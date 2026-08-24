@@ -106,11 +106,13 @@ export function DashboardStatusCounts({
               size="sm"
               className={cn(
                 "py-0 shadow-none ring-1 ring-border/60",
+                count === 0 && "opacity-60",
                 href &&
+                  count > 0 &&
                   "transition-[background-color,box-shadow] hover:bg-accent/40 hover:ring-signal/40",
               )}
             >
-              {href ? (
+              {href && count > 0 ? (
                 <Link
                   href={href}
                   className="block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
