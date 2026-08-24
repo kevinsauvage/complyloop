@@ -35,8 +35,11 @@ describe("OrgAccountOverview", () => {
     expect(
       screen.getAllByRole("link", { name: "Privacy" }).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText(/2 projects/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 pending invite/i)).toBeInTheDocument();
+    const projectsChip = screen.getByText("Projects").parentElement;
+    expect(projectsChip).toHaveTextContent("2");
+    const invitesChip = screen.getByText("Pending invites").parentElement;
+    expect(invitesChip).toHaveTextContent("1");
+    expect(screen.queryByText("Members")?.parentElement).toHaveTextContent("3");
   });
 
   it("falls back when support email is unset", () => {
