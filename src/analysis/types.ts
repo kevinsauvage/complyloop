@@ -29,7 +29,25 @@ export type CheckId =
   | "landmark-one-main"
   | "nested-interactive"
   | "target-size"
-  | "autocomplete-valid";
+  | "autocomplete-valid"
+  | "table-headers"
+  | "page-heading"
+  | "content-region"
+  | "label-in-name"
+  | "lang-parts"
+  | "aria-roledescription"
+  | "presentation-role"
+  | "no-auto-refresh"
+  | "no-orientation-lock"
+  | "landmark-unique"
+  | "pointer-gesture"
+  | "pointer-cancellation"
+  | "motion-actuation"
+  | "focus-context-change"
+  | "input-context-change"
+  | "sensory-characteristics"
+  | "image-of-text"
+  | "error-suggestion";
 
 export interface RawFinding {
   checkId: CheckId;

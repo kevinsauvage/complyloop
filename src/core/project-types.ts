@@ -102,11 +102,27 @@ export interface Project {
   runtimeRoutes?: string[];
 }
 
+export const REQUIREMENT_EXCEPTION_REASONS = [
+  "not_applicable",
+  "accepted_risk",
+  "compensating_control",
+  "temporary",
+] as const;
+
 export type RequirementExceptionReason =
-  | "not_applicable"
-  | "accepted_risk"
-  | "compensating_control"
-  | "temporary";
+  (typeof REQUIREMENT_EXCEPTION_REASONS)[number];
+
+/** Reason whose exceptions expire automatically after `expiresAt`. */
+export const TEMPORARY_EXCEPTION_REASON: RequirementExceptionReason = "temporary";
+
+export function isRequirementExceptionReason(
+  value: unknown,
+): value is RequirementExceptionReason {
+  return (
+    typeof value === "string" &&
+    (REQUIREMENT_EXCEPTION_REASONS as readonly string[]).includes(value)
+  );
+}
 
 export interface RequirementException {
   reason: RequirementExceptionReason;

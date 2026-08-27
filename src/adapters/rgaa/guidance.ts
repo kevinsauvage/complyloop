@@ -168,6 +168,114 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       'Use a valid HTML autofill token (e.g. autocomplete="email" or "shipping street-address"). Prefer "off" only when autofill is intentionally disabled.',
   },
+  "table-headers": {
+    impact:
+      "Without header associations, screen reader users cannot trace which row/column a data cell belongs to, so tabular data becomes meaningless.",
+    howToFix:
+      "Mark header cells with <th scope=\"col|row\"> or associate cells via headers/id. Avoid presentation-only tables built from <div>s for real data.",
+  },
+  "page-heading": {
+    impact:
+      "A page with no top-level heading gives screen reader and navigation users no clear starting point for its content (WCAG 2.4.6).",
+    howToFix:
+      "Add a single descriptive <h1> that names the page or main section. Do not use a styled <div> or image where a real heading is expected.",
+  },
+  "content-region": {
+    impact:
+      "Content outside landmarks is invisible to landmark navigation, so assistive technology users cannot skip to the relevant region (WCAG 1.3.1).",
+    howToFix:
+      "Wrap distinct sections in semantic landmarks: <header>, <nav>, <main>, <aside>, <footer>, or role equivalents. Keep all content inside a landmark.",
+  },
+  "label-in-name": {
+    impact:
+      "When the accessible name omits the visible label, speech-input users cannot activate the control by saying what they see (WCAG 2.5.3).",
+    howToFix:
+      "Ensure the accessible name includes the visible text label. Prefer a real <label>, or set aria-label/aria-labelledby to start with the visible label text.",
+  },
+  "lang-parts": {
+    impact:
+      "A passage in another language is read with the wrong pronunciation rules, making it hard to understand for screen reader users (WCAG 3.1.2).",
+    howToFix:
+      'Add a lang attribute to the element wrapping the foreign-language passage, e.g. <span lang="es">…</span>.',
+  },
+  "aria-roledescription": {
+    impact:
+      "An empty or vague aria-roledescription gives assistive technologies a meaningless role name in place of the real one (WCAG 4.1.2).",
+    howToFix:
+      "Provide a non-empty, concise roledescription that adds meaning; never leave it empty, and do not duplicate the implicit role name.",
+  },
+  "presentation-role": {
+    impact:
+      "A focusable element inside role='presentation'/'none' is removed from the accessibility tree but still focusable, creating a silent, unusable control (WCAG 4.1.2).",
+    howToFix:
+      "Move focusable descendants out of the presentation element, or mark them inert/tabIndex={-1} when they must stay visually present.",
+  },
+  "no-auto-refresh": {
+    impact:
+      "An unexpected auto-refresh or redirect can move users without warning, interrupting screen readers and losing their place (WCAG 2.2.1).",
+    howToFix:
+      'Remove <meta http-equiv="refresh"> redirects. If a refresh is essential, warn the user and let them extend or disable it.',
+  },
+  "no-orientation-lock": {
+    impact:
+      "Locking content to one orientation traps users on devices they cannot rotate (e.g. mounted tablets, fixed stands) and breaks their experience (WCAG 1.3.4).",
+    howToFix:
+      "Remove CSS that forces orientation, such as @media (orientation: portrait) to hide content or transform: rotate. Let the layout adapt to both orientations unless the content is genuinely orientation-dependent.",
+  },
+  "landmark-unique": {
+    impact:
+      "When two landmarks of the same type share a name, assistive technology users cannot distinguish them in landmark navigation (WCAG 1.3.1).",
+    howToFix:
+      "Give each repeated landmark a distinct accessible name, e.g. <nav aria-label=\"Primary\"> and <nav aria-label=\"Footer\">, or use different landmark types.",
+  },
+  "pointer-gesture": {
+    impact:
+      "When an action only works through a drag/track path, keyboard and switch users cannot perform it at all (WCAG 2.5.1).",
+    howToFix:
+      "Add a single-pointer or keyboard equivalent: a button, a native <input type=\"range\">, or an onKeyDown handler that performs the same action.",
+  },
+  "pointer-cancellation": {
+    impact:
+      "If a press cannot be aborted, users who start an action by mistake commit it before they can cancel, causing accidental changes (WCAG 2.5.2).",
+    howToFix:
+      "Handle pointercancel/pointerup so the action completes only on release, and let moving the pointer away abort it. Avoid performing the action on pointerdown alone.",
+  },
+  "motion-actuation": {
+    impact:
+      "Functions tied to device motion/orientation exclude users who cannot perform the physical motion (WCAG 2.5.4).",
+    howToFix:
+      "Provide a button or keyboard control that triggers the same function, and do not require shaking or tilting the device.",
+  },
+  "focus-context-change": {
+    impact:
+      "Unexpected context changes on focus disorient screen reader and keyboard users, who may lose their place (WCAG 3.2.1).",
+    howToFix:
+      "Do not navigate or submit from onFocus. Move navigation to an explicit action (click/Enter) or warn the user first.",
+  },
+  "input-context-change": {
+    impact:
+      "Unexpected context changes on input can interrupt the user mid-task and is especially harmful for assistive-technology users (WCAG 3.2.2).",
+    howToFix:
+      "Defer navigation/submission until an explicit submit, or confirm with the user before changing context on input.",
+  },
+  "sensory-characteristics": {
+    impact:
+      "Instructions that say \"click the red button\" or \"use the box on the left\" fail anyone who cannot perceive color or position (WCAG 1.3.3).",
+    howToFix:
+      "Repeat the instruction in text that does not depend on color, shape, size, location, or sound (e.g. name the control explicitly).",
+  },
+  "image-of-text": {
+    impact:
+      "Text rendered as an image cannot be resized, recolored, or read by assistive technology, and is lost when zoomed (WCAG 1.4.5).",
+    howToFix:
+      "Replace background-image or role='img' text with real HTML text styled with CSS, so users can adapt it.",
+  },
+  "error-suggestion": {
+    impact:
+      "An error that only says \"invalid\" leaves the user guessing how to fix it, increasing failed submissions (WCAG 3.3.3).",
+    howToFix:
+      "Include a corrective hint, e.g. \"Email is required and must look like name@example.com.\"",
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {

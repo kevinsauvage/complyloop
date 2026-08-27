@@ -27,7 +27,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   // Language
   "html-has-lang": "html-lang",
   "html-lang-valid": "html-lang",
-  "valid-lang": "html-lang",
+  "valid-lang": "lang-parts",
   "html-xml-lang-mismatch": "html-lang",
 
   // Focus / keyboard
@@ -38,7 +38,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   label: "input-label",
   "select-name": "input-label",
   "form-field-multiple-labels": "input-label",
-  "label-content-name-mismatch": "input-label",
+  "label-content-name-mismatch": "label-in-name",
 
   // Frames / media
   "frame-title": "iframe-title",
@@ -51,7 +51,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "duplicate-id-aria": "duplicate-id",
   "empty-heading": "empty-heading",
   "heading-order": "heading-order",
-  "page-has-heading-one": "heading-order",
+  "page-has-heading-one": "page-heading",
 
   // ARIA
   "aria-hidden-focus": "aria-hidden-focusable",
@@ -90,6 +90,20 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "meta-viewport": "meta-viewport",
   "meta-viewport-large": "meta-viewport",
   "autocomplete-valid": "autocomplete-valid",
+
+  // Promoted from already-detected axe rules (new modeled controls)
+  "td-has-header": "table-headers",
+  "th-has-data-cells": "table-headers",
+  "td-headers-attr": "table-headers",
+  "table-fake-caption": "table-headers",
+  "scope-attr-valid": "table-headers",
+  "region": "content-region",
+  "aria-roledescription": "aria-roledescription",
+  "presentation-role-conflict": "presentation-role",
+  "meta-refresh": "no-auto-refresh",
+  "meta-refresh-no-exceptions": "no-auto-refresh",
+  "css-orientation-lock": "no-orientation-lock",
+  "landmark-unique": "landmark-unique",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {

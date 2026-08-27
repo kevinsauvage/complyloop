@@ -1,6 +1,10 @@
 "use server";
 
-import type { Requirement, RequirementExceptionReason } from "@/core/project-types";
+import type { Requirement } from "@/core/project-types";
+import {
+  isRequirementExceptionReason,
+  TEMPORARY_EXCEPTION_REASON,
+} from "@/core/project-types";
 import { PublicError } from "@/core/public-error";
 import {
   runActionMessage,
@@ -23,17 +27,6 @@ function requireRequirement(
     throw new PublicError("Unknown requirement.");
   }
   return requirement;
-}
-
-function isRequirementExceptionReason(
-  value: unknown,
-): value is RequirementExceptionReason {
-  return (
-    value === "not_applicable" ||
-    value === "accepted_risk" ||
-    value === "compensating_control" ||
-    value === "temporary"
-  );
 }
 
 export async function markRequirementExceptionAction(
@@ -62,7 +55,7 @@ export async function markRequirementExceptionAction(
           "A note is required when setting a requirement exception.",
         );
       }
-      if (reason === "temporary") {
+      if (reason === TEMPORARY_EXCEPTION_REASON) {
         if (typeof expiresRaw !== "string" || expiresRaw.trim().length === 0) {
           throw new PublicError("Temporary exceptions require an expiry date.");
         }
@@ -71,7 +64,7 @@ export async function markRequirementExceptionAction(
       const note = noteRaw.trim();
       const previous = requirement.status;
       const expiresAt =
-        reason === "temporary" && typeof expiresRaw === "string"
+        reason === TEMPORARY_EXCEPTION_REASON && typeof expiresRaw === "string"
           ? new Date(expiresRaw).toISOString()
           : undefined;
 

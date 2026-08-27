@@ -3,6 +3,7 @@ import { deriveRequirementStatus } from "@/core/requirement-status";
 import type { Finding } from "@/core/finding-types";
 import type { RequirementStatus } from "@/core/statuses";
 import type { Control, Project, Requirement } from "@/core/project-types";
+import { TEMPORARY_EXCEPTION_REASON } from "@/core/project-types";
 import { addEvidence, type Db } from "./db";
 
 /** Human exceptions and human passes block automated status overwrite. */
@@ -34,7 +35,11 @@ export function clearExpiredExceptions(
   for (const requirement of db.requirements) {
     if (requirement.projectId !== projectId) continue;
     const exception = requirement.exception;
-    if (!exception || exception.reason !== "temporary" || !exception.expiresAt) {
+    if (
+      !exception ||
+      exception.reason !== TEMPORARY_EXCEPTION_REASON ||
+      !exception.expiresAt
+    ) {
       continue;
     }
     if (new Date(exception.expiresAt).getTime() > now.getTime()) continue;

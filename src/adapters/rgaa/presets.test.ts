@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { presetById } from "@/adapters/registry";
 import { rgaaFramework } from "./controls";
-import { presetById, rgaaPresets } from "./presets";
+import { rgaaPresets } from "./presets";
 
 describe("rgaa presets", () => {
   it("exposes curated presets for the RGAA framework", () => {

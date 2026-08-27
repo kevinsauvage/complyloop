@@ -34,6 +34,7 @@ export const rgaaPresets: FrameworkPreset[] = [
       "ctl-link-name",
       "ctl-form-error-association",
       "ctl-autocomplete-valid",
+      "ctl-label-in-name",
     ],
   },
   {
@@ -50,11 +51,27 @@ export const rgaaPresets: FrameworkPreset[] = [
       "ctl-aria-hidden-focusable",
       "ctl-list-structure",
       "ctl-meta-viewport",
+      "ctl-page-heading",
+      "ctl-content-region",
+      "ctl-no-orientation-lock",
+      "ctl-landmark-unique",
+    ],
+  },
+  {
+    id: "preset-heuristics",
+    name: "Advanced heuristics",
+    description:
+      "Lower-confidence AST checks for pointer/keyboard parity, context changes, sensory instructions, images of text, and error suggestions. Surfaces items for human review.",
+    frameworkId: rgaaFramework.id,
+    controlIds: [
+      "ctl-pointer-gesture",
+      "ctl-pointer-cancellation",
+      "ctl-motion-actuation",
+      "ctl-focus-context-change",
+      "ctl-input-context-change",
+      "ctl-sensory-characteristics",
+      "ctl-image-of-text",
+      "ctl-error-suggestion",
     ],
   },
 ];
-
-/** @deprecated Prefer `presetById` from `@/adapters/registry`. */
-export function presetById(id: string): FrameworkPreset | undefined {
-  return rgaaPresets.find((preset) => preset.id === id);
-}

@@ -180,7 +180,7 @@ describe("requirements intake", () => {
     expect(project.inScopeControlIds).toEqual(
       expect.arrayContaining(["ctl-img-alt", "ctl-input-label"]),
     );
-    expect(project.inScopeControlIds).toHaveLength(8);
+    expect(project.inScopeControlIds).toHaveLength(9);
   });
 
   it("full preset restores every control after narrowing", () => {
