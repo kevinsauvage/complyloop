@@ -1,0 +1,10 @@
+[
+  {
+    "file": "package.json",
+    "location": "scripts.seed",
+    "description": "The 'seed' script runs `tsx src/server/seed.ts` but the seed.ts file only exports functions and does not call them, resulting in no side effects when executed.",
+    "estimated_savings": "Avoids unnecessary transpilation and execution of a module that does nothing (approximately 100ms-1s per run depending on system).",
+    "failure_scenario": "Running `npm run seed` under the assumption it seeds the database, but it actually does nothing, leading to an unseeded database and potential runtime errors in features that depend on seeded data.",
+    "more_details": "The seed.ts file should invoke the seeding function (e.g., by calling `ensureSeeded(db)` with a database instance) to perform the intended seeding operation. Currently, the module exports `ensureSeeded` but never calls it, making the script ineffective."
+  }
+]

@@ -1,17 +1,17 @@
 import type { Control, Framework } from "@/core/project-types";
 
-export const rgaaFramework: Framework = {
-  id: "fw-rgaa-4",
-  name: "RGAA 4 (French accessibility standard)",
+export const wcagFramework: Framework = {
+  id: "fw-wcag-2-1",
+  name: "WCAG 2.1 (accessibility standard)",
   version: "2026.3",
 };
 
-export const rgaaControls: Control[] = [
+export const wcagControls: Control[] = [
   {
     id: "ctl-img-alt",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 1.1",
-    secondaryCode: "WCAG 1.1.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.1.1",
+    secondaryCode: "RGAA 1.1",
     title: "Images have a text alternative",
     description:
       "Every informative image exposes a text alternative; decorative images are explicitly marked as such.",
@@ -20,9 +20,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-button-name",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 11.9",
-    secondaryCode: "WCAG 4.1.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 11.9",
     title: "Buttons have an accessible name",
     description:
       "Every button exposes a name describing its action, via text content or an ARIA label.",
@@ -31,9 +31,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-link-name",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 6.1",
-    secondaryCode: "WCAG 2.4.4",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.4.4",
+    secondaryCode: "RGAA 6.1",
     title: "Links have an accessible name",
     description:
       "Every link exposes a name describing its destination, via text content, image alternatives, or an ARIA label.",
@@ -42,9 +42,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-html-lang",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 8.3",
-    secondaryCode: "WCAG 3.1.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 3.1.1",
+    secondaryCode: "RGAA 8.3",
     title: "The page declares its language",
     description:
       "The document's default human language is programmatically determinable via the lang attribute.",
@@ -53,9 +53,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-focus-order",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 12.8",
-    secondaryCode: "WCAG 2.4.3",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.4.3",
+    secondaryCode: "RGAA 12.8",
     title: "Focus order is logical",
     description:
       "Keyboard focus follows the natural document order; no element forces a custom order with a positive tabindex.",
@@ -64,9 +64,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-input-label",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 11.1",
-    secondaryCode: "WCAG 3.3.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 3.3.2",
+    secondaryCode: "RGAA 11.1",
     title: "Form fields have labels",
     description:
       "Every form field exposes a label telling users what to enter, via <label> association or ARIA attributes.",
@@ -75,9 +75,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-heading-order",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 9.1",
-    secondaryCode: "WCAG 1.3.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.3.1",
+    secondaryCode: "RGAA 9.1",
     title: "Heading levels follow a logical order",
     description:
       "Headings do not skip levels in the document outline (e.g. h2 must not jump to h4).",
@@ -86,9 +86,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-empty-heading",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 9.2",
-    secondaryCode: "WCAG 1.3.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.3.1",
+    secondaryCode: "RGAA 9.2",
     title: "Headings have accessible names",
     description:
       "Every heading exposes text or an ARIA name so the outline is usable.",
@@ -97,9 +97,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-iframe-title",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 2.1",
-    secondaryCode: "WCAG 4.1.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 2.1",
     title: "Frames have a title",
     description:
       "Every iframe exposes a title describing its purpose to assistive technologies.",
@@ -108,9 +108,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-autoplay-media",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 4.1",
-    secondaryCode: "WCAG 1.4.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.4.2",
+    secondaryCode: "RGAA 4.1",
     title: "Media does not autoplay",
     description:
       "Audio and video do not start automatically; users control playback.",
@@ -119,9 +119,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-duplicate-id",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 8.2",
-    secondaryCode: "WCAG 4.1.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 4.1.1",
+    secondaryCode: "RGAA 8.2",
     title: "IDs are unique",
     description:
       "id attributes are unique within a document so labels and ARIA references resolve correctly.",
@@ -130,9 +130,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-form-error-association",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 11.10",
-    secondaryCode: "WCAG 3.3.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 3.3.1",
+    secondaryCode: "RGAA 11.10",
     title: "Form errors are associated with fields",
     description:
       "When a field is invalid, its error message is programmatically associated (e.g. aria-describedby).",
@@ -141,9 +141,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-aria-hidden-focusable",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 8.9",
-    secondaryCode: "WCAG 4.1.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 8.9",
     title: "Hidden elements are not focusable",
     description:
       "Elements with aria-hidden must not be reachable by keyboard focus.",
@@ -152,9 +152,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-aria-role",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 8.6",
-    secondaryCode: "WCAG 4.1.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 8.6",
     title: "ARIA roles are valid",
     description:
       "role values are concrete ARIA roles, not abstract or invented names.",
@@ -163,9 +163,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-aria-props",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 8.7",
-    secondaryCode: "WCAG 4.1.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 8.7",
     title: "ARIA attributes are valid",
     description:
       "aria-* attributes exist in the ARIA specification (no typos or unknown properties).",
@@ -174,9 +174,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-aria-required-attr",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 8.8",
-    secondaryCode: "WCAG 4.1.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 8.8",
     title: "Roles include required ARIA properties",
     description:
       "An explicit ARIA role exposes every property that role requires (e.g. checkbox needs aria-checked).",
@@ -185,9 +185,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-no-autofocus",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 12.7",
-    secondaryCode: "WCAG 2.4.3",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.4.3",
+    secondaryCode: "RGAA 12.7",
     title: "Pages do not steal focus on load",
     description:
       "autoFocus is not used; keyboard and screen reader users keep control of where focus starts.",
@@ -196,9 +196,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-keyboard-interaction",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 12.11",
-    secondaryCode: "WCAG 2.1.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.1.1",
+    secondaryCode: "RGAA 12.11",
     title: "Pointer-only controls are also operable by keyboard",
     description:
       "Non-native elements with click or hover handlers are focusable, have an interactive role, and expose equivalent keyboard events.",
@@ -207,9 +207,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-color-contrast",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 3.2",
-    secondaryCode: "WCAG 1.4.3",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.4.3",
+    secondaryCode: "RGAA 3.2",
     title: "Text contrast meets 4.5:1",
     description:
       "Foreground and background color of text meets WCAG AA contrast (measured on the rendered page).",
@@ -218,9 +218,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-document-title",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 8.5",
-    secondaryCode: "WCAG 2.4.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.4.2",
+    secondaryCode: "RGAA 8.5",
     title: "The page has a title",
     description:
       "The rendered document exposes a non-empty <title> describing the page.",
@@ -229,9 +229,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-bypass",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 12.7",
-    secondaryCode: "WCAG 2.4.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.4.1",
+    secondaryCode: "RGAA 12.7",
     title: "A mechanism skips repeated blocks",
     description:
       "The page provides a skip link, landmark, or heading structure so keyboard users can bypass repeated chrome.",
@@ -240,9 +240,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-landmark-one-main",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 12.6",
-    secondaryCode: "WCAG 1.3.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.3.1",
+    secondaryCode: "RGAA 12.6",
     title: "The page has one main landmark",
     description:
       "The rendered page exposes exactly one main landmark for the primary content.",
@@ -251,9 +251,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-nested-interactive",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 8.9",
-    secondaryCode: "WCAG 4.1.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 8.9",
     title: "Interactive controls are not nested",
     description:
       "Buttons, links, and other widgets are not placed inside other widgets (measured on the rendered tree).",
@@ -262,9 +262,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-target-size",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 11.11",
-    secondaryCode: "WCAG 2.5.8",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.5.8",
+    secondaryCode: "RGAA 11.11",
     title: "Pointer targets are large enough",
     description:
       "Interactive targets meet the WCAG 2.2 minimum size (24×24 CSS pixels) on the rendered page.",
@@ -273,9 +273,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-meta-viewport",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 10.4",
-    secondaryCode: "WCAG 1.4.4",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.4.4",
+    secondaryCode: "RGAA 10.4",
     title: "Viewport allows zoom",
     description:
       "The viewport meta tag must not disable zooming (no user-scalable=no or maximum-scale below 2).",
@@ -284,9 +284,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-list-structure",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 9.3",
-    secondaryCode: "WCAG 1.3.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.3.1",
+    secondaryCode: "RGAA 9.3",
     title: "Lists use correct structure",
     description:
       "List items are children of ul/ol/menu, and list containers only contain li children.",
@@ -295,9 +295,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-autocomplete-valid",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 11.13",
-    secondaryCode: "WCAG 1.3.5",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.3.5",
+    secondaryCode: "RGAA 11.13",
     title: "Autocomplete tokens are valid",
     description:
       "Form controls that declare autocomplete use valid HTML autofill tokens so browsers and ATs can identify the expected input purpose.",
@@ -306,9 +306,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-table-headers",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 5.2",
-    secondaryCode: "WCAG 1.3.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.3.1",
+    secondaryCode: "RGAA 5.2",
     title: "Table data cells have headers",
     description:
       "Every data cell in a data table is associated with one or more header cells (th/id or scope) so the relationship is programmatically determinable.",
@@ -317,9 +317,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-page-heading",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 9.2",
-    secondaryCode: "WCAG 2.4.6",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.4.6",
+    secondaryCode: "RGAA 9.2",
     title: "The page has a top-level heading",
     description:
       "Each page exposes at least one heading (h1) so its structure is perceivable to assistive technology.",
@@ -328,9 +328,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-content-region",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 9.2.1",
-    secondaryCode: "WCAG 1.3.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.3.1",
+    secondaryCode: "RGAA 9.2.1",
     title: "Page content sits inside landmarks",
     description:
       "All page content is contained within landmark regions (header, nav, main, aside, footer) so its structure is conveyed to assistive technology.",
@@ -339,9 +339,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-label-in-name",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 11.1",
-    secondaryCode: "WCAG 2.5.3",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.5.3",
+    secondaryCode: "RGAA 11.1",
     title: "Visible label is contained in the accessible name",
     description:
       "For components with a visible text label, the accessible name includes that visible label (punctuation and letter-case ignored).",
@@ -350,9 +350,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-lang-parts",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 8.8",
-    secondaryCode: "WCAG 3.1.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 3.1.2",
+    secondaryCode: "RGAA 8.8",
     title: "Language of parts is declared",
     description:
       "Any block of text in a language different from the page default declares its language via a lang attribute.",
@@ -361,9 +361,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-aria-roledescription",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 7.1",
-    secondaryCode: "WCAG 4.1.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 7.1",
     title: "aria-roledescription values are valid",
     description:
       "Elements that use aria-roledescription provide a non-empty, meaningful value that does not duplicate the implicit role name.",
@@ -372,9 +372,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-presentation-role",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 8.9",
-    secondaryCode: "WCAG 4.1.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 8.9",
     title: "Presentation role does not hide focusable content",
     description:
       "Elements with role='presentation' or role='none' do not contain focusable descendants that would become inaccessible.",
@@ -383,9 +383,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-no-auto-refresh",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 13.2",
-    secondaryCode: "WCAG 2.2.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.2.1",
+    secondaryCode: "RGAA 13.2",
     title: "No unexpected time limits or redirects",
     description:
       "The page does not auto-refresh or redirect after a time limit without user control (meta refresh is removed).",
@@ -394,9 +394,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-no-orientation-lock",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 13.9.1",
-    secondaryCode: "WCAG 1.3.4",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.3.4",
+    secondaryCode: "RGAA 13.9.1",
     title: "Content is not restricted to one display orientation",
     description:
       "Content does not lock to portrait or landscape; it adapts to the orientation the user prefers (unless an orientation is essential).",
@@ -405,9 +405,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-landmark-unique",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 12.6",
-    secondaryCode: "WCAG 1.3.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.3.1",
+    secondaryCode: "RGAA 12.6",
     title: "Landmarks have unique, descriptive names",
     description:
       "When more than one landmark of the same type is used (e.g. multiple nav), each has a distinct accessible name so users can tell them apart.",
@@ -416,9 +416,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-pointer-gesture",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 11.6",
-    secondaryCode: "WCAG 2.5.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.5.1",
+    secondaryCode: "RGAA 11.6",
     title: "Pointer gestures have a keyboard alternative",
     description:
       "Functionality operated through a path-based pointer gesture (drag, swipe) also works with a single-pointer or keyboard action.",
@@ -427,9 +427,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-pointer-cancellation",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 11.7",
-    secondaryCode: "WCAG 2.5.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.5.2",
+    secondaryCode: "RGAA 11.7",
     title: "Pointer actions are abortable",
     description:
       "A pointerdown that starts an action provides a pointercancel/up path so the action can be aborted before completion.",
@@ -438,9 +438,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-motion-actuation",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 11.8",
-    secondaryCode: "WCAG 2.5.4",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 2.5.4",
+    secondaryCode: "RGAA 11.8",
     title: "Motion actuation has a non-motion alternative",
     description:
       "Functions triggered by device motion or orientation (shake, tilt) can also be operated without the motion (button/keyboard).",
@@ -449,9 +449,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-focus-context-change",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 10.9",
-    secondaryCode: "WCAG 3.2.1",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 3.2.1",
+    secondaryCode: "RGAA 10.9",
     title: "Focus does not change context",
     description:
       "Receiving focus does not unexpectedly change context (navigate, submit, open a dialog) without warning.",
@@ -460,9 +460,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-input-context-change",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 10.10",
-    secondaryCode: "WCAG 3.2.2",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 3.2.2",
+    secondaryCode: "RGAA 10.10",
     title: "Input does not change context",
     description:
       "Changing or entering input does not unexpectedly change context (navigate, submit) without warning or a confirmation step.",
@@ -471,9 +471,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-sensory-characteristics",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 10.3",
-    secondaryCode: "WCAG 1.3.3",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.3.3",
+    secondaryCode: "RGAA 10.3",
     title: "Instructions do not rely on sensory characteristics",
     description:
       "Instructions are not conveyed by color, shape, size, sound, or position alone; they are also available as text.",
@@ -482,9 +482,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-image-of-text",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 10.1",
-    secondaryCode: "WCAG 1.4.5",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 1.4.5",
+    secondaryCode: "RGAA 10.1",
     title: "Text is not presented as an image",
     description:
       "Information conveyed as an image of text (CSS background text, role='img' with text) is also available as real text.",
@@ -493,9 +493,9 @@ export const rgaaControls: Control[] = [
   },
   {
     id: "ctl-error-suggestion",
-    frameworkId: rgaaFramework.id,
-    code: "RGAA 11.12",
-    secondaryCode: "WCAG 3.3.3",
+    frameworkId: wcagFramework.id,
+    code: "WCAG 3.3.3",
+    secondaryCode: "RGAA 11.12",
     title: "Errors suggest a correction",
     description:
       "When input is invalid, the error identifies the problem and suggests how to fix it (not just that it is wrong).",

@@ -16,11 +16,33 @@ function isStickyHumanDecision(
   return Boolean(requirement.exception || requirement.humanPass);
 }
 
-/** Controls assessed for a project; undefined scope means every control. */
+/**
+ * Controls assessed for a project; respects both frameworkIds and inScopeControlIds.
+ * - If frameworkIds is undefined, all frameworks are in scope (backward compatibility)
+ * - If frameworkIds is defined, only controls from those frameworks are in scope
+ * - Then apply inScopeControlIds filtering on top of that
+ */
 export function controlsInScope(db: Db, project: Project): Control[] {
-  if (!project.inScopeControlIds) return db.controls;
-  const allowed = new Set(project.inScopeControlIds);
-  return db.controls.filter((control) => allowed.has(control.id));
+  // Start with all controls
+  let filteredControls = db.controls;
+
+  // Apply framework filtering if frameworkIds is set
+  if (project.frameworkIds !== undefined) {
+    const frameworkIdsSet = new Set(project.frameworkIds);
+    filteredControls = filteredControls.filter(
+      (control) => frameworkIdsSet.has(control.frameworkId)
+    );
+  }
+
+  // Apply control ID filtering if inScopeControlIds is set
+  if (project.inScopeControlIds !== undefined) {
+    const controlIdsSet = new Set(project.inScopeControlIds);
+    filteredControls = filteredControls.filter(
+      (control) => controlIdsSet.has(control.id)
+    );
+  }
+
+  return filteredControls;
 }
 
 /**
@@ -182,4 +204,3 @@ export function refreshRequirementStatuses(
     }
   }
 }
-

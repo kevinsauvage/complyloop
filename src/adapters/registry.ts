@@ -1,17 +1,24 @@
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { rgaaPresets } from "@/adapters/rgaa/presets";
+import { wcagControls, wcagFramework } from "@/adapters/wcag/controls";
+import { wcagPresets } from "@/adapters/wcag/presets";
 import type { Control, Framework } from "@/core/project-types";
 import type { FrameworkAdapter, FrameworkPreset } from "./types";
 
 /**
- * Registered framework adapters. RGAA/WCAG ships first; add SOC 2 / ISO /
- * custom packs here without changing seed or intake call sites.
+ * Registered framework adapters. Now includes separate RGAA and WCAG adapters
+ * for framework-specific assessment, while maintaining backward compatibility.
  */
 export const frameworkAdapters: readonly FrameworkAdapter[] = [
   {
     framework: rgaaFramework,
     controls: rgaaControls,
     presets: rgaaPresets,
+  },
+  {
+    framework: wcagFramework,
+    controls: wcagControls,
+    presets: wcagPresets,
   },
 ];
 

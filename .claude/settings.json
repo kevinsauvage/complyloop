@@ -3,5 +3,32 @@
     "frontend-design@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
     "code-review@claude-plugins-official": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx prettier --write ${toolInput.filePath}",
+            "description": "Format modified files with Prettier"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash(git commit:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm test -- --run",
+            "description": "Run tests before committing",
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
   }
 }

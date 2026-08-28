@@ -127,12 +127,12 @@ export default async function RequirementsPage() {
 
         <aside aria-label="Intake" className="lg:col-span-1">
           <div className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-            <RequirementsIntakePanel
+             <RequirementsIntakePanel
+              frameworkIds={project.frameworkIds}
               canAssess={caps.canAssess}
               controls={db.controls}
               frameworks={frameworks}
               inScope={inScope}
-              hasExplicitScope={hasExplicitScope}
             />
           </div>
         </aside>

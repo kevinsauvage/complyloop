@@ -11,14 +11,17 @@ export function RequirementsIntakePanel({
   controls,
   frameworks,
   inScope,
-  hasExplicitScope,
+  frameworkIds,
 }: {
   canAssess: boolean;
   controls: Control[];
   frameworks: Framework[];
   inScope: Set<string>;
-  hasExplicitScope: boolean;
+  frameworkIds: string[] | undefined;
 }) {
+  // Compute hasExplicitScope: true if the inScope set is not equal to the set of all control IDs
+  const hasExplicitScope = inScope.size !== controls.length;
+
   return (
     <div className="flex flex-col gap-4">
       {!canAssess ? (
@@ -58,6 +61,7 @@ export function RequirementsIntakePanel({
                   controlCount={controls.length}
                   inScope={inScope}
                   hasExplicitScope={hasExplicitScope}
+                  frameworks={frameworks}
                 />
               </TabsContent>
 
@@ -66,7 +70,7 @@ export function RequirementsIntakePanel({
                   controls={controls}
                   frameworks={frameworks}
                   inScope={inScope}
-                  hasExplicitScope={hasExplicitScope}
+                  frameworkIds={frameworkIds}
                 />
               </TabsContent>
 

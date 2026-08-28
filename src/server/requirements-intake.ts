@@ -54,19 +54,6 @@ function ensureCustomFramework(db: Db): Framework {
   return framework;
 }
 
-export interface CustomControlInput {
-  code: string;
-  title: string;
-  description: string;
-  secondaryCode?: string;
-  /**
-   * Optional link to an existing analysis check. When set, assessments use
-   * that check's findings; when omitted, the control stays manual
-   * (`unable_to_verify` until human pass/exception).
-   */
-  checkId?: string | null;
-}
-
 function resolveCustomCheckId(raw: string | null | undefined): string | null {
   if (raw === undefined || raw === null) return null;
   const trimmed = raw.trim();
@@ -83,7 +70,7 @@ function resolveCustomCheckId(raw: string | null | undefined): string | null {
 export function importCustomControl(
   db: Db,
   project: Project,
-  input: CustomControlInput,
+  input: ChecklistLine,
 ): Control {
   const code = input.code.trim();
   const title = input.title.trim();
@@ -169,6 +156,8 @@ export function setProjectScope(
  * each adds its controls to the current explicit scope, and a project with no
  * explicit scope starts from the preset alone (the full adapter preset then
  * covers every control, restoring the implicit all-controls scope).
+ *
+ * Also updates frameworkIds to include the preset's framework if frameworkIds is set.
  */
 export function applyFrameworkPreset(
   db: Db,
@@ -177,20 +166,49 @@ export function applyFrameworkPreset(
 ): { added: number } {
   const preset = presetById(presetId);
   if (!preset) throw new PublicError(`Unknown framework preset: ${presetId}`);
+
+  // Handle control ID scoping (existing logic)
   if (project.inScopeControlIds === undefined) {
     const allIds = db.controls.map((control) => control.id);
     const coversAll =
       preset.controlIds.length === allIds.length &&
       allIds.every((id) => preset.controlIds.includes(id));
-    if (coversAll) return { added: 0 };
+    if (coversAll) {
+      // Also handle frameworkIds for backward compatibility
+      if (project.frameworkIds !== undefined) {
+        const frameworkIdsSet = new Set(project.frameworkIds);
+        if (!frameworkIdsSet.has(preset.frameworkId)) {
+          project.frameworkIds = [...project.frameworkIds, preset.frameworkId];
+        }
+      }
+      return { added: 0 };
+    }
   }
+
   const current = project.inScopeControlIds ?? [];
   const merged = [...new Set([...current, ...preset.controlIds])];
   const added = merged.length - current.length;
   if (added === 0) {
+    // Still need to handle frameworkIds even if no new controls were added
+    if (project.frameworkIds !== undefined) {
+      const frameworkIdsSet = new Set(project.frameworkIds);
+      if (!frameworkIdsSet.has(preset.frameworkId)) {
+        project.frameworkIds = [...project.frameworkIds, preset.frameworkId];
+      }
+    }
     return { added: 0 };
   }
+
   setProjectScope(db, project, merged);
+
+  // Also add the framework to frameworkIds if it's set
+  if (project.frameworkIds !== undefined) {
+    const frameworkIdsSet = new Set(project.frameworkIds);
+    if (!frameworkIdsSet.has(preset.frameworkId)) {
+      project.frameworkIds = [...project.frameworkIds, preset.frameworkId];
+    }
+  }
+
   addEvidence(db, {
     kind: "requirements_imported",
     summary: `Applied framework preset "${preset.name}" (+${added} controls, ${merged.length} in scope)`,

@@ -8,12 +8,13 @@ import {
 } from "./registry";
 
 describe("framework adapter registry", () => {
-  it("registers the RGAA/WCAG adapter", () => {
-    expect(allFrameworks().some((framework) => framework.id === "fw-rgaa-wcag")).toBe(
-      true,
-    );
-    expect(allControls().length).toBeGreaterThanOrEqual(27);
+  it("registers the RGAA and WCAG adapters", () => {
+    const frameworkIds = allFrameworks().map((f) => f.id);
+    expect(frameworkIds).toContain("fw-rgaa-4");
+    expect(frameworkIds).toContain("fw-wcag-2-1");
+    expect(allControls().length).toBeGreaterThanOrEqual(54); // 27 controls * 2 frameworks
     expect(presetById("preset-rgaa-full")).toBeDefined();
+    expect(presetById("preset-wcag-full")).toBeDefined();
     expect(allFrameworkPresets().length).toBeGreaterThan(0);
   });
 

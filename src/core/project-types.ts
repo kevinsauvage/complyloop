@@ -91,6 +91,11 @@ export interface Project {
    */
   inScopeControlIds?: string[];
   /**
+   * Framework IDs in scope for this project. `undefined` means every framework
+   * is in scope (backward compatibility).
+   */
+  frameworkIds?: string[];
+  /**
    * Staging / preview base URL for runtime (browser) accessibility audits.
    * When set, composition-sensitive rules use the rendered DOM as status truth.
    */

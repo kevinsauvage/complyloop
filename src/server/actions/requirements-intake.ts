@@ -22,10 +22,17 @@ export async function updateRequirementScopeAction(
     await withWorkspaceWrite(async (workspace) => {
       requireOnActive(workspace, "project.assess");
       const { db, project } = workspace;
-      const selected = formData
+      const selectedControlIds = formData
         .getAll("controlId")
         .filter((value): value is string => typeof value === "string");
-      setProjectScope(db, project, selected);
+      const selectedFrameworkIds = formData
+        .getAll("frameworkId")
+        .filter((value): value is string => typeof value === "string");
+      setProjectScope(db, project, selectedControlIds);
+      // Update frameworkIds: if no frameworks selected, set to undefined (all frameworks)
+      // Otherwise, set to the selected array
+      project.frameworkIds =
+        selectedFrameworkIds.length > 0 ? selectedFrameworkIds : undefined;
     });
     refresh();
     return "Scope saved.";
@@ -106,4 +113,3 @@ export async function importChecklistAction(
     return "Checklist imported.";
   });
 }
-

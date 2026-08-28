@@ -1,22 +1,22 @@
-import { rgaaControls, rgaaFramework } from "./controls";
+import { wcagControls, wcagFramework } from "./controls";
 import type { FrameworkPreset } from "@/adapters/types";
 
 export type { FrameworkPreset };
 
-/** Curated subsets of the RGAA adapter for one-click scoping. */
-export const rgaaPresets: FrameworkPreset[] = [
+/** Curated subsets of the WCAG adapter for one-click scoping. */
+export const wcagPresets: FrameworkPreset[] = [
   {
-    id: "preset-rgaa-full",
-    name: "Full RGAA 4",
-    description: "Every machine-checkable control from RGAA 4",
-    frameworkId: rgaaFramework.id,
-    controlIds: rgaaControls.map((control) => control.id),
+    id: "preset-wcag-full",
+    name: "Full WCAG 2.1",
+    description: "Every machine-checkable control from WCAG 2.1",
+    frameworkId: wcagFramework.id,
+    controlIds: wcagControls.map((control) => control.id),
   },
   {
-    id: "preset-rgaa-aa",
-    name: "RGAA 4 AA",
-    description: "Core RGAA 4 AA success criteria",
-    frameworkId: rgaaFramework.id,
+    id: "preset-wcag-aa",
+    name: "WCAG 2.1 AA",
+    description: "Core WCAG 2.1 AA success criteria",
+    frameworkId: wcagFramework.id,
     controlIds: [
       "ctl-img-alt",
       "ctl-button-name",
@@ -57,10 +57,10 @@ export const rgaaPresets: FrameworkPreset[] = [
     ],
   },
   {
-    id: "preset-rgaa-aaa",
-    name: "RGAA 4 AAA",
-    description: "Enhanced RGAA 4 AAA success criteria",
-    frameworkId: rgaaFramework.id,
+    id: "preset-wcag-aaa",
+    name: "WCAG 2.1 AAA",
+    description: "Enhanced WCAG 2.1 AAA success criteria",
+    frameworkId: wcagFramework.id,
     controlIds: [
       "ctl-img-alt",
       "ctl-button-name",
@@ -109,10 +109,10 @@ export const rgaaPresets: FrameworkPreset[] = [
     ],
   },
   {
-    id: "preset-rgaa-images-media",
+    id: "preset-wcag-images-media",
     name: "Images & media",
     description: "Text alternatives, frames, and autoplay media.",
-    frameworkId: rgaaFramework.id,
+    frameworkId: wcagFramework.id,
     controlIds: [
       "ctl-img-alt",
       "ctl-iframe-title",
@@ -120,10 +120,10 @@ export const rgaaPresets: FrameworkPreset[] = [
     ],
   },
   {
-    id: "preset-rgaa-forms-names",
+    id: "preset-wcag-forms-names",
     name: "Forms & accessible names",
     description: "Labels, buttons, links, and autocomplete purpose.",
-    frameworkId: rgaaFramework.id,
+    frameworkId: wcagFramework.id,
     controlIds: [
       "ctl-input-label",
       "ctl-button-name",
@@ -134,10 +134,10 @@ export const rgaaPresets: FrameworkPreset[] = [
     ],
   },
   {
-    id: "preset-rgaa-structure",
+    id: "preset-wcag-structure",
     name: "Page structure",
     description: "Language, headings, lists, viewport zoom, and focus order.",
-    frameworkId: rgaaFramework.id,
+    frameworkId: wcagFramework.id,
     controlIds: [
       "ctl-html-lang",
       "ctl-heading-order",
@@ -154,11 +154,11 @@ export const rgaaPresets: FrameworkPreset[] = [
     ],
   },
   {
-    id: "preset-rgaa-heuristics",
+    id: "preset-wcag-heuristics",
     name: "Advanced heuristics",
     description:
       "Lower-confidence AST checks for pointer/keyboard parity, context changes, sensory instructions, images of text, and error suggestions. Surfaces items for human review.",
-    frameworkId: rgaaFramework.id,
+    frameworkId: wcagFramework.id,
     controlIds: [
       "ctl-pointer-gesture",
       "ctl-pointer-cancellation",

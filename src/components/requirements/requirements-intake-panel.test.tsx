@@ -29,7 +29,7 @@ describe("RequirementsIntakePanel", () => {
         controls={rgaaControls}
         frameworks={[rgaaFramework]}
         inScope={allIds}
-        hasExplicitScope={false}
+        frameworkIds={undefined}
       />,
     );
 
@@ -44,7 +44,7 @@ describe("RequirementsIntakePanel", () => {
         controls={rgaaControls}
         frameworks={[rgaaFramework]}
         inScope={allIds}
-        hasExplicitScope={false}
+        frameworkIds={undefined}
       />,
     );
 
@@ -59,11 +59,12 @@ describe("RequirementsIntakePanel", () => {
         controls={rgaaControls}
         frameworks={[rgaaFramework]}
         inScope={allIds}
-        hasExplicitScope={false}
+        frameworkIds={undefined}
       />,
     );
 
-    expect(screen.getByText("Current scope")).toBeInTheDocument();
+    const currentScopeBadges = screen.getAllByText("Current scope");
+    expect(currentScopeBadges.length).toBeGreaterThan(0);
     expect(
       screen.queryByRole("button", { name: /add .*full rgaa/i }),
     ).not.toBeInTheDocument();
@@ -80,7 +81,7 @@ describe("RequirementsIntakePanel", () => {
         controls={rgaaControls}
         frameworks={[rgaaFramework]}
         inScope={allIds}
-        hasExplicitScope={false}
+        frameworkIds={undefined}
       />,
     );
 

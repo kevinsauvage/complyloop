@@ -1,6 +1,6 @@
-import { allFrameworkPresets } from "@/adapters/registry";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Badge } from "@/components/ui/badge";
+import type { Framework } from "@/core/project-types";
 import {
   applyFrameworkPresetAction,
 } from "@/server/actions/requirements-intake";
@@ -8,18 +8,25 @@ import {
   presetScopeAction,
   type PresetScopeAction,
 } from "./preset-scope-action";
-
-const frameworkPresets = allFrameworkPresets();
+import { rgaaPresets } from "@/adapters/rgaa/presets";
+import { wcagPresets } from "@/adapters/wcag/presets";
 
 export function IntakePresetList({
   controlCount,
   inScope,
   hasExplicitScope,
+  frameworks,
 }: {
   controlCount: number;
   inScope: Set<string>;
   hasExplicitScope: boolean;
+  frameworks: Framework[];
 }) {
+  // Get presets only from the provided frameworks
+  const frameworkIds = new Set(frameworks.map(f => f.id));
+  const allPresets = [...rgaaPresets, ...wcagPresets];
+  const frameworkPresets = allPresets.filter(preset => frameworkIds.has(preset.frameworkId));
+
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">
