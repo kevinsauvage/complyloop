@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assertProductionGitHubApp,
+  githubAppInstallUrl,
   githubAuthorizationScopes,
   isGitHubAppConfigured,
   normalizeGitHubAppPrivateKey,
@@ -50,6 +51,18 @@ describe("GitHub App configuration", () => {
     vi.stubEnv("GITHUB_APP_PRIVATE_KEY", "");
     expect(isGitHubAppConfigured()).toBe(false);
     expect(githubAuthorizationScopes()).toBe("read:user user:email repo");
+  });
+
+  it("builds an App install URL from GITHUB_APP_SLUG", () => {
+    vi.stubEnv("GITHUB_APP_SLUG", "complyloop");
+    expect(githubAppInstallUrl()).toBe(
+      "https://github.com/apps/complyloop/installations/new",
+    );
+  });
+
+  it("has no install URL when the slug is unset", () => {
+    vi.stubEnv("GITHUB_APP_SLUG", "");
+    expect(githubAppInstallUrl()).toBeUndefined();
   });
 
   it("normalizes escaped newlines in private keys", () => {

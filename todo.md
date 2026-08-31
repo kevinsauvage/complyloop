@@ -11,7 +11,7 @@ Priority is **product risk**, not effort. P0 items can claim compliance without 
 ### 1. Stop false-passing axe-only controls when runtime did not run — DONE
 
 - **What:** Ten modeled checks have axe mappings but **no AST implementation** and are **not** in `RUNTIME_ONLY_CHECK_IDS`: `table-headers`, `page-heading`, `content-region`, `label-in-name`, `lang-parts`, `aria-roledescription`, `presentation-role`, `no-auto-refresh`, `no-orientation-lock`, `landmark-unique`. With no findings, `deriveRequirementStatus` returns `passed`.
-- **Why:** Spec principle *evidence over claims*. An AST-only assessment currently marks those requirements passed even though they were never evaluated. The existing six runtime-only checks (`color-contrast`, `document-title`, `bypass`, `landmark-one-main`, `nested-interactive`, `target-size`) already stay `unable_to_verify` — these ten should too.
+- **Why:** Spec principle _evidence over claims_. An AST-only assessment currently marks those requirements passed even though they were never evaluated. The existing six runtime-only checks (`color-contrast`, `document-title`, `bypass`, `landmark-one-main`, `nested-interactive`, `target-size`) already stay `unable_to_verify` — these ten should too.
 - **How:** Add them to `RUNTIME_ONLY_CHECK_IDS` in `src/analysis/check-authority.ts`. Extend `assessment-status` tests so an AST-only run leaves them `unable_to_verify`, and a successful axe run can pass/fail them. Update architecture docs in the same change.
 - **Done:** All sixteen axe-only checks are in `RUNTIME_ONLY_CHECK_IDS`; architecture/README counts updated.
 
@@ -21,34 +21,24 @@ Priority is **product risk**, not effort. P0 items can claim compliance without 
 - **Why:** Users who set WCAG AA get an audit artifact that still looks like RGAA Full. Wrong framework on exported evidence breaks trust with auditors.
 - **How:** Resolve framework from `project.assessmentPresetId` → `presetById` → `frameworkId`. Use `controlDisplayCodes` (same as the requirements page) for primary/secondary labels. Cover both RGAA and WCAG presets in `src/server/report.test.ts`.
 - **Done:** `frameworkForProject` used by Markdown/HTML report input and JSON export; display codes swap for WCAG targets.
+
 ---
 
 ## P1 — Finish the current slice and keep docs honest
 
-### 3. Land the in-flight requirements intake — DONE
-
-- **What:** Uncommitted work replaces topical/import/custom intake with a single **framework + level** target (Full / AA / AAA), plus theme grouping on the assessed list (`control-theme.ts`, `AssessedRequirementList`).
-- **Why:** Half-landed intake will confuse users and conflict with tests that already expect “no topical, import, or custom intake.” Finish one model before adding more.
-- **How:** Complete the remaining wiring (`inScopeControlIds` + `assessmentPresetId` on connect and re-assess). Run `npm run lint && npm run typecheck && npm run test && npm run build`. Commit as one change with architecture + README updates (item 4).
-- **Done:** Connect defaults to Full RGAA; intake panel sets target with toast; dashboard / findings / reports / JSON export filter to the active scope. Fresh DB only — no legacy project backfill.
-
-### 4. Sync check counts in README and architecture — DONE
-
-- **What:** README still says **18** AST checks. Architecture still says **21** AST + 6 runtime-only. The registry has **29** AST checks; axe maps ~60+ rules onto **16** additional check ids (6 declared runtime-only + 10 that currently false-pass — item 1).
-- **Why:** Agents and humans plan from those docs. Stale counts hide coverage holes.
-- **How:** After item 1, rewrite the “Analysis checks (current)” section in `docs/ai/architecture.md` and the assessment walkthrough in `README.md` as three lists: AST, runtime-only, composition-sensitive.
-- **Done:** Architecture lists AST (29) / runtime-only (16) / composition-sensitive (8) plus intake model; README walkthrough matches.
-### 5. Stop duplicating RGAA and WCAG controls under the same IDs
+### 5. Stop duplicating RGAA and WCAG controls under the same IDs — DONE
 
 - **What:** `ctl-img-alt` (and every sibling) exists in both `rgaa/controls.ts` and `wcag/controls.ts`. `mergeAdapterControls` keys by id, so the second adapter never lands — WCAG is a display swap (`controlDisplayCodes`) over RGAA rows.
 - **Why:** Fine as a temporary trick; it will break the next adapter (SOC 2, custom) and makes “framework-agnostic catalog” a lie in the database.
 - **How:** One shared control catalog with `code` / `secondaryCode` plus `frameworkId` only on the **preset**, or distinct ids (`ctl-rgaa-img-alt` / `ctl-wcag-img-alt`) that share `checkId`. Prefer the first: presets own the framework, controls stay unique. Migrate seed merge accordingly.
+- **Done:** Unique catalog in `rgaa/controls.ts`. WCAG adapter registers framework + presets only. `allControls()` is unique by id. Display still swaps via `controlDisplayCodes`.
 
-### 6. GitHub App empty state needs an install path
+### 6. GitHub App empty state needs an install path — DONE
 
 - **What:** With the App configured, an empty repo picker says “Install the App on the repos you want to assess, then refresh” — no link, no `GITHUB_APP_SLUG` deep-link.
 - **Why:** Production **requires** a GitHub App (`assertProductionGitHubApp`). First-run friction here kills the spec’s “connect a repo and get a useful result fast.”
 - **How:** Add `GITHUB_APP_SLUG` (or full install URL) to env. Empty state: button to `https://github.com/apps/<slug>/installations/new`, then refetch. Document in `docs/deploy.md`.
+- **Done:** `githubAppInstallUrl()` + install button when slug is set; copy points at `GITHUB_APP_SLUG` when it is not. Documented in `.env.example` and `docs/deploy.md`.
 
 ---
 
@@ -109,7 +99,7 @@ Priority is **product risk**, not effort. P0 items can claim compliance without 
 ### 15. Regression alerts leave the product
 
 - **What:** Webhooks re-assess, evidence records `regression: true`, dashboard shows unread in-app alerts. No email, Slack, or GitHub issue.
-- **Why:** Spec §8: continuous value is *noticing* a regression after a PR. If nobody opens the dashboard, the loop dies.
+- **Why:** Spec §8: continuous value is _noticing_ a regression after a PR. If nobody opens the dashboard, the loop dies.
 - **How:** MVP: post a Check Run annotation + optional GitHub issue/comment on the default branch when a previously `passed` requirement becomes `failed`. Email/Slack later. Do not invent a notification platform.
 
 ### 16. Manual RGAA criteria that AST/axe cannot score
@@ -147,6 +137,6 @@ Priority is **product risk**, not effort. P0 items can claim compliance without 
 1. ~~**Item 1** (false pass)~~ — done.
 2. ~~**Item 3 + 4** — finish intake, tell the truth in docs.~~ — done.
 3. ~~**Item 2** — reports match the chosen target.~~ — done.
-4. **Item 6 + 10** — first-run connect and assess.
+4. ~~**Item 6 + 10** — first-run connect and assess.~~ Item 6 done; item 10 still P2.
 5. **Item 7 + 8 + 9** — runtime coverage and PR-native fixes.
 6. **Item 12** when evidence volume hurts; **16–19** only after the loop is honest.

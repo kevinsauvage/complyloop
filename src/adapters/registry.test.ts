@@ -8,13 +8,16 @@ import {
 } from "./registry";
 
 describe("framework adapter registry", () => {
-  it("registers the RGAA and WCAG adapters", () => {
+  it("registers the RGAA and WCAG adapters against one unique control catalog", () => {
     const frameworkIds = allFrameworks().map((f) => f.id);
     expect(frameworkIds).toContain("fw-rgaa-4");
     expect(frameworkIds).toContain("fw-wcag-2-1");
-    expect(allControls().length).toBeGreaterThanOrEqual(54); // 27 controls * 2 frameworks
-    expect(presetById("preset-rgaa-full")).toBeDefined();
-    expect(presetById("preset-wcag-full")).toBeDefined();
+    const controlIds = allControls().map((control) => control.id);
+    expect(new Set(controlIds).size).toBe(controlIds.length);
+    expect(controlIds).toContain("ctl-img-alt");
+    expect(presetById("preset-rgaa-full")?.controlIds).toEqual(
+      presetById("preset-wcag-full")?.controlIds,
+    );
     expect(allFrameworkPresets().length).toBeGreaterThan(0);
   });
 
@@ -36,5 +39,8 @@ describe("framework adapter registry", () => {
     expect(merged.controls.some((control) => control.id === "ctl-img-alt")).toBe(
       true,
     );
+    expect(
+      merged.controls.filter((control) => control.id === "ctl-img-alt"),
+    ).toHaveLength(1);
   });
 });

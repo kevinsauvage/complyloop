@@ -20,6 +20,16 @@ export function isGitHubAppConfigured(): boolean {
 }
 
 /**
+ * Public install URL for the GitHub App (`https://github.com/apps/<slug>/installations/new`).
+ * Requires `GITHUB_APP_SLUG` (the App's URL slug, not the numeric id).
+ */
+export function githubAppInstallUrl(): string | undefined {
+  const slug = process.env.GITHUB_APP_SLUG?.trim();
+  if (!slug) return undefined;
+  return `https://github.com/apps/${encodeURIComponent(slug)}/installations/new`;
+}
+
+/**
  * OAuth scopes for Auth.js. With a GitHub App configured, identity-only scopes
  * suffice — repo access comes from installation tokens on selected repos.
  */

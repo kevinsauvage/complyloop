@@ -45,7 +45,12 @@ here — do not re-paste stack/layout into agent markdown.
 ## Module Responsibilities
 
 - **Framework-agnostic core**: domain model and status transitions. Knows nothing about RGAA. Only place that changes requirement/remediation statuses.
-- **Framework adapters**: map RGAA/WCAG into controls + developer guidance. A project assesses exactly one framework + level preset (Full / AA / AAA); topical subsets are display groupings on the requirements page, not intake scope.
+- **Framework adapters**: RGAA and WCAG share one unique control catalog
+  (`src/adapters/rgaa/controls.ts`; WCAG codes live on `secondaryCode`). A
+  project assesses exactly one framework + level preset (Full / AA / AAA);
+  topical subsets are display groupings on the requirements page, not intake
+  scope. WCAG registers framework + presets only — it does not duplicate
+  control ids.
 - **Analysis engine:** dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`, 29 checks) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core injected from `axe.min.js` on disk in `src/analysis/runtime/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs. Runtime-only rules (16 checks: contrast, document title, bypass, landmarks, nested interactive, target size, tables, page heading, …) stay `unable_to_verify` until axe runs. Axe → check mapping lives in `axe-map.ts` (~60+ rules). Do not add `@axe-core/playwright` — it injects the `axe-core` `source` string, which Next/webpack rewrites (`module is not defined`). Runtime URL SSRF uses isomorphic `ssrf-guard` plus Node DNS, port allowlist (80/443), and redirect hop limits — never `ssrf-guard/node` (undici 8 breaks Next SSR). Framework adapters register in `src/adapters/registry.ts`. AI never sets requirement status.
 - **AI services**: explanation and remediation suggestions; typed, provenance-tagged, never statuses.
 - **Repo connectors**: GitHub OAuth / App clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.

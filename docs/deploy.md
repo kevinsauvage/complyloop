@@ -119,6 +119,9 @@ App’s OAuth client credentials. Users install the App on selected repositories
 clone / PR / Checks use short-lived installation tokens — never the classic
 `repo` scope over a whole account.
 
+Set `GITHUB_APP_SLUG` to the App’s URL slug so the connect empty state can link
+to `https://github.com/apps/<slug>/installations/new`.
+
 Laptop demo without App credentials still requests `read:user user:email repo`.
 
 Sign-out clears stored encrypted user tokens. OAuth access tokens are stored

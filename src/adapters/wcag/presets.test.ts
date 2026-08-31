@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { presetById } from "@/adapters/registry";
-import { wcagControls, wcagFramework } from "./controls";
+import { rgaaControls } from "@/adapters/rgaa/controls";
+import { wcagFramework } from "./controls";
 import { wcagPresets } from "./presets";
 
 describe("wcag presets", () => {
@@ -15,7 +16,7 @@ describe("wcag presets", () => {
       expect(preset.controlIds.length).toBeGreaterThan(0);
     }
     expect(presetById("preset-wcag-full")?.controlIds).toHaveLength(
-      wcagControls.length,
+      rgaaControls.length,
     );
     expect(presetById("preset-wcag-images-media")).toBeUndefined();
   });

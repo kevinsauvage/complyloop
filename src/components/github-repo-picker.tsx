@@ -26,12 +26,15 @@ export function GitHubRepoPicker({
   repos,
   connectedByFullName,
   usesGitHubApp = false,
+  appInstallUrl,
 }: {
   repos: GitHubRepoSummary[];
   /** GitHub fullName (lowercase) → connected project id for this workspace. */
   connectedByFullName: Record<string, string>;
   /** When true, empty state explains App installation instead of OAuth `repo`. */
   usesGitHubApp?: boolean;
+  /** `https://github.com/apps/<slug>/installations/new` when `GITHUB_APP_SLUG` is set. */
+  appInstallUrl?: string;
 }) {
   const [query, setQuery] = useState("");
   const filterId = useId();
@@ -60,20 +63,39 @@ export function GitHubRepoPicker({
 
   if (repos.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        {usesGitHubApp ? (
-          <>
-            No repositories from your GitHub App installations. Install the App
-            on the repos you want to assess, then refresh.
-          </>
-        ) : (
-          <>
-            No repositories returned from GitHub. Check that your OAuth app has
-            the <code className="font-mono text-xs">repo</code> scope (laptop
-            demo), or configure a GitHub App for production.
-          </>
-        )}
-      </p>
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-muted-foreground">
+          {usesGitHubApp ? (
+            <>
+              No repositories from your GitHub App installations. Install the
+              App on the repos you want to assess, then refresh this page.
+            </>
+          ) : (
+            <>
+              No repositories returned from GitHub. Check that your OAuth app
+              has the <code className="font-mono text-xs">repo</code> scope
+              (laptop demo), or configure a GitHub App for production.
+            </>
+          )}
+        </p>
+        {usesGitHubApp && appInstallUrl ? (
+          <Button asChild size="sm" className="w-fit">
+            <a
+              href={appInstallUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Install the GitHub App
+            </a>
+          </Button>
+        ) : null}
+        {usesGitHubApp && !appInstallUrl ? (
+          <p className="text-xs text-muted-foreground">
+            Set <code className="font-mono">GITHUB_APP_SLUG</code> to show an
+            install link (see <code className="font-mono">.env.example</code>).
+          </p>
+        ) : null}
+      </div>
     );
   }
 

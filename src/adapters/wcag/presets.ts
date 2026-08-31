@@ -1,4 +1,5 @@
-import { wcagControls, wcagFramework } from "./controls";
+import { rgaaControls } from "@/adapters/rgaa/controls";
+import { wcagFramework } from "./controls";
 import type { FrameworkPreset } from "@/adapters/types";
 
 export type { FrameworkPreset };
@@ -10,7 +11,7 @@ export const wcagPresets: FrameworkPreset[] = [
     name: "Full WCAG 2.1",
     description: "Every machine-checkable control from WCAG 2.1",
     frameworkId: wcagFramework.id,
-    controlIds: wcagControls.map((control) => control.id),
+    controlIds: rgaaControls.map((control) => control.id),
   },
   {
     id: "preset-wcag-aa",

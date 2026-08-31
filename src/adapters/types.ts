@@ -9,12 +9,14 @@ export interface FrameworkPreset {
 }
 
 /**
- * A compliance framework packaged as controls and level presets.
- * Add new frameworks under `src/adapters/<name>/` and register them in
- * `registry.ts` — seed + intake targets pick them up automatically.
+ * A compliance framework packaged as presets (and optionally a unique control
+ * catalog). RGAA owns the shared a11y catalog; WCAG registers framework +
+ * presets only. Add new frameworks under `src/adapters/<name>/` and register
+ * them in `registry.ts`.
  */
 export interface FrameworkAdapter {
   framework: Framework;
+  /** Unique catalog rows. Empty when this adapter reuses another catalog. */
   controls: readonly Control[];
   presets?: readonly FrameworkPreset[];
 }

@@ -1,13 +1,14 @@
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { rgaaPresets } from "@/adapters/rgaa/presets";
-import { wcagControls, wcagFramework } from "@/adapters/wcag/controls";
+import { wcagFramework } from "@/adapters/wcag/controls";
 import { wcagPresets } from "@/adapters/wcag/presets";
 import type { Control, Framework } from "@/core/project-types";
 import type { FrameworkAdapter, FrameworkPreset } from "./types";
 
 /**
- * Registered framework adapters. RGAA and WCAG share check implementations;
- * level presets (Full / AA / AAA) choose which controls a project assesses.
+ * Registered framework adapters. RGAA and WCAG share one unique control
+ * catalog (RGAA codes primary, WCAG on `secondaryCode`). Presets own the
+ * assessment-target framework; WCAG does not re-register the same ids.
  */
 export const frameworkAdapters: readonly FrameworkAdapter[] = [
   {
@@ -17,7 +18,7 @@ export const frameworkAdapters: readonly FrameworkAdapter[] = [
   },
   {
     framework: wcagFramework,
-    controls: wcagControls,
+    controls: [],
     presets: wcagPresets,
   },
 ];
@@ -27,7 +28,13 @@ export function allFrameworks(): Framework[] {
 }
 
 export function allControls(): Control[] {
-  return frameworkAdapters.flatMap((adapter) => [...adapter.controls]);
+  const byId = new Map<string, Control>();
+  for (const adapter of frameworkAdapters) {
+    for (const control of adapter.controls) {
+      if (!byId.has(control.id)) byId.set(control.id, control);
+    }
+  }
+  return [...byId.values()];
 }
 
 export function allFrameworkPresets(): FrameworkPreset[] {
