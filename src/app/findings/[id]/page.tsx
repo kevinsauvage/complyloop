@@ -10,6 +10,7 @@ import {
 import { DeveloperHandoffCard } from "@/components/developer-handoff";
 import { FindingDismissCard } from "@/components/findings/finding-dismiss-card";
 import { FindingExplanationsCard } from "@/components/findings/finding-explanations-card";
+import { FindingNextStepPanel } from "@/components/findings/finding-next-step-panel";
 import { FindingRemediationCard } from "@/components/findings/finding-remediation-card";
 import { formatLocationRef } from "@/core/location";
 import { CodeBlock, PageHeader, formatDateTime } from "@/components/page-primitives";
@@ -93,6 +94,12 @@ export default async function FindingPage({
       </div>
 
       <div className="flex flex-col gap-6">
+        <FindingNextStepPanel
+          finding={finding}
+          remediation={remediation}
+          canRemediate={caps.canRemediate}
+        />
+
         <Card className="shadow-none ring-1 ring-border/60">
           <CardHeader className="gap-1">
             <CardTitle className="flex items-center gap-2">
@@ -140,7 +147,9 @@ export default async function FindingPage({
         ) : null}
 
         {finding.status === "open" && caps.canRemediate ? (
-          <FindingDismissCard findingId={finding.id} />
+          <div id="dismiss-finding">
+            <FindingDismissCard findingId={finding.id} />
+          </div>
         ) : null}
 
         <Card className="shadow-none ring-1 ring-border/60">

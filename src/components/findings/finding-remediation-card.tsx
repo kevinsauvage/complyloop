@@ -161,6 +161,7 @@ export function FindingRemediationCard({
             finding={finding}
             remediation={remediation}
             canRemediate={canRemediate}
+            compact
           />
         ) : null}
 

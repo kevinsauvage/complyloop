@@ -41,12 +41,16 @@ export function FindingActionPanel({
   finding,
   remediation,
   canRemediate,
+  compact = false,
 }: {
   finding: Finding;
   remediation: Remediation;
   canRemediate: boolean;
+  /** When true, omits outer section chrome (used inside Next step panel). */
+  compact?: boolean;
 }) {
   if (!canRemediate && remediation.status !== "verified") {
+    if (compact) return null;
     return (
       <PermissionNotice>
         You have view-only access on this project. Ask a member or admin to
@@ -55,74 +59,75 @@ export function FindingActionPanel({
     );
   }
 
+  const wrap = (title: string, description: string | undefined, body: ReactNode) =>
+    compact ? (
+      body
+    ) : (
+      <ActionSection title={title} description={description}>
+        {body}
+      </ActionSection>
+    );
+
   switch (remediation.status) {
     case "detected":
     case "investigating":
-      return (
-        <ActionSection
-          title="Next step"
-          description="No automated fix template yet. Generate an AI remediation, fix the code manually, or dismiss with a documented reason."
-        >
-          <p className="text-sm text-muted-foreground">
-            Actions become available once a suggestion is ready for approval.
-          </p>
-        </ActionSection>
+      return wrap(
+        "Next step",
+        "No automated fix template yet. Generate an AI remediation, fix the code manually, or dismiss with a documented reason.",
+        <p className="text-sm text-muted-foreground">
+          Actions become available once a suggestion is ready for approval.
+        </p>,
       );
     case "suggested": {
       const editable =
         finding.fix?.kind === "insert_attribute" && finding.fix.editable
           ? finding.fix
           : null;
-      return (
-        <ActionSection
-          title="Approve suggestion"
-          description="Human review is required before any change is applied or marked implemented."
+      return wrap(
+        "Approve suggestion",
+        "Human review is required before any change is applied or marked implemented.",
+        <StatefulActionForm
+          action={approveRemediationAction.bind(null, finding.id)}
+          submitLabel="Approve remediation"
+          variant="default"
+          className="flex flex-col gap-3"
         >
-          <StatefulActionForm
-            action={approveRemediationAction.bind(null, finding.id)}
-            submitLabel="Approve remediation"
-            variant="default"
-            className="flex flex-col gap-3"
-          >
-            {editable ? (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="approve-value-input">
-                  {editable.attribute} value (review before approving)
-                </Label>
-                <Input
-                  id="approve-value-input"
-                  type="text"
-                  name="value"
-                  defaultValue={editable.value}
-                  className="max-w-md"
-                />
-              </div>
-            ) : null}
-          </StatefulActionForm>
-        </ActionSection>
+          {editable ? (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="approve-value-input">
+                {editable.attribute} value (review before approving)
+              </Label>
+              <Input
+                id="approve-value-input"
+                type="text"
+                name="value"
+                defaultValue={editable.value}
+                className="max-w-md"
+              />
+            </div>
+          ) : null}
+        </StatefulActionForm>,
       );
     }
     case "approved":
       return (
         <div className="flex flex-col gap-3">
-          {finding.fix ? (
-            <ActionSection
-              title="Apply to workspace"
-              description="Writes the approved fix into the project checkout on disk."
-            >
-              <StatefulActionForm
-                action={applyRemediationAction.bind(null, finding.id)}
-                submitLabel="Apply change to the file"
-                pendingLabel="Applying…"
-                variant="default"
-                confirmMessage="Apply this change to the project file on disk? This writes to the workspace."
-              />
-            </ActionSection>
-          ) : null}
-          <ActionSection
-            title="Mark implemented externally"
-            description="Use when the fix landed outside ComplyLoop (PR, local edit, etc.)."
-          >
+          {finding.fix
+            ? wrap(
+                "Apply to workspace",
+                "Writes the approved fix into the project checkout on disk.",
+                <StatefulActionForm
+                  action={applyRemediationAction.bind(null, finding.id)}
+                  submitLabel="Apply change to the file"
+                  pendingLabel="Applying…"
+                  variant="default"
+                  confirmMessage="Apply this change to the project file on disk? This writes to the workspace."
+                />,
+              )
+            : null}
+          {wrap(
+            "Mark implemented externally",
+            "Use when the fix landed outside ComplyLoop (PR, local edit, etc.).",
             <StatefulActionForm
               action={markRemediationImplementedAction.bind(null, finding.id)}
               submitLabel="Mark as implemented"
@@ -139,28 +144,26 @@ export function FindingActionPanel({
                   className="max-w-md"
                 />
               </div>
-            </StatefulActionForm>
-          </ActionSection>
+            </StatefulActionForm>,
+          )}
         </div>
       );
     case "implemented":
       return (
         <div className="flex flex-col gap-3">
-          <ActionSection
-            title="Automated verification"
-            description="Re-run the deterministic check. Only a passing re-check (or recorded human verification) closes the loop."
-          >
+          {wrap(
+            "Automated verification",
+            "Re-run the deterministic check. Only a passing re-check (or recorded human verification) closes the loop.",
             <StatefulActionForm
               action={verifyRemediationAction.bind(null, finding.id)}
               submitLabel="Verify fix (automated re-check)"
               pendingLabel="Verifying…"
               variant="default"
-            />
-          </ActionSection>
-          <ActionSection
-            title="Manual verification"
-            description="Use when the automated check cannot confirm the fix. A note is kept as evidence."
-          >
+            />,
+          )}
+          {wrap(
+            "Manual verification",
+            "Use when the automated check cannot confirm the fix. A note is kept as evidence.",
             <StatefulActionForm
               action={manualVerifyRemediationAction.bind(null, finding.id)}
               submitLabel="Verify manually"
@@ -177,18 +180,18 @@ export function FindingActionPanel({
                   className="max-w-md"
                 />
               </div>
-            </StatefulActionForm>
-          </ActionSection>
+            </StatefulActionForm>,
+          )}
         </div>
       );
     case "verified":
-      return (
-        <ActionSection title="Verified">
-          <p className="text-sm font-medium text-status-passed">
-            {finding.resolvedNote ??
-              "Fix verified: the automated check no longer fails on this file."}
-          </p>
-        </ActionSection>
+      return wrap(
+        "Verified",
+        undefined,
+        <p className="text-sm font-medium text-status-passed">
+          {finding.resolvedNote ??
+            "Fix verified: the automated check no longer fails on this file."}
+        </p>,
       );
     default: {
       const _exhaustive: never = remediation.status;
