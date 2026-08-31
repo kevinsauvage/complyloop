@@ -40,6 +40,7 @@ describe("AssessedRequirementList", () => {
         openFindingCounts={new Map()}
         frameworkId={rgaaFramework.id}
         canRemediate={false}
+        project={{ runtimeBaseUrl: undefined }}
       />,
     );
 

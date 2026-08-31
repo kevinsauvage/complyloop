@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { AlertTriangle, ChevronDown, ShieldCheck } from "lucide-react";
+import { isRuntimeOnlyCheck } from "@/analysis/check-authority";
 import { DeterminationBadge, RequirementStatusBadge } from "@/components/badges";
 import { formatDateTime } from "@/components/page-primitives";
 import { StatefulActionForm } from "@/components/stateful-action-form";
@@ -14,7 +16,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@/core/statuses";
-import type { Control, Requirement } from "@/core/project-types";
+import type { Control, Project, Requirement } from "@/core/project-types";
+import {
+  unableToVerifyReason,
+  unableToVerifyReasonLabel,
+} from "@/core/unable-to-verify-reason";
 import {
   clearRequirementExceptionAction,
   clearRequirementHumanPassAction,
@@ -46,12 +52,23 @@ export function RequirementCard({
   requirement,
   openCount,
   canRemediate,
+  project,
 }: {
   control: Control;
   requirement: Requirement;
   openCount: number;
   canRemediate: boolean;
+  project: Pick<Project, "runtimeBaseUrl">;
 }) {
+  const unverifiableReason =
+    requirement.status === "unable_to_verify"
+      ? unableToVerifyReason(control, project, {
+          isRuntimeOnlyCheck: control.checkId
+            ? isRuntimeOnlyCheck(control.checkId)
+            : false,
+        })
+      : null;
+
   return (
     <Card className="relative overflow-hidden shadow-none ring-1 ring-border/60 transition-[box-shadow,border-color] hover:ring-signal/30">
       <span
@@ -89,6 +106,28 @@ export function RequirementCard({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3 pt-0 pl-5">
+        {unverifiableReason ? (
+          <Alert className="border-status-unverifiable/30 bg-status-unverifiable/10">
+            <AlertTitle className="text-sm text-foreground">
+              Unable to verify
+            </AlertTitle>
+            <AlertDescription className="text-sm text-muted-foreground">
+              {unableToVerifyReasonLabel(unverifiableReason)}
+              {unverifiableReason === "needs_preview_url" ||
+              unverifiableReason === "runtime_only_pending" ? (
+                <span className="mt-2 block">
+                  <Link
+                    href="/settings"
+                    className="text-sm font-medium text-foreground underline underline-offset-4 hover:text-foreground"
+                  >
+                    Set preview URL in Settings
+                  </Link>
+                </span>
+              ) : null}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         {requirement.humanPass ? (
           <Alert className="border-status-passed/30 bg-status-passed/10">
             <ShieldCheck className="size-4 text-status-passed" aria-hidden />

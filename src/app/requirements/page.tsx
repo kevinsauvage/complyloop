@@ -132,6 +132,7 @@ export default async function RequirementsPage({
               openFindingCounts={openFindingCounts}
               frameworkId={frameworkId}
               canRemediate={caps.canRemediate}
+              project={project}
             />
           )}
         </section>

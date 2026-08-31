@@ -3,7 +3,7 @@ import {
   controlDisplayCodes,
   groupControlsByTheme,
 } from "@/adapters/control-theme";
-import type { Control, Requirement } from "@/core/project-types";
+import type { Control, Project, Requirement } from "@/core/project-types";
 
 export function AssessedRequirementList({
   controls,
@@ -11,12 +11,14 @@ export function AssessedRequirementList({
   openFindingCounts,
   frameworkId,
   canRemediate,
+  project,
 }: {
   controls: Control[];
   requirements: Requirement[];
   openFindingCounts: Map<string, number>;
   frameworkId: string;
   canRemediate: boolean;
+  project: Pick<Project, "runtimeBaseUrl">;
 }) {
   const groups = groupControlsByTheme(controls, frameworkId);
 
@@ -43,6 +45,7 @@ export function AssessedRequirementList({
                 requirement={requirement}
                 openCount={openFindingCounts.get(control.id) ?? 0}
                 canRemediate={canRemediate}
+                project={project}
               />
             );
           })}
