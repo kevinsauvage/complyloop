@@ -1,7 +1,8 @@
+import { evidenceForProject } from "@/server/project-visibility";
 import {
-  evidenceForProject,
-  requirementsForProject,
-} from "@/server/project-visibility";
+  controlsInScope,
+  requirementsInScope,
+} from "@/server/assessment-status";
 import { frameworkForProject } from "@/server/report";
 import { getWorkspace } from "@/server/workspace";
 
@@ -16,8 +17,8 @@ export async function GET(): Promise<Response> {
     exportedAt: new Date().toISOString(),
     project: { name: project.name, connectedAt: project.createdAt },
     framework: frameworkForProject(db, project),
-    controls: db.controls,
-    requirements: requirementsForProject(db.requirements, project.id),
+    controls: controlsInScope(db, project),
+    requirements: requirementsInScope(db.requirements, project),
     evidence: evidenceForProject(db.evidence, project.id),
   };
   return new Response(JSON.stringify(payload, null, 2), {

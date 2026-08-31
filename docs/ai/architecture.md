@@ -65,9 +65,33 @@ here — do not re-paste stack/layout into agent markdown.
 
 ## Analysis checks (current)
 
-Twenty-nine AST checks: img-alt, button-name, anchor-name, html-lang, positive-tabindex, input-label, heading-order, empty-heading, iframe-title, autoplay-media, duplicate-id, form-error-association, aria-hidden-focusable, aria-role, aria-props, aria-required-attr, no-autofocus, keyboard-interaction, meta-viewport, list-structure, autocomplete-valid, pointer-gesture, pointer-cancellation, motion-actuation, focus-context-change, input-context-change, sensory-characteristics, image-of-text, error-suggestion.
+Three authority classes:
 
-Sixteen runtime-only checks (axe, require `runtimeBaseUrl`): color-contrast, document-title, bypass, landmark-one-main, nested-interactive, target-size, table-headers, page-heading, content-region, label-in-name, lang-parts, aria-roledescription, presentation-role, no-auto-refresh, no-orientation-lock, landmark-unique. Without a successful runtime audit these stay `unable_to_verify`.
+**AST (29)** — local/CI/`complyloop-check` source of truth:
+img-alt, button-name, anchor-name, html-lang, positive-tabindex, input-label,
+heading-order, empty-heading, iframe-title, autoplay-media, duplicate-id,
+form-error-association, aria-hidden-focusable, aria-role, aria-props,
+aria-required-attr, no-autofocus, keyboard-interaction, meta-viewport,
+list-structure, autocomplete-valid, pointer-gesture, pointer-cancellation,
+motion-actuation, focus-context-change, input-context-change,
+sensory-characteristics, image-of-text, error-suggestion.
+
+**Runtime-only (16)** — axe via Playwright when `runtimeBaseUrl` is set; otherwise
+`unable_to_verify` (never passed from an empty AST scan):
+color-contrast, document-title, bypass, landmark-one-main, nested-interactive,
+target-size, table-headers, page-heading, content-region, label-in-name,
+lang-parts, aria-roledescription, presentation-role, no-auto-refresh,
+no-orientation-lock, landmark-unique.
+
+**Composition-sensitive (8)** — AST still runs (and gates CI), but when a runtime
+audit succeeds these defer to the rendered DOM for requirement status:
+input-label, button-name, anchor-name, form-error-association, heading-order,
+empty-heading, aria-hidden-focusable, duplicate-id.
+
+**Requirements intake:** each project assesses exactly one framework + level
+preset (RGAA or WCAG × Full / AA / AAA). Connect defaults to Full RGAA.
+Topical groups on the Requirements page are display-only, not intake scope.
+Dashboard, findings, and exports filter to the active target.
 
 CI gate: `npx complyloop-check` / `@complyloop/check` (AST only).
 

@@ -15,11 +15,11 @@ import {
 import type { RequirementStatus } from "@/core/statuses";
 import { runAssessmentAction } from "@/server/actions/assessment";
 import { recentAssessmentJobsForProject } from "@/server/assessment-jobs";
-import { projectCapabilities } from "@/server/project-capabilities";
 import {
-  findingsForProject,
-  requirementsForProject,
-} from "@/server/project-visibility";
+  findingsInScope,
+  requirementsInScope,
+} from "@/server/assessment-status";
+import { projectCapabilities } from "@/server/project-capabilities";
 import { controlById, getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
@@ -55,8 +55,8 @@ export default async function DashboardPage() {
   const latestAssessment = db.assessments
     .filter((assessment) => assessment.projectId === project.id)
     .at(-1);
-  const requirements = requirementsForProject(db.requirements, project.id);
-  const projectFindings = findingsForProject(db.findings, project.id);
+  const requirements = requirementsInScope(db.requirements, project);
+  const projectFindings = findingsInScope(db.findings, project);
   const openFindings = prioritizeFindings(projectFindings, db.controls);
   const unreadAlerts = db.alerts
     .filter((alert) => alert.projectId === project.id && !alert.read)

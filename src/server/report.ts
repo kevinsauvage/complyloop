@@ -7,10 +7,11 @@ import { formatLocationRef } from "@/core/location";
 import { requirementStatusLabel } from "@/core/labels";
 import type { Db } from "./db";
 import {
-  evidenceForProject,
-  findingsForProject,
-  requirementsForProject,
-} from "./project-visibility";
+  controlsInScope,
+  findingsInScope,
+  requirementsInScope,
+} from "./assessment-status";
+import { evidenceForProject } from "./project-visibility";
 
 export interface ReportInput {
   project: Project;
@@ -52,13 +53,13 @@ function secondaryReferenceLabel(secondaryCode: string): string {
 
 /** Builds report input for a project's current store snapshot. */
 export function reportInputForProject(db: Db, project: Project): ReportInput {
-  const findings = findingsForProject(db.findings, project.id);
+  const findings = findingsInScope(db.findings, project);
   const framework = frameworkForProject(db, project);
   return {
     project,
     framework,
-    controls: db.controls,
-    requirements: requirementsForProject(db.requirements, project.id),
+    controls: controlsInScope(db, project),
+    requirements: requirementsInScope(db.requirements, project),
     findings,
     remediations: db.remediations.filter((remediation) =>
       findings.some((finding) => finding.id === remediation.findingId),

@@ -27,7 +27,7 @@ import {
 import type { FindingStatus } from "@/core/statuses";
 import type { Finding } from "@/core/finding-types";
 import { projectCapabilities } from "@/server/project-capabilities";
-import { findingsForProject } from "@/server/project-visibility";
+import { findingsInScope } from "@/server/assessment-status";
 import {
   controlById,
   getWorkspace,
@@ -73,7 +73,7 @@ export default async function FindingsPage({
   }
 
   const caps = projectCapabilities(project, access, activeOrgId);
-  const findings = findingsForProject(db.findings, project.id);
+  const findings = findingsInScope(db.findings, project);
 
   const byStatus = (status: FindingStatus): Finding[] => {
     const filtered = findings.filter((f) => f.status === status);

@@ -28,6 +28,34 @@ export function controlsInScope(db: Db, project: Project): Control[] {
   return db.controls.filter((control) => controlIds.has(control.id));
 }
 
+/** Requirements for a project that fall inside its assessment target. */
+export function requirementsInScope(
+  requirements: ReadonlyArray<Requirement>,
+  project: Project,
+): Requirement[] {
+  const forProject = requirements.filter(
+    (requirement) => requirement.projectId === project.id,
+  );
+  if (project.inScopeControlIds === undefined) return forProject;
+  const controlIds = new Set(project.inScopeControlIds);
+  return forProject.filter((requirement) =>
+    controlIds.has(requirement.controlId),
+  );
+}
+
+/** Findings for a project that fall inside its assessment target. */
+export function findingsInScope(
+  findings: ReadonlyArray<Finding>,
+  project: Project,
+): Finding[] {
+  const forProject = findings.filter(
+    (finding) => finding.projectId === project.id,
+  );
+  if (project.inScopeControlIds === undefined) return forProject;
+  const controlIds = new Set(project.inScopeControlIds);
+  return forProject.filter((finding) => controlIds.has(finding.controlId));
+}
+
 /**
  * Clears temporary exceptions whose expiresAt is in the past, recording
  * evidence so the sticky human decision is historized rather than deleted.

@@ -25,18 +25,19 @@ Priority is **product risk**, not effort. P0 items can claim compliance without 
 
 ## P1 — Finish the current slice and keep docs honest
 
-### 3. Land the in-flight requirements intake
+### 3. Land the in-flight requirements intake — DONE
 
 - **What:** Uncommitted work replaces topical/import/custom intake with a single **framework + level** target (Full / AA / AAA), plus theme grouping on the assessed list (`control-theme.ts`, `AssessedRequirementList`).
 - **Why:** Half-landed intake will confuse users and conflict with tests that already expect “no topical, import, or custom intake.” Finish one model before adding more.
 - **How:** Complete the remaining wiring (`inScopeControlIds` + `assessmentPresetId` on connect and re-assess). Run `npm run lint && npm run typecheck && npm run test && npm run build`. Commit as one change with architecture + README updates (item 4).
+- **Done:** Connect defaults to Full RGAA; intake panel sets target with toast; dashboard / findings / reports / JSON export filter to the active scope. Fresh DB only — no legacy project backfill.
 
-### 4. Sync check counts in README and architecture
+### 4. Sync check counts in README and architecture — DONE
 
 - **What:** README still says **18** AST checks. Architecture still says **21** AST + 6 runtime-only. The registry has **29** AST checks; axe maps ~60+ rules onto **16** additional check ids (6 declared runtime-only + 10 that currently false-pass — item 1).
 - **Why:** Agents and humans plan from those docs. Stale counts hide coverage holes.
 - **How:** After item 1, rewrite the “Analysis checks (current)” section in `docs/ai/architecture.md` and the assessment walkthrough in `README.md` as three lists: AST, runtime-only, composition-sensitive.
-
+- **Done:** Architecture lists AST (29) / runtime-only (16) / composition-sensitive (8) plus intake model; README walkthrough matches.
 ### 5. Stop duplicating RGAA and WCAG controls under the same IDs
 
 - **What:** `ctl-img-alt` (and every sibling) exists in both `rgaa/controls.ts` and `wcag/controls.ts`. `mergeAdapterControls` keys by id, so the second adapter never lands — WCAG is a display swap (`controlDisplayCodes`) over RGAA rows.
@@ -143,9 +144,9 @@ Priority is **product risk**, not effort. P0 items can claim compliance without 
 
 ## Suggested order of work
 
-1. **Item 1** (false pass) — correctness, small, unblocks honest first assessments.
-2. **Item 3 + 4** — finish intake, tell the truth in docs.
-3. **Item 2** — reports match the chosen target.
+1. ~~**Item 1** (false pass)~~ — done.
+2. ~~**Item 3 + 4** — finish intake, tell the truth in docs.~~ — done.
+3. ~~**Item 2** — reports match the chosen target.~~ — done.
 4. **Item 6 + 10** — first-run connect and assess.
 5. **Item 7 + 8 + 9** — runtime coverage and PR-native fixes.
 6. **Item 12** when evidence volume hurts; **16–19** only after the loop is honest.

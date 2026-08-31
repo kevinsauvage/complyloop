@@ -14,6 +14,27 @@ const initialState: ActionMessageState = { error: null, message: null };
 type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
 type ButtonSize = VariantProps<typeof buttonVariants>["size"];
 
+/** Mounted only when `refreshOnSuccess` is set — keeps useRouter out of other forms. */
+function RefreshAfterSuccess({
+  message,
+  error,
+}: {
+  message: string | null;
+  error: string | null;
+}) {
+  const router = useRouter();
+  const lastRefreshKey = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!message || error) return;
+    if (lastRefreshKey.current === message) return;
+    lastRefreshKey.current = message;
+    router.refresh();
+  }, [error, message, router]);
+
+  return null;
+}
+
 export function StatefulActionForm({
   action,
   submitLabel,
@@ -50,16 +71,7 @@ export function StatefulActionForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formId = useId();
-  const router = useRouter();
-  const lastRefreshKey = useRef<string | null>(null);
   useActionToast(state);
-
-  useEffect(() => {
-    if (!refreshOnSuccess || !state.message || state.error) return;
-    if (lastRefreshKey.current === state.message) return;
-    lastRefreshKey.current = state.message;
-    router.refresh();
-  }, [refreshOnSuccess, router, state.error, state.message]);
 
   const feedbackState =
     inlineSuccess || state.error
@@ -68,6 +80,9 @@ export function StatefulActionForm({
 
   return (
     <form id={formId} action={formAction} className={className}>
+      {refreshOnSuccess ? (
+        <RefreshAfterSuccess message={state.message} error={state.error} />
+      ) : null}
       {children}
       <div className="flex flex-col gap-2">
         {confirmMessage ? (

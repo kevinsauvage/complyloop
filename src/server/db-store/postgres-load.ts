@@ -1,5 +1,4 @@
 import { asc } from "drizzle-orm";
-import type { Project } from "@/core/project-types";
 import type { Db } from "./types";
 import type { DrizzleDb } from "./client";
 import {
@@ -16,14 +15,6 @@ import {
   requirements,
 } from "./schema";
 import { rowToEvidence } from "./postgres-evidence";
-
-/** Drops legacy durable-clone `rootPath` from JSONB payloads. */
-function normalizeProject(payload: Project): Project {
-  if (!("rootPath" in payload)) return payload;
-  const rest = { ...(payload as Project & { rootPath?: string }) };
-  delete rest.rootPath;
-  return rest;
-}
 
 export async function loadDbFromPostgres(drizzle: DrizzleDb): Promise<Db> {
   const [
@@ -57,7 +48,7 @@ export async function loadDbFromPostgres(drizzle: DrizzleDb): Promise<Db> {
     controls: controlRows.map((row) => row.payload),
     organizations: organizationRows.map((row) => row.payload),
     memberships: membershipRows.map((row) => row.payload),
-    projects: projectRows.map((row) => normalizeProject(row.payload)),
+    projects: projectRows.map((row) => row.payload),
     requirements: requirementRows.map((row) => row.payload),
     assessments: assessmentRows.map((row) => row.payload),
     findings: findingRows.map((row) => row.payload),
