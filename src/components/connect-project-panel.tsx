@@ -60,7 +60,7 @@ export async function ConnectProjectPanel({
         "Could not read your GitHub token. Sign out and sign in again.";
     } else {
       try {
-        repos = await listGitHubRepos({ accessToken: token, perPage: 50 });
+        repos = await listGitHubRepos({ accessToken: token, perPage: 30 });
       } catch (error) {
         listError = publicErrorMessage(error);
       }
@@ -108,7 +108,7 @@ export async function ConnectProjectPanel({
         </Alert>
       ) : (
         <GitHubRepoPicker
-          repos={repos}
+          initialRepos={repos}
           connectedByFullName={connectedByFullName}
           usesGitHubApp={isGitHubAppConfigured()}
           appInstallUrl={githubAppInstallUrl()}

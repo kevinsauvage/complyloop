@@ -19,7 +19,7 @@ describe("GitHubRepoPicker empty state", () => {
   it("links to the GitHub App install page when the slug is configured", () => {
     render(
       <GitHubRepoPicker
-        repos={[]}
+        initialRepos={[]}
         connectedByFullName={{}}
         usesGitHubApp
         appInstallUrl="https://github.com/apps/complyloop/installations/new"
@@ -36,7 +36,7 @@ describe("GitHubRepoPicker empty state", () => {
 
   it("explains that the slug is missing when there is no install URL", () => {
     render(
-      <GitHubRepoPicker repos={[]} connectedByFullName={{}} usesGitHubApp />,
+      <GitHubRepoPicker initialRepos={[]} connectedByFullName={{}} usesGitHubApp />,
     );
 
     expect(screen.getByText(/GITHUB_APP_SLUG/)).toBeInTheDocument();

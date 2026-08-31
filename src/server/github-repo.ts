@@ -42,6 +42,29 @@ export function mapGitHubRepo(
   };
 }
 
+export function repoOwner(fullName: string): string {
+  return fullName.split("/")[0] ?? fullName;
+}
+
+export type RepoOwnerGroup = {
+  owner: string;
+  repos: GitHubRepoSummary[];
+};
+
+/** Groups repos by GitHub owner/org, sorted alphabetically. */
+export function groupReposByOwner(repos: GitHubRepoSummary[]): RepoOwnerGroup[] {
+  const byOwner = new Map<string, GitHubRepoSummary[]>();
+  for (const repo of repos) {
+    const owner = repoOwner(repo.fullName);
+    const list = byOwner.get(owner) ?? [];
+    list.push(repo);
+    byOwner.set(owner, list);
+  }
+  return [...byOwner.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([owner, ownerRepos]) => ({ owner, repos: ownerRepos }));
+}
+
 /** Case-insensitive filter on full name / description for the repo picker. */
 export function filterReposByQuery(
   repos: GitHubRepoSummary[],
