@@ -7,6 +7,7 @@ vi.mock("@/server/workspace", () => ({
       organizations: [
         { id: "org-1", name: "Acme", slug: "acme", createdAt: "" },
       ],
+      assessments: [],
     },
     project: {
       id: "p1",

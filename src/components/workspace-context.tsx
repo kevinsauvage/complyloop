@@ -66,7 +66,8 @@ export async function WorkspaceContext() {
             <span>{orgName}</span>
           </>
         ) : null}
-        {coverageStrip ?? (addProject ? <div className="ml-auto">{addProject}</div> : null)}
+      {coverageStrip}
+      {addProject ? <div className={coverageStrip ? "" : "ml-auto"}>{addProject}</div> : null}
       </div>
     );
   }
@@ -86,7 +87,8 @@ export async function WorkspaceContext() {
       ) : (
         <span className="text-sm font-medium text-foreground">{project.name}</span>
       )}
-      {coverageStrip ?? (addProject ? <div className="ml-auto">{addProject}</div> : null)}
+      {coverageStrip}
+      {addProject ? <div className={coverageStrip ? "" : "ml-auto"}>{addProject}</div> : null}
     </div>
   );
 }
