@@ -1,4 +1,6 @@
 import type { AssessmentJob } from "@/server/assessment-jobs";
+import { runAssessmentAction } from "@/server/actions/assessment";
+import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime } from "@/components/page-primitives";
 import { cn } from "@/lib/utils";
@@ -19,7 +21,7 @@ const statusIndicator: Record<AssessmentJob["status"], string> = {
   cancelled: "bg-muted-foreground/40",
 };
 
-export function AssessmentJobStatus({ jobs }: { jobs: AssessmentJob[] }) {
+export function AssessmentJobStatus({ jobs, canRetry = false }: { jobs: AssessmentJob[]; canRetry?: boolean }) {
   if (jobs.length === 0) return null;
   const hasQueued = jobs.some((job) => job.status === "queued");
   return (
@@ -28,10 +30,9 @@ export function AssessmentJobStatus({ jobs }: { jobs: AssessmentJob[] }) {
         <CardTitle>Assessment jobs</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {hasQueued && process.env.NODE_ENV === "production" ? (
+        {hasQueued ? (
           <p className="text-xs text-muted-foreground">
-            Jobs stay queued until an assessment worker is running (
-            <code className="font-mono">npm run worker</code>).
+            Assessment is delayed — try again shortly if results do not appear.
           </p>
         ) : null}
         <ul className="flex flex-col gap-3" aria-label="Recent assessment jobs">
@@ -67,6 +68,18 @@ export function AssessmentJobStatus({ jobs }: { jobs: AssessmentJob[] }) {
                 <p className="basis-full pl-5 text-xs text-destructive">
                   {job.error}
                 </p>
+              ) : null}
+              {canRetry && job.status === "failed" ? (
+                <div className="basis-full pl-5 pt-1">
+                  <StatefulActionForm
+                    action={runAssessmentAction}
+                    submitLabel="Run assessment again"
+                    pendingLabel="Queuing…"
+                    variant="outline"
+                    size="sm"
+                    refreshOnSuccess
+                  />
+                </div>
               ) : null}
             </li>
           ))}

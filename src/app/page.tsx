@@ -6,7 +6,7 @@ import {
   FirstAssessmentChecklist,
   UnableToVerifyRuntimeHint,
 } from "@/components/dashboard/first-assessment-checklist";
-import { AssessmentJobStatus } from "@/components/dashboard/assessment-job-status";
+import { AssessmentJobStatusLive } from "@/components/dashboard/assessment-job-status-live";
 import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { projectDescription } from "@/components/dashboard/project-description";
 import { EmptyState, PageHeader } from "@/components/page-primitives";
@@ -75,6 +75,16 @@ export default async function DashboardPage() {
     )
     .slice(-3)
     .reverse();
+  const recentVerified = db.evidence
+    .filter(
+      (record) =>
+        (record.projectId === project.id || !record.projectId) &&
+        (record.kind === "remediation_verified" ||
+          record.kind === "remediation_manually_verified" ||
+          record.kind === "finding_resolved"),
+    )
+    .slice(-5)
+    .reverse();
   const recentEvidence = db.evidence
     .filter((record) => record.projectId === project.id || !record.projectId)
     .slice(-6)
@@ -139,13 +149,19 @@ export default async function DashboardPage() {
             hasPreviewUrl={Boolean(project.runtimeBaseUrl?.trim())}
           />
           <DashboardStatusCounts counts={counts} />
-          <AssessmentJobStatus jobs={recentJobs} />
-          <DashboardAlertsCard alerts={unreadAlerts} />
+          <AssessmentJobStatusLive
+            key={recentJobs.map((job) => `${job.id}:${job.status}`).join("|")}
+            projectId={project.id}
+            initialJobs={recentJobs}
+            canRetry={caps.canAssess}
+          />
+          <DashboardAlertsCard alerts={unreadAlerts} project={project} />
           <DashboardActivitySections
             regressions={regressions}
             recentChanges={recentChanges}
             clusters={clusters}
             openFindings={openFindings}
+            recentVerified={recentVerified}
             recentEvidence={recentEvidence}
             controlById={(controlId) => controlById(db, controlId)}
           />
