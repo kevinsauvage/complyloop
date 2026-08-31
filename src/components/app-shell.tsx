@@ -5,6 +5,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { NavLinks } from "@/components/nav-links";
+import { ThemeToggle } from "@/components/theme-toggle";
+import type { NavAttentionCounts } from "@/server/nav-attention";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -34,10 +36,12 @@ function BrandMark({ className }: { className?: string }) {
 
 function SidebarBody({
   authControls,
+  navAttention,
   onNavigate,
   showBrand = true,
 }: {
   authControls: ReactNode;
+  navAttention: NavAttentionCounts;
   onNavigate?: () => void;
   showBrand?: boolean;
 }) {
@@ -45,10 +49,13 @@ function SidebarBody({
     <div className="flex h-full flex-col gap-6">
       {showBrand ? <BrandMark className="px-3" /> : null}
       <nav aria-label="Main" className="flex-1">
-        <NavLinks onNavigate={onNavigate} />
+        <NavLinks navAttention={navAttention} onNavigate={onNavigate} />
       </nav>
       <div className="mt-auto space-y-4">
         <Separator />
+        <div className="px-3">
+          <ThemeToggle />
+        </div>
         {authControls}
         <p className="px-3 text-xs text-muted-foreground">
           MVP — RGAA / WCAG for React &amp; Next.js
@@ -73,11 +80,13 @@ function SidebarBody({
 export function AppShell({
   workspaceContext,
   authControls,
+  navAttention,
   children,
 }: {
   workspaceContext: ReactNode;
   /** Server-rendered auth UI — must not be imported into this client module. */
   authControls: ReactNode;
+  navAttention: NavAttentionCounts;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -126,6 +135,7 @@ export function AppShell({
               </SheetHeader>
               <SidebarBody
                 authControls={authControls}
+                navAttention={navAttention}
                 onNavigate={() => setNavOpen(false)}
               />
             </SheetContent>
@@ -133,7 +143,7 @@ export function AppShell({
         </header>
 
         <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/90 px-3 py-6 backdrop-blur-sm md:flex">
-          <SidebarBody authControls={authControls} />
+          <SidebarBody authControls={authControls} navAttention={navAttention} />
         </aside>
 
         <main id="main-content" className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-8">

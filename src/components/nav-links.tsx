@@ -11,17 +11,45 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { NavAttentionCounts } from "@/server/nav-attention";
 
 const LINKS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, badgeKey: "unreadAlerts" as const },
   { href: "/requirements", label: "Requirements", icon: ListChecks },
-  { href: "/findings", label: "Findings", icon: FileSearch },
+  { href: "/findings", label: "Findings", icon: FileSearch, badgeKey: "openFindings" as const },
   { href: "/evidence", label: "Evidence", icon: ScrollText },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/org", label: "Account", icon: Building2 },
-] as const;
+];
 
-export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+type NavBadgeKey = keyof NavAttentionCounts;
+
+function badgeCount(
+  attention: NavAttentionCounts,
+  badgeKey: NavBadgeKey | undefined,
+): number {
+  if (!badgeKey) return 0;
+  return attention[badgeKey];
+}
+
+function badgeAccessibleLabel(
+  label: string,
+  count: number,
+  badgeKey: NavBadgeKey,
+): string {
+  if (badgeKey === "openFindings") {
+    return `${label}, ${count} open finding${count === 1 ? "" : "s"}`;
+  }
+  return `${label}, ${count} unread alert${count === 1 ? "" : "s"}`;
+}
+
+export function NavLinks({
+  onNavigate,
+  navAttention = { openFindings: 0, unreadAlerts: 0 },
+}: {
+  onNavigate?: () => void;
+  navAttention?: NavAttentionCounts;
+}) {
   const pathname = usePathname();
   return (
     <ul className="flex flex-col gap-1">
@@ -31,11 +59,19 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             ? pathname === "/"
             : pathname.startsWith(link.href);
         const Icon = link.icon;
+        const badgeKey = "badgeKey" in link ? link.badgeKey : undefined;
+        const count = badgeCount(navAttention, badgeKey);
+        const showBadge = count > 0;
+        const badgeLabel =
+          showBadge && badgeKey
+            ? badgeAccessibleLabel(link.label, count, badgeKey)
+            : undefined;
         return (
           <li key={link.href}>
             <Link
               href={link.href}
               aria-current={active ? "page" : undefined}
+              aria-label={badgeLabel}
               onClick={() => onNavigate?.()}
               className={cn(
                 "relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
@@ -51,7 +87,15 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                 />
               ) : null}
               <Icon className="size-4 shrink-0" aria-hidden />
-              {link.label}
+              <span className="min-w-0 flex-1">{link.label}</span>
+              {showBadge ? (
+                <span
+                  className="ml-auto min-w-5 rounded-full bg-signal/15 px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums text-signal"
+                  aria-hidden
+                >
+                  {count > 99 ? "99+" : count}
+                </span>
+              ) : null}
             </Link>
           </li>
         );

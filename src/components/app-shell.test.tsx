@@ -22,6 +22,7 @@ describe("AppShell", () => {
       <AppShell
         workspaceContext={<div>Context</div>}
         authControls={<div>Auth</div>}
+        navAttention={{ openFindings: 0, unreadAlerts: 0 }}
       >
         <h1>Dashboard</h1>
       </AppShell>,
