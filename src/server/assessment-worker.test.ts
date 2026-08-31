@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project } from "@/core/project-types";
 import type { Db } from "./db";
 import type { AssessmentJob } from "./assessment-jobs";
@@ -14,6 +14,7 @@ const reportError = vi.hoisted(() => vi.fn());
 const reportWarning = vi.hoisted(() => vi.fn());
 const resolveProjectGitHubToken = vi.hoisted(() => vi.fn());
 const postPullRequestCheckRun = vi.hoisted(() => vi.fn());
+const resolveProjectLoadScope = vi.hoisted(() => vi.fn());
 
 vi.mock("./assessment-jobs", () => ({
   claimNextAssessmentJob: (...args: unknown[]) =>
@@ -23,12 +24,22 @@ vi.mock("./assessment-jobs", () => ({
   failAssessmentJob: (...args: unknown[]) => failAssessmentJob(...args),
 }));
 
+vi.mock("./db-store/client", () => ({
+  getDrizzle: async () => ({}),
+}));
+
+vi.mock("./db-store/postgres-load", () => ({
+  resolveProjectLoadScope: (...args: unknown[]) =>
+    resolveProjectLoadScope(...args),
+}));
+
 vi.mock("./db", async () => {
   const actual = await vi.importActual<typeof import("./db")>("./db");
   return {
     ...actual,
-    loadDb: () => loadDb(),
-    withDbWrite: (fn: (db: Db) => unknown) => withDbWrite(fn),
+    loadDb: (...args: unknown[]) => loadDb(...args),
+    withDbWrite: (fn: (db: Db) => unknown, ...rest: unknown[]) =>
+      withDbWrite(fn, ...rest),
   };
 });
 
@@ -111,6 +122,15 @@ function emptyDb(): Db {
     alerts: [],
   };
 }
+
+beforeEach(() => {
+  resolveProjectLoadScope.mockResolvedValue({
+    mode: "scoped",
+    orgIds: ["org-1"],
+    projectIds: ["p1"],
+    evidenceLimit: 0,
+  });
+});
 
 afterEach(() => {
   vi.clearAllMocks();

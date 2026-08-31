@@ -1,4 +1,6 @@
 import { sanitizeDownloadFilename } from "@/server/download-filename";
+import { getDrizzle } from "@/server/db-store/client";
+import { listAllEvidenceForProject } from "@/server/db-store/postgres-queries";
 import {
   buildComplianceReportMarkdown,
   reportInputForProject,
@@ -12,8 +14,12 @@ export async function GET(): Promise<Response> {
   if (!project) {
     return new Response("No project connected.", { status: 404 });
   }
+  const evidence = await listAllEvidenceForProject(
+    await getDrizzle(),
+    project.id,
+  );
   const markdown = buildComplianceReportMarkdown(
-    reportInputForProject(db, project),
+    reportInputForProject({ ...db, evidence }, project),
   );
 
   const safeName = sanitizeDownloadFilename(project.name, "project");

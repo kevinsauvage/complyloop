@@ -28,6 +28,8 @@ import {
   removeOrgMember,
   resolveActiveOrgId,
 } from "../orgs";
+import { getDrizzle } from "../db-store/client";
+import { listAllEvidenceForProjects } from "../db-store/postgres-queries";
 import { getWorkspace, withWorkspaceWrite } from "../workspace";
 import { refresh } from "./shared";
 
@@ -213,7 +215,14 @@ export async function exportOrgDataAction(
   }
   try {
     const { db } = await getWorkspace();
-    const payload = exportOrgData(db, orgId, userId);
+    const projectIds = db.projects
+      .filter((project) => project.orgId === orgId)
+      .map((project) => project.id);
+    const evidence = await listAllEvidenceForProjects(
+      await getDrizzle(),
+      projectIds,
+    );
+    const payload = exportOrgData({ ...db, evidence }, orgId, userId);
     return { error: null, json: JSON.stringify(payload, null, 2) };
   } catch (error) {
     return {

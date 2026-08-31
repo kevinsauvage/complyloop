@@ -1,54 +1,4 @@
-# ComplyLoop — prioritized todo
-
-Analyzed against `compliance-engineering-product-spec.md`, `docs/ai/architecture.md`, and the current codebase (including uncommitted requirements-intake work). Date: 2026-08-31.
-
-Priority is **product risk**, not effort. P0 items can claim compliance without evidence. P1 ships the slice already in progress. P2–P3 strengthen the core loop. P4 is post-MVP.
-
----
-
-## P0 — Correctness (never claim pass without evidence)
-
-### 1. Stop false-passing axe-only controls when runtime did not run — DONE
-
-- **What:** Ten modeled checks have axe mappings but **no AST implementation** and are **not** in `RUNTIME_ONLY_CHECK_IDS`: `table-headers`, `page-heading`, `content-region`, `label-in-name`, `lang-parts`, `aria-roledescription`, `presentation-role`, `no-auto-refresh`, `no-orientation-lock`, `landmark-unique`. With no findings, `deriveRequirementStatus` returns `passed`.
-- **Why:** Spec principle _evidence over claims_. An AST-only assessment currently marks those requirements passed even though they were never evaluated. The existing six runtime-only checks (`color-contrast`, `document-title`, `bypass`, `landmark-one-main`, `nested-interactive`, `target-size`) already stay `unable_to_verify` — these ten should too.
-- **How:** Add them to `RUNTIME_ONLY_CHECK_IDS` in `src/analysis/check-authority.ts`. Extend `assessment-status` tests so an AST-only run leaves them `unable_to_verify`, and a successful axe run can pass/fail them. Update architecture docs in the same change.
-- **Done:** All sixteen axe-only checks are in `RUNTIME_ONLY_CHECK_IDS`; architecture/README counts updated.
-
-### 2. Reports must name the project’s assessment target, not `frameworks[0]` — DONE
-
-- **What:** `reportInputForProject` and the JSON export use `db.frameworks[0]`. Markdown report lines hardcode `- **RGAA:** ${control.secondaryCode}` even when the target is WCAG.
-- **Why:** Users who set WCAG AA get an audit artifact that still looks like RGAA Full. Wrong framework on exported evidence breaks trust with auditors.
-- **How:** Resolve framework from `project.assessmentPresetId` → `presetById` → `frameworkId`. Use `controlDisplayCodes` (same as the requirements page) for primary/secondary labels. Cover both RGAA and WCAG presets in `src/server/report.test.ts`.
-- **Done:** `frameworkForProject` used by Markdown/HTML report input and JSON export; display codes swap for WCAG targets.
-
----
-
-## P1 — Finish the current slice and keep docs honest
-
-### 5. Stop duplicating RGAA and WCAG controls under the same IDs — DONE
-
-- **What:** `ctl-img-alt` (and every sibling) exists in both `rgaa/controls.ts` and `wcag/controls.ts`. `mergeAdapterControls` keys by id, so the second adapter never lands — WCAG is a display swap (`controlDisplayCodes`) over RGAA rows.
-- **Why:** Fine as a temporary trick; it will break the next adapter (SOC 2, custom) and makes “framework-agnostic catalog” a lie in the database.
-- **How:** One shared control catalog with `code` / `secondaryCode` plus `frameworkId` only on the **preset**, or distinct ids (`ctl-rgaa-img-alt` / `ctl-wcag-img-alt`) that share `checkId`. Prefer the first: presets own the framework, controls stay unique. Migrate seed merge accordingly.
-- **Done:** Unique catalog in `rgaa/controls.ts`. WCAG adapter registers framework + presets only. `allControls()` is unique by id. Display still swaps via `controlDisplayCodes`.
-
-### 6. GitHub App empty state needs an install path — DONE
-
-- **What:** With the App configured, an empty repo picker says “Install the App on the repos you want to assess, then refresh” — no link, no `GITHUB_APP_SLUG` deep-link.
-- **Why:** Production **requires** a GitHub App (`assertProductionGitHubApp`). First-run friction here kills the spec’s “connect a repo and get a useful result fast.”
-- **How:** Add `GITHUB_APP_SLUG` (or full install URL) to env. Empty state: button to `https://github.com/apps/<slug>/installations/new`, then refetch. Document in `docs/deploy.md`.
-- **Done:** `githubAppInstallUrl()` + install button when slug is set; copy points at `GITHUB_APP_SLUG` when it is not. Documented in `.env.example` and `docs/deploy.md`.
-
----
-
 ## P2 — Core loop DX (assess → fix → verify in the PR)
-
-### 7. Default runtime audit is only `/`
-
-- **What:** If a preview URL is set and `runtimeRoutes` is empty, `runtimeRoutesFor` audits `["/"]` only. Routes are a manual textarea on Settings.
-- **Why:** Contrast, skip links, landmarks, and the ten axe-only controls never see login/app routes. Composition-sensitive AST false positives stay the status truth on those pages.
-- **How:** Keep manual routes as override. Add a conservative default: parse Next.js `app/` and `pages/` for static pathnames (no dynamic segments), cap at `ASSESSMENT_MAX_RUNTIME_PAGES`. Show “N routes discovered” on Settings. Do not crawl the live site (SSRF).
 
 ### 8. Check Runs should annotate failing files
 
@@ -78,11 +28,11 @@ Priority is **product risk**, not effort. P0 items can claim compliance without 
 
 ## P3 — Spec differentiators (still inside accessibility MVP)
 
-### 12. Stop loading the whole tenant database into memory
+### 12. Stop loading the whole tenant database into memory — DONE
 
-- **What:** Every request `loadDbFromPostgres` selects **all** frameworks, projects, findings, and evidence JSONB payloads into a `Db` object, then filters in process.
+- **What:** Every request `loadDbFromPostgres` selected **all** frameworks, projects, findings, and evidence JSONB payloads into a `Db` object, then filtered in process.
 - **Why:** Evidence is append-only and unbounded. This will not survive a real org. It also makes Postgres constraints decorative — the app is still an in-memory store with a disk backup.
-- **How:** Do not boil the ocean. First: scope loaders by `orgId` / `projectId` (workspace already knows both). Evidence and findings: paginated queries matching the UI. Keep JSONB payloads until a later normalized schema. Update `docs/ai/architecture.md` when the load shape changes.
+- **How (done):** Scoped loaders by org/project (`Db.loadScope`); workspace reads cap evidence; evidence UI/exports use SQL pagination/full project queries; persist prune is scope-aware so partial loads cannot wipe other tenants. See `docs/ai/architecture.md`.
 
 ### 13. Split engineering vs audit report views
 

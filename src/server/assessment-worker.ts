@@ -11,6 +11,8 @@ import {
   summarizeAssessmentForCheckRun,
 } from "./github-checks";
 import { resolveProjectGitHubToken } from "./github-access";
+import { getDrizzle } from "./db-store/client";
+import { resolveProjectLoadScope } from "./db-store/postgres-load";
 import { reportError, reportWarning } from "./observability";
 import { withProjectCheckout } from "./repo-checkout";
 
@@ -42,7 +44,9 @@ function collectRegressionAlerts(
 }
 
 async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
-  const snapshot = await loadDb();
+  const drizzle = await getDrizzle();
+  const scope = await resolveProjectLoadScope(drizzle, job.projectId, 0);
+  const snapshot = await loadDb(scope);
   const project = snapshot.projects.find((candidate) => candidate.id === job.projectId);
   if (!project) throw new Error("Project was removed before its assessment job ran.");
 
@@ -82,7 +86,7 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
           openViolations,
           failedRequirements,
         };
-      }),
+      }, scope),
     job.payload.ref,
   );
 
@@ -133,6 +137,8 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
   } catch (error) {
     const status = await failAssessmentJob(job, error);
     if (status === "failed") {
+      const drizzle = await getDrizzle();
+      const scope = await resolveProjectLoadScope(drizzle, job.projectId, 0);
       await withDbWrite((db) => {
         const project = db.projects.find((candidate) => candidate.id === job.projectId);
         if (!project) return;
@@ -146,7 +152,7 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
             error: error instanceof Error ? error.message : "Assessment job failed.",
           },
         });
-      });
+      }, scope);
     }
     reportError(error, {
       code: status === "failed" ? "assessment_job_failed" : "assessment_job_retrying",

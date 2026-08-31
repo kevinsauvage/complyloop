@@ -1,4 +1,4 @@
-import { inArray, notInArray, sql } from "drizzle-orm";
+import { and, inArray, notInArray, sql } from "drizzle-orm";
 import type { Db } from "./types";
 import type { DrizzleDb } from "./client";
 import {
@@ -10,15 +10,30 @@ import {
   requirements,
 } from "./schema";
 import { evidenceRecordsToInsert, evidenceToRow } from "./postgres-evidence";
+import { effectiveLoadScope, isFullLoadScope } from "./postgres-scope";
 import { syncPayloadTable } from "./postgres-sync";
+
+function keepIdsOrNeverMatch(ids: readonly string[]): string[] {
+  return ids.length > 0 ? [...ids] : ["__none__"];
+}
 
 export async function persistRuntimeToPostgres(
   tx: DrizzleDb,
   db: Db,
 ): Promise<void> {
+  const scope = effectiveLoadScope(db.loadScope);
+  const projectIds = isFullLoadScope(scope) ? null : [...scope.projectIds];
+
   await syncPayloadTable({
     length: db.requirements.length,
-    deleteAll: () => tx.delete(requirements),
+    deleteAll: () =>
+      projectIds
+        ? projectIds.length === 0
+          ? Promise.resolve()
+          : tx
+              .delete(requirements)
+              .where(inArray(requirements.projectId, projectIds))
+        : tx.delete(requirements),
     upsert: () =>
       tx
         .insert(requirements)
@@ -40,18 +55,33 @@ export async function persistRuntimeToPostgres(
             payload: sql`excluded.payload`,
           },
         }),
-    prune: () =>
-      tx.delete(requirements).where(
-        notInArray(
-          requirements.id,
-          db.requirements.map((item) => item.id),
-        ),
-      ),
+    prune: () => {
+      const keep = keepIdsOrNeverMatch(db.requirements.map((item) => item.id));
+      if (!projectIds) {
+        return tx.delete(requirements).where(notInArray(requirements.id, keep));
+      }
+      if (projectIds.length === 0) return Promise.resolve();
+      return tx
+        .delete(requirements)
+        .where(
+          and(
+            inArray(requirements.projectId, projectIds),
+            notInArray(requirements.id, keep),
+          ),
+        );
+    },
   });
 
   await syncPayloadTable({
     length: db.assessments.length,
-    deleteAll: () => tx.delete(assessments),
+    deleteAll: () =>
+      projectIds
+        ? projectIds.length === 0
+          ? Promise.resolve()
+          : tx
+              .delete(assessments)
+              .where(inArray(assessments.projectId, projectIds))
+        : tx.delete(assessments),
     upsert: () =>
       tx
         .insert(assessments)
@@ -69,18 +99,31 @@ export async function persistRuntimeToPostgres(
             payload: sql`excluded.payload`,
           },
         }),
-    prune: () =>
-      tx.delete(assessments).where(
-        notInArray(
-          assessments.id,
-          db.assessments.map((item) => item.id),
-        ),
-      ),
+    prune: () => {
+      const keep = keepIdsOrNeverMatch(db.assessments.map((item) => item.id));
+      if (!projectIds) {
+        return tx.delete(assessments).where(notInArray(assessments.id, keep));
+      }
+      if (projectIds.length === 0) return Promise.resolve();
+      return tx
+        .delete(assessments)
+        .where(
+          and(
+            inArray(assessments.projectId, projectIds),
+            notInArray(assessments.id, keep),
+          ),
+        );
+    },
   });
 
   await syncPayloadTable({
     length: db.findings.length,
-    deleteAll: () => tx.delete(findings),
+    deleteAll: () =>
+      projectIds
+        ? projectIds.length === 0
+          ? Promise.resolve()
+          : tx.delete(findings).where(inArray(findings.projectId, projectIds))
+        : tx.delete(findings),
     upsert: () =>
       tx
         .insert(findings)
@@ -104,18 +147,41 @@ export async function persistRuntimeToPostgres(
             payload: sql`excluded.payload`,
           },
         }),
-    prune: () =>
-      tx.delete(findings).where(
-        notInArray(
-          findings.id,
-          db.findings.map((item) => item.id),
-        ),
-      ),
+    prune: () => {
+      const keep = keepIdsOrNeverMatch(db.findings.map((item) => item.id));
+      if (!projectIds) {
+        return tx.delete(findings).where(notInArray(findings.id, keep));
+      }
+      if (projectIds.length === 0) return Promise.resolve();
+      return tx
+        .delete(findings)
+        .where(
+          and(
+            inArray(findings.projectId, projectIds),
+            notInArray(findings.id, keep),
+          ),
+        );
+    },
   });
 
   await syncPayloadTable({
     length: db.remediations.length,
-    deleteAll: () => tx.delete(remediations),
+    deleteAll: async () => {
+      if (!projectIds) {
+        await tx.delete(remediations);
+        return;
+      }
+      if (projectIds.length === 0) return;
+      const scopedFindings = await tx
+        .select({ id: findings.id })
+        .from(findings)
+        .where(inArray(findings.projectId, projectIds));
+      const findingIds = scopedFindings.map((row) => row.id);
+      if (findingIds.length === 0) return;
+      await tx
+        .delete(remediations)
+        .where(inArray(remediations.findingId, findingIds));
+    },
     upsert: () =>
       tx
         .insert(remediations)
@@ -135,18 +201,38 @@ export async function persistRuntimeToPostgres(
             payload: sql`excluded.payload`,
           },
         }),
-    prune: () =>
-      tx.delete(remediations).where(
-        notInArray(
-          remediations.id,
-          db.remediations.map((item) => item.id),
-        ),
-      ),
+    prune: async () => {
+      const keep = keepIdsOrNeverMatch(db.remediations.map((item) => item.id));
+      if (!projectIds) {
+        await tx.delete(remediations).where(notInArray(remediations.id, keep));
+        return;
+      }
+      if (projectIds.length === 0) return;
+      const scopedFindings = await tx
+        .select({ id: findings.id })
+        .from(findings)
+        .where(inArray(findings.projectId, projectIds));
+      const findingIds = scopedFindings.map((row) => row.id);
+      if (findingIds.length === 0) return;
+      await tx
+        .delete(remediations)
+        .where(
+          and(
+            inArray(remediations.findingId, findingIds),
+            notInArray(remediations.id, keep),
+          ),
+        );
+    },
   });
 
   await syncPayloadTable({
     length: db.alerts.length,
-    deleteAll: () => tx.delete(alerts),
+    deleteAll: () =>
+      projectIds
+        ? projectIds.length === 0
+          ? Promise.resolve()
+          : tx.delete(alerts).where(inArray(alerts.projectId, projectIds))
+        : tx.delete(alerts),
     upsert: () =>
       tx
         .insert(alerts)
@@ -166,13 +252,21 @@ export async function persistRuntimeToPostgres(
             payload: sql`excluded.payload`,
           },
         }),
-    prune: () =>
-      tx.delete(alerts).where(
-        notInArray(
-          alerts.id,
-          db.alerts.map((item) => item.id),
-        ),
-      ),
+    prune: () => {
+      const keep = keepIdsOrNeverMatch(db.alerts.map((item) => item.id));
+      if (!projectIds) {
+        return tx.delete(alerts).where(notInArray(alerts.id, keep));
+      }
+      if (projectIds.length === 0) return Promise.resolve();
+      return tx
+        .delete(alerts)
+        .where(
+          and(
+            inArray(alerts.projectId, projectIds),
+            notInArray(alerts.id, keep),
+          ),
+        );
+    },
   });
 
   // Evidence: append-only — insert missing ids, never update or delete.

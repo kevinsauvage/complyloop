@@ -1,7 +1,8 @@
 import type { EmitterWebhookEvent } from "@octokit/webhooks";
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
 import { enqueueAssessmentJob } from "./assessment-jobs";
-import { loadDb } from "./db";
+import { getDrizzle } from "./db-store/client";
+import { findProjectByGithubFullName } from "./db-store/postgres-queries";
 import { assertRateLimit } from "./rate-limit";
 
 type PushPayload = EmitterWebhookEvent<"push">["payload"];
@@ -99,11 +100,8 @@ export async function handleGitHubWebhookEvent(
   const fullName = repositoryFullName(parsed.event);
   if (!fullName) return { handled: false, message: "No repository in payload" };
 
-  const db = await loadDb();
-  const project = db.projects.find(
-    (candidate) =>
-      candidate.source === "github" && candidate.github?.fullName.toLowerCase() === fullName.toLowerCase(),
-  );
+  const drizzle = await getDrizzle();
+  const project = await findProjectByGithubFullName(drizzle, fullName);
   if (!project) {
     return { handled: false, message: `No connected project for ${fullName}` };
   }

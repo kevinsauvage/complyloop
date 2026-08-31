@@ -23,6 +23,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { buildDeveloperHandoff } from "@/server/handoff";
+import { getDrizzle } from "@/server/db-store/client";
+import { listEvidenceForFinding } from "@/server/db-store/postgres-queries";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { resolveVisibleFinding } from "@/server/project-visibility";
 import { controlById, getWorkspace, remediationForFinding } from "@/server/workspace";
@@ -50,9 +52,7 @@ export default async function FindingPage({
 
   const control = controlById(db, finding.controlId);
   const remediation = remediationForFinding(db, finding.id);
-  const evidence = db.evidence
-    .filter((record) => record.findingId === finding.id)
-    .reverse();
+  const evidence = await listEvidenceForFinding(await getDrizzle(), finding.id);
   const aiAvailable = aiExplanationAvailable();
   const handoff = buildDeveloperHandoff(project, control, finding, remediation);
   const showHandoff =

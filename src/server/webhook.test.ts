@@ -2,11 +2,17 @@ import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleGitHubWebhookEvent, verifyGitHubSignature } from "./webhook";
 
-const loadDb = vi.hoisted(() => vi.fn());
+const findProjectByGithubFullName = vi.hoisted(() => vi.fn());
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const assertRateLimit = vi.hoisted(() => vi.fn());
 
-vi.mock("./db", () => ({ loadDb }));
+vi.mock("./db-store/client", () => ({
+  getDrizzle: async () => ({}),
+}));
+vi.mock("./db-store/postgres-queries", () => ({
+  findProjectByGithubFullName: (...args: unknown[]) =>
+    findProjectByGithubFullName(...args),
+}));
 vi.mock("./assessment-jobs", () => ({ enqueueAssessmentJob }));
 vi.mock("./rate-limit", () => ({ assertRateLimit }));
 
@@ -14,18 +20,6 @@ afterEach(() => {
   delete process.env.GITHUB_WEBHOOK_SECRET;
   vi.clearAllMocks();
 });
-
-function projectDb() {
-  return {
-    projects: [
-      {
-        id: "p1",
-        source: "github" as const,
-        github: { fullName: "acme/app", defaultBranch: "main", private: false },
-      },
-    ],
-  };
-}
 
 describe("verifyGitHubSignature", () => {
   it("accepts a valid HMAC SHA-256 signature", async () => {
@@ -44,7 +38,7 @@ describe("verifyGitHubSignature", () => {
 
 describe("handleGitHubWebhookEvent", () => {
   it("enqueues an idempotent push assessment without cloning in the request path", async () => {
-    loadDb.mockResolvedValue(projectDb());
+    findProjectByGithubFullName.mockResolvedValue({ id: "p1", orgId: "org-1" });
     enqueueAssessmentJob.mockResolvedValue({ id: "job-1" });
 
     const result = await handleGitHubWebhookEvent(
@@ -76,7 +70,7 @@ describe("handleGitHubWebhookEvent", () => {
   });
 
   it("retains the PR head SHA for the worker Check Run", async () => {
-    loadDb.mockResolvedValue(projectDb());
+    findProjectByGithubFullName.mockResolvedValue({ id: "p1", orgId: "org-1" });
     enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
     const headSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 

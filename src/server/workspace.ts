@@ -7,7 +7,11 @@ import {
   readActiveOrgCookie,
   readActiveProjectCookie,
 } from "./active-cookies";
-import { loadDb, withDbWrite, type Db } from "./db";
+import {
+  loadWorkspaceDb,
+  withWorkspaceDbWrite,
+  type Db,
+} from "./db";
 import { ensurePersonalOrg, orgsForUser, resolveActiveOrgId } from "./orgs";
 import {
   type AccessContext,
@@ -98,6 +102,7 @@ function prepareWorkspaceState(
 /**
  * Loads the store, seeding the framework and controls on first use.
  * Memoized per React request so layout + page share one load/auth.
+ * Scoped to the viewer's orgs/projects (not the whole tenant database).
  */
 export const getWorkspace = cache(async (): Promise<Workspace> => {
   const session = await auth();
@@ -106,7 +111,11 @@ export const getWorkspace = cache(async (): Promise<Workspace> => {
   const preferredOrgId = userId ? await readActiveOrgCookie() : null;
   const preferredProjectId = await readActiveProjectCookie();
 
-  const db = await loadDb();
+  const db = await loadWorkspaceDb({
+    userId,
+    githubLogin,
+    preferredProjectId,
+  });
   const prepared = prepareWorkspaceState(
     db,
     userId,
@@ -116,16 +125,19 @@ export const getWorkspace = cache(async (): Promise<Workspace> => {
   );
   if (prepared.changed) {
     // Re-run under the write lock so seed/org provisioning cannot race.
-    return withDbWrite(async (locked) => {
-      const again = prepareWorkspaceState(
-        locked,
-        userId,
-        githubLogin,
-        preferredOrgId,
-        preferredProjectId,
-      );
-      return again.workspace;
-    });
+    return withWorkspaceDbWrite(
+      { userId, githubLogin, preferredProjectId },
+      async (locked) => {
+        const again = prepareWorkspaceState(
+          locked,
+          userId,
+          githubLogin,
+          preferredOrgId,
+          preferredProjectId,
+        );
+        return again.workspace;
+      },
+    );
   }
   return prepared.workspace;
 });
@@ -143,16 +155,19 @@ export async function withWorkspaceWrite<T>(
   const preferredOrgId = userId ? await readActiveOrgCookie() : null;
   const preferredProjectId = await readActiveProjectCookie();
 
-  return withDbWrite(async (db) => {
-    const { workspace } = prepareWorkspaceState(
-      db,
-      userId,
-      githubLogin,
-      preferredOrgId,
-      preferredProjectId,
-    );
-    return fn(workspace);
-  });
+  return withWorkspaceDbWrite(
+    { userId, githubLogin, preferredProjectId },
+    async (db) => {
+      const { workspace } = prepareWorkspaceState(
+        db,
+        userId,
+        githubLogin,
+        preferredOrgId,
+        preferredProjectId,
+      );
+      return fn(workspace);
+    },
+  );
 }
 
 export function controlById(db: Db, controlId: string): Control {

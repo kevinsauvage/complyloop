@@ -11,7 +11,11 @@ file-scoped: analysis, server, UI, AI, TypeScript). Keep durable architecture
 here — do not re-paste stack/layout into agent markdown.
 
 **Current connectors:** GitHub OAuth / GitHub App repo connect only.
-**Persistence:** **Postgres via Drizzle** (`DATABASE_URL` required) for domain state, encrypted GitHub tokens, and webhook delivery ids. Evidence is append-only (insert-only). Writers use `withDbWrite` / `withWorkspaceWrite`. **Tenancy:** organizations + memberships with role RBAC (`src/core/rbac.ts`); active org via cookie; projects carry `orgId`. Source trees are ephemeral temp clones per job (`src/server/repo-checkout.ts`). See `docs/deploy.md`.
+**Persistence:** **Postgres via Drizzle** (`DATABASE_URL` required) for domain state, encrypted GitHub tokens, and webhook delivery ids. Evidence is append-only (insert-only). Writers use `withDbWrite` / `withWorkspaceWrite`.
+
+**Load shape:** Request paths do **not** select the whole database into memory. `getWorkspace` / `withWorkspaceWrite` resolve the viewer's org + project ids, then load catalog (frameworks/controls) plus that tenant slice. Workspace reads keep a bounded evidence window (`WORKSPACE_EVIDENCE_LIMIT`); the evidence UI and exports page via SQL (`listEvidencePageForProject` / `listAllEvidenceForProject`). Assessment workers load a single project scope. Persist prune is **scope-aware**: a partial `Db.loadScope` never deletes rows outside that org/project set. Full replace-all sync remains available for explicit `mode: "full"` loads.
+
+**Tenancy:** organizations + memberships with role RBAC (`src/core/rbac.ts`); active org via cookie; projects carry `orgId`. Source trees are ephemeral temp clones per job (`src/server/repo-checkout.ts`). See `docs/deploy.md`.
 **Observability:** `@sentry/nextjs` via `src/instrumentation.ts` (Node/Edge) and `src/instrumentation-client.ts` (browser). Product code still calls `reportError` / `reportWarning`. GitHub webhook payloads are typed with `@octokit/webhooks`.
 
 ## System Shape

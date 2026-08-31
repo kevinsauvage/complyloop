@@ -1,4 +1,5 @@
-import { evidenceForProject } from "@/server/project-visibility";
+import { getDrizzle } from "@/server/db-store/client";
+import { listAllEvidenceForProject } from "@/server/db-store/postgres-queries";
 import {
   controlsInScope,
   requirementsInScope,
@@ -13,13 +14,17 @@ export async function GET(): Promise<Response> {
   if (!project) {
     return new Response("No project connected.", { status: 404 });
   }
+  const evidence = await listAllEvidenceForProject(
+    await getDrizzle(),
+    project.id,
+  );
   const payload = {
     exportedAt: new Date().toISOString(),
     project: { name: project.name, connectedAt: project.createdAt },
     framework: frameworkForProject(db, project),
     controls: controlsInScope(db, project),
     requirements: requirementsInScope(db.requirements, project),
-    evidence: evidenceForProject(db.evidence, project.id),
+    evidence,
   };
   return new Response(JSON.stringify(payload, null, 2), {
     headers: {

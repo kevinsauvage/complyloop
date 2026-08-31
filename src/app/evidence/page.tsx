@@ -17,9 +17,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { EvidenceKind } from "@/core/finding-types";
 import { evidenceKindLabel } from "@/core/labels";
-import { paginateSlice, parsePageParam } from "@/core/pagination";
+import {
+  DEFAULT_PAGE_SIZE,
+  pageSliceFromQuery,
+  parsePageParam,
+} from "@/core/pagination";
 import { cn } from "@/lib/utils";
-import { evidenceForProject } from "@/server/project-visibility";
+import { getDrizzle } from "@/server/db-store/client";
+import {
+  countEvidenceForProject,
+  listEvidencePageForProject,
+} from "@/server/db-store/postgres-queries";
 import { getWorkspace } from "@/server/workspace";
 import { ChevronDownIcon } from "lucide-react";
 
@@ -87,7 +95,7 @@ export default async function EvidencePage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const { page: pageRaw } = await searchParams;
-  const { db, project } = await getWorkspace();
+  const { project } = await getWorkspace();
   if (!project) {
     return (
       <>
@@ -104,8 +112,13 @@ export default async function EvidencePage({
       </>
     );
   }
-  const evidence = [...evidenceForProject(db.evidence, project.id)].reverse();
-  const slice = paginateSlice(evidence, parsePageParam(pageRaw));
+  const page = parsePageParam(pageRaw);
+  const drizzle = await getDrizzle();
+  const [total, items] = await Promise.all([
+    countEvidenceForProject(drizzle, project.id),
+    listEvidencePageForProject(drizzle, project.id, page, DEFAULT_PAGE_SIZE),
+  ]);
+  const slice = pageSliceFromQuery(items, page, total);
 
   return (
     <>
@@ -139,7 +152,7 @@ export default async function EvidencePage({
           </DropdownMenuContent>
         </DropdownMenu>
       </PageHeader>
-      {evidence.length === 0 ? (
+      {total === 0 ? (
         <EmptyState title="No evidence yet">
           Evidence accumulates as assessments run and remediations progress.
         </EmptyState>

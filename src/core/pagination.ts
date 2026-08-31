@@ -38,3 +38,23 @@ export function paginateSlice<T>(
     hasNext: currentPage < totalPages,
   };
 }
+
+/** Build a page slice when items were already fetched for `page` (SQL LIMIT/OFFSET). */
+export function pageSliceFromQuery<T>(
+  items: readonly T[],
+  page: number,
+  total: number,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+): PageSlice<T> {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  return {
+    items: [...items],
+    page: currentPage,
+    pageSize,
+    total,
+    totalPages,
+    hasPrev: currentPage > 1,
+    hasNext: currentPage < totalPages,
+  };
+}

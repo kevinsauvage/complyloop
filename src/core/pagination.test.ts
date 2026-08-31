@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { paginateSlice, parsePageParam } from "./pagination";
+import {
+  pageSliceFromQuery,
+  paginateSlice,
+  parsePageParam,
+} from "./pagination";
 
 describe("parsePageParam", () => {
   it("defaults invalid values to page 1", () => {
@@ -31,5 +35,17 @@ describe("paginateSlice", () => {
     expect(page.page).toBe(1);
     expect(page.items).toEqual([1, 2, 3]);
     expect(page.hasNext).toBe(false);
+  });
+});
+
+describe("pageSliceFromQuery", () => {
+  it("wraps a SQL page with total-based navigation", () => {
+    const page = pageSliceFromQuery(["a", "b"], 2, 60, 25);
+    expect(page.items).toEqual(["a", "b"]);
+    expect(page.page).toBe(2);
+    expect(page.total).toBe(60);
+    expect(page.totalPages).toBe(3);
+    expect(page.hasPrev).toBe(true);
+    expect(page.hasNext).toBe(true);
   });
 });

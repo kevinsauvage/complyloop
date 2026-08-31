@@ -1,4 +1,4 @@
-import { notInArray, sql } from "drizzle-orm";
+import { and, inArray, notInArray, sql } from "drizzle-orm";
 import type { Db } from "./types";
 import type { DrizzleDb } from "./client";
 import {
@@ -8,12 +8,22 @@ import {
   organizations,
   projects,
 } from "./schema";
+import { effectiveLoadScope, isFullLoadScope } from "./postgres-scope";
 import { syncPayloadTable } from "./postgres-sync";
+
+function keepIdsOrNeverMatch(ids: readonly string[]): string[] {
+  // notInArray([]) is invalid SQL; a sentinel that cannot match real ids.
+  return ids.length > 0 ? [...ids] : ["__none__"];
+}
 
 export async function persistCatalogToPostgres(
   tx: DrizzleDb,
   db: Db,
 ): Promise<void> {
+  const scope = effectiveLoadScope(db.loadScope);
+  const orgIds = isFullLoadScope(scope) ? null : [...scope.orgIds];
+  const scopedProjectIds = isFullLoadScope(scope) ? null : [...scope.projectIds];
+
   await syncPayloadTable({
     length: db.frameworks.length,
     deleteAll: () => tx.delete(frameworks),
@@ -29,7 +39,7 @@ export async function persistCatalogToPostgres(
       tx.delete(frameworks).where(
         notInArray(
           frameworks.id,
-          db.frameworks.map((item) => item.id),
+          keepIdsOrNeverMatch(db.frameworks.map((item) => item.id)),
         ),
       ),
   });
@@ -58,14 +68,19 @@ export async function persistCatalogToPostgres(
       tx.delete(controls).where(
         notInArray(
           controls.id,
-          db.controls.map((item) => item.id),
+          keepIdsOrNeverMatch(db.controls.map((item) => item.id)),
         ),
       ),
   });
 
   await syncPayloadTable({
     length: db.organizations.length,
-    deleteAll: () => tx.delete(organizations),
+    deleteAll: () =>
+      orgIds && orgIds.length > 0
+        ? tx.delete(organizations).where(inArray(organizations.id, orgIds))
+        : orgIds
+          ? Promise.resolve()
+          : tx.delete(organizations),
     upsert: () =>
       tx
         .insert(organizations)
@@ -83,18 +98,33 @@ export async function persistCatalogToPostgres(
             payload: sql`excluded.payload`,
           },
         }),
-    prune: () =>
-      tx.delete(organizations).where(
-        notInArray(
-          organizations.id,
-          db.organizations.map((item) => item.id),
-        ),
-      ),
+    prune: () => {
+      const keep = keepIdsOrNeverMatch(
+        db.organizations.map((item) => item.id),
+      );
+      if (orgIds) {
+        if (orgIds.length === 0) return Promise.resolve();
+        return tx
+          .delete(organizations)
+          .where(
+            and(
+              inArray(organizations.id, orgIds),
+              notInArray(organizations.id, keep),
+            ),
+          );
+      }
+      return tx.delete(organizations).where(notInArray(organizations.id, keep));
+    },
   });
 
   await syncPayloadTable({
     length: db.memberships.length,
-    deleteAll: () => tx.delete(memberships),
+    deleteAll: () =>
+      orgIds && orgIds.length > 0
+        ? tx.delete(memberships).where(inArray(memberships.orgId, orgIds))
+        : orgIds
+          ? Promise.resolve()
+          : tx.delete(memberships),
     upsert: () =>
       tx
         .insert(memberships)
@@ -118,18 +148,32 @@ export async function persistCatalogToPostgres(
             payload: sql`excluded.payload`,
           },
         }),
-    prune: () =>
-      tx.delete(memberships).where(
-        notInArray(
-          memberships.id,
-          db.memberships.map((item) => item.id),
-        ),
-      ),
+    prune: () => {
+      const keep = keepIdsOrNeverMatch(db.memberships.map((item) => item.id));
+      if (orgIds) {
+        if (orgIds.length === 0) return Promise.resolve();
+        return tx
+          .delete(memberships)
+          .where(
+            and(
+              inArray(memberships.orgId, orgIds),
+              notInArray(memberships.id, keep),
+            ),
+          );
+      }
+      return tx.delete(memberships).where(notInArray(memberships.id, keep));
+    },
   });
 
   await syncPayloadTable({
     length: db.projects.length,
-    deleteAll: () => tx.delete(projects),
+    deleteAll: () => {
+      if (!orgIds) return tx.delete(projects);
+      if (!scopedProjectIds || scopedProjectIds.length === 0) {
+        return Promise.resolve();
+      }
+      return tx.delete(projects).where(inArray(projects.id, scopedProjectIds));
+    },
     upsert: () =>
       tx
         .insert(projects)
@@ -151,12 +195,22 @@ export async function persistCatalogToPostgres(
             payload: sql`excluded.payload`,
           },
         }),
-    prune: () =>
-      tx.delete(projects).where(
-        notInArray(
-          projects.id,
-          db.projects.map((item) => item.id),
-        ),
-      ),
+    prune: () => {
+      const keep = keepIdsOrNeverMatch(db.projects.map((item) => item.id));
+      if (!orgIds) {
+        return tx.delete(projects).where(notInArray(projects.id, keep));
+      }
+      if (!scopedProjectIds || scopedProjectIds.length === 0) {
+        return Promise.resolve();
+      }
+      return tx
+        .delete(projects)
+        .where(
+          and(
+            inArray(projects.id, scopedProjectIds),
+            notInArray(projects.id, keep),
+          ),
+        );
+    },
   });
 }

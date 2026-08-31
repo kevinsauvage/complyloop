@@ -66,6 +66,14 @@ vi.mock("./actions/shared", () => ({
   refresh: () => refresh(),
 }));
 
+vi.mock("./db-store/client", () => ({
+  getDrizzle: async () => ({}),
+}));
+
+vi.mock("./db-store/postgres-queries", () => ({
+  listAllEvidenceForProjects: async () => [],
+}));
+
 const org: Organization = {
   id: "org-1",
   name: "Acme",
