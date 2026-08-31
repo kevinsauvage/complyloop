@@ -1,4 +1,5 @@
 import { PaginationNav } from "@/components/pagination-nav";
+import { EvidenceKindChips } from "@/components/evidence/evidence-kind-chips";
 import {
   EmptyState,
   PageActionLink,
@@ -16,7 +17,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { EvidenceKind } from "@/core/finding-types";
+import { evidenceRecordHref } from "@/core/evidence-links";
+import { parseEvidenceKindParam, evidenceKindHref } from "@/core/evidence-kind-filter";
 import { evidenceKindLabel } from "@/core/labels";
+import { reportHtmlHref, reportMarkdownHref } from "@/core/report-view";
 import {
   DEFAULT_PAGE_SIZE,
   pageSliceFromQuery,
@@ -26,10 +30,12 @@ import { cn } from "@/lib/utils";
 import { getDrizzle } from "@/server/db-store/client";
 import {
   countEvidenceForProject,
+  countEvidenceKindsForProject,
   listEvidencePageForProject,
 } from "@/server/db-store/postgres-queries";
 import { getWorkspace } from "@/server/workspace";
 import { ChevronDownIcon } from "lucide-react";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -92,10 +98,10 @@ const TONE_BADGE: Record<EvidenceTone, string> = {
 export default async function EvidencePage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; kind?: string | string[] }>;
 }) {
-  const { page: pageRaw } = await searchParams;
-  const { project } = await getWorkspace();
+  const { page: pageRaw, kind: kindRaw } = await searchParams;
+  const { db, project } = await getWorkspace();
   if (!project) {
     return (
       <>
@@ -112,13 +118,26 @@ export default async function EvidencePage({
       </>
     );
   }
+  const kindFilter = parseEvidenceKindParam(kindRaw);
   const page = parsePageParam(pageRaw);
   const drizzle = await getDrizzle();
-  const [total, items] = await Promise.all([
+  const requirements = db.requirements.filter(
+    (requirement) => requirement.projectId === project.id,
+  );
+  const [totalUnfiltered, total, kindCounts, items] = await Promise.all([
     countEvidenceForProject(drizzle, project.id),
-    listEvidencePageForProject(drizzle, project.id, page, DEFAULT_PAGE_SIZE),
+    countEvidenceForProject(drizzle, project.id, kindFilter),
+    countEvidenceKindsForProject(drizzle, project.id),
+    listEvidencePageForProject(
+      drizzle,
+      project.id,
+      page,
+      DEFAULT_PAGE_SIZE,
+      kindFilter,
+    ),
   ]);
   const slice = pageSliceFromQuery(items, page, total);
+  const paginationQuery = kindFilter ? { kind: kindFilter } : undefined;
 
   return (
     <>
@@ -134,13 +153,27 @@ export default async function EvidencePage({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <a href="/evidence/report" download>
-                Report (Markdown)
+              <a href={reportMarkdownHref("engineering")} download>
+                Engineering (Markdown)
               </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <a href="/evidence/report/html" target="_blank" rel="noreferrer">
-                Report (HTML)
+              <a href={reportMarkdownHref("audit")} download>
+                Audit (Markdown)
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a
+                href={reportHtmlHref("engineering")}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Engineering (HTML)
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={reportHtmlHref("audit")} target="_blank" rel="noreferrer">
+                Audit (HTML)
               </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -152,68 +185,110 @@ export default async function EvidencePage({
           </DropdownMenuContent>
         </DropdownMenu>
       </PageHeader>
-      {total === 0 ? (
-        <EmptyState title="No evidence yet">
-          Evidence accumulates as assessments run and remediations progress.
+      {totalUnfiltered === 0 ? (
+        <EmptyState
+          title="No evidence yet"
+          action={
+            <PageActionLink href="/">Run an assessment from the dashboard</PageActionLink>
+          }
+        >
+          <p>
+            Evidence accumulates as you run assessments, resolve Findings, verify
+            Remediations, and record Requirement decisions. After your first run you
+            will see entries like assessment completed, finding detected, and
+            remediation verified — each with a timestamp and link back into the loop.
+          </p>
         </EmptyState>
       ) : (
-        <Card className="shadow-none ring-1 ring-border/60">
-          <CardContent className="p-0">
-            <ol
-              className="divide-y divide-border/60"
-              aria-label="Evidence records"
-            >
-              {slice.items.map((record) => {
-                const tone = evidenceTone(record.kind);
-                return (
-                  <li
-                    key={record.id}
-                    className="flex gap-3 px-4 py-3.5 transition-colors hover:bg-accent/20"
-                  >
-                    <span
-                      className={cn(
-                        "mt-1.5 size-2.5 shrink-0 rounded-full",
-                        TONE_DOT[tone],
-                      )}
-                      aria-hidden
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                          variant="secondary"
+        <>
+          <EvidenceKindChips counts={kindCounts} selected={kindFilter} />
+          {total === 0 && kindFilter ? (
+            <EmptyState title={`No ${evidenceKindLabel(kindFilter).toLowerCase()} evidence`}>
+              <p>
+                Try another filter or{" "}
+                <Link href={evidenceKindHref()} className="underline">
+                  view all evidence
+                </Link>
+                .
+              </p>
+            </EmptyState>
+          ) : (
+            <Card className="shadow-none ring-1 ring-border/60">
+              <CardContent className="p-0">
+                <ol
+                  className="divide-y divide-border/60"
+                  aria-label="Evidence records"
+                >
+                  {slice.items.map((record) => {
+                    const tone = evidenceTone(record.kind);
+                    const href = evidenceRecordHref(record, requirements);
+                    const rowClassName = cn(
+                      "flex gap-3 px-4 py-3.5 transition-colors",
+                      href
+                        ? "hover:bg-accent/20 focus-within:bg-accent/20"
+                        : "",
+                    );
+                    const content = (
+                      <>
+                        <span
                           className={cn(
-                            "font-mono text-[10px]",
-                            TONE_BADGE[tone],
+                            "mt-1.5 size-2.5 shrink-0 rounded-full",
+                            TONE_DOT[tone],
                           )}
-                        >
-                          {evidenceKindLabel(record.kind)}
-                        </Badge>
-                        <time
-                          dateTime={record.at}
-                          className="text-xs text-muted-foreground whitespace-nowrap"
-                        >
-                          {formatDateTime(record.at)}
-                        </time>
-                      </div>
-                      <p className="mt-1.5 text-sm text-muted-foreground">
-                        {record.summary}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </CardContent>
-          <div className="border-t border-border/60 px-4 py-3">
-            <PaginationNav
-              page={slice.page}
-              totalPages={slice.totalPages}
-              total={slice.total}
-              basePath="/evidence"
-              label="Evidence pagination"
-            />
-          </div>
-        </Card>
+                          aria-hidden
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant="secondary"
+                              className={cn(
+                                "font-mono text-[10px]",
+                                TONE_BADGE[tone],
+                              )}
+                            >
+                              {evidenceKindLabel(record.kind)}
+                            </Badge>
+                            <time
+                              dateTime={record.at}
+                              className="text-xs text-muted-foreground whitespace-nowrap"
+                            >
+                              {formatDateTime(record.at)}
+                            </time>
+                          </div>
+                          <p className="mt-1.5 text-sm text-muted-foreground">
+                            {record.summary}
+                          </p>
+                        </div>
+                      </>
+                    );
+
+                    return (
+                      <li key={record.id}>
+                        {href ? (
+                          <Link href={href} className={rowClassName}>
+                            {content}
+                          </Link>
+                        ) : (
+                          <div className={rowClassName}>{content}</div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </CardContent>
+              <div className="border-t border-border/60 px-4 py-3">
+                <PaginationNav
+                  page={slice.page}
+                  totalPages={slice.totalPages}
+                  total={slice.total}
+                  basePath="/evidence"
+                  query={paginationQuery}
+                  label="Evidence pagination"
+                />
+              </div>
+            </Card>
+          )}
+        </>
       )}
     </>
   );

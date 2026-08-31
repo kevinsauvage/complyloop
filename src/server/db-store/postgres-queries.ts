@@ -1,5 +1,5 @@
-import { asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
-import type { EvidenceRecord } from "@/core/finding-types";
+import { and, asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
+import type { EvidenceKind, EvidenceRecord } from "@/core/finding-types";
 import { DEFAULT_PAGE_SIZE } from "@/core/pagination";
 import type { DrizzleDb } from "./client";
 import { rowToEvidence } from "./postgres-evidence";
@@ -11,15 +11,39 @@ export function sqlPageOffset(page: number, pageSize: number): number {
   return (safePage - 1) * pageSize;
 }
 
+function evidenceProjectFilter(projectId: string, kind?: EvidenceKind) {
+  const projectClause = eq(evidence.projectId, projectId);
+  if (!kind) return projectClause;
+  return and(projectClause, eq(evidence.kind, kind));
+}
+
 export async function countEvidenceForProject(
   drizzle: DrizzleDb,
   projectId: string,
+  kind?: EvidenceKind,
 ): Promise<number> {
   const [row] = await drizzle
     .select({ value: count() })
     .from(evidence)
-    .where(eq(evidence.projectId, projectId));
+    .where(evidenceProjectFilter(projectId, kind));
   return Number(row?.value ?? 0);
+}
+
+/** Per-kind counts for filter chips on the evidence page. */
+export async function countEvidenceKindsForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+): Promise<Map<EvidenceKind, number>> {
+  const rows = await drizzle
+    .select({ kind: evidence.kind, value: count() })
+    .from(evidence)
+    .where(eq(evidence.projectId, projectId))
+    .groupBy(evidence.kind);
+  const counts = new Map<EvidenceKind, number>();
+  for (const row of rows) {
+    counts.set(row.kind as EvidenceKind, Number(row.value ?? 0));
+  }
+  return counts;
 }
 
 /** Newest-first page of evidence for a project (matches the evidence UI). */
@@ -28,11 +52,12 @@ export async function listEvidencePageForProject(
   projectId: string,
   page: number,
   pageSize: number = DEFAULT_PAGE_SIZE,
+  kind?: EvidenceKind,
 ): Promise<EvidenceRecord[]> {
   const rows = await drizzle
     .select()
     .from(evidence)
-    .where(eq(evidence.projectId, projectId))
+    .where(evidenceProjectFilter(projectId, kind))
     .orderBy(desc(evidence.at))
     .limit(pageSize)
     .offset(sqlPageOffset(page, pageSize));

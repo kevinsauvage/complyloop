@@ -11,8 +11,19 @@ import { DeveloperHandoffCard } from "@/components/developer-handoff";
 import { FindingDismissCard } from "@/components/findings/finding-dismiss-card";
 import { FindingExplanationsCard } from "@/components/findings/finding-explanations-card";
 import { FindingNextStepPanel } from "@/components/findings/finding-next-step-panel";
+import { FindingQueueNav } from "@/components/findings/finding-queue-nav";
 import { FindingRemediationCard } from "@/components/findings/finding-remediation-card";
 import { formatLocationRef } from "@/core/location";
+import { evidenceKindLabel } from "@/core/labels";
+import {
+  findingQueuePosition,
+  orderedFindingIdsForQueue,
+} from "@/core/finding-queue";
+import {
+  findingsListHref,
+  parseFindingListParams,
+  type FilterFindingsContext,
+} from "@/core/finding-list-filter";
 import { CodeBlock, PageHeader, formatDateTime } from "@/components/page-primitives";
 import {
   Card,
@@ -29,7 +40,9 @@ import { getDrizzle } from "@/server/db-store/client";
 import { listEvidenceForFinding } from "@/server/db-store/postgres-queries";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { resolveVisibleFinding } from "@/server/project-visibility";
+import { findingsInScope } from "@/server/assessment-status";
 import { controlById, getWorkspace, remediationForFinding } from "@/server/workspace";
+import { prioritizeClusters } from "@/core/prioritization";
 import { cn } from "@/lib/utils";
 import { MapPin } from "lucide-react";
 
@@ -37,10 +50,13 @@ export const dynamic = "force-dynamic";
 
 export default async function FindingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
+  const listParams = parseFindingListParams(await searchParams);
   const { db, access } = await getWorkspace();
   const resolved = resolveVisibleFinding(
     id,
@@ -65,12 +81,39 @@ export default async function FindingPage({
     Boolean(finding.fix) &&
     Boolean(project.github?.fullName);
 
+  const queueFilterContext: FilterFindingsContext = {
+    controls: db.controls,
+    remediationStatusFor: (findingId) =>
+      remediationForFinding(db, findingId).status,
+    clusterFindingIds: listParams.cluster
+      ? new Set(
+          prioritizeClusters(findingsInScope(db.findings, project), db.controls)
+            .find((cluster) => cluster.id === listParams.cluster)
+            ?.findingIds ?? [],
+        )
+      : undefined,
+  };
+
+  const queueIds = orderedFindingIdsForQueue(
+    findingsInScope(db.findings, project),
+    listParams,
+    queueFilterContext,
+  );
+  const queuePosition = findingQueuePosition(queueIds, finding.id);
+
   return (
     <>
-      <div className="mb-4">
-        <Button variant="ghost" size="sm" className="-ml-2.5" asChild>
-          <Link href="/findings">← All findings</Link>
+      <div className="mb-4 flex flex-col gap-3">
+        <Button variant="ghost" size="sm" className="-ml-2.5 w-fit" asChild>
+          <Link href={findingsListHref(listParams)}>← Back to findings</Link>
         </Button>
+        <FindingQueueNav
+          listParams={listParams}
+          prevId={queuePosition.prevId}
+          nextId={queuePosition.nextId}
+          index={queuePosition.index}
+          total={queuePosition.total}
+        />
       </div>
       <PageHeader
         title={`${control.code} — ${control.title}`}
@@ -184,9 +227,9 @@ export default async function FindingPage({
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                       <Badge
                         variant="secondary"
-                        className="font-mono text-[10px]"
+                        className="text-[10px]"
                       >
-                        {record.kind}
+                        {evidenceKindLabel(record.kind)}
                       </Badge>
                       <time
                         dateTime={record.at}
