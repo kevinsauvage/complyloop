@@ -12,6 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatLocationRef } from "@/core/location";
+import {
+  findingDetailHref,
+  type FindingListParams,
+} from "@/core/finding-list-filter";
 import { cn } from "@/lib/utils";
 import { bulkApproveRemediationsAction } from "@/server/actions/remediation";
 import { bulkDismissFindingsAction } from "@/server/actions/remediation-dismiss";
@@ -22,9 +26,11 @@ export type { FindingListItem } from "./finding-list-items";
 export function FindingsBulkList({
   items,
   canRemediate,
+  listParams,
 }: {
   items: FindingListItem[];
   canRemediate: boolean;
+  listParams: FindingListParams;
 }) {
   const selectAllId = useId();
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -62,6 +68,11 @@ export function FindingsBulkList({
 
   return (
     <div className="flex flex-col gap-3">
+      {canRemediate && items.length > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Bulk actions apply to this page only.
+        </p>
+      ) : null}
       {canRemediate && items.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5">
           <div className="flex items-center gap-2">
@@ -177,7 +188,7 @@ export function FindingsBulkList({
                   </div>
                 ) : null}
                 <Link
-                  href={`/findings/${finding.id}`}
+                  href={findingDetailHref(finding.id, listParams)}
                   className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span className="flex flex-wrap items-center gap-2">
@@ -207,15 +218,17 @@ export function FindingsBulkList({
 /** Read-only card list for resolved/dismissed tabs (no bulk actions). */
 export function FindingsCardList({
   items,
+  listParams,
 }: {
   items: FindingListItem[];
+  listParams: FindingListParams;
 }) {
   return (
     <ul className="flex flex-col gap-2" aria-label="Findings">
       {items.map(({ finding, control, remediationStatus }) => (
         <li key={finding.id}>
           <Link
-            href={`/findings/${finding.id}`}
+            href={findingDetailHref(finding.id, listParams)}
             className={cn(
               "group block rounded-xl border border-border/70 bg-card/80 p-3 shadow-none outline-none transition-[background-color,border-color,box-shadow]",
               "hover:border-signal/40 hover:bg-accent/30 hover:shadow-sm",
