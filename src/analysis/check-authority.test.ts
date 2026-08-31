@@ -23,6 +23,16 @@ const RUNTIME_ONLY = [
   "landmark-one-main",
   "nested-interactive",
   "target-size",
+  "table-headers",
+  "page-heading",
+  "content-region",
+  "label-in-name",
+  "lang-parts",
+  "aria-roledescription",
+  "presentation-role",
+  "no-auto-refresh",
+  "no-orientation-lock",
+  "landmark-unique",
 ] as const;
 
 describe("check authority", () => {

@@ -13,6 +13,10 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
+
 afterEach(() => {
   cleanup();
   toastError.mockClear();

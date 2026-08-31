@@ -40,6 +40,8 @@ export function RequirementsIntakePanel({
               variant="default"
               size="sm"
               className="flex flex-col gap-3"
+              inlineSuccess={false}
+              refreshOnSuccess
             >
               <fieldset className="flex flex-col gap-2">
                 <legend className="text-sm font-medium">Assessment target</legend>

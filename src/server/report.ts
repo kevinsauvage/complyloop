@@ -1,6 +1,8 @@
 import type { RequirementStatus } from "@/core/statuses";
 import type { Control, Framework, Project, Requirement } from "@/core/project-types";
 import type { EvidenceRecord, Finding, Remediation } from "@/core/finding-types";
+import { controlDisplayCodes } from "@/adapters/control-theme";
+import { presetById } from "@/adapters/registry";
 import { formatLocationRef } from "@/core/location";
 import { requirementStatusLabel } from "@/core/labels";
 import type { Db } from "./db";
@@ -21,13 +23,37 @@ export interface ReportInput {
   exportedAt: string;
 }
 
+/** Resolves the framework named by the project's assessment preset. */
+export function frameworkForProject(
+  db: Db,
+  project: Project,
+): Framework {
+  const preset = project.assessmentPresetId
+    ? presetById(project.assessmentPresetId)
+    : undefined;
+  if (preset) {
+    const fromPreset = db.frameworks.find(
+      (framework) => framework.id === preset.frameworkId,
+    );
+    if (fromPreset) return fromPreset;
+  }
+  const fallback = db.frameworks[0];
+  if (!fallback) {
+    throw new Error("No compliance framework is configured.");
+  }
+  return fallback;
+}
+
+function secondaryReferenceLabel(secondaryCode: string): string {
+  if (secondaryCode.startsWith("WCAG")) return "WCAG";
+  if (secondaryCode.startsWith("RGAA")) return "RGAA";
+  return "Also";
+}
+
 /** Builds report input for a project's current store snapshot. */
 export function reportInputForProject(db: Db, project: Project): ReportInput {
   const findings = findingsForProject(db.findings, project.id);
-  const framework = db.frameworks[0];
-  if (!framework) {
-    throw new Error("No compliance framework is configured.");
-  }
+  const framework = frameworkForProject(db, project);
   return {
     project,
     framework,
@@ -112,9 +138,12 @@ export function buildComplianceReportMarkdown(input: ReportInput): string {
       (candidate) => candidate.controlId === control.id,
     );
     if (!requirement) continue;
-    lines.push(`### ${control.code} — ${control.title}`);
+    const display = controlDisplayCodes(control, framework.id);
+    lines.push(`### ${display.code} — ${control.title}`);
     lines.push(``);
-    lines.push(`- **RGAA:** ${control.secondaryCode}`);
+    lines.push(
+      `- **${secondaryReferenceLabel(display.secondaryCode)}:** ${display.secondaryCode}`,
+    );
     lines.push(
       `- **Status:** ${requirementStatusLabel(requirement.status)} (${requirement.determination})`,
     );
@@ -140,8 +169,11 @@ export function buildComplianceReportMarkdown(input: ReportInput): string {
       const remediation = remediations.find(
         (candidate) => candidate.findingId === finding.id,
       );
+      const display = control
+        ? controlDisplayCodes(control, framework.id)
+        : undefined;
       lines.push(
-        `### ${finding.status.toUpperCase()} — ${control?.code ?? finding.controlId} @ \`${formatLocationRef(finding.location)}\``,
+        `### ${finding.status.toUpperCase()} — ${display?.code ?? control?.code ?? finding.controlId} @ \`${formatLocationRef(finding.location)}\``,
       );
       lines.push(``);
       lines.push(`- **Kind / severity / confidence:** ${finding.kind} / ${finding.severity} / ${finding.confidence}`);

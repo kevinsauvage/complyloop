@@ -142,12 +142,13 @@ describe("applyFrameworkPresetAction", () => {
       form,
     );
 
-    expect(result.message).toBe("Assessment target updated.");
+    expect(result.message).toBe("Assessment target updated");
     expect(applyFrameworkPreset).toHaveBeenCalledWith(
       workspace.db,
       project,
       "preset-rgaa-aa",
     );
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("reports when the target is already selected", async () => {

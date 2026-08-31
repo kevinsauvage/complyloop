@@ -19,6 +19,7 @@ const COMPOSITION_SENSITIVE_CHECK_IDS = [
 /**
  * Checks the AST engine cannot pass. Without a successful runtime audit they
  * stay `unable_to_verify` — never `passed` from an empty source scan.
+ * Includes axe-mapped rules with no AST implementation.
  */
 const RUNTIME_ONLY_CHECK_IDS = [
   "color-contrast",
@@ -27,6 +28,16 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "landmark-one-main",
   "nested-interactive",
   "target-size",
+  "table-headers",
+  "page-heading",
+  "content-region",
+  "label-in-name",
+  "lang-parts",
+  "aria-roledescription",
+  "presentation-role",
+  "no-auto-refresh",
+  "no-orientation-lock",
+  "landmark-unique",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);

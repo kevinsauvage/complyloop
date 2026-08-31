@@ -6,6 +6,10 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
+
 vi.mock("@/server/actions/requirements-intake", () => ({
   applyFrameworkPresetAction: vi.fn(),
 }));

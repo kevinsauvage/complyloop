@@ -77,14 +77,14 @@ or run `npx complyloop-check .` / `npm run check -- .`.
 
 Then click **Run assessment** and walk the loop:
 
-1. **Assess** — eighteen deterministic AST checks scan the connected code
+1. **Assess** — twenty-nine deterministic AST checks scan the connected code
    (scoped to changed JSX when re-assessing after a snapshot diff). Optionally
    set a **preview / staging URL** under **Settings → Runtime audit** so
    composition-sensitive rules (labels, names, headings…) are audited on the
    **rendered page** with Playwright + axe — that avoids false positives on
    design-system primitives like `<input {...props} />` — and so runtime-only
-   rules (contrast, page title, skip links, landmarks, target size) can be
-   assessed at all. First time: `npm run playwright:install`.
+   rules (contrast, page title, skip links, landmarks, tables, target size, …)
+   can be assessed at all. First time: `npm run playwright:install`.
 2. **Understand** — each finding explains what failed, why, where, its impact,
    and confidence (and whether it came from `ast` or `runtime`).
 3. **Remediate** — review the suggested fix (edit e.g. the proposed alt text),

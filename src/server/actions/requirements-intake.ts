@@ -7,7 +7,7 @@ import {
 } from "../action-state";
 import { applyFrameworkPreset } from "../requirements-intake";
 import { withWorkspaceWrite } from "../workspace";
-import { refresh, requireOnActive } from "./shared";
+import { requireOnActive } from "./shared";
 
 export async function applyFrameworkPresetAction(
   _previous: ActionMessageState,
@@ -24,9 +24,9 @@ export async function applyFrameworkPresetAction(
       const { db, project } = workspace;
       changed = applyFrameworkPreset(db, project, presetId).changed;
     });
-    refresh();
+    // Client toasts then router.refresh() — avoid layout revalidate wiping the toast.
     return changed
-      ? "Assessment target updated."
+      ? "Assessment target updated"
       : "This is already the assessment target.";
   });
 }

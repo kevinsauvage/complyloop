@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
+import { wcagFramework } from "@/adapters/wcag/controls";
 import type { Project, Requirement } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
+import { emptyDb } from "./db";
 import { buildComplianceReportHtml } from "./report-html";
-import { buildComplianceReportMarkdown } from "./report";
+import {
+  buildComplianceReportMarkdown,
+  reportInputForProject,
+} from "./report";
 
 const project: Project = {
   id: "p1",
@@ -100,6 +105,45 @@ describe("buildComplianceReportMarkdown", () => {
     expect(markdown).toContain("Button.tsx:4");
     expect(markdown).toContain("## Evidence trail");
     expect(markdown).toContain("assessment_completed");
+    expect(markdown).toContain("### RGAA 1.1 —");
+    expect(markdown).toContain("- **WCAG:** WCAG 1.1.1");
+  });
+
+  it("labels controls with WCAG as primary when the assessment target is WCAG", () => {
+    const input = sampleReportInput();
+    input.framework = wcagFramework;
+
+    const markdown = buildComplianceReportMarkdown(input);
+
+    expect(markdown).toContain(`**Framework:** ${wcagFramework.name}`);
+    expect(markdown).toContain("### WCAG 1.1.1 —");
+    expect(markdown).toContain("- **RGAA:** RGAA 1.1");
+  });
+});
+
+describe("reportInputForProject", () => {
+  it("uses the project's assessment target framework, not frameworks[0]", () => {
+    const db = emptyDb();
+    db.frameworks.push(rgaaFramework, wcagFramework);
+    db.controls.push(...rgaaControls);
+    db.projects.push({
+      ...project,
+      assessmentPresetId: "preset-wcag-aa",
+      inScopeControlIds: ["ctl-img-alt"],
+    });
+    db.requirements.push({
+      id: "r1",
+      projectId: project.id,
+      controlId: "ctl-img-alt",
+      status: "passed",
+      determination: "automated",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    });
+
+    const input = reportInputForProject(db, db.projects[0]);
+
+    expect(input.framework.id).toBe(wcagFramework.id);
+    expect(input.framework.name).toBe(wcagFramework.name);
   });
 });
 

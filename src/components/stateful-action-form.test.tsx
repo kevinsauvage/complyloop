@@ -6,6 +6,7 @@ import { StatefulActionForm } from "./stateful-action-form";
 
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
+const routerRefresh = vi.fn();
 
 vi.mock("sonner", () => ({
   toast: {
@@ -14,10 +15,15 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: routerRefresh }),
+}));
+
 afterEach(() => {
   cleanup();
   toastSuccess.mockClear();
   toastError.mockClear();
+  routerRefresh.mockClear();
 });
 
 describe("StatefulActionForm", () => {
@@ -49,6 +55,34 @@ describe("StatefulActionForm", () => {
       expect(toastSuccess).toHaveBeenCalledWith("Saved.", { duration: 4_000 });
     });
     expect(screen.getByRole("status")).toHaveTextContent("Saved.");
+  });
+
+  it("toasts success without inline copy when inlineSuccess is false", async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async () => ({
+      error: null,
+      message: "Assessment target updated",
+    }));
+
+    render(
+      <StatefulActionForm
+        action={action}
+        submitLabel="Set assessment target"
+        inlineSuccess={false}
+        refreshOnSuccess
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Set assessment target" }),
+    );
+    await waitFor(() => {
+      expect(toastSuccess).toHaveBeenCalledWith("Assessment target updated", {
+        duration: 4_000,
+      });
+    });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(routerRefresh).toHaveBeenCalled();
   });
 
   it("toasts errors", async () => {

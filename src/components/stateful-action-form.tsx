@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useId, type ReactNode } from "react";
+import { useActionState, useEffect, useId, useRef, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import type { VariantProps } from "class-variance-authority";
 import { ActionFeedback } from "@/components/action-feedback";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -24,6 +25,10 @@ export function StatefulActionForm({
   confirmMessage,
   confirmTitle,
   disabled = false,
+  /** When false, success copy is toast-only (errors stay inline). */
+  inlineSuccess = true,
+  /** Call `router.refresh()` after a successful action (instead of server `refresh()`). */
+  refreshOnSuccess = false,
 }: {
   action: (
     previous: ActionMessageState,
@@ -40,10 +45,26 @@ export function StatefulActionForm({
   confirmTitle?: string;
   /** Disables the submit button (state already satisfied). */
   disabled?: boolean;
+  inlineSuccess?: boolean;
+  refreshOnSuccess?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formId = useId();
+  const router = useRouter();
+  const lastRefreshKey = useRef<string | null>(null);
   useActionToast(state);
+
+  useEffect(() => {
+    if (!refreshOnSuccess || !state.message || state.error) return;
+    if (lastRefreshKey.current === state.message) return;
+    lastRefreshKey.current = state.message;
+    router.refresh();
+  }, [refreshOnSuccess, router, state.error, state.message]);
+
+  const feedbackState =
+    inlineSuccess || state.error
+      ? state
+      : { error: state.error, message: null };
 
   return (
     <form id={formId} action={formAction} className={className}>
@@ -69,7 +90,7 @@ export function StatefulActionForm({
             {pending ? (pendingLabel ?? "Working…") : submitLabel}
           </Button>
         )}
-        <ActionFeedback state={state} />
+        <ActionFeedback state={feedbackState} />
       </div>
     </form>
   );
