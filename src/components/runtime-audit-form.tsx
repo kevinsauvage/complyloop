@@ -18,6 +18,7 @@ export function RuntimeAuditForm({
       pendingLabel="Saving…"
       variant="default"
       className="flex flex-col gap-4"
+      refreshOnSuccess
     >
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="runtimeBaseUrl">Preview / staging URL</Label>

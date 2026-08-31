@@ -1,8 +1,11 @@
-import Link from "next/link";
 import { ConnectProjectCard, ConnectProjectPanel } from "@/components/connect-project-panel";
 import { DashboardActivitySections } from "@/components/dashboard/dashboard-activity-sections";
 import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-card";
 import { DashboardStatusCounts } from "@/components/dashboard/dashboard-status-counts";
+import {
+  FirstAssessmentChecklist,
+  UnableToVerifyRuntimeHint,
+} from "@/components/dashboard/first-assessment-checklist";
 import { AssessmentJobStatus } from "@/components/dashboard/assessment-job-status";
 import { projectDescription } from "@/components/dashboard/project-description";
 import { EmptyState, PageHeader } from "@/components/page-primitives";
@@ -116,32 +119,20 @@ export default async function DashboardPage() {
       ) : null}
 
       {!latestAssessment && hasConnectedProject ? (
-        <EmptyState
-          title="Run your first assessment"
-          action={caps.canAssess ? assessAction : undefined}
-        >
-          <p>
-            &quot;{project.name}&quot; is connected. Run an assessment to evaluate
-            it against the RGAA/WCAG requirements.
-            {caps.canConnect ? (
-              <>
-                {" "}
-                Optionally set a{" "}
-                <Link
-                  href="/settings"
-                  className="underline underline-offset-4 hover:text-foreground"
-                >
-                  preview URL in Settings
-                </Link>{" "}
-                for rendered-page checks.
-              </>
-            ) : null}
-          </p>
-        </EmptyState>
+        <FirstAssessmentChecklist
+          project={project}
+          canAssess={caps.canAssess}
+          canConnect={caps.canConnect}
+          hasAssessment={false}
+        />
       ) : null}
 
       {latestAssessment ? (
         <div className="flex flex-col gap-6">
+          <UnableToVerifyRuntimeHint
+            count={counts.get("unable_to_verify") ?? 0}
+            hasPreviewUrl={Boolean(project.runtimeBaseUrl?.trim())}
+          />
           <DashboardStatusCounts counts={counts} />
           <AssessmentJobStatus jobs={recentJobs} />
           <DashboardAlertsCard alerts={unreadAlerts} />
