@@ -54,10 +54,7 @@ describe("FindingRemediationCard", () => {
       />,
     );
 
-    expect(screen.getByText("Suggested")).toHaveAttribute(
-      "aria-current",
-      "step",
-    );
+    expect(screen.getByText("Suggested", { selector: "[aria-current='step']" })).toBeInTheDocument();
     expect(screen.getByText("Detected")).not.toHaveAttribute("aria-current");
   });
 });

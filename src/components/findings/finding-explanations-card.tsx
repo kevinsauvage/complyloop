@@ -54,7 +54,8 @@ export function FindingExplanationsCard({
                 </span>
               ) : null}
             </div>
-            <dl className="grid gap-4 sm:grid-cols-3">
+
+            <dl className="hidden gap-4 sm:grid sm:grid-cols-3">
               {SECTIONS.map((section, sectionIndex) => (
                 <div
                   key={section.key}
@@ -75,6 +76,23 @@ export function FindingExplanationsCard({
                 </div>
               ))}
             </dl>
+
+            <div className="flex flex-col gap-2 sm:hidden">
+              {SECTIONS.map((section, sectionIndex) => (
+                <details
+                  key={section.key}
+                  className="rounded-lg border border-border/50 bg-background/50"
+                  open={sectionIndex === 0}
+                >
+                  <summary className="cursor-pointer px-3 py-2 text-xs font-semibold tracking-wide text-foreground uppercase">
+                    {sectionIndex + 1}. {section.title}
+                  </summary>
+                  <p className="border-t border-border/50 px-3 py-2 text-sm leading-relaxed text-muted-foreground">
+                    {explanation[section.descriptionKey]}
+                  </p>
+                </details>
+              ))}
+            </div>
           </article>
         ))}
 

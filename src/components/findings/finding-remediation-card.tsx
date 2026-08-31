@@ -49,8 +49,25 @@ export function FindingRemediationCard({
         <CardTitle>Remediation</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
+        <div
+          className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 sm:hidden"
+          aria-hidden
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">
+              Current step
+            </p>
+            <p className="text-sm font-semibold text-foreground">
+              {remediationStatusLabel(remediation.status)}
+            </p>
+          </div>
+          <p className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
+            {currentIndex + 1} of {LIFECYCLE.length}
+          </p>
+        </div>
+
         <ol
-          className="grid gap-2 sm:grid-cols-6"
+          className="hidden gap-2 sm:grid sm:grid-cols-6"
           aria-label="Remediation lifecycle"
         >
           {LIFECYCLE.map((status, index) => {
