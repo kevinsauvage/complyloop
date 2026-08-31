@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { FindingsClustersTab } from "@/components/findings/findings-clusters-tab";
+import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
 import {
   FindingsBulkList,
   FindingsCardList,
@@ -6,20 +8,20 @@ import {
 import { toFindingListItems } from "@/components/findings/finding-list-items";
 import { PaginationNav } from "@/components/pagination-nav";
 import { EmptyState, PageActionLink, PageHeader } from "@/components/page-primitives";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatLocationRef } from "@/core/location";
-import { severityRank } from "@/core/labels";
 import {
-  DEFAULT_PAGE_SIZE,
-  paginateSlice,
-  parsePageParam,
-} from "@/core/pagination";
+  filterFindings,
+  findingListPaginationQuery,
+  findingsListHref,
+  hasActiveFindingFilters,
+  parseFindingListParams,
+  type FindingsTab,
+  type FindingListParams,
+} from "@/core/finding-list-filter";
+import { severityRank } from "@/core/labels";
+import { reportMarkdownHref } from "@/core/report-view";
+import { paginateSlice } from "@/core/pagination";
 import {
   prioritizeClusters,
   prioritizeFindings,
@@ -36,24 +38,17 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type FindingsTab = "open" | "resolved" | "dismissed";
-
-function parseTab(raw: string | undefined): FindingsTab | undefined {
-  if (raw === "open" || raw === "resolved" || raw === "dismissed") return raw;
-  return undefined;
-}
-
-function tabHref(tab: FindingsTab): string {
-  return tab === "open" ? "/findings" : `/findings?tab=${tab}`;
+function tabHref(tab: FindingsTab, params: FindingListParams): string {
+  return findingsListHref({ ...params, tab, page: 1 });
 }
 
 export default async function FindingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; tab?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { page: pageRaw, tab: tabRaw } = await searchParams;
-  const page = parsePageParam(pageRaw);
+  const rawParams = await searchParams;
+  const listParams = parseFindingListParams(rawParams);
   const { db, project, access, activeOrgId } = await getWorkspace();
   if (!project) {
     return (
@@ -74,19 +69,37 @@ export default async function FindingsPage({
 
   const caps = projectCapabilities(project, access, activeOrgId);
   const findings = findingsInScope(db.findings, project);
+  const clusters = prioritizeClusters(findings, db.controls);
+  const clusterFindingIds = listParams.cluster
+    ? new Set(
+        clusters.find((cluster) => cluster.id === listParams.cluster)
+          ?.findingIds ?? [],
+      )
+    : undefined;
+
+  const filterContext = {
+    controls: db.controls,
+    remediationStatusFor: (findingId: string) =>
+      remediationForFinding(db, findingId).status,
+    clusterFindingIds,
+  };
 
   const byStatus = (status: FindingStatus): Finding[] => {
-    const filtered = findings.filter((f) => f.status === status);
+    const filtered = filterFindings(
+      findings.filter((finding) => finding.status === status),
+      listParams,
+      filterContext,
+    );
     if (status === "open") return prioritizeFindings(filtered, db.controls);
     return filtered.sort(
       (a, b) => severityRank(a.severity) - severityRank(b.severity),
     );
   };
 
-  const clusters = prioritizeClusters(findings, db.controls).slice(0, 10);
-  const openSlice = paginateSlice(byStatus("open"), page);
-  const resolvedSlice = paginateSlice(byStatus("resolved"), page);
-  const dismissedSlice = paginateSlice(byStatus("dismissed"), page);
+  const openSlice = paginateSlice(byStatus("open"), listParams.page);
+  const resolvedSlice = paginateSlice(byStatus("resolved"), listParams.page);
+  const dismissedSlice = paginateSlice(byStatus("dismissed"), listParams.page);
+  const paginationQuery = findingListPaginationQuery(listParams);
 
   const listFor = (sliceFindings: Finding[]) =>
     toFindingListItems(
@@ -96,12 +109,23 @@ export default async function FindingsPage({
     );
 
   const defaultTab: FindingsTab =
-    parseTab(tabRaw) ??
-    (openSlice.total > 0
-      ? "open"
-      : resolvedSlice.total > 0
-        ? "resolved"
-        : "dismissed");
+    listParams.tab === "by_cause"
+      ? "by_cause"
+      : listParams.tab !== "open"
+        ? listParams.tab
+        : openSlice.total > 0
+          ? "open"
+          : resolvedSlice.total > 0
+            ? "resolved"
+            : dismissedSlice.total > 0
+              ? "dismissed"
+              : clusters.length > 0
+                ? "by_cause"
+                : "open";
+
+  const hasAssessment = db.assessments.some(
+    (assessment) => assessment.projectId === project.id,
+  );
 
   if (findings.length === 0) {
     return (
@@ -120,129 +144,173 @@ export default async function FindingsPage({
     );
   }
 
+  const filtersActive = hasActiveFindingFilters(listParams);
+
+  function filteredEmptyState(tabLabel: string) {
+    return (
+      <EmptyState
+        title="No findings match these filters"
+        action={
+          <PageActionLink href={findingsListHref({ tab: listParams.tab })}>
+            Reset filters
+          </PageActionLink>
+        }
+      >
+        <p>
+          No {tabLabel} findings match the current search and filters. Reset to
+          see the full list.
+        </p>
+      </EmptyState>
+    );
+  }
+
   return (
     <>
       <PageHeader
         title="Findings"
         description="Every failure with its reason, location, remediation state, and evidence."
-      />
+      >
+        <Button variant="outline" size="sm" asChild>
+          <a href={reportMarkdownHref("engineering")} download>
+            Export engineering report
+          </a>
+        </Button>
+      </PageHeader>
 
       <div className="flex flex-col gap-6">
-        {clusters.length > 0 ? (
-          <Card className="shadow-none ring-1 ring-border/60">
-            <CardHeader>
-              <CardTitle>Shared root causes ({clusters.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="flex flex-col gap-3">
-                {clusters.map((cluster) => (
-                  <li key={cluster.id}>
-                    <p className="text-sm font-medium">{cluster.label}</p>
-                    <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                      {cluster.findingIds
-                        .slice(0, DEFAULT_PAGE_SIZE)
-                        .map((findingId) => {
-                          const finding = findings.find(
-                            (c) => c.id === findingId,
-                          );
-                          if (!finding) return null;
-                          return (
-                            <li key={findingId}>
-                              <Link
-                                href={`/findings/${findingId}`}
-                                className="font-mono text-xs text-muted-foreground hover:text-foreground hover:underline focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                              >
-                                {formatLocationRef(finding.location)}
-                              </Link>
-                            </li>
-                          );
-                        })}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        ) : null}
-
         <Tabs key={defaultTab} defaultValue={defaultTab}>
           <TabsList>
             <TabsTrigger value="open" asChild>
-              <Link href={tabHref("open")}>
+              <Link href={tabHref("open", listParams)}>
                 Open{openSlice.total > 0 ? ` (${openSlice.total})` : ""}
               </Link>
             </TabsTrigger>
+            <TabsTrigger value="by_cause" asChild>
+              <Link href={tabHref("by_cause", listParams)}>
+                By cause
+                {clusters.length > 0 ? ` (${clusters.length})` : ""}
+              </Link>
+            </TabsTrigger>
             <TabsTrigger value="resolved" asChild>
-              <Link href={tabHref("resolved")}>
+              <Link href={tabHref("resolved", listParams)}>
                 Resolved
                 {resolvedSlice.total > 0 ? ` (${resolvedSlice.total})` : ""}
               </Link>
             </TabsTrigger>
             <TabsTrigger value="dismissed" asChild>
-              <Link href={tabHref("dismissed")}>
+              <Link href={tabHref("dismissed", listParams)}>
                 Dismissed
                 {dismissedSlice.total > 0 ? ` (${dismissedSlice.total})` : ""}
               </Link>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="open" className="mt-4">
+          <TabsContent value="open" className="mt-4 flex flex-col gap-4">
+            <FindingsFilterBar params={{ ...listParams, tab: "open" }} />
             {openSlice.total === 0 ? (
-              <p className="text-sm text-muted-foreground">No open findings.</p>
+              filtersActive ? (
+                filteredEmptyState("open")
+              ) : hasAssessment ? (
+                <EmptyState
+                  title="No open findings"
+                  action={
+                    <div className="flex flex-wrap items-center justify-center gap-3">
+                      <PageActionLink href="/requirements">
+                        View requirements
+                      </PageActionLink>
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={reportMarkdownHref("audit")} download>
+                          Export audit report
+                        </a>
+                      </Button>
+                    </div>
+                  }
+                >
+                  <p>
+                    Everything detected has been fixed, verified, or reviewed.
+                    Export an audit report for reviewers or check Requirements
+                    for the full status picture.
+                  </p>
+                </EmptyState>
+              ) : (
+                <p className="text-sm text-muted-foreground">No open findings.</p>
+              )
             ) : (
-              <div className="flex flex-col gap-4">
+              <>
                 <FindingsBulkList
                   items={listFor(openSlice.items)}
                   canRemediate={caps.canRemediate}
+                  listParams={{ ...listParams, tab: "open" }}
                 />
                 <PaginationNav
                   page={openSlice.page}
                   totalPages={openSlice.totalPages}
                   total={openSlice.total}
                   basePath="/findings"
+                  query={paginationQuery}
                   label="Open findings pagination"
                 />
-              </div>
+              </>
             )}
           </TabsContent>
 
-          <TabsContent value="resolved" className="mt-4">
+          <TabsContent value="by_cause" className="mt-4">
+            <FindingsClustersTab clusters={clusters} findings={findings} />
+          </TabsContent>
+
+          <TabsContent value="resolved" className="mt-4 flex flex-col gap-4">
+            <FindingsFilterBar params={{ ...listParams, tab: "resolved" }} />
             {resolvedSlice.total === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No resolved findings.
-              </p>
+              filtersActive ? (
+                filteredEmptyState("resolved")
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No resolved findings.
+                </p>
+              )
             ) : (
-              <div className="flex flex-col gap-4">
-                <FindingsCardList items={listFor(resolvedSlice.items)} />
+              <>
+                <FindingsCardList
+                  items={listFor(resolvedSlice.items)}
+                  listParams={{ ...listParams, tab: "resolved" }}
+                />
                 <PaginationNav
                   page={resolvedSlice.page}
                   totalPages={resolvedSlice.totalPages}
                   total={resolvedSlice.total}
                   basePath="/findings"
-                  query={{ tab: "resolved" }}
+                  query={paginationQuery}
                   label="Resolved findings pagination"
                 />
-              </div>
+              </>
             )}
           </TabsContent>
 
-          <TabsContent value="dismissed" className="mt-4">
+          <TabsContent value="dismissed" className="mt-4 flex flex-col gap-4">
+            <FindingsFilterBar params={{ ...listParams, tab: "dismissed" }} />
             {dismissedSlice.total === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No dismissed findings.
-              </p>
+              filtersActive ? (
+                filteredEmptyState("dismissed")
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No dismissed findings.
+                </p>
+              )
             ) : (
-              <div className="flex flex-col gap-4">
-                <FindingsCardList items={listFor(dismissedSlice.items)} />
+              <>
+                <FindingsCardList
+                  items={listFor(dismissedSlice.items)}
+                  listParams={{ ...listParams, tab: "dismissed" }}
+                />
                 <PaginationNav
                   page={dismissedSlice.page}
                   totalPages={dismissedSlice.totalPages}
                   total={dismissedSlice.total}
                   basePath="/findings"
-                  query={{ tab: "dismissed" }}
+                  query={paginationQuery}
                   label="Dismissed findings pagination"
                 />
-              </div>
+              </>
             )}
           </TabsContent>
         </Tabs>
