@@ -103,7 +103,7 @@ describe("generateAiExplanation", () => {
       howToFix: "Add alt",
       confidence: "medium",
       provenance: "ai",
-      model: "openai/gpt-4o-mini",
+      model: "minimax/minimax-m3",
     });
   });
 

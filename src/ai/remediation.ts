@@ -7,7 +7,7 @@ import { formatLocationRef } from "@/core/location";
 import { aiExplanationAvailable } from "./explainer";
 import { aiWarn } from "./warn";
 
-const AI_MODEL = "openai/gpt-4o-mini";
+const AI_MODEL = "minimax/minimax-m3";
 
 const remediationSchema = z.object({
   description: z.string(),

@@ -87,7 +87,7 @@ describe("generateAiRemediation", () => {
         proposedSnippet: '<img src="/x.png" alt="Product photo" />',
         provenance: "ai",
         confidence: "high",
-        model: "openai/gpt-4o-mini",
+        model: "minimax/minimax-m3",
       },
     });
     expect(result?.suggestion.generatedAt).toMatch(/^\d{4}-/);

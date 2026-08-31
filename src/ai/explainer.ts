@@ -6,7 +6,7 @@ import type { Explanation, Finding } from "@/core/finding-types";
 import { formatLocationRef } from "@/core/location";
 import { aiWarn } from "./warn";
 
-const AI_MODEL = "openai/gpt-4o-mini";
+const AI_MODEL = "minimax/minimax-m3";
 
 const explanationSchema = z.object({
   whyItFailed: z.string(),

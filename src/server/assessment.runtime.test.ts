@@ -106,7 +106,7 @@ describe("runAssessment with runtime engine", () => {
       },
     });
     expect(assessment.engines?.runtime).toBe(false);
-    expect(assessment.engines?.runtimeError).toBe("Runtime scan failed.");
+    expect(assessment.engines?.runtimeError).toMatch(/connection refused/i);
     expect(
       db.requirements.find((requirement) => requirement.controlId === "ctl-color-contrast")
         ?.status,

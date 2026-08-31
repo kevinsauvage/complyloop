@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import { PublicError, publicMessage } from "@/core/public-error";
+import { classifyRuntimeScanError } from "./scan-error";
 import type { RawFinding } from "../types";
 import {
   findingsFromAxePages,
@@ -260,7 +261,7 @@ export async function scanRuntime(
     return {
       findings: [],
       pagesScanned: 0,
-      error: publicMessage(error, "Runtime scan failed."),
+      error: classifyRuntimeScanError(error),
     };
   }
 }
