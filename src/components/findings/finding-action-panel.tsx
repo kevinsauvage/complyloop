@@ -42,12 +42,14 @@ export function FindingActionPanel({
   remediation,
   canRemediate,
   compact = false,
+  canCreatePr = false,
 }: {
   finding: Finding;
   remediation: Remediation;
   canRemediate: boolean;
   /** When true, omits outer section chrome (used inside Next step panel). */
   compact?: boolean;
+  canCreatePr?: boolean;
 }) {
   if (!canRemediate && remediation.status !== "verified") {
     if (compact) return null;
@@ -112,16 +114,22 @@ export function FindingActionPanel({
     case "approved":
       return (
         <div className="flex flex-col gap-3">
+          {canCreatePr && compact ? (
+            <p className="text-xs text-muted-foreground">
+              Prefer opening a pull request above. Use workspace checkout only
+              when fixing on the assessment worker directly.
+            </p>
+          ) : null}
           {finding.fix
             ? wrap(
-                "Apply to workspace",
-                "Writes the approved fix into the project checkout on disk.",
+                "Apply on assessment worker checkout",
+                "Writes the approved fix into the ephemeral project checkout on the worker — not your local machine.",
                 <StatefulActionForm
                   action={applyRemediationAction.bind(null, finding.id)}
-                  submitLabel="Apply change to the file"
+                  submitLabel="Apply on worker checkout"
                   pendingLabel="Applying…"
-                  variant="default"
-                  confirmMessage="Apply this change to the project file on disk? This writes to the workspace."
+                  variant={canCreatePr && compact ? "outline" : "default"}
+                  confirmMessage="Apply this change to the project checkout on the worker?"
                 />,
               )
             : null}

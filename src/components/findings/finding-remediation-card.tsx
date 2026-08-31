@@ -32,11 +32,13 @@ export function FindingRemediationCard({
   finding,
   remediation,
   canRemediate,
+  canCreatePr = false,
   aiAvailable,
 }: {
   finding: Finding;
   remediation: Remediation;
   canRemediate: boolean;
+  canCreatePr?: boolean;
   aiAvailable: boolean;
 }) {
   const currentIndex = LIFECYCLE.indexOf(remediation.status);
@@ -161,6 +163,7 @@ export function FindingRemediationCard({
             finding={finding}
             remediation={remediation}
             canRemediate={canRemediate}
+            canCreatePr={canCreatePr}
             compact
           />
         ) : null}

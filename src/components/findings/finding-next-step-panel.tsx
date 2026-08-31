@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CreatePrForm } from "@/components/create-pr-form";
 import { FindingActionPanel } from "@/components/findings/finding-action-panel";
 import { PermissionNotice } from "@/components/permission-notice";
 import {
@@ -16,10 +17,14 @@ export function FindingNextStepPanel({
   finding,
   remediation,
   canRemediate,
+  canCreatePr,
+  prUrl,
 }: {
   finding: Finding;
   remediation: Remediation;
   canRemediate: boolean;
+  canCreatePr: boolean;
+  prUrl: string | null;
 }) {
   const showDismissLink =
     finding.status === "open" &&
@@ -54,11 +59,32 @@ export function FindingNextStepPanel({
             approve, apply, or verify remediations.
           </PermissionNotice>
         ) : (
-          <FindingActionPanel
-            finding={finding}
-            remediation={remediation}
-            canRemediate={canRemediate}
-          />
+          <>
+            {prUrl ? (
+              <p className="text-sm">
+                Pull request:{" "}
+                <a
+                  href={prUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium underline underline-offset-4"
+                >
+                  {prUrl}
+                </a>
+              </p>
+            ) : null}
+            {canCreatePr &&
+            (remediation.status === "approved" ||
+              remediation.status === "suggested") ? (
+              <CreatePrForm findingId={finding.id} />
+            ) : null}
+            <FindingActionPanel
+              finding={finding}
+              remediation={remediation}
+              canRemediate={canRemediate}
+              canCreatePr={canCreatePr}
+            />
+          </>
         )}
         {showDismissLink ? (
           <p className="text-xs text-muted-foreground">

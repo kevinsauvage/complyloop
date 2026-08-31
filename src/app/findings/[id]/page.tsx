@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { pullRequestUrlFromEvidence } from "@/server/finding-pr-url";
 import { buildDeveloperHandoff } from "@/server/handoff";
 import { getDrizzle } from "@/server/db-store/client";
 import { listEvidenceForFinding } from "@/server/db-store/postgres-queries";
@@ -55,6 +56,7 @@ export default async function FindingPage({
   const remediation = remediationForFinding(db, finding.id);
   const evidence = await listEvidenceForFinding(await getDrizzle(), finding.id);
   const aiAvailable = aiExplanationAvailable();
+  const prUrl = pullRequestUrlFromEvidence(evidence);
   const handoff = buildDeveloperHandoff(project, control, finding, remediation);
   const showHandoff =
     remediation.suggestion !== null || finding.fix !== null;
@@ -98,6 +100,8 @@ export default async function FindingPage({
           finding={finding}
           remediation={remediation}
           canRemediate={caps.canRemediate}
+          canCreatePr={canCreatePr}
+          prUrl={prUrl}
         />
 
         <Card className="shadow-none ring-1 ring-border/60">
@@ -135,6 +139,7 @@ export default async function FindingPage({
           finding={finding}
           remediation={remediation}
           canRemediate={caps.canRemediate}
+          canCreatePr={canCreatePr}
           aiAvailable={aiAvailable}
         />
 
@@ -142,7 +147,7 @@ export default async function FindingPage({
           <DeveloperHandoffCard
             handoff={handoff}
             findingId={finding.id}
-            canCreatePr={canCreatePr}
+            canCreatePr={false}
           />
         ) : null}
 
