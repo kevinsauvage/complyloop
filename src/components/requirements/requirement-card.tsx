@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { findingsListHref } from "@/core/finding-list-filter";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@/core/statuses";
 import type { Control, Project, Requirement } from "@/core/project-types";
@@ -68,6 +69,10 @@ export function RequirementCard({
             : false,
         })
       : null;
+  const openFindingsHref =
+    openCount > 0
+      ? findingsListHref({ control: control.id, tab: "open" })
+      : null;
 
   return (
     <Card className="relative overflow-hidden shadow-none ring-1 ring-border/60 transition-[box-shadow,border-color] hover:ring-signal/30">
@@ -98,14 +103,29 @@ export function RequirementCard({
           </p>
         ) : null}
         <p className="text-xs text-muted-foreground">
-          {openCount === 1
-            ? "1 open finding"
-            : `${openCount} open findings`}{" "}
+          {openFindingsHref ? (
+            <Link
+              href={openFindingsHref}
+              className="font-medium text-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              {openCount === 1 ? "1 open finding" : `${openCount} open findings`}
+            </Link>
+          ) : (
+            <>
+              {openCount === 1 ? "1 open finding" : `${openCount} open findings`}
+            </>
+          )}{" "}
           · updated {formatDateTime(requirement.updatedAt)}
         </p>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3 pt-0 pl-5">
+        {requirement.status === "failed" && openFindingsHref ? (
+          <Button size="sm" asChild>
+            <Link href={openFindingsHref}>See findings</Link>
+          </Button>
+        ) : null}
+
         {unverifiableReason ? (
           <Alert className="border-status-unverifiable/30 bg-status-unverifiable/10">
             <AlertTitle className="text-sm text-foreground">
