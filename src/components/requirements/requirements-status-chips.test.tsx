@@ -1,6 +1,7 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { RequirementStatus } from "@/core/statuses";
+import { renderWithUiProviders } from "@/test/render-ui";
 import { RequirementsStatusChips } from "./requirements-status-chips";
 
 afterEach(() => {
@@ -17,7 +18,7 @@ function countsOf(
 
 describe("RequirementsStatusChips", () => {
   it("links each status chip to a deep link and marks the active filter", () => {
-    render(
+    renderWithUiProviders(
       <RequirementsStatusChips
         counts={countsOf({ failed: 12, passed: 4 })}
         selected="failed"
@@ -35,7 +36,7 @@ describe("RequirementsStatusChips", () => {
   });
 
   it("offers an All chip that clears the filter when a status is selected", () => {
-    render(
+    renderWithUiProviders(
       <RequirementsStatusChips
         counts={countsOf({ failed: 2 })}
         selected="failed"
@@ -47,7 +48,7 @@ describe("RequirementsStatusChips", () => {
   });
 
   it("hides the All chip when no status filter is active", () => {
-    render(
+    renderWithUiProviders(
       <RequirementsStatusChips
         counts={countsOf({ failed: 2 })}
         selected={undefined}

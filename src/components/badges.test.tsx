@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { renderWithUiProviders } from "@/test/render-ui";
 import {
   EngineBadge,
   ProvenanceBadge,
@@ -10,7 +11,7 @@ import {
 
 describe("badges", () => {
   it("renders every requirement status", () => {
-    render(
+    renderWithUiProviders(
       <>
         <RequirementStatusBadge status="passed" />
         <RequirementStatusBadge status="failed" />
@@ -27,7 +28,7 @@ describe("badges", () => {
   });
 
   it("labels AI-generated content distinctly from deterministic content", () => {
-    render(
+    renderWithUiProviders(
       <>
         <ProvenanceBadge provenance="ai" />
         <ProvenanceBadge provenance="deterministic" />
@@ -38,7 +39,7 @@ describe("badges", () => {
   });
 
   it("renders remediation and severity badges", () => {
-    render(
+    renderWithUiProviders(
       <>
         <RemediationStatusBadge status="verified" />
         <SeverityBadge severity="critical" />
@@ -49,7 +50,7 @@ describe("badges", () => {
   });
 
   it("labels AST vs runtime detection engines", () => {
-    render(
+    renderWithUiProviders(
       <>
         <EngineBadge engine="ast" />
         <EngineBadge engine="runtime" />

@@ -1,4 +1,16 @@
+"use client";
+
+import { BadgeWithDescription } from "@/components/badge-with-description";
 import { Badge } from "@/components/ui/badge";
+import {
+  confidenceDescription,
+  determinationDescription,
+  engineDescription,
+  provenanceDescription,
+  remediationStatusDescription,
+  requirementStatusDescription,
+  severityDescription,
+} from "@/core/badge-descriptions";
 import {
   remediationStatusLabel,
   requirementStatusLabel,
@@ -33,15 +45,35 @@ export function RequirementStatusBadge({ status }: { status: RequirementStatus }
   const label = requirementStatusLabel(status);
   switch (status) {
     case "passed":
-      return <Badge className={tint.passed}>{label}</Badge>;
+      return (
+        <BadgeWithDescription description={requirementStatusDescription(status)}>
+          <Badge className={tint.passed}>{label}</Badge>
+        </BadgeWithDescription>
+      );
     case "failed":
-      return <Badge className={tint.failed}>{label}</Badge>;
+      return (
+        <BadgeWithDescription description={requirementStatusDescription(status)}>
+          <Badge className={tint.failed}>{label}</Badge>
+        </BadgeWithDescription>
+      );
     case "needs_review":
-      return <Badge className={tint.review}>{label}</Badge>;
+      return (
+        <BadgeWithDescription description={requirementStatusDescription(status)}>
+          <Badge className={tint.review}>{label}</Badge>
+        </BadgeWithDescription>
+      );
     case "not_applicable":
-      return <Badge className={tint.na}>{label}</Badge>;
+      return (
+        <BadgeWithDescription description={requirementStatusDescription(status)}>
+          <Badge className={tint.na}>{label}</Badge>
+        </BadgeWithDescription>
+      );
     case "unable_to_verify":
-      return <Badge className={tint.unverifiable}>{label}</Badge>;
+      return (
+        <BadgeWithDescription description={requirementStatusDescription(status)}>
+          <Badge className={tint.unverifiable}>{label}</Badge>
+        </BadgeWithDescription>
+      );
     default: {
       const _exhaustive: never = status;
       throw new Error(`Unhandled requirement status: ${_exhaustive}`);
@@ -53,25 +85,45 @@ export function RemediationStatusBadge({ status }: { status: RemediationStatus }
   const label = remediationStatusLabel(status);
   switch (status) {
     case "detected":
-      return <Badge variant="secondary">{label}</Badge>;
+      return (
+        <BadgeWithDescription description={remediationStatusDescription(status)}>
+          <Badge variant="secondary">{label}</Badge>
+        </BadgeWithDescription>
+      );
     case "investigating":
       return (
-        <Badge className="border-transparent bg-sky-500/15 text-sky-700 dark:bg-sky-400/25 dark:text-sky-300">
-          {label}
-        </Badge>
+        <BadgeWithDescription description={remediationStatusDescription(status)}>
+          <Badge className="border-transparent bg-sky-500/15 text-sky-700 dark:bg-sky-400/25 dark:text-sky-300">
+            {label}
+          </Badge>
+        </BadgeWithDescription>
       );
     case "suggested":
-      return <Badge className={tint.signal}>{label}</Badge>;
+      return (
+        <BadgeWithDescription description={remediationStatusDescription(status)}>
+          <Badge className={tint.signal}>{label}</Badge>
+        </BadgeWithDescription>
+      );
     case "approved":
       return (
-        <Badge className="border-transparent bg-indigo-500/15 text-indigo-700 dark:bg-indigo-400/25 dark:text-indigo-300">
-          {label}
-        </Badge>
+        <BadgeWithDescription description={remediationStatusDescription(status)}>
+          <Badge className="border-transparent bg-indigo-500/15 text-indigo-700 dark:bg-indigo-400/25 dark:text-indigo-300">
+            {label}
+          </Badge>
+        </BadgeWithDescription>
       );
     case "implemented":
-      return <Badge className={tint.unverifiable}>{label}</Badge>;
+      return (
+        <BadgeWithDescription description={remediationStatusDescription(status)}>
+          <Badge className={tint.unverifiable}>{label}</Badge>
+        </BadgeWithDescription>
+      );
     case "verified":
-      return <Badge className={tint.passed}>{label}</Badge>;
+      return (
+        <BadgeWithDescription description={remediationStatusDescription(status)}>
+          <Badge className={tint.passed}>{label}</Badge>
+        </BadgeWithDescription>
+      );
     default: {
       const _exhaustive: never = status;
       throw new Error(`Unhandled remediation status: ${_exhaustive}`);
@@ -83,17 +135,31 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
   const label = severityLabel(severity);
   switch (severity) {
     case "critical":
-      return <Badge className={tint.failed}>{label}</Badge>;
+      return (
+        <BadgeWithDescription description={severityDescription(severity)}>
+          <Badge className={tint.failed}>{label}</Badge>
+        </BadgeWithDescription>
+      );
     case "serious":
       return (
-        <Badge className="border-transparent bg-orange-500/15 text-orange-700 dark:bg-orange-400/25 dark:text-orange-300">
-          {label}
-        </Badge>
+        <BadgeWithDescription description={severityDescription(severity)}>
+          <Badge className="border-transparent bg-orange-500/15 text-orange-700 dark:bg-orange-400/25 dark:text-orange-300">
+            {label}
+          </Badge>
+        </BadgeWithDescription>
       );
     case "moderate":
-      return <Badge className={tint.review}>{label}</Badge>;
+      return (
+        <BadgeWithDescription description={severityDescription(severity)}>
+          <Badge className={tint.review}>{label}</Badge>
+        </BadgeWithDescription>
+      );
     case "minor":
-      return <Badge variant="secondary">{label}</Badge>;
+      return (
+        <BadgeWithDescription description={severityDescription(severity)}>
+          <Badge variant="secondary">{label}</Badge>
+        </BadgeWithDescription>
+      );
     default: {
       const _exhaustive: never = severity;
       throw new Error(`Unhandled severity: ${_exhaustive}`);
@@ -103,21 +169,29 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
 
 export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
   return (
-    <Badge variant="outline" className={cn("text-muted-foreground")}>
-      Confidence: {confidence}
-    </Badge>
+    <BadgeWithDescription description={confidenceDescription(confidence)}>
+      <Badge variant="outline" className={cn("text-muted-foreground")}>
+        Confidence: {confidence}
+      </Badge>
+    </BadgeWithDescription>
   );
 }
 
 export function DeterminationBadge({ method }: { method: DeterminationMethod }) {
   switch (method) {
     case "automated":
-      return <Badge className={tint.signal}>Automated</Badge>;
+      return (
+        <BadgeWithDescription description={determinationDescription(method)}>
+          <Badge className={tint.signal}>Automated</Badge>
+        </BadgeWithDescription>
+      );
     case "human_review":
       return (
-        <Badge className="border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300">
-          Human review
-        </Badge>
+        <BadgeWithDescription description={determinationDescription(method)}>
+          <Badge className="border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300">
+            Human review
+          </Badge>
+        </BadgeWithDescription>
       );
     default: {
       const _exhaustive: never = method;
@@ -129,12 +203,18 @@ export function DeterminationBadge({ method }: { method: DeterminationMethod }) 
 export function ProvenanceBadge({ provenance }: { provenance: ExplanationProvenance }) {
   switch (provenance) {
     case "deterministic":
-      return <Badge className={tint.signal}>Deterministic</Badge>;
+      return (
+        <BadgeWithDescription description={provenanceDescription(provenance)}>
+          <Badge className={tint.signal}>Deterministic</Badge>
+        </BadgeWithDescription>
+      );
     case "ai":
       return (
-        <Badge className="border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300">
-          AI-generated
-        </Badge>
+        <BadgeWithDescription description={provenanceDescription(provenance)}>
+          <Badge className="border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300">
+            AI-generated
+          </Badge>
+        </BadgeWithDescription>
       );
     default: {
       const _exhaustive: never = provenance;
@@ -148,15 +228,19 @@ export function EngineBadge({ engine }: { engine: AssessmentEngine }) {
   switch (engine) {
     case "ast":
       return (
-        <Badge variant="outline" className="text-muted-foreground">
-          Source (AST)
-        </Badge>
+        <BadgeWithDescription description={engineDescription(engine)}>
+          <Badge variant="outline" className="text-muted-foreground">
+            Source (AST)
+          </Badge>
+        </BadgeWithDescription>
       );
     case "runtime":
       return (
-        <Badge className="border-transparent bg-teal-500/15 text-teal-700 dark:bg-teal-400/25 dark:text-teal-300">
-          Runtime (DOM)
-        </Badge>
+        <BadgeWithDescription description={engineDescription(engine)}>
+          <Badge className="border-transparent bg-teal-500/15 text-teal-700 dark:bg-teal-400/25 dark:text-teal-300">
+            Runtime (DOM)
+          </Badge>
+        </BadgeWithDescription>
       );
     default: {
       const _exhaustive: never = engine;

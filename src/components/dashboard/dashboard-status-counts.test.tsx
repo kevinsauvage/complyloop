@@ -1,6 +1,7 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { RequirementStatus } from "@/core/statuses";
+import { renderWithUiProviders } from "@/test/render-ui";
 import { DashboardStatusCounts } from "./dashboard-status-counts";
 
 afterEach(() => {
@@ -17,7 +18,7 @@ function countsOf(
 
 describe("DashboardStatusCounts", () => {
   it("links each non-zero status tile to a filtered requirements deep link", () => {
-    render(
+    renderWithUiProviders(
       <DashboardStatusCounts
         counts={countsOf({
           failed: 12,
@@ -49,7 +50,7 @@ describe("DashboardStatusCounts", () => {
   });
 
   it("does not link zero-count tiles", () => {
-    render(
+    renderWithUiProviders(
       <DashboardStatusCounts
         counts={countsOf({ failed: 2, passed: 0 })}
       />,
