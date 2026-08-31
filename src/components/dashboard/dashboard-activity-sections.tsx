@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SeverityBadge } from "@/components/badges";
-import { formatDateTime } from "@/components/page-primitives";
+import { formatDateTime, PageActionLink } from "@/components/page-primitives";
 import {
   Card,
   CardContent,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatLocationRef } from "@/core/location";
+import { evidenceKindLabel } from "@/core/labels";
 import type { Control } from "@/core/project-types";
 import type { EvidenceRecord, FileChange, Finding, FindingCluster } from "@/core/finding-types";
 
@@ -18,6 +19,7 @@ export function DashboardActivitySections({
   recentChanges,
   clusters,
   openFindings,
+  recentVerified,
   recentEvidence,
   controlById,
 }: {
@@ -25,9 +27,12 @@ export function DashboardActivitySections({
   recentChanges: FileChange[];
   clusters: FindingCluster[];
   openFindings: Finding[];
+  recentVerified: EvidenceRecord[];
   recentEvidence: EvidenceRecord[];
   controlById: (controlId: string) => Control;
 }) {
+  const allClear = openFindings.length === 0;
+
   return (
     <div className="flex flex-col gap-6">
       {regressions.length > 0 ? (
@@ -48,21 +53,60 @@ export function DashboardActivitySections({
             </ul>
           </CardContent>
         </Card>
+      ) : allClear ? (
+        <Card className="border-status-passed/30 bg-status-passed/5">
+          <CardHeader>
+            <CardTitle>No regressions detected</CardTitle>
+            <CardDescription>
+              Requirement statuses have not regressed since your last assessments.
+            </CardDescription>
+          </CardHeader>
+        </Card>
       ) : null}
 
       <Card>
         <CardHeader>
-          <CardTitle>Needs attention</CardTitle>
+          <CardTitle>{allClear ? "All clear" : "Needs attention"}</CardTitle>
           <CardDescription>
-            Open findings prioritized for remediation.
+            {allClear
+              ? "No open findings — recent verifications and activity below."
+              : "Open findings prioritized for remediation."}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {openFindings.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No open findings. Everything detected has been fixed, verified, or
-              reviewed.
-            </p>
+            <div className="flex flex-col gap-4">
+              <p className="text-sm text-muted-foreground">
+                Everything detected has been fixed, verified, or reviewed. Keep
+                monitoring for regressions after the next assessment.
+              </p>
+              {recentVerified.length > 0 ? (
+                <div>
+                  <h3 className="mb-2 text-sm font-medium">Recently verified</h3>
+                  <ul className="flex flex-col gap-2">
+                    {recentVerified.map((record) => (
+                      <li
+                        key={record.id}
+                        className="text-sm text-muted-foreground"
+                      >
+                        <span className="text-foreground">
+                          {evidenceKindLabel(record.kind)}
+                        </span>
+                        {" — "}
+                        {record.summary}
+                        <span className="ml-2 text-xs">
+                          {formatDateTime(record.at)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-3">
+                <PageActionLink href="/evidence">View evidence trail</PageActionLink>
+                <PageActionLink href="/requirements">View requirements</PageActionLink>
+              </div>
+            </div>
           ) : (
             <ul className="divide-y divide-border">
               {openFindings.slice(0, 6).map((finding) => {
