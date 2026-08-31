@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CheckId } from "@/analysis/types";
+import { allChecks } from "@/analysis/checks/registry";
 import { guidanceFor } from "./guidance";
 
 const SAMPLE_CHECK_IDS: CheckId[] = [
@@ -14,6 +15,14 @@ describe("guidanceFor", () => {
   it("returns impact and how-to-fix copy for known checks", () => {
     for (const checkId of SAMPLE_CHECK_IDS) {
       const guidance = guidanceFor(checkId);
+      expect(guidance.impact.length).toBeGreaterThan(10);
+      expect(guidance.howToFix.length).toBeGreaterThan(10);
+    }
+  });
+
+  it("covers every registered AST check", () => {
+    for (const check of allChecks) {
+      const guidance = guidanceFor(check.id);
       expect(guidance.impact.length).toBeGreaterThan(10);
       expect(guidance.howToFix.length).toBeGreaterThan(10);
     }

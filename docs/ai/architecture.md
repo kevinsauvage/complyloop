@@ -55,7 +55,7 @@ here — do not re-paste stack/layout into agent markdown.
   topical subsets are display groupings on the requirements page, not intake
   scope. WCAG registers framework + presets only — it does not duplicate
   control ids.
-- **Analysis engine:** dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`, 29 checks) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core injected from `axe.min.js` on disk in `src/analysis/runtime/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs. Runtime-only rules (16 checks: contrast, document title, bypass, landmarks, nested interactive, target size, tables, page heading, …) stay `unable_to_verify` until axe runs. Axe → check mapping lives in `axe-map.ts` (~60+ rules). Do not add `@axe-core/playwright` — it injects the `axe-core` `source` string, which Next/webpack rewrites (`module is not defined`). Runtime URL SSRF uses isomorphic `ssrf-guard` plus Node DNS, port allowlist (80/443), and redirect hop limits — never `ssrf-guard/node` (undici 8 breaks Next SSR). Framework adapters register in `src/adapters/registry.ts`. AI never sets requirement status.
+- **Analysis engine:** dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`, 50 checks) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core injected from `axe.min.js` on disk in `src/analysis/runtime/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs. Runtime-only rules (19 checks: contrast, document title, bypass, landmarks, nested interactive, target size, tables, page heading, use of color, doctype, …) stay `unable_to_verify` until axe runs. Axe → check mapping lives in `axe-map.ts` (~100 rules). Do not add `@axe-core/playwright` — it injects the `axe-core` `source` string, which Next/webpack rewrites (`module is not defined`). Runtime URL SSRF uses isomorphic `ssrf-guard` plus Node DNS, port allowlist (80/443), and redirect hop limits — never `ssrf-guard/node` (undici 8 breaks Next SSR). Framework adapters register in `src/adapters/registry.ts`. AI never sets requirement status.
 - **AI services**: explanation and remediation suggestions; typed, provenance-tagged, never statuses.
 - **Repo connectors**: GitHub OAuth / App clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.
 
@@ -76,21 +76,25 @@ here — do not re-paste stack/layout into agent markdown.
 
 Three authority classes:
 
-**AST (29)** — local/CI/`complyloop-check` source of truth:
+**AST (50)** — local/CI/`complyloop-check` source of truth:
 img-alt, button-name, anchor-name, html-lang, positive-tabindex, input-label,
 heading-order, empty-heading, iframe-title, autoplay-media, duplicate-id,
 form-error-association, aria-hidden-focusable, aria-role, aria-props,
 aria-required-attr, no-autofocus, keyboard-interaction, meta-viewport,
 list-structure, autocomplete-valid, pointer-gesture, pointer-cancellation,
 motion-actuation, focus-context-change, input-context-change,
-sensory-characteristics, image-of-text, error-suggestion.
+sensory-characteristics, image-of-text, error-suggestion, video-caption,
+audio-caption, no-blink-marquee, text-spacing, empty-th, dialog-name, tab-name,
+summary-name, p-as-heading, fieldset-legend, autocomplete-purpose, no-accesskey,
+optgroup, table-caption, th-scope, layout-table-markup, svg-name, figure-caption,
+redundant-role, noninteractive-tabindex, aria-activedescendant.
 
-**Runtime-only (16)** — axe via Playwright when `runtimeBaseUrl` is set; otherwise
+**Runtime-only (19)** — axe via Playwright when `runtimeBaseUrl` is set; otherwise
 `unable_to_verify` (never passed from an empty AST scan):
 color-contrast, document-title, bypass, landmark-one-main, nested-interactive,
 target-size, table-headers, page-heading, content-region, label-in-name,
 lang-parts, aria-roledescription, presentation-role, no-auto-refresh,
-no-orientation-lock, landmark-unique.
+no-orientation-lock, landmark-unique, use-of-color, frame-keyboard, doctype.
 
 **Composition-sensitive (8)** — AST still runs (and gates CI), but when a runtime
 audit succeeds these defer to the rendered DOM for requirement status:
@@ -99,10 +103,14 @@ empty-heading, aria-hidden-focusable, duplicate-id.
 
 **Requirements intake:** each project assesses exactly one framework + level
 preset (RGAA or WCAG × Full / AA / AAA). Connect defaults to Full RGAA.
-Topical groups on the Requirements page are display-only, not intake scope.
-Dashboard, findings, and exports filter to the active target.
+Named presets use live catalog membership at assessment time (stored
+`inScopeControlIds` is only a custom-subset snapshot, ignored when a preset
+is set). Topical groups on the Requirements page are display-only, not
+intake scope. Dashboard, findings, and exports filter to the active target.
 
 CI gate: `npx complyloop-check` / `@complyloop/check` (AST only).
+
+Coverage gaps (what to add next, by priority): [`docs/missing-rules.md`](../missing-rules.md).
 
 ## Unit test coverage
 

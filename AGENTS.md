@@ -16,6 +16,7 @@ Orientation for agents working in this repo. **Do not duplicate** product princi
 |-----|------|
 | [`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md) | Product source of truth |
 | [`docs/ai/architecture.md`](./docs/ai/architecture.md) | System shape, persistence, analysis engines |
+| [`docs/missing-rules.md`](./docs/missing-rules.md) | Prioritized RGAA 4.1.2 / WCAG 2.2 coverage gaps |
 | [`.cursor/rules/`](./.cursor/rules/) | Enforceable agent rules (domain, quality, AI, TS, analysis, server, UI) |
 
 ## What this is
@@ -35,7 +36,7 @@ If a change does not advance that loop, question whether it belongs in the MVP.
 - **App:** Next.js 16 (App Router) + React 19, TypeScript strict, Tailwind 4 + shadcn/ui
 - **DB:** Postgres via Drizzle (`DATABASE_URL`); evidence insert-only; GitHub tokens encrypted at rest
 - **Auth / GitHub:** Auth.js v5 + GitHub OAuth/App; ephemeral clones per job (`src/server/repo-checkout.ts`)
-- **Analysis:** AST checks in `src/analysis/` (21) + optional Playwright/axe runtime when `runtimeBaseUrl` is set
+- **Analysis:** AST checks in `src/analysis/` (50) + optional Playwright/axe runtime when `runtimeBaseUrl` is set
 - **Jobs:** Durable assessment worker (`npm run worker`)
 - **AI:** Vercel AI SDK, optional (`AI_GATEWAY_API_KEY`); never sets statuses
 - **CI package:** `@complyloop/check` / `npx complyloop-check`

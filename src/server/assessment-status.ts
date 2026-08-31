@@ -1,3 +1,4 @@
+import { presetById } from "@/adapters/registry";
 import { isRuntimeOnlyCheck } from "@/analysis/check-authority";
 import { deriveRequirementStatus } from "@/core/requirement-status";
 import type { Finding } from "@/core/finding-types";
@@ -5,6 +6,23 @@ import type { RequirementStatus } from "@/core/statuses";
 import type { Control, Project, Requirement } from "@/core/project-types";
 import { TEMPORARY_EXCEPTION_REASON } from "@/core/project-types";
 import { addEvidence, type Db } from "./db";
+
+/**
+ * Control IDs this project assesses. A named preset always uses the live
+ * catalog membership so new rules apply without rewriting stored snapshots.
+ * Custom subsets (no preset) use `inScopeControlIds`. `undefined` means
+ * the whole catalog.
+ */
+export function scopedControlIds(
+  project: Project,
+): ReadonlySet<string> | undefined {
+  if (project.assessmentPresetId) {
+    const preset = presetById(project.assessmentPresetId);
+    if (preset) return new Set(preset.controlIds);
+  }
+  if (project.inScopeControlIds === undefined) return undefined;
+  return new Set(project.inScopeControlIds);
+}
 
 /** Human exceptions and human passes block automated status overwrite. */
 function isStickyHumanDecision(
@@ -17,14 +35,11 @@ function isStickyHumanDecision(
 }
 
 /**
- * Controls assessed for a project. `undefined` inScopeControlIds means the
- * full catalog; otherwise only the listed control IDs.
+ * Controls assessed for a project. `undefined` scope means the full catalog.
  */
 export function controlsInScope(db: Db, project: Project): Control[] {
-  if (project.inScopeControlIds === undefined) {
-    return db.controls;
-  }
-  const controlIds = new Set(project.inScopeControlIds);
+  const controlIds = scopedControlIds(project);
+  if (!controlIds) return db.controls;
   return db.controls.filter((control) => controlIds.has(control.id));
 }
 
@@ -36,8 +51,8 @@ export function requirementsInScope(
   const forProject = requirements.filter(
     (requirement) => requirement.projectId === project.id,
   );
-  if (project.inScopeControlIds === undefined) return forProject;
-  const controlIds = new Set(project.inScopeControlIds);
+  const controlIds = scopedControlIds(project);
+  if (!controlIds) return forProject;
   return forProject.filter((requirement) =>
     controlIds.has(requirement.controlId),
   );
@@ -51,8 +66,8 @@ export function findingsInScope(
   const forProject = findings.filter(
     (finding) => finding.projectId === project.id,
   );
-  if (project.inScopeControlIds === undefined) return forProject;
-  const controlIds = new Set(project.inScopeControlIds);
+  const controlIds = scopedControlIds(project);
+  if (!controlIds) return forProject;
   return forProject.filter((finding) => controlIds.has(finding.controlId));
 }
 

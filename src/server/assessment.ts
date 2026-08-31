@@ -24,6 +24,7 @@ import {
   clearExpiredExceptions,
   controlsInScope,
   refreshRequirementStatuses,
+  scopedControlIds,
 } from "./assessment-status";
 
 export interface RunAssessmentOptions {
@@ -195,14 +196,10 @@ export async function runAssessment(
     not_applicable: 0,
     unable_to_verify: 0,
   };
+  const inScope = scopedControlIds(project);
   for (const requirement of db.requirements) {
     if (requirement.projectId !== projectId) continue;
-    if (
-      project.inScopeControlIds &&
-      !project.inScopeControlIds.includes(requirement.controlId)
-    ) {
-      continue;
-    }
+    if (inScope && !inScope.has(requirement.controlId)) continue;
     summary[requirement.status] += 1;
   }
 
@@ -228,7 +225,7 @@ export async function runAssessment(
 
   addEvidence(db, {
     kind: "assessment_completed",
-    summary: `Assessment of "${project.name}": ${filesScanned} files scanned (${scanMode})${engineSummary}${summary.passed !== undefined ? ` — ${summary.passed} passed, ${summary.failed} failed, ${summary.needs_review} need review` : ""}${changes.length > 0 ? `; ${changes.length} file(s) changed since previous` : ""}`,
+    summary: `Assessment of "${project.name}": ${filesScanned} files scanned (${scanMode})${engineSummary} — ${summary.passed} passed, ${summary.failed} failed, ${summary.needs_review} need review, ${summary.unable_to_verify} unable to verify${changes.length > 0 ? `; ${changes.length} file(s) changed since previous` : ""}`,
     projectId,
     assessmentId,
     detail: {

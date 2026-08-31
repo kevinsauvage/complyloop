@@ -38,6 +38,14 @@ export function tagNameOf(node: JsxTagNode): string {
   return node.tagName.getText();
 }
 
+/** The wrapping `<Foo>…</Foo>` element for an opening tag, if any. */
+export function jsxElementOf(node: JsxTagNode): ts.JsxElement | undefined {
+  if (ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent)) {
+    return node.parent;
+  }
+  return undefined;
+}
+
 export function getAttribute(
   node: JsxTagNode,
   name: string,

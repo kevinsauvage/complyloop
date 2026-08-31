@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isFocusable } from "./a11y-model";
+import { implicitRoles, isFocusable } from "./a11y-model";
 import { parseSource, visitJsxTags, type JsxTagNode } from "./parse";
 
 function firstTag(jsx: string): JsxTagNode {
@@ -69,6 +69,20 @@ describe("isFocusable", () => {
     expect(isFocusable(firstTag(`const A = () => <div>x</div>;`))).toBe(false);
     expect(isFocusable(firstTag(`const A = () => <span>x</span>;`))).toBe(
       false,
+    );
+  });
+});
+
+describe("implicitRoles", () => {
+  it("reads implicit roles from aria-query element tables", () => {
+    expect(implicitRoles(firstTag(`const A = () => <button>x</button>;`))).toContain(
+      "button",
+    );
+    expect(
+      implicitRoles(firstTag(`const A = () => <a href="/x">x</a>;`)),
+    ).toContain("link");
+    expect(implicitRoles(firstTag(`const A = () => <div>x</div>;`))).not.toContain(
+      "button",
     );
   });
 });

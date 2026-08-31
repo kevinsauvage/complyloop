@@ -33,6 +33,9 @@ const RUNTIME_ONLY = [
   "no-auto-refresh",
   "no-orientation-lock",
   "landmark-unique",
+  "use-of-color",
+  "frame-keyboard",
+  "doctype",
 ] as const;
 
 describe("check authority", () => {

@@ -276,6 +276,150 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Include a corrective hint, e.g. \"Email is required and must look like name@example.com.\"",
   },
+  "video-caption": {
+    impact:
+      "Deaf and hard-of-hearing users cannot follow speech, sound effects, or speaker changes in the video (WCAG 1.2.2 / RGAA 4.3).",
+    howToFix:
+      'Add a <track kind="captions"> (or kind="subtitles") pointing at a WebVTT file that matches the soundtrack.',
+  },
+  "audio-caption": {
+    impact:
+      "Users who cannot hear the audio have no equivalent for speech and important sounds (WCAG 1.2.1 / RGAA 4.1).",
+    howToFix:
+      'Provide a transcript on the page, or a <track kind="captions"> / kind="descriptions" on the audio element.',
+  },
+  "no-blink-marquee": {
+    impact:
+      "Moving or blinking content distracts users, interrupts screen readers, and can trigger vestibular disorders or seizures (WCAG 2.2.2 / RGAA 13.8).",
+    howToFix:
+      "Remove <marquee> and <blink>. If motion is needed, give a pause/stop control and honor prefers-reduced-motion.",
+  },
+  "text-spacing": {
+    impact:
+      "Users who override line height, letter spacing, or word spacing lose content when the page locks those properties with !important (WCAG 1.4.12 / RGAA 10.12).",
+    howToFix:
+      "Drop !important from letter-spacing, line-height, word-spacing, and paragraph-spacing so user stylesheets can apply.",
+  },
+  "use-of-color": {
+    impact:
+      "Users who cannot distinguish color (or see links in grayscale) miss cues that exist only as a color change (WCAG 1.4.1 / RGAA 3.1).",
+    howToFix:
+      "Underline links in running text, or add a second cue (icon, text, pattern) in addition to color.",
+  },
+  "empty-th": {
+    impact:
+      "Screen reader users navigating a data table hear an unnamed header and cannot associate cells with columns (WCAG 1.3.1 / RGAA 5.6).",
+    howToFix:
+      "Put the column or row name in the <th>, or add aria-label when the header is visual-only.",
+  },
+  "dialog-name": {
+    impact:
+      "Screen reader users hear only “dialog” and cannot tell what the modal is for or how to complete it (WCAG 4.1.2 / RGAA 7.1).",
+    howToFix:
+      "Set aria-labelledby to the visible heading id, or aria-label when there is no visible title.",
+  },
+  "tab-name": {
+    impact:
+      "Tabs without names are indistinguishable in the tab list, so users cannot reach the panel they need (WCAG 4.1.2 / RGAA 7.1).",
+    howToFix:
+      "Give each tab visible text, or an aria-label that names the panel.",
+  },
+  "summary-name": {
+    impact:
+      "An unnamed disclosure control is announced as “summary” with no hint of what it expands (WCAG 4.1.2 / RGAA 7.1).",
+    howToFix:
+      "Put the section name inside <summary>, or add aria-label.",
+  },
+  "frame-keyboard": {
+    impact:
+      "Keyboard users cannot reach or cannot leave interactive content inside an iframe (WCAG 2.1.1 / RGAA 7.3).",
+    howToFix:
+      "Ensure the iframe is in the tab order when it contains controls, and that focus can move in and out without a trap.",
+  },
+  "p-as-heading": {
+    impact:
+      "A paragraph styled as a heading is missing from the document outline that screen reader users navigate by (WCAG 1.3.1 / RGAA 9.1).",
+    howToFix:
+      "Replace the styled <p> with the matching h1–h6, or add role=\"heading\" and aria-level if a native heading is impossible.",
+  },
+  "doctype": {
+    impact:
+      "Without a doctype, browsers may use quirks mode and assistive technologies can misread the tree (RGAA 8.1).",
+    howToFix:
+      "Emit a <!DOCTYPE html> at the start of the document (Next.js does this by default — do not render an html shell that omits it).",
+  },
+  "fieldset-legend": {
+    impact:
+      "Ungrouped radios are announced as separate questions, so users cannot tell they are alternatives of the same choice (WCAG 1.3.1 / RGAA 11.6).",
+    howToFix:
+      "Wrap the group in <fieldset> with a <legend>, or role=\"radiogroup\" / role=\"group\" with aria-label.",
+  },
+  "autocomplete-purpose": {
+    impact:
+      "Password managers and browsers cannot fill identity fields, which blocks users with cognitive disabilities (WCAG 1.3.5 / RGAA 11.13).",
+    howToFix:
+      'Add autoComplete with a token such as "email", "current-password", "name", or "tel" on identity fields.',
+  },
+  "no-accesskey": {
+    impact:
+      "Single-key accessKey shortcuts steal keystrokes from screen readers and cannot be turned off (WCAG 2.1.4 / RGAA 12.10).",
+    howToFix:
+      "Remove accessKey. If a shortcut is essential, require a modifier and provide a way to remap or disable it.",
+  },
+  optgroup: {
+    impact:
+      "Ungrouped option clusters are announced as a flat list, so users cannot tell which category an option belongs to (WCAG 1.3.1 / RGAA 11.8).",
+    howToFix:
+      'Add label="…" on each <optgroup>. Do not leave the group unnamed.',
+  },
+  "table-caption": {
+    impact:
+      "A data table without a caption is just “table” in the outline; users cannot tell what the numbers are about (WCAG 1.3.1 / RGAA 5.4).",
+    howToFix:
+      "Add a <caption> as the first child, or aria-labelledby pointing at a visible heading.",
+  },
+  "th-scope": {
+    impact:
+      "Without scope or headers/id, screen readers cannot tell whether a header labels a row or a column (WCAG 1.3.1 / RGAA 5.7).",
+    howToFix:
+      'Set scope="col" or scope="row" on each <th>, or wire complex tables with id + headers.',
+  },
+  "layout-table-markup": {
+    impact:
+      "A layout table that still has <th> or caption is announced as a data table, which garbles the reading order (WCAG 1.3.1 / RGAA 5.8).",
+    howToFix:
+      "Remove th/caption/headers/scope from presentation tables, or replace the table with CSS layout.",
+  },
+  "svg-name": {
+    impact:
+      "An informative SVG without a name is silent for screen reader users (WCAG 1.1.1 / RGAA 1.1).",
+    howToFix:
+      'Add a <title>, aria-label, or aria-labelledby. Mark decorative SVG with role="presentation" or aria-hidden.',
+  },
+  "figure-caption": {
+    impact:
+      "Caption text next to an image is not associated, so assistive technologies announce the image without its legend (WCAG 1.1.1 / RGAA 1.9).",
+    howToFix:
+      "Put the caption in <figcaption> inside the same <figure> as the image.",
+  },
+  "redundant-role": {
+    impact:
+      "Repeating a native implicit role (role=\"button\" on <button>) can confuse some assistive technologies (WCAG 1.3.1 / RGAA 8.9).",
+    howToFix:
+      "Remove the redundant role. Keep an explicit role only when the host is a generic element (div/span).",
+  },
+  "noninteractive-tabindex": {
+    impact:
+      "A generic element in the tab order traps keyboard users on a node they cannot operate (WCAG 2.1.1 / RGAA 12.8).",
+    howToFix:
+      "Remove tabIndex={0}, or add an interactive role plus keyboard handlers if it is a custom widget.",
+  },
+  "aria-activedescendant": {
+    impact:
+      "aria-activedescendant on a non-focusable host never receives keyboard events, so the active option is not announced (WCAG 4.1.2 / RGAA 7.1).",
+    howToFix:
+      "Put tabIndex={0} on the composite (listbox, combobox, grid, tree) that owns aria-activedescendant.",
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {

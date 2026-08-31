@@ -86,13 +86,15 @@ export interface Project {
   /** Present when source is `github`. */
   github?: ProjectGitHubMeta;
   /**
-   * Control IDs in scope for this project. `undefined` means every control
-   * in the catalog is in scope.
+   * Custom control IDs in scope. Ignored when `assessmentPresetId` is set
+   * (assessment then uses the live preset membership). `undefined` with no
+   * preset means every control in the catalog is in scope.
    */
   inScopeControlIds?: string[];
   /**
-   * Selected framework + level preset. When set, `inScopeControlIds` matches
-   * that preset and the UI treats it as the current assessment target.
+   * Selected framework + level preset. When set, assessment scope is the
+   * current preset membership in code, not a frozen snapshot of
+   * `inScopeControlIds`.
    */
   assessmentPresetId?: string;
   /**

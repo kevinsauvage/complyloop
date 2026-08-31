@@ -149,7 +149,7 @@ function isDisabled(node: JsxTagNode): boolean {
   return booleanAttributeValue(getAttribute(node, "aria-disabled")) === true;
 }
 
-function tabIndexValue(node: JsxTagNode): number | undefined {
+export function tabIndexValue(node: JsxTagNode): number | undefined {
   const attr =
     getAttribute(node, "tabIndex") ?? getAttribute(node, "tabindex");
   if (!attr) return undefined;
@@ -201,6 +201,18 @@ function explicitWidgetRole(node: JsxTagNode): boolean {
 
 export function isExplicitWidgetRole(node: JsxTagNode): boolean {
   return explicitWidgetRole(node);
+}
+
+/** Implicit ARIA roles for this host from aria-query element/role tables. */
+export function implicitRoles(node: JsxTagNode): string[] {
+  const tag = tagNameOf(node).toLowerCase();
+  const attrs = staticAttributes(node);
+  const found = new Set<string>();
+  for (const [schema, roleSet] of elementRoles.entries()) {
+    if (!conceptMatches(conceptFromRoleRelation(schema), tag, attrs)) continue;
+    for (const role of roleSet) found.add(role);
+  }
+  return [...found];
 }
 
 /** Native HTML widgets (button, a[href], input, …), not explicit ARIA roles. */

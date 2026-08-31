@@ -1,5 +1,11 @@
 import ts from "typescript";
-import { getAttribute, type JsxTagNode } from "../parse";
+import {
+  getAttribute,
+  jsxElementOf,
+  stringValueOf,
+  tagNameOf,
+  type JsxTagNode,
+} from "../parse";
 
 export function hasAnyAttr(node: JsxTagNode, names: string[]): boolean {
   return names.some((name) => getAttribute(node, name) !== undefined);
@@ -61,6 +67,60 @@ export function walkMotionActuationCalls(
   visit(sourceFile);
 }
 
+const MEDIA_TRACK_TAGS = new Set(["track"]);
+
+export function hasChildTrackKind(
+  node: JsxTagNode,
+  kinds: ReadonlySet<string>,
+): boolean {
+  const element = jsxElementOf(node);
+  if (!element) return false;
+  for (const child of element.children) {
+    const tag: JsxTagNode | undefined = ts.isJsxSelfClosingElement(child)
+      ? child
+      : ts.isJsxElement(child)
+        ? child.openingElement
+        : undefined;
+    if (!tag || !MEDIA_TRACK_TAGS.has(tagNameOf(tag))) continue;
+    const kind = getAttribute(tag, "kind");
+    const value = kind ? stringValueOf(kind)?.toLowerCase() : undefined;
+    if (value && kinds.has(value)) return true;
+  }
+  return false;
+}
+
+const SPACING_STYLE_PROPS = new Set([
+  "letterSpacing",
+  "lineHeight",
+  "wordSpacing",
+  "paragraphSpacing",
+]);
+
+/** True when an inline style locks text spacing with `!important`. */
+export function styleLocksTextSpacing(node: JsxTagNode): boolean {
+  const style = getAttribute(node, "style");
+  if (!style || !style.initializer || !ts.isJsxExpression(style.initializer)) {
+    return false;
+  }
+  const expression = style.initializer.expression;
+  if (!expression || !ts.isObjectLiteralExpression(expression)) return false;
+  return expression.properties.some((prop) => {
+    if (!ts.isPropertyAssignment(prop)) return false;
+    if (!SPACING_STYLE_PROPS.has(prop.name.getText())) return false;
+    const text = prop.initializer.getText();
+    return /!important/i.test(text);
+  });
+}
+
+export function classNameTextOf(node: JsxTagNode): string {
+  const attr =
+    getAttribute(node, "className") ?? getAttribute(node, "class");
+  if (!attr) return "";
+  const literal = stringValueOf(attr);
+  if (literal !== undefined) return literal;
+  return attr.initializer?.getText() ?? "";
+}
+
 export function styleHasBackgroundImage(node: JsxTagNode): boolean {
   const style = getAttribute(node, "style");
   if (!style || !style.initializer || !ts.isJsxExpression(style.initializer)) {
@@ -93,4 +153,35 @@ export function textContentOf(element: ts.JsxElement): string {
   };
   walk(element);
   return text;
+}
+
+/** Opening / self-closing JSX tags nested under an element (not the host). */
+export function descendantTags(element: ts.JsxElement): JsxTagNode[] {
+  const tags: JsxTagNode[] = [];
+  const walk = (node: ts.Node): void => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      tags.push(node);
+    }
+    ts.forEachChild(node, walk);
+  };
+  for (const child of element.children) walk(child);
+  return tags;
+}
+
+const NAMING_HOSTS = new Set(["button", "a", "label", "summary"]);
+
+/** True when the node sits inside a control that typically names its graphic. */
+export function isInsideNamingHost(node: ts.Node): boolean {
+  let current: ts.Node | undefined = node.parent;
+  while (current) {
+    if (ts.isJsxElement(current)) {
+      if (NAMING_HOSTS.has(tagNameOf(current.openingElement).toLowerCase())) {
+        return true;
+      }
+    } else if (ts.isJsxSelfClosingElement(current)) {
+      if (NAMING_HOSTS.has(tagNameOf(current).toLowerCase())) return true;
+    }
+    current = current.parent;
+  }
+  return false;
 }

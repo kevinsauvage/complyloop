@@ -27,6 +27,27 @@ import { sensoryCharacteristicsCheck } from "./sensory-characteristics";
 import { imageOfTextCheck } from "./image-of-text";
 import { errorSuggestionCheck } from "./error-suggestion";
 import { positiveTabindexCheck } from "./positive-tabindex";
+import { videoCaptionCheck } from "./video-caption";
+import { audioCaptionCheck } from "./audio-caption";
+import { noBlinkMarqueeCheck } from "./no-blink-marquee";
+import { textSpacingCheck } from "./text-spacing";
+import { emptyThCheck } from "./empty-th";
+import { dialogNameCheck } from "./dialog-name";
+import { tabNameCheck } from "./tab-name";
+import { summaryNameCheck } from "./summary-name";
+import { pAsHeadingCheck } from "./p-as-heading";
+import { fieldsetLegendCheck } from "./fieldset-legend";
+import { autocompletePurposeCheck } from "./autocomplete-purpose";
+import { noAccesskeyCheck } from "./no-accesskey";
+import { optgroupCheck } from "./optgroup";
+import { tableCaptionCheck } from "./table-caption";
+import { thScopeCheck } from "./th-scope";
+import { layoutTableMarkupCheck } from "./layout-table-markup";
+import { svgNameCheck } from "./svg-name";
+import { figureCaptionCheck } from "./figure-caption";
+import { redundantRoleCheck } from "./redundant-role";
+import { noninteractiveTabindexCheck } from "./noninteractive-tabindex";
+import { ariaActivedescendantCheck } from "./aria-activedescendant";
 import type { AccessibilityCheck } from "../types";
 
 export const allChecks: AccessibilityCheck[] = [
@@ -59,4 +80,25 @@ export const allChecks: AccessibilityCheck[] = [
   sensoryCharacteristicsCheck,
   imageOfTextCheck,
   errorSuggestionCheck,
+  videoCaptionCheck,
+  audioCaptionCheck,
+  noBlinkMarqueeCheck,
+  textSpacingCheck,
+  emptyThCheck,
+  dialogNameCheck,
+  tabNameCheck,
+  summaryNameCheck,
+  pAsHeadingCheck,
+  fieldsetLegendCheck,
+  autocompletePurposeCheck,
+  noAccesskeyCheck,
+  optgroupCheck,
+  tableCaptionCheck,
+  thScopeCheck,
+  layoutTableMarkupCheck,
+  svgNameCheck,
+  figureCaptionCheck,
+  redundantRoleCheck,
+  noninteractiveTabindexCheck,
+  ariaActivedescendantCheck,
 ];

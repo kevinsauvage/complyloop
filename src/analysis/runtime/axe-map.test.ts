@@ -9,9 +9,9 @@ describe("axe-map", () => {
     expect(checkIdForAxeRule("meta-viewport")).toBe("meta-viewport");
     expect(checkIdForAxeRule("list")).toBe("list-structure");
     expect(checkIdForAxeRule("autocomplete-valid")).toBe("autocomplete-valid");
-    expect(checkIdForAxeRule("scrollable-region-focusable")).toBe(
-      "keyboard-interaction",
-    );
+    expect(checkIdForAxeRule("link-in-text-block")).toBe("use-of-color");
+    expect(checkIdForAxeRule("aria-dialog-name")).toBe("dialog-name");
+    expect(checkIdForAxeRule("table-fake-caption")).toBe("table-caption");
   });
 
   it("ignores unmapped axe rules", () => {

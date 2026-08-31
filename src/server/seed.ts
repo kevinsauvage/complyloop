@@ -11,11 +11,8 @@ export function ensureSeeded(db: Db): boolean {
   }
 
   const merged = mergeAdapterControls(db.frameworks, db.controls);
-  if (merged.changed) {
-    db.frameworks = merged.frameworks;
-    db.controls = merged.controls;
-    return true;
-  }
-
-  return false;
+  if (!merged.changed) return false;
+  db.frameworks = merged.frameworks;
+  db.controls = merged.controls;
+  return true;
 }

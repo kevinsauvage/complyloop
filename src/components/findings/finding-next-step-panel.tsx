@@ -34,7 +34,7 @@ export function FindingNextStepPanel({
   return (
     <Card
       className={cn(
-        "border-signal/30 bg-signal/5 shadow-none ring-1 ring-signal/25",
+        "border-signal/30 bg-card shadow-none ring-1 ring-signal/25",
         "md:sticky md:top-4 md:z-10",
       )}
     >

@@ -72,7 +72,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   // Runtime-only / rendered
   "color-contrast": "color-contrast",
   "color-contrast-enhanced": "color-contrast",
-  "link-in-text-block": "color-contrast",
+  "link-in-text-block": "use-of-color",
   "document-title": "document-title",
   bypass: "bypass",
   "skip-link": "bypass",
@@ -95,7 +95,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "td-has-header": "table-headers",
   "th-has-data-cells": "table-headers",
   "td-headers-attr": "table-headers",
-  "table-fake-caption": "table-headers",
+  "table-fake-caption": "table-caption",
   "scope-attr-valid": "table-headers",
   "region": "content-region",
   "aria-roledescription": "aria-roledescription",
@@ -104,6 +104,19 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "meta-refresh-no-exceptions": "no-auto-refresh",
   "css-orientation-lock": "no-orientation-lock",
   "landmark-unique": "landmark-unique",
+
+  "video-caption": "video-caption",
+  "audio-caption": "audio-caption",
+  blink: "no-blink-marquee",
+  marquee: "no-blink-marquee",
+  "avoid-inline-spacing": "text-spacing",
+  "empty-table-header": "empty-th",
+  "aria-dialog-name": "dialog-name",
+  "aria-tab-name": "tab-name",
+  "summary-name": "summary-name",
+  "frame-focusable-content": "frame-keyboard",
+  "p-as-heading": "p-as-heading",
+  "html-has-doctype": "doctype",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {

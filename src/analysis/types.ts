@@ -47,7 +47,31 @@ export type CheckId =
   | "input-context-change"
   | "sensory-characteristics"
   | "image-of-text"
-  | "error-suggestion";
+  | "error-suggestion"
+  | "video-caption"
+  | "audio-caption"
+  | "no-blink-marquee"
+  | "text-spacing"
+  | "use-of-color"
+  | "empty-th"
+  | "dialog-name"
+  | "tab-name"
+  | "summary-name"
+  | "frame-keyboard"
+  | "p-as-heading"
+  | "doctype"
+  | "fieldset-legend"
+  | "autocomplete-purpose"
+  | "no-accesskey"
+  | "optgroup"
+  | "table-caption"
+  | "th-scope"
+  | "layout-table-markup"
+  | "svg-name"
+  | "figure-caption"
+  | "redundant-role"
+  | "noninteractive-tabindex"
+  | "aria-activedescendant";
 
 export interface RawFinding {
   checkId: CheckId;

@@ -155,9 +155,30 @@ function createPlaywrightAxeScanner(options?: {
             throw new PublicError(blockedReason);
           }
           const results = await runAxeOnPage(page);
+          const hasDoctype = await page.evaluate(
+            () => document.doctype !== null,
+          );
+          const violations = hasDoctype
+            ? results.violations
+            : [
+                ...results.violations,
+                {
+                  id: "html-has-doctype",
+                  impact: "moderate",
+                  description:
+                    "The document does not declare a document type.",
+                  help: "Each page must have a doctype so browsers parse it in standards mode.",
+                  nodes: [
+                    {
+                      html: "<html>",
+                      target: ["html"],
+                    },
+                  ],
+                },
+              ];
           pages.push({
             url,
-            violations: results.violations,
+            violations,
           });
         } finally {
           await page.close();

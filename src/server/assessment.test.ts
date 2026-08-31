@@ -64,7 +64,25 @@ describe("runAssessment", () => {
     expect(requirementStatus("ctl-button-name")).toBe("passed");
     expect(requirementStatus("ctl-color-contrast")).toBe("unable_to_verify");
     expect(requirementStatus("ctl-aria-role")).toBe("passed");
-    expect(db.evidence.some((record) => record.kind === "assessment_completed")).toBe(true);
+    expect(
+      db.evidence.find((record) => record.kind === "assessment_completed")
+        ?.summary,
+    ).toMatch(/unable to verify/);
+  });
+
+  it("assesses the live Full RGAA preset even when the stored snapshot is stale", async () => {
+    project.assessmentPresetId = "preset-rgaa-full";
+    project.inScopeControlIds = ["ctl-img-alt"];
+
+    await runAssessment(db, project.id, { rootPath });
+
+    expect(project.inScopeControlIds).toEqual(["ctl-img-alt"]);
+    expect(requirementStatus("ctl-video-caption")).toBe("passed");
+    expect(requirementStatus("ctl-img-alt-relevant")).toBe("unable_to_verify");
+    expect(
+      db.evidence.find((record) => record.kind === "assessment_completed")
+        ?.summary,
+    ).toMatch(/unable to verify/);
   });
 
   it("carries the same finding across re-assessments instead of duplicating it", async () => {

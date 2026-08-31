@@ -15,6 +15,12 @@ describe("framework adapter registry", () => {
     const controlIds = allControls().map((control) => control.id);
     expect(new Set(controlIds).size).toBe(controlIds.length);
     expect(controlIds).toContain("ctl-img-alt");
+    expect(controlIds).toContain("ctl-video-caption");
+    expect(controlIds).toContain("ctl-optgroup");
+    expect(controlIds).toContain("ctl-img-alt-relevant");
+    const automated = allControls().filter((control) => control.checkId !== null);
+    const checkIds = automated.map((control) => control.checkId);
+    expect(new Set(checkIds).size).toBe(checkIds.length);
     expect(presetById("preset-rgaa-full")?.controlIds).toEqual(
       presetById("preset-wcag-full")?.controlIds,
     );

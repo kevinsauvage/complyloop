@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { rgaaFramework } from "@/adapters/rgaa/controls";
+import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import type { Finding } from "@/core/finding-types";
 import type { Project, Requirement } from "@/core/project-types";
 import { emptyDb } from "./db";
 import {
+  controlsInScope,
   findingsInScope,
   refreshRequirementStatuses,
   requirementsInScope,
@@ -19,11 +20,10 @@ function project(partial: Partial<Project> & Pick<Project, "id">): Project {
 }
 
 describe("assessment scope filters", () => {
-  it("keeps only in-scope requirements and findings when a preset is set", () => {
+  it("keeps only in-scope requirements and findings for a custom subset", () => {
     const scoped = project({
       id: "p1",
       inScopeControlIds: ["ctl-img-alt"],
-      assessmentPresetId: "preset-rgaa-aa",
     });
     const requirements: Requirement[] = [
       {
@@ -128,6 +128,21 @@ describe("assessment scope filters", () => {
     ];
 
     expect(requirementsInScope(requirements, open)).toHaveLength(2);
+  });
+
+  it("uses live Full RGAA membership, not a stale stored snapshot", () => {
+    const db = emptyDb();
+    db.controls.push(...rgaaControls);
+    const scoped = controlsInScope(
+      db,
+      project({
+        id: "p1",
+        assessmentPresetId: "preset-rgaa-full",
+        inScopeControlIds: ["ctl-img-alt"],
+      }),
+    );
+    expect(scoped.map((control) => control.id)).toContain("ctl-video-caption");
+    expect(scoped).toHaveLength(rgaaControls.length);
   });
 });
 

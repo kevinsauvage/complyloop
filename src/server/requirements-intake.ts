@@ -14,7 +14,6 @@ export function applyFrameworkPreset(
 ): { changed: boolean } {
   const preset = presetById(presetId);
   if (!preset) throw new PublicError(`Unknown framework preset: ${presetId}`);
-
   if (project.assessmentPresetId === preset.id) {
     return { changed: false };
   }
