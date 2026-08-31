@@ -22,6 +22,9 @@ function collectRegressionAlerts(
   assessmentId: string,
   trigger: string,
 ) {
+  const assessment = db.assessments.find((candidate) => candidate.id === assessmentId);
+  const primaryChange = assessment?.changesSincePrevious?.[0];
+
   const alerts = db.evidence
     .filter(
       (record) =>
@@ -29,16 +32,34 @@ function collectRegressionAlerts(
         record.kind === "requirement_status_changed" &&
         record.detail?.regression === true,
     )
-    .map((record) => ({
-      id: crypto.randomUUID(),
-      projectId,
-      kind: "compliance_regression" as const,
-      summary: `${record.summary} (triggered by ${trigger})`,
-      at: new Date().toISOString(),
-      read: false,
-      assessmentId,
-      detail: { ...record.detail, trigger },
-    }));
+    .map((record) => {
+      const openFinding = record.controlId
+        ? db.findings.find(
+            (finding) =>
+              finding.projectId === projectId &&
+              finding.controlId === record.controlId &&
+              finding.status === "open",
+          )
+        : undefined;
+
+      return {
+        id: crypto.randomUUID(),
+        projectId,
+        kind: "compliance_regression" as const,
+        summary: `${record.summary} (triggered by ${trigger})`,
+        at: new Date().toISOString(),
+        read: false,
+        assessmentId,
+        detail: {
+          ...record.detail,
+          trigger,
+          controlId: record.controlId,
+          findingId: openFinding?.id,
+          commitSha: primaryChange?.commitSha,
+          changeFilePath: primaryChange?.filePath,
+        },
+      };
+    });
   db.alerts.push(...alerts);
   return alerts;
 }

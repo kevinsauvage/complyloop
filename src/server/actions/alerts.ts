@@ -28,6 +28,6 @@ export async function markAlertReadAction(
       alert.read = true;
     });
     refresh();
-    return "Alert dismissed.";
+    return "Alert marked as read.";
   });
 }

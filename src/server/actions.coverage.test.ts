@@ -439,7 +439,7 @@ describe("markAlertReadAction", () => {
     form.set("alertId", "alert-1");
 
     const result = await markAlertReadAction(emptyActionMessageState, form);
-    expect(result.message).toBe("Alert dismissed.");
+    expect(result.message).toBe("Alert marked as read.");
     expect(workspace.db.alerts[0]?.read).toBe(true);
   });
 
