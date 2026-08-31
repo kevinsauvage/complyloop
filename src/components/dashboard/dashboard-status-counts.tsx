@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { RequirementStatusBadge } from "@/components/badges";
 import { Card, CardContent } from "@/components/ui/card";
+import { requirementsStatusHref } from "@/core/requirement-status-filter";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@/core/statuses";
 
@@ -11,12 +12,6 @@ const STATUS_ORDER: RequirementStatus[] = [
   "not_applicable",
   "unable_to_verify",
 ];
-
-const STATUS_HREF: Partial<Record<RequirementStatus, string>> = {
-  failed: "/requirements",
-  needs_review: "/requirements",
-  passed: "/requirements",
-};
 
 const STATUS_ACCENT: Record<RequirementStatus, string> = {
   failed: "bg-status-failed",
@@ -63,7 +58,7 @@ export function DashboardStatusCounts({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {STATUS_ORDER.map((status) => {
           const count = counts.get(status) ?? 0;
-          const href = STATUS_HREF[status];
+          const href = count > 0 ? requirementsStatusHref(status) : undefined;
           const share = total > 0 ? Math.round((count / total) * 100) : 0;
           const inner = (
             <CardContent className="relative flex flex-col gap-3 overflow-hidden p-4">

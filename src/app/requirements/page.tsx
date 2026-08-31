@@ -1,9 +1,13 @@
 import { AssessedRequirementList } from "@/components/requirements/assessed-requirement-list";
 import { RequirementsIntakePanel } from "@/components/requirements/requirements-intake-panel";
-import { RequirementStatusBadge } from "@/components/badges";
+import { RequirementsStatusChips } from "@/components/requirements/requirements-status-chips";
 import { EmptyState, PageActionLink, PageHeader } from "@/components/page-primitives";
 import { presetById } from "@/adapters/registry";
 import { rgaaFramework } from "@/adapters/rgaa/controls";
+import {
+  parseRequirementStatusParam,
+  requirementsStatusHref,
+} from "@/core/requirement-status-filter";
 import type { RequirementStatus } from "@/core/statuses";
 import { controlsInScope } from "@/server/assessment-status";
 import { projectCapabilities } from "@/server/project-capabilities";
@@ -11,15 +15,13 @@ import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_ORDER: RequirementStatus[] = [
-  "failed",
-  "needs_review",
-  "passed",
-  "not_applicable",
-  "unable_to_verify",
-];
-
-export default async function RequirementsPage() {
+export default async function RequirementsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string | string[] }>;
+}) {
+  const { status: statusRaw } = await searchParams;
+  const statusFilter = parseRequirementStatusParam(statusRaw);
   const { db, project, access, activeOrgId } = await getWorkspace();
   const caps = projectCapabilities(project, access, activeOrgId);
   if (!project) {
@@ -68,6 +70,16 @@ export default async function RequirementsPage() {
     );
   }
 
+  const filtered = statusFilter
+    ? assessed.filter((requirement) => requirement.status === statusFilter)
+    : assessed;
+  const filteredControlIds = new Set(
+    filtered.map((requirement) => requirement.controlId),
+  );
+  const filteredControls = inScopeControls.filter((control) =>
+    filteredControlIds.has(control.id),
+  );
+
   const targetLabel = target?.name ?? "all catalog controls";
 
   return (
@@ -78,26 +90,10 @@ export default async function RequirementsPage() {
       />
 
       {assessed.length > 0 ? (
-        <ul
-          className="mb-6 flex flex-wrap gap-2"
-          aria-label="Requirement status summary"
-        >
-          {STATUS_ORDER.map((status) => {
-            const count = statusCounts.get(status) ?? 0;
-            if (count === 0) return null;
-            return (
-              <li
-                key={status}
-                className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-1.5"
-              >
-                <RequirementStatusBadge status={status} />
-                <span className="font-mono text-sm font-semibold tabular-nums">
-                  {count}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <RequirementsStatusChips
+          counts={statusCounts}
+          selected={statusFilter}
+        />
       ) : null}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -115,10 +111,24 @@ export default async function RequirementsPage() {
                 requirement.
               </p>
             </EmptyState>
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              title="No requirements match this status"
+              action={
+                <PageActionLink href={requirementsStatusHref()}>
+                  Clear filter
+                </PageActionLink>
+              }
+            >
+              <p>
+                Try another status chip, or clear the filter to see the full
+                assessed list.
+              </p>
+            </EmptyState>
           ) : (
             <AssessedRequirementList
-              controls={inScopeControls}
-              requirements={assessed}
+              controls={filteredControls}
+              requirements={filtered}
               openFindingCounts={openFindingCounts}
               frameworkId={frameworkId}
               canRemediate={caps.canRemediate}
