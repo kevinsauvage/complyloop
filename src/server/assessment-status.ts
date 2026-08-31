@@ -17,32 +17,15 @@ function isStickyHumanDecision(
 }
 
 /**
- * Controls assessed for a project; respects both frameworkIds and inScopeControlIds.
- * - If frameworkIds is undefined, all frameworks are in scope (backward compatibility)
- * - If frameworkIds is defined, only controls from those frameworks are in scope
- * - Then apply inScopeControlIds filtering on top of that
+ * Controls assessed for a project. `undefined` inScopeControlIds means the
+ * full catalog; otherwise only the listed control IDs.
  */
 export function controlsInScope(db: Db, project: Project): Control[] {
-  // Start with all controls
-  let filteredControls = db.controls;
-
-  // Apply framework filtering if frameworkIds is set
-  if (project.frameworkIds !== undefined) {
-    const frameworkIdsSet = new Set(project.frameworkIds);
-    filteredControls = filteredControls.filter(
-      (control) => frameworkIdsSet.has(control.frameworkId)
-    );
+  if (project.inScopeControlIds === undefined) {
+    return db.controls;
   }
-
-  // Apply control ID filtering if inScopeControlIds is set
-  if (project.inScopeControlIds !== undefined) {
-    const controlIdsSet = new Set(project.inScopeControlIds);
-    filteredControls = filteredControls.filter(
-      (control) => controlIdsSet.has(control.id)
-    );
-  }
-
-  return filteredControls;
+  const controlIds = new Set(project.inScopeControlIds);
+  return db.controls.filter((control) => controlIds.has(control.id));
 }
 
 /**

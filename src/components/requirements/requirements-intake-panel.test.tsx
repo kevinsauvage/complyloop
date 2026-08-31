@@ -1,7 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { RequirementsIntakePanel } from "./requirements-intake-panel";
 
 vi.mock("sonner", () => ({
@@ -10,87 +8,53 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/server/actions/requirements-intake", () => ({
   applyFrameworkPresetAction: vi.fn(),
-  importChecklistAction: vi.fn(),
-  importCustomControlAction: vi.fn(),
-  updateRequirementScopeAction: vi.fn(),
 }));
 
 afterEach(() => {
   cleanup();
 });
 
-const allIds = new Set(rgaaControls.map((control) => control.id));
-
 describe("RequirementsIntakePanel", () => {
   it("explains view-only access without intake actions", () => {
     render(
       <RequirementsIntakePanel
         canAssess={false}
-        controls={rgaaControls}
-        frameworks={[rgaaFramework]}
-        inScope={allIds}
-        frameworkIds={undefined}
+        currentPresetId="preset-rgaa-full"
       />,
     );
 
     expect(screen.getByRole("status")).toHaveTextContent(/view-only/i);
-    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
-  });
-
-  it("keeps all four intake tabs in the tab list", () => {
-    render(
-      <RequirementsIntakePanel
-        canAssess
-        controls={rgaaControls}
-        frameworks={[rgaaFramework]}
-        inScope={allIds}
-        frameworkIds={undefined}
-      />,
-    );
-
-    expect(screen.getAllByRole("tab")).toHaveLength(4);
-    expect(screen.getByRole("tab", { name: "Custom" })).toBeInTheDocument();
-  });
-
-  it("does not offer adding a preset that is already the full implicit scope", () => {
-    render(
-      <RequirementsIntakePanel
-        canAssess
-        controls={rgaaControls}
-        frameworks={[rgaaFramework]}
-        inScope={allIds}
-        frameworkIds={undefined}
-      />,
-    );
-
-    const currentScopeBadges = screen.getAllByText("Current scope");
-    expect(currentScopeBadges.length).toBeGreaterThan(0);
     expect(
-      screen.queryByRole("button", { name: /add .*full rgaa/i }),
+      screen.queryByRole("group", { name: /assessment target/i }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Use only Images & media" }),
-    ).toBeInTheDocument();
   });
 
-  it("groups scope checkboxes by framework", async () => {
-    const user = userEvent.setup();
+  it("offers framework and level targets without topical, import, or custom intake", () => {
     render(
       <RequirementsIntakePanel
         canAssess
-        controls={rgaaControls}
-        frameworks={[rgaaFramework]}
-        inScope={allIds}
-        frameworkIds={undefined}
+        currentPresetId="preset-rgaa-full"
       />,
     );
 
-    await user.click(screen.getByRole("tab", { name: "Scope" }));
     expect(
-      screen.getByRole("group", { name: rgaaFramework.name }),
+      screen.getByRole("group", { name: "Assessment target" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Save scope" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Full RGAA 4/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /RGAA 4 AA / })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Full WCAG 2.1/ })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /Images & media/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Import" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/custom control/i)).not.toBeInTheDocument();
+  });
+
+  it("offers both RGAA and WCAG level targets", () => {
+    render(
+      <RequirementsIntakePanel canAssess currentPresetId={undefined} />,
+    );
+
+    expect(screen.getByRole("radio", { name: /RGAA 4 AAA/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /WCAG 2.1 AA / })).toBeInTheDocument();
   });
 });

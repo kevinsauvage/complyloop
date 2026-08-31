@@ -1,25 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { presetById } from "@/adapters/registry";
-import { rgaaFramework } from "./controls";
+import { rgaaControls, rgaaFramework } from "./controls";
 import { rgaaPresets } from "./presets";
 
 describe("rgaa presets", () => {
-  it("exposes curated presets for the RGAA framework", () => {
-    expect(rgaaPresets.length).toBeGreaterThanOrEqual(4);
+  it("exposes Full, AA, and AAA level targets only", () => {
+    expect(rgaaPresets.map((preset) => preset.id)).toEqual([
+      "preset-rgaa-full",
+      "preset-rgaa-aa",
+      "preset-rgaa-aaa",
+    ]);
     for (const preset of rgaaPresets) {
       expect(preset.frameworkId).toBe(rgaaFramework.id);
       expect(preset.controlIds.length).toBeGreaterThan(0);
     }
-  });
-
-  it("resolves presets by id", () => {
-    expect(presetById("preset-rgaa-full")?.name).toMatch(/Full RGAA/);
-    expect(presetById("preset-forms-names")?.controlIds).toContain(
-      "ctl-autocomplete-valid",
+    expect(presetById("preset-rgaa-full")?.controlIds).toHaveLength(
+      rgaaControls.length,
     );
-    expect(presetById("preset-structure")?.controlIds).toEqual(
-      expect.arrayContaining(["ctl-list-structure", "ctl-meta-viewport"]),
-    );
-    expect(presetById("missing-preset")).toBeUndefined();
+    expect(presetById("preset-rgaa-images-media")).toBeUndefined();
+    expect(presetById("preset-forms-names")).toBeUndefined();
   });
 });

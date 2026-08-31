@@ -6,8 +6,8 @@ import type { Control, Framework } from "@/core/project-types";
 import type { FrameworkAdapter, FrameworkPreset } from "./types";
 
 /**
- * Registered framework adapters. Now includes separate RGAA and WCAG adapters
- * for framework-specific assessment, while maintaining backward compatibility.
+ * Registered framework adapters. RGAA and WCAG share check implementations;
+ * level presets (Full / AA / AAA) choose which controls a project assesses.
  */
 export const frameworkAdapters: readonly FrameworkAdapter[] = [
   {
@@ -40,7 +40,7 @@ export function presetById(id: string): FrameworkPreset | undefined {
 
 /**
  * Merges shipped adapter controls into an existing catalog without wiping
- * custom (`fw-custom`) controls.
+ * controls that are not part of a registered adapter.
  */
 export function mergeAdapterControls(
   existingFrameworks: Framework[],

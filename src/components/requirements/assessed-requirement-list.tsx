@@ -1,0 +1,53 @@
+import { RequirementCard } from "@/components/requirements/requirement-card";
+import {
+  controlDisplayCodes,
+  groupControlsByTheme,
+} from "@/adapters/control-theme";
+import type { Control, Requirement } from "@/core/project-types";
+
+export function AssessedRequirementList({
+  controls,
+  requirements,
+  openFindingCounts,
+  frameworkId,
+  canRemediate,
+}: {
+  controls: Control[];
+  requirements: Requirement[];
+  openFindingCounts: Map<string, number>;
+  frameworkId: string;
+  canRemediate: boolean;
+}) {
+  const groups = groupControlsByTheme(controls, frameworkId);
+
+  return (
+    <div className="flex flex-col gap-8">
+      {groups.map((group) => (
+        <section key={group.id} className="flex flex-col gap-3" aria-labelledby={`theme-${group.id}`}>
+          <h2
+            id={`theme-${group.id}`}
+            className="text-sm font-medium text-muted-foreground"
+          >
+            {group.label}
+          </h2>
+          {group.controls.map((control) => {
+            const requirement = requirements.find(
+              (candidate) => candidate.controlId === control.id,
+            );
+            if (!requirement) return null;
+            const display = controlDisplayCodes(control, frameworkId);
+            return (
+              <RequirementCard
+                key={control.id}
+                control={{ ...control, ...display }}
+                requirement={requirement}
+                openCount={openFindingCounts.get(control.id) ?? 0}
+                canRemediate={canRemediate}
+              />
+            );
+          })}
+        </section>
+      ))}
+    </div>
+  );
+}

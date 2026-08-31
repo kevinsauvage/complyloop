@@ -1,33 +1,26 @@
 import { PermissionNotice } from "@/components/permission-notice";
+import { StatefulActionForm } from "@/components/stateful-action-form";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Control, Framework } from "@/core/project-types";
-import { IntakeChecklistForm, IntakeCustomControlForm } from "./intake-import-forms";
-import { IntakePresetList } from "./intake-preset-list";
-import { IntakeScopeForm } from "./intake-scope-form";
+import { Label } from "@/components/ui/label";
+import { allFrameworkPresets } from "@/adapters/registry";
+import { applyFrameworkPresetAction } from "@/server/actions/requirements-intake";
 
 export function RequirementsIntakePanel({
   canAssess,
-  controls,
-  frameworks,
-  inScope,
-  frameworkIds,
+  currentPresetId,
 }: {
   canAssess: boolean;
-  controls: Control[];
-  frameworks: Framework[];
-  inScope: Set<string>;
-  frameworkIds: string[] | undefined;
+  currentPresetId: string | undefined;
 }) {
-  // Compute hasExplicitScope: true if the inScope set is not equal to the set of all control IDs
-  const hasExplicitScope = inScope.size !== controls.length;
+  const presets = allFrameworkPresets();
 
   return (
     <div className="flex flex-col gap-4">
       {!canAssess ? (
         <PermissionNotice>
-          View-only role — you can review requirement status but not change
-          scope or import controls.
+          View-only role — you can review requirement status but not change the
+          assessment target.
         </PermissionNotice>
       ) : null}
 
@@ -36,52 +29,61 @@ export function RequirementsIntakePanel({
           <CardHeader>
             <CardTitle>Intake</CardTitle>
             <CardDescription>
-              Choose what assessment evaluates, or import a custom control.
+              Choose the standard and level assessment evaluates.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="presets">
-              <TabsList className="mb-3 grid h-auto w-full grid-cols-2 gap-1 group-data-horizontal/tabs:h-auto">
-                <TabsTrigger value="presets" className="w-full">
-                  Presets
-                </TabsTrigger>
-                <TabsTrigger value="scope" className="w-full">
-                  Scope
-                </TabsTrigger>
-                <TabsTrigger value="import" className="w-full">
-                  Import
-                </TabsTrigger>
-                <TabsTrigger value="custom" className="w-full">
-                  Custom
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="presets">
-                <IntakePresetList
-                  controlCount={controls.length}
-                  inScope={inScope}
-                  hasExplicitScope={hasExplicitScope}
-                  frameworks={frameworks}
-                />
-              </TabsContent>
-
-              <TabsContent value="scope">
-                <IntakeScopeForm
-                  controls={controls}
-                  frameworks={frameworks}
-                  inScope={inScope}
-                  frameworkIds={frameworkIds}
-                />
-              </TabsContent>
-
-              <TabsContent value="import">
-                <IntakeChecklistForm />
-              </TabsContent>
-
-              <TabsContent value="custom">
-                <IntakeCustomControlForm />
-              </TabsContent>
-            </Tabs>
+            <StatefulActionForm
+              action={applyFrameworkPresetAction}
+              submitLabel="Set assessment target"
+              pendingLabel="Updating…"
+              variant="default"
+              size="sm"
+              className="flex flex-col gap-3"
+            >
+              <fieldset className="flex flex-col gap-2">
+                <legend className="text-sm font-medium">Assessment target</legend>
+                <ul className="flex flex-col gap-2">
+                  {presets.map((preset) => {
+                    const current = preset.id === currentPresetId;
+                    return (
+                      <li key={preset.id}>
+                        <Label
+                          htmlFor={`target-${preset.id}`}
+                          className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-border/60 bg-muted/30 p-3 font-normal"
+                        >
+                          <input
+                            id={`target-${preset.id}`}
+                            type="radio"
+                            name="presetId"
+                            value={preset.id}
+                            defaultChecked={current}
+                            required
+                            className="mt-1 size-4 shrink-0 accent-signal"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-medium">{preset.name}</span>
+                              {current ? (
+                                <Badge className="border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25">
+                                  Current
+                                </Badge>
+                              ) : null}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                              {preset.description}
+                            </span>
+                            <span className="mt-1 block font-mono text-xs text-muted-foreground">
+                              {preset.controlIds.length} controls
+                            </span>
+                          </span>
+                        </Label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </fieldset>
+            </StatefulActionForm>
           </CardContent>
         </Card>
       ) : null}

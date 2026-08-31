@@ -1,8 +1,11 @@
-import { RequirementCard } from "@/components/requirements/requirement-card";
+import { AssessedRequirementList } from "@/components/requirements/assessed-requirement-list";
 import { RequirementsIntakePanel } from "@/components/requirements/requirements-intake-panel";
 import { RequirementStatusBadge } from "@/components/badges";
 import { EmptyState, PageActionLink, PageHeader } from "@/components/page-primitives";
+import { presetById } from "@/adapters/registry";
+import { rgaaFramework } from "@/adapters/rgaa/controls";
 import type { RequirementStatus } from "@/core/statuses";
+import { controlsInScope } from "@/server/assessment-status";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 
@@ -24,7 +27,7 @@ export default async function RequirementsPage() {
       <>
         <PageHeader
           title="Requirements"
-          description="Connect a repository to bring in and scope controls."
+          description="Connect a repository to choose an assessment target."
         />
         <EmptyState
           title="No project connected"
@@ -35,34 +38,46 @@ export default async function RequirementsPage() {
       </>
     );
   }
-  const frameworks = db.frameworks;
   const requirements = db.requirements.filter(
     (requirement) => requirement.projectId === project.id,
   );
-  const inScope = new Set(
-    project.inScopeControlIds ?? db.controls.map((control) => control.id),
+  const inScopeControls = controlsInScope(db, project);
+  const inScopeIds = new Set(inScopeControls.map((control) => control.id));
+  const assessed = requirements.filter((requirement) =>
+    inScopeIds.has(requirement.controlId),
   );
-  const inScopeControls = db.controls.filter((control) =>
-    inScope.has(control.id),
-  );
-  const hasExplicitScope = project.inScopeControlIds !== undefined;
+  const target = project.assessmentPresetId
+    ? presetById(project.assessmentPresetId)
+    : undefined;
+  const frameworkId = target?.frameworkId ?? rgaaFramework.id;
+
+  const openFindingCounts = new Map<string, number>();
+  for (const finding of db.findings) {
+    if (finding.projectId !== project.id || finding.status !== "open") continue;
+    openFindingCounts.set(
+      finding.controlId,
+      (openFindingCounts.get(finding.controlId) ?? 0) + 1,
+    );
+  }
 
   const statusCounts = new Map<RequirementStatus, number>();
-  for (const requirement of requirements) {
+  for (const requirement of assessed) {
     statusCounts.set(
       requirement.status,
       (statusCounts.get(requirement.status) ?? 0) + 1,
     );
   }
 
+  const targetLabel = target?.name ?? "all catalog controls";
+
   return (
     <>
       <PageHeader
         title="Requirements"
-        description={`Bring in and scope controls for "${project.name}" — frameworks: ${frameworks.map((framework) => framework.name).join(", ")}`}
+        description={`Assessment target for "${project.name}": ${targetLabel}`}
       />
 
-      {requirements.length > 0 ? (
+      {assessed.length > 0 ? (
         <ul
           className="mb-6 flex flex-wrap gap-2"
           aria-label="Requirement status summary"
@@ -90,7 +105,7 @@ export default async function RequirementsPage() {
           aria-label="Assessed requirements"
           className="flex flex-col gap-3 lg:col-span-2"
         >
-          {requirements.length === 0 ? (
+          {assessed.length === 0 ? (
             <EmptyState
               title="No requirements assessed yet"
               action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
@@ -101,38 +116,21 @@ export default async function RequirementsPage() {
               </p>
             </EmptyState>
           ) : (
-            inScopeControls.map((control) => {
-              const requirement = requirements.find(
-                (candidate) => candidate.controlId === control.id,
-              );
-              if (!requirement) return null;
-              const openCount = db.findings.filter(
-                (finding) =>
-                  finding.projectId === project.id &&
-                  finding.controlId === control.id &&
-                  finding.status === "open",
-              ).length;
-              return (
-                <RequirementCard
-                  key={control.id}
-                  control={control}
-                  requirement={requirement}
-                  openCount={openCount}
-                  canRemediate={caps.canRemediate}
-                />
-              );
-            })
+            <AssessedRequirementList
+              controls={inScopeControls}
+              requirements={assessed}
+              openFindingCounts={openFindingCounts}
+              frameworkId={frameworkId}
+              canRemediate={caps.canRemediate}
+            />
           )}
         </section>
 
         <aside aria-label="Intake" className="lg:col-span-1">
           <div className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-             <RequirementsIntakePanel
-              frameworkIds={project.frameworkIds}
+            <RequirementsIntakePanel
               canAssess={caps.canAssess}
-              controls={db.controls}
-              frameworks={frameworks}
-              inScope={inScope}
+              currentPresetId={project.assessmentPresetId}
             />
           </div>
         </aside>

@@ -9,9 +9,9 @@ export interface FrameworkPreset {
 }
 
 /**
- * A compliance framework packaged as controls (+ optional scope presets).
+ * A compliance framework packaged as controls and level presets.
  * Add new frameworks under `src/adapters/<name>/` and register them in
- * `registry.ts` — seed + UI presets pick them up automatically.
+ * `registry.ts` — seed + intake targets pick them up automatically.
  */
 export interface FrameworkAdapter {
   framework: Framework;

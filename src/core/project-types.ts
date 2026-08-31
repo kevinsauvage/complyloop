@@ -87,14 +87,14 @@ export interface Project {
   github?: ProjectGitHubMeta;
   /**
    * Control IDs in scope for this project. `undefined` means every control
-   * on the connected frameworks is in scope.
+   * in the catalog is in scope.
    */
   inScopeControlIds?: string[];
   /**
-   * Framework IDs in scope for this project. `undefined` means every framework
-   * is in scope (backward compatibility).
+   * Selected framework + level preset. When set, `inScopeControlIds` matches
+   * that preset and the UI treats it as the current assessment target.
    */
-  frameworkIds?: string[];
+  assessmentPresetId?: string;
   /**
    * Staging / preview base URL for runtime (browser) accessibility audits.
    * When set, composition-sensitive rules use the rendered DOM as status truth.

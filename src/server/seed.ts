@@ -38,21 +38,6 @@ export function ensureSeeded(db: Db): boolean {
     const merged = mergeAdapterControls([], []);
     db.frameworks.push(...merged.frameworks);
     db.controls.push(...merged.controls);
-
-    // Initialize frameworkIds for all existing projects to undefined (all frameworks)
-    for (const project of db.projects) {
-      // Ensure frameworkIds exists and is undefined (meaning all frameworks)
-      if (project.frameworkIds === undefined) {
-        // Already undefined, which is correct for backward compatibility
-        // No need to change anything
-      } else if (project.frameworkIds === null) {
-        // Convert null to undefined for consistency
-        project.frameworkIds = undefined;
-        changed = true;
-      }
-      // If it's already an array, leave it as is
-    }
-
     return true;
   }
 
@@ -61,22 +46,6 @@ export function ensureSeeded(db: Db): boolean {
     db.frameworks = merged.frameworks;
     db.controls = merged.controls;
     changed = true;
-
-    // When new frameworks are added, ensure existing projects have frameworkIds set
-    // If frameworkIds is undefined, it means all frameworks (backward compatibility)
-    // If it's defined as an array, we keep it as is
-    for (const project of db.projects) {
-      // Ensure frameworkIds exists
-      if (project.frameworkIds === undefined) {
-        // If not set, default to undefined (all frameworks) for backward compatibility
-        // No change needed
-      } else if (project.frameworkIds === null) {
-        // Convert null to undefined for consistency
-        project.frameworkIds = undefined;
-        changed = true;
-      }
-      // If it's already an array, leave it as is
-    }
   }
 
   return changed;

@@ -65,7 +65,7 @@ export function EmptyState({
         className,
       )}
     >
-      <CardHeader className="items-center gap-2 text-center">
+      <CardHeader className="items-center justify-items-center gap-2 text-center">
         <span
           className="flex size-10 items-center justify-center rounded-full border border-dashed border-signal/40 bg-signal/10"
           aria-hidden
@@ -74,7 +74,7 @@ export function EmptyState({
         </span>
         <CardTitle className="text-base font-medium">{title}</CardTitle>
         {children ? (
-          <CardDescription className="max-w-lg text-balance">
+          <CardDescription className="max-w-lg text-center text-balance">
             {children}
           </CardDescription>
         ) : null}
