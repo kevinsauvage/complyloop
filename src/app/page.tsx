@@ -7,6 +7,7 @@ import {
   UnableToVerifyRuntimeHint,
 } from "@/components/dashboard/first-assessment-checklist";
 import { AssessmentJobStatus } from "@/components/dashboard/assessment-job-status";
+import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { projectDescription } from "@/components/dashboard/project-description";
 import { EmptyState, PageHeader } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
@@ -129,6 +130,10 @@ export default async function DashboardPage() {
 
       {latestAssessment ? (
         <div className="flex flex-col gap-6">
+          <RuntimeCoverageChip
+            project={project}
+            engines={latestAssessment.engines}
+          />
           <UnableToVerifyRuntimeHint
             count={counts.get("unable_to_verify") ?? 0}
             hasPreviewUrl={Boolean(project.runtimeBaseUrl?.trim())}

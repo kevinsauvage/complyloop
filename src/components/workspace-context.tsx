@@ -1,6 +1,7 @@
 import { OrgSwitcher } from "@/components/org-switcher";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
+import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 
@@ -9,6 +10,17 @@ export async function WorkspaceContext() {
   const { db, project, visibleProjects, organizations, activeOrgId, access } =
     await getWorkspace();
   const caps = projectCapabilities(project, access, activeOrgId);
+  const latestAssessment = project
+    ? db.assessments.filter((a) => a.projectId === project.id).at(-1)
+    : undefined;
+  const coverageStrip = project ? (
+    <RuntimeCoverageChip
+      project={project}
+      engines={latestAssessment?.engines}
+      compact
+      className="ml-auto"
+    />
+  ) : null;
   const orgName = project?.orgId
     ? db.organizations.find((org) => org.id === project.orgId)?.name
     : activeOrgId
@@ -54,7 +66,7 @@ export async function WorkspaceContext() {
             <span>{orgName}</span>
           </>
         ) : null}
-        {addProject ? <div className="ml-auto">{addProject}</div> : null}
+        {coverageStrip ?? (addProject ? <div className="ml-auto">{addProject}</div> : null)}
       </div>
     );
   }
@@ -74,7 +86,7 @@ export async function WorkspaceContext() {
       ) : (
         <span className="text-sm font-medium text-foreground">{project.name}</span>
       )}
-      {addProject ? <div className="ml-auto">{addProject}</div> : null}
+      {coverageStrip ?? (addProject ? <div className="ml-auto">{addProject}</div> : null)}
     </div>
   );
 }
