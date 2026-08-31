@@ -2,31 +2,37 @@ import { sanitizeDownloadFilename } from "@/server/download-filename";
 import { getDrizzle } from "@/server/db-store/client";
 import { listAllEvidenceForProject } from "@/server/db-store/postgres-queries";
 import {
-  buildComplianceReportMarkdown,
+  buildAuditReportMarkdown,
+  buildEngineeringReportMarkdown,
   reportInputForProject,
 } from "@/server/report";
+import { parseReportViewParam } from "@/core/report-view";
 import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   const { db, project } = await getWorkspace();
   if (!project) {
     return new Response("No project connected.", { status: 404 });
   }
+  const view = parseReportViewParam(new URL(request.url).searchParams.get("view"));
   const evidence = await listAllEvidenceForProject(
     await getDrizzle(),
     project.id,
   );
-  const markdown = buildComplianceReportMarkdown(
-    reportInputForProject({ ...db, evidence }, project),
-  );
+  const input = reportInputForProject({ ...db, evidence }, project);
+  const markdown =
+    view === "engineering"
+      ? buildEngineeringReportMarkdown(input)
+      : buildAuditReportMarkdown(input);
 
   const safeName = sanitizeDownloadFilename(project.name, "project");
+  const prefix = view === "engineering" ? "engineering-report" : "audit-report";
   return new Response(markdown, {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
-      "Content-Disposition": `attachment; filename="compliance-report-${safeName}.md"`,
+      "Content-Disposition": `attachment; filename="${prefix}-${safeName}.md"`,
     },
   });
 }

@@ -1,11 +1,15 @@
 import type { EvidenceRecord, Finding, Remediation } from "@/core/finding-types";
 import {
+  evidenceKindLabel,
   remediationStatusLabel,
   requirementStatusLabel,
   severityLabel,
 } from "@/core/labels";
-import type { Requirement } from "@/core/project-types";
+import { prioritizeClusters } from "@/core/prioritization";
+import type { Control, Requirement } from "@/core/project-types";
 import type { RequirementStatus } from "@/core/statuses";
+import { formatLocationRef } from "@/core/location";
+import { controlDisplayCodes } from "@/adapters/control-theme";
 import type { ReportInput } from "./report";
 
 function escapeHtml(text: string): string {
@@ -53,7 +57,8 @@ function renderSummaryRows(counts: Record<RequirementStatus, number>): string {
 
 function renderRequirements(
   requirements: Requirement[],
-  controlsById: Map<string, { title: string }>,
+  controlsById: Map<string, Control>,
+  frameworkId: string,
 ): string {
   if (requirements.length === 0) {
     return `<p class="empty">No requirements recorded.</p>`;
@@ -63,29 +68,38 @@ function renderRequirements(
     .map((req) => {
       const control = controlsById.get(req.controlId);
       const title = control?.title ?? req.controlId;
+      const code = control
+        ? controlDisplayCodes(control, frameworkId).code
+        : req.controlId;
       const exceptionNote = req.exception?.note
         ? `<div class="note">${escapeHtml(req.exception.note)}</div>`
         : "";
+      const exceptionReason = req.exception
+        ? `<div class="note">Exception: ${escapeHtml(req.exception.reason.replace(/_/g, " "))} · ${escapeHtml(formatDateTime(req.exception.at))}</div>`
+        : "";
       return `<tr>
-  <td><code>${escapeHtml(req.controlId)}</code></td>
+  <td><code>${escapeHtml(code)}</code></td>
   <td>${escapeHtml(title)}</td>
   <td><span class="badge ${statusClass(req.status)}">${escapeHtml(requirementStatusLabel(req.status))}</span></td>
   <td class="muted">${escapeHtml(req.determination === "automated" ? "Automated" : "Human review")}</td>
-</tr>${exceptionNote ? `<tr class="exception-row"><td colspan="4">${exceptionNote}</td></tr>` : ""}`;
+  <td class="nowrap muted">${escapeHtml(formatDateTime(req.updatedAt))}</td>
+</tr>${exceptionReason || exceptionNote ? `<tr class="exception-row"><td colspan="5">${exceptionReason}${exceptionNote}</td></tr>` : ""}`;
     })
     .join("\n");
 
   return `<table class="data-table">
-<thead><tr><th>Control</th><th>Title</th><th>Status</th><th>Determination</th></tr></thead>
+<thead><tr><th>Control</th><th>Title</th><th>Status</th><th>Determination</th><th>Updated</th></tr></thead>
 <tbody>
 ${rows}
 </tbody>
 </table>`;
 }
 
-function renderFindings(
+function renderEngineeringFindings(
   findings: Finding[],
   remediationsByFinding: Map<string, Remediation>,
+  controlsById: Map<string, Control>,
+  frameworkId: string,
 ): string {
   if (findings.length === 0) {
     return `<p class="empty">No open findings.</p>`;
@@ -94,10 +108,11 @@ function renderFindings(
   return findings
     .map((finding) => {
       const remediation = remediationsByFinding.get(finding.id);
-      const location =
-        finding.location.kind === "source"
-          ? `${finding.location.filePath}:${finding.location.line}`
-          : finding.location.url;
+      const control = controlsById.get(finding.controlId);
+      const code = control
+        ? controlDisplayCodes(control, frameworkId).code
+        : finding.controlId;
+      const location = formatLocationRef(finding.location);
       const snippet =
         finding.location.kind === "source" && finding.location.snippet
           ? `<pre class="snippet">${escapeHtml(finding.location.snippet)}</pre>`
@@ -109,8 +124,7 @@ function renderFindings(
       return `<article class="finding-card">
   <header>
     <span class="badge severity-${finding.severity}">${escapeHtml(severityLabel(finding.severity))}</span>
-    <code class="control-id">${escapeHtml(finding.controlId)}</code>
-    <span class="muted">${escapeHtml(finding.status)}</span>
+    <code class="control-id">${escapeHtml(code)}</code>
   </header>
   <p class="reason">${escapeHtml(finding.reason)}</p>
   <p class="meta"><strong>Location:</strong> <code>${escapeHtml(location)}</code></p>
@@ -119,6 +133,21 @@ function renderFindings(
 </article>`;
     })
     .join("\n");
+}
+
+function renderClusters(
+  clusters: ReturnType<typeof prioritizeClusters>,
+): string {
+  if (clusters.length === 0) {
+    return `<p class="empty">No shared root causes detected.</p>`;
+  }
+  const items = clusters
+    .map(
+      (cluster) =>
+        `<li><strong>${escapeHtml(cluster.label)}</strong> — ${cluster.findingIds.length} open finding(s)</li>`,
+    )
+    .join("\n");
+  return `<ul class="cluster-list">${items}</ul>`;
 }
 
 function renderEvidence(evidence: EvidenceRecord[]): string {
@@ -131,7 +160,7 @@ function renderEvidence(evidence: EvidenceRecord[]): string {
       (entry) =>
         `<tr>
   <td class="nowrap">${escapeHtml(formatDateTime(entry.at))}</td>
-  <td><code>${escapeHtml(entry.kind)}</code></td>
+  <td>${escapeHtml(evidenceKindLabel(entry.kind))}</td>
   <td>${escapeHtml(entry.summary)}</td>
 </tr>`,
     )
@@ -299,6 +328,11 @@ section h2 {
   font-size: 0.8125rem;
   color: var(--muted);
   font-style: italic;
+}
+
+.cluster-list {
+  margin: 0;
+  padding-left: 1.25rem;
 }
 
 .badge {
@@ -508,9 +542,75 @@ code {
 }
 `;
 
-export function buildComplianceReportHtml(input: ReportInput): string {
-  const { project, framework, controls, requirements, findings, remediations, evidence, exportedAt } =
-    input;
+function reportShell(
+  title: string,
+  input: ReportInput,
+  bodySections: string,
+): string {
+  const { project, framework, exportedAt } = input;
+  const safeProjectName = escapeHtml(project.name);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(title)} — ${safeProjectName}</title>
+  <style>${REPORT_STYLES}</style>
+</head>
+<body>
+  <div class="report">
+    <header class="report-header">
+      <h1>${escapeHtml(title)} — ${safeProjectName}</h1>
+      <div class="report-meta">
+        <span><strong>Framework:</strong> ${escapeHtml(framework.name)} ${escapeHtml(framework.version)}</span>
+        <span><strong>Source:</strong> ${escapeHtml(project.sourceRef ?? project.source)}</span>
+        <span><strong>Exported:</strong> ${escapeHtml(formatDateTime(exportedAt))}</span>
+      </div>
+      <div class="no-print">
+        <button type="button" onclick="window.print()">Print / Save as PDF</button>
+      </div>
+    </header>
+    ${bodySections}
+    <footer class="report-footer">
+      Generated by ComplyLoop · ${escapeHtml(formatDateTime(exportedAt))}
+    </footer>
+  </div>
+</body>
+</html>`;
+}
+
+export function buildEngineeringReportHtml(input: ReportInput): string {
+  const { framework, controls, findings, remediations } = input;
+  const controlsById = new Map(controls.map((c) => [c.id, c]));
+  const remediationsByFinding = new Map(remediations.map((r) => [r.findingId, r]));
+  const openFindings = findings.filter((f) => f.status === "open");
+  const clusters = prioritizeClusters(openFindings, controls);
+
+  const body = `
+    <section id="summary">
+      <h2>Summary</h2>
+      <div class="summary-grid">
+        <div class="summary-stat"><div class="label">Open findings</div><div class="value">${openFindings.length}</div></div>
+        <div class="summary-stat"><div class="label">Shared root causes</div><div class="value">${clusters.length}</div></div>
+      </div>
+    </section>
+
+    <section id="clusters">
+      <h2>Shared root causes</h2>
+      ${renderClusters(clusters)}
+    </section>
+
+    <section id="findings">
+      <h2>Open findings</h2>
+      ${renderEngineeringFindings(openFindings, remediationsByFinding, controlsById, framework.id)}
+    </section>`;
+
+  return reportShell("Engineering report", input, body);
+}
+
+export function buildAuditReportHtml(input: ReportInput): string {
+  const { controls, requirements, findings, evidence } = input;
 
   const counts: Record<RequirementStatus, number> = {
     passed: 0,
@@ -524,7 +624,6 @@ export function buildComplianceReportHtml(input: ReportInput): string {
   }
 
   const controlsById = new Map(controls.map((c) => [c.id, c]));
-  const remediationsByFinding = new Map(remediations.map((r) => [r.findingId, r]));
   const openFindings = findings.filter((f) => f.status === "open");
   const totalRequirements = requirements.length;
   const passRate =
@@ -532,30 +631,7 @@ export function buildComplianceReportHtml(input: ReportInput): string {
       ? Math.round((counts.passed / totalRequirements) * 100)
       : 0;
 
-  const safeProjectName = escapeHtml(project.name);
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Compliance report — ${safeProjectName}</title>
-  <style>${REPORT_STYLES}</style>
-</head>
-<body>
-  <div class="report">
-    <header class="report-header">
-      <h1>Compliance report — ${safeProjectName}</h1>
-      <div class="report-meta">
-        <span><strong>Framework:</strong> ${escapeHtml(framework.name)} ${escapeHtml(framework.version)}</span>
-        <span><strong>Source:</strong> ${escapeHtml(project.sourceRef ?? project.source)}</span>
-        <span><strong>Exported:</strong> ${escapeHtml(formatDateTime(exportedAt))}</span>
-      </div>
-      <div class="no-print">
-        <button type="button" onclick="window.print()">Print / Save as PDF</button>
-      </div>
-    </header>
-
+  const body = `
     <section id="summary">
       <h2>Summary</h2>
       <div class="summary-grid">
@@ -575,23 +651,13 @@ ${renderSummaryRows(counts)}
 
     <section id="requirements">
       <h2>Requirements</h2>
-      ${renderRequirements(requirements, controlsById)}
-    </section>
-
-    <section id="findings">
-      <h2>Findings</h2>
-      ${renderFindings(openFindings, remediationsByFinding)}
+      ${renderRequirements(requirements, controlsById, input.framework.id)}
     </section>
 
     <section id="evidence">
       <h2>Evidence trail</h2>
-      ${renderEvidence(evidence)}
-    </section>
+      ${renderEvidence([...evidence].reverse())}
+    </section>`;
 
-    <footer class="report-footer">
-      Generated by ComplyLoop · ${escapeHtml(formatDateTime(exportedAt))}
-    </footer>
-  </div>
-</body>
-</html>`;
+  return reportShell("Audit report", input, body);
 }
