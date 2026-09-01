@@ -1,22 +1,26 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Control, OrgMembership, Project, Requirement } from "@/core/project-types";
+import type { Control, OrgMembership, Requirement } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
-import { emptyActionMessageState } from "./action-state";
+import { testProject } from "@/test-fixtures/project";
+import { emptyActionMessageState } from "../action-state";
 import {
   markRemediationImplementedAction,
   manualVerifyRemediationAction,
   verifyRemediationAction,
-} from "./actions/remediation-verify";
-import { dismissFindingAction, bulkDismissFindingsAction } from "./actions/remediation-dismiss";
+} from "./remediation-verify";
+import {
+  dismissFindingAction,
+  bulkDismissFindingsAction,
+} from "./remediation";
 import {
   clearRequirementExceptionAction,
   clearRequirementHumanPassAction,
   markRequirementExceptionAction,
   markRequirementPassedAction,
-} from "./actions/requirements";
-import { markAlertReadAction } from "./actions/alerts";
-import type { Db } from "./db";
-import type { Workspace } from "./workspace";
+} from "./requirements";
+import { markAlertReadAction } from "./alerts";
+import type { Db } from "../db";
+import type { Workspace } from "../workspace";
 
 const withWorkspaceWrite = vi.hoisted(() => vi.fn());
 const getWorkspace = vi.hoisted(() => vi.fn());
@@ -33,8 +37,8 @@ vi.mock("@/auth", () => ({
   isGitHubAuthConfigured: () => false,
 }));
 
-vi.mock("./workspace", async () => {
-  const actual = await vi.importActual<typeof import("./workspace")>("./workspace");
+vi.mock("../workspace", async () => {
+  const actual = await vi.importActual<typeof import("../workspace")>("../workspace");
   return {
     ...actual,
     getWorkspace: () => getWorkspace(),
@@ -43,7 +47,7 @@ vi.mock("./workspace", async () => {
   };
 });
 
-vi.mock("./repo-checkout", () => ({
+vi.mock("../repo-checkout", () => ({
   withProjectCheckout: async (
     _project: unknown,
     fn: (rootPath: string) => Promise<unknown>,
@@ -51,31 +55,24 @@ vi.mock("./repo-checkout", () => ({
   withRepoCheckout: vi.fn(),
 }));
 
-vi.mock("./observability", () => ({
+vi.mock("../observability", () => ({
   reportError: vi.fn(),
   reportWarning: vi.fn(),
 }));
 
-vi.mock("./assessment-helpers", () => ({
+vi.mock("../assessment-helpers", () => ({
   buildSuggestion: vi.fn(() => null),
   locateViolationInProject: (...args: unknown[]) =>
     locateViolationInProject(...args),
   mergeFix: vi.fn((existing, fresh) => fresh ?? existing),
 }));
 
-vi.mock("./assessment-status", () => ({
+vi.mock("../assessment-status", () => ({
   refreshRequirementStatuses: (...args: unknown[]) =>
     refreshRequirementStatuses(...args),
 }));
 
-const project: Project = {
-  id: "p1",
-  name: "Shop",
-  source: "github",
-  orgId: "org-1",
-  ownerUserId: "owner-1",
-  createdAt: "2026-01-01T00:00:00.000Z",
-};
+const project = testProject({ orgId: "org-1" });
 
 const control: Control = {
   id: "c1",

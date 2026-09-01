@@ -15,12 +15,9 @@ import { findingAct } from "@/core/finding-act";
 import { evidenceKindLabel } from "@/core/labels";
 import {
   findingQueuePosition,
-  orderedFindingIdsForQueue,
-} from "@/core/finding-queue";
-import {
   findingsListHref,
+  orderedFindingIdsForQueue,
   parseFindingListParams,
-  type FilterFindingsContext,
 } from "@/core/finding-list-filter";
 import { PageHeader, formatDateTime } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
@@ -30,6 +27,7 @@ import { latestPatchState } from "@/server/ai-fix-result";
 import { buildDeveloperHandoff } from "@/server/handoff";
 import { getDrizzle } from "@/server/db-store/client";
 import { listEvidenceForFinding } from "@/server/db-store/postgres-queries";
+import { buildFindingFilterContext } from "@/server/finding-list-context";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { resolveVisibleFinding } from "@/server/project-visibility";
 import { findingsInScope } from "@/server/assessment-status";
@@ -80,21 +78,15 @@ export default async function FindingPage({
     ? buildDeveloperHandoff(project, control, finding, remediation)
     : null;
 
-  const queueFilterContext: FilterFindingsContext = {
-    controls: db.controls,
-    remediationStatusFor: (findingId) =>
-      remediationForFinding(db, findingId).status,
-    clusterFindingIds: listParams.cluster
-      ? new Set(
-          prioritizeClusters(findingsInScope(db.findings, project), db.controls)
-            .find((cluster) => cluster.id === listParams.cluster)
-            ?.findingIds ?? [],
-        )
-      : undefined,
-  };
+  const scopedFindings = findingsInScope(db.findings, project);
+  const queueFilterContext = buildFindingFilterContext(
+    db,
+    listParams,
+    prioritizeClusters(scopedFindings, db.controls),
+  );
 
   const queueIds = orderedFindingIdsForQueue(
-    findingsInScope(db.findings, project),
+    scopedFindings,
     listParams,
     queueFilterContext,
   );

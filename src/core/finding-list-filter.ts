@@ -2,10 +2,13 @@ import type { AssessmentEngine, Finding } from "./finding-types";
 import type { Control } from "./project-types";
 import { formatLocationRef } from "./location";
 import { parsePageParam } from "./pagination";
+import { prioritizeFindings } from "./prioritization";
+import { severityRank } from "./labels";
 import {
   REMEDIATION_STATUSES,
   type RemediationStatus,
   type Severity,
+  type FindingStatus,
 } from "./statuses";
 
 const FINDINGS_TABS = [
@@ -220,4 +223,64 @@ export function filterFindings(
   }
 
   return result;
+}
+
+export function orderFindingsForList(
+  findings: readonly Finding[],
+  status: FindingStatus,
+  params: Pick<
+    FindingListParams,
+    "q" | "severity" | "engine" | "remediation" | "control" | "cluster"
+  >,
+  context: FilterFindingsContext,
+): Finding[] {
+  const filtered = filterFindings(
+    findings.filter((finding) => finding.status === status),
+    params,
+    context,
+  );
+  if (status === "open") {
+    return prioritizeFindings(filtered, context.controls);
+  }
+  return [...filtered].sort(
+    (a, b) => severityRank(a.severity) - severityRank(b.severity),
+  );
+}
+
+export function orderedFindingIdsForQueue(
+  findings: readonly Finding[],
+  params: FindingListParams,
+  context: FilterFindingsContext,
+): string[] {
+  const status: FindingStatus =
+    params.tab === "by_cause" ? "open" : params.tab;
+  return orderFindingsForList(findings, status, params, context).map(
+    (finding) => finding.id,
+  );
+}
+
+export function findingQueuePosition(
+  orderedIds: readonly string[],
+  currentId: string,
+): {
+  index: number;
+  total: number;
+  prevId: string | null;
+  nextId: string | null;
+} {
+  const index = orderedIds.indexOf(currentId);
+  if (index === -1) {
+    return {
+      index: -1,
+      total: orderedIds.length,
+      prevId: null,
+      nextId: null,
+    };
+  }
+  return {
+    index,
+    total: orderedIds.length,
+    prevId: index > 0 ? orderedIds[index - 1]! : null,
+    nextId: index < orderedIds.length - 1 ? orderedIds[index + 1]! : null,
+  };
 }

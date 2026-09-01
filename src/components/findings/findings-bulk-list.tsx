@@ -7,22 +7,22 @@ import {
   RemediationStatusBadge,
   SeverityBadge,
 } from "@/components/badges";
+import { DismissFindingFields } from "@/components/findings/dismiss-finding-fields";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { canBulkApproveRemediation } from "@/core/finding-act";
-import { formatLocationRef } from "@/core/location";
 import {
   findingDetailHref,
   type FindingListParams,
 } from "@/core/finding-list-filter";
+import { formatLocationRef } from "@/core/location";
 import { cn } from "@/lib/utils";
-import { bulkApproveRemediationsAction } from "@/server/actions/remediation";
-import { bulkDismissFindingsAction } from "@/server/actions/remediation-dismiss";
+import {
+  bulkApproveRemediationsAction,
+  bulkDismissFindingsAction,
+} from "@/server/actions/remediation";
 import type { FindingListItem } from "./finding-list-items";
-
-export type { FindingListItem } from "./finding-list-items";
 
 export function FindingsBulkList({
   items,
@@ -136,28 +136,10 @@ export function FindingsBulkList({
             {[...selected].map((id) => (
               <input key={id} type="hidden" name="findingIds" value={id} />
             ))}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="bulk-dismiss-reason">Reason</Label>
-              <select
-                id="bulk-dismiss-reason"
-                name="reason"
-                defaultValue="false_positive"
-                className="h-8 w-full max-w-md rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
-              >
-                <option value="false_positive">False positive</option>
-                <option value="not_applicable">Not applicable</option>
-                <option value="accepted_risk">Accepted risk</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="bulk-dismiss-note">Note (kept as evidence)</Label>
-              <Textarea
-                id="bulk-dismiss-note"
-                name="note"
-                rows={2}
-                className="max-w-md"
-              />
-            </div>
+            <DismissFindingFields
+              reasonId="bulk-dismiss-reason"
+              noteId="bulk-dismiss-note"
+            />
           </StatefulActionForm>
         </div>
       ) : null}

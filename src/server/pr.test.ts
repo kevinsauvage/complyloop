@@ -8,6 +8,7 @@ import { parseSource } from "@/analysis/parse";
 import { scanFile } from "@/analysis/scan";
 import type { Control, Project } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
+import { testProject } from "@/test-fixtures/project";
 import { locateViolationInProject, mergeFix } from "./assessment-helpers";
 import { createGit } from "./git";
 import { preparePullRequest } from "./pr";
@@ -95,18 +96,15 @@ async function initRepo(source: string): Promise<{
   const [raw] = imgAltCheck.run(parseSource(relative, source));
   if (!raw?.fix) throw new Error("expected img-alt fix");
 
-  const project: Project = {
-    id: "p1",
+  const project = testProject({
     name: "shop",
-    source: "github",
-    orgId: "org-test",
     github: {
       fullName: "acme/shop",
       defaultBranch: "main",
       private: false,
     },
     createdAt: new Date().toISOString(),
-  };
+  });
   const control: Control = {
     id: "ctl-img-alt",
     frameworkId: "fw",

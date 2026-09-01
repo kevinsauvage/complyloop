@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OrgMembership, Project } from "@/core/project-types";
+import type { OrgMembership } from "@/core/project-types";
+import { testProject } from "@/test-fixtures/project";
 import { emptyActionMessageState } from "../action-state";
 import type { Db } from "../db";
 import type { Workspace } from "../workspace";
@@ -42,14 +43,7 @@ vi.mock("./shared", async () => {
   };
 });
 
-const project: Project = {
-  id: "p1",
-  name: "Shop",
-  source: "github",
-  orgId: "org-1",
-  ownerUserId: "owner-1",
-  createdAt: "2026-01-01T00:00:00.000Z",
-};
+const project = testProject({ orgId: "org-1" });
 
 function membership(role: OrgMembership["role"]): OrgMembership {
   return {

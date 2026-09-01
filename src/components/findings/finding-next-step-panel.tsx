@@ -1,4 +1,5 @@
 import { CreatePrForm } from "@/components/create-pr-form";
+import { DismissFindingFields } from "@/components/findings/dismiss-finding-fields";
 import { AiActionForm } from "@/components/findings/ai-action-form";
 import { CodeBlock } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
@@ -20,7 +21,7 @@ import { cn } from "@/lib/utils";
 import type { PatchCandidate } from "@/ai/verified-fix";
 import type { PatchUiState } from "@/server/ai-fix-result";
 import { generateAiFixAction } from "@/server/actions/ai-fix";
-import { dismissFindingAction } from "@/server/actions/remediation-dismiss";
+import { dismissFindingAction } from "@/server/actions/remediation";
 import { generateAiRemediationAction } from "@/server/actions/remediation-ai";
 import { approveRemediationAction } from "@/server/actions/remediation";
 import {
@@ -277,28 +278,10 @@ export function FindingNextStepPanel({
                   confirmMessage="Dismiss this finding? The reason and note are kept as evidence."
                   confirmTitle="Dismiss finding"
                 >
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="dismiss-reason">Reason</Label>
-                    <select
-                      id="dismiss-reason"
-                      name="reason"
-                      defaultValue="false_positive"
-                      className="h-8 w-full max-w-md rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
-                    >
-                      <option value="false_positive">False positive</option>
-                      <option value="not_applicable">Not applicable</option>
-                      <option value="accepted_risk">Accepted risk</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="dismiss-note">Note (kept as evidence)</Label>
-                    <Textarea
-                      id="dismiss-note"
-                      name="note"
-                      rows={2}
-                      className="max-w-md"
-                    />
-                  </div>
+                  <DismissFindingFields
+                    reasonId="dismiss-reason"
+                    noteId="dismiss-note"
+                  />
                 </StatefulActionForm>
               </div>
             </details>

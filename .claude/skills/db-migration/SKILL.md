@@ -6,46 +6,40 @@ disable-model-invocation: true
 
 # Database Migration Skill
 
-This skill helps generate and manage Drizzle ORM database migrations for the Compliance Engineering Platform.
+Postgres schema for this repo. Pre-launch: one squashed init plus incremental SQL files.
 
-## Usage
+## Layout
 
-Generate and manage database migrations:
+| Path | Role |
+|------|------|
+| `src/server/db-store/schema.ts` | Drizzle schema (source of truth for types) |
+| `drizzle/0000_init.sql` | Full initial schema (tenancy, domain, evidence trigger, jobs) |
+| `drizzle/0001_*.sql` | Incremental migrations after squash |
+| `scripts/db-migrate.ts` | Applies `.sql` files in filename order |
+| `scripts/db-reset.ts` | Wipe + re-apply (local/pre-launch only; requires `--confirm`) |
+
+## Commands
 
 ```bash
-# Generate a new migration
-/db-migration generate --name add_user_preferences
-
-# Apply pending migrations
-/db-migration migrate
-
-# Rollback the last migration
-/db-migration rollback
-
-# Show migration status
-/db-migration status
-
-# Validate migration scripts
-/db-migration validate
+npm run db:migrate          # Apply pending SQL migrations
+npm run db:reset -- --confirm   # Drop all tables and re-run migrations
 ```
 
-## Implementation
+## Adding a migration
 
-This skill would typically:
-1. Generate Drizzle ORM migration scripts based on schema changes
-2. Validate migration syntax and safety
-3. Apply migrations to the database
-4. Provide rollback capabilities
-5. Show migration history and status
+1. Edit `schema.ts` if Drizzle types change.
+2. Add `drizzle/000N_<short_name>.sql` with the ALTER/CREATE statements.
+3. Run `npm run db:migrate` locally (or `db:reset --confirm` if you prefer a clean slate).
+4. Record any invariant changes in `docs/ai/architecture.md`.
 
-## Example Usage
+Do **not** reference `drizzle/migrations/*.ts` — this project uses raw SQL files, not drizzle-kit migrate output.
+
+## Example
 
 ```
-✅ Database Migration Helper
-=========================
-Generating migration: add_user_preferences
-Created: drizzle/migrations/0003_add_user_preferences.ts
-Review the migration before applying.
-
-To apply: /db-migration migrate
+✅ New migration
+================
+Created: drizzle/0001_add_foo_index.sql
+Apply: npm run db:migrate
+Local wipe: npm run db:reset -- --confirm
 ```

@@ -1,17 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
-import type { Project } from "@/core/project-types";
+import { testProject } from "@/test-fixtures/project";
 import type { Db } from "./db";
 import { navAttentionCounts } from "./nav-attention";
 
-const project: Project = {
-  id: "p1",
+const project = testProject({
   name: "demo",
-  source: "github",
-  orgId: "org-test",
   sourceRef: "https://github.com/acme/demo",
   createdAt: new Date().toISOString(),
-};
+});
 
 function emptyDb(): Db {
   return {

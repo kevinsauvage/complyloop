@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OrgMembership, Organization, Project, Requirement } from "@/core/project-types";
 import type { EvidenceRecord, Finding } from "@/core/finding-types";
+import { testProject } from "@/test-fixtures/project";
 import {
   type AccessContext,
   accessFromStore,
@@ -18,11 +19,10 @@ function project(
   partial: Pick<Project, "id" | "source" | "orgId"> &
     Partial<Pick<Project, "ownerUserId" | "name">>,
 ): Project {
-  return {
+  return testProject({
     name: partial.name ?? partial.id,
-    createdAt: "2026-01-01T00:00:00.000Z",
     ...partial,
-  };
+  });
 }
 
 function ctx(

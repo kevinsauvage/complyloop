@@ -1,16 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { OrgMembership, Project } from "@/core/project-types";
+import type { OrgMembership } from "@/core/project-types";
+import { testProject } from "@/test-fixtures/project";
 import { projectCapabilities } from "./project-capabilities";
 import type { AccessContext } from "./project-visibility";
 
-const project: Project = {
-  id: "p1",
-  name: "Shop",
-  source: "github",
-  createdAt: "2026-01-01T00:00:00.000Z",
-  orgId: "org-1",
-  ownerUserId: "owner-1",
-};
+const project = testProject({ orgId: "org-1" });
 
 function access(role: OrgMembership["role"], userId = "user-1"): AccessContext {
   const membership: OrgMembership = {

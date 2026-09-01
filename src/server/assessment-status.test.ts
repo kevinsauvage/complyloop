@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import type { Finding } from "@/core/finding-types";
 import type { Project, Requirement } from "@/core/project-types";
+import { testProject } from "@/test-fixtures/project";
 import { emptyDb } from "./db";
 import {
   controlsInScope,
@@ -11,13 +12,7 @@ import {
 } from "./assessment-status";
 
 function project(partial: Partial<Project> & Pick<Project, "id">): Project {
-  return {
-    name: "App",
-    source: "github",
-    orgId: "org-test",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    ...partial,
-  };
+  return testProject(partial);
 }
 
 describe("assessment scope filters", () => {

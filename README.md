@@ -78,11 +78,11 @@ or run `npx complyloop-check .` / `npm run check -- .`.
 Then click **Run assessment** and walk the loop:
 
 1. **Assess** — choose the assessment target on **Requirements** (RGAA or WCAG ×
-   Full / AA / AAA; new connects default to Full RGAA). Twenty-nine AST checks
+   Full / AA / AAA; new connects default to Full RGAA). Fifty AST checks
    scan the connected code (scoped to changed JSX on re-assess). Optionally set
    a **preview / staging URL** under **Settings → Runtime audit** so
    composition-sensitive rules (labels, names, headings…) use the rendered page
-   as status truth, and so sixteen runtime-only rules (contrast, page title,
+   as status truth, and so nineteen runtime-only rules (contrast, page title,
    skip links, landmarks, tables, target size, …) can be assessed at all. First
    time: `npm run playwright:install`.
 2. **Understand** — each finding explains what failed, why, where, its impact,

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Project } from "@/core/project-types";
+import { testProject } from "@/test-fixtures/project";
 import { emptyDb } from "./db";
 import { ConnectError } from "./connect-error";
 
@@ -105,14 +105,10 @@ describe("assertAssessableRoot", () => {
 describe("addConnectedProject", () => {
   it("pushes the project and records evidence", () => {
     const db = emptyDb();
-    const project = {
-      id: "p1",
-      name: "Shop",
-      source: "github",
-      createdAt: "2026-01-01T00:00:00.000Z",
+    const project = testProject({
       github: { fullName: "acme/shop", defaultBranch: "main", private: false },
       sourceRef: "https://github.com/acme/shop",
-    } as Project;
+    });
 
     expect(addConnectedProject(db, project, 'Connected "Shop"')).toBe(project);
     expect(db.projects).toHaveLength(1);

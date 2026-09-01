@@ -57,6 +57,15 @@ export function locateViolation(
   };
 }
 
+export function readFindingIds(formData: FormData): string[] {
+  const raw = formData.getAll("findingIds");
+  const ids = raw
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  return [...new Set(ids)];
+}
+
 /** Session token options for ephemeral GitHub checkouts. */
 export async function sessionCheckoutTokenOptions(): Promise<ResolveProjectGitHubTokenOptions> {
   return {

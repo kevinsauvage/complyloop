@@ -1,16 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OrgMembership, Project } from "@/core/project-types";
+import type { OrgMembership } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
-import { RateLimitError } from "./rate-limit";
-import { emptyActionMessageState } from "./action-state";
-import { runAssessmentAction } from "./actions/assessment";
-import { dismissFindingAction } from "./actions/remediation-dismiss";
+import { testProject } from "@/test-fixtures/project";
+import { RateLimitError } from "../rate-limit";
+import { emptyActionMessageState } from "../action-state";
+import { runAssessmentAction } from "./assessment";
 import {
   approveRemediationAction,
   bulkApproveRemediationsAction,
-} from "./actions/remediation";
-import type { Db } from "./db";
-import type { Workspace } from "./workspace";
+  dismissFindingAction,
+} from "./remediation";
+import type { Db } from "../db";
+import type { Workspace } from "../workspace";
 
 const withWorkspaceWrite = vi.hoisted(() => vi.fn());
 const getWorkspace = vi.hoisted(() => vi.fn());
@@ -38,8 +39,8 @@ vi.mock("@/ai/remediation", () => ({
   generateAiRemediation: vi.fn(),
 }));
 
-vi.mock("./workspace", async () => {
-  const actual = await vi.importActual<typeof import("./workspace")>("./workspace");
+vi.mock("../workspace", async () => {
+  const actual = await vi.importActual<typeof import("../workspace")>("../workspace");
   return {
     ...actual,
     getWorkspace: () => getWorkspace(),
@@ -48,28 +49,28 @@ vi.mock("./workspace", async () => {
   };
 });
 
-vi.mock("./observability", () => ({
+vi.mock("../observability", () => ({
   reportError: vi.fn(),
   reportWarning: vi.fn(),
 }));
 
-vi.mock("./assessment", () => ({
+vi.mock("../assessment", () => ({
   runAssessment: vi.fn(),
 }));
 
-vi.mock("./assessment-jobs", () => ({
+vi.mock("../assessment-jobs", () => ({
   enqueueAssessmentJob: (...args: unknown[]) => enqueueAssessmentJob(...args),
 }));
 
-vi.mock("./assessment-job-drain", () => ({
+vi.mock("../assessment-job-drain", () => ({
   shouldDrainAssessmentJobsInline: () => shouldDrainAssessmentJobsInline(),
   drainAssessmentJobQueue: (...args: unknown[]) =>
     drainAssessmentJobQueue(...args),
 }));
 
-vi.mock("./rate-limit", async () => {
-  const actual = await vi.importActual<typeof import("./rate-limit")>(
-    "./rate-limit",
+vi.mock("../rate-limit", async () => {
+  const actual = await vi.importActual<typeof import("../rate-limit")>(
+    "../rate-limit",
   );
   return {
     ...actual,
@@ -78,18 +79,11 @@ vi.mock("./rate-limit", async () => {
   };
 });
 
-vi.mock("./assessment-status", () => ({
+vi.mock("../assessment-status", () => ({
   refreshRequirementStatuses: vi.fn(),
 }));
 
-const project: Project = {
-  id: "p1",
-  name: "Shop",
-  source: "github",
-  orgId: "org-1",
-  ownerUserId: "owner-1",
-  createdAt: "2026-01-01T00:00:00.000Z",
-};
+const project = testProject({ orgId: "org-1" });
 
 const finding: Finding = {
   id: "f1",

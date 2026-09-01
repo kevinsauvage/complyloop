@@ -182,7 +182,7 @@ export async function persistCatalogToPostgres(
             id: item.id,
             name: item.name,
             ownerUserId: item.ownerUserId ?? null,
-            orgId: item.orgId ?? null,
+            orgId: item.orgId,
             payload: item,
           })),
         )

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { rgaaPresets } from "@/adapters/rgaa/presets";
+import { testProject } from "@/test-fixtures/project";
 import type { Project } from "@/core/project-types";
 import type { Db } from "./db";
 import { applyFrameworkPreset } from "./requirements-intake";
@@ -21,14 +22,8 @@ function emptyDb(project: Project): Db {
   };
 }
 
-function demoProject(): Project {
-  return {
-    id: "p1",
-    name: "demo",
-    source: "github",
-    orgId: "org-test",
-    createdAt: "2026-01-01T00:00:00.000Z",
-  };
+function demoProject() {
+  return testProject();
 }
 
 describe("applyFrameworkPreset", () => {

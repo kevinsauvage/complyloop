@@ -8,9 +8,6 @@ import { FindingsBulkList } from "./findings-bulk-list";
 
 vi.mock("@/server/actions/remediation", () => ({
   bulkApproveRemediationsAction: vi.fn(),
-}));
-
-vi.mock("@/server/actions/remediation-dismiss", () => ({
   bulkDismissFindingsAction: vi.fn(),
 }));
 

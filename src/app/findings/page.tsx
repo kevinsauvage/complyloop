@@ -11,23 +11,20 @@ import { EmptyState, PageActionLink, PageHeader } from "@/components/page-primit
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  filterFindings,
   findingListPaginationQuery,
   findingsListHref,
   hasActiveFindingFilters,
+  orderFindingsForList,
   parseFindingListParams,
   type FindingsTab,
   type FindingListParams,
 } from "@/core/finding-list-filter";
-import { severityRank } from "@/core/labels";
 import { reportMarkdownHref } from "@/core/report-view";
 import { paginateSlice } from "@/core/pagination";
-import {
-  prioritizeClusters,
-  prioritizeFindings,
-} from "@/core/prioritization";
+import { prioritizeClusters } from "@/core/prioritization";
 import type { FindingStatus } from "@/core/statuses";
 import type { Finding } from "@/core/finding-types";
+import { buildFindingFilterContext } from "@/server/finding-list-context";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { findingsInScope } from "@/server/assessment-status";
 import {
@@ -70,31 +67,10 @@ export default async function FindingsPage({
   const caps = projectCapabilities(project, access, activeOrgId);
   const findings = findingsInScope(db.findings, project);
   const clusters = prioritizeClusters(findings, db.controls);
-  const clusterFindingIds = listParams.cluster
-    ? new Set(
-        clusters.find((cluster) => cluster.id === listParams.cluster)
-          ?.findingIds ?? [],
-      )
-    : undefined;
+  const filterContext = buildFindingFilterContext(db, listParams, clusters);
 
-  const filterContext = {
-    controls: db.controls,
-    remediationStatusFor: (findingId: string) =>
-      remediationForFinding(db, findingId).status,
-    clusterFindingIds,
-  };
-
-  const byStatus = (status: FindingStatus): Finding[] => {
-    const filtered = filterFindings(
-      findings.filter((finding) => finding.status === status),
-      listParams,
-      filterContext,
-    );
-    if (status === "open") return prioritizeFindings(filtered, db.controls);
-    return filtered.sort(
-      (a, b) => severityRank(a.severity) - severityRank(b.severity),
-    );
-  };
+  const byStatus = (status: FindingStatus): Finding[] =>
+    orderFindingsForList(findings, status, listParams, filterContext);
 
   const openSlice = paginateSlice(byStatus("open"), listParams.page);
   const resolvedSlice = paginateSlice(byStatus("resolved"), listParams.page);

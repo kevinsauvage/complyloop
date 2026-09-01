@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { wcagFramework } from "@/adapters/wcag/controls";
-import type { Project, Requirement } from "@/core/project-types";
+import type { Requirement } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
+import { testProject } from "@/test-fixtures/project";
 import { emptyDb } from "./db";
 import {
   buildAuditReportHtml,
@@ -14,14 +15,10 @@ import {
   reportInputForProject,
 } from "./report";
 
-const project: Project = {
-  id: "p1",
+const project = testProject({
   name: "demo-app",
-  source: "github",
-  orgId: "org-test",
   sourceRef: "https://github.com/acme/demo-app",
-  createdAt: "2026-01-01T00:00:00.000Z",
-};
+});
 
 function sampleReportInput() {
   const requirements: Requirement[] = rgaaControls.map((control, index) => ({

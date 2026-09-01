@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicError } from "@/core/public-error";
-import type { Organization, OrgMembership, Project } from "@/core/project-types";
-import { emptyActionMessageState } from "./action-state";
+import type { Organization, OrgMembership } from "@/core/project-types";
+import { testProject } from "@/test-fixtures/project";
+import { emptyActionMessageState } from "../action-state";
 import {
   changeOrgMemberRoleAction,
   createOrgAction,
@@ -10,9 +11,9 @@ import {
   inviteOrgMemberAction,
   removeOrgMemberAction,
   switchOrgAction,
-} from "./actions/org";
-import type { Db } from "./db";
-import type { Workspace } from "./workspace";
+} from "./org";
+import type { Db } from "../db";
+import type { Workspace } from "../workspace";
 
 const auth = vi.hoisted(() => vi.fn());
 const getWorkspace = vi.hoisted(() => vi.fn());
@@ -32,9 +33,9 @@ vi.mock("@/auth", () => ({
   auth: () => auth(),
 }));
 
-vi.mock("./workspace", async () => {
-  const actual = await vi.importActual<typeof import("./workspace")>(
-    "./workspace",
+vi.mock("../workspace", async () => {
+  const actual = await vi.importActual<typeof import("../workspace")>(
+    "../workspace",
   );
   return {
     ...actual,
@@ -44,8 +45,8 @@ vi.mock("./workspace", async () => {
   };
 });
 
-vi.mock("./orgs", async () => {
-  const actual = await vi.importActual<typeof import("./orgs")>("./orgs");
+vi.mock("../orgs", async () => {
+  const actual = await vi.importActual<typeof import("../orgs")>("../orgs");
   return {
     ...actual,
     exportOrgData: (...args: unknown[]) => exportOrgData(...args),
@@ -54,7 +55,7 @@ vi.mock("./orgs", async () => {
   };
 });
 
-vi.mock("./active-cookies", () => ({
+vi.mock("../active-cookies", () => ({
   writeActiveOrgCookie: (...args: unknown[]) => writeActiveOrgCookie(...args),
   writeActiveProjectCookie: (...args: unknown[]) =>
     writeActiveProjectCookie(...args),
@@ -62,15 +63,15 @@ vi.mock("./active-cookies", () => ({
   readActiveProjectCookie: vi.fn(),
 }));
 
-vi.mock("./actions/shared", () => ({
+vi.mock("./shared", () => ({
   refresh: () => refresh(),
 }));
 
-vi.mock("./db-store/client", () => ({
+vi.mock("../db-store/client", () => ({
   getDrizzle: async () => ({}),
 }));
 
-vi.mock("./db-store/postgres-queries", () => ({
+vi.mock("../db-store/postgres-queries", () => ({
   listAllEvidenceForProjects: async () => [],
 }));
 
@@ -81,14 +82,7 @@ const org: Organization = {
   createdAt: "2026-01-01T00:00:00.000Z",
 };
 
-const project: Project = {
-  id: "p1",
-  name: "Shop",
-  source: "github",
-  orgId: "org-1",
-  ownerUserId: "user-1",
-  createdAt: "2026-01-01T00:00:00.000Z",
-};
+const project = testProject({ orgId: "org-1", ownerUserId: "user-1" });
 
 const ownerMembership: OrgMembership = {
   id: "m-owner",

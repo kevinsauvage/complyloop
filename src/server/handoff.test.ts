@@ -4,8 +4,9 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseSource } from "@/analysis/parse";
 import { imgAltCheck } from "@/analysis/checks/img-alt";
-import type { Control, Project } from "@/core/project-types";
+import type { Control } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
+import { testProject } from "@/test-fixtures/project";
 import { buildDeveloperHandoff, buildDiffForFix } from "./handoff";
 
 const tempDirs: string[] = [];
@@ -27,13 +28,10 @@ describe("developer handoff", () => {
     const [raw] = imgAltCheck.run(parseSource(relative, source));
     if (!raw.fix) throw new Error("expected fix");
 
-    const project: Project = {
-      id: "p1",
+    const project = testProject({
       name: "shop",
-      source: "github",
-      orgId: "org-test",
       createdAt: new Date().toISOString(),
-    };
+    });
     const control: Control = {
       id: "ctl-img-alt",
       frameworkId: "fw",

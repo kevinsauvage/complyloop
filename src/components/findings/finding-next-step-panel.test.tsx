@@ -19,16 +19,13 @@ vi.mock("@/server/actions/remediation-ai", () => ({
 
 vi.mock("@/server/actions/remediation", () => ({
   approveRemediationAction: vi.fn(),
+  dismissFindingAction: vi.fn(),
 }));
 
 vi.mock("@/server/actions/remediation-verify", () => ({
   verifyRemediationAction: vi.fn(),
   markRemediationImplementedAction: vi.fn(),
   manualVerifyRemediationAction: vi.fn(),
-}));
-
-vi.mock("@/server/actions/remediation-dismiss", () => ({
-  dismissFindingAction: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({

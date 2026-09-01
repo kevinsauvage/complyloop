@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Control, OrgMembership, Project } from "@/core/project-types";
+import type { Control, OrgMembership } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
+import { testProject } from "@/test-fixtures/project";
 import { PublicError } from "@/core/public-error";
 import type { Db } from "../db";
 import type { Workspace } from "../workspace";
@@ -55,19 +56,14 @@ vi.mock("./shared", async () => {
   };
 });
 
-const project: Project = {
-  id: "p1",
-  name: "Shop",
-  source: "github",
+const project = testProject({
+  orgId: "org-1",
   github: {
     fullName: "acme/shop",
     defaultBranch: "main",
     private: false,
   },
-  orgId: "org-1",
-  ownerUserId: "owner-1",
-  createdAt: "2026-01-01T00:00:00.000Z",
-};
+});
 
 const control: Control = {
   id: "c1",

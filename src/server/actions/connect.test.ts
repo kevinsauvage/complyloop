@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OrgMembership, Project } from "@/core/project-types";
+import type { OrgMembership } from "@/core/project-types";
+import { testProject } from "@/test-fixtures/project";
 import { ConnectError } from "../connect-error";
 import { emptyActionMessageState } from "../action-state";
 import type { Db } from "../db";
@@ -82,19 +83,15 @@ vi.mock("./shared", () => ({
   refresh: () => refresh(),
 }));
 
-const project: Project = {
-  id: "p1",
-  name: "Shop",
-  source: "github",
+const project = testProject({
   orgId: "org-1",
   ownerUserId: "user-1",
-  createdAt: "2026-01-01T00:00:00.000Z",
   github: {
     fullName: "acme/shop",
     defaultBranch: "main",
     private: false,
   },
-};
+});
 
 const ownerMembership: OrgMembership = {
   id: "m-owner",

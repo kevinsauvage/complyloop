@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project } from "@/core/project-types";
+import { testProject } from "@/test-fixtures/project";
 import type { Db } from "./db";
 import type { AssessmentJob } from "./assessment-jobs";
 
@@ -77,19 +77,14 @@ vi.mock("./github-checks", () => ({
 
 import { processNextAssessmentJob } from "./assessment-worker";
 
-const project: Project = {
-  id: "p1",
-  name: "Shop",
-  source: "github",
+const project = testProject({
   orgId: "org-1",
-  ownerUserId: "owner-1",
-  createdAt: "2026-01-01T00:00:00.000Z",
   github: {
     fullName: "acme/shop",
     defaultBranch: "main",
     private: false,
   },
-};
+});
 
 function job(partial: Partial<AssessmentJob> = {}): AssessmentJob {
   return {
