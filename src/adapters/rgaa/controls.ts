@@ -1082,7 +1082,7 @@ export const rgaaControls: Control[] = [
     title: "Sitemap is reached the same way on every page",
     description:
       "The sitemap entry point appears in the same relative position on every page in the set.",
-    checkId: null,
+    checkId: "consistent-sitemap",
     complianceWeight: 1.1,
   },
   {
@@ -1093,7 +1093,18 @@ export const rgaaControls: Control[] = [
     title: "Search is reached the same way on every page",
     description:
       "The search control appears in the same relative position on every page in the set.",
-    checkId: null,
+    checkId: "consistent-search",
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-landmark-regions-consistent",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 12.6",
+    secondaryCode: "WCAG 1.3.1",
+    title: "Landmark regions are consistent across pages",
+    description:
+      "Header, main, and other landmark regions are present on every route when they appear on any route in the set.",
+    checkId: "consistent-landmarks",
     complianceWeight: 1.1,
   },
   {

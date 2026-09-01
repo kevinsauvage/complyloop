@@ -58,6 +58,9 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "consistent-nav",
   "consistent-labels",
   "consistent-help",
+  "consistent-sitemap",
+  "consistent-search",
+  "consistent-landmarks",
 ] as const satisfies readonly CheckId[];
 
 const SITE_LEVEL_CHECK_IDS = [
@@ -65,6 +68,9 @@ const SITE_LEVEL_CHECK_IDS = [
   "consistent-nav",
   "consistent-labels",
   "consistent-help",
+  "consistent-sitemap",
+  "consistent-search",
+  "consistent-landmarks",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);

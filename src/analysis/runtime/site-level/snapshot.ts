@@ -28,6 +28,34 @@ export async function capturePageSnapshot(
       return el.textContent?.trim() ?? "";
     }
 
+    function elementPath(el: Element): string {
+      const parts: string[] = [];
+      let current: Element | null = el;
+      while (current && current !== document.body && parts.length < 6) {
+        let part = current.tagName.toLowerCase();
+        const role = current.getAttribute("role");
+        if (role) part += `[role=${role}]`;
+        const type = current.getAttribute("type");
+        if (type) part += `[type=${type}]`;
+        parts.unshift(part);
+        current = current.parentElement;
+      }
+      return parts.join(">");
+    }
+
+    function landmarkRole(el: Element): string | null {
+      const explicit = el.getAttribute("role")?.toLowerCase();
+      if (explicit) return explicit;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "header") return "banner";
+      if (tag === "nav") return "navigation";
+      if (tag === "main") return "main";
+      if (tag === "footer") return "contentinfo";
+      if (tag === "aside") return "complementary";
+      if (tag === "form") return "search";
+      return null;
+    }
+
     const navLinks: string[] = [];
     for (const nav of document.querySelectorAll("nav, [role='navigation']")) {
       for (const anchor of nav.querySelectorAll("a[href]")) {
@@ -65,11 +93,34 @@ export async function capturePageSnapshot(
     }
 
     const sitemapLinks: string[] = [];
+    let sitemapHref: string | undefined;
+    let sitemapPosition: string | undefined;
     for (const anchor of document.querySelectorAll("a[href]")) {
       const href = anchor.getAttribute("href");
-      if (href && /sitemap/i.test(href)) {
-        sitemapLinks.push(href);
+      if (!href || !/sitemap/i.test(href)) continue;
+      sitemapLinks.push(href);
+      if (!sitemapHref) {
+        sitemapHref = href;
+        sitemapPosition = elementPath(anchor);
       }
+    }
+
+    let searchSelector: string | undefined;
+    const searchControl =
+      document.querySelector(
+        "input[type='search'], [role='searchbox'], input[name*='search' i], [role='search'] input",
+      ) ??
+      document.querySelector("form[role='search'] input, [role='search']");
+    if (searchControl) {
+      searchSelector = elementPath(searchControl);
+    }
+
+    const landmarkRoles: string[] = [];
+    const landmarkSelector =
+      "header, nav, main, footer, aside, [role='banner'], [role='navigation'], [role='main'], [role='contentinfo'], [role='search'], form[role='search']";
+    for (const el of document.querySelectorAll(landmarkSelector)) {
+      const role = landmarkRole(el);
+      if (role) landmarkRoles.push(role);
     }
 
     const formFields: Array<{ name: string; label: string; autoComplete?: string }> =
@@ -93,6 +144,10 @@ export async function capturePageSnapshot(
       searchInputs,
       sitemapLinks,
       formFields,
+      sitemapHref,
+      sitemapPosition,
+      searchSelector,
+      landmarkRoles,
     };
   }, url);
 }

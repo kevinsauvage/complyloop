@@ -106,7 +106,10 @@ export type CheckId =
   | "link-explicit-heuristic"
   | "office-docs-alt-present"
   | "media-keyboard-static"
-  | "css-hover-keyboard";
+  | "css-hover-keyboard"
+  | "consistent-sitemap"
+  | "consistent-search"
+  | "consistent-landmarks";
 
 export interface RawFinding {
   checkId: CheckId;

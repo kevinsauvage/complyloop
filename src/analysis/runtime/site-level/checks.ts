@@ -68,6 +68,33 @@ function helpSignatures(snapshots: ReadonlyArray<RuntimePageSnapshot>): string[]
     .filter((signature) => signature.length > 0);
 }
 
+function sitemapSignatures(
+  snapshots: ReadonlyArray<RuntimePageSnapshot>,
+): string[] {
+  return snapshots
+    .filter((snapshot) => snapshot.sitemapHref)
+    .map(
+      (snapshot) =>
+        `${snapshot.sitemapPosition ?? "unknown"}::${snapshot.sitemapHref}`,
+    );
+}
+
+function searchSignatures(
+  snapshots: ReadonlyArray<RuntimePageSnapshot>,
+): string[] {
+  return snapshots
+    .map((snapshot) => snapshot.searchSelector)
+    .filter((signature): signature is string => signature !== undefined);
+}
+
+function checkCrossRouteLandmark(
+  snapshots: ReadonlyArray<RuntimePageSnapshot>,
+  role: string,
+): boolean {
+  const present = snapshots.map((snapshot) => snapshot.landmarkRoles.includes(role));
+  return present.some(Boolean) && present.some((value) => !value);
+}
+
 export function runSiteLevelChecks(
   snapshots: ReadonlyArray<RuntimePageSnapshot>,
 ): RawFinding[] {
@@ -121,6 +148,76 @@ export function runSiteLevelChecks(
         pages,
         "Help mechanisms differ between pages",
         "Help, support, or contact links appear in a different order across the configured preview routes.",
+      ),
+    );
+  }
+
+  const sitemapPages = snapshots.filter((snapshot) => snapshot.sitemapHref);
+  if (sitemapPages.length > 0) {
+    if (sitemapPages.length < snapshots.length) {
+      findings.push(
+        siteFinding(
+          "consistent-sitemap",
+          pages,
+          "Sitemap entry point missing on some routes",
+          "A sitemap link is present on some preview routes but not others, so users cannot reach it the same way on every page (RGAA 12.4).",
+        ),
+      );
+    } else {
+      const sitemapPositions = new Set(sitemapSignatures(snapshots));
+      if (sitemapPositions.size > 1) {
+        findings.push(
+          siteFinding(
+            "consistent-sitemap",
+            pages,
+            "Sitemap entry point position differs between routes",
+            "The sitemap link appears in a different location across the configured preview routes (RGAA 12.4).",
+          ),
+        );
+      }
+    }
+  }
+
+  const searchPages = snapshots.filter((snapshot) => snapshot.searchSelector);
+  if (searchPages.length > 0) {
+    if (searchPages.length < snapshots.length) {
+      findings.push(
+        siteFinding(
+          "consistent-search",
+          pages,
+          "Search control missing on some routes",
+          "Search is present on some preview routes but not others, so users cannot reach it the same way on every page (RGAA 12.5).",
+        ),
+      );
+    } else {
+      const uniqueSearchSelectors = new Set(searchSignatures(snapshots));
+      if (uniqueSearchSelectors.size > 1) {
+        findings.push(
+          siteFinding(
+            "consistent-search",
+            pages,
+            "Search control position differs between routes",
+            "The search control appears in a different location across the configured preview routes (RGAA 12.5).",
+          ),
+        );
+      }
+    }
+  }
+
+  const missingLandmarks: string[] = [];
+  if (checkCrossRouteLandmark(snapshots, "main")) {
+    missingLandmarks.push("main");
+  }
+  if (checkCrossRouteLandmark(snapshots, "banner")) {
+    missingLandmarks.push("header (banner)");
+  }
+  if (missingLandmarks.length > 0) {
+    findings.push(
+      siteFinding(
+        "consistent-landmarks",
+        pages,
+        `Missing landmarks: ${missingLandmarks.join(", ")}`,
+        `Some preview routes are missing ${missingLandmarks.join(" or ")} landmarks that other routes expose (RGAA 12.6).`,
       ),
     );
   }

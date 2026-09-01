@@ -626,6 +626,24 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Mirror :hover menus and tooltips with :focus styles or explicit keyboard toggles.",
   },
+  "consistent-sitemap": {
+    impact:
+      "When the sitemap entry point moves or disappears between pages, users cannot predict where to find it (WCAG 2.4.5 / RGAA 12.4).",
+    howToFix:
+      "Place the sitemap link in the same header, footer, or navigation region on every page.",
+  },
+  "consistent-search": {
+    impact:
+      "When search moves or disappears between pages, users lose a predictable way to find content (WCAG 2.4.5 / RGAA 12.5).",
+    howToFix:
+      "Keep the search control in the same landmark and relative position on every route.",
+  },
+  "consistent-landmarks": {
+    impact:
+      "Missing header or main landmarks on some routes breaks skip-navigation and screen reader landmark lists (WCAG 1.3.1 / RGAA 12.6).",
+    howToFix:
+      "Use header, nav, main, and footer landmarks consistently on every page template.",
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {

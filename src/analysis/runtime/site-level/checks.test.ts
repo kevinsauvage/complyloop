@@ -14,6 +14,7 @@ function snapshot(
     searchInputs: [],
     sitemapLinks: [],
     formFields: [],
+    landmarkRoles: [],
     ...overrides,
   };
 }
@@ -89,5 +90,74 @@ describe("runSiteLevelChecks", () => {
     expect(findings.some((finding) => finding.checkId === "consistent-help")).toBe(
       true,
     );
+  });
+
+  it("flags sitemap missing on some routes", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", {
+        sitemapHref: "/sitemap.xml",
+        sitemapPosition: "header>nav>a",
+      }),
+      snapshot("https://x.test/b"),
+    ]);
+    expect(
+      findings.some((finding) => finding.checkId === "consistent-sitemap"),
+    ).toBe(true);
+  });
+
+  it("flags sitemap in different positions", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", {
+        sitemapHref: "/sitemap.xml",
+        sitemapPosition: "header>nav>a",
+      }),
+      snapshot("https://x.test/b", {
+        sitemapHref: "/sitemap.xml",
+        sitemapPosition: "footer>a",
+      }),
+    ]);
+    expect(
+      findings.some((finding) => finding.checkId === "consistent-sitemap"),
+    ).toBe(true);
+  });
+
+  it("flags search missing on some routes", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", { searchSelector: "header>input[type=search]" }),
+      snapshot("https://x.test/b"),
+    ]);
+    expect(
+      findings.some((finding) => finding.checkId === "consistent-search"),
+    ).toBe(true);
+  });
+
+  it("flags search in different positions", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", { searchSelector: "header>input[type=search]" }),
+      snapshot("https://x.test/b", { searchSelector: "nav>input[type=search]" }),
+    ]);
+    expect(
+      findings.some((finding) => finding.checkId === "consistent-search"),
+    ).toBe(true);
+  });
+
+  it("flags missing main landmark on some routes", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", { landmarkRoles: ["banner", "navigation", "main"] }),
+      snapshot("https://x.test/b", { landmarkRoles: ["banner", "navigation"] }),
+    ]);
+    expect(
+      findings.some((finding) => finding.checkId === "consistent-landmarks"),
+    ).toBe(true);
+  });
+
+  it("flags missing banner landmark on some routes", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", { landmarkRoles: ["banner", "main"] }),
+      snapshot("https://x.test/b", { landmarkRoles: ["main"] }),
+    ]);
+    expect(
+      findings.some((finding) => finding.checkId === "consistent-landmarks"),
+    ).toBe(true);
   });
 });
