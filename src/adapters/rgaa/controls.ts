@@ -1511,7 +1511,7 @@ export const rgaaControls: Control[] = [
     title: "Related fields are grouped when needed",
     description:
       "Radio groups, related checkboxes, and identity field clusters are wrapped in a fieldset or labelled group.",
-    checkId: null,
+    checkId: "field-grouping",
     complianceWeight: 1.2,
   },
   {

@@ -61,6 +61,7 @@ import { tableSummaryCheck } from "./table-summary";
 import { imageDetailedDescriptionCheck } from "./image-detailed-description";
 import { mediaControlsPresentCheck } from "./media-controls-present";
 import { nontemporalMediaAltCheck } from "./nontemporal-media-alt";
+import { fieldGroupingCheck } from "./field-grouping";
 import type { AccessibilityCheck } from "../types";
 
 export const allChecks: AccessibilityCheck[] = [
@@ -127,4 +128,5 @@ export const allChecks: AccessibilityCheck[] = [
   imageDetailedDescriptionCheck,
   mediaControlsPresentCheck,
   nontemporalMediaAltCheck,
+  fieldGroupingCheck,
 ];

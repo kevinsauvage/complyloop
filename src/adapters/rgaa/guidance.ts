@@ -548,6 +548,12 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Add aria-label/aria-labelledby/title to object, embed, or canvas, or place an adjacent link/button that opens an equivalent text alternative.",
   },
+  "field-grouping": {
+    impact:
+      "Related checkbox sets and identity field clusters read as disconnected controls, so users can miss that the fields belong to one question (WCAG 1.3.1 / RGAA 11.5).",
+    howToFix:
+      "Wrap related controls in a fieldset with a legend (or a labelled group role) to expose one shared question/context.",
+  },
   "css-disabled-content": {
     impact:
       "Text conveyed only through CSS content or background images is invisible when stylesheets are disabled (WCAG 1.3.1 / RGAA 10.2).",

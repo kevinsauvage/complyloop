@@ -98,7 +98,8 @@ export type CheckId =
   | "multiple-ways"
   | "consistent-nav"
   | "consistent-labels"
-  | "nontemporal-media-alt";
+  | "nontemporal-media-alt"
+  | "field-grouping";
 
 export interface RawFinding {
   checkId: CheckId;
