@@ -81,7 +81,14 @@ export type CheckId =
   | "dir-change"
   | "blockquote-cite"
   | "outline-none"
-  | "status-live";
+  | "status-live"
+  | "non-text-contrast"
+  | "reflow"
+  | "text-spacing-runtime"
+  | "hover-content"
+  | "label-adjacent"
+  | "both-colors"
+  | "redundant-entry";
 
 export interface RawFinding {
   checkId: CheckId;

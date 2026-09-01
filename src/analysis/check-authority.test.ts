@@ -39,6 +39,11 @@ const RUNTIME_ONLY = [
   "focus-visible",
   "keyboard-trap",
   "focus-not-obscured",
+  "non-text-contrast",
+  "reflow",
+  "text-spacing-runtime",
+  "hover-content",
+  "label-adjacent",
 ] as const;
 
 describe("check authority", () => {

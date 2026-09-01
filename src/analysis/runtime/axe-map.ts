@@ -121,6 +121,12 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-focus-visible": "focus-visible",
   "complyloop-keyboard-trap": "keyboard-trap",
   "complyloop-focus-not-obscured": "focus-not-obscured",
+  "complyloop-reflow": "reflow",
+  "complyloop-text-spacing-runtime": "text-spacing-runtime",
+  "complyloop-non-text-contrast": "non-text-contrast",
+  "complyloop-label-adjacent": "label-adjacent",
+  "complyloop-hover-content": "hover-content",
+  "complyloop-both-colors": "both-colors",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {

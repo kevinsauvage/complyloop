@@ -9,6 +9,16 @@ describe("custom runtime axe mappings", () => {
     expect(checkIdForAxeRule("complyloop-focus-not-obscured")).toBe(
       "focus-not-obscured",
     );
+    expect(checkIdForAxeRule("complyloop-reflow")).toBe("reflow");
+    expect(checkIdForAxeRule("complyloop-text-spacing-runtime")).toBe(
+      "text-spacing-runtime",
+    );
+    expect(checkIdForAxeRule("complyloop-non-text-contrast")).toBe(
+      "non-text-contrast",
+    );
+    expect(checkIdForAxeRule("complyloop-label-adjacent")).toBe("label-adjacent");
+    expect(checkIdForAxeRule("complyloop-hover-content")).toBe("hover-content");
+    expect(checkIdForAxeRule("complyloop-both-colors")).toBe("both-colors");
   });
 
   it("builds findings from custom violations", () => {
@@ -17,16 +27,16 @@ describe("custom runtime axe mappings", () => {
         url: "https://app.example/",
         violations: [
           {
-            id: "complyloop-focus-visible",
+            id: "complyloop-reflow",
             impact: "serious",
-            description: "No focus indicator",
-            help: "Keyboard users must see focus",
-            nodes: [{ html: "<button>Go</button>", target: ["button"] }],
+            description: "Horizontal scroll at 320px",
+            help: "Content must reflow",
+            nodes: [{ html: "<div>Wide</div>", target: ["div"] }],
           },
         ],
       },
     ]);
-    expect(findings[0]?.checkId).toBe("focus-visible");
+    expect(findings[0]?.checkId).toBe("reflow");
     expect(findings[0]?.engine).toBe("runtime");
   });
 });

@@ -1,16 +1,12 @@
 import type { Page } from "playwright";
-import type { AxeViolationLike } from "./findings";
+import type { CustomViolation, CustomViolationNode } from "./types";
 
 const MAX_TAB_STEPS = 80;
 
-/**
- * Playwright-driven keyboard checks that axe does not cover.
- * Returns synthetic violations using complyloop-* ids mapped in axe-map.ts.
- */
-export async function runCustomRuntimeChecks(
+export async function focusCustomViolations(
   page: Page,
-): Promise<AxeViolationLike[]> {
-  const violations: AxeViolationLike[] = [];
+): Promise<CustomViolation[]> {
+  const violations: CustomViolation[] = [];
 
   const focusVisibleNodes = await collectFocusVisibleViolations(page);
   if (focusVisibleNodes.length > 0) {
@@ -53,8 +49,8 @@ export async function runCustomRuntimeChecks(
 
 async function collectFocusVisibleViolations(
   page: Page,
-): Promise<Array<{ html: string; target: string[] }>> {
-  const nodes: Array<{ html: string; target: string[] }> = [];
+): Promise<CustomViolationNode[]> {
+  const nodes: CustomViolationNode[] = [];
   const seen = new Set<string>();
 
   for (let step = 0; step < MAX_TAB_STEPS; step++) {
@@ -106,7 +102,7 @@ async function collectFocusVisibleViolations(
 
 async function detectKeyboardTrap(
   page: Page,
-): Promise<{ html: string; target: string[] } | null> {
+): Promise<CustomViolationNode | null> {
   const focusableCount = await page.evaluate(() => {
     const selector =
       'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -142,7 +138,7 @@ async function detectKeyboardTrap(
   if (unique.size > 2) return null;
   if (tail.includes("modal")) return null;
 
-  return page.evaluate(() => {
+  const trap = await page.evaluate(() => {
     function selectorOf(el: Element): string {
       if (el.id) return `#${el.id}`;
       const tag = el.tagName.toLowerCase();
@@ -165,15 +161,15 @@ async function detectKeyboardTrap(
       html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
       selector: selectorOf(el),
     };
-  }).then((trap) =>
-    trap ? { html: trap.html, target: [trap.selector] } : null,
-  );
+  });
+
+  return trap ? { html: trap.html, target: [trap.selector] } : null;
 }
 
 async function collectFocusObscuredViolations(
   page: Page,
-): Promise<Array<{ html: string; target: string[] }>> {
-  const nodes: Array<{ html: string; target: string[] }> = [];
+): Promise<CustomViolationNode[]> {
+  const nodes: CustomViolationNode[] = [];
   const seen = new Set<string>();
 
   for (let step = 0; step < MAX_TAB_STEPS; step++) {

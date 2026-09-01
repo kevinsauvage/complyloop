@@ -44,6 +44,11 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "focus-visible",
   "keyboard-trap",
   "focus-not-obscured",
+  "non-text-contrast",
+  "reflow",
+  "text-spacing-runtime",
+  "hover-content",
+  "label-adjacent",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);

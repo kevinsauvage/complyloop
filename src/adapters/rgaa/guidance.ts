@@ -476,6 +476,48 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       'Put status text in role="status" or role="alert", or add aria-live="polite" on the message container.',
   },
+  "non-text-contrast": {
+    impact:
+      "Low-contrast borders and control chrome are hard to see for low-vision users (WCAG 1.4.11 / RGAA 3.3).",
+    howToFix:
+      "Raise border, icon, and focus-ring contrast to at least 3:1 against the adjacent background.",
+  },
+  reflow: {
+    impact:
+      "Horizontal scrolling at 320px forces zoomed and mobile users to pan sideways to read content (WCAG 1.4.10 / RGAA 10.11).",
+    howToFix:
+      "Use responsive layout, flex/grid wrapping, and max-width:100% so content reflows in one column.",
+  },
+  "text-spacing-runtime": {
+    impact:
+      "When users apply WCAG text-spacing overrides, content is clipped or hidden (WCAG 1.4.12 / RGAA 10.12).",
+    howToFix:
+      "Remove fixed heights and overflow:hidden on text containers; allow line-height and spacing to grow.",
+  },
+  "hover-content": {
+    impact:
+      "Supplementary content shown only on hover cannot be reached or dismissed by keyboard users (WCAG 1.4.13).",
+    howToFix:
+      "Make help content persistent, dismissable, and reachable via focus; do not rely on hover-only tooltips.",
+  },
+  "label-adjacent": {
+    impact:
+      "A distant label forces sighted users to hunt for which field it names (WCAG 3.3.2 / RGAA 11.4).",
+    howToFix:
+      "Place the <label> immediately before or above its control, or wrap the input inside the label.",
+  },
+  "both-colors": {
+    impact:
+      "Setting only color or only background breaks when users apply their own stylesheet (WCAG 1.4.3 / RGAA 10.5).",
+    howToFix:
+      "Declare both color and background-color together on text containers.",
+  },
+  "redundant-entry": {
+    impact:
+      "Re-asking for email, name, or address in the same flow wastes time and blocks users with cognitive disabilities (WCAG 3.3.7).",
+    howToFix:
+      "Reuse prior values with hidden fields, session state, or autocomplete instead of duplicate inputs.",
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {

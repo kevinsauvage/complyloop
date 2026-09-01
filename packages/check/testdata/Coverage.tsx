@@ -58,6 +58,9 @@ export function Coverage() {
       <input type="password" autoComplete="off" aria-label="Password" />
       <div draggable onDragStart={() => {}} />
       <input aria-invalid="true" aria-label="Email" />
+      <p style={{ color: "red" }}>Solo color</p>
+      <input type="email" name="email" autoComplete="email" aria-label="Email" />
+      <input type="email" name="email" autoComplete="email" aria-label="Email again" />
     </div>
   );
 }

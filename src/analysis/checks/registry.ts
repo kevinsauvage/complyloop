@@ -55,6 +55,8 @@ import { outlineNoneCheck } from "./outline-none";
 import { statusLiveCheck } from "./status-live";
 import { accessibleAuthCheck } from "./accessible-auth";
 import { draggingCheck } from "./dragging";
+import { bothColorsCheck } from "./both-colors";
+import { redundantEntryCheck } from "./redundant-entry";
 import type { AccessibilityCheck } from "../types";
 
 export const allChecks: AccessibilityCheck[] = [
@@ -115,4 +117,6 @@ export const allChecks: AccessibilityCheck[] = [
   statusLiveCheck,
   accessibleAuthCheck,
   draggingCheck,
+  bothColorsCheck,
+  redundantEntryCheck,
 ];
