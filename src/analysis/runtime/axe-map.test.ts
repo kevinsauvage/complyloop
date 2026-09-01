@@ -12,6 +12,7 @@ describe("axe-map", () => {
     expect(checkIdForAxeRule("link-in-text-block")).toBe("use-of-color");
     expect(checkIdForAxeRule("aria-dialog-name")).toBe("dialog-name");
     expect(checkIdForAxeRule("table-fake-caption")).toBe("table-caption");
+    expect(checkIdForAxeRule("server-side-image-map")).toBe("img-alt");
   });
 
   it("ignores unmapped axe rules", () => {

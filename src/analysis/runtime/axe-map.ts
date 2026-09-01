@@ -12,6 +12,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "object-alt": "img-alt",
   "role-img-alt": "img-alt",
   "area-alt": "img-alt",
+  "server-side-image-map": "img-alt",
 
   // Names
   "button-name": "button-name",
