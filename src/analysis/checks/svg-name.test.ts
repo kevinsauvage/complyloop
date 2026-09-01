@@ -23,6 +23,18 @@ describe("svg-name", () => {
           );`,
         ),
       ),
+    ).toHaveLength(1);
+    expect(
+      svgNameCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <svg role="img" viewBox="0 0 10 10" aria-label="Chart">
+              <circle r="4" />
+            </svg>
+          );`,
+        ),
+      ),
     ).toHaveLength(0);
     expect(
       svgNameCheck.run(

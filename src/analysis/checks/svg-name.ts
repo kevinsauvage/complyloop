@@ -1,4 +1,4 @@
-import { isAriaHidden, isPresentationRole } from "../a11y-aria";
+import { explicitRoles, isAriaHidden, isPresentationRole } from "../a11y-aria";
 import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives";
 import {
   hasTextContent,
@@ -29,8 +29,21 @@ export const svgNameCheck: AccessibilityCheck = {
       if (isPropSpreadingHost(node)) return;
       if (isAriaHidden(node) || isPresentationRole(node)) return;
       if (isInsideNamingHost(node)) return;
-      if (hasAriaName(node)) return;
-      if (hasTitleChild(node)) return;
+      const informative = hasAriaName(node) || hasTitleChild(node);
+      if (!informative) {
+        findings.push({
+          checkId: "svg-name",
+          kind: "violation",
+          severity: "serious",
+          confidence: "high",
+          reason:
+            "Standalone <svg> has no accessible name (title, aria-label, or aria-labelledby) and is not marked decorative.",
+          location: locationOf(source, node),
+          fix: null,
+        });
+        return;
+      }
+      if (explicitRoles(node).includes("img")) return;
 
       findings.push({
         checkId: "svg-name",
@@ -38,7 +51,7 @@ export const svgNameCheck: AccessibilityCheck = {
         severity: "serious",
         confidence: "high",
         reason:
-          "Standalone <svg> has no accessible name (title, aria-label, or aria-labelledby) and is not marked decorative.",
+          'Standalone <svg> that conveys information must set role="img" (RGAA 1.1.5).',
         location: locationOf(source, node),
         fix: null,
       });
