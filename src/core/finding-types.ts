@@ -68,8 +68,15 @@ export interface DomLocation {
   snippet: string;
 }
 
-/** Where a finding was observed — source AST or rendered DOM. */
-export type FindingLocation = SourceLocation | DomLocation;
+/** Cross-page observation from a multi-route runtime audit. */
+export interface SiteLocation {
+  kind: "site";
+  pages: string[];
+  detail: string;
+}
+
+/** Where a finding was observed — source AST, rendered DOM, or site-wide. */
+export type FindingLocation = SourceLocation | DomLocation | SiteLocation;
 
 /** Which analysis engines contributed to an assessment. */
 export type AssessmentEngine = "ast" | "runtime";
@@ -79,6 +86,8 @@ export interface AssessmentEngines {
   runtime: boolean;
   /** Pages successfully audited when runtime ran. */
   runtimePagesScanned?: number;
+  /** Site-level checks ran (requires at least two configured routes). */
+  siteLevelChecksRan?: boolean;
   /** Non-fatal runtime errors (e.g. unreachable URL). */
   runtimeError?: string;
 }

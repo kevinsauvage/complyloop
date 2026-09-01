@@ -164,6 +164,7 @@ export async function runAssessment(
     ast: true,
     runtime: runtimeRan,
     runtimePagesScanned: runtimeResult.pagesScanned,
+    siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
     runtimeError: runtimeResult.error,
   };
 
@@ -247,6 +248,8 @@ export async function runAssessment(
     assessmentId,
     changeContext,
     runtimeRan,
+    runtimePagesScanned: runtimeResult.pagesScanned,
+    siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
   });
 
   const summary: Record<RequirementStatus, number> = {

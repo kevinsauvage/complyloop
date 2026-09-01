@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Confidence } from "@/core/statuses";
 import type { Control } from "@/core/project-types";
 import type { Finding, RemediationSuggestion } from "@/core/finding-types";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef, locationSnippet } from "@/core/location";
 import { aiExplanationAvailable } from "./explainer";
 import { AI_MODEL } from "./model";
 import { aiWarn } from "./warn";
@@ -40,7 +40,7 @@ export async function generateAiRemediation(
         `Requirement: ${control.code} / ${control.secondaryCode} — ${control.title}.`,
         `Finding: ${finding.reason}`,
         `Location: ${formatLocationRef(finding.location)}`,
-        `Current snippet: ${finding.location.snippet}`,
+        `Current snippet: ${locationSnippet(finding.location)}`,
         finding.engine === "runtime"
           ? "Runtime finding — propose a call-site fix, not a generic aria-label on a shared Input/Button primitive."
           : "",

@@ -2,6 +2,9 @@ import type { Confidence, Severity } from "@/core/statuses";
 import type { RawFinding } from "../types";
 import { checkIdForAxeRule } from "./axe-map";
 
+import type { RuntimePageSnapshot } from "./site-level/types";
+import { runSiteLevelChecks } from "./site-level/checks";
+
 interface AxeNodeLike {
   html: string;
   target: string[];
@@ -19,11 +22,13 @@ export interface AxeViolationLike {
 export interface RuntimeScanPageResult {
   url: string;
   violations: AxeViolationLike[];
+  snapshot?: RuntimePageSnapshot;
 }
 
 export interface RuntimeScanResult {
   findings: RawFinding[];
   pagesScanned: number;
+  siteLevelChecksRan?: boolean;
   error?: string;
 }
 
@@ -84,6 +89,15 @@ export function findingsFromAxePages(
     }
   }
   return findings;
+}
+
+export function siteLevelFindingsFromPages(
+  pages: ReadonlyArray<RuntimeScanPageResult>,
+): RawFinding[] {
+  const snapshots = pages
+    .map((page) => page.snapshot)
+    .filter((snapshot): snapshot is RuntimePageSnapshot => snapshot !== undefined);
+  return runSiteLevelChecks(snapshots);
 }
 
 export function runtimeRoutesFor(project: {

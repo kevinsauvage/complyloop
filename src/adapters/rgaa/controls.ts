@@ -32,7 +32,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-link-name",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 6.1",
+    code: "RGAA 6.2",
     secondaryCode: "WCAG 2.4.4",
     title: "Links have an accessible name",
     description:
@@ -50,6 +50,17 @@ export const rgaaControls: Control[] = [
       "The document's default human language is programmatically determinable via the lang attribute.",
     checkId: "html-lang",
     complianceWeight: 1.5,
+  },
+  {
+    id: "ctl-html-lang-valid",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 8.4",
+    secondaryCode: "WCAG 3.1.1",
+    title: "The page language code is valid",
+    description:
+      "The lang attribute on <html> uses a valid BCP 47 language tag.",
+    checkId: "html-lang-valid",
+    complianceWeight: 1.2,
   },
   {
     id: "ctl-focus-order",
@@ -109,7 +120,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-autoplay-media",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 4.1",
+    code: "RGAA 4.10",
     secondaryCode: "WCAG 1.4.2",
     title: "Media does not autoplay",
     description:
@@ -153,7 +164,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-aria-role",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 8.6",
+    code: "RGAA 7.1",
     secondaryCode: "WCAG 4.1.2",
     title: "ARIA roles are valid",
     description:
@@ -164,7 +175,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-aria-props",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 8.7",
+    code: "RGAA 7.1",
     secondaryCode: "WCAG 4.1.2",
     title: "ARIA attributes are valid",
     description:
@@ -175,7 +186,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-aria-required-attr",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 8.8",
+    code: "RGAA 7.1",
     secondaryCode: "WCAG 4.1.2",
     title: "Roles include required ARIA properties",
     description:
@@ -263,7 +274,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-target-size",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 11.11",
+    code: "WCAG 2.5.8",
     secondaryCode: "WCAG 2.5.8",
     title: "Pointer targets are large enough",
     description:
@@ -329,7 +340,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-content-region",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 9.2.1",
+    code: "RGAA 9.2",
     secondaryCode: "WCAG 1.3.1",
     title: "Page content sits inside landmarks",
     description:
@@ -384,7 +395,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-no-auto-refresh",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 13.2",
+    code: "RGAA 13.1",
     secondaryCode: "WCAG 2.2.1",
     title: "No unexpected time limits or redirects",
     description:
@@ -417,7 +428,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-pointer-gesture",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 11.6",
+    code: "RGAA 13.10",
     secondaryCode: "WCAG 2.5.1",
     title: "Pointer gestures have a keyboard alternative",
     description:
@@ -428,7 +439,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-pointer-cancellation",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 11.7",
+    code: "RGAA 13.11",
     secondaryCode: "WCAG 2.5.2",
     title: "Pointer actions are abortable",
     description:
@@ -450,7 +461,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-focus-context-change",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 10.9",
+    code: "RGAA 7.4",
     secondaryCode: "WCAG 3.2.1",
     title: "Focus does not change context",
     description:
@@ -461,7 +472,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-input-context-change",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 10.10",
+    code: "RGAA 7.4",
     secondaryCode: "WCAG 3.2.2",
     title: "Input does not change context",
     description:
@@ -472,7 +483,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-sensory-characteristics",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 10.3",
+    code: "RGAA 10.9",
     secondaryCode: "WCAG 1.3.3",
     title: "Instructions do not rely on sensory characteristics",
     description:
@@ -483,7 +494,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-image-of-text",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 10.1",
+    code: "RGAA 1.8",
     secondaryCode: "WCAG 1.4.5",
     title: "Text is not presented as an image",
     description:
@@ -494,7 +505,7 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-error-suggestion",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 11.12",
+    code: "RGAA 11.11",
     secondaryCode: "WCAG 3.3.3",
     title: "Errors suggest a correction",
     description:
@@ -522,6 +533,17 @@ export const rgaaControls: Control[] = [
     description:
       "Audio-only media exposes a transcript, captions, or descriptions track equivalent to the spoken content.",
     checkId: "audio-caption",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-media-controls-present",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 4.11",
+    secondaryCode: "WCAG 2.1.1",
+    title: "Temporal media is operable from the keyboard",
+    description:
+      "Video and audio expose native controls or a custom player with keyboard support.",
+    checkId: "media-controls-present",
     complianceWeight: 1.3,
   },
   {
@@ -690,6 +712,17 @@ export const rgaaControls: Control[] = [
     complianceWeight: 1.2,
   },
   {
+    id: "ctl-table-summary",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 5.1",
+    secondaryCode: "WCAG 1.3.1",
+    title: "Complex data tables have a summary",
+    description:
+      "Complex tables expose a summary or aria-describedby so users understand structure before reading cells.",
+    checkId: "table-summary",
+    complianceWeight: 1.2,
+  },
+  {
     id: "ctl-th-scope",
     frameworkId: rgaaFramework.id,
     code: "RGAA 5.7",
@@ -732,6 +765,17 @@ export const rgaaControls: Control[] = [
       "When a figure has caption text, it lives in figcaption so the association is determinable. Caption quality is a separate human control.",
     checkId: "figure-caption",
     complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-image-detailed-description",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 1.6",
+    secondaryCode: "WCAG 1.1.1",
+    title: "Complex images expose a detailed description",
+    description:
+      "Likely complex images link to a long description via aria-describedby or aria-details. Pertinence is human-reviewed.",
+    checkId: "image-detailed-description",
+    complianceWeight: 1.1,
   },
   {
     id: "ctl-redundant-role",
@@ -954,6 +998,94 @@ export const rgaaControls: Control[] = [
     complianceWeight: 1.2,
   },
   {
+    id: "ctl-css-disabled-content",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 10.2",
+    secondaryCode: "WCAG 1.3.1",
+    title: "Essential content is not CSS-only",
+    description:
+      "Information is available when author stylesheets are disabled; text is not conveyed only through CSS content or background images.",
+    checkId: "css-disabled-content",
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-media-keyboard",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 4.11",
+    secondaryCode: "WCAG 2.1.1",
+    title: "Rendered media controls respond to keyboard",
+    description:
+      "Native video and audio controls on the rendered page can be focused and operated with the keyboard.",
+    checkId: "media-keyboard",
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-multiple-ways",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 12.1",
+    secondaryCode: "WCAG 2.4.5",
+    title: "Multiple ways to find pages",
+    description:
+      "Users can reach pages through at least two mechanisms such as navigation, search, or a sitemap.",
+    checkId: "multiple-ways",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-consistent-nav",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 12.2",
+    secondaryCode: "WCAG 3.2.3",
+    title: "Navigation is consistent across pages",
+    description:
+      "Primary navigation appears in the same order and relative position on each configured preview route.",
+    checkId: "consistent-nav",
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-consistent-labels",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 11.3",
+    secondaryCode: "WCAG 3.2.4",
+    title: "Same-purpose fields use consistent labels",
+    description:
+      "Fields with the same name or autocomplete token use the same accessible label on every configured route.",
+    checkId: "consistent-labels",
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-sitemap-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 12.3",
+    secondaryCode: "WCAG 2.4.5",
+    title: "Sitemap entries are pertinent",
+    description:
+      "When a sitemap is provided, its entries accurately describe the pages they link to.",
+    checkId: null,
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-search-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 12.4",
+    secondaryCode: "WCAG 2.4.5",
+    title: "Search results are pertinent",
+    description:
+      "Site search returns relevant pages for typical queries.",
+    checkId: null,
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-nav-mechanisms-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 12.5",
+    secondaryCode: "WCAG 2.4.5",
+    title: "Navigation mechanisms are pertinent",
+    description:
+      "Menus, search, and sitemap links lead to the pages users expect.",
+    checkId: null,
+    complianceWeight: 1.1,
+  },
+  {
     id: "ctl-consistent-help",
     frameworkId: rgaaFramework.id,
     code: "WCAG 3.2.6",
@@ -963,6 +1095,193 @@ export const rgaaControls: Control[] = [
       "Contact, help, and support entry points appear in the same relative order on every page.",
     checkId: null,
     complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-captcha-alt",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 1.4",
+    secondaryCode: "WCAG 1.1.1",
+    title: "CAPTCHA alternatives identify their function",
+    description:
+      "Test or CAPTCHA images expose an alternative that identifies their purpose.",
+    checkId: null,
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-image-description-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 1.7",
+    secondaryCode: "WCAG 1.1.1",
+    title: "Detailed image descriptions are pertinent",
+    description:
+      "Long descriptions for complex images are accurate and complete.",
+    checkId: null,
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-transcript-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 4.2",
+    secondaryCode: "WCAG 1.2.1",
+    title: "Transcripts and audio descriptions are pertinent",
+    description:
+      "Text alternatives for audio and video match the media content.",
+    checkId: null,
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-audio-description",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 4.5",
+    secondaryCode: "WCAG 1.2.5",
+    title: "Synchronized audio description is provided when needed",
+    description:
+      "Pre-recorded video with visual information not in the soundtrack includes audio description.",
+    checkId: null,
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-media-identification",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 4.7",
+    secondaryCode: "WCAG 1.1.1",
+    title: "Media is identified and has alternatives",
+    description:
+      "Non-temporal media is identified and has a text alternative when needed.",
+    checkId: null,
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-table-summary-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 5.2",
+    secondaryCode: "WCAG 1.3.1",
+    title: "Table summaries are pertinent",
+    description:
+      "Complex table summaries accurately describe structure and relationships.",
+    checkId: null,
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-layout-table-linearization",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 5.3",
+    secondaryCode: "WCAG 1.3.2",
+    title: "Layout tables linearize sensibly",
+    description:
+      "When CSS is disabled, layout tables still produce a meaningful reading order.",
+    checkId: null,
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-table-title-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 5.5",
+    secondaryCode: "WCAG 1.3.1",
+    title: "Table titles are pertinent",
+    description:
+      "Table captions and titles describe the table content accurately.",
+    checkId: null,
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-script-alternative-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 7.2",
+    secondaryCode: "WCAG 4.1.2",
+    title: "Script alternatives are pertinent",
+    description:
+      "Alternatives to scripted content convey the same information.",
+    checkId: null,
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-hidden-content-ignored",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 10.8",
+    secondaryCode: "WCAG 4.1.2",
+    title: "Hidden content is meant to be ignored",
+    description:
+      "Content hidden from sighted users is also hidden from assistive technology.",
+    checkId: null,
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-sensory-rule-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 10.10",
+    secondaryCode: "WCAG 1.3.3",
+    title: "Sensory instructions are implemented pertinently",
+    description:
+      "Instructions that avoid sensory-only cues are accurate and sufficient.",
+    checkId: null,
+    complianceWeight: 1.0,
+  },
+  {
+    id: "ctl-legend-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 11.7",
+    secondaryCode: "WCAG 1.3.1",
+    title: "Fieldset legends are pertinent",
+    description:
+      "Each fieldset legend describes the group of controls it labels.",
+    checkId: null,
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-button-name-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 11.9",
+    secondaryCode: "WCAG 4.1.2",
+    title: "Button names are pertinent",
+    description:
+      "Each button name describes the action it performs in context.",
+    checkId: null,
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-validation-relevant",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 11.10",
+    secondaryCode: "WCAG 3.3.1",
+    title: "Validation is used pertinently",
+    description:
+      "Client-side validation rules match business requirements and help users recover.",
+    checkId: null,
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-office-docs-alt",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 13.3",
+    secondaryCode: "WCAG 1.1.1",
+    title: "Office documents have accessible alternatives",
+    description:
+      "Downloadable office documents have an accessible HTML or text alternative.",
+    checkId: null,
+    complianceWeight: 1.1,
+  },
+  {
+    id: "ctl-flash-threshold",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 13.7",
+    secondaryCode: "WCAG 2.3.1",
+    title: "Flashes are below threshold",
+    description:
+      "Content does not flash more than three times per second above luminance thresholds.",
+    checkId: null,
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-media-keyboard-static",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 4.12",
+    secondaryCode: "WCAG 2.1.1",
+    title: "Non-temporal media is keyboard operable",
+    description:
+      "Embedded documents and objects can be operated from the keyboard.",
+    checkId: null,
+    complianceWeight: 1.1,
   },
   {
     id: "ctl-img-alt-relevant",

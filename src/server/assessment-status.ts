@@ -1,5 +1,5 @@
 import { presetById } from "@/adapters/registry";
-import { isRuntimeOnlyCheck } from "@/analysis/check-authority";
+import { isRuntimeOnlyCheck, isSiteLevelCheck } from "@/analysis/check-authority";
 import { deriveRequirementStatus } from "@/core/requirement-status";
 import type { Finding } from "@/core/finding-types";
 import type { RequirementStatus } from "@/core/statuses";
@@ -113,15 +113,24 @@ export interface RefreshRequirementStatusesOptions {
   changeContext?: string;
   /** When false, runtime-only checks with no findings stay unable_to_verify. */
   runtimeRan?: boolean;
+  runtimePagesScanned?: number;
+  siteLevelChecksRan?: boolean;
 }
 
 function statusFromFindings(
   checkId: string | null,
   openFindings: ReadonlyArray<Pick<Finding, "kind">>,
   runtimeRan: boolean | undefined,
+  runtimePagesScanned: number | undefined,
+  siteLevelChecksRan: boolean | undefined,
 ): RequirementStatus {
   if (openFindings.length > 0) {
     return deriveRequirementStatus(openFindings);
+  }
+  if (checkId !== null && isSiteLevelCheck(checkId)) {
+    if (runtimeRan !== true || siteLevelChecksRan !== true) {
+      return "unable_to_verify";
+    }
   }
   if (checkId !== null && isRuntimeOnlyCheck(checkId) && runtimeRan === false) {
     return "unable_to_verify";
@@ -139,7 +148,8 @@ export function refreshRequirementStatuses(
   projectId: string,
   options: RefreshRequirementStatusesOptions = {},
 ): void {
-  const { assessmentId, changeContext, runtimeRan } = options;
+  const { assessmentId, changeContext, runtimeRan, runtimePagesScanned, siteLevelChecksRan } =
+    options;
   const now = new Date().toISOString();
   const project = db.projects.find((candidate) => candidate.id === projectId);
   const scoped = project ? controlsInScope(db, project) : db.controls;
@@ -192,6 +202,8 @@ export function refreshRequirementStatuses(
       control.checkId,
       openFindings,
       runtimeRan,
+      runtimePagesScanned,
+      siteLevelChecksRan,
     );
 
     if (!requirement) {

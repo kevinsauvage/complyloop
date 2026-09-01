@@ -26,6 +26,12 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       'Add a lang attribute to the <html> element matching the page’s main language, e.g. lang="fr" or lang="en".',
   },
+  "html-lang-valid": {
+    impact:
+      "An invalid lang code makes screen readers fall back to the wrong pronunciation rules.",
+    howToFix:
+      'Use a valid BCP 47 tag on <html>, e.g. lang="en" or lang="fr-CA".',
+  },
   "positive-tabindex": {
     impact:
       "A positive tabindex hijacks the tab order: keyboard users jump to this element before everything else, then land back in an unpredictable position.",
@@ -374,6 +380,12 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Add a <caption> as the first child, or aria-labelledby pointing at a visible heading.",
   },
+  "table-summary": {
+    impact:
+      "Complex tables without a summary force screen reader users to explore every cell before understanding layout (WCAG 1.3.1 / RGAA 5.1).",
+    howToFix:
+      "Add a summary attribute, aria-describedby, or aria-details pointing at text that explains row/column groupings.",
+  },
   "th-scope": {
     impact:
       "Without scope or headers/id, screen readers cannot tell whether a header labels a row or a column (WCAG 1.3.1 / RGAA 5.7).",
@@ -397,6 +409,12 @@ const guidance: Record<CheckId, CheckGuidance> = {
       "Caption text next to an image is not associated, so assistive technologies announce the image without its legend (WCAG 1.1.1 / RGAA 1.9).",
     howToFix:
       "Put the caption in <figcaption> inside the same <figure> as the image.",
+  },
+  "image-detailed-description": {
+    impact:
+      "Charts and diagrams may need more than alt text; without a linked long description, blind users miss detail (WCAG 1.1.1 / RGAA 1.6).",
+    howToFix:
+      "Add aria-describedby or aria-details pointing at visible text that explains the image in depth.",
   },
   "redundant-role": {
     impact:
@@ -517,6 +535,42 @@ const guidance: Record<CheckId, CheckGuidance> = {
       "Re-asking for email, name, or address in the same flow wastes time and blocks users with cognitive disabilities (WCAG 3.3.7).",
     howToFix:
       "Reuse prior values with hidden fields, session state, or autocomplete instead of duplicate inputs.",
+  },
+  "media-controls-present": {
+    impact:
+      "Media without controls cannot be paused or played by keyboard-only users (WCAG 2.1.1 / RGAA 4.11).",
+    howToFix:
+      "Add the controls attribute on <video>/<audio>, or build a custom player with keyboard handlers.",
+  },
+  "css-disabled-content": {
+    impact:
+      "Text conveyed only through CSS content or background images is invisible when stylesheets are disabled (WCAG 1.3.1 / RGAA 10.2).",
+    howToFix:
+      "Put essential text in HTML, not in ::before/::after content or image-only backgrounds.",
+  },
+  "media-keyboard": {
+    impact:
+      "Native media controls that do not respond to keyboard cannot be operated without a pointer (WCAG 2.1.1 / RGAA 4.11).",
+    howToFix:
+      "Ensure controls are focusable and respond to Space/Enter; test with keyboard only.",
+  },
+  "multiple-ways": {
+    impact:
+      "Users who cannot use the main navigation have no alternate path to find pages (WCAG 2.4.5 / RGAA 12.1).",
+    howToFix:
+      "Provide at least two mechanisms such as navigation, search, and a sitemap.",
+  },
+  "consistent-nav": {
+    impact:
+      "Navigation that moves between pages disorients users who rely on muscle memory (WCAG 3.2.3 / RGAA 12.2).",
+    howToFix:
+      "Keep primary navigation links in the same order and relative position on every page.",
+  },
+  "consistent-labels": {
+    impact:
+      "The same field purpose labeled differently on each page confuses voice-control and screen reader users (WCAG 3.2.4 / RGAA 11.3).",
+    howToFix:
+      "Use the same visible and accessible label for fields with the same name or autocomplete token.",
   },
 };
 

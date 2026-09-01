@@ -8,10 +8,12 @@ import {
   findingsFromAxePages,
   joinRuntimeUrl,
   runtimeRoutesFor,
+  siteLevelFindingsFromPages,
   type AxeViolationLike,
   type RuntimeScanPageResult,
   type RuntimeScanResult,
 } from "./findings";
+import { capturePageSnapshot } from "./site-level/snapshot";
 import {
   allowRuntimeNavigation,
   assertSafeRuntimeUrl,
@@ -158,6 +160,7 @@ function createPlaywrightAxeScanner(options?: {
           }
           const results = await runAxeOnPage(page);
           const customViolations = await runCustomRuntimeChecks(page);
+          const snapshot = await capturePageSnapshot(page, url);
           const hasDoctype = await page.evaluate(
             () => document.doctype !== null,
           );
@@ -183,6 +186,7 @@ function createPlaywrightAxeScanner(options?: {
           pages.push({
             url,
             violations,
+            snapshot,
           });
         } finally {
           await page.close();
@@ -256,9 +260,15 @@ export async function scanRuntime(
       );
     }
     const pages = await scanner(urls);
+    const siteLevelChecksRan = pages.length >= 2;
+    const findings = [
+      ...findingsFromAxePages(pages),
+      ...(siteLevelChecksRan ? siteLevelFindingsFromPages(pages) : []),
+    ];
     return {
-      findings: findingsFromAxePages(pages),
+      findings,
       pagesScanned: pages.length,
+      siteLevelChecksRan,
     };
   } catch (error) {
     return {

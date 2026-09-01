@@ -1,6 +1,8 @@
 import type { Page } from "playwright";
 import type { AxeViolationLike } from "../findings";
 import { bothColorsRuntimeViolation } from "./both-colors-runtime";
+import { cssDisabledContentViolation } from "./css-disabled-content";
+import { mediaKeyboardViolation } from "./media-keyboard";
 import { focusCustomViolations } from "./focus";
 import { hoverContentViolation } from "./hover-content";
 import { labelAdjacentViolation } from "./label-adjacent";
@@ -36,6 +38,8 @@ export async function runCustomRuntimeChecks(
     labelAdjacentViolation(page),
     hoverContentViolation(page),
     bothColorsRuntimeViolation(page),
+    cssDisabledContentViolation(page),
+    mediaKeyboardViolation(page),
   ]);
 
   const violations: CustomViolation[] = [

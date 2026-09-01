@@ -88,7 +88,16 @@ export type CheckId =
   | "hover-content"
   | "label-adjacent"
   | "both-colors"
-  | "redundant-entry";
+  | "redundant-entry"
+  | "html-lang-valid"
+  | "table-summary"
+  | "image-detailed-description"
+  | "media-controls-present"
+  | "css-disabled-content"
+  | "media-keyboard"
+  | "multiple-ways"
+  | "consistent-nav"
+  | "consistent-labels";
 
 export interface RawFinding {
   checkId: CheckId;

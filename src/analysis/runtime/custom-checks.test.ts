@@ -19,6 +19,11 @@ describe("custom runtime axe mappings", () => {
     expect(checkIdForAxeRule("complyloop-label-adjacent")).toBe("label-adjacent");
     expect(checkIdForAxeRule("complyloop-hover-content")).toBe("hover-content");
     expect(checkIdForAxeRule("complyloop-both-colors")).toBe("both-colors");
+    expect(checkIdForAxeRule("complyloop-css-disabled-content")).toBe(
+      "css-disabled-content",
+    );
+    expect(checkIdForAxeRule("complyloop-media-keyboard")).toBe("media-keyboard");
+    expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });
 
   it("builds findings from custom violations", () => {

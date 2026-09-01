@@ -255,3 +255,69 @@ describe("refreshRequirementStatuses runtime-only", () => {
     ).toBe("passed");
   });
 });
+
+describe("refreshRequirementStatuses site-level", () => {
+  it("does not pass site-level checks when fewer than two pages were audited", () => {
+    const db = emptyDb();
+    db.frameworks.push(rgaaFramework);
+    db.controls.push({
+      id: "ctl-multiple-ways",
+      frameworkId: rgaaFramework.id,
+      code: "RGAA 12.1",
+      secondaryCode: "WCAG 2.4.5",
+      title: "Multiple ways to find pages",
+      description: "Navigation mechanisms.",
+      checkId: "multiple-ways",
+    });
+    db.projects.push({
+      id: "p1",
+      name: "App",
+      source: "github",
+      orgId: "org-test",
+      createdAt: new Date().toISOString(),
+    });
+
+    refreshRequirementStatuses(db, "p1", {
+      runtimeRan: true,
+      runtimePagesScanned: 1,
+      siteLevelChecksRan: false,
+    });
+
+    expect(
+      db.requirements.find((requirement) => requirement.controlId === "ctl-multiple-ways")
+        ?.status,
+    ).toBe("unable_to_verify");
+  });
+
+  it("passes site-level checks when two pages were audited and there are no findings", () => {
+    const db = emptyDb();
+    db.frameworks.push(rgaaFramework);
+    db.controls.push({
+      id: "ctl-multiple-ways",
+      frameworkId: rgaaFramework.id,
+      code: "RGAA 12.1",
+      secondaryCode: "WCAG 2.4.5",
+      title: "Multiple ways to find pages",
+      description: "Navigation mechanisms.",
+      checkId: "multiple-ways",
+    });
+    db.projects.push({
+      id: "p1",
+      name: "App",
+      source: "github",
+      orgId: "org-test",
+      createdAt: new Date().toISOString(),
+    });
+
+    refreshRequirementStatuses(db, "p1", {
+      runtimeRan: true,
+      runtimePagesScanned: 2,
+      siteLevelChecksRan: true,
+    });
+
+    expect(
+      db.requirements.find((requirement) => requirement.controlId === "ctl-multiple-ways")
+        ?.status,
+    ).toBe("passed");
+  });
+});

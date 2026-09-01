@@ -3,7 +3,7 @@ import { describeFix, previewFixedLine } from "@/analysis/fixes";
 import { scanFile } from "@/analysis/scan";
 import type { RawFinding } from "@/analysis/types";
 import { resolveInside } from "@/analysis/workspace-path";
-import { isDomLocation, isSourceLocation } from "@/core/location";
+import { isDomLocation, isSiteLocation, isSourceLocation } from "@/core/location";
 import type { Finding, FindingLocation, ProposedFix, RemediationSuggestion } from "@/core/finding-types";
 
 /**
@@ -27,6 +27,13 @@ export function sameInstance(
     return (
       left.url === right.url &&
       (left.selector === right.selector || left.snippet === right.snippet)
+    );
+  }
+  if (isSiteLocation(left) && isSiteLocation(right)) {
+    return (
+      left.detail === right.detail &&
+      left.pages.length === right.pages.length &&
+      left.pages.every((page, index) => page === right.pages[index])
     );
   }
   return false;

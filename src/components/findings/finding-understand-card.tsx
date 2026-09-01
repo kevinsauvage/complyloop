@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { Explanation, Finding } from "@/core/finding-types";
-import { formatLocationRef, isDomLocation } from "@/core/location";
+import { formatLocationRef, isDomLocation, locationSnippet } from "@/core/location";
 import { generateAiExplanationAction } from "@/server/actions/remediation-ai";
 import { MapPin } from "lucide-react";
 
@@ -60,7 +60,7 @@ export function FindingUnderstandCard({
             form/call site that renders this control.
           </p>
         ) : null}
-        <CodeBlock>{finding.location.snippet}</CodeBlock>
+        <CodeBlock>{locationSnippet(finding.location)}</CodeBlock>
         {baseline ? (
           <details>
             <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">

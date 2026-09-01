@@ -49,10 +49,23 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "text-spacing-runtime",
   "hover-content",
   "label-adjacent",
+  "html-lang-valid",
+  "css-disabled-content",
+  "media-keyboard",
+  "multiple-ways",
+  "consistent-nav",
+  "consistent-labels",
+] as const satisfies readonly CheckId[];
+
+const SITE_LEVEL_CHECK_IDS = [
+  "multiple-ways",
+  "consistent-nav",
+  "consistent-labels",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);
 const RUNTIME_ONLY = new Set<string>(RUNTIME_ONLY_CHECK_IDS);
+const SITE_LEVEL = new Set<string>(SITE_LEVEL_CHECK_IDS);
 
 export function isCompositionSensitiveCheck(checkId: string): boolean {
   return COMPOSITION_SENSITIVE.has(checkId);
@@ -60,6 +73,10 @@ export function isCompositionSensitiveCheck(checkId: string): boolean {
 
 export function isRuntimeOnlyCheck(checkId: string): boolean {
   return RUNTIME_ONLY.has(checkId);
+}
+
+export function isSiteLevelCheck(checkId: string): boolean {
+  return SITE_LEVEL.has(checkId);
 }
 
 /** Runtime findings for these ids must not be resolved when axe did not run. */

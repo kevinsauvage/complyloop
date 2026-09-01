@@ -1,6 +1,6 @@
 import type { AssessmentEngine, Finding } from "./finding-types";
 import type { Control } from "./project-types";
-import { formatLocationRef } from "./location";
+import { formatLocationRef, locationPathOrUrl } from "./location";
 import { parsePageParam } from "./pagination";
 import { prioritizeFindings } from "./prioritization";
 import { severityRank } from "./labels";
@@ -205,10 +205,7 @@ export function filterFindings(
     );
     result = result.filter((finding) => {
       const control = controlById.get(finding.controlId);
-      const path =
-        finding.location.kind === "source"
-          ? finding.location.filePath
-          : finding.location.url;
+      const path = locationPathOrUrl(finding.location);
       const haystack = [
         control?.code ?? "",
         control?.title ?? "",

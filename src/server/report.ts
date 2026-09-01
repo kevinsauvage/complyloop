@@ -3,7 +3,7 @@ import type { Control, Framework, Project, Requirement } from "@/core/project-ty
 import type { EvidenceRecord, Finding, Remediation } from "@/core/finding-types";
 import { controlDisplayCodes } from "@/adapters/control-theme";
 import { presetById } from "@/adapters/registry";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef, locationSnippet } from "@/core/location";
 import {
   evidenceKindLabel,
   remediationStatusLabel,
@@ -206,7 +206,7 @@ export function buildEngineeringReportMarkdown(input: ReportInput): string {
       }
       lines.push(``);
       lines.push("```");
-      lines.push(finding.location.snippet);
+      lines.push(locationSnippet(finding.location));
       lines.push("```");
       lines.push(``);
     }

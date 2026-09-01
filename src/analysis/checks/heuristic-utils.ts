@@ -168,6 +168,68 @@ export function descendantTags(element: ts.JsxElement): JsxTagNode[] {
   return tags;
 }
 
+/** True when a data table likely needs a structural summary (RGAA 5.1). */
+export function isComplexDataTable(
+  tableNode: JsxTagNode,
+  options?: { spanExceedsOne?: (node: JsxTagNode) => boolean },
+): boolean {
+  const element = jsxElementOf(tableNode);
+  if (!element) return false;
+
+  const tags = descendantTags(element);
+  const spanExceedsOne =
+    options?.spanExceedsOne ??
+    ((node: JsxTagNode) => {
+      for (const name of ["colSpan", "colspan", "rowSpan", "rowspan"] as const) {
+        const attr = getAttribute(node, name);
+        if (!attr) continue;
+        const value = stringValueOf(attr);
+        if (value !== undefined) {
+          const parsed = Number.parseInt(value, 10);
+          if (Number.isFinite(parsed) && parsed > 1) return true;
+        }
+      }
+      return false;
+    });
+
+  let headerRows = 0;
+  let dataRows = 0;
+  let dataCols = 0;
+  let hasHeadersAttr = false;
+  let theadCount = 0;
+
+  for (const tag of tags) {
+    const name = tagNameOf(tag);
+    if (name === "thead") theadCount += 1;
+    if (name === "th") headerRows += 1;
+    if (name === "td") dataRows += 1;
+    if (getAttribute(tag, "headers")) hasHeadersAttr = true;
+    if (spanExceedsOne(tag)) return true;
+  }
+
+  const rowTags = tags.filter((tag) => {
+    const name = tagNameOf(tag);
+    return name === "tr";
+  });
+  for (const row of rowTags) {
+    const rowElement = jsxElementOf(row);
+    if (!rowElement) continue;
+    const cells = descendantTags(rowElement).filter((tag) => {
+      const name = tagNameOf(tag);
+      return name === "td" || name === "th";
+    });
+    dataCols = Math.max(dataCols, cells.length);
+  }
+
+  if (hasHeadersAttr) return true;
+  if (theadCount > 1) return true;
+  if (headerRows > 1 && dataRows > 0 && dataCols > 3 && rowTags.length > 3) {
+    return true;
+  }
+
+  return false;
+}
+
 const NAMING_HOSTS = new Set(["button", "a", "label", "summary"]);
 
 /** True when the node sits inside a control that typically names its graphic. */

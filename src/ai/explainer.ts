@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Confidence } from "@/core/statuses";
 import type { Control } from "@/core/project-types";
 import type { Explanation, Finding } from "@/core/finding-types";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef, locationSnippet } from "@/core/location";
 import { AI_MODEL } from "./model";
 import { aiWarn } from "./warn";
 
@@ -52,7 +52,7 @@ export async function generateAiExplanation(
         `Requirement: ${control.code} / ${control.secondaryCode} — ${control.title}. ${control.description}`,
         `Automated check result: ${finding.reason}`,
         `Location: ${formatLocationRef(finding.location)}`,
-        `Code: ${finding.location.snippet}`,
+        `Code: ${locationSnippet(finding.location)}`,
         finding.engine === "runtime"
           ? "This finding came from a rendered-page audit — guide the developer to the call site that renders this control, not a shared UI primitive."
           : "",

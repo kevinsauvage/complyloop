@@ -26,7 +26,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
 
   // Language
   "html-has-lang": "html-lang",
-  "html-lang-valid": "html-lang",
+  "html-lang-valid": "html-lang-valid",
   "valid-lang": "lang-parts",
   "html-xml-lang-mismatch": "html-lang",
 
@@ -127,6 +127,8 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-label-adjacent": "label-adjacent",
   "complyloop-hover-content": "hover-content",
   "complyloop-both-colors": "both-colors",
+  "complyloop-css-disabled-content": "css-disabled-content",
+  "complyloop-media-keyboard": "media-keyboard",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {

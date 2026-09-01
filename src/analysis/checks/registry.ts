@@ -57,6 +57,9 @@ import { accessibleAuthCheck } from "./accessible-auth";
 import { draggingCheck } from "./dragging";
 import { bothColorsCheck } from "./both-colors";
 import { redundantEntryCheck } from "./redundant-entry";
+import { tableSummaryCheck } from "./table-summary";
+import { imageDetailedDescriptionCheck } from "./image-detailed-description";
+import { mediaControlsPresentCheck } from "./media-controls-present";
 import type { AccessibilityCheck } from "../types";
 
 export const allChecks: AccessibilityCheck[] = [
@@ -119,4 +122,7 @@ export const allChecks: AccessibilityCheck[] = [
   draggingCheck,
   bothColorsCheck,
   redundantEntryCheck,
+  tableSummaryCheck,
+  imageDetailedDescriptionCheck,
+  mediaControlsPresentCheck,
 ];

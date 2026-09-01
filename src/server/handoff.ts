@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { createTwoFilesPatch } from "diff";
 import { applyFix } from "@/analysis/fixes";
 import { resolveInside } from "@/analysis/workspace-path";
-import { formatLocationRef, isSourceLocation } from "@/core/location";
+import { formatLocationRef, isSourceLocation, locationSnippet } from "@/core/location";
 import type { Control, Project } from "@/core/project-types";
 import type { Finding, ProposedFix, Remediation } from "@/core/finding-types";
 
@@ -73,7 +73,7 @@ export function buildDeveloperHandoff(
     finding.engine ? `**Engine:** \`${finding.engine}\`` : "",
     ``,
     "```",
-    finding.location.snippet,
+    locationSnippet(finding.location),
     "```",
     ``,
     `## Proposed change`,
