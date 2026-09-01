@@ -117,6 +117,10 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "frame-focusable-content": "frame-keyboard",
   "p-as-heading": "p-as-heading",
   "html-has-doctype": "doctype",
+
+  "complyloop-focus-visible": "focus-visible",
+  "complyloop-keyboard-trap": "keyboard-trap",
+  "complyloop-focus-not-obscured": "focus-not-obscured",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {

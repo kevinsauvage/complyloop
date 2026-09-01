@@ -53,6 +53,11 @@ export function Coverage() {
           One
         </div>
       </div>
+      <blockquote cite="https://example.com" />
+      <button className="outline-none">No ring</button>
+      <input type="password" autoComplete="off" aria-label="Password" />
+      <div draggable onDragStart={() => {}} />
+      <input aria-invalid="true" aria-label="Email" />
     </div>
   );
 }

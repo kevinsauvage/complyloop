@@ -71,7 +71,17 @@ export type CheckId =
   | "figure-caption"
   | "redundant-role"
   | "noninteractive-tabindex"
-  | "aria-activedescendant";
+  | "aria-activedescendant"
+  | "focus-visible"
+  | "keyboard-trap"
+  | "focus-not-obscured"
+  | "accessible-auth"
+  | "dragging"
+  | "new-window-onload"
+  | "dir-change"
+  | "blockquote-cite"
+  | "outline-none"
+  | "status-live";
 
 export interface RawFinding {
   checkId: CheckId;

@@ -14,11 +14,11 @@ When a row is implemented, delete it from this file and update the architecture 
 
 | Surface | Count | What it means |
 | --- | ---: | --- |
-| Catalog controls | 78 | 69 automated + 9 human-reviewed (`checkId: null`). Still not the full referential. |
-| Unique WCAG SCs in the catalog | ~38 | Several controls share `4.1.2` or `1.3.1`. |
-| Unique official RGAA criteria we approximate | ~35 of 106 | Many older catalog `code` values are still wrong (see [Mapping debt](#mapping-debt)). |
-| AST checks | 50 | CI / `complyloop-check` source of truth. |
-| Runtime-only checks | 19 | axe via Playwright; `unable_to_verify` without a preview URL. |
+| Catalog controls | 88 | 79 automated + 9 human-reviewed (`checkId: null`). Still not the full referential. |
+| Unique WCAG SCs in the catalog | ~42 | Several controls share `4.1.2` or `1.3.1`. |
+| Unique official RGAA criteria we approximate | ~40 of 106 | Many older catalog `code` values are still wrong (see [Mapping debt](#mapping-debt)). |
+| AST checks | 57 | CI / `complyloop-check` source of truth. |
+| Runtime-only checks | 22 | axe via Playwright + custom keyboard checks; `unable_to_verify` without a preview URL. |
 | axe rules mapped | ~100 of 105 | Unmapped best-practice axe rules stay ignored on purpose. |
 | Human-only controls (`checkId: null`) | 9 | Seeded pertinence/quality slots; never auto-passed. |
 | WCAG 2.2 A+AA | 56 | Legal target (EAA / most contracts). AAA is out of MVP. |
@@ -55,29 +55,19 @@ Do **not** promote remaining best-practice-only axe rules (`accesskeys`, `hidden
 
 ## P1 — New AST checks (CI gate, no preview URL)
 
-Shipped: `video-caption` / `audio-caption`, `fieldset-legend`, `autocomplete-purpose`, `no-accesskey`, `optgroup`, `table-caption`, `th-scope`, `layout-table-markup`, `svg-name`, `figure-caption`, `redundant-role`, `noninteractive-tabindex`, `aria-activedescendant`.
-
-Still open (heuristic or easy to over-flag):
-
-| Proposed `checkId` | RGAA | WCAG | What to flag | Notes |
-| --- | --- | --- | --- | --- |
-| `new-window-onload` | 13.2 | 3.2.5 AAA / RGAA A | `window.open` in module scope, `useEffect` on mount, or a meta-refresh equivalent | RGAA 13.2 is *unsolicited* new windows, not every `target="_blank"`. Don't fail every external link. |
-| `dir-change` | 8.10 | 1.3.2 A | RTL/LTR mix without `dir` on the changing node | Niche but fully AST. |
-| `blockquote-cite` | 9.4 | 1.3.1 A | Quoted passages styled as quotes without `<blockquote>` / `<q>` is heuristic. Safer: `<blockquote>` without cite text when `cite` attr present. | Don't over-flag. |
-| `outline-none` | 10.7 | 2.4.7 AA | `outline: none` / `outline-none` / `outline-hidden` without a visible `focus-visible` / `ring` replacement in the same class/style | Heuristic; false positives on components that restyle focus elsewhere. Prefer P2 runtime if noisy. |
-| `status-live` | 7.5 | 4.1.3 AA | Toast / inline validation rendered without `role="status"` / `alert` / `aria-live` | Hard: only flag known patterns (`Toaster`, `role="error"` text, `aria-invalid` with a sibling message that isn't live). Otherwise P4. |
+Shipped: `video-caption` / `audio-caption`, `fieldset-legend`, `autocomplete-purpose`, `no-accesskey`, `optgroup`, `table-caption`, `th-scope`, `layout-table-markup`, `svg-name`, `figure-caption`, `redundant-role`, `noninteractive-tabindex`, `aria-activedescendant`, `new-window-onload`, `dir-change`, `blockquote-cite`, `outline-none`, `status-live`.
 
 ---
 
 ## P2 — Runtime (Playwright ± axe), no honest AST pass
 
-These stay `unable_to_verify` until `runtimeBaseUrl` is set. Do not pass them from an empty source scan.
+Shipped: `focus-visible`, `keyboard-trap`.
+
+Still open:
 
 | Proposed `checkId` | RGAA | WCAG | How | Why it matters |
 | --- | --- | --- | --- | --- |
 | `non-text-contrast` | 3.3 | 1.4.11 AA | Custom contrast on UI chrome (borders, icons, focus ring). axe does **not** ship this as a default rule in 4.13. | AA gap next to `color-contrast`. |
-| `focus-visible` | 10.7 | 2.4.7 AA | Tab through interactive nodes; fail if focused node has no distinguishable focus indicator vs unfocused. | Keyboard users in every app. |
-| `keyboard-trap` | 12.9 | 2.1.2 A | Tab/Shift+Tab cannot leave a node (except a modal that returns focus). | Modals, maps, custom widgets. |
 | `reflow` | 10.11 | 1.4.10 AA | Viewport 320 CSS px; fail on unexpected horizontal scroll of page content (except data tables, maps). | Mobile / zoom. |
 | `text-spacing-runtime` | 10.12 | 1.4.12 AA | Inject WCAG spacing bookmarklet styles; fail on overlap/clip. Pair with P0 `text-spacing` for inline locks. | Completes 1.4.12. |
 | `hover-content` | 10.13, 10.14, 12.11 | 1.4.13 AA | Pointer-hover / focus content is dismissable, hoverable, persistent; keyboard can reach it. | Tooltips, megamenus. |
@@ -90,15 +80,14 @@ These stay `unable_to_verify` until `runtimeBaseUrl` is set. Do not pass them fr
 
 ## P3 — WCAG 2.2 (not in RGAA 4.1.2)
 
-RGAA 4.1.2 stops at WCAG 2.1 AA. These belong on the **WCAG** presets now; add them to RGAA Full only when RGAA 5 lands. We already ship `target-size` (2.5.8) on both.
+Shipped: `focus-not-obscured`, `accessible-auth`, `dragging` (AST; runtime promotion later if needed). `target-size` (2.5.8) was already on both presets.
+
+Still open:
 
 | Proposed `checkId` | WCAG | Engine | What to flag |
 | --- | --- | --- | --- |
-| `focus-not-obscured` | 2.4.11 AA | Runtime | Focused control is covered by sticky headers, cookie banners, toasts. |
-| `dragging` | 2.5.7 AA | AST + runtime | `onDrag` / `dnd` without a single-pointer alternative (button move, input). Related to RGAA 13.10 / our `pointer-gesture`. |
 | `consistent-help` | 3.2.6 A | Human first, then site crawl | Help / contact / chat in the same relative order on every page. Needs multi-route runtime. |
 | `redundant-entry` | 3.3.7 A | Heuristic AST + human | Multi-step forms that re-ask data already collected (no autocomplete / hidden prior value). Easy to false-fail. |
-| `accessible-auth` | 3.3.8 AA | AST | Login fields with `autocomplete="off"`, paste blocked (`onPaste` preventDefault), or CAPTCHA-as-password. Password-manager friendly is the bar. |
 
 `2.4.12`, `2.4.13`, `3.3.9` are AAA — defer.
 
@@ -277,11 +266,11 @@ WCAG AAA (1.2.6–1.2.9, 1.3.6, 1.4.6–1.4.9, 2.1.3, 2.2.3–2.2.6, 2.3.2–2.3
 ## Suggested implementation order
 
 1. ~~**P0 axe promotions**~~ — shipped.
-2. ~~**P1 AST twins**~~ for captions, blink/marquee, dialog, fieldset, autocomplete presence, accesskey, optgroup, tables, svg, figure, redundant role, tabindex, activedescendant — shipped.
+2. ~~**P1 AST twins**~~ — shipped.
 3. ~~**P4 seed**~~ — nine human pertinence controls — shipped.
-4. **P2 `focus-visible` + `keyboard-trap`** — keyboard AA holes (use-of-color already split).
-5. **P3 WCAG 2.2** (`focus-not-obscured`, `accessible-auth`, `dragging`) — ahead of RGAA 5.
-6. Remaining heuristic P1 (`new-window-onload`, `dir-change`, `blockquote-cite`, `outline-none`, `status-live`) then site-level 12.1–12.5.
+4. ~~**P2 `focus-visible` + `keyboard-trap`**~~ — shipped.
+5. ~~**P3 WCAG 2.2** (`focus-not-obscured`, `accessible-auth`, `dragging`)~~ — shipped.
+6. **P2 remainder** (`non-text-contrast`, `reflow`, `hover-content`, …) then site-level 12.1–12.5.
 
 ---
 

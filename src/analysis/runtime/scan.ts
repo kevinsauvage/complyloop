@@ -20,6 +20,7 @@ import {
   UNSAFE_RUNTIME_URL_MESSAGE,
   type DnsLookup,
 } from "./url-safety";
+import { runCustomRuntimeChecks } from "./custom-checks";
 import { maxRuntimePages } from "@/core/assessment-limits";
 
 export type RuntimePageScanner = (
@@ -156,13 +157,15 @@ function createPlaywrightAxeScanner(options?: {
             throw new PublicError(blockedReason);
           }
           const results = await runAxeOnPage(page);
+          const customViolations = await runCustomRuntimeChecks(page);
           const hasDoctype = await page.evaluate(
             () => document.doctype !== null,
           );
           const violations = hasDoctype
-            ? results.violations
+            ? [...results.violations, ...customViolations]
             : [
                 ...results.violations,
+                ...customViolations,
                 {
                   id: "html-has-doctype",
                   impact: "moderate",

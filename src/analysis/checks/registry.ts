@@ -48,6 +48,13 @@ import { figureCaptionCheck } from "./figure-caption";
 import { redundantRoleCheck } from "./redundant-role";
 import { noninteractiveTabindexCheck } from "./noninteractive-tabindex";
 import { ariaActivedescendantCheck } from "./aria-activedescendant";
+import { newWindowOnloadCheck } from "./new-window-onload";
+import { dirChangeCheck } from "./dir-change";
+import { blockquoteCiteCheck } from "./blockquote-cite";
+import { outlineNoneCheck } from "./outline-none";
+import { statusLiveCheck } from "./status-live";
+import { accessibleAuthCheck } from "./accessible-auth";
+import { draggingCheck } from "./dragging";
 import type { AccessibilityCheck } from "../types";
 
 export const allChecks: AccessibilityCheck[] = [
@@ -101,4 +108,11 @@ export const allChecks: AccessibilityCheck[] = [
   redundantRoleCheck,
   noninteractiveTabindexCheck,
   ariaActivedescendantCheck,
+  newWindowOnloadCheck,
+  dirChangeCheck,
+  blockquoteCiteCheck,
+  outlineNoneCheck,
+  statusLiveCheck,
+  accessibleAuthCheck,
+  draggingCheck,
 ];

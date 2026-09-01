@@ -36,6 +36,9 @@ const RUNTIME_ONLY = [
   "use-of-color",
   "frame-keyboard",
   "doctype",
+  "focus-visible",
+  "keyboard-trap",
+  "focus-not-obscured",
 ] as const;
 
 describe("check authority", () => {

@@ -41,6 +41,9 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "use-of-color",
   "frame-keyboard",
   "doctype",
+  "focus-visible",
+  "keyboard-trap",
+  "focus-not-obscured",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);

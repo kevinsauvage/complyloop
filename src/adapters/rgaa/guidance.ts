@@ -416,6 +416,66 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Put tabIndex={0} on the composite (listbox, combobox, grid, tree) that owns aria-activedescendant.",
   },
+  "focus-visible": {
+    impact:
+      "Keyboard users cannot tell which control is focused when the focus ring is invisible (WCAG 2.4.7 / RGAA 10.7).",
+    howToFix:
+      "Restore a visible :focus-visible style — outline, ring, border, or box-shadow — on every interactive control.",
+  },
+  "keyboard-trap": {
+    impact:
+      "Keyboard users cannot Tab out of a widget and are stuck away from the rest of the page (WCAG 2.1.2 / RGAA 12.9).",
+    howToFix:
+      "Ensure Tab and Shift+Tab can leave every component. Modal dialogs may trap focus only while open and must return focus on close.",
+  },
+  "focus-not-obscured": {
+    impact:
+      "A sticky header, cookie banner, or toast covers the focused control so keyboard users cannot see what is active (WCAG 2.4.11).",
+    howToFix:
+      "Scroll focused controls into view, reduce sticky overlay height, or dismiss overlays before focus moves underneath them.",
+  },
+  "accessible-auth": {
+    impact:
+      "Blocking autocomplete or paste prevents password managers and assistive technologies from filling credentials (WCAG 3.3.8).",
+    howToFix:
+      'Use autocomplete="current-password" or "username" on login fields. Do not call preventDefault on paste for credential inputs.',
+  },
+  dragging: {
+    impact:
+      "Users who cannot perform drag gestures cannot reorder or move items when drag is the only path (WCAG 2.5.7).",
+    howToFix:
+      "Add buttons or inputs that perform the same action (move up/down, numeric position) alongside draggable handles.",
+  },
+  "new-window-onload": {
+    impact:
+      "A window that opens on load disorients screen reader users and steals focus without an explicit request (RGAA 13.2).",
+    howToFix:
+      "Open new windows only from click or keyboard handlers. Remove window.open from mount effects and module scope.",
+  },
+  "dir-change": {
+    impact:
+      "Mixed-direction text without dir is read in the wrong order by assistive technologies (WCAG 1.3.2 / RGAA 8.10).",
+    howToFix:
+      'Wrap RTL passages in an element with dir="rtl" (or dir="ltr" inside RTL pages).',
+  },
+  "blockquote-cite": {
+    impact:
+      "A cited quotation without visible citation text hides the source from screen reader users (WCAG 1.3.1 / RGAA 9.4).",
+    howToFix:
+      "Add a <cite> element or visible attribution inside the blockquote when cite points at a source.",
+  },
+  "outline-none": {
+    impact:
+      "Removing the default outline without a replacement hides keyboard focus in source (WCAG 2.4.7 / RGAA 10.7).",
+    howToFix:
+      "Pair outline-none with focus-visible:ring or an equivalent visible focus style on the same element.",
+  },
+  "status-live": {
+    impact:
+      "Validation errors and toasts are not announced when they appear, so screen reader users miss feedback (WCAG 4.1.3 / RGAA 7.5).",
+    howToFix:
+      'Put status text in role="status" or role="alert", or add aria-live="polite" on the message container.',
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {
