@@ -160,4 +160,26 @@ describe("runSiteLevelChecks", () => {
       findings.some((finding) => finding.checkId === "consistent-landmarks"),
     ).toBe(true);
   });
+
+  it("warns when every route shares the same document title", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", { title: "Acme" }),
+      snapshot("https://x.test/b", { title: "Acme" }),
+    ]);
+    const titleFindings = findings.filter(
+      (finding) => finding.checkId === "duplicate-page-title",
+    );
+    expect(titleFindings).toHaveLength(1);
+    expect(titleFindings[0]?.kind).toBe("warning");
+  });
+
+  it("does not flag unique document titles", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", { title: "Home — Acme" }),
+      snapshot("https://x.test/b", { title: "About — Acme" }),
+    ]);
+    expect(
+      findings.some((finding) => finding.checkId === "duplicate-page-title"),
+    ).toBe(false);
+  });
 });

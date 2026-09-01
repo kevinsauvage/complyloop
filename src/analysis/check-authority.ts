@@ -61,6 +61,7 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "consistent-sitemap",
   "consistent-search",
   "consistent-landmarks",
+  "duplicate-page-title",
 ] as const satisfies readonly CheckId[];
 
 const SITE_LEVEL_CHECK_IDS = [
@@ -71,11 +72,32 @@ const SITE_LEVEL_CHECK_IDS = [
   "consistent-sitemap",
   "consistent-search",
   "consistent-landmarks",
+  "duplicate-page-title",
+] as const satisfies readonly CheckId[];
+
+/**
+ * AST heuristics that only prove “no suspicious pattern”. An empty scan must
+ * not pass the criterion — that still needs a human.
+ */
+const HEURISTIC_CHECK_IDS = [
+  "image-detailed-description",
+  "image-of-text",
+  "table-summary",
+  "sensory-characteristics",
+  "error-suggestion",
+  "pointer-gesture",
+  "pointer-cancellation",
+  "motion-actuation",
+  "focus-context-change",
+  "input-context-change",
+  "audio-description-track",
+  "link-explicit-heuristic",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);
 const RUNTIME_ONLY = new Set<string>(RUNTIME_ONLY_CHECK_IDS);
 const SITE_LEVEL = new Set<string>(SITE_LEVEL_CHECK_IDS);
+const HEURISTIC = new Set<string>(HEURISTIC_CHECK_IDS);
 
 export function isCompositionSensitiveCheck(checkId: string): boolean {
   return COMPOSITION_SENSITIVE.has(checkId);
@@ -87,6 +109,10 @@ export function isRuntimeOnlyCheck(checkId: string): boolean {
 
 export function isSiteLevelCheck(checkId: string): boolean {
   return SITE_LEVEL.has(checkId);
+}
+
+export function isHeuristicCheck(checkId: string): boolean {
+  return HEURISTIC.has(checkId);
 }
 
 /** Runtime findings for these ids must not be resolved when axe did not run. */

@@ -2,6 +2,8 @@ export function Coverage() {
   return (
     <div>
       <video src="/talk.mp4" />
+      <iframe src="https://www.youtube.com/embed/abc" title="Talk" />
+      <div className="animate-spin">Loading</div>
       <audio src="/podcast.mp3" controls />
       <marquee>News</marquee>
       <p style={{ letterSpacing: "0.12em !important" }}>Locked</p>

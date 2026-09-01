@@ -109,7 +109,8 @@ export type CheckId =
   | "css-hover-keyboard"
   | "consistent-sitemap"
   | "consistent-search"
-  | "consistent-landmarks";
+  | "consistent-landmarks"
+  | "duplicate-page-title";
 
 export interface RawFinding {
   checkId: CheckId;

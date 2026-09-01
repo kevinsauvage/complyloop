@@ -321,3 +321,84 @@ describe("refreshRequirementStatuses site-level", () => {
     ).toBe("passed");
   });
 });
+
+describe("refreshRequirementStatuses heuristic", () => {
+  it("does not pass a heuristic check when the AST scan found no pattern", () => {
+    const db = emptyDb();
+    db.frameworks.push(rgaaFramework);
+    db.controls.push({
+      id: "ctl-image-of-text",
+      frameworkId: rgaaFramework.id,
+      code: "RGAA 1.8",
+      secondaryCode: "WCAG 1.4.5",
+      title: "Text is not presented as an image",
+      description: "Heuristic.",
+      checkId: "image-of-text",
+    });
+    db.projects.push({
+      id: "p1",
+      name: "App",
+      source: "github",
+      orgId: "org-test",
+      createdAt: new Date().toISOString(),
+    });
+
+    refreshRequirementStatuses(db, "p1", { runtimeRan: false });
+
+    expect(
+      db.requirements.find((requirement) => requirement.controlId === "ctl-image-of-text")
+        ?.status,
+    ).toBe("unable_to_verify");
+  });
+
+  it("marks a heuristic check needs_review when it emitted a warning", () => {
+    const db = emptyDb();
+    db.frameworks.push(rgaaFramework);
+    db.controls.push({
+      id: "ctl-image-of-text",
+      frameworkId: rgaaFramework.id,
+      code: "RGAA 1.8",
+      secondaryCode: "WCAG 1.4.5",
+      title: "Text is not presented as an image",
+      description: "Heuristic.",
+      checkId: "image-of-text",
+    });
+    db.projects.push({
+      id: "p1",
+      name: "App",
+      source: "github",
+      orgId: "org-test",
+      createdAt: new Date().toISOString(),
+    });
+    db.findings.push({
+      id: "f1",
+      projectId: "p1",
+      controlId: "ctl-image-of-text",
+      assessmentId: "a1",
+      checkId: "image-of-text",
+      status: "open",
+      kind: "warning",
+      severity: "moderate",
+      confidence: "medium",
+      reason: "background image may be text",
+      location: {
+        kind: "source",
+        filePath: "A.tsx",
+        line: 1,
+        column: 1,
+        snippet: "<div />",
+        span: { start: 0, end: 7 },
+      },
+      fix: null,
+      explanations: [],
+      detectedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    refreshRequirementStatuses(db, "p1", { runtimeRan: false });
+
+    expect(
+      db.requirements.find((requirement) => requirement.controlId === "ctl-image-of-text")
+        ?.status,
+    ).toBe("needs_review");
+  });
+});

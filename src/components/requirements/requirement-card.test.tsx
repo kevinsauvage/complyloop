@@ -93,4 +93,29 @@ describe("RequirementCard", () => {
       "/findings?control=ctl-img-alt",
     );
   });
+
+  it("tells reviewers that pertinence still needs a human", () => {
+    renderCard({
+      control: {
+        id: "ctl-img-alt-relevant",
+        frameworkId: "fw-rgaa",
+        code: "RGAA 1.3",
+        secondaryCode: "WCAG 1.1.1",
+        title: "Image text alternatives are pertinent",
+        description: "Each informative image's text alternative describes its purpose.",
+        checkId: null,
+      },
+      requirement: requirement({
+        controlId: "ctl-img-alt-relevant",
+        status: "unable_to_verify",
+      }),
+      openCount: 0,
+      canRemediate: false,
+      project: { runtimeBaseUrl: undefined },
+    });
+
+    expect(
+      screen.getByText("Presence checked; pertinence needs a human."),
+    ).toBeInTheDocument();
+  });
 });

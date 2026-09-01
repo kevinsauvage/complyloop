@@ -222,5 +222,27 @@ export function runSiteLevelChecks(
     );
   }
 
+  const nonemptyTitles = snapshots
+    .map((snapshot) => snapshot.title.trim())
+    .filter((title) => title.length > 0);
+  const uniqueTitles = new Set(nonemptyTitles);
+  if (nonemptyTitles.length >= 2 && uniqueTitles.size === 1) {
+    const title = nonemptyTitles[0]!;
+    findings.push({
+      checkId: "duplicate-page-title",
+      kind: "warning",
+      severity: "moderate",
+      confidence: "medium",
+      reason: `Every audited route uses the same document title (“${title}”), so users cannot tell pages apart (RGAA 8.6 / WCAG 2.4.2).`,
+      location: {
+        kind: "site",
+        pages,
+        detail: `Repeated title: ${title}`,
+      },
+      fix: null,
+      engine: "runtime",
+    });
+  }
+
   return findings;
 }

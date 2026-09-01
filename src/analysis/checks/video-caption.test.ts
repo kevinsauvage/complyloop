@@ -42,4 +42,36 @@ describe("video-caption", () => {
       ),
     ).toHaveLength(0);
   });
+
+  it("warns on YouTube and Vimeo embeds instead of passing 4.3", () => {
+    const youtube = videoCaptionCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => <iframe src="https://www.youtube.com/embed/abc" title="Talk" />;`,
+      ),
+    );
+    expect(youtube).toHaveLength(1);
+    expect(youtube[0]?.kind).toBe("warning");
+    expect(youtube[0]?.confidence).toBe("low");
+
+    const vimeo = videoCaptionCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => <iframe src="https://player.vimeo.com/video/123" title="Talk" />;`,
+      ),
+    );
+    expect(vimeo).toHaveLength(1);
+    expect(vimeo[0]?.kind).toBe("warning");
+  });
+
+  it("does not flag unrelated iframes", () => {
+    expect(
+      videoCaptionCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <iframe src="https://maps.example.com" title="Map" />;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
 });

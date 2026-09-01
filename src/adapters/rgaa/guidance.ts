@@ -282,7 +282,7 @@ const guidance: Record<CheckId, CheckGuidance> = {
     impact:
       "Deaf and hard-of-hearing users cannot follow speech, sound effects, or speaker changes in the video (WCAG 1.2.2 / RGAA 4.3).",
     howToFix:
-      'Add a <track kind="captions"> (or kind="subtitles") pointing at a WebVTT file that matches the soundtrack.',
+      'Add a <track kind="captions"> (or kind="subtitles") pointing at a WebVTT file that matches the soundtrack. For YouTube/Vimeo, enable captions on the host — this check cannot verify the player.',
   },
   "audio-caption": {
     impact:
@@ -294,7 +294,7 @@ const guidance: Record<CheckId, CheckGuidance> = {
     impact:
       "Moving or blinking content distracts users, interrupts screen readers, and can trigger vestibular disorders or seizures (WCAG 2.2.2 / RGAA 13.8).",
     howToFix:
-      "Remove <marquee> and <blink>. If motion is needed, give a pause/stop control and honor prefers-reduced-motion.",
+      "Remove <marquee> and <blink>. For CSS animation or carousels, provide a pause/stop/hide control. prefers-reduced-motion is a hint, not a pass.",
   },
   "text-spacing": {
     impact:
@@ -643,6 +643,12 @@ const guidance: Record<CheckId, CheckGuidance> = {
       "Missing header or main landmarks on some routes breaks skip-navigation and screen reader landmark lists (WCAG 1.3.1 / RGAA 12.6).",
     howToFix:
       "Use header, nav, main, and footer landmarks consistently on every page template.",
+  },
+  "duplicate-page-title": {
+    impact:
+      "Identical document titles on every route hide which page the user is on in tabs, history, and screen reader heading lists (WCAG 2.4.2 / RGAA 8.6).",
+    howToFix:
+      "Make each route’s <title> unique and specific, e.g. “Settings — Acme” vs “Dashboard — Acme”. Pertinence of the wording still needs a human.",
   },
 };
 

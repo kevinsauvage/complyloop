@@ -65,6 +65,7 @@ describe("runAssessment", () => {
     expect(requirementStatus("ctl-button-name")).toBe("passed");
     expect(requirementStatus("ctl-color-contrast")).toBe("unable_to_verify");
     expect(requirementStatus("ctl-aria-role")).toBe("passed");
+    expect(requirementStatus("ctl-image-of-text")).toBe("unable_to_verify");
     expect(
       db.evidence.find((record) => record.kind === "assessment_completed")
         ?.summary,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isCompositionSensitiveCheck,
+  isHeuristicCheck,
   isRuntimeOnlyCheck,
   keepOpenWhenRuntimeScanSkipped,
 } from "./check-authority";
@@ -73,5 +74,15 @@ describe("check authority", () => {
     expect(keepOpenWhenRuntimeScanSkipped("empty-heading")).toBe(true);
     expect(keepOpenWhenRuntimeScanSkipped("target-size")).toBe(true);
     expect(keepOpenWhenRuntimeScanSkipped("img-alt")).toBe(false);
+  });
+
+  it("does not treat heuristic AST checks as a pass when they emit nothing", () => {
+    expect(isHeuristicCheck("image-of-text")).toBe(true);
+    expect(isHeuristicCheck("link-explicit-heuristic")).toBe(true);
+    expect(isHeuristicCheck("audio-description-track")).toBe(true);
+    expect(isHeuristicCheck("blockquote-cite")).toBe(false);
+    expect(isHeuristicCheck("img-alt")).toBe(false);
+    expect(keepOpenWhenRuntimeScanSkipped("image-of-text")).toBe(false);
+    expect(isRuntimeOnlyCheck("duplicate-page-title")).toBe(true);
   });
 });

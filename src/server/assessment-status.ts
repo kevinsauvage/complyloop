@@ -1,5 +1,9 @@
 import { presetById } from "@/adapters/registry";
-import { isRuntimeOnlyCheck, isSiteLevelCheck } from "@/analysis/check-authority";
+import {
+  isHeuristicCheck,
+  isRuntimeOnlyCheck,
+  isSiteLevelCheck,
+} from "@/analysis/check-authority";
 import { deriveRequirementStatus } from "@/core/requirement-status";
 import type { Finding } from "@/core/finding-types";
 import type { RequirementStatus } from "@/core/statuses";
@@ -126,6 +130,9 @@ function statusFromFindings(
 ): RequirementStatus {
   if (openFindings.length > 0) {
     return deriveRequirementStatus(openFindings);
+  }
+  if (checkId !== null && isHeuristicCheck(checkId)) {
+    return "unable_to_verify";
   }
   if (checkId !== null && isSiteLevelCheck(checkId)) {
     if (runtimeRan !== true || siteLevelChecksRan !== true) {

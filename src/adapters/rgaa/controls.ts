@@ -1361,6 +1361,17 @@ export const rgaaControls: Control[] = [
     complianceWeight: 1.3,
   },
   {
+    id: "ctl-page-title-unique",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 8.6",
+    secondaryCode: "WCAG 2.4.2",
+    title: "Page titles are unique across routes",
+    description:
+      "Document titles differ across preview routes. Identical titles on every page fail pertinence (RGAA 8.6).",
+    checkId: "duplicate-page-title",
+    complianceWeight: 1.3,
+  },
+  {
     id: "ctl-link-explicit",
     frameworkId: rgaaFramework.id,
     code: "RGAA 6.1",

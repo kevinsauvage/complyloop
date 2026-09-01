@@ -55,7 +55,7 @@ here — do not re-paste stack/layout into agent markdown.
   topical subsets are display groupings on the requirements page, not intake
   scope. WCAG registers framework + presets only — it does not duplicate
   control ids.
-- **Analysis engine:** dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`, 69 checks) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core injected from `axe.min.js` on disk in `src/analysis/runtime/`, plus custom checks in `custom-checks/` and **site-level** comparisons in `site-level/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs. Runtime-only rules (39 checks: contrast, reflow, resize-text, css-hover-keyboard, site nav/help consistency, html-lang-valid split, css-disabled-content, media-keyboard, …) stay `unable_to_verify` until axe/custom/site checks run. Site-level checks require ≥2 configured preview routes. Axe → check mapping lives in `axe-map.ts` (~101 rules). Do not add `@axe-core/playwright` — it injects the `axe-core` `source` string, which Next/webpack rewrites (`module is not defined`). Runtime URL SSRF uses isomorphic `ssrf-guard` plus Node DNS, port allowlist (80/443), and redirect hop limits — never `ssrf-guard/node` (undici 8 breaks Next SSR). Framework adapters register in `src/adapters/registry.ts`. AI never sets requirement status.
+- **Analysis engine:** dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`, 69 checks) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core injected from `axe.min.js` on disk in `src/analysis/runtime/`, plus custom checks in `custom-checks/` and **site-level** comparisons in `site-level/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs. Runtime-only rules (40 checks: contrast, reflow, resize-text, css-hover-keyboard, site nav/help consistency, duplicate page titles, html-lang-valid split, css-disabled-content, media-keyboard, …) stay `unable_to_verify` until axe/custom/site checks run. Heuristic AST checks stay `unable_to_verify` when they emit nothing. Site-level checks require ≥2 configured preview routes. Axe → check mapping lives in `axe-map.ts` (~101 rules). Do not add `@axe-core/playwright` — it injects the `axe-core` `source` string, which Next/webpack rewrites (`module is not defined`). Runtime URL SSRF uses isomorphic `ssrf-guard` plus Node DNS, port allowlist (80/443), and redirect hop limits — never `ssrf-guard/node` (undici 8 breaks Next SSR). Framework adapters register in `src/adapters/registry.ts`. AI never sets requirement status.
 - **AI services**: explanation, snippet remediations for runtime findings, and one constrained source-file patch when no safe deterministic fix exists. Source patches are generated synchronously and must pass a focused ComplyLoop re-scan before they can be previewed. AI never sets requirement or remediation verification status. Repository tests run in GitHub CI.
 - **Repo connectors**: GitHub OAuth / App clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.
 
@@ -76,7 +76,7 @@ here — do not re-paste stack/layout into agent markdown.
 
 ## Key Flows
 
-1. **Assessment**: AST scan of the connected tree; if a preview URL is configured, also audit routes with axe. Merge findings (runtime owns composition-sensitive checks). Runtime-only checks stay `unable_to_verify` until axe runs. Update requirement statuses + append-only evidence. Manual controls stay `unable_to_verify` until human pass or exception.
+1. **Assessment**: AST scan of the connected tree; if a preview URL is configured, also audit routes with axe. Merge findings (runtime owns composition-sensitive checks). Runtime-only checks stay `unable_to_verify` until axe runs. Heuristic AST checks stay `unable_to_verify` when they emit nothing. Manual controls stay `unable_to_verify` until human pass or exception.
 2. **Remediation**: source finding → safe deterministic edit when available, otherwise one constrained AI edit → focused ComplyLoop re-scan → persisted patch preview → explicit human approval through **Create draft PR**. The exact candidate edits are applied on a fresh checkout; GitHub CI owns repository tests. Runtime DOM findings keep snippet remediation and developer handoff. GitHub review/merge → deterministic reassessment → `implemented` → `verified` → evidence. Finding-page UX (what the developer should see at each beat): [`finding-flow.md`](./finding-flow.md).
 3. **Continuous monitoring**: webhook or re-assess → snapshot diff → **scoped re-scan of changed JSX when possible** (full tree otherwise) + optional runtime re-audit → regression alerts + optional Check Run on PR heads.
 
@@ -89,7 +89,7 @@ here — do not re-paste stack/layout into agent markdown.
 
 ## Analysis checks (current)
 
-Three authority classes:
+Four authority classes:
 
 **AST (69)** — local/CI/`complyloop-check` source of truth:
 img-alt, button-name, anchor-name, html-lang, positive-tabindex, input-label,
@@ -109,7 +109,7 @@ media-controls-present, nontemporal-media-alt, field-grouping, no-auto-refresh,
 audio-description-track, link-explicit-heuristic, office-docs-alt-present,
 media-keyboard-static.
 
-**Runtime-only (39)** — axe/custom/site when `runtimeBaseUrl` is set; otherwise
+**Runtime-only (40)** — axe/custom/site when `runtimeBaseUrl` is set; otherwise
 `unable_to_verify` (never passed from an empty AST scan):
 color-contrast, document-title, bypass, landmark-one-main, nested-interactive,
 target-size, table-headers, page-heading, content-region, label-in-name,
@@ -120,11 +120,17 @@ non-text-contrast, reflow, resize-text, text-spacing-runtime, hover-content,
 label-adjacent, both-colors (runtime twin), css-disabled-content,
 css-hover-keyboard, media-keyboard, multiple-ways, consistent-nav,
 consistent-labels, consistent-help, consistent-sitemap, consistent-search,
-consistent-landmarks.
+consistent-landmarks, duplicate-page-title.
 
-**Site-level (7)** — subset of runtime-only; need ≥2 configured preview routes:
+**Site-level (8)** — subset of runtime-only; need ≥2 configured preview routes:
 multiple-ways, consistent-nav, consistent-labels, consistent-help,
-consistent-sitemap, consistent-search, consistent-landmarks.
+consistent-sitemap, consistent-search, consistent-landmarks, duplicate-page-title.
+
+**Heuristic AST (12)** — still run in CI as warnings; empty scan → `unable_to_verify`,
+not `passed`: image-detailed-description, image-of-text, table-summary,
+sensory-characteristics, error-suggestion, pointer-gesture, pointer-cancellation,
+motion-actuation, focus-context-change, input-context-change,
+audio-description-track, link-explicit-heuristic.
 
 **Composition-sensitive (8)** — AST still runs (and gates CI), but when a runtime
 audit succeeds these defer to the rendered DOM for requirement status:

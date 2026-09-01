@@ -58,6 +58,8 @@ export function defaultConnectPreset(): FrameworkPreset {
   return preset;
 }
 
+export { isPertinenceTwinControl } from "@/adapters/rgaa/pertinence-twins";
+
 export function guidanceFor(checkId: CheckId): CheckGuidance {
   for (const adapter of frameworkAdapters) {
     if (adapter.guidanceFor) {
