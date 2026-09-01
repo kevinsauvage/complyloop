@@ -52,6 +52,8 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "html-lang-valid",
   "css-disabled-content",
   "media-keyboard",
+  "resize-text",
+  "css-hover-keyboard",
   "multiple-ways",
   "consistent-nav",
   "consistent-labels",

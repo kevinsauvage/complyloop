@@ -62,6 +62,11 @@ import { imageDetailedDescriptionCheck } from "./image-detailed-description";
 import { mediaControlsPresentCheck } from "./media-controls-present";
 import { nontemporalMediaAltCheck } from "./nontemporal-media-alt";
 import { fieldGroupingCheck } from "./field-grouping";
+import { noAutoRefreshCheck } from "./no-auto-refresh";
+import { audioDescriptionTrackCheck } from "./audio-description-track";
+import { linkExplicitHeuristicCheck } from "./link-explicit-heuristic";
+import { officeDocsAltPresentCheck } from "./office-docs-alt-present";
+import { mediaKeyboardStaticCheck } from "./media-keyboard-static";
 import type { AccessibilityCheck } from "../types";
 
 export const allChecks: AccessibilityCheck[] = [
@@ -129,4 +134,9 @@ export const allChecks: AccessibilityCheck[] = [
   mediaControlsPresentCheck,
   nontemporalMediaAltCheck,
   fieldGroupingCheck,
+  noAutoRefreshCheck,
+  audioDescriptionTrackCheck,
+  linkExplicitHeuristicCheck,
+  officeDocsAltPresentCheck,
+  mediaKeyboardStaticCheck,
 ];

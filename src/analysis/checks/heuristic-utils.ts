@@ -247,3 +247,77 @@ export function isInsideNamingHost(node: ts.Node): boolean {
   }
   return false;
 }
+
+const TRANSCRIPT_PATTERN = /transcript|transcription|texte/i;
+const TRANSCRIPT_LINK_HOSTS = new Set(["a", "button"]);
+
+export function hasAdjacentTranscriptLink(node: JsxTagNode): boolean {
+  const self = ts.isJsxOpeningElement(node) ? node.parent : node;
+  const parent = self.parent;
+  if (!ts.isJsxElement(parent) && !ts.isJsxFragment(parent)) return false;
+  const siblings = parent.children;
+  const index = siblings.indexOf(self);
+  if (index < 0) return false;
+
+  for (let current = index + 1; current < siblings.length; current += 1) {
+    const sibling = siblings[current];
+    if (!sibling) continue;
+    if (ts.isJsxText(sibling) && sibling.text.trim().length === 0) continue;
+    const siblingTag = ts.isJsxElement(sibling)
+      ? sibling.openingElement
+      : ts.isJsxSelfClosingElement(sibling)
+        ? sibling
+        : undefined;
+    if (!siblingTag) return false;
+    if (!TRANSCRIPT_LINK_HOSTS.has(tagNameOf(siblingTag))) return false;
+    if (!ts.isJsxElement(sibling)) {
+      const href = getAttribute(siblingTag, "href");
+      const hrefValue = href ? stringValueOf(href) : undefined;
+      if (hrefValue && TRANSCRIPT_PATTERN.test(hrefValue)) return true;
+      return false;
+    }
+    if (TRANSCRIPT_PATTERN.test(textContentOf(sibling))) return true;
+    const href = getAttribute(siblingTag, "href");
+    const hrefValue = href ? stringValueOf(href) : undefined;
+    if (hrefValue && TRANSCRIPT_PATTERN.test(hrefValue)) return true;
+    return false;
+  }
+  return false;
+}
+
+export function ariaDescribedByPointsToTranscript(
+  node: JsxTagNode,
+  sourceFile: ts.SourceFile,
+): boolean {
+  const describedBy = getAttribute(node, "aria-describedby");
+  if (!describedBy) return false;
+  const ids = (stringValueOf(describedBy) ?? describedBy.initializer?.getText() ?? "")
+    .split(/\s+/)
+    .map((value) => value.replace(/['"]/g, ""))
+    .filter(Boolean);
+  if (ids.length === 0) return false;
+
+  let found = false;
+  const visit = (child: ts.Node): void => {
+    if (
+      ts.isJsxAttribute(child) &&
+      ts.isIdentifier(child.name) &&
+      child.name.text === "id" &&
+      child.initializer
+    ) {
+      const idValue = stringValueOf(child);
+      if (idValue && ids.includes(idValue)) {
+        let host: ts.Node | undefined = child.parent;
+        while (host && !ts.isJsxElement(host)) {
+          host = host.parent;
+        }
+        if (host && ts.isJsxElement(host) && TRANSCRIPT_PATTERN.test(textContentOf(host))) {
+          found = true;
+        }
+      }
+    }
+    ts.forEachChild(child, visit);
+  };
+  visit(sourceFile);
+  return found;
+}

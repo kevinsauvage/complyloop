@@ -100,7 +100,13 @@ export type CheckId =
   | "consistent-labels"
   | "consistent-help"
   | "nontemporal-media-alt"
-  | "field-grouping";
+  | "field-grouping"
+  | "resize-text"
+  | "audio-description-track"
+  | "link-explicit-heuristic"
+  | "office-docs-alt-present"
+  | "media-keyboard-static"
+  | "css-hover-keyboard";
 
 export interface RawFinding {
   checkId: CheckId;

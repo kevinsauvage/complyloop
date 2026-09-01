@@ -24,4 +24,15 @@ describe("new-window-onload", () => {
       ),
     ).toHaveLength(0);
   });
+
+  it("warns on target=_blank without a new-window warning", () => {
+    const findings = newWindowOnloadCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => <a href="https://example.com" target="_blank">External site</a>;`,
+      ),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.kind).toBe("warning");
+  });
 });

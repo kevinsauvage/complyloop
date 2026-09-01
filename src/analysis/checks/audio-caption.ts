@@ -1,4 +1,8 @@
-import { hasChildTrackKind } from "./heuristic-utils";
+import {
+  ariaDescribedByPointsToTranscript,
+  hasAdjacentTranscriptLink,
+  hasChildTrackKind,
+} from "./heuristic-utils";
 import { locationOf, tagNameOf, visitJsxTags } from "../parse";
 import type { AccessibilityCheck, RawFinding } from "../types";
 
@@ -11,6 +15,8 @@ export const audioCaptionCheck: AccessibilityCheck = {
     visitJsxTags(source.sourceFile, (node) => {
       if (tagNameOf(node) !== "audio") return;
       if (hasChildTrackKind(node, AUDIO_ALT_KINDS)) return;
+      if (hasAdjacentTranscriptLink(node)) return;
+      if (ariaDescribedByPointsToTranscript(node, source.sourceFile)) return;
 
       findings.push({
         checkId: "audio-caption",

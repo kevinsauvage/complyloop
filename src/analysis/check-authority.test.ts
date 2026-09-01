@@ -44,6 +44,8 @@ const RUNTIME_ONLY = [
   "text-spacing-runtime",
   "hover-content",
   "label-adjacent",
+  "resize-text",
+  "css-hover-keyboard",
 ] as const;
 
 describe("check authority", () => {

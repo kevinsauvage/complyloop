@@ -6,10 +6,10 @@ interface CssContentHit {
   selector: string;
 }
 
-export async function cssDisabledContentViolation(
+export async function cssDisabledContentViolations(
   page: Page,
-): Promise<CustomViolation | null> {
-  const hit = await page.evaluate((): CssContentHit | null => {
+): Promise<CustomViolation[]> {
+  const hits = await page.evaluate((): CssContentHit[] => {
     function selectorOf(el: Element): string {
       if (el.id) return `#${el.id}`;
       return el.tagName.toLowerCase();
@@ -24,6 +24,8 @@ export async function cssDisabledContentViolation(
       }
       return text.trim();
     }
+
+    const results: CssContentHit[] = [];
 
     for (const el of document.querySelectorAll("body *")) {
       if (!(el instanceof HTMLElement)) continue;
@@ -43,23 +45,25 @@ export async function cssDisabledContentViolation(
       if (!hasBgImage && pseudoText.length < 2) continue;
 
       const html = el.outerHTML.replace(/\s+/g, " ").trim();
-      return {
+      results.push({
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
         selector: selectorOf(el),
-      };
+      });
     }
 
-    return null;
+    return results;
   });
 
-  if (!hit) return null;
+  if (hits.length === 0) return [];
 
-  return {
-    id: "complyloop-css-disabled-content",
-    impact: "moderate",
-    description:
-      "Visible text may depend on CSS pseudo-elements or background images instead of HTML.",
-    help: "Put essential text in the document, not only in ::before/::after content or image backgrounds (WCAG 1.3.1 / RGAA 10.2).",
-    nodes: [{ html: hit.html, target: [hit.selector] }],
-  };
+  return [
+    {
+      id: "complyloop-css-disabled-content",
+      impact: "moderate",
+      description:
+        "Visible text may depend on CSS pseudo-elements or background images instead of HTML.",
+      help: "Put essential text in the document, not only in ::before/::after content or image backgrounds (WCAG 1.3.1 / RGAA 10.2).",
+      nodes: hits.map((hit) => ({ html: hit.html, target: [hit.selector] })),
+    },
+  ];
 }

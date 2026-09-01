@@ -135,6 +135,8 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-both-colors": "both-colors",
   "complyloop-css-disabled-content": "css-disabled-content",
   "complyloop-media-keyboard": "media-keyboard",
+  "complyloop-resize-text": "resize-text",
+  "complyloop-css-hover-keyboard": "css-hover-keyboard",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {

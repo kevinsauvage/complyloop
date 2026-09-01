@@ -23,6 +23,10 @@ describe("custom runtime axe mappings", () => {
       "css-disabled-content",
     );
     expect(checkIdForAxeRule("complyloop-media-keyboard")).toBe("media-keyboard");
+    expect(checkIdForAxeRule("complyloop-resize-text")).toBe("resize-text");
+    expect(checkIdForAxeRule("complyloop-css-hover-keyboard")).toBe(
+      "css-hover-keyboard",
+    );
     expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });
 

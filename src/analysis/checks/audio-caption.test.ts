@@ -25,4 +25,36 @@ describe("audio-caption", () => {
       ),
     ).toHaveLength(0);
   });
+
+  it("accepts audio with an adjacent transcript link", () => {
+    expect(
+      audioCaptionCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <>
+              <audio src="/podcast.mp3" controls />
+              <a href="/transcript.html">Read transcript</a>
+            </>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts audio with aria-describedby pointing to transcript text", () => {
+    expect(
+      audioCaptionCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <>
+              <audio src="/podcast.mp3" controls aria-describedby="transcript" />
+              <p id="transcript">Full transcription of the episode</p>
+            </>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
 });

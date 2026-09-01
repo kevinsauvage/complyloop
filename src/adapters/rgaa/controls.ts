@@ -294,6 +294,17 @@ export const rgaaControls: Control[] = [
     complianceWeight: 1.3,
   },
   {
+    id: "ctl-resize-text",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 10.4",
+    secondaryCode: "WCAG 1.4.4",
+    title: "Text remains readable at 200% resize",
+    description:
+      "Content stays readable when text is enlarged to 200% without clipping or horizontal scrolling.",
+    checkId: "resize-text",
+    complianceWeight: 1.3,
+  },
+  {
     id: "ctl-list-structure",
     frameworkId: rgaaFramework.id,
     code: "RGAA 9.3",
@@ -1137,7 +1148,7 @@ export const rgaaControls: Control[] = [
     title: "Synchronized audio description is provided when needed",
     description:
       "Pre-recorded video with visual information not in the soundtrack includes audio description.",
-    checkId: null,
+    checkId: "audio-description-track",
     complianceWeight: 1.3,
   },
   {
@@ -1262,6 +1273,17 @@ export const rgaaControls: Control[] = [
     complianceWeight: 1.1,
   },
   {
+    id: "ctl-office-docs-alt-present",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 13.3",
+    secondaryCode: "WCAG 1.1.1",
+    title: "Office documents have an accessible alternative link",
+    description:
+      "Downloadable office documents have an adjacent HTML or text alternative link.",
+    checkId: "office-docs-alt-present",
+    complianceWeight: 1.1,
+  },
+  {
     id: "ctl-flash-threshold",
     frameworkId: rgaaFramework.id,
     code: "RGAA 13.7",
@@ -1280,7 +1302,7 @@ export const rgaaControls: Control[] = [
     title: "Non-temporal media is keyboard operable",
     description:
       "Embedded documents and objects can be operated from the keyboard.",
-    checkId: null,
+    checkId: "media-keyboard-static",
     complianceWeight: 1.1,
   },
   {
@@ -1335,7 +1357,7 @@ export const rgaaControls: Control[] = [
     title: "Link purpose is explicit",
     description:
       "Each link's accessible name makes sense out of context (not “click here” or “read more” alone).",
-    checkId: null,
+    checkId: "link-explicit-heuristic",
     complianceWeight: 1.3,
   },
   {
@@ -1500,7 +1522,7 @@ export const rgaaControls: Control[] = [
     title: "CSS-only extra content is available from the keyboard",
     description:
       "Content shown only via :hover or :focus CSS can also be revealed with keyboard focus.",
-    checkId: null,
+    checkId: "css-hover-keyboard",
     complianceWeight: 1.2,
   },
   {

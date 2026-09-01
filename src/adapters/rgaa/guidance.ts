@@ -590,6 +590,42 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Keep help/support/contact entry points in the same relative order across all preview routes.",
   },
+  "resize-text": {
+    impact:
+      "Text that clips or forces horizontal scrolling at 200% resize cannot be read by low-vision users (WCAG 1.4.4 / RGAA 10.4).",
+    howToFix:
+      "Use relative units and flexible layouts so content reflows when text is enlarged to 200%.",
+  },
+  "audio-description-track": {
+    impact:
+      "Video without an audio description track may omit visual information for blind users (WCAG 1.2.5 / RGAA 4.5).",
+    howToFix:
+      "Add a <track kind=\"descriptions\"> or an equivalent audio-described version when visual content is not in the soundtrack.",
+  },
+  "link-explicit-heuristic": {
+    impact:
+      "Generic link text like “click here” does not describe the destination out of context (WCAG 2.4.4 / RGAA 6.1).",
+    howToFix:
+      "Use link text that states the destination or purpose, e.g. “Download annual report (PDF)”.",
+  },
+  "office-docs-alt-present": {
+    impact:
+      "Office document downloads without an accessible HTML or text alternative exclude users who cannot open proprietary formats (WCAG 1.1.1 / RGAA 13.3).",
+    howToFix:
+      "Provide an adjacent HTML or plain-text version with equivalent content.",
+  },
+  "media-keyboard-static": {
+    impact:
+      "Embedded objects without a keyboard path cannot be operated without a pointer (WCAG 2.1.1 / RGAA 4.12).",
+    howToFix:
+      "Add tabIndex and keyboard handlers, or replace the embed with accessible HTML content.",
+  },
+  "css-hover-keyboard": {
+    impact:
+      "Content shown only on pointer hover may be unreachable for keyboard-only users (WCAG 2.1.1 / RGAA 10.14).",
+    howToFix:
+      "Mirror :hover menus and tooltips with :focus styles or explicit keyboard toggles.",
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {

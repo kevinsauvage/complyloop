@@ -1,13 +1,15 @@
 import type { Page } from "playwright";
 import type { AxeViolationLike } from "../findings";
 import { bothColorsRuntimeViolation } from "./both-colors-runtime";
-import { cssDisabledContentViolation } from "./css-disabled-content";
+import { cssDisabledContentViolations } from "./css-disabled-content";
+import { cssHoverKeyboardViolation } from "./css-hover-keyboard";
 import { mediaKeyboardViolation } from "./media-keyboard";
 import { focusCustomViolations } from "./focus";
 import { hoverContentViolation } from "./hover-content";
 import { labelAdjacentViolation } from "./label-adjacent";
 import { nonTextContrastViolation } from "./non-text-contrast";
 import { reflowViolation } from "./reflow";
+import { resizeTextViolation } from "./resize-text";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime";
 import type { CustomViolation } from "./types";
 
@@ -33,18 +35,22 @@ export async function runCustomRuntimeChecks(
 ): Promise<AxeViolationLike[]> {
   const optional = await Promise.all([
     reflowViolation(page),
+    resizeTextViolation(page),
     textSpacingRuntimeViolation(page),
     nonTextContrastViolation(page),
     labelAdjacentViolation(page),
     hoverContentViolation(page),
     bothColorsRuntimeViolation(page),
-    cssDisabledContentViolation(page),
+    cssDisabledContentViolations(page),
     mediaKeyboardViolation(page),
+    cssHoverKeyboardViolation(page),
   ]);
 
   const violations: CustomViolation[] = [
     ...(await focusCustomViolations(page)),
-    ...optional.filter((result): result is CustomViolation => result !== null),
+    ...optional.flatMap((result) =>
+      result === null ? [] : Array.isArray(result) ? result : [result],
+    ),
   ];
 
   return violations.map(toAxeViolation);

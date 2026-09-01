@@ -1,6 +1,16 @@
 import ts from "typescript";
-import { locationOf } from "../parse";
+import {
+  getAttribute,
+  jsxElementOf,
+  locationOf,
+  stringValueOf,
+  tagNameOf,
+  visitJsxTags,
+} from "../parse";
 import type { AccessibilityCheck, RawFinding } from "../types";
+import { textContentOf } from "./heuristic-utils";
+
+const NEW_WINDOW_WARNING = /new (window|tab)|nouvelle fen[êe]tre|nouvel onglet/i;
 
 function isEmptyDepsArray(node: ts.Expression | undefined): boolean {
   return (
@@ -94,6 +104,30 @@ export const newWindowOnloadCheck: AccessibilityCheck = {
       ts.forEachChild(node, visit);
     };
     visit(source.sourceFile);
+
+    visitJsxTags(source.sourceFile, (node) => {
+      const tag = tagNameOf(node);
+      if (tag !== "a" && tag !== "Link") return;
+      const target = getAttribute(node, "target");
+      const targetValue = target ? stringValueOf(target) : undefined;
+      if (targetValue !== "_blank") return;
+      if (getAttribute(node, "aria-describedby")) return;
+      const element = jsxElementOf(node);
+      const text = element ? textContentOf(element) : "";
+      if (NEW_WINDOW_WARNING.test(text)) return;
+
+      findings.push({
+        checkId: "new-window-onload",
+        kind: "warning",
+        severity: "moderate",
+        confidence: "medium",
+        reason:
+          'Link opens a new window (target="_blank") without warning users in the link text or aria-describedby (RGAA 13.2).',
+        location: locationOf(source, node),
+        fix: null,
+      });
+    });
+
     return findings;
   },
 };
