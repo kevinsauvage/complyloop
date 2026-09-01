@@ -38,6 +38,16 @@ export async function capturePageSnapshot(
       }
     }
 
+    const helpLinks: string[] = [];
+    const helpPattern = /help|support|contact|chat|faq|aide/i;
+    for (const anchor of document.querySelectorAll("a[href]")) {
+      const href = anchor.getAttribute("href");
+      if (!href) continue;
+      const label = anchor.textContent?.trim() ?? "";
+      if (!helpPattern.test(href) && !helpPattern.test(label)) continue;
+      helpLinks.push(`${label}::${href}`);
+    }
+
     const searchInputs: Array<{ name?: string; type: string }> = [];
     for (const input of document.querySelectorAll("input")) {
       const type = (input.getAttribute("type") ?? "text").toLowerCase();
@@ -79,6 +89,7 @@ export async function capturePageSnapshot(
       url: pageUrl,
       title: document.title,
       navLinks,
+      helpLinks,
       searchInputs,
       sitemapLinks,
       formFields,

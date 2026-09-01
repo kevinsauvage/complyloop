@@ -10,6 +10,7 @@ function snapshot(
     url,
     title: url,
     navLinks: [],
+    helpLinks: [],
     searchInputs: [],
     sitemapLinks: [],
     formFields: [],
@@ -74,5 +75,19 @@ describe("runSiteLevelChecks", () => {
     expect(
       findings.some((finding) => finding.checkId === "consistent-labels"),
     ).toBe(true);
+  });
+
+  it("flags inconsistent help mechanism ordering", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", {
+        helpLinks: ["help::/help", "contact::/contact"],
+      }),
+      snapshot("https://x.test/b", {
+        helpLinks: ["contact::/contact", "help::/help"],
+      }),
+    ]);
+    expect(findings.some((finding) => finding.checkId === "consistent-help")).toBe(
+      true,
+    );
   });
 });

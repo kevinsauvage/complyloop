@@ -1093,7 +1093,7 @@ export const rgaaControls: Control[] = [
     title: "Help mechanisms appear in a consistent order",
     description:
       "Contact, help, and support entry points appear in the same relative order on every page.",
-    checkId: null,
+    checkId: "consistent-help",
     complianceWeight: 1.2,
   },
   {

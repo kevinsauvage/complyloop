@@ -62,6 +62,12 @@ function inconsistentLabels(snapshots: ReadonlyArray<RuntimePageSnapshot>): stri
   return mismatches;
 }
 
+function helpSignatures(snapshots: ReadonlyArray<RuntimePageSnapshot>): string[] {
+  return snapshots
+    .map((snapshot) => snapshot.helpLinks.join(">"))
+    .filter((signature) => signature.length > 0);
+}
+
 export function runSiteLevelChecks(
   snapshots: ReadonlyArray<RuntimePageSnapshot>,
 ): RawFinding[] {
@@ -102,6 +108,19 @@ export function runSiteLevelChecks(
         pages,
         labelMismatches.slice(0, 3).join("; "),
         `Fields with the same purpose use different labels across pages: ${labelMismatches.slice(0, 3).join("; ")}.`,
+      ),
+    );
+  }
+
+  const helpOrderSignatures = helpSignatures(snapshots);
+  const uniqueHelpOrders = new Set(helpOrderSignatures);
+  if (helpOrderSignatures.length > 1 && uniqueHelpOrders.size > 1) {
+    findings.push(
+      siteFinding(
+        "consistent-help",
+        pages,
+        "Help mechanisms differ between pages",
+        "Help, support, or contact links appear in a different order across the configured preview routes.",
       ),
     );
   }

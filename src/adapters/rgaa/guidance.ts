@@ -584,6 +584,12 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Use the same visible and accessible label for fields with the same name or autocomplete token.",
   },
+  "consistent-help": {
+    impact:
+      "When help and contact mechanisms move around between pages, users relying on repeated navigation lose predictability (WCAG 3.2.6).",
+    howToFix:
+      "Keep help/support/contact entry points in the same relative order across all preview routes.",
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {

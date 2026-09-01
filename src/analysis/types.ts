@@ -98,6 +98,7 @@ export type CheckId =
   | "multiple-ways"
   | "consistent-nav"
   | "consistent-labels"
+  | "consistent-help"
   | "nontemporal-media-alt"
   | "field-grouping";
 
