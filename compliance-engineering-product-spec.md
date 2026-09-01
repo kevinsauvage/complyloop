@@ -1,4 +1,41 @@
-# Compliance Engineering Platform --- Product Specification
+# Compliance Engineering Platform — Product Specification
+
+> **One-liner:** Connect compliance requirements to code assessment, remediation, verification, and evidence — continuously, not as a one-time audit.
+
+**Related docs:** [README](./README.md) · [Architecture](./docs/ai/architecture.md) · [AGENTS](./AGENTS.md)
+
+## Contents
+
+1. [Product Vision](#1-product-vision)
+2. [The Problem](#2-the-problem)
+3. [Product Positioning](#3-product-positioning)
+4. [Target Customers](#4-target-customers)
+5. [Initial Product Focus](#5-initial-product-focus)
+6. [Core User Journey](#6-core-user-journey)
+7. [Core Product Loop](#7-core-product-loop)
+8. [Continuous Compliance](#8-continuous-compliance)
+9. [Developer Experience](#9-developer-experience)
+10. [Findings](#10-findings)
+11. [AI's Role](#11-ais-role)
+12. [Human-in-the-Loop](#12-human-in-the-loop)
+13. [Evidence](#13-evidence)
+14. [Compliance Dashboard](#14-compliance-dashboard)
+15. [Requirement Management](#15-requirement-management)
+16. [Risk and Prioritization](#16-risk-and-prioritization)
+17. [Root-Cause Analysis](#17-root-cause-analysis)
+18. [Remediation](#18-remediation)
+19. [Automatic Remediation](#19-automatic-remediation)
+20. [Pull Requests](#20-pull-requests)
+21. [Reports](#21-reports)
+22. [Exceptions and Manual Decisions](#22-exceptions-and-manual-decisions)
+23. [Product Principles](#23-product-principles)
+24. [MVP Scope](#24-mvp-scope)
+25. [What Success Looks Like](#25-what-success-looks-like)
+26. [Long-Term Vision](#26-long-term-vision)
+27. [Product Definition](#27-product-definition)
+28. [Final Product Principle](#28-final-product-principle)
+
+---
 
 ## 1. Product Vision
 
@@ -109,7 +146,7 @@ Potential future domains:
 
 ## 6. Core User Journey
 
-### Step 1 --- Define requirements
+### Step 1 — Define requirements
 
 A company brings requirements into the platform from an audit,
 framework, customer requirement, regulation, internal policy, or custom
@@ -117,7 +154,7 @@ checklist.
 
 The platform turns them into clear, actionable controls.
 
-### Step 2 --- Connect the software
+### Step 2 — Connect the software
 
 The company connects repositories and engineering environments relevant
 to those requirements.
@@ -178,7 +215,7 @@ requirement/control it satisfies.
 
 ## 7. Core Product Loop
 
-``` text
+```text
 Requirement
     ↓
 Assessment
@@ -235,7 +272,7 @@ traditional compliance application.
 
 The ideal workflow is:
 
-``` text
+```text
 Pull Request
     ↓
 Compliance checks
@@ -313,7 +350,7 @@ Evidence is a first-class product concept.
 
 For every requirement, users should understand:
 
-``` text
+```text
 Requirement
     ↓
 Current status
@@ -406,7 +443,7 @@ Remediation is a workflow, not merely an AI answer.
 
 A remediation can move through:
 
-``` text
+```text
 Detected
    ↓
 Investigating
@@ -621,7 +658,7 @@ evidence, and remediation workflows.
 
 The ultimate loop is:
 
-``` text
+```text
 Compliance requirement
         ↓
 Machine-understandable control

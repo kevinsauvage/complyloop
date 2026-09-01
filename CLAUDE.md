@@ -10,8 +10,14 @@ This block is written and re-added by `next dev` -- verify at `node_modules/next
 
 # Claude / agent guide
 
-Shared agent instructions: **[`AGENTS.md`](./AGENTS.md)**. Read that before making changes.
+Pointers only — details live elsewhere.
 
-Enforceable product/domain/quality rules: **[`.cursor/rules/`](./.cursor/rules/)**. Architecture detail: **[`docs/ai/architecture.md`](./docs/ai/architecture.md)**. Product decisions: **[`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md)**.
+| Doc | Role |
+| --- | --- |
+| [`AGENTS.md`](./AGENTS.md) | Repo orientation, commands, layout |
+| [`.cursor/rules/`](./.cursor/rules/) | Enforceable product, domain, quality rules |
+| [`docs/ai/architecture.md`](./docs/ai/architecture.md) | System shape & persistence |
+| [`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md) | Product source of truth |
+| [`docs/README.md`](./docs/README.md) | Full doc index |
 
-Do not re-expand this file with duplicated stack, layout, or principle lists — update `AGENTS.md` or the relevant `.cursor/rules/*.mdc` instead.
+Do not duplicate stack or principle lists here — update `AGENTS.md` or the relevant rule file.

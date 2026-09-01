@@ -1,40 +1,45 @@
 # `@complyloop/check`
 
-CI gate for assessed apps: scan a React/TypeScript tree and exit non-zero on accessibility **violations**.
+Fail CI when accessibility **violations** exist in a React/TypeScript tree. AST checks only — no browser required.
 
 ## Install
 
 ```bash
 npm install @complyloop/check
-# or from a local checkout of this monorepo (after build):
-npm run build:check
-npm install /path/to/Compliance-Engineering-Platform/packages/check
 ```
 
-## Usage
+From this monorepo (after build):
+
+```bash
+npm run build:check
+npm install ./packages/check
+```
+
+## Run
 
 ```bash
 npx complyloop-check .
-# or
 npx complyloop-check path/to/app
 ```
 
-Exit codes: `0` clean, `1` violations found, `2` usage/IO error.
+| Exit code | Meaning |
+| --- | --- |
+| `0` | No violations |
+| `1` | Violations found |
+| `2` | Usage or I/O error |
 
 ## GitHub Actions
 
-See [`templates/github-actions/complyloop-check.yml`](../../templates/github-actions/complyloop-check.yml):
+Copy [`templates/github-actions/complyloop-check.yml`](../../templates/github-actions/complyloop-check.yml):
 
 ```yaml
 - run: npm ci
 - run: npx complyloop-check .
 ```
 
-## Monorepo development
-
-From the ComplyLoop repo root:
+## Develop in the monorepo
 
 ```bash
-npm run build:check   # produce packages/check/dist/cli.js
-npm run check -- .    # runs the bin (bundle if present, else tsx fallback)
+npm run build:check   # build packages/check/dist/cli.js
+npm run check -- .    # bundle or tsx fallback
 ```

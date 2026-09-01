@@ -1,156 +1,134 @@
 # Finding page flow
 
-UX contract for `/findings/[id]`. Domain statuses and evidence rules:
-`.cursor/rules/domain-model.mdc`, `docs/ai/architecture.md`.
+UX contract for `/findings/[id]`. Domain rules: [`.cursor/rules/domain-model.mdc`](../../.cursor/rules/domain-model.mdc), [`architecture.md`](./architecture.md).
 
-## Goal
+## What the developer should get
 
-A developer opening a Finding should answer, in order:
+Opening a finding answers three questions:
 
-1. What failed, where, and why.
-2. What to do **right now** (one primary action).
-3. How we will know it is fixed.
+1. **What failed?** — requirement, location, snippet, impact.
+2. **What do I do now?** — one primary action (Act panel).
+3. **How do we know it's fixed?** — verification path.
 
-Queue navigation (`j` / `k`) stays. Everything else is secondary.
+Queue nav (`j` / `k`) stays. Everything else is secondary.
 
-## Page composition
+## Page layout
 
-| Block | Component | Role |
+| Block | Component | Purpose |
 | --- | --- | --- |
-| Queue | `FindingQueueNav` | Prev/next in the filtered list |
-| Header | `PageHeader` + badges | Control, severity, confidence, remediation status, engine |
-| Understand | `FindingUnderstandCard` | Why, where, snippet; impact/how-to-fix and AI folded |
-| Act | `FindingNextStepPanel` | One beat from `findingAct()` in `src/core/finding-act.ts` |
-| Details | handoff + evidence | Handoff only when `showHandoff`; evidence collapsed |
+| Queue | `FindingQueueNav` | Prev/next in filtered list |
+| Header | `PageHeader` | Control, severity, confidence, status, engine |
+| Understand | `FindingUnderstandCard` | Why, where, how to fix; AI folded in |
+| Act | `FindingNextStepPanel` | Single CTA from `findingAct()` |
+| Details | Handoff + evidence | Handoff when needed; evidence collapsed |
 
-Act panel owns every finding-page action. Dismiss lives in a disclosure
-inside Act (`#dismiss-finding`).
+Dismiss lives in a disclosure inside Act (`#dismiss-finding`).
 
 ## User beats
 
-```text
-Understand          Act                         Confirm
-(what / where)      (one CTA)                   (how we know)
-─────────────────────────────────────────────────────────────
-Source, no patch    Generate verified patch
-Source, patch ready Review diff → Create draft PR
-Source, PR open     Open draft PR               Waiting on merge + re-assessment
-Source, resolved    —                           Verified
-Runtime, no fix     Generate guidance / copy notes
+```
+Understand          Act                    Confirm
+──────────          ───                    ───────
+Source, no patch    Generate patch
+Source, patch ready Review → Create PR
+Source, PR open     Open draft PR          Wait for merge + re-assess
+Source, done        —                      Verified
+Runtime, no fix     Generate guidance
 Runtime, suggested  Approve
 Runtime, approved   Mark implemented
-Runtime, implemented Verify (re-audit / note)
-Dismissed           —                           Documented exception
+Runtime, done       Verify (audit / note)
+Dismissed           —                      Exception on record
 ```
 
-## Durable workflows
+## Workflows
 
 ### Source (AST)
 
-```text
-Assessment → Finding + Remediation (detected, or suggested if deterministic snippet)
-        ↓
-Generate patch → checkout → deterministic or constrained AI edit
-              → focused ComplyLoop re-scan must pass
-              → evidence ai_patch_ready, status → suggested
-        ↓
-Create draft PR → fresh checkout, same edits, GitHub draft PR
-              → evidence pull_request_prepared, status → approved
-        ↓
-Merge on GitHub → webhook / re-assess → Finding resolved, remediation verified
+```
+Assessment → Finding + Remediation (detected / suggested)
+     ↓
+Generate patch → fresh checkout → edit → ComplyLoop must pass
+     ↓
+Create draft PR → evidence pull_request_prepared → approved
+     ↓
+Merge on GitHub → re-assess → verified
 ```
 
-Code: `src/server/actions/ai-fix.ts`, `src/server/ai-fix-run.ts`,
-`src/ai/verified-fix.ts`, `src/server/actions/pr.ts`,
-`src/server/assessment.ts` (`verifyDraftPrRemediation`).
+**Code:** `src/server/actions/ai-fix.ts`, `src/server/ai-fix-run.ts`, `src/ai/verified-fix.ts`, `src/server/actions/pr.ts`, `src/server/assessment.ts`.
+
+Never show **Create draft PR** or **Generate patch** for `location.kind === "dom"`.
 
 ### Runtime (DOM)
 
-```text
+```
 Assessment → Finding (usually no ProposedFix)
-        ↓
-Generate guidance → status suggested (or copy handoff)
-        ↓
-Approve → Mark implemented (outside the platform) → Verify (runtime re-audit or manual note)
-        → Finding resolved
+     ↓
+Generate guidance → suggested
+     ↓
+Approve → Mark implemented → Verify (re-audit or manual note) → verified
 ```
 
-Code: `generateAiRemediationAction`, `FindingNextStepPanel`,
-`approveRemediationAction`, `markRemediationImplementedAction`,
-`verifyRemediationAction`.
+**Code:** `generateAiRemediationAction`, `FindingNextStepPanel`, remediation actions.
 
-Never show **Create draft PR** or **Generate patch** for
-`location.kind === "dom"`.
+## Act panel rules (`findingAct`)
 
-## Act panel (`findingAct`)
+Input: `finding`, `remediation`, `canRemediate`, `prUrl`, `patchReady`, `githubConnected`, `aiAvailable`.
 
-View-model input: `finding`, `remediation`, `canRemediate`, `prUrl`,
-`patchReady`, `githubConnected`, `aiAvailable`.
+### Source findings
 
-### Source
-
-| Condition | Title | Primary action |
+| State | Title | Primary action |
 | --- | --- | --- |
-| Open, no verified patch | Fix this Finding | **Generate patch** or **Verify and prepare patch** (`hasSafeDeterministicFix`) |
-| Patch ready, no PR | Review patch | **Create draft pull request** (diff inline) |
-| PR open, Finding still open | In review on GitHub | **Open draft PR** |
-| Resolved / verified | Verified | — |
-| Dismissed | Dismissed | — |
+| Open, no patch | Fix this Finding | **Generate patch** |
+| Patch ready | Review patch | **Create draft PR** |
+| PR open | In review on GitHub | **Open draft PR** |
+| Verified | Verified | — |
 
-Deterministic fixes still go through Generate so ComplyLoop runs on a fresh
-checkout. Editable `insert_attribute` (e.g. alt text) uses AI or human
-review in the patch flow — not silent apply.
+Deterministic fixes still go through Generate (fresh checkout + ComplyLoop). Editable attributes (e.g. alt text) use AI or human review in the patch flow.
 
-### Runtime
+### Runtime findings
 
-| Condition | Title | Primary action |
+| State | Title | Primary action |
 | --- | --- | --- |
-| Open, no suggestion | Fix at the call site | **Generate guidance**; link to `#copy-handoff` when handoff is available |
+| Open | Fix at the call site | **Generate guidance** |
 | Suggested | Review guidance | **Approve** |
-| Approved | Implemented outside ComplyLoop | **Mark implemented** |
-| Implemented | Confirm the page is fixed | **Verify** (automated or manual note) |
+| Approved | Implemented outside | **Mark implemented** |
+| Implemented | Confirm fix | **Verify** |
 
-### Chrome flags
+### UI flags
 
-- `showHandoff`: `prUrl === null`, Finding open, and suggestion or
-  `finding.fix` exists. Handoff is folded under **Copy patch / PR body**.
-- `showDismiss`: open Finding, can remediate, remediation not verified.
+- **`showHandoff`** — no PR yet, finding open, suggestion or `finding.fix` exists.
+- **`showDismiss`** — open finding, can remediate, not verified.
 
-## Findings list bulk actions
+## Bulk actions (findings list)
 
-`canBulkApproveRemediation()` — runtime guidance only. Source findings
-use patch → draft PR on the detail page. Server action skips non-DOM
-findings.
+`canBulkApproveRemediation()` — **runtime guidance only**. Source findings use patch → PR on the detail page.
 
-## Domain lifecycle
+## Remediation statuses
 
-Stored remediation statuses:
+```
+detected → suggested → approved → implemented → verified
+```
 
-`detected` → `suggested` → `approved` → `implemented` → `verified`
+UI maps these to the beats above — no separate wizard.
 
-UI maps these to the beats above; no separate wizard on the finding page.
+## Non-negotiable
 
-## Constraints (non-negotiable)
-
-- AI never sets Finding, Requirement, or `verified` status.
-- Source patches must pass focused ComplyLoop before preview / PR.
-- Evidence is append-only; dismiss is an exception with retained history.
-- Repository tests run in GitHub CI, not in the Next request.
+- AI never sets finding, requirement, or `verified` status.
+- Source patches must pass ComplyLoop before preview / PR.
+- Evidence is append-only; dismiss = exception with history.
+- Repo tests run in GitHub CI, not in the Next request.
 - Runtime findings cannot be auto-committed (no reliable source span).
 
 ## Tests
 
 Colocate with `finding-act.ts` and `finding-next-step-panel.tsx`:
 
-- Source beats: generate, review patch + PR, in review on GitHub, verified.
-- Runtime beats: approve, verify; no patch/PR actions.
+- Source: generate, review + PR, in review, verified.
+- Runtime: approve, verify; no patch/PR actions.
 - Handoff hidden when `prUrl` is set.
 - Bulk approve: runtime only (`findings-bulk-list.test.tsx`).
-
-Keep action tests for `ai-fix`, `pr`, `verifyDraftPrRemediation`.
 
 ## Follow-ups
 
 - Cluster → one PR (`todo.md` item 9).
-- Auto-propose deterministic patches at assessment time (still require
-  ComplyLoop + human PR).
+- Auto-propose deterministic patches at assessment (still require ComplyLoop + human PR).
