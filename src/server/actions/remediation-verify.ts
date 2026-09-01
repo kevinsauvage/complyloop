@@ -89,7 +89,7 @@ export async function verifyRemediationAction(
         (candidate) => candidate.id === finding.projectId,
       );
       if (!project) throw new PublicError("Unknown project.");
-      const tokenOptions = await sessionCheckoutTokenOptions(preview.userId);
+      const tokenOptions = await sessionCheckoutTokenOptions();
 
       await withProjectCheckout(
         project,

@@ -32,16 +32,13 @@ export interface EnsurePersonalOrgResult {
   changed: boolean;
 }
 
-/**
- * Ensures the signed-in user has a personal org (as owner) and migrates any
- * of their legacy GitHub projects onto that org.
- */
+/** Ensures the signed-in user has a personal org (as owner). */
 export function ensurePersonalOrg(
   db: Db,
   userId: string,
   githubLogin: string,
 ): EnsurePersonalOrgResult {
-  let changed = claimMembershipsForLogin(db, userId, githubLogin);
+  const changed = claimMembershipsForLogin(db, userId, githubLogin);
 
   const owned = db.memberships.find(
     (membership) =>
@@ -52,7 +49,6 @@ export function ensurePersonalOrg(
       (candidate) => candidate.id === owned.orgId,
     );
     if (org) {
-      if (attachLegacyProjects(db, userId, org.id)) changed = true;
       return { org, changed };
     }
   }
@@ -64,23 +60,7 @@ export function ensurePersonalOrg(
     ownerUserId: userId,
     githubLogin: label,
   });
-  attachLegacyProjects(db, userId, org.id);
   return { org, changed: true };
-}
-
-function attachLegacyProjects(
-  db: Db,
-  userId: string,
-  orgId: string,
-): boolean {
-  let changed = false;
-  for (const project of db.projects) {
-    if (project.ownerUserId === userId && !project.orgId) {
-      project.orgId = orgId;
-      changed = true;
-    }
-  }
-  return changed;
 }
 
 export function membershipsForOrg(

@@ -51,7 +51,7 @@ export async function ConnectProjectPanel({
     const { db, activeOrgId } = workspace;
     Object.assign(
       connectedByFullName,
-      connectedGitHubProjectsByFullName(db.projects, userId, activeOrgId),
+      connectedGitHubProjectsByFullName(db.projects, activeOrgId),
     );
 
     const token = await getGitHubAccessToken();

@@ -31,10 +31,3 @@ export function isFullLoadScope(
 export function workspaceReadEvidenceLimit(): number {
   return WORKSPACE_EVIDENCE_LIMIT;
 }
-
-/** Persist treats a missing scope as a full replace-all sync (legacy callers). */
-export function effectiveLoadScope(
-  scope: DbLoadScope | undefined,
-): DbLoadScope {
-  return scope ?? fullLoadScope();
-}

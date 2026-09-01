@@ -15,8 +15,6 @@ function remediation(status: Remediation["status"]): Remediation {
 describe("canTransition", () => {
   it("follows the remediation lifecycle in order", () => {
     expect(canTransition("detected", "suggested")).toBe(true);
-    expect(canTransition("detected", "investigating")).toBe(true);
-    expect(canTransition("investigating", "suggested")).toBe(true);
     expect(canTransition("suggested", "approved")).toBe(true);
     expect(canTransition("approved", "implemented")).toBe(true);
     expect(canTransition("implemented", "verified")).toBe(true);

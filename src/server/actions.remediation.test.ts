@@ -6,7 +6,6 @@ import { emptyActionMessageState } from "./action-state";
 import { runAssessmentAction } from "./actions/assessment";
 import { dismissFindingAction } from "./actions/remediation-dismiss";
 import {
-  applyRemediationAction,
   approveRemediationAction,
   bulkApproveRemediationsAction,
 } from "./actions/remediation";
@@ -19,11 +18,6 @@ const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const drainAssessmentJobQueue = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
-const locateViolationInProject = vi.hoisted(() => vi.fn());
-const mergeFix = vi.hoisted(() => vi.fn());
-const applyFix = vi.hoisted(() => vi.fn());
-const readFileSync = vi.hoisted(() => vi.fn());
-const writeFileSync = vi.hoisted(() => vi.fn());
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -54,14 +48,6 @@ vi.mock("./workspace", async () => {
   };
 });
 
-vi.mock("./repo-checkout", () => ({
-  withProjectCheckout: async (
-    _project: unknown,
-    fn: (rootPath: string) => Promise<unknown>,
-  ) => fn("/tmp/ephemeral-checkout"),
-  withRepoCheckout: vi.fn(),
-}));
-
 vi.mock("./observability", () => ({
   reportError: vi.fn(),
   reportWarning: vi.fn(),
@@ -91,26 +77,6 @@ vi.mock("./rate-limit", async () => {
       assertAssessRateLimit(...args),
   };
 });
-
-vi.mock("node:fs", () => ({
-  default: {
-    readFileSync: (...args: unknown[]) => readFileSync(...args),
-    writeFileSync: (...args: unknown[]) => writeFileSync(...args),
-  },
-  readFileSync: (...args: unknown[]) => readFileSync(...args),
-  writeFileSync: (...args: unknown[]) => writeFileSync(...args),
-}));
-
-vi.mock("@/analysis/fixes", () => ({
-  applyFix: (...args: unknown[]) => applyFix(...args),
-}));
-
-vi.mock("./assessment-helpers", () => ({
-  buildSuggestion: vi.fn(),
-  locateViolationInProject: (...args: unknown[]) =>
-    locateViolationInProject(...args),
-  mergeFix: (...args: unknown[]) => mergeFix(...args),
-}));
 
 vi.mock("./assessment-status", () => ({
   refreshRequirementStatuses: vi.fn(),
@@ -236,37 +202,6 @@ describe("remediation action authz", () => {
     expect(workspace.db.remediations[0]?.status).toBe("approved");
   });
 
-  it("applies an edited insert_attribute value on approve", async () => {
-    const workspace = workspaceFor("member");
-    const openFinding = workspace.db.findings[0];
-    if (!openFinding) throw new Error("expected finding");
-    openFinding.fix = {
-      kind: "insert_attribute",
-      attribute: "alt",
-      value: "",
-      editable: true,
-      span: { start: 0, end: 16 },
-    };
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
-    const form = new FormData();
-    form.set("value", "Checkout cart");
-
-    const result = await approveRemediationAction(
-      "f1",
-      emptyActionMessageState,
-      form,
-    );
-
-    expect(result.message).toBe("Remediation approved.");
-    expect(openFinding.fix).toMatchObject({
-      kind: "insert_attribute",
-      value: "Checkout cart",
-    });
-    expect(workspace.db.remediations[0]?.suggestion?.proposedSnippet).toBe(
-      "Checkout cart",
-    );
-  });
-
   it("denies dismiss for viewers", async () => {
     withWorkspaceWrite.mockImplementation(async (fn) => fn(workspaceFor("viewer")));
     const formData = new FormData();
@@ -300,31 +235,35 @@ describe("bulkApproveRemediationsAction", () => {
     expect(result.error).toMatch(/Select at least one finding/);
   });
 
-  it("approves suggested open remediations and skips others", async () => {
+  it("approves suggested runtime remediations and skips source findings", async () => {
     const workspace = workspaceFor("member");
-    const second: Finding = {
+    const runtimeFinding: Finding = {
       ...finding,
       id: "f2",
-      status: "open",
+      location: {
+        kind: "dom",
+        url: "https://example.com/login",
+        selector: "input#email",
+        snippet: "<input id='email'>",
+      },
     };
-    const closed: Finding = {
-      ...finding,
-      id: "f3",
-      status: "resolved",
-    };
-    workspace.db.findings.push(second, closed);
+    workspace.db.findings.push(runtimeFinding);
     workspace.db.remediations.push(
       {
         id: "r2",
         findingId: "f2",
-        status: "approved",
-        suggestion: null,
+        status: "suggested",
+        suggestion: {
+          description: "Associate a label",
+          proposedSnippet: "<label>Email</label>",
+          provenance: "ai",
+        },
         history: [],
       },
       {
         id: "r3",
         findingId: "f3",
-        status: "suggested",
+        status: "approved",
         suggestion: null,
         history: [],
       },
@@ -334,8 +273,6 @@ describe("bulkApproveRemediationsAction", () => {
     const form = new FormData();
     form.append("findingIds", "f1");
     form.append("findingIds", "f2");
-    form.append("findingIds", "f3");
-    form.append("findingIds", "f1");
 
     const result = await bulkApproveRemediationsAction(
       emptyActionMessageState,
@@ -346,7 +283,7 @@ describe("bulkApproveRemediationsAction", () => {
       error: null,
       message: "Approved 1 remediation.",
     });
-    expect(workspace.db.remediations[0]?.status).toBe("approved");
+    expect(workspace.db.remediations[0]?.status).toBe("suggested");
     expect(workspace.db.remediations[1]?.status).toBe("approved");
   });
 
@@ -364,7 +301,7 @@ describe("bulkApproveRemediationsAction", () => {
       emptyActionMessageState,
       form,
     );
-    expect(result.error).toMatch(/No selected findings had a suggested/);
+    expect(result.error).toMatch(/No selected findings had runtime guidance/);
   });
 });
 
@@ -427,118 +364,5 @@ describe("runAssessmentAction", () => {
 
     expect(result.error).toMatch(/Too many requests/);
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-  });
-});
-
-describe("applyRemediationAction", () => {
-  it("requires an automatable fix", async () => {
-    const workspace = workspaceFor("member");
-    getWorkspace.mockResolvedValue(workspace);
-
-    const result = await applyRemediationAction(
-      "f1",
-      emptyActionMessageState,
-      new FormData(),
-    );
-    expect(result.error).toMatch(/no automatable fix/);
-  });
-
-  it("rejects runtime DOM locations", async () => {
-    const workspace = workspaceFor("member");
-    const openFinding = workspace.db.findings[0];
-    if (!openFinding) throw new Error("expected finding");
-    openFinding.fix = {
-      kind: "insert_attribute",
-      attribute: "alt",
-      value: "",
-      editable: true,
-      span: { start: 0, end: 16 },
-    };
-    openFinding.location = {
-      kind: "dom",
-      url: "https://example.com",
-      selector: "img",
-      snippet: "<img>",
-    };
-    getWorkspace.mockResolvedValue(workspace);
-
-    const result = await applyRemediationAction(
-      "f1",
-      emptyActionMessageState,
-      new FormData(),
-    );
-    expect(result.error).toMatch(/Runtime DOM findings cannot be auto-applied/);
-  });
-
-  it("verifies the fix on an ephemeral checkout and marks implemented", async () => {
-    const workspace = workspaceFor("member");
-    const openFinding = workspace.db.findings[0];
-    if (!openFinding) throw new Error("expected finding");
-    openFinding.fix = {
-      kind: "insert_attribute",
-      attribute: "alt",
-      value: "Cart",
-      editable: true,
-      span: { start: 0, end: 16 },
-    };
-    const remediationRow = workspace.db.remediations[0];
-    if (!remediationRow) throw new Error("expected remediation");
-    remediationRow.status = "approved";
-
-    getWorkspace.mockResolvedValue(workspace);
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
-    locateViolationInProject.mockReturnValue({
-      checkId: "img-alt",
-      kind: "violation",
-      severity: "serious",
-      confidence: "high",
-      reason: "Missing alt",
-      location: openFinding.location,
-      fix: openFinding.fix,
-    });
-    mergeFix.mockReturnValue(openFinding.fix);
-    readFileSync.mockReturnValue('<img src="x" />');
-    applyFix.mockReturnValue('<img src="x" alt="Cart" />');
-    writeFileSync.mockReturnValue(undefined);
-
-    const result = await applyRemediationAction(
-      "f1",
-      emptyActionMessageState,
-      new FormData(),
-    );
-
-    expect(result.message).toMatch(/Open a pull request/);
-    expect(workspace.db.remediations[0]?.status).toBe("implemented");
-    expect(writeFileSync).toHaveBeenCalled();
-    expect(
-      workspace.db.evidence.some((row) => row.kind === "remediation_implemented"),
-    ).toBe(true);
-  });
-
-  it("errors when the violation cannot be re-located", async () => {
-    const workspace = workspaceFor("member");
-    const openFinding = workspace.db.findings[0];
-    if (!openFinding) throw new Error("expected finding");
-    openFinding.fix = {
-      kind: "insert_attribute",
-      attribute: "alt",
-      value: "Cart",
-      editable: true,
-      span: { start: 0, end: 16 },
-    };
-    const remediationRow = workspace.db.remediations[0];
-    if (!remediationRow) throw new Error("expected remediation");
-    remediationRow.status = "approved";
-
-    getWorkspace.mockResolvedValue(workspace);
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
-    locateViolationInProject.mockReturnValue(undefined);
-
-    const result = await applyRemediationAction(
-      "f1",
-      emptyActionMessageState,
-      new FormData(),
-    );
-    expect(result.error).toMatch(/could not be re-located/);
   });
 });

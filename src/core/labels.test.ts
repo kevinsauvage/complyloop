@@ -49,7 +49,6 @@ describe("remediationStatusLabel", () => {
       ]),
     ).toEqual([
       ["detected", "Detected"],
-      ["investigating", "Investigating"],
       ["suggested", "Suggested"],
       ["approved", "Approved"],
       ["implemented", "Implemented"],

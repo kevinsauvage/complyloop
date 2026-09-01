@@ -6,11 +6,6 @@ import {
 } from "./github-app";
 
 export interface ResolveProjectGitHubTokenOptions {
-  /**
-   * Signed-in user id. Used when the project owner row has no stored token
-   * (e.g. Auth.js previously minted a new UUID per sign-in).
-   */
-  sessionUserId?: string | null;
   /** Prefer this token when already resolved by the caller (session OAuth). */
   sessionAccessToken?: string | null;
 }
@@ -40,13 +35,6 @@ export async function resolveProjectGitHubToken(
   if (project.ownerUserId) {
     const ownerToken = await getStoredGitHubToken(project.ownerUserId);
     if (ownerToken) return ownerToken;
-  }
-
-  if (
-    options.sessionUserId &&
-    options.sessionUserId !== project.ownerUserId
-  ) {
-    return getStoredGitHubToken(options.sessionUserId);
   }
 
   return null;

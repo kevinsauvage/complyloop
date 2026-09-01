@@ -22,6 +22,7 @@ beforeEach(() => {
     id: "p1",
     name: "test-project",
     source: "github",
+    orgId: "org-test",
     sourceRef: "https://github.com/acme/test-project",
     createdAt: new Date().toISOString(),
   };
@@ -113,6 +114,54 @@ describe("runAssessment", () => {
         record.detail?.regression === true,
     );
     expect(regression).toBeDefined();
+  });
+
+  it("verifies a draft-PR remediation when reassessment no longer finds it", async () => {
+    await runAssessment(db, project.id, { rootPath });
+    const finding = db.findings[0]!;
+    const remediation = db.remediations[0]!;
+    remediation.status = "approved";
+    remediation.history.push({
+      status: "approved",
+      at: new Date().toISOString(),
+      note: "Approved by creating a draft pull request",
+    });
+    db.evidence.push({
+      id: "approval-1",
+      at: new Date().toISOString(),
+      kind: "remediation_approved",
+      summary: "Draft PR approved",
+      projectId: project.id,
+      controlId: finding.controlId,
+      findingId: finding.id,
+      detail: { approvalAction: "create_draft_pull_request" },
+    });
+
+    fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
+    await runAssessment(db, project.id, { rootPath });
+
+    expect(db.remediations[0]?.status).toBe("verified");
+    expect(db.remediations[0]?.history.map((entry) => entry.status)).toEqual(
+      expect.arrayContaining(["implemented", "verified"]),
+    );
+    expect(
+      db.evidence.find(
+        (record) =>
+          record.kind === "remediation_verified" &&
+          record.findingId === finding.id,
+      )?.detail,
+    ).toMatchObject({ determination: "automated" });
+  });
+
+  it("does not verify an approved remediation without draft-PR approval evidence", async () => {
+    await runAssessment(db, project.id, { rootPath });
+    const remediation = db.remediations[0]!;
+    remediation.status = "approved";
+
+    fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
+    await runAssessment(db, project.id, { rootPath });
+
+    expect(remediation.status).toBe("approved");
   });
 
   it("keeps dismissed findings dismissed on re-assessment", async () => {

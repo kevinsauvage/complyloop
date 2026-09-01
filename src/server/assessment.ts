@@ -5,10 +5,15 @@ import {
   type RuntimePageScanner,
 } from "@/analysis/runtime/scan";
 import type { DnsLookup } from "@/analysis/runtime/url-safety";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef, isSourceLocation } from "@/core/location";
 import { PublicError } from "@/core/public-error";
+import { advanceRemediation } from "@/core/remediation";
 import type { RequirementStatus } from "@/core/statuses";
-import type { Assessment, AssessmentEngines } from "@/core/finding-types";
+import type {
+  Assessment,
+  AssessmentEngines,
+  Finding,
+} from "@/core/finding-types";
 import { addEvidence, type Db } from "./db";
 import { detectChanges, summarizeChanges } from "./monitor";
 import {
@@ -34,6 +39,60 @@ export interface RunAssessmentOptions {
   runtimeScanner?: RuntimePageScanner;
   /** Injected DNS lookup for runtime SSRF checks in tests. */
   runtimeLookup?: DnsLookup;
+}
+
+function verifyDraftPrRemediation(
+  db: Db,
+  finding: Finding,
+  assessmentId: string,
+): void {
+  if (!isSourceLocation(finding.location)) return;
+  const remediationIndex = db.remediations.findIndex(
+    (candidate) => candidate.findingId === finding.id,
+  );
+  const remediation = db.remediations[remediationIndex];
+  if (!remediation || remediation.status !== "approved") return;
+  const approvedThroughDraftPr = db.evidence.some(
+    (record) =>
+      record.findingId === finding.id &&
+      record.kind === "remediation_approved" &&
+      record.detail?.approvalAction === "create_draft_pull_request",
+  );
+  if (!approvedThroughDraftPr) return;
+
+  const implemented = advanceRemediation(
+    remediation,
+    "implemented",
+    "No longer detected by deterministic reassessment after draft PR approval",
+  );
+  const verified = advanceRemediation(
+    implemented,
+    "verified",
+    "Verified by deterministic reassessment",
+  );
+  db.remediations[remediationIndex] = verified;
+  const detail = {
+    determination: "automated",
+    method: "deterministic_reassessment",
+  };
+  addEvidence(db, {
+    kind: "remediation_implemented",
+    summary: `Remediation implemented for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+    projectId: finding.projectId,
+    controlId: finding.controlId,
+    findingId: finding.id,
+    assessmentId,
+    detail,
+  });
+  addEvidence(db, {
+    kind: "remediation_verified",
+    summary: `Remediation verified for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+    projectId: finding.projectId,
+    controlId: finding.controlId,
+    findingId: finding.id,
+    assessmentId,
+    detail,
+  });
 }
 
 export async function runAssessment(
@@ -180,6 +239,7 @@ export async function runAssessment(
         findingId: finding.id,
         assessmentId,
       });
+      verifyDraftPrRemediation(db, finding, assessmentId);
     }
   }
 

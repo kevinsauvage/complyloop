@@ -107,7 +107,7 @@ export async function listEvidenceForFinding(
 export async function findProjectByGithubFullName(
   drizzle: DrizzleDb,
   fullName: string,
-): Promise<{ id: string; orgId: string | null } | null> {
+): Promise<{ id: string; orgId: string } | null> {
   const normalized = fullName.toLowerCase();
   const rows = await drizzle
     .select({
@@ -121,20 +121,22 @@ export async function findProjectByGithubFullName(
     )
     .limit(1);
   const row = rows[0];
-  if (!row) return null;
+  if (!row?.orgId) return null;
   return { id: row.id, orgId: row.orgId };
 }
 
 export async function loadProjectOrgAndId(
   drizzle: DrizzleDb,
   projectId: string,
-): Promise<{ id: string; orgId: string | null } | null> {
+): Promise<{ id: string; orgId: string } | null> {
   const rows = await drizzle
     .select({ id: projects.id, orgId: projects.orgId })
     .from(projects)
     .where(eq(projects.id, projectId))
     .limit(1);
-  return rows[0] ?? null;
+  const row = rows[0];
+  if (!row?.orgId) return null;
+  return { id: row.id, orgId: row.orgId };
 }
 
 /** Org ids the user belongs to (membership lookup before a scoped load). */
@@ -154,12 +156,11 @@ export async function listOrgIdsForUser(
   return [...new Set(rows.map((row) => row.orgId))];
 }
 
-/** Project ids visible to a tenant scope (org membership and/or owner). */
+/** Project ids in the viewer's org memberships (plus an optional preferred id). */
 export async function listProjectIdsForTenant(
   drizzle: DrizzleDb,
   input: {
     orgIds: readonly string[];
-    userId: string | null;
     preferredProjectId?: string | null;
   },
 ): Promise<string[]> {
@@ -170,13 +171,6 @@ export async function listProjectIdsForTenant(
       .from(projects)
       .where(inArray(projects.orgId, [...input.orgIds]));
     for (const row of byOrg) ids.add(row.id);
-  }
-  if (input.userId) {
-    const owned = await drizzle
-      .select({ id: projects.id })
-      .from(projects)
-      .where(eq(projects.ownerUserId, input.userId));
-    for (const row of owned) ids.add(row.id);
   }
   if (input.preferredProjectId) {
     const preferred = await drizzle

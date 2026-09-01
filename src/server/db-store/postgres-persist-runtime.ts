@@ -10,7 +10,7 @@ import {
   requirements,
 } from "./schema";
 import { evidenceRecordsToInsert, evidenceToRow } from "./postgres-evidence";
-import { effectiveLoadScope, isFullLoadScope } from "./postgres-scope";
+import { fullLoadScope, isFullLoadScope } from "./postgres-scope";
 import { syncPayloadTable } from "./postgres-sync";
 
 function keepIdsOrNeverMatch(ids: readonly string[]): string[] {
@@ -21,7 +21,7 @@ export async function persistRuntimeToPostgres(
   tx: DrizzleDb,
   db: Db,
 ): Promise<void> {
-  const scope = effectiveLoadScope(db.loadScope);
+  const scope = db.loadScope ?? fullLoadScope();
   const projectIds = isFullLoadScope(scope) ? null : [...scope.projectIds];
 
   await syncPayloadTable({

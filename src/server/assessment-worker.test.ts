@@ -264,4 +264,5 @@ describe("processNextAssessmentJob", () => {
       expect.objectContaining({ code: "github_token_missing" }),
     );
   });
+
 });

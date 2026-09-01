@@ -27,6 +27,18 @@ const withProjectCheckout = vi.hoisted(() =>
   ),
 );
 
+const resolveProjectGitHubToken = vi.hoisted(() =>
+  vi.fn<() => Promise<string | null>>(async () => null),
+);
+
+const createPullRequest = vi.hoisted(() =>
+  vi.fn(async () => ({
+    data: { html_url: "https://github.com/acme/shop/pull/42" },
+  })),
+);
+
+const githubCloneUrl = vi.hoisted(() => vi.fn(() => ""));
+
 vi.mock("./repo-checkout", () => ({
   withProjectCheckout: (
     project: unknown,
@@ -37,7 +49,18 @@ vi.mock("./repo-checkout", () => ({
 }));
 
 vi.mock("./github-access", () => ({
-  resolveProjectGitHubToken: vi.fn(async () => null),
+  resolveProjectGitHubToken,
+}));
+
+vi.mock("./connect-shared", () => ({
+  githubCloneUrl,
+}));
+
+vi.mock("./octokit", () => ({
+  createOctokit: () => ({
+    rest: { pulls: { create: createPullRequest } },
+  }),
+  octokitErrorMessage: (error: unknown) => String(error),
 }));
 
 const tempDirs: string[] = [];
@@ -76,6 +99,7 @@ async function initRepo(source: string): Promise<{
     id: "p1",
     name: "shop",
     source: "github",
+    orgId: "org-test",
     github: {
       fullName: "acme/shop",
       defaultBranch: "main",
@@ -166,12 +190,86 @@ describe("locateViolationInProject + PR apply", () => {
       control,
       finding,
       remediation,
+      {
+        description: "Add alt",
+        provenance: "deterministic",
+        edits: [{ path: relative, oldText: drifted, newText: fixed }],
+        complyLoop: { passed: true, remaining: [] },
+      },
     );
     expect(result.committed).toBe(true);
     const onDisk = fs.readFileSync(path.join(root, relative), "utf8");
     expect(onDisk).toContain('alt="');
     expect(onDisk.startsWith("/* banner */")).toBe(true);
     expect(scanFile(root, relative)).toHaveLength(0);
+  });
+
+  it("commits a verified AI patch when there is no structured fix template", async () => {
+    const initial = `export const Hero = () => <img src="/hero.png" />;\n`;
+    const { root, relative, project, control, finding, remediation } =
+      await initRepo(initial);
+    finding.fix = null;
+
+    const result = await preparePullRequest(
+      project,
+      control,
+      finding,
+      remediation,
+      {
+        description: "Add alt",
+        provenance: "ai",
+        edits: [
+          {
+            path: relative,
+            oldText: '<img src="/hero.png" />',
+            newText: '<img src="/hero.png" alt="Hero" />',
+          },
+        ],
+        complyLoop: { passed: true, remaining: [] },
+      },
+    );
+
+    expect(result.committed).toBe(true);
+    expect(fs.readFileSync(path.join(root, relative), "utf8")).toContain(
+      'alt="Hero"',
+    );
+    expect(scanFile(root, relative)).toHaveLength(0);
+  });
+
+  it("opens AI-generated changes as a draft pull request", async () => {
+    const initial = `export const Hero = () => <img src="/hero.png" />;\n`;
+    const { root, relative, project, control, finding, remediation } =
+      await initRepo(initial);
+    finding.fix = null;
+    resolveProjectGitHubToken.mockResolvedValue("token");
+    githubCloneUrl.mockReturnValue(root);
+
+    const result = await preparePullRequest(
+      project,
+      control,
+      finding,
+      remediation,
+      {
+        description: "Add alt",
+        provenance: "ai",
+        edits: [
+          {
+            path: relative,
+            oldText: '<img src="/hero.png" />',
+            newText: '<img src="/hero.png" alt="Hero" />',
+          },
+        ],
+        complyLoop: { passed: true, remaining: [] },
+      },
+    );
+
+    expect(result.prUrl).toBe("https://github.com/acme/shop/pull/42");
+    expect(createPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draft: true,
+        body: expect.stringContaining("Repository tests run in GitHub CI"),
+      }),
+    );
   });
 
   it("aborts when the violation can no longer be found", async () => {
@@ -185,7 +283,18 @@ describe("locateViolationInProject + PR apply", () => {
     );
 
     await expect(
-      preparePullRequest(project, control, finding, remediation),
-    ).rejects.toThrow(/could not be re-located/);
+      preparePullRequest(project, control, finding, remediation, {
+        description: "Add alt",
+        provenance: "deterministic",
+        edits: [
+          {
+            path: relative,
+            oldText: '<img src="/hero.png" />',
+            newText: '<img src="/hero.png" alt="" />',
+          },
+        ],
+        complyLoop: { passed: true, remaining: [] },
+      }),
+    ).rejects.toThrow(/oldText not found/);
   });
 });

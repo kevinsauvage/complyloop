@@ -5,9 +5,8 @@ import type { Control } from "@/core/project-types";
 import type { Finding, RemediationSuggestion } from "@/core/finding-types";
 import { formatLocationRef } from "@/core/location";
 import { aiExplanationAvailable } from "./explainer";
+import { AI_MODEL } from "./model";
 import { aiWarn } from "./warn";
-
-const AI_MODEL = "minimax/minimax-m3";
 
 const remediationSchema = z.object({
   description: z.string(),

@@ -30,7 +30,7 @@ type RequirementStatus = "passed" | "failed" | "needs_review" | "not_applicable"
 Remediation lifecycle:
 
 ```typescript
-type RemediationStatus = "detected" | "investigating" | "suggested" | "approved" | "implemented" | "verified";
+type RemediationStatus = "detected" | "suggested" | "approved" | "implemented" | "verified";
 ```
 
 Rules:

@@ -1,5 +1,4 @@
 import { CopyButton } from "@/components/copy-button";
-import { CreatePrForm } from "@/components/create-pr-form";
 import { CodeBlock } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,12 +11,8 @@ import type { DeveloperHandoff } from "@/server/handoff";
 
 export function DeveloperHandoffCard({
   handoff,
-  findingId,
-  canCreatePr,
 }: {
   handoff: DeveloperHandoff;
-  findingId: string;
-  canCreatePr: boolean;
 }) {
   const patchFile = `${handoff.title.replace(/[^\w.-]+/g, "-").toLowerCase()}.patch`;
   const prFile = `${handoff.title.replace(/[^\w.-]+/g, "-").toLowerCase()}-pr.md`;
@@ -27,8 +22,7 @@ export function DeveloperHandoffCard({
       <CardHeader className="gap-1">
         <CardTitle>Developer handoff (patch / PR)</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Copy a unified diff and a pull-request body into your normal git
-          workflow, or create a branch/PR when GitHub is connected.
+          Copy a unified diff and pull-request body into your normal git workflow.
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
@@ -73,7 +67,6 @@ export function DeveloperHandoffCard({
           <CodeBlock>{handoff.body}</CodeBlock>
         </div>
 
-        {canCreatePr ? <CreatePrForm findingId={findingId} /> : null}
       </CardContent>
     </Card>
   );

@@ -49,6 +49,7 @@ function evidenceTone(kind: EvidenceKind): EvidenceTone {
     case "assessment_completed":
     case "assessment_job_completed":
     case "requirement_human_passed":
+    case "ai_patch_ready":
       return "pass";
     case "finding_detected":
     case "assessment_job_failed":

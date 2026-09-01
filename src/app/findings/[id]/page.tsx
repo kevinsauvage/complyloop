@@ -8,12 +8,10 @@ import {
   SeverityBadge,
 } from "@/components/badges";
 import { DeveloperHandoffCard } from "@/components/developer-handoff";
-import { FindingDismissCard } from "@/components/findings/finding-dismiss-card";
-import { FindingExplanationsCard } from "@/components/findings/finding-explanations-card";
 import { FindingNextStepPanel } from "@/components/findings/finding-next-step-panel";
 import { FindingQueueNav } from "@/components/findings/finding-queue-nav";
-import { FindingRemediationCard } from "@/components/findings/finding-remediation-card";
-import { formatLocationRef } from "@/core/location";
+import { FindingUnderstandCard } from "@/components/findings/finding-understand-card";
+import { findingAct } from "@/core/finding-act";
 import { evidenceKindLabel } from "@/core/labels";
 import {
   findingQueuePosition,
@@ -24,17 +22,11 @@ import {
   parseFindingListParams,
   type FilterFindingsContext,
 } from "@/core/finding-list-filter";
-import { CodeBlock, PageHeader, formatDateTime } from "@/components/page-primitives";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { PageHeader, formatDateTime } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { pullRequestUrlFromEvidence } from "@/server/finding-pr-url";
+import { latestPatchState } from "@/server/ai-fix-result";
 import { buildDeveloperHandoff } from "@/server/handoff";
 import { getDrizzle } from "@/server/db-store/client";
 import { listEvidenceForFinding } from "@/server/db-store/postgres-queries";
@@ -44,7 +36,6 @@ import { findingsInScope } from "@/server/assessment-status";
 import { controlById, getWorkspace, remediationForFinding } from "@/server/workspace";
 import { prioritizeClusters } from "@/core/prioritization";
 import { cn } from "@/lib/utils";
-import { MapPin } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -71,15 +62,23 @@ export default async function FindingPage({
   const control = controlById(db, finding.controlId);
   const remediation = remediationForFinding(db, finding.id);
   const evidence = await listEvidenceForFinding(await getDrizzle(), finding.id);
+  const chronologicalEvidence = [...evidence].reverse();
   const aiAvailable = aiExplanationAvailable();
-  const prUrl = pullRequestUrlFromEvidence(evidence);
-  const handoff = buildDeveloperHandoff(project, control, finding, remediation);
-  const showHandoff =
-    remediation.suggestion !== null || finding.fix !== null;
-  const canCreatePr =
-    caps.canRemediate &&
-    Boolean(finding.fix) &&
-    Boolean(project.github?.fullName);
+  const prUrl = pullRequestUrlFromEvidence(chronologicalEvidence);
+  const patchState = latestPatchState(chronologicalEvidence);
+  const githubConnected = Boolean(project.github?.fullName);
+  const act = findingAct({
+    finding,
+    remediation,
+    canRemediate: caps.canRemediate,
+    prUrl,
+    aiAvailable,
+    patchReady: patchState.status === "ready",
+    githubConnected,
+  });
+  const handoff = act.showHandoff
+    ? buildDeveloperHandoff(project, control, finding, remediation)
+    : null;
 
   const queueFilterContext: FilterFindingsContext = {
     controls: db.controls,
@@ -125,90 +124,41 @@ export default async function FindingPage({
         <ConfidenceBadge confidence={finding.confidence} />
         <RemediationStatusBadge status={remediation.status} />
         <EngineBadge engine={finding.engine ?? "ast"} />
-        {finding.status === "dismissed" && finding.dismissal ? (
-          <span className="text-sm text-muted-foreground">
-            Dismissed ({finding.dismissal.reason.replace(/_/g, " ")}):{" "}
-            {finding.dismissal.note || "no note"}
-          </span>
-        ) : null}
-        {finding.status === "resolved" && finding.resolvedNote ? (
-          <span className="text-sm text-status-passed">
-            {finding.resolvedNote}
-          </span>
-        ) : null}
       </div>
 
       <div className="flex flex-col gap-6">
+        <FindingUnderstandCard
+          finding={finding}
+          canRemediate={caps.canRemediate}
+          aiAvailable={aiAvailable}
+        />
+
         <FindingNextStepPanel
           finding={finding}
           remediation={remediation}
           canRemediate={caps.canRemediate}
-          canCreatePr={canCreatePr}
+          githubConnected={githubConnected}
           prUrl={prUrl}
-        />
-
-        <Card className="shadow-none ring-1 ring-border/60">
-          <CardHeader className="gap-1">
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="size-4 text-signal" aria-hidden />
-              Where
-            </CardTitle>
-            <CardDescription>
-              Exact location in source or the rendered DOM — fix the call site,
-              not a shared primitive unless every consumer is wrong.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <p className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground">
-              {formatLocationRef(finding.location)}
-            </p>
-            {finding.location.kind === "dom" ? (
-              <p className="text-sm text-muted-foreground">
-                Runtime finding on the rendered page. Trace back to the
-                form/call site that renders this control.
-              </p>
-            ) : null}
-            <CodeBlock>{finding.location.snippet}</CodeBlock>
-          </CardContent>
-        </Card>
-
-        <FindingExplanationsCard
-          finding={finding}
-          canRemediate={caps.canRemediate}
           aiAvailable={aiAvailable}
+          patchState={patchState}
         />
 
-        <FindingRemediationCard
-          finding={finding}
-          remediation={remediation}
-          canRemediate={caps.canRemediate}
-          canCreatePr={canCreatePr}
-          aiAvailable={aiAvailable}
-        />
-
-        {showHandoff ? (
-          <DeveloperHandoffCard
-            handoff={handoff}
-            findingId={finding.id}
-            canCreatePr={false}
-          />
+        {handoff ? (
+          <details id="copy-handoff">
+            <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+              Copy patch / PR body
+            </summary>
+            <div className="mt-3">
+              <DeveloperHandoffCard handoff={handoff} />
+            </div>
+          </details>
         ) : null}
 
-        {finding.status === "open" && caps.canRemediate ? (
-          <div id="dismiss-finding">
-            <FindingDismissCard findingId={finding.id} />
-          </div>
-        ) : null}
-
-        <Card className="shadow-none ring-1 ring-border/60">
-          <CardHeader>
-            <CardTitle>Evidence trail</CardTitle>
-            <CardDescription>
-              Append-only history for this finding — assessments never rewrite
-              past records.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <details>
+          <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+            Evidence trail ({evidence.length})
+          </summary>
+          <div className="mt-3">
             {evidence.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No evidence recorded yet.
@@ -225,10 +175,7 @@ export default async function FindingPage({
                       aria-hidden
                     />
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px]"
-                      >
+                      <Badge variant="secondary" className="text-[10px]">
                         {evidenceKindLabel(record.kind)}
                       </Badge>
                       <time
@@ -245,8 +192,8 @@ export default async function FindingPage({
                 ))}
               </ol>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </details>
       </div>
     </>
   );

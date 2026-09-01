@@ -4,9 +4,8 @@ import type { Confidence } from "@/core/statuses";
 import type { Control } from "@/core/project-types";
 import type { Explanation, Finding } from "@/core/finding-types";
 import { formatLocationRef } from "@/core/location";
+import { AI_MODEL } from "./model";
 import { aiWarn } from "./warn";
-
-const AI_MODEL = "minimax/minimax-m3";
 
 const explanationSchema = z.object({
   whyItFailed: z.string(),

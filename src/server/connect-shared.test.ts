@@ -63,12 +63,14 @@ describe("uniqueProjectName", () => {
       id: "p1",
       name: "Shop",
       source: "github",
+      orgId: "org-test",
       createdAt: "2026-01-01T00:00:00.000Z",
     });
     db.projects.push({
       id: "p2",
       name: "Shop-2",
       source: "github",
+      orgId: "org-test",
       createdAt: "2026-01-01T00:00:00.000Z",
     });
     expect(uniqueProjectName(db, "Shop")).toBe("Shop-3");

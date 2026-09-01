@@ -1,0 +1,73 @@
+"use server";
+
+import { hasSafeDeterministicFix } from "@/core/finding-act";
+import { isSourceLocation } from "@/core/location";
+import { PublicError } from "@/core/public-error";
+import {
+  runActionMessage,
+  type ActionMessageState,
+} from "../action-state";
+import { persistPatchCandidate } from "../ai-fix-persist";
+import { runAiFixOnCheckout } from "../ai-fix-run";
+import { assertAiRateLimit } from "../rate-limit";
+import { withProjectCheckout } from "../repo-checkout";
+import {
+  controlById,
+  findingById,
+  getWorkspace,
+  withWorkspaceWrite,
+} from "../workspace";
+import {
+  refresh,
+  requireOnFindingProject,
+  sessionCheckoutTokenOptions,
+} from "./shared";
+
+export async function generateAiFixAction(
+  findingId: string,
+  _previous: ActionMessageState,
+  _formData: FormData,
+): Promise<ActionMessageState> {
+  void _previous;
+  void _formData;
+  return runActionMessage(async () => {
+    const preview = await getWorkspace();
+    const finding = findingById(preview.db, findingId);
+    requireOnFindingProject(preview, finding, "project.remediate");
+    if (!isSourceLocation(finding.location)) {
+      throw new PublicError(
+        "Patch PRs are only available for source findings. Use the developer handoff for runtime DOM findings.",
+      );
+    }
+    if (finding.status !== "open") {
+      throw new PublicError("Patch generation is only available for open findings.");
+    }
+    const project = preview.db.projects.find(
+      (candidate) => candidate.id === finding.projectId,
+    );
+    if (!project?.github?.fullName) {
+      throw new PublicError(
+        "Connect a GitHub repository before generating a patch.",
+      );
+    }
+    if (!hasSafeDeterministicFix(finding) && preview.userId) {
+      await assertAiRateLimit(preview.userId);
+    }
+    const control = controlById(preview.db, finding.controlId);
+    const tokenOptions = await sessionCheckoutTokenOptions();
+    const candidate = await withProjectCheckout(
+      project,
+      (rootPath) => runAiFixOnCheckout(rootPath, finding, control),
+      undefined,
+      tokenOptions,
+    );
+
+    await withWorkspaceWrite((workspace) => {
+      const liveFinding = findingById(workspace.db, finding.id);
+      requireOnFindingProject(workspace, liveFinding, "project.remediate");
+      persistPatchCandidate(workspace.db, liveFinding, candidate);
+    });
+    refresh();
+    return "Patch passed ComplyLoop and is ready for review.";
+  });
+}

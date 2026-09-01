@@ -31,8 +31,6 @@ export function remediationStatusDescription(status: RemediationStatus): string 
   switch (status) {
     case "detected":
       return "Finding recorded — no fix workflow started yet.";
-    case "investigating":
-      return "Someone is looking into root cause before proposing a fix.";
     case "suggested":
       return "A fix is proposed (deterministic or AI) — review and approve before implementing.";
     case "approved":

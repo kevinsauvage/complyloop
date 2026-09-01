@@ -7,8 +7,6 @@ export function canTransition(
 ): boolean {
   switch (from) {
     case "detected":
-      return to === "investigating" || to === "suggested";
-    case "investigating":
       return to === "suggested";
     case "suggested":
       return to === "approved";

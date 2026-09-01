@@ -90,9 +90,8 @@ export async function connectGitHubRepoAction(
 
     const repo = await fetchGitHubRepo(accessToken, fullName);
     await withWorkspaceWrite(async ({ db, activeOrgId, access }) => {
-      if (
-        !userCanConnectProjects(access.memberships, userId, activeOrgId)
-      ) {
+      const orgId = activeOrgId;
+      if (!orgId || !userCanConnectProjects(access.memberships, userId, orgId)) {
         throw new ConnectError(
           "You need admin or owner access in the active organization to connect a project.",
         );
@@ -100,8 +99,7 @@ export async function connectGitHubRepoAction(
       const alreadyConnected = findConnectedGitHubProject(
         db.projects,
         fullName,
-        userId,
-        activeOrgId,
+        orgId,
       );
       if (alreadyConnected) {
         throw new ConnectError(
@@ -113,7 +111,7 @@ export async function connectGitHubRepoAction(
         defaultBranch: repo.defaultBranch,
         private: repo.private,
         ownerUserId: userId,
-        orgId: activeOrgId ?? undefined,
+        orgId,
         accessToken,
         installationId,
       });

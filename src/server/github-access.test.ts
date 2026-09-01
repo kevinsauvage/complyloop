@@ -25,6 +25,7 @@ describe("resolveProjectGitHubToken", () => {
     isGitHubAppConfigured.mockReturnValue(true);
     createInstallationAccessToken.mockResolvedValue("ghs_install");
     const project = {
+      orgId: "org-1",
       ownerUserId: "user-1",
       github: {
         fullName: "acme/shop",
@@ -39,10 +40,11 @@ describe("resolveProjectGitHubToken", () => {
     expect(getStoredGitHubToken).not.toHaveBeenCalled();
   });
 
-  it("falls back to the stored user token without an installation", async () => {
+  it("falls back to the stored owner token without an installation", async () => {
     isGitHubAppConfigured.mockReturnValue(false);
     getStoredGitHubToken.mockResolvedValue("gho_user");
     const project = {
+      orgId: "org-1",
       ownerUserId: "user-1",
       github: {
         fullName: "acme/shop",
@@ -55,31 +57,10 @@ describe("resolveProjectGitHubToken", () => {
     expect(getStoredGitHubToken).toHaveBeenCalledWith("user-1");
   });
 
-  it("uses the session token when the project owner has none", async () => {
-    isGitHubAppConfigured.mockReturnValue(false);
-    getStoredGitHubToken.mockImplementation(async (userId: string) =>
-      userId === "session-1" ? "gho_session" : null,
-    );
-    const project = {
-      ownerUserId: "orphan-uuid",
-      github: {
-        fullName: "acme/shop",
-        defaultBranch: "main",
-        private: false,
-      },
-    } as Project;
-
-    await expect(
-      resolveProjectGitHubToken(project, {
-        sessionUserId: "session-1",
-        sessionAccessToken: null,
-      }),
-    ).resolves.toBe("gho_session");
-  });
-
   it("prefers an explicit session access token", async () => {
     isGitHubAppConfigured.mockReturnValue(false);
     const project = {
+      orgId: "org-1",
       ownerUserId: "user-1",
       github: {
         fullName: "acme/shop",

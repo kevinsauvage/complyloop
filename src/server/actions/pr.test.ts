@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Control, OrgMembership, Project } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
 import { PublicError } from "@/core/public-error";
@@ -10,6 +10,8 @@ const getWorkspace = vi.hoisted(() => vi.fn());
 const withWorkspaceWrite = vi.hoisted(() => vi.fn());
 const preparePullRequest = vi.hoisted(() => vi.fn());
 const getGitHubAccessToken = vi.hoisted(() => vi.fn());
+const getDrizzle = vi.hoisted(() => vi.fn());
+const listEvidenceForFinding = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 
 vi.mock("next/cache", () => ({
@@ -36,6 +38,15 @@ vi.mock("../pr", () => ({
   preparePullRequest: (...args: unknown[]) => preparePullRequest(...args),
 }));
 
+vi.mock("../db-store/client", () => ({
+  getDrizzle: () => getDrizzle(),
+}));
+
+vi.mock("../db-store/postgres-queries", () => ({
+  listEvidenceForFinding: (...args: unknown[]) =>
+    listEvidenceForFinding(...args),
+}));
+
 vi.mock("./shared", async () => {
   const actual = await vi.importActual<typeof import("./shared")>("./shared");
   return {
@@ -48,6 +59,11 @@ const project: Project = {
   id: "p1",
   name: "Shop",
   source: "github",
+  github: {
+    fullName: "acme/shop",
+    defaultBranch: "main",
+    private: false,
+  },
   orgId: "org-1",
   ownerUserId: "owner-1",
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -150,6 +166,30 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+beforeEach(() => {
+  getDrizzle.mockResolvedValue({});
+  listEvidenceForFinding.mockResolvedValue([
+    {
+      kind: "ai_patch_ready",
+      summary: "Patch ready",
+      detail: {
+        description: "Add alt",
+        provenance: "ai",
+        model: "minimax/minimax-m3",
+        edits: [
+          {
+            path: "App.tsx",
+            oldText: '<img src="x" />',
+            newText: '<img src="x" alt="X" />',
+          },
+        ],
+        complyLoopPassed: true,
+        remaining: [],
+      },
+    },
+  ]);
+});
+
 describe("createPullRequestAction", () => {
   it("denies viewers", async () => {
     getWorkspace.mockResolvedValue(workspaceFor("viewer"));
@@ -203,6 +243,36 @@ describe("createPullRequestAction", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
+  it("records draft PR creation as explicit remediation approval", async () => {
+    const workspace = workspaceFor("member");
+    workspace.db.remediations[0] = {
+      ...remediation,
+      status: "suggested",
+    };
+    getWorkspace.mockResolvedValue(workspace);
+    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    getGitHubAccessToken.mockResolvedValue("gho_token");
+    preparePullRequest.mockResolvedValue({
+      branch: "fix/img-alt",
+      prUrl: "https://github.com/acme/shop/pull/1",
+      title: "fix: alt text",
+      message: "Opened draft pull request.",
+    });
+
+    await createPullRequestAction("f1", {
+      error: null,
+      message: null,
+      prUrl: null,
+    }, new FormData());
+
+    expect(workspace.db.remediations[0]?.status).toBe("approved");
+    expect(
+      workspace.db.evidence.some(
+        (row) => row.kind === "remediation_approved",
+      ),
+    ).toBe(true);
+  });
+
   it("maps prepare failures into form state", async () => {
     getWorkspace.mockResolvedValue(workspaceFor("member"));
     getGitHubAccessToken.mockResolvedValue(null);
@@ -218,5 +288,19 @@ describe("createPullRequestAction", () => {
 
     expect(result.error).toMatch(/GitHub token unavailable/);
     expect(result.prUrl).toBeNull();
+  });
+
+  it("requires a persisted verified patch candidate", async () => {
+    getWorkspace.mockResolvedValue(workspaceFor("member"));
+    listEvidenceForFinding.mockResolvedValue([]);
+
+    const result = await createPullRequestAction(
+      "f1",
+      { error: null, message: null, prUrl: null },
+      new FormData(),
+    );
+
+    expect(result.error).toMatch(/Generate and review/);
+    expect(preparePullRequest).not.toHaveBeenCalled();
   });
 });

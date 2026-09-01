@@ -12,7 +12,6 @@ export type RequirementStatus = (typeof REQUIREMENT_STATUSES)[number];
 
 export const REMEDIATION_STATUSES = [
   "detected",
-  "investigating",
   "suggested",
   "approved",
   "implemented",

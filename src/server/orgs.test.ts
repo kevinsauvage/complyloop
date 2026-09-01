@@ -31,21 +31,13 @@ function emptyDb(): Db {
 }
 
 describe("orgs", () => {
-  it("creates a personal org and migrates legacy projects", () => {
+  it("creates a personal org for a new user", () => {
     const db = emptyDb();
-    db.projects.push({
-      id: "gh-1",
-      name: "shop",
-      source: "github",
-      ownerUserId: "user-a",
-      createdAt: "2026-01-01T00:00:00.000Z",
-    });
 
     const { org, changed } = ensurePersonalOrg(db, "user-a", "alice");
     expect(changed).toBe(true);
     expect(org.slug).toBe("alice");
     expect(db.memberships[0]?.role).toBe("owner");
-    expect(db.projects[0]?.orgId).toBe(org.id);
 
     const again = ensurePersonalOrg(db, "user-a", "alice");
     expect(again.changed).toBe(false);

@@ -8,6 +8,7 @@ const project: Project = {
   id: "p1",
   name: "demo",
   source: "github",
+  orgId: "org-test",
   sourceRef: "https://github.com/acme/demo",
   createdAt: new Date().toISOString(),
 };

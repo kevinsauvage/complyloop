@@ -11,6 +11,7 @@ import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { canBulkApproveRemediation } from "@/core/finding-act";
 import { formatLocationRef } from "@/core/location";
 import {
   findingDetailHref,
@@ -42,11 +43,10 @@ export function FindingsBulkList({
 
   const approvableIds = useMemo(() => {
     return items
-      .filter(
-        (item) =>
-          selected.has(item.finding.id) &&
-          item.remediationStatus === "suggested",
+      .filter((item) =>
+        canBulkApproveRemediation(item.finding, item.remediationStatus),
       )
+      .filter((item) => selected.has(item.finding.id))
       .map((item) => item.finding.id);
   }, [items, selected]);
 
@@ -96,11 +96,11 @@ export function FindingsBulkList({
               {approvableIds.length > 0 ? (
                 <StatefulActionForm
                   action={bulkApproveRemediationsAction}
-                  submitLabel={`Approve suggested (${approvableIds.length})`}
+                  submitLabel={`Approve guidance (${approvableIds.length})`}
                   pendingLabel="Approving…"
                   size="sm"
                   variant="default"
-                  confirmMessage={`Approve ${approvableIds.length} suggested remediation${approvableIds.length === 1 ? "" : "s"}?`}
+                  confirmMessage={`Approve ${approvableIds.length} runtime guidance suggestion${approvableIds.length === 1 ? "" : "s"}?`}
                 >
                   {approvableIds.map((id) => (
                     <input key={id} type="hidden" name="findingIds" value={id} />

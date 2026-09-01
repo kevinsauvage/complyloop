@@ -38,7 +38,7 @@ export function CreatePrForm({ findingId }: { findingId: string }) {
         duration: 6_000,
         action: state.prUrl
           ? {
-              label: "Open PR",
+              label: "Open draft PR",
               onClick: () => {
                 window.open(state.prUrl!, "_blank", "noopener,noreferrer");
               },
@@ -49,14 +49,14 @@ export function CreatePrForm({ findingId }: { findingId: string }) {
   }, [state.error, state.message, state.prUrl]);
 
   return (
-    <form action={formAction} className="mt-4 flex flex-col gap-2">
+    <form action={formAction} className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground">
-        Create a git branch, commit the automatable fix, and open a pull request
-        when <code className="text-xs">gh</code> is available.
+        Commit this patch on a new branch and open a draft pull request for
+        review on GitHub.
       </p>
       <div>
         <Button type="submit" disabled={pending}>
-          {pending ? "Preparing…" : "Create branch / PR"}
+          {pending ? "Creating draft…" : "Create draft pull request"}
         </Button>
       </div>
       {state.error ? (

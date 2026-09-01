@@ -37,20 +37,15 @@ export interface Workspace {
   activeOrgId: string | null;
 }
 
-/**
- * Projects visible in the active org: that org's projects (and any still-unscoped
- * legacy projects with no orgId).
- */
+/** Projects visible in the active org. */
 function projectsForActiveOrg(
   projects: ReadonlyArray<Project>,
   access: AccessContext,
   activeOrgId: string | null,
 ): Project[] {
   const visible = visibleProjects(projects, access);
-  if (!activeOrgId) return visible;
-  return visible.filter(
-    (project) => !project.orgId || project.orgId === activeOrgId,
-  );
+  if (!activeOrgId) return [];
+  return visible.filter((project) => project.orgId === activeOrgId);
 }
 
 function prepareWorkspaceState(

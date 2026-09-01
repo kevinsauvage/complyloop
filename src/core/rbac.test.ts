@@ -65,37 +65,10 @@ describe("rbac", () => {
     );
   });
 
-  it("keeps demo projects open without an org", () => {
-    const demo: Project = { ...project, orgId: undefined, ownerUserId: undefined };
-    expect(canOnProject(demo, [], null, "project.view")).toBe(true);
-    expect(canOnProject(demo, [], null, "project.connect")).toBe(false);
-    expect(canOnProject(demo, [], null, "org.manage_members")).toBe(false);
-  });
-
-  it("restricts unscoped owned projects to the owner", () => {
-    const owned: Project = {
-      ...project,
-      orgId: undefined,
-      ownerUserId: "owner-1",
-    };
-    expect(canOnProject(owned, [], "owner-1", "project.assess")).toBe(true);
-    expect(canOnProject(owned, [], "owner-1", "org.manage_members")).toBe(
-      false,
-    );
-    expect(canOnProject(owned, [], "other", "project.view")).toBe(false);
-    expect(canOnProject(owned, [], null, "project.view")).toBe(false);
-  });
-
-  it("denies org projects without a matching membership or legacy owner", () => {
+  it("denies org projects without a matching membership", () => {
     expect(canOnProject(project, [], null, "project.view")).toBe(false);
     expect(canOnProject(project, [], "stranger", "project.view")).toBe(false);
-  });
-
-  it("lets the legacy connector retain access while org membership is missing", () => {
-    expect(canOnProject(project, [], "owner-1", "project.assess")).toBe(true);
-    expect(canOnProject(project, [], "owner-1", "org.manage_members")).toBe(
-      false,
-    );
+    expect(canOnProject(project, [], "owner-1", "project.view")).toBe(false);
   });
 
   it("validates org role strings", () => {

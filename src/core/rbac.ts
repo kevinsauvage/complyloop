@@ -34,16 +34,11 @@ export function isOrgRole(value: unknown): value is OrgRole {
   return typeof value === "string" && ORG_ROLES.some((role) => role === value);
 }
 
-/**
- * Resolves the caller's membership for a project's org, if any.
- * Legacy projects without orgId fall back to connector ownership.
- */
 function membershipForProject(
   project: Project,
   memberships: ReadonlyArray<OrgMembership>,
-  userId: string | null | undefined,
+  userId: string,
 ): OrgMembership | undefined {
-  if (!userId) return undefined;
   return memberships.find(
     (membership) =>
       membership.orgId === project.orgId && membership.userId === userId,
@@ -56,35 +51,8 @@ export function canOnProject(
   userId: string | null | undefined,
   permission: Permission,
 ): boolean {
-  // Owned projects without orgId yet (pre-migration) stay private to the owner.
-  // Unscoped projects without an owner are treated as public read/assess/remediate.
-  if (!project.orgId) {
-    if (project.ownerUserId) {
-      if (!userId || project.ownerUserId !== userId) return false;
-      return permission !== "org.manage_members";
-    }
-    if (permission === "project.connect") return false;
-    if (
-      permission === "project.view" ||
-      permission === "project.assess" ||
-      permission === "project.remediate"
-    ) {
-      return true;
-    }
-    return false;
-  }
-
+  if (!userId) return false;
   const membership = membershipForProject(project, memberships, userId);
-  if (!membership) {
-    // Legacy fallback while migrating: connector retains access.
-    if (
-      userId &&
-      project.ownerUserId === userId &&
-      permission !== "org.manage_members"
-    ) {
-      return true;
-    }
-    return false;
-  }
+  if (!membership) return false;
   return roleHasPermission(membership.role, permission);
 }

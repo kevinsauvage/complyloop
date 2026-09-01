@@ -10,8 +10,6 @@ export interface DeveloperHandoff {
   title: string;
   body: string;
   diff: string | null;
-  /** Absolute path of the file that would change, when a source fix exists. */
-  filePath: string | null;
 }
 
 export function buildDiffForFix(
@@ -56,8 +54,8 @@ export function buildDeveloperHandoff(
           `3. Keep the evidence trail (assessment + remediation history) for audit.`,
         ]
       : [
-          `1. Apply the patch (or approve/apply in ComplyLoop).`,
-          `2. Re-run the \`${finding.checkId}\` check — it must no longer fail at this location.`,
+          `1. Create a draft pull request from this Finding page on GitHub.`,
+          `2. Merge the PR, then re-run assessment — the \`${finding.checkId}\` check must no longer fail at this location.`,
           `3. Keep the evidence trail (assessment + remediation history) for audit.`,
         ];
 
@@ -130,9 +128,5 @@ export function buildDeveloperHandoff(
     title,
     body,
     diff,
-    filePath:
-      finding.fix && isSourceLocation(finding.location) && rootPath
-        ? resolveInside(rootPath, finding.location.filePath)
-        : null,
   };
 }

@@ -1,11 +1,8 @@
-import fs from "node:fs";
-import { applyFix } from "@/analysis/fixes";
-import { resolveInside } from "@/analysis/workspace-path";
+import { applyFileEdits, type PatchCandidate } from "@/ai/verified-fix";
 import { isSourceLocation } from "@/core/location";
 import type { Control, Project } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
 import { PublicError } from "@/core/public-error";
-import { locateViolationInProject, mergeFix } from "./assessment-helpers";
 import { githubCloneUrl } from "./connect-shared";
 import { createGit } from "./git";
 import {
@@ -44,6 +41,7 @@ async function createPullRequestViaApi(options: {
       body: options.body,
       head: options.head,
       base: options.base,
+      draft: true,
     });
     if (!data.html_url) throw new Error("GitHub PR API returned no html_url.");
     return data.html_url;
@@ -53,23 +51,26 @@ async function createPullRequestViaApi(options: {
 }
 
 /**
- * Ephemeral checkout: apply the finding's fix on a new branch, commit, push,
- * and open a PR via the GitHub REST API.
+ * Apply an already verified patch candidate on a fresh checkout, then commit,
+ * push, and open a draft PR via the GitHub REST API.
  */
 export async function preparePullRequest(
   project: Project,
   control: Control,
   finding: Finding,
   remediation: Remediation,
+  candidate: PatchCandidate | null,
   tokenOptions?: ResolveProjectGitHubTokenOptions,
 ): Promise<PullRequestResult> {
-  if (!finding.fix) {
-    throw new PublicError("This finding has no automatable fix to commit.");
-  }
   const location = finding.location;
   if (!isSourceLocation(location)) {
     throw new PublicError(
       "Runtime DOM findings cannot be committed automatically — open a manual PR from the handoff text.",
+    );
+  }
+  if (!candidate?.complyLoop.passed || candidate.edits.length === 0) {
+    throw new PublicError(
+      "Generate and review a ComplyLoop-verified patch before creating a draft pull request.",
     );
   }
 
@@ -84,16 +85,9 @@ export async function preparePullRequest(
       );
     }
 
-    const match = locateViolationInProject(rootPath, finding);
-    if (!match?.fix) {
-      throw new PublicError(
-        "The violation could not be re-located in the current file. Re-run the assessment, then try again.",
-      );
-    }
-    const fix = mergeFix(finding.fix, match.fix);
-    if (!fix) {
-      throw new PublicError("No applicable fix after re-locating the violation.");
-    }
+    const shortId = finding.id.slice(0, 8);
+    const branch = `complyloop/fix-${finding.checkId}-${shortId}`;
+    const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
 
     const handoff = buildDeveloperHandoff(
       project,
@@ -102,13 +96,7 @@ export async function preparePullRequest(
       remediation,
       rootPath,
     );
-    const shortId = finding.id.slice(0, 8);
-    const branch = `complyloop/fix-${finding.checkId}-${shortId}`;
-
-    const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
-    const absolute = resolveInside(rootPath, location.filePath);
-    const original = fs.readFileSync(absolute, "utf8");
-    const fixed = applyFix(original, fix);
+    const pullRequestBody = `${handoff.body}\n\n## Candidate verification\n\n- ComplyLoop: passed\n- Repository tests run in GitHub CI.`;
 
     try {
       const branches = await git.branchLocal();
@@ -117,8 +105,10 @@ export async function preparePullRequest(
       } else {
         await git.checkoutLocalBranch(branch);
       }
-      fs.writeFileSync(absolute, fixed);
-      await git.add([location.filePath]);
+
+      const changedPaths = applyFileEdits(rootPath, candidate.edits);
+
+      await git.add(changedPaths);
       try {
         await git.commit([
           handoff.title,
@@ -153,9 +143,9 @@ export async function preparePullRequest(
           head: branch,
           base,
           title: handoff.title,
-          body: handoff.body,
+          body: pullRequestBody,
         });
-        message = `Pull request created via GitHub API: ${prUrl}`;
+        message = `Draft pull request created via GitHub API: ${prUrl}`;
       } catch (error) {
         message =
           error instanceof Error
@@ -167,7 +157,7 @@ export async function preparePullRequest(
     return {
       branch,
       title: handoff.title,
-      body: handoff.body,
+      body: pullRequestBody,
       committed: true,
       prUrl,
       message,

@@ -8,7 +8,7 @@ import {
   organizations,
   projects,
 } from "./schema";
-import { effectiveLoadScope, isFullLoadScope } from "./postgres-scope";
+import { fullLoadScope, isFullLoadScope } from "./postgres-scope";
 import { syncPayloadTable } from "./postgres-sync";
 
 function keepIdsOrNeverMatch(ids: readonly string[]): string[] {
@@ -20,7 +20,7 @@ export async function persistCatalogToPostgres(
   tx: DrizzleDb,
   db: Db,
 ): Promise<void> {
-  const scope = effectiveLoadScope(db.loadScope);
+  const scope = db.loadScope ?? fullLoadScope();
   const orgIds = isFullLoadScope(scope) ? null : [...scope.orgIds];
   const scopedProjectIds = isFullLoadScope(scope) ? null : [...scope.projectIds];
 

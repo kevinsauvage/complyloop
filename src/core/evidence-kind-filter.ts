@@ -6,6 +6,7 @@ const EVIDENCE_KINDS: readonly EvidenceKind[] = [
   "finding_dismissed",
   "remediation_verified",
   "remediation_manually_verified",
+  "ai_patch_ready",
   "requirement_status_changed",
   "assessment_completed",
   "assessment_job_completed",

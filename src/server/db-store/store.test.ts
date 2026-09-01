@@ -12,6 +12,7 @@ describe("emptyDb + addEvidence", () => {
       id: "p1",
       name: "demo",
       source: "github",
+      orgId: "org-test",
       createdAt: "2026-01-01T00:00:00.000Z",
     });
     const first = addEvidence(db, {

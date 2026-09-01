@@ -90,14 +90,6 @@ export function RemediationStatusBadge({ status }: { status: RemediationStatus }
           <Badge variant="secondary">{label}</Badge>
         </BadgeWithDescription>
       );
-    case "investigating":
-      return (
-        <BadgeWithDescription description={remediationStatusDescription(status)}>
-          <Badge className="border-transparent bg-sky-500/15 text-sky-700 dark:bg-sky-400/25 dark:text-sky-300">
-            {label}
-          </Badge>
-        </BadgeWithDescription>
-      );
     case "suggested":
       return (
         <BadgeWithDescription description={remediationStatusDescription(status)}>

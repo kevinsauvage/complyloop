@@ -1,7 +1,13 @@
 "use server";
 
+import { formatLocationRef } from "@/core/location";
+import { PublicError } from "@/core/public-error";
+import { advanceRemediation } from "@/core/remediation";
 import { publicErrorMessage } from "../action-state";
 import { addEvidence } from "../db";
+import { patchCandidateFromEvidence } from "../ai-fix-result";
+import { getDrizzle } from "../db-store/client";
+import { listEvidenceForFinding } from "../db-store/postgres-queries";
 import { preparePullRequest } from "../pr";
 import {
   controlById,
@@ -12,6 +18,7 @@ import {
 } from "../workspace";
 import {
   refresh,
+  replaceRemediation,
   requireOnFindingProject,
   sessionCheckoutTokenOptions,
 } from "./shared";
@@ -48,18 +55,58 @@ export async function createPullRequestAction(
   if (!project) {
     return { error: "Unknown project.", message: null, prUrl: null };
   }
+  if (!project.github?.fullName) {
+    return {
+      error: "Connect a GitHub repository before creating a draft pull request.",
+      message: null,
+      prUrl: null,
+    };
+  }
 
   try {
-    const tokenOptions = await sessionCheckoutTokenOptions(preview.userId);
+    const tokenOptions = await sessionCheckoutTokenOptions();
+    const evidence = await listEvidenceForFinding(
+      await getDrizzle(),
+      findingId,
+    );
+    const candidate = patchCandidateFromEvidence([...evidence].reverse());
+    if (!candidate) {
+      throw new PublicError(
+        "Generate and review a ComplyLoop-verified patch before creating a draft pull request.",
+      );
+    }
     const result = await preparePullRequest(
       project,
       control,
       finding,
       remediation,
+      candidate,
       tokenOptions,
     );
+    if (!result.prUrl) {
+      throw new PublicError(result.message);
+    }
     await withWorkspaceWrite(({ db }) => {
       const liveFinding = findingById(db, findingId);
+      const liveRemediation = remediationForFinding(db, findingId);
+      if (liveRemediation.status === "suggested") {
+        replaceRemediation(
+          db,
+          advanceRemediation(
+            liveRemediation,
+            "approved",
+            "Approved by creating a draft pull request",
+          ),
+        );
+        addEvidence(db, {
+          kind: "remediation_approved",
+          summary: `Remediation approved for ${liveFinding.checkId} at ${formatLocationRef(liveFinding.location)}`,
+          projectId: project.id,
+          controlId: liveFinding.controlId,
+          findingId: liveFinding.id,
+          detail: { approvalAction: "create_draft_pull_request" },
+        });
+      }
       addEvidence(db, {
         kind: "pull_request_prepared",
         summary: result.prUrl

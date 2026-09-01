@@ -163,6 +163,8 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
       await withDbWrite((db) => {
         const project = db.projects.find((candidate) => candidate.id === job.projectId);
         if (!project) return;
+        const errorMessage =
+          error instanceof Error ? error.message : "Assessment job failed.";
         addEvidence(db, {
           kind: "assessment_job_failed",
           summary: `Assessment job ${job.id} failed after ${job.attempts} attempt(s).`,
@@ -170,7 +172,7 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
           detail: {
             jobId: job.id,
             attempts: job.attempts,
-            error: error instanceof Error ? error.message : "Assessment job failed.",
+            error: errorMessage,
           },
         });
       }, scope);

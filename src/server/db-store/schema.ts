@@ -105,23 +105,18 @@ export const projects = pgTable(
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     ownerUserId: text("owner_user_id"),
-    orgId: text("org_id").references(() => organizations.id, {
-      onDelete: "cascade",
-    }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, {
+        onDelete: "cascade",
+      }),
     payload: jsonb("payload").$type<Project>().notNull(),
   },
   (table) => [
     index("projects_org_id_idx").on(table.orgId),
     uniqueIndex("projects_org_github_uidx")
       .on(table.orgId, sql`lower((payload->'github'->>'fullName'))`)
-      .where(
-        sql`${table.orgId} IS NOT NULL AND payload->'github'->>'fullName' IS NOT NULL`,
-      ),
-    uniqueIndex("projects_owner_github_uidx")
-      .on(table.ownerUserId, sql`lower((payload->'github'->>'fullName'))`)
-      .where(
-        sql`${table.ownerUserId} IS NOT NULL AND payload->'github'->>'fullName' IS NOT NULL`,
-      ),
+      .where(sql`payload->'github'->>'fullName' IS NOT NULL`),
   ],
 );
 

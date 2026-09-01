@@ -15,8 +15,8 @@ import {
 } from "./project-visibility";
 
 function project(
-  partial: Pick<Project, "id" | "source"> &
-    Partial<Pick<Project, "ownerUserId" | "orgId" | "name">>,
+  partial: Pick<Project, "id" | "source" | "orgId"> &
+    Partial<Pick<Project, "ownerUserId" | "name">>,
 ): Project {
   return {
     name: partial.name ?? partial.id,
@@ -108,17 +108,6 @@ function requirement(
 }
 
 describe("project visibility", () => {
-  const local = project({ id: "local", source: "github" });
-  const aliceLegacy = project({
-    id: "alice-repo",
-    source: "github",
-    ownerUserId: "user-a",
-  });
-  const bobLegacy = project({
-    id: "bob-repo",
-    source: "github",
-    ownerUserId: "user-b",
-  });
   const orgProject = project({
     id: "org-repo",
     source: "github",
@@ -133,44 +122,53 @@ describe("project visibility", () => {
     githubLogin: "bob",
     createdAt: "2026-01-01T00:00:00.000Z",
   };
-
-  it("shows unowned projects to everyone", () => {
-    expect(isProjectVisible(local, ctx(null))).toBe(true);
-    expect(isProjectVisible(local, ctx(undefined))).toBe(true);
-  });
-
-  it("hides other users' legacy GitHub projects", () => {
-    expect(isProjectVisible(aliceLegacy, ctx("user-b"))).toBe(false);
-    expect(isProjectVisible(aliceLegacy, ctx(null))).toBe(false);
-    expect(isProjectVisible(aliceLegacy, ctx("user-a"))).toBe(true);
-  });
+  const ownerMembership: OrgMembership = {
+    id: "m-owner",
+    orgId: "org-1",
+    role: "owner",
+    userId: "user-a",
+    githubLogin: "alice",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
 
   it("requires org membership for org-scoped projects", () => {
+    expect(isProjectVisible(orgProject, ctx(null))).toBe(false);
     expect(isProjectVisible(orgProject, ctx("user-b"))).toBe(false);
     expect(
       isProjectVisible(orgProject, ctx("user-b", [membership])),
     ).toBe(true);
-    expect(isProjectVisible(orgProject, ctx("user-a"))).toBe(true);
+    expect(
+      isProjectVisible(orgProject, ctx("user-a", [ownerMembership])),
+    ).toBe(true);
   });
 
   it("filters the switcher list for the signed-in user", () => {
-    const all = [local, aliceLegacy, bobLegacy];
-    expect(visibleProjects(all, ctx(null)).map((p) => p.id)).toEqual([
-      "local",
-    ]);
-    expect(visibleProjects(all, ctx("user-a")).map((p) => p.id)).toEqual([
-      "local",
-      "alice-repo",
-    ]);
+    const otherOrgProject = project({
+      id: "other-repo",
+      source: "github",
+      orgId: "org-2",
+      ownerUserId: "user-c",
+    });
+    expect(
+      visibleProjects(
+        [orgProject, otherOrgProject],
+        ctx("user-a", [ownerMembership]),
+      ).map((p) => p.id),
+    ).toEqual(["org-repo"]);
   });
 
   it("falls back to the first visible project when the active one is not", () => {
+    const otherOrgProject = project({
+      id: "other-repo",
+      source: "github",
+      orgId: "org-2",
+    });
     const resolved = resolveActiveProject(
-      [local, aliceLegacy, bobLegacy],
-      bobLegacy.id,
-      ctx("user-a"),
+      [orgProject, otherOrgProject],
+      otherOrgProject.id,
+      ctx("user-a", [ownerMembership]),
     );
-    expect(resolved?.id).toBe("local");
+    expect(resolved?.id).toBe("org-repo");
   });
 });
 
@@ -300,7 +298,6 @@ describe("tenant-scoped read helpers", () => {
     const bobActive = resolveActiveProject([bobProject], "proj-b", bobCtx);
     expect(aliceActive?.id).toBe("proj-a");
     expect(bobActive?.id).toBe("proj-b");
-    // Another tenant's project id in the cookie is ignored.
     expect(
       resolveActiveProject([aliceProject], "proj-b", aliceCtx)?.id,
     ).toBe("proj-a");

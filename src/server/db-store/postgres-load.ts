@@ -217,7 +217,6 @@ export async function resolveWorkspaceLoadScope(
   );
   const projectIds = await listProjectIdsForTenant(drizzle, {
     orgIds,
-    userId: input.userId,
     preferredProjectId: input.preferredProjectId,
   });
   return {
@@ -240,7 +239,7 @@ export async function resolveProjectLoadScope(
     .where(eq(projects.id, projectId))
     .limit(1);
   const row = rows[0];
-  if (!row) {
+  if (!row?.orgId) {
     return {
       mode: "scoped",
       orgIds: [],
@@ -250,7 +249,7 @@ export async function resolveProjectLoadScope(
   }
   return {
     mode: "scoped",
-    orgIds: row.orgId ? [row.orgId] : [],
+    orgIds: [row.orgId],
     projectIds: [row.id],
     evidenceLimit,
   };

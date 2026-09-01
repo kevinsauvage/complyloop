@@ -15,8 +15,8 @@ import {
 import { emptyDb, type Db } from "./db";
 
 function githubProject(
-  partial: Pick<Project, "id" | "name"> &
-    Partial<Omit<Project, "id" | "name" | "source">>,
+  partial: Pick<Project, "id" | "name" | "orgId"> &
+    Partial<Omit<Project, "id" | "name" | "source" | "orgId">>,
 ): Project {
   return {
     source: "github",
@@ -51,7 +51,7 @@ describe("deriveProjectName", () => {
 describe("uniqueProjectName", () => {
   it("allocates a free project name", () => {
     const db = seededDb();
-    db.projects.push(githubProject({ id: "p1", name: "shop" }));
+    db.projects.push(githubProject({ id: "p1", name: "shop", orgId: "org-1" }));
     expect(uniqueProjectName(db, "shop")).toBe("shop-2");
     expect(uniqueProjectName(db, "fresh")).toBe("fresh");
   });
@@ -76,6 +76,7 @@ describe("findConnectedGitHubProject", () => {
     id: "gh-1",
     name: "shop",
     source: "github" as const,
+    orgId: "org-team",
     createdAt: "2026-01-01T00:00:00.000Z",
     github: {
       fullName: "Acme/Shop",
@@ -84,31 +85,31 @@ describe("findConnectedGitHubProject", () => {
     },
   };
 
-  it("matches by owner even when active org differs", () => {
-    const project = { ...base, ownerUserId: "user-a", orgId: "org-other" };
-    expect(
-      findConnectedGitHubProject([project], "acme/shop", "user-a", "org-active"),
-    ).toBe(project);
-  });
-
-  it("matches by active org when another member connected the repo", () => {
-    const project = { ...base, ownerUserId: "user-b", orgId: "org-team" };
-    expect(
-      findConnectedGitHubProject([project], "ACME/SHOP", "user-a", "org-team"),
-    ).toBe(project);
-  });
-
-  it("does not treat undefined orgId as matching a null active org for other users", () => {
+  it("matches by active org", () => {
     const project = { ...base, ownerUserId: "user-b" };
     expect(
-      findConnectedGitHubProject([project], "acme/shop", "user-a", null),
+      findConnectedGitHubProject([project], "ACME/SHOP", "org-team"),
+    ).toBe(project);
+  });
+
+  it("does not match a different org", () => {
+    const project = { ...base, ownerUserId: "user-a", orgId: "org-other" };
+    expect(
+      findConnectedGitHubProject([project], "acme/shop", "org-active"),
+    ).toBeUndefined();
+  });
+
+  it("returns undefined when no active org is selected", () => {
+    const project = { ...base, ownerUserId: "user-b" };
+    expect(
+      findConnectedGitHubProject([project], "acme/shop", null),
     ).toBeUndefined();
   });
 
   it("builds a lowercase fullName map for the picker", () => {
     const project = { ...base, ownerUserId: "user-a", orgId: "org-1" };
     expect(
-      connectedGitHubProjectsByFullName([project], "user-a", "org-1"),
+      connectedGitHubProjectsByFullName([project], "org-1"),
     ).toEqual({ "acme/shop": "gh-1" });
   });
 });
@@ -119,14 +120,24 @@ describe("setActiveProject", () => {
     const projectA = githubProject({
       id: "a",
       name: "a",
+      orgId: "org-1",
       ownerUserId: "user-a",
     });
     const projectB = githubProject({
       id: "b",
       name: "b",
+      orgId: "org-1",
       ownerUserId: "user-a",
     });
     db.projects.push(projectA, projectB);
+    db.memberships.push({
+      id: "m1",
+      orgId: "org-1",
+      role: "owner",
+      userId: "user-a",
+      githubLogin: "user-a",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
 
     expect(setActiveProject(db, projectA.id, "user-a")).toBe(projectA);
   });
@@ -151,11 +162,20 @@ describe("setActiveProject", () => {
 describe("disconnectGitHubRepo", () => {
   it("removes the project and related DB records without durable clone cleanup", () => {
     const db = seededDb();
+    db.memberships.push({
+      id: "m1",
+      orgId: "org-1",
+      role: "owner",
+      userId: "user-a",
+      githubLogin: "user-a",
+      createdAt: new Date().toISOString(),
+    });
     db.projects.push({
       id: "gh-1",
       name: "shop",
       source: "github",
       sourceRef: "https://github.com/acme/shop",
+      orgId: "org-1",
       ownerUserId: "user-a",
       github: {
         fullName: "acme/shop",
@@ -180,48 +200,20 @@ describe("disconnectGitHubRepo", () => {
         filePath: "App.tsx",
         line: 1,
         column: 1,
-        snippet: "<x />",
-        span: { start: 0, end: 1 },
+        snippet: "<img />",
+        span: { start: 0, end: 10 },
       },
-      fix: null,
       explanations: [],
+      fix: null,
       detectedAt: new Date().toISOString(),
     });
-    db.alerts.push({
-      id: "alert-1",
-      projectId: "gh-1",
-      kind: "compliance_regression",
-      summary: "regressed",
-      at: new Date().toISOString(),
-      read: false,
-    });
 
-    expect(disconnectGitHubRepo(db, "gh-1", "user-a")).toBeNull();
-
+    const nextId = disconnectGitHubRepo(db, "gh-1", "user-a");
+    expect(nextId).toBeNull();
     expect(db.projects).toHaveLength(0);
     expect(db.findings).toHaveLength(0);
-    expect(db.alerts).toHaveLength(0);
-    expect(
-      db.evidence.some((record) => record.kind === "project_disconnected"),
-    ).toBe(true);
-  });
-
-  it("rejects disconnecting another user's project", () => {
-    const db = seededDb();
-    db.projects.push({
-      id: "gh-1",
-      name: "shop",
-      source: "github",
-      ownerUserId: "user-a",
-      github: {
-        fullName: "acme/shop",
-        defaultBranch: "main",
-        private: false,
-      },
-      createdAt: new Date().toISOString(),
-    });
-    expect(() => disconnectGitHubRepo(db, "gh-1", "user-b")).toThrow(
-      /permission to disconnect/,
+    expect(db.evidence.some((entry) => entry.kind === "project_disconnected")).toBe(
+      true,
     );
   });
 });

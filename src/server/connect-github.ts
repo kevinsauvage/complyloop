@@ -2,7 +2,6 @@ import type { Project, ProjectGitHubMeta } from "@/core/project-types";
 import { canOnProject } from "@/core/rbac";
 import { rgaaPresets } from "@/adapters/rgaa/presets";
 import { addEvidence, type Db } from "./db";
-import { defaultOrgIdForUser } from "./orgs";
 import { ConnectError } from "./connect-error";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
 import { removeProjectScopedRecords } from "./project-cascade";
@@ -20,46 +19,38 @@ export function normalizeGitHubFullName(fullName: string): string {
 }
 
 /**
- * A GitHub repo is already connected for this session when it belongs to the
- * active org, or was connected by this user (owner). Matches connect-action
- * duplicate detection so the picker never shows Connect for those repos.
+ * A GitHub repo is already connected for this org when it belongs to the
+ * active org. Matches connect-action duplicate detection.
  */
 export function findConnectedGitHubProject(
   projects: ReadonlyArray<Project>,
   fullName: string,
-  userId: string,
   activeOrgId: string | null,
 ): Project | undefined {
+  if (!activeOrgId) return undefined;
   const needle = normalizeGitHubFullName(fullName);
   return projects.find((project) => {
     if (project.source !== "github" || !project.github?.fullName) return false;
     if (normalizeGitHubFullName(project.github.fullName) !== needle) {
       return false;
     }
-    if (project.ownerUserId === userId) return true;
-    if (activeOrgId != null && project.orgId === activeOrgId) return true;
-    return false;
+    return project.orgId === activeOrgId;
   });
 }
 
 /**
- * fullName (any casing) → project id for repos already connected in this
- * workspace context — used by the GitHub picker Connected / Disconnect UI.
+ * fullName (any casing) → project id for repos already connected in the
+ * active org — used by the GitHub picker Connected / Disconnect UI.
  */
 export function connectedGitHubProjectsByFullName(
   projects: ReadonlyArray<Project>,
-  userId: string,
   activeOrgId: string | null,
 ): Record<string, string> {
+  if (!activeOrgId) return {};
   const map: Record<string, string> = {};
   for (const project of projects) {
     if (project.source !== "github" || !project.github?.fullName) continue;
-    if (
-      project.ownerUserId !== userId &&
-      !(activeOrgId != null && project.orgId === activeOrgId)
-    ) {
-      continue;
-    }
+    if (project.orgId !== activeOrgId) continue;
     map[normalizeGitHubFullName(project.github.fullName)] = project.id;
   }
   return map;
@@ -70,8 +61,7 @@ interface ConnectGitHubRepoInput {
   defaultBranch: string;
   private: boolean;
   ownerUserId: string;
-  /** Organization that owns the connected project (personal org by default). */
-  orgId?: string;
+  orgId: string;
   accessToken: string;
   /** GitHub App installation id when connecting under least-privilege App access. */
   installationId?: number;
@@ -89,12 +79,17 @@ export async function connectGitHubRepo(
   if (!/^[\w.-]+\/[\w.-]+$/.test(fullName)) {
     throw new ConnectError(`Invalid GitHub repository name: ${fullName}`);
   }
+  if (!input.orgId) {
+    throw new ConnectError(
+      "Select an organization before connecting a repository.",
+    );
+  }
 
   const sourceRef = `https://github.com/${fullName}`;
   const existing = db.projects.find(
     (project) =>
       project.source === "github" &&
-      project.ownerUserId === input.ownerUserId &&
+      project.orgId === input.orgId &&
       (project.github?.fullName === fullName || project.sourceRef === sourceRef),
   );
   if (existing) {
@@ -118,7 +113,7 @@ export async function connectGitHubRepo(
       : {}),
   };
 
-  const orgId = input.orgId ?? defaultOrgIdForUser(db, input.ownerUserId);
+  const orgId = input.orgId;
 
   const rgaaFull = rgaaPresets.find((preset) => preset.id === "preset-rgaa-full");
   if (!rgaaFull) {

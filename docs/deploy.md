@@ -61,11 +61,10 @@ mints a fresh session keyed by your stable GitHub account id.
 
 
 Evidence rows are **insert-only**: the app never updates/deletes them, and
-migration `0003_evidence_append_only.sql` adds a trigger that rejects
-`UPDATE`/`DELETE` at the database layer. Mutable tenant tables have foreign
-keys and status checks (`0005_tenant_constraints.sql`); evidence is
-intentionally excluded so history survives project/org deletion. Opt-in proof
-when `DATABASE_URL` is set:
+`drizzle/0000_init.sql` adds a trigger that rejects `UPDATE`/`DELETE` at the
+database layer. Mutable tenant tables have foreign keys and status checks in the
+same migration; evidence is intentionally excluded so history survives
+project/org deletion. Opt-in proof when `DATABASE_URL` is set:
 
 ```bash
 npm run test -- src/server/db-store/constraints.test.ts src/server/db-store/evidence-append-only.test.ts

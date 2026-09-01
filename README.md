@@ -87,24 +87,29 @@ Then click **Run assessment** and walk the loop:
    time: `npm run playwright:install`.
 2. **Understand** — each finding explains what failed, why, where, its impact,
    and confidence (and whether it came from `ast` or `runtime`).
-3. **Remediate** — review the suggested fix (edit e.g. the proposed alt text),
-   approve it, and apply it to the file (source findings). Runtime findings get
-   call-site guidance — do not slap a generic `aria-label` on a shared Input.
-4. **Verify** — the platform re-runs the same engine (AST or runtime) and only
-   then marks the fix verified.
+3. **Remediate** — source findings: generate a ComplyLoop-verified patch, then
+   create a draft pull request. Runtime findings: generate call-site guidance,
+   implement it in the app, then verify — do not slap a generic `aria-label` on
+   a shared Input.
+4. **Verify** — source findings: merge the draft PR, then re-assessment marks
+   the fix verified. Runtime findings: re-run the page audit, or verify
+   manually with a note. Only then is the loop closed.
 5. **Evidence** — every step lands in an append-only evidence log, exportable
    as JSON, Markdown compliance report, or printable HTML.
 6. **Monitor** — re-assessments detect regressions when the connected tree
    changes.
 
-On each finding you can also copy a **unified diff + PR body**, mark work
-**implemented outside** the platform, **verify manually** with a note, and on
-Requirements record a **human pass** for manual/checklist controls or
-**N/A / accepted risk / compensating control** exceptions.
+On each finding you can also copy a **unified diff + PR body** when no GitHub
+PR exists yet, mark runtime work **implemented outside** the platform, **verify
+manually** with a note, and on Requirements record a **human pass** for
+manual/checklist controls or **N/A / accepted risk / compensating control**
+exceptions.
 
-Set `AI_GATEWAY_API_KEY` to enable AI explanations and AI remediation
-suggestions; deterministic explanations/fixes remain the happy-path baseline —
-AI is never the source of truth.
+Set `AI_GATEWAY_API_KEY` to enable AI explanations, AI remediation
+suggestions, and AI-assisted patch generation for source findings. After
+**Generate patch**, ComplyLoop must pass before **Create draft pull request**;
+repository tests run in GitHub CI after you open the PR. You still review and
+merge on GitHub — AI never sets requirement status.
 
 ## Commands
 

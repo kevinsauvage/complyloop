@@ -27,10 +27,7 @@ export function accessFromStore(
   };
 }
 
-/**
- * Unowned projects (no org) stay visible without sign-in.
- * Org-scoped projects require membership (or legacy connector ownership).
- */
+/** Project visibility requires org membership. */
 export function isProjectVisible(
   project: Project,
   ctx: AccessContext,

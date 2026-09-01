@@ -186,6 +186,7 @@ export type EvidenceKind =
   | "remediation_verified"
   | "remediation_manually_verified"
   | "ai_remediation_suggested"
+  | "ai_patch_ready"
   | "requirement_status_changed"
   | "requirement_exception_set"
   | "requirement_exception_cleared"

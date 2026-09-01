@@ -18,6 +18,7 @@ const project: Project = {
   id: "p1",
   name: "demo-app",
   source: "github",
+  orgId: "org-test",
   sourceRef: "https://github.com/acme/demo-app",
   createdAt: "2026-01-01T00:00:00.000Z",
 };

@@ -11,29 +11,38 @@ const initial: ActionMessageState = { error: null, message: null };
 export function AiActionForm({
   action,
   submitLabel,
+  retryLabel,
   pendingLabel,
   disabled,
+  variant = "outline",
 }: {
   action: (
     previous: ActionMessageState,
     formData: FormData,
   ) => Promise<ActionMessageState>;
   submitLabel: string;
+  retryLabel?: string;
   pendingLabel: string;
   disabled?: boolean;
+  variant?: "default" | "outline";
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
   useActionToast(state);
+  const buttonLabel = pending
+    ? pendingLabel
+    : state.error
+      ? (retryLabel ?? submitLabel)
+      : submitLabel;
 
   return (
     <form action={formAction} className="flex flex-col gap-1.5">
       <Button
         type="submit"
-        variant="outline"
+        variant={variant}
         size="sm"
         disabled={disabled || pending}
       >
-        {pending ? pendingLabel : submitLabel}
+        {buttonLabel}
       </Button>
       <ActionFeedback state={state} className="text-xs" />
     </form>

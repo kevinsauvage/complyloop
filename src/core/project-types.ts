@@ -73,11 +73,8 @@ export interface Project {
   /** Canonical https://github.com/org/repo URL. */
   sourceRef?: string;
   createdAt: string;
-  /**
-   * Organization (tenant) that owns this project. When set, access is via
-   * org membership RBAC.
-   */
-  orgId?: string;
+  /** Organization (tenant) that owns this project; access is via org membership RBAC. */
+  orgId: string;
   /**
    * Auth.js user id of the connector — used for GitHub token lookup
    * (webhooks / PR push). Not the sole ACL; prefer org membership.

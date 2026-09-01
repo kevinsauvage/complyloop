@@ -58,11 +58,8 @@ export function locateViolation(
 }
 
 /** Session token options for ephemeral GitHub checkouts. */
-export async function sessionCheckoutTokenOptions(
-  userId: string | null,
-): Promise<ResolveProjectGitHubTokenOptions> {
+export async function sessionCheckoutTokenOptions(): Promise<ResolveProjectGitHubTokenOptions> {
   return {
-    sessionUserId: userId,
     sessionAccessToken: await getGitHubAccessToken(),
   };
 }

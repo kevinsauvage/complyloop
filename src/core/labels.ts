@@ -24,8 +24,6 @@ export function remediationStatusLabel(status: RemediationStatus): string {
   switch (status) {
     case "detected":
       return "Detected";
-    case "investigating":
-      return "Investigating";
     case "suggested":
       return "Suggested";
     case "approved":
@@ -91,6 +89,8 @@ export function evidenceKindLabel(kind: EvidenceKind): string {
       return "Manually verified";
     case "ai_remediation_suggested":
       return "AI suggestion";
+    case "ai_patch_ready":
+      return "Patch ready";
     case "requirement_status_changed":
       return "Requirement status";
     case "requirement_exception_set":

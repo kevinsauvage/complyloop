@@ -36,7 +36,7 @@ export interface Db {
   evidence: EvidenceRecord[];
   /** Regression / monitoring alerts (append-friendly, markable as read). */
   alerts: Alert[];
-  /** Present on Postgres-backed snapshots; omit on hand-built test fixtures. */
+  /** How this snapshot was loaded; omit on hand-built test fixtures (full sync). */
   loadScope?: DbLoadScope;
 }
 
