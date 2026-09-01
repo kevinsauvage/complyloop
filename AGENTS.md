@@ -12,12 +12,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Orientation for agents working in this repo. **Do not duplicate** product principles, domain vocabulary, or quality gates here — those live in `.cursor/rules/` (always applied in Cursor) and `docs/ai/architecture.md`.
 
-| Doc | Role |
-|-----|------|
-| [`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md) | Product source of truth |
-| [`docs/ai/architecture.md`](./docs/ai/architecture.md) | System shape, persistence, analysis engines |
-| [`docs/missing-rules.md`](./docs/missing-rules.md) | Prioritized RGAA 4.1.2 / WCAG 2.2 coverage gaps |
-| [`.cursor/rules/`](./.cursor/rules/) | Enforceable agent rules (domain, quality, AI, TS, analysis, server, UI) |
+| Doc                                                                                  | Role                                                                    |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| [`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md) | Product source of truth                                                 |
+| [`docs/ai/architecture.md`](./docs/ai/architecture.md)                               | System shape, persistence, analysis engines                             |
+| [`.cursor/rules/`](./.cursor/rules/)                                                 | Enforceable agent rules (domain, quality, AI, TS, analysis, server, UI) |
 
 ## What this is
 

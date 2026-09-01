@@ -146,8 +146,6 @@ intake scope. Dashboard, findings, and exports filter to the active target.
 
 CI gate: `npx complyloop-check` / `@complyloop/check` (AST only).
 
-Coverage gaps (what to add next, by priority): [`docs/missing-rules.md`](../missing-rules.md). Implementation waves: [`docs/superpowers/plans/2026-09-01-rgaa-wcag-coverage.md`](../superpowers/plans/2026-09-01-rgaa-wcag-coverage.md).
-
 ## Unit test coverage
 
 `npm run test:coverage` enforces high gates on the product surface (`src/core`, `src/adapters`, `src/analysis`, `src/ai`, `src/hooks`, most of `src/server`). Excluded from the unit gate (covered by e2e / worker / fixture paths instead): Postgres loaders (`db-store`), Playwright browser driver (`runtime/scan.ts`), live GitHub/git checkout I/O, and a few thin Next Auth/workspace glue modules. See `vitest.config.mts`.

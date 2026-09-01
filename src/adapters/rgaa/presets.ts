@@ -145,7 +145,7 @@ export const rgaaPresets: FrameworkPreset[] = [
   {
     id: "preset-rgaa-aaa",
     name: "RGAA 4 extra checks",
-    description: "Enhanced RGAA 4 AAA success criteria",
+    description: "Core RGAA plus extra heuristic checks",
     frameworkId: rgaaFramework.id,
     controlIds: [
       "ctl-img-alt",

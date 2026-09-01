@@ -54,7 +54,7 @@ describe("RequirementsIntakePanel", () => {
       <RequirementsIntakePanel canAssess currentPresetId={undefined} />,
     );
 
-    expect(screen.getByRole("radio", { name: /RGAA 4 AAA/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /RGAA 4 extra checks/ })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /WCAG 2.2 AA / })).toBeInTheDocument();
   });
 });
