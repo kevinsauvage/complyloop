@@ -1423,7 +1423,7 @@ export const rgaaControls: Control[] = [
     title: "Non-temporal media has a text alternative",
     description:
       "Object, embed, and canvas media that is not time-based expose a name or an adjacent alternative.",
-    checkId: null,
+    checkId: "nontemporal-media-alt",
     complianceWeight: 1.2,
   },
   {

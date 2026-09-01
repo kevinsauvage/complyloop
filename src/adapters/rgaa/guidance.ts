@@ -542,6 +542,12 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Add the controls attribute on <video>/<audio>, or build a custom player with keyboard handlers.",
   },
+  "nontemporal-media-alt": {
+    impact:
+      "Embedded documents and canvases without a text alternative are silent for assistive technology users (WCAG 1.1.1 / RGAA 4.8).",
+    howToFix:
+      "Add aria-label/aria-labelledby/title to object, embed, or canvas, or place an adjacent link/button that opens an equivalent text alternative.",
+  },
   "css-disabled-content": {
     impact:
       "Text conveyed only through CSS content or background images is invisible when stylesheets are disabled (WCAG 1.3.1 / RGAA 10.2).",

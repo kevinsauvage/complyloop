@@ -97,7 +97,8 @@ export type CheckId =
   | "media-keyboard"
   | "multiple-ways"
   | "consistent-nav"
-  | "consistent-labels";
+  | "consistent-labels"
+  | "nontemporal-media-alt";
 
 export interface RawFinding {
   checkId: CheckId;
