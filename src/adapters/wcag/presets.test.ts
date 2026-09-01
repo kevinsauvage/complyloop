@@ -20,4 +20,15 @@ describe("wcag presets", () => {
     );
     expect(presetById("preset-wcag-images-media")).toBeUndefined();
   });
+
+  it("uses WCAG 2.2 display labels while keeping preset ids", () => {
+    expect(wcagFramework.id).toBe("fw-wcag-2-1");
+    expect(wcagFramework.name).toBe("WCAG 2.2 (accessibility standard)");
+    expect(presetById("preset-wcag-full")?.name).toBe("Full WCAG 2.2");
+    expect(presetById("preset-wcag-aa")?.name).toBe("WCAG 2.2 AA");
+    expect(presetById("preset-wcag-aaa")?.name).toBe("WCAG 2.2 extra checks");
+    expect(presetById("preset-wcag-aaa")?.description).toBe(
+      "AA plus extra heuristic checks; not WCAG AAA",
+    );
+  });
 });

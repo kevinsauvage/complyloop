@@ -42,7 +42,7 @@ describe("RequirementsIntakePanel", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Full RGAA 4/ })).toBeChecked();
     expect(screen.getByRole("radio", { name: /RGAA 4 AA / })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: /Full WCAG 2.1/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Full WCAG 2.2/ })).toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: /Images & media/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Import" })).not.toBeInTheDocument();
@@ -55,6 +55,6 @@ describe("RequirementsIntakePanel", () => {
     );
 
     expect(screen.getByRole("radio", { name: /RGAA 4 AAA/ })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: /WCAG 2.1 AA / })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /WCAG 2.2 AA / })).toBeInTheDocument();
   });
 });

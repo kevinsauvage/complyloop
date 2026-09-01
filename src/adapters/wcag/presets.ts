@@ -8,15 +8,15 @@ export type { FrameworkPreset };
 export const wcagPresets: FrameworkPreset[] = [
   {
     id: "preset-wcag-full",
-    name: "Full WCAG 2.1",
+    name: "Full WCAG 2.2",
     description: "Every catalog control for WCAG (automated and human-reviewed)",
     frameworkId: wcagFramework.id,
     controlIds: rgaaControls.map((control) => control.id),
   },
   {
     id: "preset-wcag-aa",
-    name: "WCAG 2.1 AA",
-    description: "Core WCAG 2.1 AA success criteria",
+    name: "WCAG 2.2 AA",
+    description: "Core WCAG 2.2 AA success criteria",
     frameworkId: wcagFramework.id,
     controlIds: [
       "ctl-img-alt",
@@ -139,8 +139,8 @@ export const wcagPresets: FrameworkPreset[] = [
   },
   {
     id: "preset-wcag-aaa",
-    name: "WCAG 2.1 AAA",
-    description: "Enhanced WCAG 2.1 AAA success criteria",
+    name: "WCAG 2.2 extra checks",
+    description: "AA plus extra heuristic checks; not WCAG AAA",
     frameworkId: wcagFramework.id,
     controlIds: [
       "ctl-img-alt",

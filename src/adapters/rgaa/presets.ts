@@ -138,7 +138,7 @@ export const rgaaPresets: FrameworkPreset[] = [
   },
   {
     id: "preset-rgaa-aaa",
-    name: "RGAA 4 AAA",
+    name: "RGAA 4 extra checks",
     description: "Enhanced RGAA 4 AAA success criteria",
     frameworkId: rgaaFramework.id,
     controlIds: [

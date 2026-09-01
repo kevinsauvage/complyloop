@@ -6,7 +6,7 @@ requirements into actionable, verifiable engineering work:
 > **Requirement → Assessment → Finding → Explanation → Remediation →
 > Verification → Evidence → Continuous monitoring**
 
-The MVP covers **accessibility compliance (RGAA 4 / WCAG 2.1)** for
+The MVP covers **accessibility compliance (RGAA 4 / WCAG 2.2)** for
 React/Next.js/TypeScript codebases. The domain core is framework-agnostic so
 other compliance frameworks (SOC 2, ISO 27001, EU CRA, EAA, custom controls)
 can be added as adapters. Full product specification:

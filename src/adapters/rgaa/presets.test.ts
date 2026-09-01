@@ -20,4 +20,8 @@ describe("rgaa presets", () => {
     expect(presetById("preset-rgaa-images-media")).toBeUndefined();
     expect(presetById("preset-forms-names")).toBeUndefined();
   });
+
+  it("labels AAA preset as extra checks", () => {
+    expect(presetById("preset-rgaa-aaa")?.name).toBe("RGAA 4 extra checks");
+  });
 });
