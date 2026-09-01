@@ -40,6 +40,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "select-name": "input-label",
   "form-field-multiple-labels": "input-label",
   "label-content-name-mismatch": "label-in-name",
+  "label-title-only": "input-label",
 
   // Frames / media
   "frame-title": "iframe-title",
@@ -72,14 +73,18 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
 
   // Runtime-only / rendered
   "color-contrast": "color-contrast",
-  "color-contrast-enhanced": "color-contrast",
   "link-in-text-block": "use-of-color",
   "document-title": "document-title",
   bypass: "bypass",
   "skip-link": "bypass",
+  accesskeys: "no-accesskey",
   "landmark-one-main": "landmark-one-main",
   "landmark-main-is-top-level": "landmark-one-main",
+  "landmark-banner-is-top-level": "landmark-one-main",
+  "landmark-contentinfo-is-top-level": "landmark-one-main",
   "landmark-no-duplicate-main": "landmark-one-main",
+  "landmark-no-duplicate-banner": "landmark-unique",
+  "landmark-no-duplicate-contentinfo": "landmark-unique",
   "nested-interactive": "nested-interactive",
   "target-size": "target-size",
 
