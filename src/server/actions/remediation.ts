@@ -1,7 +1,8 @@
 "use server";
 
-import type { Dismissal } from "@/core/finding-types";
 import { canBulkApproveRemediation } from "@/core/finding-act";
+import type { Dismissal, Finding, Remediation } from "@/core/finding-types";
+import { isDismissalReason } from "@/core/finding-types";
 import { formatLocationRef } from "@/core/location";
 import { PublicError } from "@/core/public-error";
 import { advanceRemediation } from "@/core/remediation";
@@ -10,7 +11,7 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { refreshRequirementStatuses } from "../assessment-status";
-import { addEvidence } from "../db";
+import { addEvidence, type Db } from "../db";
 import {
   findingById,
   remediationForFinding,
@@ -23,12 +24,51 @@ import {
   requireOnFindingProject,
 } from "./shared";
 
-function isDismissalReason(value: unknown): value is Dismissal["reason"] {
-  return (
-    value === "false_positive" ||
-    value === "not_applicable" ||
-    value === "accepted_risk"
+function approveRemediationInDb(
+  db: Db,
+  finding: Finding,
+  remediation: Remediation,
+  options: { bulk?: boolean; approvalNote: string },
+): void {
+  replaceRemediation(
+    db,
+    advanceRemediation(remediation, "approved", options.approvalNote),
   );
+  addEvidence(db, {
+    kind: "remediation_approved",
+    summary: `Remediation approved for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+    projectId: finding.projectId,
+    controlId: finding.controlId,
+    findingId: finding.id,
+    detail: options.bulk
+      ? {
+          bulk: true,
+          ...(finding.fix ? { fix: { ...finding.fix } } : {}),
+        }
+      : finding.fix
+        ? { fix: { ...finding.fix } }
+        : undefined,
+  });
+}
+
+function dismissFindingInDb(
+  db: Db,
+  finding: Finding,
+  reason: Dismissal["reason"],
+  note: string,
+  at: string,
+  options: { bulk?: boolean },
+): void {
+  finding.status = "dismissed";
+  finding.dismissal = { reason, note, at };
+  addEvidence(db, {
+    kind: "finding_dismissed",
+    summary: `Finding dismissed (${reason}): ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+    projectId: finding.projectId,
+    controlId: finding.controlId,
+    findingId: finding.id,
+    detail: options.bulk ? { reason, note, bulk: true } : { reason, note },
+  });
 }
 
 export async function approveRemediationAction(
@@ -45,17 +85,8 @@ export async function approveRemediationAction(
       requireOnFindingProject(workspace, finding, "project.remediate");
       const remediation = remediationForFinding(db, findingId);
 
-      replaceRemediation(
-        db,
-        advanceRemediation(remediation, "approved", "Approved by user"),
-      );
-      addEvidence(db, {
-        kind: "remediation_approved",
-        summary: `Remediation approved for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
-        projectId: finding.projectId,
-        controlId: finding.controlId,
-        findingId: finding.id,
-        detail: finding.fix ? { fix: { ...finding.fix } } : undefined,
+      approveRemediationInDb(db, finding, remediation, {
+        approvalNote: "Approved by user",
       });
     });
     refresh();
@@ -83,20 +114,9 @@ export async function bulkApproveRemediationsAction(
         const remediation = remediationForFinding(db, findingId);
         if (!canBulkApproveRemediation(finding, remediation.status)) continue;
 
-        replaceRemediation(
-          db,
-          advanceRemediation(remediation, "approved", "Approved in bulk"),
-        );
-        addEvidence(db, {
-          kind: "remediation_approved",
-          summary: `Remediation approved for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
-          projectId: finding.projectId,
-          controlId: finding.controlId,
-          findingId: finding.id,
-          detail: {
-            bulk: true,
-            ...(finding.fix ? { fix: { ...finding.fix } } : {}),
-          },
+        approveRemediationInDb(db, finding, remediation, {
+          bulk: true,
+          approvalNote: "Approved in bulk",
         });
         approved += 1;
       }
@@ -124,25 +144,21 @@ export async function dismissFindingAction(
       requireOnFindingProject(workspace, finding, "project.remediate");
 
       const reason = formData.get("reason");
-      const note = formData.get("note");
       if (!isDismissalReason(reason)) {
         throw new PublicError("A dismissal reason is required.");
       }
 
-      finding.status = "dismissed";
-      finding.dismissal = {
+      const note = typeof formData.get("note") === "string"
+        ? formData.get("note")!.toString().trim()
+        : "";
+      dismissFindingInDb(
+        db,
+        finding,
         reason,
-        note: typeof note === "string" ? note.trim() : "",
-        at: new Date().toISOString(),
-      };
-      addEvidence(db, {
-        kind: "finding_dismissed",
-        summary: `Finding dismissed (${reason}): ${finding.checkId} at ${formatLocationRef(finding.location)}`,
-        projectId: finding.projectId,
-        controlId: finding.controlId,
-        findingId: finding.id,
-        detail: { reason, note: finding.dismissal.note },
-      });
+        note,
+        new Date().toISOString(),
+        {},
+      );
       refreshRequirementStatuses(db, finding.projectId);
     });
     refresh();
@@ -176,19 +192,8 @@ export async function bulkDismissFindingsAction(
         requireOnFindingProject(workspace, finding, "project.remediate");
         if (finding.status !== "open") continue;
 
-        finding.status = "dismissed";
-        finding.dismissal = {
-          reason,
-          note: dismissalNote,
-          at,
-        };
-        addEvidence(db, {
-          kind: "finding_dismissed",
-          summary: `Finding dismissed (${reason}): ${finding.checkId} at ${formatLocationRef(finding.location)}`,
-          projectId: finding.projectId,
-          controlId: finding.controlId,
-          findingId: finding.id,
-          detail: { reason, note: dismissalNote, bulk: true },
+        dismissFindingInDb(db, finding, reason, dismissalNote, at, {
+          bulk: true,
         });
         projectIds.add(finding.projectId);
         dismissed += 1;

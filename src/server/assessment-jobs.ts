@@ -4,15 +4,12 @@ import { getDrizzle, type DrizzleDb } from "./db-store/client";
 import { assessmentJobs } from "./db-store/schema";
 import { withPostgresAdvisoryLock } from "./db-store/write-lock";
 
-export const ASSESSMENT_JOB_STATUSES = [
-  "queued",
-  "running",
-  "succeeded",
-  "failed",
-  "cancelled",
-] as const;
-
-export type AssessmentJobStatus = (typeof ASSESSMENT_JOB_STATUSES)[number];
+export type AssessmentJobStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
 export type AssessmentJobTrigger = "manual" | "webhook";
 
 export interface AssessmentJobPayload {

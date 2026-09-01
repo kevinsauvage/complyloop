@@ -1,7 +1,11 @@
+import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { actionAuthMocks, actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
 import { PublicError } from "@/core/public-error";
-import type { Organization, OrgMembership } from "@/core/project-types";
+import type { Organization } from "@/core/project-types";
+import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
+import { testWorkspace } from "@/test-fixtures/workspace";
 import { emptyActionMessageState } from "../action-state";
 import {
   changeOrgMemberRoleAction,
@@ -15,35 +19,13 @@ import {
 import type { Db } from "../db";
 import type { Workspace } from "../workspace";
 
-const auth = vi.hoisted(() => vi.fn());
-const getWorkspace = vi.hoisted(() => vi.fn());
-const withWorkspaceWrite = vi.hoisted(() => vi.fn());
+const { getWorkspace, withWorkspaceWrite } = actionWorkspaceMocks;
 const exportOrgData = vi.hoisted(() => vi.fn());
 const deleteOrganization = vi.hoisted(() => vi.fn());
 const resolveActiveOrgId = vi.hoisted(() => vi.fn());
 const writeActiveOrgCookie = vi.hoisted(() => vi.fn());
 const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
-
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
-
-vi.mock("@/auth", () => ({
-  auth: () => auth(),
-}));
-
-vi.mock("../workspace", async () => {
-  const actual = await vi.importActual<typeof import("../workspace")>(
-    "../workspace",
-  );
-  return {
-    ...actual,
-    getWorkspace: () => getWorkspace(),
-    withWorkspaceWrite: (fn: (workspace: Workspace) => unknown) =>
-      withWorkspaceWrite(fn),
-  };
-});
 
 vi.mock("../orgs", async () => {
   const actual = await vi.importActual<typeof import("../orgs")>("../orgs");
@@ -84,16 +66,12 @@ const org: Organization = {
 
 const project = testProject({ orgId: "org-1", ownerUserId: "user-1" });
 
-const ownerMembership: OrgMembership = {
+const ownerMembership = testMembership("owner", {
   id: "m-owner",
-  orgId: "org-1",
-  role: "owner",
-  userId: "user-1",
   githubLogin: "alice",
-  createdAt: "2026-01-01T00:00:00.000Z",
-};
+});
 
-function emptyDb(memberships: OrgMembership[] = [ownerMembership]): Db {
+function emptyDb(memberships = [ownerMembership]): Db {
   return {
     frameworks: [],
     controls: [],
@@ -110,25 +88,22 @@ function emptyDb(memberships: OrgMembership[] = [ownerMembership]): Db {
 }
 
 function fixtureWorkspace(db: Db = emptyDb()): Workspace {
-  return {
-    db,
-    project,
+  const workspace = testWorkspace({
+    role: "owner",
     userId: "user-1",
-    githubLogin: "alice",
-    access: {
-      userId: "user-1",
-      githubLogin: "alice",
+    project,
+    findings: [],
+    remediations: [],
+    db: {
       organizations: [org],
       memberships: db.memberships,
     },
-    visibleProjects: [project],
-    organizations: [org],
-    activeOrgId: org.id,
-  };
+  });
+  return { ...workspace, db };
 }
 
 beforeEach(() => {
-  auth.mockReset();
+  actionAuthMocks.auth.mockReset();
   getWorkspace.mockReset();
   withWorkspaceWrite.mockReset();
   exportOrgData.mockReset();
@@ -137,7 +112,7 @@ beforeEach(() => {
   writeActiveOrgCookie.mockReset();
   writeActiveProjectCookie.mockReset();
   refresh.mockReset();
-  auth.mockResolvedValue({ user: { id: "user-1", login: "alice" } });
+  actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1", login: "alice" } });
   withWorkspaceWrite.mockImplementation(async (fn: (ws: Workspace) => unknown) =>
     fn(fixtureWorkspace()),
   );
@@ -162,7 +137,7 @@ describe("org lifecycle actions", () => {
   });
 
   it("rejects export when unsigned", async () => {
-    auth.mockResolvedValue(null);
+    actionAuthMocks.auth.mockResolvedValue(null);
     await expect(exportOrgDataAction("org-1")).resolves.toEqual({
       error: "Sign in to export organization data.",
       json: null,
@@ -231,7 +206,7 @@ describe("switchOrgAction", () => {
   });
 
   it("rejects when unsigned", async () => {
-    auth.mockResolvedValue(null);
+    actionAuthMocks.auth.mockResolvedValue(null);
     const form = new FormData();
     form.set("orgId", "org-1");
     await expect(switchOrgAction(form)).rejects.toThrow(/Sign in/);
@@ -263,7 +238,7 @@ describe("createOrgAction", () => {
   });
 
   it("requires GitHub sign-in", async () => {
-    auth.mockResolvedValue({ user: { id: "user-1" } });
+    actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     const form = new FormData();
     form.set("name", "No Login");
     const result = await createOrgAction(emptyActionMessageState, form);
@@ -299,14 +274,11 @@ describe("org member management actions", () => {
   });
 
   it("removes a member", async () => {
-    const member: OrgMembership = {
+    const member = testMembership("member", {
       id: "m-member",
-      orgId: "org-1",
-      role: "member",
       userId: "user-2",
       githubLogin: "bob",
-      createdAt: "2026-01-01T00:00:00.000Z",
-    };
+    });
     const db = emptyDb([ownerMembership, member]);
     withWorkspaceWrite.mockImplementation(async (fn) => fn(fixtureWorkspace(db)));
 
@@ -319,10 +291,10 @@ describe("org member management actions", () => {
   });
 
   it("revokes a pending invite", async () => {
-    const invite: OrgMembership = {
+    const invite = {
       id: "m-invite",
       orgId: "org-1",
-      role: "viewer",
+      role: "viewer" as const,
       githubLogin: "carol",
       createdAt: "2026-01-01T00:00:00.000Z",
     };
@@ -337,14 +309,11 @@ describe("org member management actions", () => {
   });
 
   it("changes a member role", async () => {
-    const member: OrgMembership = {
+    const member = testMembership("member", {
       id: "m-member",
-      orgId: "org-1",
-      role: "member",
       userId: "user-2",
       githubLogin: "bob",
-      createdAt: "2026-01-01T00:00:00.000Z",
-    };
+    });
     const db = emptyDb([ownerMembership, member]);
     withWorkspaceWrite.mockImplementation(async (fn) => fn(fixtureWorkspace(db)));
 

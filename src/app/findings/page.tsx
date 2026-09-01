@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { FindingsClustersTab } from "@/components/findings/findings-clusters-tab";
 import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
-import {
-  FindingsBulkList,
-  FindingsCardList,
-} from "@/components/findings/findings-bulk-list";
+import { FindingsTabPanel } from "@/components/findings/findings-tab-panel";
+import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
 import { toFindingListItems } from "@/components/findings/finding-list-items";
 import { PaginationNav } from "@/components/pagination-nav";
 import { EmptyState, PageActionLink, PageHeader } from "@/components/page-primitives";
@@ -234,61 +232,29 @@ export default async function FindingsPage({
             <FindingsClustersTab clusters={clusters} findings={findings} />
           </TabsContent>
 
-          <TabsContent value="resolved" className="mt-4 flex flex-col gap-4">
-            <FindingsFilterBar params={{ ...listParams, tab: "resolved" }} />
-            {resolvedSlice.total === 0 ? (
-              filtersActive ? (
-                filteredEmptyState("resolved")
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No resolved findings.
-                </p>
-              )
-            ) : (
-              <>
-                <FindingsCardList
-                  items={listFor(resolvedSlice.items)}
-                  listParams={{ ...listParams, tab: "resolved" }}
-                />
-                <PaginationNav
-                  page={resolvedSlice.page}
-                  totalPages={resolvedSlice.totalPages}
-                  total={resolvedSlice.total}
-                  basePath="/findings"
-                  query={paginationQuery}
-                  label="Resolved findings pagination"
-                />
-              </>
-            )}
-          </TabsContent>
+          <FindingsTabPanel
+            tab="resolved"
+            slice={resolvedSlice}
+            listParams={listParams}
+            filtersActive={filtersActive}
+            items={listFor(resolvedSlice.items)}
+            emptyMessage="No resolved findings."
+            filteredEmptyState={filteredEmptyState("resolved")}
+            paginationQuery={paginationQuery}
+            paginationLabel="Resolved findings pagination"
+          />
 
-          <TabsContent value="dismissed" className="mt-4 flex flex-col gap-4">
-            <FindingsFilterBar params={{ ...listParams, tab: "dismissed" }} />
-            {dismissedSlice.total === 0 ? (
-              filtersActive ? (
-                filteredEmptyState("dismissed")
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No dismissed findings.
-                </p>
-              )
-            ) : (
-              <>
-                <FindingsCardList
-                  items={listFor(dismissedSlice.items)}
-                  listParams={{ ...listParams, tab: "dismissed" }}
-                />
-                <PaginationNav
-                  page={dismissedSlice.page}
-                  totalPages={dismissedSlice.totalPages}
-                  total={dismissedSlice.total}
-                  basePath="/findings"
-                  query={paginationQuery}
-                  label="Dismissed findings pagination"
-                />
-              </>
-            )}
-          </TabsContent>
+          <FindingsTabPanel
+            tab="dismissed"
+            slice={dismissedSlice}
+            listParams={listParams}
+            filtersActive={filtersActive}
+            items={listFor(dismissedSlice.items)}
+            emptyMessage="No dismissed findings."
+            filteredEmptyState={filteredEmptyState("dismissed")}
+            paginationQuery={paginationQuery}
+            paginationLabel="Dismissed findings pagination"
+          />
         </Tabs>
       </div>
     </>

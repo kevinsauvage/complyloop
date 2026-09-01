@@ -10,7 +10,7 @@ import type { Control, Requirement } from "@/core/project-types";
 import type { RequirementStatus } from "@/core/statuses";
 import { formatLocationRef } from "@/core/location";
 import { controlDisplayCodes } from "@/adapters/control-theme";
-import type { ReportInput } from "./report";
+import { countRequirementsByStatus, type ReportInput } from "./report";
 
 function escapeHtml(text: string): string {
   return text
@@ -612,16 +612,7 @@ export function buildEngineeringReportHtml(input: ReportInput): string {
 export function buildAuditReportHtml(input: ReportInput): string {
   const { controls, requirements, findings, evidence } = input;
 
-  const counts: Record<RequirementStatus, number> = {
-    passed: 0,
-    failed: 0,
-    needs_review: 0,
-    not_applicable: 0,
-    unable_to_verify: 0,
-  };
-  for (const req of requirements) {
-    counts[req.status] += 1;
-  }
+  const counts = countRequirementsByStatus(requirements);
 
   const controlsById = new Map(controls.map((c) => [c.id, c]));
   const openFindings = findings.filter((f) => f.status === "open");

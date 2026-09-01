@@ -1,6 +1,6 @@
 "use server";
 
-import type { Requirement } from "@/core/project-types";
+import type { Project, Requirement } from "@/core/project-types";
 import {
   isRequirementExceptionReason,
   TEMPORARY_EXCEPTION_REASON,
@@ -27,6 +27,49 @@ function requireRequirement(
     throw new PublicError("Unknown requirement.");
   }
   return requirement;
+}
+
+function clearRequirementOverride(
+  db: Db,
+  project: Project,
+  requirement: Requirement,
+  field: "humanPass" | "exception",
+): void {
+  const control = controlById(db, requirement.controlId);
+
+  if (field === "humanPass") {
+    if (!requirement.humanPass) {
+      throw new PublicError("This requirement has no human pass to clear.");
+    }
+    const previousPass = requirement.humanPass;
+    delete requirement.humanPass;
+    requirement.determination = "automated";
+    requirement.updatedAt = new Date().toISOString();
+    addEvidence(db, {
+      kind: "requirement_human_pass_cleared",
+      summary: `${control.code} human pass cleared`,
+      projectId: project.id,
+      controlId: requirement.controlId,
+      detail: { previousPass },
+    });
+  } else {
+    if (!requirement.exception) {
+      throw new PublicError("This requirement has no exception to clear.");
+    }
+    const previousException = requirement.exception;
+    delete requirement.exception;
+    requirement.determination = "automated";
+    requirement.updatedAt = new Date().toISOString();
+    addEvidence(db, {
+      kind: "requirement_exception_cleared",
+      summary: `${control.code} exception cleared (was ${previousException.reason})`,
+      projectId: project.id,
+      controlId: requirement.controlId,
+      detail: { previousException },
+    });
+  }
+
+  refreshRequirementStatuses(db, project.id);
 }
 
 export async function markRequirementExceptionAction(
@@ -190,25 +233,7 @@ export async function clearRequirementHumanPassAction(
         project.id,
         requirementId,
       );
-      if (!requirement.humanPass) {
-        throw new PublicError("This requirement has no human pass to clear.");
-      }
-
-      const control = controlById(db, requirement.controlId);
-      const previousPass = requirement.humanPass;
-      delete requirement.humanPass;
-      requirement.determination = "automated";
-      requirement.updatedAt = new Date().toISOString();
-
-      addEvidence(db, {
-        kind: "requirement_human_pass_cleared",
-        summary: `${control.code} human pass cleared`,
-        projectId: project.id,
-        controlId: requirement.controlId,
-        detail: { previousPass },
-      });
-
-      refreshRequirementStatuses(db, project.id);
+      clearRequirementOverride(db, project, requirement, "humanPass");
     });
     refresh();
     return "Human pass cleared.";
@@ -230,26 +255,7 @@ export async function clearRequirementExceptionAction(
         project.id,
         requirementId,
       );
-      if (!requirement.exception) {
-        throw new PublicError("This requirement has no exception to clear.");
-      }
-
-      const control = controlById(db, requirement.controlId);
-      const previousException = requirement.exception;
-      delete requirement.exception;
-      requirement.determination = "automated";
-      requirement.updatedAt = new Date().toISOString();
-
-      addEvidence(db, {
-        kind: "requirement_exception_cleared",
-        summary: `${control.code} exception cleared (was ${previousException.reason})`,
-        projectId: project.id,
-        controlId: requirement.controlId,
-        detail: { previousException },
-      });
-
-      // Re-derive status from current open findings now that the exception is gone.
-      refreshRequirementStatuses(db, project.id);
+      clearRequirementOverride(db, project, requirement, "exception");
     });
     refresh();
     return "Exception cleared.";

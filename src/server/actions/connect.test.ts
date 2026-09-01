@@ -1,19 +1,19 @@
+import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { actionAuthMocks, actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
 import type { OrgMembership } from "@/core/project-types";
+import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
+import { testWorkspace } from "@/test-fixtures/workspace";
 import { ConnectError } from "../connect-error";
 import { emptyActionMessageState } from "../action-state";
-import type { Db } from "../db";
-import type { Workspace } from "../workspace";
 import {
   connectGitHubRepoAction,
   disconnectGitHubRepoAction,
   switchProjectAction,
 } from "./connect";
 
-const auth = vi.hoisted(() => vi.fn());
-const getGitHubAccessToken = vi.hoisted(() => vi.fn());
-const withWorkspaceWrite = vi.hoisted(() => vi.fn());
+const { withWorkspaceWrite } = actionWorkspaceMocks;
 const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
 const setActiveProject = vi.hoisted(() => vi.fn());
 const connectGitHubRepo = vi.hoisted(() => vi.fn());
@@ -25,26 +25,6 @@ const resolveUserInstallationForRepo = vi.hoisted(() => vi.fn());
 const createInstallationAccessToken = vi.hoisted(() => vi.fn());
 const assertConnectRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
-
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
-
-vi.mock("@/auth", () => ({
-  auth: () => auth(),
-  getGitHubAccessToken: () => getGitHubAccessToken(),
-}));
-
-vi.mock("../workspace", async () => {
-  const actual = await vi.importActual<typeof import("../workspace")>(
-    "../workspace",
-  );
-  return {
-    ...actual,
-    withWorkspaceWrite: (fn: (workspace: Workspace) => unknown) =>
-      withWorkspaceWrite(fn),
-  };
-});
 
 vi.mock("../active-cookies", () => ({
   writeActiveProjectCookie: (...args: unknown[]) =>
@@ -93,53 +73,25 @@ const project = testProject({
   },
 });
 
-const ownerMembership: OrgMembership = {
+const ownerMembership = testMembership("owner", {
   id: "m-owner",
-  orgId: "org-1",
-  role: "owner",
-  userId: "user-1",
   githubLogin: "alice",
-  createdAt: "2026-01-01T00:00:00.000Z",
-};
+});
 
-const viewerMembership: OrgMembership = {
-  ...ownerMembership,
+const viewerMembership = testMembership("viewer", {
   id: "m-viewer",
-  role: "viewer",
-};
+  githubLogin: "alice",
+});
 
-function workspaceFor(membership: OrgMembership): Workspace {
-  const db = {
-    frameworks: [],
-    controls: [],
-    organizations: [
-      { id: "org-1", name: "Acme", slug: "acme", createdAt: "" },
-    ],
-    memberships: [membership],
-    projects: [project],
-    requirements: [],
-    assessments: [],
+function workspaceFor(membership: OrgMembership) {
+  return testWorkspace({
+    role: membership.role,
+    userId: membership.userId ?? "user-1",
+    project,
     findings: [],
     remediations: [],
-    evidence: [],
-    alerts: [],
-  } as Db;
-
-  return {
-    db,
-    project,
-    userId: membership.userId ?? null,
-    githubLogin: membership.githubLogin,
-    access: {
-      userId: membership.userId ?? null,
-      githubLogin: membership.githubLogin,
-      organizations: db.organizations,
-      memberships: db.memberships,
-    },
-    visibleProjects: [project],
-    organizations: db.organizations,
-    activeOrgId: "org-1",
-  };
+    db: { memberships: [membership] },
+  });
 }
 
 afterEach(() => {
@@ -175,7 +127,7 @@ describe("connectGitHubRepoAction", () => {
   });
 
   it("requires a signed-in session", async () => {
-    auth.mockResolvedValue(null);
+    actionAuthMocks.auth.mockResolvedValue(null);
     const form = new FormData();
     form.set("fullName", "acme/shop");
     const result = await connectGitHubRepoAction(
@@ -186,8 +138,8 @@ describe("connectGitHubRepoAction", () => {
   });
 
   it("requires a GitHub access token", async () => {
-    auth.mockResolvedValue({ user: { id: "user-1" } });
-    getGitHubAccessToken.mockResolvedValue(null);
+    actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
+    actionAuthMocks.getGitHubAccessToken.mockResolvedValue(null);
     assertConnectRateLimit.mockResolvedValue(undefined);
     const form = new FormData();
     form.set("fullName", "acme/shop");
@@ -200,8 +152,8 @@ describe("connectGitHubRepoAction", () => {
   });
 
   it("denies viewers who cannot connect projects", async () => {
-    auth.mockResolvedValue({ user: { id: "user-1" } });
-    getGitHubAccessToken.mockResolvedValue("gho_token");
+    actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
+    actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_token");
     assertConnectRateLimit.mockResolvedValue(undefined);
     isGitHubAppConfigured.mockReturnValue(false);
     fetchGitHubRepo.mockResolvedValue({
@@ -223,8 +175,8 @@ describe("connectGitHubRepoAction", () => {
   });
 
   it("surfaces already-connected errors", async () => {
-    auth.mockResolvedValue({ user: { id: "user-1" } });
-    getGitHubAccessToken.mockResolvedValue("gho_token");
+    actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
+    actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_token");
     assertConnectRateLimit.mockResolvedValue(undefined);
     isGitHubAppConfigured.mockReturnValue(false);
     fetchGitHubRepo.mockResolvedValue({
@@ -247,8 +199,8 @@ describe("connectGitHubRepoAction", () => {
   });
 
   it("connects a repository for an owner", async () => {
-    auth.mockResolvedValue({ user: { id: "user-1" } });
-    getGitHubAccessToken.mockResolvedValue("gho_token");
+    actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
+    actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_token");
     assertConnectRateLimit.mockResolvedValue(undefined);
     isGitHubAppConfigured.mockReturnValue(false);
     fetchGitHubRepo.mockResolvedValue({
@@ -279,8 +231,8 @@ describe("connectGitHubRepoAction", () => {
   });
 
   it("uses an installation token when the GitHub App is configured", async () => {
-    auth.mockResolvedValue({ user: { id: "user-1" } });
-    getGitHubAccessToken.mockResolvedValue("gho_user");
+    actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
+    actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_user");
     assertConnectRateLimit.mockResolvedValue(undefined);
     isGitHubAppConfigured.mockReturnValue(true);
     resolveUserInstallationForRepo.mockResolvedValue(42);
@@ -331,7 +283,7 @@ describe("disconnectGitHubRepoAction", () => {
   });
 
   it("requires a signed-in session", async () => {
-    auth.mockResolvedValue(null);
+    actionAuthMocks.auth.mockResolvedValue(null);
     const form = new FormData();
     form.set("projectId", "p1");
     const result = await disconnectGitHubRepoAction(
@@ -342,7 +294,7 @@ describe("disconnectGitHubRepoAction", () => {
   });
 
   it("disconnects and updates the active project cookie", async () => {
-    auth.mockResolvedValue({ user: { id: "user-1" } });
+    actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     disconnectGitHubRepo.mockReturnValue("p-next");
     withWorkspaceWrite.mockImplementation(async (fn) =>
       fn(workspaceFor(ownerMembership)),
@@ -364,7 +316,7 @@ describe("disconnectGitHubRepoAction", () => {
   });
 
   it("maps ConnectError from disconnect into form state", async () => {
-    auth.mockResolvedValue({ user: { id: "user-1" } });
+    actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     withWorkspaceWrite.mockImplementation(async () => {
       throw new ConnectError("Not allowed to disconnect this project.");
     });

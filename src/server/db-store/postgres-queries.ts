@@ -125,20 +125,6 @@ export async function findProjectByGithubFullName(
   return { id: row.id, orgId: row.orgId };
 }
 
-export async function loadProjectOrgAndId(
-  drizzle: DrizzleDb,
-  projectId: string,
-): Promise<{ id: string; orgId: string } | null> {
-  const rows = await drizzle
-    .select({ id: projects.id, orgId: projects.orgId })
-    .from(projects)
-    .where(eq(projects.id, projectId))
-    .limit(1);
-  const row = rows[0];
-  if (!row?.orgId) return null;
-  return { id: row.id, orgId: row.orgId };
-}
-
 /** Org ids the user belongs to (membership lookup before a scoped load). */
 export async function listOrgIdsForUser(
   drizzle: DrizzleDb,

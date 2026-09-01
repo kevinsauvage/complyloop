@@ -1,35 +1,15 @@
+import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OrgMembership } from "@/core/project-types";
+import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
+import { testWorkspace } from "@/test-fixtures/workspace";
 import { emptyActionMessageState } from "../action-state";
-import type { Db } from "../db";
-import type { Workspace } from "../workspace";
 import { applyFrameworkPresetAction } from "./requirements-intake";
 
-const withWorkspaceWrite = vi.hoisted(() => vi.fn());
+const { withWorkspaceWrite } = actionWorkspaceMocks;
 const applyFrameworkPreset = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
-
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
-
-vi.mock("@/auth", () => ({
-  auth: vi.fn(),
-  getGitHubAccessToken: vi.fn(),
-  isGitHubAuthConfigured: () => false,
-}));
-
-vi.mock("../workspace", async () => {
-  const actual = await vi.importActual<typeof import("../workspace")>(
-    "../workspace",
-  );
-  return {
-    ...actual,
-    withWorkspaceWrite: (fn: (workspace: Workspace) => unknown) =>
-      withWorkspaceWrite(fn),
-  };
-});
 
 vi.mock("../requirements-intake", () => ({
   applyFrameworkPreset: (...args: unknown[]) => applyFrameworkPreset(...args),
@@ -45,57 +25,26 @@ vi.mock("./shared", async () => {
 
 const project = testProject({ orgId: "org-1" });
 
-function membership(role: OrgMembership["role"]): OrgMembership {
-  return {
-    id: "m1",
-    orgId: "org-1",
+function workspaceFor(role: OrgMembership["role"]) {
+  return testWorkspace({
     role,
-    userId: "user-1",
-    githubLogin: "alice",
-    createdAt: "2026-01-01T00:00:00.000Z",
-  };
-}
-
-function workspaceFor(role: OrgMembership["role"]): Workspace {
-  const db = {
-    frameworks: [],
-    controls: [
-      {
-        id: "c1",
-        frameworkId: "fw",
-        code: "1",
-        title: "T",
-        description: "D",
-        checkId: null,
-        secondaryCode: "",
-      },
-    ],
-    organizations: [{ id: "org-1", name: "Acme", slug: "acme", createdAt: "" }],
-    memberships: [membership(role)],
-    projects: [project],
-    requirements: [],
-    assessments: [],
+    project,
     findings: [],
     remediations: [],
-    evidence: [],
-    alerts: [],
-  } as Db;
-
-  return {
-    db,
-    project,
-    userId: "user-1",
-    githubLogin: "alice",
-    access: {
-      userId: "user-1",
-      githubLogin: "alice",
-      organizations: db.organizations,
-      memberships: db.memberships,
+    db: {
+      controls: [
+        {
+          id: "c1",
+          frameworkId: "fw",
+          code: "1",
+          title: "T",
+          description: "D",
+          checkId: null,
+          secondaryCode: "",
+        },
+      ],
     },
-    visibleProjects: [project],
-    organizations: db.organizations,
-    activeOrgId: "org-1",
-  };
+  });
 }
 
 afterEach(() => {

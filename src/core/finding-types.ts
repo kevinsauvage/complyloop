@@ -125,6 +125,16 @@ export interface Dismissal {
   at: string;
 }
 
+export function isDismissalReason(
+  value: unknown,
+): value is Dismissal["reason"] {
+  return (
+    value === "false_positive" ||
+    value === "not_applicable" ||
+    value === "accepted_risk"
+  );
+}
+
 export interface Finding {
   id: string;
   projectId: string;

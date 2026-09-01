@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testProject } from "@/test-fixtures/project";
 import type { Db } from "./db";
+import { emptyDb as baseEmptyDb } from "./db-store/types";
 import type { AssessmentJob } from "./assessment-jobs";
 
 const claimNextAssessmentJob = vi.hoisted(() => vi.fn());
@@ -104,17 +105,8 @@ function job(partial: Partial<AssessmentJob> = {}): AssessmentJob {
 
 function emptyDb(): Db {
   return {
-    frameworks: [],
-    controls: [],
-    organizations: [],
-    memberships: [],
+    ...baseEmptyDb(),
     projects: [{ ...project }],
-    requirements: [],
-    assessments: [],
-    findings: [],
-    remediations: [],
-    evidence: [],
-    alerts: [],
   };
 }
 

@@ -1,31 +1,25 @@
+import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Control, OrgMembership } from "@/core/project-types";
-import type { Finding, Remediation } from "@/core/finding-types";
+import type { Remediation } from "@/core/finding-types";
+import type { OrgMembership } from "@/core/project-types";
+import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+import { testControl } from "@/test-fixtures/control";
+import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
+import { testRemediation } from "@/test-fixtures/remediation";
+import { testWorkspace } from "@/test-fixtures/workspace";
 import { emptyActionMessageState } from "../action-state";
-import type { Db } from "../db";
-import type { Workspace } from "../workspace";
 import {
   generateAiExplanationAction,
   generateAiRemediationAction,
 } from "./remediation-ai";
 
-const withWorkspaceWrite = vi.hoisted(() => vi.fn());
+const { withWorkspaceWrite } = actionWorkspaceMocks;
 const generateAiExplanation = vi.hoisted(() => vi.fn());
 const generateAiRemediation = vi.hoisted(() => vi.fn());
 const assertAiRateLimit = vi.hoisted(() => vi.fn());
 const reportWarning = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
-
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
-
-vi.mock("@/auth", () => ({
-  auth: vi.fn(),
-  getGitHubAccessToken: vi.fn(),
-  isGitHubAuthConfigured: () => false,
-}));
 
 vi.mock("@/ai/explainer", () => ({
   generateAiExplanation: (...args: unknown[]) => generateAiExplanation(...args),
@@ -39,17 +33,6 @@ vi.mock("@/ai/remediation", () => ({
 vi.mock("@/ai/warn", () => ({
   setAiWarn: vi.fn(),
 }));
-
-vi.mock("../workspace", async () => {
-  const actual = await vi.importActual<typeof import("../workspace")>(
-    "../workspace",
-  );
-  return {
-    ...actual,
-    withWorkspaceWrite: (fn: (workspace: Workspace) => unknown) =>
-      withWorkspaceWrite(fn),
-  };
-});
 
 vi.mock("../rate-limit", () => ({
   assertAiRateLimit: (...args: unknown[]) => assertAiRateLimit(...args),
@@ -69,93 +52,26 @@ vi.mock("./shared", async () => {
 });
 
 const project = testProject({ orgId: "org-1" });
-
-const control: Control = {
-  id: "c1",
-  frameworkId: "fw",
-  code: "1.1.1",
-  secondaryCode: "WCAG",
-  title: "Images",
-  description: "Alt text",
-  checkId: "img-alt",
-};
-
-const finding: Finding = {
-  id: "f1",
-  projectId: "p1",
-  controlId: "c1",
-  assessmentId: "a1",
-  checkId: "img-alt",
-  kind: "violation",
-  status: "open",
-  severity: "serious",
-  confidence: "high",
-  reason: "Missing alt",
-  location: {
-    kind: "source",
-    filePath: "App.tsx",
-    line: 1,
-    column: 1,
-    snippet: '<img src="x" />',
-    span: { start: 0, end: 16 },
-  },
-  fix: null,
-  explanations: [],
-  detectedAt: "2026-01-01T00:00:00.000Z",
-};
-
-function membership(role: OrgMembership["role"]): OrgMembership {
-  return {
-    id: "m1",
-    orgId: "org-1",
-    role,
-    userId: "user-1",
-    githubLogin: "alice",
-    createdAt: "2026-01-01T00:00:00.000Z",
-  };
-}
+const control = testControl();
+const finding = testFinding();
 
 function workspaceFor(
   role: OrgMembership["role"],
   remediationStatus: Remediation["status"] = "detected",
-): Workspace {
-  const db = {
-    frameworks: [],
-    controls: [control],
-    organizations: [{ id: "org-1", name: "Acme", slug: "acme", createdAt: "" }],
-    memberships: [membership(role)],
-    projects: [project],
-    requirements: [],
-    assessments: [],
+) {
+  return testWorkspace({
+    role,
+    project,
     findings: [{ ...finding, explanations: [], fix: finding.fix }],
     remediations: [
-      {
-        id: "r1",
-        findingId: "f1",
+      testRemediation({
         status: remediationStatus,
         suggestion: null,
         history: [],
-      } satisfies Remediation,
+      }),
     ],
-    evidence: [],
-    alerts: [],
-  } as Db;
-
-  return {
-    db,
-    project,
-    userId: "user-1",
-    githubLogin: "alice",
-    access: {
-      userId: "user-1",
-      githubLogin: "alice",
-      organizations: db.organizations,
-      memberships: db.memberships,
-    },
-    visibleProjects: [project],
-    organizations: db.organizations,
-    activeOrgId: "org-1",
-  };
+    db: { controls: [control] },
+  });
 }
 
 afterEach(() => {

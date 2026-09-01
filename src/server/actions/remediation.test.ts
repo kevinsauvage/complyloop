@@ -1,7 +1,10 @@
+import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OrgMembership } from "@/core/project-types";
-import type { Finding, Remediation } from "@/core/finding-types";
+import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
+import { testRemediation } from "@/test-fixtures/remediation";
+import { testWorkspace } from "@/test-fixtures/workspace";
 import { RateLimitError } from "../rate-limit";
 import { emptyActionMessageState } from "../action-state";
 import { runAssessmentAction } from "./assessment";
@@ -10,25 +13,12 @@ import {
   bulkApproveRemediationsAction,
   dismissFindingAction,
 } from "./remediation";
-import type { Db } from "../db";
-import type { Workspace } from "../workspace";
 
-const withWorkspaceWrite = vi.hoisted(() => vi.fn());
-const getWorkspace = vi.hoisted(() => vi.fn());
+const { withWorkspaceWrite, getWorkspace } = actionWorkspaceMocks;
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const drainAssessmentJobQueue = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
-
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
-
-vi.mock("@/auth", () => ({
-  auth: vi.fn(),
-  getGitHubAccessToken: vi.fn(),
-  isGitHubAuthConfigured: () => false,
-}));
 
 vi.mock("@/ai/explainer", () => ({
   generateAiExplanation: vi.fn(),
@@ -38,16 +28,6 @@ vi.mock("@/ai/explainer", () => ({
 vi.mock("@/ai/remediation", () => ({
   generateAiRemediation: vi.fn(),
 }));
-
-vi.mock("../workspace", async () => {
-  const actual = await vi.importActual<typeof import("../workspace")>("../workspace");
-  return {
-    ...actual,
-    getWorkspace: () => getWorkspace(),
-    withWorkspaceWrite: (fn: (workspace: Workspace) => unknown) =>
-      withWorkspaceWrite(fn),
-  };
-});
 
 vi.mock("../observability", () => ({
   reportError: vi.fn(),
@@ -84,85 +64,16 @@ vi.mock("../assessment-status", () => ({
 }));
 
 const project = testProject({ orgId: "org-1" });
+const finding = testFinding();
+const remediation = testRemediation();
 
-const finding: Finding = {
-  id: "f1",
-  projectId: "p1",
-  controlId: "c1",
-  assessmentId: "a1",
-  checkId: "img-alt",
-  kind: "violation",
-  status: "open",
-  severity: "serious",
-  confidence: "high",
-  reason: "Missing alt",
-  location: {
-    kind: "source",
-    filePath: "App.tsx",
-    line: 1,
-    column: 1,
-    snippet: "<img src=\"x\" />",
-    span: { start: 0, end: 16 },
-  },
-  fix: null,
-  explanations: [],
-  detectedAt: "2026-01-01T00:00:00.000Z",
-};
-
-const remediation: Remediation = {
-  id: "r1",
-  findingId: "f1",
-  status: "suggested",
-  suggestion: {
-    description: "Add alt",
-    proposedSnippet: '<img src="x" alt="" />',
-    provenance: "deterministic",
-  },
-  history: [],
-};
-
-function membership(role: OrgMembership["role"], userId: string): OrgMembership {
-  return {
-    id: `m-${userId}`,
-    orgId: "org-1",
+function workspaceFor(role: "viewer" | "member" | "admin" | "owner") {
+  return testWorkspace({
     role,
-    userId,
-    githubLogin: userId,
-    createdAt: "2026-01-01T00:00:00.000Z",
-  };
-}
-
-function workspaceFor(role: OrgMembership["role"]): Workspace {
-  const userId = "user-1";
-  const db = {
-    frameworks: [],
-    controls: [],
-    organizations: [{ id: "org-1", name: "Acme", slug: "acme", createdAt: "" }],
-    memberships: [membership(role, userId)],
-    projects: [project],
-    requirements: [],
-    assessments: [],
-    findings: [{ ...finding }],
-    remediations: [{ ...remediation, history: [] }],
-    evidence: [],
-    alerts: [],
-  } as Db;
-
-  return {
-    db,
     project,
-    userId,
-    githubLogin: userId,
-    access: {
-      userId,
-      githubLogin: userId,
-      organizations: db.organizations,
-      memberships: db.memberships,
-    },
-    visibleProjects: [project],
-    organizations: db.organizations,
-    activeOrgId: "org-1",
-  };
+    findings: [finding],
+    remediations: [remediation],
+  });
 }
 
 afterEach(() => {
@@ -231,8 +142,7 @@ describe("bulkApproveRemediationsAction", () => {
 
   it("approves suggested runtime remediations and skips source findings", async () => {
     const workspace = workspaceFor("member");
-    const runtimeFinding: Finding = {
-      ...finding,
+    const runtimeFinding = testFinding({
       id: "f2",
       location: {
         kind: "dom",
@@ -240,7 +150,7 @@ describe("bulkApproveRemediationsAction", () => {
         selector: "input#email",
         snippet: "<input id='email'>",
       },
-    };
+    });
     workspace.db.findings.push(runtimeFinding);
     workspace.db.remediations.push(
       {

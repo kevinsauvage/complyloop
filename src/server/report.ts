@@ -74,7 +74,9 @@ export function reportInputForProject(db: Db, project: Project): ReportInput {
   };
 }
 
-function statusCounts(requirements: Requirement[]): Record<RequirementStatus, number> {
+export function countRequirementsByStatus(
+  requirements: Requirement[],
+): Record<RequirementStatus, number> {
   const counts: Record<RequirementStatus, number> = {
     passed: 0,
     failed: 0,
@@ -224,7 +226,7 @@ export function buildAuditReportMarkdown(input: ReportInput): string {
     findings,
     evidence,
   } = input;
-  const counts = statusCounts(requirements);
+  const counts = countRequirementsByStatus(requirements);
   const openFindings = findings.filter((finding) => finding.status === "open");
   const resolvedFindings = findings.filter((finding) => finding.status === "resolved");
   const dismissedFindings = findings.filter((finding) => finding.status === "dismissed");

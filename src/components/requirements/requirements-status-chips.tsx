@@ -1,16 +1,9 @@
 import Link from "next/link";
 import { RequirementStatusBadge } from "@/components/badges";
 import { requirementsStatusHref } from "@/core/requirement-status-filter";
+import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@/core/statuses";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@/core/statuses";
-
-const STATUS_ORDER: RequirementStatus[] = [
-  "failed",
-  "needs_review",
-  "passed",
-  "not_applicable",
-  "unable_to_verify",
-];
 
 export function RequirementsStatusChips({
   counts,
@@ -38,7 +31,7 @@ export function RequirementsStatusChips({
           </Link>
         </li>
       ) : null}
-      {STATUS_ORDER.map((status) => {
+      {REQUIREMENT_STATUS_DISPLAY_ORDER.map((status) => {
         const count = counts.get(status) ?? 0;
         if (count === 0) return null;
         const isSelected = selected === status;

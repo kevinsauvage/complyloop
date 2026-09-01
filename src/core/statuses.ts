@@ -10,6 +10,15 @@ export const REQUIREMENT_STATUSES = [
 
 export type RequirementStatus = (typeof REQUIREMENT_STATUSES)[number];
 
+/** UI display order for requirement status counts and filters. */
+export const REQUIREMENT_STATUS_DISPLAY_ORDER: RequirementStatus[] = [
+  "failed",
+  "needs_review",
+  "passed",
+  "not_applicable",
+  "unable_to_verify",
+];
+
 export const REMEDIATION_STATUSES = [
   "detected",
   "suggested",

@@ -7,10 +7,6 @@ vi.mock("@/server/actions/remediation-ai", () => ({
   generateAiExplanationAction: vi.fn(),
 }));
 
-vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
-}));
-
 const useActionStateMock = vi.fn();
 
 vi.mock("react", async () => {

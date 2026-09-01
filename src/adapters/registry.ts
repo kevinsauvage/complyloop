@@ -10,7 +10,7 @@ import type { FrameworkAdapter, FrameworkPreset } from "./types";
  * catalog (RGAA codes primary, WCAG on `secondaryCode`). Presets own the
  * assessment-target framework; WCAG does not re-register the same ids.
  */
-export const frameworkAdapters: readonly FrameworkAdapter[] = [
+const frameworkAdapters: readonly FrameworkAdapter[] = [
   {
     framework: rgaaFramework,
     controls: rgaaControls,

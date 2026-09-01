@@ -3,10 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CopyButton } from "./copy-button";
 
-vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
-}));
-
 describe("CopyButton", () => {
   beforeEach(() => {
     Object.assign(navigator, {

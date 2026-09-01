@@ -1,41 +1,20 @@
+import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Control, OrgMembership } from "@/core/project-types";
-import type { Finding, Remediation } from "@/core/finding-types";
+import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+import { testControl } from "@/test-fixtures/control";
+import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
+import { testRemediation } from "@/test-fixtures/remediation";
+import { testWorkspace } from "@/test-fixtures/workspace";
 import { emptyActionMessageState } from "../action-state";
-import type { Db } from "../db";
-import type { Workspace } from "../workspace";
 import { generateAiFixAction } from "./ai-fix";
 
-const withWorkspaceWrite = vi.hoisted(() => vi.fn());
-const getWorkspace = vi.hoisted(() => vi.fn());
+const { withWorkspaceWrite, getWorkspace } = actionWorkspaceMocks;
 const withProjectCheckout = vi.hoisted(() => vi.fn());
 const runAiFixOnCheckout = vi.hoisted(() => vi.fn());
 const persistPatchCandidate = vi.hoisted(() => vi.fn());
 const assertAiRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
-
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
-
-vi.mock("@/auth", () => ({
-  auth: vi.fn(),
-  getGitHubAccessToken: vi.fn(),
-  isGitHubAuthConfigured: () => false,
-}));
-
-vi.mock("../workspace", async () => {
-  const actual = await vi.importActual<typeof import("../workspace")>(
-    "../workspace",
-  );
-  return {
-    ...actual,
-    getWorkspace: () => getWorkspace(),
-    withWorkspaceWrite: (fn: (workspace: Workspace) => unknown) =>
-      withWorkspaceWrite(fn),
-  };
-});
 
 vi.mock("../repo-checkout", () => ({
   withProjectCheckout: (...args: unknown[]) => withProjectCheckout(...args),
@@ -77,27 +56,13 @@ const project = testProject({
   },
 });
 
-const control: Control = {
-  id: "c1",
-  frameworkId: "fw",
+const control = testControl({
   code: "WCAG 1.1.1",
   secondaryCode: "RGAA 1.1",
-  title: "Images",
   description: "Alt",
-  checkId: "img-alt",
-};
+});
 
-const finding: Finding = {
-  id: "f1",
-  projectId: "p1",
-  controlId: "c1",
-  assessmentId: "a1",
-  checkId: "img-alt",
-  kind: "violation",
-  status: "open",
-  severity: "serious",
-  confidence: "high",
-  reason: "Missing alt",
+const finding = testFinding({
   location: {
     kind: "source",
     filePath: "Hero.tsx",
@@ -106,57 +71,18 @@ const finding: Finding = {
     snippet: "<img />",
     span: { start: 0, end: 1 },
   },
-  fix: null,
-  explanations: [],
-  detectedAt: "2026-01-01T00:00:00.000Z",
-};
+});
 
-function workspace(): Workspace {
-  const db = {
-    frameworks: [],
-    controls: [control],
-    organizations: [{ id: "org-1", name: "Acme", slug: "acme", createdAt: "" }],
-    memberships: [
-      {
-        id: "m1",
-        orgId: "org-1",
-        role: "member",
-        userId: "user-1",
-        githubLogin: "alice",
-        createdAt: "",
-      } satisfies OrgMembership,
-    ],
-    projects: [project],
-    requirements: [],
-    assessments: [],
+function workspace() {
+  return testWorkspace({
+    role: "member",
+    project,
     findings: [finding],
     remediations: [
-      {
-        id: "r1",
-        findingId: "f1",
-        status: "detected",
-        suggestion: null,
-        history: [],
-      } satisfies Remediation,
+      testRemediation({ status: "detected", suggestion: null, history: [] }),
     ],
-    evidence: [],
-    alerts: [],
-  } as Db;
-  return {
-    db,
-    project,
-    userId: "user-1",
-    githubLogin: "alice",
-    access: {
-      userId: "user-1",
-      githubLogin: "alice",
-      organizations: db.organizations,
-      memberships: db.memberships,
-    },
-    visibleProjects: [project],
-    organizations: db.organizations,
-    activeOrgId: "org-1",
-  };
+    db: { controls: [control] },
+  });
 }
 
 afterEach(() => {

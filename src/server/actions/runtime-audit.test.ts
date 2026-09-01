@@ -1,40 +1,19 @@
+import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OrgMembership } from "@/core/project-types";
+import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
+import { testWorkspace } from "@/test-fixtures/workspace";
 import { PublicError } from "@/core/public-error";
 import { emptyActionMessageState } from "../action-state";
-import type { Db } from "../db";
-import type { Workspace } from "../workspace";
 import { updateRuntimeAuditAction } from "./runtime-audit";
 
-const withWorkspaceWrite = vi.hoisted(() => vi.fn());
+const { withWorkspaceWrite } = actionWorkspaceMocks;
 const assertSafeRuntimeUrl = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
-
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
-
-vi.mock("@/auth", () => ({
-  auth: vi.fn(),
-  getGitHubAccessToken: vi.fn(),
-  isGitHubAuthConfigured: () => false,
-}));
 
 vi.mock("@/analysis/runtime/url-safety", () => ({
   assertSafeRuntimeUrl: (...args: unknown[]) => assertSafeRuntimeUrl(...args),
 }));
-
-vi.mock("../workspace", async () => {
-  const actual = await vi.importActual<typeof import("../workspace")>(
-    "../workspace",
-  );
-  return {
-    ...actual,
-    withWorkspaceWrite: (fn: (workspace: Workspace) => unknown) =>
-      withWorkspaceWrite(fn),
-  };
-});
 
 vi.mock("./shared", async () => {
   const actual = await vi.importActual<typeof import("./shared")>("./shared");
@@ -50,48 +29,8 @@ const project = testProject({
   runtimeRoutes: ["/old"],
 });
 
-function membership(role: OrgMembership["role"]): OrgMembership {
-  return {
-    id: "m1",
-    orgId: "org-1",
-    role,
-    userId: "user-1",
-    githubLogin: "alice",
-    createdAt: "2026-01-01T00:00:00.000Z",
-  };
-}
-
-function workspaceFor(role: OrgMembership["role"]): Workspace {
-  const liveProject = { ...project };
-  const db = {
-    frameworks: [],
-    controls: [],
-    organizations: [{ id: "org-1", name: "Acme", slug: "acme", createdAt: "" }],
-    memberships: [membership(role)],
-    projects: [liveProject],
-    requirements: [],
-    assessments: [],
-    findings: [],
-    remediations: [],
-    evidence: [],
-    alerts: [],
-  } as Db;
-
-  return {
-    db,
-    project: liveProject,
-    userId: "user-1",
-    githubLogin: "alice",
-    access: {
-      userId: "user-1",
-      githubLogin: "alice",
-      organizations: db.organizations,
-      memberships: db.memberships,
-    },
-    visibleProjects: [liveProject],
-    organizations: db.organizations,
-    activeOrgId: "org-1",
-  };
+function workspaceFor(role: "viewer" | "member" | "admin" | "owner") {
+  return testWorkspace({ role, project });
 }
 
 afterEach(() => {

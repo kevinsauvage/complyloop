@@ -200,7 +200,7 @@ export function changeOrgMemberRole(
 }
 
 /** Personal owner org — fallback when no active org is selected. */
-export function defaultOrgIdForUser(db: Db, userId: string): string | undefined {
+function defaultOrgIdForUser(db: Db, userId: string): string | undefined {
   const owned = db.memberships.find(
     (membership) =>
       membership.userId === userId && membership.role === "owner",

@@ -12,6 +12,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { ReasonNoteFields } from "@/components/reason-note-fields";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { findingsListHref } from "@/core/finding-list-filter";
@@ -277,23 +278,21 @@ export function RequirementCard({
                   size="sm"
                   className="flex flex-col gap-3"
                 >
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor={`exception-reason-${requirement.id}`}>
-                      Reason
-                    </Label>
-                    <select
-                      id={`exception-reason-${requirement.id}`}
-                      name="reason"
-                      className="h-8 w-full max-w-md rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
-                    >
-                      <option value="not_applicable">Not applicable</option>
-                      <option value="accepted_risk">Accepted risk</option>
-                      <option value="compensating_control">
-                        Compensating control
-                      </option>
-                      <option value="temporary">Temporary</option>
-                    </select>
-                  </div>
+                  <ReasonNoteFields
+                    reasonId={`exception-reason-${requirement.id}`}
+                    noteId={`exception-note-${requirement.id}`}
+                    noteLabel="Note (required, kept as evidence)"
+                    noteRequired
+                    options={[
+                      { value: "not_applicable", label: "Not applicable" },
+                      { value: "accepted_risk", label: "Accepted risk" },
+                      {
+                        value: "compensating_control",
+                        label: "Compensating control",
+                      },
+                      { value: "temporary", label: "Temporary" },
+                    ]}
+                  />
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor={`exception-expires-${requirement.id}`}>
                       Expires (required for temporary)
@@ -303,18 +302,6 @@ export function RequirementCard({
                       type="date"
                       name="expiresAt"
                       className="h-8 w-full max-w-md rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor={`exception-note-${requirement.id}`}>
-                      Note (required, kept as evidence)
-                    </Label>
-                    <Textarea
-                      id={`exception-note-${requirement.id}`}
-                      name="note"
-                      required
-                      rows={2}
-                      className="max-w-md"
                     />
                   </div>
                 </StatefulActionForm>

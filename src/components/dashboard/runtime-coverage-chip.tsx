@@ -26,7 +26,7 @@ export function RuntimeCoverageChip({
   );
 }
 
-export function RuntimeCoverageDisplay({
+function RuntimeCoverageDisplay({
   summary,
   compact = false,
   className,

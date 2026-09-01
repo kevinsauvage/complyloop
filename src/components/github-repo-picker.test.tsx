@@ -2,10 +2,6 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GitHubRepoPicker } from "./github-repo-picker";
 
-vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
-}));
-
 vi.mock("@/server/actions/connect", () => ({
   connectGitHubRepoAction: vi.fn(),
   disconnectGitHubRepoAction: vi.fn(),

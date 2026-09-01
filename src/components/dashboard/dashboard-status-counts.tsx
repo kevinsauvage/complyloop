@@ -4,14 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { requirementsStatusHref } from "@/core/requirement-status-filter";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@/core/statuses";
-
-const STATUS_ORDER: RequirementStatus[] = [
-  "failed",
-  "needs_review",
-  "passed",
-  "not_applicable",
-  "unable_to_verify",
-];
+import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@/core/statuses";
 
 const STATUS_ACCENT: Record<RequirementStatus, string> = {
   failed: "bg-status-failed",
@@ -26,7 +19,7 @@ export function DashboardStatusCounts({
 }: {
   counts: Map<RequirementStatus, number>;
 }) {
-  const total = STATUS_ORDER.reduce(
+  const total = REQUIREMENT_STATUS_DISPLAY_ORDER.reduce(
     (sum, status) => sum + (counts.get(status) ?? 0),
     0,
   );
@@ -39,7 +32,7 @@ export function DashboardStatusCounts({
           role="img"
           aria-label={`Requirement status mix across ${total} requirements`}
         >
-          {STATUS_ORDER.map((status) => {
+          {REQUIREMENT_STATUS_DISPLAY_ORDER.map((status) => {
             const count = counts.get(status) ?? 0;
             if (count === 0) return null;
             const pct = (count / total) * 100;
@@ -56,7 +49,7 @@ export function DashboardStatusCounts({
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {STATUS_ORDER.map((status) => {
+        {REQUIREMENT_STATUS_DISPLAY_ORDER.map((status) => {
           const count = counts.get(status) ?? 0;
           const href = count > 0 ? requirementsStatusHref(status) : undefined;
           const share = total > 0 ? Math.round((count / total) * 100) : 0;

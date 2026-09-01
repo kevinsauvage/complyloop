@@ -1,39 +1,25 @@
+import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Control, OrgMembership } from "@/core/project-types";
-import type { Finding, Remediation } from "@/core/finding-types";
-import { testProject } from "@/test-fixtures/project";
-import { PublicError } from "@/core/public-error";
 import type { Db } from "../db";
-import type { Workspace } from "../workspace";
+import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+import { testControl } from "@/test-fixtures/control";
+import { testFinding } from "@/test-fixtures/finding";
+import { testProject } from "@/test-fixtures/project";
+import { testRemediation } from "@/test-fixtures/remediation";
+import { testWorkspace } from "@/test-fixtures/workspace";
+import { PublicError } from "@/core/public-error";
 import { createPullRequestAction } from "./pr";
 
-const getWorkspace = vi.hoisted(() => vi.fn());
-const withWorkspaceWrite = vi.hoisted(() => vi.fn());
+const { getWorkspace, withWorkspaceWrite } = actionWorkspaceMocks;
 const preparePullRequest = vi.hoisted(() => vi.fn());
 const getGitHubAccessToken = vi.hoisted(() => vi.fn());
 const getDrizzle = vi.hoisted(() => vi.fn());
 const listEvidenceForFinding = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 
-vi.mock("next/cache", () => ({
-  revalidatePath: vi.fn(),
-}));
-
 vi.mock("@/auth", () => ({
   getGitHubAccessToken: () => getGitHubAccessToken(),
 }));
-
-vi.mock("../workspace", async () => {
-  const actual = await vi.importActual<typeof import("../workspace")>(
-    "../workspace",
-  );
-  return {
-    ...actual,
-    getWorkspace: () => getWorkspace(),
-    withWorkspaceWrite: (fn: (workspace: Workspace) => unknown) =>
-      withWorkspaceWrite(fn),
-  };
-});
 
 vi.mock("../pr", () => ({
   preparePullRequest: (...args: unknown[]) => preparePullRequest(...args),
@@ -65,97 +51,24 @@ const project = testProject({
   },
 });
 
-const control: Control = {
-  id: "c1",
-  frameworkId: "fw",
-  code: "1.1.1",
-  secondaryCode: "WCAG",
-  title: "Images",
-  description: "Alt text",
-  checkId: "img-alt",
-};
-
-const finding: Finding = {
-  id: "f1",
-  projectId: "p1",
-  controlId: "c1",
-  assessmentId: "a1",
-  checkId: "img-alt",
-  kind: "violation",
-  status: "open",
-  severity: "serious",
-  confidence: "high",
-  reason: "Missing alt",
-  location: {
-    kind: "source",
-    filePath: "App.tsx",
-    line: 1,
-    column: 1,
-    snippet: '<img src="x" />',
-    span: { start: 0, end: 16 },
-  },
-  fix: null,
-  explanations: [],
-  detectedAt: "2026-01-01T00:00:00.000Z",
-};
-
-const remediation: Remediation = {
-  id: "r1",
-  findingId: "f1",
-  status: "approved",
-  suggestion: {
-    description: "Add alt",
-    proposedSnippet: '<img alt="" />',
-    provenance: "deterministic",
-  },
-  history: [],
-};
-
-function membership(role: OrgMembership["role"]): OrgMembership {
-  return {
-    id: "m1",
-    orgId: "org-1",
-    role,
-    userId: "user-1",
-    githubLogin: "alice",
-    createdAt: "2026-01-01T00:00:00.000Z",
-  };
-}
+const control = testControl();
+const finding = testFinding();
+const remediation = testRemediation({ status: "approved" });
 
 function workspaceFor(
-  role: OrgMembership["role"],
+  role: "viewer" | "member" | "admin" | "owner",
   overrides: Partial<Db> = {},
-): Workspace {
-  const db = {
-    frameworks: [],
-    controls: [control],
-    organizations: [{ id: "org-1", name: "Acme", slug: "acme", createdAt: "" }],
-    memberships: [membership(role)],
-    projects: [project],
-    requirements: [],
-    assessments: [],
-    findings: [{ ...finding }],
-    remediations: [{ ...remediation }],
-    evidence: [],
-    alerts: [],
-    ...overrides,
-  } as Db;
-
-  return {
-    db,
+) {
+  return testWorkspace({
+    role,
     project,
-    userId: "user-1",
-    githubLogin: "alice",
-    access: {
-      userId: "user-1",
-      githubLogin: "alice",
-      organizations: db.organizations,
-      memberships: db.memberships,
+    findings: [finding],
+    remediations: [remediation],
+    db: {
+      controls: [control],
+      ...overrides,
     },
-    visibleProjects: [project],
-    organizations: db.organizations,
-    activeOrgId: "org-1",
-  };
+  });
 }
 
 afterEach(() => {

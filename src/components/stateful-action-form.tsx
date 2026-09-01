@@ -45,6 +45,7 @@ export function StatefulActionForm({
   className,
   confirmMessage,
   confirmTitle,
+  retryLabel,
   disabled = false,
   /** When false, success copy is toast-only (errors stay inline). */
   inlineSuccess = true,
@@ -64,6 +65,8 @@ export function StatefulActionForm({
   /** When set, requires AlertDialog confirmation before the form submits. */
   confirmMessage?: string;
   confirmTitle?: string;
+  /** When set, submit label switches to this after an error (e.g. AI retry). */
+  retryLabel?: string;
   /** Disables the submit button (state already satisfied). */
   disabled?: boolean;
   inlineSuccess?: boolean;
@@ -77,6 +80,12 @@ export function StatefulActionForm({
     inlineSuccess || state.error
       ? state
       : { error: state.error, message: null };
+
+  const buttonLabel = pending
+    ? (pendingLabel ?? "Working…")
+    : state.error && retryLabel
+      ? retryLabel
+      : submitLabel;
 
   return (
     <form id={formId} action={formAction} className={className}>
@@ -102,7 +111,7 @@ export function StatefulActionForm({
             variant={variant}
             size={size}
           >
-            {pending ? (pendingLabel ?? "Working…") : submitLabel}
+            {buttonLabel}
           </Button>
         )}
         <ActionFeedback state={feedbackState} />

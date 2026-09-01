@@ -28,10 +28,6 @@ vi.mock("@/server/actions/remediation-verify", () => ({
   manualVerifyRemediationAction: vi.fn(),
 }));
 
-vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
-}));
-
 const useActionStateMock = vi.fn();
 
 vi.mock("react", async () => {

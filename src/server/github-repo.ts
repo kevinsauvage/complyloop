@@ -42,7 +42,7 @@ export function mapGitHubRepo(
   };
 }
 
-export function repoOwner(fullName: string): string {
+function repoOwner(fullName: string): string {
   return fullName.split("/")[0] ?? fullName;
 }
 

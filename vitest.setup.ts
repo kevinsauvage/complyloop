@@ -1,6 +1,13 @@
 import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
   captureMessage: vi.fn(),

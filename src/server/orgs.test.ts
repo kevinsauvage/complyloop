@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Db } from "./db";
+import { emptyDb } from "./db-store/types";
 import {
   claimMembershipsForLogin,
   changeOrgMemberRole,
@@ -13,22 +13,6 @@ import {
   resolveActiveOrgId,
   userRoleInOrg,
 } from "./orgs";
-
-function emptyDb(): Db {
-  return {
-    frameworks: [],
-    controls: [],
-    organizations: [],
-    memberships: [],
-    projects: [],
-    requirements: [],
-    assessments: [],
-    findings: [],
-    remediations: [],
-    evidence: [],
-    alerts: [],
-  };
-}
 
 describe("orgs", () => {
   it("creates a personal org for a new user", () => {
