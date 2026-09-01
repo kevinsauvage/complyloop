@@ -8,7 +8,7 @@ import {
   type Severity,
 } from "./statuses";
 
-export const FINDINGS_TABS = [
+const FINDINGS_TABS = [
   "open",
   "resolved",
   "dismissed",
@@ -37,16 +37,12 @@ export interface FindingListParams {
   page: number;
 }
 
-export function parseFindingsTab(
+function parseFindingsTab(
   raw: string | undefined,
 ): FindingsTab | undefined {
-  if (
-    raw === "open" ||
-    raw === "resolved" ||
-    raw === "dismissed" ||
-    raw === "by_cause"
-  ) {
-    return raw;
+  if (!raw) return undefined;
+  for (const tab of FINDINGS_TABS) {
+    if (tab === raw) return tab;
   }
   return undefined;
 }

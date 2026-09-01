@@ -134,12 +134,10 @@ export default async function FindingPage({
         />
 
         <FindingNextStepPanel
+          act={act}
           finding={finding}
           remediation={remediation}
           canRemediate={caps.canRemediate}
-          githubConnected={githubConnected}
-          prUrl={prUrl}
-          aiAvailable={aiAvailable}
           patchState={patchState}
         />
 

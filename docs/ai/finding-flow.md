@@ -75,7 +75,8 @@ Approve → Mark implemented (outside the platform) → Verify (runtime re-audit
         → Finding resolved
 ```
 
-Code: `generateAiRemediationAction`, `FindingActionPanel`,
+Code: `generateAiRemediationAction`, `FindingNextStepPanel`,
+`approveRemediationAction`, `markRemediationImplementedAction`,
 `verifyRemediationAction`.
 
 Never show **Create draft PR** or **Generate patch** for

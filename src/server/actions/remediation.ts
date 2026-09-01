@@ -1,6 +1,7 @@
 "use server";
 
-import { formatLocationRef, isDomLocation } from "@/core/location";
+import { canBulkApproveRemediation } from "@/core/finding-act";
+import { formatLocationRef } from "@/core/location";
 import { PublicError } from "@/core/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
@@ -77,10 +78,8 @@ export async function bulkApproveRemediationsAction(
       for (const findingId of findingIds) {
         const finding = findingById(db, findingId);
         requireOnFindingProject(workspace, finding, "project.remediate");
-        if (finding.status !== "open") continue;
         const remediation = remediationForFinding(db, findingId);
-        if (remediation.status !== "suggested") continue;
-        if (!isDomLocation(finding.location)) continue;
+        if (!canBulkApproveRemediation(finding, remediation.status)) continue;
 
         replaceRemediation(
           db,

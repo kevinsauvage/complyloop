@@ -1,6 +1,8 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { findingAct } from "@/core/finding-act";
 import type { Finding, Remediation } from "@/core/finding-types";
+import type { PatchUiState } from "@/server/ai-fix-result";
 import { FindingNextStepPanel } from "./finding-next-step-panel";
 
 vi.mock("@/server/actions/ai-fix", () => ({
@@ -83,11 +85,11 @@ const rem: Remediation = {
   history: [],
 };
 
-const readyPatch = {
-  status: "ready" as const,
+const readyPatch: PatchUiState = {
+  status: "ready",
   candidate: {
     description: "Add alt",
-    provenance: "ai" as const,
+    provenance: "ai",
     edits: [
       {
         path: "a.tsx",
@@ -99,6 +101,43 @@ const readyPatch = {
   },
 };
 
+function renderPanel({
+  finding: findingOverride = finding,
+  remediation,
+  canRemediate = true,
+  prUrl = null,
+  aiAvailable = true,
+  githubConnected = true,
+  patchState = { status: "idle" as const },
+}: {
+  finding?: Finding;
+  remediation: Remediation;
+  canRemediate?: boolean;
+  prUrl?: string | null;
+  aiAvailable?: boolean;
+  githubConnected?: boolean;
+  patchState?: PatchUiState;
+}) {
+  const act = findingAct({
+    finding: findingOverride,
+    remediation,
+    canRemediate,
+    prUrl,
+    aiAvailable,
+    patchReady: patchState.status === "ready",
+    githubConnected,
+  });
+  return render(
+    <FindingNextStepPanel
+      act={act}
+      finding={findingOverride}
+      remediation={remediation}
+      canRemediate={canRemediate}
+      patchState={patchState}
+    />,
+  );
+}
+
 describe("FindingNextStepPanel", () => {
   it("shows Generate patch for an open source Finding with no patch", () => {
     useActionStateMock.mockReturnValue([
@@ -106,16 +145,9 @@ describe("FindingNextStepPanel", () => {
       vi.fn(),
       false,
     ]);
-    render(
-      <FindingNextStepPanel
-        finding={finding}
-        remediation={{ ...rem, status: "detected", suggestion: null }}
-        canRemediate
-        githubConnected
-        prUrl={null}
-        aiAvailable
-      />,
-    );
+    renderPanel({
+      remediation: { ...rem, status: "detected", suggestion: null },
+    });
 
     expect(
       screen.getByRole("heading", { name: "Fix this Finding" }),
@@ -134,17 +166,10 @@ describe("FindingNextStepPanel", () => {
       vi.fn(),
       false,
     ]);
-    const view = render(
-      <FindingNextStepPanel
-        finding={finding}
-        remediation={rem}
-        canRemediate
-        githubConnected
-        prUrl={null}
-        aiAvailable
-        patchState={readyPatch}
-      />,
-    );
+    const view = renderPanel({
+      remediation: rem,
+      patchState: readyPatch,
+    });
 
     expect(
       screen.getByRole("heading", { name: "Review patch" }),
@@ -168,17 +193,11 @@ describe("FindingNextStepPanel", () => {
       vi.fn(),
       false,
     ]);
-    render(
-      <FindingNextStepPanel
-        finding={finding}
-        remediation={{ ...rem, status: "approved" }}
-        canRemediate
-        githubConnected
-        prUrl="https://github.com/acme/shop/pull/65"
-        aiAvailable
-        patchState={readyPatch}
-      />,
-    );
+    renderPanel({
+      remediation: { ...rem, status: "approved" },
+      prUrl: "https://github.com/acme/shop/pull/65",
+      patchState: readyPatch,
+    });
 
     expect(
       screen.getByRole("heading", { name: "In review on GitHub" }),
@@ -203,21 +222,16 @@ describe("FindingNextStepPanel", () => {
       vi.fn(),
       false,
     ]);
-    render(
-      <FindingNextStepPanel
-        finding={{
-          ...finding,
-          status: "resolved",
-          resolvedNote: "Fix verified by re-running the automated check.",
-        }}
-        remediation={{ ...rem, status: "verified" }}
-        canRemediate
-        githubConnected
-        prUrl="https://github.com/acme/shop/pull/65"
-        aiAvailable
-        patchState={readyPatch}
-      />,
-    );
+    renderPanel({
+      finding: {
+        ...finding,
+        status: "resolved",
+        resolvedNote: "Fix verified by re-running the automated check.",
+      },
+      remediation: { ...rem, status: "verified" },
+      prUrl: "https://github.com/acme/shop/pull/65",
+      patchState: readyPatch,
+    });
 
     expect(screen.getByRole("heading", { name: "Verified" })).toBeInTheDocument();
     expect(
@@ -231,30 +245,24 @@ describe("FindingNextStepPanel", () => {
       vi.fn(),
       false,
     ]);
-    render(
-      <FindingNextStepPanel
-        finding={{
-          ...finding,
-          location: {
-            kind: "dom",
-            url: "https://example.com/login",
-            selector: "input#email",
-            snippet: "<input id='email'>",
-          },
-        }}
-        remediation={rem}
-        canRemediate
-        githubConnected
-        prUrl={null}
-        aiAvailable
-      />,
-    );
+    renderPanel({
+      finding: {
+        ...finding,
+        location: {
+          kind: "dom",
+          url: "https://example.com/login",
+          selector: "input#email",
+          snippet: "<input id='email'>",
+        },
+      },
+      remediation: rem,
+    });
 
     expect(
       screen.getByRole("heading", { name: "Review guidance" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Approve remediation" }),
+      screen.getByRole("button", { name: "Approve" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Create draft pull request" }),
@@ -270,24 +278,18 @@ describe("FindingNextStepPanel", () => {
       vi.fn(),
       false,
     ]);
-    render(
-      <FindingNextStepPanel
-        finding={{
-          ...finding,
-          location: {
-            kind: "dom",
-            url: "https://example.com/login",
-            selector: "input#email",
-            snippet: "<input id='email'>",
-          },
-        }}
-        remediation={{ ...rem, status: "implemented", suggestion: null }}
-        canRemediate
-        githubConnected
-        prUrl={null}
-        aiAvailable
-      />,
-    );
+    renderPanel({
+      finding: {
+        ...finding,
+        location: {
+          kind: "dom",
+          url: "https://example.com/login",
+          selector: "input#email",
+          snippet: "<input id='email'>",
+        },
+      },
+      remediation: { ...rem, status: "implemented", suggestion: null },
+    });
 
     expect(
       screen.getByRole("heading", { name: "Confirm the page is fixed" }),

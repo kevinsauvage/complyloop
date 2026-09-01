@@ -8,8 +8,6 @@ import { severityRank } from "./labels";
 import { prioritizeFindings } from "./prioritization";
 import type { FindingStatus } from "./statuses";
 
-export type { FindingListParams as FindingQueueParams } from "./finding-list-filter";
-
 export function orderedFindingIdsForQueue(
   findings: readonly Finding[],
   params: FindingListParams,

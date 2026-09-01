@@ -61,6 +61,7 @@ test.describe("compliance loops", () => {
     await page.goto("/findings/e2e-finding-img-alt");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
+    await page.getByText("Dismiss this finding").click();
     await page.getByLabel(/Note \(kept as evidence\)/i).fill(
       "E2E dismiss: false positive in fixture.",
     );

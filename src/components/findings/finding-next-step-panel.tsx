@@ -1,9 +1,8 @@
-import { FindingActionPanel } from "@/components/findings/finding-action-panel";
-import { FindingDismissCard } from "@/components/findings/finding-dismiss-card";
 import { CreatePrForm } from "@/components/create-pr-form";
 import { AiActionForm } from "@/components/findings/ai-action-form";
 import { CodeBlock } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
+import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,13 +11,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { findingAct, type FindingActView } from "@/core/finding-act";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import type { FindingActView } from "@/core/finding-act";
 import type { Finding, Remediation } from "@/core/finding-types";
 import { cn } from "@/lib/utils";
 import type { PatchCandidate } from "@/ai/verified-fix";
 import type { PatchUiState } from "@/server/ai-fix-result";
 import { generateAiFixAction } from "@/server/actions/ai-fix";
+import { dismissFindingAction } from "@/server/actions/remediation-dismiss";
 import { generateAiRemediationAction } from "@/server/actions/remediation-ai";
+import { approveRemediationAction } from "@/server/actions/remediation";
+import {
+  manualVerifyRemediationAction,
+  markRemediationImplementedAction,
+  verifyRemediationAction,
+} from "@/server/actions/remediation-verify";
 
 function PatchPreview({ candidate }: { candidate: PatchCandidate }) {
   return (
@@ -50,6 +59,10 @@ function ActControls({
   canRemediate: boolean;
   patchState: PatchUiState;
 }) {
+  if (!canRemediate) {
+    return null;
+  }
+
   switch (act.beat) {
     case "source_generate":
       return act.canGenerate ? (
@@ -120,11 +133,9 @@ function ActControls({
         </>
       );
     case "runtime_approve":
-    case "runtime_implement":
-    case "runtime_verify":
       return (
         <>
-          {act.beat === "runtime_approve" && remediation.suggestion ? (
+          {remediation.suggestion ? (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
                 {remediation.suggestion.description}
@@ -132,12 +143,60 @@ function ActControls({
               <CodeBlock>{remediation.suggestion.proposedSnippet}</CodeBlock>
             </div>
           ) : null}
-          <FindingActionPanel
-            findingId={finding.id}
-            remediation={remediation}
-            canRemediate={canRemediate}
+          <StatefulActionForm
+            action={approveRemediationAction.bind(null, finding.id)}
+            submitLabel="Approve"
+            variant="default"
           />
         </>
+      );
+    case "runtime_implement":
+      return (
+        <StatefulActionForm
+          action={markRemediationImplementedAction.bind(null, finding.id)}
+          submitLabel="Mark implemented"
+          variant="default"
+          className="flex flex-col gap-2"
+        >
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="mark-implemented-note">Implementation note</Label>
+            <Input
+              id="mark-implemented-note"
+              type="text"
+              name="note"
+              placeholder="e.g. Fixed in PR #42"
+              className="max-w-md"
+            />
+          </div>
+        </StatefulActionForm>
+      );
+    case "runtime_verify":
+      return (
+        <div className="flex flex-col gap-3">
+          <StatefulActionForm
+            action={verifyRemediationAction.bind(null, finding.id)}
+            submitLabel="Verify fix (automated re-check)"
+            pendingLabel="Verifying…"
+            variant="default"
+          />
+          <StatefulActionForm
+            action={manualVerifyRemediationAction.bind(null, finding.id)}
+            submitLabel="Verify manually"
+            variant="outline"
+            className="flex flex-col gap-3"
+          >
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="manual-verify-note">Verification note</Label>
+              <Textarea
+                id="manual-verify-note"
+                name="note"
+                required
+                rows={2}
+                className="max-w-md"
+              />
+            </div>
+          </StatefulActionForm>
+        </div>
       );
     case "verified":
     case "dismissed":
@@ -151,32 +210,18 @@ function ActControls({
 }
 
 export function FindingNextStepPanel({
+  act,
   finding,
   remediation,
   canRemediate,
-  githubConnected,
-  prUrl,
-  aiAvailable = false,
   patchState = { status: "idle" },
 }: {
+  act: FindingActView;
   finding: Finding;
   remediation: Remediation;
   canRemediate: boolean;
-  githubConnected: boolean;
-  prUrl: string | null;
-  aiAvailable?: boolean;
   patchState?: PatchUiState;
 }) {
-  const act = findingAct({
-    finding,
-    remediation,
-    canRemediate,
-    prUrl,
-    aiAvailable,
-    patchReady: patchState.status === "ready",
-    githubConnected,
-  });
-
   return (
     <Card
       className={cn(
@@ -224,7 +269,37 @@ export function FindingNextStepPanel({
                 Dismiss this finding
               </summary>
               <div className="mt-3">
-                <FindingDismissCard findingId={finding.id} />
+                <StatefulActionForm
+                  action={dismissFindingAction.bind(null, finding.id)}
+                  submitLabel="Dismiss finding"
+                  variant="destructive"
+                  className="flex flex-col gap-4"
+                  confirmMessage="Dismiss this finding? The reason and note are kept as evidence."
+                  confirmTitle="Dismiss finding"
+                >
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="dismiss-reason">Reason</Label>
+                    <select
+                      id="dismiss-reason"
+                      name="reason"
+                      defaultValue="false_positive"
+                      className="h-8 w-full max-w-md rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+                    >
+                      <option value="false_positive">False positive</option>
+                      <option value="not_applicable">Not applicable</option>
+                      <option value="accepted_risk">Accepted risk</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="dismiss-note">Note (kept as evidence)</Label>
+                    <Textarea
+                      id="dismiss-note"
+                      name="note"
+                      rows={2}
+                      className="max-w-md"
+                    />
+                  </div>
+                </StatefulActionForm>
               </div>
             </details>
           </>

@@ -40,11 +40,11 @@
 - **Why:** Engineers want failing requirement + location + fix. Auditors want status, evidence, exceptions, timestamps — not 200 JSX snippets.
 - **How:** Two export actions (or a `view=` query): **Engineering** (open findings, clusters, remediations) and **Audit** (requirement status table, determination, exceptions, verification evidence, no snippets). Reuse `ReportInput`.
 
-### 14. Clustered remediation on the findings page, not only the dashboard
+### 14. Clustered remediation on the findings page, not only the dashboard — DONE
 
 - **What:** `prioritizeClusters` is shown on the dashboard (top 5). Findings page is a flat prioritized list with bulk approve/dismiss.
 - **Why:** The differentiator is “fix the shared component,” not a prettier table.
-- **How:** Add a “By cause” tab on `/findings` using existing `FindingCluster`. Each cluster links to the shared file and (after item 9) “Open PR for cluster.”
+- **How (done):** “By cause” tab on `/findings` using `FindingCluster`; each cluster links to the shared file. Cluster PR (item 9) is still pending.
 
 ### 15. Regression alerts leave the product
 
