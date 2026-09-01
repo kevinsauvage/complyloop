@@ -2,7 +2,12 @@ import type { Page } from "playwright";
 import type { AxeViolationLike } from "../findings";
 import { bothColorsRuntimeViolation } from "./both-colors-runtime";
 import { cssDisabledContentViolations } from "./css-disabled-content";
+import { cssForPresentationViolations } from "./css-for-presentation";
+import { cssOffUnderstandableViolation } from "./css-off-understandable";
+import { flashThresholdViolation } from "./flash-threshold";
 import { cssHoverKeyboardViolation } from "./css-hover-keyboard";
+import { layoutTableLinearizationViolation } from "./layout-table-linearization";
+import { mediaAtCompatibleViolation } from "./media-at-compatible";
 import { mediaKeyboardViolation } from "./media-keyboard";
 import { focusCustomViolations } from "./focus";
 import { focusOrderLogicalViolation } from "./focus-order-logical";
@@ -48,10 +53,15 @@ export async function runCustomRuntimeChecks(
     cssHoverKeyboardViolation(page),
     infoNotColorOnlyViolation(page),
     focusOrderLogicalViolation(page),
+    cssOffUnderstandableViolation(page),
+    layoutTableLinearizationViolation(page),
+    mediaAtCompatibleViolation(page),
+    flashThresholdViolation(page),
   ]);
 
   const violations: CustomViolation[] = [
     ...(await focusCustomViolations(page)),
+    ...(await cssForPresentationViolations(page)),
     ...optional.flatMap((result) =>
       result === null ? [] : Array.isArray(result) ? result : [result],
     ),

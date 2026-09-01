@@ -121,7 +121,12 @@ export type CheckId =
   | "focus-not-obscured-enhanced"
   | "focus-appearance"
   | "identical-links-purpose"
-  | "hidden-content";
+  | "hidden-content"
+  | "css-for-presentation"
+  | "css-off-understandable"
+  | "layout-table-linearization"
+  | "media-at-compatible"
+  | "flash-threshold";
 
 export interface RawFinding {
   checkId: CheckId;

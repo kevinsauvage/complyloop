@@ -53,6 +53,11 @@ const RUNTIME_ONLY = [
   "focus-appearance",
   "identical-links-purpose",
   "hidden-content",
+  "css-for-presentation",
+  "css-off-understandable",
+  "layout-table-linearization",
+  "media-at-compatible",
+  "flash-threshold",
   "consistent-landmarks",
   "duplicate-page-title",
 ] as const;

@@ -43,6 +43,21 @@ describe("custom runtime axe mappings", () => {
       "identical-links-purpose",
     );
     expect(checkIdForAxeRule("hidden-content")).toBe("hidden-content");
+    expect(checkIdForAxeRule("complyloop-css-for-presentation")).toBe(
+      "css-for-presentation",
+    );
+    expect(checkIdForAxeRule("complyloop-css-off-understandable")).toBe(
+      "css-off-understandable",
+    );
+    expect(checkIdForAxeRule("complyloop-layout-table-linearization")).toBe(
+      "layout-table-linearization",
+    );
+    expect(checkIdForAxeRule("complyloop-media-at-compatible")).toBe(
+      "media-at-compatible",
+    );
+    expect(checkIdForAxeRule("complyloop-flash-threshold")).toBe(
+      "flash-threshold",
+    );
     expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });
 

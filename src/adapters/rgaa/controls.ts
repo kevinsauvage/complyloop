@@ -1225,7 +1225,7 @@ export const rgaaControls: Control[] = [
     title: "Layout tables linearize sensibly",
     description:
       "When CSS is disabled, layout tables still produce a meaningful reading order.",
-    checkId: null,
+    checkId: "layout-table-linearization",
     complianceWeight: 1.1,
   },
   {
@@ -1335,7 +1335,7 @@ export const rgaaControls: Control[] = [
     title: "Flashes are below threshold",
     description:
       "Content does not flash more than three times per second above luminance thresholds.",
-    checkId: null,
+    checkId: "flash-threshold",
     complianceWeight: 1.2,
   },
   {
@@ -1522,7 +1522,7 @@ export const rgaaControls: Control[] = [
     title: "Media players are compatible with assistive technology",
     description:
       "Temporal and non-temporal media expose name, role, and value to assistive technology.",
-    checkId: null,
+    checkId: "media-at-compatible",
     complianceWeight: 1.2,
   },
   {
@@ -1544,7 +1544,7 @@ export const rgaaControls: Control[] = [
     title: "Presentation is controlled with CSS, not markup",
     description:
       "Layout and visual formatting use stylesheets rather than deprecated presentational markup.",
-    checkId: null,
+    checkId: "css-for-presentation",
     complianceWeight: 1.0,
   },
   {
@@ -1555,7 +1555,7 @@ export const rgaaControls: Control[] = [
     title: "Content remains understandable with CSS disabled",
     description:
       "Reading order and meaning are preserved when stylesheets are disabled.",
-    checkId: null,
+    checkId: "css-off-understandable",
     complianceWeight: 1.1,
   },
   {

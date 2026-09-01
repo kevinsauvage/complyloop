@@ -68,6 +68,11 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "focus-appearance",
   "identical-links-purpose",
   "hidden-content",
+  "css-for-presentation",
+  "css-off-understandable",
+  "layout-table-linearization",
+  "media-at-compatible",
+  "flash-threshold",
 ] as const satisfies readonly CheckId[];
 
 const SITE_LEVEL_CHECK_IDS = [

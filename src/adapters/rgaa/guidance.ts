@@ -716,6 +716,36 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Use aria-hidden on decorative or off-screen content that sighted users cannot see.",
   },
+  "css-for-presentation": {
+    impact:
+      "Deprecated presentational tags and attributes break separation of content and style and are fragile across browsers.",
+    howToFix:
+      "Replace <font>, <center>, align, bgcolor, and similar attributes with CSS classes (WCAG 1.3.1 / RGAA 10.1).",
+  },
+  "css-off-understandable": {
+    impact:
+      "When stylesheets are disabled, essential text disappears or reading order no longer matches the visual layout.",
+    howToFix:
+      "Keep meaning in the DOM; avoid flex/grid order tricks or CSS-only text for core content (WCAG 1.3.2 / RGAA 10.3).",
+  },
+  "layout-table-linearization": {
+    impact:
+      "Layout tables whose visual cell order differs from DOM order become unreadable when CSS is turned off.",
+    howToFix:
+      "Use CSS for layout or ensure table cells follow the intended reading sequence in the markup (WCAG 1.3.2 / RGAA 5.3).",
+  },
+  "media-at-compatible": {
+    impact:
+      "Custom media players without names or unlabeled controls are opaque to screen readers and voice control.",
+    howToFix:
+      "Label the player region and every control with aria-label or visible text (WCAG 4.1.2 / RGAA 4.13).",
+  },
+  "flash-threshold": {
+    impact:
+      "Rapid large-area flashing can trigger seizures in people with photosensitive epilepsy.",
+    howToFix:
+      "Keep flashes below three per second or reduce the affected area; avoid strobe-like CSS animations (WCAG 2.3.1 / RGAA 13.7).",
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {

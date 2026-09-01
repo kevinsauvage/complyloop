@@ -145,6 +145,11 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-focus-order-logical": "focus-order-logical",
   "identical-links-same-purpose": "identical-links-purpose",
   "hidden-content": "hidden-content",
+  "complyloop-css-for-presentation": "css-for-presentation",
+  "complyloop-css-off-understandable": "css-off-understandable",
+  "complyloop-layout-table-linearization": "layout-table-linearization",
+  "complyloop-media-at-compatible": "media-at-compatible",
+  "complyloop-flash-threshold": "flash-threshold",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {
