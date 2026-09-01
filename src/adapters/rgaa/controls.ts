@@ -855,6 +855,39 @@ export const rgaaControls: Control[] = [
     complianceWeight: 1.3,
   },
   {
+    id: "ctl-focus-not-obscured-enhanced",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 2.4.12",
+    secondaryCode: "WCAG 2.4.12",
+    title: "No part of the focused control is hidden",
+    description:
+      "Sticky headers, banners, and overlays must not cover any portion of the focused control.",
+    checkId: "focus-not-obscured-enhanced",
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-focus-appearance",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 2.4.13",
+    secondaryCode: "WCAG 2.4.13",
+    title: "Focus indicator meets minimum size",
+    description:
+      "The focus indicator is large enough to be visible when keyboard navigating.",
+    checkId: "focus-appearance",
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-identical-links-purpose",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 2.4.9",
+    secondaryCode: "WCAG 2.4.9",
+    title: "Links with the same name serve the same purpose",
+    description:
+      "When multiple links share an accessible name, they should lead to the same destination or equivalent action.",
+    checkId: "identical-links-purpose",
+    complianceWeight: 1.1,
+  },
+  {
     id: "ctl-accessible-auth",
     frameworkId: rgaaFramework.id,
     code: "WCAG 3.3.8",
@@ -1225,7 +1258,7 @@ export const rgaaControls: Control[] = [
     title: "Hidden content is meant to be ignored",
     description:
       "Content hidden from sighted users is also hidden from assistive technology.",
-    checkId: null,
+    checkId: "hidden-content",
     complianceWeight: 1.1,
   },
   {
@@ -1335,7 +1368,7 @@ export const rgaaControls: Control[] = [
     title: "Decorative images are ignored by assistive technology",
     description:
       "Decorative images use empty alt or a presentation role so they are not announced.",
-    checkId: null,
+    checkId: "decorative-ignored",
     complianceWeight: 1.3,
   },
   {
@@ -1412,7 +1445,7 @@ export const rgaaControls: Control[] = [
     title: "Focus order matches the visual reading order",
     description:
       "Keyboard focus moves in a sequence that preserves meaning; CSS order must not invert the DOM order without cause.",
-    checkId: null,
+    checkId: "focus-order-logical",
     complianceWeight: 1.3,
   },
   {
@@ -1500,7 +1533,7 @@ export const rgaaControls: Control[] = [
     title: "Language changes are indicated in the source",
     description:
       "Passages in a language different from the page default set lang on the containing element.",
-    checkId: null,
+    checkId: "lang-change",
     complianceWeight: 1.3,
   },
   {
@@ -1533,7 +1566,7 @@ export const rgaaControls: Control[] = [
     title: "Information is not conveyed by color alone",
     description:
       "Charts, required fields, and status are identifiable without perceiving color. Link underline is a separate control (10.6).",
-    checkId: null,
+    checkId: "info-not-color-only",
     complianceWeight: 1.4,
   },
   {
@@ -1577,7 +1610,7 @@ export const rgaaControls: Control[] = [
     title: "Cryptic content has a text alternative",
     description:
       "ASCII art, emoticon clusters, and similar cryptic text have an accessible alternative.",
-    checkId: null,
+    checkId: "cryptic-content-alt",
     complianceWeight: 1.0,
   },
   {
@@ -1599,7 +1632,7 @@ export const rgaaControls: Control[] = [
     title: "Live synchronized media has captions",
     description:
       "When live audio is part of synchronized media, captions are provided.",
-    checkId: null,
+    checkId: "captions-live",
     complianceWeight: 1.3,
   },
   {
@@ -1610,7 +1643,7 @@ export const rgaaControls: Control[] = [
     title: "Prerecorded video has audio description or a media alternative",
     description:
       "Video with visual information not in the soundtrack has audio description or a full text alternative (A).",
-    checkId: null,
+    checkId: "audio-description-or-alt",
     complianceWeight: 1.3,
   },
 ];

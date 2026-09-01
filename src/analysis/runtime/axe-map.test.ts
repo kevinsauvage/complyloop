@@ -23,7 +23,12 @@ describe("axe-map", () => {
 
   it("ignores unmapped axe rules", () => {
     expect(checkIdForAxeRule("totally-made-up-rule")).toBeUndefined();
-    expect(checkIdForAxeRule("color-contrast-enhanced")).toBeUndefined();
+    expect(checkIdForAxeRule("color-contrast-enhanced")).toBe("color-contrast");
+    expect(checkIdForAxeRule("table-duplicate-name")).toBe("table-caption");
+    expect(checkIdForAxeRule("identical-links-same-purpose")).toBe(
+      "identical-links-purpose",
+    );
+    expect(checkIdForAxeRule("hidden-content")).toBe("hidden-content");
   });
 
   it("covers a broader rule surface than the original ~37 mappings", () => {

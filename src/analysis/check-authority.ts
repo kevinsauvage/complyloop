@@ -62,6 +62,12 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "consistent-search",
   "consistent-landmarks",
   "duplicate-page-title",
+  "info-not-color-only",
+  "focus-order-logical",
+  "focus-not-obscured-enhanced",
+  "focus-appearance",
+  "identical-links-purpose",
+  "hidden-content",
 ] as const satisfies readonly CheckId[];
 
 const SITE_LEVEL_CHECK_IDS = [
@@ -91,7 +97,11 @@ const HEURISTIC_CHECK_IDS = [
   "focus-context-change",
   "input-context-change",
   "audio-description-track",
+  "audio-description-or-alt",
   "link-explicit-heuristic",
+  "lang-change",
+  "cryptic-content-alt",
+  "captions-live",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);

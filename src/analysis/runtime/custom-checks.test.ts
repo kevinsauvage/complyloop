@@ -27,6 +27,22 @@ describe("custom runtime axe mappings", () => {
     expect(checkIdForAxeRule("complyloop-css-hover-keyboard")).toBe(
       "css-hover-keyboard",
     );
+    expect(checkIdForAxeRule("complyloop-info-not-color-only")).toBe(
+      "info-not-color-only",
+    );
+    expect(checkIdForAxeRule("complyloop-focus-order-logical")).toBe(
+      "focus-order-logical",
+    );
+    expect(checkIdForAxeRule("complyloop-focus-not-obscured-enhanced")).toBe(
+      "focus-not-obscured-enhanced",
+    );
+    expect(checkIdForAxeRule("complyloop-focus-appearance")).toBe(
+      "focus-appearance",
+    );
+    expect(checkIdForAxeRule("identical-links-same-purpose")).toBe(
+      "identical-links-purpose",
+    );
+    expect(checkIdForAxeRule("hidden-content")).toBe("hidden-content");
     expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });
 

@@ -67,6 +67,11 @@ import { audioDescriptionTrackCheck } from "./audio-description-track";
 import { linkExplicitHeuristicCheck } from "./link-explicit-heuristic";
 import { officeDocsAltPresentCheck } from "./office-docs-alt-present";
 import { mediaKeyboardStaticCheck } from "./media-keyboard-static";
+import { decorativeIgnoredCheck } from "./decorative-ignored";
+import { langChangeCheck } from "./lang-change";
+import { crypticContentAltCheck } from "./cryptic-content-alt";
+import { audioDescriptionOrAltCheck } from "./audio-description-or-alt";
+import { captionsLiveCheck } from "./captions-live";
 import type { AccessibilityCheck } from "../types";
 
 export const allChecks: AccessibilityCheck[] = [
@@ -139,4 +144,9 @@ export const allChecks: AccessibilityCheck[] = [
   linkExplicitHeuristicCheck,
   officeDocsAltPresentCheck,
   mediaKeyboardStaticCheck,
+  decorativeIgnoredCheck,
+  langChangeCheck,
+  crypticContentAltCheck,
+  audioDescriptionOrAltCheck,
+  captionsLiveCheck,
 ];

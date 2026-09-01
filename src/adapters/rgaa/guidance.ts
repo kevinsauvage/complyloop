@@ -650,6 +650,72 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Make each route’s <title> unique and specific, e.g. “Settings — Acme” vs “Dashboard — Acme”. Pertinence of the wording still needs a human.",
   },
+  "decorative-ignored": {
+    impact:
+      "Decorative images that still expose a name are announced by screen readers, adding noise and duplicating nearby text.",
+    howToFix:
+      'Use alt="" with no title or aria-label, or mark the image aria-hidden="true" / role="presentation" without a redundant name.',
+  },
+  "lang-change": {
+    impact:
+      "Screen readers mispronounce passages in another language when lang is missing on the containing element.",
+    howToFix:
+      'Wrap the foreign-language passage in an element with lang, e.g. <span lang="fr">…</span>.',
+  },
+  "cryptic-content-alt": {
+    impact:
+      "ASCII art and emoticon-only content is meaningless or misleading when read aloud.",
+    howToFix:
+      "Provide aria-label, aria-labelledby, or aria-describedby with a plain-language description of the cryptic content.",
+  },
+  "audio-description-or-alt": {
+    impact:
+      "Blind users miss visual information in video when there is no audio description track or full text alternative.",
+    howToFix:
+      'Add <track kind="descriptions"> or link to a transcript that covers visual content not in the soundtrack.',
+  },
+  "captions-live": {
+    impact:
+      "Deaf and hard-of-hearing users cannot follow live audio in synchronized media without captions.",
+    howToFix:
+      'Provide live captions via <track kind="captions"> or the streaming platform’s caption service.',
+  },
+  "info-not-color-only": {
+    impact:
+      "Users who cannot perceive color miss required-field or error status when color is the only cue.",
+    howToFix:
+      "Add text, icons, patterns, or underlines alongside color to convey state (WCAG 1.4.1 / RGAA 3.1).",
+  },
+  "focus-order-logical": {
+    impact:
+      "When tab order jumps around the page, keyboard users lose their place and may activate the wrong control.",
+    howToFix:
+      "Match DOM tab order to the visual layout; avoid positive tabindex and CSS order inversions (WCAG 2.4.3).",
+  },
+  "focus-not-obscured-enhanced": {
+    impact:
+      "Even a partially hidden focus indicator makes it hard to see which control is active.",
+    howToFix:
+      "Ensure sticky headers and overlays never cover any part of the focused control (WCAG 2.4.12).",
+  },
+  "focus-appearance": {
+    impact:
+      "A focus ring that is too thin is easy to miss, especially on high-DPI screens.",
+    howToFix:
+      "Use at least a 2px outline or equivalent box-shadow with sufficient contrast (WCAG 2.4.13).",
+  },
+  "identical-links-purpose": {
+    impact:
+      "Screen reader users hear duplicate link names but land on different destinations.",
+    howToFix:
+      "Give links unique names or ensure same-named links go to the same place (WCAG 2.4.9).",
+  },
+  "hidden-content": {
+    impact:
+      "Content hidden visually but exposed to assistive technology creates confusing navigation noise.",
+    howToFix:
+      "Use aria-hidden on decorative or off-screen content that sighted users cannot see.",
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {

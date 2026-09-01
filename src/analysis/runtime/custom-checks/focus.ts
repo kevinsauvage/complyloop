@@ -32,7 +32,7 @@ export async function focusCustomViolations(
     });
   }
 
-  const obscuredNodes = await collectFocusObscuredViolations(page);
+  const obscuredNodes = await collectFocusObscuredViolations(page, false);
   if (obscuredNodes.length > 0) {
     violations.push({
       id: "complyloop-focus-not-obscured",
@@ -41,6 +41,30 @@ export async function focusCustomViolations(
         "Focused control is covered by another element (sticky header, banner, or overlay).",
       help: "Focused controls must not be fully hidden by other content (WCAG 2.4.11).",
       nodes: obscuredNodes,
+    });
+  }
+
+  const obscuredEnhancedNodes = await collectFocusObscuredViolations(page, true);
+  if (obscuredEnhancedNodes.length > 0) {
+    violations.push({
+      id: "complyloop-focus-not-obscured-enhanced",
+      impact: "serious",
+      description:
+        "Any part of the focused control is covered by other content.",
+      help: "No part of the focused control may be hidden (WCAG 2.4.12).",
+      nodes: obscuredEnhancedNodes,
+    });
+  }
+
+  const appearanceNodes = await collectFocusAppearanceViolations(page);
+  if (appearanceNodes.length > 0) {
+    violations.push({
+      id: "complyloop-focus-appearance",
+      impact: "moderate",
+      description:
+        "Focus indicator is too thin to meet minimum size requirements.",
+      help: "Focus indicators need sufficient area and contrast (WCAG 2.4.13).",
+      nodes: appearanceNodes,
     });
   }
 
@@ -168,6 +192,76 @@ async function detectKeyboardTrap(
 
 async function collectFocusObscuredViolations(
   page: Page,
+  enhanced: boolean,
+): Promise<CustomViolationNode[]> {
+  const nodes: CustomViolationNode[] = [];
+  const seen = new Set<string>();
+
+  for (let step = 0; step < MAX_TAB_STEPS; step++) {
+    await page.keyboard.press("Tab");
+    const hit = await page.evaluate(
+      ({ enhancedMode }) => {
+        function selectorOf(el: Element): string {
+          if (el.id) return `#${el.id}`;
+          const tag = el.tagName.toLowerCase();
+          const role = el.getAttribute("role");
+          return role ? `${tag}[role="${role}"]` : tag;
+        }
+
+        function pointObscured(el: Element, x: number, y: number): boolean {
+          const top = document.elementFromPoint(x, y);
+          if (!top) return false;
+          return top !== el && !el.contains(top) && !top.contains(el);
+        }
+
+        function isFocusObscured(el: Element, strict: boolean): boolean {
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) return false;
+          const points = strict
+            ? [
+                [rect.left + 1, rect.top + 1],
+                [rect.right - 1, rect.top + 1],
+                [rect.left + 1, rect.bottom - 1],
+                [rect.right - 1, rect.bottom - 1],
+                [rect.left + rect.width / 2, rect.top + rect.height / 2],
+              ]
+            : [[rect.left + rect.width / 2, rect.top + rect.height / 2]];
+          return points.some(([x, y]) => pointObscured(el, x, y));
+        }
+
+        const el = document.activeElement;
+        if (
+          !el ||
+          el === document.body ||
+          el === document.documentElement ||
+          !(el instanceof HTMLElement)
+        ) {
+          return null;
+        }
+        if (!el.matches(":focus-visible")) return null;
+        if (!isFocusObscured(el, enhancedMode)) return null;
+        const html = el.outerHTML.replace(/\s+/g, " ").trim();
+        return {
+          key: selectorOf(el),
+          html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
+          selector: selectorOf(el),
+        };
+      },
+      { enhancedMode: enhanced },
+    );
+    if (!hit || seen.has(hit.key)) {
+      if (step > 5 && seen.size > 0) break;
+      continue;
+    }
+    seen.add(hit.key);
+    nodes.push({ html: hit.html, target: [hit.selector] });
+  }
+
+  return nodes;
+}
+
+async function collectFocusAppearanceViolations(
+  page: Page,
 ): Promise<CustomViolationNode[]> {
   const nodes: CustomViolationNode[] = [];
   const seen = new Set<string>();
@@ -182,14 +276,15 @@ async function collectFocusObscuredViolations(
         return role ? `${tag}[role="${role}"]` : tag;
       }
 
-      function isFocusObscured(el: Element): boolean {
-        const rect = el.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) return false;
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const top = document.elementFromPoint(cx, cy);
-        if (!top) return false;
-        return top !== el && !el.contains(top) && !top.contains(el);
+      function focusIndicatorTooSmall(el: Element): boolean {
+        const style = getComputedStyle(el);
+        const outlineWidth = parseFloat(style.outlineWidth) || 0;
+        if (outlineWidth >= 2) return false;
+        const shadow = style.boxShadow;
+        if (!shadow || shadow === "none") return true;
+        const match = /(\d+(?:\.\d+)?)px/.exec(shadow);
+        if (!match) return true;
+        return parseFloat(match[1] ?? "0") < 2;
       }
 
       const el = document.activeElement;
@@ -202,7 +297,7 @@ async function collectFocusObscuredViolations(
         return null;
       }
       if (!el.matches(":focus-visible")) return null;
-      if (!isFocusObscured(el)) return null;
+      if (!focusIndicatorTooSmall(el)) return null;
       const html = el.outerHTML.replace(/\s+/g, " ").trim();
       return {
         key: selectorOf(el),

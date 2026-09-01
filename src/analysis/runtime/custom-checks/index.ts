@@ -5,6 +5,8 @@ import { cssDisabledContentViolations } from "./css-disabled-content";
 import { cssHoverKeyboardViolation } from "./css-hover-keyboard";
 import { mediaKeyboardViolation } from "./media-keyboard";
 import { focusCustomViolations } from "./focus";
+import { focusOrderLogicalViolation } from "./focus-order-logical";
+import { infoNotColorOnlyViolation } from "./info-not-color-only";
 import { hoverContentViolation } from "./hover-content";
 import { labelAdjacentViolation } from "./label-adjacent";
 import { nonTextContrastViolation } from "./non-text-contrast";
@@ -44,6 +46,8 @@ export async function runCustomRuntimeChecks(
     cssDisabledContentViolations(page),
     mediaKeyboardViolation(page),
     cssHoverKeyboardViolation(page),
+    infoNotColorOnlyViolation(page),
+    focusOrderLogicalViolation(page),
   ]);
 
   const violations: CustomViolation[] = [

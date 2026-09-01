@@ -110,7 +110,18 @@ export type CheckId =
   | "consistent-sitemap"
   | "consistent-search"
   | "consistent-landmarks"
-  | "duplicate-page-title";
+  | "duplicate-page-title"
+  | "decorative-ignored"
+  | "lang-change"
+  | "cryptic-content-alt"
+  | "audio-description-or-alt"
+  | "captions-live"
+  | "info-not-color-only"
+  | "focus-order-logical"
+  | "focus-not-obscured-enhanced"
+  | "focus-appearance"
+  | "identical-links-purpose"
+  | "hidden-content";
 
 export interface RawFinding {
   checkId: CheckId;

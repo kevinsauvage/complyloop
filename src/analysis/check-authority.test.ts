@@ -47,6 +47,14 @@ const RUNTIME_ONLY = [
   "label-adjacent",
   "resize-text",
   "css-hover-keyboard",
+  "info-not-color-only",
+  "focus-order-logical",
+  "focus-not-obscured-enhanced",
+  "focus-appearance",
+  "identical-links-purpose",
+  "hidden-content",
+  "consistent-landmarks",
+  "duplicate-page-title",
 ] as const;
 
 describe("check authority", () => {
@@ -80,6 +88,10 @@ describe("check authority", () => {
     expect(isHeuristicCheck("image-of-text")).toBe(true);
     expect(isHeuristicCheck("link-explicit-heuristic")).toBe(true);
     expect(isHeuristicCheck("audio-description-track")).toBe(true);
+    expect(isHeuristicCheck("audio-description-or-alt")).toBe(true);
+    expect(isHeuristicCheck("lang-change")).toBe(true);
+    expect(isHeuristicCheck("cryptic-content-alt")).toBe(true);
+    expect(isHeuristicCheck("captions-live")).toBe(true);
     expect(isHeuristicCheck("blockquote-cite")).toBe(false);
     expect(isHeuristicCheck("img-alt")).toBe(false);
     expect(keepOpenWhenRuntimeScanSkipped("image-of-text")).toBe(false);

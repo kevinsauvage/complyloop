@@ -73,6 +73,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
 
   // Runtime-only / rendered
   "color-contrast": "color-contrast",
+  "color-contrast-enhanced": "color-contrast",
   "link-in-text-block": "use-of-color",
   "document-title": "document-title",
   bypass: "bypass",
@@ -102,6 +103,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "th-has-data-cells": "table-headers",
   "td-headers-attr": "table-headers",
   "table-fake-caption": "table-caption",
+  "table-duplicate-name": "table-caption",
   "scope-attr-valid": "table-headers",
   "region": "content-region",
   "aria-roledescription": "aria-roledescription",
@@ -127,6 +129,8 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-focus-visible": "focus-visible",
   "complyloop-keyboard-trap": "keyboard-trap",
   "complyloop-focus-not-obscured": "focus-not-obscured",
+  "complyloop-focus-not-obscured-enhanced": "focus-not-obscured-enhanced",
+  "complyloop-focus-appearance": "focus-appearance",
   "complyloop-reflow": "reflow",
   "complyloop-text-spacing-runtime": "text-spacing-runtime",
   "complyloop-non-text-contrast": "non-text-contrast",
@@ -137,6 +141,10 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-media-keyboard": "media-keyboard",
   "complyloop-resize-text": "resize-text",
   "complyloop-css-hover-keyboard": "css-hover-keyboard",
+  "complyloop-info-not-color-only": "info-not-color-only",
+  "complyloop-focus-order-logical": "focus-order-logical",
+  "identical-links-same-purpose": "identical-links-purpose",
+  "hidden-content": "hidden-content",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {
