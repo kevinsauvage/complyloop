@@ -55,7 +55,7 @@ here — do not re-paste stack/layout into agent markdown.
   topical subsets are display groupings on the requirements page, not intake
   scope. WCAG registers framework + presets only — it does not duplicate
   control ids.
-- **Analysis engine:** dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`, 62 checks) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core injected from `axe.min.js` on disk in `src/analysis/runtime/`, plus custom checks in `custom-checks/` and **site-level** comparisons in `site-level/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs. Runtime-only rules (33 checks: contrast, reflow, site nav consistency, html-lang-valid split, css-disabled-content, media-keyboard, …) stay `unable_to_verify` until axe/custom/site checks run. Site-level checks require ≥2 configured preview routes. Axe → check mapping lives in `axe-map.ts` (~101 rules). Do not add `@axe-core/playwright` — it injects the `axe-core` `source` string, which Next/webpack rewrites (`module is not defined`). Runtime URL SSRF uses isomorphic `ssrf-guard` plus Node DNS, port allowlist (80/443), and redirect hop limits — never `ssrf-guard/node` (undici 8 breaks Next SSR). Framework adapters register in `src/adapters/registry.ts`. AI never sets requirement status.
+- **Analysis engine:** dual deterministic engines — TypeScript AST checks (`src/analysis/checks/`, 64 checks) for local/CI/auto-fix, using `aria-query` / `axobject-query` for role and focusability tables, and optional **runtime DOM audits** (Playwright + axe-core injected from `axe.min.js` on disk in `src/analysis/runtime/`, plus custom checks in `custom-checks/` and **site-level** comparisons in `site-level/`) when `project.runtimeBaseUrl` is set. Composition-sensitive rules use runtime as status truth when it runs. Runtime-only rules (34 checks: contrast, reflow, site nav/help consistency, html-lang-valid split, css-disabled-content, media-keyboard, …) stay `unable_to_verify` until axe/custom/site checks run. Site-level checks require ≥2 configured preview routes. Axe → check mapping lives in `axe-map.ts` (~101 rules). Do not add `@axe-core/playwright` — it injects the `axe-core` `source` string, which Next/webpack rewrites (`module is not defined`). Runtime URL SSRF uses isomorphic `ssrf-guard` plus Node DNS, port allowlist (80/443), and redirect hop limits — never `ssrf-guard/node` (undici 8 breaks Next SSR). Framework adapters register in `src/adapters/registry.ts`. AI never sets requirement status.
 - **AI services**: explanation, snippet remediations for runtime findings, and one constrained source-file patch when no safe deterministic fix exists. Source patches are generated synchronously and must pass a focused ComplyLoop re-scan before they can be previewed. AI never sets requirement or remediation verification status. Repository tests run in GitHub CI.
 - **Repo connectors**: GitHub OAuth / App clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.
 
@@ -91,7 +91,7 @@ here — do not re-paste stack/layout into agent markdown.
 
 Three authority classes:
 
-**AST (62)** — local/CI/`complyloop-check` source of truth:
+**AST (64)** — local/CI/`complyloop-check` source of truth:
 img-alt, button-name, anchor-name, html-lang, positive-tabindex, input-label,
 heading-order, empty-heading, iframe-title, autoplay-media, duplicate-id,
 form-error-association, aria-hidden-focusable, aria-role, aria-props,
@@ -105,9 +105,9 @@ optgroup, table-caption, table-summary, th-scope, layout-table-markup, svg-name,
 figure-caption, image-detailed-description, redundant-role, noninteractive-tabindex,
 aria-activedescendant, accessible-auth, dragging, new-window-onload, dir-change,
 blockquote-cite, outline-none, status-live, both-colors, redundant-entry,
-media-controls-present.
+media-controls-present, nontemporal-media-alt, field-grouping.
 
-**Runtime-only (33)** — axe/custom/site when `runtimeBaseUrl` is set; otherwise
+**Runtime-only (34)** — axe/custom/site when `runtimeBaseUrl` is set; otherwise
 `unable_to_verify` (never passed from an empty AST scan):
 color-contrast, document-title, bypass, landmark-one-main, nested-interactive,
 target-size, table-headers, page-heading, content-region, label-in-name,
@@ -116,10 +116,10 @@ no-auto-refresh, no-orientation-lock, landmark-unique, use-of-color,
 frame-keyboard, doctype, focus-visible, keyboard-trap, focus-not-obscured,
 non-text-contrast, reflow, text-spacing-runtime, hover-content, label-adjacent,
 both-colors (runtime twin), css-disabled-content, media-keyboard,
-multiple-ways, consistent-nav, consistent-labels.
+multiple-ways, consistent-nav, consistent-labels, consistent-help.
 
-**Site-level (3)** — subset of runtime-only; need ≥2 configured preview routes:
-multiple-ways, consistent-nav, consistent-labels.
+**Site-level (4)** — subset of runtime-only; need ≥2 configured preview routes:
+multiple-ways, consistent-nav, consistent-labels, consistent-help.
 
 **Composition-sensitive (8)** — AST still runs (and gates CI), but when a runtime
 audit succeeds these defer to the rendered DOM for requirement status:
@@ -135,7 +135,7 @@ intake scope. Dashboard, findings, and exports filter to the active target.
 
 CI gate: `npx complyloop-check` / `@complyloop/check` (AST only).
 
-Coverage gaps (what to add next, by priority): [`docs/missing-rules.md`](../missing-rules.md).
+Coverage gaps (what to add next, by priority): [`docs/missing-rules.md`](../missing-rules.md). Implementation waves: [`docs/superpowers/plans/2026-09-01-rgaa-wcag-coverage.md`](../superpowers/plans/2026-09-01-rgaa-wcag-coverage.md).
 
 ## Unit test coverage
 
