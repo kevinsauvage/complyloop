@@ -1,14 +1,12 @@
-import { guidanceFor } from "@/adapters/rgaa/guidance";
+import { guidanceFor } from "@/adapters/guidance";
 import { deterministicExplanation } from "@/ai/explainer";
+import { filterAstFindingsForAuthority } from "@/analysis/merge-findings";
 import type { RawFinding } from "@/analysis/types";
 import { formatLocationRef } from "@/core/location";
 import type { Project } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
 import { addEvidence, type Db } from "./db";
-import {
-  buildSuggestion,
-  filterAstFindingsForAuthority,
-} from "./assessment-helpers";
+import { buildSuggestion } from "./assessment-helpers";
 
 export function createFinding(
   db: Db,

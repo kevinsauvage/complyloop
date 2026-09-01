@@ -1,18 +1,7 @@
-import type { EvidenceRecord, Finding, Remediation } from "@/core/finding-types";
-import {
-  evidenceKindLabel,
-  remediationStatusLabel,
-  requirementStatusLabel,
-  severityLabel,
-} from "@/core/labels";
-import { prioritizeClusters } from "@/core/prioritization";
-import type { Control, Requirement } from "@/core/project-types";
 import type { RequirementStatus } from "@/core/statuses";
-import { formatLocationRef } from "@/core/location";
-import { controlDisplayCodes } from "@/adapters/control-theme";
-import { countRequirementsByStatus, type ReportInput } from "./report";
+import type { ReportInput } from "../report";
 
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -20,14 +9,14 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function formatDateTime(iso: string): string {
+export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   });
 }
 
-function statusClass(status: RequirementStatus): string {
+export function statusClass(status: RequirementStatus): string {
   switch (status) {
     case "passed":
       return "status-passed";
@@ -44,134 +33,6 @@ function statusClass(status: RequirementStatus): string {
       throw new Error(`Unhandled requirement status: ${_exhaustive}`);
     }
   }
-}
-
-function renderSummaryRows(counts: Record<RequirementStatus, number>): string {
-  return (Object.keys(counts) as RequirementStatus[])
-    .map(
-      (status) =>
-        `<tr><td><span class="badge ${statusClass(status)}">${escapeHtml(requirementStatusLabel(status))}</span></td><td class="num">${counts[status]}</td></tr>`,
-    )
-    .join("\n");
-}
-
-function renderRequirements(
-  requirements: Requirement[],
-  controlsById: Map<string, Control>,
-  frameworkId: string,
-): string {
-  if (requirements.length === 0) {
-    return `<p class="empty">No requirements recorded.</p>`;
-  }
-
-  const rows = requirements
-    .map((req) => {
-      const control = controlsById.get(req.controlId);
-      const title = control?.title ?? req.controlId;
-      const code = control
-        ? controlDisplayCodes(control, frameworkId).code
-        : req.controlId;
-      const exceptionNote = req.exception?.note
-        ? `<div class="note">${escapeHtml(req.exception.note)}</div>`
-        : "";
-      const exceptionReason = req.exception
-        ? `<div class="note">Exception: ${escapeHtml(req.exception.reason.replace(/_/g, " "))} · ${escapeHtml(formatDateTime(req.exception.at))}</div>`
-        : "";
-      return `<tr>
-  <td><code>${escapeHtml(code)}</code></td>
-  <td>${escapeHtml(title)}</td>
-  <td><span class="badge ${statusClass(req.status)}">${escapeHtml(requirementStatusLabel(req.status))}</span></td>
-  <td class="muted">${escapeHtml(req.determination === "automated" ? "Automated" : "Human review")}</td>
-  <td class="nowrap muted">${escapeHtml(formatDateTime(req.updatedAt))}</td>
-</tr>${exceptionReason || exceptionNote ? `<tr class="exception-row"><td colspan="5">${exceptionReason}${exceptionNote}</td></tr>` : ""}`;
-    })
-    .join("\n");
-
-  return `<table class="data-table">
-<thead><tr><th>Control</th><th>Title</th><th>Status</th><th>Determination</th><th>Updated</th></tr></thead>
-<tbody>
-${rows}
-</tbody>
-</table>`;
-}
-
-function renderEngineeringFindings(
-  findings: Finding[],
-  remediationsByFinding: Map<string, Remediation>,
-  controlsById: Map<string, Control>,
-  frameworkId: string,
-): string {
-  if (findings.length === 0) {
-    return `<p class="empty">No open findings.</p>`;
-  }
-
-  return findings
-    .map((finding) => {
-      const remediation = remediationsByFinding.get(finding.id);
-      const control = controlsById.get(finding.controlId);
-      const code = control
-        ? controlDisplayCodes(control, frameworkId).code
-        : finding.controlId;
-      const location = formatLocationRef(finding.location);
-      const snippet =
-        finding.location.kind === "source" && finding.location.snippet
-          ? `<pre class="snippet">${escapeHtml(finding.location.snippet)}</pre>`
-          : "";
-      const remediationLine = remediation
-        ? `<p class="meta"><strong>Remediation:</strong> ${escapeHtml(remediationStatusLabel(remediation.status))}</p>`
-        : "";
-
-      return `<article class="finding-card">
-  <header>
-    <span class="badge severity-${finding.severity}">${escapeHtml(severityLabel(finding.severity))}</span>
-    <code class="control-id">${escapeHtml(code)}</code>
-  </header>
-  <p class="reason">${escapeHtml(finding.reason)}</p>
-  <p class="meta"><strong>Location:</strong> <code>${escapeHtml(location)}</code></p>
-  ${remediationLine}
-  ${snippet}
-</article>`;
-    })
-    .join("\n");
-}
-
-function renderClusters(
-  clusters: ReturnType<typeof prioritizeClusters>,
-): string {
-  if (clusters.length === 0) {
-    return `<p class="empty">No shared root causes detected.</p>`;
-  }
-  const items = clusters
-    .map(
-      (cluster) =>
-        `<li><strong>${escapeHtml(cluster.label)}</strong> — ${cluster.findingIds.length} open finding(s)</li>`,
-    )
-    .join("\n");
-  return `<ul class="cluster-list">${items}</ul>`;
-}
-
-function renderEvidence(evidence: EvidenceRecord[]): string {
-  if (evidence.length === 0) {
-    return `<p class="empty">No evidence records.</p>`;
-  }
-
-  const rows = evidence
-    .map(
-      (entry) =>
-        `<tr>
-  <td class="nowrap">${escapeHtml(formatDateTime(entry.at))}</td>
-  <td>${escapeHtml(evidenceKindLabel(entry.kind))}</td>
-  <td>${escapeHtml(entry.summary)}</td>
-</tr>`,
-    )
-    .join("\n");
-
-  return `<table class="data-table evidence-table">
-<thead><tr><th>When</th><th>Kind</th><th>Summary</th></tr></thead>
-<tbody>
-${rows}
-</tbody>
-</table>`;
 }
 
 const REPORT_STYLES = `
@@ -542,7 +403,7 @@ code {
 }
 `;
 
-function reportShell(
+export function reportShell(
   title: string,
   input: ReportInput,
   bodySections: string,
@@ -578,77 +439,4 @@ function reportShell(
   </div>
 </body>
 </html>`;
-}
-
-export function buildEngineeringReportHtml(input: ReportInput): string {
-  const { framework, controls, findings, remediations } = input;
-  const controlsById = new Map(controls.map((c) => [c.id, c]));
-  const remediationsByFinding = new Map(remediations.map((r) => [r.findingId, r]));
-  const openFindings = findings.filter((f) => f.status === "open");
-  const clusters = prioritizeClusters(openFindings, controls);
-
-  const body = `
-    <section id="summary">
-      <h2>Summary</h2>
-      <div class="summary-grid">
-        <div class="summary-stat"><div class="label">Open findings</div><div class="value">${openFindings.length}</div></div>
-        <div class="summary-stat"><div class="label">Shared root causes</div><div class="value">${clusters.length}</div></div>
-      </div>
-    </section>
-
-    <section id="clusters">
-      <h2>Shared root causes</h2>
-      ${renderClusters(clusters)}
-    </section>
-
-    <section id="findings">
-      <h2>Open findings</h2>
-      ${renderEngineeringFindings(openFindings, remediationsByFinding, controlsById, framework.id)}
-    </section>`;
-
-  return reportShell("Engineering report", input, body);
-}
-
-export function buildAuditReportHtml(input: ReportInput): string {
-  const { controls, requirements, findings, evidence } = input;
-
-  const counts = countRequirementsByStatus(requirements);
-
-  const controlsById = new Map(controls.map((c) => [c.id, c]));
-  const openFindings = findings.filter((f) => f.status === "open");
-  const totalRequirements = requirements.length;
-  const passRate =
-    totalRequirements > 0
-      ? Math.round((counts.passed / totalRequirements) * 100)
-      : 0;
-
-  const body = `
-    <section id="summary">
-      <h2>Summary</h2>
-      <div class="summary-grid">
-        <div class="summary-stat"><div class="label">Total</div><div class="value">${totalRequirements}</div></div>
-        <div class="summary-stat"><div class="label">Passed</div><div class="value">${counts.passed}</div></div>
-        <div class="summary-stat"><div class="label">Failed</div><div class="value">${counts.failed}</div></div>
-        <div class="summary-stat"><div class="label">Pass rate</div><div class="value">${passRate}%</div></div>
-        <div class="summary-stat"><div class="label">Open findings</div><div class="value">${openFindings.length}</div></div>
-      </div>
-      <table class="data-table">
-        <thead><tr><th>Status</th><th>Count</th></tr></thead>
-        <tbody>
-${renderSummaryRows(counts)}
-        </tbody>
-      </table>
-    </section>
-
-    <section id="requirements">
-      <h2>Requirements</h2>
-      ${renderRequirements(requirements, controlsById, input.framework.id)}
-    </section>
-
-    <section id="evidence">
-      <h2>Evidence trail</h2>
-      ${renderEvidence([...evidence].reverse())}
-    </section>`;
-
-  return reportShell("Audit report", input, body);
 }

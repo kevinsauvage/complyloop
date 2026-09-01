@@ -59,6 +59,21 @@ here — do not re-paste stack/layout into agent markdown.
 - **AI services**: explanation, snippet remediations for runtime findings, and one constrained source-file patch when no safe deterministic fix exists. Source patches are generated synchronously and must pass a focused ComplyLoop re-scan before they can be previewed. AI never sets requirement or remediation verification status. Repository tests run in GitHub CI.
 - **Repo connectors**: GitHub OAuth / App clone; webhooks re-pull and re-assess; PR Check Runs via Octokit.
 
+## Dependency boundaries
+
+- **`src/core/`** — framework-agnostic domain; no imports from adapters, analysis, server, or app.
+- **`src/analysis/`** and **`src/cli/`** — must not import `src/server/`. Shared env limits live in `src/core/assessment-limits.ts` (runtime page quota, checkout byte/file caps).
+- **`src/server/`** and **`src/app/`** — integrate core, analysis, and adapters. Import framework specifics through **`src/adapters/registry.ts`** and **`src/adapters/guidance.ts`**, not `adapters/rgaa/*` directly (tests and adapter internals excepted).
+- **Finding merge authority** — `filterAstFindingsForAuthority` in `src/analysis/merge-findings.ts`; server assessment calls it when combining AST and runtime results.
+
+## Adding a framework
+
+1. Create `src/adapters/<name>/` — framework metadata, presets, and (when needed) a unique control catalog.
+2. Register in `src/adapters/registry.ts` as a `FrameworkAdapter`. Reuse an existing catalog (like WCAG) or ship controls on the adapter entry (like RGAA).
+3. When the framework has machine checks, register `guidanceFor` on the adapter and expose copy through the `guidanceFor` facade in `src/adapters/guidance.ts`.
+4. Add presets; wire connect defaults via `DEFAULT_CONNECT_PRESET_ID` / `defaultConnectPreset()` if this framework should be the new connect default.
+5. Do not import another adapter's modules from server or app — use registry facades only.
+
 ## Key Flows
 
 1. **Assessment**: AST scan of the connected tree; if a preview URL is configured, also audit routes with axe. Merge findings (runtime owns composition-sensitive checks). Runtime-only checks stay `unable_to_verify` until axe runs. Update requirement statuses + append-only evidence. Manual controls stay `unable_to_verify` until human pass or exception.

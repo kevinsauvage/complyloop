@@ -3,17 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { PublicError } from "@/core/public-error";
-import {
-  assertCheckoutWithinQuota,
-  maxCheckoutBytes,
-  maxCheckoutFiles,
-  maxRuntimePages,
-} from "./resource-limits";
+import { assertCheckoutWithinQuota } from "./resource-limits";
 
 const envKeys = [
   "ASSESSMENT_MAX_CHECKOUT_BYTES",
   "ASSESSMENT_MAX_CHECKOUT_FILES",
-  "ASSESSMENT_MAX_RUNTIME_PAGES",
 ] as const;
 
 const originalEnv = Object.fromEntries(
@@ -26,31 +20,6 @@ afterEach(() => {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
-});
-
-describe("resource-limits env parsing", () => {
-  it("uses defaults when unset or invalid", () => {
-    for (const key of envKeys) delete process.env[key];
-    expect(maxCheckoutBytes()).toBe(500 * 1024 * 1024);
-    expect(maxCheckoutFiles()).toBe(50_000);
-    expect(maxRuntimePages()).toBe(25);
-
-    process.env.ASSESSMENT_MAX_CHECKOUT_BYTES = "0";
-    process.env.ASSESSMENT_MAX_CHECKOUT_FILES = "-3";
-    process.env.ASSESSMENT_MAX_RUNTIME_PAGES = "nope";
-    expect(maxCheckoutBytes()).toBe(500 * 1024 * 1024);
-    expect(maxCheckoutFiles()).toBe(50_000);
-    expect(maxRuntimePages()).toBe(25);
-  });
-
-  it("accepts positive integer overrides", () => {
-    process.env.ASSESSMENT_MAX_CHECKOUT_BYTES = "1024";
-    process.env.ASSESSMENT_MAX_CHECKOUT_FILES = "3";
-    process.env.ASSESSMENT_MAX_RUNTIME_PAGES = "7";
-    expect(maxCheckoutBytes()).toBe(1024);
-    expect(maxCheckoutFiles()).toBe(3);
-    expect(maxRuntimePages()).toBe(7);
-  });
 });
 
 describe("assertCheckoutWithinQuota", () => {

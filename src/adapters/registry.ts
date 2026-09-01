@@ -1,9 +1,13 @@
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
+import { guidanceFor as rgaaGuidanceFor } from "@/adapters/rgaa/guidance";
 import { rgaaPresets } from "@/adapters/rgaa/presets";
 import { wcagFramework } from "@/adapters/wcag/controls";
 import { wcagPresets } from "@/adapters/wcag/presets";
+import type { CheckId } from "@/analysis/types";
 import type { Control, Framework } from "@/core/project-types";
-import type { FrameworkAdapter, FrameworkPreset } from "./types";
+import type { CheckGuidance, FrameworkAdapter, FrameworkPreset } from "./types";
+
+export const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";
 
 /**
  * Registered framework adapters. RGAA and WCAG share one unique control
@@ -15,6 +19,7 @@ const frameworkAdapters: readonly FrameworkAdapter[] = [
     framework: rgaaFramework,
     controls: rgaaControls,
     presets: rgaaPresets,
+    guidanceFor: rgaaGuidanceFor,
   },
   {
     framework: wcagFramework,
@@ -43,6 +48,23 @@ export function allFrameworkPresets(): FrameworkPreset[] {
 
 export function presetById(id: string): FrameworkPreset | undefined {
   return allFrameworkPresets().find((preset) => preset.id === id);
+}
+
+export function defaultConnectPreset(): FrameworkPreset {
+  const preset = presetById(DEFAULT_CONNECT_PRESET_ID);
+  if (!preset) {
+    throw new Error(`Missing connect preset: ${DEFAULT_CONNECT_PRESET_ID}`);
+  }
+  return preset;
+}
+
+export function guidanceFor(checkId: CheckId): CheckGuidance {
+  for (const adapter of frameworkAdapters) {
+    if (adapter.guidanceFor) {
+      return adapter.guidanceFor(checkId);
+    }
+  }
+  throw new Error(`No guidance registered for check: ${checkId}`);
 }
 
 /**

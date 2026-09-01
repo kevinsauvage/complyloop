@@ -20,7 +20,7 @@ import {
   UNSAFE_RUNTIME_URL_MESSAGE,
   type DnsLookup,
 } from "./url-safety";
-import { maxRuntimePages } from "@/server/resource-limits";
+import { maxRuntimePages } from "@/core/assessment-limits";
 
 export type RuntimePageScanner = (
   urls: ReadonlyArray<string>,

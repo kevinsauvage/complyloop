@@ -2,8 +2,7 @@ import { AssessedRequirementList } from "@/components/requirements/assessed-requ
 import { RequirementsIntakePanel } from "@/components/requirements/requirements-intake-panel";
 import { RequirementsStatusChips } from "@/components/requirements/requirements-status-chips";
 import { EmptyState, PageActionLink, PageHeader } from "@/components/page-primitives";
-import { presetById } from "@/adapters/registry";
-import { rgaaFramework } from "@/adapters/rgaa/controls";
+import { presetById, defaultConnectPreset } from "@/adapters/registry";
 import {
   parseRequirementStatusParam,
   requirementsStatusHref,
@@ -51,7 +50,7 @@ export default async function RequirementsPage({
   const target = project.assessmentPresetId
     ? presetById(project.assessmentPresetId)
     : undefined;
-  const frameworkId = target?.frameworkId ?? rgaaFramework.id;
+  const frameworkId = target?.frameworkId ?? defaultConnectPreset().frameworkId;
 
   const openFindingCounts = new Map<string, number>();
   for (const finding of db.findings) {

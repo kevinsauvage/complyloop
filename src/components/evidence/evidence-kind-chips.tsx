@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { EvidenceKindBadge } from "@/components/badges";
 import {
   EVIDENCE_KIND_FILTER_ORDER,
   evidenceKindHref,
 } from "@/core/evidence-kind-filter";
 import type { EvidenceKind } from "@/core/finding-types";
-import { evidenceKindLabel } from "@/core/labels";
 import { cn } from "@/lib/utils";
 
 export function EvidenceKindChips({
@@ -58,9 +57,7 @@ export function EvidenceKindChips({
                   : "border-border/60 hover:ring-1 hover:ring-signal/40",
               )}
             >
-              <Badge variant="secondary" className="font-normal text-xs">
-                {evidenceKindLabel(kind)}
-              </Badge>
+              <EvidenceKindBadge kind={kind} />
               <span className="font-mono text-sm font-semibold tabular-nums">
                 {count}
               </span>

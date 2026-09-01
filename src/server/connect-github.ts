@@ -1,6 +1,6 @@
 import type { Project, ProjectGitHubMeta } from "@/core/project-types";
 import { canOnProject } from "@/core/rbac";
-import { rgaaPresets } from "@/adapters/rgaa/presets";
+import { defaultConnectPreset } from "@/adapters/registry";
 import { addEvidence, type Db } from "./db";
 import { ConnectError } from "./connect-error";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
@@ -115,10 +115,7 @@ export async function connectGitHubRepo(
 
   const orgId = input.orgId;
 
-  const rgaaFull = rgaaPresets.find((preset) => preset.id === "preset-rgaa-full");
-  if (!rgaaFull) {
-    throw new Error("Missing preset-rgaa-full");
-  }
+  const connectPreset = defaultConnectPreset();
 
   return addConnectedProject(
     db,
@@ -130,8 +127,8 @@ export async function connectGitHubRepo(
       ownerUserId: input.ownerUserId,
       orgId,
       github,
-      assessmentPresetId: rgaaFull.id,
-      inScopeControlIds: [...rgaaFull.controlIds],
+      assessmentPresetId: connectPreset.id,
+      inScopeControlIds: [...connectPreset.controlIds],
       createdAt: new Date().toISOString(),
     },
     `Connected GitHub repository ${fullName}`,

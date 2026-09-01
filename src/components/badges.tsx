@@ -12,6 +12,7 @@ import {
   severityDescription,
 } from "@/core/badge-descriptions";
 import {
+  evidenceKindLabel,
   remediationStatusLabel,
   requirementStatusLabel,
   severityLabel,
@@ -25,6 +26,8 @@ import type {
   Severity,
 } from "@/core/statuses";
 import type { AssessmentEngine } from "@/core/finding-types";
+import type { EvidenceKind } from "@/core/finding-types";
+import { EVIDENCE_TONE_BADGE, evidenceTone } from "@/core/evidence-tone";
 import { cn } from "@/lib/utils";
 
 /** Soft tint + readable text; stronger fill in dark mode for contrast. */
@@ -79,6 +82,20 @@ export function RequirementStatusBadge({ status }: { status: RequirementStatus }
       throw new Error(`Unhandled requirement status: ${_exhaustive}`);
     }
   }
+}
+
+export function EvidenceKindBadge({ kind }: { kind: EvidenceKind }) {
+  const tone = evidenceTone(kind);
+  const label = evidenceKindLabel(kind);
+  const tintClass = EVIDENCE_TONE_BADGE[tone];
+  return (
+    <Badge
+      variant={tone === "default" ? "secondary" : undefined}
+      className={cn(tintClass || undefined)}
+    >
+      {label}
+    </Badge>
+  );
 }
 
 export function RemediationStatusBadge({ status }: { status: RemediationStatus }) {

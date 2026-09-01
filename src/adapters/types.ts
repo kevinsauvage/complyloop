@@ -1,4 +1,10 @@
+import type { CheckId } from "@/analysis/types";
 import type { Control, Framework } from "@/core/project-types";
+
+export interface CheckGuidance {
+  impact: string;
+  howToFix: string;
+}
 
 export interface FrameworkPreset {
   id: string;
@@ -19,4 +25,5 @@ export interface FrameworkAdapter {
   /** Unique catalog rows. Empty when this adapter reuses another catalog. */
   controls: readonly Control[];
   presets?: readonly FrameworkPreset[];
+  guidanceFor?: (checkId: CheckId) => CheckGuidance;
 }

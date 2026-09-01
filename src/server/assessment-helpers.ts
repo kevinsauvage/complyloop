@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import { describeFix, previewFixedLine } from "@/analysis/fixes";
-import { isCompositionSensitiveCheck } from "@/analysis/check-authority";
 import { scanFile } from "@/analysis/scan";
 import type { RawFinding } from "@/analysis/types";
 import { resolveInside } from "@/analysis/workspace-path";
@@ -89,20 +88,6 @@ export function buildSuggestion(
     confidence: "high",
     generatedAt: new Date().toISOString(),
   };
-}
-
-/**
- * When runtime owns composition-sensitive rules, drop AST findings for those
- * check ids so requirement status is not driven by false primitive hits.
- */
-export function filterAstFindingsForAuthority(
-  astFindings: ReadonlyArray<RawFinding>,
-  runtimeRan: boolean,
-): RawFinding[] {
-  if (!runtimeRan) return [...astFindings];
-  return astFindings.filter(
-    (finding) => !isCompositionSensitiveCheck(finding.checkId),
-  );
 }
 
 export function findingLocationMatchesScope(

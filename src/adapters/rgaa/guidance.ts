@@ -1,9 +1,5 @@
 import type { CheckId } from "@/analysis/types";
-
-export interface CheckGuidance {
-  impact: string;
-  howToFix: string;
-}
+import type { CheckGuidance } from "@/adapters/types";
 
 const guidance: Record<CheckId, CheckGuidance> = {
   "img-alt": {

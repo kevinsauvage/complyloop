@@ -1,53 +1,18 @@
 import Link from "next/link";
-import { AlertTriangle, ChevronDown, ShieldCheck } from "lucide-react";
 import { isRuntimeOnlyCheck } from "@/analysis/check-authority";
 import { DeterminationBadge, RequirementStatusBadge } from "@/components/badges";
 import { formatDateTime } from "@/components/page-primitives";
-import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { ReasonNoteFields } from "@/components/reason-note-fields";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { findingsListHref } from "@/core/finding-list-filter";
-import { cn } from "@/lib/utils";
-import type { RequirementStatus } from "@/core/statuses";
 import type { Control, Project, Requirement } from "@/core/project-types";
 import {
   unableToVerifyReason,
   unableToVerifyReasonLabel,
 } from "@/core/unable-to-verify-reason";
-import {
-  clearRequirementExceptionAction,
-  clearRequirementHumanPassAction,
-  markRequirementExceptionAction,
-  markRequirementPassedAction,
-} from "@/server/actions/requirements";
-
-function statusAccentClass(status: RequirementStatus): string {
-  switch (status) {
-    case "passed":
-      return "bg-status-passed";
-    case "failed":
-      return "bg-status-failed";
-    case "needs_review":
-      return "bg-status-review";
-    case "not_applicable":
-      return "bg-status-na";
-    case "unable_to_verify":
-      return "bg-status-unverifiable";
-    default: {
-      const _exhaustive: never = status;
-      throw new Error(`Unhandled requirement status: ${_exhaustive}`);
-    }
-  }
-}
+import { RequirementRemediationActions } from "./requirement-remediation-actions";
+import { RequirementStatusAccent } from "./requirement-status-accent";
 
 export function RequirementCard({
   control,
@@ -77,13 +42,7 @@ export function RequirementCard({
 
   return (
     <Card className="relative overflow-hidden shadow-none ring-1 ring-border/60 transition-[box-shadow,border-color] hover:ring-signal/30">
-      <span
-        className={cn(
-          "absolute inset-y-0 left-0 w-1",
-          statusAccentClass(requirement.status),
-        )}
-        aria-hidden
-      />
+      <RequirementStatusAccent status={requirement.status} />
       <CardHeader className="pb-2 pl-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -149,166 +108,11 @@ export function RequirementCard({
           </Alert>
         ) : null}
 
-        {requirement.humanPass ? (
-          <Alert className="border-status-passed/30 bg-status-passed/10">
-            <ShieldCheck className="size-4 text-status-passed" aria-hidden />
-            <AlertTitle className="text-status-passed">
-              Human pass recorded
-            </AlertTitle>
-            <AlertDescription className="text-muted-foreground">
-              {requirement.humanPass.note}
-              <span className="mt-1 block text-xs opacity-70">
-                Set {formatDateTime(requirement.humanPass.at)} — sticky until
-                cleared (assessments will not overwrite).
-              </span>
-              {canRemediate ? (
-                <span className="mt-2 block">
-                  <StatefulActionForm
-                    action={clearRequirementHumanPassAction.bind(
-                      null,
-                      requirement.id,
-                    )}
-                    submitLabel="Clear human pass & return to unable to verify"
-                    pendingLabel="Clearing…"
-                    variant="outline"
-                    size="sm"
-                  />
-                </span>
-              ) : null}
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
-        {requirement.exception ? (
-          <Alert className="border-status-review/30 bg-status-review/10">
-            <AlertTriangle className="size-4 text-status-review" aria-hidden />
-            <AlertTitle className="text-status-review">
-              Exception:{" "}
-              {requirement.exception.reason.replace(/_/g, " ")}
-            </AlertTitle>
-            <AlertDescription className="text-muted-foreground">
-              {requirement.exception.note}
-              <span className="mt-1 block text-xs opacity-70">
-                Set {formatDateTime(requirement.exception.at)}
-                {requirement.exception.expiresAt
-                  ? ` — expires ${formatDateTime(requirement.exception.expiresAt)}`
-                  : " — sticky until cleared (assessments will not overwrite)"}
-                .
-              </span>
-              {canRemediate ? (
-                <span className="mt-2 block">
-                  <StatefulActionForm
-                    action={clearRequirementExceptionAction.bind(
-                      null,
-                      requirement.id,
-                    )}
-                    submitLabel="Clear exception & return to automated status"
-                    pendingLabel="Clearing…"
-                    variant="outline"
-                    size="sm"
-                  />
-                </span>
-              ) : null}
-            </AlertDescription>
-          </Alert>
-        ) : canRemediate ? (
-          <div className="flex flex-col gap-1 pt-1">
-            {control.checkId === null && !requirement.humanPass ? (
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="group h-auto justify-start gap-1.5 px-0 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Mark passed (human review)
-                    <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-180" />
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-3">
-                  <StatefulActionForm
-                    action={markRequirementPassedAction.bind(
-                      null,
-                      requirement.id,
-                    )}
-                    submitLabel="Record human pass"
-                    pendingLabel="Saving…"
-                    variant="outline"
-                    size="sm"
-                    className="flex flex-col gap-3"
-                  >
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor={`pass-note-${requirement.id}`}>
-                        Evidence note (required)
-                      </Label>
-                      <Textarea
-                        id={`pass-note-${requirement.id}`}
-                        name="note"
-                        required
-                        rows={2}
-                        placeholder="What was reviewed and why this control passes"
-                        className="max-w-md"
-                      />
-                    </div>
-                  </StatefulActionForm>
-                </CollapsibleContent>
-              </Collapsible>
-            ) : null}
-
-            <Collapsible>
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="group h-auto justify-start gap-1.5 px-0 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Record exception
-                  <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-180" />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-3">
-                <StatefulActionForm
-                  action={markRequirementExceptionAction.bind(
-                    null,
-                    requirement.id,
-                  )}
-                  submitLabel="Record exception"
-                  pendingLabel="Saving…"
-                  variant="outline"
-                  size="sm"
-                  className="flex flex-col gap-3"
-                >
-                  <ReasonNoteFields
-                    reasonId={`exception-reason-${requirement.id}`}
-                    noteId={`exception-note-${requirement.id}`}
-                    noteLabel="Note (required, kept as evidence)"
-                    noteRequired
-                    options={[
-                      { value: "not_applicable", label: "Not applicable" },
-                      { value: "accepted_risk", label: "Accepted risk" },
-                      {
-                        value: "compensating_control",
-                        label: "Compensating control",
-                      },
-                      { value: "temporary", label: "Temporary" },
-                    ]}
-                  />
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor={`exception-expires-${requirement.id}`}>
-                      Expires (required for temporary)
-                    </Label>
-                    <input
-                      id={`exception-expires-${requirement.id}`}
-                      type="date"
-                      name="expiresAt"
-                      className="h-8 w-full max-w-md rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
-                    />
-                  </div>
-                </StatefulActionForm>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-        ) : null}
+        <RequirementRemediationActions
+          control={control}
+          requirement={requirement}
+          canRemediate={canRemediate}
+        />
       </CardContent>
     </Card>
   );

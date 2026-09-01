@@ -1,25 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+  maxCheckoutBytes,
+  maxCheckoutFiles,
+} from "@/core/assessment-limits";
 import { PublicError } from "@/core/public-error";
 
-function positiveEnv(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (!raw) return fallback;
-  const value = Number(raw);
-  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
-}
-
-export function maxCheckoutBytes(): number {
-  return positiveEnv("ASSESSMENT_MAX_CHECKOUT_BYTES", 500 * 1024 * 1024);
-}
-
-export function maxCheckoutFiles(): number {
-  return positiveEnv("ASSESSMENT_MAX_CHECKOUT_FILES", 50_000);
-}
-
-export function maxRuntimePages(): number {
-  return positiveEnv("ASSESSMENT_MAX_RUNTIME_PAGES", 25);
-}
+export {
+  maxCheckoutBytes,
+  maxCheckoutFiles,
+  maxRuntimePages,
+} from "@/core/assessment-limits";
 
 /** Rejects oversized clones before AST parsing or Playwright can consume capacity. */
 export function assertCheckoutWithinQuota(rootPath: string): void {
