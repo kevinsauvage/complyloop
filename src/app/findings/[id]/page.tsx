@@ -11,6 +11,7 @@ import { DeveloperHandoffCard } from "@/components/developer-handoff";
 import { FindingNextStepPanel } from "@/components/findings/finding-next-step-panel";
 import { FindingQueueNav } from "@/components/findings/finding-queue-nav";
 import { FindingUnderstandCard } from "@/components/findings/finding-understand-card";
+import { RemediationHistory } from "@/components/findings/remediation-history";
 import { findingAct } from "@/core/finding-act";
 import { evidenceKindLabel } from "@/core/labels";
 import {
@@ -135,6 +136,8 @@ export default async function FindingPage({
           canRemediate={caps.canRemediate}
           patchState={patchState}
         />
+
+        <RemediationHistory remediation={remediation} />
 
         {handoff ? (
           <details id="copy-handoff">

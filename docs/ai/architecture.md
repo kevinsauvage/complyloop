@@ -119,6 +119,8 @@ Finding page UX: [`finding-flow.md`](./finding-flow.md).
 
 Webhook or manual re-assess → scoped JSX re-scan + optional runtime → regression alerts + optional PR Check Run.
 
+**Webhook-driven re-assessment** (`src/app/api/github/webhook` → `src/server/webhook.ts` → `assessment-jobs` → worker) is validated and idempotent on `x-github-delivery`. It never clones or scans in the request path — it only enqueues a durable job that the worker (`assessment-worker.ts`) runs, collecting `compliance_regression` alerts and, for PR events, posting a GitHub Check Run (`github-checks.ts`). Full coverage lives in `e2e/webhook.spec.ts`, which drives signed push/PR deliveries through the real app. In the Playwright harness the app's Octokit is pointed at a local fixture GitHub API via `GITHUB_API_BASE_URL` (defaults to `api.github.com` in prod; also useful for GitHub Enterprise Server).
+
 ## Data invariants
 
 - Evidence append-only; exceptions and decisions keep history.

@@ -5,6 +5,10 @@ export function createOctokit(accessToken: string): Octokit {
   return new Octokit({
     auth: accessToken,
     userAgent: "ComplyLoop",
+    // Test / GitHub Enterprise Server override; defaults to api.github.com.
+    ...(process.env.GITHUB_API_BASE_URL
+      ? { baseUrl: process.env.GITHUB_API_BASE_URL }
+      : {}),
   });
 }
 

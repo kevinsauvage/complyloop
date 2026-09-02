@@ -18,6 +18,12 @@ const e2eEnv: Record<string, string> = {
   AUTH_URL: baseURL,
   E2E_AUTH_ENABLED: "1",
   E2E_FIXTURE_ROOT: process.env.E2E_FIXTURE_ROOT ?? fixtureRoot,
+  // GitHub webhook HMAC secret — the spec signs deliveries with the same value.
+  GITHUB_WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET ?? "e2e-webhook-secret",
+  // Point Octokit at a local fixture so PR Check Run posting is exercised end-to-end.
+  GITHUB_API_BASE_URL:
+    process.env.GITHUB_API_BASE_URL ??
+    `http://127.0.0.1:${process.env.E2E_MOCK_GITHUB_PORT ?? "4109"}`,
   DATABASE_URL:
     process.env.E2E_DATABASE_URL ??
     process.env.DATABASE_URL ??
@@ -52,7 +58,7 @@ export default defineConfig({
     {
       name: "owner",
       testMatch:
-        /routes\.spec\.ts|core-loop\.spec\.ts|compliance-loops\.spec\.ts|a11y\.spec\.ts|org-account\.spec\.ts|settings\.spec\.ts|evidence-export\.spec\.ts/,
+        /routes\.spec\.ts|core-loop\.spec\.ts|compliance-loops\.spec\.ts|a11y\.spec\.ts|org-account\.spec\.ts|settings\.spec\.ts|evidence-export\.spec\.ts|webhook\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         storageState: OWNER_STATE,

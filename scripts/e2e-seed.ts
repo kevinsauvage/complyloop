@@ -15,6 +15,7 @@ import {
 import { withDbWrite } from "../src/server/db";
 import { createPostgresClient } from "../src/server/db-store/postgres-url";
 import { ensureSeeded } from "../src/server/seed";
+import { storeUserGitHubToken } from "../src/server/github-tokens";
 
 function loadLocalEnv(): void {
   // Do not override CI / Playwright-injected DATABASE_URL.
@@ -172,6 +173,13 @@ async function main(): Promise<void> {
       ],
     });
   });
+
+  // Store a token for the owner so webhook-driven PR assessments can exercise
+  // the Check Run posting path end-to-end against the local fixture GitHub API.
+  await storeUserGitHubToken(
+    E2E_OWNER.id,
+    process.env.E2E_GITHUB_TOKEN ?? "ghx_e2e_mock_check",
+  );
 
   console.log(
     `E2E seed complete: org=${E2E_ORG_ID} project=${E2E_PROJECT_ID} owner=${E2E_OWNER.login}`,
