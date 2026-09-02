@@ -1,6 +1,6 @@
-import { classNameTextOf } from "./heuristic-utils";
-import { getAttribute, locationOf, visitJsxTags } from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+import { classNameTextOf } from "./heuristic-utils.js";
+import { getAttribute, locationOf, visitJsxTags } from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const OUTLINE_RESET = /\boutline-none\b|\boutline-hidden\b/;
 const FOCUS_REPLACEMENT =

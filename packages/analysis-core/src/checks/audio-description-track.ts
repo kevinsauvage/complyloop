@@ -1,6 +1,6 @@
-import { hasChildTrackKind } from "./heuristic-utils";
-import { locationOf, tagNameOf, visitJsxTags } from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+import { hasChildTrackKind } from "./heuristic-utils.js";
+import { locationOf, tagNameOf, visitJsxTags } from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const DESCRIPTION_KINDS = new Set(["descriptions"]);
 

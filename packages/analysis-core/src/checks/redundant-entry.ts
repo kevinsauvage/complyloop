@@ -5,8 +5,8 @@ import {
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const IDENTITY_AUTOCOMPLETE = new Set([
   "email",

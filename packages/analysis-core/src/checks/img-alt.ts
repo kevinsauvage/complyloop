@@ -1,5 +1,5 @@
-import { isAriaHidden, isPresentationRole } from "../a11y-aria";
-import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives";
+import { isAriaHidden, isPresentationRole } from "../a11y-aria.js";
+import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   booleanAttributeValue,
   getAttribute,
@@ -12,8 +12,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const GENERIC_ALT = /^(image|img|photo|picture|icon)$/i;
 const IMAGE_MIME = /^image\//i;

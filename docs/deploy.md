@@ -4,7 +4,7 @@ Production checklist and reference. **App overview:** [`README.md`](../README.md
 
 ## Before you go live
 
-- [ ] `DATABASE_URL` set; `npm run db:migrate` applied
+- [ ] `DATABASE_URL` set; migrations applied via the dedicated deploy step ([Migrations](#migrations-at-deploy-time))
 - [ ] Stable `AUTH_SECRET` and `AUTH_URL`
 - [ ] GitHub App credentials + webhook secret
 - [ ] At least one `npm run worker` process
@@ -63,6 +63,39 @@ npm run dev
 
 With `sslmode=require`, TLS is verified by default. For hosts with a private CA (e.g. Aiven), use `DATABASE_SSL_INSECURE=true` in dev only — not in prod without understanding MITM risk.
 
+### Migrations at deploy time
+
+Migrations never run from the app container's start command — with more than
+one replica, simultaneous starts race and can corrupt a deploy. They run as a
+**separate deploy step, before any app replica starts**.
+
+**Docker Compose** runs them automatically via the one-shot `migrate` service;
+`app` replicas start only after it succeeds:
+
+```bash
+docker compose --profile app up -d --build
+```
+
+Behind the scenes compose interleaves as: `postgres` (healthy) → `migrate`
+(run once, exit 0) → `app` replicas start. To re-run migrations against a
+running stack without a full up:
+
+```bash
+docker compose --profile app run --rm migrate
+```
+
+**Other orchestrators** (K8s Job, ECS one-off task, CI deploy step) run the
+same command directly, then start replicas:
+
+```bash
+npx tsx scripts/db-migrate.ts   # already pinned in docker-compose migrate
+```
+
+`scripts/db-migrate.ts` is hardened for concurrency as a safety net: it takes a
+Postgres advisory lock, so even an overlapping run (deploy step colliding with
+the next deploy) serializes instead of double-applying. Local and staging still
+use the same `npm run db:migrate`.
+
 ### Evidence is append-only
 
 The DB trigger rejects `UPDATE`/`DELETE` on evidence. Proof tests:
@@ -83,7 +116,7 @@ Then sign out, clear cookies, sign in again.
 
 ```bash
 export AUTH_SECRET=replace-me
-docker compose --profile app up -d --build
+docker compose --profile app up -d --build     # runs migrate one-shot, then app
 curl -sS http://localhost:3000/api/health
 ```
 

@@ -8,9 +8,9 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import { descendantTags } from "./heuristic-utils";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import { descendantTags } from "./heuristic-utils.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 function isLiveRegion(node: ts.JsxOpeningElement | ts.JsxSelfClosingElement): boolean {
   const role = getAttribute(node, "role");

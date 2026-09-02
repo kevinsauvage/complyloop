@@ -16,6 +16,20 @@ services:
       timeout: 5s
       retries: 10
 
+  migrate:
+    profiles: ["app"]
+    build: .
+    # One-shot: applies migrations and exits. App replicas start only after it
+    # succeeds (service_completed_successfully), so simultaneous replica
+    # starts never race on migrations.
+    command: ["npx", "tsx", "scripts/db-migrate.ts"]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://complyloop:***@postgres:5432/complyloop
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   app:
     profiles: ["app"]
     build: .
@@ -35,6 +49,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [

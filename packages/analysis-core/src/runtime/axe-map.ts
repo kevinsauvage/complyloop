@@ -1,4 +1,4 @@
-import type { CheckId } from "../types";
+import type { CheckId } from "../types.js";
 
 /**
  * Maps axe-core rule ids to ComplyLoop check ids.

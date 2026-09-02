@@ -5,8 +5,8 @@ import {
   tagNameOf,
   type JsxTagNode,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const PURPOSE_TYPES = new Set(["email", "password", "tel", "url"]);
 

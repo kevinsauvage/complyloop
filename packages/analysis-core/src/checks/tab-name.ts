@@ -1,4 +1,4 @@
-import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives";
+import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   getAttribute,
   hasTextContent,
@@ -6,8 +6,8 @@ import {
   locationOf,
   stringValueOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 export const tabNameCheck: AccessibilityCheck = {
   id: "tab-name",

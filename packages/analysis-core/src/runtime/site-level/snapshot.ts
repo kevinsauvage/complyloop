@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import type { RuntimePageSnapshot } from "./types";
+import type { RuntimePageSnapshot } from "./types.js";
 
 export async function capturePageSnapshot(
   page: Page,

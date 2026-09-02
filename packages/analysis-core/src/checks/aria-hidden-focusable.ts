@@ -1,12 +1,12 @@
-import { isFocusable } from "../a11y-model";
+import { isFocusable } from "../a11y-model.js";
 import {
   booleanAttributeValue,
   getAttribute,
   locationOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 function isAriaHiddenTrue(
   node: Parameters<typeof getAttribute>[0],

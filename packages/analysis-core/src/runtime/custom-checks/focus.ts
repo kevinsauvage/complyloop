@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
-import { captureDomTarget } from "../dom-target";
-import type { CustomViolation, CustomViolationNode } from "./types";
+import { captureDomTarget } from "../dom-target.js";
+import type { CustomViolation, CustomViolationNode } from "./types.js";
 
 const MAX_TAB_STEPS = 80;
 const CAPTURE_DOM_TARGET_SOURCE = captureDomTarget.toString();

@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import type { CustomViolation } from "./types";
+import type { CustomViolation } from "./types.js";
 
 const RESIZE_WIDTH = 320;
 const RESIZE_HEIGHT = 568;

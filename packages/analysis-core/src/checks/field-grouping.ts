@@ -1,6 +1,6 @@
 import ts from "typescript";
-import { getAttribute, locationOf, stringValueOf, tagNameOf, visitJsxTags, type JsxTagNode } from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+import { getAttribute, locationOf, stringValueOf, tagNameOf, visitJsxTags, type JsxTagNode } from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 interface IndexedInput {
   node: JsxTagNode;

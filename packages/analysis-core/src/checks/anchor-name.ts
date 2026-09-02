@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives";
+import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   getAttribute,
   hasTextContent,
@@ -7,8 +7,8 @@ import {
   spanOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 export const anchorNameCheck: AccessibilityCheck = {
   id: "anchor-name",

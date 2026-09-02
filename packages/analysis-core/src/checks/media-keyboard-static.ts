@@ -1,13 +1,13 @@
-import { isPropSpreadingHost } from "../jsx-primitives";
-import { isAriaHidden, isPresentationRole } from "../a11y-aria";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
+import { isAriaHidden, isPresentationRole } from "../a11y-aria.js";
 import {
   locationOf,
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
-import { hasAnyAttr } from "./heuristic-utils";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { hasAnyAttr } from "./heuristic-utils.js";
 
 const STATIC_MEDIA_TAGS = new Set(["object", "embed"]);
 

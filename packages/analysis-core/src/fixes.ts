@@ -1,4 +1,4 @@
-import type { ProposedFix } from "./contract/finding-types";
+import type { ProposedFix } from "./contract/finding-types.js";
 
 export function applyFix(text: string, fix: ProposedFix): string {
   switch (fix.kind) {

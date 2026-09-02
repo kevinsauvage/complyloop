@@ -1,6 +1,6 @@
 import ts from "typescript";
-import { locationOf, spanOf, visitJsxTags } from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+import { locationOf, spanOf, visitJsxTags } from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 function positiveTabIndexValue(attr: ts.JsxAttribute): number | null {
   const initializer = attr.initializer;

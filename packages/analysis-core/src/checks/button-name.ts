@@ -1,13 +1,13 @@
 import ts from "typescript";
-import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives";
+import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   hasTextContent,
   locationOf,
   spanOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 export const buttonNameCheck: AccessibilityCheck = {
   id: "button-name",

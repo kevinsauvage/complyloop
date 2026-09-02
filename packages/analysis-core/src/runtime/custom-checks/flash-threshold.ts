@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import type { CustomViolation } from "./types";
+import type { CustomViolation } from "./types.js";
 
 const MAX_FLASH_PERIOD_S = 1 / 3;
 const MIN_FLASH_AREA_RATIO = 0.1;

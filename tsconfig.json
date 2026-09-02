@@ -19,9 +19,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@complyloop/analysis-core": ["./packages/analysis-core/src/index.ts"],
-      "@complyloop/analysis-core/*": ["./packages/analysis-core/src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [

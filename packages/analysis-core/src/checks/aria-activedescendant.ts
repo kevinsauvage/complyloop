@@ -1,7 +1,7 @@
-import { isNativeInteractive, tabIndexValue } from "../a11y-model";
-import { isPropSpreadingHost } from "../jsx-primitives";
-import { getAttribute, locationOf, tagNameOf, visitJsxTags } from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+import { isNativeInteractive, tabIndexValue } from "../a11y-model.js";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
+import { getAttribute, locationOf, tagNameOf, visitJsxTags } from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 export const ariaActivedescendantCheck: AccessibilityCheck = {
   id: "aria-activedescendant",

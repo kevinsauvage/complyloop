@@ -3,11 +3,20 @@
  * Applies SQL migrations in drizzle/ against DATABASE_URL (in filename order).
  * Loads `.env.local` then `.env` (same as local Next.js) when the var is unset.
  * Usage: npm run db:migrate
+ *
+ * Runs inside a Postgres advisory lock so concurrent invocations (e.g. a
+ * migration step overlapping the next deploy) serialize instead of racing on
+ * the check-then-apply loop. As a rule, run migrations as a dedicated deploy
+ * step — not from the app container's start command.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
 import { createPostgresClient } from "../src/server/db-store/postgres-url";
+
+// Deterministic per-database lock key for serializing migrations across
+// processes. hashint4 makes it stable without hand-picking a magic number.
+const MIGRATION_LOCK = "hashint4('_complyloop_migrations'::text)::bigint";
 
 function loadLocalEnv(): void {
   if (process.env.DATABASE_URL?.trim()) return;
@@ -17,22 +26,19 @@ function loadLocalEnv(): void {
   }
 }
 
-async function main(): Promise<void> {
-  loadLocalEnv();
-  const url = process.env.DATABASE_URL?.trim();
-  if (!url) {
-    console.error(
-      "DATABASE_URL is required. Set it in .env.local or the environment.",
-    );
-    process.exit(1);
-  }
-  const dir = path.join(process.cwd(), "drizzle");
-  const files = fs
-    .readdirSync(dir)
-    .filter((name) => name.endsWith(".sql"))
-    .sort();
+async function applyMigrations(
+  url: string,
+  dir: string,
+  files: string[],
+): Promise<void> {
   const sql = await createPostgresClient(url, { max: 1 });
   try {
+    // Serialize against any other migration process (replica starts, the
+    // deploy step, an overlapping deploy). Session-scoped, so a crashed
+    // migrator releases the lock automatically when its connection drops.
+    await sql.unsafe(
+      `SELECT pg_advisory_lock(${MIGRATION_LOCK});`,
+    );
     await sql.unsafe(`
       CREATE TABLE IF NOT EXISTS "_complyloop_migrations" (
         "id" text PRIMARY KEY,
@@ -55,8 +61,28 @@ async function main(): Promise<void> {
       console.log("Applied", file);
     }
   } finally {
+    await sql.unsafe(`SELECT pg_advisory_unlock(${MIGRATION_LOCK});`).catch(() => {
+      // Lock may already be gone if the connection died mid-run.
+    });
     await sql.end({ timeout: 5 });
   }
+}
+
+async function main(): Promise<void> {
+  loadLocalEnv();
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) {
+    console.error(
+      "DATABASE_URL is required. Set it in .env.local or the environment.",
+    );
+    process.exit(1);
+  }
+  const dir = path.join(process.cwd(), "drizzle");
+  const files = fs
+    .readdirSync(dir)
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+  await applyMigrations(url, dir, files);
 }
 
 main().catch((error: unknown) => {

@@ -4,8 +4,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const LIST_TAGS = new Set(["ul", "ol", "menu"]);
 

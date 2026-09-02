@@ -1,13 +1,13 @@
-import { isPropSpreadingHost } from "../jsx-primitives";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   getAttribute,
   locationOf,
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
-import { hasAnyAttr } from "./heuristic-utils";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { hasAnyAttr } from "./heuristic-utils.js";
 
 const MEDIA_TAGS = new Set(["video", "audio"]);
 

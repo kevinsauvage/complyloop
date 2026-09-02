@@ -4,12 +4,12 @@ import {
   CONFIRM_LABEL,
   HIGH_RISK,
   matchesMultilingual,
-} from "../patterns/multilingual";
+} from "../patterns/multilingual.js";
 import {
   descendantTags,
   textContentOf,
   visitJsxElements,
-} from "./heuristic-utils";
+} from "./heuristic-utils.js";
 import {
   getAttribute,
   jsxElementOf,
@@ -18,8 +18,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 function collectFormHosts(sourceFile: ts.SourceFile): JsxTagNode[] {
   const hosts: JsxTagNode[] = [];

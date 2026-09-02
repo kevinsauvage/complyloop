@@ -1,9 +1,9 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
-import { PublicError, publicMessage } from "../contract/public-error";
-import { classifyRuntimeScanError } from "./scan-error";
-import type { RawFinding } from "../types";
+import { PublicError, publicMessage } from "../contract/public-error.js";
+import { classifyRuntimeScanError } from "./scan-error.js";
+import type { RawFinding } from "../types.js";
 import {
   findingsFromAxePages,
   joinRuntimeUrl,
@@ -12,8 +12,8 @@ import {
   type AxeViolationLike,
   type RuntimeScanPageResult,
   type RuntimeScanResult,
-} from "./findings";
-import { capturePageSnapshot } from "./site-level/snapshot";
+} from "./findings.js";
+import { capturePageSnapshot } from "./site-level/snapshot.js";
 import {
   allowRuntimeNavigation,
   assertSafeRuntimeUrl,
@@ -21,9 +21,9 @@ import {
   TOO_MANY_REDIRECTS_MESSAGE,
   UNSAFE_RUNTIME_URL_MESSAGE,
   type DnsLookup,
-} from "./url-safety";
-import { runCustomRuntimeChecks } from "./custom-checks";
-import { maxRuntimePages } from "../contract/assessment-limits";
+} from "./url-safety.js";
+import { runCustomRuntimeChecks } from "./custom-checks/index.js";
+import { maxRuntimePages } from "../contract/assessment-limits.js";
 
 export type RuntimePageScanner = (
   urls: ReadonlyArray<string>,

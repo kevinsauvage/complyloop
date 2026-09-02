@@ -2,21 +2,21 @@ import {
   isAriaHidden,
   isDomHost,
   isPresentationRole,
-} from "../a11y-aria";
+} from "../a11y-aria.js";
 import {
   hasTabIndexAttribute,
   isExplicitWidgetRole,
   isNativeInteractive,
-} from "../a11y-model";
-import { isPropSpreadingHost } from "../jsx-primitives";
+} from "../a11y-model.js";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   getAttribute,
   locationOf,
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const CLICK_HANDLERS = ["onClick", "onclick"];
 const KEY_HANDLERS = [

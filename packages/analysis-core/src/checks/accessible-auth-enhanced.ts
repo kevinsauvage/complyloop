@@ -4,16 +4,16 @@ import {
   PUZZLE_CAPTCHA,
   PUZZLE_HOSTS,
   matchesMultilingual,
-} from "../patterns/multilingual";
+} from "../patterns/multilingual.js";
 import {
   getAttribute,
   locationOf,
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
-import { isAuthField } from "./auth-field";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { isAuthField } from "./auth-field.js";
 
 function isObjectRecognitionCaptcha(node: Parameters<typeof getAttribute>[0]): boolean {
   const tag = tagNameOf(node);

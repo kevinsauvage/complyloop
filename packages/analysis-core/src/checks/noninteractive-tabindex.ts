@@ -2,10 +2,10 @@ import {
   isExplicitWidgetRole,
   isNativeInteractive,
   tabIndexValue,
-} from "../a11y-model";
-import { isPropSpreadingHost } from "../jsx-primitives";
-import { getAttribute, locationOf, tagNameOf, visitJsxTags } from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../a11y-model.js";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
+import { getAttribute, locationOf, tagNameOf, visitJsxTags } from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const GENERIC_HOSTS = new Set(["div", "span"]);
 const KEY_HANDLERS = [

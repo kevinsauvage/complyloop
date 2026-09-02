@@ -2,10 +2,10 @@ import {
   explicitRoles,
   isConcreteAriaRole,
   isDomHost,
-} from "../a11y-aria";
-import { isPropSpreadingHost } from "../jsx-primitives";
-import { locationOf, tagNameOf, visitJsxTags } from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../a11y-aria.js";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
+import { locationOf, tagNameOf, visitJsxTags } from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 export const ariaRoleCheck: AccessibilityCheck = {
   id: "aria-role",

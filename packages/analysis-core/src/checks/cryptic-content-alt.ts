@@ -1,14 +1,14 @@
 import ts from "typescript";
-import { hasAriaName } from "../jsx-primitives";
-import { textContentOf, visitJsxElements } from "./heuristic-utils";
+import { hasAriaName } from "../jsx-primitives.js";
+import { textContentOf, visitJsxElements } from "./heuristic-utils.js";
 import {
   getAttribute,
   locationOf,
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const ASCII_ART_LINE =
   /^[\s|/\\_\-=+*#@<>[\]().,'"`~:;{}[\]\\]{5,}$/;

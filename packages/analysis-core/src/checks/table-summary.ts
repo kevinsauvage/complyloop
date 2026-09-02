@@ -1,6 +1,6 @@
 import ts from "typescript";
-import { isPresentationRole } from "../a11y-aria";
-import { isPropSpreadingHost } from "../jsx-primitives";
+import { isPresentationRole } from "../a11y-aria.js";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   getAttribute,
   jsxElementOf,
@@ -9,9 +9,9 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
-import { descendantTags, isComplexDataTable } from "./heuristic-utils";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { descendantTags, isComplexDataTable } from "./heuristic-utils.js";
 
 function isDataTable(node: JsxTagNode): boolean {
   const element = jsxElementOf(node);

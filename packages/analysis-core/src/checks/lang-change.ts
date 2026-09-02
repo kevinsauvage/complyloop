@@ -5,8 +5,8 @@ import {
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const LATIN_EXTENDED = /[À-ÿ]/;
 const CYRILLIC = /[\u0400-\u04FF]/;

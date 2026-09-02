@@ -1,6 +1,6 @@
 import ts from "typescript";
-import { isPresentationRole } from "../a11y-aria";
-import { isPropSpreadingHost } from "../jsx-primitives";
+import { isPresentationRole } from "../a11y-aria.js";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   getAttribute,
   locationOf,
@@ -8,8 +8,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 function referencedHeaderIds(sourceFile: Parameters<typeof visitJsxTags>[0]): Set<string> {
   const ids = new Set<string>();

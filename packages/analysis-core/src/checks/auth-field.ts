@@ -1,4 +1,4 @@
-import { getAttribute, stringValueOf, tagNameOf } from "../parse";
+import { getAttribute, stringValueOf, tagNameOf } from "../parse.js";
 
 export const AUTH_AUTOCOMPLETE = new Set([
   "username",

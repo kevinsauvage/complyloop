@@ -1,13 +1,13 @@
-import { isAriaHidden, isDomHost, isPresentationRole } from "../a11y-aria";
-import { isPropSpreadingHost } from "../jsx-primitives";
+import { isAriaHidden, isDomHost, isPresentationRole } from "../a11y-aria.js";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   locationOf,
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import { hasAnyAttr } from "./heuristic-utils";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import { hasAnyAttr } from "./heuristic-utils.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 export const pointerCancellationCheck: AccessibilityCheck = {
   id: "pointer-cancellation",

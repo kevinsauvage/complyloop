@@ -1,5 +1,5 @@
-import { isAriaHidden, isPresentationRole } from "../a11y-aria";
-import { hasAriaName } from "../jsx-primitives";
+import { isAriaHidden, isPresentationRole } from "../a11y-aria.js";
+import { hasAriaName } from "../jsx-primitives.js";
 import {
   getAttribute,
   locationOf,
@@ -7,8 +7,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const IMAGE_HOSTS = new Set([
   "img",

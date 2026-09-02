@@ -4,8 +4,8 @@ import {
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 /**
  * Subset of HTML autocomplete tokens we accept when the value is a static string.

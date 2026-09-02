@@ -1,4 +1,4 @@
-import { hasChildTrackKind } from "./heuristic-utils";
+import { hasChildTrackKind } from "./heuristic-utils.js";
 import {
   getAttribute,
   locationOf,
@@ -6,8 +6,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const CAPTION_KINDS = new Set(["captions", "subtitles"]);
 const EMBED_HOSTS = /(?:youtube(?:-nocookie)?\.com|youtu\.be|player\.vimeo\.com|vimeo\.com)/i;

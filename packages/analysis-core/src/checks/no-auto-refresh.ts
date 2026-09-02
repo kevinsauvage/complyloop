@@ -1,6 +1,6 @@
 import ts from "typescript";
-import { locationOf } from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+import { locationOf } from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const REFRESH_KEYWORDS = [
   "location",

@@ -3,8 +3,8 @@ import {
   locationOf,
   stringValueOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 export const duplicateIdCheck: AccessibilityCheck = {
   id: "duplicate-id",

@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import type { CustomViolation } from "./types";
+import type { CustomViolation } from "./types.js";
 
 const REFLOW_WIDTH = 320;
 const REFLOW_HEIGHT = 568;

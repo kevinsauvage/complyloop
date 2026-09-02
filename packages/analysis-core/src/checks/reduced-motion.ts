@@ -1,15 +1,15 @@
 import {
   classNameTextOf,
   handlerTriggersContextChange,
-} from "./heuristic-utils";
+} from "./heuristic-utils.js";
 import {
   getAttribute,
   locationOf,
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const ENTRANCE_ANIMATION =
   /\banimate-(?:in|out)\b|\b(?:fade|slide|zoom|spin|bounce|pulse)-(?:in|out)\b|\btransition(?:-all|-transform|-opacity)?\b/i;

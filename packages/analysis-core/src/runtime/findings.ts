@@ -1,9 +1,9 @@
-import type { Confidence, Severity } from "../contract/statuses";
-import type { RawFinding } from "../types";
-import { checkIdForAxeRule } from "./axe-map";
+import type { Confidence, Severity } from "../contract/statuses.js";
+import type { RawFinding } from "../types.js";
+import { checkIdForAxeRule } from "./axe-map.js";
 
-import type { RuntimePageSnapshot } from "./site-level/types";
-import { runSiteLevelChecks } from "./site-level/checks";
+import type { RuntimePageSnapshot } from "./site-level/types.js";
+import { runSiteLevelChecks } from "./site-level/checks.js";
 
 interface AxeNodeLike {
   html: string;

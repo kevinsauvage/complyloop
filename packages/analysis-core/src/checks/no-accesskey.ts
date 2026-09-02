@@ -1,5 +1,5 @@
-import { attributeRemovalSpan, getAttribute, locationOf, visitJsxTags } from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+import { attributeRemovalSpan, getAttribute, locationOf, visitJsxTags } from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 export const noAccesskeyCheck: AccessibilityCheck = {
   id: "no-accesskey",

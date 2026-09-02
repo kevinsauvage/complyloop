@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import type { CustomViolation } from "./types";
+import type { CustomViolation } from "./types.js";
 
 const SPACING_STYLE_ID = "complyloop-text-spacing-test";
 

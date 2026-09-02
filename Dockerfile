@@ -12,7 +12,7 @@ COPY packages/check/package.json ./packages/check/
 RUN npm ci
 
 # Runtime-only dependency tree for the runner stage. tsx + dotenv live in
-# "dependencies" (not dev) because they run the migrate-on-start CMD and the
+# "dependencies" (not dev) because they run the migration deploy step and the
 # assessment worker — keep them there if you touch package.json.
 FROM node:22-bookworm-slim AS prod-deps
 WORKDIR /app
@@ -56,5 +56,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 USER nextjs
 EXPOSE 3000
 
-# Migrate then start. DATABASE_URL must point at reachable Postgres.
-CMD ["sh", "-c", "npx tsx scripts/db-migrate.ts && node server.js"]
+# Start the app only. Migrations run as a separate deploy step (docker compose
+# migrate / an orchestration Job), NOT on every container start — simultaneous
+# replica starts would race them. The script is advisory-locked as a safety
+# net. DATABASE_URL must point at reachable Postgres.
+CMD ["node", "server.js"]

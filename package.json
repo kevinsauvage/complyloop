@@ -11,6 +11,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "predev": "npm run build:core",
+    "prebuild": "npm run build:core",
+    "build:core": "npm run build --workspace @complyloop/analysis-core",
     "analyze": "next experimental-analyze --output",
     "start": "next start",
     "lint": "eslint",

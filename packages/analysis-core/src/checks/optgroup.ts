@@ -1,12 +1,12 @@
-import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives";
+import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   getAttribute,
   locationOf,
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 export const optgroupCheck: AccessibilityCheck = {
   id: "optgroup",

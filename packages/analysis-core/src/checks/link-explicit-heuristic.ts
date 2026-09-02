@@ -1,9 +1,9 @@
-import { isPropSpreadingHost } from "../jsx-primitives";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   VAGUE_LINK_PREFIX,
   VAGUE_LINK_TEXT,
   foldAccents,
-} from "../patterns/multilingual";
+} from "../patterns/multilingual.js";
 import {
   hasTextContent,
   jsxElementOf,
@@ -11,9 +11,9 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
-import { textContentOf } from "./heuristic-utils";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { textContentOf } from "./heuristic-utils.js";
 
 function accessibleLinkText(node: JsxTagNode): string {
   const element = jsxElementOf(node);

@@ -1,6 +1,6 @@
-import { locationOf } from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
-import { walkMotionActuationCalls } from "./heuristic-utils";
+import { locationOf } from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { walkMotionActuationCalls } from "./heuristic-utils.js";
 
 export const motionActuationCheck: AccessibilityCheck = {
   id: "motion-actuation",

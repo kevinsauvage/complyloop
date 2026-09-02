@@ -1,13 +1,13 @@
 import ts from "typescript";
-import { isPropSpreadingHost } from "../jsx-primitives";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   jsxElementOf,
   locationOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
-import { descendantTags } from "./heuristic-utils";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { descendantTags } from "./heuristic-utils.js";
 
 const IMAGE_TAGS = new Set(["img", "Image", "svg", "picture"]);
 

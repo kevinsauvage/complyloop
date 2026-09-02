@@ -1,4 +1,4 @@
-import { isPropSpreadingHost } from "../jsx-primitives";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   getAttribute,
   locationOf,
@@ -6,9 +6,9 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
-import { isInsideNamingHost } from "./heuristic-utils";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { isInsideNamingHost } from "./heuristic-utils.js";
 
 const COMPLEX_SRC = /chart|graph|diagram|map|plot|infographic/i;
 const LONG_ALT_THRESHOLD = 80;

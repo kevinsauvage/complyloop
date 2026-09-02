@@ -1,8 +1,8 @@
-import { explicitRoles, isPresentationRole } from "../a11y-aria";
-import { implicitRoles } from "../a11y-model";
-import { isPropSpreadingHost } from "../jsx-primitives";
-import { locationOf, tagNameOf, visitJsxTags } from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+import { explicitRoles, isPresentationRole } from "../a11y-aria.js";
+import { implicitRoles } from "../a11y-model.js";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
+import { locationOf, tagNameOf, visitJsxTags } from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 export const redundantRoleCheck: AccessibilityCheck = {
   id: "redundant-role",

@@ -6,7 +6,7 @@ import type {
   RemediationStatus,
   RequirementStatus,
   Severity,
-} from "./statuses";
+} from "./statuses.js";
 
 export interface FileChange {
   filePath: string;

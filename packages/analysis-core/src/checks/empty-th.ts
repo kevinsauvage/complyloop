@@ -1,13 +1,13 @@
 import ts from "typescript";
-import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives";
+import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   hasTextContent,
   jsxElementOf,
   locationOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 export const emptyThCheck: AccessibilityCheck = {
   id: "empty-th",

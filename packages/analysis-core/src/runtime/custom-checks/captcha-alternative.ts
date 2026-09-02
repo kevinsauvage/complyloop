@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
-import { CAPTCHA_ALTERNATIVE, CAPTCHA_TOKEN } from "../../patterns/multilingual";
-import type { CustomViolation } from "./types";
+import { CAPTCHA_ALTERNATIVE, CAPTCHA_TOKEN } from "../../patterns/multilingual.js";
+import type { CustomViolation } from "./types.js";
 
 export async function captchaAlternativeViolation(
   page: Page,

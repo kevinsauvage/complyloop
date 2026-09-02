@@ -8,7 +8,7 @@
 
 import dns from "node:dns/promises";
 import net from "node:net";
-import { PublicError, publicMessage } from "../contract/public-error";
+import { PublicError, publicMessage } from "../contract/public-error.js";
 import {
   isPublicHostname,
   validateResolvedAddresses,

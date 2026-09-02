@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { listSourceFiles } from "./source-files";
-import { allChecks } from "./checks/registry";
-import { parseSource } from "./parse";
-import type { RawFinding } from "./types";
-import { resolveInside } from "./workspace-path";
+import { listSourceFiles } from "./source-files.js";
+import { allChecks } from "./checks/registry.js";
+import { parseSource } from "./parse.js";
+import type { RawFinding } from "./types.js";
+import { resolveInside } from "./workspace-path.js";
 
 export interface ScanResult {
   findings: RawFinding[];

@@ -1,5 +1,5 @@
-import { isCompositionSensitiveCheck } from "./check-authority";
-import type { RawFinding } from "./types";
+import { isCompositionSensitiveCheck } from "./check-authority.js";
+import type { RawFinding } from "./types.js";
 
 /**
  * When runtime owns composition-sensitive rules, drop AST findings for those

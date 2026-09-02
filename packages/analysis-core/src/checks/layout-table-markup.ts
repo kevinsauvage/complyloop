@@ -1,14 +1,14 @@
-import { isPresentationRole } from "../a11y-aria";
-import { isPropSpreadingHost } from "../jsx-primitives";
+import { isPresentationRole } from "../a11y-aria.js";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   getAttribute,
   jsxElementOf,
   locationOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
-import { descendantTags } from "./heuristic-utils";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { descendantTags } from "./heuristic-utils.js";
 
 const DATA_TABLE_TAGS = new Set(["th", "caption"]);
 const DATA_TABLE_ATTRS = ["headers", "scope"];

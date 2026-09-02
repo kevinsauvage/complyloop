@@ -1,12 +1,12 @@
 import ts from "typescript";
-import { hasAriaName } from "../jsx-primitives";
+import { hasAriaName } from "../jsx-primitives.js";
 import {
   hasTextContent,
   locationOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 const HEADING = /^h[1-6]$/i;
 

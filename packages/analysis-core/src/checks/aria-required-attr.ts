@@ -4,16 +4,16 @@ import {
   nativeSatisfiesRole,
   requiredAriaProps,
   type RequiredAriaProp,
-} from "../a11y-aria";
-import { isPropSpreadingHost } from "../jsx-primitives";
+} from "../a11y-aria.js";
+import { isPropSpreadingHost } from "../jsx-primitives.js";
 import {
   getAttribute,
   locationOf,
   spanOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse";
-import type { AccessibilityCheck, RawFinding } from "../types";
+} from "../parse.js";
+import type { AccessibilityCheck, RawFinding } from "../types.js";
 
 function suggestedValue(prop: RequiredAriaProp): string {
   if (typeof prop.defaultValue === "string") return prop.defaultValue;
