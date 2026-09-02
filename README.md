@@ -101,9 +101,9 @@ Or copy [`templates/github-actions/complyloop-check.yml`](./templates/github-act
 ## Repo layout
 
 ```
-src/core/        Domain model (framework-agnostic)
-src/analysis/    AST checks + Playwright/axe runtime
-src/adapters/    RGAA/WCAG controls & guidance
+src/core/                Domain model (framework-agnostic)
+packages/analysis-core/  AST checks + Playwright/axe runtime
+src/adapters/            RGAA/WCAG controls & guidance
 src/ai/          Optional AI (never sets statuses)
 src/server/      Postgres, assessment, GitHub, actions
 src/app/         Next.js UI

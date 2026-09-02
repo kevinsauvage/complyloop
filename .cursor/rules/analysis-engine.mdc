@@ -1,6 +1,6 @@
 ---
 description: Conventions for the deterministic AST + runtime analysis engine
-globs: src/analysis/**/*
+globs: packages/analysis-core/src/**/*
 alwaysApply: false
 ---
 

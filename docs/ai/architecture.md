@@ -8,7 +8,7 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 | ----------- | ----------------- | ------------------------------------------ |
 | Domain core | `src/core/`       | Statuses, transitions — framework-agnostic |
 | Adapters    | `src/adapters/`   | RGAA/WCAG catalog, presets, guidance       |
-| Analysis    | `src/analysis/`   | AST checks + optional runtime audits       |
+| Analysis    | `packages/analysis-core/src/` | AST checks + optional runtime audits        |
 | AI          | `src/ai/`         | Explain / remediate — never sets status    |
 | Server      | `src/server/`     | Postgres, jobs, GitHub, actions            |
 | App         | `src/app/`        | Next.js UI + API routes                    |
@@ -50,25 +50,25 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 ## Module boundaries
 
 ```
-src/core/          ← no imports from adapters, analysis, server, app
-src/analysis/      ← no imports from src/server/
-src/server/, app/  ← integrate core + analysis via src/adapters/registry.ts
+src/core/                ← no imports from adapters, analysis, server, app
+packages/analysis-core/  ← no imports from src/server/ or src/app/
+src/server/, app/        ← integrate core + analysis via src/adapters/registry.ts
 ```
 
-**Finding merge:** `filterAstFindingsForAuthority` in `src/analysis/merge-findings.ts` — runtime owns composition-sensitive checks when both engines run.
+**Finding merge:** `filterAstFindingsForAuthority` in `packages/analysis-core/src/merge-findings.ts` — runtime owns composition-sensitive checks when both engines run.
 
 ## Analysis engines
 
 Two deterministic engines; AI is separate and never authoritative.
 
-### 1. AST (`src/analysis/checks/`)
+### 1. AST (`packages/analysis-core/src/checks/`)
 
 - Runs on source in CI, local dev, and `complyloop-check`.
 - **78 checks** registered in `registry.ts`.
 - Text heuristics (confirm labels, CAPTCHA cues, vague links) live in `patterns/multilingual.ts` with accent folding for FR/EN/ES/DE.
 - Safe auto-fixes and verified AI patches target AST findings.
 
-### 2. Runtime (`src/analysis/runtime/`)
+### 2. Runtime (`packages/analysis-core/src/runtime/`)
 
 Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on disk).
 
@@ -80,9 +80,9 @@ Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on
 
 **Do not** add `@axe-core/playwright` — webpack breaks on axe `source` string.
 
-**Runtime URL safety:** `ssrf-guard` + DNS/port checks + redirect limits (`src/analysis/runtime/`). Never import `ssrf-guard/node` in app code.
+**Runtime URL safety:** `ssrf-guard` + DNS/port checks + redirect limits (`packages/analysis-core/src/runtime/`). Never import `ssrf-guard/node` in app code.
 
-### Check authority (`src/analysis/check-authority.ts`)
+### Check authority (`packages/analysis-core/src/check-authority.ts`)
 
 | Class                     | Behavior                                                                           |
 | ------------------------- | ---------------------------------------------------------------------------------- |
@@ -140,7 +140,7 @@ Webhook or manual re-assess → scoped JSX re-scan + optional runtime → regres
 | Command                 | What                                                                                |
 | ----------------------- | ----------------------------------------------------------------------------------- |
 | `npm run test`          | Vitest unit/integration                                                             |
-| `npm run test:coverage` | Gates on `src/core`, `src/adapters`, `src/analysis`, `src/ai`, most of `src/server` |
+| `npm run test:coverage` | Gates on `src/core`, `src/adapters`, `packages/analysis-core`, `src/ai`, most of `src/server` |
 | `npm run test:e2e`      | Playwright (gated harness)                                                          |
 
 Excluded from unit coverage gate: `db-store`, `runtime/scan.ts`, live GitHub/git I/O — see `vitest.config.mts`.

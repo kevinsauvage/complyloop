@@ -64,16 +64,16 @@ npm run test:e2e         # Playwright (after e2e:seed)
 ## Where code lives
 
 ```
-src/core/           Framework-agnostic domain
-src/analysis/       AST + runtime audits
-src/adapters/rgaa/  RGAA/WCAG catalog & guidance
-src/ai/             Optional AI (provenance-tagged)
-src/server/         Persistence, assessment, GitHub, actions
-src/app/            App Router pages + API routes
-src/components/     UI (feature folders + ui/)
-packages/check/     CI CLI (testdata/ = deliberate violations)
-docs/ai/            Architecture notes
-.cursor/rules/      Agent rules
+src/core/                          Framework-agnostic domain
+packages/analysis-core/src/        AST + runtime audits
+src/adapters/rgaa/                 RGAA/WCAG catalog & guidance
+src/ai/                            Optional AI (provenance-tagged)
+src/server/                        Persistence, assessment, GitHub, actions
+src/app/                           App Router pages + API routes
+src/components/                    UI (feature folders + ui/)
+packages/check/                    CI CLI (testdata/ = deliberate violations)
+docs/ai/                           Architecture notes
+.cursor/rules/                     Agent rules
 ```
 
 ## When building features
