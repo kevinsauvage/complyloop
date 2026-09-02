@@ -98,7 +98,7 @@ export function FirstAssessmentChecklist({
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Choose RGAA/WCAG level on{" "}
+                  Choose RGAA 4 or a WCAG level on{" "}
                   <Link
                     href="/requirements"
                     className="underline underline-offset-4 hover:text-foreground"

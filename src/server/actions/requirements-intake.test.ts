@@ -65,7 +65,7 @@ describe("applyFrameworkPresetAction", () => {
       fn(workspaceFor("viewer")),
     );
     const form = new FormData();
-    form.set("presetId", "preset-rgaa-aa");
+    form.set("presetId", "preset-rgaa-full");
     const result = await applyFrameworkPresetAction(
       emptyActionMessageState,
       form,
@@ -78,7 +78,7 @@ describe("applyFrameworkPresetAction", () => {
     withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
     applyFrameworkPreset.mockReturnValue({ changed: true });
     const form = new FormData();
-    form.set("presetId", "preset-rgaa-aa");
+    form.set("presetId", "preset-rgaa-full");
 
     const result = await applyFrameworkPresetAction(
       emptyActionMessageState,
@@ -89,7 +89,7 @@ describe("applyFrameworkPresetAction", () => {
     expect(applyFrameworkPreset).toHaveBeenCalledWith(
       workspace.db,
       project,
-      "preset-rgaa-aa",
+      "preset-rgaa-full",
     );
     expect(refresh).not.toHaveBeenCalled();
   });
@@ -100,7 +100,7 @@ describe("applyFrameworkPresetAction", () => {
     );
     applyFrameworkPreset.mockReturnValue({ changed: false });
     const form = new FormData();
-    form.set("presetId", "preset-rgaa-aa");
+    form.set("presetId", "preset-rgaa-full");
 
     const result = await applyFrameworkPresetAction(
       emptyActionMessageState,

@@ -29,7 +29,7 @@ describe("RequirementsIntakePanel", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("offers framework and level targets without topical, import, or custom intake", () => {
+  it("offers RGAA catalog and WCAG level targets without topical, import, or custom intake", () => {
     render(
       <RequirementsIntakePanel
         canAssess
@@ -41,7 +41,10 @@ describe("RequirementsIntakePanel", () => {
       screen.getByRole("group", { name: "Assessment target" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Full RGAA 4/ })).toBeChecked();
-    expect(screen.getByRole("radio", { name: /RGAA 4 AA / })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /RGAA 4 AA / })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: /RGAA 4 extra checks/ }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Full WCAG 2.2/ })).toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: /Images & media/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
@@ -49,12 +52,14 @@ describe("RequirementsIntakePanel", () => {
     expect(screen.queryByText(/custom control/i)).not.toBeInTheDocument();
   });
 
-  it("offers both RGAA and WCAG level targets", () => {
+  it("keeps WCAG AA and extra-checks levels", () => {
     render(
       <RequirementsIntakePanel canAssess currentPresetId={undefined} />,
     );
 
-    expect(screen.getByRole("radio", { name: /RGAA 4 extra checks/ })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /WCAG 2.2 AA / })).toBeInTheDocument();
+    expect(
+      screen.getByRole("radio", { name: /WCAG 2.2 extra checks/ }),
+    ).toBeInTheDocument();
   });
 });

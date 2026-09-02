@@ -55,7 +55,7 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 
 ## How it works
 
-1. **Assess** — On **Requirements**, pick framework + preset (RGAA or WCAG × Full / AA / AAA). **78 AST checks** scan connected code; changed JSX only on re-assess when possible. Optional **preview URL** (Settings → Runtime audit) enables Playwright + axe for contrast, landmarks, reflow, and other **runtime-only** rules (see `check-authority.ts`). First runtime run: `npm run playwright:install`.
+1. **Assess** — On **Requirements**, pick **RGAA 4** (single catalog, no A/AA/AAA) or a **WCAG** level (Full / AA / extra checks). **78 AST checks** scan connected code; changed JSX only on re-assess when possible. Optional **preview URL** (Settings → Runtime audit) enables Playwright + axe for contrast, landmarks, reflow, and other **runtime-only** rules (see `check-authority.ts`). First runtime run: `npm run playwright:install`.
 2. **Understand** — Each finding: what failed, why, where, impact, confidence, engine (`ast` or `runtime`).
 3. **Remediate** — Source: verified patch → draft PR. Runtime: call-site guidance — fix in the app, not a generic `aria-label` on a shared component.
 4. **Verify** — Merge PR + re-assess, or re-run page audit / manual note. Only `verified` closes the loop.

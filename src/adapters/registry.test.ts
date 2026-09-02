@@ -24,7 +24,12 @@ describe("framework adapter registry", () => {
     expect(presetById("preset-rgaa-full")?.controlIds).toEqual(
       presetById("preset-wcag-full")?.controlIds,
     );
-    expect(allFrameworkPresets().length).toBeGreaterThan(0);
+    expect(allFrameworkPresets().map((preset) => preset.id)).toEqual([
+      "preset-rgaa-full",
+      "preset-wcag-full",
+      "preset-wcag-aa",
+      "preset-wcag-aaa",
+    ]);
   });
 
   it("merges new controls without wiping custom ones", () => {

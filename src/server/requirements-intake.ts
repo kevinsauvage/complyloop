@@ -4,7 +4,7 @@ import { PublicError } from "@/core/public-error";
 import { addEvidence, type Db } from "./db";
 
 /**
- * Sets the project's assessment target to a curated framework + level.
+ * Sets the project's assessment target to a curated framework preset.
  * The previous target is replaced, not stacked.
  */
 export function applyFrameworkPreset(

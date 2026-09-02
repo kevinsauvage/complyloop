@@ -29,7 +29,7 @@ export function RequirementsIntakePanel({
           <CardHeader>
             <CardTitle>Intake</CardTitle>
             <CardDescription>
-              Choose the standard and level assessment evaluates.
+              Choose RGAA 4, or a WCAG 2.2 level.
             </CardDescription>
           </CardHeader>
           <CardContent>

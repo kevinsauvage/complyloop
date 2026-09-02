@@ -89,9 +89,9 @@ export interface Project {
    */
   inScopeControlIds?: string[];
   /**
-   * Selected framework + level preset. When set, assessment scope is the
-   * current preset membership in code, not a frozen snapshot of
-   * `inScopeControlIds`.
+   * Selected framework preset (RGAA catalog, or a WCAG level). When set,
+   * assessment scope is the current preset membership in code, not a frozen
+   * snapshot of `inScopeControlIds`.
    */
   assessmentPresetId?: string;
   /**
