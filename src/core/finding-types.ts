@@ -66,6 +66,10 @@ export interface DomLocation {
   selector: string;
   /** HTML snippet of the failing node. */
   snippet: string;
+  /** Human-readable element identity, e.g. link “Contact”. */
+  elementLabel?: string;
+  /** Extra runtime context (e.g. what covers the focused control). */
+  context?: string;
 }
 
 /** Cross-page observation from a multi-route runtime audit. */

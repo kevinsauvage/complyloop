@@ -1,7 +1,9 @@
 import type { Page } from "playwright";
+import { captureDomTarget } from "../dom-target";
 import type { CustomViolation, CustomViolationNode } from "./types";
 
 const MAX_TAB_STEPS = 80;
+const CAPTURE_DOM_TARGET_SOURCE = captureDomTarget.toString();
 
 export async function focusCustomViolations(
   page: Page,
@@ -71,6 +73,15 @@ export async function focusCustomViolations(
   return violations;
 }
 
+function toViolationNode(capture: ReturnType<typeof captureDomTarget>): CustomViolationNode {
+  return {
+    html: capture.html,
+    target: [capture.selector],
+    elementLabel: capture.elementLabel,
+    failureSummary: capture.context,
+  };
+}
+
 async function collectFocusVisibleViolations(
   page: Page,
 ): Promise<CustomViolationNode[]> {
@@ -79,13 +90,10 @@ async function collectFocusVisibleViolations(
 
   for (let step = 0; step < MAX_TAB_STEPS; step++) {
     await page.keyboard.press("Tab");
-    const hit = await page.evaluate(() => {
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        const tag = el.tagName.toLowerCase();
-        const role = el.getAttribute("role");
-        return role ? `${tag}[role="${role}"]` : tag;
-      }
+    const hit = await page.evaluate((captureSrc) => {
+      const captureElement = new Function(`return (${captureSrc})`)() as (
+        ...args: Parameters<typeof captureDomTarget>
+      ) => ReturnType<typeof captureDomTarget>;
 
       function hasVisibleFocusIndicator(el: Element): boolean {
         const style = getComputedStyle(el);
@@ -106,19 +114,15 @@ async function collectFocusVisibleViolations(
       }
       if (!el.matches(":focus-visible")) return null;
       if (hasVisibleFocusIndicator(el)) return null;
-      const html = el.outerHTML.replace(/\s+/g, " ").trim();
-      return {
-        key: selectorOf(el),
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(el),
-      };
-    });
+      const capture = captureElement(el);
+      return { key: capture.selector, capture };
+    }, CAPTURE_DOM_TARGET_SOURCE);
     if (!hit || seen.has(hit.key)) {
       if (step > 5 && seen.size > 0) break;
       continue;
     }
     seen.add(hit.key);
-    nodes.push({ html: hit.html, target: [hit.selector] });
+    nodes.push(toViolationNode(hit.capture));
   }
 
   return nodes;
@@ -162,13 +166,10 @@ async function detectKeyboardTrap(
   if (unique.size > 2) return null;
   if (tail.includes("modal")) return null;
 
-  const trap = await page.evaluate(() => {
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      const tag = el.tagName.toLowerCase();
-      const role = el.getAttribute("role");
-      return role ? `${tag}[role="${role}"]` : tag;
-    }
+  const trap = await page.evaluate((captureSrc) => {
+    const captureElement = new Function(`return (${captureSrc})`)() as (
+      ...args: Parameters<typeof captureDomTarget>
+    ) => ReturnType<typeof captureDomTarget>;
 
     function isIntentionalModalTrap(el: Element | null): boolean {
       if (!el) return false;
@@ -180,14 +181,11 @@ async function detectKeyboardTrap(
 
     const el = document.activeElement;
     if (!el || el === document.body || isIntentionalModalTrap(el)) return null;
-    const html = el.outerHTML.replace(/\s+/g, " ").trim();
-    return {
-      html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-      selector: selectorOf(el),
-    };
-  });
+    if (!(el instanceof HTMLElement)) return null;
+    return captureElement(el);
+  }, CAPTURE_DOM_TARGET_SOURCE);
 
-  return trap ? { html: trap.html, target: [trap.selector] } : null;
+  return trap ? toViolationNode(trap) : null;
 }
 
 async function collectFocusObscuredViolations(
@@ -200,13 +198,10 @@ async function collectFocusObscuredViolations(
   for (let step = 0; step < MAX_TAB_STEPS; step++) {
     await page.keyboard.press("Tab");
     const hit = await page.evaluate(
-      ({ enhancedMode }) => {
-        function selectorOf(el: Element): string {
-          if (el.id) return `#${el.id}`;
-          const tag = el.tagName.toLowerCase();
-          const role = el.getAttribute("role");
-          return role ? `${tag}[role="${role}"]` : tag;
-        }
+      ({ captureSrc, enhancedMode }) => {
+        const captureElement = new Function(`return (${captureSrc})`)() as (
+          ...args: Parameters<typeof captureDomTarget>
+        ) => ReturnType<typeof captureDomTarget>;
 
         function pointObscured(el: Element, x: number, y: number): boolean {
           const top = document.elementFromPoint(x, y);
@@ -214,19 +209,34 @@ async function collectFocusObscuredViolations(
           return top !== el && !el.contains(top) && !top.contains(el);
         }
 
-        function isFocusObscured(el: Element, strict: boolean): boolean {
+        function firstObscuredCorner(
+          el: Element,
+          strict: boolean,
+        ): { x: number; y: number; corner: string } | undefined {
           const rect = el.getBoundingClientRect();
-          if (rect.width === 0 || rect.height === 0) return false;
-          const points = strict
+          if (rect.width === 0 || rect.height === 0) return undefined;
+          const corners = strict
             ? [
-                [rect.left + 1, rect.top + 1],
-                [rect.right - 1, rect.top + 1],
-                [rect.left + 1, rect.bottom - 1],
-                [rect.right - 1, rect.bottom - 1],
-                [rect.left + rect.width / 2, rect.top + rect.height / 2],
+                { corner: "top-left", x: rect.left + 1, y: rect.top + 1 },
+                { corner: "top-right", x: rect.right - 1, y: rect.top + 1 },
+                { corner: "bottom-left", x: rect.left + 1, y: rect.bottom - 1 },
+                { corner: "bottom-right", x: rect.right - 1, y: rect.bottom - 1 },
+                {
+                  corner: "center",
+                  x: rect.left + rect.width / 2,
+                  y: rect.top + rect.height / 2,
+                },
               ]
-            : [[rect.left + rect.width / 2, rect.top + rect.height / 2]];
-          return points.some(([x, y]) => pointObscured(el, x, y));
+            : [
+                {
+                  corner: "center",
+                  x: rect.left + rect.width / 2,
+                  y: rect.top + rect.height / 2,
+                },
+              ];
+          return corners.find((corner) =>
+            pointObscured(el, corner.x, corner.y),
+          );
         }
 
         const el = document.activeElement;
@@ -239,22 +249,19 @@ async function collectFocusObscuredViolations(
           return null;
         }
         if (!el.matches(":focus-visible")) return null;
-        if (!isFocusObscured(el, enhancedMode)) return null;
-        const html = el.outerHTML.replace(/\s+/g, " ").trim();
-        return {
-          key: selectorOf(el),
-          html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          selector: selectorOf(el),
-        };
+        const obscuredAt = firstObscuredCorner(el, enhancedMode);
+        if (!obscuredAt) return null;
+        const capture = captureElement(el, { obscuredAt });
+        return { key: capture.selector, capture };
       },
-      { enhancedMode: enhanced },
+      { captureSrc: CAPTURE_DOM_TARGET_SOURCE, enhancedMode: enhanced },
     );
     if (!hit || seen.has(hit.key)) {
       if (step > 5 && seen.size > 0) break;
       continue;
     }
     seen.add(hit.key);
-    nodes.push({ html: hit.html, target: [hit.selector] });
+    nodes.push(toViolationNode(hit.capture));
   }
 
   return nodes;
@@ -268,13 +275,10 @@ async function collectFocusAppearanceViolations(
 
   for (let step = 0; step < MAX_TAB_STEPS; step++) {
     await page.keyboard.press("Tab");
-    const hit = await page.evaluate(() => {
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        const tag = el.tagName.toLowerCase();
-        const role = el.getAttribute("role");
-        return role ? `${tag}[role="${role}"]` : tag;
-      }
+    const hit = await page.evaluate((captureSrc) => {
+      const captureElement = new Function(`return (${captureSrc})`)() as (
+        ...args: Parameters<typeof captureDomTarget>
+      ) => ReturnType<typeof captureDomTarget>;
 
       function focusIndicatorTooSmall(el: Element): boolean {
         const style = getComputedStyle(el);
@@ -298,19 +302,15 @@ async function collectFocusAppearanceViolations(
       }
       if (!el.matches(":focus-visible")) return null;
       if (!focusIndicatorTooSmall(el)) return null;
-      const html = el.outerHTML.replace(/\s+/g, " ").trim();
-      return {
-        key: selectorOf(el),
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(el),
-      };
-    });
+      const capture = captureElement(el);
+      return { key: capture.selector, capture };
+    }, CAPTURE_DOM_TARGET_SOURCE);
     if (!hit || seen.has(hit.key)) {
       if (step > 5 && seen.size > 0) break;
       continue;
     }
     seen.add(hit.key);
-    nodes.push({ html: hit.html, target: [hit.selector] });
+    nodes.push(toViolationNode(hit.capture));
   }
 
   return nodes;

@@ -47,8 +47,41 @@ describe("findingsFromAxePages", () => {
       url: "https://app.example/login",
       selector: "input[type=email]",
       snippet: '<input type="email">',
+      elementLabel: undefined,
+      context: undefined,
     });
     expect(findings[0]?.fix).toBeNull();
+  });
+
+  it("maps custom node labels onto dom locations", () => {
+    const findings = findingsFromAxePages([
+      {
+        url: "https://app.example/",
+        violations: [
+          {
+            id: "complyloop-focus-not-obscured-enhanced",
+            impact: "serious",
+            description: "Obscured",
+            help: "No part hidden",
+            nodes: [
+              {
+                html: '<a href="/x">Go</a>',
+                target: ['a[href="/x"]'],
+                elementLabel: 'link “Go”',
+                failureSummary:
+                  "Covered by `header.sticky` at the top-left of the focus ring",
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    expect(findings[0]?.location).toMatchObject({
+      elementLabel: 'link “Go”',
+      context:
+        "Covered by `header.sticky` at the top-left of the focus ring",
+      selector: 'a[href="/x"]',
+    });
   });
 
   it("maps a missing doctype onto the doctype check", () => {

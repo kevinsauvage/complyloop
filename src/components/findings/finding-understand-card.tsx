@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { Explanation, Finding } from "@/core/finding-types";
-import { formatLocationRef, isDomLocation, locationSnippet } from "@/core/location";
+import { formatLocationRef, isDomLocation, locationSnippet, domLocationDetails } from "@/core/location";
 import { generateAiExplanationAction } from "@/server/actions/remediation-ai";
 import { MapPin } from "lucide-react";
 
@@ -51,13 +51,34 @@ export function FindingUnderstandCard({
             {baseline.whyItFailed}
           </p>
         ) : null}
-        <p className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground">
-          {formatLocationRef(finding.location)}
-        </p>
+        {isDomLocation(finding.location) ? (
+          <dl className="flex flex-col gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm">
+            {domLocationDetails(finding.location).map((detail) => (
+              <div key={detail.term} className="grid gap-0.5">
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {detail.term}
+                </dt>
+                <dd
+                  className={
+                    detail.term === "Selector"
+                      ? "font-mono text-xs text-foreground break-all"
+                      : "text-foreground"
+                  }
+                >
+                  {detail.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground">
+            {formatLocationRef(finding.location)}
+          </p>
+        )}
         {isDomLocation(finding.location) ? (
           <p className="text-sm text-muted-foreground">
-            Runtime finding on the rendered page. Trace back to the
-            form/call site that renders this control.
+            Runtime finding on the rendered page. Tab to the element above on
+            the live page, or search your codebase for the link text / selector.
           </p>
         ) : null}
         <CodeBlock>{locationSnippet(finding.location)}</CodeBlock>

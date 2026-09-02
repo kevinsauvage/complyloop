@@ -79,6 +79,44 @@ describe("FindingUnderstandCard", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows structured dom location details for runtime findings", () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    const runtimeFinding: Finding = {
+      ...finding,
+      checkId: "focus-not-obscured-enhanced",
+      location: {
+        kind: "dom",
+        url: "https://www.kevin-sauvage.com/a",
+        selector: 'a[href="/contact"]',
+        snippet: "<a>Contact</a>",
+        elementLabel: 'link “Get in touch”',
+        context:
+          "Covered by `header#top.sticky` at the top-left of the focus ring",
+      },
+    };
+    render(
+      <FindingUnderstandCard
+        finding={runtimeFinding}
+        canRemediate
+        aiAvailable
+      />,
+    );
+
+    expect(screen.getByText("Element")).toBeInTheDocument();
+    expect(screen.getByText('link “Get in touch”')).toBeInTheDocument();
+    expect(screen.getByText("Context")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Covered by `header#top.sticky` at the top-left of the focus ring",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('a[href="/contact"]')).toBeInTheDocument();
+  });
+
   it("keeps AI explanation behind a disclosure", () => {
     useActionStateMock.mockReturnValue([
       { error: null, message: null },

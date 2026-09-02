@@ -1,7 +1,13 @@
 import ts from "typescript";
-import { classNameTextOf } from "./heuristic-utils";
 import {
+  classNameTextOf,
+  descendantTags,
+  textContentOf,
+} from "./heuristic-utils";
+import {
+  booleanAttributeValue,
   getAttribute,
+  jsxElementOf,
   locationOf,
   stringValueOf,
   tagNameOf,
@@ -19,36 +25,64 @@ const CAROUSEL_TAGS = new Set([
   "KeenSlider",
   "Flickity",
 ]);
-const ANIMATION_STYLE_PROPS = new Set([
-  "animation",
-  "animationName",
-  "animationDuration",
-]);
 const NONE_VALUES = new Set(["none", "unset", "initial", "inherit"]);
+const INFINITE_TAILWIND =
+  /\banimate-(?:spin|pulse|bounce|ping)(?:\b|\[|\/)/i;
+const ENTRANCE_MOTION =
+  /\banimate-(?:in|out)\b|\b(?:fade|slide|zoom)-(?:in|out)\b/i;
+const PAUSE_LABEL = /\b(?:pause|stop|hide)\b/i;
 
-function styleHasCssAnimation(node: JsxTagNode): boolean {
+function animationValueIsInfinite(value: string): boolean {
+  const text = value.replace(/['"`]/g, "").trim().toLowerCase();
+  if (!text || NONE_VALUES.has(text)) return false;
+  return text === "infinite" || text.includes(" infinite");
+}
+
+function styleHasInfiniteAnimation(node: JsxTagNode): boolean {
   const style = getAttribute(node, "style");
   if (!style?.initializer) return false;
 
   const literal = stringValueOf(style);
-  if (literal && /animation(?:-name|-duration)?\s*:/i.test(literal)) {
-    return !/animation(?:-name)?\s*:\s*none\b/i.test(literal);
+  if (literal) {
+    if (!/animation/i.test(literal)) return false;
+    if (/animation(?:-name|-iteration-count)?\s*:\s*none\b/i.test(literal)) {
+      return false;
+    }
+    return /\binfinite\b/i.test(literal);
   }
 
   if (!ts.isJsxExpression(style.initializer)) return false;
   const expression = style.initializer.expression;
   if (!expression || !ts.isObjectLiteralExpression(expression)) return false;
 
-  return expression.properties.some((prop) => {
-    if (!ts.isPropertyAssignment(prop)) return false;
-    if (!ANIMATION_STYLE_PROPS.has(prop.name.getText())) return false;
-    const text = prop.initializer.getText().replace(/['"`]/g, "").trim();
-    return text.length > 0 && !NONE_VALUES.has(text);
-  });
+  let hasAnimationCue = false;
+  let infinite = false;
+
+  for (const prop of expression.properties) {
+    if (!ts.isPropertyAssignment(prop)) continue;
+    const name = prop.name.getText();
+    const text = prop.initializer.getText().replace(/['"`]/g, "").trim().toLowerCase();
+
+    if (name === "animation") {
+      if (NONE_VALUES.has(text) || text === "none") continue;
+      hasAnimationCue = true;
+      if (animationValueIsInfinite(text)) infinite = true;
+    }
+    if (name === "animationName" && text.length > 0 && !NONE_VALUES.has(text)) {
+      hasAnimationCue = true;
+    }
+    if (name === "animationIterationCount") {
+      if (text === "infinite" || text === "infinity") infinite = true;
+    }
+  }
+
+  return infinite && hasAnimationCue;
 }
 
-function classNameSuggestsMotion(className: string): boolean {
-  return /\banimate-(?!none(?:\b|\[))/i.test(className);
+function classNameHasInfiniteMotion(className: string): boolean {
+  if (!className) return false;
+  if (ENTRANCE_MOTION.test(className)) return false;
+  return INFINITE_TAILWIND.test(className);
 }
 
 function isCarouselHost(node: JsxTagNode): boolean {
@@ -64,6 +98,107 @@ function isCarouselHost(node: JsxTagNode): boolean {
   if (/carousel/i.test(roleText)) return true;
 
   return /\b(carousel|swiper)\b/i.test(classNameTextOf(node));
+}
+
+function autoplayState(node: JsxTagNode): "true" | "false" | "unknown" {
+  const attr =
+    getAttribute(node, "autoplay") ?? getAttribute(node, "autoPlay");
+  if (!attr) return "unknown";
+  const value = booleanAttributeValue(attr);
+  if (value === true) return "true";
+  if (value === false) return "false";
+  return "unknown";
+}
+
+function autoplayDisabled(node: JsxTagNode): boolean {
+  return autoplayState(node) === "false";
+}
+
+function hasPauseControlAttr(node: JsxTagNode): boolean {
+  for (const name of [
+    "pause",
+    "paused",
+    "showPauseButton",
+    "pauseButton",
+    "withPauseButton",
+  ]) {
+    const attr = getAttribute(node, name);
+    if (booleanAttributeValue(attr) === true) return true;
+  }
+  return false;
+}
+
+function accessibleNameOfTag(tag: JsxTagNode): string {
+  const ariaLabel = getAttribute(tag, "aria-label");
+  if (ariaLabel) {
+    const value = stringValueOf(ariaLabel);
+    if (value) return value;
+  }
+  const title = getAttribute(tag, "title");
+  if (title) {
+    const value = stringValueOf(title);
+    if (value) return value;
+  }
+  return "";
+}
+
+function subtreeHasPauseControl(node: JsxTagNode): boolean {
+  const element = jsxElementOf(node);
+  if (!element) return false;
+
+  for (const tag of descendantTags(element)) {
+    const tagName = tagNameOf(tag);
+    const roleAttr = getAttribute(tag, "role");
+    const role = roleAttr ? stringValueOf(roleAttr) : undefined;
+    const isButton =
+      tagName === "button" ||
+      role === "button" ||
+      getAttribute(tag, "type")?.initializer?.getText() === '"button"';
+
+    if (!isButton) continue;
+
+    const childElement = jsxElementOf(tag);
+    const label = [
+      accessibleNameOfTag(tag),
+      childElement ? textContentOf(childElement) : "",
+    ].join(" ");
+    if (PAUSE_LABEL.test(label)) return true;
+  }
+
+  return false;
+}
+
+function hasAnimationPauseControl(node: JsxTagNode): boolean {
+  return hasPauseControlAttr(node) || subtreeHasPauseControl(node);
+}
+
+function carouselLikelyAutoAdvances(node: JsxTagNode): boolean {
+  if (!isCarouselHost(node)) return false;
+  if (autoplayDisabled(node) || hasAnimationPauseControl(node)) return false;
+
+  const autoplay = autoplayState(node);
+  if (autoplay === "true") return true;
+
+  const interval = getAttribute(node, "interval");
+  if (interval) {
+    const intervalText = stringValueOf(interval);
+    if (intervalText === "0") return false;
+    if (intervalText !== undefined || booleanAttributeValue(interval) !== false) {
+      return true;
+    }
+  }
+
+  return autoplay === "unknown";
+}
+
+function shouldWarnAboutMotion(node: JsxTagNode): boolean {
+  const cssMotion =
+    styleHasInfiniteAnimation(node) ||
+    classNameHasInfiniteMotion(classNameTextOf(node));
+
+  if (cssMotion && !hasAnimationPauseControl(node)) return true;
+  if (carouselLikelyAutoAdvances(node)) return true;
+  return false;
 }
 
 export const noBlinkMarqueeCheck: AccessibilityCheck = {
@@ -85,11 +220,7 @@ export const noBlinkMarqueeCheck: AccessibilityCheck = {
         return;
       }
 
-      const moving =
-        styleHasCssAnimation(node) ||
-        classNameSuggestsMotion(classNameTextOf(node)) ||
-        isCarouselHost(node);
-      if (!moving) return;
+      if (!shouldWarnAboutMotion(node)) return;
 
       findings.push({
         checkId: "no-blink-marquee",
@@ -97,7 +228,7 @@ export const noBlinkMarqueeCheck: AccessibilityCheck = {
         severity: "moderate",
         confidence: "medium",
         reason:
-          "Moving or auto-advancing content may lack a pause, stop, or hide control (RGAA 13.8 / WCAG 2.2.2). prefers-reduced-motion is not enough on its own.",
+          "Auto-moving content may lack a pause, stop, or hide control (RGAA 13.8 / WCAG 2.2.2). prefers-reduced-motion is not enough on its own.",
         location: locationOf(source, node),
         fix: null,
       });

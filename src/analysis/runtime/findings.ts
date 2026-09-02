@@ -9,6 +9,7 @@ interface AxeNodeLike {
   html: string;
   target: string[];
   failureSummary?: string;
+  elementLabel?: string;
 }
 
 export interface AxeViolationLike {
@@ -81,6 +82,8 @@ export function findingsFromAxePages(
             url: page.url,
             selector: selectorOf(node),
             snippet: snippetOf(node),
+            elementLabel: node.elementLabel,
+            context: node.failureSummary,
           },
           fix: null,
           engine: "runtime",
