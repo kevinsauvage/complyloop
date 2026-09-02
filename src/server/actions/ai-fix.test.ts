@@ -125,6 +125,7 @@ describe("generateAiFixAction", () => {
       "/tmp/checkout",
       finding,
       control,
+      expect.objectContaining({ aiAvailable: expect.any(Boolean) }),
     );
     expect(persistPatchCandidate).toHaveBeenCalledWith(
       current.db,

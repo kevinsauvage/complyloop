@@ -1,6 +1,7 @@
 "use server";
 
 import { PATCH_PR_SOURCE_ONLY_MESSAGE } from "@/ai/verified-fix";
+import { aiExplanationAvailable } from "@/ai/explainer";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { isSourceLocation } from "@/core/location";
 import { PublicError } from "@/core/public-error";
@@ -56,7 +57,10 @@ export async function generateAiFixAction(
     const tokenOptions = await sessionCheckoutTokenOptions();
     const candidate = await withProjectCheckout(
       project,
-      (rootPath) => runAiFixOnCheckout(rootPath, finding, control),
+      (rootPath) =>
+        runAiFixOnCheckout(rootPath, finding, control, {
+          aiAvailable: aiExplanationAvailable(),
+        }),
       undefined,
       tokenOptions,
     );

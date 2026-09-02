@@ -145,7 +145,28 @@ describe("runAiFixOnCheckout", () => {
       scan: () => [],
     });
 
-    expect(propose).toHaveBeenCalledOnce();
+    expect(propose).toHaveBeenCalledTimes(1);
     expect(result.provenance).toBe("ai");
+    expect(result.complyLoop.passed).toBe(true);
+  });
+
+  it("fails with actionable copy when AI is unavailable and no deterministic fix exists", async () => {
+    const root = tempRoot(
+      'export const Footer = () => <footer role="contentinfo" />;\n',
+    );
+    // Simulates the no-API-key path: the default proposeFixEdits would be
+    // called and the gateway call must never happen.
+    const propose = vi.fn(async () => {
+      throw new Error("fetch failed: gateway unreachable");
+    });
+
+    await expect(
+      runAiFixOnCheckout(root, finding(), control, {
+        propose,
+        scan: () => [],
+        aiAvailable: false,
+      }),
+    ).rejects.toThrow(/AI_GATEWAY_API_KEY/);
+    expect(propose).not.toHaveBeenCalled();
   });
 });

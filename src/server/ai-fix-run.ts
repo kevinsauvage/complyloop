@@ -20,6 +20,8 @@ import { locateViolationInProject, mergeFix } from "./assessment-helpers";
 export interface RunAiFixOnCheckoutOptions {
   propose?: GeneratePatchCandidateOptions["propose"];
   scan?: GeneratePatchCandidateOptions["scan"];
+  /** When false, patch generation fails fast with actionable copy. */
+  aiAvailable?: boolean;
 }
 
 function exactLineEdit(
@@ -94,6 +96,12 @@ export async function runAiFixOnCheckout(
               ),
             },
           }));
+
+  if (deterministic === null && options.aiAvailable === false) {
+    throw new PublicError(
+      "Generating a patch requires AI (set AI_GATEWAY_API_KEY) or a deterministic fix template for this Finding. Use the developer handoff to fix it manually.",
+    );
+  }
 
   return generatePatchCandidate({
     rootPath,
