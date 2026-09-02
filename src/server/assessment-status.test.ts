@@ -279,7 +279,6 @@ describe("refreshRequirementStatuses site-level", () => {
 
     refreshRequirementStatuses(db, "p1", {
       runtimeRan: true,
-      runtimePagesScanned: 1,
       siteLevelChecksRan: false,
     });
 
@@ -311,7 +310,6 @@ describe("refreshRequirementStatuses site-level", () => {
 
     refreshRequirementStatuses(db, "p1", {
       runtimeRan: true,
-      runtimePagesScanned: 2,
       siteLevelChecksRan: true,
     });
 

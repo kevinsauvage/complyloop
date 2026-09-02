@@ -1,4 +1,5 @@
 import type { CheckId } from "./types";
+import type { CheckAuthority } from "@/core/requirement-status";
 
 /**
  * Rules where composition across components makes source AST unreliable.
@@ -20,6 +21,10 @@ const COMPOSITION_SENSITIVE_CHECK_IDS = [
  * Checks the AST engine cannot pass. Without a successful runtime audit they
  * stay `unable_to_verify` — never `passed` from an empty source scan.
  * Includes axe-mapped rules with no AST implementation.
+ *
+ * Note: `error-prevention` and `accessible-auth-enhanced` are intentionally
+ * listed here AND in `HEURISTIC_CHECK_IDS` — the AST engine emits only
+ * heuristic warnings for them, while the runtime audit owns the verdict.
  */
 const RUNTIME_ONLY_CHECK_IDS = [
   "color-contrast",
@@ -137,6 +142,28 @@ export function isSiteLevelCheck(checkId: string): boolean {
 
 export function isHeuristicCheck(checkId: string): boolean {
   return HEURISTIC.has(checkId);
+}
+
+/**
+ * The single authority classifier. Precedence matters — a check id may appear
+ * in more than one list (e.g. `error-prevention` is heuristic in the AST
+ * engine but runtime-owned), and this order is the contract:
+ *
+ * 1. `site_level` (subset of runtime-only, needs ≥2 routes)
+ * 2. `runtime_only` (runtime audit owns the verdict)
+ * 3. `heuristic` (empty AST scan must not pass)
+ * 4. `composition_sensitive` (AST owns status; runtime wins when it ran)
+ * 5. `standard` (plain AST check)
+ *
+ * Consumers: `deriveRequirementStatus` (`src/core/requirement-status.ts`) via
+ * the adapter in `src/server/assessment-status.ts`.
+ */
+export function authorityForCheck(checkId: string): CheckAuthority {
+  if (isSiteLevelCheck(checkId)) return "site_level";
+  if (isRuntimeOnlyCheck(checkId)) return "runtime_only";
+  if (isHeuristicCheck(checkId)) return "heuristic";
+  if (isCompositionSensitiveCheck(checkId)) return "composition_sensitive";
+  return "standard";
 }
 
 /** Runtime findings for these ids must not be resolved when axe did not run. */

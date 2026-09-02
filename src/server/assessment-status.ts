@@ -1,10 +1,9 @@
 import { presetById } from "@/adapters/registry";
 import {
-  isHeuristicCheck,
-  isRuntimeOnlyCheck,
-  isSiteLevelCheck,
-} from "@/analysis/check-authority";
-import { deriveRequirementStatus } from "@/core/requirement-status";
+  deriveRequirementStatus,
+  isStickyHumanDecision,
+} from "@/core/requirement-status";
+import { authorityForCheck } from "@/analysis/check-authority";
 import type { Finding } from "@/core/finding-types";
 import type { RequirementStatus } from "@/core/statuses";
 import type { Control, Project, Requirement } from "@/core/project-types";
@@ -30,13 +29,15 @@ export function scopedControlIds(
 }
 
 /** Human exceptions and human passes block automated status overwrite. */
-function isStickyHumanDecision(
+function requirementIsSticky(
   requirement: Requirement | undefined,
 ): boolean {
-  if (!requirement || requirement.determination !== "human_review") {
-    return false;
-  }
-  return Boolean(requirement.exception || requirement.humanPass);
+  if (!requirement) return false;
+  return isStickyHumanDecision({
+    determination: requirement.determination,
+    hasException: Boolean(requirement.exception),
+    hasHumanPass: Boolean(requirement.humanPass),
+  });
 }
 
 /**
@@ -118,32 +119,27 @@ export interface RefreshRequirementStatusesOptions {
   changeContext?: string;
   /** When false, runtime-only checks with no findings stay unable_to_verify. */
   runtimeRan?: boolean;
-  runtimePagesScanned?: number;
+  /** Runtime checks that need ≥2 audited routes use this flag. */
   siteLevelChecksRan?: boolean;
 }
 
+/**
+ * Delegates all derivation to core (single source of truth). The adapter maps
+ * the analysis-layer check id to the framework-agnostic authority class via
+ * the authoritative classifier in `check-authority.ts`.
+ */
 function statusFromFindings(
   checkId: string | null,
   openFindings: ReadonlyArray<Pick<Finding, "kind">>,
   runtimeRan: boolean | undefined,
-  runtimePagesScanned: number | undefined,
   siteLevelChecksRan: boolean | undefined,
 ): RequirementStatus {
-  if (openFindings.length > 0) {
-    return deriveRequirementStatus(openFindings);
-  }
-  if (checkId !== null && isHeuristicCheck(checkId)) {
-    return "unable_to_verify";
-  }
-  if (checkId !== null && isSiteLevelCheck(checkId)) {
-    if (runtimeRan !== true || siteLevelChecksRan !== true) {
-      return "unable_to_verify";
-    }
-  }
-  if (checkId !== null && isRuntimeOnlyCheck(checkId) && runtimeRan === false) {
-    return "unable_to_verify";
-  }
-  return deriveRequirementStatus(openFindings);
+  return deriveRequirementStatus({
+    authority: checkId === null ? "manual" : authorityForCheck(checkId),
+    openFindings,
+    runtimeRan,
+    siteLevelChecksRan,
+  });
 }
 
 /**
@@ -156,7 +152,7 @@ export function refreshRequirementStatuses(
   projectId: string,
   options: RefreshRequirementStatusesOptions = {},
 ): void {
-  const { assessmentId, changeContext, runtimeRan, runtimePagesScanned, siteLevelChecksRan } =
+  const { assessmentId, changeContext, runtimeRan, siteLevelChecksRan } =
     options;
   const now = new Date().toISOString();
   const project = db.projects.find((candidate) => candidate.id === projectId);
@@ -170,7 +166,7 @@ export function refreshRequirementStatuses(
         (candidate) =>
           candidate.projectId === projectId && candidate.controlId === control.id,
       );
-      if (isStickyHumanDecision(requirement)) {
+      if (requirementIsSticky(requirement)) {
         continue;
       }
       if (!requirement) {
@@ -196,7 +192,7 @@ export function refreshRequirementStatuses(
     );
     // Human exceptions / human passes are sticky until explicitly cleared
     // (temporary exceptions may expire earlier — see clearExpiredExceptions).
-    if (isStickyHumanDecision(requirement)) {
+    if (requirementIsSticky(requirement)) {
       continue;
     }
 
@@ -210,7 +206,6 @@ export function refreshRequirementStatuses(
       control.checkId,
       openFindings,
       runtimeRan,
-      runtimePagesScanned,
       siteLevelChecksRan,
     );
 

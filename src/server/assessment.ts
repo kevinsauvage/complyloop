@@ -248,7 +248,6 @@ export async function runAssessment(
     assessmentId,
     changeContext,
     runtimeRan,
-    runtimePagesScanned: runtimeResult.pagesScanned,
     siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
   });
 
