@@ -49,10 +49,9 @@ describe("check authority × RGAA catalog", () => {
     for (const control of CHECKED) {
       const authority = authorityForCheck(control.checkId as string);
       if (authority === "heuristic") continue; // heuristic needs a human, never auto-passes
-      const runtimeRan = authority !== "standard" && authority !== "composition_sensitive";
       const status = deriveRequirementStatus({
         authority,
-        runtimeRan: true,
+        runtimeRan: authority !== "standard" && authority !== "composition_sensitive",
         siteLevelChecksRan: true,
       });
       expect(status).toBe("passed");
