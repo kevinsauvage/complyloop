@@ -133,7 +133,7 @@ describe("assessment scope filters", () => {
       db,
       project({
         id: "p1",
-        assessmentPresetId: "preset-rgaa-full",
+        defaultPresetId: "preset-rgaa-full",
         inScopeControlIds: ["ctl-img-alt"],
       }),
     );

@@ -9,25 +9,16 @@ const catalog = {
 };
 
 describe("projectDefaultPresetId", () => {
-  it("prefers defaultPresetId over legacy assessmentPresetId", () => {
+  it("uses the stored defaultPresetId when valid", () => {
     expect(
       projectDefaultPresetId(
-        testProject({
-          defaultPresetId: "preset-wcag-aa",
-          assessmentPresetId: "preset-rgaa-full",
-        }),
+        testProject({ defaultPresetId: "preset-wcag-aa" }),
         catalog,
       ),
     ).toBe("preset-wcag-aa");
   });
 
-  it("falls back to assessmentPresetId then connect default", () => {
-    expect(
-      projectDefaultPresetId(
-        testProject({ assessmentPresetId: "preset-wcag-full" }),
-        catalog,
-      ),
-    ).toBe("preset-wcag-full");
+  it("falls back to the connect default when no preset is stored", () => {
     expect(projectDefaultPresetId(testProject(), catalog)).toBe(
       "preset-rgaa-full",
     );

@@ -17,7 +17,7 @@ export function projectDefaultPresetId(
   project: Project,
   catalog: PresetCatalog,
 ): string {
-  const candidate = project.defaultPresetId ?? project.assessmentPresetId;
+  const candidate = project.defaultPresetId;
   if (candidate && catalog.isValidPresetId(candidate)) return candidate;
   return catalog.defaultConnectPresetId;
 }

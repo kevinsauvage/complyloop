@@ -142,7 +142,7 @@ describe("reportInputForProject", () => {
     db.controls.push(...rgaaControls);
     db.projects.push({
       ...project,
-      assessmentPresetId: "preset-wcag-aa",
+      defaultPresetId: "preset-wcag-aa",
       inScopeControlIds: ["ctl-img-alt"],
     });
     db.requirements.push({

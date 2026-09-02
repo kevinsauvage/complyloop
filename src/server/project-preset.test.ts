@@ -26,13 +26,12 @@ describe("setDefaultPreset", () => {
   const wcagAa = wcagPresets.find((preset) => preset.id === "preset-wcag-aa");
   if (!wcagAa) throw new Error("Expected WCAG AA preset");
 
-  it("sets defaultPresetId and syncs legacy assessment fields", () => {
+  it("sets defaultPresetId and syncs the in-scope snapshot", () => {
     const project = testProject();
     const db = emptyDb(project);
     const result = setDefaultPreset(db, project, "preset-wcag-aa");
     expect(result.changed).toBe(true);
     expect(project.defaultPresetId).toBe("preset-wcag-aa");
-    expect(project.assessmentPresetId).toBe("preset-wcag-aa");
     expect(project.inScopeControlIds).toEqual(wcagAa.controlIds);
   });
 

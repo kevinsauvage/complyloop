@@ -4,8 +4,8 @@ import { PublicError } from "@/core/public-error";
 import { addEvidence, type Db } from "./db";
 
 /**
- * Sets the project's default assessment preset (Settings). Also syncs legacy
- * `assessmentPresetId` and the in-scope snapshot for stored projects.
+ * Sets the project's default assessment preset (Settings). Also syncs the
+ * in-scope snapshot for stored projects.
  */
 export function setDefaultPreset(
   db: Db,
@@ -19,7 +19,6 @@ export function setDefaultPreset(
   }
 
   project.defaultPresetId = preset.id;
-  project.assessmentPresetId = preset.id;
   project.inScopeControlIds = [...preset.controlIds];
 
   addEvidence(db, {

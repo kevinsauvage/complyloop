@@ -19,7 +19,7 @@ import { addEvidence, type Db } from "./db";
 export function scopedControlIds(
   project: Project,
 ): ReadonlySet<string> | undefined {
-  const presetId = project.defaultPresetId ?? project.assessmentPresetId;
+  const presetId = project.defaultPresetId;
   if (presetId) {
     const preset = presetById(presetId);
     if (preset) return new Set(preset.controlIds);

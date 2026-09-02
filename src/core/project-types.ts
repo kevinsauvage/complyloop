@@ -95,10 +95,6 @@ export interface Project {
    */
   defaultPresetId?: string;
   /**
-   * @deprecated Use `defaultPresetId`. Kept for existing stored projects.
-   */
-  assessmentPresetId?: string;
-  /**
    * Staging / preview base URL for runtime (browser) accessibility audits.
    * When set, composition-sensitive rules use the rendered DOM as status truth.
    */

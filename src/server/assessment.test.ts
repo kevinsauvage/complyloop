@@ -73,7 +73,7 @@ describe("runAssessment", () => {
   });
 
   it("assesses the live Full RGAA preset even when the stored snapshot is stale", async () => {
-    project.assessmentPresetId = "preset-rgaa-full";
+    project.defaultPresetId = "preset-rgaa-full";
     project.inScopeControlIds = ["ctl-img-alt"];
 
     await runAssessment(db, project.id, { rootPath });
