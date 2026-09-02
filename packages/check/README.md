@@ -42,4 +42,7 @@ Copy [`templates/github-actions/complyloop-check.yml`](../../templates/github-ac
 ```bash
 npm run build:check   # build packages/check/dist/cli.js
 npm run check -- .    # bundle or tsx fallback
+npm run check -- packages/check/testdata   # deliberate violations (see src/cli/check.test.ts)
 ```
+
+`testdata/Bad.tsx` exercises wave-1 heuristics (`error-prevention`, `captcha-alternative`, `reduced-motion`, …) plus `img-alt`.

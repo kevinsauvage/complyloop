@@ -64,7 +64,8 @@ Two deterministic engines; AI is separate and never authoritative.
 ### 1. AST (`src/analysis/checks/`)
 
 - Runs on source in CI, local dev, and `complyloop-check`.
-- **74 checks** registered in `registry.ts`.
+- **78 checks** registered in `registry.ts`.
+- Text heuristics (confirm labels, CAPTCHA cues, vague links) live in `patterns/multilingual.ts` with accent folding for FR/EN/ES/DE.
 - Safe auto-fixes and verified AI patches target AST findings.
 
 ### 2. Runtime (`src/analysis/runtime/`)
@@ -74,7 +75,7 @@ Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on
 | Piece | Path | Role |
 | --- | --- | --- |
 | Axe mapping | `axe-map.ts` | ~122 axe rule → check id mappings |
-| Custom checks | `custom-checks/` | Contrast, reflow, focus, CSS-off, media, … |
+| Custom checks | `custom-checks/` | Contrast, reflow, focus, error-prevention, CAPTCHA, media, … |
 | Site-level | `site-level/` | Cross-route consistency (nav, help, titles) |
 
 **Do not** add `@axe-core/playwright` — webpack breaks on axe `source` string.

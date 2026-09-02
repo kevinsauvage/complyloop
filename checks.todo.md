@@ -8,8 +8,8 @@ axe-core: **4.13.0** installed (`package.json` ^4.13.0, lockfile resolved 4.13.0
 - RGAA critères: **106** across **13** thématiques
 - WCAG 2.2 SC in scope: **86** (excludes removed 4.1.1; platform still maps RGAA 8.1 → doctype check)
 - axe-core `getRules()`: **105** rules; **122** entries in `axe-map.ts` (includes **22** custom ComplyLoop rules)
-- AST checks in `registry.ts`: **74**; catalog controls: **149** (**25** human-only)
-- RGAA critères with working automation: **85**; human-only: **21**
+- AST checks in `registry.ts`: **78**; catalog controls: **149** (**21** human-only pertinence)
+- RGAA critères with working automation: **89**; human-only pertinence: **17**
 - WCAG SC with zero working automation at **AA**: **0** (3.3.4 now covered); remaining gaps are AAA or deferred
 
 ## Implement vs. don't implement
@@ -47,7 +47,7 @@ Prioritized for MVP (**WCAG 2.2 AA** + RGAA presence checks). Prefer cheap wins 
 | **Language / literacy** | WCAG 3.1.3–3.1.6 (unusual words, abbreviations, reading level, pronunciation) | Needs NLP or subject-matter review; high false-positive rate |
 | **Contextual / behavioral** | WCAG 2.4.8 location, 2.4.9 link purpose (link only), 3.2.5 change on request | Breadcrumb adequacy and "user requested this change" are contextual |
 | **axe best-practice / experimental** | `aria-allowed-role`, `aria-text`, `aria-treeitem-name`, `focus-order-semantics`, `image-redundant-alt`, `frame-tested`, `landmark-complementary-is-top-level` | Not WCAG SC-mapped or tagged experimental/deprecated; wiring adds noise without AA coverage gain |
-| **Heuristic-only AST checks** | 16 checks in `HEURISTIC_CHECK_IDS` (`link-explicit-heuristic`, `captions-live`, `pointer-gesture`, …) | Already flag suspects; **must not** upgrade to auto-`passed` — keep `needs_review` path per `check-authority.ts` |
+| **Heuristic-only AST checks** | 19 checks in `HEURISTIC_CHECK_IDS` (`link-explicit-heuristic`, `captions-live`, `pointer-gesture`, `error-prevention`, `reduced-motion`, …) | Already flag suspects; **must not** upgrade to auto-`passed` — keep `needs_review` path per `check-authority.ts` |
 | **Low MVP value / high cost** | 1.2.6–1.2.9 (sign language, extended AD, live alternatives), 1.4.7–1.4.8, 2.2.3–2.2.6 (session timing), 2.1.3, 2.5.6, 3.3.5–3.3.6 | AAA or multi-step flow testing; defer unless a customer explicitly targets AAA or media-heavy apps |
 | **Removed in WCAG 2.2** | 4.1.1 Parsing | Obsolete in 2.2; keep RGAA 8.1 doctype check for RGAA compliance but don't invest in stricter parsing validation |
 
@@ -110,7 +110,7 @@ Prioritized for MVP (**WCAG 2.2 AA** + RGAA presence checks). Prefer cheap wins 
 - [ ] — / 3.2.5 — Change on Request — MANUAL — Context changes on user request — behavioral
 - [ ] focus-order-semantics / — — axe focus-order-semantics rule — AXE-MAP — Tagged experimental+best-practice; maps to RGAA 12.8 — evaluate before wiring
 - [ ] image-redundant-alt / — — axe image-redundant-alt rule — AXE-MAP — Best-practice only; may duplicate alt+text redundancy checks
-- [ ] heuristic checks / — — 16 AST heuristics (link-explicit, captions-live, pointer-gesture, …) flag suspects but cannot set `passed` without human review per `check-authority.ts` — MANUAL — Document as partial or add pertinence twins
+- [ ] heuristic checks / — — 19 AST heuristics (link-explicit, captions-live, error-prevention, reduced-motion, …) flag suspects but cannot set `passed` without human review per `check-authority.ts` — MANUAL — Document as partial or add pertinence twins
 
 ## Appendix A — axe-core rules with no mapping at all
 - `aria-allowed-role` — tags: cat.aria, best-practice — Likely intentional (best-practice)
@@ -121,16 +121,17 @@ Prioritized for MVP (**WCAG 2.2 AA** + RGAA presence checks). Prefer cheap wins 
 - `image-redundant-alt` — tags: cat.text-alternatives, best-practice — Likely intentional (best-practice)
 - `landmark-complementary-is-top-level` — tags: cat.semantics, best-practice, deprecated — Likely intentional (best-practice, deprecated)
 
-## Appendix B — RGAA criteria classified MANUAL
+## Appendix B — RGAA criteria classified MANUAL (pertinence / quality)
+
+Presence checks now cover RGAA **1.5**, **4.7**, **11.12**, and **12.11** via automated controls; the items below are **pertinence or equivalence** reviews only (`checkId: null`).
+
 - 1.3 / 1.1.1, 4.1.2 — Image text alternatives are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 1.4 / 1.1.1 — CAPTCHA alternatives identify their function — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
-- 1.5 / 1.1.1 — CAPTCHA has a non-image alternative — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 1.7 / 1.1.1 — Detailed image descriptions are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 2.2 / 4.1.2 — Frame titles are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 4.2 / 1.2.1, 1.2.3 — Transcripts and audio descriptions are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 4.4 / 1.2.2 — Captions are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 4.6 / 1.2.5 — Audio description is pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
-- 4.7 / 1.1.1 — Media is identified and has alternatives — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 4.9 / 1.1.1 — Non-temporal media alternatives are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 5.2 / 1.3.1 — Table summaries are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 5.5 / 1.3.1 — Table titles are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
@@ -138,8 +139,6 @@ Prioritized for MVP (**WCAG 2.2 AA** + RGAA presence checks). Prefer cheap wins 
 - 10.10 / 1.3.3, 1.4.1 — Sensory instructions are implemented pertinently — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 11.2 / 2.4.6, 2.5.3, 3.3.2 — Form labels are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 11.7 / 1.3.1, 3.3.2 — Fieldset legends are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
-- 11.12 / 3.3.4 — Legal and financial submissions can be reviewed or reversed — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 12.3 / 2.4.5 — Sitemap entries are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
-- 12.11 / 2.1.1 — Supplementary content on hover or focus is keyboard reachable — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 13.4 / 1.1.1, 1.3.1, 1.3.2, 2.4.1, 2.4.3, 3.1.1, 4.1.2 — Accessible office alternatives are equivalent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`
 - 13.6 / 1.1.1 — Cryptic-content alternatives are pertinent — Subjective pertinence, equivalence, or business-flow judgment; catalog control has `checkId: null`

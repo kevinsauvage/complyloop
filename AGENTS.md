@@ -41,7 +41,7 @@ If a change does not advance that loop, question whether it belongs in the MVP.
 | App | Next.js 16, React 19, TypeScript strict, Tailwind 4, shadcn/ui |
 | DB | Postgres + Drizzle (`DATABASE_URL`); evidence insert-only |
 | Auth | Auth.js v5 + GitHub OAuth/App; ephemeral clones per job |
-| Analysis | 74 AST checks + optional Playwright/axe when `runtimeBaseUrl` is set |
+| Analysis | 78 AST checks + optional Playwright/axe when `runtimeBaseUrl` is set |
 | Jobs | `npm run worker` (required in prod) |
 | AI | Vercel AI SDK, optional; **never sets statuses** |
 | CI package | `@complyloop/check` / `npx complyloop-check` |
