@@ -4,15 +4,15 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 
 ## At a glance
 
-| Piece | Location | Role |
-| --- | --- | --- |
-| Domain core | `src/core/` | Statuses, transitions — framework-agnostic |
-| Adapters | `src/adapters/` | RGAA/WCAG catalog, presets, guidance |
-| Analysis | `src/analysis/` | AST checks + optional runtime audits |
-| AI | `src/ai/` | Explain / remediate — never sets status |
-| Server | `src/server/` | Postgres, jobs, GitHub, actions |
-| App | `src/app/` | Next.js UI + API routes |
-| CI | `packages/check/` | `npx complyloop-check` (AST only) |
+| Piece       | Location          | Role                                       |
+| ----------- | ----------------- | ------------------------------------------ |
+| Domain core | `src/core/`       | Statuses, transitions — framework-agnostic |
+| Adapters    | `src/adapters/`   | RGAA/WCAG catalog, presets, guidance       |
+| Analysis    | `src/analysis/`   | AST checks + optional runtime audits       |
+| AI          | `src/ai/`         | Explain / remediate — never sets status    |
+| Server      | `src/server/`     | Postgres, jobs, GitHub, actions            |
+| App         | `src/app/`        | Next.js UI + API routes                    |
+| CI          | `packages/check/` | `npx complyloop-check` (AST only)          |
 
 **Connectors today:** GitHub only. **Persistence:** Postgres via Drizzle (`DATABASE_URL`). Evidence is **append-only**. GitHub tokens encrypted at rest.
 
@@ -72,11 +72,11 @@ Two deterministic engines; AI is separate and never authoritative.
 
 Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on disk).
 
-| Piece | Path | Role |
-| --- | --- | --- |
-| Axe mapping | `axe-map.ts` | ~122 axe rule → check id mappings |
+| Piece         | Path             | Role                                                         |
+| ------------- | ---------------- | ------------------------------------------------------------ |
+| Axe mapping   | `axe-map.ts`     | ~122 axe rule → check id mappings                            |
 | Custom checks | `custom-checks/` | Contrast, reflow, focus, error-prevention, CAPTCHA, media, … |
-| Site-level | `site-level/` | Cross-route consistency (nav, help, titles) |
+| Site-level    | `site-level/`    | Cross-route consistency (nav, help, titles)                  |
 
 **Do not** add `@axe-core/playwright` — webpack breaks on axe `source` string.
 
@@ -84,12 +84,12 @@ Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on
 
 ### Check authority (`src/analysis/check-authority.ts`)
 
-| Class | Behavior |
-| --- | --- |
-| **Runtime-only** | `unable_to_verify` until page audit runs — never `passed` from empty AST |
+| Class                     | Behavior                                                                           |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| **Runtime-only**          | `unable_to_verify` until page audit runs — never `passed` from empty AST           |
 | **Composition-sensitive** | AST runs in CI; runtime wins for status when both run (labels, names, headings, …) |
-| **Heuristic AST** | Empty scan → `unable_to_verify`, not `passed` (pertinence-style rules) |
-| **Site-level** | Subset of runtime-only; needs ≥2 preview routes |
+| **Heuristic AST**         | Empty scan → `unable_to_verify`, not `passed` (pertinence-style rules)             |
+| **Site-level**            | Subset of runtime-only; needs ≥2 preview routes                                    |
 
 **Source of truth for ids:** `check-authority.ts` and `registry.ts` — do not duplicate long id lists in docs.
 
@@ -108,10 +108,10 @@ Each project stores a **`defaultPresetId`** (set on connect, editable in Setting
 
 ### Remediation
 
-| Finding type | Path |
-| --- | --- |
-| **Source (AST)** | Deterministic fix or constrained AI patch → ComplyLoop re-scan → draft PR → merge → re-assess → `verified` |
-| **Runtime (DOM)** | Guidance → approve → implement in app → re-audit or manual verify |
+| Finding type      | Path                                                                                                       |
+| ----------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Source (AST)**  | Deterministic fix or constrained AI patch → ComplyLoop re-scan → draft PR → merge → re-assess → `verified` |
+| **Runtime (DOM)** | Guidance → approve → implement in app → re-audit or manual verify                                          |
 
 Finding page UX: [`finding-flow.md`](./finding-flow.md).
 
@@ -135,11 +135,11 @@ Webhook or manual re-assess → scoped JSX re-scan + optional runtime → regres
 
 ## Tests
 
-| Command | What |
-| --- | --- |
-| `npm run test` | Vitest unit/integration |
+| Command                 | What                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------- |
+| `npm run test`          | Vitest unit/integration                                                             |
 | `npm run test:coverage` | Gates on `src/core`, `src/adapters`, `src/analysis`, `src/ai`, most of `src/server` |
-| `npm run test:e2e` | Playwright (gated harness) |
+| `npm run test:e2e`      | Playwright (gated harness)                                                          |
 
 Excluded from unit coverage gate: `db-store`, `runtime/scan.ts`, live GitHub/git I/O — see `vitest.config.mts`.
 
@@ -148,4 +148,3 @@ Excluded from unit coverage gate: `db-store`, `runtime/scan.ts`, live GitHub/git
 - [Finding page flow](./finding-flow.md)
 - [Deploy](../deploy.md)
 - [All docs](../README.md)
-- [Gap analysis](../../checks.todo.md)
