@@ -20,6 +20,8 @@ import { infoNotColorOnlyViolation } from "./info-not-color-only.js";
 import { hoverContentViolation } from "./hover-content.js";
 import { labelAdjacentViolation } from "./label-adjacent.js";
 import { nonTextContrastViolation } from "./non-text-contrast.js";
+import { forcedColorsViolation } from "./forced-colors.js";
+import { reducedMotionViolation } from "./reduced-motion.js";
 import { reflowViolation } from "./reflow.js";
 import { resizeTextViolation } from "./resize-text.js";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime.js";
@@ -72,12 +74,25 @@ export async function runCustomRuntimeChecks(
   const violations: CustomViolation[] = [
     ...(await focusCustomViolations(page)),
     ...(await cssForPresentationViolations(page)),
+  ];
+
+  // reduced-motion temporarily emulates `prefers-reduced-motion`; run it
+  // sequentially before the parallel batch so that emulation never races the
+  // shared-page concurrency below (each check restores media features after).
+  for (const emulated of [
+    await forcedColorsViolation(page),
+    await reducedMotionViolation(page),
+  ]) {
+    if (emulated) violations.push(emulated);
+  }
+
+  violations.push(
     ...optional.flatMap((result) => {
       if (result === null) return [];
       if (Array.isArray(result)) return result;
       return [result];
     }),
-  ];
+  );
 
   return violations.map(toAxeViolation);
 }

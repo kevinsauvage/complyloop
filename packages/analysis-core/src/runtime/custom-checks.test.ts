@@ -73,6 +73,12 @@ describe("custom runtime axe mappings", () => {
     expect(checkIdForAxeRule("complyloop-supplementary-content-keyboard")).toBe(
       "supplementary-content-keyboard",
     );
+    expect(checkIdForAxeRule("complyloop-forced-colors")).toBe(
+      "non-text-contrast",
+    );
+    expect(checkIdForAxeRule("complyloop-reduced-motion")).toBe(
+      "reduced-motion",
+    );
     expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });
 

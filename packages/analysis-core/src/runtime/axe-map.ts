@@ -155,6 +155,8 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-accessible-auth-enhanced": "accessible-auth-enhanced",
   "complyloop-media-identification": "media-identification",
   "complyloop-supplementary-content-keyboard": "supplementary-content-keyboard",
+  "complyloop-forced-colors": "non-text-contrast",
+  "complyloop-reduced-motion": "reduced-motion",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {
