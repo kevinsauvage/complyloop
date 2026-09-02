@@ -1,6 +1,6 @@
-import { presetById } from "@/adapters/registry";
-import { projectDefaultPresetId } from "@/core/project-preset";
-import type { Project } from "@/core/project-types";
+import { projectDefaultPresetId } from "./project-preset";
+import type { PresetCatalog } from "./project-preset";
+import type { Project } from "./project-types";
 import type { RequirementStatus } from "./statuses";
 
 function firstParam(
@@ -12,19 +12,21 @@ function firstParam(
 
 export function parsePresetIdParam(
   raw: string | string[] | undefined,
+  catalog: PresetCatalog,
 ): string | undefined {
   const value = firstParam(raw);
   if (!value) return undefined;
-  return presetById(value) ? value : undefined;
+  return catalog.isValidPresetId(value) ? value : undefined;
 }
 
 /** Preset shown on Requirements: URL override, else project default. */
 export function effectiveRequirementsPresetId(
   project: Project,
   urlPresetId: string | undefined,
+  catalog: PresetCatalog,
 ): string {
   if (urlPresetId) return urlPresetId;
-  return projectDefaultPresetId(project);
+  return projectDefaultPresetId(project, catalog);
 }
 
 export function requirementsPageHref(options: {

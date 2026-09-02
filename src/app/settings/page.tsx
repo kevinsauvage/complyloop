@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { allFrameworkPresets, presetById } from "@/adapters/registry";
+import { allFrameworkPresets, presetById, presetCatalog } from "@/adapters/registry";
 import { projectDefaultPresetId } from "@/core/project-preset";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
@@ -50,7 +50,7 @@ export default async function SettingsPage() {
   const repoUrl =
     project.sourceRef ??
     (githubFullName ? `https://github.com/${githubFullName}` : undefined);
-  const defaultPresetId = projectDefaultPresetId(project);
+  const defaultPresetId = projectDefaultPresetId(project, presetCatalog);
   const defaultPreset = presetById(defaultPresetId);
   const presets = allFrameworkPresets();
 

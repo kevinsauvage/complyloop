@@ -5,9 +5,16 @@ import { wcagFramework } from "@/adapters/wcag/controls";
 import { wcagPresets } from "@/adapters/wcag/presets";
 import type { CheckId } from "@/analysis/types";
 import type { Control, Framework } from "@/core/project-types";
+import type { PresetCatalog } from "@/core/project-preset";
 import type { CheckGuidance, FrameworkAdapter, FrameworkPreset } from "./types";
 
 export const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";
+
+/** Adapter-backed PresetCatalog for core helpers — pass this into them. */
+export const presetCatalog: PresetCatalog = {
+  isValidPresetId: (id) => presetById(id) !== undefined,
+  defaultConnectPresetId: DEFAULT_CONNECT_PRESET_ID,
+};
 
 /**
  * Registered framework adapters. RGAA and WCAG share one unique control

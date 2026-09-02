@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { presetById } from "@/adapters/registry";
+import { presetById, presetCatalog } from "@/adapters/registry";
 import { projectDefaultPresetId } from "@/core/project-preset";
 import type { Project } from "@/core/project-types";
 import { cn } from "@/lib/utils";
@@ -53,7 +53,7 @@ export function FirstAssessmentChecklist({
   canConnect: boolean;
   hasAssessment: boolean;
 }) {
-  const defaultPresetId = projectDefaultPresetId(project);
+  const defaultPresetId = projectDefaultPresetId(project, presetCatalog);
   const preset = presetById(defaultPresetId);
   const targetDone = Boolean(preset);
   const previewDone = Boolean(project.runtimeBaseUrl?.trim());
