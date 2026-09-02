@@ -1,81 +1,53 @@
-# Compliance Engineering Platform - Prioritized TODO List
+# TODO — ComplyLoop
 
-## High Priority (Critical for MVP & Production)
+One list, priority-ordered. Each item says **what** we'll build and **why** it matters.
+Verified against the codebase on 2026-09-02 (supersedes `todo.md` and `nomotron-todo.md`).
 
-### Domain Model & Data Consistency
+**Definition of done for any change:** `npm run lint && npm run typecheck && npm run test && npm run build`
 
-- [ ] **Audit evidence append-only enforcement** - Verify DB trigger works correctly and add integration tests for evidence immutability
-- [ ] **Implement requirement status derivation edge cases** - Handle `not_applicable`, `unable_to_verify` in `deriveRequirementStatus` for exceptions and human passes
-- [ ] **Fix finding-act logic** - Review `src/core/finding-act.ts` decision tree for incomplete action paths (approve, reject, verify, generate patch, constest)
+---
 
-### Analysis Engine Gaps
+## P0 — Go-live blockers (nothing ships until these are done)
 
-- [ ] **Validate runtime-only checks waterfall** - Ensure AST-only scans properly skip runtime-only checks (e.g., contrast, flourish, placeholders-filling)
-- [ ] **Implement heuristic check UI pathway** - Leave `unable_to_verify` status for checks requiring human review (caption-describedby, image-description, etc.)
-- [ ] **Add site-level check validation** - Require ≥2 runtime URLs for site-level consistency checks
+- [ ] **Run the go-live checklist in `docs/deploy.md` on a real environment**
+      What: provision production Postgres + run migrations, set stable `AUTH_SECRET`/`AUTH_URL`, create the production GitHub App (Contents R/W, PR R/W, Checks R/W, Metadata R) + webhook secret, start at least one `npm run worker` process.
+      Why: the app runs in dev today; none of this is confirmed for production, and the worker is mandatory — without it assessments never run.
 
-### Remediation Workflow
+- [ ] **Tested backup & restore drill**
+      What: restore a `pg_dump` to staging once, verify `/api/health` and sign-in afterwards; schedule daily dumps with an off-host copy (`npm run ops:backup` exists, the drill isn't evidenced).
+      Why: evidence is append-only compliance data — an untested backup is not a backup.
 
-- [ ] **Build finding cluster remediation** - Implement "one PR for multiple findings" as per `src/core/remediation.ts` and `docs/ai/finding-flow.md`
-- [ ] **Add source finding bulk remediation** - Currently only runtime findings support bulk actions in `remediation-run.ts`
+- [ ] **Sentry alerting wired, not just a DSN set**
+      What: alert on unhandled exceptions, `webhook_clone_failed`, `workspace_missing`, `assessment_job_failed` evidence, and growing job queues.
+      Why: silent failures mean users wait forever on assessments with no signal to the team.
 
-## Medium Priority (Important Features & Documentation)
+- [ ] **Uptime probe → `GET /api/health`, and `E2E_AUTH_ENABLED` unset in prod**
+      What: point the load balancer at the health endpoint (503 when DB is down); confirm the e2e auth bypass env var is not set on the deployment.
+      Why: the e2e flag skips GitHub App enforcement and clones a fixture tree — leaving it on would be a security hole.
 
-### Documentation & Coverage
+## P1 — Core-loop correctness (the Finding → Remediation → Evidence loop must be trustworthy)
 
-- [ ] **Document finding-act state machine** - Add comprehensive docstring explaining action decision tree
-- [ ] **Add check-authority rationale** - Document why certain checks are composition-sensitive or runtime-only
+- [ ] **Requirement status edge cases**
+      What: decide and implement how `not_applicable` / `unable_to_verify` feed `deriveRequirementStatus` (`src/core/requirement-status.ts`) — today only violations/warnings are considered.
+      Why: requirements could show "passed" while part of their evidence is unverified, which misleads auditors.
 
-### UI/UX Improvements
+- [ ] **Integration tests for check authority classes**
+      What: end-to-end tests proving AST-only scans yield `unable_to_verify` (never `passed`) for runtime-only, composition-sensitive, heuristic, and site-level checks (`src/analysis/check-authority.ts`).
+      Why: unit tests exist, but a regression here would publish false "compliant" results — the worst possible failure for this product.
 
-- [ ] **Implement remediation history view** - Create UI to visualize `RemediationHistoryEntry` from findings
-- [ ] **Add confidence indicators** - Display AI confidence levels in finding explanations
-- [ ] **Build preset management UI** - Finalize `DefaultPresetForm` and persist presets properly
-- [ ] **Add evidence export completeness** - Ensure all `EvidenceKind` variants are covered in exports
+- [ ] **Cluster remediation — one PR for many findings**
+      What: group findings by root cause (spec §17) and remediate them with a single patch/PR; today only single-finding remediation exists.
+      Why: root-cause batching is the biggest time-saver for teams fixing many issues at once.
 
-### AI Integration
+- [ ] **AI graceful degradation sweep**
+      What: verify every AI touchpoint (explanations, fix proposals, verified-fix) degrades cleanly when `AI_GATEWAY_API_KEY` is unset — no dead buttons or empty states.
+      Why: AI is optional by design; the product must be fully usable without it.
 
-- [ ] **Implement AI fallback chain** - When `AI_GATEWAY_API_KEY` not set, gracefully degrade from AI suggestions
-- [ ] **Add certitude state visualization** - Show when findings require manual verification
-- [ ] **Create AI verification workflow** - Complete `verified-fix.ts` integration with ComplyLoop verification
+- [ ] **Finish `verified-fix.ts` → re-scan gate**
+      What: AI-generated patches must pass the deterministic ComplyLoop re-scan before "Create draft PR" is offered.
+      Why: we never ship an AI patch that wasn't verified by the engine — trust is the product.
 
-### Testing & Quality
+## P2 — Completeness & UX
 
-- [ ] **Expand E2E for threaded hooks** - Test mutations and actions that rely on `@tanstack/react-table`
-- [ ] **Add RBAC integration tests** - Cover all protected routes in `src/server/workspace.ts`
-- [ ] **Create migration test harness** - Test DB migrations with `npm run test:coverage`
-- [ ] **Add tautology check audit** - Review `src/analysis/checks/` for tautological or redundant checks
-
-## Low Priority (Polish & Enhancement)
-
-### Code Quality
-
-- [ ] **Remove barrel re-exports from adapters** - Use direct imports instead of `index.ts` barrels
-- [ ] **Audit EDT mutation handling** - Ensure all mutations have proper error boundaries
-- [ ] **Add Suspense boundary wrappers** - Wrap data-fetching components for concurrent rendering
-- [ ] **Conduct React Server Components audit** - Remove unnecessary client components
-
-### Monitoring & Observability
-
-- [ ] **Implement runtime coverage tracking** - Add UI indicators for runtime coverage percentages
-- [ ] **Add remediation duration metrics** - Track time from finding detection to verification
-- [ ] **Create health check endpoint** - Expose `/api/health` for Docker readiness
-
-### Developer Experience
-
-- [ ] **Add linting rule for domain violations** - ESLint rule to prevent imports from adapters/analysis in core/
-- [ ] **Create story documentation** - Add Storybook stories for complex components
-- [ ] **Prettify migration workflow** - Simplify `npm run db:migrate` with prettier formatting
-
-### Performance
-
-- [ ] **Apply React.memo to findings list** - Optimize virtualized finding queue
-- [ ] **Implement React.Suspense for dialogs** - Lazy load complex remediation dialogs
-- [ ] **Add bundle analysis to CI** - Run `next-bundle-analyzer` in CI pipeline
-
-## Notes
-
-- The core loop is: Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Monitoring
-- Stack decisions are documented in `docs/ai/architecture.md`
-- Product scope decisions in `compliance-engineering-product-spec.md`
-- Domain rules in `.cursor/rules/domain-model.mdc`
+- [ ] **Remediation history view** — visualize the `RemediationHistoryEntry` timeline on a finding. Why: teams need to see who approved/verified what, and when.
+- [ ] **E2E coverage for webhook-driven flows** — push/PR event → re-assess → regression → Check Run, in Playwright. Why: this is the continuous-monitoring promise; it's currently untested end-to-end.
