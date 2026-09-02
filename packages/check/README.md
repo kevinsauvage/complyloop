@@ -45,4 +45,4 @@ npm run check -- .    # bundle or tsx fallback
 npm run check -- packages/check/testdata   # deliberate violations (see src/cli/check.test.ts)
 ```
 
-`testdata/Bad.tsx` exercises wave-1 heuristics (`error-prevention`, `captcha-alternative`, `reduced-motion`, …) plus `img-alt`.
+`testdata/Bad.tsx` exercises heuristic checks (`error-prevention`, `captcha-alternative`, `reduced-motion`, …) plus `img-alt`.

@@ -9,7 +9,7 @@ const testdataDir = path.resolve(
 );
 
 describe("complyloop-check testdata", () => {
-  it("flags deliberate AST violations including wave-1 heuristics", () => {
+  it("flags deliberate AST violations for new heuristic checks", () => {
     const { findings } = scanProject(testdataDir);
     const checkIds = new Set(findings.map((finding) => finding.checkId));
 

@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import { afterAll, describe, expect, it } from "vitest";
 import { chromium, type Browser } from "playwright";
-import { captchaAlternativeViolation } from "./captcha-alternative";
-import { errorPreventionViolation } from "./error-prevention";
-import { supplementaryContentKeyboardViolation } from "./supplementary-content-keyboard";
+import { captchaAlternativeViolation } from "./custom-checks/captcha-alternative";
+import { errorPreventionViolation } from "./custom-checks/error-prevention";
+import { supplementaryContentKeyboardViolation } from "./custom-checks/supplementary-content-keyboard";
 
 function chromiumExecutableAvailable(): boolean {
   try {
@@ -13,7 +13,7 @@ function chromiumExecutableAvailable(): boolean {
   }
 }
 
-describe("wave-1 custom runtime checks", () => {
+describe("custom runtime checks (Playwright)", () => {
   let browser: Browser | null = null;
 
   afterAll(async () => {
