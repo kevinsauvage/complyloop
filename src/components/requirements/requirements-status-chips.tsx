@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { RequirementStatusBadge } from "@/components/badges";
-import { requirementsStatusHref } from "@/core/requirement-status-filter";
+import { requirementsPageHref } from "@/core/requirements-page";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@/core/statuses";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@/core/statuses";
@@ -8,10 +8,17 @@ import type { RequirementStatus } from "@/core/statuses";
 export function RequirementsStatusChips({
   counts,
   selected,
+  presetId,
+  defaultPresetId,
 }: {
   counts: Map<RequirementStatus, number>;
   selected: RequirementStatus | undefined;
+  presetId: string;
+  defaultPresetId: string;
 }) {
+  const pageHref = (status?: RequirementStatus) =>
+    requirementsPageHref({ presetId, status, defaultPresetId });
+
   return (
     <ul
       className="mb-6 flex flex-wrap gap-2"
@@ -20,7 +27,7 @@ export function RequirementsStatusChips({
       {selected ? (
         <li>
           <Link
-            href={requirementsStatusHref()}
+            href={pageHref()}
             className={cn(
               "flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-1.5 text-sm font-medium",
               "outline-none transition-colors hover:bg-accent/40 hover:ring-1 hover:ring-signal/40",
@@ -38,11 +45,7 @@ export function RequirementsStatusChips({
         return (
           <li key={status}>
             <Link
-              href={
-                isSelected
-                  ? requirementsStatusHref()
-                  : requirementsStatusHref(status)
-              }
+              href={isSelected ? pageHref() : pageHref(status)}
               aria-current={isSelected ? "true" : undefined}
               className={cn(
                 "flex items-center gap-2 rounded-lg border bg-card/60 px-2.5 py-1.5",

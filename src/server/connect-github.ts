@@ -127,6 +127,7 @@ export async function connectGitHubRepo(
       ownerUserId: input.ownerUserId,
       orgId,
       github,
+      defaultPresetId: connectPreset.id,
       assessmentPresetId: connectPreset.id,
       inScopeControlIds: [...connectPreset.controlIds],
       createdAt: new Date().toISOString(),

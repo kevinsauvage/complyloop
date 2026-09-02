@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { presetById } from "@/adapters/registry";
+import { projectDefaultPresetId } from "@/core/project-preset";
 import type { Project } from "@/core/project-types";
 import { cn } from "@/lib/utils";
 import { runAssessmentAction } from "@/server/actions/assessment";
@@ -52,10 +53,9 @@ export function FirstAssessmentChecklist({
   canConnect: boolean;
   hasAssessment: boolean;
 }) {
-  const preset = project.assessmentPresetId
-    ? presetById(project.assessmentPresetId)
-    : undefined;
-  const targetDone = Boolean(project.assessmentPresetId && preset);
+  const defaultPresetId = projectDefaultPresetId(project);
+  const preset = presetById(defaultPresetId);
+  const targetDone = Boolean(preset);
   const previewDone = Boolean(project.runtimeBaseUrl?.trim());
   const assessmentDone = hasAssessment;
 
@@ -90,15 +90,22 @@ export function FirstAssessmentChecklist({
                 <p className="text-sm text-muted-foreground">
                   {preset!.name} — {preset!.controlIds.length} controls.{" "}
                   <Link
-                    href="/requirements"
+                    href="/settings"
                     className="underline underline-offset-4 hover:text-foreground"
                   >
-                    Change target
+                    Change default
                   </Link>
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Choose RGAA 4 or a WCAG level on{" "}
+                  Default preset is Full RGAA 4 on connect. Change it in{" "}
+                  <Link
+                    href="/settings"
+                    className="underline underline-offset-4 hover:text-foreground"
+                  >
+                    Settings
+                  </Link>{" "}
+                  or browse presets on{" "}
                   <Link
                     href="/requirements"
                     className="underline underline-offset-4 hover:text-foreground"

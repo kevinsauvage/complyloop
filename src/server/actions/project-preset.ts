@@ -5,11 +5,11 @@ import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { applyFrameworkPreset } from "../requirements-intake";
+import { setDefaultPreset } from "../project-preset";
 import { withWorkspaceWrite } from "../workspace";
-import { requireOnActive } from "./shared";
+import { refresh, requireOnActive } from "./shared";
 
-export async function applyFrameworkPresetAction(
+export async function setDefaultPresetAction(
   _previous: ActionMessageState,
   formData: FormData,
 ): Promise<ActionMessageState> {
@@ -20,13 +20,13 @@ export async function applyFrameworkPresetAction(
     }
     let changed = false;
     await withWorkspaceWrite(async (workspace) => {
-      requireOnActive(workspace, "project.assess");
+      requireOnActive(workspace, "project.connect");
       const { db, project } = workspace;
-      changed = applyFrameworkPreset(db, project, presetId).changed;
+      changed = setDefaultPreset(db, project, presetId).changed;
     });
-    // Client toasts then router.refresh() — avoid layout revalidate wiping the toast.
+    refresh();
     return changed
-      ? "Assessment target updated"
-      : "This is already the assessment target.";
+      ? "Default assessment preset saved"
+      : "This is already the default preset.";
   });
 }

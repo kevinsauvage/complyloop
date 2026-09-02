@@ -1,5 +1,6 @@
 import { EmptyState, MetaTile, PageActionLink, PageHeader } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
+import { DefaultPresetForm } from "@/components/settings/default-preset-form";
 import { RuntimeAuditForm } from "@/components/runtime-audit-form";
 import {
   Card,
@@ -8,6 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { allFrameworkPresets, presetById } from "@/adapters/registry";
+import { projectDefaultPresetId } from "@/core/project-preset";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 
@@ -47,6 +50,9 @@ export default async function SettingsPage() {
   const repoUrl =
     project.sourceRef ??
     (githubFullName ? `https://github.com/${githubFullName}` : undefined);
+  const defaultPresetId = projectDefaultPresetId(project);
+  const defaultPreset = presetById(defaultPresetId);
+  const presets = allFrameworkPresets();
 
   return (
     <>
@@ -93,6 +99,38 @@ export default async function SettingsPage() {
               <p className="rounded-lg border border-dashed border-border/60 px-3 py-2.5 text-muted-foreground">
                 Runtime audit is off — assessments use source (AST) checks only.
               </p>
+            )}
+            {defaultPreset ? (
+              <MetaTile label="Default assessment preset">
+                <p className="font-medium">{defaultPreset.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {defaultPreset.controlIds.length} controls
+                </p>
+              </MetaTile>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none ring-1 ring-border/60">
+          <CardHeader>
+            <CardTitle>Assessment preset</CardTitle>
+            <CardDescription>
+              Default framework and level for assessments. Browse other presets
+              on Requirements without changing this default.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {caps.canConnect ? (
+              <DefaultPresetForm
+                key={defaultPresetId}
+                presets={presets}
+                defaultPresetId={defaultPresetId}
+              />
+            ) : (
+              <PermissionNotice>
+                Changing the default preset requires an admin or owner role in
+                the active organization.
+              </PermissionNotice>
             )}
           </CardContent>
         </Card>

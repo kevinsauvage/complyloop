@@ -95,7 +95,7 @@ Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on
 
 ### Requirements intake
 
-Each project = **one framework + one preset**. RGAA is a single catalog (no A/AA/AAA). WCAG offers Full / AA / extra checks. Connect defaults to Full RGAA. Topical groups on the Requirements page are **display only**, not intake scope.
+Each project stores a **`defaultPresetId`** (set on connect, editable in Settings). Assessments always use that default. The Requirements page accepts an optional **`?presetId=`** URL param to browse other presets (shareable links); status filters use **`?status=`** and preserve `presetId`. Connect defaults to Full RGAA. Topical groups on the Requirements page are **display only**, not intake scope.
 
 ## Key flows
 

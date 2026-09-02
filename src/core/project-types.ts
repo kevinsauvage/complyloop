@@ -83,15 +83,19 @@ export interface Project {
   /** Present when source is `github`. */
   github?: ProjectGitHubMeta;
   /**
-   * Custom control IDs in scope. Ignored when `assessmentPresetId` is set
+   * Custom control IDs in scope. Ignored when a project preset is set
    * (assessment then uses the live preset membership). `undefined` with no
    * preset means every control in the catalog is in scope.
    */
   inScopeControlIds?: string[];
   /**
-   * Selected framework preset (RGAA catalog, or a WCAG level). When set,
-   * assessment scope is the current preset membership in code, not a frozen
-   * snapshot of `inScopeControlIds`.
+   * Default framework preset for this project. Set on connect, editable in
+   * Settings. Drives assessment scope and the Requirements page when no
+   * `?presetId=` is present.
+   */
+  defaultPresetId?: string;
+  /**
+   * @deprecated Use `defaultPresetId`. Kept for existing stored projects.
    */
   assessmentPresetId?: string;
   /**

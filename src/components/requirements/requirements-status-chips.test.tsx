@@ -4,6 +4,8 @@ import type { RequirementStatus } from "@/core/statuses";
 import { renderWithUiProviders } from "@/test/render-ui";
 import { RequirementsStatusChips } from "./requirements-status-chips";
 
+const defaultPresetId = "preset-rgaa-full";
+
 afterEach(() => {
   cleanup();
 });
@@ -16,18 +18,30 @@ function countsOf(
   );
 }
 
+function renderChips(
+  props: Partial<{
+    counts: Map<RequirementStatus, number>;
+    selected: RequirementStatus | undefined;
+    presetId: string;
+    defaultPresetId: string;
+  }> = {},
+) {
+  return renderWithUiProviders(
+    <RequirementsStatusChips
+      counts={props.counts ?? countsOf({ failed: 12, passed: 4 })}
+      selected={props.selected}
+      presetId={props.presetId ?? defaultPresetId}
+      defaultPresetId={props.defaultPresetId ?? defaultPresetId}
+    />,
+  );
+}
+
 describe("RequirementsStatusChips", () => {
   it("links each status chip to a deep link and marks the active filter", () => {
-    renderWithUiProviders(
-      <RequirementsStatusChips
-        counts={countsOf({ failed: 12, passed: 4 })}
-        selected="failed"
-      />,
-    );
+    renderChips({ selected: "failed" });
 
     const failed = screen.getByRole("link", { name: /failed/i });
     expect(failed).toHaveAttribute("aria-current", "true");
-    // Selected chip clears the filter when activated again.
     expect(failed).toHaveAttribute("href", "/requirements");
 
     const passed = screen.getByRole("link", { name: /passed/i });
@@ -35,25 +49,37 @@ describe("RequirementsStatusChips", () => {
     expect(passed).toHaveAttribute("href", "/requirements?status=passed");
   });
 
-  it("offers an All chip that clears the filter when a status is selected", () => {
-    renderWithUiProviders(
-      <RequirementsStatusChips
-        counts={countsOf({ failed: 2 })}
-        selected="failed"
-      />,
+  it("preserves a non-default preset in status links", () => {
+    renderChips({
+      selected: "failed",
+      presetId: "preset-wcag-aa",
+    });
+
+    expect(screen.getByRole("link", { name: /failed/i })).toHaveAttribute(
+      "href",
+      "/requirements?presetId=preset-wcag-aa",
     );
+    expect(screen.getByRole("link", { name: /passed/i })).toHaveAttribute(
+      "href",
+      "/requirements?presetId=preset-wcag-aa&status=passed",
+    );
+  });
+
+  it("offers an All chip that clears the filter when a status is selected", () => {
+    renderChips({
+      counts: countsOf({ failed: 2 }),
+      selected: "failed",
+    });
 
     const all = screen.getByRole("link", { name: /^all$/i });
     expect(all).toHaveAttribute("href", "/requirements");
   });
 
   it("hides the All chip when no status filter is active", () => {
-    renderWithUiProviders(
-      <RequirementsStatusChips
-        counts={countsOf({ failed: 2 })}
-        selected={undefined}
-      />,
-    );
+    renderChips({
+      counts: countsOf({ failed: 2 }),
+      selected: undefined,
+    });
 
     expect(screen.queryByRole("link", { name: /^all$/i })).toBeNull();
   });

@@ -1,26 +1,42 @@
 import { AssessedRequirementList } from "@/components/requirements/assessed-requirement-list";
-import { RequirementsIntakePanel } from "@/components/requirements/requirements-intake-panel";
+import { RequirementsPresetPanel } from "@/components/requirements/requirements-preset-panel";
 import { RequirementsStatusChips } from "@/components/requirements/requirements-status-chips";
 import { EmptyState, PageActionLink, PageHeader } from "@/components/page-primitives";
 import { presetById, defaultConnectPreset } from "@/adapters/registry";
+import { projectDefaultPresetId } from "@/core/project-preset";
+import {
+  effectiveRequirementsPresetId,
+  parsePresetIdParam,
+  requirementsPageHref,
+} from "@/core/requirements-page";
 import {
   parseRequirementStatusParam,
-  requirementsStatusHref,
 } from "@/core/requirement-status-filter";
 import type { RequirementStatus } from "@/core/statuses";
-import { controlsInScope } from "@/server/assessment-status";
+import type { Control } from "@/core/project-types";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
 
+function controlsForPreset(
+  controls: readonly Control[],
+  presetId: string,
+): Control[] {
+  const preset = presetById(presetId);
+  if (!preset) return [];
+  const ids = new Set(preset.controlIds);
+  return controls.filter((control) => ids.has(control.id));
+}
+
 export default async function RequirementsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string | string[] }>;
+  searchParams: Promise<{ status?: string | string[]; presetId?: string | string[] }>;
 }) {
-  const { status: statusRaw } = await searchParams;
-  const statusFilter = parseRequirementStatusParam(statusRaw);
+  const params = await searchParams;
+  const statusFilter = parseRequirementStatusParam(params.status);
+  const urlPresetId = parsePresetIdParam(params.presetId);
   const { db, project, access, activeOrgId } = await getWorkspace();
   const caps = projectCapabilities(project, access, activeOrgId);
   if (!project) {
@@ -28,7 +44,7 @@ export default async function RequirementsPage({
       <>
         <PageHeader
           title="Requirements"
-          description="Connect a repository to choose an assessment target."
+          description="Connect a repository to browse requirements by preset."
         />
         <EmptyState
           title="No project connected"
@@ -39,18 +55,21 @@ export default async function RequirementsPage({
       </>
     );
   }
+
+  const defaultPresetId = projectDefaultPresetId(project);
+  const selectedPresetId = effectiveRequirementsPresetId(project, urlPresetId);
+  const selectedPreset = presetById(selectedPresetId);
+  const frameworkId =
+    selectedPreset?.frameworkId ?? defaultConnectPreset().frameworkId;
+
   const requirements = db.requirements.filter(
     (requirement) => requirement.projectId === project.id,
   );
-  const inScopeControls = controlsInScope(db, project);
-  const inScopeIds = new Set(inScopeControls.map((control) => control.id));
+  const presetControls = controlsForPreset(db.controls, selectedPresetId);
+  const inScopeIds = new Set(presetControls.map((control) => control.id));
   const assessed = requirements.filter((requirement) =>
     inScopeIds.has(requirement.controlId),
   );
-  const target = project.assessmentPresetId
-    ? presetById(project.assessmentPresetId)
-    : undefined;
-  const frameworkId = target?.frameworkId ?? defaultConnectPreset().frameworkId;
 
   const openFindingCounts = new Map<string, number>();
   for (const finding of db.findings) {
@@ -75,23 +94,25 @@ export default async function RequirementsPage({
   const filteredControlIds = new Set(
     filtered.map((requirement) => requirement.controlId),
   );
-  const filteredControls = inScopeControls.filter((control) =>
+  const filteredControls = presetControls.filter((control) =>
     filteredControlIds.has(control.id),
   );
 
-  const targetLabel = target?.name ?? "all catalog controls";
+  const targetLabel = selectedPreset?.name ?? "all catalog controls";
 
   return (
     <>
       <PageHeader
         title="Requirements"
-        description={`Assessment target for "${project.name}": ${targetLabel}`}
+        description={`"${project.name}" — ${targetLabel}`}
       />
 
       {assessed.length > 0 ? (
         <RequirementsStatusChips
           counts={statusCounts}
           selected={statusFilter}
+          presetId={selectedPresetId}
+          defaultPresetId={defaultPresetId}
         />
       ) : null}
 
@@ -107,14 +128,14 @@ export default async function RequirementsPage({
             >
               <p>
                 Run an assessment from the dashboard to evaluate each in-scope
-                requirement.
+                requirement for this preset.
               </p>
             </EmptyState>
           ) : filtered.length === 0 ? (
             <EmptyState
               title="No requirements match this status"
               action={
-                <PageActionLink href={requirementsStatusHref()}>
+                <PageActionLink href={requirementsPageHref({ presetId: selectedPresetId, defaultPresetId })}>
                   Clear filter
                 </PageActionLink>
               }
@@ -136,11 +157,12 @@ export default async function RequirementsPage({
           )}
         </section>
 
-        <aside aria-label="Intake" className="lg:col-span-1">
+        <aside aria-label="Preset navigation" className="lg:col-span-1">
           <div className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-            <RequirementsIntakePanel
-              canAssess={caps.canAssess}
-              currentPresetId={project.assessmentPresetId}
+            <RequirementsPresetPanel
+              defaultPresetId={defaultPresetId}
+              selectedPresetId={selectedPresetId}
+              statusFilter={statusFilter}
             />
           </div>
         </aside>

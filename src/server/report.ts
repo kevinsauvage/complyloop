@@ -3,6 +3,7 @@ import type { Control, Framework, Project, Requirement } from "@/core/project-ty
 import type { EvidenceRecord, Finding, Remediation } from "@/core/finding-types";
 import { controlDisplayCodes } from "@/adapters/control-theme";
 import { presetById } from "@/adapters/registry";
+import { projectDefaultPresetId } from "@/core/project-preset";
 import { formatLocationRef, locationSnippet } from "@/core/location";
 import {
   evidenceKindLabel,
@@ -34,9 +35,7 @@ export function frameworkForProject(
   db: Db,
   project: Project,
 ): Framework {
-  const preset = project.assessmentPresetId
-    ? presetById(project.assessmentPresetId)
-    : undefined;
+  const preset = presetById(projectDefaultPresetId(project));
   if (preset) {
     const fromPreset = db.frameworks.find(
       (framework) => framework.id === preset.frameworkId,
