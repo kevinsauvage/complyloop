@@ -72,6 +72,10 @@ import { langChangeCheck } from "./lang-change";
 import { crypticContentAltCheck } from "./cryptic-content-alt";
 import { audioDescriptionOrAltCheck } from "./audio-description-or-alt";
 import { captionsLiveCheck } from "./captions-live";
+import { errorPreventionCheck } from "./error-prevention";
+import { reducedMotionCheck } from "./reduced-motion";
+import { captchaAlternativeCheck } from "./captcha-alternative";
+import { accessibleAuthEnhancedCheck } from "./accessible-auth-enhanced";
 import type { AccessibilityCheck } from "../types";
 
 export const allChecks: AccessibilityCheck[] = [
@@ -149,4 +153,8 @@ export const allChecks: AccessibilityCheck[] = [
   crypticContentAltCheck,
   audioDescriptionOrAltCheck,
   captionsLiveCheck,
+  errorPreventionCheck,
+  reducedMotionCheck,
+  captchaAlternativeCheck,
+  accessibleAuthEnhancedCheck,
 ];

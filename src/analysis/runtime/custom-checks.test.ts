@@ -58,6 +58,21 @@ describe("custom runtime axe mappings", () => {
     expect(checkIdForAxeRule("complyloop-flash-threshold")).toBe(
       "flash-threshold",
     );
+    expect(checkIdForAxeRule("complyloop-error-prevention")).toBe(
+      "error-prevention",
+    );
+    expect(checkIdForAxeRule("complyloop-captcha-alternative")).toBe(
+      "captcha-alternative",
+    );
+    expect(checkIdForAxeRule("complyloop-accessible-auth-enhanced")).toBe(
+      "accessible-auth-enhanced",
+    );
+    expect(checkIdForAxeRule("complyloop-media-identification")).toBe(
+      "media-identification",
+    );
+    expect(checkIdForAxeRule("complyloop-supplementary-content-keyboard")).toBe(
+      "supplementary-content-keyboard",
+    );
     expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });
 

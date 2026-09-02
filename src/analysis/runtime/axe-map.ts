@@ -73,7 +73,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
 
   // Runtime-only / rendered
   "color-contrast": "color-contrast",
-  "color-contrast-enhanced": "color-contrast",
+  "color-contrast-enhanced": "color-contrast-enhanced",
   "link-in-text-block": "use-of-color",
   "document-title": "document-title",
   bypass: "bypass",
@@ -150,6 +150,11 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-layout-table-linearization": "layout-table-linearization",
   "complyloop-media-at-compatible": "media-at-compatible",
   "complyloop-flash-threshold": "flash-threshold",
+  "complyloop-error-prevention": "error-prevention",
+  "complyloop-captcha-alternative": "captcha-alternative",
+  "complyloop-accessible-auth-enhanced": "accessible-auth-enhanced",
+  "complyloop-media-identification": "media-identification",
+  "complyloop-supplementary-content-keyboard": "supplementary-content-keyboard",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {

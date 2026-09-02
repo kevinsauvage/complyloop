@@ -1,0 +1,41 @@
+import { describe, expect, it } from "vitest";
+import {
+  AGREE_LABEL,
+  AUTH_CONTEXT,
+  CAPTCHA_ALTERNATIVE,
+  CONFIRM_LABEL,
+  HIGH_RISK,
+  PUZZLE_CAPTCHA,
+  VAGUE_LINK_TEXT,
+  matchesMultilingual,
+} from "./multilingual";
+
+describe("multilingual patterns", () => {
+  it("detects French high-risk checkout context", () => {
+    expect(HIGH_RISK.test("formulaire de paiement")).toBe(true);
+    expect(HIGH_RISK.test("valider la commande")).toBe(true);
+  });
+
+  it("detects French confirm and agree safeguards", () => {
+    expect(CONFIRM_LABEL.test("Vérifier la commande")).toBe(true);
+    expect(AGREE_LABEL.test("J'accepte les conditions générales")).toBe(true);
+  });
+
+  it("detects French captcha alternatives and auth context", () => {
+    expect(matchesMultilingual(CAPTCHA_ALTERNATIVE, "Écouter le captcha")).toBe(
+      true,
+    );
+    expect(matchesMultilingual(AUTH_CONTEXT, "Mot de passe")).toBe(true);
+  });
+
+  it("detects French puzzle captcha cues", () => {
+    expect(PUZZLE_CAPTCHA.test("Sélectionnez tous les feux tricolores")).toBe(
+      true,
+    );
+  });
+
+  it("detects French vague link text", () => {
+    expect(VAGUE_LINK_TEXT.test("cliquez ici")).toBe(true);
+    expect(VAGUE_LINK_TEXT.test("en savoir plus")).toBe(true);
+  });
+});

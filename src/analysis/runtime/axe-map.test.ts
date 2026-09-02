@@ -23,7 +23,9 @@ describe("axe-map", () => {
 
   it("ignores unmapped axe rules", () => {
     expect(checkIdForAxeRule("totally-made-up-rule")).toBeUndefined();
-    expect(checkIdForAxeRule("color-contrast-enhanced")).toBe("color-contrast");
+    expect(checkIdForAxeRule("color-contrast-enhanced")).toBe(
+      "color-contrast-enhanced",
+    );
     expect(checkIdForAxeRule("table-duplicate-name")).toBe("table-caption");
     expect(checkIdForAxeRule("identical-links-same-purpose")).toBe(
       "identical-links-purpose",

@@ -746,6 +746,48 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Keep flashes below three per second or reduce the affected area; avoid strobe-like CSS animations (WCAG 2.3.1 / RGAA 13.7).",
   },
+  "error-prevention": {
+    impact:
+      "Legal, financial, or test submissions without a review step can cause irreversible harm when users mis-click or mistype.",
+    howToFix:
+      "Add a confirm/review screen, a reversible window, or an explicit agreement checkbox before final submit (WCAG 3.3.4 / RGAA 11.12).",
+  },
+  "accessible-auth-enhanced": {
+    impact:
+      "Object-recognition or image-selection CAPTCHA blocks users who cannot see or interpret the images, including many cognitive disabilities.",
+    howToFix:
+      "Offer passwordless login, WebAuthn, magic links, or paste-friendly OTP — not image puzzles (WCAG 3.3.9).",
+  },
+  "captcha-alternative": {
+    impact:
+      "Image-only CAPTCHA excludes blind users and people who cannot interpret the challenge visually.",
+    howToFix:
+      "Provide an audio CAPTCHA, a logic question, or human contact that serves the same function (RGAA 1.5).",
+  },
+  "supplementary-content-keyboard": {
+    impact:
+      "Keyboard users cannot reach tooltips, mega-menus, or help text that only appears on pointer hover.",
+    howToFix:
+      "Ensure hover/focus content is dismissable, hoverable, and reachable with keyboard focus (RGAA 12.11 / WCAG 2.1.1).",
+  },
+  "reduced-motion": {
+    impact:
+      "Interaction animations can trigger vestibular symptoms when users cannot disable motion.",
+    howToFix:
+      "Respect prefers-reduced-motion and provide a non-animated path for animated controls (WCAG 2.3.3).",
+  },
+  "media-identification": {
+    impact:
+      "Unlabeled object, embed, or canvas media is announced as a generic blob with no purpose.",
+    howToFix:
+      "Add an accessible name or an adjacent link/button alternative that identifies the media (RGAA 4.7).",
+  },
+  "color-contrast-enhanced": {
+    impact:
+      "Text below a 7:1 contrast ratio is hard to read for users with low vision, especially on non-ideal displays.",
+    howToFix:
+      "Increase foreground/background contrast to at least 7:1 for normal text (WCAG 1.4.6).",
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {

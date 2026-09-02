@@ -1203,7 +1203,7 @@ export const rgaaControls: Control[] = [
     title: "Media is identified and has alternatives",
     description:
       "Non-temporal media is identified and has a text alternative when needed.",
-    checkId: null,
+    checkId: "media-identification",
     complianceWeight: 1.2,
   },
   {
@@ -1456,7 +1456,7 @@ export const rgaaControls: Control[] = [
     title: "Legal and financial submissions can be reviewed or reversed",
     description:
       "Forms that change legal, financial, or test data let the user check, confirm, or reverse the submission.",
-    checkId: null,
+    checkId: "error-prevention",
     complianceWeight: 1.4,
   },
   {
@@ -1467,7 +1467,7 @@ export const rgaaControls: Control[] = [
     title: "Supplementary content on hover or focus is keyboard reachable",
     description:
       "Content shown on hover, focus, or activation is reachable and operable from the keyboard when needed.",
-    checkId: null,
+    checkId: "supplementary-content-keyboard",
     complianceWeight: 1.2,
   },
   {
@@ -1478,7 +1478,7 @@ export const rgaaControls: Control[] = [
     title: "CAPTCHA has a non-image alternative",
     description:
       "When an image CAPTCHA is used, a different modality (audio, logic question, or human contact) provides the same function.",
-    checkId: null,
+    checkId: "captcha-alternative",
     complianceWeight: 1.2,
   },
   {
@@ -1634,6 +1634,39 @@ export const rgaaControls: Control[] = [
       "When live audio is part of synchronized media, captions are provided.",
     checkId: "captions-live",
     complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-accessible-auth-enhanced",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 3.3.9",
+    secondaryCode: "WCAG 3.3.9",
+    title: "Authentication avoids object-recognition puzzles",
+    description:
+      "Login and credential steps do not require image-selection or object-recognition CAPTCHA without an allowed alternative.",
+    checkId: "accessible-auth-enhanced",
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-color-contrast-enhanced",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 1.4.6",
+    secondaryCode: "WCAG 1.4.6",
+    title: "Text contrast meets 7:1 (enhanced)",
+    description:
+      "Foreground and background color of text meets WCAG AAA contrast on the rendered page.",
+    checkId: "color-contrast-enhanced",
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-reduced-motion",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 2.3.3",
+    secondaryCode: "WCAG 2.3.3",
+    title: "Interaction animations respect reduced motion",
+    description:
+      "Motion from interactions can be disabled through prefers-reduced-motion or an equivalent alternative.",
+    checkId: "reduced-motion",
+    complianceWeight: 1.0,
   },
   {
     id: "ctl-audio-description-or-alt",

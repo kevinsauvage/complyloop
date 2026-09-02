@@ -5,6 +5,11 @@ import { cssDisabledContentViolations } from "./css-disabled-content";
 import { cssForPresentationViolations } from "./css-for-presentation";
 import { cssOffUnderstandableViolation } from "./css-off-understandable";
 import { flashThresholdViolation } from "./flash-threshold";
+import { errorPreventionViolation } from "./error-prevention";
+import { captchaAlternativeViolation } from "./captcha-alternative";
+import { accessibleAuthEnhancedViolation } from "./accessible-auth-enhanced";
+import { mediaIdentificationViolation } from "./media-identification";
+import { supplementaryContentKeyboardViolation } from "./supplementary-content-keyboard";
 import { cssHoverKeyboardViolation } from "./css-hover-keyboard";
 import { layoutTableLinearizationViolation } from "./layout-table-linearization";
 import { mediaAtCompatibleViolation } from "./media-at-compatible";
@@ -57,14 +62,21 @@ export async function runCustomRuntimeChecks(
     layoutTableLinearizationViolation(page),
     mediaAtCompatibleViolation(page),
     flashThresholdViolation(page),
+    errorPreventionViolation(page),
+    captchaAlternativeViolation(page),
+    accessibleAuthEnhancedViolation(page),
+    mediaIdentificationViolation(page),
+    supplementaryContentKeyboardViolation(page),
   ]);
 
   const violations: CustomViolation[] = [
     ...(await focusCustomViolations(page)),
     ...(await cssForPresentationViolations(page)),
-    ...optional.flatMap((result) =>
-      result === null ? [] : Array.isArray(result) ? result : [result],
-    ),
+    ...optional.flatMap((result) => {
+      if (result === null) return [];
+      if (Array.isArray(result)) return result;
+      return [result];
+    }),
   ];
 
   return violations.map(toAxeViolation);

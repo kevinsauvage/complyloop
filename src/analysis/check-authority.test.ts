@@ -58,6 +58,12 @@ const RUNTIME_ONLY = [
   "layout-table-linearization",
   "media-at-compatible",
   "flash-threshold",
+  "error-prevention",
+  "captcha-alternative",
+  "accessible-auth-enhanced",
+  "media-identification",
+  "supplementary-content-keyboard",
+  "color-contrast-enhanced",
   "consistent-landmarks",
   "duplicate-page-title",
 ] as const;
@@ -96,7 +102,9 @@ describe("check authority", () => {
     expect(isHeuristicCheck("audio-description-or-alt")).toBe(true);
     expect(isHeuristicCheck("lang-change")).toBe(true);
     expect(isHeuristicCheck("cryptic-content-alt")).toBe(true);
-    expect(isHeuristicCheck("captions-live")).toBe(true);
+    expect(isHeuristicCheck("error-prevention")).toBe(true);
+    expect(isHeuristicCheck("reduced-motion")).toBe(true);
+    expect(isHeuristicCheck("accessible-auth-enhanced")).toBe(true);
     expect(isHeuristicCheck("blockquote-cite")).toBe(false);
     expect(isHeuristicCheck("img-alt")).toBe(false);
     expect(keepOpenWhenRuntimeScanSkipped("image-of-text")).toBe(false);

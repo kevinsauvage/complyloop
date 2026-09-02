@@ -73,6 +73,12 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "layout-table-linearization",
   "media-at-compatible",
   "flash-threshold",
+  "error-prevention",
+  "captcha-alternative",
+  "accessible-auth-enhanced",
+  "media-identification",
+  "supplementary-content-keyboard",
+  "color-contrast-enhanced",
 ] as const satisfies readonly CheckId[];
 
 const SITE_LEVEL_CHECK_IDS = [
@@ -107,6 +113,9 @@ const HEURISTIC_CHECK_IDS = [
   "lang-change",
   "cryptic-content-alt",
   "captions-live",
+  "error-prevention",
+  "reduced-motion",
+  "accessible-auth-enhanced",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);

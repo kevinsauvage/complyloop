@@ -126,7 +126,14 @@ export type CheckId =
   | "css-off-understandable"
   | "layout-table-linearization"
   | "media-at-compatible"
-  | "flash-threshold";
+  | "flash-threshold"
+  | "error-prevention"
+  | "accessible-auth-enhanced"
+  | "captcha-alternative"
+  | "supplementary-content-keyboard"
+  | "reduced-motion"
+  | "media-identification"
+  | "color-contrast-enhanced";
 
 export interface RawFinding {
   checkId: CheckId;

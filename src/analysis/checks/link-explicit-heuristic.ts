@@ -1,5 +1,10 @@
 import { isPropSpreadingHost } from "../jsx-primitives";
 import {
+  VAGUE_LINK_PREFIX,
+  VAGUE_LINK_TEXT,
+  foldAccents,
+} from "../patterns/multilingual";
+import {
   hasTextContent,
   jsxElementOf,
   locationOf,
@@ -9,9 +14,6 @@ import {
 } from "../parse";
 import type { AccessibilityCheck, RawFinding } from "../types";
 import { textContentOf } from "./heuristic-utils";
-
-const VAGUE_LINK_TEXT =
-  /^(click here|read more|here|more|suite|lire la suite|ici|en savoir plus)$/i;
 
 function accessibleLinkText(node: JsxTagNode): string {
   const element = jsxElementOf(node);
@@ -31,7 +33,15 @@ export const linkExplicitHeuristicCheck: AccessibilityCheck = {
       if (!element || !hasTextContent(element)) return;
 
       const text = accessibleLinkText(node);
-      if (!VAGUE_LINK_TEXT.test(text)) return;
+      const normalized = foldAccents(text);
+      if (
+        !VAGUE_LINK_TEXT.test(text) &&
+        !VAGUE_LINK_TEXT.test(normalized) &&
+        !VAGUE_LINK_PREFIX.test(text) &&
+        !VAGUE_LINK_PREFIX.test(normalized)
+      ) {
+        return;
+      }
 
       findings.push({
         checkId: "link-explicit-heuristic",

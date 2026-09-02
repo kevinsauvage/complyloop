@@ -11,6 +11,13 @@ describe("link-explicit-heuristic", () => {
     expect(findings[0]?.kind).toBe("warning");
   });
 
+  it("warns on learn more link text", () => {
+    const findings = linkExplicitHeuristicCheck.run(
+      parseSource("test.tsx", `const A = () => <a href="/report">Learn more</a>;`),
+    );
+    expect(findings).toHaveLength(1);
+  });
+
   it("accepts descriptive link text", () => {
     expect(
       linkExplicitHeuristicCheck.run(
@@ -20,5 +27,15 @@ describe("link-explicit-heuristic", () => {
         ),
       ),
     ).toHaveLength(0);
+  });
+
+  it("warns on French vague link text", () => {
+    const findings = linkExplicitHeuristicCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => <a href="/report">En savoir plus</a>;`,
+      ),
+    );
+    expect(findings).toHaveLength(1);
   });
 });
