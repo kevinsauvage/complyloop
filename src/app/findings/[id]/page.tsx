@@ -111,11 +111,14 @@ export default async function FindingPage({
         description={`${control.secondaryCode} · ${control.description}`}
       />
 
-      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5">
+      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5 shadow-sm">
         <SeverityBadge severity={finding.severity} />
         <ConfidenceBadge confidence={finding.confidence} />
         <RemediationStatusBadge status={remediation.status} />
         <EngineBadge engine={finding.engine ?? "ast"} />
+        <span className="ml-auto font-mono text-xs text-muted-foreground">
+          {finding.checkId}
+        </span>
       </div>
 
       <div className="flex flex-col gap-6">

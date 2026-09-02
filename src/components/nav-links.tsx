@@ -74,10 +74,10 @@ export function NavLinks({
               aria-label={badgeLabel}
               onClick={() => onNavigate?.()}
               className={cn(
-                "relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-150",
                 active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_1px_0_0] shadow-foreground/[0.04]"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
               )}
             >
               {active ? (
@@ -86,11 +86,22 @@ export function NavLinks({
                   aria-hidden
                 />
               ) : null}
-              <Icon className="size-4 shrink-0" aria-hidden />
+              <Icon
+                className={cn(
+                  "size-4 shrink-0 transition-colors",
+                  active ? "text-signal" : "text-current opacity-80",
+                )}
+                aria-hidden
+              />
               <span className="min-w-0 flex-1">{link.label}</span>
               {showBadge ? (
                 <span
-                  className="ml-auto min-w-5 rounded-full bg-signal/15 px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums text-signal"
+                  className={cn(
+                    "ml-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[11px] font-semibold tabular-nums",
+                    active
+                      ? "bg-signal text-signal-foreground"
+                      : "bg-signal/15 text-signal",
+                  )}
                   aria-hidden
                 >
                   {count > 99 ? "99+" : count}

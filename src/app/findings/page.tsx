@@ -153,7 +153,7 @@ export default async function FindingsPage({
 
       <div className="flex flex-col gap-6">
         <Tabs key={defaultTab} defaultValue={defaultTab}>
-          <TabsList>
+          <TabsList className="panel-frost sticky top-[68px] z-20 rounded-lg border border-border/60 shadow-sm sm:top-[72px]">
             <TabsTrigger value="open" asChild>
               <Link href={tabHref("open", listParams)}>
                 Open{openSlice.total > 0 ? ` (${openSlice.total})` : ""}

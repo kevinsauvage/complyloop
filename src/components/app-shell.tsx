@@ -20,14 +20,18 @@ import {
 function BrandMark({ className }: { className?: string }) {
   return (
     <Link href="/" className={className}>
-      <span className="flex items-center gap-2">
-        <span
-          className="size-2 shrink-0 rounded-full bg-signal shadow-[0_0_0_3px] shadow-signal/20"
-          aria-hidden
-        />
-        <span className="text-lg font-semibold tracking-tight">ComplyLoop</span>
+      <span className="flex items-center gap-2.5">
+        <span className="relative flex size-7 shrink-0 items-center justify-center rounded-lg bg-signal shadow-[0_0_0_1px] shadow-signal/30">
+          <span
+            className="size-2 rounded-sm bg-signal-foreground/95"
+            aria-hidden
+          />
+        </span>
+        <span className="text-base font-semibold tracking-tight">
+          ComplyLoop
+        </span>
       </span>
-      <span className="mt-1 block pl-4 text-xs text-muted-foreground">
+      <span className="mt-1.5 block pl-[38px] text-[11px] leading-tight text-muted-foreground">
         Requirement → Fix → Verified → Evidence
       </span>
     </Link>
@@ -51,23 +55,26 @@ function SidebarBody({
       <nav aria-label="Main" className="flex-1">
         <NavLinks navAttention={navAttention} onNavigate={onNavigate} />
       </nav>
-      <div className="mt-auto space-y-4">
+      <div className="mt-auto space-y-3">
         <Separator />
         <div className="px-3">
           <ThemeToggle />
         </div>
         {authControls}
-        <p className="px-3 text-xs text-muted-foreground">
+        <p className="px-3 text-[11px] leading-relaxed text-muted-foreground/80">
           MVP — RGAA / WCAG for React &amp; Next.js
         </p>
-        <p className="px-3 text-xs text-muted-foreground">
-          <Link href="/legal/terms" className="hover:text-foreground hover:underline">
+        <p className="px-3 text-[11px] text-muted-foreground/80">
+          <Link
+            href="/legal/terms"
+            className="underline-offset-2 hover:text-foreground hover:underline"
+          >
             Terms
           </Link>
           {" · "}
           <Link
             href="/legal/privacy"
-            className="hover:text-foreground hover:underline"
+            className="underline-offset-2 hover:text-foreground hover:underline"
           >
             Privacy
           </Link>
@@ -113,8 +120,11 @@ export function AppShell({
         Skip to main content
       </a>
       <div className="flex min-h-screen flex-col md:flex-row">
-        <header className="flex items-center justify-between border-b border-border bg-sidebar px-4 py-3 md:hidden">
-          <Link href="/" className="text-lg font-semibold tracking-tight">
+        <header className="panel-frost sticky top-0 z-40 flex items-center justify-between border-b border-border bg-sidebar/70 px-4 py-3 md:hidden">
+          <Link href="/" className="flex items-center gap-2 text-base font-semibold tracking-tight">
+            <span className="flex size-6 items-center justify-center rounded-md bg-signal">
+              <span className="size-1.5 rounded-sm bg-signal-foreground/95" aria-hidden />
+            </span>
             ComplyLoop
           </Link>
           <Sheet open={navOpen} onOpenChange={setNavOpen}>
@@ -142,12 +152,15 @@ export function AppShell({
           </Sheet>
         </header>
 
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/90 px-3 py-6 backdrop-blur-sm md:flex">
+        <aside className="panel-frost sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/60 px-3 py-6 md:flex">
           <SidebarBody authControls={authControls} navAttention={navAttention} />
         </aside>
 
-        <main id="main-content" className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-8">
-          <div className="mx-auto max-w-5xl">
+        <main
+          id="main-content"
+          className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-10"
+        >
+          <div className="mx-auto max-w-6xl">
             {workspaceContext}
             {children}
           </div>

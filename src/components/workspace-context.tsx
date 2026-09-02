@@ -1,3 +1,4 @@
+import { FolderGit2, Layers } from "lucide-react";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
@@ -42,11 +43,14 @@ export async function WorkspaceContext() {
 
   if (!project) {
     return (
-      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/50 px-3 py-2.5 text-sm text-muted-foreground">
+      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5 text-sm text-muted-foreground shadow-sm">
+        <Layers className="size-4 text-muted-foreground/70" aria-hidden />
         <span className="font-medium text-foreground">No project connected</span>
         {orgName ? (
           <>
-            <span aria-hidden>·</span>
+            <span aria-hidden className="text-border">
+              /
+            </span>
             <span>{orgName}</span>
           </>
         ) : null}
@@ -58,22 +62,30 @@ export async function WorkspaceContext() {
   // Nothing to switch — quiet identity strip (+ optional add project).
   if (!showOrgSwitcher && !showProjectSwitcher) {
     return (
-      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/50 px-3 py-2.5 text-sm text-muted-foreground">
+      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5 text-sm text-muted-foreground shadow-sm">
+        <FolderGit2
+          className="size-4 shrink-0 text-muted-foreground/70"
+          aria-hidden
+        />
         <span className="font-medium text-foreground">{project.name}</span>
         {orgName ? (
           <>
-            <span aria-hidden>·</span>
+            <span aria-hidden className="text-border">
+              /
+            </span>
             <span>{orgName}</span>
           </>
         ) : null}
-      {coverageStrip}
-      {addProject ? <div className={coverageStrip ? "" : "ml-auto"}>{addProject}</div> : null}
+        {coverageStrip}
+        {addProject ? (
+          <div className={coverageStrip ? "" : "ml-auto"}>{addProject}</div>
+        ) : null}
       </div>
     );
   }
 
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card/50 px-3 py-2.5">
+    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5 shadow-sm">
       {showOrgSwitcher && activeOrgId ? (
         <OrgSwitcher organizations={organizations} activeOrgId={activeOrgId} />
       ) : orgName ? (

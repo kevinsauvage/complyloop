@@ -147,13 +147,17 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    @apply scroll-smooth;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     background-image:
       linear-gradient(var(--surface-grid) 1px, transparent 1px),
       linear-gradient(90deg, var(--surface-grid) 1px, transparent 1px);
     background-size: 48px 48px;
     background-attachment: fixed;
+    text-rendering: optimizeLegibility;
   }
   html {
     @apply font-sans;
@@ -161,13 +165,40 @@
   }
   h1,
   h2,
-  h3 {
+  h3,
+  h4 {
     letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--signal) 25%, transparent);
   }
   :focus-visible {
     outline: none;
   }
+  /* Subtle slim scrollbars that match the theme in both modes */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent)
+      transparent;
+  }
   .skip-link {
     @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-signal focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-signal-foreground focus:shadow-lg;
+  }
+}
+
+@layer utilities {
+  /* Frosted panel: used by the sidebar and sticky headers over the grid */
+  .panel-frost {
+    background: color-mix(in oklch, var(--card) 55%, transparent);
+    backdrop-filter: blur(12px) saturate(1.4);
+  }
+  /* Hairline top highlight for cards — subtle depth without heavy shadows */
+  .card-sheen {
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklch, var(--foreground) 4%, transparent);
   }
 }
