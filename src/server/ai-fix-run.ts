@@ -5,6 +5,7 @@ import { resolveInside } from "@/analysis/workspace-path";
 import { proposeFixEdits } from "@/ai/fix-propose";
 import {
   generatePatchCandidate,
+  PATCH_PR_SOURCE_ONLY_MESSAGE,
   type GeneratePatchCandidateOptions,
   type PatchCandidate,
   type ProposedFixEdits,
@@ -69,9 +70,7 @@ export async function runAiFixOnCheckout(
   options: RunAiFixOnCheckoutOptions = {},
 ): Promise<PatchCandidate> {
   if (!isSourceLocation(finding.location)) {
-    throw new PublicError(
-      "Patch PRs are only available for source findings. Use the developer handoff for runtime DOM findings.",
-    );
+    throw new PublicError(PATCH_PR_SOURCE_ONLY_MESSAGE);
   }
   const filePath = finding.location.filePath;
   const deterministic = deterministicProposal(rootPath, finding);

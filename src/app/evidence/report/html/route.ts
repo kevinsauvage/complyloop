@@ -1,7 +1,5 @@
-import {
-  buildAuditReportHtml,
-  buildEngineeringReportHtml,
-} from "@/server/report-html";
+import { buildAuditReportHtml } from "@/server/report-html/audit";
+import { buildEngineeringReportHtml } from "@/server/report-html/engineering";
 import { getDrizzle } from "@/server/db-store/client";
 import { listAllEvidenceForProject } from "@/server/db-store/postgres-queries";
 import { reportInputForProject } from "@/server/report";

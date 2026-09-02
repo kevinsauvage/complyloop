@@ -5,10 +5,8 @@ import type { Requirement } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
 import { testProject } from "@/test-fixtures/project";
 import { emptyDb } from "./db";
-import {
-  buildAuditReportHtml,
-  buildEngineeringReportHtml,
-} from "./report-html";
+import { buildAuditReportHtml } from "./report-html/audit";
+import { buildEngineeringReportHtml } from "./report-html/engineering";
 import {
   buildAuditReportMarkdown,
   buildEngineeringReportMarkdown,

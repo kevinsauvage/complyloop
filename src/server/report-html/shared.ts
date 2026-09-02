@@ -1,5 +1,8 @@
 import type { RequirementStatus } from "@/core/statuses";
+import { formatDateTime } from "@/core/format-datetime";
 import type { ReportInput } from "../report";
+
+export { formatDateTime };
 
 export function escapeHtml(text: string): string {
   return text
@@ -7,13 +10,6 @@ export function escapeHtml(text: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
 }
 
 export function statusClass(status: RequirementStatus): string {

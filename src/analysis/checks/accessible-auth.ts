@@ -4,30 +4,10 @@ import {
   getAttribute,
   locationOf,
   stringValueOf,
-  tagNameOf,
   visitJsxTags,
 } from "../parse";
 import type { AccessibilityCheck, RawFinding } from "../types";
-
-const AUTH_AUTOCOMPLETE = new Set([
-  "username",
-  "current-password",
-  "new-password",
-  "email",
-  "one-time-code",
-]);
-
-function isAuthField(node: Parameters<typeof getAttribute>[0]): boolean {
-  const tag = tagNameOf(node);
-  if (tag !== "input") return false;
-  const typeAttr = getAttribute(node, "type");
-  const type = (typeAttr ? stringValueOf(typeAttr) : "text") ?? "text";
-  if (type === "password") return true;
-  const auto =
-    getAttribute(node, "autoComplete") ?? getAttribute(node, "autocomplete");
-  const token = auto ? stringValueOf(auto)?.toLowerCase() : undefined;
-  return Boolean(token && AUTH_AUTOCOMPLETE.has(token));
-}
+import { AUTH_AUTOCOMPLETE, isAuthField } from "./auth-field";
 
 function blocksPaste(node: Parameters<typeof getAttribute>[0]): boolean {
   const paste = getAttribute(node, "onPaste");

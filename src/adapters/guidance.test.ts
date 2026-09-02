@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CheckId } from "@/analysis/types";
 import { allChecks } from "@/analysis/checks/registry";
-import { guidanceFor } from "./guidance";
+import { guidanceFor } from "./registry";
 import { guidanceFor as rgaaGuidanceFor } from "./rgaa/guidance";
 
 const SAMPLE_CHECK_IDS: CheckId[] = [

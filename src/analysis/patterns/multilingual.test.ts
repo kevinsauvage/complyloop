@@ -7,10 +7,24 @@ import {
   HIGH_RISK,
   PUZZLE_CAPTCHA,
   VAGUE_LINK_TEXT,
+  foldAccents,
   matchesMultilingual,
 } from "./multilingual";
 
 describe("multilingual patterns", () => {
+  it("folds accented characters for word-boundary matching", () => {
+    expect(foldAccents("Écouter")).toBe("Ecouter");
+  });
+
+  it("matches patterns after accent folding", () => {
+    expect(matchesMultilingual(/\bconfirmer\b/i, "Confirmer le paiement")).toBe(
+      true,
+    );
+    expect(
+      matchesMultilingual(CAPTCHA_ALTERNATIVE, "Écouter le captcha"),
+    ).toBe(true);
+  });
+
   it("detects French high-risk checkout context", () => {
     expect(HIGH_RISK.test("formulaire de paiement")).toBe(true);
     expect(HIGH_RISK.test("valider la commande")).toBe(true);

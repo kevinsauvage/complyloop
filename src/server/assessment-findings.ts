@@ -1,4 +1,4 @@
-import { guidanceFor } from "@/adapters/guidance";
+import { guidanceFor } from "@/adapters/registry";
 import { deterministicExplanation } from "@/ai/explainer";
 import { filterAstFindingsForAuthority } from "@/analysis/merge-findings";
 import type { RawFinding } from "@/analysis/types";

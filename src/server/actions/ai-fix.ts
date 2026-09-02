@@ -1,5 +1,6 @@
 "use server";
 
+import { PATCH_PR_SOURCE_ONLY_MESSAGE } from "@/ai/verified-fix";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { isSourceLocation } from "@/core/location";
 import { PublicError } from "@/core/public-error";
@@ -35,9 +36,7 @@ export async function generateAiFixAction(
     const finding = findingById(preview.db, findingId);
     requireOnFindingProject(preview, finding, "project.remediate");
     if (!isSourceLocation(finding.location)) {
-      throw new PublicError(
-        "Patch PRs are only available for source findings. Use the developer handoff for runtime DOM findings.",
-      );
+      throw new PublicError(PATCH_PR_SOURCE_ONLY_MESSAGE);
     }
     if (finding.status !== "open") {
       throw new PublicError("Patch generation is only available for open findings.");

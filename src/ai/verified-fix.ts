@@ -6,6 +6,9 @@ import type { ExplanationProvenance } from "@/core/statuses";
 import { isSourceLocation } from "@/core/location";
 import { PublicError } from "@/core/public-error";
 
+export const PATCH_PR_SOURCE_ONLY_MESSAGE =
+  "Patch PRs are only available for source findings. Use the developer handoff for runtime DOM findings.";
+
 export interface FileEdit {
   path: string;
   oldText: string;
@@ -41,9 +44,7 @@ export interface GeneratePatchCandidateOptions {
 
 function sourceFilePath(finding: Finding): string {
   if (!isSourceLocation(finding.location)) {
-    throw new PublicError(
-      "Patch PRs are only available for source findings. Use the developer handoff for runtime DOM findings.",
-    );
+    throw new PublicError(PATCH_PR_SOURCE_ONLY_MESSAGE);
   }
   return finding.location.filePath;
 }
