@@ -1,23 +1,6 @@
 /**
- * Errors whose `message` is safe to show in the product UI.
- * Unexpected failures must not use this class — map them to a generic
- * message plus an error reference instead.
+ * Re-export from @complyloop/analysis-core — the analysis engine now owns the
+ * shared contract types. This file is a compatibility shim so the rest of the
+ * platform can keep importing @/core/<name>; canonical source lives in the package.
  */
-export class PublicError extends Error {
-  readonly code: string;
-
-  constructor(message: string, code = "user") {
-    super(message);
-    this.name = "PublicError";
-    this.code = code;
-  }
-}
-
-export function isPublicError(error: unknown): error is PublicError {
-  return error instanceof PublicError;
-}
-
-/** Safe copy for UI/logs: public message when typed, otherwise `fallback`. */
-export function publicMessage(error: unknown, fallback: string): string {
-  return isPublicError(error) ? error.message : fallback;
-}
+export * from "@complyloop/analysis-core/contract/public-error";

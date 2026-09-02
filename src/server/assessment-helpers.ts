@@ -1,8 +1,8 @@
 import fs from "node:fs";
-import { describeFix, previewFixedLine } from "@/analysis/fixes";
-import { scanFile } from "@/analysis/scan";
-import type { RawFinding } from "@/analysis/types";
-import { resolveInside } from "@/analysis/workspace-path";
+import { describeFix, previewFixedLine } from "@complyloop/analysis-core/fixes";
+import { scanFile } from "@complyloop/analysis-core/scan";
+import type { RawFinding } from "@complyloop/analysis-core/types";
+import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import { isDomLocation, isSiteLocation, isSourceLocation } from "@/core/location";
 import type { Finding, FindingLocation, ProposedFix, RemediationSuggestion } from "@/core/finding-types";
 

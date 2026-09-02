@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { listSourceFiles } from "@/analysis/source-files";
+import { listSourceFiles } from "@complyloop/analysis-core/source-files";
 import type { AssessmentSnapshot, FileChange } from "@/core/finding-types";
 
 function hashFileContents(absolutePath: string): string {

@@ -1,6 +1,6 @@
 import fs from "node:fs";
-import { resolveInside } from "@/analysis/workspace-path";
-import type { RawFinding } from "@/analysis/types";
+import { resolveInside } from "@complyloop/analysis-core/workspace-path";
+import type { RawFinding } from "@complyloop/analysis-core/types";
 import type { Finding } from "@/core/finding-types";
 import type { ExplanationProvenance } from "@/core/statuses";
 import { isSourceLocation } from "@/core/location";

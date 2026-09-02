@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { hasSourceFiles } from "@/analysis/source-files";
+import { hasSourceFiles } from "@complyloop/analysis-core/source-files";
 import type { Project } from "@/core/project-types";
 import { addEvidence, type Db } from "./db";
 import { createGit } from "./git";

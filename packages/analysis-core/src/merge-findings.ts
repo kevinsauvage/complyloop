@@ -1,5 +1,5 @@
-import { isCompositionSensitiveCheck } from "@/analysis/check-authority";
-import type { RawFinding } from "@/analysis/types";
+import { isCompositionSensitiveCheck } from "./check-authority";
+import type { RawFinding } from "./types";
 
 /**
  * When runtime owns composition-sensitive rules, drop AST findings for those

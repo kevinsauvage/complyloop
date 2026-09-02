@@ -3,7 +3,7 @@ import {
   deriveRequirementStatus,
   isStickyHumanDecision,
 } from "@/core/requirement-status";
-import { authorityForCheck } from "@/analysis/check-authority";
+import { authorityForCheck } from "@complyloop/analysis-core/check-authority";
 import type { Finding } from "@/core/finding-types";
 import type { RequirementStatus } from "@/core/statuses";
 import type { Control, Project, Requirement } from "@/core/project-types";

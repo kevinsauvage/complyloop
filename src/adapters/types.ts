@@ -1,4 +1,4 @@
-import type { CheckId } from "@/analysis/types";
+import type { CheckId } from "@complyloop/analysis-core/types";
 import type { Control, Framework } from "@/core/project-types";
 
 export interface CheckGuidance {

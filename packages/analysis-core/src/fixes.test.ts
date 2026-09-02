@@ -5,7 +5,7 @@ import { autoplayMediaCheck } from "./checks/autoplay-media";
 import { buttonNameCheck } from "./checks/button-name";
 import { imgAltCheck } from "./checks/img-alt";
 import { positiveTabindexCheck } from "./checks/positive-tabindex";
-import type { ProposedFix } from "@/core/finding-types";
+import type { ProposedFix } from "./contract/finding-types";
 
 describe("applyFix", () => {
   it("inserts an attribute into a self-closing element and passes the re-check", () => {

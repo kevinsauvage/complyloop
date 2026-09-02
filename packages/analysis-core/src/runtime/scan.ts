@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
-import { PublicError, publicMessage } from "@/core/public-error";
+import { PublicError, publicMessage } from "../contract/public-error";
 import { classifyRuntimeScanError } from "./scan-error";
 import type { RawFinding } from "../types";
 import {
@@ -23,7 +23,7 @@ import {
   type DnsLookup,
 } from "./url-safety";
 import { runCustomRuntimeChecks } from "./custom-checks";
-import { maxRuntimePages } from "@/core/assessment-limits";
+import { maxRuntimePages } from "../contract/assessment-limits";
 
 export type RuntimePageScanner = (
   urls: ReadonlyArray<string>,

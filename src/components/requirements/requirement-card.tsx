@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   isHeuristicCheck,
   isRuntimeOnlyCheck,
-} from "@/analysis/check-authority";
+} from "@complyloop/analysis-core/check-authority";
 import { isPertinenceTwinControl } from "@/adapters/registry";
 import { DeterminationBadge, RequirementStatusBadge } from "@/components/badges";
 import { formatDateTime } from "@/components/page-primitives";

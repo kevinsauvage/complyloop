@@ -20,8 +20,10 @@ await esbuild.build({
   },
   // Keep Node-native CJS deps external (bundling them into ESM breaks require).
   external: ["typescript", "fast-glob"],
+  // Resolve the analysis engine to its source in this monorepo.
   alias: {
     "@": path.join(root, "src"),
+    "@complyloop/analysis-core": path.join(root, "packages/analysis-core/src"),
   },
   logLevel: "info",
 });

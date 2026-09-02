@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls } from "@/adapters/rgaa/controls";
-import { authorityForCheck } from "./check-authority";
-import { deriveRequirementStatus } from "@/core/requirement-status";
+import { authorityForCheck } from "@complyloop/analysis-core/check-authority";
+import { deriveRequirementStatus } from "@complyloop/analysis-core/contract/requirement-status";
 
 /**
  * Integration sweep: every control in the live catalog must map to an

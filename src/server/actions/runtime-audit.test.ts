@@ -11,7 +11,7 @@ const { withWorkspaceWrite } = actionWorkspaceMocks;
 const assertSafeRuntimeUrl = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 
-vi.mock("@/analysis/runtime/url-safety", () => ({
+vi.mock("@complyloop/analysis-core/runtime/url-safety", () => ({
   assertSafeRuntimeUrl: (...args: unknown[]) => assertSafeRuntimeUrl(...args),
 }));
 

@@ -1,5 +1,5 @@
 import type { CheckId } from "./types";
-import type { CheckAuthority } from "@/core/requirement-status";
+import type { CheckAuthority } from "./contract/requirement-status";
 
 /**
  * Rules where composition across components makes source AST unreliable.

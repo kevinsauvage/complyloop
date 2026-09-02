@@ -9,7 +9,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "packages/analysis-core/src/**/*.test.{ts,tsx}"],
     // Assessment / temp-fs tests can exceed 5s under parallel load.
     testTimeout: 15_000,
     coverage: {
@@ -19,15 +19,16 @@ export default defineConfig({
       include: [
         "src/core/**",
         "src/adapters/**",
-        "src/analysis/**",
         "src/ai/**",
         "src/hooks/**",
         "src/server/**",
+        "packages/analysis-core/src/**",
       ],
       exclude: [
         "src/**/*.test.{ts,tsx}",
+        "packages/analysis-core/src/**/*.test.{ts,tsx}",
         "src/server/db-store/**",
-        "src/analysis/runtime/scan.ts",
+        "packages/analysis-core/src/runtime/scan.ts",
         // Thin Next Auth / cookie / workspace glue — covered via e2e.
         "src/server/active-cookies.ts",
         "src/server/workspace.ts",

@@ -9,7 +9,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { scanProject } from "../analysis/scan";
+import { scanProject } from "@complyloop/analysis-core/scan";
 import { formatLocationRef } from "../core/location";
 
 function main(): void {

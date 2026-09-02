@@ -4,7 +4,7 @@ import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { assertSafeRuntimeUrl } from "@/analysis/runtime/url-safety";
+import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
 import { withWorkspaceWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 

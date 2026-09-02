@@ -1,4 +1,4 @@
-import { isPublicError } from "@/core/public-error";
+import { isPublicError } from "../contract/public-error";
 import { TOO_MANY_REDIRECTS_MESSAGE } from "./url-safety";
 
 export const RUNTIME_SCAN_FAILED_MESSAGE = "Runtime scan failed.";

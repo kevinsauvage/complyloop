@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "../contract/public-error";
 import {
   RUNTIME_SCAN_FAILED_MESSAGE,
   classifyRuntimeScanError,

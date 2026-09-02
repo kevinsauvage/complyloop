@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { CheckId } from "@/analysis/types";
-import { allChecks } from "@/analysis/checks/registry";
+import type { CheckId } from "@complyloop/analysis-core/types";
+import { allChecks } from "@complyloop/analysis-core/checks/registry";
 import { guidanceFor } from "./guidance";
 
 const SAMPLE_CHECK_IDS: CheckId[] = [

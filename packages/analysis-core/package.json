@@ -1,0 +1,42 @@
+{
+  "name": "@complyloop/analysis-core",
+  "version": "0.1.0",
+  "description": "ComplyLoop accessibility analysis engine — AST checks, runtime/DOM checks, findings contract. Framework-agnostic, reusable across platform, CI and browser.",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./contract": {
+      "types": "./dist/contract/index.d.ts",
+      "import": "./dist/contract/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.build.json",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "axe-core": "^4.13.0"
+  },
+  "peerDependenciesMeta": {
+    "axe-core": {
+      "optional": true
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/complyloop/compliance-engineering-platform.git",
+    "directory": "packages/analysis-core"
+  },
+  "license": "UNLICENSED"
+}

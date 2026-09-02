@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@complyloop/analysis-core": ["./packages/analysis-core/src/index.ts"],
+      "@complyloop/analysis-core/*": ["./packages/analysis-core/src/*"]
     }
   },
   "include": [

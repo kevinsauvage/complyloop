@@ -1,10 +1,10 @@
-import { keepOpenWhenRuntimeScanSkipped } from "@/analysis/check-authority";
-import { scanChangedFiles, scanProject } from "@/analysis/scan";
+import { keepOpenWhenRuntimeScanSkipped } from "@complyloop/analysis-core/check-authority";
+import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
 import {
   scanRuntime,
   type RuntimePageScanner,
-} from "@/analysis/runtime/scan";
-import type { DnsLookup } from "@/analysis/runtime/url-safety";
+} from "@complyloop/analysis-core/runtime/scan";
+import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
 import { formatLocationRef, isSourceLocation } from "@/core/location";
 import { PublicError } from "@/core/public-error";
 import { advanceRemediation } from "@/core/remediation";

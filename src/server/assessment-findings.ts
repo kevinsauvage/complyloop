@@ -1,7 +1,7 @@
 import { guidanceFor } from "@/adapters/registry";
 import { deterministicExplanation } from "@/ai/explainer";
-import { filterAstFindingsForAuthority } from "@/analysis/merge-findings";
-import type { RawFinding } from "@/analysis/types";
+import { filterAstFindingsForAuthority } from "@complyloop/analysis-core/merge-findings";
+import type { RawFinding } from "@complyloop/analysis-core/types";
 import { formatLocationRef } from "@/core/location";
 import type { Project } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";

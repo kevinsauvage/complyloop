@@ -1,10 +1,10 @@
 "use server";
 
 import fs from "node:fs";
-import { applyFix } from "@/analysis/fixes";
-import type { CheckId } from "@/analysis/types";
-import { runtimeViolationStillPresent } from "@/analysis/runtime/scan";
-import { resolveInside } from "@/analysis/workspace-path";
+import { applyFix } from "@complyloop/analysis-core/fixes";
+import type { CheckId } from "@complyloop/analysis-core/types";
+import { runtimeViolationStillPresent } from "@complyloop/analysis-core/runtime/scan";
+import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import { formatLocationRef, isSourceLocation } from "@/core/location";
 import { PublicError } from "@/core/public-error";
 import { advanceRemediation } from "@/core/remediation";

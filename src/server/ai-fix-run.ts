@@ -1,7 +1,7 @@
 import fs from "node:fs";
-import { applyFix, describeFix } from "@/analysis/fixes";
-import { scanChangedFiles } from "@/analysis/scan";
-import { resolveInside } from "@/analysis/workspace-path";
+import { applyFix, describeFix } from "@complyloop/analysis-core/fixes";
+import { scanChangedFiles } from "@complyloop/analysis-core/scan";
+import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import { proposeFixEdits } from "@/ai/fix-propose";
 import {
   generatePatchCandidate,
