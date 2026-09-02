@@ -11,6 +11,15 @@ COPY package.json package-lock.json ./
 COPY packages/check/package.json ./packages/check/
 RUN npm ci
 
+# Runtime-only dependency tree for the runner stage. tsx + dotenv live in
+# "dependencies" (not dev) because they run the migrate-on-start CMD and the
+# assessment worker — keep them there if you touch package.json.
+FROM node:22-bookworm-slim AS prod-deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY packages/check/package.json ./packages/check/
+RUN npm ci --omit=dev
+
 FROM deps AS builder
 WORKDIR /app
 COPY . .
@@ -40,7 +49,7 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 

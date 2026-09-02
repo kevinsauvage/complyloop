@@ -3,6 +3,7 @@
 import {
   useActionState,
   useCallback,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -62,6 +63,7 @@ export function GitHubRepoPicker({
   connectedByFullName,
   usesGitHubApp = false,
   appInstallUrl,
+  fetchOnMount = false,
 }: {
   /** Optional first page from the server — search and pagination use the API. */
   initialRepos?: GitHubRepoSummary[];
@@ -71,12 +73,15 @@ export function GitHubRepoPicker({
   usesGitHubApp?: boolean;
   /** `https://github.com/apps/<slug>/installations/new` when `GITHUB_APP_SLUG` is set. */
   appInstallUrl?: string;
+  /** Fetch page 1 on mount — used when the server skipped the eager fetch
+   * because the picker mounts inside a lazily-opened dialog. */
+  fetchOnMount?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [repos, setRepos] = useState<GitHubRepoSummary[]>(initialRepos);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(initialRepos.length >= 30);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(fetchOnMount);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
   const filterId = useId();
@@ -121,6 +126,15 @@ export function GitHubRepoPicker({
     },
     [],
   );
+
+  // Radix unmounts dialog content on close, so this refires per open —
+  // intentional: each open shows fresh repos.
+  const bootstrappedRef = useRef(false);
+  useEffect(() => {
+    if (!fetchOnMount || bootstrappedRef.current) return;
+    bootstrappedRef.current = true;
+    void loadRepos(1, "", false);
+  }, [fetchOnMount, loadRepos]);
 
   function scheduleSearch(nextQuery: string) {
     if (debounceRef.current) window.clearTimeout(debounceRef.current);

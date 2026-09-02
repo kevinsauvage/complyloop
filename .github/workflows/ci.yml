@@ -22,6 +22,24 @@ jobs:
       - run: npm run test:coverage
       - run: npm run build
 
+  # Static bundle report (.next/diagnostics/analyze) — Next 16 Turbopack
+  # analyzer, run with --output so it never opens the interactive server in CI.
+  bundle-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run analyze
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundle-analysis
+          path: .next/diagnostics/analyze/
+          retention-days: 14
+
   e2e:
     runs-on: ubuntu-latest
     services:

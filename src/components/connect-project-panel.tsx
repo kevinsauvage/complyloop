@@ -54,15 +54,19 @@ export async function ConnectProjectPanel({
       connectedGitHubProjectsByFullName(db.projects, activeOrgId),
     );
 
-    const token = await getGitHubAccessToken();
-    if (!token) {
-      listError =
-        "Could not read your GitHub token. Sign out and sign in again.";
-    } else {
-      try {
-        repos = await listGitHubRepos({ accessToken: token, perPage: 30 });
-      } catch (error) {
-        listError = publicErrorMessage(error);
+    // Compact dialog mode: skip the eager fetch — the picker loads page 1
+    // from /api/github/repos when the dialog actually opens (fetchOnMount).
+    if (defaultOpen) {
+      const token = await getGitHubAccessToken();
+      if (!token) {
+        listError =
+          "Could not read your GitHub token. Sign out and sign in again.";
+      } else {
+        try {
+          repos = await listGitHubRepos({ accessToken: token, perPage: 30 });
+        } catch (error) {
+          listError = publicErrorMessage(error);
+        }
       }
     }
   }
@@ -112,6 +116,7 @@ export async function ConnectProjectPanel({
           connectedByFullName={connectedByFullName}
           usesGitHubApp={isGitHubAppConfigured()}
           appInstallUrl={githubAppInstallUrl()}
+          fetchOnMount={!defaultOpen}
         />
       )}
     </div>

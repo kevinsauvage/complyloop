@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useMemo, useState } from "react";
+import { memo, useCallback, useId, useMemo, useState } from "react";
 import {
   EngineBadge,
   RemediationStatusBadge,
@@ -23,6 +23,72 @@ import {
   bulkDismissFindingsAction,
 } from "@/server/actions/remediation";
 import type { FindingListItem } from "./finding-list-items";
+
+type BulkRowProps = {
+  finding: FindingListItem["finding"];
+  control: FindingListItem["control"];
+  remediationStatus: FindingListItem["remediationStatus"];
+  isSelected: boolean;
+  canRemediate: boolean;
+  listParams: FindingListParams;
+  onToggle: (id: string) => void;
+};
+
+/** Memoized row: toggling one checkbox must not re-render every row. */
+const FindingsBulkRow = memo(function FindingsBulkRow({
+  finding,
+  control,
+  remediationStatus,
+  isSelected,
+  canRemediate,
+  listParams,
+  onToggle,
+}: BulkRowProps) {
+  const checkboxId = `finding-select-${finding.id}`;
+  return (
+    <li>
+      <div
+        className={cn(
+          "group flex gap-3 rounded-xl border border-border/70 bg-card/80 p-3 shadow-none transition-[background-color,border-color,box-shadow]",
+          "hover:border-signal/40 hover:bg-accent/30 hover:shadow-sm",
+          isSelected && "border-signal/50 bg-signal/5",
+        )}
+      >
+        {canRemediate ? (
+          <div className="pt-1">
+            <input
+              id={checkboxId}
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggle(finding.id)}
+              className="size-4 rounded border-input accent-signal"
+              aria-label={`Select finding ${control.code}`}
+            />
+          </div>
+        ) : null}
+        <Link
+          href={findingDetailHref(finding.id, listParams)}
+          className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex flex-wrap items-center gap-2">
+            <SeverityBadge severity={finding.severity} />
+            <RemediationStatusBadge status={remediationStatus} />
+            <EngineBadge engine={finding.engine ?? "ast"} />
+            <span className="text-sm font-medium group-hover:underline">
+              {control.code} — {control.title}
+            </span>
+          </span>
+          <span className="mt-1.5 block text-sm text-muted-foreground">
+            {finding.reason}
+          </span>
+          <span className="mt-1 block font-mono text-xs text-muted-foreground">
+            {formatLocationRef(finding.location)}
+          </span>
+        </Link>
+      </div>
+    </li>
+  );
+});
 
 export function FindingsBulkList({
   items,
@@ -50,14 +116,15 @@ export function FindingsBulkList({
       .map((item) => item.finding.id);
   }, [items, selected]);
 
-  function toggle(id: string) {
+  // Stable identity so memoized rows skip re-render when only selection changes.
+  const toggle = useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  }
+  }, []);
 
   function toggleAll() {
     setSelected((prev) => {
@@ -145,53 +212,18 @@ export function FindingsBulkList({
       ) : null}
 
       <ul className="flex flex-col gap-2" aria-label="Findings">
-        {items.map(({ finding, control, remediationStatus }) => {
-          const checkboxId = `finding-select-${finding.id}`;
-          const isSelected = selected.has(finding.id);
-          return (
-            <li key={finding.id}>
-              <div
-                className={cn(
-                  "group flex gap-3 rounded-xl border border-border/70 bg-card/80 p-3 shadow-none transition-[background-color,border-color,box-shadow]",
-                  "hover:border-signal/40 hover:bg-accent/30 hover:shadow-sm",
-                  isSelected && "border-signal/50 bg-signal/5",
-                )}
-              >
-                {canRemediate ? (
-                  <div className="pt-1">
-                    <input
-                      id={checkboxId}
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggle(finding.id)}
-                      className="size-4 rounded border-input accent-signal"
-                      aria-label={`Select finding ${control.code}`}
-                    />
-                  </div>
-                ) : null}
-                <Link
-                  href={findingDetailHref(finding.id, listParams)}
-                  className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span className="flex flex-wrap items-center gap-2">
-                    <SeverityBadge severity={finding.severity} />
-                    <RemediationStatusBadge status={remediationStatus} />
-                    <EngineBadge engine={finding.engine ?? "ast"} />
-                    <span className="text-sm font-medium group-hover:underline">
-                      {control.code} — {control.title}
-                    </span>
-                  </span>
-                  <span className="mt-1.5 block text-sm text-muted-foreground">
-                    {finding.reason}
-                  </span>
-                  <span className="mt-1 block font-mono text-xs text-muted-foreground">
-                    {formatLocationRef(finding.location)}
-                  </span>
-                </Link>
-              </div>
-            </li>
-          );
-        })}
+        {items.map(({ finding, control, remediationStatus }) => (
+          <FindingsBulkRow
+            key={finding.id}
+            finding={finding}
+            control={control}
+            remediationStatus={remediationStatus}
+            isSelected={selected.has(finding.id)}
+            canRemediate={canRemediate}
+            listParams={listParams}
+            onToggle={toggle}
+          />
+        ))}
       </ul>
     </div>
   );

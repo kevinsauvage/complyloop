@@ -40,7 +40,6 @@
 
 ## P3 — Low (polish & hardening)
 
-- [ ] **ESLint boundary rule** — enforce `src/core/` may not import from `adapters/`, `analysis/`, `server/`, `app/` (stated in architecture, not machine-enforced).
 - [ ] **Trim production image** — runner stage copies full `node_modules` including devDependencies (tsx/Playwright needed at runtime, but audit for trimmable deps; consider a slim worker stage).
 - [ ] **Bundle analysis in CI** — `@next/bundle-analyzer` job.
 - [ ] **Perf** — memoize findings list, lazy-load remediation dialogs.
