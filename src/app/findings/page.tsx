@@ -30,6 +30,8 @@ import {
   getWorkspace,
   remediationForFinding,
 } from "@/server/workspace";
+import { frameworkForProject } from "@/server/report";
+import { controlForDisplay } from "@/adapters/control-theme";
 
 export const dynamic = "force-dynamic";
 
@@ -75,12 +77,15 @@ export default async function FindingsPage({
   const dismissedSlice = paginateSlice(byStatus("dismissed"), listParams.page);
   const paginationQuery = findingListPaginationQuery(listParams);
 
-  const listFor = (sliceFindings: Finding[]) =>
-    toFindingListItems(
+  const listFor = (sliceFindings: Finding[]) => {
+    const frameworkId = frameworkForProject(db, project).id;
+    return toFindingListItems(
       sliceFindings,
-      (controlId) => controlById(db, controlId),
+      (controlId) =>
+        controlForDisplay(controlById(db, controlId), frameworkId),
       (findingId) => remediationForFinding(db, findingId),
     );
+  };
 
   const defaultTab: FindingsTab =
     listParams.tab === "by_cause"

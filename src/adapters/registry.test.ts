@@ -21,9 +21,16 @@ describe("framework adapter registry", () => {
     const automated = allControls().filter((control) => control.checkId !== null);
     const checkIds = automated.map((control) => control.checkId);
     expect(new Set(checkIds).size).toBe(checkIds.length);
-    expect(presetById("preset-rgaa-full")?.controlIds).toEqual(
-      presetById("preset-wcag-full")?.controlIds,
-    );
+    // RGAA Full is the RGAA-coded subset of the shared catalog; WCAG-only
+    // additions (no RGAA equivalent) belong to the WCAG presets only.
+    const rgaaFull = presetById("preset-rgaa-full")?.controlIds;
+    const wcagFull = presetById("preset-wcag-full")?.controlIds;
+    expect(rgaaFull).toBeDefined();
+    expect(wcagFull).toBeDefined();
+    expect(rgaaFull!.every((id) => wcagFull!.includes(id))).toBe(true);
+    expect(rgaaFull).not.toEqual(wcagFull);
+    expect(rgaaFull).not.toContain("ctl-focus-appearance");
+    expect(wcagFull).toContain("ctl-focus-appearance");
     expect(allFrameworkPresets().map((preset) => preset.id)).toEqual([
       "preset-rgaa-full",
       "preset-wcag-full",

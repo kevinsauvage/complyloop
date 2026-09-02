@@ -32,7 +32,13 @@ import { buildFindingFilterContext } from "@/server/finding-list-context";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { resolveVisibleFinding } from "@/server/project-visibility";
 import { findingsInScope } from "@/server/assessment-status";
-import { controlById, getWorkspace, remediationForFinding } from "@/server/workspace";
+import {
+  controlById,
+  getWorkspace,
+  remediationForFinding,
+} from "@/server/workspace";
+import { frameworkForProject } from "@/server/report";
+import { controlForDisplay } from "@/adapters/control-theme";
 import { prioritizeClusters } from "@/core/prioritization";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +64,10 @@ export default async function FindingPage({
   const { finding, project } = resolved;
   const caps = projectCapabilities(project, access, project.orgId);
 
-  const control = controlById(db, finding.controlId);
+  const control = controlForDisplay(
+    controlById(db, finding.controlId),
+    frameworkForProject(db, project).id,
+  );
   const remediation = remediationForFinding(db, finding.id);
   const evidence = await listEvidenceForFinding(await getDrizzle(), finding.id);
   const chronologicalEvidence = [...evidence].reverse();

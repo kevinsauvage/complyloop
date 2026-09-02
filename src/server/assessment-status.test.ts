@@ -138,7 +138,9 @@ describe("assessment scope filters", () => {
       }),
     );
     expect(scoped.map((control) => control.id)).toContain("ctl-video-caption");
-    expect(scoped).toHaveLength(rgaaControls.length);
+    expect(scoped).toHaveLength(
+      rgaaControls.filter((control) => control.code.startsWith("RGAA")).length,
+    );
   });
 });
 

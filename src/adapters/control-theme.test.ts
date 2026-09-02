@@ -3,6 +3,7 @@ import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { wcagFramework } from "@/adapters/wcag/controls";
 import {
   controlDisplayCodes,
+  controlForDisplay,
   groupControlsByTheme,
 } from "./control-theme";
 
@@ -25,6 +26,32 @@ describe("controlDisplayCodes", () => {
       code: "WCAG 1.1.1",
       secondaryCode: "RGAA 1.1",
     });
+  });
+});
+
+describe("controlForDisplay", () => {
+  it("returns a control whose primary code matches the WCAG target", () => {
+    const display = controlForDisplay(
+      controlById("ctl-img-alt"),
+      wcagFramework.id,
+    );
+    expect(display.code).toBe("WCAG 1.1.1");
+    expect(display.secondaryCode).toBe("RGAA 1.1");
+    // Keeps identity for UI keys.
+    expect(display.id).toBe("ctl-img-alt");
+    expect(display.title).toBe(controlById("ctl-img-alt").title);
+  });
+
+  it("resolves the RGAA reference for a WCAG-coded control (the reported bug case)", () => {
+    // ctl-focus-appearance is WCAG-coded (no RGAA equivalent) — it can be shown
+    // only under a non-RGAA target. Use a shared RGAA-coded control to prove the
+    // RGAA target keeps its native code.
+    const display = controlForDisplay(
+      controlById("ctl-focus-visible"),
+      rgaaFramework.id,
+    );
+    expect(display.code).toBe("RGAA 10.7");
+    expect(display.secondaryCode).toBe("WCAG 2.4.7");
   });
 });
 

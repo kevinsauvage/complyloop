@@ -25,6 +25,8 @@ import {
 } from "@/server/assessment-status";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { controlById, getWorkspace } from "@/server/workspace";
+import { frameworkForProject } from "@/server/report";
+import { controlForDisplay } from "@/adapters/control-theme";
 
 export const dynamic = "force-dynamic";
 
@@ -163,7 +165,12 @@ export default async function DashboardPage() {
             openFindings={openFindings}
             recentVerified={recentVerified}
             recentEvidence={recentEvidence}
-            controlById={(controlId) => controlById(db, controlId)}
+            controlById={(controlId) =>
+              controlForDisplay(
+                controlById(db, controlId),
+                frameworkForProject(db, project).id,
+              )
+            }
           />
         </div>
       ) : null}

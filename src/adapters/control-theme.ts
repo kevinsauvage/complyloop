@@ -37,6 +37,20 @@ export function controlDisplayCodes(
   return { code: control.code, secondaryCode: control.secondaryCode };
 }
 
+/**
+ * Returns a copy of `control` with `code`/`secondaryCode` resolved to read as
+ * the given framework's primary reference. UI that renders a control inside a
+ * framework context (finding pages, dashboard, lists) should use this rather
+ * than reading `control.code` raw, which can be a secondary-framework label
+ * (e.g. a WCAG-coded control shown in an RGAA project).
+ */
+export function controlForDisplay(
+  control: Control,
+  frameworkId: string,
+): Control {
+  return { ...control, ...controlDisplayCodes(control, frameworkId) };
+}
+
 function criterionNumber(code: string): number | undefined {
   const match = /(?:RGAA|WCAG)\s+(\d+)/i.exec(code);
   if (!match) return undefined;
