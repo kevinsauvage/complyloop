@@ -648,303 +648,101 @@ targeted checks
 
 ---
 
-# 13. `html-validate`
+# 13. `html-validate` (rendered-DOM structure)
 
-## Decision: YES — as structural evidence for RGAA 8.2 and 10.1, nothing else
+`html-validate` is a deterministic, offline HTML5 validator (content models,
+open/close, nesting, obsolete markup, references). It earns its place because it
+observes a representation nothing else in the stack owns: **is the generated
+HTML well-formed?** axe reads the accessibility tree of an already-repaired DOM;
+the AST checks read JSX patterns. Neither tells you a `<div>` sits inside a
+`<p>` or that a table has an orphan `<td>`.
 
-`html-validate` is an offline HTML5 validator (content models, open/close,
-nesting, obsolete markup, references). It observes a representation nobody else
-in the stack owns: **is the markup itself well-formed HTML?** axe reads the
-accessibility tree of an already-repaired DOM; the AST checks read JSX
-patterns. Neither tells you a `<div>` sits inside a `<p>` or that a table has
-an orphan `<td>`.
+## Decision: include it — as evidence for RGAA 8.2 and 10.1, nothing else
 
 It is _not_ another accessibility engine. Every rule we enable must answer one
 of two RGAA questions the browser and axe cannot:
 
-| RGAA test                                                                                                                                                       | WCAG            | What html-validate contributes                                               |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------------------------------------------------------------------------- |
-| **8.2.1** — generated code: tags/attributes follow the writing rules, nesting is valid, open/close is valid, `id`s unique, no duplicated attributes             | 4.1.1 (parsing) | Content-model, order, close-order, implicit-close, duplicate-attribute rules |
-| **10.1.1 / 10.1.2** — no presentational elements (`<font>`, `<center>`, …) or attributes (`align`, `bgcolor`, `border`, `cellpadding`, …) in the generated code | 1.3.1           | `deprecated` (elements), `no-deprecated-attr`                                |
+| RGAA test                                                                                                     | WCAG            | html-validate contributes                                                                              |
+| ------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------ |
+| **8.2.1** — generated code: valid nesting, open/close, unique `id`s, no duplicated attributes                 | 4.1.1 (parsing) | `element-permitted-content` / `-order`, `close-order`, `no-implicit-close`, `no-dup-attr`, `no-dup-id` |
+| **10.1.1 / 10.1.2** — no presentational elements (`<font>`, `<center>`) or attributes (`align`, `bgcolor`, …) | 1.3.1           | `deprecated`, `no-deprecated-attr`                                                                     |
 
 Anything outside those two criteria is either already owned by axe/AST (ARIA,
 names, labels, headings) or is lint noise (quotes, casing, whitespace).
 
-## 13.1 Where the integration stands
+## Where it runs
 
-**One rendered pass, shipped.** `html-validate` runs inside the runtime audit
-on the **generated DOM** (`runtime/html-validate-runtime.ts`), because projects
-use a preview URL and RGAA judges the _generated_ document. The JSX source pass
-is intentionally gone — validating source JSX added a second representation for
-the same defect and a browserless CI gate that duplicates the AST checks.
-
-- **DOM serializer** (`serializeDocument`) walks `document.documentElement` in
-  the page, building an HTML string exactly as html-validate parses it and
-  recording each element's start offset. `validateStringSync` runs on that
-  string in-process; every message maps back to its element under the reported
-  offset to build a `dom` location (selector + snippet).
-- **Curated rules**: `element-permitted-content`, `element-permitted-order`,
-  `close-order`, `no-implicit-close`, `no-dup-attr`, `no-multiple-main`,
-  `unique-landmark`, `no-deprecated-attr`, `deprecated`, `no-dup-id`.
-- Findings carry `engine: "runtime"` and `location.kind: "dom"`; the raw rule
-  id is kept in `reason` (`html-validate [rule]: …`).
-
-### What is wrong in the current staging
-
-The staged code introduces two check ids — `markup-nesting` and
-`deprecated-html` — with the comment "no RGAA control references these, they
-surface in the CI gate and the raw finding stream but never create a platform
-requirement violation". That is the wrong outcome, for two reasons explained
-below: (1) an unmapped check id is not "advisory", it is **invisible** in the
-product, and (2) both families _do_ have an RGAA criterion.
-
-## 13.2 How a finding reaches the user — the constraint everything follows from
-
-Findings are displayed **by control, in the framework of the project's
-preset**. The code path (`src/server/assessment.ts`, `src/app/findings/[id]`)
-fixes these rules:
-
-```text
-RawFinding.checkId
-      │
-      ▼  runAssessment: for each control in scope,
-      │  keep raw findings where raw.checkId === control.checkId
-      │  — no matching control ⇒ raw finding is DROPPED (not persisted, no evidence)
-      ▼
-Finding { controlId, checkId, engine, location, kind, severity, … }
-      │
-      ▼  Finding page header:  `${control.code} — ${control.title}`
-      │                        `${control.secondaryCode} · ${control.description}`
-      │  controlForDisplay() swaps code/secondaryCode so an RGAA project reads
-      │  "RGAA 8.2 · WCAG 4.1.1" and a WCAG project reads "WCAG 4.1.1 · RGAA 8.2"
-      │  checkId is only a monospace hint; the analyzer name is never a headline
-      ▼
-Badges: Severity · Confidence · RemediationStatus · EngineBadge(engine)
-Act panel: location.kind === "source" ⇒ Generate patch → draft PR
-           location.kind === "dom"    ⇒ Generate guidance → approve → verify
-Requirement status: deriveRequirementStatus(authorityForCheck(checkId), openFindings)
-```
-
-Consequences for html-validate:
-
-1. **Every enabled rule must map to a check id that a control in the catalog
-   owns.** No control → the CLI prints it, the product never shows it, no
-   evidence row is written. There is no "advisory" tier in the data model; a
-   finding either belongs to a requirement or does not exist.
-2. **One control = one `checkId`, unique across the catalog**
-   (`catalog-coverage.test.ts`). A new evidence family therefore needs either
-   an _existing_ check id (same defect, another representation) or a _new
-   control row_ under the right RGAA code. Several controls may share an RGAA
-   code — 12.6 and 8.9 already do.
-3. **The user sees the criterion, not the tool.** Guidance (`impact`,
-   `howToFix` in `adapters/rgaa/guidance.ts`) is written per check id in the
-   developer language of the spec; html-validate's message is context inside
-   `reason`, not the explanation.
-4. **The engine badge is source vs runtime, not "html-validate".** Keep
-   `AssessmentEngine = "ast" | "runtime"`: it drives the remediation workflow
-   (patch/PR vs guidance), which is a property of _where_ the finding is, not
-   which analyzer saw it. The rendered pass (13.5) emits `engine: "runtime"`
-   for the same reason.
-5. **Status semantics come from the authority class of the id**
-   (`check-authority.ts`): an open violation fails the requirement whatever the
-   class, but an _empty_ scan only passes `standard`/`composition_sensitive`.
-
-## 13.3 Rule → check id → control mapping (decision)
-
-| html-validate rule                                                                                                    | Check id                                            | Control shown to the user                                                              | Authority                                            | Action                                                               |
-| --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------- |
-| `no-multiple-main`                                                                                                    | `landmark-one-main`                                 | `ctl-landmark-one-main` — RGAA 12.6 · WCAG 1.3.1                                       | `runtime_only`                                       | shipped                                                              |
-| `unique-landmark`                                                                                                     | `landmark-unique`                                   | `ctl-landmark-unique` — RGAA 12.6 · WCAG 1.3.1                                         | `runtime_only`                                       | shipped                                                              |
-| `element-permitted-content`, `element-permitted-order`, `close-order`, `no-implicit-close`, `no-dup-attr` | `markup-nesting`                                    | `ctl-markup-validity` — RGAA 8.2 · WCAG 4.1.1 "Generated markup is valid HTML" | `runtime_only`                                       | shipped                                                              |
-| `no-deprecated-attr`, `deprecated` (elements)                                                                     | `css-for-presentation` (replaces `deprecated-html`) | `ctl-css-for-presentation` — RGAA 10.1 · WCAG 1.3.1                                    | `runtime_only`                                       | shipped; `deprecated-html` id + guidance deleted                      |
-| `no-dup-id`                                                                                                           | `duplicate-id`                                      | `ctl-duplicate-id` — RGAA 8.2 · WCAG 4.1.2                                             | `composition_sensitive`                              | the AST duplicate-id check covers source; rendered pass adds the DOM      |
-| `valid-for`, `no-missing-references`                                                                                  | existing label / reference ids                      | —                                                                                      | —                                                    | off pending an axe-overlap check                     |
-
-Why these choices:
-
-- **`markup-nesting` is RGAA 8.2 evidence, not advisory.** Test 8.2.1 is
-  literally "nesting valid, open/close valid, no duplicated attributes". It
-  gets its own control because `ctl-duplicate-id` already owns the 8.2 code
-  with `duplicate-id`, and a control has one check id. The WCAG code stays
-  4.1.1 as `ctl-doctype` does — obsolete in WCAG 2.2, still the reference the
-  RGAA criterion points at.
-- **`deprecated-html` is RGAA 10.1, and the id already exists.** Test 10.1.2
-  enumerates the attributes; `runtime/custom-checks/css-for-presentation.ts`
-  already reports the same defect on the rendered DOM under
-  `css-for-presentation`. Same defect, second representation ⇒ same check id,
-  same control, one finding per instance (section 2). Align severity with the
-  runtime check (`moderate`, not `minor`). Note html-validate's list is the
-  HTML spec's obsolete attributes and the runtime list is a hand-picked
-  subset; the reference list is RGAA 10.1.2 (`align alink background bgcolor
-border cellpadding cellspacing char charoff clear color compact frameborder
-hspace link marginheight marginwidth text valign vlink vspace`, `size` except
-  on `select`, `width`/`height` except on `img object embed canvas svg`). Test
-  the mapping against that list, not against the tool's defaults.
-- **Nested interactives reuse `nested-interactive`** even though html-validate
-  sees it as a content-model error: the user should see one "Interactive
-  controls are not nested" requirement whether axe or the validator caught it.
-
-## 13.4 Status semantics: source can fail a control, only the rendered pass can pass it
-
-A JSX fragment cannot prove the generated document is valid — components are
-blanked, `{cond ? <a/> : <b/>}` is blanked, and RGAA 8.2 is explicitly about
-the _generated_ code. So:
-
-```text
-html-validate on source finds a defect   ⇒ open violation ⇒ requirement failed   (legitimate: high-confidence structural evidence)
-html-validate on source finds nothing    ⇒ says nothing about the requirement
-```
-
-Hence `markup-nesting` is classified **`heuristic`** today: empty scan ⇒
-`unable_to_verify`, never `passed`. Do **not** classify it `runtime_only`
-before the rendered pass exists — `deriveRequirementStatus` passes
-`runtime_only` ids as soon as `runtimeRan` is true, so an axe run would mark
-RGAA 8.2 "valid markup" passed with zero validation evidence. Do not classify it
-`standard` either — an empty source scan would pass RGAA 8.2. Flip it to
-`runtime_only` in the same change that ships 13.5.
-
-The ids already `runtime_only` (`landmark-one-main`, `nested-interactive`,
-`landmark-unique`, `css-for-presentation`) behave correctly: source evidence
-fails them, an axe/custom-check run passes them.
-
-### Dedupe when both engines saw the defect
-
-`sameInstance` matches findings by location _kind_; a `source` and a `dom`
-location never match, so today a defect seen by html-validate on source and by
-axe on the page would create two findings on the same control.
-
-Rule: **runtime owns the verdict when it ran.** Extend
-`filterAstFindingsForAuthority` to drop AST-engine findings for `runtime_only`
-ids as well as `composition_sensitive` ones when `runtimeRan` is true. This is
-the same precedent `keepOpenWhenRuntimeScanSkipped` already applies on the
-resolve path. Side effect to accept: the AST heuristic warnings for
-`error-prevention` / `accessible-auth-enhanced` are dropped when the runtime
-audit ran — consistent with their comment ("the runtime audit owns the
-verdict"). When runtime did not run, source findings stay and drive CI and the
-requirement.
-
-## 13.5 The rendered pass
-
-**Replaced the two-pass design.** Originally two passes (source → PR patch,
-rendered → verdict) were contemplated; per the KISS decision the source pass
-was dropped and html-validate runs only on the generated DOM.
+**Inside the runtime audit, on the generated DOM.** Projects supply a preview
+URL, and RGAA judges the generated document — so we validate the HTML a browser
+actually produces. This is exactly the evidence an agency can put in a
+déclaration d'accessibilité.
 
 ```text
 Rendered pass (in scanRuntime, per route)
-────────────────────────────────────────────────────────────
-Tier 2, reuses the page already open for axe + custom checks
 serialize document.documentElement (node→offset) → validateStringSync
-engine: "runtime", location: dom (url + selector + snippet)
-RGAA 8.2 / 10.1 verdict + auditor-grade evidence — can pass
+engine: "runtime" · location: dom (url + selector + snippet)
 ```
 
-The rendered pass is what the RGAA methodology itself prescribes (validate the
-generated DOM), so it is the evidence an agency can put in a déclaration
-d'accessibilité. Findings carry `engine: "runtime"` and a `dom` location, so
-the remediation flow is guidance → approve → implement → re-audit.
+- Reuses the page already open for axe + custom checks — no extra browser cost.
+- The serializer records each element's start offset in the exact string it
+  validates, so every html-validate message (a line/column in that string) maps
+  back to a concrete `dom` location, like every other runtime finding.
+- Findings carry `engine: "runtime"` and a `dom` location → the remediation flow
+  is guidance → approve → implement → re-audit. A clean audit is a real verdict
+  that can _pass_ a requirement.
+- **It does NOT run in `complyloop-check`** (needs a browser). The CLI stays
+  browserless; its findings come from the AST checks.
 
-Implementation notes:
+Implementation: `runtime/html-validate-runtime.ts` (serializer + validator) and
+`runtime/html-validate-map.ts` (rule→check-id map, same shape as `axe-map.ts`).
+Reported as `htmlValidateRan` in `AssessmentEngines`.
 
-- Reuses the Playwright page already open for axe and the custom checks; no new
-  browser cost. Serialize the DOM in-page (recording node→offset), run
-  `validateStringSync` with the curated rules plus `no-dup-id` in-process.
-  `valid-for` and `no-missing-references` are held back pending an axe-overlap
-  check (axe already reports label and reference defects).
-- html-validate reports line/column in the serialized string, not a DOM node.
-  The serializer records each element's start offset in the exact string it
-  validates, so every message maps back to its element with a `dom` location
-  (selector + snippet) like every other runtime finding.
-- `markup-nesting` is `runtime_only`; rule→check-id mapping lives in
-  `runtime/html-validate-map.ts` (same shape as `axe-map.ts`).
-- Reported in `AssessmentEngines` as `htmlValidateRan`; the UI may ignore it
-  (`runtime: true` already implies the page audit ran).
+## Rule → check id → control mapping
 
-### Known limits
+Every enabled rule maps to a control the catalog owns. There is no "advisory"
+tier — a finding with no matching control is invisible in the product (see
+below). One control = one `checkId`, unique across the catalog.
 
-- **Interactive nesting is axe's job on the generated DOM.** The browser
-  auto-repairs `<button><button>…` during parsing, so it never appears in the
-  serialized document html-validate sees; axe reports `nested-interactive`.
-  Not a gap.
-- **Components have already rendered** by the time we audit, so there is no
-  source-component gap — the generated DOM is exactly what users get.
-- `valid-for` / `no-missing-references` are off pending an axe-overlap check.
+| html-validate rule                                                                        | Check id               | Control (RGAA · WCAG)                                              | Authority             |
+| ----------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------ | --------------------- |
+| `no-multiple-main`                                                                        | `landmark-one-main`    | `ctl-landmark-one-main` 12.6 · 1.3.1                               | runtime_only          |
+| `unique-landmark`                                                                         | `landmark-unique`      | `ctl-landmark-unique` 12.6 · 1.3.1                                 | runtime_only          |
+| `element-permitted-content` / `-order`, `close-order`, `no-implicit-close`, `no-dup-attr` | `markup-nesting`       | `ctl-markup-validity` 8.2 · 4.1.1 "Generated markup is valid HTML" | runtime_only          |
+| `no-deprecated-attr`, `deprecated`                                                        | `css-for-presentation` | `ctl-css-for-presentation` 10.1 · 1.3.1                            | runtime_only          |
+| `no-dup-id`                                                                               | `duplicate-id`         | `ctl-duplicate-id` 8.2 · 4.1.2                                     | composition_sensitive |
 
-## 13.6 Where html-validate does NOT run
+Why:
 
-`html-validate` runs only inside the runtime audit (needs a browser). The
-`complyloop-check` CLI / source scan does **not** use it — it is purely a DOM
-validation scanner, not a source analyzer. `complyloop-check` therefore stays
-browserless and unchanged; findings it prints come from the AST checks.
+- **`markup-nesting` → `ctl-markup-validity`.** Test 8.2.1 is literally
+  "nesting valid, open/close valid, no duplicated attributes". It gets its own
+  control because `ctl-duplicate-id` already owns the 8.2 code and a control has
+  one check id. The WCAG code stays 4.1.1 (also `ctl-doctype`'s reference).
+  Authority is `runtime_only`: an open violation fails the requirement, and a
+  clean audit is a real rendered-document verdict that can _pass_ it.
+- **`no-deprecated-attr` / `deprecated` → `css-for-presentation`.** The runtime
+  check `css-for-presentation.ts` already reports deprecated presentational
+  markup on the rendered DOM; same defect → same check id → one finding per
+  instance. Severity is `moderate`, matching that check.
+- **`no-dup-id` → `duplicate-id`** (`composition_sensitive`): the AST check
+  covers source; this covers the rendered DOM.
 
-Every html-validate rule still maps to a catalog control (13.3), so a runtime
-finding is always visible in the product — there is no "advisory" tier.
-
-## 13.7 Rules we will not enable
+## Rules we will not enable
 
 - Style/lint: `attr-quotes`, `attr-case`, `element-case`, `void-style`,
-  `no-trailing-whitespace`, `no-inline-style`, `doctype-style` — not a
-  compliance signal.
-- Anything axe or an AST check already owns: `wcag/h30`, `h32`, `h37`, `h63`,
-  `h67`, `h71`, `empty-heading`, `empty-title`, `input-missing-label`,
-  `aria-*` rules, `no-redundant-role`, `prefer-native-element`. Two engines
-  reporting one defect under two ids is the duplication section 1 forbids.
-- `no-unknown-elements`: web components and Next.js custom tags make it noise
-  unless configured per project.
-- `meta-refresh`, `no-autoplay`: runtime ids exist (`no-auto-refresh`, media
-  checks) and the page audit sees the real behaviour.
+  `no-trailing-whitespace`, `no-inline-style`, `doctype-style`.
+- Anything axe or an AST check already owns: `wcag/*`, `empty-heading`,
+  `empty-title`, `input-missing-label`, `aria-*`, `no-redundant-role`,
+  `prefer-native-element`. Two engines reporting one defect under two ids is the
+  duplication section 1 forbids.
+- `no-unknown-elements`: web components / custom tags make it noise unless
+  configured per project.
+- `meta-refresh`, `no-autoplay`: already covered by runtime ids (`no-auto-refresh`,
+  media checks) on the real page.
 
-## 13.8 Follow-ups to land — **superseded**
+## Open follow-ups
 
-The two-pass design (source Pass A + rendered Pass B) was replaced by a **single
-rendered pass** per the KISS decision: projects use a preview URL and RGAA
-judges the generated document, so the JSX source pass was removed as
-duplicative. Net shipped state:
-
-- **Rendered pass** `runtime/html-validate-runtime.ts` validates the generated
-  DOM. **Shipped.**
-- `ctl-markup-validity` (RGAA 8.2 · WCAG 4.1.1) → `markup-nesting`,
-  `deprecated`/`no-deprecated-attr` → `css-for-presentation` (delete
-  `deprecated-html`), severity `moderate`; `markup-nesting` is `runtime_only`.
-  **Shipped.**
-- `filterAstFindingsForAuthority` drops `runtime_only` AST findings when the
-  runtime ran (one finding per defect). **Shipped** (`merge-findings.test.ts`).
-
-Open follow-ups (not blockers): `valid-for` / `no-missing-references` enabled
-after an axe-overlap check; interactive nesting is axe's job on the generated
-DOM (browser auto-repairs it before html-validate sees it).
-
----
-
-# 14. Should we add Nu Html Checker?
-
-## Decision: Later / optional
-
-The Nu Html Checker is useful for validating HTML, CSS and SVG and can be
-automated or deployed as a service.
-
-However, it overlaps materially with the structural role of `html-validate`,
-and the RGAA 8.2 evidence we need (section 13) comes from html-validate's
-rendered pass on the same generated DOM the RGAA methodology tells auditors to
-paste into the Nu checker.
-
-It also introduces more operational complexity (a Java service or hosted
-endpoint) than the first-party Node analysis stack.
-
-### Recommended position
-
-```text
-MVP:
-AST + jsx-a11y + axe + Playwright + html-validate
-
-Later:
-Nu Html Checker for targeted validation / independent confirmation
-```
-
-Its strongest strategic value is **independent corroboration**, not raw rule
-count.
-
-If introduced later, use it on selected builds/pages rather than necessarily
-every PR.
+- Enable `valid-for` and `no-missing-references` in the rendered pass only after
+  confirming axe does not already report the same label/reference defects.
 
 ---
 
@@ -1881,24 +1679,24 @@ The product should turn these into structured evidence rather than a free-text
 
 # 38. Recommended analyzer matrix
 
-| Layer                 | Tool                     | Scope                                                       | Priority             | Automated confidence |
-| --------------------- | ------------------------ | ----------------------------------------------------------- | -------------------- | -------------------- |
-| Source AST            | Custom checks            | JSX/TSX patterns                                            | Existing             | High/Medium          |
-| React source          | `eslint-plugin-jsx-a11y` | React a11y patterns                                         | Existing             | High/Medium          |
-| Rendered a11y         | `axe-core`               | DOM/accessibility                                           | Existing             | High/Medium          |
-| HTML structure        | `html-validate`          | RGAA 8.2 / 10.1 on source (shipped) and rendered DOM (next) | Existing + expand    | High                 |
-| Browser state         | Playwright               | media/viewport/style                                        | Existing + expand    | Medium/High          |
-| Keyboard              | Playwright               | real interactions                                           | **Next**             | High                 |
-| Focus                 | Playwright               | focus lifecycle                                             | **Next**             | High                 |
-| Dynamic announcements | Playwright               | runtime updates                                             | **Next**             | Medium/High          |
-| Visual regression     | Playwright snapshots     | pixels/layout                                               | **Next**             | Medium               |
-| Site integrity        | Custom                   | routes/navigation                                           | Existing + expand    | Medium/High          |
-| Links/references      | Custom + html-validate   | relationships                                               | **Next**             | High                 |
-| Language              | Custom                   | document/content                                            | Later                | Medium               |
-| Media                 | Custom + DOM             | captions/transcripts                                        | Later                | Medium               |
-| Nu HTML Checker       | v.Nu                     | independent HTML validation                                 | Later                | High                 |
-| Screen reader         | Human                    | actual AT output                                            | Required human stage | Human                |
-| Content quality       | Human                    | semantics/meaning                                           | Required human stage | Human                |
+| Layer                 | Tool                     | Scope                                            | Priority             | Automated confidence |
+| --------------------- | ------------------------ | ------------------------------------------------ | -------------------- | -------------------- |
+| Source AST            | Custom checks            | JSX/TSX patterns                                 | Existing             | High/Medium          |
+| React source          | `eslint-plugin-jsx-a11y` | React a11y patterns                              | Existing             | High/Medium          |
+| Rendered a11y         | `axe-core`               | DOM/accessibility                                | Existing             | High/Medium          |
+| HTML structure        | `html-validate`          | RGAA 8.2 / 10.1 on the rendered DOM (section 13) | Existing + expand    | High                 |
+| Browser state         | Playwright               | media/viewport/style                             | Existing + expand    | Medium/High          |
+| Keyboard              | Playwright               | real interactions                                | **Next**             | High                 |
+| Focus                 | Playwright               | focus lifecycle                                  | **Next**             | High                 |
+| Dynamic announcements | Playwright               | runtime updates                                  | **Next**             | Medium/High          |
+| Visual regression     | Playwright snapshots     | pixels/layout                                    | **Next**             | Medium               |
+| Site integrity        | Custom                   | routes/navigation                                | Existing + expand    | Medium/High          |
+| Links/references      | Custom + html-validate   | relationships                                    | **Next**             | High                 |
+| Language              | Custom                   | document/content                                 | Later                | Medium               |
+| Media                 | Custom + DOM             | captions/transcripts                             | Later                | Medium               |
+| Nu HTML Checker       | v.Nu                     | independent HTML validation                      | Later                | High                 |
+| Screen reader         | Human                    | actual AT output                                 | Required human stage | Human                |
+| Content quality       | Human                    | semantics/meaning                                | Required human stage | Human                |
 
 ---
 
@@ -1925,29 +1723,6 @@ multiple browser conditions
 +
 real keyboard interaction
 ```
-
----
-
-## Phase 2 — `html-validate` (section 13) — **shipped, single rendered pass**
-
-A single rendered pass, control wiring, and the authority/dedupe changes are
-landed (13.1, 13.3, 13.4, 13.5):
-
-1. Control wiring — `ctl-markup-validity` (RGAA 8.2), deprecated markup
-   re-mapped to `css-for-presentation` (RGAA 10.1), `markup-nesting` →
-   `runtime_only`, dedupe across engines (13.3, 13.4). Done.
-2. Rendered pass inside `scanRuntime` — serialize the DOM per audited route,
-   emit `engine: "runtime"` / `dom` locations under mapped check ids; rule →
-   check id table in
-   `packages/analysis-core/src/runtime/html-validate-map.ts`, same shape as
-   `axe-map.ts`. Done.
-
-Every finding keeps the raw html-validate rule id and message (in
-`reason`), the check id, the DOM location that was validated, severity, and
-the control mapping the catalog resolves.
-
-Not duplicated from AST/axe unless the HTML representation gives additional
-evidence (`no-dup-id` on the rendered DOM does; `input-missing-label` does not).
 
 ---
 
@@ -2064,7 +1839,6 @@ Includes:
 
 - AST
 - jsx-a11y
-- html-validate source pass (JSX → HTML adapter, section 13.5 Pass A)
 
 Target:
 
@@ -2085,7 +1859,7 @@ Runs:
 Includes:
 
 - axe
-- html-validate rendered pass on the generated HTML (section 13.5 Pass B)
+- html-validate (rendered-DOM structure, section 13)
 - selected Playwright custom checks
 - site-level checks
 
@@ -2498,63 +2272,3 @@ The analyzer stack should therefore be:
 - generic CSS/HTML style linters
 
 ---
-
-# 49. Final strategic conclusion
-
-The original question was:
-
-> **"What else can we test?"**
-
-The wrong answer is:
-
-> "More scanners."
-
-The better answer is:
-
-> **"More representations of the same requirement."**
-
-A strong ComplyLoop assessment should be able to say:
-
-```text
-RGAA requirement
-      ↓
-Source checked
-      ↓
-Rendered DOM checked
-      ↓
-Accessibility tree checked
-      ↓
-Browser conditions checked
-      ↓
-Real interaction checked
-      ↓
-Visual rendering checked
-      ↓
-Site consistency checked
-      ↓
-Human verification requested where automation stops
-      ↓
-Finding
-      ↓
-Fix
-      ↓
-Re-run
-      ↓
-Verified evidence
-```
-
-That is the analysis architecture worth building.
-
-The goal is not to claim:
-
-> **"We ran 12 accessibility tools."**
-
-The goal is to produce:
-
-> **"This requirement was tested using independent evidence layers; here is
-> exactly what was observed, where it failed, how it can be fixed, and how we
-> verified the result."**
-
-That fits the core product promise: connect requirements directly to codebase
-assessment, remediation, verification, and evidence, rather than stopping at
-a scanner findings list.
