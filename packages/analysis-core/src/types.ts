@@ -129,7 +129,8 @@ export type CheckId =
   | "reduced-motion"
   | "media-identification"
   | "color-contrast-enhanced"
-  | "markup-nesting";
+  | "markup-nesting"
+  | "broken-link";
 
 export interface RawFinding {
   checkId: CheckId;

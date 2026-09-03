@@ -28,6 +28,8 @@ export interface RuntimeScanPageResult {
   snapshot?: RuntimePageSnapshot;
   /** html-validate rendered findings for this page. */
   htmlValidateFindings?: RawFinding[];
+  /** IBM Equal Access findings for this page (deduped vs axe). */
+  ibmFindings?: RawFinding[];
 }
 
 export interface RuntimeScanResult {
@@ -36,6 +38,10 @@ export interface RuntimeScanResult {
   siteLevelChecksRan?: boolean;
   /** Whether html-validate's rendered pass ran on any page. */
   htmlValidateRan?: boolean;
+  /** IBM Equal Access ran on any page. */
+  ibmCheckerRan?: boolean;
+  /** linkinator same-origin link check ran on preview routes. */
+  linkCheckRan?: boolean;
   error?: string;
 }
 
@@ -116,6 +122,7 @@ export function findingsFromAxePages(
       );
     }
     if (page.htmlValidateFindings) findings.push(...page.htmlValidateFindings);
+    if (page.ibmFindings) findings.push(...page.ibmFindings);
   }
   return findings;
 }

@@ -24,6 +24,8 @@ import {
 } from "./url-safety.js";
 import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./custom-checks/index.js";
 import { htmlValidateFindingsForPage } from "./html-validate-runtime.js";
+import { ibmFindingsForPage } from "./ibm-runtime.js";
+import { brokenLinkFindingsForUrls } from "./site-level/link-check.js";
 import { maxRuntimePages } from "../contract/assessment-limits.js";
 import {
   conditionLabel,
@@ -221,6 +223,11 @@ function createPlaywrightAxeScanner(options?: {
                 ],
               },
             ];
+          const ibmFindings = await ibmFindingsForPage(page, url, {
+            url,
+            violations,
+            incomplete: results.incomplete,
+          });
 
           // Browser-condition pass (same requirement, different condition,
           // different evidence): re-run the theme-sensitive analyzers under
@@ -251,6 +258,7 @@ function createPlaywrightAxeScanner(options?: {
             violations: [...violations, ...conditionViolations],
             incomplete: results.incomplete,
             htmlValidateFindings,
+            ibmFindings,
             snapshot,
           });
         } finally {
@@ -332,15 +340,26 @@ export async function scanRuntime(
     const pages = await scanner(urls);
     const siteLevelChecksRan = pages.length >= 2;
     const htmlValidateRan = pages.length > 0;
+    const ibmCheckerRan = pages.length > 0;
+    const linkFindings =
+      pages.length > 0
+        ? await brokenLinkFindingsForUrls(urls, {
+          lookup: options.lookup,
+        })
+        : [];
+    const linkCheckRan = pages.length > 0;
     const findings = [
       ...findingsFromAxePages(pages),
       ...(siteLevelChecksRan ? siteLevelFindingsFromPages(pages) : []),
+      ...linkFindings,
     ];
     return {
       findings,
       pagesScanned: pages.length,
       siteLevelChecksRan,
       htmlValidateRan,
+      ibmCheckerRan,
+      linkCheckRan,
     };
   } catch (error) {
     return {

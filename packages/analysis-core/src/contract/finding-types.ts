@@ -94,6 +94,10 @@ export interface AssessmentEngines {
   siteLevelChecksRan?: boolean;
   /** html-validate rendered pass ran — validates the generated DOM. */
   htmlValidateRan?: boolean;
+  /** IBM Equal Access ran on preview pages. */
+  ibmCheckerRan?: boolean;
+  /** Same-origin link validation ran on preview routes. */
+  linkCheckRan?: boolean;
   /** Non-fatal runtime errors (e.g. unreachable URL). */
   runtimeError?: string;
 }

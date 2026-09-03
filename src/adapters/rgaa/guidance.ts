@@ -20,6 +20,12 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Give the link text content, an image child with a descriptive alt, or an aria-label describing the destination.",
   },
+  "broken-link": {
+    impact:
+      "Users following a broken link hit a dead end — keyboard and screen reader users cannot reach the intended content.",
+    howToFix:
+      "Fix the href target, restore the missing route, or remove the link if the destination no longer exists.",
+  },
   "html-lang": {
     impact:
       "Screen readers pick pronunciation rules from the declared page language; without it, content can be read with the wrong voice and become hard to understand.",

@@ -166,6 +166,8 @@ export async function runAssessment(
     runtimePagesScanned: runtimeResult.pagesScanned,
     siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
     htmlValidateRan: runtimeResult.htmlValidateRan,
+    ibmCheckerRan: runtimeResult.ibmCheckerRan,
+    linkCheckRan: runtimeResult.linkCheckRan,
     runtimeError: runtimeResult.error,
   };
 

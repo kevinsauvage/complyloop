@@ -75,10 +75,14 @@ Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on
 | Piece         | Path             | Role                                                         |
 | ------------- | ---------------- | ------------------------------------------------------------ |
 | Axe mapping   | `axe-map.ts`     | ~122 axe rule → check id mappings                            |
+| IBM Equal Access | `ibm-map.ts`, `ibm-runtime.ts` | Curated second engine on the same Playwright page after axe; dedupes by check id + snippet |
 | Custom checks | `custom-checks/` | Contrast, reflow, focus, error-prevention, CAPTCHA, media, … |
-| Site-level    | `site-level/`    | Cross-route consistency (nav, help, titles)                  |
+| Site-level    | `site-level/`    | Cross-route consistency (nav, help, titles) + `link-check.ts` (linkinator, same-origin broken links) |
 
 **Do not** add `@axe-core/playwright` — webpack breaks on axe `source` string.
+
+`accessibility-checker` and `linkinator` are **server externals** in `next.config.ts`
+(dynamic `import()` at runtime; do not bundle with Turbopack).
 
 **Runtime URL safety:** `ssrf-guard` + DNS/port checks + redirect limits (`packages/analysis-core/src/runtime/`). Never import `ssrf-guard/node` in app code.
 

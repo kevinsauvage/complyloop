@@ -41,6 +41,17 @@ export const rgaaControls: Control[] = [
     complianceWeight: 1.2,
   },
   {
+    id: "ctl-link-destination",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 6.2",
+    secondaryCode: "WCAG 2.4.4",
+    title: "Link destinations resolve",
+    description:
+      "Same-origin links on audited preview routes return a successful response (no 4xx/5xx or unreachable targets).",
+    checkId: "broken-link",
+    complianceWeight: 1.2,
+  },
+  {
     id: "ctl-html-lang",
     frameworkId: rgaaFramework.id,
     code: "RGAA 8.3",

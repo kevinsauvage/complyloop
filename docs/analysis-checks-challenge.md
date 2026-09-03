@@ -4,14 +4,14 @@ How we analyze **today**, whether each layer is the right tool, and **which extr
 
 ## How we analyze today
 
-| Layer | What actually runs | Verdict |
-| --- | --- | --- |
-| Source | Custom AST in `checks/` plus mapped `eslint-plugin-jsx-a11y` (`jsx-a11y-scan.ts`). Used by `complyloop-check` and assessments. | Right for CI without a preview. Wrong as the **verdict** for CSS, focus, generated DOM, widgets. Do not add an AST twin for a mapped jsx-a11y rule. `control-has-associated-label` stays off (`htmlFor`/`id` false positives); AST `input-label` remains. |
-| axe-core (`axe.min.js`) | `axe.run(document, { iframes: true })`. Violations fail. Incomplete (e.g. `color-contrast`) → `warning` → requirement `needs_review`. `frame-tested` → `frame-keyboard` as `needs_review`. Target size is axe `target-size` (desktop). `link-in-text-block` → `use-of-color` (theme pass uses that axe id). | Right **baseline**. |
-| html-validate | Curated rules on serialized generated DOM: RGAA 8.2 / 10.1 plus `no-missing-references` (`for` / aria idrefs → `form-error-association`). | Right tool. `valid-for` does not fire on missing targets here (covered by `no-missing-references`). |
-| Playwright custom | Interaction / emulation after axe (`complyloop-*`). | Keep behaviour, viewport, conditions, RGAA facts no engine reports. |
-| Site-level | ≥2 preview routes: nav, labels, help, sitemap, search, landmarks, duplicate titles. | Right tool. Unique vs any page scanner. |
-| Theme pass | Re-runs a subset under dark / light / `prefers-contrast: more`. | Right idea. |
+| Layer                   | What actually runs                                                                                                                                                                                                                                                                                          | Verdict                                                                                                                                                                                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source                  | Custom AST in `checks/` plus mapped `eslint-plugin-jsx-a11y` (`jsx-a11y-scan.ts`). Used by `complyloop-check` and assessments.                                                                                                                                                                              | Right for CI without a preview. Wrong as the **verdict** for CSS, focus, generated DOM, widgets. Do not add an AST twin for a mapped jsx-a11y rule. `control-has-associated-label` stays off (`htmlFor`/`id` false positives); AST `input-label` remains. |
+| axe-core (`axe.min.js`) | `axe.run(document, { iframes: true })`. Violations fail. Incomplete (e.g. `color-contrast`) → `warning` → requirement `needs_review`. `frame-tested` → `frame-keyboard` as `needs_review`. Target size is axe `target-size` (desktop). `link-in-text-block` → `use-of-color` (theme pass uses that axe id). | Right **baseline**.                                                                                                                                                                                                                                       |
+| html-validate           | Curated rules on serialized generated DOM: RGAA 8.2 / 10.1 plus `no-missing-references` (`for` / aria idrefs → `form-error-association`).                                                                                                                                                                   | Right tool. `valid-for` does not fire on missing targets here (covered by `no-missing-references`).                                                                                                                                                       |
+| Playwright custom       | Interaction / emulation after axe (`complyloop-*`).                                                                                                                                                                                                                                                         | Keep behaviour, viewport, conditions, RGAA facts no engine reports.                                                                                                                                                                                       |
+| Site-level              | ≥2 preview routes: nav, labels, help, sitemap, search, landmarks, duplicate titles.                                                                                                                                                                                                                         | Right tool. Unique vs any page scanner.                                                                                                                                                                                                                   |
+| Theme pass              | Re-runs a subset under dark / light / `prefers-contrast: more`.                                                                                                                                                                                                                                             | Right idea.                                                                                                                                                                                                                                               |
 
 **CI without `runtimeBaseUrl`:** source only. Most runtime-only controls stay `unable_to_verify`. That is the largest reporting gap — not “too few scanners”.
 
@@ -31,31 +31,11 @@ These packages would **not** increase independent coverage. They run axe (or a t
 
 Do **not** add `@html-validate/wcag`: it clones axe/jsx-a11y a third time.
 
----
-
-## Packages still worth adding
-
-### 1. `accessibility-checker` (IBM Equal Access)
-
-Different rule engine from axe (ACT-oriented). Can run on the **same Playwright page** after axe.
-
-- **Fills:** 2.5.8 (`target_spacing_sufficient`) if we want IBM’s exception model instead of axe `target-size`; some heading/landmark/ARIA combos axe misses.
-- **Does not** replace Tab-based focus, reflow, or dialog restore (`style_focus_visible` is weaker than our focus compare).
-- Mapped subset only. Deduplicate by check id with axe. One sibling engine, not three.
-
-### 2. `linkinator` (or equivalent crawler)
-
-Not an accessibility scanner. RGAA 6 / 8 / 12 care about destinations.
-
-- **Fills:** broken internal links, bad fragments, 4xx on preview routes. No current check does this.
-- Site-level pass, same preview origin, SSRF-guarded.
-- Does not fill “link purpose is explicit” (heuristic / human).
-
 ### Optional later (not a second core engine)
 
-| Package | Use if |
-| --- | --- |
-| `@siteimprove/alfa` | IBM trial is noisy; do not run IBM **and** Alfa. |
+| Package                  | Use if                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| `@siteimprove/alfa`      | IBM trial is noisy; do not run IBM **and** Alfa.                                |
 | `apca-w3` / `colorjs.io` | Non-text or APCA contrast axe cannot compute. Keep axe 1.4.3/1.4.6 as baseline. |
 
 ---
@@ -64,28 +44,28 @@ Not an accessibility scanner. RGAA 6 / 8 / 12 care about destinations.
 
 Rule: if axe, html-validate, or jsx-a11y already observe the **same fact**, we do not keep a custom twin. Custom code is only for behaviour, viewport/emulation, or RGAA facts no engine reports.
 
-| Check | Why it stays |
-| --- | --- |
-| `focus-visible`, trap, not-obscured, `focus-appearance` | Tab and compare computed styles / occlusion. |
-| `dialog-focus` | Open → Tab → Escape → restore. |
-| `reflow`, `resize-text` | Viewport + overflow with 2D exceptions. |
-| `text-spacing-runtime` | Inject WCAG 1.4.12 spacing and look for clip. Not axe `avoid-inline-spacing`. |
-| `reduced-motion` (runtime) | Emulate `prefers-reduced-motion`, then see what still runs. |
-| `forced-colors` | Condition-specific UI chrome. (Should emulate; today it infers from normal CSS.) |
-| `non-text-contrast` | axe contrast is **text**. 1.4.11 UI chrome stays ours. |
-| `css-disabled-content` | RGAA 10.2: meaning only in `::before`/`::after` / background images. |
-| `css-off-understandable`, `layout-table-linearization` | RGAA 10.3 / 5.3. |
-| `css-hover-keyboard`, `media-keyboard` | `:hover` without `:focus`; Space on `<video controls>`. |
-| `widget-keyboard` | Reachability of tab/menu/disclosure items. |
-| `media-identification` | Nameless **canvas/embed** only. `<object>` is axe `object-alt`. |
-| Site-level + theme `browserConditions` | Cross-route / different media. |
-| Heuristics: captcha, error-prevention, accessible-auth, supplementary `title` | No engine. Keep as `needs_review` or delete if noisy. |
-| `label-adjacent` | 48px visual-gap heuristic. Keep or delete as FP-prone — not “use IBM”. |
-| AST `both-colors` | Until a package owns RGAA 10.5. |
-| AST `button-name` | jsx-a11y `button-has-content` is not mapped. |
-| AST heuristics (`sensory-characteristics`, `link-explicit-heuristic`, `lang-change`, dragging / pointer / motion, `office-docs-alt-present`, `fieldset-legend` / `field-grouping`) | No package twin. |
+| Check                                                                                                                                                                              | Why it stays                                                                     |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `focus-visible`, trap, not-obscured, `focus-appearance`                                                                                                                            | Tab and compare computed styles / occlusion.                                     |
+| `dialog-focus`                                                                                                                                                                     | Open → Tab → Escape → restore.                                                   |
+| `reflow`, `resize-text`                                                                                                                                                            | Viewport + overflow with 2D exceptions.                                          |
+| `text-spacing-runtime`                                                                                                                                                             | Inject WCAG 1.4.12 spacing and look for clip. Not axe `avoid-inline-spacing`.    |
+| `reduced-motion` (runtime)                                                                                                                                                         | Emulate `prefers-reduced-motion`, then see what still runs.                      |
+| `forced-colors`                                                                                                                                                                    | Condition-specific UI chrome. (Should emulate; today it infers from normal CSS.) |
+| `non-text-contrast`                                                                                                                                                                | axe contrast is **text**. 1.4.11 UI chrome stays ours.                           |
+| `css-disabled-content`                                                                                                                                                             | RGAA 10.2: meaning only in `::before`/`::after` / background images.             |
+| `css-off-understandable`, `layout-table-linearization`                                                                                                                             | RGAA 10.3 / 5.3.                                                                 |
+| `css-hover-keyboard`, `media-keyboard`                                                                                                                                             | `:hover` without `:focus`; Space on `<video controls>`.                          |
+| `widget-keyboard`                                                                                                                                                                  | Reachability of tab/menu/disclosure items.                                       |
+| `media-identification`                                                                                                                                                             | Nameless **canvas/embed** only. `<object>` is axe `object-alt`.                  |
+| Site-level + theme `browserConditions`                                                                                                                                             | Cross-route / different media.                                                   |
+| Heuristics: captcha, error-prevention, accessible-auth, supplementary `title`                                                                                                      | No engine. Keep as `needs_review` or delete if noisy.                            |
+| `label-adjacent`                                                                                                                                                                   | 48px visual-gap heuristic. Keep or delete as FP-prone — not “use IBM”.           |
+| AST `both-colors`                                                                                                                                                                  | Until a package owns RGAA 10.5.                                                  |
+| AST `button-name`                                                                                                                                                                  | jsx-a11y `button-has-content` is not mapped.                                     |
+| AST heuristics (`sensory-characteristics`, `link-explicit-heuristic`, `lang-change`, dragging / pointer / motion, `office-docs-alt-present`, `fieldset-legend` / `field-grouping`) | No package twin.                                                                 |
 
-Do **not** re-add CSS heuristics for 1.4.13 hover, live-region *updates*, or WCAG 2.3.1 flashes. Those catalog rows are `checkId: null` (manual) until a real probe exists — they must not auto-pass after a Playwright run.
+Do **not** re-add CSS heuristics for 1.4.13 hover, live-region _updates_, or WCAG 2.3.1 flashes. Those catalog rows are `checkId: null` (manual) until a real probe exists — they must not auto-pass after a Playwright run.
 
 IBM `style_focus_visible` is not a replacement for Tab + focused-vs-unfocused compare.
 
@@ -93,11 +73,11 @@ IBM `style_focus_visible` is not a replacement for Tab + focused-vs-unfocused co
 
 ## Mapping that hides distinct defects
 
-| Observation | Mapped to | Effect |
-| --- | --- | --- |
-| `complyloop-forced-colors` | `non-text-contrast` | Forced-colors failures look like 1.4.11 contrast. |
-| Dialog / tabs / disclosure / menu | `keyboard-interaction` or `keyboard-trap` | Cannot status widget families separately. |
-| Several axe rules | one check id (e.g. many image rules → `img-alt`) | Correct for **one finding**; do not also emit a second engine’s copy. |
+| Observation                       | Mapped to                                        | Effect                                                                |
+| --------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------- |
+| `complyloop-forced-colors`        | `non-text-contrast`                              | Forced-colors failures look like 1.4.11 contrast.                     |
+| Dialog / tabs / disclosure / menu | `keyboard-interaction` or `keyboard-trap`        | Cannot status widget families separately.                             |
+| Several axe rules                 | one check id (e.g. many image rules → `img-alt`) | Correct for **one finding**; do not also emit a second engine’s copy. |
 
 ---
 
@@ -109,7 +89,7 @@ Alt quality, caption quality, label pertinence, sitemap pertinence, button names
 
 ## What to do next
 
-1. Optional: IBM mapped subset — not a second target-size engine. `linkinator` for broken links. Axe at 320×568 if we want a mobile target-size pass.
-2. Later Playwright, not another scanner: form **submit** → associated errors; hover/focus/Escape (1.4.13); mutate DOM + re-read live regions; flash *if* we ever compute 2.3.1. Emulate `forced-colors` instead of inferring from normal CSS.
+1. Axe at 320×568 if we want a mobile target-size pass.
+2. Later Playwright, not another scanner: form **submit** → associated errors; hover/focus/Escape (1.4.13); mutate DOM + re-read live regions; flash _if_ we ever compute 2.3.1. Emulate `forced-colors` instead of inferring from normal CSS.
 
 **Do not** add Lighthouse, Pa11y, QualWeb+IBM+Alfa together, or `@html-validate/wcag`.
