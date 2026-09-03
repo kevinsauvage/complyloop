@@ -386,6 +386,11 @@ export async function scanRuntime(
       pages.length > 0
         ? await brokenLinkFindingsForUrls(urls, {
           lookup: options.lookup,
+          recurse: true,
+          maxUrls: maxRuntimePages(),
+          snapshots: pages
+            .map((page) => page.snapshot)
+            .filter((snapshot) => snapshot !== undefined),
         })
         : [];
     const linkCheckRan = pages.length > 0;

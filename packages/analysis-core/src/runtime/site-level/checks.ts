@@ -244,5 +244,88 @@ export function runSiteLevelChecks(
     });
   }
 
+  const langs = snapshots
+    .map((snapshot) => snapshot.htmlLang.trim())
+    .filter((lang) => lang.length > 0);
+  const uniqueLangs = new Set(langs);
+  if (langs.length >= 2 && uniqueLangs.size > 1) {
+    findings.push(
+      siteFinding(
+        "consistent-lang",
+        pages,
+        `Languages: ${[...uniqueLangs].join(", ")}`,
+        "The html lang attribute differs across configured preview routes.",
+      ),
+    );
+  }
+
+  const routesMissingH1 = snapshots
+    .filter((snapshot) => !snapshot.pageHeading)
+    .map((snapshot) => snapshot.url);
+  if (routesMissingH1.length > 0 && routesMissingH1.length < snapshots.length) {
+    findings.push(
+      siteFinding(
+        "consistent-page-heading",
+        pages,
+        `Missing h1 on: ${routesMissingH1.join(", ")}`,
+        "Some preview routes expose a primary heading while others do not.",
+      ),
+    );
+  }
+
+  const headingToTitles = new Map<string, Set<string>>();
+  for (const snapshot of snapshots) {
+    const heading = snapshot.pageHeading?.trim();
+    const title = snapshot.title.trim();
+    if (!heading || !title) continue;
+    const titles = headingToTitles.get(heading) ?? new Set<string>();
+    titles.add(title);
+    headingToTitles.set(heading, titles);
+  }
+  for (const [heading, titles] of headingToTitles) {
+    if (titles.size <= 1) continue;
+    findings.push(
+      siteFinding(
+        "consistent-page-heading",
+        pages,
+        `Shared h1 “${heading}” across ${titles.size} different titles`,
+        `The same primary heading (“${heading}”) appears on routes whose document titles differ, so page identity is unclear.`,
+      ),
+    );
+    break;
+  }
+
+  const idToPages = new Map<string, string[]>();
+  for (const snapshot of snapshots) {
+    for (const id of snapshot.elementIds) {
+      const routes = idToPages.get(id) ?? [];
+      routes.push(snapshot.url);
+      idToPages.set(id, routes);
+    }
+  }
+  const crossRouteIds = [...idToPages.entries()].filter(
+    ([, routes]) => new Set(routes).size > 1,
+  );
+  if (crossRouteIds.length > 0) {
+    const examples = crossRouteIds
+      .slice(0, 3)
+      .map(([id, routes]) => `#${id} (${routes.length} routes)`)
+      .join("; ");
+    findings.push({
+      checkId: "duplicate-id",
+      kind: "violation",
+      severity: "serious",
+      confidence: "high",
+      reason: `The same id attribute appears on more than one preview route: ${examples}.`,
+      location: {
+        kind: "site",
+        pages,
+        detail: examples,
+      },
+      fix: null,
+      engine: "runtime",
+    });
+  }
+
   return findings;
 }

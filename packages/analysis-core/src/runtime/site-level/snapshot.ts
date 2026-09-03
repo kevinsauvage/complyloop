@@ -136,9 +136,36 @@ export async function capturePageSnapshot(
       });
     }
 
+    const elementIds: string[] = [];
+    for (const el of document.querySelectorAll("[id]")) {
+      const id = el.getAttribute("id")?.trim();
+      if (id) elementIds.push(id);
+    }
+
+    const fragmentLinks: Array<{ href: string; label?: string }> = [];
+    for (const anchor of document.querySelectorAll("a[href*='#']")) {
+      const href = anchor.getAttribute("href");
+      if (!href || href === "#") continue;
+      const hashIndex = href.indexOf("#");
+      if (hashIndex === -1) continue;
+      const fragment = href.slice(hashIndex);
+      if (fragment.length < 2) continue;
+      fragmentLinks.push({
+        href,
+        label: anchor.textContent?.trim() || undefined,
+      });
+    }
+
+    const pageHeading =
+      document.querySelector("h1")?.textContent?.trim() || undefined;
+
     return {
       url: pageUrl,
       title: document.title,
+      htmlLang: document.documentElement.getAttribute("lang")?.trim() ?? "",
+      pageHeading,
+      elementIds,
+      fragmentLinks,
       navLinks,
       helpLinks,
       searchInputs,

@@ -13,7 +13,7 @@ How we analyze **today**, what the engine inventory looks like after the latest 
 | axe-core           | `runtime/scan.ts`, `axe-map.ts`                    | **122** mapped rules                                       | Rendered a11y tree baseline; incomplete → `warning` / `needs_review`                              |
 | html-validate      | `html-validate-runtime.ts`, `html-validate-map.ts` | **10** rendered rules                                      | Generated DOM structure (RGAA 8.2 / 10.1, idrefs)                                                 |
 | IBM Equal Access   | `ibm-runtime.ts`, `ibm-map.ts`                     | **15** curated rules (~174 engine rules rejected/unmapped) | Second engine on same Playwright page; dedupes vs axe by check id + snippet                       |
-| Playwright custom  | `runtime/custom-checks/`                           | **23** probes                                              | Focus, reflow, widgets, media, reduced motion, form submit errors, CAPTCHA/auth heuristics, …     |
+| Playwright custom  | `runtime/custom-checks/`                           | **25** probes                                              | Focus, reflow, widgets, hover content, live regions, form submit, …                               |
 | Theme pass         | `theme-conditions.ts`                              | 3 conditions                                               | Re-runs theme-sensitive axe + focus/contrast subset under dark / light / `prefers-contrast: more` |
 | Mobile target-size | `viewport-conditions.ts` + `scan.ts`               | 1 condition (`320×568`)                                    | Re-runs axe `target-size`; condition-specific findings like theme pass                            |
 
@@ -37,7 +37,7 @@ How we analyze **today**, what the engine inventory looks like after the latest 
 | IBM               | `getCompliance(page)` after axe, mapped subset              | Right as **sibling** engine; heuristic ids emit `warning`; check-id dedupe vs axe.                        |
 | Custom Playwright | Tab, viewport emulation, widget interaction                 | Right for behaviour no static engine sees. **forced-colors** uses live `forced-colors: active` emulation. |
 | Site-level        | Snapshots across routes                                     | Right differentiator; needs ≥2 routes.                                                                    |
-| linkinator        | Per-route, same-origin, `recurse: false`, SSRF-guarded      | Right for broken internal links; does **not** crawl site or validate fragments yet.                       |
+| linkinator        | Per-route, same-origin, optional `recurse`, SSRF-guarded    | Same-origin crawl capped by `maxRuntimePages()`; fragment `#id` targets validated from snapshots.         |
 | Theme pass        | Condition-specific re-run                                   | Right idea; subset is intentionally narrow.                                                               |
 
 **Largest product gap:** assessments **without** `runtimeBaseUrl` — **86** runtime-only check ids (including contrast, focus, reflow, broken links, site-level subset) stay `unable_to_verify`. That is a preview-URL adoption problem more than a missing-scanner problem.
@@ -48,30 +48,27 @@ How we analyze **today**, what the engine inventory looks like after the latest 
 
 ## Known weaknesses (from code review)
 
-| Issue                        | Where                                                                                 | Effect                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Widget families collapsed    | `axe-map.ts`: dialog/tabs/disclosure/menu → `keyboard-interaction` or `keyboard-trap` | Cannot status or trend widget types separately                               |
-| linkinator shallow           | `link-check.ts`: `recurse: false`, same-origin only                                   | Misses broken links only reachable from deeper routes; no `#fragment` probe  |
-| Custom check test gap        | 20/23 `custom-checks/*.ts` lack colocated unit tests                                  | Behaviour covered partly by `custom-checks-playwright.test.ts` only          |
-| `label-adjacent`             | 48px gap heuristic                                                                    | Documented as FP-prone; still emits high-confidence violations               |
-| accessibility-checker weight | npm dep pulls puppeteer/chromedriver                                                  | Runtime-only via dynamic import + `serverExternalPackages`; ops/install cost |
+| Issue                        | Where                                                | Effect                                                                       |
+| ---------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Custom check test gap        | 22/25 `custom-checks/*.ts` lack colocated unit tests | Behaviour covered partly by `custom-checks-playwright.test.ts` only          |
+| `label-adjacent`             | 48px gap heuristic                                   | Documented as FP-prone; still emits high-confidence violations               |
+| accessibility-checker weight | npm dep pulls puppeteer/chromedriver                 | Runtime-only via dynamic import + `serverExternalPackages`; ops/install cost |
 
 ---
 
 ## Mapping that hides distinct defects
 
-| Observation                       | Mapped to                                 | Effect                                                  |
-| --------------------------------- | ----------------------------------------- | ------------------------------------------------------- |
-| `complyloop-forced-colors`        | `non-text-contrast`                       | Forced-colors failures look like 1.4.11 contrast        |
-| Dialog / tabs / disclosure / menu | `keyboard-interaction` or `keyboard-trap` | One bucket for different widget failures                |
-| Many axe image rules              | `img-alt`                                 | Correct for one finding per defect; dedupe with IBM/AST |
+| Observation                | Mapped to           | Effect                                                  |
+| -------------------------- | ------------------- | ------------------------------------------------------- |
+| `complyloop-forced-colors` | `non-text-contrast` | Forced-colors failures look like 1.4.11 contrast        |
+| Many axe image rules       | `img-alt`           | Correct for one finding per defect; dedupe with IBM/AST |
 
 ---
 
 ## Manual controls — never auto-pass or auto-fail (26 `checkId: null`)
 
 Pertinence/quality: alt text, captions, labels, titles, button names, table summaries, sitemap entries, office-doc equivalence, …
-Not scanned: outline-none pairing, **1.4.13** hover/focus content, **1.4.1** color-only information, **2.3.1** flash, **RGAA 4.13** AT-compatible media players.
+Not scanned: outline-none pairing, **1.4.1** color-only information, **2.3.1** flash, **RGAA 4.13** AT-compatible media players.
 
 Human verification remains the method for these.
 
@@ -79,20 +76,19 @@ Human verification remains the method for these.
 
 ## Prioritized todo list
 
-### P2 — Coverage extensions (still no third core engine)
+### P2 — Coverage extensions (still no third core engine) ✅ (done)
 
-6. **Hover / focus / Escape (WCAG 1.4.13)** — Show on hover/focus → keyboard reachable, dismissible, not obscuring; catalog control exists (`checkId: null` today — needs modeled id + `needs_review` default).
-7. **Live region updates** — Mutate DOM (toast, inline validation), diff accessibility tree / live region text; presence of `aria-live` is insufficient.
-8. **linkinator hardening** — Optional same-origin `recurse: true` capped by `maxRuntimePages`; validate `#fragment` targets against rendered ids; map fragment misses to `broken-link` or sibling id.
-9. **Split widget keyboard check ids** — `dialog-keyboard`, `tabs-keyboard`, `disclosure-keyboard`, `menu-keyboard` (or similar) instead of one `keyboard-interaction` bucket; update catalog + axe-map.
-10. **Fragment / duplicate-id across routes** — Site-level pass: ids used on multiple preview routes, lang/title/heading consistency beyond duplicate title.
+6. ~~**Hover / focus / Escape (WCAG 1.4.13)**~~ — `hover-content.ts` + `ctl-hover-content` → `hover-content` (heuristic warning).
+7. ~~**Live region updates**~~ — `live-region-updates.ts` triggers actions and flags unannounced status text.
+8. ~~**linkinator hardening**~~ — optional same-origin `recurse: true` capped by `maxRuntimePages()`; fragment targets validated from snapshots → `broken-link`.
+9. ~~**Split widget keyboard check ids**~~ — `dialog-keyboard`, `tabs-keyboard`, `disclosure-keyboard`, `menu-keyboard` in axe-map + catalog.
+10. ~~**Fragment / duplicate-id across routes**~~ — snapshot collects ids/lang/h1; site-level `duplicate-id`, `consistent-lang`, `consistent-page-heading`.
 
 ### P3 — Quality, ops, and debt
 
 11. **Colocated unit tests** for custom checks currently only covered by Playwright integration (`focus.ts`, `widget-keyboard.ts`, `reflow.ts`, `non-text-contrast.ts`, …).
-12. **Visual regression** — Playwright screenshot baselines per preview route (regression evidence only; not an AI vision scanner).
-13. **Re-evaluate `label-adjacent`** — Keep as `needs_review`, tighten heuristic, or remove if FP rate is high on real apps.
-14. **Document IBM install footprint** — puppeteer/chromedriver transitive deps; worker-only execution path; Apache-2.0 NOTICE in shipping artifacts.
+
+12. **Re-evaluate `label-adjacent`** — Keep as `needs_review`, tighten heuristic, or remove if FP rate is high on real apps.
 
 ### P4 — Later / optional packages
 

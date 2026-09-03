@@ -65,18 +65,16 @@ describe("custom runtime axe mappings", () => {
     expect(checkIdForAxeRule("complyloop-reduced-motion")).toBe(
       "reduced-motion",
     );
-    expect(checkIdForAxeRule("complyloop-dialog-focus")).toBe(
-      "keyboard-interaction",
-    );
+    expect(checkIdForAxeRule("complyloop-dialog-focus")).toBe("dialog-keyboard");
     expect(checkIdForAxeRule("complyloop-dialog-trap")).toBe("keyboard-trap");
-    expect(checkIdForAxeRule("complyloop-tabs-keyboard")).toBe(
-      "keyboard-interaction",
-    );
+    expect(checkIdForAxeRule("complyloop-tabs-keyboard")).toBe("tabs-keyboard");
     expect(checkIdForAxeRule("complyloop-disclosure-keyboard")).toBe(
-      "keyboard-interaction",
+      "disclosure-keyboard",
     );
-    expect(checkIdForAxeRule("complyloop-menu-keyboard")).toBe(
-      "keyboard-interaction",
+    expect(checkIdForAxeRule("complyloop-menu-keyboard")).toBe("menu-keyboard");
+    expect(checkIdForAxeRule("complyloop-hover-content")).toBe("hover-content");
+    expect(checkIdForAxeRule("complyloop-live-region-updates")).toBe(
+      "live-region-updates",
     );
     expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });

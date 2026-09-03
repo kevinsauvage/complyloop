@@ -1,11 +1,13 @@
 import type { Confidence, Severity } from "../../contract/statuses.js";
+import { maxRuntimePages } from "../../contract/assessment-limits.js";
 import type { RawFinding } from "../../types.js";
 import {
   assertSafeRuntimeUrl,
   type DnsLookup,
 } from "../url-safety.js";
+import type { RuntimePageSnapshot } from "./types.js";
 
-const SKIP_LINK_SCHEMES = /^(mailto:|tel:|javascript:|data:|#)/i;
+const SKIP_LINK_SCHEMES = /^(mailto:|tel:|javascript:|data:)/i;
 
 function isSameOrigin(base: URL, target: string): boolean {
   try {
@@ -32,6 +34,7 @@ function brokenLinkFinding(
   status: number | undefined,
   displayText: string | undefined,
   confidence: Confidence,
+  reasonSuffix?: string,
 ): RawFinding {
   const statusLabel =
     status !== undefined ? `HTTP ${status}` : "unreachable destination";
@@ -41,7 +44,7 @@ function brokenLinkFinding(
     kind: "violation",
     severity,
     confidence,
-    reason: `Link destination failed (${statusLabel}): ${linkUrl}`,
+    reason: `Link destination failed (${statusLabel}${reasonSuffix ? `; ${reasonSuffix}` : ""}): ${linkUrl}`,
     location: {
       kind: "dom",
       url: pageUrl,
@@ -56,6 +59,55 @@ function brokenLinkFinding(
 
 export interface BrokenLinkCheckOptions {
   lookup?: DnsLookup;
+  /** When true, follow same-origin links up to `maxUrls`. */
+  recurse?: boolean;
+  maxUrls?: number;
+  snapshots?: ReadonlyArray<RuntimePageSnapshot>;
+}
+
+function fragmentFindingsFromSnapshots(
+  snapshots: ReadonlyArray<RuntimePageSnapshot>,
+): RawFinding[] {
+  const findings: RawFinding[] = [];
+  const seen = new Set<string>();
+
+  for (const snapshot of snapshots) {
+    const idSet = new Set(snapshot.elementIds);
+    for (const link of snapshot.fragmentLinks) {
+      const hashIndex = link.href.indexOf("#");
+      if (hashIndex === -1) continue;
+      const fragmentId = decodeURIComponent(link.href.slice(hashIndex + 1));
+      if (!fragmentId) continue;
+
+      try {
+        const resolved = new URL(link.href, snapshot.url);
+        if (resolved.origin + resolved.pathname !== new URL(snapshot.url).origin + new URL(snapshot.url).pathname) {
+          continue;
+        }
+      } catch {
+        continue;
+      }
+
+      if (idSet.has(fragmentId)) continue;
+
+      const dedupeKey = `${snapshot.url}::${link.href}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+
+      findings.push(
+        brokenLinkFinding(
+          snapshot.url,
+          link.href,
+          undefined,
+          link.label,
+          "high",
+          "fragment target missing on page",
+        ),
+      );
+    }
+  }
+
+  return findings;
 }
 
 /**
@@ -69,23 +121,34 @@ export async function brokenLinkFindingsForUrls(
   const lookupOptions = options?.lookup ? { lookup: options.lookup } : undefined;
   const findings: RawFinding[] = [];
   const seen = new Set<string>();
+  const maxUrls = options?.maxUrls ?? maxRuntimePages();
+  let crawledPages = 0;
   const { check, LinkState } = await import("linkinator");
 
+  if (options?.snapshots && options.snapshots.length > 0) {
+    findings.push(...fragmentFindingsFromSnapshots(options.snapshots));
+  }
+
   for (const pageUrl of urls) {
+    if (crawledPages >= maxUrls) break;
+    crawledPages += 1;
+
     await assertSafeRuntimeUrl(pageUrl, lookupOptions);
     const pageOrigin = new URL(pageUrl);
 
     const result = await check({
       path: pageUrl,
-      recurse: false,
+      recurse: options?.recurse ?? false,
       linksToSkip: async (linkUrl) => {
         if (SKIP_LINK_SCHEMES.test(linkUrl.trim())) return true;
+        if (linkUrl.trim().startsWith("#")) return true;
         try {
           const resolved = new URL(linkUrl, pageOrigin.href);
           if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
             return true;
           }
           if (!isSameOrigin(pageOrigin, resolved.href)) return true;
+          if (options?.recurse && crawledPages >= maxUrls) return true;
           await assertSafeRuntimeUrl(resolved.href, lookupOptions);
           return false;
         } catch {
@@ -96,10 +159,10 @@ export async function brokenLinkFindingsForUrls(
 
     for (const link of result.links) {
       if (link.state !== LinkState.BROKEN) continue;
-      if (!link.parent || link.parent !== pageUrl) continue;
+      if (!link.parent) continue;
       if (!isSameOrigin(pageOrigin, link.url)) continue;
 
-      const dedupeKey = `${pageUrl}::${link.url}`;
+      const dedupeKey = `${link.parent}::${link.url}`;
       if (seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
 
@@ -110,7 +173,7 @@ export async function brokenLinkFindingsForUrls(
 
       findings.push(
         brokenLinkFinding(
-          pageUrl,
+          link.parent,
           link.url,
           link.status,
           link.displayText,

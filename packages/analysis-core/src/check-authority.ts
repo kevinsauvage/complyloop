@@ -80,6 +80,12 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "accessible-auth-enhanced",
   "media-identification",
   "supplementary-content-keyboard",
+  "hover-content",
+  "live-region-updates",
+  "dialog-keyboard",
+  "tabs-keyboard",
+  "disclosure-keyboard",
+  "menu-keyboard",
   "color-contrast-enhanced",
   "markup-nesting",
   "broken-link",
@@ -94,6 +100,8 @@ const SITE_LEVEL_CHECK_IDS = [
   "consistent-search",
   "consistent-landmarks",
   "duplicate-page-title",
+  "consistent-lang",
+  "consistent-page-heading",
 ] as const satisfies readonly CheckId[];
 
 /**
@@ -120,6 +128,7 @@ const HEURISTIC_CHECK_IDS = [
   "error-prevention",
   "reduced-motion",
   "accessible-auth-enhanced",
+  "hover-content",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);

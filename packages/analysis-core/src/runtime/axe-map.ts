@@ -155,11 +155,13 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-form-error-submit": "form-error-association",
   "complyloop-forced-colors": "non-text-contrast",
   "complyloop-reduced-motion": "reduced-motion",
-  "complyloop-dialog-focus": "keyboard-interaction",
+  "complyloop-dialog-focus": "dialog-keyboard",
   "complyloop-dialog-trap": "keyboard-trap",
-  "complyloop-tabs-keyboard": "keyboard-interaction",
-  "complyloop-disclosure-keyboard": "keyboard-interaction",
-  "complyloop-menu-keyboard": "keyboard-interaction",
+  "complyloop-tabs-keyboard": "tabs-keyboard",
+  "complyloop-disclosure-keyboard": "disclosure-keyboard",
+  "complyloop-menu-keyboard": "menu-keyboard",
+  "complyloop-hover-content": "hover-content",
+  "complyloop-live-region-updates": "live-region-updates",
 };
 
 /**

@@ -2,6 +2,8 @@ import fs from "node:fs";
 import { afterAll, describe, expect, it } from "vitest";
 import { chromium, type Browser } from "playwright";
 import { captchaAlternativeViolation } from "./custom-checks/captcha-alternative";
+import { hoverContentViolation } from "./custom-checks/hover-content";
+import { liveRegionUpdatesViolation } from "./custom-checks/live-region-updates";
 import { formErrorSubmitViolation } from "./custom-checks/form-error-submit";
 import { forcedColorsViolation } from "./custom-checks/forced-colors";
 import { reducedMotionViolation } from "./custom-checks/reduced-motion";
@@ -77,6 +79,56 @@ describe("custom runtime checks (Playwright)", () => {
       `);
       const violation = await supplementaryContentKeyboardViolation(page);
       expect(violation?.id).toBe("complyloop-supplementary-content-keyboard");
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "hover-content flags hover-only supplementary content",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><head><style>
+          .tip { position: relative; display: inline-block; }
+          .tip .panel {
+            display: none;
+            position: absolute;
+            background: #fff;
+            border: 1px solid #000;
+            padding: 8px;
+          }
+          .tip:hover .panel { display: block; }
+        </style></head><body>
+          <span class="tip" title="More info">
+            Help
+            <span class="panel">Extended help text only on hover.</span>
+          </span>
+        </body></html>
+      `);
+      const violation = await hoverContentViolation(page);
+      expect(violation?.id).toBe("complyloop-hover-content");
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "live-region-updates flags visible status outside live regions",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <form novalidate>
+            <input id="email" type="email" />
+            <button id="save" type="button">Send</button>
+          </form>
+          <p id="status" style="display:none">Error: invalid email</p>
+          <script>
+            document.getElementById("save").addEventListener("click", () => {
+              document.getElementById("status").style.display = "block";
+            });
+          </script>
+        </body></html>
+      `);
+      const violation = await liveRegionUpdatesViolation(page);
+      expect(violation?.id).toBe("complyloop-live-region-updates");
     },
     30_000,
   );

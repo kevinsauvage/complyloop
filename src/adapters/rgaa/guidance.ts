@@ -122,6 +122,30 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Prefer a native <button> or <a href>. If you must use a non-native host, add an interactive role, tabIndex={0}, and keyboard equivalents (onKeyDown / onFocus / onBlur).",
   },
+  "dialog-keyboard": {
+    impact:
+      "Modal dialogs that do not manage focus trap keyboard users inside the page behind the dialog or leave focus on the trigger.",
+    howToFix:
+      "Move focus into the dialog when it opens, keep tab order inside while open, close on Escape, and restore focus to the trigger.",
+  },
+  "tabs-keyboard": {
+    impact:
+      "Tab widgets without a focusable tab leave keyboard users unable to operate the control.",
+    howToFix:
+      "Use native buttons or links for tabs, or ensure at least one tab has tabindex 0 and arrow keys move between tabs.",
+  },
+  "disclosure-keyboard": {
+    impact:
+      "Expand/collapse controls that are not focusable cannot be operated from the keyboard.",
+    howToFix:
+      "Use a <button> with aria-expanded and aria-controls, or make the toggle focusable and operable with Enter/Space.",
+  },
+  "menu-keyboard": {
+    impact:
+      "Menu items that are plain divs without tabindex cannot receive keyboard focus.",
+    howToFix:
+      "Use native menuitem hosts or add tabindex={0} and keyboard handlers for Enter, Space, and arrow keys.",
+  },
   "color-contrast": {
     impact:
       "Low-contrast text is unreadable for users with low vision and in bright environments; this can only be measured on the rendered page.",
@@ -494,6 +518,18 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       'Put status text in role="status" or role="alert", or add aria-live="polite" on the message container.',
   },
+  "live-region-updates": {
+    impact:
+      "Status text appears visually after an action but is not announced because it sits outside a live region.",
+    howToFix:
+      'Move dynamic status messages into an element with role="status", role="alert", or aria-live.',
+  },
+  "hover-content": {
+    impact:
+      "Content shown only on pointer hover cannot be reached or dismissed with the keyboard.",
+    howToFix:
+      "Ensure hover content also appears on focus, can be dismissed with Escape, and remains hoverable without disappearing.",
+  },
   "non-text-contrast": {
     impact:
       "Low-contrast borders and control chrome are hard to see for low-vision users (WCAG 1.4.11 / RGAA 3.3).",
@@ -643,6 +679,18 @@ const guidance: Record<CheckId, CheckGuidance> = {
       "Identical document titles on every route hide which page the user is on in tabs, history, and screen reader heading lists (WCAG 2.4.2 / RGAA 8.6).",
     howToFix:
       "Make each route’s <title> unique and specific, e.g. “Settings — Acme” vs “Dashboard — Acme”. Pertinence of the wording still needs a human.",
+  },
+  "consistent-lang": {
+    impact:
+      "Different lang values across routes make screen readers switch pronunciation rules unpredictably.",
+    howToFix:
+      "Use the same html lang on every route in a set unless a route is intentionally in another language.",
+  },
+  "consistent-page-heading": {
+    impact:
+      "Missing or duplicated primary headings across routes make it hard to tell which page the user is on.",
+    howToFix:
+      "Give each route a unique h1 that matches its purpose; do not reuse the same h1 when document titles differ.",
   },
   "decorative-ignored": {
     impact:

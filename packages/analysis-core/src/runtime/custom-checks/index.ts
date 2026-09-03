@@ -13,6 +13,8 @@ import { mediaKeyboardViolation } from "./media-keyboard.js";
 import { focusCustomViolations } from "./focus.js";
 import { labelAdjacentViolation } from "./label-adjacent.js";
 import { nonTextContrastViolation } from "./non-text-contrast.js";
+import { hoverContentViolation } from "./hover-content.js";
+import { liveRegionUpdatesViolation } from "./live-region-updates.js";
 import { formErrorSubmitViolation } from "./form-error-submit.js";
 import { forcedColorsViolation } from "./forced-colors.js";
 import { reducedMotionViolation } from "./reduced-motion.js";
@@ -71,6 +73,8 @@ export async function runCustomRuntimeChecks(
   // 200% resize) belong on the same sequential path.
   for (const emulated of [
     await formErrorSubmitViolation(page),
+    await liveRegionUpdatesViolation(page),
+    await hoverContentViolation(page),
     await forcedColorsViolation(page),
     await reducedMotionViolation(page),
     await reflowViolation(page),

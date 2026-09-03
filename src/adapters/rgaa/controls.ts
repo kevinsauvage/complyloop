@@ -239,6 +239,50 @@ export const rgaaControls: Control[] = [
     complianceWeight: 1.4,
   },
   {
+    id: "ctl-dialog-keyboard",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 7.3",
+    secondaryCode: "WCAG 2.1.1",
+    title: "Dialogs are operable from the keyboard",
+    description:
+      "Modal dialogs move focus in, trap focus appropriately, and restore focus on close.",
+    checkId: "dialog-keyboard",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-tabs-keyboard",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 7.3",
+    secondaryCode: "WCAG 2.1.1",
+    title: "Tab widgets are operable from the keyboard",
+    description:
+      "Tab lists expose at least one focusable tab and support keyboard operation.",
+    checkId: "tabs-keyboard",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-disclosure-keyboard",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 7.3",
+    secondaryCode: "WCAG 2.1.1",
+    title: "Disclosure widgets are operable from the keyboard",
+    description:
+      "Expand/collapse controls are focusable and operable with the keyboard.",
+    checkId: "disclosure-keyboard",
+    complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-menu-keyboard",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 7.3",
+    secondaryCode: "WCAG 2.1.1",
+    title: "Menus are operable from the keyboard",
+    description:
+      "Menu items are focusable and operable with the keyboard.",
+    checkId: "menu-keyboard",
+    complianceWeight: 1.3,
+  },
+  {
     id: "ctl-color-contrast",
     frameworkId: rgaaFramework.id,
     code: "RGAA 3.2",
@@ -987,6 +1031,17 @@ export const rgaaControls: Control[] = [
     complianceWeight: 1.3,
   },
   {
+    id: "ctl-live-region-updates",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 7.5",
+    secondaryCode: "WCAG 4.1.3",
+    title: "Status messages are announced when they appear",
+    description:
+      "After user actions, visible status feedback is exposed through live regions — not only inserted into the DOM.",
+    checkId: "live-region-updates",
+    complianceWeight: 1.3,
+  },
+  {
     id: "ctl-non-text-contrast",
     frameworkId: rgaaFramework.id,
     code: "RGAA 3.3",
@@ -1027,7 +1082,7 @@ export const rgaaControls: Control[] = [
     title: "Hover and focus content is keyboard reachable",
     description:
       "Content shown on hover or focus can be dismissed, hovered, and reached by keyboard.",
-    checkId: null,
+    checkId: "hover-content",
     complianceWeight: 1.3,
   },
   {
@@ -1425,6 +1480,28 @@ export const rgaaControls: Control[] = [
       "Document titles differ across preview routes. Identical titles on every page fail pertinence (RGAA 8.6).",
     checkId: "duplicate-page-title",
     complianceWeight: 1.3,
+  },
+  {
+    id: "ctl-consistent-lang",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 8.4",
+    secondaryCode: "WCAG 3.1.2",
+    title: "Page language is consistent across routes",
+    description:
+      "The html lang attribute is the same on every configured preview route unless a route genuinely switches language.",
+    checkId: "consistent-lang",
+    complianceWeight: 1.2,
+  },
+  {
+    id: "ctl-consistent-page-heading",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 9.1",
+    secondaryCode: "WCAG 2.4.6",
+    title: "Primary headings are consistent across routes",
+    description:
+      "Each route exposes a primary heading and routes with different titles do not share the same h1.",
+    checkId: "consistent-page-heading",
+    complianceWeight: 1.2,
   },
   {
     id: "ctl-link-explicit",

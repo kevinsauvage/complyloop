@@ -9,6 +9,9 @@ function snapshot(
   return {
     url,
     title: url,
+    htmlLang: "en",
+    elementIds: [],
+    fragmentLinks: [],
     navLinks: [],
     helpLinks: [],
     searchInputs: [],
@@ -171,6 +174,39 @@ describe("runSiteLevelChecks", () => {
     );
     expect(titleFindings).toHaveLength(1);
     expect(titleFindings[0]?.kind).toBe("warning");
+  });
+
+  it("flags inconsistent document languages", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", { htmlLang: "fr" }),
+      snapshot("https://x.test/b", { htmlLang: "en" }),
+    ]);
+    expect(findings.some((finding) => finding.checkId === "consistent-lang")).toBe(
+      true,
+    );
+  });
+
+  it("flags missing h1 on some routes", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", { pageHeading: "Home" }),
+      snapshot("https://x.test/b"),
+    ]);
+    expect(
+      findings.some((finding) => finding.checkId === "consistent-page-heading"),
+    ).toBe(true);
+  });
+
+  it("flags cross-route duplicate element ids", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", { elementIds: ["panel", "nav"] }),
+      snapshot("https://x.test/b", { elementIds: ["panel", "footer"] }),
+    ]);
+    expect(findings.some((finding) => finding.checkId === "duplicate-id")).toBe(
+      true,
+    );
+    expect(findings.find((finding) => finding.checkId === "duplicate-id")?.location).toMatchObject({
+      kind: "site",
+    });
   });
 
   it("does not flag unique document titles", () => {

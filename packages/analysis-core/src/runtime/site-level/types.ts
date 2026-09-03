@@ -1,6 +1,19 @@
+export interface FragmentLinkRef {
+  href: string;
+  label?: string;
+}
+
 export interface RuntimePageSnapshot {
   url: string;
   title: string;
+  /** Document language from <html lang>. */
+  htmlLang: string;
+  /** Text of the first h1, when present. */
+  pageHeading?: string;
+  /** Element ids present on the rendered page. */
+  elementIds: string[];
+  /** Same-page and cross-page fragment links discovered on the route. */
+  fragmentLinks: FragmentLinkRef[];
   navLinks: string[];
   helpLinks: string[];
   searchInputs: Array<{ name?: string; type: string }>;
