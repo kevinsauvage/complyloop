@@ -4,6 +4,7 @@ import {
   hasVisibleFocusIndicator,
   snapshotFocusStyles,
 } from "./focus-indicator.js";
+import { isSuspectedKeyboardTrap } from "./focus-trap.js";
 import type { CustomViolation, CustomViolationNode } from "./types.js";
 
 const MAX_TAB_STEPS = 80;
@@ -203,10 +204,7 @@ async function detectKeyboardTrap(
     sequence.push(key);
   }
 
-  const tail = sequence.slice(-12);
-  const unique = new Set(tail.filter((key) => key !== "body" && key !== "modal"));
-  if (unique.size > 2) return null;
-  if (tail.includes("modal")) return null;
+  if (!isSuspectedKeyboardTrap(sequence)) return null;
 
   const trap = await page.evaluate((captureSrc) => {
     const captureElement = new Function(`return (${captureSrc})`)() as (

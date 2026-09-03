@@ -111,6 +111,8 @@ describe("check authority", () => {
     expect(isHeuristicCheck("error-prevention")).toBe(true);
     expect(isHeuristicCheck("reduced-motion")).toBe(true);
     expect(isHeuristicCheck("accessible-auth-enhanced")).toBe(true);
+    expect(isHeuristicCheck("hover-content")).toBe(true);
+    expect(isHeuristicCheck("label-adjacent")).toBe(true);
     expect(isHeuristicCheck("blockquote-cite")).toBe(false);
     expect(isHeuristicCheck("img-alt")).toBe(false);
     expect(keepOpenWhenRuntimeScanSkipped("image-of-text")).toBe(false);

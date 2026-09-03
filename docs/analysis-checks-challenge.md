@@ -48,11 +48,10 @@ How we analyze **today**, what the engine inventory looks like after the latest 
 
 ## Known weaknesses (from code review)
 
-| Issue                        | Where                                                | Effect                                                                       |
-| ---------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Custom check test gap        | 22/25 `custom-checks/*.ts` lack colocated unit tests | Behaviour covered partly by `custom-checks-playwright.test.ts` only          |
-| `label-adjacent`             | 48px gap heuristic                                   | Documented as FP-prone; still emits high-confidence violations               |
-| accessibility-checker weight | npm dep pulls puppeteer/chromedriver                 | Runtime-only via dynamic import + `serverExternalPackages`; ops/install cost |
+| Issue                        | Where                                                 | Effect                                                                       |
+| ---------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Custom check test gap        | ~17/25 `custom-checks/*.ts` lack colocated unit tests | Behaviour still partly covered by `custom-checks-playwright.test.ts` only    |
+| accessibility-checker weight | npm dep pulls puppeteer/chromedriver                  | Runtime-only via dynamic import + `serverExternalPackages`; ops/install cost |
 
 ---
 
@@ -75,36 +74,6 @@ Human verification remains the method for these.
 ---
 
 ## Prioritized todo list
-
-### P2 — Coverage extensions (still no third core engine) ✅ (done)
-
-6. ~~**Hover / focus / Escape (WCAG 1.4.13)**~~ — `hover-content.ts` + `ctl-hover-content` → `hover-content` (heuristic warning).
-7. ~~**Live region updates**~~ — `live-region-updates.ts` triggers actions and flags unannounced status text.
-8. ~~**linkinator hardening**~~ — optional same-origin `recurse: true` capped by `maxRuntimePages()`; fragment targets validated from snapshots → `broken-link`.
-9. ~~**Split widget keyboard check ids**~~ — `dialog-keyboard`, `tabs-keyboard`, `disclosure-keyboard`, `menu-keyboard` in axe-map + catalog.
-10. ~~**Fragment / duplicate-id across routes**~~ — snapshot collects ids/lang/h1; site-level `duplicate-id`, `consistent-lang`, `consistent-page-heading`.
-
-### P3 — Quality, ops, and debt
-
-11. **Colocated unit tests** for custom checks currently only covered by Playwright integration (`focus.ts`, `widget-keyboard.ts`, `reflow.ts`, `non-text-contrast.ts`, …).
-
-12. **Re-evaluate `label-adjacent`** — Keep as `needs_review`, tighten heuristic, or remove if FP rate is high on real apps.
-
-### P4 — Later / optional packages
-
-15. **Flash threshold (2.3.1)** — Only if we implement luminance sampling; stays manual until then.
-16. **`apca-w3` / `colorjs.io`** — Non-text or APCA where axe cannot; keep 1.4.3/1.4.6 baseline.
-17. **`@siteimprove/alfa`** — Only if IBM trial fails; never IBM + Alfa together.
-
-### Do not do
-
-- Another axe wrapper (Pa11y, Lighthouse, `@axe-core/playwright`).
-- `@html-validate/wcag` (third copy of axe/jsx-a11y).
-- CSS/style linters as compliance engines.
-- Re-add deleted CSS heuristics for 1.4.13 hover, live-region _presence_, or 2.3.1 flash as auto-pass after Playwright.
-- Auto-pass/fail the 26 pertinence/manual controls.
-
----
 
 ## Custom checks we keep (no package twin)
 

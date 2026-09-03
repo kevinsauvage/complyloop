@@ -1,4 +1,5 @@
 import type { Confidence, Severity } from "../contract/statuses.js";
+import { isHeuristicCheck } from "../check-authority.js";
 import type { RawFinding } from "../types.js";
 import { checkIdForAxeRule } from "./axe-map.js";
 
@@ -80,12 +81,15 @@ function findingsFromAxeHits(
   for (const violation of hits) {
     const checkId = checkIdForAxeRule(violation.id);
     if (!checkId) continue;
-    const asReview = kind === "warning" || violation.id === "frame-tested";
+    const heuristic = isHeuristicCheck(checkId);
+    const asReview = kind === "warning" || violation.id === "frame-tested" || heuristic;
     for (const node of violation.nodes) {
       findings.push({
         checkId,
         kind: asReview ? "warning" : "violation",
-        severity: severityFromImpact(violation.impact),
+        severity: heuristic
+          ? "moderate"
+          : severityFromImpact(violation.impact),
         confidence: asReview ? "medium" : confidence,
         reason: `${violation.help} ${violation.description}`.trim(),
         location: {

@@ -126,6 +126,27 @@ describe("findingsFromAxePages", () => {
     expect(findings[0]?.engine).toBe("runtime");
   });
 
+  it("emits heuristic runtime checks as warnings for needs_review", () => {
+    const findings = findingsFromAxePages([
+      {
+        url: "https://app.example/",
+        violations: [
+          {
+            id: "complyloop-label-adjacent",
+            impact: "moderate",
+            description: "Label may not be adjacent",
+            help: "Place the label next to the field",
+            nodes: [{ html: '<input id="x">', target: ["#x"] }],
+          },
+        ],
+      },
+    ]);
+    expect(findings[0]?.checkId).toBe("label-adjacent");
+    expect(findings[0]?.kind).toBe("warning");
+    expect(findings[0]?.confidence).toBe("medium");
+    expect(findings[0]?.severity).toBe("moderate");
+  });
+
   it("treats axe frame-tested as a warning so untested iframes are needs_review", () => {
     const findings = findingsFromAxePages([
       {

@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import type { CustomViolation, CustomViolationNode } from "./types.js";
+import { isKeyboardFocusable, selectorOf } from "./widget-keyboard-utils.js";
 
 /**
  * ARIA widget keyboard operability (§7 Interaction: tabs, disclosure, menu).
@@ -21,27 +22,10 @@ import type { CustomViolation, CustomViolationNode } from "./types.js";
  */
 
 const BROWSER_HELPERS = `(function helperSource() {
-  function selectorOf(el) {
-    if (el.id) return "#" + el.id;
-    const role = el.getAttribute && el.getAttribute("role");
-    if (role) return '[role="' + role + '"]';
-    return el.tagName.toLowerCase();
-  }
+  ${selectorOf.toString()}
+  ${isKeyboardFocusable.toString()}
   function snippetOf(el) {
     return (el.outerHTML || "").replace(/\\s+/g, " ").trim().slice(0, 160);
-  }
-  function isKeyboardFocusable(el) {
-    const tag = el.tagName;
-    const native =
-      tag === "BUTTON" ||
-      tag === "SUMMARY" ||
-      tag === "SELECT" ||
-      tag === "TEXTAREA" ||
-      (tag === "INPUT" && el.getAttribute("type") !== "hidden") ||
-      (tag === "A" && Boolean(el.getAttribute("href")));
-    if (native) return true;
-    const tabindex = el.getAttribute("tabindex");
-    return tabindex !== null && parseInt(tabindex, 10) >= 0;
   }
   return { selectorOf: selectorOf, snippetOf: snippetOf, isKeyboardFocusable: isKeyboardFocusable };
 })()`;

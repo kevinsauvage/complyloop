@@ -1,15 +1,13 @@
 import type { Page } from "playwright";
 import { isTwoDimensionalLayout } from "./reflow-exceptions.js";
+import { REFLOW_VIEWPORT } from "./reflow-math.js";
 import type { CustomViolation } from "./types.js";
-
-const REFLOW_WIDTH = 320;
-const REFLOW_HEIGHT = 568;
 const TWO_D_LAYOUT_SOURCE = isTwoDimensionalLayout.toString();
 
 export async function reflowViolation(page: Page): Promise<CustomViolation | null> {
   const original = page.viewportSize();
   try {
-    await page.setViewportSize({ width: REFLOW_WIDTH, height: REFLOW_HEIGHT });
+    await page.setViewportSize(REFLOW_VIEWPORT);
     const hit = await page.evaluate((twoDSrc) => {
       const isTwoD = new Function(`return (${twoDSrc})`)() as typeof isTwoDimensionalLayout;
 
