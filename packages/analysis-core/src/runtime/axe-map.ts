@@ -164,6 +164,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-menu-keyboard": "keyboard-interaction",
   "complyloop-form-error-association": "form-error-association",
   "complyloop-announcement": "status-live",
+  "complyloop-target-size": "target-size",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {

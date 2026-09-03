@@ -28,6 +28,7 @@ import { widgetKeyboardViolations } from "./widget-keyboard.js";
 import { formErrorRuntimeViolation } from "./form-error-runtime.js";
 import { reflowViolation } from "./reflow.js";
 import { resizeTextViolation } from "./resize-text.js";
+import { targetSizeViolation } from "./target-size.js";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime.js";
 import type { CustomViolation } from "./types.js";
 
@@ -52,8 +53,6 @@ export async function runCustomRuntimeChecks(
   page: Page,
 ): Promise<AxeViolationLike[]> {
   const optional = await Promise.all([
-    reflowViolation(page),
-    resizeTextViolation(page),
     textSpacingRuntimeViolation(page),
     nonTextContrastViolation(page),
     labelAdjacentViolation(page),
@@ -85,11 +84,15 @@ export async function runCustomRuntimeChecks(
   ];
 
   // reduced-motion temporarily emulates `prefers-reduced-motion`; run it
-  // sequentially before the parallel batch so that emulation never races the
-  // shared-page concurrency below (each check restores media features after).
+  // sequentially so that emulation never races the shared-page batch
+  // (each check restores media features after). Viewport-mutating checks
+  // (reflow, 200% resize, target-size) belong on the same sequential path.
   for (const emulated of [
     await forcedColorsViolation(page),
     await reducedMotionViolation(page),
+    await reflowViolation(page),
+    await resizeTextViolation(page),
+    await targetSizeViolation(page),
   ]) {
     if (emulated) violations.push(emulated);
   }
@@ -103,4 +106,22 @@ export async function runCustomRuntimeChecks(
   );
 
   return violations.map(toAxeViolation);
+}
+
+/**
+ * Theme-sensitive subset of the custom checks, for the browser-condition
+ * (color-scheme) pass. These are the checks whose outcome can genuinely change
+ * under dark/light emulation; everything else is condition-neutral.
+ */
+export async function runThemeSensitiveCustomChecks(
+  page: Page,
+): Promise<AxeViolationLike[]> {
+  const theme: CustomViolation[] = [...(await focusCustomViolations(page))];
+  for (const result of [
+    await bothColorsRuntimeViolation(page),
+    await nonTextContrastViolation(page),
+  ]) {
+    if (result) theme.push(result);
+  }
+  return theme.map(toAxeViolation);
 }

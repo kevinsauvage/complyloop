@@ -96,6 +96,7 @@ describe("custom runtime axe mappings", () => {
       "form-error-association",
     );
     expect(checkIdForAxeRule("complyloop-announcement")).toBe("status-live");
+    expect(checkIdForAxeRule("complyloop-target-size")).toBe("target-size");
     expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });
 

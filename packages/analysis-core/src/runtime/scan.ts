@@ -22,9 +22,17 @@ import {
   UNSAFE_RUNTIME_URL_MESSAGE,
   type DnsLookup,
 } from "./url-safety.js";
-import { runCustomRuntimeChecks } from "./custom-checks/index.js";
+import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./custom-checks/index.js";
 import { htmlValidateFindingsForPage } from "./html-validate-runtime.js";
 import { maxRuntimePages } from "../contract/assessment-limits.js";
+import {
+  conditionLabel,
+  conditionSpecificViolations,
+  emulationForCondition,
+  RESET_EMULATION,
+  THEME_SENSITIVE_AXE_RULES,
+  type BrowserCondition,
+} from "./theme-conditions.js";
 
 export type RuntimePageScanner = (
   urls: ReadonlyArray<string>,
@@ -102,8 +110,10 @@ export async function runAxeOnPage(page: Page): Promise<{
  */
 function createPlaywrightAxeScanner(options?: {
   lookup?: DnsLookup;
+  browserConditions?: ReadonlyArray<BrowserCondition>;
 }): RuntimePageScanner {
   const lookupOptions = options?.lookup ? { lookup: options.lookup } : undefined;
+  const conditions = options?.browserConditions ?? [];
 
   return async (urls) => {
     const browser = await getBrowser();
@@ -171,25 +181,50 @@ function createPlaywrightAxeScanner(options?: {
           const violations = hasDoctype
             ? [...results.violations, ...customViolations]
             : [
-                ...results.violations,
-                ...customViolations,
-                {
-                  id: "html-has-doctype",
-                  impact: "moderate",
-                  description:
-                    "The document does not declare a document type.",
-                  help: "Each page must have a doctype so browsers parse it in standards mode.",
-                  nodes: [
-                    {
-                      html: "<html>",
-                      target: ["html"],
-                    },
-                  ],
-                },
-              ];
+              ...results.violations,
+              ...customViolations,
+              {
+                id: "html-has-doctype",
+                impact: "moderate",
+                description:
+                  "The document does not declare a document type.",
+                help: "Each page must have a doctype so browsers parse it in standards mode.",
+                nodes: [
+                  {
+                    html: "<html>",
+                    target: ["html"],
+                  },
+                ],
+              },
+            ];
+
+          // Browser-condition pass (same requirement, different condition,
+          // different evidence): re-run the theme-sensitive analyzers under
+          // each requested condition and keep only findings that fail in that
+          // condition but not in the default pass.
+          const conditionViolations: AxeViolationLike[] = [];
+          for (const condition of conditions) {
+            await page.emulateMedia(emulationForCondition(condition));
+            try {
+              const axeResult = await runAxeOnPage(page);
+              const themeAxe = axeResult.violations.filter((v) =>
+                THEME_SENSITIVE_AXE_RULES.has(v.id),
+              );
+              const themeCustom = await runThemeSensitiveCustomChecks(page);
+              const conditionSpecific = conditionSpecificViolations(
+                violations,
+                [...themeAxe, ...themeCustom],
+                conditionLabel(condition),
+              );
+              conditionViolations.push(...conditionSpecific);
+            } finally {
+              await page.emulateMedia(RESET_EMULATION);
+            }
+          }
+
           pages.push({
             url,
-            violations,
+            violations: [...violations, ...conditionViolations],
             htmlValidateFindings,
             snapshot,
           });
@@ -210,6 +245,8 @@ const playwrightAxeScanner: RuntimePageScanner = createPlaywrightAxeScanner();
 export interface ScanRuntimeOptions {
   runtimeBaseUrl?: string;
   runtimeRoutes?: string[];
+  /** Browser conditions to re-audit theme-sensitive checks under (default none). */
+  browserConditions?: ReadonlyArray<BrowserCondition>;
   /** Injected in tests; defaults to Playwright + axe. */
   scanner?: RuntimePageScanner;
   /** Injected DNS lookup for tests. */
@@ -253,8 +290,11 @@ export async function scanRuntime(
   }
   const scanner =
     options.scanner ??
-    (options.lookup
-      ? createPlaywrightAxeScanner({ lookup: options.lookup })
+    (options.lookup || (options.browserConditions ?? []).length > 0
+      ? createPlaywrightAxeScanner({
+        lookup: options.lookup,
+        browserConditions: options.browserConditions,
+      })
       : playwrightAxeScanner);
   try {
     // Re-validate each navigation URL (path may differ from base origin).

@@ -19,18 +19,22 @@ remediation → verification → evidence**.
 ## 1. Executive decision
 
 **Keep** the current foundation: ~78 AST checks, `eslint-plugin-jsx-a11y`,
-`axe-core`, ~21 Playwright custom checks, site-level checks, RGAA/WCAG mappings.
+`axe-core`, ~22 Playwright custom checks, site-level checks, RGAA/WCAG mappings.
 
 **Add next** (ordered):
 
-1. Complete browser-condition emulation — dark/light, forced colors, reduced
-   motion, zoom/text scaling, small viewport/responsive; `prefers-contrast`
-   where useful.
+1. **Browser-condition emulation — shipped.** Forced colors, reduced motion,
+   zoom, reflow, dark/light, and `prefers-contrast` are done. A scan-level
+   `browserConditions` pass re-audits theme-sensitive checks (`color-contrast`,
+   `color-contrast-enhanced`, `use-of-color`, `non-text-contrast`, focus) under
+   each emulated condition — `dark`, `light`, `more-contrast` — and surfaces
+   findings that fail in one condition but not in the default pass.
 2. **`html-validate` (section 13) — shipped.** One rendered pass on the
    generated DOM, mapped to RGAA 8.2 / 10.1 controls.
-3. Expand custom interaction checks — **partially shipped** (dialog-focus,
-   announcement, tabs, disclosure, menu, form error-association). Next: focus
-   visibility refinement, scroll/target-size behaviour.
+3. Expand custom interaction checks — **shipped.** Dialog-focus, announcement,
+   tabs, disclosure, menu, form error-association, plus focus-visibility
+   refinement (focused vs unfocused appearance) and scroll/target-size
+   behaviour (reflow 2D exceptions + 24×24 targets with spacing).
 4. Visual regression only as Playwright screenshot assertions (regression
    evidence, not an "AI vision scanner").
 5. Site/content integrity — broken links, duplicate IDs, language, titles,
@@ -61,7 +65,7 @@ The compliance domain produces findings; analyzers only produce observations.
 | Source AST             | ~78 custom checks (`packages/analysis-core/src/checks/`) | Cheap, early, explainable source evidence  |
 | React/JSX source       | `eslint-plugin-jsx-a11y`                                 | React-specific patterns, source specialist |
 | Rendered accessibility | `axe-core`                                               | Baseline automated rendered engine         |
-| Browser/runtime        | ~21 Playwright checks                                    | Behaviour, styles, media, state            |
+| Browser/runtime        | ~22 Playwright checks                                    | Behaviour, styles, media, state            |
 | Site-level             | `runtime/site-level/`                                    | Cross-route consistency                    |
 | RGAA mapping           | Existing requirement/check mappings                      | Turns findings into RGAA/WCAG evidence     |
 
@@ -111,14 +115,26 @@ loss, not every CSS diff.
 "animation exists" from "animation is harmful" — inspect continuous/auto-play,
 pause/stop controls, flashing, and whether reduced-motion changes the experience.
 
-### Dark/light (High priority)
+### Dark/light (shipped — scan-level condition pass)
 
 Run selected checks under dedicated light and dark profiles. Detect text/icons
 disappearing, invisible borders and focus indicators, insuff‑contrast states,
 hard-coded theme assumptions, state indicators visible in one theme only. Do not
 build a generic theme checker — the useful form is
 _same requirement, different browser condition, different evidence_ (e.g. focus
-indicator PASS in light, FAIL in dark) rather than "17 CSS differences".
+indicator PASS in light, FAIL in dark) rather than "17 CSS differences". The
+`browserConditions` scan option re-runs the theme-sensitive analyzers
+(`color-contrast`, `color-contrast-enhanced`, `use-of-color`, `non-text-contrast`,
+focus) under each emulated condition and keeps only findings that fail there but
+not in the default pass.
+
+### `prefers-contrast` (shipped)
+
+Emulate `prefers-contrast: more` as a scan-level condition (`more-contrast`)
+through the same `browserConditions` mechanism, driving
+`emulateMedia({ contrast: "more" })`. A page that does not raise its contrast
+for the preference can surface condition-specific non-text-contrast /
+color-contrast findings where the default pass had none.
 
 ### 200% zoom / text resizing (High priority)
 
@@ -126,15 +142,17 @@ Distinct from a 320px viewport. Increase zoom/effective text scale and detect
 unexpected page-level horizontal overflow, clipped essential content,
 inaccessible or overlapping controls, content hidden behind fixed/sticky UI.
 Do **not** use a naive `scrollWidth > clientWidth => failure` rule; horizontal
-scrolling can be legitimate.
+scrolling can be legitimate. `reflow` implements that: page overflow is a
+finding only when a non-exempt element is wider than the viewport.
 
-### Small viewport / responsive (High priority)
+### Small viewport / responsive (High priority — 320px pass shipped)
 
-320×568, 375×667, 768×1024 (configurable). Detect overflow, clipped/hidden
+`reflow` and `complyloop-target-size` share a 320×568 CSS-pixel viewport.
+Detect overflow (with 2D exceptions), too-small targets, clipped/hidden
 content, off-screen dialogs, inaccessible menus, fixed headers covering focused
-elements, content-order problems, too-small targets. Avoid combinatorial
-explosion: use a baseline profile + targeted responsive profiles + targeted
-checks — not every check on every viewport.
+elements, content-order problems. Avoid combinatorial explosion: this baseline
+profile + targeted checks — not every check on every viewport. Further
+viewports (375×667, 768×1024) stay configurable follow-ups.
 
 ---
 
@@ -246,7 +264,39 @@ confirming axe does not already report the same label/reference defects.
 
 An analyzer with the strongest future differentiation is **interaction
 realism**: "does the control actually behave correctly?" rather than "does it
-look correct?". Shipped: dialog focus and announcements. Next families:
+look correct?".
+
+### Focus visibility (shipped)
+
+`custom-checks/focus.ts` → `complyloop-focus-visible` → `focus-visible`
+(RGAA 10.7 / WCAG 2.4.7). Tabs to each `:focus-visible` control and compares
+**focused vs unfocused** computed styles. An indicator counts if outline
+(`auto` or a non-transparent width), box-shadow/ring, border, or background
+**changes**. A persistent card shadow is not an indicator; a
+`focus-visible:border-*` ring is. Same Tab pass still owns trap / not-obscured
+/ appearance.
+
+### Scroll / reflow (shipped)
+
+`custom-checks/reflow.ts` → `complyloop-reflow` → `reflow` (RGAA 10.11 /
+WCAG 1.4.10). At 320×568, page-level horizontal overflow is a finding only
+when a descendant is wider than the viewport **and** is not a 2D-layout
+exception (table, grid, map, img, svg, canvas, video, iframe, `pre`) or an
+`overflow-x: auto|scroll` scroller. A wide data table or diagram alone does
+not fail the page.
+
+### Target size (shipped)
+
+`custom-checks/target-size.ts` → `complyloop-target-size` → `target-size`
+(WCAG 2.5.8). Same 320px viewport. Measures rendered bounds; flags controls
+under 24×24 CSS pixels unless a spacing, inline, or user-agent exception
+applies. The spacing exception is a 24px-diameter circle on the target that
+must not intersect another target — isolated icon buttons are not noise.
+Native checkbox/radio/range and `display:inline` links in sentences are
+skipped. Viewport-mutating checks run sequentially so they never race axe or
+each other.
+
+Next families:
 
 - **Keyboard** — tab order, Enter/Space/Escape, arrow-key widget patterns,
   focus trap/restoration/visibility, reachability.
@@ -257,8 +307,9 @@ look correct?". Shipped: dialog focus and announcements. Next families:
   success state (full Detection → Behaviour → Verification story).
 - **Dynamic announcements** — `aria-live` existing is not proof the user
   receives it; capture before/after accessibility-tree state and DOM mutations.
-- **Focus** — treat as a reusable engine. Preserve evidence: trigger → action →
-  focused element before/after → screenshot → a11y-tree state → DOM selector.
+- **Focus** — visibility comparison is shipped; still treat as a reusable
+  engine. Preserve evidence: trigger → action → focused element before/after →
+  screenshot → a11y-tree state → DOM selector.
 - **Contrast** — keep axe baseline; target state-dependent contrast, focus/
   hover/selected/disabled states, icons, border affordances, themes, forced
   colors. Apply the threshold to the _semantic target_ (text vs non-text UI vs
@@ -281,8 +332,9 @@ look correct?". Shipped: dialog focus and announcements. Next families:
   behaviour (`outline:none` without replacement, wrong visual-hidden, fixed
   overlays over focus, clipping, overflow:hidden around essential content).
   Not a CSS linter.
-- **Target size / touch** — measure rendered bounds, account for adjacent
-  spacing/exceptions, desktop vs touch; don't flag every small icon.
+- **Target size / touch** — 24×24 + spacing/inline/UA exceptions shipped at
+  320px. Remaining: coarse-pointer (`pointer: coarse`) vs desktop, and the
+  44×44 enhanced (AAA) size.
 - **Hover/pointer-only content** — content appears → stays usable → dismissible →
   does not obscure required content; keyboard/focus equivalents, pointer
   cancellation, tooltip semantics.
@@ -384,8 +436,8 @@ The durable asset is the relationship _Requirement ↔ Code ↔ DOM ↔ Browser 
 | HTML structure        | `html-validate` (RGAA 8.2/10.1)   | Existing + expand    | High                 |
 | Browser state         | Playwright (media/viewport/style) | Existing + expand    | Medium/High          |
 | Keyboard              | Playwright (widget scenarios)     | Existing + expand    | High                 |
-| Focus                 | Playwright                        | **Next**             | High                 |
-| Dynamic announcements | Playwright                        | **Next**             | Medium/High          |
+| Focus                 | Playwright                        | Existing             | High                 |
+| Dynamic announcements | Playwright                        | Existing             | Medium/High          |
 | Visual regression     | Playwright snapshots              | **Next**             | Medium               |
 | Site integrity        | Custom                            | Existing + expand    | Medium/High          |
 | Links/references      | Custom + html-validate            | **Next**             | High                 |

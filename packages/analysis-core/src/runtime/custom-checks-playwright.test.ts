@@ -11,6 +11,9 @@ import { dialogFocusViolations } from "./custom-checks/dialog-focus";
 import { announcementViolations } from "./custom-checks/announcement";
 import { widgetKeyboardViolations } from "./custom-checks/widget-keyboard";
 import { formErrorRuntimeViolation } from "./custom-checks/form-error-runtime";
+import { focusCustomViolations } from "./custom-checks/focus";
+import { reflowViolation } from "./custom-checks/reflow";
+import { targetSizeViolation } from "./custom-checks/target-size";
 
 function chromiumExecutableAvailable(): boolean {
   try {
@@ -353,6 +356,160 @@ describe("custom runtime checks (Playwright)", () => {
         </body></html>
       `);
       const violation = await formErrorRuntimeViolation(page);
+      expect(violation).toBeNull();
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "focus-visible flags a control whose appearance does not change on focus",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><head><style>
+          button:focus, button:focus-visible {
+            outline: none;
+            box-shadow: none;
+          }
+        </style></head><body>
+          <button id="go">Go</button>
+        </body></html>
+      `);
+      const violations = await focusCustomViolations(page);
+      expect(violations.some((v) => v.id === "complyloop-focus-visible")).toBe(true);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "focus-visible accepts a border change as the indicator",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><head><style>
+          button {
+            outline: none;
+            border: 1px solid #ccc;
+          }
+          button:focus-visible {
+            outline: none;
+            border-color: #0050ff;
+          }
+        </style></head><body>
+          <button id="go">Go</button>
+        </body></html>
+      `);
+      const violations = await focusCustomViolations(page);
+      expect(violations.some((v) => v.id === "complyloop-focus-visible")).toBe(false);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "focus-visible flags a persistent shadow that is not a focus indicator",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><head><style>
+          button, button:focus, button:focus-visible {
+            outline: none;
+            box-shadow: 0 1px 2px rgb(0, 0, 0);
+          }
+        </style></head><body>
+          <button id="go">Go</button>
+        </body></html>
+      `);
+      const violations = await focusCustomViolations(page);
+      expect(violations.some((v) => v.id === "complyloop-focus-visible")).toBe(true);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "target-size flags adjacent undersized buttons",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><head><style>
+          .tiny { width: 16px; height: 16px; padding: 0; border: 0; }
+        </style></head><body>
+          <button class="tiny" id="a" aria-label="A"></button><button class="tiny" id="b" aria-label="B"></button>
+        </body></html>
+      `);
+      const violation = await targetSizeViolation(page);
+      expect(violation?.id).toBe("complyloop-target-size");
+      expect(violation?.nodes.length).toBeGreaterThan(0);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "target-size passes undersized buttons with 24px spacing",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><head><style>
+          .tiny { width: 16px; height: 16px; padding: 0; border: 0; margin-right: 40px; }
+        </style></head><body>
+          <button class="tiny" id="a" aria-label="A"></button>
+          <button class="tiny" id="b" aria-label="B"></button>
+        </body></html>
+      `);
+      const violation = await targetSizeViolation(page);
+      expect(violation).toBeNull();
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "target-size passes an inline link in a sentence",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <p>Read the <a href="/policy" id="l">policy</a> before continuing with this step.</p>
+        </body></html>
+      `);
+      const violation = await targetSizeViolation(page);
+      expect(violation).toBeNull();
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "reflow flags a non-exempt wide container at 320px",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <div id="wide" style="width:800px">Wide content that cannot wrap.</div>
+        </body></html>
+      `);
+      const violation = await reflowViolation(page);
+      expect(violation?.id).toBe("complyloop-reflow");
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "reflow passes a wide data table (2D exception)",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <table id="data">
+            <tr><td style="width:400px">A</td><td style="width:400px">B</td></tr>
+          </table>
+        </body></html>
+      `);
+      const violation = await reflowViolation(page);
+      expect(violation).toBeNull();
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "reflow passes a wide image (2D exception)",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <img id="chart" width="800" height="20" alt="chart"
+            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">
+        </body></html>
+      `);
+      const violation = await reflowViolation(page);
       expect(violation).toBeNull();
     },
     30_000,

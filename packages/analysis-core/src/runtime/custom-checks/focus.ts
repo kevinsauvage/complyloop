@@ -1,9 +1,17 @@
 import type { Page } from "playwright";
 import { captureDomTarget } from "../dom-target.js";
+import {
+  hasVisibleFocusIndicator,
+  snapshotFocusStyles,
+} from "./focus-indicator.js";
 import type { CustomViolation, CustomViolationNode } from "./types.js";
 
 const MAX_TAB_STEPS = 80;
 const CAPTURE_DOM_TARGET_SOURCE = captureDomTarget.toString();
+const SNAPSHOT_FOCUS_STYLES_SOURCE = snapshotFocusStyles.toString();
+const HAS_VISIBLE_FOCUS_INDICATOR_SOURCE = hasVisibleFocusIndicator.toString();
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export async function focusCustomViolations(
   page: Page,
@@ -16,7 +24,7 @@ export async function focusCustomViolations(
       id: "complyloop-focus-visible",
       impact: "serious",
       description:
-        "Focused element has no visible focus indicator (outline, ring, or box-shadow).",
+        "Focused element has no visible change from its unfocused appearance (outline, ring, border, or background).",
       help: "Keyboard users must see which control has focus (WCAG 2.4.7).",
       nodes: focusVisibleNodes,
     });
@@ -88,35 +96,71 @@ async function collectFocusVisibleViolations(
   const nodes: CustomViolationNode[] = [];
   const seen = new Set<string>();
 
+  await page.evaluate(() => {
+    const el = document.activeElement;
+    if (el instanceof HTMLElement) el.blur();
+  });
+
+  const unfocusedSnapshots = await page.evaluate(
+    ({ snapshotSrc, selector }) => {
+      const snapshot = new Function(`return (${snapshotSrc})`)() as typeof snapshotFocusStyles;
+      return Array.from(document.querySelectorAll(selector)).map((el) =>
+        snapshot(getComputedStyle(el)),
+      );
+    },
+    {
+      snapshotSrc: SNAPSHOT_FOCUS_STYLES_SOURCE,
+      selector: FOCUSABLE_SELECTOR,
+    },
+  );
+
   for (let step = 0; step < MAX_TAB_STEPS; step++) {
     await page.keyboard.press("Tab");
-    const hit = await page.evaluate((captureSrc) => {
-      const captureElement = new Function(`return (${captureSrc})`)() as (
-        ...args: Parameters<typeof captureDomTarget>
-      ) => ReturnType<typeof captureDomTarget>;
+    const hit = await page.evaluate(
+      ({
+        captureSrc,
+        snapshotSrc,
+        indicatorSrc,
+        selector,
+        unfocused,
+      }) => {
+        const captureElement = new Function(`return (${captureSrc})`)() as (
+          ...args: Parameters<typeof captureDomTarget>
+        ) => ReturnType<typeof captureDomTarget>;
+        const snapshot = new Function(`return (${snapshotSrc})`)() as typeof snapshotFocusStyles;
+        const indicatorVisible = new Function(
+          `return (${indicatorSrc})`,
+        )() as typeof hasVisibleFocusIndicator;
 
-      function hasVisibleFocusIndicator(el: Element): boolean {
-        const style = getComputedStyle(el);
-        const outlineVisible =
-          style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0;
-        if (outlineVisible) return true;
-        return Boolean(style.boxShadow && style.boxShadow !== "none");
-      }
+        const el = document.activeElement;
+        if (
+          !el ||
+          el === document.body ||
+          el === document.documentElement ||
+          !(el instanceof HTMLElement)
+        ) {
+          return null;
+        }
+        if (!el.matches(":focus-visible")) return null;
 
-      const el = document.activeElement;
-      if (
-        !el ||
-        el === document.body ||
-        el === document.documentElement ||
-        !(el instanceof HTMLElement)
-      ) {
-        return null;
-      }
-      if (!el.matches(":focus-visible")) return null;
-      if (hasVisibleFocusIndicator(el)) return null;
-      const capture = captureElement(el);
-      return { key: capture.selector, capture };
-    }, CAPTURE_DOM_TARGET_SOURCE);
+        const focusables = Array.from(document.querySelectorAll(selector));
+        const index = focusables.indexOf(el);
+        const rest = unfocused[index];
+        if (!rest) return null;
+        const focused = snapshot(getComputedStyle(el));
+        if (indicatorVisible(focused, rest)) return null;
+
+        const capture = captureElement(el);
+        return { key: capture.selector, capture };
+      },
+      {
+        captureSrc: CAPTURE_DOM_TARGET_SOURCE,
+        snapshotSrc: SNAPSHOT_FOCUS_STYLES_SOURCE,
+        indicatorSrc: HAS_VISIBLE_FOCUS_INDICATOR_SOURCE,
+        selector: FOCUSABLE_SELECTOR,
+        unfocused: unfocusedSnapshots,
+      },
+    );
     if (!hit || seen.has(hit.key)) {
       if (step > 5 && seen.size > 0) break;
       continue;
@@ -131,11 +175,9 @@ async function collectFocusVisibleViolations(
 async function detectKeyboardTrap(
   page: Page,
 ): Promise<CustomViolationNode | null> {
-  const focusableCount = await page.evaluate(() => {
-    const selector =
-      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  const focusableCount = await page.evaluate((selector) => {
     return document.querySelectorAll(selector).length;
-  });
+  }, FOCUSABLE_SELECTOR);
   if (focusableCount < 3) return null;
 
   const sequence: string[] = [];
