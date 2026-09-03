@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { afterAll, describe, expect, it } from "vitest";
 import { chromium, type Browser } from "playwright";
 import { captchaAlternativeViolation } from "./custom-checks/captcha-alternative";
+import { formErrorSubmitViolation } from "./custom-checks/form-error-submit";
 import { forcedColorsViolation } from "./custom-checks/forced-colors";
 import { reducedMotionViolation } from "./custom-checks/reduced-motion";
 import { errorPreventionViolation } from "./custom-checks/error-prevention";
@@ -76,6 +77,47 @@ describe("custom runtime checks (Playwright)", () => {
       `);
       const violation = await supplementaryContentKeyboardViolation(page);
       expect(violation?.id).toBe("complyloop-supplementary-content-keyboard");
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "form-error-submit flags missing aria association after invalid submit",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <form>
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" required />
+            <p id="email-error" hidden>Veuillez saisir un email valide.</p>
+            <button type="submit">Envoyer</button>
+          </form>
+        </body></html>
+      `);
+      const violation = await formErrorSubmitViolation(page);
+      expect(violation?.id).toBe("complyloop-form-error-submit");
+      expect(violation?.nodes.some((n) => n.html.includes('id="email"'))).toBe(
+        true,
+      );
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "form-error-submit passes when errors are associated",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <form>
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" required aria-describedby="email-error" />
+            <p id="email-error">Veuillez saisir un email valide.</p>
+            <button type="submit">Envoyer</button>
+          </form>
+        </body></html>
+      `);
+      const violation = await formErrorSubmitViolation(page);
+      expect(violation).toBeNull();
     },
     30_000,
   );

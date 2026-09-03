@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import type { Confidence, FindingKind, Severity } from "../contract/statuses.js";
+import { isHeuristicCheck } from "../check-authority.js";
 import type { RawFinding } from "../types.js";
 import { checkIdForAxeRule } from "./axe-map.js";
 import { checkIdForIbmRule } from "./ibm-map.js";
@@ -22,19 +23,41 @@ function normalizeSnippet(snippet: string): string {
   return snippet.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-function severityForLevel(level: string | undefined): Severity {
+function severityForLevel(
+  level: string | undefined,
+  heuristic: boolean,
+): Severity {
+  if (heuristic) return "moderate";
   if (level === "potentialviolation") return "moderate";
   return "serious";
 }
 
-function kindForLevel(level: string | undefined): FindingKind {
+function kindForLevel(level: string | undefined, heuristic: boolean): FindingKind {
+  if (heuristic) return "warning";
   if (level === "potentialviolation") return "warning";
   return "violation";
 }
 
-function confidenceForLevel(level: string | undefined): Confidence {
+function confidenceForLevel(
+  level: string | undefined,
+  heuristic: boolean,
+): Confidence {
+  if (heuristic) return "medium";
   if (level === "potentialviolation") return "medium";
   return "high";
+}
+
+function axeCheckIdsOnPage(page: RuntimeScanPageResult): Set<string> {
+  const ids = new Set<string>();
+  for (const violation of page.violations) {
+    const checkId = checkIdForAxeRule(violation.id);
+    if (checkId) ids.add(checkId);
+  }
+  for (const incomplete of page.incomplete ?? []) {
+    const checkId = checkIdForAxeRule(incomplete.id);
+    if (checkId) ids.add(checkId);
+  }
+  return ids;
 }
 
 function axeSnippetKeys(page: RuntimeScanPageResult): Set<string> {
@@ -52,9 +75,11 @@ function axeSnippetKeys(page: RuntimeScanPageResult): Set<string> {
 function shouldSkipIbmFinding(
   checkId: RawFinding["checkId"],
   snippet: string,
+  axeIds: Set<string>,
   axeSnippets: Set<string>,
 ): boolean {
-  return axeSnippets.has(`${checkId}::${normalizeSnippet(snippet)}`);
+  if (axeSnippets.has(`${checkId}::${normalizeSnippet(snippet)}`)) return true;
+  return axeIds.has(checkId);
 }
 
 export function ibmFindingsFromReport(
@@ -62,6 +87,7 @@ export function ibmFindingsFromReport(
   url: string,
   axePage: RuntimeScanPageResult,
 ): RawFinding[] {
+  const axeIds = axeCheckIdsOnPage(axePage);
   const axeSnippets = axeSnippetKeys(axePage);
   const findings: RawFinding[] = [];
 
@@ -71,14 +97,15 @@ export function ibmFindingsFromReport(
     const snippet = (issue.snippet ?? issue.path?.dom ?? "(unknown)")
       .replace(/\s+/g, " ")
       .trim();
-    if (shouldSkipIbmFinding(checkId, snippet, axeSnippets)) continue;
+    if (shouldSkipIbmFinding(checkId, snippet, axeIds, axeSnippets)) continue;
 
+    const heuristic = isHeuristicCheck(checkId);
     const xpath = issue.path?.dom;
     findings.push({
       checkId,
-      kind: kindForLevel(issue.level),
-      severity: severityForLevel(issue.level),
-      confidence: confidenceForLevel(issue.level),
+      kind: kindForLevel(issue.level, heuristic),
+      severity: severityForLevel(issue.level, heuristic),
+      confidence: confidenceForLevel(issue.level, heuristic),
       reason: `IBM Equal Access [${issue.ruleId}]: ${issue.message ?? "Accessibility issue"}`,
       location: {
         kind: "dom",

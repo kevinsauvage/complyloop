@@ -152,6 +152,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-accessible-auth-enhanced": "accessible-auth-enhanced",
   "complyloop-media-identification": "media-identification",
   "complyloop-supplementary-content-keyboard": "supplementary-content-keyboard",
+  "complyloop-form-error-submit": "form-error-association",
   "complyloop-forced-colors": "non-text-contrast",
   "complyloop-reduced-motion": "reduced-motion",
   "complyloop-dialog-focus": "keyboard-interaction",

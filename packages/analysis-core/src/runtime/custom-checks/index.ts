@@ -13,6 +13,7 @@ import { mediaKeyboardViolation } from "./media-keyboard.js";
 import { focusCustomViolations } from "./focus.js";
 import { labelAdjacentViolation } from "./label-adjacent.js";
 import { nonTextContrastViolation } from "./non-text-contrast.js";
+import { formErrorSubmitViolation } from "./form-error-submit.js";
 import { forcedColorsViolation } from "./forced-colors.js";
 import { reducedMotionViolation } from "./reduced-motion.js";
 import { dialogFocusViolations } from "./dialog-focus.js";
@@ -64,11 +65,12 @@ export async function runCustomRuntimeChecks(
     ...(await widgetKeyboardViolations(page)),
   ];
 
-  // reduced-motion temporarily emulates `prefers-reduced-motion`; run it
-  // sequentially so that emulation never races the shared-page batch
-  // (each check restores media features after). Viewport-mutating checks
-  // (reflow, 200% resize) belong on the same sequential path.
+  // Form submit, reduced-motion, and forced-colors mutate page state or
+  // emulate media; run sequentially so they never race the shared-page batch
+  // (each check restores state after). Viewport-mutating checks (reflow,
+  // 200% resize) belong on the same sequential path.
   for (const emulated of [
+    await formErrorSubmitViolation(page),
     await forcedColorsViolation(page),
     await reducedMotionViolation(page),
     await reflowViolation(page),

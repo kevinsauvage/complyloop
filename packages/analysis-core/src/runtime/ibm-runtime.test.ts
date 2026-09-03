@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as checkAuthority from "../check-authority";
 import { ibmFindingsFromReport } from "./ibm-runtime";
 import type { RuntimeScanPageResult } from "./findings";
 
@@ -70,6 +71,60 @@ describe("ibmFindingsFromReport", () => {
       pageWithBypass,
     );
     expect(findings).toHaveLength(0);
+  });
+
+  it("skips IBM when axe already reported the same check id (even with different snippet)", () => {
+    const pageWithRegion: RuntimeScanPageResult = {
+      url: "https://app.example/",
+      violations: [
+        {
+          id: "region",
+          impact: "moderate",
+          description: "Content not in landmark",
+          help: "Use landmarks",
+          nodes: [{ html: "<main>", target: ["main"] }],
+        },
+      ],
+    };
+    const findings = ibmFindingsFromReport(
+      {
+        results: [
+          {
+            ruleId: "aria_content_in_landmark",
+            level: "violation",
+            message: "Content is not within a landmark element",
+            snippet: '<a href="/help">Help</a>',
+            path: { dom: "/html[1]/body[1]/a[1]" },
+          },
+        ],
+      },
+      "https://app.example/",
+      pageWithRegion,
+    );
+    expect(findings).toHaveLength(0);
+  });
+
+  it("emits warning findings for heuristic check ids", () => {
+    vi.spyOn(checkAuthority, "isHeuristicCheck").mockReturnValue(true);
+    const findings = ibmFindingsFromReport(
+      {
+        results: [
+          {
+            ruleId: "error_message_exists",
+            level: "violation",
+            message: "Error message missing",
+            snippet: "<input>",
+          },
+        ],
+      },
+      "https://app.example/",
+      axePage,
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.kind).toBe("warning");
+    expect(findings[0]?.confidence).toBe("medium");
+    expect(findings[0]?.severity).toBe("moderate");
+    vi.restoreAllMocks();
   });
 
   it("ignores unmapped and rejected IBM rules", () => {

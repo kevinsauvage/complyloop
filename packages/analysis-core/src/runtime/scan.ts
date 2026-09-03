@@ -35,6 +35,11 @@ import {
   THEME_SENSITIVE_AXE_RULES,
   type BrowserCondition,
 } from "./theme-conditions.js";
+import {
+  MOBILE_TARGET_SIZE_LABEL,
+  MOBILE_VIEWPORT,
+  TARGET_SIZE_AXE_RULE,
+} from "./viewport-conditions.js";
 
 export type RuntimePageScanner = (
   urls: ReadonlyArray<string>,
@@ -106,24 +111,36 @@ function toAxeViolationLike(
  * string by default, which Next/webpack rewrites (`module is not defined`).
  * Disk `axe.min.js` plus our SSRF `context.route` interceptor is the adapter.
  */
-export async function runAxeOnPage(page: Page): Promise<{
+export async function runAxeOnPage(
+  page: Page,
+  options?: { runOnly?: ReadonlyArray<string> },
+): Promise<{
   violations: AxeViolationLike[];
   incomplete: AxeViolationLike[];
 }> {
   await page.addScriptTag({ path: resolveAxeMinJsPath() });
-  const results = await page.evaluate(async () => {
+  const runOnly = options?.runOnly;
+  const results = await page.evaluate(async (rules) => {
     const axe = (
       window as unknown as {
         axe: {
           run: (
             context: Document,
-            options: { iframes: boolean },
+            options: {
+              iframes: boolean;
+              runOnly?: { type: "rule"; values: string[] };
+            },
           ) => Promise<AxeRunResult>;
         };
       }
     ).axe;
-    return axe.run(document, { iframes: true });
-  });
+    return axe.run(document, {
+      iframes: true,
+      ...(rules && rules.length > 0
+        ? { runOnly: { type: "rule", values: [...rules] } }
+        : {}),
+    });
+  }, runOnly ? [...runOnly] : undefined);
 
   return {
     violations: results.violations.map(toAxeViolationLike),
@@ -204,7 +221,7 @@ function createPlaywrightAxeScanner(options?: {
           const hasDoctype = await page.evaluate(
             () => document.doctype !== null,
           );
-          const violations = hasDoctype
+          let violations = hasDoctype
             ? [...results.violations, ...customViolations]
             : [
               ...results.violations,
@@ -223,6 +240,30 @@ function createPlaywrightAxeScanner(options?: {
                 ],
               },
             ];
+
+          const defaultViewport = page.viewportSize();
+          await page.setViewportSize(MOBILE_VIEWPORT);
+          try {
+            const mobileAxe = await runAxeOnPage(page, {
+              runOnly: [TARGET_SIZE_AXE_RULE],
+            });
+            const mobileTargetSize = mobileAxe.violations.filter(
+              (v) => v.id === TARGET_SIZE_AXE_RULE,
+            );
+            violations = [
+              ...violations,
+              ...conditionSpecificViolations(
+                violations,
+                mobileTargetSize,
+                MOBILE_TARGET_SIZE_LABEL,
+              ),
+            ];
+          } finally {
+            if (defaultViewport) {
+              await page.setViewportSize(defaultViewport);
+            }
+          }
+
           const ibmFindings = await ibmFindingsForPage(page, url, {
             url,
             violations,

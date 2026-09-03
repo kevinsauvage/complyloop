@@ -4,6 +4,11 @@ import type { CheckId } from "../types.js";
  * Curated IBM Equal Access rule ids mapped to ComplyLoop check ids.
  * Only rules that add coverage axe/html-validate do not already own on the
  * rendered DOM. Full engine output is filtered through this map.
+ *
+ * Noise audit (3 fixture pages, Feb 2026): drop mappings axe already owns
+ * (`input_label_visible`, `aria_accessiblename_exists`, `page_title_valid`,
+ * `html_skipnav_exists`, `a_text_purpose`). Dedupe also skips IBM when axe
+ * already emitted the same check id on the page.
  */
 const IBM_TO_CHECK: Record<string, CheckId> = {
   heading_markup_misuse: "p-as-heading",
@@ -21,12 +26,7 @@ const IBM_TO_CHECK: Record<string, CheckId> = {
   text_spacing_valid: "text-spacing",
   table_layout_linearized: "layout-table-linearization",
   skip_main_exists: "bypass",
-  html_skipnav_exists: "bypass",
-  page_title_valid: "document-title",
   fieldset_legend_valid: "fieldset-legend",
-  input_label_visible: "input-label",
-  aria_accessiblename_exists: "anchor-name",
-  a_text_purpose: "link-explicit-heuristic",
 };
 
 /**
@@ -44,6 +44,11 @@ export const REJECTED_IBM_RULES: ReadonlySet<string> = new Set([
   "img_alt_redundant",
   "img_alt_misuse",
   "element_id_unique",
+  "html_skipnav_exists",
+  "input_label_visible",
+  "aria_accessiblename_exists",
+  "page_title_valid",
+  "a_text_purpose",
 ]);
 
 export function checkIdForIbmRule(ibmRuleId: string): CheckId | undefined {

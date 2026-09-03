@@ -12,11 +12,15 @@ describe("ibm-map", () => {
     expect(checkIdForIbmRule("unknown_rule")).toBeUndefined();
   });
 
-  it("rejects IBM focus and target-size twins", () => {
+  it("rejects IBM focus, target-size twins, and axe-duplicated rules", () => {
     expect(REJECTED_IBM_RULES.has("style_focus_visible")).toBe(true);
     expect(REJECTED_IBM_RULES.has("target_spacing_sufficient")).toBe(true);
+    expect(REJECTED_IBM_RULES.has("a_text_purpose")).toBe(true);
+    expect(REJECTED_IBM_RULES.has("html_skipnav_exists")).toBe(true);
+    expect(REJECTED_IBM_RULES.has("input_label_visible")).toBe(true);
     expect(checkIdForIbmRule("style_focus_visible")).toBeUndefined();
     expect(checkIdForIbmRule("target_spacing_sufficient")).toBeUndefined();
+    expect(checkIdForIbmRule("a_text_purpose")).toBeUndefined();
   });
 
   it("exports distinct mapped check ids", () => {
