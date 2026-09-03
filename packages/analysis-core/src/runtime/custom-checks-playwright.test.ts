@@ -9,6 +9,8 @@ import { supplementaryContentKeyboardViolation } from "./custom-checks/supplemen
 import { htmlValidateFindingsForPage } from "./html-validate-runtime";
 import { dialogFocusViolations } from "./custom-checks/dialog-focus";
 import { announcementViolations } from "./custom-checks/announcement";
+import { widgetKeyboardViolations } from "./custom-checks/widget-keyboard";
+import { formErrorRuntimeViolation } from "./custom-checks/form-error-runtime";
 
 function chromiumExecutableAvailable(): boolean {
   try {
@@ -218,6 +220,140 @@ describe("custom runtime checks (Playwright)", () => {
       const violation = await announcementViolations(page);
       expect(violation?.id).toBe("complyloop-announcement");
       expect(violation?.nodes.some((n) => n.html.includes("aria-live"))).toBe(true);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "widget-keyboard flags a tablist with no focusable tab",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <div role="tablist">
+            <div role="tab" tabindex="-1">One</div>
+            <div role="tab" tabindex="-1">Two</div>
+          </div>
+        </body></html>
+      `);
+      const violations = await widgetKeyboardViolations(page);
+      expect(violations.some((v) => v.id === "complyloop-tabs-keyboard")).toBe(true);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "widget-keyboard passes a tablist with a focusable tab",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <div role="tablist">
+            <button role="tab" aria-selected="true">One</button>
+            <button role="tab" tabindex="-1">Two</button>
+          </div>
+        </body></html>
+      `);
+      const violations = await widgetKeyboardViolations(page);
+      expect(violations.some((v) => v.id === "complyloop-tabs-keyboard")).toBe(false);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "widget-keyboard flags a non-focusable aria-expanded toggle",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <div aria-expanded="false" aria-controls="p" style="display:inline-block;background:#eee;">Toggle</div>
+          <div id="p">Panel</div>
+        </body></html>
+      `);
+      const violations = await widgetKeyboardViolations(page);
+      expect(violations.some((v) => v.id === "complyloop-disclosure-keyboard")).toBe(true);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "widget-keyboard passes a button aria-expanded toggle",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <button aria-expanded="false" aria-controls="p">Toggle</button>
+          <div id="p">Panel</div>
+        </body></html>
+      `);
+      const violations = await widgetKeyboardViolations(page);
+      expect(violations.some((v) => v.id === "complyloop-disclosure-keyboard")).toBe(false);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "widget-keyboard flags a non-focusable menu item",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <div role="menu">
+            <div role="menuitem">New</div>
+            <div role="menuitem">Open</div>
+          </div>
+        </body></html>
+      `);
+      const violations = await widgetKeyboardViolations(page);
+      expect(violations.some((v) => v.id === "complyloop-menu-keyboard")).toBe(true);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "form-error-runtime flags an invalid field with no associated error",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <form>
+            <label for="e">Email</label>
+            <input id="e" type="email" aria-invalid="true" />
+          </form>
+        </body></html>
+      `);
+      const violation = await formErrorRuntimeViolation(page);
+      expect(violation?.id).toBe("complyloop-form-error-association");
+      expect(violation?.nodes.some((n) => n.html.includes("aria-invalid"))).toBe(true);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "form-error-runtime passes an invalid field with a described error",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <form>
+            <label for="e">Email</label>
+            <input id="e" type="email" aria-invalid="true" aria-describedby="e-err" />
+            <div id="e-err">Adresse email invalide</div>
+          </form>
+        </body></html>
+      `);
+      const violation = await formErrorRuntimeViolation(page);
+      expect(violation).toBeNull();
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "form-error-runtime passes a healthy form with no invalid fields",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <form>
+            <label for="e">Email</label>
+            <input id="e" type="email" aria-invalid="false" />
+          </form>
+        </body></html>
+      `);
+      const violation = await formErrorRuntimeViolation(page);
+      expect(violation).toBeNull();
     },
     30_000,
   );

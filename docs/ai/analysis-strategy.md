@@ -29,8 +29,8 @@ remediation → verification → evidence**.
 2. **`html-validate` (section 13) — shipped.** One rendered pass on the
    generated DOM, mapped to RGAA 8.2 / 10.1 controls.
 3. Expand custom interaction checks — **partially shipped** (dialog-focus,
-   announcement). Next: menus, tabs, disclosure/accordion, form validation,
-   focus visibility, scroll/target-size.
+   announcement, tabs, disclosure, menu, form error-association). Next: focus
+   visibility refinement, scroll/target-size behaviour.
 4. Visual regression only as Playwright screenshot assertions (regression
    evidence, not an "AI vision scanner").
 5. Site/content integrity — broken links, duplicate IDs, language, titles,
@@ -383,7 +383,7 @@ The durable asset is the relationship _Requirement ↔ Code ↔ DOM ↔ Browser 
 | Rendered a11y         | `axe-core`                        | Existing             | High/Medium          |
 | HTML structure        | `html-validate` (RGAA 8.2/10.1)   | Existing + expand    | High                 |
 | Browser state         | Playwright (media/viewport/style) | Existing + expand    | Medium/High          |
-| Keyboard              | Playwright                        | **Next**             | High                 |
+| Keyboard              | Playwright (widget scenarios)     | Existing + expand    | High                 |
 | Focus                 | Playwright                        | **Next**             | High                 |
 | Dynamic announcements | Playwright                        | **Next**             | Medium/High          |
 | Visual regression     | Playwright snapshots              | **Next**             | Medium               |

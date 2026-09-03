@@ -83,6 +83,18 @@ describe("custom runtime axe mappings", () => {
       "keyboard-interaction",
     );
     expect(checkIdForAxeRule("complyloop-dialog-trap")).toBe("keyboard-trap");
+    expect(checkIdForAxeRule("complyloop-tabs-keyboard")).toBe(
+      "keyboard-interaction",
+    );
+    expect(checkIdForAxeRule("complyloop-disclosure-keyboard")).toBe(
+      "keyboard-interaction",
+    );
+    expect(checkIdForAxeRule("complyloop-menu-keyboard")).toBe(
+      "keyboard-interaction",
+    );
+    expect(checkIdForAxeRule("complyloop-form-error-association")).toBe(
+      "form-error-association",
+    );
     expect(checkIdForAxeRule("complyloop-announcement")).toBe("status-live");
     expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });

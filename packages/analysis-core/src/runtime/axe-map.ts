@@ -159,6 +159,10 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-reduced-motion": "reduced-motion",
   "complyloop-dialog-focus": "keyboard-interaction",
   "complyloop-dialog-trap": "keyboard-trap",
+  "complyloop-tabs-keyboard": "keyboard-interaction",
+  "complyloop-disclosure-keyboard": "keyboard-interaction",
+  "complyloop-menu-keyboard": "keyboard-interaction",
+  "complyloop-form-error-association": "form-error-association",
   "complyloop-announcement": "status-live",
 };
 
