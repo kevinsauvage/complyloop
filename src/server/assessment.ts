@@ -165,6 +165,7 @@ export async function runAssessment(
     runtime: runtimeRan,
     runtimePagesScanned: runtimeResult.pagesScanned,
     siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
+    htmlValidateRan: runtimeResult.htmlValidateRan,
     runtimeError: runtimeResult.error,
   };
 

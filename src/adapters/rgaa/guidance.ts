@@ -788,6 +788,12 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Increase foreground/background contrast to at least 7:1 for normal text (WCAG 1.4.6).",
   },
+  "markup-nesting": {
+    impact:
+      "Invalid nesting or mismatched tags (a block inside <p>, a table row out of order, an unclosed element) is repaired differently by each browser, so the DOM the user actually gets may not match what you wrote and can break labels, focus, or reading order.",
+    howToFix:
+      "Follow the HTML content model: put block content in a real container, keep table children in caption/thead/tbody/tr order, close every opened tag, and give an element only one of each attribute.",
+  },
 };
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {

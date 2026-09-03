@@ -133,7 +133,8 @@ export type CheckId =
   | "supplementary-content-keyboard"
   | "reduced-motion"
   | "media-identification"
-  | "color-contrast-enhanced";
+  | "color-contrast-enhanced"
+  | "markup-nesting";
 
 export interface RawFinding {
   checkId: CheckId;

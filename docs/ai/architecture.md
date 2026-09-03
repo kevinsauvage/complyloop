@@ -59,7 +59,7 @@ src/server/, app/        ← integrate core + analysis via src/adapters/registry
 
 ## Analysis engines
 
-Two deterministic engines; AI is separate and never authoritative.
+Three deterministic engines; AI is separate and never authoritative.
 
 ### 1. AST (`packages/analysis-core/src/checks/`)
 
@@ -81,6 +81,35 @@ Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on
 **Do not** add `@axe-core/playwright` — webpack breaks on axe `source` string.
 
 **Runtime URL safety:** `ssrf-guard` + DNS/port checks + redirect limits (`packages/analysis-core/src/runtime/`). Never import `ssrf-guard/node` in app code.
+
+### 3. html-validate (rendered structural, `packages/analysis-core/src/runtime/`)
+
+`html-validate` (npm) validates structural HTML semantics — invalid nesting,
+deprecated attributes, landmark misuse — on the **generated DOM** of a page,
+inside the existing runtime audit. Projects use a preview URL, so we judge the
+HTML a browser actually produces, exactly as RGAA prescribes. Runs offline, no
+extra scanner, reuses the page already open for axe/custom checks.
+
+- **`runtime/html-validate-runtime.ts`**, `engine: "runtime"`. Serializes
+  `document.documentElement` in the page (recording node→offset), validates the
+  exact string in-process, and builds `dom` locations (selector + snippet). A
+  clean audit is a real rendered-document verdict — it can *pass* a requirement.
+- Curated rules: `element-permitted-content`, `element-permitted-order`,
+  `close-order`, `no-implicit-close`, `no-dup-attr`, `no-multiple-main`,
+  `unique-landmark`, `no-deprecated-attr`, `deprecated`, `no-dup-id`.
+  `valid-for` / `no-missing-references` are held back pending an axe-overlap
+  check.
+- Check-id mapping (`runtime/html-validate-map.ts` — every rule maps to a
+  catalog control, no advisory ids): landmarks → `landmark-one-main` /
+  `landmark-unique` (RGAA 12.6); general nesting/order/close/dup-attr /
+  `element-permitted-content` → `markup-nesting` (`ctl-markup-validity`,
+  RGAA 8.2); deprecated attrs/elements → `css-for-presentation` (RGAA 10.1);
+  `no-dup-id` → `duplicate-id` (RGAA 8.2). Ids are `runtime_only`; an empty
+  audit is the verdict. Interactive nesting is axe's job on the generated DOM
+  (the browser auto-repairs it, so it never reaches html-validate).
+
+Runs only when `runtimeBaseUrl` is set (needs a browser). The `@complyloop/check`
+CLI / source scan does **not** use html-validate.
 
 ### Check authority (`packages/analysis-core/src/check-authority.ts`)
 

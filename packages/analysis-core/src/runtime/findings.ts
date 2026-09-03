@@ -24,12 +24,16 @@ export interface RuntimeScanPageResult {
   url: string;
   violations: AxeViolationLike[];
   snapshot?: RuntimePageSnapshot;
+  /** html-validate rendered findings for this page. */
+  htmlValidateFindings?: RawFinding[];
 }
 
 export interface RuntimeScanResult {
   findings: RawFinding[];
   pagesScanned: number;
   siteLevelChecksRan?: boolean;
+  /** Whether html-validate's rendered pass ran on any page. */
+  htmlValidateRan?: boolean;
   error?: string;
 }
 
@@ -90,6 +94,8 @@ export function findingsFromAxePages(
         });
       }
     }
+    // Merge html-validate rendered-pass (Pass B) findings for this page.
+    if (page.htmlValidateFindings) findings.push(...page.htmlValidateFindings);
   }
   return findings;
 }

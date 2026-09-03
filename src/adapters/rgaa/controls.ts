@@ -140,6 +140,17 @@ export const rgaaControls: Control[] = [
     complianceWeight: 1.3,
   },
   {
+    id: "ctl-markup-validity",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 8.2",
+    secondaryCode: "WCAG 4.1.1",
+    title: "Generated markup is valid HTML",
+    description:
+      "Tags and attributes follow the writing rules, nesting is valid, open/close is valid, and no attribute is duplicated.",
+    checkId: "markup-nesting",
+    complianceWeight: 1.3,
+  },
+  {
     id: "ctl-form-error-association",
     frameworkId: rgaaFramework.id,
     code: "RGAA 11.10",

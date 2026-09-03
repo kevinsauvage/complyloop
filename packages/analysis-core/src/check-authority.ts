@@ -84,6 +84,7 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "media-identification",
   "supplementary-content-keyboard",
   "color-contrast-enhanced",
+  "markup-nesting",
 ] as const satisfies readonly CheckId[];
 
 const SITE_LEVEL_CHECK_IDS = [

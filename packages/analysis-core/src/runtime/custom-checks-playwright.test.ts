@@ -6,6 +6,7 @@ import { forcedColorsViolation } from "./custom-checks/forced-colors";
 import { reducedMotionViolation } from "./custom-checks/reduced-motion";
 import { errorPreventionViolation } from "./custom-checks/error-prevention";
 import { supplementaryContentKeyboardViolation } from "./custom-checks/supplementary-content-keyboard";
+import { htmlValidateFindingsForPage } from "./html-validate-runtime";
 
 function chromiumExecutableAvailable(): boolean {
   try {
@@ -146,6 +147,39 @@ describe("custom runtime checks (Playwright)", () => {
       `);
       const violation = await reducedMotionViolation(page);
       expect(violation).toBeNull();
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "html-validate rendered pass builds dom findings with offsets from real DOM",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <main id="a"><p>One</p></main>
+          <main id="b"><p>Two</p></main>
+          <button type="button">Save<button type="button">Nested</button></button>
+          <p align="center">Deprecated</p>
+        </body></html>
+      `);
+      const f = await htmlValidateFindingsForPage(page, "https://app.example/page");
+      expect(f.every((x) => x.engine === "runtime")).toBe(true);
+      expect(f.every((x) => x.location.kind === "dom")).toBe(true);
+      // Landmark misuse and deprecated attributes survive browser parsing and
+      // are caught on the generated DOM.
+      expect(f.some((x) => x.checkId === "landmark-one-main")).toBe(true);
+      expect(f.some((x) => x.checkId === "css-for-presentation")).toBe(true);
+      // Interactive nesting is a rendered-accessibility defect that the HTML
+      // parser auto-repairs, so on the generated DOM it is axe's job, not
+      // html-validate's.
+      expect(f.some((x) => x.checkId === "nested-interactive")).toBe(false);
+      // Selectors must be concrete, not the whole-document fallback.
+      const dom = f
+        .filter((x) => x.location.kind === "dom")
+        .map((x) => x.location as { snippet: string });
+      expect(
+        dom.every((x) => x.snippet !== "(whole document)"),
+      ).toBe(true);
     },
     30_000,
   );

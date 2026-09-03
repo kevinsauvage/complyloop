@@ -23,6 +23,7 @@ import {
   type DnsLookup,
 } from "./url-safety.js";
 import { runCustomRuntimeChecks } from "./custom-checks/index.js";
+import { htmlValidateFindingsForPage } from "./html-validate-runtime.js";
 import { maxRuntimePages } from "../contract/assessment-limits.js";
 
 export type RuntimePageScanner = (
@@ -160,6 +161,9 @@ function createPlaywrightAxeScanner(options?: {
           }
           const results = await runAxeOnPage(page);
           const customViolations = await runCustomRuntimeChecks(page);
+          // Rendered pass: validate the generated DOM. Serialize on
+          // the open page (no extra browser cost) and validate in-process.
+          const htmlValidateFindings = await htmlValidateFindingsForPage(page, url);
           const snapshot = await capturePageSnapshot(page, url);
           const hasDoctype = await page.evaluate(
             () => document.doctype !== null,
@@ -186,6 +190,7 @@ function createPlaywrightAxeScanner(options?: {
           pages.push({
             url,
             violations,
+            htmlValidateFindings,
             snapshot,
           });
         } finally {
@@ -261,6 +266,7 @@ export async function scanRuntime(
     }
     const pages = await scanner(urls);
     const siteLevelChecksRan = pages.length >= 2;
+    const htmlValidateRan = pages.length > 0;
     const findings = [
       ...findingsFromAxePages(pages),
       ...(siteLevelChecksRan ? siteLevelFindingsFromPages(pages) : []),
@@ -269,6 +275,7 @@ export async function scanRuntime(
       findings,
       pagesScanned: pages.length,
       siteLevelChecksRan,
+      htmlValidateRan,
     };
   } catch (error) {
     return {

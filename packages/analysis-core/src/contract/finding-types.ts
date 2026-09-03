@@ -92,6 +92,8 @@ export interface AssessmentEngines {
   runtimePagesScanned?: number;
   /** Site-level checks ran (requires at least two configured routes). */
   siteLevelChecksRan?: boolean;
+  /** html-validate rendered pass ran — validates the generated DOM. */
+  htmlValidateRan?: boolean;
   /** Non-fatal runtime errors (e.g. unreachable URL). */
   runtimeError?: string;
 }
