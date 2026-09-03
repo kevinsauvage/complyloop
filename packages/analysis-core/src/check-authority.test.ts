@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isCompositionSensitiveCheck,
   isHeuristicCheck,
+  isPackageTwinSourceCheck,
   isRuntimeOnlyCheck,
   keepOpenWhenRuntimeScanSkipped,
 } from "./check-authority";
@@ -15,6 +16,7 @@ const COMPOSITION_SENSITIVE = [
   "empty-heading",
   "aria-hidden-focusable",
   "duplicate-id",
+  "text-spacing",
 ] as const;
 
 const RUNTIME_ONLY = [
@@ -43,11 +45,9 @@ const RUNTIME_ONLY = [
   "non-text-contrast",
   "reflow",
   "text-spacing-runtime",
-  "hover-content",
   "label-adjacent",
   "resize-text",
   "css-hover-keyboard",
-  "info-not-color-only",
   "focus-order-logical",
   "focus-not-obscured-enhanced",
   "focus-appearance",
@@ -56,8 +56,6 @@ const RUNTIME_ONLY = [
   "css-for-presentation",
   "css-off-understandable",
   "layout-table-linearization",
-  "media-at-compatible",
-  "flash-threshold",
   "error-prevention",
   "captcha-alternative",
   "accessible-auth-enhanced",
@@ -95,6 +93,14 @@ describe("check authority", () => {
     expect(keepOpenWhenRuntimeScanSkipped("img-alt")).toBe(false);
   });
 
+  it("marks source package twins without changing authority class", () => {
+    expect(isPackageTwinSourceCheck("img-alt")).toBe(true);
+    expect(isPackageTwinSourceCheck("video-caption")).toBe(true);
+    expect(isPackageTwinSourceCheck("meta-viewport")).toBe(true);
+    expect(isPackageTwinSourceCheck("fieldset-legend")).toBe(false);
+    expect(isCompositionSensitiveCheck("img-alt")).toBe(false);
+  });
+
   it("does not treat heuristic AST checks as a pass when they emit nothing", () => {
     expect(isHeuristicCheck("image-of-text")).toBe(true);
     expect(isHeuristicCheck("link-explicit-heuristic")).toBe(true);
@@ -105,7 +111,6 @@ describe("check authority", () => {
     expect(isHeuristicCheck("error-prevention")).toBe(true);
     expect(isHeuristicCheck("reduced-motion")).toBe(true);
     expect(isHeuristicCheck("accessible-auth-enhanced")).toBe(true);
-    expect(isHeuristicCheck("outline-none")).toBe(true);
     expect(isHeuristicCheck("blockquote-cite")).toBe(false);
     expect(isHeuristicCheck("img-alt")).toBe(false);
     expect(keepOpenWhenRuntimeScanSkipped("image-of-text")).toBe(false);

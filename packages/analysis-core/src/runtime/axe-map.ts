@@ -13,6 +13,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "role-img-alt": "img-alt",
   "area-alt": "img-alt",
   "server-side-image-map": "img-alt",
+  "image-redundant-alt": "img-alt",
 
   // Names
   "button-name": "button-name",
@@ -45,6 +46,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   // Frames / media
   "frame-title": "iframe-title",
   "frame-title-unique": "iframe-title",
+  "frame-tested": "frame-keyboard",
   "no-autoplay-audio": "autoplay-media",
 
   // IDs / headings
@@ -59,6 +61,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "aria-hidden-focus": "aria-hidden-focusable",
   "aria-hidden-body": "aria-hidden-focusable",
   "aria-roles": "aria-role",
+  "aria-allowed-role": "aria-role",
   "aria-deprecated-role": "aria-role",
   "aria-allowed-attr": "aria-props",
   "aria-valid-attr": "aria-props",
@@ -135,19 +138,15 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-text-spacing-runtime": "text-spacing-runtime",
   "complyloop-non-text-contrast": "non-text-contrast",
   "complyloop-label-adjacent": "label-adjacent",
-  "complyloop-hover-content": "hover-content",
   "complyloop-css-disabled-content": "css-disabled-content",
   "complyloop-media-keyboard": "media-keyboard",
   "complyloop-resize-text": "resize-text",
   "complyloop-css-hover-keyboard": "css-hover-keyboard",
-  "complyloop-info-not-color-only": "info-not-color-only",
   "focus-order-semantics": "focus-order-logical",
   "identical-links-same-purpose": "identical-links-purpose",
   "hidden-content": "hidden-content",
   "complyloop-css-off-understandable": "css-off-understandable",
   "complyloop-layout-table-linearization": "layout-table-linearization",
-  "complyloop-media-at-compatible": "media-at-compatible",
-  "complyloop-flash-threshold": "flash-threshold",
   "complyloop-error-prevention": "error-prevention",
   "complyloop-captcha-alternative": "captcha-alternative",
   "complyloop-accessible-auth-enhanced": "accessible-auth-enhanced",
@@ -160,12 +159,25 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-tabs-keyboard": "keyboard-interaction",
   "complyloop-disclosure-keyboard": "keyboard-interaction",
   "complyloop-menu-keyboard": "keyboard-interaction",
-  "complyloop-form-error-association": "form-error-association",
-  "complyloop-announcement": "status-live",
 };
+
+/**
+ * axe rules we will never emit. Best-practice / deprecated, no catalog control,
+ * or a weaker duplicate of a mapped rule. Listed so they do not vanish silently.
+ */
+export const REJECTED_AXE_RULES: ReadonlySet<string> = new Set([
+  "aria-text",
+  "aria-treeitem-name",
+  "landmark-complementary-is-top-level",
+]);
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {
   return AXE_TO_CHECK[axeRuleId];
+}
+
+/** Distinct catalog ids axe or custom Playwright probes can emit. */
+export function axeMappedCheckIds(): CheckId[] {
+  return [...new Set(Object.values(AXE_TO_CHECK))];
 }
 
 /** Exposed for tests — count of axe rules we currently map. */

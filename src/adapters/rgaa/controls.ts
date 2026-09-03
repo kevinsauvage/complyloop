@@ -960,8 +960,8 @@ export const rgaaControls: Control[] = [
     secondaryCode: "WCAG 2.4.7",
     title: "Focus styles are not removed without a replacement",
     description:
-      "outline-none or equivalent is paired with a visible focus-visible style in source.",
-    checkId: "outline-none",
+      "outline-none or equivalent is paired with a visible focus-visible style. Presence of a focus ring at runtime is a separate control.",
+    checkId: null,
     complianceWeight: 1.2,
   },
   {
@@ -1016,7 +1016,7 @@ export const rgaaControls: Control[] = [
     title: "Hover and focus content is keyboard reachable",
     description:
       "Content shown on hover or focus can be dismissed, hovered, and reached by keyboard.",
-    checkId: "hover-content",
+    checkId: null,
     complianceWeight: 1.3,
   },
   {
@@ -1346,7 +1346,7 @@ export const rgaaControls: Control[] = [
     title: "Flashes are below threshold",
     description:
       "Content does not flash more than three times per second above luminance thresholds.",
-    checkId: "flash-threshold",
+    checkId: null,
     complianceWeight: 1.2,
   },
   {
@@ -1533,7 +1533,7 @@ export const rgaaControls: Control[] = [
     title: "Media players are compatible with assistive technology",
     description:
       "Temporal and non-temporal media expose name, role, and value to assistive technology.",
-    checkId: "media-at-compatible",
+    checkId: null,
     complianceWeight: 1.2,
   },
   {
@@ -1577,7 +1577,7 @@ export const rgaaControls: Control[] = [
     title: "Information is not conveyed by color alone",
     description:
       "Charts, required fields, and status are identifiable without perceiving color. Link underline is a separate control (10.6).",
-    checkId: "info-not-color-only",
+    checkId: null,
     complianceWeight: 1.4,
   },
   {

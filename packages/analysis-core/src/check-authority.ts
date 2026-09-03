@@ -15,6 +15,7 @@ const COMPOSITION_SENSITIVE_CHECK_IDS = [
   "empty-heading",
   "aria-hidden-focusable",
   "duplicate-id",
+  "text-spacing",
 ] as const satisfies readonly CheckId[];
 
 /**
@@ -52,7 +53,6 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "non-text-contrast",
   "reflow",
   "text-spacing-runtime",
-  "hover-content",
   "label-adjacent",
   "html-lang-valid",
   "css-disabled-content",
@@ -67,7 +67,6 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "consistent-search",
   "consistent-landmarks",
   "duplicate-page-title",
-  "info-not-color-only",
   "focus-order-logical",
   "focus-not-obscured-enhanced",
   "focus-appearance",
@@ -76,8 +75,6 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "css-for-presentation",
   "css-off-understandable",
   "layout-table-linearization",
-  "media-at-compatible",
-  "flash-threshold",
   "error-prevention",
   "captcha-alternative",
   "accessible-auth-enhanced",
@@ -122,7 +119,6 @@ const HEURISTIC_CHECK_IDS = [
   "error-prevention",
   "reduced-motion",
   "accessible-auth-enhanced",
-  "outline-none",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);
@@ -136,6 +132,39 @@ export function isCompositionSensitiveCheck(checkId: string): boolean {
 
 export function isRuntimeOnlyCheck(checkId: string): boolean {
   return RUNTIME_ONLY.has(checkId);
+}
+
+/**
+ * Source findings for these ids duplicate axe / html-validate / jsx-a11y on
+ * the rendered page. CI still emits them; when a runtime audit ran they drop.
+ */
+const PACKAGE_TWIN_SOURCE_CHECK_IDS = [
+  "img-alt",
+  "list-structure",
+  "audio-caption",
+  "video-caption",
+  "no-blink-marquee",
+  "meta-viewport",
+  "aria-props",
+  "aria-role",
+  "aria-required-attr",
+  "aria-activedescendant",
+  "keyboard-interaction",
+  "html-lang",
+  "iframe-title",
+  "autocomplete-valid",
+  "no-accesskey",
+  "no-autofocus",
+  "noninteractive-tabindex",
+  "redundant-role",
+  "th-scope",
+  "positive-tabindex",
+] as const satisfies readonly CheckId[];
+
+const PACKAGE_TWIN_SOURCE = new Set<string>(PACKAGE_TWIN_SOURCE_CHECK_IDS);
+
+export function isPackageTwinSourceCheck(checkId: string): boolean {
+  return PACKAGE_TWIN_SOURCE.has(checkId);
 }
 
 export function isSiteLevelCheck(checkId: string): boolean {

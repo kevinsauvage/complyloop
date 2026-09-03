@@ -20,7 +20,7 @@ export async function mediaIdentificationViolation(
           if (target && (target.textContent ?? "").trim().length > 0) return true;
         }
       }
-      if (el instanceof HTMLObjectElement || el instanceof HTMLEmbedElement) {
+      if (el instanceof HTMLEmbedElement) {
         const title = el.getAttribute("title");
         if (title && title.trim().length > 0) return true;
       }
@@ -37,7 +37,7 @@ export async function mediaIdentificationViolation(
     }
 
     const violations: Array<{ html: string; selector: string }> = [];
-    for (const el of document.querySelectorAll("object, embed, canvas")) {
+    for (const el of document.querySelectorAll("embed, canvas")) {
       if (el.getAttribute("role") === "presentation") continue;
       if (el.getAttribute("aria-hidden") === "true") continue;
       if (hasAccessibleName(el) || hasAdjacentAlternative(el)) continue;
@@ -60,7 +60,7 @@ export async function mediaIdentificationViolation(
     impact: "serious",
     description:
       "Non-temporal media is not clearly identified and lacks an accessible alternative.",
-    help: "Identify object, embed, and canvas media and provide a text alternative (RGAA 4.7).",
+    help: "Identify embed and canvas media and provide a text alternative (RGAA 4.7).",
     nodes: nodes.map((node) => ({ html: node.html, target: [node.selector] })),
   };
 }

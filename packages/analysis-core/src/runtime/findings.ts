@@ -23,6 +23,8 @@ export interface AxeViolationLike {
 export interface RuntimeScanPageResult {
   url: string;
   violations: AxeViolationLike[];
+  /** axe incomplete nodes — emitted as `warning` findings (`needs_review`). */
+  incomplete?: AxeViolationLike[];
   snapshot?: RuntimePageSnapshot;
   /** html-validate rendered findings for this page. */
   htmlValidateFindings?: RawFinding[];
@@ -62,6 +64,40 @@ function snippetOf(node: AxeNodeLike): string {
   return trimmed.length > 200 ? `${trimmed.slice(0, 197)}…` : trimmed;
 }
 
+function findingsFromAxeHits(
+  page: RuntimeScanPageResult,
+  hits: ReadonlyArray<AxeViolationLike>,
+  kind: RawFinding["kind"],
+  confidence: Confidence,
+): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const violation of hits) {
+    const checkId = checkIdForAxeRule(violation.id);
+    if (!checkId) continue;
+    const asReview = kind === "warning" || violation.id === "frame-tested";
+    for (const node of violation.nodes) {
+      findings.push({
+        checkId,
+        kind: asReview ? "warning" : "violation",
+        severity: severityFromImpact(violation.impact),
+        confidence: asReview ? "medium" : confidence,
+        reason: `${violation.help} ${violation.description}`.trim(),
+        location: {
+          kind: "dom",
+          url: page.url,
+          selector: selectorOf(node),
+          snippet: snippetOf(node),
+          elementLabel: node.elementLabel,
+          context: node.failureSummary,
+        },
+        fix: null,
+        engine: "runtime",
+      });
+    }
+  }
+  return findings;
+}
+
 /**
  * Converts axe page results into RawFindings with `kind: "dom"` locations.
  * Pure — used by the Playwright runner and unit tests.
@@ -71,30 +107,14 @@ export function findingsFromAxePages(
 ): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const page of pages) {
-    for (const violation of page.violations) {
-      const checkId = checkIdForAxeRule(violation.id);
-      if (!checkId) continue;
-      for (const node of violation.nodes) {
-        findings.push({
-          checkId,
-          kind: "violation",
-          severity: severityFromImpact(violation.impact),
-          confidence: "high" satisfies Confidence,
-          reason: `${violation.help} ${violation.description}`.trim(),
-          location: {
-            kind: "dom",
-            url: page.url,
-            selector: selectorOf(node),
-            snippet: snippetOf(node),
-            elementLabel: node.elementLabel,
-            context: node.failureSummary,
-          },
-          fix: null,
-          engine: "runtime",
-        });
-      }
+    findings.push(
+      ...findingsFromAxeHits(page, page.violations, "violation", "high"),
+    );
+    if (page.incomplete) {
+      findings.push(
+        ...findingsFromAxeHits(page, page.incomplete, "warning", "medium"),
+      );
     }
-    // Merge html-validate rendered-pass (Pass B) findings for this page.
     if (page.htmlValidateFindings) findings.push(...page.htmlValidateFindings);
   }
   return findings;

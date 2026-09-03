@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { allChecks } from "@complyloop/analysis-core/checks/registry";
+import { isSiteLevelCheck } from "@complyloop/analysis-core/check-authority";
+import { jsxA11yMappedCheckIds } from "@complyloop/analysis-core/jsx-a11y-map";
+import { axeMappedCheckIds } from "@complyloop/analysis-core/runtime/axe-map";
+import { htmlValidateMappedCheckIds } from "@complyloop/analysis-core/runtime/html-validate-map";
 import { wcagPresets } from "@/adapters/wcag/presets";
 import { rgaaControls } from "./controls";
 import { rgaaPresets } from "./presets";
@@ -59,6 +64,22 @@ describe("RGAA 4.1.2 catalog coverage", () => {
       .map((c) => c.checkId)
       .filter((id): id is string => id !== null);
     expect(new Set(checkIds).size).toBe(checkIds.length);
+  });
+
+  it("does not bind a catalog checkId unless an engine can emit it", () => {
+    const emitted = new Set<string>([
+      ...allChecks.map((check) => check.id),
+      ...jsxA11yMappedCheckIds(),
+      ...axeMappedCheckIds(),
+      ...htmlValidateMappedCheckIds(),
+    ]);
+    const unbound = rgaaControls
+      .map((control) => control.checkId)
+      .filter((checkId): checkId is string => checkId !== null)
+      .filter(
+        (checkId) => !emitted.has(checkId) && !isSiteLevelCheck(checkId),
+      );
+    expect(unbound).toEqual([]);
   });
 
   it("does not duplicate control ids inside a preset", () => {

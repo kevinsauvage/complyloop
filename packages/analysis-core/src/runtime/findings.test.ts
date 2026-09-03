@@ -102,6 +102,48 @@ describe("findingsFromAxePages", () => {
     expect(findings[0]?.checkId).toBe("doctype");
     expect(findings[0]?.engine).toBe("runtime");
   });
+
+  it("emits axe incomplete results as warnings for needs_review", () => {
+    const findings = findingsFromAxePages([
+      {
+        url: "https://app.example/",
+        violations: [],
+        incomplete: [
+          {
+            id: "color-contrast",
+            impact: "serious",
+            description: "Element's background color could not be determined",
+            help: "Elements must meet minimum color contrast ratio thresholds",
+            nodes: [{ html: "<p>Hi</p>", target: ["p"] }],
+          },
+        ],
+      },
+    ]);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.checkId).toBe("color-contrast");
+    expect(findings[0]?.kind).toBe("warning");
+    expect(findings[0]?.confidence).toBe("medium");
+    expect(findings[0]?.engine).toBe("runtime");
+  });
+
+  it("treats axe frame-tested as a warning so untested iframes are needs_review", () => {
+    const findings = findingsFromAxePages([
+      {
+        url: "https://app.example/",
+        violations: [
+          {
+            id: "frame-tested",
+            impact: "moderate",
+            description: "iframe was not tested",
+            help: "Frames should be tested",
+            nodes: [{ html: "<iframe>", target: ["iframe"] }],
+          },
+        ],
+      },
+    ]);
+    expect(findings[0]?.checkId).toBe("frame-keyboard");
+    expect(findings[0]?.kind).toBe("warning");
+  });
 });
 
 describe("runtime URL helpers", () => {

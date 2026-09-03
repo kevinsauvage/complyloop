@@ -2,7 +2,6 @@ import type { Page } from "playwright";
 import type { AxeViolationLike } from "../findings.js";
 import { cssDisabledContentViolations } from "./css-disabled-content.js";
 import { cssOffUnderstandableViolation } from "./css-off-understandable.js";
-import { flashThresholdViolation } from "./flash-threshold.js";
 import { errorPreventionViolation } from "./error-prevention.js";
 import { captchaAlternativeViolation } from "./captcha-alternative.js";
 import { accessibleAuthEnhancedViolation } from "./accessible-auth-enhanced.js";
@@ -10,19 +9,14 @@ import { mediaIdentificationViolation } from "./media-identification.js";
 import { supplementaryContentKeyboardViolation } from "./supplementary-content-keyboard.js";
 import { cssHoverKeyboardViolation } from "./css-hover-keyboard.js";
 import { layoutTableLinearizationViolation } from "./layout-table-linearization.js";
-import { mediaAtCompatibleViolation } from "./media-at-compatible.js";
 import { mediaKeyboardViolation } from "./media-keyboard.js";
 import { focusCustomViolations } from "./focus.js";
-import { infoNotColorOnlyViolation } from "./info-not-color-only.js";
-import { hoverContentViolation } from "./hover-content.js";
 import { labelAdjacentViolation } from "./label-adjacent.js";
 import { nonTextContrastViolation } from "./non-text-contrast.js";
 import { forcedColorsViolation } from "./forced-colors.js";
 import { reducedMotionViolation } from "./reduced-motion.js";
 import { dialogFocusViolations } from "./dialog-focus.js";
-import { announcementViolations } from "./announcement.js";
 import { widgetKeyboardViolations } from "./widget-keyboard.js";
-import { formErrorRuntimeViolation } from "./form-error-runtime.js";
 import { reflowViolation } from "./reflow.js";
 import { resizeTextViolation } from "./resize-text.js";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime.js";
@@ -52,22 +46,16 @@ export async function runCustomRuntimeChecks(
     textSpacingRuntimeViolation(page),
     nonTextContrastViolation(page),
     labelAdjacentViolation(page),
-    hoverContentViolation(page),
     cssDisabledContentViolations(page),
     mediaKeyboardViolation(page),
     cssHoverKeyboardViolation(page),
-    infoNotColorOnlyViolation(page),
     cssOffUnderstandableViolation(page),
     layoutTableLinearizationViolation(page),
-    mediaAtCompatibleViolation(page),
-    flashThresholdViolation(page),
     errorPreventionViolation(page),
     captchaAlternativeViolation(page),
     accessibleAuthEnhancedViolation(page),
     mediaIdentificationViolation(page),
     supplementaryContentKeyboardViolation(page),
-    announcementViolations(page),
-    formErrorRuntimeViolation(page),
   ]);
 
   const violations: CustomViolation[] = [

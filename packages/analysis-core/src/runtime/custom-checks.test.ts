@@ -17,7 +17,6 @@ describe("custom runtime axe mappings", () => {
       "non-text-contrast",
     );
     expect(checkIdForAxeRule("complyloop-label-adjacent")).toBe("label-adjacent");
-    expect(checkIdForAxeRule("complyloop-hover-content")).toBe("hover-content");
     expect(checkIdForAxeRule("complyloop-css-disabled-content")).toBe(
       "css-disabled-content",
     );
@@ -25,9 +24,6 @@ describe("custom runtime axe mappings", () => {
     expect(checkIdForAxeRule("complyloop-resize-text")).toBe("resize-text");
     expect(checkIdForAxeRule("complyloop-css-hover-keyboard")).toBe(
       "css-hover-keyboard",
-    );
-    expect(checkIdForAxeRule("complyloop-info-not-color-only")).toBe(
-      "info-not-color-only",
     );
     expect(checkIdForAxeRule("focus-order-semantics")).toBe(
       "focus-order-logical",
@@ -47,12 +43,6 @@ describe("custom runtime axe mappings", () => {
     );
     expect(checkIdForAxeRule("complyloop-layout-table-linearization")).toBe(
       "layout-table-linearization",
-    );
-    expect(checkIdForAxeRule("complyloop-media-at-compatible")).toBe(
-      "media-at-compatible",
-    );
-    expect(checkIdForAxeRule("complyloop-flash-threshold")).toBe(
-      "flash-threshold",
     );
     expect(checkIdForAxeRule("complyloop-error-prevention")).toBe(
       "error-prevention",
@@ -88,10 +78,6 @@ describe("custom runtime axe mappings", () => {
     expect(checkIdForAxeRule("complyloop-menu-keyboard")).toBe(
       "keyboard-interaction",
     );
-    expect(checkIdForAxeRule("complyloop-form-error-association")).toBe(
-      "form-error-association",
-    );
-    expect(checkIdForAxeRule("complyloop-announcement")).toBe("status-live");
     expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });
 

@@ -23,6 +23,7 @@ const HTML_VALIDATE_TO_CHECK: Record<string, CheckId> = {
   "no-deprecated-attr": "css-for-presentation",
   deprecated: "css-for-presentation",
   "no-dup-id": "duplicate-id",
+  "no-missing-references": "form-error-association",
 };
 
 /** Maps an html-validate rule id to its check id, or undefined if unmapped. */
@@ -30,4 +31,9 @@ export function checkIdForHtmlValidateRule(
   ruleId: string,
 ): CheckId | undefined {
   return HTML_VALIDATE_TO_CHECK[ruleId];
+}
+
+/** Distinct catalog ids html-validate can emit. */
+export function htmlValidateMappedCheckIds(): CheckId[] {
+  return [...new Set(Object.values(HTML_VALIDATE_TO_CHECK))];
 }

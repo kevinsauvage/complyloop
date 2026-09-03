@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkIdForAxeRule, mappedAxeRuleCount } from "./axe-map";
+import { checkIdForAxeRule, mappedAxeRuleCount, REJECTED_AXE_RULES } from "./axe-map";
 
 describe("axe-map", () => {
   it("maps high-value axe rules onto modeled checks", () => {
@@ -31,6 +31,20 @@ describe("axe-map", () => {
       "identical-links-purpose",
     );
     expect(checkIdForAxeRule("hidden-content")).toBe("hidden-content");
+    expect(checkIdForAxeRule("image-redundant-alt")).toBe("img-alt");
+    expect(checkIdForAxeRule("aria-allowed-role")).toBe("aria-role");
+    expect(checkIdForAxeRule("frame-tested")).toBe("frame-keyboard");
+  });
+
+  it("explicitly rejects deprecated and catalog-less best-practice rules", () => {
+    expect(REJECTED_AXE_RULES.has("landmark-complementary-is-top-level")).toBe(
+      true,
+    );
+    expect(REJECTED_AXE_RULES.has("aria-text")).toBe(true);
+    expect(REJECTED_AXE_RULES.has("aria-treeitem-name")).toBe(true);
+    expect(checkIdForAxeRule("landmark-complementary-is-top-level")).toBeUndefined();
+    expect(checkIdForAxeRule("aria-text")).toBeUndefined();
+    expect(checkIdForAxeRule("aria-treeitem-name")).toBeUndefined();
   });
 
   it("covers a broader rule surface than the original ~37 mappings", () => {

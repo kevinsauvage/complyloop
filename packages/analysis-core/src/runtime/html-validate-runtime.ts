@@ -20,9 +20,9 @@ import type { RawFinding } from "../types.js";
 /**
  * Rendered-pass rules = Pass A curated set plus the rendered-only rules that
  * need the concrete document (no-dup-id; the AST `duplicate-id` check already
- * owns source). `valid-for` / `no-missing-references` are intentionally held
- * back until an axe-overlap check is done (13.3) — axe already reports label
- * and reference defects (label, duplicate-id) and we do not duplicate.
+ * owns source). `no-missing-references` covers broken `for` / aria idrefs on
+ * the generated DOM (form-error-association). `valid-for` is unused — it does
+ * not fire on missing targets in this html-validate version.
  */
 const RENDERED_RULES = {
   "element-permitted-content": "error",
@@ -35,6 +35,7 @@ const RENDERED_RULES = {
   "unique-landmark": "error",
   "no-deprecated-attr": "error",
   deprecated: "error",
+  "no-missing-references": "error",
 } as const;
 
 // Lazily built (module-level HtmlValidate is fine; it stays offline).

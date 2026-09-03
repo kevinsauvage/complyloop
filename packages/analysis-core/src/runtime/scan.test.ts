@@ -37,6 +37,7 @@ describe("runAxeOnPage", () => {
       );
       const results = await runAxeOnPage(page);
       expect(results.violations.some((v) => v.id === "image-alt")).toBe(true);
+      expect(Array.isArray(results.incomplete)).toBe(true);
     },
     30_000,
   );

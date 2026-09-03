@@ -55,7 +55,7 @@ packages/analysis-core/  ← no imports from src/server/ or src/app/
 src/server/, app/        ← integrate core + analysis via src/adapters/registry.ts
 ```
 
-**Finding merge:** `filterAstFindingsForAuthority` in `packages/analysis-core/src/merge-findings.ts` — runtime owns composition-sensitive checks when both engines run.
+**Finding merge:** `filterAstFindingsForAuthority` — when runtime ran, drop composition-sensitive, runtime-only, and package-twin source findings.
 
 ## Analysis engines
 
@@ -96,16 +96,17 @@ extra scanner, reuses the page already open for axe/custom checks.
   clean audit is a real rendered-document verdict — it can *pass* a requirement.
 - Curated rules: `element-permitted-content`, `element-permitted-order`,
   `close-order`, `no-implicit-close`, `no-dup-attr`, `no-multiple-main`,
-  `unique-landmark`, `no-deprecated-attr`, `deprecated`, `no-dup-id`.
-  `valid-for` / `no-missing-references` are held back pending an axe-overlap
-  check.
+  `unique-landmark`, `no-deprecated-attr`, `deprecated`, `no-dup-id`,
+  `no-missing-references` (broken `for` / aria idrefs → `form-error-association`).
 - Check-id mapping (`runtime/html-validate-map.ts` — every rule maps to a
   catalog control, no advisory ids): landmarks → `landmark-one-main` /
   `landmark-unique` (RGAA 12.6); general nesting/order/close/dup-attr /
   `element-permitted-content` → `markup-nesting` (`ctl-markup-validity`,
   RGAA 8.2); deprecated attrs/elements → `css-for-presentation` (RGAA 10.1);
-  `no-dup-id` → `duplicate-id` (RGAA 8.2). Ids are `runtime_only`; an empty
-  audit is the verdict. Interactive nesting is axe's job on the generated DOM
+  `no-dup-id` → `duplicate-id` (RGAA 8.2); `no-missing-references` →
+  `form-error-association`. Ids are `runtime_only` except composition-sensitive
+  ids html-validate also emits; an empty audit is the verdict for runtime-only
+  rules. Interactive nesting is axe's job on the generated DOM
   (the browser auto-repairs it, so it never reaches html-validate).
 
 Runs only when `runtimeBaseUrl` is set (needs a browser). The `@complyloop/check`

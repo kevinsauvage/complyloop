@@ -46,18 +46,76 @@ describe("filterAstFindingsForAuthority", () => {
   });
 
   it("drops composition-sensitive AST findings when runtime ran", () => {
-    const filtered = filterAstFindingsForAuthority([astInput, astImg], true);
-    expect(filtered.map((finding) => finding.checkId)).toEqual(["img-alt"]);
+    const astLegend: RawFinding = {
+      ...astInput,
+      checkId: "fieldset-legend",
+      reason: "legend",
+    };
+    const filtered = filterAstFindingsForAuthority(
+      [astInput, astLegend],
+      true,
+    );
+    expect(filtered.map((finding) => finding.checkId)).toEqual([
+      "fieldset-legend",
+    ]);
   });
 
   it("drops runtime_only AST findings when runtime ran (dedupe across engines)", () => {
+    const astLegend: RawFinding = {
+      ...astInput,
+      checkId: "fieldset-legend",
+      reason: "legend",
+    };
     const filtered = filterAstFindingsForAuthority(
-      [astLandmark, astDeprecated, astImg],
+      [astLandmark, astDeprecated, astLegend],
       true,
     );
-    // astImg is standard and stays; runtime-only ids are dropped so their
-    // verdict comes from the rendered pass and a defect yields one finding.
-    expect(filtered.map((finding) => finding.checkId)).toEqual(["img-alt"]);
+    expect(filtered.map((finding) => finding.checkId)).toEqual([
+      "fieldset-legend",
+    ]);
+  });
+
+  it("drops source twins axe also owns when runtime ran", () => {
+    const twins: RawFinding[] = [
+      astImg,
+      { ...astInput, checkId: "video-caption", reason: "no captions" },
+      { ...astInput, checkId: "meta-viewport", reason: "user-scalable" },
+      { ...astInput, checkId: "no-blink-marquee", reason: "blink" },
+      { ...astInput, checkId: "list-structure", reason: "div list" },
+    ];
+    expect(
+      filterAstFindingsForAuthority(twins, false).map((f) => f.checkId),
+    ).toEqual([
+      "img-alt",
+      "video-caption",
+      "meta-viewport",
+      "no-blink-marquee",
+      "list-structure",
+    ]);
+    expect(filterAstFindingsForAuthority(twins, true)).toEqual([]);
+  });
+
+  it("drops AST text-spacing when runtime ran (axe avoid-inline-spacing owns it)", () => {
+    const astSpacing: RawFinding = {
+      ...astInput,
+      checkId: "text-spacing",
+      reason: "inline letter-spacing",
+    };
+    const astLegend: RawFinding = {
+      ...astInput,
+      checkId: "fieldset-legend",
+      reason: "legend",
+    };
+    expect(
+      filterAstFindingsForAuthority([astSpacing, astLegend], false).map(
+        (finding) => finding.checkId,
+      ),
+    ).toEqual(["text-spacing", "fieldset-legend"]);
+    expect(
+      filterAstFindingsForAuthority([astSpacing, astLegend], true).map(
+        (finding) => finding.checkId,
+      ),
+    ).toEqual(["fieldset-legend"]);
   });
 
   it("keeps runtime_only AST findings when runtime did not run (CI / browserless)", () => {

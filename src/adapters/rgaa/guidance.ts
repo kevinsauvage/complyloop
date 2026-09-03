@@ -482,12 +482,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Add a <cite> element or visible attribution inside the blockquote when cite points at a source.",
   },
-  "outline-none": {
-    impact:
-      "Removing the default outline without a replacement hides keyboard focus in source (WCAG 2.4.7 / RGAA 10.7).",
-    howToFix:
-      "Pair outline-none with focus-visible:ring or an equivalent visible focus style on the same element.",
-  },
   "status-live": {
     impact:
       "Validation errors and toasts are not announced when they appear, so screen reader users miss feedback (WCAG 4.1.3 / RGAA 7.5).",
@@ -511,12 +505,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
       "When users apply WCAG text-spacing overrides, content is clipped or hidden (WCAG 1.4.12 / RGAA 10.12).",
     howToFix:
       "Remove fixed heights and overflow:hidden on text containers; allow line-height and spacing to grow.",
-  },
-  "hover-content": {
-    impact:
-      "Supplementary content shown only on hover cannot be reached or dismissed by keyboard users (WCAG 1.4.13).",
-    howToFix:
-      "Make help content persistent, dismissable, and reachable via focus; do not rely on hover-only tooltips.",
   },
   "label-adjacent": {
     impact:
@@ -680,12 +668,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       'Provide live captions via <track kind="captions"> or the streaming platform’s caption service.',
   },
-  "info-not-color-only": {
-    impact:
-      "Users who cannot perceive color miss required-field or error status when color is the only cue.",
-    howToFix:
-      "Add text, icons, patterns, or underlines alongside color to convey state (WCAG 1.4.1 / RGAA 3.1).",
-  },
   "focus-order-logical": {
     impact:
       "When tab order jumps around the page, keyboard users lose their place and may activate the wrong control.",
@@ -733,18 +715,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
       "Layout tables whose visual cell order differs from DOM order become unreadable when CSS is turned off.",
     howToFix:
       "Use CSS for layout or ensure table cells follow the intended reading sequence in the markup (WCAG 1.3.2 / RGAA 5.3).",
-  },
-  "media-at-compatible": {
-    impact:
-      "Custom media players without names or unlabeled controls are opaque to screen readers and voice control.",
-    howToFix:
-      "Label the player region and every control with aria-label or visible text (WCAG 4.1.2 / RGAA 4.13).",
-  },
-  "flash-threshold": {
-    impact:
-      "Rapid large-area flashing can trigger seizures in people with photosensitive epilepsy.",
-    howToFix:
-      "Keep flashes below three per second or reduce the affected area; avoid strobe-like CSS animations (WCAG 2.3.1 / RGAA 13.7).",
   },
   "error-prevention": {
     impact:

@@ -1,4 +1,8 @@
-import { isCompositionSensitiveCheck, isRuntimeOnlyCheck } from "./check-authority.js";
+import {
+  isCompositionSensitiveCheck,
+  isPackageTwinSourceCheck,
+  isRuntimeOnlyCheck,
+} from "./check-authority.js";
 import type { RawFinding } from "./types.js";
 
 /**
@@ -17,6 +21,7 @@ export function filterAstFindingsForAuthority(
   return astFindings.filter(
     (finding) =>
       !isCompositionSensitiveCheck(finding.checkId) &&
-      !isRuntimeOnlyCheck(finding.checkId),
+      !isRuntimeOnlyCheck(finding.checkId) &&
+      !isPackageTwinSourceCheck(finding.checkId),
   );
 }

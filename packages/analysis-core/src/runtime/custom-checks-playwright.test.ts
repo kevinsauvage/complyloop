@@ -8,9 +8,8 @@ import { errorPreventionViolation } from "./custom-checks/error-prevention";
 import { supplementaryContentKeyboardViolation } from "./custom-checks/supplementary-content-keyboard";
 import { htmlValidateFindingsForPage } from "./html-validate-runtime";
 import { dialogFocusViolations } from "./custom-checks/dialog-focus";
-import { announcementViolations } from "./custom-checks/announcement";
 import { widgetKeyboardViolations } from "./custom-checks/widget-keyboard";
-import { formErrorRuntimeViolation } from "./custom-checks/form-error-runtime";
+import { mediaIdentificationViolation } from "./custom-checks/media-identification";
 import { focusCustomViolations } from "./custom-checks/focus";
 import { reflowViolation } from "./custom-checks/reflow";
 
@@ -211,17 +210,18 @@ describe("custom runtime checks (Playwright)", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
-    "announcement flags a hidden live region",
+    "media-identification flags nameless canvas, not unlabeled object",
     async () => {
       const page = await withPage(`
         <!doctype html><html lang="fr"><body>
-          <div aria-live="polite" style="display:none" id="sr-status">Error: x</div>
-          <div role="status">Okay</div>
+          <object data="/x.pdf"></object>
+          <canvas id="c"></canvas>
         </body></html>
       `);
-      const violation = await announcementViolations(page);
-      expect(violation?.id).toBe("complyloop-announcement");
-      expect(violation?.nodes.some((n) => n.html.includes("aria-live"))).toBe(true);
+      const violation = await mediaIdentificationViolation(page);
+      expect(violation?.id).toBe("complyloop-media-identification");
+      expect(violation?.nodes.some((n) => n.html.includes("canvas"))).toBe(true);
+      expect(violation?.nodes.some((n) => n.html.includes("object"))).toBe(false);
     },
     30_000,
   );
@@ -303,59 +303,6 @@ describe("custom runtime checks (Playwright)", () => {
       `);
       const violations = await widgetKeyboardViolations(page);
       expect(violations.some((v) => v.id === "complyloop-menu-keyboard")).toBe(true);
-    },
-    30_000,
-  );
-
-  it.skipIf(!chromiumExecutableAvailable())(
-    "form-error-runtime flags an invalid field with no associated error",
-    async () => {
-      const page = await withPage(`
-        <!doctype html><html lang="fr"><body>
-          <form>
-            <label for="e">Email</label>
-            <input id="e" type="email" aria-invalid="true" />
-          </form>
-        </body></html>
-      `);
-      const violation = await formErrorRuntimeViolation(page);
-      expect(violation?.id).toBe("complyloop-form-error-association");
-      expect(violation?.nodes.some((n) => n.html.includes("aria-invalid"))).toBe(true);
-    },
-    30_000,
-  );
-
-  it.skipIf(!chromiumExecutableAvailable())(
-    "form-error-runtime passes an invalid field with a described error",
-    async () => {
-      const page = await withPage(`
-        <!doctype html><html lang="fr"><body>
-          <form>
-            <label for="e">Email</label>
-            <input id="e" type="email" aria-invalid="true" aria-describedby="e-err" />
-            <div id="e-err">Adresse email invalide</div>
-          </form>
-        </body></html>
-      `);
-      const violation = await formErrorRuntimeViolation(page);
-      expect(violation).toBeNull();
-    },
-    30_000,
-  );
-
-  it.skipIf(!chromiumExecutableAvailable())(
-    "form-error-runtime passes a healthy form with no invalid fields",
-    async () => {
-      const page = await withPage(`
-        <!doctype html><html lang="fr"><body>
-          <form>
-            <label for="e">Email</label>
-            <input id="e" type="email" aria-invalid="false" />
-          </form>
-        </body></html>
-      `);
-      const violation = await formErrorRuntimeViolation(page);
-      expect(violation).toBeNull();
     },
     30_000,
   );

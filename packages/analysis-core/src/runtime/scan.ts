@@ -69,6 +69,33 @@ interface AxeRunResult {
       failureSummary?: string;
     }>;
   }>;
+  incomplete: Array<{
+    id: string;
+    impact?: string | null;
+    description: string;
+    help: string;
+    nodes: Array<{
+      html: string;
+      target: Array<string | string[]>;
+      failureSummary?: string;
+    }>;
+  }>;
+}
+
+function toAxeViolationLike(
+  violation: AxeRunResult["violations"][number],
+): AxeViolationLike {
+  return {
+    id: violation.id,
+    impact: violation.impact,
+    description: violation.description,
+    help: violation.help,
+    nodes: violation.nodes.map((node) => ({
+      html: node.html,
+      target: node.target.map(String),
+      failureSummary: node.failureSummary,
+    })),
+  };
 }
 
 /**
@@ -79,29 +106,26 @@ interface AxeRunResult {
  */
 export async function runAxeOnPage(page: Page): Promise<{
   violations: AxeViolationLike[];
+  incomplete: AxeViolationLike[];
 }> {
   await page.addScriptTag({ path: resolveAxeMinJsPath() });
   const results = await page.evaluate(async () => {
     const axe = (
       window as unknown as {
-        axe: { run: () => Promise<AxeRunResult> };
+        axe: {
+          run: (
+            context: Document,
+            options: { iframes: boolean },
+          ) => Promise<AxeRunResult>;
+        };
       }
     ).axe;
-    return axe.run();
+    return axe.run(document, { iframes: true });
   });
 
   return {
-    violations: results.violations.map((violation) => ({
-      id: violation.id,
-      impact: violation.impact,
-      description: violation.description,
-      help: violation.help,
-      nodes: violation.nodes.map((node) => ({
-        html: node.html,
-        target: node.target.map(String),
-        failureSummary: node.failureSummary,
-      })),
-    })),
+    violations: results.violations.map(toAxeViolationLike),
+    incomplete: (results.incomplete ?? []).map(toAxeViolationLike),
   };
 }
 
@@ -225,6 +249,7 @@ function createPlaywrightAxeScanner(options?: {
           pages.push({
             url,
             violations: [...violations, ...conditionViolations],
+            incomplete: results.incomplete,
             htmlValidateFindings,
             snapshot,
           });

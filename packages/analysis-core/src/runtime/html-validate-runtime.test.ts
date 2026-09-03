@@ -68,6 +68,35 @@ describe("html-validate rendered pass", () => {
     expect(f.some((x) => x.checkId === "duplicate-id")).toBe(true);
     expect(f.some((x) => x.engine === "runtime")).toBe(true);
   });
+
+  it("reports broken for and aria-describedby as form-error-association", () => {
+    const brokenFor = serialized(
+      `<html><body><label for="missing">Email</label></body></html>`,
+    );
+    expect(
+      htmlValidateFindingsFromSerialized(brokenFor, URL).some(
+        (x) => x.checkId === "form-error-association",
+      ),
+    ).toBe(true);
+
+    const brokenDescribedBy = serialized(
+      `<html><body><input aria-describedby="gone" /></body></html>`,
+    );
+    expect(
+      htmlValidateFindingsFromSerialized(brokenDescribedBy, URL).some(
+        (x) => x.checkId === "form-error-association",
+      ),
+    ).toBe(true);
+
+    const ok = serialized(
+      `<html><body><label for="e">Email</label><input id="e" /></body></html>`,
+    );
+    expect(
+      htmlValidateFindingsFromSerialized(ok, URL).some(
+        (x) => x.checkId === "form-error-association",
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("checkIdForHtmlValidateRule", () => {
@@ -88,6 +117,9 @@ describe("checkIdForHtmlValidateRule", () => {
     expect(checkIdForHtmlValidateRule("no-dup-attr")).toBe("markup-nesting");
     expect(checkIdForHtmlValidateRule("element-permitted-content")).toBe(
       "markup-nesting",
+    );
+    expect(checkIdForHtmlValidateRule("no-missing-references")).toBe(
+      "form-error-association",
     );
     expect(checkIdForHtmlValidateRule("not-a-rule")).toBeUndefined();
   });

@@ -29,7 +29,7 @@ Objective is **maximum independent evidence with minimal duplication** — not m
 | Source | Custom AST checks + `eslint-plugin-jsx-a11y` | Suspicious JSX; React patterns from the plugin |
 | Rendered a11y | `axe-core` | Baseline accessibility tree |
 | HTML structure | `html-validate` (runtime only) | Generated markup validity — RGAA 8.2 / 10.1 only |
-| Browser / interaction | Playwright custom checks | Focus, reflow, target size, widgets, media, reduced motion, forced colors |
+| Browser / interaction | Playwright custom checks | Focus, reflow, widgets, media, reduced motion, forced colors |
 | Theme / contrast conditions | `browserConditions` scan pass | Re-run theme-sensitive checks under dark, light, `prefers-contrast: more`; keep failures unique to that condition |
 | Site | `runtime/site-level/` | Cross-route nav, titles, help consistency |
 
