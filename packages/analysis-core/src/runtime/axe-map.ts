@@ -136,16 +136,14 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-non-text-contrast": "non-text-contrast",
   "complyloop-label-adjacent": "label-adjacent",
   "complyloop-hover-content": "hover-content",
-  "complyloop-both-colors": "both-colors",
   "complyloop-css-disabled-content": "css-disabled-content",
   "complyloop-media-keyboard": "media-keyboard",
   "complyloop-resize-text": "resize-text",
   "complyloop-css-hover-keyboard": "css-hover-keyboard",
   "complyloop-info-not-color-only": "info-not-color-only",
-  "complyloop-focus-order-logical": "focus-order-logical",
+  "focus-order-semantics": "focus-order-logical",
   "identical-links-same-purpose": "identical-links-purpose",
   "hidden-content": "hidden-content",
-  "complyloop-css-for-presentation": "css-for-presentation",
   "complyloop-css-off-understandable": "css-off-understandable",
   "complyloop-layout-table-linearization": "layout-table-linearization",
   "complyloop-media-at-compatible": "media-at-compatible",
@@ -164,7 +162,6 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-menu-keyboard": "keyboard-interaction",
   "complyloop-form-error-association": "form-error-association",
   "complyloop-announcement": "status-live",
-  "complyloop-target-size": "target-size",
 };
 
 export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {

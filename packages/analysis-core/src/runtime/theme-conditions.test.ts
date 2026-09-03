@@ -55,7 +55,8 @@ describe("theme-sensitive axe rules", () => {
   it("covers contrast and color-dependent rules only", () => {
     expect(THEME_SENSITIVE_AXE_RULES.has("color-contrast")).toBe(true);
     expect(THEME_SENSITIVE_AXE_RULES.has("color-contrast-enhanced")).toBe(true);
-    expect(THEME_SENSITIVE_AXE_RULES.has("use-of-color")).toBe(true);
+    expect(THEME_SENSITIVE_AXE_RULES.has("link-in-text-block")).toBe(true);
+    expect(THEME_SENSITIVE_AXE_RULES.has("use-of-color")).toBe(false);
     expect(THEME_SENSITIVE_AXE_RULES.has("image-alt")).toBe(false);
   });
 });

@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseSource } from "@complyloop/analysis-core/parse";
-import { imgAltCheck } from "@complyloop/analysis-core/checks/img-alt";
+import { buttonNameCheck } from "@complyloop/analysis-core/checks/button-name";
 import type { Control } from "@/core/project-types";
 import type { Finding, Remediation } from "@/core/finding-types";
 import { testProject } from "@/test-fixtures/project";
@@ -22,10 +22,10 @@ describe("developer handoff", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "handoff-"));
     tempDirs.push(root);
     const relative = "Hero.tsx";
-    const source = `export const Hero = () => <img src="/hero.png" />;\n`;
+    const source = `export const Hero = () => <button></button>;\n`;
     fs.writeFileSync(path.join(root, relative), source);
 
-    const [raw] = imgAltCheck.run(parseSource(relative, source));
+    const [raw] = buttonNameCheck.run(parseSource(relative, source));
     if (!raw.fix) throw new Error("expected fix");
 
     const project = testProject({
@@ -71,7 +71,7 @@ describe("developer handoff", () => {
       status: "suggested",
       suggestion: {
         description: "Add alt",
-        proposedSnippet: '<img src="/hero.png" alt="Hero" />',
+        proposedSnippet: '<button aria-label="Open menu"></button>',
         provenance: "deterministic",
       },
       history: [],
@@ -80,7 +80,7 @@ describe("developer handoff", () => {
     const diff = buildDiffForFix(root, finding, raw.fix);
     expect(diff).toContain("--- a/Hero.tsx");
     expect(diff).toContain("+++ b/Hero.tsx");
-    expect(diff).toMatch(/\+.*alt=/);
+    expect(diff).toMatch(/\+.*aria-label=/);
 
     const handoff = buildDeveloperHandoff(
       project,

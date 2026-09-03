@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CheckId } from "@complyloop/analysis-core/types";
 import { allChecks } from "@complyloop/analysis-core/checks/registry";
+import { jsxA11yMappedCheckIds } from "@complyloop/analysis-core/jsx-a11y-map";
 import { guidanceFor } from "./guidance";
 
 const SAMPLE_CHECK_IDS: CheckId[] = [
@@ -23,6 +24,14 @@ describe("guidanceFor", () => {
   it("covers every registered AST check", () => {
     for (const check of allChecks) {
       const guidance = guidanceFor(check.id);
+      expect(guidance.impact.length).toBeGreaterThan(10);
+      expect(guidance.howToFix.length).toBeGreaterThan(10);
+    }
+  });
+
+  it("covers every jsx-a11y mapped check", () => {
+    for (const checkId of jsxA11yMappedCheckIds()) {
+      const guidance = guidanceFor(checkId);
       expect(guidance.impact.length).toBeGreaterThan(10);
       expect(guidance.howToFix.length).toBeGreaterThan(10);
     }

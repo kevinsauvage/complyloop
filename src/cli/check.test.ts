@@ -16,7 +16,6 @@ describe("complyloop-check testdata", () => {
     expect(checkIds.has("img-alt")).toBe(true);
     expect(checkIds.has("error-prevention")).toBe(true);
     expect(checkIds.has("captcha-alternative")).toBe(true);
-    expect(checkIds.has("reduced-motion")).toBe(true);
     expect(checkIds.has("link-explicit-heuristic")).toBe(true);
     expect(checkIds.has("accessible-auth-enhanced")).toBe(true);
   });

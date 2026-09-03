@@ -58,7 +58,7 @@ export const RESET_EMULATION: { colorScheme: null; contrast: null } = {
 export const THEME_SENSITIVE_AXE_RULES: ReadonlySet<string> = new Set([
   "color-contrast",
   "color-contrast-enhanced",
-  "use-of-color",
+  "link-in-text-block",
 ]);
 
 /** Identity of a violation: rule id + first target selector. */

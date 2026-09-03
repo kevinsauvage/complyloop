@@ -15,8 +15,8 @@ import { config as loadEnv } from "dotenv";
 import { createPostgresClient } from "../src/server/db-store/postgres-url";
 
 // Deterministic per-database lock key for serializing migrations across
-// processes. hashint4 makes it stable without hand-picking a magic number.
-const MIGRATION_LOCK = "hashint4('_complyloop_migrations'::text)::bigint";
+// processes. hashtext makes it stable without hand-picking a magic number.
+const MIGRATION_LOCK = "hashtext('_complyloop_migrations')::bigint";
 
 function loadLocalEnv(): void {
   if (process.env.DATABASE_URL?.trim()) return;

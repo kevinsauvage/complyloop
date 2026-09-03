@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { listSourceFiles } from "./source-files.js";
 import { allChecks } from "./checks/registry.js";
+import { lintJsxA11y } from "./jsx-a11y-scan.js";
 import { parseSource } from "./parse.js";
 import type { RawFinding } from "./types.js";
 import { resolveInside } from "./workspace-path.js";
@@ -23,7 +24,10 @@ export function scanFile(rootPath: string, filePath: string): RawFinding[] {
   if (!fs.existsSync(absolute)) return [];
   const text = fs.readFileSync(absolute, "utf8");
   const parsed = parseSource(filePath, text);
-  return allChecks.flatMap((check) => check.run(parsed));
+  return [
+    ...allChecks.flatMap((check) => check.run(parsed)),
+    ...lintJsxA11y(parsed),
+  ];
 }
 
 export function scanProject(rootPath: string): ScanResult {

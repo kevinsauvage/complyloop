@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { imgAltCheck } from "@complyloop/analysis-core/checks/img-alt";
+import { buttonNameCheck } from "@complyloop/analysis-core/checks/button-name";
 import { applyFix } from "@complyloop/analysis-core/fixes";
 import { parseSource } from "@complyloop/analysis-core/parse";
 import { scanFile } from "@complyloop/analysis-core/scan";
@@ -93,8 +93,8 @@ async function initRepo(source: string): Promise<{
   await git.add(["."]);
   await git.commit("initial");
 
-  const [raw] = imgAltCheck.run(parseSource(relative, source));
-  if (!raw?.fix) throw new Error("expected img-alt fix");
+  const [raw] = buttonNameCheck.run(parseSource(relative, source));
+  if (!raw?.fix) throw new Error("expected button-name fix");
 
   const project = testProject({
     name: "shop",
@@ -106,20 +106,20 @@ async function initRepo(source: string): Promise<{
     createdAt: new Date().toISOString(),
   });
   const control: Control = {
-    id: "ctl-img-alt",
+    id: "ctl-button-name",
     frameworkId: "fw",
-    code: "WCAG 1.1.1",
-    secondaryCode: "RGAA 1.1",
-    title: "Images have a text alternative",
-    description: "Every informative image exposes a text alternative.",
-    checkId: "img-alt",
+    code: "WCAG 4.1.2",
+    secondaryCode: "RGAA 11.9",
+    title: "Buttons have an accessible name",
+    description: "Every button exposes a name describing its action.",
+    checkId: "button-name",
   };
   const finding: Finding = {
     id: "f1",
     projectId: project.id,
     controlId: control.id,
     assessmentId: "a1",
-    checkId: "img-alt",
+    checkId: "button-name",
     status: "open",
     kind: raw.kind,
     severity: raw.severity,
@@ -136,7 +136,7 @@ async function initRepo(source: string): Promise<{
     status: "approved",
     suggestion: {
       description: "Add alt",
-      proposedSnippet: '<img src="/hero.png" alt="Hero" />',
+      proposedSnippet: '<button aria-label="Save"></button>',
       provenance: "deterministic",
     },
     history: [],
@@ -149,7 +149,7 @@ async function initRepo(source: string): Promise<{
 
 describe("locateViolationInProject + PR apply", () => {
   it("re-locates a drifted span and applies the fix at the current offset", async () => {
-    const initial = `export const Hero = () => <img src="/hero.png" />;\n`;
+    const initial = `export const Hero = () => <button></button>;\n`;
     const { root, relative, project, control, finding, remediation } =
       await initRepo(initial);
 
@@ -170,7 +170,7 @@ describe("locateViolationInProject + PR apply", () => {
     expect(fix).toBeTruthy();
 
     const fixed = applyFix(drifted, fix!);
-    expect(fixed).toContain('alt="');
+    expect(fixed).toContain("aria-label=");
     // Stale stored span would leave the violation or corrupt the banner comment.
     const staleFixed = applyFix(drifted, finding.fix!);
     expect(staleFixed).not.toBe(fixed);
@@ -197,13 +197,13 @@ describe("locateViolationInProject + PR apply", () => {
     );
     expect(result.committed).toBe(true);
     const onDisk = fs.readFileSync(path.join(root, relative), "utf8");
-    expect(onDisk).toContain('alt="');
+    expect(onDisk).toContain("aria-label=");
     expect(onDisk.startsWith("/* banner */")).toBe(true);
     expect(scanFile(root, relative)).toHaveLength(0);
   });
 
   it("commits a verified AI patch when there is no structured fix template", async () => {
-    const initial = `export const Hero = () => <img src="/hero.png" />;\n`;
+    const initial = `export const Hero = () => <button></button>;\n`;
     const { root, relative, project, control, finding, remediation } =
       await initRepo(initial);
     finding.fix = null;
@@ -219,8 +219,8 @@ describe("locateViolationInProject + PR apply", () => {
         edits: [
           {
             path: relative,
-            oldText: '<img src="/hero.png" />',
-            newText: '<img src="/hero.png" alt="Hero" />',
+            oldText: "<button></button>",
+            newText: '<button aria-label="Save"></button>',
           },
         ],
         complyLoop: { passed: true, remaining: [] },
@@ -229,13 +229,13 @@ describe("locateViolationInProject + PR apply", () => {
 
     expect(result.committed).toBe(true);
     expect(fs.readFileSync(path.join(root, relative), "utf8")).toContain(
-      'alt="Hero"',
+      'aria-label="Save"',
     );
     expect(scanFile(root, relative)).toHaveLength(0);
   });
 
   it("opens AI-generated changes as a draft pull request", async () => {
-    const initial = `export const Hero = () => <img src="/hero.png" />;\n`;
+    const initial = `export const Hero = () => <button></button>;\n`;
     const { root, relative, project, control, finding, remediation } =
       await initRepo(initial);
     finding.fix = null;
@@ -253,8 +253,8 @@ describe("locateViolationInProject + PR apply", () => {
         edits: [
           {
             path: relative,
-            oldText: '<img src="/hero.png" />',
-            newText: '<img src="/hero.png" alt="Hero" />',
+            oldText: "<button></button>",
+            newText: '<button aria-label="Save"></button>',
           },
         ],
         complyLoop: { passed: true, remaining: [] },
@@ -271,13 +271,13 @@ describe("locateViolationInProject + PR apply", () => {
   });
 
   it("aborts when the violation can no longer be found", async () => {
-    const initial = `export const Hero = () => <img src="/hero.png" />;\n`;
+    const initial = `export const Hero = () => <button></button>;\n`;
     const { root, relative, project, control, finding, remediation } =
       await initRepo(initial);
 
     fs.writeFileSync(
       path.join(root, relative),
-      `export const Hero = () => <img src="/hero.png" alt="ok" />;\n`,
+      `export const Hero = () => <button aria-label="ok"></button>;\n`,
     );
 
     await expect(
@@ -287,8 +287,8 @@ describe("locateViolationInProject + PR apply", () => {
         edits: [
           {
             path: relative,
-            oldText: '<img src="/hero.png" />',
-            newText: '<img src="/hero.png" alt="" />',
+            oldText: "<button></button>",
+            newText: '<button aria-label=""></button>',
           },
         ],
         complyLoop: { passed: true, remaining: [] },

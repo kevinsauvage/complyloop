@@ -1,8 +1,6 @@
 import type { Page } from "playwright";
 import type { AxeViolationLike } from "../findings.js";
-import { bothColorsRuntimeViolation } from "./both-colors-runtime.js";
 import { cssDisabledContentViolations } from "./css-disabled-content.js";
-import { cssForPresentationViolations } from "./css-for-presentation.js";
 import { cssOffUnderstandableViolation } from "./css-off-understandable.js";
 import { flashThresholdViolation } from "./flash-threshold.js";
 import { errorPreventionViolation } from "./error-prevention.js";
@@ -15,7 +13,6 @@ import { layoutTableLinearizationViolation } from "./layout-table-linearization.
 import { mediaAtCompatibleViolation } from "./media-at-compatible.js";
 import { mediaKeyboardViolation } from "./media-keyboard.js";
 import { focusCustomViolations } from "./focus.js";
-import { focusOrderLogicalViolation } from "./focus-order-logical.js";
 import { infoNotColorOnlyViolation } from "./info-not-color-only.js";
 import { hoverContentViolation } from "./hover-content.js";
 import { labelAdjacentViolation } from "./label-adjacent.js";
@@ -28,7 +25,6 @@ import { widgetKeyboardViolations } from "./widget-keyboard.js";
 import { formErrorRuntimeViolation } from "./form-error-runtime.js";
 import { reflowViolation } from "./reflow.js";
 import { resizeTextViolation } from "./resize-text.js";
-import { targetSizeViolation } from "./target-size.js";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime.js";
 import type { CustomViolation } from "./types.js";
 
@@ -46,7 +42,7 @@ function toAxeViolation(violation: CustomViolation): AxeViolationLike {
 }
 
 /**
- * Playwright checks that axe does not cover.
+ * Playwright checks that axe / html-validate do not cover.
  * Returns synthetic violations using complyloop-* ids mapped in axe-map.ts.
  */
 export async function runCustomRuntimeChecks(
@@ -57,12 +53,10 @@ export async function runCustomRuntimeChecks(
     nonTextContrastViolation(page),
     labelAdjacentViolation(page),
     hoverContentViolation(page),
-    bothColorsRuntimeViolation(page),
     cssDisabledContentViolations(page),
     mediaKeyboardViolation(page),
     cssHoverKeyboardViolation(page),
     infoNotColorOnlyViolation(page),
-    focusOrderLogicalViolation(page),
     cssOffUnderstandableViolation(page),
     layoutTableLinearizationViolation(page),
     mediaAtCompatibleViolation(page),
@@ -78,7 +72,6 @@ export async function runCustomRuntimeChecks(
 
   const violations: CustomViolation[] = [
     ...(await focusCustomViolations(page)),
-    ...(await cssForPresentationViolations(page)),
     ...(await dialogFocusViolations(page)),
     ...(await widgetKeyboardViolations(page)),
   ];
@@ -86,13 +79,12 @@ export async function runCustomRuntimeChecks(
   // reduced-motion temporarily emulates `prefers-reduced-motion`; run it
   // sequentially so that emulation never races the shared-page batch
   // (each check restores media features after). Viewport-mutating checks
-  // (reflow, 200% resize, target-size) belong on the same sequential path.
+  // (reflow, 200% resize) belong on the same sequential path.
   for (const emulated of [
     await forcedColorsViolation(page),
     await reducedMotionViolation(page),
     await reflowViolation(page),
     await resizeTextViolation(page),
-    await targetSizeViolation(page),
   ]) {
     if (emulated) violations.push(emulated);
   }
@@ -117,11 +109,7 @@ export async function runThemeSensitiveCustomChecks(
   page: Page,
 ): Promise<AxeViolationLike[]> {
   const theme: CustomViolation[] = [...(await focusCustomViolations(page))];
-  for (const result of [
-    await bothColorsRuntimeViolation(page),
-    await nonTextContrastViolation(page),
-  ]) {
-    if (result) theme.push(result);
-  }
+  const contrast = await nonTextContrastViolation(page);
+  if (contrast) theme.push(contrast);
   return theme.map(toAxeViolation);
 }

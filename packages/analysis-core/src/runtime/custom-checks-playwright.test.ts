@@ -13,7 +13,6 @@ import { widgetKeyboardViolations } from "./custom-checks/widget-keyboard";
 import { formErrorRuntimeViolation } from "./custom-checks/form-error-runtime";
 import { focusCustomViolations } from "./custom-checks/focus";
 import { reflowViolation } from "./custom-checks/reflow";
-import { targetSizeViolation } from "./custom-checks/target-size";
 
 function chromiumExecutableAvailable(): boolean {
   try {
@@ -418,54 +417,6 @@ describe("custom runtime checks (Playwright)", () => {
       `);
       const violations = await focusCustomViolations(page);
       expect(violations.some((v) => v.id === "complyloop-focus-visible")).toBe(true);
-    },
-    30_000,
-  );
-
-  it.skipIf(!chromiumExecutableAvailable())(
-    "target-size flags adjacent undersized buttons",
-    async () => {
-      const page = await withPage(`
-        <!doctype html><html lang="fr"><head><style>
-          .tiny { width: 16px; height: 16px; padding: 0; border: 0; }
-        </style></head><body>
-          <button class="tiny" id="a" aria-label="A"></button><button class="tiny" id="b" aria-label="B"></button>
-        </body></html>
-      `);
-      const violation = await targetSizeViolation(page);
-      expect(violation?.id).toBe("complyloop-target-size");
-      expect(violation?.nodes.length).toBeGreaterThan(0);
-    },
-    30_000,
-  );
-
-  it.skipIf(!chromiumExecutableAvailable())(
-    "target-size passes undersized buttons with 24px spacing",
-    async () => {
-      const page = await withPage(`
-        <!doctype html><html lang="fr"><head><style>
-          .tiny { width: 16px; height: 16px; padding: 0; border: 0; margin-right: 40px; }
-        </style></head><body>
-          <button class="tiny" id="a" aria-label="A"></button>
-          <button class="tiny" id="b" aria-label="B"></button>
-        </body></html>
-      `);
-      const violation = await targetSizeViolation(page);
-      expect(violation).toBeNull();
-    },
-    30_000,
-  );
-
-  it.skipIf(!chromiumExecutableAvailable())(
-    "target-size passes an inline link in a sentence",
-    async () => {
-      const page = await withPage(`
-        <!doctype html><html lang="fr"><body>
-          <p>Read the <a href="/policy" id="l">policy</a> before continuing with this step.</p>
-        </body></html>
-      `);
-      const violation = await targetSizeViolation(page);
-      expect(violation).toBeNull();
     },
     30_000,
   );

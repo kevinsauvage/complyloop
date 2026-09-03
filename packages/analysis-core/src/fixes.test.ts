@@ -3,19 +3,21 @@ import { applyFix, describeFix, previewFixedLine } from "./fixes";
 import { parseSource } from "./parse";
 import { autoplayMediaCheck } from "./checks/autoplay-media";
 import { buttonNameCheck } from "./checks/button-name";
-import { imgAltCheck } from "./checks/img-alt";
-import { positiveTabindexCheck } from "./checks/positive-tabindex";
 import type { ProposedFix } from "./contract/finding-types";
 
 describe("applyFix", () => {
-  it("inserts an attribute into a self-closing element and passes the re-check", () => {
+  it("inserts an attribute into a self-closing element", () => {
     const source = `const A = () => <img src="/team.png" />;`;
-    const [finding] = imgAltCheck.run(parseSource("a.tsx", source));
-    if (finding.fix?.kind !== "insert_attribute") throw new Error("expected an insert fix");
-
-    const fixed = applyFix(source, { ...finding.fix, value: "Team photo" });
-    expect(fixed).toContain(`<img src="/team.png" alt="Team photo" />`);
-    expect(imgAltCheck.run(parseSource("a.tsx", fixed))).toHaveLength(0);
+    const start = source.indexOf("<img");
+    const end = source.indexOf("/>") + 2;
+    const fix: ProposedFix = {
+      kind: "insert_attribute",
+      attribute: "alt",
+      value: "Team photo",
+      editable: true,
+      span: { start, end },
+    };
+    expect(applyFix(source, fix)).toContain(`<img src="/team.png" alt="Team photo" />`);
   });
 
   it("inserts an attribute into a non-self-closing element and passes the re-check", () => {
@@ -28,14 +30,17 @@ describe("applyFix", () => {
     expect(buttonNameCheck.run(parseSource("a.tsx", fixed))).toHaveLength(0);
   });
 
-  it("replaces an attribute value and passes the re-check", () => {
+  it("replaces an attribute value", () => {
     const source = `const A = () => <input tabIndex={3} aria-label="x" />;`;
-    const [finding] = positiveTabindexCheck.run(parseSource("a.tsx", source));
-    if (!finding.fix) throw new Error("expected a fix");
-
-    const fixed = applyFix(source, finding.fix);
-    expect(fixed).toContain("tabIndex={0}");
-    expect(positiveTabindexCheck.run(parseSource("a.tsx", fixed))).toHaveLength(0);
+    const token = "tabIndex={3}";
+    const start = source.indexOf(token);
+    const fix: ProposedFix = {
+      kind: "replace_attribute_value",
+      attribute: "tabIndex",
+      replacementText: "tabIndex={0}",
+      span: { start, end: start + token.length },
+    };
+    expect(applyFix(source, fix)).toContain("tabIndex={0}");
   });
 
   it("removes an attribute and passes the autoplay re-check", () => {
@@ -49,8 +54,8 @@ describe("applyFix", () => {
   });
 
   it("previews the fixed line without mutating the source", () => {
-    const source = `const A = () => <img src="/team.png" />;`;
-    const [finding] = imgAltCheck.run(parseSource("a.tsx", source));
+    const source = `const A = () => <button></button>;`;
+    const [finding] = buttonNameCheck.run(parseSource("a.tsx", source));
     if (!finding.fix) throw new Error("expected a fix");
 
     const preview = previewFixedLine(
@@ -58,8 +63,8 @@ describe("applyFix", () => {
       finding.fix,
       finding.location.kind === "source" ? finding.location.line : 1,
     );
-    expect(preview).toContain(`alt="Team"`);
-    expect(source).not.toContain("alt=");
+    expect(preview).toContain(`aria-label="Describe this action"`);
+    expect(source).not.toContain("aria-label=");
   });
 
   it("returns an empty preview when the line is out of range", () => {

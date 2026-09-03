@@ -26,8 +26,7 @@ Objective is **maximum independent evidence with minimal duplication** — not m
 
 | Layer | Tool | Job |
 | --- | --- | --- |
-| Source | ~78 AST checks | Suspicious JSX, missing attributes, bad component patterns |
-| React source | `eslint-plugin-jsx-a11y` | React-specific source patterns (normalize; do not duplicate) |
+| Source | Custom AST checks + `eslint-plugin-jsx-a11y` | Suspicious JSX; React patterns from the plugin |
 | Rendered a11y | `axe-core` | Baseline accessibility tree |
 | HTML structure | `html-validate` (runtime only) | Generated markup validity — RGAA 8.2 / 10.1 only |
 | Browser / interaction | Playwright custom checks | Focus, reflow, target size, widgets, media, reduced motion, forced colors |
@@ -36,7 +35,7 @@ Objective is **maximum independent evidence with minimal duplication** — not m
 
 `complyloop-check` is AST-only (no browser). Runtime needs a preview URL.
 
-**Shipped custom checks that should not be rebuilt:** focus visibility (focused vs unfocused), reflow at 320×568 with 2D-layout exceptions, 24×24 target size with spacing/inline/UA exceptions, dialog/tabs/disclosure/menu/form-error/announcement behaviour, forced colors, reduced motion.
+**Shipped custom checks that should not be rebuilt:** focus visibility (focused vs unfocused), reflow at 320×568 with 2D-layout exceptions, dialog/tabs/disclosure/menu/form-error behaviour, forced colors, reduced motion. Target size is axe `target-size`.
 
 ## What not to add as a core engine
 

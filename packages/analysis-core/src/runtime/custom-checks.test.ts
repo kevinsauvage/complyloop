@@ -18,7 +18,6 @@ describe("custom runtime axe mappings", () => {
     );
     expect(checkIdForAxeRule("complyloop-label-adjacent")).toBe("label-adjacent");
     expect(checkIdForAxeRule("complyloop-hover-content")).toBe("hover-content");
-    expect(checkIdForAxeRule("complyloop-both-colors")).toBe("both-colors");
     expect(checkIdForAxeRule("complyloop-css-disabled-content")).toBe(
       "css-disabled-content",
     );
@@ -30,7 +29,7 @@ describe("custom runtime axe mappings", () => {
     expect(checkIdForAxeRule("complyloop-info-not-color-only")).toBe(
       "info-not-color-only",
     );
-    expect(checkIdForAxeRule("complyloop-focus-order-logical")).toBe(
+    expect(checkIdForAxeRule("focus-order-semantics")).toBe(
       "focus-order-logical",
     );
     expect(checkIdForAxeRule("complyloop-focus-not-obscured-enhanced")).toBe(
@@ -43,9 +42,6 @@ describe("custom runtime axe mappings", () => {
       "identical-links-purpose",
     );
     expect(checkIdForAxeRule("hidden-content")).toBe("hidden-content");
-    expect(checkIdForAxeRule("complyloop-css-for-presentation")).toBe(
-      "css-for-presentation",
-    );
     expect(checkIdForAxeRule("complyloop-css-off-understandable")).toBe(
       "css-off-understandable",
     );
@@ -96,7 +92,6 @@ describe("custom runtime axe mappings", () => {
       "form-error-association",
     );
     expect(checkIdForAxeRule("complyloop-announcement")).toBe("status-live");
-    expect(checkIdForAxeRule("complyloop-target-size")).toBe("target-size");
     expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });
 

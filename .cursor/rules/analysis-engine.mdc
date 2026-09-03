@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Analysis Engine
 
-- AST checks in `checks/` are the source of truth for local/CI defects. Register every new check in `registry.ts`.
+- AST checks in `checks/` plus `eslint-plugin-jsx-a11y` (`jsx-a11y-scan.ts`) are the source of truth for local/CI defects. Register remaining custom AST checks in `registry.ts`. Do not re-implement jsx-a11y rules.
 - Implement `AccessibilityCheck` (`id` + `run`); emit `RawFinding` with developer-facing `reason` and optional structured `fix`.
 - Use `aria-query` / `axobject-query` for role and focusability — do not hardcode ARIA tables.
 - Runtime audits: Playwright + axe loaded from disk (`axe.min.js`). **Never** add `@axe-core/playwright` (Next/webpack rewrites axe `source`).

@@ -1,6 +1,6 @@
 # `@complyloop/check`
 
-Fail CI when accessibility **violations** exist in a React/TypeScript tree. AST checks only — no browser required.
+Fail CI when accessibility **violations** exist in a React/TypeScript tree. AST checks plus `eslint-plugin-jsx-a11y` — no browser required.
 
 ## Install
 
@@ -45,4 +45,4 @@ npm run check -- .    # bundle or tsx fallback
 npm run check -- packages/check/testdata   # deliberate violations (see src/cli/check.test.ts)
 ```
 
-`testdata/Bad.tsx` exercises heuristic checks (`error-prevention`, `captcha-alternative`, `reduced-motion`, …) plus `img-alt`.
+`testdata/Bad.tsx` exercises heuristic checks (`error-prevention`, `captcha-alternative`, …) plus jsx-a11y `img-alt`.

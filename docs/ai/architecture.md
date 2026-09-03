@@ -64,7 +64,7 @@ Three deterministic engines; AI is separate and never authoritative.
 ### 1. AST (`packages/analysis-core/src/checks/`)
 
 - Runs on source in CI, local dev, and `complyloop-check`.
-- **78 checks** registered in `registry.ts`.
+- Custom AST checks registered in `registry.ts`, plus `eslint-plugin-jsx-a11y` on the same files (`jsx-a11y-scan.ts`).
 - Text heuristics (confirm labels, CAPTCHA cues, vague links) live in `patterns/multilingual.ts` with accent folding for FR/EN/ES/DE.
 - Safe auto-fixes and verified AI patches target AST findings.
 

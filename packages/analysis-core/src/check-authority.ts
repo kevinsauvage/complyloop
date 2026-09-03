@@ -122,6 +122,7 @@ const HEURISTIC_CHECK_IDS = [
   "error-prevention",
   "reduced-motion",
   "accessible-auth-enhanced",
+  "outline-none",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);

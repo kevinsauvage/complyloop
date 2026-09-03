@@ -19,7 +19,14 @@ await esbuild.build({
     js: "#!/usr/bin/env node",
   },
   // Keep Node-native CJS deps external (bundling them into ESM breaks require).
-  external: ["typescript", "fast-glob"],
+  // ESLint and jsx-a11y use dynamic require; they must load from node_modules.
+  external: [
+    "typescript",
+    "fast-glob",
+    "eslint",
+    "eslint-plugin-jsx-a11y",
+    "@typescript-eslint/parser",
+  ],
   // Resolve the analysis engine to its source in this monorepo.
   alias: {
     "@": path.join(root, "src"),
