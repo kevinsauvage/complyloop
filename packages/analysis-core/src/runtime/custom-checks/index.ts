@@ -22,6 +22,8 @@ import { labelAdjacentViolation } from "./label-adjacent.js";
 import { nonTextContrastViolation } from "./non-text-contrast.js";
 import { forcedColorsViolation } from "./forced-colors.js";
 import { reducedMotionViolation } from "./reduced-motion.js";
+import { dialogFocusViolations } from "./dialog-focus.js";
+import { announcementViolations } from "./announcement.js";
 import { reflowViolation } from "./reflow.js";
 import { resizeTextViolation } from "./resize-text.js";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime.js";
@@ -69,11 +71,13 @@ export async function runCustomRuntimeChecks(
     accessibleAuthEnhancedViolation(page),
     mediaIdentificationViolation(page),
     supplementaryContentKeyboardViolation(page),
+    announcementViolations(page),
   ]);
 
   const violations: CustomViolation[] = [
     ...(await focusCustomViolations(page)),
     ...(await cssForPresentationViolations(page)),
+    ...(await dialogFocusViolations(page)),
   ];
 
   // reduced-motion temporarily emulates `prefers-reduced-motion`; run it

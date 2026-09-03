@@ -79,6 +79,11 @@ describe("custom runtime axe mappings", () => {
     expect(checkIdForAxeRule("complyloop-reduced-motion")).toBe(
       "reduced-motion",
     );
+    expect(checkIdForAxeRule("complyloop-dialog-focus")).toBe(
+      "keyboard-interaction",
+    );
+    expect(checkIdForAxeRule("complyloop-dialog-trap")).toBe("keyboard-trap");
+    expect(checkIdForAxeRule("complyloop-announcement")).toBe("status-live");
     expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
   });
 

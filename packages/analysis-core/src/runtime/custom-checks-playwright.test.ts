@@ -7,6 +7,8 @@ import { reducedMotionViolation } from "./custom-checks/reduced-motion";
 import { errorPreventionViolation } from "./custom-checks/error-prevention";
 import { supplementaryContentKeyboardViolation } from "./custom-checks/supplementary-content-keyboard";
 import { htmlValidateFindingsForPage } from "./html-validate-runtime";
+import { dialogFocusViolations } from "./custom-checks/dialog-focus";
+import { announcementViolations } from "./custom-checks/announcement";
 
 function chromiumExecutableAvailable(): boolean {
   try {
@@ -180,6 +182,42 @@ describe("custom runtime checks (Playwright)", () => {
       expect(
         dom.every((x) => x.snippet !== "(whole document)"),
       ).toBe(true);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "dialog-focus flags a modal that does not move focus in",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <button id="open" data-open="d">Open</button>
+          <div id="d" role="dialog" aria-modal="true" data-trigger="#open">
+            <button id="inside">Inside</button>
+          </div>
+        </body></html>
+      `);
+      // Focus is on the trigger after click; the dialog is open in the DOM but
+      // focus was NOT moved into it (broken focus management).
+      await page.focus("#open");
+      const violations = await dialogFocusViolations(page);
+      expect(violations.some((v) => v.id === "complyloop-dialog-focus")).toBe(true);
+    },
+    30_000,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "announcement flags a hidden live region",
+    async () => {
+      const page = await withPage(`
+        <!doctype html><html lang="fr"><body>
+          <div aria-live="polite" style="display:none" id="sr-status">Error: x</div>
+          <div role="status">Okay</div>
+        </body></html>
+      `);
+      const violation = await announcementViolations(page);
+      expect(violation?.id).toBe("complyloop-announcement");
+      expect(violation?.nodes.some((n) => n.html.includes("aria-live"))).toBe(true);
     },
     30_000,
   );
