@@ -75,7 +75,7 @@ Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on
 | Piece         | Path             | Role                                                         |
 | ------------- | ---------------- | ------------------------------------------------------------ |
 | Axe mapping   | `axe-map.ts`     | ~122 axe rule → check id mappings                            |
-| IBM Equal Access | `ibm-map.ts`, `ibm-runtime.ts` | Curated second engine on the same Playwright page after axe; dedupes by check id + snippet |
+| IBM Equal Access | `ibm-map.ts`, `ibm-runtime.ts` | Curated second engine on the same Playwright page after axe; dedupes by check id + snippet. `setConfig({ outputFormat: ["disable"] })` so IBM does not write `results/*.json` on the worker disk. |
 | Custom checks | `custom-checks/` | Contrast, reflow, focus, error-prevention, CAPTCHA, media, … |
 | Site-level    | `site-level/`    | Cross-route consistency (nav, help, titles) + `link-check.ts` (linkinator, same-origin broken links) |
 

@@ -1,10 +1,15 @@
-import type { Page } from "playwright";
 import type { Confidence, FindingKind, Severity } from "../contract/statuses.js";
 import { isHeuristicCheck } from "../check-authority.js";
 import type { RawFinding } from "../types.js";
 import { checkIdForAxeRule } from "./axe-map.js";
 import { checkIdForIbmRule } from "./ibm-map.js";
 import type { RuntimeScanPageResult } from "./findings.js";
+
+const IBM_NO_FILE_OUTPUT: { outputFormat: ["disable"] } = {
+  outputFormat: ["disable"],
+};
+
+let ibmFileReportsDisabled: Promise<void> | undefined;
 
 interface IbmIssue {
   ruleId: string;
@@ -124,11 +129,14 @@ export function ibmFindingsFromReport(
 
 /** Runs IBM Equal Access on the live Playwright page (after axe). */
 export async function ibmFindingsForPage(
-  page: Page,
+  page: unknown,
   url: string,
   axePage: RuntimeScanPageResult,
 ): Promise<RawFinding[]> {
-  const { getCompliance } = await import("accessibility-checker");
+  const { getCompliance, setConfig } = await import("accessibility-checker");
+  // IBM writes `results/<label>.json` unless file reporters are disabled.
+  ibmFileReportsDisabled ??= setConfig(IBM_NO_FILE_OUTPUT);
+  await ibmFileReportsDisabled;
   const label = `complyloop-${url.replace(/[^a-zA-Z0-9]+/g, "-").slice(0, 80)}`;
   const result = await getCompliance(page, label);
   const report = result.report;

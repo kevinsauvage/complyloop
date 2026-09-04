@@ -20,6 +20,8 @@
 
 # local leftover data (unused; Postgres is the store)
 /.data
+# IBM Equal Access default dump dir (file output is disabled in ibm-runtime)
+/results
 
 # next.js
 /.next/

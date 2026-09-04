@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import * as checkAuthority from "../check-authority";
-import { ibmFindingsFromReport } from "./ibm-runtime";
+import { ibmFindingsForPage, ibmFindingsFromReport } from "./ibm-runtime";
 import type { RuntimeScanPageResult } from "./findings";
+
+const setConfigMock = vi.fn();
+const getComplianceMock = vi.fn();
+
+vi.mock("accessibility-checker", () => ({
+  setConfig: (...args: unknown[]) => setConfigMock(...args),
+  getCompliance: (...args: unknown[]) => getComplianceMock(...args),
+}));
 
 const axePage: RuntimeScanPageResult = {
   url: "https://app.example/",
@@ -149,5 +157,49 @@ describe("ibmFindingsFromReport", () => {
       axePage,
     );
     expect(findings).toHaveLength(0);
+  });
+});
+
+describe("ibmFindingsForPage", () => {
+  it("disables IBM disk reports before scanning and maps the in-memory report", async () => {
+    const emptyAxePage: RuntimeScanPageResult = {
+      url: "https://www.kevin-sauvage.com/",
+      violations: [],
+    };
+    const order: string[] = [];
+    setConfigMock.mockImplementation(async () => {
+      order.push("setConfig");
+    });
+    getComplianceMock.mockImplementation(async () => {
+      order.push("getCompliance");
+      return {
+        report: {
+          results: [
+            {
+              ruleId: "aria_content_in_landmark",
+              level: "violation",
+              message: "Content is not within a landmark element",
+              snippet: '<a href="/help">',
+              path: { dom: "/html[1]/body[1]/a[1]" },
+            },
+          ],
+        },
+      };
+    });
+
+    const findings = await ibmFindingsForPage(
+      {},
+      "https://www.kevin-sauvage.com/",
+      emptyAxePage,
+    );
+
+    expect(setConfigMock).toHaveBeenCalledWith({ outputFormat: ["disable"] });
+    expect(order).toEqual(["setConfig", "getCompliance"]);
+    expect(getComplianceMock).toHaveBeenCalledWith(
+      {},
+      "complyloop-https-www-kevin-sauvage-com-",
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.checkId).toBe("content-region");
   });
 });
