@@ -12,9 +12,9 @@ How we analyze **today**, what the engine inventory looks like after the latest 
 | jsx-a11y           | `jsx-a11y-scan.ts`, `jsx-a11y-map.ts`              | **28** mapped rules                                        | CI source twin; `control-has-associated-label` stays **off** (htmlFor/id false positives)         |
 | axe-core           | `runtime/scan.ts`, `axe-map.ts`                    | **123** mapped rules                                       | Rendered a11y tree baseline; incomplete → `warning` / `needs_review`                              |
 | html-validate      | `html-validate-runtime.ts`, `html-validate-map.ts` | **7** rendered rules                                       | Generated DOM structure (RGAA 8.2 markup + 10.1 presentation — not duplicate ids, landmarks, or idrefs) |
-| IBM Equal Access   | `ibm-runtime.ts`, `ibm-map.ts`                     | **15** curated rules (~174 engine rules rejected/unmapped) | Second engine on same Playwright page; dedupes vs axe by check id + snippet                       |
-| Playwright custom  | `runtime/custom-checks/`                           | **26** probes                                              | Focus, reflow, widgets, hover content, live regions, form submit, 44×44 target size, …            |
-| Theme pass         | `theme-conditions.ts`                              | 3 conditions                                               | Re-runs theme-sensitive axe + focus/contrast subset under dark / light / `prefers-contrast: more` |
+| IBM Equal Access   | `ibm-runtime.ts`, `ibm-map.ts`                     | **15** curated rules (~174 engine rules rejected/unmapped) | Second engine on same Playwright page; skips only when axe already reported the same node (`checkId::snippet`); per-page failure is non-fatal |
+| Playwright custom  | `runtime/custom-checks/`                           | **26** probes (26 colocated `*.test.ts`)                   | Focus, reflow, widgets, hover content, live regions, form submit, 44×44 target size, …            |
+| Theme pass         | `theme-conditions.ts`                              | 3 conditions (`dark`, `light`, `prefers-contrast: more`)   | Re-runs theme-sensitive axe + focus/contrast subset; assessments default to `dark` + `light` via `DEFAULT_THEME_CONDITIONS` |
 | Target-size conditions | `viewport-conditions.ts` + `scan.ts`           | 3 conditions (default, `320×568`, `pointer: coarse`)       | Re-runs axe `target-size` (24×24); AAA 44×44 is a separate custom check                           |
 
 **Catalog:** 156 catalog controls — **130** automated (`checkId` set), **26** manual (`checkId: null`, pertinence/quality/flash/AT-compatible media). **130** distinct `CheckId` values in `types.ts`.
@@ -32,13 +32,14 @@ How we analyze **today**, what the engine inventory looks like after the latest 
 | Layer             | What runs                                                   | Verdict                                                                                                   |
 | ----------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Source            | AST + jsx-a11y                                              | Right for CI without preview. Wrong as **verdict** for CSS, focus, generated DOM, widgets.                |
-| axe               | `axe.run(document, { iframes: true })` on disk `axe.min.js` | Right baseline. Target size at default viewport **plus** `320×568` and `pointer: coarse` condition passes. |
+| axe               | `axe.run(document, { iframes: true })` on disk `axe.min.js` (injected once per page) | Right baseline. Target size at default viewport **plus** `320×568` and `pointer: coarse` condition passes. |
 | html-validate     | Serialized generated DOM                                    | Right tool for RGAA 8.2 / 10.1 structural evidence only.                                                  |
-| IBM               | `getCompliance(page)` after axe, mapped subset              | Right as **sibling** engine; heuristic ids emit `warning`; check-id dedupe vs axe.                        |
+| IBM               | `getCompliance(page)` after axe, mapped subset              | Right as **sibling** engine; heuristic ids emit `warning`; skips only same-node axe hits.                 |
 | Custom Playwright | Tab, viewport emulation, widget interaction                 | Right for behaviour no static engine sees. **forced-colors** uses live `forced-colors: active` emulation. |
 | Site-level        | Snapshots across routes                                     | Right differentiator; needs ≥2 routes.                                                                    |
 | linkinator        | Per-route, same-origin, optional `recurse`, SSRF-guarded    | Same-origin crawl capped by `maxRuntimePages()`; fragment `#id` targets validated from snapshots.         |
-| Theme pass        | Condition-specific re-run                                   | Right idea; subset is intentionally narrow.                                                               |
+| Theme pass        | Condition-specific re-run (`DEFAULT_THEME_CONDITIONS` in assessments) | Wired: dark + light by default when runtime runs.                                                         |
+| Navigation        | `domcontentloaded` + brief settle (`gotoForRuntimeAudit`)   | Avoids `networkidle` timeouts on SPAs with repeating fetch / HMR.                                         |
 
 **Largest product gap:** assessments **without** `runtimeBaseUrl` — **88** runtime-only check ids (including contrast, focus, reflow, broken links, site-level subset) stay `unable_to_verify`. That is a preview-URL adoption problem more than a missing-scanner problem.
 
@@ -50,7 +51,6 @@ How we analyze **today**, what the engine inventory looks like after the latest 
 
 | Issue                        | Where                                                 | Effect                                                                       |
 | ---------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Custom check test gap        | ~17/25 `custom-checks/*.ts` lack colocated unit tests | Behaviour still partly covered by `custom-checks-playwright.test.ts` only    |
 | accessibility-checker weight | npm dep pulls puppeteer/chromedriver                  | Runtime-only via dynamic import + `serverExternalPackages`; ops/install cost |
 
 ---

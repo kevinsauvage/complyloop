@@ -72,10 +72,15 @@ Three deterministic engines; AI is separate and never authoritative.
 
 Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on disk).
 
+Navigation uses `domcontentloaded` plus a brief settle (`gotoForRuntimeAudit`) — not
+`networkidle`, which SPAs with analytics or HMR often never reach. Axe is injected
+once per page; theme and viewport condition passes call `axe.run` only.
+
 | Piece         | Path             | Role                                                         |
 | ------------- | ---------------- | ------------------------------------------------------------ |
 | Axe mapping   | `axe-map.ts`     | ~122 axe rule → check id mappings                            |
-| IBM Equal Access | `ibm-map.ts`, `ibm-runtime.ts` | Curated second engine on the same Playwright page after axe; dedupes by check id + snippet. `setConfig({ outputFormat: ["disable"] })` so IBM does not write `results/*.json` on the worker disk. |
+| IBM Equal Access | `ibm-map.ts`, `ibm-runtime.ts` | Curated second engine on the same Playwright page after axe; skips only when axe already reported the **same node** (`checkId::snippet`); per-page failure is non-fatal. `setConfig({ outputFormat: ["disable"] })` so IBM does not write `results/*.json` on the worker disk. |
+| Theme pass    | `theme-conditions.ts` | Re-runs theme-sensitive axe + custom checks under `browserConditions` (assessments default to `dark` + `light` via `DEFAULT_THEME_CONDITIONS`). |
 | Custom checks | `custom-checks/` | Contrast, reflow, focus, error-prevention, CAPTCHA, media, … |
 | Site-level    | `site-level/`    | Cross-route consistency (nav, help, titles) + `link-check.ts` (linkinator, same-origin broken links) |
 

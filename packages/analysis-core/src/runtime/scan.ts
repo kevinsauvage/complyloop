@@ -49,6 +49,28 @@ export type RuntimePageScanner = (
 
 let sharedBrowser: Browser | null = null;
 
+/** Max time to wait for DOMContentLoaded on a preview route. */
+export const RUNTIME_GOTO_TIMEOUT_MS = 30_000;
+
+/**
+ * Brief settle after DOMContentLoaded so client-mounted widgets can attach.
+ * Do not use `networkidle` — SPAs with analytics or HMR often never reach it.
+ */
+export const RUNTIME_POST_DOM_SETTLE_MS = 250;
+
+const axeInjectedPages = new WeakSet<Page>();
+
+export async function gotoForRuntimeAudit(
+  page: Page,
+  url: string,
+): Promise<void> {
+  await page.goto(url, {
+    waitUntil: "domcontentloaded",
+    timeout: RUNTIME_GOTO_TIMEOUT_MS,
+  });
+  await page.waitForTimeout(RUNTIME_POST_DOM_SETTLE_MS);
+}
+
 async function getBrowser(): Promise<Browser> {
   if (!sharedBrowser) {
     sharedBrowser = await chromium.launch({ headless: true });
@@ -125,7 +147,10 @@ export async function runAxeOnPage(
   violations: AxeViolationLike[];
   incomplete: AxeViolationLike[];
 }> {
-  await page.addScriptTag({ path: resolveAxeMinJsPath() });
+  if (!axeInjectedPages.has(page)) {
+    await page.addScriptTag({ path: resolveAxeMinJsPath() });
+    axeInjectedPages.add(page);
+  }
   const runOnly = options?.runOnly;
   const results = await page.evaluate(async (rules) => {
     const axe = (
@@ -211,7 +236,7 @@ function createPlaywrightAxeScanner(options?: {
           try {
             // Re-resolve DNS immediately before goto to shrink rebinding TOCTOU.
             await assertSafeRuntimeUrl(url, lookupOptions);
-            await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
+            await gotoForRuntimeAudit(page, url);
           } catch (error) {
             if (blockedReason) throw new PublicError(blockedReason);
             throw error;

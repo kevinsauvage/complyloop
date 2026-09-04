@@ -23,14 +23,14 @@ SOURCE (CI + assessment, no browser)
   filterAstFindingsForAuthority() when runtime ran
          │ drop composition-sensitive, runtime-only, package-twin source hits
 RENDERED / RUNTIME (only if project.runtimeBaseUrl is set)
-  Playwright page.goto (networkidle)
+  Playwright page.goto (domcontentloaded + brief settle)
          ├─ axe-core (disk axe.min.js)
          ├─ custom Playwright probes (complyloop-* ids mapped in axe-map.ts)
          ├─ html-validate on custom-serialized live DOM
          ├─ page snapshot (site-level)
          ├─ axe target-size at default, 320×568, pointer: coarse
-         ├─ IBM Equal Access (dedupe vs axe by check id, then snippet)
-         └─ theme-sensitive re-run (implemented, never called from assessment)
+         ├─ IBM Equal Access (dedupe vs axe by same node snippet)
+         └─ theme-sensitive re-run (dark + light from assessment by default)
          │
          ├─ site-level checks (≥2 routes)
          └─ linkinator (same-origin)
@@ -62,16 +62,18 @@ RENDERED / RUNTIME (only if project.runtimeBaseUrl is set)
 | Priority | Count | Focus |
 |---|---:|---|
 | P0 | 0 | — (critical items completed 2026-09-04) |
-| P1 | 6 | page restore after probes, resize-text, evidence honesty, regression tests |
-| P2 | 8 | Applicability, probe quality, SSR HTML capture, CLI evidence |
-| P3 | 6 | Docs drift, `networkidle`, IBM install weight, serializer cleanup |
+| P1 | 4 | page restore after probes, resize-text, evidence honesty, remaining regression tests |
+| P2 | 7 | Applicability observations, probe quality, SSR HTML capture, CLI evidence |
+| P3 | 3 | `networkidle` ready signal, IBM install weight, serializer cleanup |
 | P4 | 5 | Visual regression, SR automation, extra engines — do not start |
 
 ## Recommended Execution Order
 
-1. **#10–#14** Restore page after submit/hover probes; wire theme conditions; fix resize-text; fix remaining mapping/help mismatches.
-2. **#15–#17** Tests that lock the above (especially false-positive regressions).
-3. **#18+** Coverage and quality only after the pipeline stops lying.
+1. **Page restore (#11)** — reload or clone page after form-error / live-region / hover probes.
+2. **`resize-text` (#12)** — 200% at default viewport; leave 320×568 to `reflow`.
+3. **html-validate evidence honesty (#13)** — live-DOM serialization limits in finding/evidence copy.
+4. **Remaining regression tests (#14)** — engine throw isolation, assessment `browserConditions`, probe restore.
+5. **P2+** — applicability observations, probe false positives, SSR HTML capture — only after P1 stops lying.
 
 ---
 
@@ -135,18 +137,46 @@ RENDERED / RUNTIME (only if project.runtimeBaseUrl is set)
 - `theme-conditions.ts`: `DEFAULT_THEME_CONDITIONS` (`dark`, `light`).
 - `assessment.ts`: passes `browserConditions` into `scanRuntime`; records `themeConditions` on `AssessmentEngines`.
 
+### P1 — Regression tests (partial)
+
+- `html-validate-runtime.test.ts`: map ⊆ {`markup-nesting`, `css-for-presentation`}; landmarks / duplicate-id / form-error not emitted.
+- `requirement-status.test.ts`: 8.2/10.1 gated on `htmlValidateRan`.
+- `check-authority.test.ts`: applicability-gated ids (CAPTCHA, hover, media) are heuristic — empty ≠ pass.
+- `scan-runtime-flags.test.ts`: aggregates `htmlValidateRan` / `ibmCheckerRan` across pages.
+- `hover-content.test.ts`: `[aria-describedby]` no longer treated as hover trigger.
+- `assessment-status.test.ts`: status refresh respects `htmlValidateRan`.
+
+**Still open:** engine throw preserves axe findings; assessment asserts `browserConditions`; probe page-restore (see P1 #14).
+
+### P2 — IBM dedupe by node snippet (not check id)
+
+- `ibm-runtime.ts`: `shouldSkipIbmFinding` skips only when axe already reported the **same** `checkId::snippet` key — not any hit of the check id on the page.
+- `runtime/dedupe-runtime-findings.ts`: post-hoc collapse for IBM vs axe same-node overlap (axe wins).
+
+### P3 — Runtime navigation + single axe inject
+
+- `scan.ts`: `gotoForRuntimeAudit` uses `domcontentloaded` + 250ms settle instead of `networkidle`.
+- `scan.ts`: `runAxeOnPage` injects `axe.min.js` once per page (`WeakSet` guard).
+- `scan.test.ts`: repeating-fetch goto completes; multiple axe runs on one page do not throw.
+
+### P3 — Analyzer docs aligned with code
+
+- `docs/ai/architecture.md`: runtime goto strategy, per-page axe inject, IBM node-level dedupe, theme pass default.
+- `docs/analysis-checks-challenge.md`: theme pass wired; IBM same-node skip; custom-check tests 26/26 colocated; navigation row.
+- `docs/analysis-strategy.md`: `DEFAULT_THEME_CONDITIONS` documented for assessments.
+
 ---
 
 ## Analyzer coverage matrix
 
 | Layer | Engine | Input | Current role | RGAA/WCAG | Status |
 | --- | --- | --- | --- | --- | --- |
-| Source | Custom AST (`checks/`, 58) | TSX/JSX | React patterns jsx-a11y cannot see; CI gate | Many (CAPTCHA cues, office docs, heuristics, …) | Active. Heuristic ids do not pass on empty scan. |
+| Source | Custom AST (`checks/`, 58) | TSX/JSX | React patterns jsx-a11y cannot see; CI gate | Many (CAPTCHA cues, office docs, heuristics, …) | Active. Applicability-gated ids → heuristic at status time. |
 | Source | `eslint-plugin-jsx-a11y` (28 mapped rules) | TSX | CI source twin | img-alt, names, ARIA, keyboard heuristics | Active. `control-has-associated-label` is intentionally off. |
-| Rendered DOM | axe-core (~123 mapped rules) | Live page via `axe.min.js` | Baseline a11y tree | Broad WCAG; mapped through `axe-map.ts` | Active. Incomplete nodes → `warning` / `needs_review`. |
+| Rendered DOM | axe-core (~123 mapped rules) | Live page via `axe.min.js` (once per page) | Baseline a11y tree | Broad WCAG; mapped through `axe-map.ts` | Active. Incomplete nodes → `warning` / `needs_review`. |
 | Rendered HTML | html-validate (7 curated rules) | Custom-serialized `document.documentElement` | RGAA 8.2 markup + 10.1 presentation only | 8.2 (`markup-nesting`), 10.1 (`css-for-presentation`) | Active. Not used by CLI. Duplicate ids: axe runtime + AST. |
 | Rendered DOM | IBM Equal Access (15 curated rules) | Same Playwright page after axe | Sibling engine; skip when axe already reported same node | Landmarks, lists, form errors, skip link, … | Active. Node-level skip (not check-id blanket). Per-page failure is non-fatal. |
-| Runtime | Playwright custom (~26 probes) | Browser (tab, emulateMedia, viewport) | Behaviour axe cannot see | Focus, reflow, widgets, hover, live regions, 44×44, forced-colors, reduced-motion, … | Active. css-off restore fixed; submit/hover probes still mutate page (#11). |
+| Runtime | Playwright custom (~26 probes) | Browser (tab, emulateMedia, viewport) | Behaviour axe cannot see | Focus, reflow, widgets, hover, live regions, 44×44, forced-colors, reduced-motion, … | Active. css-off restore fixed; submit/hover probes still mutate page (P1 #11). |
 | Runtime conditions | Theme pass (`theme-conditions.ts`) | dark / light / `prefers-contrast: more` | Re-run contrast/focus under theme | 1.4.3 / 1.4.6 / 1.4.11 | Active — assessments pass `dark` + `light` by default. |
 | Runtime conditions | Viewport / pointer (`viewport-conditions.ts`) | default, `320×568`, `pointer: coarse` | axe `target-size` 24×24 | 2.5.8 / RGAA target size | Active. |
 | Site | `site-level/checks.ts` | Snapshots across ≥2 routes | Nav/help/title/landmark consistency | 12.x, 8.6, 9.1 | Active. Cross-route `duplicate-id` removed; `consistent-lang` is warning/review (not 8.4 fail). |
@@ -234,7 +264,7 @@ RGAA 8.2 is validity of **generated** HTML. The pass serializes the post-parse D
 
 **Why it matters**
 
-`passed` 8.2 after #8 would over-state what was proved. Findings with selector `(document)` or a sibling element are weak evidence.
+`passed` 8.2 after the html-validate scope fix would over-state what was proved. Findings with selector `(document)` or a sibling element are weak evidence.
 
 **Recommended change**
 
@@ -246,38 +276,39 @@ Record in evidence: input kind (`live-dom-serialization`), html-validate version
 - [ ] Docs state the repair limitation; UI reason does not say “source HTML is valid” unless response HTML was checked.
 
 **Dependencies**
-- #5, #8. #20 is follow-up, not a blocker for honest evidence.
+- html-validate scope + `htmlValidateRan` gate (landed 2026-09-04). SSR response capture (#20) is follow-up, not a blocker for honest evidence.
 
 ---
 
 ### [P1] Lock P0/P1 behaviour with tests that currently encode the bugs or omit them
 
 **Location**
-- `packages/analysis-core/src/runtime/custom-checks/css-off-understandable.test.ts` (no restore assertion)
 - `packages/analysis-core/src/runtime/custom-checks/index.test.ts` (mocks; does not test execution order vs mutation)
-- `packages/analysis-core/src/runtime/site-level/checks.test.ts` (requires cross-route duplicate-id)
-- `packages/analysis-core/src/runtime/html-validate-runtime.test.ts` (requires landmark and form-error mappings)
-- `packages/analysis-core/src/contract/requirement-status.test.ts`
-- `src/server/assessment.test.ts`
+- `packages/analysis-core/src/runtime/scan.ts` (engine isolation — no throw test yet)
+- `src/server/assessment.test.ts` (no `browserConditions` assertion)
 
 **Problem**
 
-Tests prove today’s behaviour, including incorrect behaviour. html-validate tests fail if #4 is fixed unless they change. There is no assessment test that `browserConditions` are requested. There is no test that html-validate throw preserves axe findings.
+Most map/status/applicability tests landed with the 2026-09-04 P1 batch. Gaps remain: no test that html-validate or IBM throw preserves axe findings; no assessment test that theme conditions are requested; no Playwright test that mutating probes restore page state (#11).
 
 **Why it matters**
 
-Without these tests, #4–#8 will regress. Passing the existing suite is not evidence of correctness.
+Without the remaining tests, #11–#13 will regress.
 
 **Recommended change**
 
-Add/replace tests as acceptance criteria of #4–#14. Prefer Playwright page tests for mutation/restore; unit tests for maps and `deriveRequirementStatus`.
+Add tests as acceptance criteria of #11–#13 land. Prefer Playwright page tests for mutation/restore; unit tests for scan error paths.
 
 **Acceptance criteria**
-- [ ] Each remaining P1 item above has a failing test before the fix (or a new test that would have caught it).
-- [ ] `npm run test` covers: html-validate map ⊆ {markup-nesting, css-for-presentation}, engine isolation, 8.2 gated on htmlValidateRan, no auto-pass CAPTCHA.
+- [x] `npm run test` covers: html-validate map ⊆ {markup-nesting, css-for-presentation}.
+- [x] 8.2 gated on `htmlValidateRan`.
+- [x] No auto-pass CAPTCHA / hover / media on empty runtime scan.
+- [ ] html-validate or IBM throw on one page still returns axe + custom findings from that page.
+- [ ] Assessment test: `scanRuntime` receives `browserConditions` when runtime is configured.
+- [ ] Each remaining P1 item (#11–#13) has a test that would catch regression.
 
 **Dependencies**
-- Lands with #4–#14, not as a vague “add more tests” leftover.
+- Lands with #11–#13, not as a vague “add more tests” leftover.
 
 ---
 
@@ -292,7 +323,7 @@ Add/replace tests as acceptance criteria of #4–#14. Prefer Playwright page tes
 
 **Problem**
 
-Follows #9. Domain already has `not_applicable`. Engines never emit “this criterion does not apply on this page”.
+Heuristic gate landed 2026-09-04 (#9): empty scan → `unable_to_verify`, not `passed`. Domain already has `not_applicable`, but engines still never emit “this criterion does not apply on this page”.
 
 **Why it matters**
 
@@ -308,7 +339,7 @@ If a probe can **deterministically** assert absence (no `video`/`audio`/`track`,
 - [ ] Evidence states the applicability fact (e.g. “no video/audio elements in audited DOM”).
 
 **Dependencies**
-- #9, #5.
+- #9 (heuristic gate landed 2026-09-04). Full `not_applicable` observations still open.
 
 ---
 
@@ -394,33 +425,6 @@ Only compare text that appeared in response to a **known** invalid submit (share
 
 ---
 
-### [P2] IBM: dedupe by node, not by check id; keep IBM optional
-
-**Location**
-- `packages/analysis-core/src/runtime/ibm-runtime.ts` (`shouldSkipIbmFinding` returns true if `axeIds.has(checkId)`)
-
-**Problem**
-
-If axe reported any `content-region` node, IBM `aria_content_in_landmark` on a **different** node is dropped. The unit test **requires** this.
-
-**Why it matters**
-
-Loses the only reason IBM exists (nodes axe missed). Check-id skip was a noise reduction; it overshoots.
-
-**Recommended change**
-
-Skip only matching snippet/selector keys (already computed as `axeSnippets`). Keep rejected-rule list. Do not add Alfa.
-
-**Acceptance criteria**
-- [ ] Axe `region` on `main` does not suppress IBM on a sibling `<a>` outside landmarks.
-- [ ] Same snippet still deduped.
-- [ ] Existing rejected IBM rules still emit nothing.
-
-**Dependencies**
-- #6 (shared collapse helper if possible).
-
----
-
 ### [P2] CLI: machine-readable findings without becoming a second product
 
 **Location**
@@ -437,7 +441,7 @@ CI cannot attach structured evidence to PRs. Out of scope to run browsers in `co
 
 **Recommended change**
 
-Optional `--format json` of `RawFinding` (including #5 fields). Keep default human text and AST-only. Do not add html-validate to the CLI (no generated DOM).
+Optional `--format json` of `RawFinding` (including analyzer identity fields). Keep default human text and AST-only. Do not add html-validate to the CLI (no generated DOM).
 
 **Acceptance criteria**
 - [ ] `complyloop-check --format json .` emits parseable findings with `checkId`, `location`, `analyzerId`.
@@ -445,7 +449,7 @@ Optional `--format json` of `RawFinding` (including #5 fields). Keep default hum
 - [ ] README documents AST-only and the flag.
 
 **Dependencies**
-- #5.
+- Analyzer identity on findings (landed 2026-09-04).
 
 ---
 
@@ -505,87 +509,6 @@ Emit `warning` / `needs_review` unless the primary nav is missing entirely. Igno
 
 ## P3 — Quality
 
-### [P3] Stop using `waitUntil: "networkidle"` as the only ready signal
-
-**Location**
-- `packages/analysis-core/src/runtime/scan.ts` (`page.goto(..., { waitUntil: "networkidle", timeout: 30_000 })`)
-
-**Problem**
-
-SPAs with analytics/HMR never reach network idle; the scan errors and all runtime-only controls stay `unable_to_verify`. Fast static pages may still have late client widgets unmounted.
-
-**Why it matters**
-
-Unreliable runtime coverage, not a new rule.
-
-**Recommended change**
-
-Prefer `domcontentloaded` + a short settle, or `load`, with a configurable timeout. Keep SSRF interceptors. Document that client-only routes may need an extra wait selector later (P4).
-
-**Acceptance criteria**
-- [ ] A page with a repeating fetch every 2s can still complete an audit.
-- [ ] Timeout still classified via `scan-error.ts`.
-
-**Dependencies**
-- None.
-
----
-
-### [P3] Do not re-inject `axe.min.js` on every `runAxeOnPage` call without a guard
-
-**Location**
-- `packages/analysis-core/src/runtime/scan.ts` (`runAxeOnPage` always `addScriptTag`)
-
-**Problem**
-
-Axe is injected for the main run, then again for each target-size pass, then again per theme condition. Usually harmless; extra cost and possible double-install warnings.
-
-**Why it matters**
-
-Performance and flakiness under theme pass (#10).
-
-**Recommended change**
-
-Inject once per page; subsequent runs call `axe.run` only.
-
-**Acceptance criteria**
-- [ ] Multiple `runAxeOnPage` on one page do not throw.
-- [ ] Theme + target-size still produce mapped findings.
-
-**Dependencies**
-- #10 makes this more valuable.
-
----
-
-### [P3] Update analyzer docs that disagree with the code
-
-**Location**
-- `docs/ai/architecture.md` (html-validate maps landmarks and form-error as if that were the contract)
-- `docs/analysis-checks-challenge.md` (~17/25 custom-checks lack unit tests — most probes now have colocated tests)
-- `docs/analysis-strategy.md` (theme pass / html-validate role)
-
-**Problem**
-
-Agents and humans will implement the **docs’** html-validate story (12.6, 11.10) and re-expand the scanner. Test-gap counts are stale.
-
-**Why it matters**
-
-This review’s #4 will lose to the next agent who “follows architecture.md”.
-
-**Recommended change**
-
-After #4/#10, rewrite those paragraphs to match code. Do not duplicate long check-id lists (authority remains `check-authority.ts`).
-
-**Acceptance criteria**
-- [ ] architecture.md: html-validate = 8.2 + 10.1 only.
-- [ ] Challenge doc does not claim a large custom-check unit-test gap without recounting files.
-- [ ] Theme pass described as “wired in assessment” only if #10 landed.
-
-**Dependencies**
-- #4, #10.
-
----
-
 ### [P3] Revisit `accessibility-checker` install cost; do not add Alfa
 
 **Location**
@@ -610,7 +533,7 @@ Measure CI install impact. Consider making IBM opt-in via env. Never add Alfa al
 - [ ] No new equal-access engine.
 
 **Dependencies**
-- #7 (IBM must not take down axe if kept).
+- #7 (IBM per-page failure is non-fatal as of 2026-09-04).
 
 ---
 
@@ -763,7 +686,7 @@ Product spec allows it. Analyzer TODOs above are accessibility-specific. A secon
 
 **Recommended change**
 
-Prove RGAA statuses are honest (#4–#9) before SOC 2/ISO adapters.
+Prove RGAA statuses are honest (remaining P1) before SOC 2/ISO adapters.
 
 **Dependencies**
 - P1.
@@ -780,14 +703,14 @@ These are tempting given the current code and docs, and would make the architect
 4. **Do not add Lighthouse, Pa11y, WAVE, Tenon, `jest-axe`, or `@axe-core/playwright`.** Same class as axe; `@axe-core/playwright` is explicitly rejected (webpack/`module` rewrite).
 5. **Do not add Alfa while IBM Equal Access is present.** Two IBM-family engines on one page.
 6. **Do not add a custom AST twin for facts jsx-a11y or axe already report** (`package-twin` list in `check-authority.ts` exists because this happened before).
-7. **Do not treat an empty runtime-only scan as `passed` for CAPTCHA, media, hover, or layout tables** (#9). Silence is not evidence.
+7. **Do not treat an empty runtime-only scan as `passed` for CAPTCHA, media, hover, or layout tables.** Applicability-gated ids are heuristic — empty → `unable_to_verify` (fixed 2026-09-04).
 8. **Do not mark a requirement `passed` because an AI explanation is confident.** Statuses stay deterministic or human (`product-context` / AI rules).
 9. **Do not replace human pertinence twins** (`src/adapters/rgaa/pertinence-twins.ts`) with alt-text quality models.
 10. **Do not auto-pass RGAA 8.2 from “React compiled” or from jsx-a11y cleanliness.** 8.2 is html-validate (narrow) + honesty about live-DOM repair.
 11. **Do not re-introduce cross-route id uniqueness as 8.2.** If composition duplicates ids, check **one document** after compose.
 12. **Do not combinatorially re-run every check under every viewport × theme × state.** Theme pass is a small contrast/focus subset for a reason.
 13. **Do not use visual diffs or screenshots as an RGAA fail** without a human (#31).
-14. **Do not collapse five analyzers into five findings for one missing label.** Dedup toward one finding with multi-analyzer evidence (#5–#6), not more tickets.
+14. **Do not collapse five analyzers into five findings for one missing label.** Dedup toward one finding with multi-analyzer evidence (analyzer identity + runtime dedupe — landed 2026-09-04), not more tickets.
 
 ---
 
@@ -801,13 +724,13 @@ Use this when touching mappings. Not every row needs a TODO.
 | `css-for-presentation` | html-validate | runtime_only | 10.1 owner |
 | `duplicate-id` | AST, axe | composition_sensitive | Per-document; axe owns rendered DOM |
 | `landmark-one-main` / `landmark-unique` | axe, IBM | runtime_only | html-validate does not emit |
-| `form-error-association` | AST, axe, IBM, form-error-submit | composition_sensitive | html-validate does not emit; help text #12 |
+| `form-error-association` | AST, axe, IBM, form-error-submit | composition_sensitive | html-validate does not emit; help cites RGAA 11.10 |
 | `img-alt` | AST/jsx-a11y, axe (many rules collapsed) | package-twin source | Many axe rules → one control (intentional) |
-| `hover-content` | Playwright; listed heuristic **and** runtime_only → runtime_only | Over-pass (#9, #14) |
-| `reduced-motion` | Playwright; heuristic only | Correct: empty ≠ pass |
-| `captcha-alternative` | AST heuristic + Playwright | runtime_only | Over-pass (#9) |
-| `resize-text` | Playwright | runtime_only | Mixed with 1.4.10 (#10) |
-| `color-contrast` | axe; theme pass unused | runtime_only | #10 |
+| `hover-content` | Playwright | heuristic | Empty probe → `unable_to_verify` |
+| `reduced-motion` | Playwright | heuristic | Correct: empty ≠ pass |
+| `captcha-alternative` | AST heuristic + Playwright | heuristic | Empty probe → `unable_to_verify` |
+| `resize-text` | Playwright | runtime_only | Wrong viewport — use default for 200% (#12) |
+| `color-contrast` | axe; theme pass (dark + light) | runtime_only | Theme pass wired in assessment |
 | `broken-link` | linkinator | runtime_only | OK |
 | `consistent-lang` | site-level | site_level | Warning/review; not 8.4 fail |
 | `focus-appearance` | Playwright | runtime_only | WCAG 2.4.13 AAA; excluded from Full RGAA preset |

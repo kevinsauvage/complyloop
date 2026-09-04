@@ -1,6 +1,10 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { chromium, type Browser } from "playwright";
-import { resolveAxeMinJsPath, runAxeOnPage } from "./scan";
+import {
+  gotoForRuntimeAudit,
+  resolveAxeMinJsPath,
+  runAxeOnPage,
+} from "./scan";
 import fs from "node:fs";
 
 function chromiumExecutableAvailable(): boolean {
@@ -28,16 +32,53 @@ describe("runAxeOnPage", () => {
   });
 
   it.skipIf(!chromiumExecutableAvailable())(
-    "injects axe without ReferenceError: module is not defined",
+    "injects axe once across multiple runs on the same page",
     async () => {
       browser = await chromium.launch({ headless: true });
       const page = await (await browser.newContext()).newPage();
       await page.setContent(
         `<!doctype html><html lang="en"><head><title>t</title></head><body><img src="x"></body></html>`,
       );
-      const results = await runAxeOnPage(page);
-      expect(results.violations.some((v) => v.id === "image-alt")).toBe(true);
-      expect(Array.isArray(results.incomplete)).toBe(true);
+      const first = await runAxeOnPage(page);
+      const second = await runAxeOnPage(page, { runOnly: ["image-alt"] });
+      const third = await runAxeOnPage(page);
+      expect(first.violations.some((v) => v.id === "image-alt")).toBe(true);
+      expect(second.violations.some((v) => v.id === "image-alt")).toBe(true);
+      expect(third.violations.length).toBeGreaterThan(0);
+    },
+    30_000,
+  );
+});
+
+describe("gotoForRuntimeAudit", () => {
+  let browser: Browser | null = null;
+
+  afterAll(async () => {
+    await browser?.close();
+  });
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "completes without networkidle when fetch repeats on an interval",
+    async () => {
+      browser = await chromium.launch({ headless: true });
+      const page = await (await browser.newContext()).newPage();
+      await page.route("https://repeat.example/**", async (route) => {
+        const requestUrl = route.request().url();
+        if (requestUrl.endsWith("/ping")) {
+          await route.fulfill({ status: 200, body: "ok" });
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: "text/html",
+          body: `<!doctype html><html lang="en"><head><title>t</title></head><body><h1>Ready</h1><script>setInterval(() => fetch("/ping"), 500);</script></body></html>`,
+        });
+      });
+
+      const started = Date.now();
+      await gotoForRuntimeAudit(page, "https://repeat.example/");
+      expect(Date.now() - started).toBeLessThan(10_000);
+      expect(await page.locator("h1").textContent()).toBe("Ready");
     },
     30_000,
   );

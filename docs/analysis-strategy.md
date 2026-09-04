@@ -30,7 +30,7 @@ Objective is **maximum independent evidence with minimal duplication** — not m
 | Rendered a11y | `axe-core` | Baseline accessibility tree |
 | HTML structure | `html-validate` (runtime only) | Generated markup validity — RGAA 8.2 / 10.1 only |
 | Browser / interaction | Playwright custom checks | Focus, reflow, widgets, media, reduced motion, forced colors |
-| Theme / contrast conditions | `browserConditions` scan pass | Re-run theme-sensitive checks under dark, light, `prefers-contrast: more`; keep failures unique to that condition |
+| Theme / contrast conditions | `browserConditions` scan pass | Re-run theme-sensitive axe + custom checks under dark, light, `prefers-contrast: more`; assessments pass `DEFAULT_THEME_CONDITIONS` (`dark` + `light`) when runtime is configured |
 | Site | `runtime/site-level/` | Cross-route nav, titles, help consistency |
 
 `complyloop-check` is AST-only (no browser). Runtime needs a preview URL.
