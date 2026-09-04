@@ -14,6 +14,7 @@ import { resolveProjectGitHubToken } from "./github-access";
 import { getDrizzle } from "./db-store/client";
 import { resolveProjectLoadScope } from "./db-store/postgres-load";
 import { reportError, reportWarning } from "./observability";
+import { pruneRateLimitBuckets } from "./rate-limit";
 import { withProjectCheckout } from "./repo-checkout";
 
 function collectRegressionAlerts(
@@ -150,7 +151,18 @@ export type AssessmentWorkerResult =
 /** Claims and processes a single job; safe to run concurrently on many workers. */
 export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
   const job = await claimNextAssessmentJob();
-  if (!job) return { kind: "idle" };
+  if (!job) {
+    try {
+      await pruneRateLimitBuckets();
+    } catch (error) {
+      // Housekeeping only — a failed DELETE must not stop job polling.
+      reportWarning(
+        error instanceof Error ? error.message : "Rate-limit bucket prune failed.",
+        { code: "rate_limit_prune_failed" },
+      );
+    }
+    return { kind: "idle" };
+  }
   try {
     await runClaimedAssessmentJob(job);
     await completeAssessmentJob(job.id);

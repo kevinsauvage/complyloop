@@ -12,6 +12,9 @@ Backlog from a project audit (**2026-09-04**). Each item answers **what** to do,
 
 - **Auto-propose at assessment** (old item 12) — `createFinding` already attaches a deterministic suggestion when the AST check emits `fix` (`src/server/assessment-findings.ts`, `buildSuggestion`). Remaining work is **more checks emitting `fix`**, not wiring the pipeline (item 10 below).
 - **Analysis waves** — IBM, linkinator, html-validate, jsx-a11y, widget keyboard, dialog focus, hover content, live-region updates, form-error submit, mobile `target-size` pass, label-adjacent, keyboard trap. Strategy items 2–5 and 8 in `docs/analysis-strategy.md` are largely shipped; do not rebuild them.
+- **Health probe Sentry flood** (old item 7) — `/api/health` reports `health_database_down` via `reportWarning`, so an uptime probe cannot drown error alerts.
+- **`pruneRateLimitBuckets`** (old item 5) — idle worker ticks call it; prune failures warn and do not stop the worker.
+- **Placeholder `AUTH_SECRET`** (old item 6) — production boot refuses `replace-me` / `e2e-secret-change-me` / the dev-only fallback; compose has no default secret. Playwright `e2e-secret` still allowed.
 
 ---
 
@@ -48,24 +51,6 @@ Ops items. None of these have been exercised on a real staging/prod stack.
 ## P1 — Hardening
 
 Cheap now, expensive later.
-
-### 5. Actually call `pruneRateLimitBuckets`
-
-- **What:** Schedule `pruneRateLimitBuckets` from the worker (or a cron), not only from tests.
-- **Why:** Rate-limit buckets grow forever in the database — a slow leak that eventually bloats storage and queries.
-- **Where:** `src/server/rate-limit.ts` (definition); wire into `src/server/assessment-worker.ts` or an ops cron.
-
-### 6. Refuse placeholder secrets
-
-- **What:** Remove the `AUTH_SECRET` fallback default from docker-compose and make prod boot fail on known placeholder values (`replace-me`, `e2e-secret-change-me`).
-- **Why:** A default secret in a copy-pasted deploy silently breaks session security. `resolveAuthSecret` already refuses a missing secret in production, but compose still defaults to `e2e-secret-change-me` and deploy docs still show `export AUTH_SECRET=replace-me`.
-- **Where:** `docker-compose.yml`, `docs/deploy.md`, `src/auth-secret.ts`.
-
-### 7. Stop health-check failures flooding Sentry as errors
-
-- **What:** Downgrade the "database down during health probe" report to a warning or rate-limit it.
-- **Why:** An uptime probe hitting a downed DB every few seconds buries real errors under thousands of identical events.
-- **Where:** `src/app/api/health/route.ts` (`reportError` with `health_database_down`).
 
 ### 8. Colocate unit tests for custom Playwright checks
 

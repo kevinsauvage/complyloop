@@ -13,6 +13,7 @@ const runAssessment = vi.hoisted(() => vi.fn());
 const withProjectCheckout = vi.hoisted(() => vi.fn());
 const reportError = vi.hoisted(() => vi.fn());
 const reportWarning = vi.hoisted(() => vi.fn());
+const pruneRateLimitBuckets = vi.hoisted(() => vi.fn());
 const resolveProjectGitHubToken = vi.hoisted(() => vi.fn());
 const postPullRequestCheckRun = vi.hoisted(() => vi.fn());
 const resolveProjectLoadScope = vi.hoisted(() => vi.fn());
@@ -59,6 +60,10 @@ vi.mock("./repo-checkout", () => ({
 vi.mock("./observability", () => ({
   reportError: (...args: unknown[]) => reportError(...args),
   reportWarning: (...args: unknown[]) => reportWarning(...args),
+}));
+
+vi.mock("./rate-limit", () => ({
+  pruneRateLimitBuckets: (...args: unknown[]) => pruneRateLimitBuckets(...args),
 }));
 
 vi.mock("./github-access", () => ({
@@ -126,8 +131,20 @@ afterEach(() => {
 describe("processNextAssessmentJob", () => {
   it("returns idle when no job is claimed", async () => {
     claimNextAssessmentJob.mockResolvedValue(null);
+    pruneRateLimitBuckets.mockResolvedValue(0);
     await expect(processNextAssessmentJob()).resolves.toEqual({ kind: "idle" });
     expect(completeAssessmentJob).not.toHaveBeenCalled();
+    expect(pruneRateLimitBuckets).toHaveBeenCalledOnce();
+  });
+
+  it("still returns idle when rate-limit prune fails", async () => {
+    claimNextAssessmentJob.mockResolvedValue(null);
+    pruneRateLimitBuckets.mockRejectedValue(new Error("prune failed"));
+    await expect(processNextAssessmentJob()).resolves.toEqual({ kind: "idle" });
+    expect(reportWarning).toHaveBeenCalledWith(
+      "prune failed",
+      expect.objectContaining({ code: "rate_limit_prune_failed" }),
+    );
   });
 
   it("runs assessment and completes on success", async () => {
@@ -152,6 +169,7 @@ describe("processNextAssessmentJob", () => {
       rootPath: "/tmp/checkout",
     });
     expect(completeAssessmentJob).toHaveBeenCalledWith("job-1");
+    expect(pruneRateLimitBuckets).not.toHaveBeenCalled();
     expect(
       db.evidence.some((row) => row.kind === "assessment_job_completed"),
     ).toBe(true);

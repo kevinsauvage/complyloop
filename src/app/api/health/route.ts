@@ -1,6 +1,6 @@
 import { getDrizzle } from "@/server/db-store/client";
 import { queuedAssessmentJobCount } from "@/server/assessment-jobs";
-import { reportError } from "@/server/observability";
+import { reportWarning } from "@/server/observability";
 import { sql } from "drizzle-orm";
 
 export const runtime = "nodejs";
@@ -28,7 +28,8 @@ export async function GET(): Promise<Response> {
       { status: 200 },
     );
   } catch (error) {
-    reportError(error, { code: "health_database_down" });
+    const message = error instanceof Error ? error.message : "Database unavailable.";
+    reportWarning(message, { code: "health_database_down" });
     return Response.json(
       {
         status: "unavailable",

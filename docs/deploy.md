@@ -33,7 +33,7 @@ Webhooks that cannot clone return `handled: false` (`code: webhook_clone_failed`
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `DATABASE_URL` | **Yes** | Postgres (Drizzle) |
-| `AUTH_SECRET` | **Yes** (prod) | Sessions + token encryption |
+| `AUTH_SECRET` | **Yes** (prod) | Sessions + token encryption. Production refuses known placeholders (`replace-me`, `e2e-secret-change-me`). |
 | `AUTH_URL` | **Yes** (prod) | Auth.js public URL |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` | **Yes** (prod) | Repo access via installation tokens |
 | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | **Yes** | App OAuth client |
@@ -115,10 +115,12 @@ Then sign out, clear cookies, sign in again.
 ### Full stack via Docker
 
 ```bash
-export AUTH_SECRET=replace-me
+export AUTH_SECRET="$(openssl rand -base64 32)"
 docker compose --profile app up -d --build     # runs migrate one-shot, then app
 curl -sS http://localhost:3000/api/health
 ```
+
+Compose has no default `AUTH_SECRET`. Copy-pasting `replace-me` or `e2e-secret-change-me` into production env will fail boot.
 
 ### Health check
 
@@ -161,7 +163,7 @@ curl -X POST -H "Authorization: Bearer $WORKER_SECRET" \
   "https://app.example.com/api/internal/jobs/run?limit=10"
 ```
 
-Leases last 30 minutes; crashed workers are retried. Alert on `assessment_job_failed` evidence and growing job queues.
+Leases last 30 minutes; crashed workers are retried. Alert on `assessment_job_failed` evidence and growing job queues. Idle ticks prune expired Postgres rate-limit buckets.
 
 **Ops helpers:**
 
@@ -190,7 +192,9 @@ With `SENTRY_DSN`, alert on:
 - Webhooks: `workspace_missing`, repeated `webhook_clone_failed`
 - Assessment failures after deploy
 
-Structured JSON logs go to stdout. Postgres-backed rate limits apply across app instances; keep a WAF at the edge too.
+Do not alert on `health_database_down` — the health probe reports it as a warning so uptime checks cannot flood error alerts.
+
+Structured JSON logs go to stdout. Postgres-backed rate limits apply across app instances; keep a WAF at the edge too. The worker prunes expired buckets on idle ticks.
 
 ---
 
@@ -210,7 +214,7 @@ Uses `E2E_AUTH_ENABLED=1` + `E2E_FIXTURE_ROOT`. **Never on customer deploys.**
 ## Do not
 
 - Run without `DATABASE_URL`
-- Share a host without `AUTH_SECRET`
+- Share a host without `AUTH_SECRET`, or set `AUTH_SECRET` to a known placeholder (`replace-me`, `e2e-secret-change-me`)
 - Commit `.data/` or token files
 - `UPDATE`/`DELETE` evidence (DB rejects it)
 - Enable `E2E_AUTH_ENABLED` outside CI/local e2e

@@ -37,7 +37,7 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: postgres://complyloop:complyloop@postgres:5432/complyloop
-      AUTH_SECRET: ${AUTH_SECRET:-e2e-secret-change-me}
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET to a unique value, e.g. openssl rand -base64 32}
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
       AUTH_GITHUB_ID: ${AUTH_GITHUB_ID:-}
       AUTH_GITHUB_SECRET: ${AUTH_GITHUB_SECRET:-}
@@ -68,7 +68,7 @@ services:
     command: ["npx", "tsx", "scripts/run-assessment-worker.ts"]
     environment:
       DATABASE_URL: postgres://complyloop:complyloop@postgres:5432/complyloop
-      AUTH_SECRET: ${AUTH_SECRET:-e2e-secret-change-me}
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET to a unique value, e.g. openssl rand -base64 32}
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
       AUTH_GITHUB_ID: ${AUTH_GITHUB_ID:-}
       AUTH_GITHUB_SECRET: ${AUTH_GITHUB_SECRET:-}
