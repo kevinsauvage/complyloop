@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { htmlValidateFindingsFromSerialized } from "./html-validate-runtime";
+import {
+  chromiumExecutableAvailable,
+  PLAYWRIGHT_TEST_TIMEOUT_MS,
+  registerPlaywrightBrowserTeardown,
+  withPlaywrightPage,
+} from "./custom-checks/playwright-page";
+import {
+  htmlValidateFindingsForPage,
+  htmlValidateFindingsFromSerialized,
+} from "./html-validate-runtime";
+
+registerPlaywrightBrowserTeardown();
 import type { SerializeDocumentResult } from "./html-validate-runtime";
 import { checkIdForHtmlValidateRule } from "./html-validate-map";
 
@@ -59,6 +70,35 @@ describe("html-validate rendered pass", () => {
     expect(dep?.severity).toBe("moderate");
     expect(dep?.engine).toBe("runtime");
   });
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "builds dom findings with offsets from real DOM",
+    async () => {
+      const { page, close } = await withPlaywrightPage(`
+        <!doctype html><html lang="fr"><body>
+          <main id="a"><p>One</p></main>
+          <main id="b"><p>Two</p></main>
+          <button type="button">Save<button type="button">Nested</button></button>
+          <p align="center">Deprecated</p>
+        </body></html>
+      `);
+      try {
+        const f = await htmlValidateFindingsForPage(page, "https://app.example/page");
+        expect(f.every((x) => x.engine === "runtime")).toBe(true);
+        expect(f.every((x) => x.location.kind === "dom")).toBe(true);
+        expect(f.some((x) => x.checkId === "landmark-one-main")).toBe(true);
+        expect(f.some((x) => x.checkId === "css-for-presentation")).toBe(true);
+        expect(f.some((x) => x.checkId === "nested-interactive")).toBe(false);
+        const dom = f
+          .filter((x) => x.location.kind === "dom")
+          .map((x) => x.location as { snippet: string });
+        expect(dom.every((x) => x.snippet !== "(whole document)")).toBe(true);
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 
   it("reports duplicate ids under no-dup-id → duplicate-id", () => {
     const s = serialized(
