@@ -205,6 +205,8 @@ export interface Remediation {
   status: RemediationStatus;
   suggestion: RemediationSuggestion | null;
   history: RemediationHistoryEntry[];
+  /** Local to the payload so reassessment can verify without evidence history. */
+  approvalAction?: "create_draft_pull_request";
 }
 
 export type EvidenceKind =

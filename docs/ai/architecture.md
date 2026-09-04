@@ -192,7 +192,7 @@ Each project stores a **`defaultPresetId`** (set on connect, editable in Setting
 5. Merge findings; runtime wins for composition-sensitive rules.
 6. Re-derive requirement statuses (sticky humans, applicability, authority gates).
 7. Manual controls stay `unable_to_verify` until human pass or exception.
-8. `verifyDraftPrRemediation` is meant to move an `approved` (via draft PR) remediation to `verified` when its finding is no longer detected. The worker loads draft-PR approval from evidence SQL (`hasDraftPrApproval`) before the scan; do not rely on historical `db.evidence` in the write snapshot (`TODO.md` P0).
+8. `verifyDraftPrRemediation` moves an `approved` (via draft PR) remediation to `verified` when its finding is no longer detected. Draft-PR approval is stored on the remediation payload (`approvalAction`) so the worker does not need historical `db.evidence` (write snapshots load none).
 
 ### Remediation
 

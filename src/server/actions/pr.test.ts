@@ -175,6 +175,9 @@ describe("createPullRequestAction", () => {
     }, new FormData());
 
     expect(workspace.db.remediations[0]?.status).toBe("approved");
+    expect(workspace.db.remediations[0]?.approvalAction).toBe(
+      "create_draft_pull_request",
+    );
     expect(
       workspace.db.evidence.some(
         (row) => row.kind === "remediation_approved",

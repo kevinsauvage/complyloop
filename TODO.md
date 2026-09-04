@@ -8,25 +8,19 @@ Guiding rule for this list: the product spec's MVP is *one complete loop for one
 
 ## P0 — Critical
 
-### 1. The draft-PR → merge → re-assess → `verified` loop never closes in the job path
-
-- **Wrong:** `verifyDraftPrRemediation` (`src/server/assessment.ts`) decides whether to advance an `approved` remediation to `implemented` → `verified` by scanning `db.evidence` for a `remediation_approved` record with `approvalAction: "create_draft_pull_request"`. The worker loads the write snapshot with `resolveProjectLoadScope(drizzle, projectId, 0)` (`assessment-worker.ts`) and `withWorkspaceDbWrite` uses `evidenceLimit: 0` (`db.ts`), so `db.evidence` only ever contains rows added during the current write. The check is always false outside hand-built test fixtures.
-- **Why it matters:** this is the "Verification" stage of the core loop for source findings (README, `finding-flow.md`). Findings resolve, but remediations stay `approved`, no `remediation_verified` evidence is written, and the product cannot prove the fix. Tests pass because fixtures pre-populate `db.evidence`.
-- **Change:** stop reading history from the in-memory `Db` during writes. Either query it directly (`listEvidenceForFinding` in `db-store/postgres-queries.ts`, as `actions/pr.ts` already does) before entering `withDbWrite`, or store `approvalAction` on the `Remediation` payload when approving so the decision is local. Add an integration test that runs the worker path with an empty evidence snapshot.
-
-### 2. Job enqueue/claim still share one global lock
+### 1. Job enqueue/claim still share one global lock
 
 - **Wrong:** `enqueueAssessmentJob` and `claimNextAssessmentJob` take `pg_advisory_xact_lock(748_291_063)` (`db-store/write-lock.ts`). Workspace writes no longer use that key, and the worker scans **outside** the persist transaction, but two workers still cannot claim jobs in parallel while another is enqueueing.
 - **Why it matters:** queue throughput stays serial across tenants.
 - **Change:** drop the store lock from the job queue — `claimNextAssessmentJob` can use `UPDATE … WHERE status='queued' … FOR UPDATE SKIP LOCKED` (or its own named key). Use `withNamedPostgresAdvisoryLock` only where a critical section still needs it (rate limits already do).
 
-### 3. The Docker image cannot run the worker (and probably does not build)
+### 2. The Docker image cannot run the worker (and probably does not build)
 
 - **Wrong:** `Dockerfile` copies only `packages/check/package.json` into the `deps` and `prod-deps` stages before `npm ci`, never `packages/analysis-core/`. The lockfile lists the `packages/analysis-core` workspace, so `npm ci` either fails the lock consistency check or installs without the workspace and its dependencies (`html-validate`, `linkinator`, `@typescript-eslint/parser`). The `runner` stage copies `src/`, `scripts/`, `drizzle/`, and `node_modules`, but not `packages/`, so `npx tsx scripts/run-assessment-worker.ts` (docker-compose `worker` service) cannot resolve `@complyloop/analysis-core/*`.
 - **Why it matters:** `deploy.md` presents compose as the reference deployment; the worker is "required in production".
 - **Change:** copy `packages/analysis-core/package.json` in the deps stages, run `npm run build:core` in the builder, and copy `packages/analysis-core/{package.json,dist}` into the runner. Add a CI step that builds the image and runs `node -e "import('@complyloop/analysis-core/scan')"` in it.
 
-### 4. The compose `migrate` service uses a redacted password
+### 3. The compose `migrate` service uses a redacted password
 
 - **Wrong:** `docker-compose.yml` L28 sets `DATABASE_URL: postgres://complyloop:***@postgres:5432/complyloop` — a literal `***` (a secret-scrubber artifact). `app` and `worker` use `complyloop:complyloop`. The same `***` is the fallback in `e2e/webhook-helpers.ts` L25.
 - **Why it matters:** `docker compose --profile app up` fails at the migrate step, so the reference deployment in `deploy.md` does not start; `app` never starts because it depends on `migrate` completing.

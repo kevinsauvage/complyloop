@@ -41,15 +41,12 @@ export interface RunAssessmentOptions {
   runtimeScanner?: RuntimePageScanner;
   /** Injected DNS lookup for runtime SSRF checks in tests. */
   runtimeLookup?: DnsLookup;
-  /** Finding ids approved via draft PR (loaded from evidence before the run). */
-  draftPrApprovedFindingIds?: ReadonlySet<string>;
 }
 
 function verifyDraftPrRemediation(
   db: Db,
   finding: Finding,
   assessmentId: string,
-  draftPrApprovedFindingIds: ReadonlySet<string>,
 ): void {
   if (!isSourceLocation(finding.location)) return;
   const remediationIndex = db.remediations.findIndex(
@@ -57,7 +54,7 @@ function verifyDraftPrRemediation(
   );
   const remediation = db.remediations[remediationIndex];
   if (!remediation || remediation.status !== "approved") return;
-  if (!draftPrApprovedFindingIds.has(finding.id)) return;
+  if (remediation.approvalAction !== "create_draft_pull_request") return;
 
   const implemented = advanceRemediation(
     remediation,
@@ -102,8 +99,6 @@ export async function runAssessment(
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) throw new PublicError("Unknown project.");
   const { rootPath } = options;
-  const draftPrApprovedFindingIds =
-    options.draftPrApprovedFindingIds ?? new Set<string>();
 
   const startedAt = new Date().toISOString();
   clearExpiredExceptions(db, projectId);
@@ -243,12 +238,7 @@ export async function runAssessment(
         findingId: finding.id,
         assessmentId,
       });
-      verifyDraftPrRemediation(
-        db,
-        finding,
-        assessmentId,
-        draftPrApprovedFindingIds,
-      );
+      verifyDraftPrRemediation(db, finding, assessmentId);
     }
   }
 

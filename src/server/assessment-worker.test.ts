@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testProject } from "@/test-fixtures/project";
+import { testRemediation } from "@/test-fixtures/remediation";
 import type { Db } from "./db";
 import { emptyDb as baseEmptyDb } from "./db-store/types";
 import type { AssessmentJob } from "./assessment-jobs";
@@ -17,7 +18,6 @@ const resolveProjectGitHubToken = vi.hoisted(() => vi.fn());
 const postPullRequestCheckRun = vi.hoisted(() => vi.fn());
 const applyAssessmentPayload = vi.hoisted(() => vi.fn());
 const insertEvidence = vi.hoisted(() => vi.fn());
-const hasDraftPrApproval = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
 
 vi.mock("./assessment-jobs", () => ({
@@ -38,7 +38,6 @@ vi.mock("./db-store/repo/apply", () => ({
 }));
 
 vi.mock("./db-store/repo/evidence", () => ({
-  hasDraftPrApproval: (...args: unknown[]) => hasDraftPrApproval(...args),
   insertEvidence: (...args: unknown[]) => insertEvidence(...args),
 }));
 
@@ -122,7 +121,6 @@ function emptyDb(): Db {
 }
 
 beforeEach(() => {
-  hasDraftPrApproval.mockResolvedValue(false);
   transaction.mockImplementation(async (fn: (tx: object) => unknown) => fn({}));
 });
 
@@ -172,7 +170,6 @@ describe("processNextAssessmentJob", () => {
     });
     expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
       rootPath: "/tmp/checkout",
-      draftPrApprovedFindingIds: expect.any(Set),
     });
     expect(applyAssessmentPayload).toHaveBeenCalled();
     expect(insertEvidence).toHaveBeenCalledWith(
@@ -181,6 +178,52 @@ describe("processNextAssessmentJob", () => {
     );
     expect(completeAssessmentJob).toHaveBeenCalledWith("job-1");
     expect(pruneRateLimitBuckets).not.toHaveBeenCalled();
+  });
+
+  it("persists remediations after a run whose evidence snapshot is empty", async () => {
+    const db = emptyDb();
+    db.evidence = [];
+    db.remediations = [
+      testRemediation({
+        status: "approved",
+        approvalAction: "create_draft_pull_request",
+      }),
+    ];
+    claimNextAssessmentJob.mockResolvedValue(job());
+    loadProjectDb.mockResolvedValue(db);
+    withProjectCheckout.mockImplementation(
+      async (
+        _project: unknown,
+        fn: (rootPath: string) => Promise<unknown>,
+      ) => fn("/tmp/checkout"),
+    );
+    runAssessment.mockImplementation(async (liveDb: Db) => {
+      liveDb.remediations[0] = {
+        ...liveDb.remediations[0]!,
+        status: "verified",
+      };
+      return {
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      };
+    });
+    completeAssessmentJob.mockResolvedValue(undefined);
+
+    await expect(processNextAssessmentJob()).resolves.toEqual({
+      kind: "succeeded",
+      jobId: "job-1",
+    });
+    expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
+      rootPath: "/tmp/checkout",
+    });
+    expect(applyAssessmentPayload).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        remediations: [expect.objectContaining({ status: "verified" })],
+        evidence: [],
+      }),
+    );
   });
 
   it("retries when failAssessmentJob returns queued", async () => {

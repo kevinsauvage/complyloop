@@ -90,14 +90,14 @@ export async function createPullRequestAction(
       const liveFinding = findingById(db, findingId);
       const liveRemediation = remediationForFinding(db, findingId);
       if (liveRemediation.status === "suggested") {
-        replaceRemediation(
-          db,
-          advanceRemediation(
+        replaceRemediation(db, {
+          ...advanceRemediation(
             liveRemediation,
             "approved",
             "Approved by creating a draft pull request",
           ),
-        );
+          approvalAction: "create_draft_pull_request",
+        });
         addEvidence(db, {
           kind: "remediation_approved",
           summary: `Remediation approved for ${liveFinding.checkId} at ${formatLocationRef(liveFinding.location)}`,

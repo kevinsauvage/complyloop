@@ -117,32 +117,21 @@ describe("runAssessment", () => {
     expect(regression).toBeDefined();
   });
 
-  it("verifies a draft-PR remediation when reassessment no longer finds it", async () => {
+  it("verifies a draft-PR remediation from the remediation payload when evidence is empty", async () => {
     await runAssessment(db, project.id, { rootPath });
     const finding = db.findings[0]!;
     const remediation = db.remediations[0]!;
     remediation.status = "approved";
+    remediation.approvalAction = "create_draft_pull_request";
     remediation.history.push({
       status: "approved",
       at: new Date().toISOString(),
       note: "Approved by creating a draft pull request",
     });
-    db.evidence.push({
-      id: "approval-1",
-      at: new Date().toISOString(),
-      kind: "remediation_approved",
-      summary: "Draft PR approved",
-      projectId: project.id,
-      controlId: finding.controlId,
-      findingId: finding.id,
-      detail: { approvalAction: "create_draft_pull_request" },
-    });
+    db.evidence = [];
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    await runAssessment(db, project.id, {
-      rootPath,
-      draftPrApprovedFindingIds: new Set([finding.id]),
-    });
+    await runAssessment(db, project.id, { rootPath });
 
     expect(db.remediations[0]?.status).toBe("verified");
     expect(db.remediations[0]?.history.map((entry) => entry.status)).toEqual(
@@ -157,10 +146,11 @@ describe("runAssessment", () => {
     ).toMatchObject({ determination: "automated" });
   });
 
-  it("does not verify an approved remediation without draft-PR approval evidence", async () => {
+  it("does not verify an approved remediation without a draft-PR approval action", async () => {
     await runAssessment(db, project.id, { rootPath });
     const remediation = db.remediations[0]!;
     remediation.status = "approved";
+    db.evidence = [];
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
     await runAssessment(db, project.id, { rootPath });

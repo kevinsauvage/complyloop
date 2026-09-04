@@ -12,7 +12,7 @@ import {
   applyAssessmentPayload,
   buildAssessmentApplyPayload,
 } from "./db-store/repo/apply";
-import { hasDraftPrApproval, insertEvidence } from "./db-store/repo/evidence";
+import { insertEvidence } from "./db-store/repo/evidence";
 import {
   postPullRequestCheckRun,
   summarizeAssessmentForCheckRun,
@@ -68,29 +68,12 @@ function collectRegressionAlerts(
     });
 }
 
-async function loadDraftPrApprovedFindingIds(
-  db: Db,
-): Promise<Set<string>> {
-  const drizzle = await getDrizzle();
-  const ids = new Set<string>();
-  for (const remediation of db.remediations) {
-    if (remediation.status !== "approved") continue;
-    if (await hasDraftPrApproval(drizzle, remediation.findingId)) {
-      ids.add(remediation.findingId);
-    }
-  }
-  return ids;
-}
-
 async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
   const dbForProject = await loadProjectDb(job.projectId);
   const project = dbForProject.projects.find(
     (candidate) => candidate.id === job.projectId,
   );
   if (!project) throw new Error("Project was removed before its assessment job ran.");
-
-  const draftPrApprovedFindingIds =
-    await loadDraftPrApprovedFindingIds(dbForProject);
 
   const result = await withProjectCheckout(
     project,
@@ -106,7 +89,6 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
       const evidenceStart = db.evidence.length;
       const assessment = await runAssessment(db, liveProject.id, {
         rootPath,
-        draftPrApprovedFindingIds,
       });
       const trigger = job.payload.eventName ?? "manual assessment";
       const alerts =

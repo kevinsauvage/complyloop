@@ -1,4 +1,3 @@
-import { and, eq } from "drizzle-orm";
 import type { EvidenceRecord } from "@/core/finding-types";
 import type { DrizzleDb } from "../client";
 import { evidenceToRow } from "../postgres-evidence";
@@ -20,23 +19,4 @@ export async function insertEvidenceRecords(
 ): Promise<void> {
   if (records.length === 0) return;
   await tx.insert(evidence).values(records.map(evidenceToRow));
-}
-
-export async function hasDraftPrApproval(
-  drizzle: DrizzleDb,
-  findingId: string,
-): Promise<boolean> {
-  const rows = await drizzle
-    .select({ detail: evidence.detail })
-    .from(evidence)
-    .where(
-      and(
-        eq(evidence.findingId, findingId),
-        eq(evidence.kind, "remediation_approved"),
-      ),
-    )
-    .limit(20);
-  return rows.some(
-    (row) => row.detail?.approvalAction === "create_draft_pull_request",
-  );
 }
