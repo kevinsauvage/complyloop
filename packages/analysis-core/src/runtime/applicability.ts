@@ -13,6 +13,7 @@ const TEMPORAL_MEDIA_CHECK_IDS = [
   "video-caption",
   "audio-caption",
   "media-keyboard",
+  "media-controls-present",
 ] as const satisfies readonly CheckId[];
 
 const NONTEMPORAL_MEDIA_CHECK_IDS = [

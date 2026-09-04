@@ -42,7 +42,7 @@ export function isHtmlValidateOwnedCheck(checkId: string): boolean {
  * Note: `error-prevention` and `accessible-auth-enhanced` are heuristic-only
  * for status derivation — runtime probes may still emit violations.
  */
-const RUNTIME_ONLY_CHECK_IDS = [
+export const RUNTIME_ONLY_CHECK_IDS = [
   "color-contrast",
   "document-title",
   "bypass",
@@ -71,6 +71,8 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "reflow",
   "text-spacing-runtime",
   "label-adjacent",
+  "video-caption",
+  "audio-caption",
   "html-lang-valid",
   "css-disabled-content",
   "resize-text",
@@ -117,7 +119,7 @@ const SITE_LEVEL_CHECK_IDS = [
  * AST heuristics that only prove “no suspicious pattern”. An empty scan must
  * not pass the criterion — that still needs a human.
  */
-const HEURISTIC_CHECK_IDS = [
+export const HEURISTIC_CHECK_IDS = [
   "image-detailed-description",
   "image-of-text",
   "table-summary",
@@ -138,8 +140,8 @@ const HEURISTIC_CHECK_IDS = [
   "reduced-motion",
   "accessible-auth-enhanced",
   "hover-content",
-  "label-adjacent",
   "captcha-alternative",
+  "media-controls-present",
   "media-identification",
   "media-keyboard",
   "layout-table-linearization",
@@ -202,8 +204,11 @@ export function isHeuristicCheck(checkId: string): boolean {
 
 /**
  * The single authority classifier. Precedence matters — a check id may appear
- * in more than one list (e.g. `error-prevention` is heuristic in the AST
- * engine but runtime-owned), and this order is the contract:
+ * in more than one list (site-level ids are also in RUNTIME_ONLY). Heuristic
+ * and runtime-only must not overlap: runtime hits for heuristic ids are
+ * downgraded to warnings in `findingsFromAxeHits`.
+ *
+ * This order is the contract:
  *
  * 1. `site_level` (subset of runtime-only, needs ≥2 routes)
  * 2. `runtime_only` (runtime audit owns the verdict)

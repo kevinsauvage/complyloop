@@ -22,6 +22,7 @@ export function AssessmentJobStatusLive({
 }) {
   const router = useRouter();
   const [jobs, setJobs] = useState(initialJobs);
+  const [pollError, setPollError] = useState<string | null>(null);
   const polling = hasActiveJob(jobs);
 
   useEffect(() => {
@@ -33,7 +34,11 @@ export function AssessmentJobStatusLive({
     async function poll(): Promise<void> {
       try {
         const response = await fetch(`/api/projects/${projectId}/assessment-jobs`);
-        if (!response.ok || cancelled) return;
+        if (cancelled) return;
+        if (!response.ok) {
+          setPollError("Could not refresh assessment job status.");
+          return;
+        }
         const payload = (await response.json()) as { jobs: AssessmentJob[] };
         if (cancelled) return;
         const nextJobs = payload.jobs;
@@ -42,9 +47,12 @@ export function AssessmentJobStatusLive({
           router.refresh();
         }
         wasActive = isActive;
+        setPollError(null);
         setJobs(nextJobs);
       } catch {
-        // Ignore transient network errors while polling.
+        if (!cancelled) {
+          setPollError("Could not refresh assessment job status.");
+        }
       }
     }
 
@@ -58,5 +66,11 @@ export function AssessmentJobStatusLive({
     };
   }, [polling, projectId, router]);
 
-  return <AssessmentJobStatus jobs={jobs} canRetry={canRetry} />;
+  return (
+    <AssessmentJobStatus
+      jobs={jobs}
+      canRetry={canRetry}
+      pollError={pollError}
+    />
+  );
 }

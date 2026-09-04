@@ -50,7 +50,7 @@ export function buildDeveloperHandoff(
     finding.location.kind === "dom"
       ? [
           `1. Fix the unlabeled/incorrect control in the form that renders on this page (not in a shared Input primitive unless every consumer is wrong).`,
-          `2. Re-run the runtime audit on \`${finding.location.url}\` — the \`${finding.checkId}\` issue at \`${finding.location.selector}\` must be gone.`,
+          `2. Re-run the runtime audit on \`${finding.location.url}\` — the \`${finding.checkId}\` Finding at \`${finding.location.selector}\` must be gone.`,
           `3. Keep the evidence trail (assessment + remediation history) for audit.`,
         ]
       : [

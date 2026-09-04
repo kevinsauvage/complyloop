@@ -29,6 +29,7 @@ import type { Workspace } from "../workspace";
 
 const { withProjectWrite, getWorkspace } = actionWorkspaceMocks;
 const locateViolationInProject = vi.hoisted(() => vi.fn());
+const runtimeViolationStillPresent = vi.hoisted(() => vi.fn());
 const refreshRequirementStatuses = vi.hoisted(() => vi.fn());
 const markAlertRead = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
@@ -64,6 +65,11 @@ vi.mock("../assessment-helpers", () => ({
 vi.mock("../assessment-status", () => ({
   refreshRequirementStatuses: (...args: unknown[]) =>
     refreshRequirementStatuses(...args),
+}));
+
+vi.mock("@complyloop/analysis-core/runtime/scan", () => ({
+  runtimeViolationStillPresent: (...args: unknown[]) =>
+    runtimeViolationStillPresent(...args),
 }));
 
 const project = testProject({ orgId: "org-1" });
@@ -147,6 +153,82 @@ describe("verifyRemediationAction", () => {
     expect(workspace.db.remediations[0]?.status).toBe("verified");
     expect(workspace.db.findings[0]?.status).toBe("resolved");
     expect(refreshRequirementStatuses).toHaveBeenCalled();
+  });
+
+  it("rejects automated verify until the remediation is implemented", async () => {
+    const workspace = baseWorkspace({
+      remediations: [
+        testRemediation({ status: "approved", suggestion: null, history: [] }),
+      ],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+
+    const result = await verifyRemediationAction(
+      "f1",
+      emptyActionMessageState,
+      new FormData(),
+    );
+
+    expect(result.error).toMatch(/implemented/);
+    expect(workspace.db.remediations[0]?.status).toBe("approved");
+  });
+
+  it("verifies a runtime finding when the DOM re-audit is clean", async () => {
+    const workspace = baseWorkspace({
+      findings: [
+        testFinding({
+          location: {
+            kind: "dom",
+            url: "https://preview.test/",
+            selector: "img",
+            snippet: "<img>",
+          },
+        }),
+      ],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
+    runtimeViolationStillPresent.mockResolvedValue(false);
+
+    const result = await verifyRemediationAction(
+      "f1",
+      emptyActionMessageState,
+      new FormData(),
+    );
+
+    expect(result).toEqual({
+      error: null,
+      message: "Fix verified by automated re-check.",
+    });
+    expect(workspace.db.remediations[0]?.status).toBe("verified");
+    expect(workspace.db.findings[0]?.status).toBe("resolved");
+  });
+
+  it("reports still-failing when the runtime finding is still on the page", async () => {
+    const workspace = baseWorkspace({
+      findings: [
+        testFinding({
+          location: {
+            kind: "dom",
+            url: "https://preview.test/",
+            selector: "img",
+            snippet: "<img>",
+          },
+        }),
+      ],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
+    runtimeViolationStillPresent.mockResolvedValue(true);
+
+    const result = await verifyRemediationAction(
+      "f1",
+      emptyActionMessageState,
+      new FormData(),
+    );
+
+    expect(result.error).toMatch(/still failing|still detected/i);
+    expect(workspace.db.remediations[0]?.status).toBe("implemented");
   });
 });
 

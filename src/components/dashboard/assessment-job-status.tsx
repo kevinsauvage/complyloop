@@ -24,11 +24,13 @@ const statusIndicator: Record<AssessmentJob["status"], string> = {
 export function AssessmentJobStatus({
   jobs,
   canRetry = false,
+  pollError = null,
 }: {
   jobs: AssessmentJob[];
   canRetry?: boolean;
+  pollError?: string | null;
 }) {
-  if (jobs.length === 0) return null;
+  if (jobs.length === 0 && !pollError) return null;
   const hasQueued = jobs.some((job) => job.status === "queued");
 
   return (
@@ -39,7 +41,9 @@ export function AssessmentJobStatus({
         </span>
         <div>
           <h3 className="text-sm font-semibold">Assessment jobs</h3>
-          {hasQueued ? (
+          {pollError ? (
+            <p className="text-xs text-destructive">{pollError}</p>
+          ) : hasQueued ? (
             <p className="text-xs text-muted-foreground">
               Queued — results should appear shortly.
             </p>

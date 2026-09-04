@@ -16,6 +16,7 @@ registerPlaywrightBrowserTeardown();
 describe("isApplicabilityObservableCheck", () => {
   it("includes media, captcha, and layout-table probes", () => {
     expect(isApplicabilityObservableCheck("video-caption")).toBe(true);
+    expect(isApplicabilityObservableCheck("media-controls-present")).toBe(true);
     expect(isApplicabilityObservableCheck("captcha-alternative")).toBe(true);
     expect(isApplicabilityObservableCheck("layout-table-linearization")).toBe(
       true,

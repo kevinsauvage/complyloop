@@ -136,7 +136,7 @@ Compose has no default `AUTH_SECRET`. Copy-pasting `replace-me` or `e2e-secret-c
 - `200` — `{ status: "ok", database: "up", assessmentJobs: <queued+running>, latencyMs }`
 - `503` — `{ status: "unavailable", database: "down", error, latencyMs }`
 
-Use for readiness probes. `assessmentJobs` is a cheap queue-depth signal for alerting. Note `queuedAssessmentJobCount` selects the rows instead of `COUNT(*)`.
+Use for readiness probes. `assessmentJobs` is a cheap queue-depth signal for alerting (`COUNT(*)` of queued and running jobs).
 
 ### Backup & restore
 

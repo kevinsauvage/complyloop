@@ -22,7 +22,7 @@ export function resolveDbUrl(): string {
   return (
     process.env.E2E_DATABASE_URL?.trim() ??
     process.env.DATABASE_URL?.trim() ??
-    "postgres://complyloop:***@localhost:5433/complyloop"
+    "postgres://complyloop:complyloop@localhost:5433/complyloop"
   );
 }
 

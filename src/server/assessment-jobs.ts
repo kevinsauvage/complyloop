@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, lte, sql } from "drizzle-orm";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle, type DrizzleDb } from "./db-store/client";
 import { assessmentJobs } from "./db-store/schema";
@@ -51,15 +51,61 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
+const JOB_STATUSES = [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+] as const satisfies readonly AssessmentJobStatus[];
+
+const JOB_TRIGGERS = [
+  "manual",
+  "webhook",
+] as const satisfies readonly AssessmentJobTrigger[];
+
+function parseJobStatus(value: string): AssessmentJobStatus {
+  for (const status of JOB_STATUSES) {
+    if (status === value) return status;
+  }
+  throw new Error(`Unexpected assessment job status: ${value}`);
+}
+
+function parseJobTrigger(value: string): AssessmentJobTrigger {
+  for (const trigger of JOB_TRIGGERS) {
+    if (trigger === value) return trigger;
+  }
+  throw new Error(`Unexpected assessment job trigger: ${value}`);
+}
+
+function parseJobPayload(value: unknown): AssessmentJobPayload {
+  if (!isPlainObject(value)) {
+    return {};
+  }
+  const payload: AssessmentJobPayload = {};
+  if (typeof value.ref === "string") payload.ref = value.ref;
+  if (value.eventName === "push" || value.eventName === "pull_request") {
+    payload.eventName = value.eventName;
+  }
+  if (typeof value.pullRequestHeadSha === "string") {
+    payload.pullRequestHeadSha = value.pullRequestHeadSha;
+  }
+  return payload;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function jobFromRow(row: AssessmentJobRow): AssessmentJob {
   return {
     id: row.id,
     projectId: row.projectId,
-    status: row.status as AssessmentJobStatus,
-    trigger: row.trigger as AssessmentJobTrigger,
+    status: parseJobStatus(row.status),
+    trigger: parseJobTrigger(row.trigger),
     requestedByUserId: row.requestedByUserId ?? undefined,
     idempotencyKey: row.idempotencyKey ?? undefined,
-    payload: row.payload as AssessmentJobPayload,
+    payload: parseJobPayload(row.payload),
     attempts: row.attempts,
     maxAttempts: row.maxAttempts,
     availableAt: row.availableAt,
@@ -268,16 +314,16 @@ export async function recentAssessmentJobsForProject(
     .select()
     .from(assessmentJobs)
     .where(eq(assessmentJobs.projectId, projectId))
-    .orderBy(asc(assessmentJobs.createdAt))
+    .orderBy(desc(assessmentJobs.createdAt))
     .limit(limit);
-  return rows.reverse().map(jobFromRow);
+  return rows.map(jobFromRow);
 }
 
 export async function queuedAssessmentJobCount(): Promise<number> {
   const drizzle = await getDrizzle();
-  const rows = await drizzle
-    .select({ id: assessmentJobs.id })
+  const [row] = await drizzle
+    .select({ value: count() })
     .from(assessmentJobs)
     .where(inArray(assessmentJobs.status, ["queued", "running"]));
-  return rows.length;
+  return Number(row?.value ?? 0);
 }

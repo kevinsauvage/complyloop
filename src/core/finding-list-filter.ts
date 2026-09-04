@@ -20,7 +20,12 @@ const FINDINGS_TABS = [
 
 export type FindingsTab = (typeof FINDINGS_TABS)[number];
 
-const SEVERITIES: Severity[] = ["critical", "serious", "moderate", "minor"];
+const SEVERITIES = [
+  "critical",
+  "serious",
+  "moderate",
+  "minor",
+] as const satisfies readonly Severity[];
 
 function firstParam(
   raw: string | string[] | undefined,
@@ -55,9 +60,10 @@ function parseSeverityParam(
 ): Severity | undefined {
   const value = firstParam(raw);
   if (!value) return undefined;
-  return (SEVERITIES as readonly string[]).includes(value)
-    ? (value as Severity)
-    : undefined;
+  for (const severity of SEVERITIES) {
+    if (severity === value) return severity;
+  }
+  return undefined;
 }
 
 function parseEngineParam(
@@ -73,9 +79,10 @@ function parseRemediationParam(
 ): RemediationStatus | undefined {
   const value = firstParam(raw);
   if (!value) return undefined;
-  return (REMEDIATION_STATUSES as readonly string[]).includes(value)
-    ? (value as RemediationStatus)
-    : undefined;
+  for (const status of REMEDIATION_STATUSES) {
+    if (status === value) return status;
+  }
+  return undefined;
 }
 
 export function parseFindingListParams(

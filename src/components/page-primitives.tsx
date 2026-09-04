@@ -56,15 +56,18 @@ export function PageSection({
   action,
   children,
   className,
+  id,
 }: {
   title: string;
   description?: string;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
     <section
+      id={id}
       className={cn(
         "flex flex-col gap-4 border-t border-border/50 pt-8 first:border-t-0 first:pt-0",
         className,

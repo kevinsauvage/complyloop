@@ -79,7 +79,7 @@ describe("runAssessment", () => {
     await runAssessment(db, project.id, { rootPath });
 
     expect(project.inScopeControlIds).toEqual(["ctl-img-alt"]);
-    expect(requirementStatus("ctl-video-caption")).toBe("passed");
+    expect(requirementStatus("ctl-video-caption")).toBe("unable_to_verify");
     expect(requirementStatus("ctl-img-alt-relevant")).toBe("unable_to_verify");
     expect(
       db.evidence.find((record) => record.kind === "assessment_completed")

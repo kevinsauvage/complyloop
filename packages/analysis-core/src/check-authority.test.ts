@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   authorityForCheck,
+  HEURISTIC_CHECK_IDS,
   isCompositionSensitiveCheck,
   isHeuristicCheck,
   isHtmlValidateOwnedCheck,
@@ -8,6 +9,7 @@ import {
   isRuntimeOnlyCheck,
   isSiteLevelCheck,
   keepOpenWhenRuntimeScanSkipped,
+  RUNTIME_ONLY_CHECK_IDS,
 } from "./check-authority";
 
 const COMPOSITION_SENSITIVE = [
@@ -113,7 +115,7 @@ describe("check authority", () => {
     expect(isHeuristicCheck("reduced-motion")).toBe(true);
     expect(isHeuristicCheck("accessible-auth-enhanced")).toBe(true);
     expect(isHeuristicCheck("hover-content")).toBe(true);
-    expect(isHeuristicCheck("label-adjacent")).toBe(true);
+    expect(isHeuristicCheck("media-controls-present")).toBe(true);
     expect(isHeuristicCheck("captcha-alternative")).toBe(true);
     expect(isHeuristicCheck("media-identification")).toBe(true);
     expect(isHeuristicCheck("layout-table-linearization")).toBe(true);
@@ -136,8 +138,11 @@ describe("check authority", () => {
     expect(authorityForCheck("consistent-lang")).toBe("site_level");
 
     expect(isRuntimeOnlyCheck("label-adjacent")).toBe(true);
-    expect(isHeuristicCheck("label-adjacent")).toBe(true);
+    expect(isHeuristicCheck("label-adjacent")).toBe(false);
     expect(authorityForCheck("label-adjacent")).toBe("runtime_only");
+    expect(authorityForCheck("video-caption")).toBe("runtime_only");
+    expect(authorityForCheck("audio-caption")).toBe("runtime_only");
+    expect(authorityForCheck("media-controls-present")).toBe("heuristic");
 
     expect(authorityForCheck("color-contrast")).toBe("runtime_only");
     expect(authorityForCheck("image-of-text")).toBe("heuristic");
@@ -146,19 +151,20 @@ describe("check authority", () => {
   });
 
   it("never returns a lower class when a higher list also contains the id", () => {
-    const dualListed = [
-      "consistent-nav",
-      "consistent-labels",
-      "label-adjacent",
-    ] as const;
+    const dualListed = ["consistent-nav", "consistent-labels"] as const;
     for (const checkId of dualListed) {
-      const authority = authorityForCheck(checkId);
-      if (isSiteLevelCheck(checkId)) {
-        expect(authority).toBe("site_level");
-      } else if (isRuntimeOnlyCheck(checkId)) {
-        expect(authority).toBe("runtime_only");
-      }
+      expect(isSiteLevelCheck(checkId)).toBe(true);
+      expect(isRuntimeOnlyCheck(checkId)).toBe(true);
+      expect(authorityForCheck(checkId)).toBe("site_level");
     }
+  });
+
+  it("does not list any check as both runtime-only and heuristic", () => {
+    const runtimeOnly = new Set<string>(RUNTIME_ONLY_CHECK_IDS);
+    const overlap = HEURISTIC_CHECK_IDS.filter((checkId) =>
+      runtimeOnly.has(checkId),
+    );
+    expect(overlap).toEqual([]);
   });
 
   it("marks html-validate-owned check ids", () => {

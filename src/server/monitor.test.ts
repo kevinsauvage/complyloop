@@ -36,10 +36,7 @@ describe("detectChanges", () => {
 
   it("summarizes change lists for evidence copy", () => {
     expect(
-      summarizeChanges([
-        { filePath: "a.tsx", author: "Ada" },
-        { filePath: "b.tsx", author: "Ada" },
-      ]),
-    ).toContain("2 file(s) changed by Ada");
+      summarizeChanges([{ filePath: "a.tsx" }, { filePath: "b.tsx" }]),
+    ).toBe("2 file(s) changed: a.tsx, b.tsx");
   });
 });

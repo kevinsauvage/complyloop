@@ -294,4 +294,50 @@ describe("FindingNextStepPanel", () => {
       screen.queryByRole("button", { name: "Generate patch" }),
     ).not.toBeInTheDocument();
   });
+
+  it("links Generate guidance to the copy-handoff section", () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    render(
+      <>
+        <section id="copy-handoff">Handoff</section>
+        <FindingNextStepPanel
+          act={findingAct({
+            finding: {
+              ...finding,
+              location: {
+                kind: "dom",
+                url: "https://example.com/login",
+                selector: "input#email",
+                snippet: "<input id='email'>",
+              },
+              fix: {
+                kind: "insert_attribute",
+                attribute: "aria-label",
+                value: "Email",
+                editable: true,
+                span: { start: 0, end: 1 },
+              },
+            },
+            remediation: { ...rem, status: "detected", suggestion: null },
+            canRemediate: true,
+            prUrl: null,
+            aiAvailable: true,
+            patchReady: false,
+            githubConnected: true,
+          })}
+          finding={finding}
+          remediation={{ ...rem, status: "detected", suggestion: null }}
+          canRemediate
+        />
+      </>,
+    );
+
+    const link = screen.getByRole("link", { name: "copy call-site notes" });
+    expect(link).toHaveAttribute("href", "#copy-handoff");
+    expect(document.getElementById("copy-handoff")).not.toBeNull();
+  });
 });

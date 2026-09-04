@@ -49,6 +49,8 @@ vi.mock("drizzle-orm", async () => {
       values,
     }),
     asc: (column: unknown) => column,
+    desc: (column: unknown) => column,
+    count: () => ({ value: "count" }),
   };
 });
 
@@ -112,6 +114,9 @@ function createDrizzle() {
             return false;
           });
           const mapRows = () => {
+            if (shape && "value" in shape) {
+              return [{ value: filtered.length }];
+            }
             if (shape && "projectId" in shape) {
               return filtered.map((row) => ({ projectId: row.projectId }));
             }
@@ -124,7 +129,10 @@ function createDrizzle() {
           return Object.assign(Promise.resolve(rows), {
             limit: async (n: number) => rows.slice(0, n),
             orderBy: () => ({
-              limit: async (n: number) => rows.slice(0, n),
+              limit: async (n: number) =>
+                [...filtered]
+                  .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+                  .slice(0, n),
             }),
           });
         },
@@ -367,5 +375,23 @@ describe("queuedAssessmentJobCount and recentAssessmentJobsForProject", () => {
     const recent = await recentAssessmentJobsForProject("p1", 5);
     expect(recent).toHaveLength(2);
     expect(recent.every((job) => job.projectId === "p1")).toBe(true);
+  });
+
+  it("lists the newest jobs when more than the limit exist", async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 7; i += 1) {
+      const job = await enqueueAssessmentJob({
+        projectId: "p1",
+        trigger: "manual",
+        idempotencyKey: `recent-${i}`,
+      });
+      const row = jobs.get(job.id);
+      if (row) {
+        row.createdAt = new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString();
+      }
+      ids.push(job.id);
+    }
+    const recent = await recentAssessmentJobsForProject("p1", 5);
+    expect(recent.map((job) => job.id)).toEqual(ids.slice(-5).reverse());
   });
 });

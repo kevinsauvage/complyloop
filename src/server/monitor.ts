@@ -28,27 +28,9 @@ export function captureSnapshot(rootPath: string): AssessmentSnapshot {
   return { fileHashes, gitHead };
 }
 
-function gitBlameLine(
-  rootPath: string,
-  filePath: string,
-): Pick<FileChange, "author" | "commitSha" | "commitSubject"> | undefined {
-  try {
-    const raw = execFileSync(
-      "git",
-      ["-C", rootPath, "log", "-1", "--format=%H%x09%an%x09%s", "--", filePath],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-    ).trim();
-    if (!raw) return undefined;
-    const [commitSha, author, commitSubject] = raw.split("\t");
-    return { commitSha, author, commitSubject };
-  } catch {
-    return undefined;
-  }
-}
-
 /**
- * Diffs the current tree against a previous assessment snapshot and attributes
- * each changed file via git log when available.
+ * Diffs the current tree against a previous assessment snapshot.
+ * File paths only — a depth-1 clone cannot attribute who last touched a file.
  */
 export function detectChanges(
   rootPath: string,
@@ -72,21 +54,16 @@ export function detectChanges(
     if (!currentPaths.has(filePath)) changed.add(filePath);
   }
 
-  const changes: FileChange[] = [...changed].sort().map((filePath) => {
-    const blame = gitBlameLine(rootPath, filePath);
-    return { filePath, ...blame };
-  });
+  const changes: FileChange[] = [...changed].sort().map((filePath) => ({
+    filePath,
+  }));
 
   return { snapshot, changes };
 }
 
 export function summarizeChanges(changes: FileChange[]): string {
   if (changes.length === 0) return "No source changes since the previous assessment.";
-  const authors = [
-    ...new Set(changes.map((change) => change.author).filter(Boolean)),
-  ] as string[];
   const files = changes.slice(0, 5).map((change) => change.filePath);
   const more = changes.length > 5 ? ` (+${changes.length - 5} more)` : "";
-  const who = authors.length > 0 ? ` by ${authors.join(", ")}` : "";
-  return `${changes.length} file(s) changed${who}: ${files.join(", ")}${more}`;
+  return `${changes.length} file(s) changed: ${files.join(", ")}${more}`;
 }

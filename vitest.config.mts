@@ -28,6 +28,10 @@ export default defineConfig({
         "src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/runtime/scan.ts",
+        // Playwright page probes — unit job has no Chromium, so these skip.
+        "packages/analysis-core/src/runtime/custom-checks/**",
+        "packages/analysis-core/src/runtime/html-validate-runtime.ts",
+        "src/server/seed.ts",
         // Thin Next Auth / cookie / workspace glue — covered via e2e.
         "src/server/active-cookies.ts",
         "src/server/workspace.ts",
@@ -35,6 +39,7 @@ export default defineConfig({
         // Live GitHub/git checkout I/O — e2e + fixture paths cover the contract.
         "src/server/repo-checkout.ts",
         "src/server/github-tokens.ts",
+        "src/server/github-app.ts",
         "src/server/octokit.ts",
         "src/server/connect-github.ts",
         "src/server/github-repo.ts",

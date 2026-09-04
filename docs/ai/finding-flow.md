@@ -23,7 +23,7 @@ Queue nav (`j` / `k`) stays. Everything else is secondary.
 | History | `RemediationHistory` | Remediation status timeline |
 | Details | `DeveloperHandoffCard` ("Copy patch / PR body") + evidence trail | Handoff only when `showHandoff`; evidence trail is always expanded (rendered inline in `page.tsx`) |
 
-Dismiss lives in a `<details>` disclosure inside Act (`#dismiss-finding`). The runtime "Generate guidance" beat links to `#copy-handoff`, but no element carries that id — the in-page jump is dead (`TODO.md`).
+Dismiss lives in a `<details>` disclosure inside Act (`#dismiss-finding`). The runtime "Generate guidance" beat links to `#copy-handoff` on the handoff `PageSection`.
 
 ## User beats
 

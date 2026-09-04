@@ -33,6 +33,10 @@ export function conditionLabel(condition: BrowserCondition): string {
       return "light";
     case "more-contrast":
       return "prefers-contrast: more";
+    default: {
+      const _exhaustive: never = condition;
+      throw new Error(`Unhandled browser condition: ${_exhaustive}`);
+    }
   }
 }
 
@@ -51,6 +55,10 @@ export function emulationForCondition(condition: BrowserCondition): {
       return { colorScheme: "light" };
     case "more-contrast":
       return { contrast: "more" };
+    default: {
+      const _exhaustive: never = condition;
+      throw new Error(`Unhandled browser condition: ${_exhaustive}`);
+    }
   }
 }
 

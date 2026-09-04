@@ -114,13 +114,6 @@ export async function runAssessment(
       projectId,
       detail: {
         files: changes.map((change) => change.filePath),
-        authors: [
-          ...new Set(
-            changes
-              .map((change) => change.author)
-              .filter((author): author is string => Boolean(author)),
-          ),
-        ],
         previousGitHead: previous?.snapshot?.gitHead,
         gitHead: snapshot.gitHead,
       },

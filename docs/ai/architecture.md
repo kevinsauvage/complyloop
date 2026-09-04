@@ -69,10 +69,10 @@ Statuses, findings, requirement derivation, `PublicError`, and assessment limits
 src/core/                ← no imports from adapters, analysis (except contract/), server, app
 packages/analysis-core/  ← no imports from src/server/ or src/app/
                            contract/ is the shared status/finding types
-src/server/, app/        ← integrate core + analysis via src/adapters/registry.ts
+src/server/, app/        ← integrate core + analysis; catalog via adapters
 ```
 
-WCAG reuses the RGAA control catalog (`wcag` adapter registers framework metadata + presets; `wcag/presets.ts` reads `rgaaControls` directly). Server/app are meant to import adapters **only** via `registry.ts`; in practice `src/adapters/control-theme.ts` is also imported directly by pages, `report.ts`, and `report-html/*`, and nothing enforces the rule.
+WCAG reuses the RGAA control catalog (`wcag` adapter registers framework metadata + presets; `wcag/presets.ts` reads `rgaaControls` directly). Pages, reports, and `control-theme.ts` may import adapter modules directly — with one catalog, a registry-only import rule is not worth enforcing.
 
 **Finding merge:** `filterAstFindingsForAuthority` (`merge-findings.ts`) — when runtime ran, drop composition-sensitive, runtime-only, and package-twin source findings. This is where "runtime wins for composition-sensitive checks" is implemented; `deriveRequirementStatus` treats `composition_sensitive` exactly like `standard`.
 
@@ -158,11 +158,11 @@ overlap axe — exclusive ownership, not dedupe. `duplicate-id` is axe + AST onl
 | **Composition-sensitive** | AST runs in CI; runtime findings replace AST findings when both run (labels, names, headings, …); status derivation itself = standard |
 | **Heuristic AST**         | Empty scan → `unable_to_verify`, not `passed` (pertinence-style rules)             |
 | **Site-level**            | Needs `runtimeRan` + ≥2 preview routes. Mostly runtime-only ids, but `consistent-lang` and `consistent-page-heading` are site-level without being in the runtime-only list |
-| **Standard**              | Everything else: empty AST scan → `passed`. Note this includes `video-caption`, `audio-caption`, `media-controls-present`, which AST cannot see for client-rendered media |
+| **Standard**              | Everything else: empty AST scan → `passed` |
 
 **Source of truth for ids:** `check-authority.ts` and `checks/registry.ts` — do not duplicate long id lists in docs.
 
-Classifier precedence in `authorityForCheck`: site_level → runtime_only → heuristic → composition_sensitive → standard. A check id may appear in several lists; today the only dual-listed id is `label-adjacent` (runtime-only **and** heuristic). Because `findingsFromAxeHits` downgrades any heuristic id to `kind: "warning"`, `label-adjacent` runtime hits can only ever yield `needs_review`, never `failed` (`TODO.md`).
+Classifier precedence in `authorityForCheck`: site_level → runtime_only → heuristic → composition_sensitive → standard. Site-level ids also appear in the runtime-only list. Heuristic and runtime-only must not overlap (`check-authority.test.ts`). `video-caption` / `audio-caption` are runtime-only (axe can pass them); `media-controls-present` is heuristic (no runtime probe).
 
 ### Status derivation (`packages/analysis-core/src/contract/requirement-status.ts`)
 
@@ -235,7 +235,7 @@ HTML exports from `/evidence/report/html`: engineering (`report-html/engineering
 | `npm run test:coverage` | Gates on `src/core`, `src/adapters`, `packages/analysis-core`, `src/ai`, `src/hooks`, most of `src/server` (lines 96 / functions 96 / branches 85 / statements 94) |
 | `npm run test:e2e`      | Playwright (gated harness)                                                          |
 
-Excluded from the unit coverage gate (`vitest.config.mts`): Playwright `runtime/scan.ts`, thin Next/cookie/workspace glue, live GitHub checkout/token/octokit helpers, markdown `report.ts`, and live Postgres wiring (`db-store/client`, `schema`, `workspace-load`, `postgres-url`, `postgres-queries`, `write-lock`, `repo/**`). Modules with unit tests (`pr.ts`, `github.ts`, `github-app.ts`, `webhook-deliveries.ts`, `remediation-verify.ts`, `postgres-ssl.ts`, `postgres-evidence.ts`) are in the gate. HTML reports are exercised through `report.test.ts` and `report-html/shared.test.ts`; `audit.ts` / `engineering.ts` have no colocated tests.
+Excluded from the unit coverage gate (`vitest.config.mts`): Playwright `runtime/scan.ts` and page probes (`custom-checks/**`, `html-validate-runtime.ts` — they skip without Chromium in the unit job), `seed.ts`, thin Next/cookie/workspace glue, live GitHub checkout/token/app/octokit helpers, markdown `report.ts`, and live Postgres wiring (`db-store/client`, `schema`, `workspace-load`, `postgres-url`, `postgres-queries`, `write-lock`, `repo/**`). Modules with unit tests (`pr.ts`, `github.ts`, `webhook-deliveries.ts`, `remediation-verify.ts`, `postgres-ssl.ts`, `postgres-evidence.ts`) are in the gate. HTML reports are exercised through `report.test.ts` and `report-html/shared.test.ts`; `audit.ts` / `engineering.ts` have no colocated tests.
 
 `npm run test` resolves `@complyloop/analysis-core/*` to analysis-core **source** (see *Build coupling* above).
 

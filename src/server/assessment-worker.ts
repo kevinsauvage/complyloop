@@ -61,7 +61,7 @@ function collectRegressionAlerts(
           trigger,
           controlId: record.controlId,
           findingId: openFinding?.id,
-          commitSha: primaryChange?.commitSha,
+          commitSha: assessment?.snapshot?.gitHead,
           changeFilePath: primaryChange?.filePath,
         },
       };

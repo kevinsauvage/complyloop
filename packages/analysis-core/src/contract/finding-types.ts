@@ -14,7 +14,7 @@ import type {
 
 export interface FileChange {
   filePath: string;
-  /** Present when the tree is a git checkout. */
+  /** Legacy fields from older assessments; new runs record gitHead on the snapshot instead. */
   author?: string;
   commitSha?: string;
   commitSubject?: string;

@@ -41,6 +41,7 @@ type RepoSearchResponse = {
 async function fetchRepos(options: {
   q: string;
   page: number;
+  signal?: AbortSignal;
 }): Promise<RepoSearchResponse> {
   const params = new URLSearchParams();
   if (options.q) params.set("q", options.q);
@@ -48,6 +49,7 @@ async function fetchRepos(options: {
 
   const response = await fetch(
     `/api/github/repos${params.size > 0 ? `?${params.toString()}` : ""}`,
+    { signal: options.signal },
   );
   const payload = (await response.json()) as RepoSearchResponse & {
     error?: string;
@@ -84,6 +86,7 @@ export function GitHubRepoPicker({
   const [loading, setLoading] = useState(fetchOnMount);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const filterId = useId();
   const [connectState, connectAction, connectPending] = useActionState(
     connectGitHubRepoAction,
@@ -98,10 +101,17 @@ export function GitHubRepoPicker({
 
   const loadRepos = useCallback(
     async (nextPage: number, q: string, append: boolean) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       setLoading(true);
       setFetchError(null);
       try {
-        const result = await fetchRepos({ q, page: nextPage });
+        const result = await fetchRepos({
+          q,
+          page: nextPage,
+          signal: controller.signal,
+        });
         setRepos((prev) =>
           append
             ? [
@@ -115,13 +125,14 @@ export function GitHubRepoPicker({
         setPage(result.page);
         setHasMore(result.hasMore);
       } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
         setFetchError(
           error instanceof Error ? error.message : "Could not load repositories.",
         );
         if (!append) setRepos([]);
         setHasMore(false);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     },
     [],
@@ -135,6 +146,13 @@ export function GitHubRepoPicker({
     bootstrappedRef.current = true;
     void loadRepos(1, "", false);
   }, [fetchOnMount, loadRepos]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   function scheduleSearch(nextQuery: string) {
     if (debounceRef.current) window.clearTimeout(debounceRef.current);

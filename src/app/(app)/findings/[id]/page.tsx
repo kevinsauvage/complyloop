@@ -151,7 +151,7 @@ export default async function FindingPage({
         <RemediationHistory remediation={remediation} />
 
         {handoff ? (
-          <PageSection title="Copy patch / PR body">
+          <PageSection id="copy-handoff" title="Copy patch / PR body">
             <DeveloperHandoffCard handoff={handoff} />
           </PageSection>
         ) : null}

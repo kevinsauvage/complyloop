@@ -269,13 +269,17 @@ export const githubTokens = pgTable("github_tokens", {
 });
 
 /** Idempotency keys for GitHub webhook deliveries (`x-github-delivery`). */
-export const webhookDeliveries = pgTable("webhook_deliveries", {
-  deliveryId: text("delivery_id").primaryKey(),
-  processedAt: timestamp("processed_at", {
-    withTimezone: true,
-    mode: "string",
-  }).notNull(),
-});
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    deliveryId: text("delivery_id").primaryKey(),
+    processedAt: timestamp("processed_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+  },
+  (table) => [index("webhook_deliveries_processed_at_idx").on(table.processedAt)],
+);
 
 export const assessmentJobs = pgTable(
   "assessment_jobs",
@@ -317,15 +321,21 @@ export const assessmentJobs = pgTable(
 );
 
 /** Persistent, cross-instance action limits. Rows expire logically by window. */
-export const rateLimitBuckets = pgTable("rate_limit_buckets", {
-  key: text("key").primaryKey(),
-  windowStartedAt: timestamp("window_started_at", {
-    withTimezone: true,
-    mode: "string",
-  }).notNull(),
-  count: integer("count").notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
-});
+export const rateLimitBuckets = pgTable(
+  "rate_limit_buckets",
+  {
+    key: text("key").primaryKey(),
+    windowStartedAt: timestamp("window_started_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    count: integer("count").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  },
+  (table) => [
+    check("rate_limit_buckets_count_check", sql`${table.count} >= 0`),
+  ],
+);
 
 export type EvidenceRow = typeof evidence.$inferSelect;
 export type EvidenceInsert = typeof evidence.$inferInsert;

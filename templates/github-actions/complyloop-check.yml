@@ -1,8 +1,8 @@
 # Copy into your assessed app as .github/workflows/complyloop-check.yml
 #
-# Prerequisites: npm install @complyloop/check
-# (or from a local ComplyLoop checkout: npm run build:check &&
-#  npm install /path/to/Compliance-Engineering-Platform/packages/check)
+# @complyloop/check is not on npm yet. From a ComplyLoop checkout:
+#   npm run build:check
+#   npm install /path/to/Compliance-Engineering-Platform/packages/check
 name: ComplyLoop check
 
 on:

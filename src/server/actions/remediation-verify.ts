@@ -44,6 +44,10 @@ export async function verifyRemediationAction(
     const preview = await getWorkspace();
     const finding = findingById(preview.db, findingId);
     requireOnFindingProject(preview, finding, "project.remediate");
+    const previewRemediation = remediationForFinding(preview.db, findingId);
+    if (previewRemediation.status !== "implemented") {
+      throw new PublicError("Verification requires status implemented.");
+    }
 
     if (finding.location.kind === "dom") {
       await withProjectWrite(async (workspace) => {
@@ -227,7 +231,7 @@ export async function manualVerifyRemediationAction(
       const note = noteRaw.trim();
 
       if (remediation.status !== "implemented") {
-        throw new PublicError("Manual verification requires status implemented.");
+        throw new PublicError("Verification requires status implemented.");
       }
 
       replaceRemediation(
