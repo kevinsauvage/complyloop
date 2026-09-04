@@ -210,6 +210,52 @@ describe("findingAct", () => {
     expect(view.title).toBe("Confirm the page is fixed");
   });
 
+  it("offers Implement for an approved runtime Finding", () => {
+    const view = act({
+      finding: domFinding,
+      remediation: rem("approved"),
+    });
+    expect(view.beat).toBe("runtime_implement");
+    expect(view.title).toBe("Implemented outside ComplyLoop");
+  });
+
+  it("shows Verified beat for a verified runtime Finding", () => {
+    const view = act({
+      finding: domFinding,
+      remediation: rem("verified"),
+    });
+    expect(view.beat).toBe("verified");
+    expect(view.title).toBe("Verified");
+  });
+
+  it("shows view_only for users who cannot remediate", () => {
+    const view = act({ canRemediate: false });
+    expect(view.beat).toBe("view_only");
+    expect(view.title).toBe("Fix this Finding");
+    expect(view.description).toMatch(/view-only access/);
+  });
+
+  it("explains that GitHub must be connected before generating a patch", () => {
+    const view = act({
+      githubConnected: false,
+      aiAvailable: true,
+      canRemediate: true,
+    });
+    expect(view.beat).toBe("source_generate");
+    if (view.beat !== "source_generate") return;
+    expect(view.description).toMatch(/Connect a GitHub repository/);
+  });
+
+  it("explains that AI_GATEWAY_API_KEY disables generation", () => {
+    const view = act({
+      aiAvailable: false,
+      githubConnected: true,
+    });
+    expect(view.beat).toBe("source_generate");
+    if (view.beat !== "source_generate") return;
+    expect(view.description).toMatch(/AI_GATEWAY_API_KEY/);
+  });
+
   it("never treats a runtime Finding as a patch/PR beat", () => {
     const view = act({
       finding: domFinding,
@@ -218,6 +264,12 @@ describe("findingAct", () => {
       githubConnected: true,
     });
     expect(view.beat).toBe("runtime_generate");
+  });
+
+  it("throws on an unrecognized remediation status", () => {
+    expect(() =>
+      act({ finding: domFinding, remediation: rem("bogus" as never) }),
+    ).toThrow(/Unhandled remediation status/);
   });
 });
 

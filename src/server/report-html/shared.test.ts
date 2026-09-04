@@ -1,0 +1,47 @@
+import { describe, expect, it } from "vitest";
+import { escapeHtml, reportShell, statusClass } from "./shared";
+
+describe("escapeHtml", () => {
+  it("escapes the five HTML-significant characters", () => {
+    expect(escapeHtml(`&<>"`)).toBe("&amp;&lt;&gt;&quot;");
+  });
+
+  it("leaves plain text unchanged", () => {
+    expect(escapeHtml("No special chars 123")).toBe("No special chars 123");
+  });
+});
+
+describe("statusClass", () => {
+  it("maps every requirement status to a CSS class", () => {
+    expect(statusClass("passed")).toBe("status-passed");
+    expect(statusClass("failed")).toBe("status-failed");
+    expect(statusClass("needs_review")).toBe("status-needs-review");
+    expect(statusClass("not_applicable")).toBe("status-not-applicable");
+    expect(statusClass("unable_to_verify")).toBe("status-unable");
+  });
+
+  it("throws on an unrecognized status", () => {
+    expect(() => statusClass("bogus" as never)).toThrow(
+      /Unhandled requirement status/,
+    );
+  });
+});
+
+describe("reportShell", () => {
+  const input = {
+    project: { name: 'Demo "<project>"', source: "github", sourceRef: "acme/demo" },
+    framework: { name: "RGAA", version: "4.1.2" },
+    exportedAt: "2026-01-02T12:00:00.000Z",
+  };
+
+  it("wraps body sections in a printable HTML shell with escaped metadata", () => {
+    const html = reportShell('Audit "report"', input as never, "<section>Body</section>");
+
+    expect(html).toContain("<!DOCTYPE html>");
+    expect(html).toContain('<style>');
+    expect(html).toContain("<section>Body</section>");
+    expect(html).not.toContain('<script');
+    expect(html).toContain("&lt;project&gt;");
+    expect(html).toContain("window.print()");
+  });
+});

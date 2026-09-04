@@ -72,6 +72,40 @@ describe("evidenceKindLabel", () => {
     expect(evidenceKindLabel("finding_detected")).toBe("Finding detected");
   });
 
+  it("provides a human label for every evidence kind", () => {
+    const kinds: EvidenceKind[] = [
+      "project_connected",
+      "project_disconnected",
+      "project_reset",
+      "assessment_completed",
+      "assessment_job_queued",
+      "assessment_job_completed",
+      "assessment_job_failed",
+      "finding_detected",
+      "finding_resolved",
+      "finding_dismissed",
+      "remediation_approved",
+      "remediation_implemented",
+      "remediation_verified",
+      "remediation_manually_verified",
+      "ai_remediation_suggested",
+      "ai_patch_ready",
+      "requirement_status_changed",
+      "requirement_exception_set",
+      "requirement_exception_cleared",
+      "requirement_human_passed",
+      "requirement_human_pass_cleared",
+      "requirements_imported",
+      "pull_request_prepared",
+      "monitoring_changes_detected",
+      "webhook_reassessment",
+    ];
+    for (const kind of kinds) {
+      expect(evidenceKindLabel(kind).length).toBeGreaterThan(0);
+      expect(evidenceKindLabel(kind)).not.toContain("_");
+    }
+  });
+
   it("throws on an unhandled kind", () => {
     expect(() =>
       evidenceKindLabel("bogus" as EvidenceKind),

@@ -20,6 +20,15 @@ describe("requirements page preset URL", () => {
       "preset-wcag-aa",
     );
     expect(parsePresetIdParam("nope", catalog)).toBeUndefined();
+    expect(parsePresetIdParam(undefined, catalog)).toBeUndefined();
+    expect(parsePresetIdParam("", catalog)).toBeUndefined();
+  });
+
+  it("accepts the first element of a searchParams array", () => {
+    expect(parsePresetIdParam(["preset-wcag-aa", "junk"], catalog)).toBe(
+      "preset-wcag-aa",
+    );
+    expect(parsePresetIdParam([], catalog)).toBeUndefined();
   });
 
   it("uses the URL preset when present, otherwise the project default", () => {
@@ -54,5 +63,14 @@ describe("requirements page preset URL", () => {
         defaultPresetId: "preset-rgaa-full",
       }),
     ).toBe("/requirements?presetId=preset-wcag-aa&status=failed");
+  });
+
+  it("emits a status-only link when there is no preset override", () => {
+    expect(
+      requirementsPageHref({
+        status: "needs_review",
+        defaultPresetId: "preset-rgaa-full",
+      }),
+    ).toBe("/requirements?status=needs_review");
   });
 });

@@ -113,6 +113,14 @@ describe("applyFileEdits", () => {
       applyFileEdits(root, [{ path: "A.tsx", oldText: "foo", newText: "bar" }]),
     ).toThrow(/not unique/);
   });
+
+  it("throws when the edit targets a file that does not exist in the checkout", () => {
+    const root = tempRoot();
+    fs.writeFileSync(path.join(root, "A.tsx"), "foo\n");
+    expect(() =>
+      applyFileEdits(root, [{ path: "Missing.tsx", oldText: "x", newText: "y" }]),
+    ).toThrow(/File not found in checkout/);
+  });
 });
 
 describe("complyLoopGate", () => {
@@ -136,6 +144,29 @@ describe("complyLoopGate", () => {
         rawOnFile("button-name", "Hero.tsx", "Button has no name"),
       ]).passed,
     ).toBe(false);
+  });
+
+  it("treats a brand-new DOM finding as remaining even without a source identity", () => {
+    const domFinding = sourceFinding({
+      location: {
+        kind: "dom",
+        url: "https://preview.example.com/",
+        selector: "img",
+        snippet: "<img>",
+      },
+    });
+    const afterRaw: RawFinding = {
+      ...rawOnFile("img-alt", "Hero.tsx", "Image has no alt"),
+      location: {
+        kind: "dom",
+        url: "https://preview.example.com/",
+        selector: "img",
+        snippet: "<img>",
+      },
+    };
+    const gate = complyLoopGate(domFinding, [], [afterRaw]);
+    expect(gate.passed).toBe(false);
+    expect(gate.remaining).toContain("img-alt");
   });
 });
 

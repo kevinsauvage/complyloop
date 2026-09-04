@@ -55,4 +55,45 @@ describe("unableToVerifyReason", () => {
       ),
     ).toBe("needs_heuristic_review");
   });
+
+  it("returns runtime_only_pending when a runtime-only check had a reachable preview", () => {
+    expect(
+      unableToVerifyReason(
+        { checkId: "color-contrast" },
+        { runtimeBaseUrl: "https://app.example.com" },
+        { isRuntimeOnlyCheck: true },
+      ),
+    ).toBe("runtime_only_pending");
+  });
+
+  it("returns non_scorable for a scorable check with no preview and no runtime requirement", () => {
+    expect(
+      unableToVerifyReason(
+        { checkId: "duplicate-id" },
+        {},
+        { isRuntimeOnlyCheck: false },
+      ),
+    ).toBe("non_scorable");
+  });
+
+  it("labels every reason without throw", () => {
+    const reasons = [
+      "needs_preview_url",
+      "needs_human_review",
+      "needs_pertinence_review",
+      "needs_heuristic_review",
+      "runtime_only_pending",
+      "non_scorable",
+    ] as const;
+    for (const reason of reasons) {
+      expect(unableToVerifyReasonLabel(reason).length).toBeGreaterThan(0);
+    }
+    expect(unableToVerifyReasonLabel("non_scorable")).toMatch(/review|exception/i);
+  });
+
+  it("throws on an unhandled reason", () => {
+    expect(() =>
+      unableToVerifyReasonLabel("bogus" as never),
+    ).toThrow(/Unhandled unable-to-verify reason/);
+  });
 });

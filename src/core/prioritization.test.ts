@@ -94,4 +94,23 @@ describe("prioritization", () => {
     expect(clusters[0]?.occurrenceCount).toBe(3);
     expect(clusters[0]?.priorityScore).toBeGreaterThan(0);
   });
+
+  it("orders multiple clusters by descending priority score", () => {
+    // Two distinct directories each yield a cluster; the higher-severity
+    // cluster must sort first.
+    const clusters = prioritizeClusters(
+      [
+        finding("1", "img-alt", "dir/a/A.tsx", "critical"),
+        finding("2", "img-alt", "dir/a/B.tsx", "critical"),
+        finding("3", "img-alt", "dir/b/C.tsx", "moderate"),
+        finding("4", "img-alt", "dir/b/D.tsx", "moderate"),
+      ],
+      controls,
+    );
+    expect(clusters.length).toBeGreaterThan(1);
+    const first = clusters[0];
+    expect(first?.priorityScore).toBeGreaterThanOrEqual(
+      (clusters[1]?.priorityScore ?? 0),
+    );
+  });
 });

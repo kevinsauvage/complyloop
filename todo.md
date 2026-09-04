@@ -1,28 +1,41 @@
 # Todo
 
-Backlog generated from a project audit (2026-09-02). Each item answers **what** to do, **why** it matters, and **where** the work lives.
+Backlog from a project audit (**2026-09-04**). Each item answers **what** to do, **why** it matters, and **where** the work lives.
+
+**Where the product is:** the core loop (Requirement → Assessment → Finding → Remediation → Verification → Evidence) is implemented for GitHub + RGAA/WCAG. Analysis engines are well past “axe plus a few AST rules”: 58 custom AST checks, jsx-a11y, axe, html-validate, IBM Equal Access, 25 Playwright probes, theme + mobile target-size condition passes, site-level + linkinator. Catalog: 154 RGAA controls, 128 automated / 26 manual.
+
+**Largest remaining constraint:** assessments without a preview URL leave ~86 runtime-only check ids as `unable_to_verify`. That is adoption of `runtimeBaseUrl`, not a missing scanner. See `docs/analysis-checks-challenge.md`.
+
+---
+
+## Closed since 2026-09-02 (do not re-open)
+
+- **Auto-propose at assessment** (old item 12) — `createFinding` already attaches a deterministic suggestion when the AST check emits `fix` (`src/server/assessment-findings.ts`, `buildSuggestion`). Remaining work is **more checks emitting `fix`**, not wiring the pipeline (item 10 below).
+- **Analysis waves** — IBM, linkinator, html-validate, jsx-a11y, widget keyboard, dialog focus, hover content, live-region updates, form-error submit, mobile `target-size` pass, label-adjacent, keyboard trap. Strategy items 2–5 and 8 in `docs/analysis-strategy.md` are largely shipped; do not rebuild them.
 
 ---
 
 ## P0 — Go-live blockers
 
+Ops items. None of these have been exercised on a real staging/prod stack.
+
 ### 1. Run the deploy checklist on a real environment
 
 - **What:** Execute every step of the go-live checklist against a production (or staging) deployment and confirm each one works.
-- **Why:** The checklist has never been exercised end-to-end; we can't claim production readiness until it passes on real infrastructure.
+- **Why:** The checklist has never been run end-to-end; we cannot claim production readiness until it passes on real infrastructure.
 - **Where:** `docs/deploy.md` (checklist at top).
 
 ### 2. Do a backup & restore drill
 
-- **What:** Run `npm run ops:backup`, then restore the dump into a fresh database and verify the app works against it.
-- **Why:** A backup that has never been restored is not a backup. Evidence data is append-only and irreplaceable.
-- **Where:** `scripts/` ops backup command, Postgres instance from `docs/deploy.md`.
+- **What:** Run `npm run ops:backup`, restore the dump into a fresh database, and verify the app works against it.
+- **Why:** A backup that has never been restored is not a backup. Evidence is append-only and irreplaceable.
+- **Where:** `scripts/` ops backup command; Postgres from `docs/deploy.md`.
 
 ### 3. Wire Sentry alerting, not just error capture
 
 - **What:** Create Sentry alert rules (error spikes, worker failures, webhook failures) and route them to a channel someone actually reads.
 - **Why:** A DSN without alerts means production errors are recorded but nobody is notified.
-- **Where:** Sentry project settings; intended alerts are listed in `docs/deploy.md` (~lines 152–158).
+- **Where:** Sentry project settings; intended alerts in `docs/deploy.md` (Monitoring).
 
 ### 4. Add an uptime probe and lock down prod flags
 
@@ -34,52 +47,96 @@ Backlog generated from a project audit (2026-09-02). Each item answers **what** 
 
 ## P1 — Hardening
 
+Cheap now, expensive later.
+
 ### 5. Actually call `pruneRateLimitBuckets`
 
 - **What:** Schedule `pruneRateLimitBuckets` from the worker (or a cron), not only from tests.
 - **Why:** Rate-limit buckets grow forever in the database — a slow leak that eventually bloats storage and queries.
-- **Where:** `src/server/rate-limit.ts:60` (definition); wire the call into `src/server/assessment-worker.ts` or an ops cron.
+- **Where:** `src/server/rate-limit.ts` (definition); wire into `src/server/assessment-worker.ts` or an ops cron.
 
-### 7. Refuse placeholder secrets
+### 6. Refuse placeholder secrets
 
 - **What:** Remove the `AUTH_SECRET` fallback default from docker-compose and make prod boot fail on known placeholder values (`replace-me`, `e2e-secret-change-me`).
-- **Why:** A default secret in a copy-pasted deploy silently breaks session security.
-- **Where:** `docker-compose.yml` (lines 26, 55), `docs/deploy.md` (~line 85), `src/auth-secret.ts`.
+- **Why:** A default secret in a copy-pasted deploy silently breaks session security. `resolveAuthSecret` already refuses a missing secret in production, but compose still defaults to `e2e-secret-change-me` and deploy docs still show `export AUTH_SECRET=replace-me`.
+- **Where:** `docker-compose.yml`, `docs/deploy.md`, `src/auth-secret.ts`.
 
-### 8. Stop health-check failures flooding Sentry as errors
+### 7. Stop health-check failures flooding Sentry as errors
 
 - **What:** Downgrade the "database down during health probe" report to a warning or rate-limit it.
 - **Why:** An uptime probe hitting a downed DB every few seconds buries real errors under thousands of identical events.
-- **Where:** `src/app/api/health/route.ts:31` (`reportError` with `health_database_down`).
+- **Where:** `src/app/api/health/route.ts` (`reportError` with `health_database_down`).
 
-## P2 — Product gaps (spec follow-ups)
+### 8. Colocate unit tests for custom Playwright checks
 
-### 11. Cluster → one PR
-
-- **What:** Let a user open a single pull request that fixes all findings in a root-cause cluster, instead of one PR per finding.
-- **Why:** Clusters exist precisely because one shared component causes many findings; fixing them one PR at a time is busywork the spec (§17) says we should remove.
-- **Where:** `src/server/actions/pr.ts` (currently takes a single `findingId`), `src/core/root-cause.ts`; noted as a follow-up in `docs/ai/finding-flow.md:133`.
-
-### 12. Auto-propose fixes at assessment time
-
-- **What:** After an assessment, automatically draft safe deterministic fixes so findings arrive with a suggested remediation attached.
-- **Why:** Shortens the loop from "found" to "fixed"; suggestions still require human approval, so it fits the human-in-the-loop rule.
-- **Where:** Assessment pipeline in `src/server/assessment.ts` + fix engine in `packages/analysis-core/src/fixes.ts`; listed in `docs/ai/finding-flow.md:134`.
-
-## P3 — Post-MVP (parked deliberately)
-
-### 14. Sources beyond GitHub
-
-- **What:** Support GitLab/Bitbucket (or plain git URL) as project sources.
-- **Why:** Spec §5 plans multiple connectors; today `ProjectSource` is GitHub-only, which limits who can adopt the product.
-- **Where:** `src/core/project-types.ts:27`, `src/server/` GitHub integration behind an interface.
-
-### 15. Frameworks beyond accessibility
-
-- **What:** Add a second compliance framework (e.g. SOC 2 or a custom checklist) through the adapter system.
-- **Why:** Proves the domain model is genuinely framework-agnostic (spec §26) before more a11y-specific assumptions creep in.
-- **Where:** New adapter under `src/adapters/`, registered in `src/adapters/registry.ts`.
+- **What:** Add `*.test.ts` next to the ~18 of 25 probes that only exist in `custom-checks-playwright.test.ts` (or not at all).
+- **Why:** Behaviour probes (submit, hover, live regions, forced-colors, reflow) are the high-value layer; regressions are easy to ship without colocated cases. Code-quality rules require colocated tests in the domain/analysis core.
+- **Where:** `packages/analysis-core/src/runtime/custom-checks/`. Already covered: `label-adjacent`, `widget-keyboard`, `reflow` / `reflow-exceptions`, `focus-indicator`, `focus-trap`, `non-text-contrast`.
 
 ---
 
-_Priorities: P0 = blocks a trustworthy production launch. P1 = fix soon, cheap now and expensive later. P2 = product value from the spec. P3 = intentionally after MVP._
+## P2 — Product & analysis follow-ups
+
+### 9. Cluster → one PR
+
+- **What:** Let a user open a single pull request that fixes all findings in a root-cause cluster, instead of one PR per finding.
+- **Why:** Clusters already exist (`src/core/root-cause.ts`, dashboard + reports) because one shared component causes many findings; fixing them one PR at a time is the busywork spec §17 says we should remove.
+- **Where:** `src/server/actions/pr.ts` (currently a single `findingId`); noted in `docs/ai/finding-flow.md`.
+
+### 10. Expand deterministic `ProposedFix` coverage
+
+- **What:** Emit structured `fix` from more AST checks that can be applied safely (insert/replace/remove attribute), so assessment-time suggestions cover more than a handful of rules.
+- **Why:** The suggestion pipeline is live, but only a few checks (e.g. `button-name`, `input-label`, `autoplay-media`) attach a `fix`. Most source findings still start at `detected` and wait for Generate patch / AI.
+- **Where:** `packages/analysis-core/src/checks/*`, `packages/analysis-core/src/fixes.ts`. Human approval still required.
+
+### 11. Visual regression as Playwright screenshot assertions
+
+- **What:** Capture route screenshots across assessments and fail (or `needs_review`) on unexpected visual change — as **regression evidence**, not an AI vision scanner.
+- **Why:** First remaining item in `docs/analysis-strategy.md`. Catches CSS/layout loss (reflow, contrast themes, hidden content) that no rule engine names.
+- **Where:** `packages/analysis-core/src/runtime/` (new condition/pass, not a new scanner product).
+
+### 12. Target size follow-ups (coarse pointer + AAA)
+
+- **What:** Re-run axe `target-size` under `pointer: coarse` (or a coarse-emulating viewport) and add a **separate** 44×44 AAA check — do not replace 24×24 AA.
+- **Why:** Strategy item 7; we already re-run `target-size` at `320×568`. Touch vs mouse and AAA are still untested.
+- **Where:** `packages/analysis-core/src/runtime/viewport-conditions.ts`, `scan.ts`.
+
+### 13. State-dependent non-text contrast
+
+- **What:** Extend `non-text-contrast` (and/or the theme pass) to hover / selected / disabled UI chrome, with the right threshold per state.
+- **Why:** Strategy item 6. Axe covers text; our custom check covers default-state chrome. Interactive states are where 1.4.11 actually fails in product UIs.
+- **Where:** `packages/analysis-core/src/runtime/custom-checks/non-text-contrast.ts`, theme pass in `index.ts`.
+
+### 14. Stop mapping forced-colors onto `non-text-contrast`
+
+- **What:** Give `complyloop-forced-colors` its own check id (or a dedicated control) instead of folding it into 1.4.11.
+- **Why:** Distinct defects look like contrast failures; developers fix the wrong thing. Called out in `docs/analysis-checks-challenge.md`.
+- **Where:** `axe-map.ts` / catalog `checkId`; `forced-colors.ts`.
+
+---
+
+## P3 — Post-MVP (parked deliberately)
+
+### 15. Sources beyond GitHub
+
+- **What:** Support GitLab/Bitbucket (or a plain git URL) as project sources.
+- **Why:** Spec §5 plans multiple connectors; `ProjectSource` is still `"github"` only.
+- **Where:** `src/core/project-types.ts`, `src/server/` GitHub integration behind an interface.
+
+### 16. Frameworks beyond accessibility
+
+- **What:** Add a second compliance framework (e.g. SOC 2 or a custom checklist) through the adapter system.
+- **Why:** Proves the domain is framework-agnostic (spec §26) before more a11y-specific assumptions creep in. Not near-term: spec §24 says prove the loop for one RGAA client first.
+- **Where:** New adapter under `src/adapters/`, registered in `src/adapters/registry.ts`.
+
+### 17. `accessibility-checker` install weight
+
+- **What:** Revisit IBM Equal Access packaging (dynamic import already; npm still pulls puppeteer/chromedriver).
+- **Why:** Runtime-only via `serverExternalPackages`, but install/CI cost is real. Do not add Alfa as a third sibling engine.
+- **Where:** `packages/analysis-core` dependency on `accessibility-checker`; `next.config.ts` externals.
+
+---
+
+_Priorities: P0 = blocks a trustworthy production launch. P1 = fix soon, cheap now and expensive later. P2 = spec / analysis strategy follow-ups. P3 = intentionally after MVP._
+
+_Do not add: Lighthouse, Pa11y, `@axe-core/playwright`, `@html-validate/wcag`, IBM **and** Alfa together, or custom twins of facts axe/html-validate/jsx-a11y/IBM already observe._

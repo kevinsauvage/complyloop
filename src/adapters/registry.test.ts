@@ -3,6 +3,7 @@ import {
   allControls,
   allFrameworkPresets,
   allFrameworks,
+  defaultConnectPreset,
   mergeAdapterControls,
   presetById,
 } from "./registry";
@@ -57,8 +58,32 @@ describe("framework adapter registry", () => {
     expect(merged.controls.some((control) => control.id === "ctl-img-alt")).toBe(
       true,
     );
-    expect(
-      merged.controls.filter((control) => control.id === "ctl-img-alt"),
-    ).toHaveLength(1);
+    expect(merged.controls.filter((control) => control.id === "ctl-img-alt")).toHaveLength(1);
+  });
+
+  it("resolves the default connect preset", () => {
+    const preset = defaultConnectPreset();
+    expect(preset.id).toBe("preset-rgaa-full");
+    expect(preset.controlIds).toBeDefined();
+  });
+
+  it("returns a no-op merge when frameworks and controls are already registered unchanged", () => {
+    const existing = allControls().filter((c) => c.id === "ctl-img-alt");
+    const first = mergeAdapterControls(allFrameworks(), existing);
+    const second = mergeAdapterControls(first.frameworks, first.controls);
+    // The second merge adds nothing new.
+    expect(second.controls).toHaveLength(first.controls.length);
+    expect(second.changed).toBe(false);
+  });
+
+  it("marks a merge changed when a control's compliance weight is updated", () => {
+    const existing = allControls().filter((c) => c.id === "ctl-img-alt");
+    // Adapter ctl-img-alt ships a weight (1.4); a differing authored weight is
+    // overwritten by the adapter's canonical value and flagged as changed.
+    const withWeight = existing.map((c) => ({ ...c, complianceWeight: 5 }));
+    const merged = mergeAdapterControls(allFrameworks(), withWeight);
+    const mergedControl = merged.controls.find((c) => c.id === "ctl-img-alt");
+    expect(mergedControl?.complianceWeight).toBe(1.4);
+    expect(merged.changed).toBe(true);
   });
 });

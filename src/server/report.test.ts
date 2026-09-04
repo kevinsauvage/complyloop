@@ -220,3 +220,51 @@ describe("buildEngineeringReportHtml", () => {
     expect(html).toContain("&lt;img onerror=");
   });
 });
+
+describe("report-html empty states", () => {
+  it("audit report shows placeholders when there is no evidence and no requirements", () => {
+    const input = sampleReportInput();
+    input.requirements = [];
+    input.evidence = [];
+    const html = buildAuditReportHtml(input);
+    expect(html).toContain("No evidence records.");
+    expect(html).toContain("No requirements recorded.");
+    expect(html).toContain("0%"); // pass rate with zero requirements
+  });
+
+  it("engineering report shows placeholders when there are no open findings", () => {
+    const input = sampleReportInput();
+    input.findings = [];
+    input.remediations = [];
+    const html = buildEngineeringReportHtml(input);
+    expect(html).toContain("No open findings.");
+    expect(html).toContain("No shared root causes detected.");
+  });
+
+  it("engineering report lists clusters when open findings share a root cause", () => {
+    const input = sampleReportInput();
+    const second: Finding = {
+      ...input.findings[0],
+      id: "f2",
+      location: {
+        kind: "source",
+        filePath: "Button.tsx",
+        line: 22,
+        column: 1,
+        snippet: "<button><svg /></button>",
+        span: { start: 0, end: 24 },
+      },
+    };
+    input.findings = [input.findings[0], second];
+    input.remediations = [
+      { id: "rem1", findingId: "f1", status: "detected", suggestion: null, history: [] },
+      { id: "rem2", findingId: "f2", status: "detected", suggestion: null, history: [] },
+    ];
+
+    const html = buildEngineeringReportHtml(input);
+
+    expect(html).toContain("Shared root causes");
+    expect(html).toContain("findings share");
+    expect(html).toContain("class=\"cluster-list\"");
+  });
+});

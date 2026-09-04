@@ -84,4 +84,28 @@ describe("groupControlsByTheme", () => {
       "Robust",
     ]);
   });
+
+  it("collects controls whose code has no criterion under Other", () => {
+    const orphan = {
+      id: "ctl-orphan",
+      frameworkId: rgaaFramework.id,
+      code: "ZZ-42",
+      secondaryCode: "N/A",
+      title: "Orphan",
+      description: "",
+      checkId: null,
+    };
+    const groups = groupControlsByTheme(
+      [controlById("ctl-img-alt"), orphan],
+      rgaaFramework.id,
+    );
+    const other = groups.find((group) => group.id === "other");
+    expect(other?.label).toBe("Other");
+    expect(other?.controls.map((control) => control.id)).toEqual(["ctl-orphan"]);
+  });
+
+  it("omits the Other group when every control is categorized", () => {
+    const groups = groupControlsByTheme([controlById("ctl-img-alt")], rgaaFramework.id);
+    expect(groups.some((group) => group.id === "other")).toBe(false);
+  });
 });
