@@ -15,6 +15,7 @@ import { projectDescription } from "@/components/dashboard/project-description";
 import { EmptyState } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
+import { latestAssessmentFor } from "@/core/assessment-latest";
 import {
   prioritizeClusters,
   prioritizeFindings,
@@ -74,9 +75,7 @@ export default async function DashboardPage() {
     );
   }
 
-  const latestAssessment = db.assessments
-    .filter((assessment) => assessment.projectId === project.id)
-    .at(-1);
+  const latestAssessment = latestAssessmentFor(db.assessments, project.id);
   const requirements = requirementsInScope(db.requirements, project);
   const projectFindings = findingsInScope(db.findings, project);
   const openFindings = prioritizeFindings(projectFindings, db.controls);

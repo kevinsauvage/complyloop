@@ -52,12 +52,13 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 
 ## Persistence & tenancy
 
-- **Postgres** — frameworks, controls, orgs, memberships, projects, requirements, assessments, findings, remediations, alerts, evidence, encrypted GitHub tokens, webhook delivery ids, `assessment_jobs`, rate-limit buckets. Domain rows store typed JSONB payloads (`src/server/db-store/schema.ts`); the row also carries a few indexed columns (`project_id`, `status`, …) that duplicate fields of the payload. One hand-written init migration (`drizzle/0000_init.sql`) plus follow-ups — two of its constraints/indexes are not mirrored in `schema.ts` (see `TODO.md`).
+- **Postgres** — frameworks, controls, orgs, memberships, projects, requirements, assessments, `assessment_snapshots`, findings, remediations, alerts, evidence, encrypted GitHub tokens, webhook delivery ids, `assessment_jobs`, rate-limit buckets. Domain rows store typed JSONB payloads (`src/server/db-store/schema.ts`) plus a few indexed columns (`project_id`, `status`, …). Catalog is seeded on deploy (`npm run seed` / `db:migrate`), not rewritten on every user action. One hand-written init migration (`drizzle/0000_init.sql`).
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`); projects belong to orgs.
-- **Two data-access styles.** Domain state (orgs, projects, requirements, assessments, findings, remediations, alerts) goes through an in-memory **`Db` snapshot** (`db-store/types.ts`): load a scope into arrays, mutate the arrays, write everything back. Jobs, tokens, webhook deliveries, rate limits, and evidence *reads* use direct Drizzle queries (`db-store/postgres-queries.ts`, `assessment-jobs.ts`, …).
-- **Load shape** — `getWorkspace()` loads the catalog plus **every** project in **all** of the viewer's orgs (requirements, assessments incl. full `snapshot.fileHashes`, findings, remediations, alerts) on every request, with evidence capped at `WORKSPACE_EVIDENCE_LIMIT` (100). The cookie-preferred project id is added to the load scope before RBAC is applied; visibility is enforced in memory afterwards (`project-visibility.ts`). Evidence pages/exports/finding detail query SQL directly.
-- **Writes** — `withDbWrite` = process mutex + **one global** `pg_advisory_xact_lock` (key `748_291_063`) around load → mutate → **replace-all sync**: every table in scope is upserted row-by-row and rows missing from memory are pruned (`postgres-persist-*.ts`); frameworks and controls are re-upserted on every write; evidence is insert-only. Writes load **no** historical evidence (`evidenceLimit: 0`), so mutation code must not read `db.evidence` for anything but rows it just added. `enqueueAssessmentJob` / `claimNextAssessmentJob` take the **same** global lock. The worker runs the whole `runAssessment` (AST + Playwright) **inside** `withDbWrite`, so all app writes block while any assessment runs — the main scalability risk in the codebase (`TODO.md` P0).
-- **Ordering caveat** — `Db` arrays are loaded without `ORDER BY`. Code that takes `.at(-1)` or `[...db.assessments].reverse()` as "latest" relies on insertion order that Postgres does not guarantee after upserts.
+- **Reads** — `getWorkspace()` loads the catalog, the viewer's orgs/memberships, the project switcher list for those orgs, and **runtime for the active project only** (requirements, assessments **without** file-hash snapshots, findings, remediations, alerts, evidence window). File hashes live in `assessment_snapshots` and are loaded only for `runAssessment` (`loadProjectAssessmentDb`). Evidence pages/exports/finding detail query SQL directly (`postgres-queries.ts`).
+- **Writes** — actions use `withProjectWrite` / `withOrgWrite` (`workspace.ts`): load the scoped slice, mutate in memory, persist **changed rows** via `src/server/db-store/repo/*` (upserts by id, evidence insert-only). Project field changes (`runtimeBaseUrl`, `defaultPresetId`, …) update the project row. There is no replace-all sync or prune of untouched rows.
+- **Assessments** — the worker clones and scans **outside** a store transaction, then `applyAssessmentPayload` upserts findings/requirements/remediations and inserts the assessment + snapshot + evidence in one short transaction (`assessment-worker.ts`). `runAssessment` still mutates a project-scoped in-memory `Db` for the duration of the scan; that is the apply payload, not a tenant-wide rewrite.
+- **Locks** — job enqueue/claim still share one global advisory lock (`write-lock.ts`, `TODO.md` P0-2). Rate limits use per-key named locks. Workspace writes use a normal Drizzle transaction, not the global store lock.
+- **Latest assessment** — `latestAssessmentFor` (`src/core/assessment-latest.ts`) compares `completedAt`. Do not use `.at(-1)` on `db.assessments` (loaders return newest-first).
 - **Jobs** — queued in DB; worker leases (30 min), **3 attempts total** with exponential backoff, serial per project; triggers `manual` \| `webhook`. HTTP paths only enqueue (`src/server/assessment-jobs.ts`). In `next dev` and the Playwright harness, the action drains the queue in-process (`assessment-job-drain.ts`).
 - **Clones** — shallow git checkout per job into OS temp; deleted after (`src/server/repo-checkout.ts`). See [`docs/deploy.md`](../deploy.md).
 - **Observability** — Sentry via `src/instrumentation.ts`; product code uses `reportError` / `reportWarning`.
@@ -92,7 +93,7 @@ Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on
 
 Navigation uses `domcontentloaded` plus a brief settle (`gotoForRuntimeAudit`) — not
 `networkidle`, which SPAs with analytics or HMR often never reach. Axe is injected
-once per page; theme, viewport, and pointer condition passes call `axe.run` only.
+from disk; `runAxeOnPage` re-injects if viewport/CDP emulation cleared `window.axe`.
 
 | Piece          | Path                    | Role                                                                 |
 | -------------- | ----------------------- | -------------------------------------------------------------------- |
@@ -185,13 +186,13 @@ Each project stores a **`defaultPresetId`** (set on connect, editable in Setting
 ### Assessment
 
 1. UI / webhook **enqueues** an `assessment_jobs` row. The worker (or inline drain in dev/e2e) leases it, clones (depth-1 fetch of the ref), and scans — never in the request path.
-2. `detectChanges` hashes every source file into `assessment.snapshot.fileHashes` and diffs against the previous assessment's snapshot; changed files are attributed with `git log -1 -- <file>`, which on a depth-1 clone always returns the HEAD commit, so `author` / `commitSha` on `FileChange` and regression alerts is the tip commit, not the real last author.
+2. `detectChanges` hashes every source file into `assessment_snapshots.fileHashes` (not on the assessment list payload) and diffs against the previous run's snapshot; changed files are attributed with `git log -1 -- <file>`, which on a depth-1 clone always returns the HEAD commit, so `author` / `commitSha` on `FileChange` and regression alerts is the tip commit, not the real last author.
 3. AST scan of connected tree (changed JSX only on re-assess when possible).
 4. If preview URL set → Playwright audit per route: axe + custom checks + html-validate + applicability probes + viewport/pointer target-size + theme conditions; then site-level + link check.
 5. Merge findings; runtime wins for composition-sensitive rules.
 6. Re-derive requirement statuses (sticky humans, applicability, authority gates).
 7. Manual controls stay `unable_to_verify` until human pass or exception.
-8. `verifyDraftPrRemediation` is meant to move an `approved` (via draft PR) remediation to `verified` when its finding is no longer detected. It checks `db.evidence` for the `remediation_approved` record, but the worker loads the write snapshot with `evidenceLimit: 0`, so in the job path this never fires (`TODO.md` P0).
+8. `verifyDraftPrRemediation` is meant to move an `approved` (via draft PR) remediation to `verified` when its finding is no longer detected. The worker loads draft-PR approval from evidence SQL (`hasDraftPrApproval`) before the scan; do not rely on historical `db.evidence` in the write snapshot (`TODO.md` P0).
 
 ### Remediation
 
@@ -234,7 +235,7 @@ HTML exports from `/evidence/report/html`: engineering (`report-html/engineering
 | `npm run test:coverage` | Gates on `src/core`, `src/adapters`, `packages/analysis-core`, `src/ai`, `src/hooks`, most of `src/server` (lines 96 / functions 96 / branches 85 / statements 94) |
 | `npm run test:e2e`      | Playwright (gated harness)                                                          |
 
-Excluded from the unit coverage gate (`vitest.config.mts`): `src/server/db-store/**` (the whole load/persist stack), `packages/analysis-core/src/runtime/scan.ts`, `active-cookies.ts`, `workspace.ts`, `db.ts`, `repo-checkout.ts`, `github-tokens.ts`, `github-app.ts`, `octokit.ts`, `github.ts`, `connect-github.ts`, `pr.ts`, `webhook-deliveries.ts`, `github-repo.ts`, `report.ts`, `actions/remediation-verify.ts`. Several excluded modules (`pr.ts`, `github.ts`, `webhook-deliveries.ts`, `remediation-verify.ts`) do have unit tests. HTML reports are exercised through `report.test.ts` and `report-html/shared.test.ts`; `audit.ts` / `engineering.ts` have no colocated tests.
+Excluded from the unit coverage gate (`vitest.config.mts`): `src/server/db-store/**` (Drizzle/Postgres integration), `packages/analysis-core/src/runtime/scan.ts`, `active-cookies.ts`, `workspace.ts`, `db.ts`, `repo-checkout.ts`, `github-tokens.ts`, `github-app.ts`, `octokit.ts`, `github.ts`, `connect-github.ts`, `pr.ts`, `webhook-deliveries.ts`, `github-repo.ts`, `report.ts`, `actions/remediation-verify.ts`. Several excluded modules (`pr.ts`, `github.ts`, `webhook-deliveries.ts`, `remediation-verify.ts`) do have unit tests. HTML reports are exercised through `report.test.ts` and `report-html/shared.test.ts`; `audit.ts` / `engineering.ts` have no colocated tests.
 
 `npm run test` resolves `@complyloop/analysis-core/*` to the compiled `dist/` (see *Build coupling* above).
 

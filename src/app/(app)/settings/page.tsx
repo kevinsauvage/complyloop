@@ -7,6 +7,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { allFrameworkPresets, presetById, presetCatalog } from "@/adapters/registry";
+import { latestAssessmentFor } from "@/core/assessment-latest";
 import { projectDefaultPresetId } from "@/core/project-preset";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
@@ -34,9 +35,7 @@ export default async function SettingsPage() {
     );
   }
 
-  const latestAssessment = db.assessments
-    .filter((assessment) => assessment.projectId === project.id)
-    .at(-1);
+  const latestAssessment = latestAssessmentFor(db.assessments, project.id);
   const runtimeStatus = latestAssessment?.engines?.runtime
     ? `Last assessment audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s).`
     : latestAssessment?.engines?.runtimeError

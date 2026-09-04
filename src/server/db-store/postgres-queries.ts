@@ -141,30 +141,3 @@ export async function listOrgIdsForUser(
     .where(or(...clauses));
   return [...new Set(rows.map((row) => row.orgId))];
 }
-
-/** Project ids in the viewer's org memberships (plus an optional preferred id). */
-export async function listProjectIdsForTenant(
-  drizzle: DrizzleDb,
-  input: {
-    orgIds: readonly string[];
-    preferredProjectId?: string | null;
-  },
-): Promise<string[]> {
-  const ids = new Set<string>();
-  if (input.orgIds.length > 0) {
-    const byOrg = await drizzle
-      .select({ id: projects.id })
-      .from(projects)
-      .where(inArray(projects.orgId, [...input.orgIds]));
-    for (const row of byOrg) ids.add(row.id);
-  }
-  if (input.preferredProjectId) {
-    const preferred = await drizzle
-      .select({ id: projects.id })
-      .from(projects)
-      .where(eq(projects.id, input.preferredProjectId))
-      .limit(1);
-    if (preferred[0]) ids.add(preferred[0].id);
-  }
-  return [...ids];
-}

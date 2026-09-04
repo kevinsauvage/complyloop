@@ -14,25 +14,19 @@ Guiding rule for this list: the product spec's MVP is *one complete loop for one
 - **Why it matters:** this is the "Verification" stage of the core loop for source findings (README, `finding-flow.md`). Findings resolve, but remediations stay `approved`, no `remediation_verified` evidence is written, and the product cannot prove the fix. Tests pass because fixtures pre-populate `db.evidence`.
 - **Change:** stop reading history from the in-memory `Db` during writes. Either query it directly (`listEvidenceForFinding` in `db-store/postgres-queries.ts`, as `actions/pr.ts` already does) before entering `withDbWrite`, or store `approvalAction` on the `Remediation` payload when approving so the decision is local. Add an integration test that runs the worker path with an empty evidence snapshot.
 
-### 2. All writes are serialized behind one global lock, held for the whole assessment
+### 2. Job enqueue/claim still share one global lock
 
-- **Wrong:** `withDbWrite` takes a process mutex plus a single `pg_advisory_xact_lock(748_291_063)` (`db-store/write-lock.ts`). `enqueueAssessmentJob` and `claimNextAssessmentJob` take the same key. The worker wraps the entire `runAssessment` — AST scan, Playwright audit of up to 25 pages × 2 theme conditions, html-validate, linkinator — inside `withDbWrite` (`assessment-worker.ts`), so a Postgres transaction and the global lock are held for minutes.
-- **Why it matters:** while any assessment runs for any tenant, every server action (approve, dismiss, connect, invite, mark alert read), every job enqueue/claim, and even first-page-load provisioning in `getWorkspace` (`workspace.ts`) blocks. Multiple workers cannot run in parallel in practice. Long-held transactions also hold back autovacuum. The docs said "serial per project"; reality is serial globally.
-- **Change:** run the scan **outside** the lock. Compute `rawFindings`, `snapshot`, and `runtimeResult` first (pure inputs), then open a short `withDbWrite` that only applies the diff. Once that is done, replace the global key with a per-project named lock (`withNamedPostgresAdvisoryLock` already exists) for project-scoped writes, and keep a per-org key for org writes. The job queue does not need the store lock at all — `claimNextAssessmentJob` can use `UPDATE … WHERE status='queued' … FOR UPDATE SKIP LOCKED` or its own named key.
+- **Wrong:** `enqueueAssessmentJob` and `claimNextAssessmentJob` take `pg_advisory_xact_lock(748_291_063)` (`db-store/write-lock.ts`). Workspace writes no longer use that key, and the worker scans **outside** the persist transaction, but two workers still cannot claim jobs in parallel while another is enqueueing.
+- **Why it matters:** queue throughput stays serial across tenants.
+- **Change:** drop the store lock from the job queue — `claimNextAssessmentJob` can use `UPDATE … WHERE status='queued' … FOR UPDATE SKIP LOCKED` (or its own named key). Use `withNamedPostgresAdvisoryLock` only where a critical section still needs it (rate limits already do).
 
-### 3. "Latest assessment" and scoped re-scans rely on undefined row order
-
-- **Wrong:** `loadScopedRuntime` / `loadFull` (`db-store/postgres-load.ts`) select `assessments`, `findings`, etc. without `ORDER BY`. `runAssessment` picks `previous = [...db.assessments].reverse().find(...)`; `dashboard/page.tsx`, `settings/page.tsx`, and `components/workspace-context.tsx` use `.at(-1)`. Every write upserts every row (new tuple versions), so heap order drifts.
-- **Why it matters:** the wrong "previous" assessment yields wrong `changesSincePrevious`, a scoped AST re-scan against the wrong file set (findings outside the changed set are skipped for resolution), wrong regression attribution, and a dashboard that shows a stale run as current.
-- **Change:** sort by `startedAt` where "latest" is meant (a small `latestAssessmentFor(db, projectId)` helper in `src/core`), or add `ORDER BY` to the loaders. Long-term, item P1-1 removes the need to hold all assessments in memory.
-
-### 4. The Docker image cannot run the worker (and probably does not build)
+### 3. The Docker image cannot run the worker (and probably does not build)
 
 - **Wrong:** `Dockerfile` copies only `packages/check/package.json` into the `deps` and `prod-deps` stages before `npm ci`, never `packages/analysis-core/`. The lockfile lists the `packages/analysis-core` workspace, so `npm ci` either fails the lock consistency check or installs without the workspace and its dependencies (`html-validate`, `linkinator`, `@typescript-eslint/parser`). The `runner` stage copies `src/`, `scripts/`, `drizzle/`, and `node_modules`, but not `packages/`, so `npx tsx scripts/run-assessment-worker.ts` (docker-compose `worker` service) cannot resolve `@complyloop/analysis-core/*`.
 - **Why it matters:** `deploy.md` presents compose as the reference deployment; the worker is "required in production".
 - **Change:** copy `packages/analysis-core/package.json` in the deps stages, run `npm run build:core` in the builder, and copy `packages/analysis-core/{package.json,dist}` into the runner. Add a CI step that builds the image and runs `node -e "import('@complyloop/analysis-core/scan')"` in it.
 
-### 5. The compose `migrate` service uses a redacted password
+### 4. The compose `migrate` service uses a redacted password
 
 - **Wrong:** `docker-compose.yml` L28 sets `DATABASE_URL: postgres://complyloop:***@postgres:5432/complyloop` — a literal `***` (a secret-scrubber artifact). `app` and `worker` use `complyloop:complyloop`. The same `***` is the fallback in `e2e/webhook-helpers.ts` L25.
 - **Why it matters:** `docker compose --profile app up` fails at the migrate step, so the reference deployment in `deploy.md` does not start; `app` never starts because it depends on `migrate` completing.
@@ -42,18 +36,7 @@ Guiding rule for this list: the product spec's MVP is *one complete loop for one
 
 ## P1 — High
 
-### 1. Replace the "load whole tenant slice → mutate arrays → rewrite everything" persistence with row-level operations
-
-- **Wrong:** Domain state is a JSON document store emulated on Postgres. Each write reloads the catalog (163 controls), all orgs/projects/requirements/assessments/findings/remediations/alerts in scope, mutates arrays, then `syncPayloadTable` upserts **every** row and prunes the rest (`db-store/postgres-persist-*.ts`). Reads (`getWorkspace`) load the same slice on every request — across **all** of the viewer's orgs — including every `Assessment.snapshot.fileHashes` (one sha256 per source file, per assessment, never pruned). Indexed columns (`status`, `project_id`) duplicate payload fields and can drift. Two access styles coexist (in-memory `Db` vs direct Drizzle for jobs/tokens/evidence), so there are two ways to answer every question.
-- **Why it matters:** write cost and read cost grow with total history, not with the change. Marking one alert read rewrites all requirements and findings for all the user's projects. The global lock (P0-2) exists only to make this pattern safe. Tests for the highest-risk path (`db-store/**`) are excluded from the coverage gate.
-- **Change (incremental, no big-bang):**
-  1. Move `snapshot` out of the `assessments` payload into its own table/column loaded only by `runAssessment` (immediate win: page loads stop shipping file-hash maps).
-  2. Give `getWorkspace` a *project-scoped* load (active project + org list), not "all projects in all orgs".
-  3. Introduce plain repository functions per aggregate (`updateRemediation`, `insertFinding`, `setRequirementStatus`, …) using Drizzle directly, and migrate actions one at a time off `withWorkspaceWrite`. Keep `runAssessment` pure: return a diff (`findingsToCreate`, `findingsToResolve`, `requirementUpdates`, `evidence`) and apply it in one transaction.
-  4. Delete `syncPayloadTable`, the prune logic, and `postgres-persist-catalog.ts` (catalog changes only on seed/deploy).
-- **Not the goal:** a generic ORM layer or repository interface. Direct Drizzle calls at the edges are the simplest thing that works.
-
-### 2. `lint` / `typecheck` / `test` depend on a stale or missing `dist`
+### 1. `lint` / `typecheck` / `test` depend on a stale or missing `dist`
 
 - **Wrong:** `@complyloop/analysis-core`'s `exports` point at `dist/`, which is gitignored. Only `predev`/`prebuild` build it. On a fresh clone, `npm run typecheck` fails with `TS2307` (verified), and CI's `quality` job runs `lint`/`typecheck`/`test` **before** `build`. Locally, editing `packages/analysis-core/src` and running `npm test` tests the app against the previous build.
 - **Why it matters:** the Definition of Done is not reproducible; a green local test run can be testing old analysis code.
@@ -128,7 +111,6 @@ Guiding rule for this list: the product spec's MVP is *one complete loop for one
 ### 5. Duplicate id/ownership lists
 
 - `requiresHtmlValidatePass` in `contract/requirement-status.ts` re-declares the two ids already in `HTML_VALIDATE_OWNED_CHECK_IDS`; `isHtmlValidateOwnedCheck` is exported and unused. Pass the flag in from the adapter (`assessment-status.ts`) instead of hard-coding ids in the contract.
-- `keepIdsOrNeverMatch` duplicated in `postgres-persist-catalog.ts` and `postgres-persist-runtime.ts` (goes away with P1-1).
 - RequirementStatus → colour maps duplicated in `requirement-status-accent.tsx` and `dashboard-status-counts.tsx`; role → badge classes duplicated in `org-members-card.tsx` and `org-account-overview.tsx`; "passed" tint hard-coded in `preset-navigator.tsx`, `default-preset-form.tsx`, `github-repo-picker.tsx`. One `statusTone()` in `components/badges.tsx`.
 - Custom Playwright probes are wrapped into a synthetic axe violation shape (`custom-checks/index.ts` → `toAxeViolation` → `complyloop-*` ids in `axe-map.ts`) just to reuse the axe mapping. Emit `RawFinding` directly and drop the fake axe layer.
 
@@ -138,8 +120,7 @@ _(cleared)_
 
 ### 7. Cookie-controlled load scope
 
-- **Observation:** `listProjectIdsForTenant` adds the `preferredProjectId` cookie value to the load (and write) scope before any RBAC check; visibility is applied in memory afterwards (`project-visibility.ts`). Not exploitable today because every action re-checks `canOnProject`, but a foreign project's rows are loaded and rewritten on every request that carries a stale cookie.
-- **Change:** resolve the active project from the membership-scoped list only; ignore the cookie if it points outside it. Disappears with P1-1 step 2.
+_(cleared — workspace load is membership-org + active project only; stale project cookies are ignored if the id is not in that list.)_
 
 ### 8. Swallowed errors that hide real failures
 
@@ -149,7 +130,7 @@ _(cleared)_
 
 ### 9. Coverage gate excludes the riskiest code
 
-- `db-store/**`, `actions/remediation-verify.ts`, `pr.ts`, `github.ts`, `webhook-deliveries.ts` are excluded from thresholds although several have unit tests. Add colocated tests for `postgres-load.ts` / `postgres-persist-runtime.ts` against the CI Postgres service (the `constraints.test.ts` harness already exists) and drop the exclusions that have tests. Add tests for `analysis-core/src/scan.ts`, `parse.ts`, `site-level/snapshot.ts`, `heuristic-utils.ts`, and `authorityForCheck` precedence.
+- `db-store/**`, `actions/remediation-verify.ts`, `pr.ts`, `github.ts`, `webhook-deliveries.ts` are excluded from thresholds although several have unit tests (`repo/*`, `constraints.test.ts`). Drop exclusions that have tests. Add tests for `analysis-core/src/scan.ts`, `parse.ts`, `site-level/snapshot.ts`, `heuristic-utils.ts`, and `authorityForCheck` precedence.
 
 ### 10. Small correctness items
 

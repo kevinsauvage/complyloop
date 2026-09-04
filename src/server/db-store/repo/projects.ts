@@ -27,17 +27,6 @@ export async function deleteProject(tx: DrizzleDb, projectId: string): Promise<v
   await tx.delete(projects).where(eq(projects.id, projectId));
 }
 
-export async function listProjectsForOrg(
-  drizzle: DrizzleDb,
-  orgId: string,
-): Promise<Project[]> {
-  const rows = await drizzle
-    .select()
-    .from(projects)
-    .where(eq(projects.orgId, orgId));
-  return rows.map((row) => row.payload);
-}
-
 export async function listProjectsForOrgs(
   drizzle: DrizzleDb,
   orgIds: readonly string[],

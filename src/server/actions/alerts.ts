@@ -25,7 +25,7 @@ export async function markAlertReadAction(
 
     const drizzle = await getDrizzle();
     await drizzle.transaction(async (tx) => {
-      await markAlertRead(tx, { ...alert, read: true });
+      await markAlertRead(tx, alert);
     });
     refresh();
     return "Alert marked as read.";

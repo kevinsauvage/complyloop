@@ -184,7 +184,3 @@ export async function loadProjectAssessmentDb(
     alerts: runtime.alerts,
   };
 }
-
-export function workspaceReadEvidenceLimit(): number {
-  return WORKSPACE_EVIDENCE_LIMIT;
-}

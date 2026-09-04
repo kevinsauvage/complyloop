@@ -6,6 +6,7 @@ import {
 } from "@complyloop/analysis-core/runtime/scan";
 import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
+import { latestAssessmentFor } from "@/core/assessment-latest";
 import { formatLocationRef, isSourceLocation } from "@/core/location";
 import { PublicError } from "@/core/public-error";
 import { advanceRemediation } from "@/core/remediation";
@@ -107,9 +108,7 @@ export async function runAssessment(
   const startedAt = new Date().toISOString();
   clearExpiredExceptions(db, projectId);
 
-  const previous = [...db.assessments]
-    .reverse()
-    .find((assessment) => assessment.projectId === projectId);
+  const previous = latestAssessmentFor(db.assessments, projectId);
   const { snapshot, changes } = detectChanges(rootPath, previous?.snapshot);
   const changeContext = changes.length > 0 ? summarizeChanges(changes) : undefined;
 

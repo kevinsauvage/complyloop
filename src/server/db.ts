@@ -4,14 +4,12 @@ import { newEvidenceRecord } from "./db-store/repo/mappers";
 import {
   loadProjectAssessmentDb,
   loadWorkspaceDb,
-  workspaceReadEvidenceLimit,
 } from "./db-store/workspace-load";
+import { WORKSPACE_EVIDENCE_LIMIT } from "./db-store/postgres-scope";
 import type { Db } from "./db-store/types";
 
 export type { Db } from "./db-store/types";
 export { emptyDb } from "./db-store/types";
-
-export { newEvidenceRecord as createEvidenceRecord };
 
 /** Loads a single project's assessment slice (no snapshots in assessment list). */
 export async function loadProjectDb(projectId: string): Promise<Db> {
@@ -28,7 +26,7 @@ export async function loadWorkspaceDbForViewer(input: {
     userId: input.userId,
     githubLogin: input.githubLogin,
     activeProjectId: input.preferredProjectId ?? null,
-    evidenceLimit: workspaceReadEvidenceLimit(),
+    evidenceLimit: WORKSPACE_EVIDENCE_LIMIT,
   });
 }
 

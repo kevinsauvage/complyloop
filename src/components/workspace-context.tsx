@@ -3,6 +3,7 @@ import { FolderGit2, Layers } from "lucide-react";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
+import { latestAssessmentFor } from "@/core/assessment-latest";
 import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
@@ -33,7 +34,7 @@ export async function WorkspaceContext() {
     await getWorkspace();
   const caps = projectCapabilities(project, access, activeOrgId);
   const latestAssessment = project
-    ? db.assessments.filter((a) => a.projectId === project.id).at(-1)
+    ? latestAssessmentFor(db.assessments, project.id)
     : undefined;
   const coverageStrip = project ? (
     <RuntimeCoverageChip

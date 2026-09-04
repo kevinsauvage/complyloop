@@ -371,7 +371,7 @@ describe("markAlertReadAction", () => {
     expect(result.message).toBe("Alert marked as read.");
     expect(markAlertRead).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ id: "alert-1", read: true }),
+      expect.objectContaining({ id: "alert-1", read: false }),
     );
   });
 

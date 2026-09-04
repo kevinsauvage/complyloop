@@ -22,10 +22,3 @@ export async function upsertRequirements(
       },
     });
 }
-
-export async function upsertRequirement(
-  tx: DrizzleDb,
-  requirement: Requirement,
-): Promise<void> {
-  await upsertRequirements(tx, [requirement]);
-}

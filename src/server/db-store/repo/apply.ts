@@ -101,13 +101,11 @@ export async function persistProjectSliceDiff(
     tx,
     changedEntities(entityMap(before.remediations), after.remediations),
   );
-  const alertChanges = changedEntities(entityMap(before.alerts), after.alerts);
-  if (alertChanges.length > 0) {
-    await insertAlerts(tx, alertChanges);
-  }
-  if (evidence.length > 0) {
-    await insertEvidenceRecords(tx, evidence);
-  }
+  await insertAlerts(
+    tx,
+    changedEntities(entityMap(before.alerts), after.alerts),
+  );
+  await insertEvidenceRecords(tx, evidence);
 }
 
 export function buildAssessmentApplyPayload(input: {

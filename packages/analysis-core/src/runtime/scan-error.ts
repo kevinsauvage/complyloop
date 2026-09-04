@@ -49,13 +49,6 @@ const PATTERNS: RuntimeScanErrorPattern[] = [
     test: (raw) => /Executable doesn't exist/i.test(raw) || /browserType\.launch/i.test(raw),
     message: "Could not start the browser used for preview audits.",
   },
-  {
-    test: (raw) =>
-      /reading 'run'/i.test(raw) &&
-      (/page\.evaluate/i.test(raw) || /axe/i.test(raw)),
-    message:
-      "Runtime audit lost the axe engine on the page (often after viewport emulation). Re-run the assessment.",
-  },
 ];
 
 /** Origin + path only — never query strings (preview tokens) or filesystem paths. */

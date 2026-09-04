@@ -4,7 +4,6 @@ const withProjectWrite = vi.fn();
 const withOrgWrite = vi.fn();
 
 export const actionWorkspaceMocks = {
-  withWorkspaceWrite: withProjectWrite,
   withProjectWrite,
   withOrgWrite,
   getWorkspace: vi.fn(),

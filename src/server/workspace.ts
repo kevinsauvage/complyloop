@@ -11,7 +11,6 @@ import { getDrizzle } from "./db-store/client";
 import {
   persistProjectSliceDiff,
   snapshotProjectSlice,
-  type ProjectSlice,
 } from "./db-store/repo/apply";
 import {
   claimMembershipsForLogin,
@@ -67,7 +66,7 @@ function prepareWorkspaceState(
   githubLogin: string | null,
   preferredOrgId: string | null,
   preferredProjectId: string | null,
-): Omit<Workspace, "db"> & { db: Db } {
+): Workspace {
   const access = accessFromStore(db, userId, githubLogin);
   const organizations = userId ? orgsForUser(db, userId) : [];
   const activeOrgId =
@@ -150,16 +149,6 @@ export const getWorkspace = cache(async (): Promise<Workspace> => {
   );
 });
 
-function projectSliceFromDb(db: Db, projectId: string): ProjectSlice {
-  return snapshotProjectSlice(
-    db.requirements,
-    db.findings,
-    db.remediations,
-    db.alerts,
-    projectId,
-  );
-}
-
 /**
  * Mutates the active project's runtime slice in one transaction.
  * Domain helpers may mutate `workspace.db` in memory; only changed rows persist.
@@ -193,10 +182,22 @@ export async function withProjectWrite<T>(
     }
     const projectId = workspace.project.id;
     const projectBefore = structuredClone(workspace.project);
-    const before = projectSliceFromDb(db, projectId);
+    const before = snapshotProjectSlice(
+      db.requirements,
+      db.findings,
+      db.remediations,
+      db.alerts,
+      projectId,
+    );
     const evidenceStart = db.evidence.length;
     const result = await fn(workspace);
-    const after = projectSliceFromDb(db, projectId);
+    const after = snapshotProjectSlice(
+      db.requirements,
+      db.findings,
+      db.remediations,
+      db.alerts,
+      projectId,
+    );
     const newEvidence = db.evidence.slice(evidenceStart);
     await persistProjectSliceDiff(tx, before, after, newEvidence);
     if (
@@ -267,9 +268,6 @@ export async function withOrgWrite<T>(
     return result;
   });
 }
-
-/** @deprecated Use {@link withProjectWrite} or {@link withOrgWrite}. */
-export const withWorkspaceWrite = withProjectWrite;
 
 export function controlById(db: Db, controlId: string): Control {
   const control = db.controls.find((candidate) => candidate.id === controlId);

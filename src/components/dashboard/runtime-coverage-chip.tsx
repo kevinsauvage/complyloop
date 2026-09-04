@@ -1,9 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import {
-  runtimeCoverageSummary,
-  type RuntimeCoverageSummary,
-} from "@/core/runtime-coverage";
+import { runtimeCoverageSummary } from "@/core/runtime-coverage";
 import type { AssessmentEngines } from "@/core/finding-types";
 import type { Project } from "@/core/project-types";
 import { cn } from "@/lib/utils";
@@ -20,21 +17,6 @@ export function RuntimeCoverageChip({
   className?: string;
 }) {
   const summary = runtimeCoverageSummary(project, engines);
-
-  return (
-    <RuntimeCoverageDisplay summary={summary} compact={compact} className={className} />
-  );
-}
-
-function RuntimeCoverageDisplay({
-  summary,
-  compact = false,
-  className,
-}: {
-  summary: RuntimeCoverageSummary;
-  compact?: boolean;
-  className?: string;
-}) {
   const tint =
     summary.mode === "source_only"
       ? "border-transparent bg-status-unverifiable/15 text-status-unverifiable dark:bg-status-unverifiable/25"
