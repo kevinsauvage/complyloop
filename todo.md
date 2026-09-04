@@ -50,16 +50,6 @@ Ops items. None of these have been exercised on a real staging/prod stack.
 
 ## P1 — Hardening
 
-Cheap now, expensive later.
-
-### 8. Colocate unit tests for custom Playwright checks
-
-- **What:** Add `*.test.ts` next to the ~18 of 25 probes that only exist in `custom-checks-playwright.test.ts` (or not at all).
-- **Why:** Behaviour probes (submit, hover, live regions, forced-colors, reflow) are the high-value layer; regressions are easy to ship without colocated cases. Code-quality rules require colocated tests in the domain/analysis core.
-- **Where:** `packages/analysis-core/src/runtime/custom-checks/`. Already covered: `label-adjacent`, `widget-keyboard`, `reflow` / `reflow-exceptions`, `focus-indicator`, `focus-trap`, `non-text-contrast`.
-
----
-
 ## P2 — Product & analysis follow-ups
 
 ### 9. Cluster → one PR

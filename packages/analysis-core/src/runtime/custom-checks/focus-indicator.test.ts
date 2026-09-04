@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   hasVisibleFocusIndicator,
+  snapshotFocusStyles,
   type FocusStyleSnapshot,
 } from "./focus-indicator";
 
@@ -24,6 +25,42 @@ function snap(overrides: Partial<FocusStyleSnapshot> = {}): FocusStyleSnapshot {
 }
 
 const unfocused = snap();
+
+describe("snapshotFocusStyles", () => {
+  it("copies computed-style fields into a snapshot", () => {
+    expect(
+      snapshotFocusStyles({
+        outlineStyle: "solid",
+        outlineWidth: "2px",
+        outlineColor: "rgb(0, 0, 0)",
+        boxShadow: "none",
+        borderTopWidth: "1px",
+        borderTopColor: "rgb(0, 0, 0)",
+        borderRightWidth: "1px",
+        borderRightColor: "rgb(0, 0, 0)",
+        borderBottomWidth: "1px",
+        borderBottomColor: "rgb(0, 0, 0)",
+        borderLeftWidth: "1px",
+        borderLeftColor: "rgb(0, 0, 0)",
+        backgroundColor: "rgb(255, 255, 255)",
+      }),
+    ).toEqual({
+      outlineStyle: "solid",
+      outlineWidth: "2px",
+      outlineColor: "rgb(0, 0, 0)",
+      boxShadow: "none",
+      borderTopWidth: "1px",
+      borderTopColor: "rgb(0, 0, 0)",
+      borderRightWidth: "1px",
+      borderRightColor: "rgb(0, 0, 0)",
+      borderBottomWidth: "1px",
+      borderBottomColor: "rgb(0, 0, 0)",
+      borderLeftWidth: "1px",
+      borderLeftColor: "rgb(0, 0, 0)",
+      backgroundColor: "rgb(255, 255, 255)",
+    });
+  });
+});
 
 describe("hasVisibleFocusIndicator", () => {
   it("accepts the user-agent auto outline", () => {
@@ -92,6 +129,64 @@ describe("hasVisibleFocusIndicator", () => {
         unfocused,
       ),
     ).toBe(false);
+  });
+
+  it("rejects the transparent keyword as an outline color", () => {
+    expect(
+      hasVisibleFocusIndicator(
+        snap({
+          outlineStyle: "solid",
+          outlineWidth: "2px",
+          outlineColor: "transparent",
+        }),
+        unfocused,
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects outline auto when focused and unfocused styles match", () => {
+    const autoOutline = snap({ outlineStyle: "auto", outlineWidth: "1px" });
+    expect(hasVisibleFocusIndicator(autoOutline, autoOutline)).toBe(false);
+  });
+
+  it("rejects outline none and zero-width outlines", () => {
+    expect(
+      hasVisibleFocusIndicator(
+        snap({ outlineStyle: "none", outlineWidth: "0px" }),
+        unfocused,
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects a border color change with zero border width", () => {
+    expect(
+      hasVisibleFocusIndicator(
+        snap({
+          borderTopColor: "rgb(0, 80, 255)",
+          borderRightColor: "rgb(0, 80, 255)",
+          borderBottomColor: "rgb(0, 80, 255)",
+          borderLeftColor: "rgb(0, 80, 255)",
+        }),
+        unfocused,
+      ),
+    ).toBe(false);
+  });
+
+  it("treats opaque rgb outline colors as visible", () => {
+    expect(
+      hasVisibleFocusIndicator(
+        snap({
+          outlineStyle: "solid",
+          outlineWidth: "2px",
+          outlineColor: "rgb(0, 80, 255)",
+        }),
+        snap({
+          outlineStyle: "none",
+          outlineWidth: "0px",
+          outlineColor: "rgb(0, 0, 0)",
+        }),
+      ),
+    ).toBe(true);
   });
 
   it("rejects a persistent box-shadow that does not change on focus", () => {

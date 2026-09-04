@@ -49,4 +49,9 @@ describe("meetsNonTextContrast", () => {
       false,
     );
   });
+
+  it("returns null when colors cannot be parsed", () => {
+    expect(meetsNonTextContrast("transparent", "rgb(255, 255, 255)")).toBeNull();
+    expect(meetsNonTextContrast("rgb(0, 0, 0)", "currentColor")).toBeNull();
+  });
 });

@@ -40,4 +40,60 @@ describe("hoverContentViolation", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "passes when no trigger reveals extra content",
+    async () => {
+      const { page, close } = await withPlaywrightPage(`
+        <!doctype html><html lang="fr"><body>
+          <button type="button">Help</button>
+        </body></html>
+      `);
+      try {
+        const violation = await hoverContentViolation(page);
+        expect(violation).toBeNull();
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "passes when a title tooltip does not inject extra body text",
+    async () => {
+      const { page, close } = await withPlaywrightPage(`
+        <!doctype html><html lang="fr"><body>
+          <button type="button" title="Short native tooltip">Go</button>
+        </body></html>
+      `);
+      try {
+        const violation = await hoverContentViolation(page);
+        expect(violation).toBeNull();
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "skips hidden triggers",
+    async () => {
+      const { page, close } = await withPlaywrightPage(`
+        <!doctype html><html lang="fr"><body>
+          <button type="button" style="visibility:hidden" title="Hidden trigger">
+            Hidden
+          </button>
+        </body></html>
+      `);
+      try {
+        const violation = await hoverContentViolation(page);
+        expect(violation).toBeNull();
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 });
