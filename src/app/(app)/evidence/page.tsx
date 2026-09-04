@@ -55,7 +55,7 @@ export default async function EvidencePage({
         />
         <EmptyState
           title="No project connected"
-          action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+          action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
         >
           <p>Connect a repository from the dashboard to collect evidence.</p>
         </EmptyState>
@@ -133,7 +133,7 @@ export default async function EvidencePage({
         <EmptyState
           title="No evidence yet"
           action={
-            <PageActionLink href="/">Run an assessment from the dashboard</PageActionLink>
+            <PageActionLink href="/dashboard">Run an assessment from the dashboard</PageActionLink>
           }
         >
           <p>

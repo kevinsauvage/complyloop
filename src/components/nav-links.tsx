@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import type { NavAttentionCounts } from "@/server/nav-attention";
 
 const LINKS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, badgeKey: "unreadAlerts" as const },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, badgeKey: "unreadAlerts" as const },
   { href: "/requirements", label: "Requirements", icon: ListChecks },
   { href: "/findings", label: "Findings", icon: FileSearch, badgeKey: "openFindings" as const },
   { href: "/evidence", label: "Evidence", icon: ScrollText },
@@ -55,8 +55,8 @@ export function NavLinks({
     <ul className="flex flex-col gap-1">
       {LINKS.map((link) => {
         const active =
-          link.href === "/"
-            ? pathname === "/"
+          link.href === "/dashboard"
+            ? pathname === "/dashboard"
             : pathname.startsWith(link.href);
         const Icon = link.icon;
         const badgeKey = "badgeKey" in link ? link.badgeKey : undefined;

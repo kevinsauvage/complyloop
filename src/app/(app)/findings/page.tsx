@@ -56,7 +56,7 @@ export default async function FindingsPage({
         />
         <EmptyState
           title="No project connected"
-          action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+          action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
         >
           <p>Connect a repository from the dashboard to see findings.</p>
         </EmptyState>
@@ -115,7 +115,7 @@ export default async function FindingsPage({
         />
         <EmptyState
           title="No findings yet"
-          action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+          action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
         >
           <p>Run an assessment from the dashboard to detect compliance gaps.</p>
         </EmptyState>

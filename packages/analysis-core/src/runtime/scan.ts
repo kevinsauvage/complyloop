@@ -36,9 +36,11 @@ import {
   type BrowserCondition,
 } from "./theme-conditions.js";
 import {
+  COARSE_POINTER_LABEL,
   MOBILE_TARGET_SIZE_LABEL,
   MOBILE_VIEWPORT,
   TARGET_SIZE_AXE_RULE,
+  emulateCoarsePointer,
 } from "./viewport-conditions.js";
 
 export type RuntimePageScanner = (
@@ -103,6 +105,11 @@ function toAxeViolationLike(
       failureSummary: node.failureSummary,
     })),
   };
+}
+
+async function axeTargetSizeViolations(page: Page): Promise<AxeViolationLike[]> {
+  const axe = await runAxeOnPage(page, { runOnly: [TARGET_SIZE_AXE_RULE] });
+  return axe.violations.filter((v) => v.id === TARGET_SIZE_AXE_RULE);
 }
 
 /**
@@ -241,20 +248,17 @@ function createPlaywrightAxeScanner(options?: {
               },
             ];
 
+          const defaultTargetSize = await axeTargetSizeViolations(page);
+          violations = [...violations, ...defaultTargetSize];
+
           const defaultViewport = page.viewportSize();
           await page.setViewportSize(MOBILE_VIEWPORT);
           try {
-            const mobileAxe = await runAxeOnPage(page, {
-              runOnly: [TARGET_SIZE_AXE_RULE],
-            });
-            const mobileTargetSize = mobileAxe.violations.filter(
-              (v) => v.id === TARGET_SIZE_AXE_RULE,
-            );
             violations = [
               ...violations,
               ...conditionSpecificViolations(
                 violations,
-                mobileTargetSize,
+                await axeTargetSizeViolations(page),
                 MOBILE_TARGET_SIZE_LABEL,
               ),
             ];
@@ -263,6 +267,18 @@ function createPlaywrightAxeScanner(options?: {
               await page.setViewportSize(defaultViewport);
             }
           }
+
+          const coarseTargetSize = await emulateCoarsePointer(page, () =>
+            axeTargetSizeViolations(page),
+          );
+          violations = [
+            ...violations,
+            ...conditionSpecificViolations(
+              violations,
+              coarseTargetSize,
+              COARSE_POINTER_LABEL,
+            ),
+          ];
 
           const ibmFindings = await ibmFindingsForPage(page, url, {
             url,

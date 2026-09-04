@@ -3,16 +3,17 @@
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export function ThemeToggle() {
+export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const { setTheme } = useTheme();
 
   return (
     <Button
       type="button"
       variant="outline"
-      size="sm"
-      className="w-full justify-start gap-2"
+      size={compact ? "icon-sm" : "sm"}
+      className={cn(!compact && "w-full justify-start gap-2")}
       onClick={() => {
         const isDark = document.documentElement.classList.contains("dark");
         setTheme(isDark ? "light" : "dark");
@@ -21,8 +22,12 @@ export function ThemeToggle() {
     >
       <Sun className="size-4 dark:hidden" aria-hidden />
       <Moon className="hidden size-4 dark:block" aria-hidden />
-      <span className="dark:hidden">Light theme</span>
-      <span className="hidden dark:inline">Dark theme</span>
+      {!compact ? (
+        <>
+          <span className="dark:hidden">Light theme</span>
+          <span className="hidden dark:inline">Dark theme</span>
+        </>
+      ) : null}
     </Button>
   );
 }

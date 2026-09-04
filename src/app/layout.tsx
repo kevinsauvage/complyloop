@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { AppShell } from "@/components/app-shell";
-import { AuthControls } from "@/components/auth-controls";
 import { ThemeProvider } from "@/components/theme-provider";
-import { WorkspaceContext } from "@/components/workspace-context";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { navAttentionCounts } from "@/server/nav-attention";
-import { getWorkspace } from "@/server/workspace";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,12 +21,7 @@ export const metadata: Metadata = {
     "From compliance requirement to verified code change and audit evidence.",
 };
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const { db, project } = await getWorkspace();
-  const navAttention = project
-    ? navAttentionCounts(db, project.id)
-    : { openFindings: 0, unreadAlerts: 0 };
-
+export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
@@ -41,13 +31,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full bg-background text-foreground">
         <ThemeProvider>
           <TooltipProvider>
-            <AppShell
-              workspaceContext={<WorkspaceContext />}
-              authControls={<AuthControls />}
-              navAttention={navAttention}
-            >
-              {children}
-            </AppShell>
+            {children}
             <Toaster />
           </TooltipProvider>
         </ThemeProvider>

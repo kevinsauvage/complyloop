@@ -4,7 +4,7 @@ test.describe("compliance core loop", () => {
   test("assess → approve → implement → verify → evidence", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 
     await page.getByRole("button", { name: "Run assessment" }).click();

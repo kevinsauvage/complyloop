@@ -349,6 +349,17 @@ export const rgaaControls: Control[] = [
     complianceWeight: 1.1,
   },
   {
+    id: "ctl-target-size-enhanced",
+    frameworkId: rgaaFramework.id,
+    code: "WCAG 2.5.5",
+    secondaryCode: "WCAG 2.5.5",
+    title: "Pointer targets meet the enhanced 44×44 size",
+    description:
+      "Interactive targets meet the WCAG 2.2 AAA size (44×44 CSS pixels). This does not replace the 24×24 AA minimum.",
+    checkId: "target-size-enhanced",
+    complianceWeight: 1.0,
+  },
+  {
     id: "ctl-meta-viewport",
     frameworkId: rgaaFramework.id,
     code: "RGAA 10.4",
@@ -1051,6 +1062,17 @@ export const rgaaControls: Control[] = [
       "Borders, icons, and focus indicators meet 3:1 contrast against adjacent colors.",
     checkId: "non-text-contrast",
     complianceWeight: 1.4,
+  },
+  {
+    id: "ctl-forced-colors",
+    frameworkId: rgaaFramework.id,
+    code: "RGAA 3.3",
+    secondaryCode: "WCAG 1.4.11",
+    title: "Controls remain visible in forced-colors mode",
+    description:
+      "Interactive controls keep a visible boundary or filled background when forced-colors is active (Windows High Contrast).",
+    checkId: "forced-colors",
+    complianceWeight: 1.3,
   },
   {
     id: "ctl-reflow",

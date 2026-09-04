@@ -90,6 +90,8 @@ describe("check authority", () => {
     expect(keepOpenWhenRuntimeScanSkipped("input-label")).toBe(true);
     expect(keepOpenWhenRuntimeScanSkipped("empty-heading")).toBe(true);
     expect(keepOpenWhenRuntimeScanSkipped("target-size")).toBe(true);
+    expect(keepOpenWhenRuntimeScanSkipped("target-size-enhanced")).toBe(true);
+    expect(keepOpenWhenRuntimeScanSkipped("forced-colors")).toBe(true);
     expect(keepOpenWhenRuntimeScanSkipped("img-alt")).toBe(false);
   });
 

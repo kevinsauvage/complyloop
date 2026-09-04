@@ -104,7 +104,7 @@ export async function forcedColorsViolation(
       impact: "serious",
       description:
         "An interactive control has no visible boundary under forced-colors mode — no text, border, outline, or filled background.",
-      help: "Interactive controls must remain visible under forced-colors (WCAG 1.4.11).",
+      help: "Interactive controls must remain visible under forced-colors / Windows High Contrast.",
       nodes,
     };
   } finally {

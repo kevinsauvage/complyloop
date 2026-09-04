@@ -19,7 +19,7 @@ import {
 
 function BrandMark({ className }: { className?: string }) {
   return (
-    <Link href="/" className={className}>
+    <Link href="/dashboard" className={className}>
       <span className="flex items-center gap-2.5">
         <span className="relative flex size-7 shrink-0 items-center justify-center rounded-lg bg-signal shadow-[0_0_0_1px] shadow-signal/30">
           <span
@@ -121,7 +121,7 @@ export function AppShell({
       </a>
       <div className="flex min-h-screen flex-col md:flex-row">
         <header className="panel-frost sticky top-0 z-40 flex items-center justify-between border-b border-border bg-sidebar/70 px-4 py-3 md:hidden">
-          <Link href="/" className="flex items-center gap-2 text-base font-semibold tracking-tight">
+          <Link href="/dashboard" className="flex items-center gap-2 text-base font-semibold tracking-tight">
             <span className="flex size-6 items-center justify-center rounded-md bg-signal">
               <span className="size-1.5 rounded-sm bg-signal-foreground/95" aria-hidden />
             </span>

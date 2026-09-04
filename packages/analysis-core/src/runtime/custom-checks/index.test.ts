@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => ({
   reducedMotionViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   reflowViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   resizeTextViolation: vi.fn<() => Promise<CustomViolation | null>>(),
+  targetSizeEnhancedViolation: vi.fn<() => Promise<CustomViolation | null>>(),
 }));
 
 vi.mock("./text-spacing-runtime.js", () => ({
@@ -108,6 +109,9 @@ vi.mock("./reflow.js", () => ({
 vi.mock("./resize-text.js", () => ({
   resizeTextViolation: mocks.resizeTextViolation,
 }));
+vi.mock("./target-size-enhanced.js", () => ({
+  targetSizeEnhancedViolation: mocks.targetSizeEnhancedViolation,
+}));
 
 import {
   runCustomRuntimeChecks,
@@ -149,6 +153,7 @@ describe("runCustomRuntimeChecks", () => {
     mocks.reducedMotionViolation.mockResolvedValue(null);
     mocks.reflowViolation.mockResolvedValue(null);
     mocks.resizeTextViolation.mockResolvedValue(null);
+    mocks.targetSizeEnhancedViolation.mockResolvedValue(null);
 
     const results = await runCustomRuntimeChecks(page);
 

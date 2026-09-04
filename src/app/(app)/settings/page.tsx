@@ -29,7 +29,7 @@ export default async function SettingsPage() {
         />
         <EmptyState
           title="No project connected"
-          action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+          action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
         >
           <p>Connect a GitHub repository from the dashboard to manage settings.</p>
         </EmptyState>

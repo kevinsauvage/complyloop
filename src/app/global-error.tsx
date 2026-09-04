@@ -66,7 +66,7 @@ export default function GlobalError({
               Try again
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/">Back to dashboard</Link>
+              <Link href="/dashboard">Back to dashboard</Link>
             </Button>
           </CardContent>
         </Card>

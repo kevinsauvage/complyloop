@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
+  usePathname: () => "/dashboard",
 }));
 
 vi.mock("@/components/nav-links", () => ({

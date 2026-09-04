@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const routes: Array<{ path: string; heading: string | RegExp }> = [
-  { path: "/", heading: "Dashboard" },
+  { path: "/dashboard", heading: "Dashboard" },
   { path: "/requirements", heading: "Requirements" },
   { path: "/findings", heading: "Findings" },
   { path: "/evidence", heading: "Evidence" },
@@ -20,7 +20,7 @@ test.describe("authenticated routes", () => {
   }
 
   test("sidebar navigates between primary sections", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Findings", exact: true }).click();
     await expect(page).toHaveURL(/\/findings/);
     await expect(page.getByRole("heading", { name: "Findings" })).toBeVisible();

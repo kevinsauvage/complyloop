@@ -1,6 +1,18 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("public pages", () => {
+  test("landing page renders hero and primary CTA", async ({ page }) => {
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", {
+        name: /From RGAA requirement to verified code/i,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Get started free" }),
+    ).toBeVisible();
+  });
+
   test("legal terms page", async ({ page }) => {
     await page.goto("/legal/terms");
     await expect(
@@ -15,21 +27,20 @@ test.describe("public pages", () => {
     ).toBeVisible();
   });
 
-  test("unsigned dashboard prompts to connect", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
-    await expect(page.getByText("Connect a project").first()).toBeVisible();
+  test("unsigned user is redirected from dashboard to login", async ({ page }) => {
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/login/);
     await expect(
-      page.getByText(/Connect a repository to get started|Link a GitHub repository/i).first(),
+      page.getByRole("heading", { name: "Sign in to ComplyLoop" }),
     ).toBeVisible();
   });
 
-  test("unsigned organization page requires sign-in", async ({ page }) => {
+  test("unsigned organization page redirects to login", async ({ page }) => {
     await page.goto("/org");
+    await expect(page).toHaveURL(/\/login/);
     await expect(
-      page.getByRole("heading", { name: /Organization account/i }),
+      page.getByRole("heading", { name: "Sign in to ComplyLoop" }),
     ).toBeVisible();
-    await expect(page.getByText(/Sign in required/i)).toBeVisible();
   });
 
   test("health endpoint reports ok", async ({ request }) => {

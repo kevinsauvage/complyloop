@@ -27,6 +27,7 @@ export async function AuthControls() {
   if (!session?.user) {
     return (
       <form action={signInWithGitHubAction} className="px-3">
+        <input type="hidden" name="callbackUrl" value="/dashboard" />
         <Button type="submit" className="w-full">
           Sign in with GitHub
         </Button>

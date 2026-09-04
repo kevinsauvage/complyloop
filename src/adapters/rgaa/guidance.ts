@@ -182,6 +182,12 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Make the clickable area at least 24×24 CSS pixels, or add sufficient spacing from adjacent targets.",
   },
+  "target-size-enhanced": {
+    impact:
+      "Targets between 24×24 and 44×44 CSS pixels pass WCAG AA but remain hard to hit for motor impairments and touch users (WCAG 2.5.5).",
+    howToFix:
+      "Enlarge the clickable area to at least 44×44 CSS pixels. Keep the 24×24 AA minimum as a separate requirement.",
+  },
   "meta-viewport": {
     impact:
       "Users with low vision cannot enlarge the page when the viewport meta disables zoom.",
@@ -535,6 +541,12 @@ const guidance: Record<CheckId, CheckGuidance> = {
       "Low-contrast borders and control chrome are hard to see for low-vision users (WCAG 1.4.11 / RGAA 3.3).",
     howToFix:
       "Raise border, icon, and focus-ring contrast to at least 3:1 against the adjacent background.",
+  },
+  "forced-colors": {
+    impact:
+      "Under Windows High Contrast / forced-colors, decorative borders and backgrounds are stripped, so icon-only controls can disappear.",
+    howToFix:
+      "Give interactive controls real borders, outlines, or filled backgrounds that survive forced-colors: active — do not rely on box-shadow or background images.",
   },
   reflow: {
     impact:

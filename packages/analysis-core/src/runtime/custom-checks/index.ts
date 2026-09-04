@@ -13,6 +13,7 @@ import { mediaKeyboardViolation } from "./media-keyboard.js";
 import { focusCustomViolations } from "./focus.js";
 import { labelAdjacentViolation } from "./label-adjacent.js";
 import { nonTextContrastViolation } from "./non-text-contrast.js";
+import { targetSizeEnhancedViolation } from "./target-size-enhanced.js";
 import { hoverContentViolation } from "./hover-content.js";
 import { liveRegionUpdatesViolation } from "./live-region-updates.js";
 import { formErrorSubmitViolation } from "./form-error-submit.js";
@@ -34,6 +35,7 @@ function toAxeViolation(violation: CustomViolation): AxeViolationLike {
     nodes: violation.nodes.map((node) => ({
       html: node.html,
       target: node.target,
+      ...(node.failureSummary ? { failureSummary: node.failureSummary } : {}),
     })),
   };
 }
@@ -70,7 +72,7 @@ export async function runCustomRuntimeChecks(
   // Form submit, reduced-motion, and forced-colors mutate page state or
   // emulate media; run sequentially so they never race the shared-page batch
   // (each check restores state after). Viewport-mutating checks (reflow,
-  // 200% resize) belong on the same sequential path.
+  // 200% resize, 44×44 target size) belong on the same sequential path.
   for (const emulated of [
     await formErrorSubmitViolation(page),
     await liveRegionUpdatesViolation(page),
@@ -79,6 +81,7 @@ export async function runCustomRuntimeChecks(
     await reducedMotionViolation(page),
     await reflowViolation(page),
     await resizeTextViolation(page),
+    await targetSizeEnhancedViolation(page),
   ]) {
     if (emulated) violations.push(emulated);
   }

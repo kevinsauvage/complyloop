@@ -2,9 +2,9 @@
 
 Backlog from a project audit (**2026-09-04**). Each item answers **what** to do, **why** it matters, and **where** the work lives.
 
-**Where the product is:** the core loop (Requirement → Assessment → Finding → Remediation → Verification → Evidence) is implemented for GitHub + RGAA/WCAG. Analysis engines are well past “axe plus a few AST rules”: 58 custom AST checks, jsx-a11y, axe, html-validate, IBM Equal Access, 25 Playwright probes, theme + mobile target-size condition passes, site-level + linkinator. Catalog: 154 RGAA controls, 128 automated / 26 manual.
+**Where the product is:** the core loop (Requirement → Assessment → Finding → Remediation → Verification → Evidence) is implemented for GitHub + RGAA/WCAG. Analysis engines are well past “axe plus a few AST rules”: 58 custom AST checks, jsx-a11y, axe, html-validate, IBM Equal Access, 26 Playwright probes, theme + target-size condition passes (default / `320×568` / `pointer: coarse`), site-level + linkinator. Catalog: 156 controls, 130 automated / 26 manual.
 
-**Largest remaining constraint:** assessments without a preview URL leave ~86 runtime-only check ids as `unable_to_verify`. That is adoption of `runtimeBaseUrl`, not a missing scanner. See `docs/analysis-checks-challenge.md`.
+**Largest remaining constraint:** assessments without a preview URL leave ~88 runtime-only check ids as `unable_to_verify`. That is adoption of `runtimeBaseUrl`, not a missing scanner. See `docs/analysis-checks-challenge.md`.
 
 ---
 
@@ -12,6 +12,9 @@ Backlog from a project audit (**2026-09-04**). Each item answers **what** to do,
 
 - **Auto-propose at assessment** (old item 12) — `createFinding` already attaches a deterministic suggestion when the AST check emits `fix` (`src/server/assessment-findings.ts`, `buildSuggestion`). Remaining work is **more checks emitting `fix`**, not wiring the pipeline (item 10 below).
 - **Analysis waves** — IBM, linkinator, html-validate, jsx-a11y, widget keyboard, dialog focus, hover content, live-region updates, form-error submit, mobile `target-size` pass, label-adjacent, keyboard trap. Strategy items 2–5 and 8 in `docs/analysis-strategy.md` are largely shipped; do not rebuild them.
+- **Target size follow-ups** (old item 12) — axe `target-size` at default + `320×568` + `pointer: coarse`; separate `target-size-enhanced` 44×44 AAA check.
+- **State-dependent non-text contrast** (old item 13) — hover / selected at 3:1; disabled skipped (WCAG 1.4.11 inactive exception).
+- **Forced-colors mapping** (old item 14) — `complyloop-forced-colors` maps to `forced-colors`, not `non-text-contrast`.
 - **Health probe Sentry flood** (old item 7) — `/api/health` reports `health_database_down` via `reportWarning`, so an uptime probe cannot drown error alerts.
 - **`pruneRateLimitBuckets`** (old item 5) — idle worker ticks call it; prune failures warn and do not stop the worker.
 - **Placeholder `AUTH_SECRET`** (old item 6) — production boot refuses `replace-me` / `e2e-secret-change-me` / the dev-only fallback; compose has no default secret. Playwright `e2e-secret` still allowed.
@@ -69,24 +72,6 @@ Ops items. None of these have been exercised on a real staging/prod stack.
 - **What:** Capture route screenshots across assessments and fail (or `needs_review`) on unexpected visual change — as **regression evidence**, not an AI vision scanner.
 - **Why:** First remaining item in `docs/analysis-strategy.md`. Catches CSS/layout loss (reflow, contrast themes, hidden content) that no rule engine names.
 - **Where:** `packages/analysis-core/src/runtime/` (new condition/pass, not a new scanner product).
-
-### 12. Target size follow-ups (coarse pointer + AAA)
-
-- **What:** Re-run axe `target-size` under `pointer: coarse` (or a coarse-emulating viewport) and add a **separate** 44×44 AAA check — do not replace 24×24 AA.
-- **Why:** Strategy item 7; we already re-run `target-size` at `320×568`. Touch vs mouse and AAA are still untested.
-- **Where:** `packages/analysis-core/src/runtime/viewport-conditions.ts`, `scan.ts`.
-
-### 13. State-dependent non-text contrast
-
-- **What:** Extend `non-text-contrast` (and/or the theme pass) to hover / selected / disabled UI chrome, with the right threshold per state.
-- **Why:** Strategy item 6. Axe covers text; our custom check covers default-state chrome. Interactive states are where 1.4.11 actually fails in product UIs.
-- **Where:** `packages/analysis-core/src/runtime/custom-checks/non-text-contrast.ts`, theme pass in `index.ts`.
-
-### 14. Stop mapping forced-colors onto `non-text-contrast`
-
-- **What:** Give `complyloop-forced-colors` its own check id (or a dedicated control) instead of folding it into 1.4.11.
-- **Why:** Distinct defects look like contrast failures; developers fix the wrong thing. Called out in `docs/analysis-checks-challenge.md`.
-- **Where:** `axe-map.ts` / catalog `checkId`; `forced-colors.ts`.
 
 ---
 

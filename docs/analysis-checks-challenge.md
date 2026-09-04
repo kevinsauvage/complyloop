@@ -10,14 +10,14 @@ How we analyze **today**, what the engine inventory looks like after the latest 
 | ------------------ | -------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Source AST         | `checks/` + `registry.ts`                          | **58** custom checks                                       | React/TSX patterns jsx-a11y cannot see (CAPTCHA cues, pointer gestures, office-doc links, …)      |
 | jsx-a11y           | `jsx-a11y-scan.ts`, `jsx-a11y-map.ts`              | **28** mapped rules                                        | CI source twin; `control-has-associated-label` stays **off** (htmlFor/id false positives)         |
-| axe-core           | `runtime/scan.ts`, `axe-map.ts`                    | **122** mapped rules                                       | Rendered a11y tree baseline; incomplete → `warning` / `needs_review`                              |
+| axe-core           | `runtime/scan.ts`, `axe-map.ts`                    | **123** mapped rules                                       | Rendered a11y tree baseline; incomplete → `warning` / `needs_review`                              |
 | html-validate      | `html-validate-runtime.ts`, `html-validate-map.ts` | **10** rendered rules                                      | Generated DOM structure (RGAA 8.2 / 10.1, idrefs)                                                 |
 | IBM Equal Access   | `ibm-runtime.ts`, `ibm-map.ts`                     | **15** curated rules (~174 engine rules rejected/unmapped) | Second engine on same Playwright page; dedupes vs axe by check id + snippet                       |
-| Playwright custom  | `runtime/custom-checks/`                           | **25** probes                                              | Focus, reflow, widgets, hover content, live regions, form submit, …                               |
+| Playwright custom  | `runtime/custom-checks/`                           | **26** probes                                              | Focus, reflow, widgets, hover content, live regions, form submit, 44×44 target size, …            |
 | Theme pass         | `theme-conditions.ts`                              | 3 conditions                                               | Re-runs theme-sensitive axe + focus/contrast subset under dark / light / `prefers-contrast: more` |
-| Mobile target-size | `viewport-conditions.ts` + `scan.ts`               | 1 condition (`320×568`)                                    | Re-runs axe `target-size`; condition-specific findings like theme pass                            |
+| Target-size conditions | `viewport-conditions.ts` + `scan.ts`           | 3 conditions (default, `320×568`, `pointer: coarse`)       | Re-runs axe `target-size` (24×24); AAA 44×44 is a separate custom check                           |
 
-**Catalog:** 154 RGAA controls — **128** automated (`checkId` set), **26** manual (`checkId: null`, pertinence/quality/flash/AT-compatible media). **128** distinct `CheckId` values in `types.ts`.
+**Catalog:** 156 catalog controls — **130** automated (`checkId` set), **26** manual (`checkId: null`, pertinence/quality/flash/AT-compatible media). **130** distinct `CheckId` values in `types.ts`.
 
 **Merge:** when runtime ran, AST findings drop for composition-sensitive, runtime-only, and package-twin ids (`check-authority.ts`). CI without preview keeps those source findings.
 
@@ -32,7 +32,7 @@ How we analyze **today**, what the engine inventory looks like after the latest 
 | Layer             | What runs                                                   | Verdict                                                                                                   |
 | ----------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Source            | AST + jsx-a11y                                              | Right for CI without preview. Wrong as **verdict** for CSS, focus, generated DOM, widgets.                |
-| axe               | `axe.run(document, { iframes: true })` on disk `axe.min.js` | Right baseline. Target size at default viewport **plus** `320×568` condition pass.                        |
+| axe               | `axe.run(document, { iframes: true })` on disk `axe.min.js` | Right baseline. Target size at default viewport **plus** `320×568` and `pointer: coarse` condition passes. |
 | html-validate     | Serialized generated DOM                                    | Right tool for markup validity and broken idrefs.                                                         |
 | IBM               | `getCompliance(page)` after axe, mapped subset              | Right as **sibling** engine; heuristic ids emit `warning`; check-id dedupe vs axe.                        |
 | Custom Playwright | Tab, viewport emulation, widget interaction                 | Right for behaviour no static engine sees. **forced-colors** uses live `forced-colors: active` emulation. |
@@ -40,7 +40,7 @@ How we analyze **today**, what the engine inventory looks like after the latest 
 | linkinator        | Per-route, same-origin, optional `recurse`, SSRF-guarded    | Same-origin crawl capped by `maxRuntimePages()`; fragment `#id` targets validated from snapshots.         |
 | Theme pass        | Condition-specific re-run                                   | Right idea; subset is intentionally narrow.                                                               |
 
-**Largest product gap:** assessments **without** `runtimeBaseUrl` — **86** runtime-only check ids (including contrast, focus, reflow, broken links, site-level subset) stay `unable_to_verify`. That is a preview-URL adoption problem more than a missing-scanner problem.
+**Largest product gap:** assessments **without** `runtimeBaseUrl` — **88** runtime-only check ids (including contrast, focus, reflow, broken links, site-level subset) stay `unable_to_verify`. That is a preview-URL adoption problem more than a missing-scanner problem.
 
 **Do not add:** Lighthouse, Pa11y, `@axe-core/playwright`, `@html-validate/wcag`, or IBM **and** Alfa together.
 
@@ -59,7 +59,6 @@ How we analyze **today**, what the engine inventory looks like after the latest 
 
 | Observation                | Mapped to           | Effect                                                  |
 | -------------------------- | ------------------- | ------------------------------------------------------- |
-| `complyloop-forced-colors` | `non-text-contrast` | Forced-colors failures look like 1.4.11 contrast        |
 | Many axe image rules       | `img-alt`           | Correct for one finding per defect; dedupe with IBM/AST |
 
 ---
@@ -86,7 +85,8 @@ Rule: if axe, html-validate, jsx-a11y, or IBM already observe the **same fact** 
 | Viewport            | `reflow.ts`, `resize-text.ts`, `reflow-exceptions.ts`                           | 320×568 + 2D exceptions                   |
 | Spacing             | `text-spacing-runtime.ts`                                                       | Inject WCAG 1.4.12 spacing                |
 | Motion / conditions | `reduced-motion.ts`, `forced-colors.ts`, `form-error-submit.ts`                 | Emulation + submit-time validation        |
-| Contrast            | `non-text-contrast.ts`                                                          | 1.4.11 UI chrome (axe = text)             |
+| Contrast            | `non-text-contrast.ts`                                                          | 1.4.11 UI chrome in default / hover / selected (axe = text; disabled skipped) |
+| Target size AAA     | `target-size-enhanced.ts`                                                       | 44×44; axe owns 24×24 AA                                                      |
 | CSS meaning         | `css-disabled-content.ts`, `css-off-understandable.ts`, `css-hover-keyboard.ts` | RGAA 10.2 / 10.3 / hover keyboard         |
 | Media               | `media-keyboard.ts`, `media-identification.ts`                                  | Space on video; nameless canvas/embed     |
 | Tables              | `layout-table-linearization.ts`                                                 | RGAA 5.3 layout tables                    |

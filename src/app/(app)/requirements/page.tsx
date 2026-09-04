@@ -48,7 +48,7 @@ export default async function RequirementsPage({
         />
         <EmptyState
           title="No project connected"
-          action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+          action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
         >
           <p>Connect a repository from the dashboard to manage requirements.</p>
         </EmptyState>
@@ -128,7 +128,7 @@ export default async function RequirementsPage({
           {assessed.length === 0 ? (
             <EmptyState
               title="No requirements assessed yet"
-              action={<PageActionLink href="/">Go to dashboard</PageActionLink>}
+              action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
             >
               <p>
                 Run an assessment from the dashboard to evaluate each in-scope

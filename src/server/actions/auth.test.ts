@@ -15,10 +15,28 @@ afterEach(() => {
 });
 
 describe("auth actions", () => {
-  it("signs in with GitHub and redirects home", async () => {
+  it("signs in with GitHub and redirects to dashboard by default", async () => {
     signIn.mockResolvedValue(undefined);
-    await signInWithGitHubAction();
-    expect(signIn).toHaveBeenCalledWith("github", { redirectTo: "/" });
+    const formData = new FormData();
+    formData.set("callbackUrl", "/dashboard");
+    await signInWithGitHubAction(formData);
+    expect(signIn).toHaveBeenCalledWith("github", { redirectTo: "/dashboard" });
+  });
+
+  it("signs in with a safe callback URL from form data", async () => {
+    signIn.mockResolvedValue(undefined);
+    const formData = new FormData();
+    formData.set("callbackUrl", "/findings");
+    await signInWithGitHubAction(formData);
+    expect(signIn).toHaveBeenCalledWith("github", { redirectTo: "/findings" });
+  });
+
+  it("rejects unsafe callback URLs", async () => {
+    signIn.mockResolvedValue(undefined);
+    const formData = new FormData();
+    formData.set("callbackUrl", "//evil.example");
+    await signInWithGitHubAction(formData);
+    expect(signIn).toHaveBeenCalledWith("github", { redirectTo: "/dashboard" });
   });
 
   it("signs out and redirects home", async () => {

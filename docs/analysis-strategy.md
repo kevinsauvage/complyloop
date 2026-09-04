@@ -59,8 +59,8 @@ In order. Prefer behaviour that a scanner cannot see over another static rule.
 3. **Keyboard and widget completeness** — tab order, Enter/Space/Escape, arrow-key patterns, focus trap/restore/reachability; dialog/menu/tab/accordion open → operate → close → restore.
 4. **Forms end-to-end** — invalid submit → associated errors → focus → correction → success.
 5. **Dynamic announcements** — `aria-live` present is not proof; capture before/after a11y-tree and DOM.
-6. **State-dependent contrast** — hover/selected/disabled, icons, borders, themes; apply the right threshold (text vs non-text vs focus vs decorative). Keep axe as the baseline.
-7. **Target size follow-ups** — `pointer: coarse` vs desktop; 44×44 AAA as a separate check, not a replacement for 24×24.
+6. **State-dependent contrast** — hover/selected/disabled, icons, borders, themes; apply the right threshold (text vs non-text vs focus vs decorative). Keep axe as the baseline. **Shipped** for non-text chrome: hover + selected at 3:1; disabled skipped (1.4.11 inactive exception).
+7. **Target size follow-ups** — `pointer: coarse` vs desktop; 44×44 AAA as a separate check, not a replacement for 24×24. **Shipped:** axe `target-size` at default, `320×568`, and `pointer: coarse`; custom `target-size-enhanced` for 44×44.
 8. **Hover/pointer-only content** — appears, stays usable, dismissible, does not obscure; keyboard equivalent.
 9. **Human verification** — screen reader, keyboard, zoom, caption/content quality. Required stage, not a backlog item to automate away.
 

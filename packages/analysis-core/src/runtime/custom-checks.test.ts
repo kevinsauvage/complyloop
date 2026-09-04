@@ -13,8 +13,8 @@ describe("custom runtime axe mappings", () => {
     expect(checkIdForAxeRule("complyloop-text-spacing-runtime")).toBe(
       "text-spacing-runtime",
     );
-    expect(checkIdForAxeRule("complyloop-non-text-contrast")).toBe(
-      "non-text-contrast",
+    expect(checkIdForAxeRule("complyloop-target-size-enhanced")).toBe(
+      "target-size-enhanced",
     );
     expect(checkIdForAxeRule("complyloop-label-adjacent")).toBe("label-adjacent");
     expect(checkIdForAxeRule("complyloop-css-disabled-content")).toBe(
@@ -60,7 +60,7 @@ describe("custom runtime axe mappings", () => {
       "supplementary-content-keyboard",
     );
     expect(checkIdForAxeRule("complyloop-forced-colors")).toBe(
-      "non-text-contrast",
+      "forced-colors",
     );
     expect(checkIdForAxeRule("complyloop-reduced-motion")).toBe(
       "reduced-motion",

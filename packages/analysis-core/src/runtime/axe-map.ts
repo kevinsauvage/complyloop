@@ -91,6 +91,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "landmark-no-duplicate-contentinfo": "landmark-unique",
   "nested-interactive": "nested-interactive",
   "target-size": "target-size",
+  "complyloop-target-size-enhanced": "target-size-enhanced",
 
   // Structure / zoom / autocomplete (new modeled checks)
   list: "list-structure",
@@ -153,7 +154,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "complyloop-media-identification": "media-identification",
   "complyloop-supplementary-content-keyboard": "supplementary-content-keyboard",
   "complyloop-form-error-submit": "form-error-association",
-  "complyloop-forced-colors": "non-text-contrast",
+  "complyloop-forced-colors": "forced-colors",
   "complyloop-reduced-motion": "reduced-motion",
   "complyloop-dialog-focus": "dialog-keyboard",
   "complyloop-dialog-trap": "keyboard-trap",

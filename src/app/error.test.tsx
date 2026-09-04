@@ -33,7 +33,7 @@ describe("app error and not-found pages", () => {
     );
     expect(
       screen.getByRole("link", { name: "Back to dashboard" }),
-    ).toHaveAttribute("href", "/");
+    ).toHaveAttribute("href", "/dashboard");
 
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(reset).toHaveBeenCalledOnce();
@@ -47,6 +47,6 @@ describe("app error and not-found pages", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Back to dashboard" }),
-    ).toHaveAttribute("href", "/");
+    ).toHaveAttribute("href", "/dashboard");
   });
 });

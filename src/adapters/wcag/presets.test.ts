@@ -10,6 +10,8 @@ describe("WCAG preset tiers", () => {
     expect(aa?.controlIds).not.toContain("ctl-reduced-motion");
     expect(aa?.controlIds).not.toContain("ctl-focus-not-obscured-enhanced");
     expect(aa?.controlIds).not.toContain("ctl-focus-appearance");
+    expect(aa?.controlIds).not.toContain("ctl-target-size-enhanced");
+    expect(aa?.controlIds).toContain("ctl-forced-colors");
   });
 
   it("includes AAA-tier controls in the extra-checks preset", () => {
@@ -17,6 +19,8 @@ describe("WCAG preset tiers", () => {
     expect(extra?.controlIds).toContain("ctl-accessible-auth-enhanced");
     expect(extra?.controlIds).toContain("ctl-color-contrast-enhanced");
     expect(extra?.controlIds).toContain("ctl-reduced-motion");
+    expect(extra?.controlIds).toContain("ctl-target-size-enhanced");
+    expect(extra?.controlIds).toContain("ctl-forced-colors");
   });
 
   it("includes new AA gap checks in the AA preset", () => {

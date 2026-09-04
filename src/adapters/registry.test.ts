@@ -31,7 +31,9 @@ describe("framework adapter registry", () => {
     expect(rgaaFull!.every((id) => wcagFull!.includes(id))).toBe(true);
     expect(rgaaFull).not.toEqual(wcagFull);
     expect(rgaaFull).not.toContain("ctl-focus-appearance");
+    expect(rgaaFull).not.toContain("ctl-target-size-enhanced");
     expect(wcagFull).toContain("ctl-focus-appearance");
+    expect(wcagFull).toContain("ctl-target-size-enhanced");
     expect(allFrameworkPresets().map((preset) => preset.id)).toEqual([
       "preset-rgaa-full",
       "preset-wcag-full",
