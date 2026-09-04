@@ -14,7 +14,6 @@ import {
   UNSAFE_RUNTIME_PORT_MESSAGE,
   UNSAFE_RUNTIME_URL_MESSAGE,
   allowRuntimeNavigation,
-  assertSafeRuntimeBaseUrl,
   assertSafeRuntimeUrl,
   createRedirectHopGuard,
   TOO_MANY_REDIRECTS_MESSAGE,
@@ -38,14 +37,16 @@ const loopbackLookup: DnsLookup = async () => [
   { address: "127.0.0.1", family: 4 },
 ];
 
-describe("assertSafeRuntimeBaseUrl", () => {
-  it("accepts public https origins", () => {
-    expect(assertSafeRuntimeBaseUrl("https://preview.example.com/app")).toBe(
-      "https://preview.example.com",
-    );
+describe("assertSafeRuntimeUrl", () => {
+  it("accepts public domains that resolve to public IPs", async () => {
+    await expect(
+      assertSafeRuntimeUrl("https://preview.example.com/app", {
+        lookup: publicLookup,
+      }),
+    ).resolves.toBe("https://preview.example.com/app");
   });
 
-  it("rejects localhost, private, metadata, and reserved hostnames", () => {
+  it("rejects localhost, private, metadata, and reserved hostnames", async () => {
     const blocked = [
       "http://localhost:3000",
       "http://app.localhost",
@@ -67,62 +68,65 @@ describe("assertSafeRuntimeBaseUrl", () => {
       "http://[::ffff:10.1.2.3]",
     ];
     for (const url of blocked) {
-      expect(() => assertSafeRuntimeBaseUrl(url), url).toThrow(
-        UNSAFE_RUNTIME_URL_MESSAGE,
-      );
+      await expect(
+        assertSafeRuntimeUrl(url, { lookup: publicLookup }),
+        url,
+      ).rejects.toThrow(UNSAFE_RUNTIME_URL_MESSAGE);
     }
   });
 
-  it("allows public IPv4 and IPv6 literals", () => {
-    expect(assertSafeRuntimeBaseUrl("http://93.184.216.34")).toBe(
-      "http://93.184.216.34",
-    );
-    expect(
-      assertSafeRuntimeBaseUrl("http://[2606:2800:220:1:248:1893:25c8:1946]"),
-    ).toBe("http://[2606:2800:220:1:248:1893:25c8:1946]");
-  });
-
-  it("rejects credentials and non-http schemes", () => {
-    expect(() =>
-      assertSafeRuntimeBaseUrl("https://user:pass@example.com"),
-    ).toThrow(/credentials/);
-    expect(() => assertSafeRuntimeBaseUrl("ftp://example.com")).toThrow(
-      /http or https/,
-    );
-  });
-
-  it("rejects unparseable URLs", () => {
-    expect(() => assertSafeRuntimeBaseUrl("not a url")).toThrow(
-      /valid http\(s\) preview URL/,
-    );
-  });
-
-  it("rejects non-standard ports", () => {
-    expect(() =>
-      assertSafeRuntimeBaseUrl("https://preview.example.com:8443"),
-    ).toThrow(UNSAFE_RUNTIME_PORT_MESSAGE);
-    expect(() =>
-      assertSafeRuntimeBaseUrl("http://preview.example.com:3000"),
-    ).toThrow(UNSAFE_RUNTIME_PORT_MESSAGE);
-  });
-
-  it("allows default and standard ports", () => {
-    expect(assertSafeRuntimeBaseUrl("https://preview.example.com:443")).toBe(
-      "https://preview.example.com",
-    );
-    expect(assertSafeRuntimeBaseUrl("http://preview.example.com:80")).toBe(
-      "http://preview.example.com",
-    );
-  });
-});
-
-describe("assertSafeRuntimeUrl", () => {
-  it("accepts public domains that resolve to public IPs", async () => {
+  it("allows public IPv4 and IPv6 literals", async () => {
     await expect(
-      assertSafeRuntimeUrl("https://preview.example.com/app", {
+      assertSafeRuntimeUrl("http://93.184.216.34", { lookup: publicLookup }),
+    ).resolves.toBe("http://93.184.216.34/");
+    await expect(
+      assertSafeRuntimeUrl("http://[2606:2800:220:1:248:1893:25c8:1946]", {
+        lookup: publicLookup,
+      }),
+    ).resolves.toBe("http://[2606:2800:220:1:248:1893:25c8:1946]/");
+  });
+
+  it("rejects credentials and non-http schemes", async () => {
+    await expect(
+      assertSafeRuntimeUrl("https://user:pass@example.com", {
+        lookup: publicLookup,
+      }),
+    ).rejects.toThrow(/credentials/);
+    await expect(
+      assertSafeRuntimeUrl("ftp://example.com", { lookup: publicLookup }),
+    ).rejects.toThrow(/http or https/);
+  });
+
+  it("rejects unparseable URLs", async () => {
+    await expect(
+      assertSafeRuntimeUrl("not a url", { lookup: publicLookup }),
+    ).rejects.toThrow(/valid http\(s\) preview URL/);
+  });
+
+  it("rejects non-standard ports", async () => {
+    await expect(
+      assertSafeRuntimeUrl("https://preview.example.com:8443", {
+        lookup: publicLookup,
+      }),
+    ).rejects.toThrow(UNSAFE_RUNTIME_PORT_MESSAGE);
+    await expect(
+      assertSafeRuntimeUrl("http://preview.example.com:3000", {
+        lookup: publicLookup,
+      }),
+    ).rejects.toThrow(UNSAFE_RUNTIME_PORT_MESSAGE);
+  });
+
+  it("allows default and standard ports", async () => {
+    await expect(
+      assertSafeRuntimeUrl("https://preview.example.com:443/app", {
         lookup: publicLookup,
       }),
     ).resolves.toBe("https://preview.example.com/app");
+    await expect(
+      assertSafeRuntimeUrl("http://preview.example.com:80/app", {
+        lookup: publicLookup,
+      }),
+    ).resolves.toBe("http://preview.example.com/app");
   });
 
   it("rejects hostnames that resolve to private, metadata, or loopback IPs", async () => {

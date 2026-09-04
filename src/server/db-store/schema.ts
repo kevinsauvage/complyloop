@@ -235,11 +235,6 @@ export const evidence = pgTable(
   ],
 );
 
-export const appMeta = pgTable("app_meta", {
-  key: text("key").primaryKey(),
-  value: jsonb("value").notNull(),
-});
-
 /** Encrypted GitHub OAuth tokens (AES-256-GCM fields; plaintext never stored). */
 export const githubTokens = pgTable("github_tokens", {
   userId: text("user_id").primaryKey(),

@@ -115,7 +115,3 @@ export function dedupeRuntimeFindings(
 
   return deduped;
 }
-
-export function normalizeDomSnippet(snippet: string): string {
-  return normalizeSnippet(snippet);
-}

@@ -165,13 +165,8 @@ CREATE TRIGGER evidence_no_delete
   EXECUTE PROCEDURE complyloop_reject_evidence_mutation();
 
 -- ---------------------------------------------------------------------------
--- App meta + integrations
+-- Integrations
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS "app_meta" (
-  "key" text PRIMARY KEY NOT NULL,
-  "value" jsonb NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS "github_tokens" (
   "user_id" text PRIMARY KEY NOT NULL,
   "v" integer NOT NULL,

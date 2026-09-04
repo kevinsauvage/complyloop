@@ -75,14 +75,6 @@ function assertAllowedPort(parsed: URL): void {
   }
 }
 
-/** Sync check for form saves: scheme, credentials, port, and literal private hosts. */
-export function assertSafeRuntimeBaseUrl(raw: string): string {
-  const parsed = parseHttpUrl(raw);
-  assertPublicHostname(parsed.hostname);
-  assertAllowedPort(parsed);
-  return `${parsed.protocol}//${parsed.host}`;
-}
-
 /**
  * Full SSRF check before Playwright navigation (and each redirect hop).
  * Injectable `lookup` is for tests; production uses Node DNS.

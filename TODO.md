@@ -134,13 +134,7 @@ Guiding rule for this list: the product spec's MVP is *one complete loop for one
 
 ### 6. Dead code
 
-- `assertSafeRuntimeBaseUrl` (`runtime/url-safety.ts`) — tests only; the app uses `assertSafeRuntimeUrl`.
-- `normalizeDomSnippet` (`runtime/dedupe-runtime-findings.ts`) — unused.
-- `hasProcessedWebhookDelivery` (`webhook-deliveries.ts`) — tests only.
-- `appMeta` table (`schema.ts`, migration) — never read or written by product code.
-- `DEFAULT_CONNECT_PRESET_ID`, `allFrameworks`, `allControls` exports — tests only.
-- `.gitignore` still references IBM Equal Access output (`/results`), removed in `69958f9`. It also ignores only the root `/node_modules`, so `packages/analysis-core/node_modules/.vite/vitest/**/results.json` is **committed**; change to `node_modules/` and `git rm --cached` the tracked file.
-- `drizzle.config.ts` falls back to `localhost:5432` while compose exposes `5433`; drop the fallback and require `DATABASE_URL` (as everything else does).
+_(cleared)_
 
 ### 7. Cookie-controlled load scope
 

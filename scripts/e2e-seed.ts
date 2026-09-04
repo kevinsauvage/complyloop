@@ -42,7 +42,6 @@ async function truncateAll(connectionString: string): Promise<void> {
         organizations,
         controls,
         frameworks,
-        app_meta,
         github_tokens,
         webhook_deliveries
       RESTART IDENTITY CASCADE;

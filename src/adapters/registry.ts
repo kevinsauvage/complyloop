@@ -8,7 +8,7 @@ import type { Control, Framework } from "@/core/project-types";
 import type { PresetCatalog } from "@/core/project-preset";
 import type { CheckGuidance, FrameworkAdapter, FrameworkPreset } from "./types";
 
-export const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";
+const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";
 
 /** Adapter-backed PresetCatalog for core helpers — pass this into them. */
 export const presetCatalog: PresetCatalog = {
@@ -34,20 +34,6 @@ const frameworkAdapters: readonly FrameworkAdapter[] = [
     presets: wcagPresets,
   },
 ];
-
-export function allFrameworks(): Framework[] {
-  return frameworkAdapters.map((adapter) => adapter.framework);
-}
-
-export function allControls(): Control[] {
-  const byId = new Map<string, Control>();
-  for (const adapter of frameworkAdapters) {
-    for (const control of adapter.controls) {
-      if (!byId.has(control.id)) byId.set(control.id, control);
-    }
-  }
-  return [...byId.values()];
-}
 
 export function allFrameworkPresets(): FrameworkPreset[] {
   return frameworkAdapters.flatMap((adapter) => [...(adapter.presets ?? [])]);

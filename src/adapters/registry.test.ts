@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  allControls,
   allFrameworkPresets,
-  allFrameworks,
   defaultConnectPreset,
   mergeAdapterControls,
   presetById,
@@ -10,16 +8,17 @@ import {
 
 describe("framework adapter registry", () => {
   it("registers the RGAA and WCAG adapters against one unique control catalog", () => {
-    const frameworkIds = allFrameworks().map((f) => f.id);
+    const { frameworks, controls } = mergeAdapterControls([], []);
+    const frameworkIds = frameworks.map((f) => f.id);
     expect(frameworkIds).toContain("fw-rgaa-4");
     expect(frameworkIds).toContain("fw-wcag-2-1");
-    const controlIds = allControls().map((control) => control.id);
+    const controlIds = controls.map((control) => control.id);
     expect(new Set(controlIds).size).toBe(controlIds.length);
     expect(controlIds).toContain("ctl-img-alt");
     expect(controlIds).toContain("ctl-video-caption");
     expect(controlIds).toContain("ctl-optgroup");
     expect(controlIds).toContain("ctl-img-alt-relevant");
-    const automated = allControls().filter((control) => control.checkId !== null);
+    const automated = controls.filter((control) => control.checkId !== null);
     const checkIds = automated.map((control) => control.checkId);
     expect(new Set(checkIds).size).toBe(checkIds.length);
     // RGAA Full is the RGAA-coded subset of the shared catalog; WCAG-only
@@ -70,8 +69,9 @@ describe("framework adapter registry", () => {
   });
 
   it("returns a no-op merge when frameworks and controls are already registered unchanged", () => {
-    const existing = allControls().filter((c) => c.id === "ctl-img-alt");
-    const first = mergeAdapterControls(allFrameworks(), existing);
+    const { frameworks, controls } = mergeAdapterControls([], []);
+    const existing = controls.filter((c) => c.id === "ctl-img-alt");
+    const first = mergeAdapterControls(frameworks, existing);
     const second = mergeAdapterControls(first.frameworks, first.controls);
     // The second merge adds nothing new.
     expect(second.controls).toHaveLength(first.controls.length);
@@ -79,11 +79,12 @@ describe("framework adapter registry", () => {
   });
 
   it("marks a merge changed when a control's compliance weight is updated", () => {
-    const existing = allControls().filter((c) => c.id === "ctl-img-alt");
+    const { frameworks, controls } = mergeAdapterControls([], []);
+    const existing = controls.filter((c) => c.id === "ctl-img-alt");
     // Adapter ctl-img-alt ships a weight (1.4); a differing authored weight is
     // overwritten by the adapter's canonical value and flagged as changed.
     const withWeight = existing.map((c) => ({ ...c, complianceWeight: 5 }));
-    const merged = mergeAdapterControls(allFrameworks(), withWeight);
+    const merged = mergeAdapterControls(frameworks, withWeight);
     const mergedControl = merged.controls.find((c) => c.id === "ctl-img-alt");
     expect(mergedControl?.complianceWeight).toBe(1.4);
     expect(merged.changed).toBe(true);

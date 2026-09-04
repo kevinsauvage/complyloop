@@ -1,4 +1,4 @@
-import { asc, count, eq, inArray } from "drizzle-orm";
+import { asc, count, inArray } from "drizzle-orm";
 import { getDrizzle } from "./db-store/client";
 import { webhookDeliveries } from "./db-store/schema";
 
@@ -50,18 +50,4 @@ export async function claimWebhookDelivery(
   if (inserted.length === 0) return false;
   await prunePostgres();
   return true;
-}
-
-/** Returns true when this GitHub delivery id was already claimed. */
-export async function hasProcessedWebhookDelivery(
-  deliveryId: string,
-): Promise<boolean> {
-  if (!deliveryId) return false;
-  const drizzle = await getDrizzle();
-  const rows = await drizzle
-    .select({ deliveryId: webhookDeliveries.deliveryId })
-    .from(webhookDeliveries)
-    .where(eq(webhookDeliveries.deliveryId, deliveryId))
-    .limit(1);
-  return rows.length > 0;
 }
