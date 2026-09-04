@@ -2,8 +2,8 @@ import type { AssessmentEngine, Finding } from "@complyloop/analysis-core/contra
 import type { Control } from "./project-types";
 import { formatLocationRef, locationPathOrUrl } from "./location";
 import { parsePageParam } from "./pagination";
+import { parseEnumParam, firstParam } from "./query-param";
 import { prioritizeFindings } from "./prioritization";
-import { firstParam } from "./query-param";
 import { severityRank } from "./labels";
 import {
   REMEDIATION_STATUSES,
@@ -39,66 +39,31 @@ export interface FindingListParams {
   page: number;
 }
 
-function parseFindingsTab(
-  raw: string | undefined,
-): FindingsTab | undefined {
-  if (!raw) return undefined;
-  for (const tab of FINDINGS_TABS) {
-    if (tab === raw) return tab;
-  }
-  return undefined;
-}
+/** Filter params that are preserved on pagination links (excludes `tab` and `page`). */
+export type FindingListFilters = Pick<
+  FindingListParams,
+  "q" | "severity" | "engine" | "remediation" | "control" | "cluster"
+>;
 
-function parseSeverityParam(
-  raw: string | string[] | undefined,
-): Severity | undefined {
-  const value = firstParam(raw);
-  if (!value) return undefined;
-  for (const severity of SEVERITIES) {
-    if (severity === value) return severity;
-  }
-  return undefined;
-}
-
-function parseEngineParam(
-  raw: string | string[] | undefined,
-): AssessmentEngine | undefined {
-  const value = firstParam(raw);
-  if (value === "ast" || value === "runtime") return value;
-  return undefined;
-}
-
-function parseRemediationParam(
-  raw: string | string[] | undefined,
-): RemediationStatus | undefined {
-  const value = firstParam(raw);
-  if (!value) return undefined;
-  for (const status of REMEDIATION_STATUSES) {
-    if (status === value) return status;
-  }
-  return undefined;
-}
+const ENGINE_VALUES = ["ast", "runtime"] as const;
 
 export function parseFindingListParams(
   raw: Record<string, string | string[] | undefined>,
 ): FindingListParams {
   return {
     q: firstParam(raw.q)?.trim() || undefined,
-    severity: parseSeverityParam(raw.severity),
-    engine: parseEngineParam(raw.engine),
-    remediation: parseRemediationParam(raw.remediation),
+    severity: parseEnumParam(raw.severity, SEVERITIES) as Severity | undefined,
+    engine: parseEnumParam(raw.engine, ENGINE_VALUES) as AssessmentEngine | undefined,
+    remediation: parseEnumParam(raw.remediation, REMEDIATION_STATUSES) as RemediationStatus | undefined,
     control: firstParam(raw.control) || undefined,
     cluster: firstParam(raw.cluster) || undefined,
-    tab: parseFindingsTab(firstParam(raw.tab)) ?? "open",
+    tab: (parseEnumParam(firstParam(raw.tab), FINDINGS_TABS) as FindingsTab | undefined) ?? "open",
     page: parsePageParam(raw.page),
   };
 }
 
 export function hasActiveFindingFilters(
-  params: Pick<
-    FindingListParams,
-    "q" | "severity" | "engine" | "remediation" | "control" | "cluster"
-  >,
+  params: FindingListFilters,
 ): boolean {
   return Boolean(
     params.q ||
@@ -157,10 +122,7 @@ export interface FilterFindingsContext {
 
 export function filterFindings(
   findings: ReadonlyArray<Finding>,
-  params: Pick<
-    FindingListParams,
-    "q" | "severity" | "engine" | "remediation" | "control" | "cluster"
-  >,
+  params: FindingListFilters,
   context: FilterFindingsContext,
 ): Finding[] {
   let result = [...findings];
@@ -219,10 +181,7 @@ export function filterFindings(
 export function orderFindingsForList(
   findings: readonly Finding[],
   status: FindingStatus,
-  params: Pick<
-    FindingListParams,
-    "q" | "severity" | "engine" | "remediation" | "control" | "cluster"
-  >,
+  params: FindingListFilters,
   context: FilterFindingsContext,
 ): Finding[] {
   const filtered = filterFindings(

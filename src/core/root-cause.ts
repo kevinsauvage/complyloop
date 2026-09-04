@@ -29,6 +29,40 @@ function isSourceFinding(
   return isSourceLocation(finding.location);
 }
 
+function clusterLabel(
+  kind: "file" | "dir" | "component" | "url",
+  count: number,
+  controlTitle: string,
+  location: string,
+): string {
+  if (kind === "component") {
+    return `${count} ${controlTitle} findings share component \`${location}\``;
+  }
+  if (kind === "url") {
+    return `${count} ${controlTitle} findings on \`${location}\``;
+  }
+  return `${count} ${controlTitle} findings share \`${location}\``;
+}
+
+function pushCluster(
+  clusters: FindingCluster[],
+  checkId: string,
+  controlTitle: string,
+  kind: "file" | "dir" | "component" | "url",
+  members: Finding[],
+  sharedLocation: string,
+): void {
+  if (members.length < 2) return;
+  clusters.push({
+    id: `${checkId}:${kind}:${sharedLocation}`,
+    label: clusterLabel(kind, members.length, controlTitle, sharedLocation),
+    checkId,
+    sharedLocation,
+    findingIds: members.map((finding) => finding.id),
+    controlIds: [...new Set(members.map((finding) => finding.controlId))],
+  });
+}
+
 /**
  * Clusters open findings that share a check and a common location signal
  * (same file, shared component name, or same directory with 2+ findings). Spec §17.
@@ -52,7 +86,8 @@ export function clusterFindings(
     if (group.length < 2) continue;
 
     const controlTitle =
-      controls.find((control) => control.checkId === checkId)?.title ?? checkId;
+      controls.find((control) => control.checkId === checkId)?.title ??
+      checkId;
 
     const sourceGroup = group.filter(isSourceFinding);
     const domGroup = group.filter(
@@ -86,61 +121,29 @@ export function clusterFindings(
     }
 
     for (const [file, members] of byFile) {
-      if (members.length < 2) continue;
-      clusters.push({
-        id: `${checkId}:file:${file}`,
-        label: `${members.length} ${controlTitle} findings share \`${file}\``,
-        checkId,
-        sharedLocation: file,
-        findingIds: members.map((finding) => finding.id),
-        controlIds: [...new Set(members.map((finding) => finding.controlId))],
-      });
+      pushCluster(clusters, checkId, controlTitle, "file", members, file);
     }
 
     for (const [component, members] of byComponent) {
-      if (members.length < 2) continue;
       const distinctPaths = new Set(
         members.filter(isSourceFinding).map((finding) => finding.location.filePath),
       );
       if (distinctPaths.size < 2) continue;
-      clusters.push({
-        id: `${checkId}:component:${component}`,
-        label: `${members.length} ${controlTitle} findings share component \`${component}\``,
-        checkId,
-        sharedLocation: component,
-        findingIds: members.map((finding) => finding.id),
-        controlIds: [...new Set(members.map((finding) => finding.controlId))],
-      });
+      pushCluster(clusters, checkId, controlTitle, "component", members, component);
     }
 
     for (const [dir, members] of byDir) {
-      if (members.length < 2) continue;
       const fileKeys = new Set(
         members.filter(isSourceFinding).map((finding) =>
           fileNameOf(finding.location.filePath),
         ),
       );
       if (fileKeys.size === 1) continue;
-      clusters.push({
-        id: `${checkId}:dir:${dir}`,
-        label: `${members.length} ${controlTitle} findings share \`${dir}\``,
-        checkId,
-        sharedLocation: dir,
-        findingIds: members.map((finding) => finding.id),
-        controlIds: [...new Set(members.map((finding) => finding.controlId))],
-      });
+      pushCluster(clusters, checkId, controlTitle, "dir", members, dir);
     }
 
     for (const [url, members] of byUrl) {
-      if (members.length < 2) continue;
-      clusters.push({
-        id: `${checkId}:url:${url}`,
-        label: `${members.length} ${controlTitle} findings on \`${url}\``,
-        checkId,
-        sharedLocation: url,
-        findingIds: members.map((finding) => finding.id),
-        controlIds: [...new Set(members.map((finding) => finding.controlId))],
-      });
+      pushCluster(clusters, checkId, controlTitle, "url", members, url);
     }
   }
 

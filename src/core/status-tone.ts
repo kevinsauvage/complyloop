@@ -1,6 +1,6 @@
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { OrgRole } from "./project-types";
-import { assertExhaustive } from "./assert-exhaustive";
+import { lookupExhaustive } from "./assert-exhaustive";
 
 export type StatusTone =
   | "passed"
@@ -11,7 +11,11 @@ export type StatusTone =
   | "signal";
 
 export function statusTone(status: RequirementStatus): Exclude<StatusTone, "signal"> {
-  return STATUS_TONE[status] ?? assertExhaustive(status, "requirement status");
+  return lookupExhaustive(
+    STATUS_TONE,
+    status,
+    "requirement status",
+  );
 }
 
 const STATUS_TONE: Record<RequirementStatus, Exclude<StatusTone, "signal">> = {
@@ -23,7 +27,7 @@ const STATUS_TONE: Record<RequirementStatus, Exclude<StatusTone, "signal">> = {
 };
 
 export function roleTone(role: OrgRole): StatusTone {
-  return ROLE_TONE[role] ?? assertExhaustive(role, "org role");
+  return lookupExhaustive(ROLE_TONE, role, "org role");
 }
 
 const ROLE_TONE: Record<OrgRole, StatusTone> = {

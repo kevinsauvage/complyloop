@@ -1,45 +1,39 @@
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
+import { lookupExhaustive } from "./assert-exhaustive";
 import { STATUS_TONE_BADGE } from "./status-tone";
 
 export type EvidenceTone = "default" | "pass" | "fail" | "review" | "signal";
 
+const EVIDENCE_TONE: Record<EvidenceKind, EvidenceTone> = {
+  project_connected: "default",
+  project_disconnected: "default",
+  project_reset: "default",
+  assessment_completed: "pass",
+  assessment_job_queued: "signal",
+  assessment_job_completed: "pass",
+  assessment_job_failed: "fail",
+  finding_detected: "fail",
+  finding_resolved: "pass",
+  finding_dismissed: "review",
+  remediation_approved: "signal",
+  remediation_implemented: "signal",
+  remediation_verified: "pass",
+  remediation_manually_verified: "pass",
+  ai_remediation_suggested: "signal",
+  ai_patch_ready: "pass",
+  requirement_status_changed: "review",
+  requirement_exception_set: "review",
+  requirement_exception_cleared: "default",
+  requirement_human_passed: "pass",
+  requirement_human_pass_cleared: "default",
+  requirements_imported: "default",
+  pull_request_prepared: "signal",
+  monitoring_changes_detected: "fail",
+  webhook_reassessment: "signal",
+};
+
 export function evidenceTone(kind: EvidenceKind): EvidenceTone {
-  switch (kind) {
-    case "finding_resolved":
-    case "remediation_verified":
-    case "remediation_manually_verified":
-    case "assessment_completed":
-    case "assessment_job_completed":
-    case "requirement_human_passed":
-    case "ai_patch_ready":
-      return "pass";
-    case "finding_detected":
-    case "assessment_job_failed":
-    case "monitoring_changes_detected":
-      return "fail";
-    case "finding_dismissed":
-    case "requirement_exception_set":
-    case "requirement_status_changed":
-      return "review";
-    case "remediation_approved":
-    case "remediation_implemented":
-    case "ai_remediation_suggested":
-    case "pull_request_prepared":
-    case "assessment_job_queued":
-    case "webhook_reassessment":
-      return "signal";
-    case "project_connected":
-    case "project_disconnected":
-    case "project_reset":
-    case "requirement_exception_cleared":
-    case "requirement_human_pass_cleared":
-    case "requirements_imported":
-      return "default";
-    default: {
-      const _exhaustive: never = kind;
-      throw new Error(`Unhandled evidence kind: ${_exhaustive}`);
-    }
-  }
+  return lookupExhaustive(EVIDENCE_TONE, kind, "evidence kind");
 }
 
 export const EVIDENCE_TONE_DOT: Record<EvidenceTone, string> = {

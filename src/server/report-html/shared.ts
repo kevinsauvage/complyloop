@@ -1,5 +1,5 @@
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import { assertExhaustive } from "@/core/assert-exhaustive";
+import { lookupExhaustive } from "@/core/assert-exhaustive";
 import { formatDateTime } from "@/core/format-datetime";
 import type { ReportInput } from "../report";
 
@@ -12,7 +12,7 @@ export function escapeHtml(text: string): string {
 }
 
 export function statusClass(status: RequirementStatus): string {
-  return STATUS_CLASS[status] ?? assertExhaustive(status, "requirement status");
+  return lookupExhaustive(STATUS_CLASS, status, "requirement status");
 }
 
 const STATUS_CLASS: Record<RequirementStatus, string> = {

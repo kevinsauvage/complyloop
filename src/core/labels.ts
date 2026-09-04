@@ -5,10 +5,10 @@ import type {
   RequirementStatus,
   Severity,
 } from "@complyloop/analysis-core/contract/statuses";
-import { assertExhaustive } from "./assert-exhaustive";
+import { lookupExhaustive } from "./assert-exhaustive";
 
 export function requirementStatusLabel(status: RequirementStatus): string {
-  return REQUIREMENT_STATUS_LABEL[status] ?? assertExhaustive(status, "requirement status");
+  return lookupExhaustive(REQUIREMENT_STATUS_LABEL, status, "requirement status");
 }
 
 const REQUIREMENT_STATUS_LABEL: Record<RequirementStatus, string> = {
@@ -20,7 +20,7 @@ const REQUIREMENT_STATUS_LABEL: Record<RequirementStatus, string> = {
 };
 
 export function remediationStatusLabel(status: RemediationStatus): string {
-  return REMEDIATION_STATUS_LABEL[status] ?? assertExhaustive(status, "remediation status");
+  return lookupExhaustive(REMEDIATION_STATUS_LABEL, status, "remediation status");
 }
 
 const REMEDIATION_STATUS_LABEL: Record<RemediationStatus, string> = {
@@ -33,7 +33,7 @@ const REMEDIATION_STATUS_LABEL: Record<RemediationStatus, string> = {
 
 /** Lower rank sorts first. Used to order findings by urgency. */
 export function severityRank(severity: Severity): number {
-  return SEVERITY_RANK[severity] ?? assertExhaustive(severity, "severity");
+  return lookupExhaustive(SEVERITY_RANK, severity, "severity");
 }
 
 const SEVERITY_RANK: Record<Severity, number> = {
@@ -44,7 +44,7 @@ const SEVERITY_RANK: Record<Severity, number> = {
 };
 
 export function severityLabel(severity: Severity): string {
-  return SEVERITY_LABEL[severity] ?? assertExhaustive(severity, "severity");
+  return lookupExhaustive(SEVERITY_LABEL, severity, "severity");
 }
 
 const SEVERITY_LABEL: Record<Severity, string> = {
@@ -55,7 +55,7 @@ const SEVERITY_LABEL: Record<Severity, string> = {
 };
 
 export function determinationLabel(method: DeterminationMethod): string {
-  return DETERMINATION_LABEL[method] ?? assertExhaustive(method, "determination");
+  return lookupExhaustive(DETERMINATION_LABEL, method, "determination");
 }
 
 const DETERMINATION_LABEL: Record<DeterminationMethod, string> = {
@@ -64,7 +64,7 @@ const DETERMINATION_LABEL: Record<DeterminationMethod, string> = {
 };
 
 export function evidenceKindLabel(kind: EvidenceKind): string {
-  return EVIDENCE_KIND_LABEL[kind] ?? assertExhaustive(kind, "evidence kind");
+  return lookupExhaustive(EVIDENCE_KIND_LABEL, kind, "evidence kind");
 }
 
 const EVIDENCE_KIND_LABEL: Record<EvidenceKind, string> = {

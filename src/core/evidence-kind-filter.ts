@@ -1,5 +1,5 @@
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
-import { firstParam } from "./query-param";
+import { parseEnumParam } from "./query-param";
 
 export const EVIDENCE_KIND_FILTER_ORDER: readonly EvidenceKind[] = [
   "finding_detected",
@@ -17,11 +17,8 @@ export const EVIDENCE_KIND_FILTER_ORDER: readonly EvidenceKind[] = [
 export function parseEvidenceKindParam(
   raw: string | string[] | undefined,
 ): EvidenceKind | undefined {
-  const value = firstParam(raw);
-  if (!value) return undefined;
-  return (EVIDENCE_KIND_FILTER_ORDER as readonly string[]).includes(value)
-    ? (value as EvidenceKind)
-    : undefined;
+  const value = parseEnumParam(raw, EVIDENCE_KIND_FILTER_ORDER);
+  return value as EvidenceKind | undefined;
 }
 
 export function evidenceKindHref(

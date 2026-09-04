@@ -171,6 +171,17 @@ function statusFromFindings(
   });
 }
 
+function requirementForControl(
+  db: Db,
+  projectId: string,
+  controlId: string,
+): Requirement | undefined {
+  return db.requirements.find(
+    (candidate) =>
+      candidate.projectId === projectId && candidate.controlId === controlId,
+  );
+}
+
 /**
  * Re-derives requirement statuses from the findings currently open in the db,
  * recording status changes (and regressions) as evidence. Used both after a
@@ -191,10 +202,7 @@ export function refreshRequirementStatuses(
     if (control.checkId === null) {
       // Manual / custom controls without a check stay unable_to_verify unless
       // a human pass or exception already sets a different status.
-      const requirement = db.requirements.find(
-        (candidate) =>
-          candidate.projectId === projectId && candidate.controlId === control.id,
-      );
+      const requirement = requirementForControl(db, projectId, control.id);
       if (requirementIsSticky(requirement)) {
         continue;
       }
@@ -215,10 +223,7 @@ export function refreshRequirementStatuses(
       continue;
     }
 
-    let requirement = db.requirements.find(
-      (candidate) =>
-        candidate.projectId === projectId && candidate.controlId === control.id,
-    );
+    let requirement = requirementForControl(db, projectId, control.id);
     // Human exceptions / human passes are sticky until explicitly cleared
     // (temporary exceptions may expire earlier — see clearExpiredExceptions).
     if (requirementIsSticky(requirement)) {

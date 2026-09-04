@@ -7,10 +7,14 @@ import type {
   RequirementStatus,
   Severity,
 } from "@complyloop/analysis-core/contract/statuses";
-import { assertExhaustive } from "./assert-exhaustive";
+import { lookupExhaustive } from "./assert-exhaustive";
 
 export function requirementStatusDescription(status: RequirementStatus): string {
-  return REQUIREMENT_STATUS_DESCRIPTION[status] ?? assertExhaustive(status, "requirement status");
+  return lookupExhaustive(
+    REQUIREMENT_STATUS_DESCRIPTION,
+    status,
+    "requirement status",
+  );
 }
 
 const REQUIREMENT_STATUS_DESCRIPTION: Record<RequirementStatus, string> = {
@@ -22,7 +26,11 @@ const REQUIREMENT_STATUS_DESCRIPTION: Record<RequirementStatus, string> = {
 };
 
 export function remediationStatusDescription(status: RemediationStatus): string {
-  return REMEDIATION_STATUS_DESCRIPTION[status] ?? assertExhaustive(status, "remediation status");
+  return lookupExhaustive(
+    REMEDIATION_STATUS_DESCRIPTION,
+    status,
+    "remediation status",
+  );
 }
 
 const REMEDIATION_STATUS_DESCRIPTION: Record<RemediationStatus, string> = {
@@ -34,7 +42,7 @@ const REMEDIATION_STATUS_DESCRIPTION: Record<RemediationStatus, string> = {
 };
 
 export function severityDescription(severity: Severity): string {
-  return SEVERITY_DESCRIPTION[severity] ?? assertExhaustive(severity, "severity");
+  return lookupExhaustive(SEVERITY_DESCRIPTION, severity, "severity");
 }
 
 const SEVERITY_DESCRIPTION: Record<Severity, string> = {
@@ -45,7 +53,7 @@ const SEVERITY_DESCRIPTION: Record<Severity, string> = {
 };
 
 export function confidenceDescription(confidence: Confidence): string {
-  return CONFIDENCE_DESCRIPTION[confidence] ?? assertExhaustive(confidence, "confidence");
+  return lookupExhaustive(CONFIDENCE_DESCRIPTION, confidence, "confidence");
 }
 
 const CONFIDENCE_DESCRIPTION: Record<Confidence, string> = {
@@ -55,7 +63,11 @@ const CONFIDENCE_DESCRIPTION: Record<Confidence, string> = {
 };
 
 export function determinationDescription(method: DeterminationMethod): string {
-  return DETERMINATION_DESCRIPTION[method] ?? assertExhaustive(method, "determination");
+  return lookupExhaustive(
+    DETERMINATION_DESCRIPTION,
+    method,
+    "determination",
+  );
 }
 
 const DETERMINATION_DESCRIPTION: Record<DeterminationMethod, string> = {
@@ -64,7 +76,7 @@ const DETERMINATION_DESCRIPTION: Record<DeterminationMethod, string> = {
 };
 
 export function provenanceDescription(provenance: ExplanationProvenance): string {
-  return PROVENANCE_DESCRIPTION[provenance] ?? assertExhaustive(provenance, "provenance");
+  return lookupExhaustive(PROVENANCE_DESCRIPTION, provenance, "provenance");
 }
 
 const PROVENANCE_DESCRIPTION: Record<ExplanationProvenance, string> = {
@@ -73,7 +85,7 @@ const PROVENANCE_DESCRIPTION: Record<ExplanationProvenance, string> = {
 };
 
 export function engineDescription(engine: AssessmentEngine): string {
-  return ENGINE_DESCRIPTION[engine] ?? assertExhaustive(engine, "assessment engine");
+  return lookupExhaustive(ENGINE_DESCRIPTION, engine, "assessment engine");
 }
 
 const ENGINE_DESCRIPTION: Record<AssessmentEngine, string> = {
