@@ -8,7 +8,7 @@ Requirement → Assessment → Finding → Explanation → Remediation → Verif
 
 **MVP:** accessibility (RGAA 4 / WCAG 2.2) for React/Next.js/TypeScript. The domain core is framework-agnostic — other frameworks plug in as adapters.
 
-Full product spec: [`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md)
+Full product spec: [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md)
 
 ---
 
@@ -24,12 +24,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000), sign in with GitHub, connect a repo.
 
-| Need | Doc |
-| --- | --- |
-| Deploy to staging/prod | [`docs/deploy.md`](./docs/deploy.md) |
-| Architecture | [`docs/ai/architecture.md`](./docs/ai/architecture.md) |
-| All docs | [`docs/README.md`](./docs/README.md) |
-| Agent / contributor guide | [`AGENTS.md`](./AGENTS.md) |
+| Need                      | Doc                                                    |
+| ------------------------- | ------------------------------------------------------ |
+| Deploy to staging/prod    | [`docs/deploy.md`](./docs/deploy.md)                   |
+| Architecture              | [`docs/ai/architecture.md`](./docs/ai/architecture.md) |
+| All docs                  | [`docs/README.md`](./docs/README.md)                   |
+| Agent / contributor guide | [`AGENTS.md`](./AGENTS.md)                             |
 
 **Local dev:** assessments run **in-process** during `npm run dev`. **Production:** run `npm run worker` alongside the web app.
 
@@ -70,17 +70,17 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 
 ## Commands
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Dev server; assessments in-process |
-| `npm run worker` | Job worker (**required in production**) |
-| `npm run build` | Production build |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | TypeScript strict |
-| `npm run test` | Vitest |
-| `npm run playwright:install` | Chromium for runtime audits |
-| `npm run check -- [path]` | Local a11y CI gate |
-| `npx complyloop-check` | Same gate (published package) |
+| Command                      | Purpose                                 |
+| ---------------------------- | --------------------------------------- |
+| `npm run dev`                | Dev server; assessments in-process      |
+| `npm run worker`             | Job worker (**required in production**) |
+| `npm run build`              | Production build                        |
+| `npm run lint`               | ESLint                                  |
+| `npm run typecheck`          | TypeScript strict                       |
+| `npm run test`               | Vitest                                  |
+| `npm run playwright:install` | Chromium for runtime audits             |
+| `npm run check -- [path]`    | Local a11y CI gate                      |
+| `npx complyloop-check`       | Same gate (published package)           |
 
 Definition of done: `npm run lint && npm run typecheck && npm run test && npm run build`
 

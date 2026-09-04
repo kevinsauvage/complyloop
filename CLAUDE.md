@@ -12,12 +12,12 @@ This block is written and re-added by `next dev` -- verify at `node_modules/next
 
 Pointers only — details live elsewhere.
 
-| Doc | Role |
-| --- | --- |
-| [`AGENTS.md`](./AGENTS.md) | Repo orientation, commands, layout |
-| [`.cursor/rules/`](./.cursor/rules/) | Enforceable product, domain, quality rules |
-| [`docs/ai/architecture.md`](./docs/ai/architecture.md) | System shape & persistence |
-| [`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md) | Product source of truth |
-| [`docs/README.md`](./docs/README.md) | Full doc index |
+| Doc                                                                                       | Role                                       |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------ |
+| [`AGENTS.md`](./AGENTS.md)                                                                | Repo orientation, commands, layout         |
+| [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable product, domain, quality rules |
+| [`docs/ai/architecture.md`](./docs/ai/architecture.md)                                    | System shape & persistence                 |
+| [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md) | Product source of truth                    |
+| [`docs/README.md`](./docs/README.md)                                                      | Full doc index                             |
 
 Do not duplicate stack or principle lists here — update `AGENTS.md` or the relevant rule file.

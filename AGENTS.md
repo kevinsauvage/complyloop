@@ -14,14 +14,14 @@ Orientation for agents. **Do not duplicate** product principles, domain vocabula
 
 ## Doc map
 
-| Doc                                                                                  | Use when                                       |
-| ------------------------------------------------------------------------------------ | ---------------------------------------------- |
-| [`compliance-engineering-product-spec.md`](./compliance-engineering-product-spec.md) | Product decisions, MVP scope                   |
-| [`docs/ai/architecture.md`](./docs/ai/architecture.md)                               | System shape, persistence, analysis            |
-| [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                               | Finding page UX contract                   |
-| [`docs/analysis-strategy.md`](./docs/analysis-strategy.md)                           | Analysis engines, what/when to add tooling |
-| [`docs/analysis-checks-challenge.md`](./docs/analysis-checks-challenge.md)           | Challenge of current checks / extra packages |
-| [`.cursor/rules/`](./.cursor/rules/)                                                 | Enforceable rules (domain, quality, AI, TS, …) |
+| Doc                                                                                       | Use when                                       |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md) | Product decisions, MVP scope                   |
+| [`docs/ai/architecture.md`](./docs/ai/architecture.md)                                    | System shape, persistence, analysis            |
+| [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                                    | Finding page UX contract                       |
+| [`docs/analysis-strategy.md`](./docs/analysis-strategy.md)                                | Analysis engines, what/when to add tooling     |
+| [`docs/analysis-checks-challenge.md`](./docs/analysis-checks-challenge.md)                | Challenge of current checks / extra packages   |
+| [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …) |
 
 ## What this is
 
@@ -37,16 +37,16 @@ If a change does not advance that loop, question whether it belongs in the MVP.
 
 ## Stack
 
-| Layer      | Tech                                                                 |
-| ---------- | -------------------------------------------------------------------- |
-| App        | Next.js 16, React 19, TypeScript strict, Tailwind 4, shadcn/ui       |
-| DB         | Postgres + Drizzle (`DATABASE_URL`); evidence insert-only            |
-| Auth       | Auth.js v5 + GitHub OAuth/App; ephemeral clones per job              |
+| Layer      | Tech                                                                  |
+| ---------- | --------------------------------------------------------------------- |
+| App        | Next.js 16, React 19, TypeScript strict, Tailwind 4, shadcn/ui        |
+| DB         | Postgres + Drizzle (`DATABASE_URL`); evidence insert-only             |
+| Auth       | Auth.js v5 + GitHub OAuth/App; ephemeral clones per job               |
 | Analysis   | AST + jsx-a11y + optional Playwright/axe when `runtimeBaseUrl` is set |
-| Jobs       | `npm run worker` (required in prod)                                  |
-| AI         | Vercel AI SDK, optional; **never sets statuses**                     |
-| CI package | `@complyloop/check` / `npx complyloop-check`                         |
-| Tests      | Vitest + RTL; Playwright e2e (`E2E_AUTH_ENABLED`)                    |
+| Jobs       | `npm run worker` (required in prod)                                   |
+| AI         | Vercel AI SDK, optional; **never sets statuses**                      |
+| CI package | `@complyloop/check` / `npx complyloop-check`                          |
+| Tests      | Vitest + RTL; Playwright e2e (`E2E_AUTH_ENABLED`)                     |
 
 Record new stack decisions here and in `docs/ai/architecture.md`.
 
