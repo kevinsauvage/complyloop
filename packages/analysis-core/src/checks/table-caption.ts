@@ -7,13 +7,7 @@ import {
   visitJsxTags,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-import { descendantTags } from "./heuristic-utils.ts";
-
-function isDataTable(node: Parameters<typeof tagNameOf>[0]): boolean {
-  const element = jsxElementOf(node);
-  if (!element) return false;
-  return descendantTags(element).some((tag) => tagNameOf(tag) === "th");
-}
+import { descendantTags, isDataTable } from "./heuristic-utils.ts";
 
 function hasCaption(node: Parameters<typeof tagNameOf>[0]): boolean {
   if (hasAriaName(node)) return true;

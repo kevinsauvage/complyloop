@@ -1,5 +1,6 @@
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
 import type { RemediationStatus, RequirementStatus, Severity } from "@complyloop/analysis-core/contract/statuses";
+import { assertExhaustive } from "./assert-exhaustive";
 
 export function requirementStatusLabel(status: RequirementStatus): string {
   return REQUIREMENT_STATUS_LABEL[status] ?? assertExhaustive(status, "requirement status");
@@ -17,7 +18,7 @@ export function remediationStatusLabel(status: RemediationStatus): string {
   return REMEDIATION_STATUS_LABEL[status] ?? assertExhaustive(status, "remediation status");
 }
 
-export const REMEDIATION_STATUS_LABEL: Record<RemediationStatus, string> = {
+const REMEDIATION_STATUS_LABEL: Record<RemediationStatus, string> = {
   detected: "Detected",
   suggested: "Suggested",
   approved: "Approved",
@@ -79,7 +80,3 @@ const EVIDENCE_KIND_LABEL: Record<EvidenceKind, string> = {
   monitoring_changes_detected: "Repo changes detected",
   webhook_reassessment: "Webhook reassessment",
 };
-
-function assertExhaustive(value: string, kind: string): never {
-  throw new Error(`Unhandled ${kind}: ${value}`);
-}

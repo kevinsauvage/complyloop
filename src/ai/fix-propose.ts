@@ -20,7 +20,7 @@ const editsSchema = z.object({
 
 const MAX_FILE_CHARS = 80_000;
 
-export interface ProposeFixEditsInput {
+interface ProposeFixEditsInput {
   finding: Finding;
   control: Control;
   fileContents: Record<string, string>;

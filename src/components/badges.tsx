@@ -46,7 +46,7 @@ export function EvidenceKindBadge({ kind }: { kind: EvidenceKind }) {
   return (
     <Badge
       variant={tone === "default" ? "secondary" : undefined}
-      className={cn(tintClass || undefined)}
+      className={cn(tintClass)}
     >
       {label}
     </Badge>
@@ -73,7 +73,7 @@ const REMEDIATION_VARIANT: Record<RemediationStatus, "secondary" | undefined> = 
 export function RemediationStatusBadge({ status }: { status: RemediationStatus }) {
   return (
     <BadgeWithDescription description={remediationStatusDescription(status)}>
-      <Badge variant={REMEDIATION_VARIANT[status]} className={cn(REMEDIATION_BADGE[status] || undefined)}>
+      <Badge variant={REMEDIATION_VARIANT[status]} className={cn(REMEDIATION_BADGE[status])}>
         {remediationStatusLabel(status)}
       </Badge>
     </BadgeWithDescription>
@@ -98,7 +98,7 @@ const SEVERITY_VARIANT: Record<Severity, "secondary" | undefined> = {
 export function SeverityBadge({ severity }: { severity: Severity }) {
   return (
     <BadgeWithDescription description={severityDescription(severity)}>
-      <Badge variant={SEVERITY_VARIANT[severity]} className={cn(SEVERITY_BADGE[severity] || undefined)}>
+      <Badge variant={SEVERITY_VARIANT[severity]} className={cn(SEVERITY_BADGE[severity])}>
         {severityLabel(severity)}
       </Badge>
     </BadgeWithDescription>
@@ -108,7 +108,7 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
 export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
   return (
     <BadgeWithDescription description={confidenceDescription(confidence)}>
-      <Badge variant="outline" className={cn("text-muted-foreground")}>
+      <Badge variant="outline" className="text-muted-foreground">
         Confidence: {confidence}
       </Badge>
     </BadgeWithDescription>

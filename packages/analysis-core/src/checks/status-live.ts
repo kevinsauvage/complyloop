@@ -107,10 +107,7 @@ export const statusLiveCheck: AccessibilityCheck = {
       if (element && descendantTags(element).some((tag) => isLiveRegion(tag))) {
         return;
       }
-      if (ts.isJsxOpeningElement(node) && siblingsIncludeLiveRegion(node)) {
-        return;
-      }
-      if (ts.isJsxSelfClosingElement(node) && siblingsIncludeLiveRegion(node)) {
+      if (siblingsIncludeLiveRegion(node)) {
         return;
       }
 

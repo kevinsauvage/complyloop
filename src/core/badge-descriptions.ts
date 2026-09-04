@@ -7,6 +7,7 @@ import type {
   RequirementStatus,
   Severity,
 } from "@complyloop/analysis-core/contract/statuses";
+import { assertExhaustive } from "./assert-exhaustive";
 
 export function requirementStatusDescription(status: RequirementStatus): string {
   return REQUIREMENT_STATUS_DESCRIPTION[status] ?? assertExhaustive(status, "requirement status");
@@ -79,7 +80,3 @@ const ENGINE_DESCRIPTION: Record<AssessmentEngine, string> = {
   ast: "Found in source code (AST) — fix the file and line shown.",
   runtime: "Found on the rendered page (DOM audit) — trace to the component that renders it.",
 };
-
-function assertExhaustive(value: string, kind: string): never {
-  throw new Error(`Unhandled ${kind}: ${value}`);
-}

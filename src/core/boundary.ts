@@ -38,7 +38,7 @@ export function findingIdsField(emptyMessage: string) {
 
 export const findingIdsSchema = findingIdsField("Select at least one finding.");
 
-export const githubRepoSummarySchema = z.object({
+const githubRepoSummarySchema = z.object({
   fullName: z.string().min(1),
   name: z.string().min(1),
   description: z.string().nullable(),

@@ -1,5 +1,6 @@
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { OrgRole } from "@/core/project-types";
+import { assertExhaustive } from "./assert-exhaustive";
 
 export type StatusTone =
   | "passed"
@@ -53,7 +54,3 @@ export const STATUS_TONE_ACCENT: Record<Exclude<StatusTone, "signal">, string> =
   na: "bg-status-na",
   unverifiable: "bg-status-unverifiable",
 };
-
-function assertExhaustive(value: string, kind: string): never {
-  throw new Error(`Unhandled ${kind}: ${value}`);
-}

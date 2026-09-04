@@ -27,18 +27,17 @@ export const blockquoteCiteCheck: AccessibilityCheck = {
       if (!cite) return;
       const element = jsxElementOf(node);
       if (element && hasCitationContent(element)) return;
-      if (!element || !hasCitationContent(element)) {
-        findings.push({
-          checkId: "blockquote-cite",
-          kind: "violation",
-          severity: "moderate",
-          confidence: "high",
-          reason:
-            "<blockquote cite> points at a source but exposes no citation text for assistive technologies (WCAG 1.3.1).",
-          location: locationOf(source, node),
-          fix: null,
-        });
-      }
+
+      findings.push({
+        checkId: "blockquote-cite",
+        kind: "violation",
+        severity: "moderate",
+        confidence: "high",
+        reason:
+          "<blockquote cite> points at a source but exposes no citation text for assistive technologies (WCAG 1.3.1).",
+        location: locationOf(source, node),
+        fix: null,
+      });
     });
     return findings;
   },

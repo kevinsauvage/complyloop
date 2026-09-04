@@ -177,6 +177,13 @@ export function descendantTags(element: ts.JsxElement): JsxTagNode[] {
   return tags;
 }
 
+/** True when a `<table>` contains any `<th>` descendant, i.e. it is a data table. */
+export function isDataTable(node: JsxTagNode): boolean {
+  const element = jsxElementOf(node);
+  if (!element) return false;
+  return descendantTags(element).some((tag) => tagNameOf(tag) === "th");
+}
+
 /** True when a data table likely needs a structural summary (RGAA 5.1). */
 export function isComplexDataTable(
   tableNode: JsxTagNode,

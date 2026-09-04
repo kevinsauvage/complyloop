@@ -5,13 +5,14 @@ import type { Control } from "@/core/project-types";
 import type { Explanation, Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef, locationSnippet } from "@/core/location";
 import { AI_MODEL } from "./model";
+import { confidenceSchema } from "./schemas";
 import { aiWarn } from "./warn";
 
 const explanationSchema = z.object({
   whyItFailed: z.string(),
   impact: z.string(),
   howToFix: z.string(),
-  confidence: z.enum(["high", "medium", "low"]),
+  confidence: confidenceSchema,
 });
 
 export function deterministicExplanation(

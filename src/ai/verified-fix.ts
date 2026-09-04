@@ -22,7 +22,7 @@ export interface ProposedFixEdits {
   edits: FileEdit[];
 }
 
-export interface ComplyLoopGateResult {
+interface ComplyLoopGateResult {
   passed: boolean;
   remaining: string[];
 }

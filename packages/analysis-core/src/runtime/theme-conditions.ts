@@ -78,7 +78,7 @@ export const THEME_SENSITIVE_AXE_RULES: ReadonlySet<string> = new Set([
 
 /** Identity of a violation: rule id + first target selector. */
 export function violationKey(violation: AxeViolationLike): string {
-  const target = (violation.nodes[0] && violation.nodes[0]?.target[0]) || "";
+  const target = violation.nodes[0]?.target[0] || "";
   return `${violation.id}::${target}`;
 }
 

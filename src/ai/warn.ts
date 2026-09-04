@@ -3,7 +3,7 @@
  * Callers (server actions) inject the sink via setAiWarn when needed.
  */
 
-export type AiWarnFn = (
+type AiWarnFn = (
   message: string,
   context?: Record<string, unknown>,
 ) => void;

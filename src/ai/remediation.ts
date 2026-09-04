@@ -6,6 +6,7 @@ import type { Finding, RemediationSuggestion } from "@complyloop/analysis-core/c
 import { formatLocationRef, locationSnippet } from "@/core/location";
 import { aiExplanationAvailable } from "./explainer";
 import { AI_MODEL } from "./model";
+import { confidenceSchema } from "./schemas";
 import { aiWarn } from "./warn";
 
 const remediationSchema = z.object({
@@ -13,10 +14,10 @@ const remediationSchema = z.object({
   proposedSnippet: z.string(),
   /** Suggested attribute value when the fix inserts/edits an attribute. */
   attributeValue: z.string().optional(),
-  confidence: z.enum(["high", "medium", "low"]),
+  confidence: confidenceSchema,
 });
 
-export interface AiRemediationResult {
+interface AiRemediationResult {
   suggestion: RemediationSuggestion;
   /** When present, replace an editable insert_attribute fix value. */
   attributeValue?: string;

@@ -3,7 +3,6 @@ import { isPresentationRole } from "../a11y-aria.ts";
 import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   getAttribute,
-  jsxElementOf,
   locationOf,
   stringValueOf,
   tagNameOf,
@@ -11,13 +10,7 @@ import {
   type JsxTagNode,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-import { descendantTags, isComplexDataTable } from "./heuristic-utils.ts";
-
-function isDataTable(node: JsxTagNode): boolean {
-  const element = jsxElementOf(node);
-  if (!element) return false;
-  return descendantTags(element).some((tag) => tagNameOf(tag) === "th");
-}
+import { isComplexDataTable, isDataTable } from "./heuristic-utils.ts";
 
 function hasSummary(node: JsxTagNode): boolean {
   if (getAttribute(node, "summary")) return true;

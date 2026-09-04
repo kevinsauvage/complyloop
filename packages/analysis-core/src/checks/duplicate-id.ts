@@ -14,7 +14,7 @@ export const duplicateIdCheck: AccessibilityCheck = {
       const attr = getAttribute(node, "id");
       if (!attr) return;
       const value = stringValueOf(attr);
-      if (value === undefined || value.trim().length === 0) return;
+      if (!value?.trim()) return;
       const list = byId.get(value) ?? [];
       list.push(locationOf(source, node));
       byId.set(value, list);
