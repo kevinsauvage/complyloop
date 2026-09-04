@@ -1,7 +1,7 @@
 "use server";
 
 import { formatLocationRef } from "@/core/location";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import { publicErrorMessage } from "../action-state";
 import { addEvidence } from "../db";

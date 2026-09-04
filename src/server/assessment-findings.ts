@@ -4,7 +4,7 @@ import { filterAstFindingsForAuthority } from "@complyloop/analysis-core/merge-f
 import type { RawFinding } from "@complyloop/analysis-core/types";
 import { formatLocationRef } from "@/core/location";
 import type { Project } from "@/core/project-types";
-import type { Finding, Remediation } from "@/core/finding-types";
+import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { addEvidence, type Db } from "./db";
 import { buildSuggestion } from "./assessment-helpers";
 

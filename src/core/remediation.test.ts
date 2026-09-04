@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { advanceRemediation, canTransition } from "./remediation";
-import type { Remediation } from "./finding-types";
+import type { Remediation } from "@complyloop/analysis-core/contract/finding-types";
 
 function remediation(status: Remediation["status"]): Remediation {
   return {

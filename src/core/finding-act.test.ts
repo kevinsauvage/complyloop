@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Finding, Remediation } from "./finding-types";
+import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import {
   canBulkApproveRemediation,
   findingAct,

@@ -1,12 +1,12 @@
 import { presetById } from "@/adapters/registry";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   deriveRequirementStatus,
   isStickyHumanDecision,
-} from "@/core/requirement-status";
+} from "@complyloop/analysis-core/contract/requirement-status";
 import { authorityForCheck } from "@complyloop/analysis-core/check-authority";
-import type { Finding } from "@/core/finding-types";
-import type { RequirementStatus } from "@/core/statuses";
+import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Control, Project, Requirement } from "@/core/project-types";
 import { TEMPORARY_EXCEPTION_REASON } from "@/core/project-types";
 import { addEvidence, type Db } from "./db";

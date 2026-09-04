@@ -3,7 +3,7 @@ import type {
   DomLocation,
   SiteLocation,
   SourceLocation,
-} from "./finding-types";
+} from "@complyloop/analysis-core/contract/finding-types";
 import {
   domLocationDetails,
   formatLocationRef,

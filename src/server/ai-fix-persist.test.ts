@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PatchCandidate } from "@/ai/verified-fix";
-import type { Finding, Remediation } from "@/core/finding-types";
+import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { emptyDb } from "./db";
 import { persistPatchCandidate } from "./ai-fix-persist";
 

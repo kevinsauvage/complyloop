@@ -15,7 +15,7 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 | App         | `src/app/`                            | Next.js UI + API routes                                           |
 | CI          | `packages/check/`                     | `npx complyloop-check` (AST only)                                 |
 
-`src/core/statuses.ts`, `finding-types.ts`, `requirement-status.ts`, `public-error.ts`, and `assessment-limits.ts` are **re-export shims** of the analysis-core contract so the app keeps `@/core/…` imports. They are the one sanctioned exception to "core imports nothing from analysis" (the ESLint boundary rule does not catch `@complyloop/analysis-core/*` — see [`TODO.md`](../../TODO.md)).
+Statuses, findings, requirement derivation, `PublicError`, and assessment limits live in `packages/analysis-core/src/contract/`. App, server, UI, and `src/core/` import `@complyloop/analysis-core/contract/*` directly. `src/core` must not import any other analysis-core subpath (ESLint `no-restricted-imports` allow-lists `contract/*` only).
 
 **Connectors today:** GitHub only. **Persistence:** Postgres via Drizzle (`DATABASE_URL`). Evidence is **append-only** (no FKs — rows outlive project disconnect and org deletion). GitHub tokens encrypted at rest (AES-256-GCM). Assessments run as **durable jobs** (`npm run worker` in prod).
 
@@ -53,7 +53,7 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 ## Persistence & tenancy
 
 - **Postgres** — frameworks, controls, orgs, memberships, projects, requirements, assessments, `assessment_snapshots`, findings, remediations, alerts, evidence, encrypted GitHub tokens, webhook delivery ids, `assessment_jobs`, rate-limit buckets. Domain rows store typed JSONB payloads (`src/server/db-store/schema.ts`) plus a few indexed columns (`project_id`, `status`, …). Catalog is seeded on deploy (`npm run seed` / `db:migrate`), not rewritten on every user action. One hand-written init migration (`drizzle/0000_init.sql`).
-- **Tenancy** — orgs + RBAC (`src/core/rbac.ts`); projects belong to orgs.
+- **Tenancy** — orgs + RBAC (`src/core/rbac.ts`); projects belong to orgs. This **is** the product model (invites by GitHub login, roles `owner|admin|member|viewer`, org switcher, personal-org auto-provisioning) — see [product spec §24](../compliance-engineering-product-spec.md#24-mvp-scope). Workspace load stays membership-org + active project.
 - **Reads** — `getWorkspace()` loads the catalog, the viewer's orgs/memberships, the project switcher list for those orgs, and **runtime for the active project only** (requirements, assessments **without** file-hash snapshots, findings, remediations, alerts, evidence window). File hashes live in `assessment_snapshots` and are loaded only for `runAssessment` (`loadProjectAssessmentDb`). Evidence pages/exports/finding detail query SQL directly (`postgres-queries.ts`).
 - **Writes** — actions use `withProjectWrite` / `withOrgWrite` (`workspace.ts`): load the scoped slice, mutate in memory, persist **changed rows** via `src/server/db-store/repo/*` (upserts by id, evidence insert-only). Project field changes (`runtimeBaseUrl`, `defaultPresetId`, …) update the project row. There is no replace-all sync or prune of untouched rows.
 - **Assessments** — the worker clones and scans **outside** a store transaction, then `applyAssessmentPayload` upserts findings/requirements/remediations and inserts the assessment + snapshot + evidence in one short transaction (`assessment-worker.ts`). `runAssessment` still mutates a project-scoped in-memory `Db` for the duration of the scan; that is the apply payload, not a tenant-wide rewrite.
@@ -66,7 +66,7 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 ## Module boundaries
 
 ```
-src/core/                ← no imports from adapters, analysis, server, app
+src/core/                ← no imports from adapters, analysis (except contract/), server, app
 packages/analysis-core/  ← no imports from src/server/ or src/app/
                            contract/ is the shared status/finding types
 src/server/, app/        ← integrate core + analysis via src/adapters/registry.ts

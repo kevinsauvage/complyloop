@@ -1,4 +1,4 @@
-import type { EvidenceKind } from "./finding-types";
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
 
 export type EvidenceTone = "default" | "pass" | "fail" | "review" | "signal";
 

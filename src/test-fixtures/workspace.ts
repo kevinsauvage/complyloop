@@ -1,4 +1,4 @@
-import type { Finding, Remediation } from "@/core/finding-types";
+import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import type { OrgMembership, Project } from "@/core/project-types";
 import type { Db } from "@/server/db";
 import { emptyDb } from "@/server/db-store/types";

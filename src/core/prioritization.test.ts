@@ -5,7 +5,7 @@ import {
   prioritizeFindings,
 } from "./prioritization";
 import type { Control } from "./project-types";
-import type { Finding } from "./finding-types";
+import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 
 function finding(
   id: string,

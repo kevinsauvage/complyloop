@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { isOrgRole } from "@/core/rbac";
 import type { OrgRole } from "@/core/project-types";
 import {

@@ -1,4 +1,4 @@
-import type { RequirementStatus } from "@/core/statuses";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { formatDateTime } from "@/core/format-datetime";
 import type { ReportInput } from "../report";
 

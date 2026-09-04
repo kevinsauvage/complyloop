@@ -63,16 +63,13 @@ Guiding rule for this list: the product spec's MVP is *one complete loop for one
 
 ## P2 — Medium
 
-### 1. Decide what the org/multi-tenant surface is for
+### 1. Org/multi-tenant is the product model
 
-- **Observation:** The spec's MVP is "single client project per workspace; portfolio view can follow". The code ships orgs, roles (`owner|admin|member|viewer`), invitations by GitHub login, role changes, org export, org deletion, org switcher, personal-org auto-provisioning (`orgs.ts` 374 lines, 7 org actions, 6 org components, `org-account.spec.ts`), and all of it multiplies the load scope (P1-1).
-- **Why it matters:** this is the largest non-core-loop surface in the repo and the one that made the tenant-slice persistence necessary.
-- **Change:** either declare multi-org a product decision and update the spec's MVP section, or freeze it (hide invites/role management behind a flag, keep the personal org only) until the single-project loop is verified end-to-end. Do not build more on it before deciding.
+_(decided — spec §24: orgs, roles, invites, and the org switcher are in scope. The complete loop still has to work for one client project; tenancy is multi-org, not a later add-on.)_
 
 ### 2. Remove the `src/core` re-export shims
 
-- **Observation:** `statuses.ts`, `finding-types.ts`, `requirement-status.ts`, `public-error.ts`, `assessment-limits.ts` are pure `export *` shims over `packages/analysis-core/src/contract/*` (with duplicated shim tests). `code-quality.mdc` forbids barrel files. The ESLint boundary rule for `src/core` matches `**/analysis/**`, which does not match `@complyloop/analysis-core/*`, so the boundary is not actually enforced.
-- **Change:** import `@complyloop/analysis-core/contract/*` directly (or move the contract into `src/core` and have analysis-core depend on it — the contract is domain, not analysis). Fix the ESLint pattern to `@complyloop/analysis-core/**` with an allow-list for `contract/*`.
+_(cleared — callers import `@complyloop/analysis-core/contract/*`; ESLint allow-lists that subpath from `src/core`.)_
 
 ### 3. Enforce "adapters only via registry" or drop the rule
 

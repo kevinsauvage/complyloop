@@ -27,13 +27,13 @@ Orientation for agents. **Do not duplicate** product principles, domain vocabula
 
 Compliance engineering platform: **Finding → Remediation → Evidence**, with continuous re-assessment.
 
-MVP = accessibility (RGAA/WCAG) for React/Next.js/TypeScript. Domain stays framework-agnostic.
+MVP = accessibility (RGAA/WCAG) for React/Next.js/TypeScript, in **orgs** (roles, invites, multiple projects per org). Domain stays framework-agnostic.
 
 ```
 Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Monitoring
 ```
 
-If a change does not advance that loop, question whether it belongs in the MVP.
+The loop must work for one client project; tenancy is already multi-org. A second framework adapter is still out of scope.
 
 ## Stack
 
@@ -67,7 +67,7 @@ npm run test:e2e         # Playwright (after e2e:seed)
 ## Where code lives
 
 ```
-src/core/                          Framework-agnostic domain (5 files are shims over analysis-core/contract)
+src/core/                          Framework-agnostic domain helpers; statuses/findings live in analysis-core/contract
 packages/analysis-core/src/        AST checks (checks/registry.ts) + runtime audits + contract/ (statuses, findings, status derivation)
 src/adapters/rgaa/                 RGAA/WCAG catalog & guidance
 src/ai/                            Optional AI (provenance-tagged)

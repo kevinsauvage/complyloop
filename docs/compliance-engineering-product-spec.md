@@ -672,14 +672,23 @@ Scope:
 - Next.js
 - TypeScript
 - RGAA/WCAG requirements
-- Single client project per workspace (multi-client portfolio view can
-  follow once the single-project loop is proven)
+- **Orgs as the workspace:** a user belongs to one or more orgs; projects
+  belong to an org. Roles are `owner | admin | member | viewer`. Members
+  are invited by GitHub login. A personal org is auto-provisioned on first
+  sign-in so a solo user still has a home; extra orgs, the org switcher,
+  and `/org` (members, export, deletion) are part of the product, not a
+  later add-on.
+
+The complete loop still has to work for **one client project**. Multi-org
+is how tenancy is modeled, not a substitute for that loop.
+
+Explicitly **out of this slice:** a second compliance framework adapter
+(see [Section 5](#5-initial-product-focus)).
 
 This is the defined product for the initial market, not a temporary
 starting point for a broader platform. The domain concepts stay
 framework-agnostic under the hood so other compliance domains _could_ be
-added later, but that's not near-term scope — see
-[Section 5](#5-initial-product-focus).
+added later, but that's not near-term scope.
 
 ## 25. What Success Looks Like
 
@@ -698,8 +707,9 @@ A successful first-time user at an agency should be able to:
 11. Continue monitoring for regressions on that client's site.
 
 If the product cannot deliver this complete loop for one client, it is
-not yet delivering its core value — and isn't ready to expand to a
-portfolio view or a second framework.
+not yet delivering its core value — even though that client project
+already lives in an org that can hold more projects and teammates. A
+second compliance framework is still out of this slice.
 
 ## 26. Long-Term Vision
 

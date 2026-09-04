@@ -1,4 +1,4 @@
-import type { Assessment } from "./finding-types";
+import type { Assessment } from "@complyloop/analysis-core/contract/finding-types";
 
 /** Latest completed assessment for a project, independent of array order. */
 export function latestAssessmentFor(

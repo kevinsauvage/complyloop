@@ -4,7 +4,7 @@ import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
 import { setAiWarn } from "@/ai/warn";
 import { formatLocationRef } from "@/core/location";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
   runActionMessage,

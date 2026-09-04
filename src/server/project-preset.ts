@@ -1,6 +1,6 @@
 import { presetById } from "@/adapters/registry";
 import type { Project } from "@/core/project-types";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { addEvidence, type Db } from "./db";
 
 /**

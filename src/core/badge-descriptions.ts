@@ -1,4 +1,4 @@
-import type { AssessmentEngine } from "./finding-types";
+import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
 import type {
   Confidence,
   DeterminationMethod,
@@ -6,7 +6,7 @@ import type {
   RemediationStatus,
   RequirementStatus,
   Severity,
-} from "./statuses";
+} from "@complyloop/analysis-core/contract/statuses";
 
 export function requirementStatusDescription(status: RequirementStatus): string {
   switch (status) {

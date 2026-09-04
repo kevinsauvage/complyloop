@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Finding, Remediation } from "@/core/finding-types";
+import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import type { Control } from "@/core/project-types";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FindingsBulkList } from "./findings-bulk-list";

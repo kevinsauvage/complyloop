@@ -24,9 +24,8 @@ import type {
   RemediationStatus,
   RequirementStatus,
   Severity,
-} from "@/core/statuses";
-import type { AssessmentEngine } from "@/core/finding-types";
-import type { EvidenceKind } from "@/core/finding-types";
+} from "@complyloop/analysis-core/contract/statuses";
+import type { AssessmentEngine, EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
 import { EVIDENCE_TONE_BADGE, evidenceTone } from "@/core/evidence-tone";
 import { cn } from "@/lib/utils";
 

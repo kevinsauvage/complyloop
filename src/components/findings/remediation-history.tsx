@@ -1,6 +1,6 @@
 import { RemediationStatusBadge } from "@/components/badges";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Remediation } from "@/core/finding-types";
+import type { Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { formatDateTime } from "@/core/format-datetime";
 import { cn } from "@/lib/utils";
 

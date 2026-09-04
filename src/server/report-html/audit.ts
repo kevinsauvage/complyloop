@@ -1,4 +1,4 @@
-import type { EvidenceRecord } from "@/core/finding-types";
+import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
 import { evidenceKindLabel } from "@/core/labels";
 import { countRequirementsByStatus, type ReportInput } from "../report";
 import { escapeHtml, formatDateTime, reportShell } from "./shared";

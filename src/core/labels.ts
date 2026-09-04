@@ -1,5 +1,5 @@
-import type { EvidenceKind } from "./finding-types";
-import type { RemediationStatus, RequirementStatus, Severity } from "./statuses";
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
+import type { RemediationStatus, RequirementStatus, Severity } from "@complyloop/analysis-core/contract/statuses";
 
 export function requirementStatusLabel(status: RequirementStatus): string {
   switch (status) {

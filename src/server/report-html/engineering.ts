@@ -1,4 +1,4 @@
-import type { Finding, Remediation } from "@/core/finding-types";
+import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { remediationStatusLabel, severityLabel } from "@/core/labels";
 import { prioritizeClusters } from "@/core/prioritization";
 import type { Control } from "@/core/project-types";

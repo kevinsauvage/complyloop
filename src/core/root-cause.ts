@@ -1,5 +1,5 @@
 import type { Control } from "./project-types";
-import type { Finding, FindingCluster } from "./finding-types";
+import type { Finding, FindingCluster } from "@complyloop/analysis-core/contract/finding-types";
 import { isSourceLocation } from "./location";
 
 function directoryOf(filePath: string): string {

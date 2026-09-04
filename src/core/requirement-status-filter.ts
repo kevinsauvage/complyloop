@@ -1,7 +1,7 @@
 import {
   REQUIREMENT_STATUSES,
   type RequirementStatus,
-} from "./statuses";
+} from "@complyloop/analysis-core/contract/statuses";
 
 function firstParam(
   raw: string | string[] | undefined,

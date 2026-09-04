@@ -1,4 +1,4 @@
-import type { Remediation } from "@/core/finding-types";
+import type { Remediation } from "@complyloop/analysis-core/contract/finding-types";
 
 /** Default suggested remediation for server tests. */
 export function testRemediation(partial: Partial<Remediation> = {}): Remediation {

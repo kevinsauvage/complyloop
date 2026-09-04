@@ -4,7 +4,7 @@ import { scanFile } from "@complyloop/analysis-core/scan";
 import type { RawFinding } from "@complyloop/analysis-core/types";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import { isDomLocation, isSiteLocation, isSourceLocation } from "@/core/location";
-import type { Finding, FindingLocation, ProposedFix, RemediationSuggestion } from "@/core/finding-types";
+import type { Finding, FindingLocation, ProposedFix, RemediationSuggestion } from "@complyloop/analysis-core/contract/finding-types";
 
 /**
  * Findings are matched across assessments by location identity so remediation

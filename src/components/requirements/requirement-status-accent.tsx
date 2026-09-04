@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { RequirementStatus } from "@/core/statuses";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
 export function statusAccentClass(status: RequirementStatus): string {
   switch (status) {

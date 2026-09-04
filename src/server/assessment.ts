@@ -8,14 +8,14 @@ import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/them
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
 import { latestAssessmentFor } from "@/core/assessment-latest";
 import { formatLocationRef, isSourceLocation } from "@/core/location";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
-import type { RequirementStatus } from "@/core/statuses";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type {
   Assessment,
   AssessmentEngines,
   Finding,
-} from "@/core/finding-types";
+} from "@complyloop/analysis-core/contract/finding-types";
 import { addEvidence, type Db } from "./db";
 import { detectChanges, summarizeChanges } from "./monitor";
 import {

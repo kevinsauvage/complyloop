@@ -1,6 +1,6 @@
 import { cleanup, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { RequirementStatus } from "@/core/statuses";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { renderWithUiProviders } from "@/test/render-ui";
 import { DashboardStatusCounts } from "./dashboard-status-counts";
 

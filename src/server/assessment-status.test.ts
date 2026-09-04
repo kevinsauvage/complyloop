@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
-import type { Finding } from "@/core/finding-types";
+import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project, Requirement } from "@/core/project-types";
 import { testProject } from "@/test-fixtures/project";
 import { emptyDb } from "./db";

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { RequirementStatusBadge } from "@/components/badges";
 import { requirementsPageHref } from "@/core/requirements-page";
-import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@/core/statuses";
+import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
 import { cn } from "@/lib/utils";
-import type { RequirementStatus } from "@/core/statuses";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
 const filterChipClass = (selected: boolean) =>
   cn(

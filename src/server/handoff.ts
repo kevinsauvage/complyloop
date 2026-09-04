@@ -4,7 +4,7 @@ import { applyFix } from "@complyloop/analysis-core/fixes";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import { formatLocationRef, isSourceLocation, locationSnippet } from "@/core/location";
 import type { Control, Project } from "@/core/project-types";
-import type { Finding, ProposedFix, Remediation } from "@/core/finding-types";
+import type { Finding, ProposedFix, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 
 export interface DeveloperHandoff {
   title: string;

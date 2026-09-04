@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { clusterFindings } from "./root-cause";
 import type { Control } from "./project-types";
-import type { Finding } from "./finding-types";
+import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 
 function finding(
   id: string,

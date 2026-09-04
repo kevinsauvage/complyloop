@@ -5,7 +5,7 @@ import type {
   EvidenceRecord,
   Finding,
   Remediation,
-} from "@/core/finding-types";
+} from "@complyloop/analysis-core/contract/finding-types";
 import type {
   Control,
   Framework,

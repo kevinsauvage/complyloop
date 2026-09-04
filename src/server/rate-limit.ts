@@ -1,7 +1,7 @@
 /** Persistent sliding-window rate limits for expensive server actions. */
 
 import { eq, lt } from "drizzle-orm";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "./db-store/client";
 import { rateLimitBuckets } from "./db-store/schema";
 import { withNamedPostgresAdvisoryLock } from "./db-store/write-lock";

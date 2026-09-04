@@ -1,4 +1,4 @@
-import type { Alert } from "@/core/finding-types";
+import type { Alert } from "@complyloop/analysis-core/contract/finding-types";
 import {
   claimNextAssessmentJob,
   completeAssessmentJob,

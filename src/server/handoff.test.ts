@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { parseSource } from "@complyloop/analysis-core/parse";
 import { buttonNameCheck } from "@complyloop/analysis-core/checks/button-name";
 import type { Control } from "@/core/project-types";
-import type { Finding, Remediation } from "@/core/finding-types";
+import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { testProject } from "@/test-fixtures/project";
 import { buildDeveloperHandoff, buildDiffForFix } from "./handoff";
 

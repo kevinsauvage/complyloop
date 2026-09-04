@@ -1,4 +1,4 @@
-import type { AssessmentEngine, Finding } from "./finding-types";
+import type { AssessmentEngine, Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { Control } from "./project-types";
 import { formatLocationRef, locationPathOrUrl } from "./location";
 import { parsePageParam } from "./pagination";
@@ -9,7 +9,7 @@ import {
   type RemediationStatus,
   type Severity,
   type FindingStatus,
-} from "./statuses";
+} from "@complyloop/analysis-core/contract/statuses";
 
 const FINDINGS_TABS = [
   "open",

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { Remediation } from "@/core/finding-types";
+import type { Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import type { DrizzleDb } from "../client";
 import { remediations } from "../schema";
 import { remediationToRow } from "./mappers";

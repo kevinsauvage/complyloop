@@ -1,8 +1,8 @@
 import type { PatchCandidate } from "@/ai/verified-fix";
 import { formatLocationRef } from "@/core/location";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
-import type { Finding } from "@/core/finding-types";
+import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { addEvidence, type Db } from "./db";
 import { patchCandidateDetail } from "./ai-fix-result";
 

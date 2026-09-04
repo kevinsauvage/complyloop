@@ -4,7 +4,7 @@ import {
   EVIDENCE_KIND_FILTER_ORDER,
   evidenceKindHref,
 } from "@/core/evidence-kind-filter";
-import type { EvidenceKind } from "@/core/finding-types";
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
 import { cn } from "@/lib/utils";
 
 const filterChipClass = (selected: boolean) =>

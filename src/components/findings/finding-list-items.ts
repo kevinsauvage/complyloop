@@ -1,6 +1,6 @@
-import type { Finding, Remediation } from "@/core/finding-types";
+import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import type { Control } from "@/core/project-types";
-import type { RemediationStatus } from "@/core/statuses";
+import type { RemediationStatus } from "@complyloop/analysis-core/contract/statuses";
 
 export type FindingListItem = {
   finding: Finding;

@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Control } from "@/core/project-types";
-import type { Finding } from "@/core/finding-types";
+import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { runAiFixOnCheckout } from "./ai-fix-run";
 
 const tempDirs: string[] = [];

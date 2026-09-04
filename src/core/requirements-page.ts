@@ -1,7 +1,7 @@
 import { projectDefaultPresetId } from "./project-preset";
 import type { PresetCatalog } from "./project-preset";
 import type { Project } from "./project-types";
-import type { RequirementStatus } from "./statuses";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
 function firstParam(
   raw: string | string[] | undefined,

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { SeverityBadge } from "@/components/badges";
 import { findingsListHref } from "@/core/finding-list-filter";
-import type { Finding, FindingCluster } from "@/core/finding-types";
+import type { Finding, FindingCluster } from "@complyloop/analysis-core/contract/finding-types";
 import { severityRank } from "@/core/labels";
-import type { Severity } from "@/core/statuses";
+import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 
 function severityMix(
   members: Finding[],

@@ -3,8 +3,8 @@ import { RequirementStatusBadge } from "@/components/badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { requirementsStatusHref } from "@/core/requirement-status-filter";
 import { cn } from "@/lib/utils";
-import type { RequirementStatus } from "@/core/statuses";
-import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@/core/statuses";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
 
 const STATUS_ACCENT: Record<RequirementStatus, string> = {
   failed: "bg-status-failed",

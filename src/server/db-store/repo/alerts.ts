@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { Alert } from "@/core/finding-types";
+import type { Alert } from "@complyloop/analysis-core/contract/finding-types";
 import type { DrizzleDb } from "../client";
 import { alerts } from "../schema";
 import { alertToRow } from "./mappers";

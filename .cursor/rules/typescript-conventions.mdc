@@ -25,4 +25,4 @@ switch (status) {
 - Prefer discriminated unions over boolean flags for state.
 - Functional components; extract hooks only for reused interactive logic.
 - Server Components by default; `"use client"` only when needed.
-- Domain types live in `src/core/`; UI and adapters import from core, never the reverse.
+- Domain types live in `src/core/` and `@complyloop/analysis-core/contract/`; UI and adapters import from those, never the reverse.

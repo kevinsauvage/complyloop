@@ -20,7 +20,7 @@ import {
   prioritizeClusters,
   prioritizeFindings,
 } from "@/core/prioritization";
-import type { RequirementStatus } from "@/core/statuses";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { runAssessmentAction } from "@/server/actions/assessment";
 import { recentAssessmentJobsForProject } from "@/server/assessment-jobs";
 import {

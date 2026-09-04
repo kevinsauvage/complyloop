@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { runtimeCoverageSummary } from "@/core/runtime-coverage";
-import type { AssessmentEngines } from "@/core/finding-types";
+import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project } from "@/core/project-types";
 import { cn } from "@/lib/utils";
 

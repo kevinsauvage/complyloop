@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { ProposedFix, SourceLocation } from "@/core/finding-types";
+import type { ProposedFix, SourceLocation } from "@complyloop/analysis-core/contract/finding-types";
 import {
   buildSuggestion,
   mergeFix,

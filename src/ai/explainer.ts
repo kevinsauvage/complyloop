@@ -1,8 +1,8 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import type { Confidence } from "@/core/statuses";
+import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@/core/project-types";
-import type { Explanation, Finding } from "@/core/finding-types";
+import type { Explanation, Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef, locationSnippet } from "@/core/location";
 import { AI_MODEL } from "./model";
 import { aiWarn } from "./warn";

@@ -1,5 +1,5 @@
 import type { Control, Framework, OrgMembership, Organization, Project, Requirement } from "@/core/project-types";
-import type { Alert, Assessment, EvidenceRecord, Finding, Remediation } from "@/core/finding-types";
+import type { Alert, Assessment, EvidenceRecord, Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 
 /**
  * In-memory read model for workspace pages and domain helpers during mutations.

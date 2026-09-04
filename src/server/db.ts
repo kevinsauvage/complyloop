@@ -1,4 +1,4 @@
-import type { EvidenceRecord } from "@/core/finding-types";
+import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
 import { getDrizzle } from "./db-store/client";
 import { newEvidenceRecord } from "./db-store/repo/mappers";
 import {

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { requirementsPageHref } from "@/core/requirements-page";
 import type { FrameworkPreset } from "@/adapters/types";
-import type { RequirementStatus } from "@/core/statuses";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { cn } from "@/lib/utils";
 
 export function PresetNavigator({

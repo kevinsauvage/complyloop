@@ -1,6 +1,6 @@
 import { isDomLocation, isSourceLocation } from "./location";
-import type { Finding, Remediation } from "./finding-types";
-import type { RemediationStatus } from "./statuses";
+import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
+import type { RemediationStatus } from "@complyloop/analysis-core/contract/statuses";
 
 export function hasSafeDeterministicFix(finding: Finding): boolean {
   return Boolean(

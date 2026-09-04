@@ -1,6 +1,6 @@
-import type { RequirementStatus } from "@/core/statuses";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Control, Framework, Project, Requirement } from "@/core/project-types";
-import type { EvidenceRecord, Finding, Remediation } from "@/core/finding-types";
+import type { EvidenceRecord, Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { controlDisplayCodes } from "@/adapters/control-theme";
 import { presetById, presetCatalog } from "@/adapters/registry";
 import { projectDefaultPresetId } from "@/core/project-preset";

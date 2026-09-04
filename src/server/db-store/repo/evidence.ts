@@ -1,4 +1,4 @@
-import type { EvidenceRecord } from "@/core/finding-types";
+import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
 import type { DrizzleDb } from "../client";
 import { evidenceToRow } from "../postgres-evidence";
 import { evidence } from "../schema";

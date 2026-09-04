@@ -1,6 +1,6 @@
 import { requirementStatusLabel } from "@/core/labels";
 import type { Control, Requirement } from "@/core/project-types";
-import type { RequirementStatus } from "@/core/statuses";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { controlDisplayCodes } from "@/adapters/control-theme";
 import {
   escapeHtml,

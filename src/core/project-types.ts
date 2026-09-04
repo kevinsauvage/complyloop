@@ -1,4 +1,4 @@
-import type { DeterminationMethod, RequirementStatus } from "./statuses";
+import type { DeterminationMethod, RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
 export interface Framework {
   id: string;

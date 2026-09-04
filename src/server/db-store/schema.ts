@@ -25,12 +25,12 @@ import type {
   AssessmentSnapshot,
   Finding,
   Remediation,
-} from "@/core/finding-types";
+} from "@complyloop/analysis-core/contract/finding-types";
 import {
   FINDING_STATUSES,
   REMEDIATION_STATUSES,
   REQUIREMENT_STATUSES,
-} from "@/core/statuses";
+} from "@complyloop/analysis-core/contract/statuses";
 
 /**
  * Domain rows store the typed payload as JSONB so nested Finding/Remediation

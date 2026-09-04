@@ -1,4 +1,4 @@
-import { PublicError, isPublicError } from "@/core/public-error";
+import { PublicError, isPublicError } from "@complyloop/analysis-core/contract/public-error";
 import { reportError } from "./observability";
 
 export type ActionMessageState = {

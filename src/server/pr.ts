@@ -1,8 +1,8 @@
 import { applyFileEdits, type PatchCandidate } from "@/ai/verified-fix";
 import { isSourceLocation } from "@/core/location";
 import type { Control, Project } from "@/core/project-types";
-import type { Finding, Remediation } from "@/core/finding-types";
-import { PublicError } from "@/core/public-error";
+import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { githubCloneUrl } from "./connect-shared";
 import { createGit } from "./git";
 import {

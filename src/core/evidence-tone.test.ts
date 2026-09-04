@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { EvidenceKind } from "./finding-types";
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
 import { EVIDENCE_TONE_BADGE, EVIDENCE_TONE_DOT, evidenceTone } from "./evidence-tone";
 
 describe("evidenceTone", () => {

@@ -22,9 +22,10 @@ const eslintConfig = defineConfig([
   },
   // Architecture boundary (docs/ai/architecture.md, "Module boundaries"):
   // src/core/ is framework-agnostic and must not import from adapters,
-  // analysis, server, or app. server/app integrate core via
-  // src/adapters/registry.ts. Core helpers that need catalog data define a
-  // port (e.g. PresetCatalog) that callers pass in.
+  // analysis engines, server, or app. The shared contract
+  // (@complyloop/analysis-core/contract/*) is the exception. server/app
+  // integrate core via src/adapters/registry.ts. Core helpers that need
+  // catalog data define a port (e.g. PresetCatalog) that callers pass in.
   {
     files: ["src/core/**/*.{ts,tsx}"],
     rules: {
@@ -41,6 +42,12 @@ const eslintConfig = defineConfig([
               group: ["**/analysis", "**/analysis/**"],
               message:
                 "src/core must not import analysis — see docs/ai/architecture.md (module boundaries).",
+            },
+            {
+              regex:
+                "^@complyloop/analysis-core(?!/contract(?:/|$))(?:$|/)",
+              message:
+                "src/core may import only @complyloop/analysis-core/contract/* — see docs/ai/architecture.md (module boundaries).",
             },
             {
               group: ["**/server", "**/server/**"],

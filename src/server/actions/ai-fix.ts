@@ -4,7 +4,7 @@ import { PATCH_PR_SOURCE_ONLY_MESSAGE } from "@/ai/verified-fix";
 import { aiExplanationAvailable } from "@/ai/explainer";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { isSourceLocation } from "@/core/location";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   runActionMessage,
   type ActionMessageState,

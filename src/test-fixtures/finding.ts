@@ -1,4 +1,4 @@
-import type { Finding } from "@/core/finding-types";
+import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 
 /** Default open source finding for server/component tests. */
 export function testFinding(partial: Partial<Finding> = {}): Finding {

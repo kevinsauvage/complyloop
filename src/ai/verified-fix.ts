@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import type { RawFinding } from "@complyloop/analysis-core/types";
-import type { Finding } from "@/core/finding-types";
-import type { ExplanationProvenance } from "@/core/statuses";
+import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { ExplanationProvenance } from "@complyloop/analysis-core/contract/statuses";
 import { isSourceLocation } from "@/core/location";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 export const PATCH_PR_SOURCE_ONLY_MESSAGE =
   "Patch PRs are only available for source findings. Use the developer handoff for runtime DOM findings.";

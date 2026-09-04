@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
-import type { EvidenceKind, EvidenceRecord } from "@/core/finding-types";
+import type { EvidenceKind, EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
 import { DEFAULT_PAGE_SIZE } from "@/core/pagination";
 import type { DrizzleDb } from "./client";
 import { rowToEvidence } from "./postgres-evidence";

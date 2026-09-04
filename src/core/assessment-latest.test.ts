@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Assessment } from "./finding-types";
+import type { Assessment } from "@complyloop/analysis-core/contract/finding-types";
 import { latestAssessmentFor } from "./assessment-latest";
 
 function assessment(

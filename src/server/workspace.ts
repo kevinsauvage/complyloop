@@ -1,8 +1,8 @@
 import { cache } from "react";
 import { auth } from "@/auth";
 import type { Control, OrgMembership, Organization, Project } from "@/core/project-types";
-import type { Alert, Finding, Remediation } from "@/core/finding-types";
-import { PublicError } from "@/core/public-error";
+import type { Alert, Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   readActiveOrgCookie,
   readActiveProjectCookie,

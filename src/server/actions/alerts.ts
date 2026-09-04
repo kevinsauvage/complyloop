@@ -1,6 +1,6 @@
 "use server";
 
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   runActionMessage,
   type ActionMessageState,

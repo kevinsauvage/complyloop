@@ -1,10 +1,14 @@
 "use server";
 
 import { canBulkApproveRemediation } from "@/core/finding-act";
-import type { Dismissal, Finding, Remediation } from "@/core/finding-types";
-import { isDismissalReason } from "@/core/finding-types";
+import {
+  isDismissalReason,
+  type Dismissal,
+  type Finding,
+  type Remediation,
+} from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef } from "@/core/location";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
   runActionMessage,

@@ -6,7 +6,7 @@ import type { CheckId } from "@complyloop/analysis-core/types";
 import { runtimeViolationStillPresent } from "@complyloop/analysis-core/runtime/scan";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import { formatLocationRef, isSourceLocation } from "@/core/location";
-import { PublicError } from "@/core/public-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
   actionErrorState,

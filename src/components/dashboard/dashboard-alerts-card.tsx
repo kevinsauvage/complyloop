@@ -2,7 +2,7 @@ import Link from "next/link";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatDateTime } from "@/components/page-primitives";
-import type { Alert as AlertRecord } from "@/core/finding-types";
+import type { Alert as AlertRecord } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project } from "@/core/project-types";
 import { markAlertReadAction } from "@/server/actions/alerts";
 import { TriangleAlert } from "lucide-react";

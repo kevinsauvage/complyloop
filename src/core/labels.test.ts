@@ -6,14 +6,14 @@ import {
   severityLabel,
   severityRank,
 } from "./labels";
-import type { EvidenceKind } from "./finding-types";
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
 import {
   REMEDIATION_STATUSES,
   REQUIREMENT_STATUSES,
   type RemediationStatus,
   type RequirementStatus,
   type Severity,
-} from "./statuses";
+} from "@complyloop/analysis-core/contract/statuses";
 
 const SEVERITIES: Severity[] = ["critical", "serious", "moderate", "minor"];
 

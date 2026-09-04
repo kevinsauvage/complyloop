@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { Finding } from "@/core/finding-types";
+import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { DrizzleDb } from "../client";
 import { findings } from "../schema";
 import { findingToRow } from "./mappers";
