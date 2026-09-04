@@ -11,6 +11,13 @@ export function hasAnyAttr(node: JsxTagNode, names: string[]): boolean {
   return names.some((name) => getAttribute(node, name) !== undefined);
 }
 
+/** React keyboard event handler prop names. */
+export const KEY_HANDLERS = ["onKeyDown", "onKeyUp", "onKeyPress"] as const;
+
+export function hasKeyboardHandlers(node: JsxTagNode): boolean {
+  return hasAnyAttr(node, [...KEY_HANDLERS]);
+}
+
 const CONTEXT_CHANGE_KEYWORDS = [
   "push(",
   "replace(",
@@ -336,4 +343,15 @@ export function ariaDescribedByPointsToTranscript(
   };
   visit(sourceFile);
   return found;
+}
+
+/** True when the node has a matching track kind or an adjacent transcript alternative. */
+export function hasTrackOrTranscriptAlt(
+  node: JsxTagNode,
+  kinds: ReadonlySet<string>,
+  sourceFile: ts.SourceFile,
+): boolean {
+  if (hasChildTrackKind(node, kinds)) return true;
+  if (hasAdjacentTranscriptLink(node)) return true;
+  return ariaDescribedByPointsToTranscript(node, sourceFile);
 }

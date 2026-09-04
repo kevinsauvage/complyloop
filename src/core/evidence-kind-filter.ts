@@ -1,6 +1,7 @@
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
+import { firstParam } from "./query-param";
 
-const EVIDENCE_KINDS: readonly EvidenceKind[] = [
+export const EVIDENCE_KIND_FILTER_ORDER: readonly EvidenceKind[] = [
   "finding_detected",
   "finding_resolved",
   "finding_dismissed",
@@ -13,22 +14,12 @@ const EVIDENCE_KINDS: readonly EvidenceKind[] = [
   "assessment_job_failed",
 ] as const;
 
-export const EVIDENCE_KIND_FILTER_ORDER: readonly EvidenceKind[] =
-  EVIDENCE_KINDS;
-
-function firstParam(
-  raw: string | string[] | undefined,
-): string | undefined {
-  if (Array.isArray(raw)) return raw[0];
-  return raw;
-}
-
 export function parseEvidenceKindParam(
   raw: string | string[] | undefined,
 ): EvidenceKind | undefined {
   const value = firstParam(raw);
   if (!value) return undefined;
-  return (EVIDENCE_KINDS as readonly string[]).includes(value)
+  return (EVIDENCE_KIND_FILTER_ORDER as readonly string[]).includes(value)
     ? (value as EvidenceKind)
     : undefined;
 }

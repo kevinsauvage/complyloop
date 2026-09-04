@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  determinationLabel,
   evidenceKindLabel,
   remediationStatusLabel,
   requirementStatusLabel,
@@ -110,6 +111,13 @@ describe("evidenceKindLabel", () => {
     expect(() =>
       evidenceKindLabel("bogus" as EvidenceKind),
     ).toThrow(/Unhandled evidence kind/);
+  });
+});
+
+describe("determinationLabel", () => {
+  it("labels both determination methods", () => {
+    expect(determinationLabel("automated")).toBe("Automated");
+    expect(determinationLabel("human_review")).toBe("Human review");
   });
 });
 

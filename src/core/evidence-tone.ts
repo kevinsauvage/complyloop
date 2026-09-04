@@ -1,4 +1,5 @@
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
+import { STATUS_TONE_BADGE } from "./status-tone";
 
 export type EvidenceTone = "default" | "pass" | "fail" | "review" | "signal";
 
@@ -49,12 +50,10 @@ export const EVIDENCE_TONE_DOT: Record<EvidenceTone, string> = {
   signal: "bg-signal",
 };
 
-/** Matches `STATUS_TONE_BADGE` in `status-tone.ts`. */
 export const EVIDENCE_TONE_BADGE: Record<EvidenceTone, string> = {
   default: "",
-  pass: "border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25",
-  fail: "border-transparent bg-status-failed/15 text-status-failed dark:bg-status-failed/25",
-  review:
-    "border-transparent bg-status-review/15 text-status-review dark:bg-status-review/25",
-  signal: "border-transparent bg-signal/15 text-signal dark:bg-signal/25",
+  pass: STATUS_TONE_BADGE.passed,
+  fail: STATUS_TONE_BADGE.failed,
+  review: STATUS_TONE_BADGE.review,
+  signal: STATUS_TONE_BADGE.signal,
 };

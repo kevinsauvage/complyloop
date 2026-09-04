@@ -1,5 +1,10 @@
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
-import type { RemediationStatus, RequirementStatus, Severity } from "@complyloop/analysis-core/contract/statuses";
+import type {
+  DeterminationMethod,
+  RemediationStatus,
+  RequirementStatus,
+  Severity,
+} from "@complyloop/analysis-core/contract/statuses";
 import { assertExhaustive } from "./assert-exhaustive";
 
 export function requirementStatusLabel(status: RequirementStatus): string {
@@ -47,6 +52,15 @@ const SEVERITY_LABEL: Record<Severity, string> = {
   serious: "Serious",
   moderate: "Moderate",
   minor: "Minor",
+};
+
+export function determinationLabel(method: DeterminationMethod): string {
+  return DETERMINATION_LABEL[method] ?? assertExhaustive(method, "determination");
+}
+
+const DETERMINATION_LABEL: Record<DeterminationMethod, string> = {
+  automated: "Automated",
+  human_review: "Human review",
 };
 
 export function evidenceKindLabel(kind: EvidenceKind): string {

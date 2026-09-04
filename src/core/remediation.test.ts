@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceRemediation, canTransition } from "./remediation";
+import { advanceRemediation } from "./remediation";
 import type { Remediation } from "@complyloop/analysis-core/contract/finding-types";
 
 function remediation(status: Remediation["status"]): Remediation {
@@ -12,32 +12,22 @@ function remediation(status: Remediation["status"]): Remediation {
   };
 }
 
-describe("canTransition", () => {
-  it("follows the remediation lifecycle in order", () => {
-    expect(canTransition("detected", "suggested")).toBe(true);
-    expect(canTransition("suggested", "approved")).toBe(true);
-    expect(canTransition("approved", "implemented")).toBe(true);
-    expect(canTransition("implemented", "verified")).toBe(true);
-  });
-
-  it("rejects skipping stages or moving backwards", () => {
-    expect(canTransition("detected", "verified")).toBe(false);
-    expect(canTransition("suggested", "implemented")).toBe(false);
-    expect(canTransition("approved", "suggested")).toBe(false);
-    expect(canTransition("verified", "detected")).toBe(false);
-  });
-
-  it("throws on an unknown remediation status at runtime", () => {
-    expect(() =>
-      canTransition(
-        "bogus" as unknown as Remediation["status"],
-        "suggested",
-      ),
-    ).toThrow(/Unhandled remediation status/);
-  });
-});
-
 describe("advanceRemediation", () => {
+  it("follows the remediation lifecycle in order", () => {
+    expect(advanceRemediation(remediation("detected"), "suggested").status).toBe(
+      "suggested",
+    );
+    expect(advanceRemediation(remediation("suggested"), "approved").status).toBe(
+      "approved",
+    );
+    expect(advanceRemediation(remediation("approved"), "implemented").status).toBe(
+      "implemented",
+    );
+    expect(
+      advanceRemediation(remediation("implemented"), "verified").status,
+    ).toBe("verified");
+  });
+
   it("appends a history entry on a valid transition", () => {
     const advanced = advanceRemediation(remediation("suggested"), "approved", "ok");
     expect(advanced.status).toBe("approved");
@@ -45,8 +35,17 @@ describe("advanceRemediation", () => {
     expect(advanced.history[1]).toMatchObject({ status: "approved", note: "ok" });
   });
 
-  it("throws on an invalid transition", () => {
+  it("rejects skipping stages or moving backwards", () => {
     expect(() => advanceRemediation(remediation("detected"), "verified")).toThrow(
+      /Invalid remediation transition/,
+    );
+    expect(() =>
+      advanceRemediation(remediation("suggested"), "implemented"),
+    ).toThrow(/Invalid remediation transition/);
+    expect(() => advanceRemediation(remediation("approved"), "suggested")).toThrow(
+      /Invalid remediation transition/,
+    );
+    expect(() => advanceRemediation(remediation("verified"), "detected")).toThrow(
       /Invalid remediation transition/,
     );
   });

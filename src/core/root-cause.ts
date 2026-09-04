@@ -1,5 +1,9 @@
+import type {
+  Finding,
+  FindingCluster,
+  SourceLocation,
+} from "@complyloop/analysis-core/contract/finding-types";
 import type { Control } from "./project-types";
-import type { Finding, FindingCluster } from "@complyloop/analysis-core/contract/finding-types";
 import { isSourceLocation } from "./location";
 
 function directoryOf(filePath: string): string {
@@ -17,6 +21,12 @@ function componentKey(filePath: string): string | undefined {
   const base = fileNameOf(filePath).replace(/\.(tsx|jsx|ts|js)$/i, "");
   if (/^[A-Z][A-Za-z0-9]+$/.test(base)) return base;
   return undefined;
+}
+
+function isSourceFinding(
+  finding: Finding,
+): finding is Finding & { location: SourceLocation } {
+  return isSourceLocation(finding.location);
 }
 
 /**
@@ -44,9 +54,7 @@ export function clusterFindings(
     const controlTitle =
       controls.find((control) => control.checkId === checkId)?.title ?? checkId;
 
-    const sourceGroup = group.filter((finding) =>
-      isSourceLocation(finding.location),
-    );
+    const sourceGroup = group.filter(isSourceFinding);
     const domGroup = group.filter(
       (finding) => finding.location.kind === "dom",
     );
@@ -55,7 +63,6 @@ export function clusterFindings(
     const byDir = new Map<string, Finding[]>();
     const byComponent = new Map<string, Finding[]>();
     for (const finding of sourceGroup) {
-      if (!isSourceLocation(finding.location)) continue;
       const file = fileNameOf(finding.location.filePath);
       const dir = directoryOf(finding.location.filePath);
       byFile.set(file, [...(byFile.get(file) ?? []), finding]);
@@ -93,13 +100,7 @@ export function clusterFindings(
     for (const [component, members] of byComponent) {
       if (members.length < 2) continue;
       const distinctPaths = new Set(
-        members
-          .filter((finding) => isSourceLocation(finding.location))
-          .map((finding) =>
-            isSourceLocation(finding.location)
-              ? finding.location.filePath
-              : "",
-          ),
+        members.filter(isSourceFinding).map((finding) => finding.location.filePath),
       );
       if (distinctPaths.size < 2) continue;
       clusters.push({
@@ -115,13 +116,9 @@ export function clusterFindings(
     for (const [dir, members] of byDir) {
       if (members.length < 2) continue;
       const fileKeys = new Set(
-        members
-          .filter((finding) => isSourceLocation(finding.location))
-          .map((finding) =>
-            isSourceLocation(finding.location)
-              ? fileNameOf(finding.location.filePath)
-              : "",
-          ),
+        members.filter(isSourceFinding).map((finding) =>
+          fileNameOf(finding.location.filePath),
+        ),
       );
       if (fileKeys.size === 1) continue;
       clusters.push({

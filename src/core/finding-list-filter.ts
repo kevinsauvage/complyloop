@@ -3,6 +3,7 @@ import type { Control } from "./project-types";
 import { formatLocationRef, locationPathOrUrl } from "./location";
 import { parsePageParam } from "./pagination";
 import { prioritizeFindings } from "./prioritization";
+import { firstParam } from "./query-param";
 import { severityRank } from "./labels";
 import {
   REMEDIATION_STATUSES,
@@ -26,13 +27,6 @@ const SEVERITIES = [
   "moderate",
   "minor",
 ] as const satisfies readonly Severity[];
-
-function firstParam(
-  raw: string | string[] | undefined,
-): string | undefined {
-  if (Array.isArray(raw)) return raw[0];
-  return raw;
-}
 
 export interface FindingListParams {
   q?: string;
@@ -124,14 +118,7 @@ export function findingsListHref(
     page: 1,
     ...params,
   };
-  const search = new URLSearchParams();
-  if (merged.q) search.set("q", merged.q);
-  if (merged.severity) search.set("severity", merged.severity);
-  if (merged.engine) search.set("engine", merged.engine);
-  if (merged.remediation) search.set("remediation", merged.remediation);
-  if (merged.control) search.set("control", merged.control);
-  if (merged.cluster) search.set("cluster", merged.cluster);
-  if (merged.tab !== "open") search.set("tab", merged.tab);
+  const search = new URLSearchParams(findingListPaginationQuery(merged));
   if (merged.page > 1) search.set("page", String(merged.page));
   const qs = search.toString();
   return qs ? `/findings?${qs}` : "/findings";

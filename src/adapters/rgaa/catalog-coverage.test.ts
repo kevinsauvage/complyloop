@@ -10,7 +10,7 @@ import { rgaaControls } from "./controls";
 import { rgaaPresets } from "./presets";
 
 /** Every RGAA 4.1.2 criterion id, in thematic order. */
-export const RGAA_412_CRITERIA: readonly string[] = [
+const RGAA_412_CRITERIA: readonly string[] = [
   "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9",
   "2.1", "2.2",
   "3.1", "3.2", "3.3",

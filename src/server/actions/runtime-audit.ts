@@ -10,8 +10,6 @@ import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safe
 import { withProjectWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
-export type RuntimeAuditFormState = ActionMessageState;
-
 const updateRuntimeAuditInput = z.object({
   runtimeBaseUrl: z.string().optional(),
   runtimeRoutes: z.string().optional(),
@@ -30,9 +28,9 @@ function parseRoutes(raw: string | undefined): string[] {
 }
 
 export async function updateRuntimeAuditAction(
-  _previous: RuntimeAuditFormState,
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<RuntimeAuditFormState> {
+): Promise<ActionMessageState> {
   return runActionMessage(async () => {
     const parsed = parseForm(updateRuntimeAuditInput, formData);
     const base = parsed.runtimeBaseUrl?.trim() ?? "";

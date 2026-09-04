@@ -9,10 +9,9 @@ import {
   visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";
-import { hasAnyAttr } from "./heuristic-utils.ts";
+import { hasAnyAttr, hasKeyboardHandlers } from "./heuristic-utils.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
-const KEY_HANDLERS = ["onKeyDown", "onKeyUp", "onKeyPress"];
 const DRAG_HANDLERS = ["onDrag", "onDragStart", "onDragEnd", "onDrop"];
 
 export const draggingCheck: AccessibilityCheck = {
@@ -32,7 +31,7 @@ export const draggingCheck: AccessibilityCheck = {
       const hasDragHandler = hasAnyAttr(node, DRAG_HANDLERS);
       if (!isDraggable && !hasDragHandler) return;
       if (isNativeInteractive(node)) return;
-      if (hasAnyAttr(node, KEY_HANDLERS)) return;
+      if (hasKeyboardHandlers(node)) return;
 
       findings.push({
         checkId: "dragging",

@@ -1,8 +1,6 @@
 import { rgaaControls, rgaaFramework } from "./controls";
 import type { FrameworkPreset } from "@/adapters/types";
 
-export type { FrameworkPreset };
-
 /**
  * Controls that are genuinely RGAA 4: those whose primary code is an RGAA
  * criterion. The shared catalog also carries WCAG-only additions (e.g. Focus

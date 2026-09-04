@@ -1,4 +1,4 @@
-import { hasChildTrackKind } from "./heuristic-utils.ts";
+import { CAPTION_KINDS, hasChildTrackKind } from "./heuristic-utils.ts";
 import {
   getAttribute,
   locationOf,
@@ -8,7 +8,6 @@ import {
   type JsxTagNode,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-import { CAPTION_KINDS } from "./heuristic-utils.ts";
 
 const LIVE_HINT = /live|stream|broadcast|\.m3u8/i;
 

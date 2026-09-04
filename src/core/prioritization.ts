@@ -22,7 +22,7 @@ function controlWeight(
  * Higher score = fix sooner. Combines severity, confidence, cluster size,
  * and optional control complianceWeight (spec §16–17).
  */
-export function findingPriorityScore(
+function findingPriorityScore(
   finding: Finding,
   clusterSize: number,
   controls: ReadonlyArray<Control> = [],

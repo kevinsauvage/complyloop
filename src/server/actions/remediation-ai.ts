@@ -31,13 +31,11 @@ setAiWarn((message, context) => {
   reportWarning(message, context);
 });
 
-export type AiActionState = ActionMessageState;
-
 export async function generateAiExplanationAction(
   findingIdRaw: string,
-  _previous: AiActionState,
+  _previous: ActionMessageState,
   _formData: FormData,
-): Promise<AiActionState> {
+): Promise<ActionMessageState> {
   void _previous;
   void _formData;
   return runActionMessage(async () => {
@@ -69,9 +67,9 @@ export async function generateAiExplanationAction(
 
 export async function generateAiRemediationAction(
   findingIdRaw: string,
-  _previous: AiActionState,
+  _previous: ActionMessageState,
   _formData: FormData,
-): Promise<AiActionState> {
+): Promise<ActionMessageState> {
   void _previous;
   void _formData;
   return runActionMessage(async () => {

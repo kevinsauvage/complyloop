@@ -1,8 +1,7 @@
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import { assertExhaustive } from "@/core/assert-exhaustive";
 import { formatDateTime } from "@/core/format-datetime";
 import type { ReportInput } from "../report";
-
-export { formatDateTime };
 
 export function escapeHtml(text: string): string {
   return text
@@ -23,10 +22,6 @@ const STATUS_CLASS: Record<RequirementStatus, string> = {
   not_applicable: "status-not-applicable",
   unable_to_verify: "status-unable",
 };
-
-function assertExhaustive(value: string, kind: string): never {
-  throw new Error(`Unhandled ${kind}: ${value}`);
-}
 
 const REPORT_STYLES = `
 :root {

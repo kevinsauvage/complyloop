@@ -12,7 +12,7 @@ export interface PresetCatalog {
   defaultConnectPresetId: string;
 }
 
-/** Project default assessment preset; falls back through legacy fields. */
+/** Project default assessment preset, else catalog connect default. */
 export function projectDefaultPresetId(
   project: Project,
   catalog: PresetCatalog,

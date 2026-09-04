@@ -7,18 +7,12 @@ import {
   type JsxTagNode,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-import { hasAnyAttr } from "./heuristic-utils.ts";
+import { hasAnyAttr, KEY_HANDLERS } from "./heuristic-utils.ts";
 
 const STATIC_MEDIA_TAGS = new Set(["object", "embed"]);
 
 function hasKeyboardPath(node: JsxTagNode): boolean {
-  return hasAnyAttr(node, [
-    "tabIndex",
-    "tabindex",
-    "onKeyDown",
-    "onKeyUp",
-    "onKeyPress",
-  ]);
+  return hasAnyAttr(node, ["tabIndex", "tabindex", ...KEY_HANDLERS]);
 }
 
 export const mediaKeyboardStaticCheck: AccessibilityCheck = {

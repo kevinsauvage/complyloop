@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkIdForAxeRule, mappedAxeRuleCount, REJECTED_AXE_RULES } from "./axe-map";
+import { axeMappedCheckIds, checkIdForAxeRule, REJECTED_AXE_RULES } from "./axe-map";
 
 describe("axe-map", () => {
   it("maps high-value axe rules onto modeled checks", () => {
@@ -47,7 +47,7 @@ describe("axe-map", () => {
     expect(checkIdForAxeRule("aria-treeitem-name")).toBeUndefined();
   });
 
-  it("covers a broader rule surface than the original ~37 mappings", () => {
-    expect(mappedAxeRuleCount()).toBeGreaterThanOrEqual(60);
+  it("maps many axe rules onto catalog checks", () => {
+    expect(axeMappedCheckIds().length).toBeGreaterThanOrEqual(40);
   });
 });

@@ -152,8 +152,3 @@ export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {
 export function axeMappedCheckIds(): CheckId[] {
   return [...new Set(Object.values(AXE_TO_CHECK))];
 }
-
-/** Exposed for tests — count of axe rules we currently map. */
-export function mappedAxeRuleCount(): number {
-  return Object.keys(AXE_TO_CHECK).length;
-}

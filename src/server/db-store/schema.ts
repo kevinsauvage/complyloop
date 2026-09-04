@@ -337,5 +337,3 @@ export const rateLimitBuckets = pgTable(
   ],
 );
 
-export type EvidenceRow = typeof evidence.$inferSelect;
-export type EvidenceInsert = typeof evidence.$inferInsert;

@@ -7,10 +7,8 @@ import {
   visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";
-import { hasAnyAttr } from "./heuristic-utils.ts";
+import { hasAnyAttr, hasKeyboardHandlers } from "./heuristic-utils.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-
-const KEY_HANDLERS = ["onKeyDown", "onKeyUp", "onKeyPress"];
 
 export const pointerGestureCheck: AccessibilityCheck = {
   id: "pointer-gesture",
@@ -31,7 +29,7 @@ export const pointerGestureCheck: AccessibilityCheck = {
         return;
       }
       if (isNativeInteractive(node)) return;
-      if (hasAnyAttr(node, KEY_HANDLERS)) return;
+      if (hasKeyboardHandlers(node)) return;
       findings.push({
         checkId: "pointer-gesture",
         kind: "warning",

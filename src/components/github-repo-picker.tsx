@@ -24,7 +24,7 @@ import {
   type ConnectGitHubFormState,
   type DisconnectGitHubFormState,
 } from "@/server/actions/connect";
-import type { GitHubRepoSummary } from "@/server/github";
+import type { GitHubRepoSummary } from "@/server/github-repo";
 import { groupReposByOwner } from "@/server/github-repo";
 import { z } from "zod";
 

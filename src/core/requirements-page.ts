@@ -2,13 +2,7 @@ import { projectDefaultPresetId } from "./project-preset";
 import type { PresetCatalog } from "./project-preset";
 import type { Project } from "./project-types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-
-function firstParam(
-  raw: string | string[] | undefined,
-): string | undefined {
-  if (Array.isArray(raw)) return raw[0];
-  return raw;
-}
+import { firstParam } from "./query-param";
 
 export function parsePresetIdParam(
   raw: string | string[] | undefined,

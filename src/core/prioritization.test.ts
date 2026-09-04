@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  findingPriorityScore,
-  prioritizeClusters,
-  prioritizeFindings,
-} from "./prioritization";
+import { prioritizeClusters, prioritizeFindings } from "./prioritization";
 import type { Control } from "./project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 
@@ -51,12 +47,11 @@ const controls: Control[] = [
 ];
 
 describe("prioritization", () => {
-  it("scores critical findings higher than moderate ones", () => {
+  it("orders critical findings before moderate ones", () => {
     const critical = finding("1", "img-alt", "a.tsx", "critical");
     const moderate = finding("2", "img-alt", "b.tsx", "moderate");
-    expect(findingPriorityScore(critical, 1)).toBeGreaterThan(
-      findingPriorityScore(moderate, 1),
-    );
+    const ordered = prioritizeFindings([moderate, critical], controls);
+    expect(ordered.map((f) => f.id)).toEqual(["1", "2"]);
   });
 
   it("boosts findings that share a root-cause cluster", () => {
@@ -70,16 +65,15 @@ describe("prioritization", () => {
     expect(["1", "2"]).toContain(ordered[0].id);
   });
 
-  it("applies control complianceWeight to the score", () => {
+  it("applies control complianceWeight when ordering", () => {
     const weighted: Control[] = [
       { ...controls[0], id: "ctl-hi", complianceWeight: 2 },
       { ...controls[0], id: "ctl-lo", complianceWeight: 1 },
     ];
     const hi = { ...finding("1", "img-alt", "a.tsx", "serious"), controlId: "ctl-hi" };
     const lo = { ...finding("2", "img-alt", "b.tsx", "serious"), controlId: "ctl-lo" };
-    expect(findingPriorityScore(hi, 1, weighted)).toBeGreaterThan(
-      findingPriorityScore(lo, 1, weighted),
-    );
+    const ordered = prioritizeFindings([lo, hi], weighted);
+    expect(ordered.map((f) => f.id)).toEqual(["1", "2"]);
   });
 
   it("ranks clusters by combined priority", () => {
@@ -96,8 +90,6 @@ describe("prioritization", () => {
   });
 
   it("orders multiple clusters by descending priority score", () => {
-    // Two distinct directories each yield a cluster; the higher-severity
-    // cluster must sort first.
     const clusters = prioritizeClusters(
       [
         finding("1", "img-alt", "dir/a/A.tsx", "critical"),
@@ -110,7 +102,7 @@ describe("prioritization", () => {
     expect(clusters.length).toBeGreaterThan(1);
     const first = clusters[0];
     expect(first?.priorityScore).toBeGreaterThanOrEqual(
-      (clusters[1]?.priorityScore ?? 0),
+      clusters[1]?.priorityScore ?? 0,
     );
   });
 });

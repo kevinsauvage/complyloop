@@ -235,31 +235,38 @@ export async function markRequirementPassedAction(
 
 export async function clearRequirementHumanPassAction(
   requirementIdRaw: string,
-  _previous: ActionMessageState,
-  _formData: FormData,
+  previous: ActionMessageState,
+  formData: FormData,
 ): Promise<ActionMessageState> {
-  void _formData;
-  return runActionMessage(async () => {
-    const requirementId = parseInput(entityIdSchema, requirementIdRaw);
-    await withProjectWrite(async (workspace) => {
-      requireOnActive(workspace, "project.remediate");
-      const { db, project } = workspace;
-      const requirement = requireRequirement(
-        db,
-        project.id,
-        requirementId,
-      );
-      clearRequirementOverride(db, project, requirement, "humanPass");
-    });
-    refresh();
-    return "Human pass cleared.";
-  });
+  return clearRequirementOverrideAction(
+    requirementIdRaw,
+    previous,
+    formData,
+    "humanPass",
+    "Human pass cleared.",
+  );
 }
 
 export async function clearRequirementExceptionAction(
   requirementIdRaw: string,
+  previous: ActionMessageState,
+  formData: FormData,
+): Promise<ActionMessageState> {
+  return clearRequirementOverrideAction(
+    requirementIdRaw,
+    previous,
+    formData,
+    "exception",
+    "Exception cleared.",
+  );
+}
+
+async function clearRequirementOverrideAction(
+  requirementIdRaw: string,
   _previous: ActionMessageState,
   _formData: FormData,
+  field: "humanPass" | "exception",
+  message: string,
 ): Promise<ActionMessageState> {
   void _formData;
   return runActionMessage(async () => {
@@ -272,9 +279,9 @@ export async function clearRequirementExceptionAction(
         project.id,
         requirementId,
       );
-      clearRequirementOverride(db, project, requirement, "exception");
+      clearRequirementOverride(db, project, requirement, field);
     });
     refresh();
-    return "Exception cleared.";
+    return message;
   });
 }

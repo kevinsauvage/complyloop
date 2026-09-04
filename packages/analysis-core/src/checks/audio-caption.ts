@@ -1,8 +1,6 @@
 import {
   AUDIO_ALT_KINDS,
-  ariaDescribedByPointsToTranscript,
-  hasAdjacentTranscriptLink,
-  hasChildTrackKind,
+  hasTrackOrTranscriptAlt,
 } from "./heuristic-utils.ts";
 import { locationOf, tagNameOf, visitJsxTags } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
@@ -13,9 +11,9 @@ export const audioCaptionCheck: AccessibilityCheck = {
     const findings: RawFinding[] = [];
     visitJsxTags(source.sourceFile, (node) => {
       if (tagNameOf(node) !== "audio") return;
-      if (hasChildTrackKind(node, AUDIO_ALT_KINDS)) return;
-      if (hasAdjacentTranscriptLink(node)) return;
-      if (ariaDescribedByPointsToTranscript(node, source.sourceFile)) return;
+      if (hasTrackOrTranscriptAlt(node, AUDIO_ALT_KINDS, source.sourceFile)) {
+        return;
+      }
 
       findings.push({
         checkId: "audio-caption",

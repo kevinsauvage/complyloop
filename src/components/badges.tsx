@@ -12,6 +12,7 @@ import {
   severityDescription,
 } from "@/core/badge-descriptions";
 import {
+  determinationLabel,
   evidenceKindLabel,
   remediationStatusLabel,
   requirementStatusLabel,
@@ -115,20 +116,18 @@ export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
   );
 }
 
-const DETERMINATION_BADGE: Record<DeterminationMethod, { className: string; label: string }> = {
-  automated: { className: STATUS_TONE_BADGE.signal, label: "Automated" },
-  human_review: {
-    className:
-      "border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300",
-    label: "Human review",
-  },
+const DETERMINATION_BADGE: Record<DeterminationMethod, string> = {
+  automated: STATUS_TONE_BADGE.signal,
+  human_review:
+    "border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300",
 };
 
 export function DeterminationBadge({ method }: { method: DeterminationMethod }) {
-  const { className, label } = DETERMINATION_BADGE[method];
   return (
     <BadgeWithDescription description={determinationDescription(method)}>
-      <Badge className={className}>{label}</Badge>
+      <Badge className={DETERMINATION_BADGE[method]}>
+        {determinationLabel(method)}
+      </Badge>
     </BadgeWithDescription>
   );
 }

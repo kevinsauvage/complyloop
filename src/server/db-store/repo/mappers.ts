@@ -63,7 +63,7 @@ export function requirementToRow(requirement: Requirement) {
   };
 }
 
-export function assessmentPayloadFrom(assessment: Assessment): AssessmentPayload {
+function assessmentPayloadFrom(assessment: Assessment): AssessmentPayload {
   const { snapshot, ...payload } = assessment;
   void snapshot;
   return payload;

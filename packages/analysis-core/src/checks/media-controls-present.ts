@@ -4,25 +4,11 @@ import {
   locationOf,
   tagNameOf,
   visitJsxTags,
-  type JsxTagNode,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-import { hasAnyAttr } from "./heuristic-utils.ts";
+import { hasKeyboardHandlers } from "./heuristic-utils.ts";
 
 const MEDIA_TAGS = new Set(["video", "audio"]);
-
-function hasNativeControls(node: JsxTagNode): boolean {
-  return getAttribute(node, "controls") !== undefined;
-}
-
-function hasCustomPlayerKeyboard(node: JsxTagNode): boolean {
-  const role = getAttribute(node, "role");
-  const roleText = role?.initializer?.getText().toLowerCase() ?? "";
-  if (roleText.includes("application")) {
-    return hasAnyAttr(node, ["onKeyDown", "onKeyUp", "onKeyPress"]);
-  }
-  return hasAnyAttr(node, ["onKeyDown", "onKeyUp", "onKeyPress"]);
-}
 
 export const mediaControlsPresentCheck: AccessibilityCheck = {
   id: "media-controls-present",
@@ -32,8 +18,8 @@ export const mediaControlsPresentCheck: AccessibilityCheck = {
       const tag = tagNameOf(node);
       if (!MEDIA_TAGS.has(tag)) return;
       if (isPropSpreadingHost(node)) return;
-      if (hasNativeControls(node)) return;
-      if (hasCustomPlayerKeyboard(node)) return;
+      if (getAttribute(node, "controls") !== undefined) return;
+      if (hasKeyboardHandlers(node)) return;
 
       findings.push({
         checkId: "media-controls-present",

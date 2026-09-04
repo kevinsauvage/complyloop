@@ -1,7 +1,8 @@
 import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
 import { evidenceKindLabel } from "@/core/labels";
 import { countRequirementsByStatus, type ReportInput } from "../report";
-import { escapeHtml, formatDateTime, reportShell } from "./shared";
+import { formatDateTime } from "@/core/format-datetime";
+import { escapeHtml, reportShell } from "./shared";
 import { renderRequirements, renderSummaryRows } from "./requirements-section";
 
 function renderEvidence(evidence: EvidenceRecord[]): string {

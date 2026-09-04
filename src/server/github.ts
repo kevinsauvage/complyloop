@@ -11,8 +11,6 @@ import {
 } from "./github-repo";
 import { createOctokit, octokitErrorMessage } from "./octokit";
 
-export type { GitHubRepoSummary } from "./github-repo";
-
 /**
  * Lists repositories available to connect.
  * With a GitHub App configured: only repos on installations the user can access.

@@ -2,13 +2,7 @@ import {
   REQUIREMENT_STATUSES,
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
-
-function firstParam(
-  raw: string | string[] | undefined,
-): string | undefined {
-  if (Array.isArray(raw)) return raw[0];
-  return raw;
-}
+import { firstParam } from "./query-param";
 
 export function parseRequirementStatusParam(
   raw: string | string[] | undefined,

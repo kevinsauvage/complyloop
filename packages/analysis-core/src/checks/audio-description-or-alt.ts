@@ -1,22 +1,9 @@
 import {
-  ariaDescribedByPointsToTranscript,
-  hasAdjacentTranscriptLink,
-  hasChildTrackKind,
+  DESCRIPTION_KINDS,
+  hasTrackOrTranscriptAlt,
 } from "./heuristic-utils.ts";
 import { locationOf, tagNameOf, visitJsxTags } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-
-const DESCRIPTION_KINDS = new Set(["descriptions"]);
-
-function hasAudioDescriptionAlternative(
-  node: Parameters<typeof hasChildTrackKind>[0],
-  sourceFile: Parameters<typeof ariaDescribedByPointsToTranscript>[1],
-): boolean {
-  if (hasChildTrackKind(node, DESCRIPTION_KINDS)) return true;
-  if (hasAdjacentTranscriptLink(node)) return true;
-  if (ariaDescribedByPointsToTranscript(node, sourceFile)) return true;
-  return false;
-}
 
 export const audioDescriptionOrAltCheck: AccessibilityCheck = {
   id: "audio-description-or-alt",
@@ -24,7 +11,11 @@ export const audioDescriptionOrAltCheck: AccessibilityCheck = {
     const findings: RawFinding[] = [];
     visitJsxTags(source.sourceFile, (node) => {
       if (tagNameOf(node) !== "video") return;
-      if (hasAudioDescriptionAlternative(node, source.sourceFile)) return;
+      if (
+        hasTrackOrTranscriptAlt(node, DESCRIPTION_KINDS, source.sourceFile)
+      ) {
+        return;
+      }
 
       findings.push({
         checkId: "audio-description-or-alt",

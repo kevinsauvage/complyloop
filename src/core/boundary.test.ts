@@ -3,13 +3,13 @@ import { z } from "zod";
 import {
   assessmentJobsResponseSchema,
   entityIdSchema,
-  findingIdsSchema,
+  findingIdsField,
   firstIssueMessage,
   formRecord,
   githubRepoSearchResponseSchema,
   optionalNoteSchema,
   parseUnknown,
-  requiredNoteSchema,
+  requiredField,
 } from "./boundary";
 
 describe("formRecord", () => {
@@ -63,15 +63,17 @@ describe("note and finding-id field schemas", () => {
     expect(optionalNoteSchema.safeParse("x".repeat(2001)).success).toBe(false);
   });
 
-  it("requires a non-empty note", () => {
-    expect(requiredNoteSchema.parse("  note  ")).toBe("note");
-    expect(requiredNoteSchema.safeParse("  ").success).toBe(false);
+  it("requires a non-empty field via requiredField", () => {
+    const note = requiredField("Note required.", 2000);
+    expect(note.parse("  note  ")).toBe("note");
+    expect(note.safeParse("  ").success).toBe(false);
   });
 
   it("normalizes one or many finding ids and rejects an empty list", () => {
-    expect(findingIdsSchema.parse("f1")).toEqual(["f1"]);
-    expect(findingIdsSchema.parse([" f1 ", "f1", "f2"])).toEqual(["f1", "f2"]);
-    expect(findingIdsSchema.safeParse([]).success).toBe(false);
+    const findingIds = findingIdsField("Select at least one finding.");
+    expect(findingIds.parse("f1")).toEqual(["f1"]);
+    expect(findingIds.parse([" f1 ", "f1", "f2"])).toEqual(["f1", "f2"]);
+    expect(findingIds.safeParse([]).success).toBe(false);
   });
 });
 

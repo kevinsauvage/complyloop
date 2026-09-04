@@ -12,8 +12,6 @@ export const optionalNoteSchema = z
     return trimmed.length === 0 ? undefined : trimmed;
   });
 
-export const requiredNoteSchema = z.string().trim().min(1).max(2000);
-
 export function requiredField(message: string, max = 128) {
   return z
     .string({ error: message })
@@ -35,8 +33,6 @@ export function findingIdsField(emptyMessage: string) {
     })
     .pipe(z.array(entityIdSchema).min(1, { error: emptyMessage }));
 }
-
-export const findingIdsSchema = findingIdsField("Select at least one finding.");
 
 const githubRepoSummarySchema = z.object({
   fullName: z.string().min(1),

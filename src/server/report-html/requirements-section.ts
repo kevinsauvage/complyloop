@@ -1,12 +1,9 @@
-import { requirementStatusLabel } from "@/core/labels";
+import { determinationLabel, requirementStatusLabel } from "@/core/labels";
+import { formatDateTime } from "@/core/format-datetime";
 import type { Control, Requirement } from "@/core/project-types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { controlDisplayCodes } from "@/adapters/control-theme";
-import {
-  escapeHtml,
-  formatDateTime,
-  statusClass,
-} from "./shared";
+import { escapeHtml, statusClass } from "./shared";
 
 export function renderSummaryRows(counts: Record<RequirementStatus, number>): string {
   return (Object.keys(counts) as RequirementStatus[])
@@ -43,7 +40,7 @@ export function renderRequirements(
   <td><code>${escapeHtml(code)}</code></td>
   <td>${escapeHtml(title)}</td>
   <td><span class="badge ${statusClass(req.status)}">${escapeHtml(requirementStatusLabel(req.status))}</span></td>
-  <td class="muted">${escapeHtml(req.determination === "automated" ? "Automated" : "Human review")}</td>
+  <td class="muted">${escapeHtml(determinationLabel(req.determination))}</td>
   <td class="nowrap muted">${escapeHtml(formatDateTime(req.updatedAt))}</td>
 </tr>${exceptionReason || exceptionNote ? `<tr class="exception-row"><td colspan="5">${exceptionReason}${exceptionNote}</td></tr>` : ""}`;
     })

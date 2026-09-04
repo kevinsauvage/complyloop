@@ -19,23 +19,33 @@ export interface PageSlice<T> {
   hasNext: boolean;
 }
 
-export function paginateSlice<T>(
-  items: readonly T[],
+function pageMeta(
   page: number,
-  pageSize: number = DEFAULT_PAGE_SIZE,
-): PageSlice<T> {
-  const total = items.length;
+  total: number,
+  pageSize: number,
+): Omit<PageSlice<unknown>, "items"> {
   const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
   const currentPage = Math.min(Math.max(1, page), totalPages);
-  const start = (currentPage - 1) * pageSize;
   return {
-    items: items.slice(start, start + pageSize),
     page: currentPage,
     pageSize,
     total,
     totalPages,
     hasPrev: currentPage > 1,
     hasNext: currentPage < totalPages,
+  };
+}
+
+export function paginateSlice<T>(
+  items: readonly T[],
+  page: number,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+): PageSlice<T> {
+  const meta = pageMeta(page, items.length, pageSize);
+  const start = (meta.page - 1) * pageSize;
+  return {
+    ...meta,
+    items: items.slice(start, start + pageSize),
   };
 }
 
@@ -46,15 +56,8 @@ export function pageSliceFromQuery<T>(
   total: number,
   pageSize: number = DEFAULT_PAGE_SIZE,
 ): PageSlice<T> {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
-  const currentPage = Math.min(Math.max(1, page), totalPages);
   return {
+    ...pageMeta(page, total, pageSize),
     items: [...items],
-    page: currentPage,
-    pageSize,
-    total,
-    totalPages,
-    hasPrev: currentPage > 1,
-    hasNext: currentPage < totalPages,
   };
 }
