@@ -52,4 +52,36 @@ describe("cssOffUnderstandableViolation", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "restores stylesheets after the check so later probes see CSS",
+    async () => {
+      const { page, close } = await withPlaywrightPage(`
+        <!doctype html><html lang="fr"><head>
+          <style>
+            #probe { color: rgb(0, 0, 255); }
+          </style>
+        </head><body>
+          <p id="probe">Texte visible avec styles.</p>
+        </body></html>
+      `);
+      try {
+        await cssOffUnderstandableViolation(page);
+        const color = await page.evaluate(() => {
+          const el = document.querySelector("#probe");
+          if (!el) return "";
+          return getComputedStyle(el).color;
+        });
+        expect(color).toBe("rgb(0, 0, 255)");
+        const styleDisabled = await page.evaluate(() => {
+          const style = document.querySelector("style");
+          return style?.disabled ?? false;
+        });
+        expect(styleDisabled).toBe(false);
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 });

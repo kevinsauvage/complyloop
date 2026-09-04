@@ -249,14 +249,20 @@ export function runSiteLevelChecks(
     .filter((lang) => lang.length > 0);
   const uniqueLangs = new Set(langs);
   if (langs.length >= 2 && uniqueLangs.size > 1) {
-    findings.push(
-      siteFinding(
-        "consistent-lang",
+    findings.push({
+      checkId: "consistent-lang",
+      kind: "warning",
+      severity: "moderate",
+      confidence: "medium",
+      reason: `Default document languages differ across preview routes (${[...uniqueLangs].join(", ")}). Localized URLs may do this intentionally — review that each route's lang matches its content. This is not an RGAA 8.4 validity failure.`,
+      location: {
+        kind: "site",
         pages,
-        `Languages: ${[...uniqueLangs].join(", ")}`,
-        "The html lang attribute differs across configured preview routes.",
-      ),
-    );
+        detail: `Languages: ${[...uniqueLangs].join(", ")}`,
+      },
+      fix: null,
+      engine: "runtime",
+    });
   }
 
   const routesMissingH1 = snapshots
@@ -293,38 +299,6 @@ export function runSiteLevelChecks(
       ),
     );
     break;
-  }
-
-  const idToPages = new Map<string, string[]>();
-  for (const snapshot of snapshots) {
-    for (const id of snapshot.elementIds) {
-      const routes = idToPages.get(id) ?? [];
-      routes.push(snapshot.url);
-      idToPages.set(id, routes);
-    }
-  }
-  const crossRouteIds = [...idToPages.entries()].filter(
-    ([, routes]) => new Set(routes).size > 1,
-  );
-  if (crossRouteIds.length > 0) {
-    const examples = crossRouteIds
-      .slice(0, 3)
-      .map(([id, routes]) => `#${id} (${routes.length} routes)`)
-      .join("; ");
-    findings.push({
-      checkId: "duplicate-id",
-      kind: "violation",
-      severity: "serious",
-      confidence: "high",
-      reason: `The same id attribute appears on more than one preview route: ${examples}.`,
-      location: {
-        kind: "site",
-        pages,
-        detail: examples,
-      },
-      fix: null,
-      engine: "runtime",
-    });
   }
 
   return findings;

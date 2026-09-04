@@ -54,7 +54,6 @@ export async function runCustomRuntimeChecks(
     cssDisabledContentViolations(page),
     mediaKeyboardViolation(page),
     cssHoverKeyboardViolation(page),
-    cssOffUnderstandableViolation(page),
     layoutTableLinearizationViolation(page),
     errorPreventionViolation(page),
     captchaAlternativeViolation(page),
@@ -69,11 +68,12 @@ export async function runCustomRuntimeChecks(
     ...(await widgetKeyboardViolations(page)),
   ];
 
-  // Form submit, reduced-motion, and forced-colors mutate page state or
-  // emulate media; run sequentially so they never race the shared-page batch
+  // Form submit, reduced-motion, forced-colors, and css-off mutate page state
+  // or emulate media; run sequentially so they never race the shared-page batch
   // (each check restores state after). Viewport-mutating checks (reflow,
   // 200% resize, 44×44 target size) belong on the same sequential path.
   for (const emulated of [
+    await cssOffUnderstandableViolation(page),
     await formErrorSubmitViolation(page),
     await liveRegionUpdatesViolation(page),
     await hoverContentViolation(page),

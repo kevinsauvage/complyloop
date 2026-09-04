@@ -694,9 +694,9 @@ const guidance: Record<CheckId, CheckGuidance> = {
   },
   "consistent-lang": {
     impact:
-      "Different lang values across routes make screen readers switch pronunciation rules unpredictably.",
+      "Different html lang values across preview routes may be intentional for localized URLs, but can surprise users if a route’s lang does not match its content.",
     howToFix:
-      "Use the same html lang on every route in a set unless a route is intentionally in another language.",
+      "Confirm each route’s html lang matches that page’s primary language. Do not treat this as an invalid language code (RGAA 8.4) — review pertinence only.",
   },
   "consistent-page-heading": {
     impact:

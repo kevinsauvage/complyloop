@@ -1506,11 +1506,11 @@ export const rgaaControls: Control[] = [
   {
     id: "ctl-consistent-lang",
     frameworkId: rgaaFramework.id,
-    code: "RGAA 8.4",
-    secondaryCode: "WCAG 3.1.2",
-    title: "Page language is consistent across routes",
+    code: "RGAA 8.3",
+    secondaryCode: "WCAG 3.1.1",
+    title: "Default document language differs across preview routes (review)",
     description:
-      "The html lang attribute is the same on every configured preview route unless a route genuinely switches language.",
+      "The html lang attribute differs across configured preview routes. Localized URLs may do this intentionally — review each route. Validity of each lang code is RGAA 8.4 (html-lang-valid), not this check.",
     checkId: "consistent-lang",
     complianceWeight: 1.2,
   },

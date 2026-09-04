@@ -176,14 +176,16 @@ describe("runSiteLevelChecks", () => {
     expect(titleFindings[0]?.kind).toBe("warning");
   });
 
-  it("flags inconsistent document languages", () => {
+  it("warns when preview routes declare different default languages", () => {
     const findings = runSiteLevelChecks([
       snapshot("https://x.test/a", { htmlLang: "fr" }),
       snapshot("https://x.test/b", { htmlLang: "en" }),
     ]);
-    expect(findings.some((finding) => finding.checkId === "consistent-lang")).toBe(
-      true,
+    const langFindings = findings.filter(
+      (finding) => finding.checkId === "consistent-lang",
     );
+    expect(langFindings).toHaveLength(1);
+    expect(langFindings[0]?.kind).toBe("warning");
   });
 
   it("flags missing h1 on some routes", () => {
@@ -196,17 +198,14 @@ describe("runSiteLevelChecks", () => {
     ).toBe(true);
   });
 
-  it("flags cross-route duplicate element ids", () => {
+  it("does not flag shared element ids across preview routes", () => {
     const findings = runSiteLevelChecks([
-      snapshot("https://x.test/a", { elementIds: ["panel", "nav"] }),
-      snapshot("https://x.test/b", { elementIds: ["panel", "footer"] }),
+      snapshot("https://x.test/a", { elementIds: ["header", "nav"] }),
+      snapshot("https://x.test/b", { elementIds: ["header", "footer"] }),
     ]);
     expect(findings.some((finding) => finding.checkId === "duplicate-id")).toBe(
-      true,
+      false,
     );
-    expect(findings.find((finding) => finding.checkId === "duplicate-id")?.location).toMatchObject({
-      kind: "site",
-    });
   });
 
   it("does not flag unique document titles", () => {

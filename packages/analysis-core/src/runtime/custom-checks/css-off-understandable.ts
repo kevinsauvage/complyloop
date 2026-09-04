@@ -1,10 +1,16 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.js";
 
+interface CssOffHit {
+  html: string;
+  selector: string;
+  reason: "text_loss" | "flex_order";
+}
+
 export async function cssOffUnderstandableViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const hit = await page.evaluate(() => {
+  const hit = await page.evaluate((): CssOffHit | null => {
     function selectorOf(el: Element): string {
       if (el.id) return `#${el.id}`;
       return el.tagName.toLowerCase();
@@ -14,12 +20,32 @@ export async function cssOffUnderstandableViolation(
       return document.body.innerText.replace(/\s+/g, " ").trim().length;
     }
 
+    const linkSnapshots: Array<{ el: HTMLLinkElement; hadDisabledAttr: boolean }> =
+      [];
+    const styleSnapshots: Array<{ el: HTMLStyleElement; disabled: boolean }> = [];
+
     function disableStylesheets(): void {
       for (const sheet of document.querySelectorAll('link[rel="stylesheet"]')) {
-        sheet.setAttribute("disabled", "true");
+        const link = sheet as HTMLLinkElement;
+        linkSnapshots.push({ el: link, hadDisabledAttr: link.hasAttribute("disabled") });
+        link.setAttribute("disabled", "true");
       }
       for (const style of document.querySelectorAll("style")) {
+        styleSnapshots.push({ el: style, disabled: style.disabled });
         style.disabled = true;
+      }
+    }
+
+    function restoreStylesheets(): void {
+      for (const { el, hadDisabledAttr } of linkSnapshots) {
+        if (hadDisabledAttr) {
+          el.setAttribute("disabled", "true");
+        } else {
+          el.removeAttribute("disabled");
+        }
+      }
+      for (const { el, disabled } of styleSnapshots) {
+        el.disabled = disabled;
       }
     }
 
@@ -39,25 +65,27 @@ export async function cssOffUnderstandableViolation(
       return hits;
     }
 
-    const beforeLength = visibleTextLength();
     const orderDependents = flexOrderDependents();
-    disableStylesheets();
-    const afterLength = visibleTextLength();
 
-    if (
-      beforeLength > 80 &&
-      afterLength < beforeLength * 0.55
-    ) {
-      const main =
-        document.querySelector("main") ??
-        document.querySelector('[role="main"]') ??
-        document.body;
-      const html = main.outerHTML.replace(/\s+/g, " ").trim();
-      return {
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(main),
-        reason: "text_loss" as const,
-      };
+    try {
+      const beforeLength = visibleTextLength();
+      disableStylesheets();
+      const afterLength = visibleTextLength();
+
+      if (beforeLength > 80 && afterLength < beforeLength * 0.55) {
+        const main =
+          document.querySelector("main") ??
+          document.querySelector('[role="main"]') ??
+          document.body;
+        const html = main.outerHTML.replace(/\s+/g, " ").trim();
+        return {
+          html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
+          selector: selectorOf(main),
+          reason: "text_loss",
+        };
+      }
+    } finally {
+      restoreStylesheets();
     }
 
     if (orderDependents.length > 0) {
@@ -66,7 +94,7 @@ export async function cssOffUnderstandableViolation(
       return {
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
         selector: selectorOf(el),
-        reason: "flex_order" as const,
+        reason: "flex_order",
       };
     }
 
