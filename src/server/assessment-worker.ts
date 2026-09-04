@@ -1,4 +1,4 @@
-import { addEvidence, loadDb, withDbWrite } from "./db";
+import type { Alert } from "@/core/finding-types";
 import {
   claimNextAssessmentJob,
   completeAssessmentJob,
@@ -6,27 +6,32 @@ import {
   type AssessmentJob,
 } from "./assessment-jobs";
 import { runAssessment } from "./assessment";
+import { loadProjectDb, type Db } from "./db";
+import { getDrizzle } from "./db-store/client";
+import {
+  applyAssessmentPayload,
+  buildAssessmentApplyPayload,
+} from "./db-store/repo/apply";
+import { hasDraftPrApproval, insertEvidence } from "./db-store/repo/evidence";
 import {
   postPullRequestCheckRun,
   summarizeAssessmentForCheckRun,
 } from "./github-checks";
 import { resolveProjectGitHubToken } from "./github-access";
-import { getDrizzle } from "./db-store/client";
-import { resolveProjectLoadScope } from "./db-store/postgres-load";
 import { reportError, reportWarning } from "./observability";
 import { pruneRateLimitBuckets } from "./rate-limit";
 import { withProjectCheckout } from "./repo-checkout";
 
 function collectRegressionAlerts(
-  db: Parameters<typeof runAssessment>[0],
+  db: Db,
   projectId: string,
   assessmentId: string,
   trigger: string,
-) {
+): Alert[] {
   const assessment = db.assessments.find((candidate) => candidate.id === assessmentId);
   const primaryChange = assessment?.changesSincePrevious?.[0];
 
-  const alerts = db.evidence
+  return db.evidence
     .filter(
       (record) =>
         record.assessmentId === assessmentId &&
@@ -61,54 +66,100 @@ function collectRegressionAlerts(
         },
       };
     });
-  db.alerts.push(...alerts);
-  return alerts;
+}
+
+async function loadDraftPrApprovedFindingIds(
+  db: Db,
+): Promise<Set<string>> {
+  const drizzle = await getDrizzle();
+  const ids = new Set<string>();
+  for (const remediation of db.remediations) {
+    if (remediation.status !== "approved") continue;
+    if (await hasDraftPrApproval(drizzle, remediation.findingId)) {
+      ids.add(remediation.findingId);
+    }
+  }
+  return ids;
 }
 
 async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
-  const drizzle = await getDrizzle();
-  const scope = await resolveProjectLoadScope(drizzle, job.projectId, 0);
-  const snapshot = await loadDb(scope);
-  const project = snapshot.projects.find((candidate) => candidate.id === job.projectId);
+  const dbForProject = await loadProjectDb(job.projectId);
+  const project = dbForProject.projects.find(
+    (candidate) => candidate.id === job.projectId,
+  );
   if (!project) throw new Error("Project was removed before its assessment job ran.");
+
+  const draftPrApprovedFindingIds =
+    await loadDraftPrApprovedFindingIds(dbForProject);
 
   const result = await withProjectCheckout(
     project,
-    async (rootPath) =>
-      withDbWrite(async (db) => {
-        const liveProject = db.projects.find((candidate) => candidate.id === job.projectId);
-        if (!liveProject) throw new Error("Project was removed during assessment.");
-        const assessment = await runAssessment(db, liveProject.id, { rootPath });
-        const trigger = job.payload.eventName ?? "manual assessment";
-        const alerts =
-          job.trigger === "webhook"
-            ? collectRegressionAlerts(db, liveProject.id, assessment.id, trigger)
-            : [];
-        addEvidence(db, {
+    async (rootPath) => {
+      const db = await loadProjectDb(job.projectId);
+      const liveProject = db.projects.find(
+        (candidate) => candidate.id === job.projectId,
+      );
+      if (!liveProject) {
+        throw new Error("Project was removed during assessment.");
+      }
+
+      const evidenceStart = db.evidence.length;
+      const assessment = await runAssessment(db, liveProject.id, {
+        rootPath,
+        draftPrApprovedFindingIds,
+      });
+      const trigger = job.payload.eventName ?? "manual assessment";
+      const alerts =
+        job.trigger === "webhook"
+          ? collectRegressionAlerts(db, liveProject.id, assessment.id, trigger)
+          : [];
+
+      const snapshot = assessment.snapshot;
+      if (!snapshot) {
+        throw new Error("Assessment completed without a snapshot.");
+      }
+
+      const drizzle = await getDrizzle();
+      await drizzle.transaction(async (tx) => {
+        await applyAssessmentPayload(
+          tx,
+          buildAssessmentApplyPayload({
+            assessment,
+            snapshot,
+            evidence: db.evidence.slice(evidenceStart),
+            findings: db.findings,
+            remediations: db.remediations,
+            requirements: db.requirements,
+            alerts,
+          }),
+        );
+        await insertEvidence(tx, {
           kind: "assessment_job_completed",
           summary: `Assessment job ${job.id} completed for "${liveProject.name}"`,
           projectId: liveProject.id,
           assessmentId: assessment.id,
           detail: { jobId: job.id, trigger: job.trigger, alerts: alerts.length },
         });
-        const openViolations = db.findings.filter(
-          (finding) =>
-            finding.projectId === liveProject.id &&
-            finding.status === "open" &&
-            finding.kind === "violation",
-        ).length;
-        const failedRequirements = db.requirements.filter(
-          (requirement) =>
-            requirement.projectId === liveProject.id &&
-            requirement.status === "failed",
-        ).length;
-        return {
-          project: liveProject,
-          assessment,
-          openViolations,
-          failedRequirements,
-        };
-      }, scope),
+      });
+
+      const openViolations = db.findings.filter(
+        (finding) =>
+          finding.projectId === liveProject.id &&
+          finding.status === "open" &&
+          finding.kind === "violation",
+      ).length;
+      const failedRequirements = db.requirements.filter(
+        (requirement) =>
+          requirement.projectId === liveProject.id &&
+          requirement.status === "failed",
+      ).length;
+      return {
+        project: liveProject,
+        assessment,
+        openViolations,
+        failedRequirements,
+      };
+    },
     job.payload.ref,
   );
 
@@ -155,7 +206,6 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
     try {
       await pruneRateLimitBuckets();
     } catch (error) {
-      // Housekeeping only — a failed DELETE must not stop job polling.
       reportWarning(
         error instanceof Error ? error.message : "Rate-limit bucket prune failed.",
         { code: "rate_limit_prune_failed" },
@@ -170,24 +220,27 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
   } catch (error) {
     const status = await failAssessmentJob(job, error);
     if (status === "failed") {
-      const drizzle = await getDrizzle();
-      const scope = await resolveProjectLoadScope(drizzle, job.projectId, 0);
-      await withDbWrite((db) => {
-        const project = db.projects.find((candidate) => candidate.id === job.projectId);
-        if (!project) return;
+      const db = await loadProjectDb(job.projectId);
+      const project = db.projects.find(
+        (candidate) => candidate.id === job.projectId,
+      );
+      if (project) {
         const errorMessage =
           error instanceof Error ? error.message : "Assessment job failed.";
-        addEvidence(db, {
-          kind: "assessment_job_failed",
-          summary: `Assessment job ${job.id} failed after ${job.attempts} attempt(s).`,
-          projectId: project.id,
-          detail: {
-            jobId: job.id,
-            attempts: job.attempts,
-            error: errorMessage,
-          },
+        const drizzle = await getDrizzle();
+        await drizzle.transaction(async (tx) => {
+          await insertEvidence(tx, {
+            kind: "assessment_job_failed",
+            summary: `Assessment job ${job.id} failed after ${job.attempts} attempt(s).`,
+            projectId: project.id,
+            detail: {
+              jobId: job.id,
+              attempts: job.attempts,
+              error: errorMessage,
+            },
+          });
         });
-      }, scope);
+      }
     }
     reportError(error, {
       code: status === "failed" ? "assessment_job_failed" : "assessment_job_retrying",

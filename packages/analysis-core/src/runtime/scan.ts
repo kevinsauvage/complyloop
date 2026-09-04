@@ -61,8 +61,6 @@ export const RUNTIME_GOTO_TIMEOUT_MS = 30_000;
  */
 export const RUNTIME_POST_DOM_SETTLE_MS = 250;
 
-const axeInjectedPages = new WeakSet<Page>();
-
 export async function gotoForRuntimeAudit(
   page: Page,
   url: string,
@@ -137,6 +135,15 @@ async function axeTargetSizeViolations(page: Page): Promise<AxeViolationLike[]> 
   return axe.violations.filter((v) => v.id === TARGET_SIZE_AXE_RULE);
 }
 
+async function ensureAxeOnPage(page: Page): Promise<void> {
+  const present = await page.evaluate(
+    () =>
+      typeof (window as { axe?: { run?: unknown } }).axe?.run === "function",
+  );
+  if (present) return;
+  await page.addScriptTag({ path: resolveAxeMinJsPath() });
+}
+
 /**
  * Inject axe from disk and analyze the current page (main frame).
  * Do not switch to `@axe-core/playwright`: it injects `axe-core`'s `source`
@@ -150,10 +157,7 @@ export async function runAxeOnPage(
   violations: AxeViolationLike[];
   incomplete: AxeViolationLike[];
 }> {
-  if (!axeInjectedPages.has(page)) {
-    await page.addScriptTag({ path: resolveAxeMinJsPath() });
-    axeInjectedPages.add(page);
-  }
+  await ensureAxeOnPage(page);
   const runOnly = options?.runOnly;
   const results = await page.evaluate(async (rules) => {
     const axe = (
@@ -362,9 +366,6 @@ function createPlaywrightAxeScanner(options?: {
   };
 }
 
-/** Default Playwright + axe-core page scanner. */
-const playwrightAxeScanner: RuntimePageScanner = createPlaywrightAxeScanner();
-
 export interface ScanRuntimeOptions {
   runtimeBaseUrl?: string;
   runtimeRoutes?: string[];
@@ -388,13 +389,10 @@ export async function scanRuntime(
   if (!base || routes.length === 0) {
     return { findings: [], pagesScanned: 0 };
   }
+  const lookup = options.lookup ? { lookup: options.lookup } : undefined;
 
   try {
-    // Resolve + reject private addresses before opening a browser.
-    await assertSafeRuntimeUrl(
-      base,
-      options.lookup ? { lookup: options.lookup } : undefined,
-    );
+    await assertSafeRuntimeUrl(base, lookup);
   } catch (error) {
     return {
       findings: [],
@@ -413,19 +411,13 @@ export async function scanRuntime(
   }
   const scanner =
     options.scanner ??
-    (options.lookup || (options.browserConditions ?? []).length > 0
-      ? createPlaywrightAxeScanner({
-        lookup: options.lookup,
-        browserConditions: options.browserConditions,
-      })
-      : playwrightAxeScanner);
+    createPlaywrightAxeScanner({
+      lookup: options.lookup,
+      browserConditions: options.browserConditions,
+    });
   try {
-    // Re-validate each navigation URL (path may differ from base origin).
     for (const url of urls) {
-      await assertSafeRuntimeUrl(
-        url,
-        options.lookup ? { lookup: options.lookup } : undefined,
-      );
+      await assertSafeRuntimeUrl(url, lookup);
     }
     const pages = await scanner(urls);
     const siteLevelChecksRan = pages.length >= 2;
@@ -471,7 +463,7 @@ export async function scanRuntime(
  */
 export async function runtimeViolationStillPresent(
   finding: Pick<RawFinding, "checkId" | "location">,
-  scanner: RuntimePageScanner = playwrightAxeScanner,
+  scanner: RuntimePageScanner = createPlaywrightAxeScanner(),
 ): Promise<boolean> {
   if (finding.location.kind !== "dom") return false;
   const url = finding.location.url;

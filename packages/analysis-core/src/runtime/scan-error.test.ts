@@ -70,6 +70,16 @@ describe("classifyRuntimeScanError", () => {
     expect(message).not.toContain("ms-playwright");
   });
 
+  it("maps a missing axe engine after page script loss", () => {
+    expect(
+      classifyRuntimeScanError(
+        new Error(
+          "page.evaluate: TypeError: Cannot read properties of undefined (reading 'run')",
+        ),
+      ),
+    ).toMatch(/axe engine/i);
+  });
+
   it("keeps unexpected errors generic and does not leak paths", () => {
     const message = classifyRuntimeScanError(
       new Error("ENOENT /secret/clone/axe.min.js"),

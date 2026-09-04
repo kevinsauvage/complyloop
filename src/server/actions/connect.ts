@@ -9,7 +9,10 @@ import {
   requireFormString,
   type ActionMessageState,
 } from "../action-state";
-import { writeActiveProjectCookie } from "../active-cookies";
+import {
+  readActiveOrgCookie,
+  writeActiveProjectCookie,
+} from "../active-cookies";
 import { ConnectError } from "../connect-error";
 import { setActiveProject } from "../connect-active";
 import {
@@ -18,14 +21,20 @@ import {
   findConnectedGitHubProject,
 } from "../connect-github";
 import { userCanConnectProjects } from "../connect-policy";
+import { getDrizzle } from "../db-store/client";
+import { insertEvidence } from "../db-store/repo/evidence";
+import { deleteProject, insertProject } from "../db-store/repo/projects";
+import { loadWorkspaceDb } from "../db-store/workspace-load";
 import { fetchGitHubRepo } from "../github";
 import {
   createInstallationAccessToken,
   isGitHubAppConfigured,
   resolveUserInstallationForRepo,
 } from "../github-app";
+import { accessFromStore } from "../project-visibility";
 import { assertConnectRateLimit } from "../rate-limit";
-import { withWorkspaceWrite } from "../workspace";
+import { resolveActiveOrgId } from "../orgs";
+import { getWorkspace, ensurePersonalOrgProvisioned } from "../workspace";
 import { refresh } from "./shared";
 
 export type ConnectGitHubFormState = ActionMessageState;
@@ -37,9 +46,8 @@ export async function switchProjectAction(formData: FormData): Promise<void> {
     "projectId",
     "A project id is required.",
   );
-  await withWorkspaceWrite(({ db, userId }) => {
-    setActiveProject(db, projectId, userId);
-  });
+  const workspace = await getWorkspace();
+  setActiveProject(workspace.db, projectId, workspace.userId);
   await writeActiveProjectCookie(projectId);
   refresh();
 }
@@ -56,6 +64,7 @@ export async function connectGitHubRepoAction(
 
   const session = await auth();
   const userId = session?.user?.id;
+  const githubLogin = session?.user?.login ?? null;
   if (!userId) {
     return formError("Sign in with GitHub to connect a repository.");
   }
@@ -89,8 +98,23 @@ export async function connectGitHubRepoAction(
     }
 
     const repo = await fetchGitHubRepo(accessToken, fullName);
-    await withWorkspaceWrite(async ({ db, activeOrgId, access }) => {
-      const orgId = activeOrgId;
+    await ensurePersonalOrgProvisioned(userId, githubLogin ?? "");
+    const preferredOrgId = await readActiveOrgCookie();
+    let connectedProjectId: string | null = null;
+
+    const drizzle = await getDrizzle();
+    await drizzle.transaction(async (tx) => {
+      const db = await loadWorkspaceDb(tx, {
+        userId,
+        githubLogin,
+        activeProjectId: null,
+        evidenceLimit: 0,
+      });
+      const orgId =
+        resolveActiveOrgId(db, userId, preferredOrgId) ??
+        db.organizations[0]?.id ??
+        null;
+      const access = accessFromStore(db, userId, githubLogin);
       if (!orgId || !userCanConnectProjects(access.memberships, userId, orgId)) {
         throw new ConnectError(
           "You need admin or owner access in the active organization to connect a project.",
@@ -106,6 +130,7 @@ export async function connectGitHubRepoAction(
           `${fullName} is already connected. Disconnect it first.`,
         );
       }
+      const evidenceStart = db.evidence.length;
       const project = await connectGitHubRepo(db, {
         fullName: repo.fullName,
         defaultBranch: repo.defaultBranch,
@@ -115,8 +140,16 @@ export async function connectGitHubRepoAction(
         accessToken,
         installationId,
       });
-      await writeActiveProjectCookie(project.id);
+      connectedProjectId = project.id;
+      await insertProject(tx, project);
+      for (const record of db.evidence.slice(evidenceStart)) {
+        await insertEvidence(tx, record);
+      }
     });
+
+    if (connectedProjectId) {
+      await writeActiveProjectCookie(connectedProjectId);
+    }
     refresh();
     return formSuccess(`Connected ${repo.fullName}.`);
   } catch (error) {
@@ -135,6 +168,7 @@ export async function disconnectGitHubRepoAction(
 
   const session = await auth();
   const userId = session?.user?.id;
+  const githubLogin = session?.user?.login ?? null;
   if (!userId) {
     return formError("Sign in with GitHub to disconnect a repository.");
   }
@@ -142,16 +176,24 @@ export async function disconnectGitHubRepoAction(
   try {
     let nextProjectId: string | null = null;
     let disconnectedName = "repository";
-    await withWorkspaceWrite((workspace) => {
-      const project = workspace.db.projects.find(
-        (candidate) => candidate.id === projectIdRaw,
+    const drizzle = await getDrizzle();
+    await drizzle.transaction(async (tx) => {
+      const db = await loadWorkspaceDb(tx, {
+        userId,
+        githubLogin,
+        activeProjectId: projectIdRaw,
+        evidenceLimit: 0,
+      });
+      const project = db.projects.find(
+        (candidate: (typeof db.projects)[number]) => candidate.id === projectIdRaw,
       );
       disconnectedName = project?.github?.fullName ?? project?.name ?? "repository";
-      nextProjectId = disconnectGitHubRepo(
-        workspace.db,
-        projectIdRaw,
-        userId,
-      );
+      const evidenceStart = db.evidence.length;
+      nextProjectId = disconnectGitHubRepo(db, projectIdRaw, userId);
+      await deleteProject(tx, projectIdRaw);
+      for (const record of db.evidence.slice(evidenceStart)) {
+        await insertEvidence(tx, record);
+      }
     });
     if (nextProjectId) {
       await writeActiveProjectCookie(nextProjectId);

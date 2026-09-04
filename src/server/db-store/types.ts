@@ -1,27 +1,9 @@
 import type { Control, Framework, OrgMembership, Organization, Project, Requirement } from "@/core/project-types";
 import type { Alert, Assessment, EvidenceRecord, Finding, Remediation } from "@/core/finding-types";
-import { fullLoadScope } from "./postgres-scope";
 
 /**
- * How a {@link Db} snapshot was loaded. Persist must honor scoped loads so
- * prune never deletes rows outside the snapshot (other tenants / projects).
- */
-export type DbLoadScope =
-  | { mode: "full" }
-  | {
-      mode: "scoped";
-      orgIds: readonly string[];
-      projectIds: readonly string[];
-      /**
-       * Max evidence rows (newest first) for the scoped projects.
-       * `0` = load none (typical writes). Omit = all matching rows.
-       */
-      evidenceLimit?: number;
-    };
-
-/**
- * In-memory persistence shape. Callers mutate this object and persist via
- * `withDbWrite` (Postgres).
+ * In-memory read model for workspace pages and domain helpers during mutations.
+ * Persist changes via row-level repo functions — never bulk-sync this object.
  */
 export interface Db {
   frameworks: Framework[];
@@ -36,8 +18,6 @@ export interface Db {
   evidence: EvidenceRecord[];
   /** Regression / monitoring alerts (append-friendly, markable as read). */
   alerts: Alert[];
-  /** How this snapshot was loaded; omit on hand-built test fixtures (full sync). */
-  loadScope?: DbLoadScope;
 }
 
 export function emptyDb(): Db {
@@ -53,6 +33,5 @@ export function emptyDb(): Db {
     remediations: [],
     evidence: [],
     alerts: [],
-    loadScope: fullLoadScope(),
   };
 }

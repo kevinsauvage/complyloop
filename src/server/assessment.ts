@@ -27,8 +27,8 @@ import {
   sameInstance,
 } from "./assessment-helpers";
 import {
+  assertAssessableCatalog,
   clearExpiredExceptions,
-  controlsInScope,
   refreshRequirementStatuses,
   scopedControlIds,
 } from "./assessment-status";
@@ -40,12 +40,15 @@ export interface RunAssessmentOptions {
   runtimeScanner?: RuntimePageScanner;
   /** Injected DNS lookup for runtime SSRF checks in tests. */
   runtimeLookup?: DnsLookup;
+  /** Finding ids approved via draft PR (loaded from evidence before the run). */
+  draftPrApprovedFindingIds?: ReadonlySet<string>;
 }
 
 function verifyDraftPrRemediation(
   db: Db,
   finding: Finding,
   assessmentId: string,
+  draftPrApprovedFindingIds: ReadonlySet<string>,
 ): void {
   if (!isSourceLocation(finding.location)) return;
   const remediationIndex = db.remediations.findIndex(
@@ -53,13 +56,7 @@ function verifyDraftPrRemediation(
   );
   const remediation = db.remediations[remediationIndex];
   if (!remediation || remediation.status !== "approved") return;
-  const approvedThroughDraftPr = db.evidence.some(
-    (record) =>
-      record.findingId === finding.id &&
-      record.kind === "remediation_approved" &&
-      record.detail?.approvalAction === "create_draft_pull_request",
-  );
-  if (!approvedThroughDraftPr) return;
+  if (!draftPrApprovedFindingIds.has(finding.id)) return;
 
   const implemented = advanceRemediation(
     remediation,
@@ -104,6 +101,8 @@ export async function runAssessment(
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) throw new PublicError("Unknown project.");
   const { rootPath } = options;
+  const draftPrApprovedFindingIds =
+    options.draftPrApprovedFindingIds ?? new Set<string>();
 
   const startedAt = new Date().toISOString();
   clearExpiredExceptions(db, projectId);
@@ -180,7 +179,7 @@ export async function runAssessment(
   );
 
   const assessmentId = crypto.randomUUID();
-  const scoped = controlsInScope(db, project);
+  const scoped = assertAssessableCatalog(db, project);
 
   for (const control of scoped) {
     if (control.checkId === null) continue;
@@ -245,7 +244,12 @@ export async function runAssessment(
         findingId: finding.id,
         assessmentId,
       });
-      verifyDraftPrRemediation(db, finding, assessmentId);
+      verifyDraftPrRemediation(
+        db,
+        finding,
+        assessmentId,
+        draftPrApprovedFindingIds,
+      );
     }
   }
 

@@ -30,7 +30,7 @@ import {
 } from "../orgs";
 import { getDrizzle } from "../db-store/client";
 import { listAllEvidenceForProjects } from "../db-store/postgres-queries";
-import { getWorkspace, withWorkspaceWrite } from "../workspace";
+import { getWorkspace, withOrgWrite } from "../workspace";
 import { refresh } from "./shared";
 
 export type OrgMemberFormState = ActionMessageState;
@@ -48,7 +48,7 @@ export async function switchOrgAction(formData: FormData): Promise<void> {
   );
 
   let projectIdToActivate: string | null = null;
-  await withWorkspaceWrite(({ organizations, db }) => {
+  await withOrgWrite(({ organizations, db }) => {
     if (!organizations.some((org) => org.id === orgId)) {
       throw new PublicError("You are not a member of that organization.");
     }
@@ -81,7 +81,7 @@ export async function createOrgAction(
   }
 
   try {
-    const org = await withWorkspaceWrite((workspace) =>
+    const org = await withOrgWrite((workspace) =>
       createOrganization(workspace.db, {
         name: nameRaw,
         creatorUserId: userId,
@@ -119,7 +119,7 @@ export async function inviteOrgMemberAction(
   const role: OrgRole = roleRaw;
 
   try {
-    await withWorkspaceWrite(({ db }) => {
+    await withOrgWrite(({ db }) => {
       if (!canManageOrgMembers(db, orgIdRaw, userId)) {
         throw new PublicError("Only org owners and admins can invite members.");
       }
@@ -153,7 +153,7 @@ export async function removeOrgMemberAction(
     );
 
     let revokedInvite = false;
-    await withWorkspaceWrite(({ db }) => {
+    await withOrgWrite(({ db }) => {
       if (!canManageOrgMembers(db, orgIdRaw, userId)) {
         throw new PublicError("Only org owners and admins can remove members.");
       }
@@ -194,7 +194,7 @@ export async function changeOrgMemberRoleAction(
     }
     const role: OrgRole = roleRaw;
 
-    await withWorkspaceWrite(({ db }) => {
+    await withOrgWrite(({ db }) => {
       if (!canManageOrgMembers(db, orgIdRaw, userId)) {
         throw new PublicError("Only org owners and admins can change member roles.");
       }
@@ -251,7 +251,7 @@ export async function deleteOrgAction(
     }
 
     let nextOrgId: string | undefined;
-    await withWorkspaceWrite(({ db }) => {
+    await withOrgWrite(({ db }) => {
       deleteOrganization(db, orgIdRaw, userId);
       nextOrgId = resolveActiveOrgId(db, userId, null);
     });

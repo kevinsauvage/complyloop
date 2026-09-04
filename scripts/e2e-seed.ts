@@ -12,13 +12,17 @@ import {
   E2E_PROJECT_ID,
   E2E_VIEWER,
 } from "../e2e/constants";
-import { withDbWrite } from "../src/server/db";
+import { getDrizzle } from "../src/server/db-store/client";
+import { seedCatalog, loadCatalog } from "../src/server/db-store/repo/catalog";
+import { upsertFinding } from "../src/server/db-store/repo/findings";
+import { insertMembership, insertOrganization } from "../src/server/db-store/repo/orgs";
+import { insertProject } from "../src/server/db-store/repo/projects";
+import { upsertRemediation } from "../src/server/db-store/repo/remediations";
+import { insertAssessment } from "../src/server/db-store/repo/assessments";
 import { createPostgresClient } from "../src/server/db-store/postgres-url";
-import { ensureSeeded } from "../src/server/seed";
 import { storeUserGitHubToken } from "../src/server/github-tokens";
 
 function loadLocalEnv(): void {
-  // Do not override CI / Playwright-injected DATABASE_URL.
   if (process.env.DATABASE_URL?.trim()) return;
   loadEnv({ path: path.join(process.cwd(), ".env.local") });
   if (!process.env.DATABASE_URL?.trim()) {
@@ -35,6 +39,7 @@ async function truncateAll(connectionString: string): Promise<void> {
         alerts,
         remediations,
         findings,
+        assessment_snapshots,
         assessments,
         requirements,
         projects,
@@ -62,34 +67,41 @@ async function main(): Promise<void> {
   await truncateAll(url);
 
   const now = new Date().toISOString();
-  await withDbWrite((db) => {
-    ensureSeeded(db);
+  const drizzle = await getDrizzle();
+  await seedCatalog(drizzle);
 
-    db.organizations.push({
+  const catalog = await loadCatalog(drizzle);
+  const control =
+    catalog.controls.find((candidate) => candidate.checkId === "img-alt") ??
+    catalog.controls[0];
+
+  const findingId = "e2e-finding-img-alt";
+  const assessmentId = "e2e-assessment-seed";
+
+  await drizzle.transaction(async (tx) => {
+    await insertOrganization(tx, {
       id: E2E_ORG_ID,
       name: "E2E Workspace",
       slug: "e2e-workspace",
       createdAt: now,
     });
-    db.memberships.push(
-      {
-        id: "e2e-membership-owner",
-        orgId: E2E_ORG_ID,
-        role: "owner",
-        userId: E2E_OWNER.id,
-        githubLogin: E2E_OWNER.login,
-        createdAt: now,
-      },
-      {
-        id: "e2e-membership-viewer",
-        orgId: E2E_ORG_ID,
-        role: "viewer",
-        userId: E2E_VIEWER.id,
-        githubLogin: E2E_VIEWER.login,
-        createdAt: now,
-      },
-    );
-    db.projects.push({
+    await insertMembership(tx, {
+      id: "e2e-membership-owner",
+      orgId: E2E_ORG_ID,
+      role: "owner",
+      userId: E2E_OWNER.id,
+      githubLogin: E2E_OWNER.login,
+      createdAt: now,
+    });
+    await insertMembership(tx, {
+      id: "e2e-membership-viewer",
+      orgId: E2E_ORG_ID,
+      role: "viewer",
+      userId: E2E_VIEWER.id,
+      githubLogin: E2E_VIEWER.login,
+      createdAt: now,
+    });
+    await insertProject(tx, {
       id: E2E_PROJECT_ID,
       name: "sample-app",
       source: "github",
@@ -104,30 +116,28 @@ async function main(): Promise<void> {
       },
     });
 
-    // Seed one open finding so viewer authz can open a detail page without
-    // depending on a prior owner assessment in the same suite run.
-    const findingId = "e2e-finding-img-alt";
-    const assessmentId = "e2e-assessment-seed";
-    const control =
-      db.controls.find((candidate) => candidate.checkId === "img-alt") ??
-      db.controls[0];
-    db.assessments.push({
-      id: assessmentId,
-      projectId: E2E_PROJECT_ID,
-      startedAt: now,
-      completedAt: now,
-      filesScanned: 1,
-      scanMode: "full",
-      engines: { ast: true, runtime: false },
-      summary: {
-        passed: 0,
-        failed: 1,
-        needs_review: 0,
-        not_applicable: 0,
-        unable_to_verify: 0,
+    await insertAssessment(
+      tx,
+      {
+        id: assessmentId,
+        projectId: E2E_PROJECT_ID,
+        startedAt: now,
+        completedAt: now,
+        filesScanned: 1,
+        scanMode: "full",
+        engines: { ast: true, runtime: false },
+        summary: {
+          passed: 0,
+          failed: 1,
+          needs_review: 0,
+          not_applicable: 0,
+          unable_to_verify: 0,
+        },
       },
-    });
-    db.findings.push({
+      { fileHashes: { "Bad.tsx": "e2e-seed" } },
+    );
+
+    await upsertFinding(tx, {
       id: findingId,
       projectId: E2E_PROJECT_ID,
       controlId: control.id,
@@ -157,7 +167,8 @@ async function main(): Promise<void> {
       explanations: [],
       detectedAt: now,
     });
-    db.remediations.push({
+
+    await upsertRemediation(tx, {
       id: "e2e-remediation-img-alt",
       findingId,
       status: "suggested",
@@ -173,8 +184,6 @@ async function main(): Promise<void> {
     });
   });
 
-  // Store a token for the owner so webhook-driven PR assessments can exercise
-  // the Check Run posting path end-to-end against the local fixture GitHub API.
   await storeUserGitHubToken(
     E2E_OWNER.id,
     process.env.E2E_GITHUB_TOKEN ?? "ghx_e2e_mock_check",

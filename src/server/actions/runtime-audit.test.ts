@@ -7,7 +7,7 @@ import { PublicError } from "@/core/public-error";
 import { emptyActionMessageState } from "../action-state";
 import { updateRuntimeAuditAction } from "./runtime-audit";
 
-const { withWorkspaceWrite } = actionWorkspaceMocks;
+const { withProjectWrite } = actionWorkspaceMocks;
 const assertSafeRuntimeUrl = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 
@@ -39,7 +39,7 @@ afterEach(() => {
 
 describe("updateRuntimeAuditAction", () => {
   it("denies members who cannot connect", async () => {
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspaceFor("member")));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspaceFor("member")));
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
     const form = new FormData();
     form.set("runtimeBaseUrl", "https://app.example");
@@ -53,7 +53,7 @@ describe("updateRuntimeAuditAction", () => {
 
   it("clears runtime settings when the base URL is empty", async () => {
     const workspace = workspaceFor("owner");
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     const form = new FormData();
     form.set("runtimeBaseUrl", "  ");
 
@@ -70,7 +70,7 @@ describe("updateRuntimeAuditAction", () => {
 
   it("normalizes the origin and routes for owners", async () => {
     const workspace = workspaceFor("owner");
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/path");
     const form = new FormData();
     form.set("runtimeBaseUrl", "https://app.example/path");
@@ -102,6 +102,6 @@ describe("updateRuntimeAuditAction", () => {
       form,
     );
     expect(result.error).toMatch(/not allowed for runtime audit/);
-    expect(withWorkspaceWrite).not.toHaveBeenCalled();
+    expect(withProjectWrite).not.toHaveBeenCalled();
   });
 });

@@ -139,7 +139,10 @@ describe("runAssessment", () => {
     });
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    await runAssessment(db, project.id, { rootPath });
+    await runAssessment(db, project.id, {
+      rootPath,
+      draftPrApprovedFindingIds: new Set([finding.id]),
+    });
 
     expect(db.remediations[0]?.status).toBe("verified");
     expect(db.remediations[0]?.history.map((entry) => entry.status)).toEqual(

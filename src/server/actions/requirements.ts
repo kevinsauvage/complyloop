@@ -12,7 +12,7 @@ import {
 } from "../action-state";
 import { refreshRequirementStatuses } from "../assessment-status";
 import { addEvidence, type Db } from "../db";
-import { controlById, withWorkspaceWrite } from "../workspace";
+import { controlById, withProjectWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
 function requireRequirement(
@@ -78,7 +78,7 @@ export async function markRequirementExceptionAction(
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
       const requirement = requireRequirement(
@@ -159,7 +159,7 @@ export async function markRequirementPassedAction(
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
       const requirement = requireRequirement(
@@ -225,7 +225,7 @@ export async function clearRequirementHumanPassAction(
 ): Promise<ActionMessageState> {
   void _formData;
   return runActionMessage(async () => {
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
       const requirement = requireRequirement(
@@ -247,7 +247,7 @@ export async function clearRequirementExceptionAction(
 ): Promise<ActionMessageState> {
   void _formData;
   return runActionMessage(async () => {
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
       const requirement = requireRequirement(

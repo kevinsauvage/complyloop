@@ -8,7 +8,7 @@ import { drainAssessmentJobQueue, shouldDrainAssessmentJobsInline } from "../ass
 import { enqueueAssessmentJob } from "../assessment-jobs";
 import { addEvidence } from "../db";
 import { assertAssessRateLimit } from "../rate-limit";
-import { getWorkspace, withWorkspaceWrite } from "../workspace";
+import { getWorkspace, withProjectWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
 export async function runAssessmentAction(
@@ -25,7 +25,7 @@ export async function runAssessmentAction(
       trigger: "manual",
       requestedByUserId: preview.userId,
     });
-    await withWorkspaceWrite((workspace) => {
+    await withProjectWrite((workspace) => {
       requireOnActive(workspace, "project.assess");
       addEvidence(workspace.db, {
         kind: "assessment_job_queued",

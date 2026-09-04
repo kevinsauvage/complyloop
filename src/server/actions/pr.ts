@@ -14,7 +14,7 @@ import {
   findingById,
   getWorkspace,
   remediationForFinding,
-  withWorkspaceWrite,
+  withProjectWrite,
 } from "../workspace";
 import {
   refresh,
@@ -86,7 +86,7 @@ export async function createPullRequestAction(
     if (!result.prUrl) {
       throw new PublicError(result.message);
     }
-    await withWorkspaceWrite(({ db }) => {
+    await withProjectWrite(({ db }) => {
       const liveFinding = findingById(db, findingId);
       const liveRemediation = remediationForFinding(db, findingId);
       if (liveRemediation.status === "suggested") {

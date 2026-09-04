@@ -17,7 +17,7 @@ import {
   controlById,
   findingById,
   getWorkspace,
-  withWorkspaceWrite,
+  withProjectWrite,
 } from "../workspace";
 import {
   refresh,
@@ -65,7 +65,7 @@ export async function generateAiFixAction(
       tokenOptions,
     );
 
-    await withWorkspaceWrite((workspace) => {
+    await withProjectWrite((workspace) => {
       const liveFinding = findingById(workspace.db, finding.id);
       requireOnFindingProject(workspace, liveFinding, "project.remediate");
       persistPatchCandidate(workspace.db, liveFinding, candidate);

@@ -5,7 +5,7 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
-import { withWorkspaceWrite } from "../workspace";
+import { withProjectWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
 export type RuntimeAuditFormState = ActionMessageState;
@@ -38,7 +38,7 @@ export async function updateRuntimeAuditAction(
       normalized = new URL(resolved).origin;
     }
 
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.connect");
       const { project } = workspace;
 

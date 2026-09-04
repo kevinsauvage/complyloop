@@ -13,7 +13,7 @@ import {
   switchProjectAction,
 } from "./connect";
 
-const { withWorkspaceWrite } = actionWorkspaceMocks;
+const { getWorkspace } = actionWorkspaceMocks;
 const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
 const setActiveProject = vi.hoisted(() => vi.fn());
 const connectGitHubRepo = vi.hoisted(() => vi.fn());
@@ -25,10 +25,13 @@ const resolveUserInstallationForRepo = vi.hoisted(() => vi.fn());
 const createInstallationAccessToken = vi.hoisted(() => vi.fn());
 const assertConnectRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
+const loadWorkspaceDb = vi.hoisted(() => vi.fn());
+const transaction = vi.hoisted(() => vi.fn());
 
 vi.mock("../active-cookies", () => ({
   writeActiveProjectCookie: (...args: unknown[]) =>
     writeActiveProjectCookie(...args),
+  readActiveOrgCookie: async () => "org-1",
 }));
 
 vi.mock("../connect-active", () => ({
@@ -61,6 +64,23 @@ vi.mock("../rate-limit", () => ({
 
 vi.mock("./shared", () => ({
   refresh: () => refresh(),
+}));
+
+vi.mock("../db-store/client", () => ({
+  getDrizzle: async () => ({ transaction }),
+}));
+
+vi.mock("../db-store/workspace-load", () => ({
+  loadWorkspaceDb: (...args: unknown[]) => loadWorkspaceDb(...args),
+}));
+
+vi.mock("../db-store/repo/projects", () => ({
+  insertProject: vi.fn(),
+  deleteProject: vi.fn(),
+}));
+
+vi.mock("../db-store/repo/evidence", () => ({
+  insertEvidence: vi.fn(),
 }));
 
 const project = testProject({
@@ -96,12 +116,13 @@ function workspaceFor(membership: OrgMembership) {
 
 afterEach(() => {
   vi.clearAllMocks();
+  transaction.mockImplementation(async (fn: (tx: object) => unknown) => fn({}));
 });
 
 describe("switchProjectAction", () => {
   it("sets the active project and refreshes", async () => {
     const workspace = workspaceFor(ownerMembership);
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    getWorkspace.mockResolvedValue(workspace);
     const form = new FormData();
     form.set("projectId", "p1");
 
@@ -161,9 +182,7 @@ describe("connectGitHubRepoAction", () => {
       defaultBranch: "main",
       private: false,
     });
-    withWorkspaceWrite.mockImplementation(async (fn) =>
-      fn(workspaceFor(viewerMembership)),
-    );
+    loadWorkspaceDb.mockResolvedValue(workspaceFor(viewerMembership).db);
     const form = new FormData();
     form.set("fullName", "acme/shop");
 
@@ -185,9 +204,7 @@ describe("connectGitHubRepoAction", () => {
       private: false,
     });
     findConnectedGitHubProject.mockReturnValue(project);
-    withWorkspaceWrite.mockImplementation(async (fn) =>
-      fn(workspaceFor(ownerMembership)),
-    );
+    loadWorkspaceDb.mockResolvedValue(workspaceFor(ownerMembership).db);
     const form = new FormData();
     form.set("fullName", "acme/shop");
 
@@ -210,9 +227,7 @@ describe("connectGitHubRepoAction", () => {
     });
     findConnectedGitHubProject.mockReturnValue(undefined);
     connectGitHubRepo.mockResolvedValue({ ...project, id: "p-new" });
-    withWorkspaceWrite.mockImplementation(async (fn) =>
-      fn(workspaceFor(ownerMembership)),
-    );
+    loadWorkspaceDb.mockResolvedValue(workspaceFor(ownerMembership).db);
     const form = new FormData();
     form.set("fullName", "  acme/shop  ");
 
@@ -244,9 +259,7 @@ describe("connectGitHubRepoAction", () => {
     });
     findConnectedGitHubProject.mockReturnValue(undefined);
     connectGitHubRepo.mockResolvedValue({ ...project, id: "p-app" });
-    withWorkspaceWrite.mockImplementation(async (fn) =>
-      fn(workspaceFor(ownerMembership)),
-    );
+    loadWorkspaceDb.mockResolvedValue(workspaceFor(ownerMembership).db);
     const form = new FormData();
     form.set("fullName", "acme/shop");
     form.set("installationId", "42");
@@ -296,9 +309,7 @@ describe("disconnectGitHubRepoAction", () => {
   it("disconnects and updates the active project cookie", async () => {
     actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     disconnectGitHubRepo.mockReturnValue("p-next");
-    withWorkspaceWrite.mockImplementation(async (fn) =>
-      fn(workspaceFor(ownerMembership)),
-    );
+    loadWorkspaceDb.mockResolvedValue(workspaceFor(ownerMembership).db);
     const form = new FormData();
     form.set("projectId", "p1");
 
@@ -317,7 +328,7 @@ describe("disconnectGitHubRepoAction", () => {
 
   it("maps ConnectError from disconnect into form state", async () => {
     actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
-    withWorkspaceWrite.mockImplementation(async () => {
+    transaction.mockImplementation(async () => {
       throw new ConnectError("Not allowed to disconnect this project.");
     });
     const form = new FormData();

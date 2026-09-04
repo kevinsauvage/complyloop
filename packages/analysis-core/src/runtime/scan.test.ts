@@ -5,6 +5,7 @@ import {
   resolveAxeMinJsPath,
   runAxeOnPage,
 } from "./scan";
+import { emulateCoarsePointer } from "./viewport-conditions";
 import * as htmlValidateRuntime from "./html-validate-runtime";
 import {
   chromiumExecutableAvailable,
@@ -116,6 +117,28 @@ describe("runtime engine isolation", () => {
       } finally {
         htmlValidateSpy.mockRestore();
         await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "re-injects axe after CDP viewport emulation clears the page script context",
+    async () => {
+      const probeBrowser = await chromium.launch({ headless: true });
+      const page = await (await probeBrowser.newContext()).newPage();
+      try {
+        await page.setContent(
+          `<!doctype html><html lang="en"><head><title>t</title></head><body><button>Save</button></body></html>`,
+        );
+        await runAxeOnPage(page);
+        await emulateCoarsePointer(page, async () => {
+          await expect(
+            runAxeOnPage(page, { runOnly: ["target-size"] }),
+          ).resolves.toBeDefined();
+        });
+      } finally {
+        await probeBrowser.close();
       }
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,

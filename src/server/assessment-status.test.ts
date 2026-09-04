@@ -5,6 +5,7 @@ import type { Project, Requirement } from "@/core/project-types";
 import { testProject } from "@/test-fixtures/project";
 import { emptyDb } from "./db";
 import {
+  assertAssessableCatalog,
   controlsInScope,
   findingsInScope,
   refreshRequirementStatuses,
@@ -552,5 +553,20 @@ describe("refreshRequirementStatuses applicability-gated", () => {
     expect(
       db.requirements.find((r) => r.controlId === "ctl-video-caption")?.status,
     ).toBe("failed");
+  });
+});
+
+describe("assertAssessableCatalog", () => {
+  it("throws when the catalog was never seeded", () => {
+    const db = emptyDb();
+    const project = testProject({
+      defaultPresetId: "preset-rgaa-full",
+      inScopeControlIds: ["ctl-img-alt"],
+    });
+    db.projects.push(project);
+
+    expect(() => assertAssessableCatalog(db, project)).toThrow(
+      /Compliance catalog is not seeded/,
+    );
   });
 });

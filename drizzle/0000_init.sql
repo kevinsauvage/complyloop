@@ -89,6 +89,14 @@ CREATE TABLE IF NOT EXISTS "assessments" (
 
 CREATE INDEX IF NOT EXISTS "assessments_project_id_idx" ON "assessments" ("project_id");
 
+CREATE TABLE IF NOT EXISTS "assessment_snapshots" (
+  "assessment_id" text PRIMARY KEY NOT NULL REFERENCES "assessments" ("id") ON DELETE CASCADE,
+  "snapshot" jsonb NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS "assessment_snapshots_assessment_id_idx"
+  ON "assessment_snapshots" ("assessment_id");
+
 CREATE TABLE IF NOT EXISTS "findings" (
   "id" text PRIMARY KEY NOT NULL,
   "project_id" text NOT NULL REFERENCES "projects" ("id") ON DELETE CASCADE,

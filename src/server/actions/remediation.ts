@@ -15,7 +15,7 @@ import { addEvidence, type Db } from "../db";
 import {
   findingById,
   remediationForFinding,
-  withWorkspaceWrite,
+  withProjectWrite,
 } from "../workspace";
 import {
   refresh,
@@ -79,7 +79,7 @@ export async function approveRemediationAction(
   void _previous;
   void _formData;
   return runActionMessage(async () => {
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
@@ -106,7 +106,7 @@ export async function bulkApproveRemediationsAction(
     }
     let approved = 0;
 
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       const { db } = workspace;
       for (const findingId of findingIds) {
         const finding = findingById(db, findingId);
@@ -138,7 +138,7 @@ export async function dismissFindingAction(
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
@@ -185,7 +185,7 @@ export async function bulkDismissFindingsAction(
     let dismissed = 0;
     const projectIds = new Set<string>();
 
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       const { db } = workspace;
       for (const findingId of findingIds) {
         const finding = findingById(db, findingId);

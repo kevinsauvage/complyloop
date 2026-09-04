@@ -7,7 +7,7 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 import { emptyActionMessageState } from "../action-state";
 import { setDefaultPresetAction } from "./project-preset";
 
-const { withWorkspaceWrite } = actionWorkspaceMocks;
+const { withProjectWrite } = actionWorkspaceMocks;
 const setDefaultPreset = vi.hoisted(() => vi.fn());
 
 vi.mock("../project-preset", () => ({
@@ -39,7 +39,7 @@ describe("setDefaultPresetAction", () => {
   });
 
   it("denies viewers", async () => {
-    withWorkspaceWrite.mockImplementation(async (fn) =>
+    withProjectWrite.mockImplementation(async (fn) =>
       fn(workspaceFor("viewer")),
     );
     const form = new FormData();
@@ -50,7 +50,7 @@ describe("setDefaultPresetAction", () => {
 
   it("saves the default preset for admins", async () => {
     const workspace = workspaceFor("admin");
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     setDefaultPreset.mockReturnValue({ changed: true });
     const form = new FormData();
     form.set("presetId", "preset-wcag-aa");

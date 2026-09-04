@@ -176,10 +176,29 @@ export function FirstAssessmentChecklist({
 export function UnableToVerifyRuntimeHint({
   count,
   hasPreviewUrl,
+  runtimeError,
 }: {
   count: number;
   hasPreviewUrl: boolean;
+  runtimeError?: string | null;
 }) {
+  if (runtimeError) {
+    return (
+      <p className="rounded-xl border border-status-failed/30 bg-status-failed/10 px-4 py-3 text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">Preview audit failed</span>
+        {" — "}
+        {runtimeError}{" "}
+        <Link
+          href="/settings"
+          className="underline underline-offset-4 hover:text-foreground"
+        >
+          Check preview URL settings
+        </Link>
+        . Runtime-only checks stay unable to verify until the preview loads.
+      </p>
+    );
+  }
+
   if (count === 0 || hasPreviewUrl) return null;
 
   return (

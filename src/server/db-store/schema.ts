@@ -19,7 +19,13 @@ import type {
   Project,
   Requirement,
 } from "@/core/project-types";
-import type { Alert, Assessment, Finding, Remediation } from "@/core/finding-types";
+import type {
+  Alert,
+  Assessment,
+  AssessmentSnapshot,
+  Finding,
+  Remediation,
+} from "@/core/finding-types";
 import {
   FINDING_STATUSES,
   REMEDIATION_STATUSES,
@@ -31,9 +37,11 @@ import {
  * shapes stay framework-agnostic without a brittle column explosion.
  * Evidence is a dedicated table: insert-only from the app (never updated/deleted).
  *
- * Foreign keys use ON DELETE CASCADE on mutable tables so the current
- * parent-then-child persist prune still works. Evidence has no FKs — rows
- * outlive project disconnect and organization deletion.
+ * Foreign keys use ON DELETE CASCADE on mutable tables. Evidence has no FKs —
+ * rows outlive project disconnect and organization deletion.
+ *
+ * Assessment file-hash snapshots live in {@link assessmentSnapshots}, not in
+ * the assessment payload, so workspace reads stay bounded.
  */
 
 function sqlIn(column: ReturnType<typeof sql>, values: readonly string[]) {
@@ -142,6 +150,9 @@ export const requirements = pgTable(
   ],
 );
 
+/** Assessment metadata without snapshot (snapshot is in assessment_snapshots). */
+export type AssessmentPayload = Omit<Assessment, "snapshot">;
+
 export const assessments = pgTable(
   "assessments",
   {
@@ -149,9 +160,21 @@ export const assessments = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    payload: jsonb("payload").$type<Assessment>().notNull(),
+    payload: jsonb("payload").$type<AssessmentPayload>().notNull(),
   },
   (table) => [index("assessments_project_id_idx").on(table.projectId)],
+);
+
+/** File-hash snapshot for change detection; loaded only during assessment runs. */
+export const assessmentSnapshots = pgTable(
+  "assessment_snapshots",
+  {
+    assessmentId: text("assessment_id")
+      .primaryKey()
+      .references(() => assessments.id, { onDelete: "cascade" }),
+    snapshot: jsonb("snapshot").$type<AssessmentSnapshot>().notNull(),
+  },
+  (table) => [index("assessment_snapshots_assessment_id_idx").on(table.assessmentId)],
 );
 
 export const findings = pgTable(

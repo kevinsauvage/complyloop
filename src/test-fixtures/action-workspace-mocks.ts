@@ -1,7 +1,12 @@
 import { vi } from "vitest";
 
+const withProjectWrite = vi.fn();
+const withOrgWrite = vi.fn();
+
 export const actionWorkspaceMocks = {
-  withWorkspaceWrite: vi.fn(),
+  withWorkspaceWrite: withProjectWrite,
+  withProjectWrite,
+  withOrgWrite,
   getWorkspace: vi.fn(),
 };
 

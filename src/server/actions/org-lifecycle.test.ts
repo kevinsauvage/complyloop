@@ -19,7 +19,7 @@ import {
 import type { Db } from "../db";
 import type { Workspace } from "../workspace";
 
-const { getWorkspace, withWorkspaceWrite } = actionWorkspaceMocks;
+const { getWorkspace, withOrgWrite } = actionWorkspaceMocks;
 const exportOrgData = vi.hoisted(() => vi.fn());
 const deleteOrganization = vi.hoisted(() => vi.fn());
 const resolveActiveOrgId = vi.hoisted(() => vi.fn());
@@ -105,7 +105,7 @@ function fixtureWorkspace(db: Db = emptyDb()): Workspace {
 beforeEach(() => {
   actionAuthMocks.auth.mockReset();
   getWorkspace.mockReset();
-  withWorkspaceWrite.mockReset();
+  withOrgWrite.mockReset();
   exportOrgData.mockReset();
   deleteOrganization.mockReset();
   resolveActiveOrgId.mockReset();
@@ -113,8 +113,13 @@ beforeEach(() => {
   writeActiveProjectCookie.mockReset();
   refresh.mockReset();
   actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1", login: "alice" } });
-  withWorkspaceWrite.mockImplementation(async (fn: (ws: Workspace) => unknown) =>
-    fn(fixtureWorkspace()),
+  withOrgWrite.mockImplementation(async (fn) =>
+    fn({
+      db: fixtureWorkspace().db,
+      userId: "user-1",
+      githubLogin: "alice",
+      organizations: [org],
+    }),
   );
   getWorkspace.mockResolvedValue(fixtureWorkspace());
 });
@@ -280,7 +285,14 @@ describe("org member management actions", () => {
       githubLogin: "bob",
     });
     const db = emptyDb([ownerMembership, member]);
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(fixtureWorkspace(db)));
+    withOrgWrite.mockImplementation(async (fn) =>
+      fn({
+        db,
+        userId: "user-1",
+        githubLogin: "alice",
+        organizations: [org],
+      }),
+    );
 
     const form = new FormData();
     form.set("orgId", "org-1");
@@ -299,7 +311,14 @@ describe("org member management actions", () => {
       createdAt: "2026-01-01T00:00:00.000Z",
     };
     const db = emptyDb([ownerMembership, invite]);
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(fixtureWorkspace(db)));
+    withOrgWrite.mockImplementation(async (fn) =>
+      fn({
+        db,
+        userId: "user-1",
+        githubLogin: "alice",
+        organizations: [org],
+      }),
+    );
 
     const form = new FormData();
     form.set("orgId", "org-1");
@@ -315,7 +334,14 @@ describe("org member management actions", () => {
       githubLogin: "bob",
     });
     const db = emptyDb([ownerMembership, member]);
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(fixtureWorkspace(db)));
+    withOrgWrite.mockImplementation(async (fn) =>
+      fn({
+        db,
+        userId: "user-1",
+        githubLogin: "alice",
+        organizations: [org],
+      }),
+    );
 
     const form = new FormData();
     form.set("orgId", "org-1");

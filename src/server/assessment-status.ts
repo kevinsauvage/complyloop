@@ -1,4 +1,5 @@
 import { presetById } from "@/adapters/registry";
+import { PublicError } from "@/core/public-error";
 import {
   deriveRequirementStatus,
   isStickyHumanDecision,
@@ -47,6 +48,20 @@ export function controlsInScope(db: Db, project: Project): Control[] {
   const controlIds = scopedControlIds(project);
   if (!controlIds) return db.controls;
   return db.controls.filter((control) => controlIds.has(control.id));
+}
+
+/** Fails loud when the catalog or preset scope would produce a no-op assessment. */
+export function assertAssessableCatalog(
+  db: Db,
+  project: Project,
+): Control[] {
+  const scoped = controlsInScope(db, project);
+  if (scoped.length > 0) return scoped;
+  throw new PublicError(
+    db.controls.length === 0
+      ? "Compliance catalog is not seeded. Run `npm run seed`, then re-run the assessment."
+      : "No controls are in scope for this project. Check the assessment preset in Settings.",
+  );
 }
 
 /** Requirements for a project that fall inside its assessment target. */

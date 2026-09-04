@@ -47,8 +47,16 @@ function RuntimeCoverageDisplay({
       <Badge className={cn("rounded-full border-0 font-normal", tint)}>
         {summary.label}
       </Badge>
-      {!compact && summary.runtimeError ? (
-        <span className="text-xs text-destructive">{summary.runtimeError}</span>
+      {summary.runtimeError ? (
+        <span
+          className={cn(
+            "text-xs text-destructive",
+            compact ? "max-w-[min(100%,28rem)] truncate" : undefined,
+          )}
+          title={compact ? summary.runtimeError : undefined}
+        >
+          {summary.runtimeError}
+        </span>
       ) : null}
       <Link
         href="/settings"

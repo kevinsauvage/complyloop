@@ -7,8 +7,7 @@ import type { AssessmentJob } from "./assessment-jobs";
 const claimNextAssessmentJob = vi.hoisted(() => vi.fn());
 const completeAssessmentJob = vi.hoisted(() => vi.fn());
 const failAssessmentJob = vi.hoisted(() => vi.fn());
-const loadDb = vi.hoisted(() => vi.fn());
-const withDbWrite = vi.hoisted(() => vi.fn());
+const loadProjectDb = vi.hoisted(() => vi.fn());
 const runAssessment = vi.hoisted(() => vi.fn());
 const withProjectCheckout = vi.hoisted(() => vi.fn());
 const reportError = vi.hoisted(() => vi.fn());
@@ -16,7 +15,10 @@ const reportWarning = vi.hoisted(() => vi.fn());
 const pruneRateLimitBuckets = vi.hoisted(() => vi.fn());
 const resolveProjectGitHubToken = vi.hoisted(() => vi.fn());
 const postPullRequestCheckRun = vi.hoisted(() => vi.fn());
-const resolveProjectLoadScope = vi.hoisted(() => vi.fn());
+const applyAssessmentPayload = vi.hoisted(() => vi.fn());
+const insertEvidence = vi.hoisted(() => vi.fn());
+const hasDraftPrApproval = vi.hoisted(() => vi.fn());
+const transaction = vi.hoisted(() => vi.fn());
 
 vi.mock("./assessment-jobs", () => ({
   claimNextAssessmentJob: (...args: unknown[]) =>
@@ -27,21 +29,24 @@ vi.mock("./assessment-jobs", () => ({
 }));
 
 vi.mock("./db-store/client", () => ({
-  getDrizzle: async () => ({}),
+  getDrizzle: async () => ({ transaction }),
 }));
 
-vi.mock("./db-store/postgres-load", () => ({
-  resolveProjectLoadScope: (...args: unknown[]) =>
-    resolveProjectLoadScope(...args),
+vi.mock("./db-store/repo/apply", () => ({
+  applyAssessmentPayload: (...args: unknown[]) => applyAssessmentPayload(...args),
+  buildAssessmentApplyPayload: (input: unknown) => input,
+}));
+
+vi.mock("./db-store/repo/evidence", () => ({
+  hasDraftPrApproval: (...args: unknown[]) => hasDraftPrApproval(...args),
+  insertEvidence: (...args: unknown[]) => insertEvidence(...args),
 }));
 
 vi.mock("./db", async () => {
   const actual = await vi.importActual<typeof import("./db")>("./db");
   return {
     ...actual,
-    loadDb: (...args: unknown[]) => loadDb(...args),
-    withDbWrite: (fn: (db: Db) => unknown, ...rest: unknown[]) =>
-      withDbWrite(fn, ...rest),
+    loadProjectDb: (...args: unknown[]) => loadProjectDb(...args),
   };
 });
 
@@ -84,6 +89,7 @@ vi.mock("./github-checks", () => ({
 import { processNextAssessmentJob } from "./assessment-worker";
 
 const project = testProject({
+  id: "p1",
   orgId: "org-1",
   github: {
     fullName: "acme/shop",
@@ -116,12 +122,8 @@ function emptyDb(): Db {
 }
 
 beforeEach(() => {
-  resolveProjectLoadScope.mockResolvedValue({
-    mode: "scoped",
-    orgIds: ["org-1"],
-    projectIds: ["p1"],
-    evidenceLimit: 0,
-  });
+  hasDraftPrApproval.mockResolvedValue(false);
+  transaction.mockImplementation(async (fn: (tx: object) => unknown) => fn({}));
 });
 
 afterEach(() => {
@@ -150,15 +152,18 @@ describe("processNextAssessmentJob", () => {
   it("runs assessment and completes on success", async () => {
     const db = emptyDb();
     claimNextAssessmentJob.mockResolvedValue(job());
-    loadDb.mockResolvedValue(db);
+    loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
       async (
         _project: unknown,
         fn: (rootPath: string) => Promise<unknown>,
       ) => fn("/tmp/checkout"),
     );
-    withDbWrite.mockImplementation(async (fn: (db: Db) => unknown) => fn(db));
-    runAssessment.mockResolvedValue({ id: "a1" });
+    runAssessment.mockResolvedValue({
+      id: "a1",
+      projectId: "p1",
+      snapshot: { fileHashes: {} },
+    });
     completeAssessmentJob.mockResolvedValue(undefined);
 
     await expect(processNextAssessmentJob()).resolves.toEqual({
@@ -167,17 +172,20 @@ describe("processNextAssessmentJob", () => {
     });
     expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
       rootPath: "/tmp/checkout",
+      draftPrApprovedFindingIds: expect.any(Set),
     });
+    expect(applyAssessmentPayload).toHaveBeenCalled();
+    expect(insertEvidence).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: "assessment_job_completed" }),
+    );
     expect(completeAssessmentJob).toHaveBeenCalledWith("job-1");
     expect(pruneRateLimitBuckets).not.toHaveBeenCalled();
-    expect(
-      db.evidence.some((row) => row.kind === "assessment_job_completed"),
-    ).toBe(true);
   });
 
   it("retries when failAssessmentJob returns queued", async () => {
     claimNextAssessmentJob.mockResolvedValue(job({ attempts: 1 }));
-    loadDb.mockResolvedValue(emptyDb());
+    loadProjectDb.mockResolvedValue(emptyDb());
     withProjectCheckout.mockRejectedValue(new Error("clone failed"));
     failAssessmentJob.mockResolvedValue("queued");
 
@@ -192,18 +200,18 @@ describe("processNextAssessmentJob", () => {
   it("records failure evidence when the job is terminal", async () => {
     const db = emptyDb();
     claimNextAssessmentJob.mockResolvedValue(job({ attempts: 3 }));
-    loadDb.mockResolvedValue(db);
+    loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockRejectedValue(new Error("clone failed"));
     failAssessmentJob.mockResolvedValue("failed");
-    withDbWrite.mockImplementation(async (fn: (db: Db) => unknown) => fn(db));
 
     await expect(processNextAssessmentJob()).resolves.toEqual({
       kind: "failed",
       jobId: "job-1",
     });
-    expect(
-      db.evidence.some((row) => row.kind === "assessment_job_failed"),
-    ).toBe(true);
+    expect(insertEvidence).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: "assessment_job_failed" }),
+    );
   });
 
   it("posts a PR check run for webhook jobs with a head sha", async () => {
@@ -217,15 +225,18 @@ describe("processNextAssessmentJob", () => {
         },
       }),
     );
-    loadDb.mockResolvedValue(db);
+    loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
       async (
         _project: unknown,
         fn: (rootPath: string) => Promise<unknown>,
       ) => fn("/tmp/checkout"),
     );
-    withDbWrite.mockImplementation(async (fn: (db: Db) => unknown) => fn(db));
-    runAssessment.mockResolvedValue({ id: "a1" });
+    runAssessment.mockResolvedValue({
+      id: "a1",
+      projectId: "p1",
+      snapshot: { fileHashes: {} },
+    });
     completeAssessmentJob.mockResolvedValue(undefined);
     resolveProjectGitHubToken.mockResolvedValue("ghs_token");
     postPullRequestCheckRun.mockResolvedValue({ ok: true });
@@ -251,15 +262,18 @@ describe("processNextAssessmentJob", () => {
         payload: { pullRequestHeadSha: "abc123" },
       }),
     );
-    loadDb.mockResolvedValue(db);
+    loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
       async (
         _project: unknown,
         fn: (rootPath: string) => Promise<unknown>,
       ) => fn("/tmp/checkout"),
     );
-    withDbWrite.mockImplementation(async (fn: (db: Db) => unknown) => fn(db));
-    runAssessment.mockResolvedValue({ id: "a1" });
+    runAssessment.mockResolvedValue({
+      id: "a1",
+      projectId: "p1",
+      snapshot: { fileHashes: {} },
+    });
     completeAssessmentJob.mockResolvedValue(undefined);
     resolveProjectGitHubToken.mockResolvedValue(null);
 
@@ -269,5 +283,4 @@ describe("processNextAssessmentJob", () => {
       expect.objectContaining({ code: "github_token_missing" }),
     );
   });
-
 });

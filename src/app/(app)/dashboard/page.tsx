@@ -201,6 +201,7 @@ export default async function DashboardPage() {
             <UnableToVerifyRuntimeHint
               count={counts.get("unable_to_verify") ?? 0}
               hasPreviewUrl={Boolean(project.runtimeBaseUrl?.trim())}
+              runtimeError={latestAssessment.engines?.runtimeError}
             />
             <DashboardStatusCounts counts={counts} />
           </DashboardSection>

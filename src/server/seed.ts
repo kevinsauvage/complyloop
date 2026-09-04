@@ -1,18 +1,27 @@
-import { mergeAdapterControls } from "@/adapters/registry";
-import type { Db } from "./db";
+import { config as loadEnv } from "dotenv";
+import path from "node:path";
+import { getDrizzle } from "./db-store/client";
+import { seedCatalog } from "./db-store/repo/catalog";
 
-/** Seeds registered framework adapters on first use and merges new controls. */
-export function ensureSeeded(db: Db): boolean {
-  if (db.frameworks.length === 0) {
-    const merged = mergeAdapterControls([], []);
-    db.frameworks.push(...merged.frameworks);
-    db.controls.push(...merged.controls);
-    return true;
+function loadLocalEnv(): void {
+  if (process.env.DATABASE_URL?.trim()) return;
+  loadEnv({ path: path.join(process.cwd(), ".env.local") });
+  if (!process.env.DATABASE_URL?.trim()) {
+    loadEnv({ path: path.join(process.cwd(), ".env") });
   }
+}
 
-  const merged = mergeAdapterControls(db.frameworks, db.controls);
-  if (!merged.changed) return false;
-  db.frameworks = merged.frameworks;
-  db.controls = merged.controls;
-  return true;
+/** Seeds registered framework adapters — run via `npm run seed` or deploy hook. */
+export async function seedDatabaseCatalog(): Promise<void> {
+  loadLocalEnv();
+  const changed = await seedCatalog(await getDrizzle());
+  console.log(changed ? "Catalog seeded." : "Catalog already up to date.");
+}
+
+const isMain = process.argv[1]?.endsWith("seed.ts");
+if (isMain) {
+  seedDatabaseCatalog().catch((error: unknown) => {
+    console.error(error);
+    process.exit(1);
+  });
 }

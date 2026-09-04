@@ -1,17 +1,31 @@
 import { describe, expect, it } from "vitest";
+import { mergeAdapterControls } from "@/adapters/registry";
 import { rgaaFramework } from "@/adapters/rgaa/controls";
 import { emptyDb } from "./db";
-import { ensureSeeded } from "./seed";
 
-describe("ensureSeeded", () => {
+function ensureSeededInMemory(db: ReturnType<typeof emptyDb>): boolean {
+  if (db.frameworks.length === 0) {
+    const merged = mergeAdapterControls([], []);
+    db.frameworks.push(...merged.frameworks);
+    db.controls.push(...merged.controls);
+    return true;
+  }
+  const merged = mergeAdapterControls(db.frameworks, db.controls);
+  if (!merged.changed) return false;
+  db.frameworks = merged.frameworks;
+  db.controls = merged.controls;
+  return true;
+}
+
+describe("catalog merge (seed)", () => {
   it("seeds frameworks and controls into an empty db", () => {
     const db = emptyDb();
-    expect(ensureSeeded(db)).toBe(true);
+    expect(ensureSeededInMemory(db)).toBe(true);
     expect(db.frameworks.some((framework) => framework.id === rgaaFramework.id)).toBe(
       true,
     );
     expect(db.controls.some((control) => control.id === "ctl-img-alt")).toBe(true);
-    expect(ensureSeeded(db)).toBe(false);
+    expect(ensureSeededInMemory(db)).toBe(false);
   });
 
   it("merges adapter controls without wiping a custom control", () => {
@@ -27,7 +41,7 @@ describe("ensureSeeded", () => {
       checkId: null,
     });
 
-    expect(ensureSeeded(db)).toBe(true);
+    expect(ensureSeededInMemory(db)).toBe(true);
     expect(db.controls.some((control) => control.id === "ctl-custom-seed")).toBe(
       true,
     );

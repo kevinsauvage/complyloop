@@ -22,7 +22,7 @@ import {
   findingById,
   getWorkspace,
   remediationForFinding,
-  withWorkspaceWrite,
+  withProjectWrite,
 } from "../workspace";
 import {
   locateViolation,
@@ -46,7 +46,7 @@ export async function verifyRemediationAction(
     requireOnFindingProject(preview, finding, "project.remediate");
 
     if (finding.location.kind === "dom") {
-      await withWorkspaceWrite(async (workspace) => {
+      await withProjectWrite(async (workspace) => {
         const { db } = workspace;
         const live = findingById(db, findingId);
         requireOnFindingProject(workspace, live, "project.remediate");
@@ -94,7 +94,7 @@ export async function verifyRemediationAction(
       await withProjectCheckout(
         project,
         async (rootPath) => {
-        await withWorkspaceWrite(async (workspace) => {
+        await withProjectWrite(async (workspace) => {
           const { db } = workspace;
           const live = findingById(db, findingId);
           requireOnFindingProject(workspace, live, "project.remediate");
@@ -174,7 +174,7 @@ export async function markRemediationImplementedAction(
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
@@ -213,7 +213,7 @@ export async function manualVerifyRemediationAction(
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");

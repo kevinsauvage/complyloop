@@ -6,7 +6,7 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { setDefaultPreset } from "../project-preset";
-import { withWorkspaceWrite } from "../workspace";
+import { withProjectWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
 export async function setDefaultPresetAction(
@@ -19,7 +19,7 @@ export async function setDefaultPresetAction(
       throw new PublicError("A framework preset is required.");
     }
     let changed = false;
-    await withWorkspaceWrite(async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.connect");
       const { db, project } = workspace;
       changed = setDefaultPreset(db, project, presetId).changed;

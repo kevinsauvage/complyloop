@@ -14,7 +14,7 @@ import {
   generateAiRemediationAction,
 } from "./remediation-ai";
 
-const { withWorkspaceWrite } = actionWorkspaceMocks;
+const { withProjectWrite } = actionWorkspaceMocks;
 const generateAiExplanation = vi.hoisted(() => vi.fn());
 const generateAiRemediation = vi.hoisted(() => vi.fn());
 const assertAiRateLimit = vi.hoisted(() => vi.fn());
@@ -82,7 +82,7 @@ describe("generateAiExplanationAction", () => {
   it("denies when the caller cannot view the project", async () => {
     const workspace = workspaceFor("viewer");
     workspace.access.memberships = [];
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     assertAiRateLimit.mockResolvedValue(undefined);
 
     const result = await generateAiExplanationAction(
@@ -95,7 +95,7 @@ describe("generateAiExplanationAction", () => {
 
   it("adds an explanation when the model returns one", async () => {
     const workspace = workspaceFor("member");
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiExplanation.mockResolvedValue({
       whyItFailed: "Missing alt attribute",
@@ -119,7 +119,7 @@ describe("generateAiExplanationAction", () => {
 
   it("errors when AI explanation is unavailable", async () => {
     const workspace = workspaceFor("member");
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiExplanation.mockResolvedValue(null);
 
@@ -140,7 +140,7 @@ describe("generateAiRemediationAction", () => {
     const openFinding = workspace.db.findings[0];
     if (!openFinding) throw new Error("expected finding");
     openFinding.status = "resolved";
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     assertAiRateLimit.mockResolvedValue(undefined);
 
     const result = await generateAiRemediationAction(
@@ -153,7 +153,7 @@ describe("generateAiRemediationAction", () => {
 
   it("rejects remediations past the suggestion stage", async () => {
     const workspace = workspaceFor("member", "approved");
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     assertAiRateLimit.mockResolvedValue(undefined);
 
     const result = await generateAiRemediationAction(
@@ -175,7 +175,7 @@ describe("generateAiRemediationAction", () => {
       editable: true,
       span: { start: 0, end: 16 },
     };
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiRemediation.mockResolvedValue({
       suggestion: {
@@ -204,7 +204,7 @@ describe("generateAiRemediationAction", () => {
 
   it("refreshes an existing suggested remediation", async () => {
     const workspace = workspaceFor("member", "suggested");
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiRemediation.mockResolvedValue({
       suggestion: {
@@ -231,7 +231,7 @@ describe("generateAiRemediationAction", () => {
 
   it("errors when AI remediation is unavailable", async () => {
     const workspace = workspaceFor("member", "detected");
-    withWorkspaceWrite.mockImplementation(async (fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiRemediation.mockResolvedValue(null);
 
