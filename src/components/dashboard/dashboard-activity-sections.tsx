@@ -78,16 +78,31 @@ export function DashboardActivitySections({
   return (
     <div className="grid gap-4 lg:grid-cols-12">
       {regressions.length > 0 ? (
-        <ActivityCard
-          title="Recent compliance regressions"
-          className="border-destructive/35 bg-destructive/5 lg:col-span-12"
-          icon={Layers}
+        <section
+          className="surface-panel rounded-2xl border-destructive/30 bg-destructive/5 p-4 sm:p-5 lg:col-span-12"
+          aria-labelledby="recent-regressions-heading"
         >
+          <div className="mb-4 flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/15 text-destructive">
+              <Layers className="size-4" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <h2
+                id="recent-regressions-heading"
+                className="text-base font-medium text-foreground"
+              >
+                Recent compliance regressions
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Requirement statuses that worsened since the last assessment.
+              </p>
+            </div>
+          </div>
           <ul className="flex flex-col gap-2">
             {regressions.map((record) => (
               <li
                 key={record.id}
-                className="rounded-lg border border-destructive/20 bg-background/50 px-3 py-2 text-sm text-destructive"
+                className="rounded-lg border border-destructive/25 bg-background/70 px-3 py-2 text-sm text-destructive"
               >
                 {record.summary}
                 <span className="ml-2 text-xs text-muted-foreground">
@@ -96,7 +111,7 @@ export function DashboardActivitySections({
               </li>
             ))}
           </ul>
-        </ActivityCard>
+        </section>
       ) : allClear ? (
         <ActivityCard
           title="No regressions detected"
