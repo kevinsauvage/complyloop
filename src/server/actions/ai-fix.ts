@@ -4,11 +4,13 @@ import { PATCH_PR_SOURCE_ONLY_MESSAGE } from "@/ai/verified-fix";
 import { aiExplanationAvailable } from "@/ai/explainer";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { isSourceLocation } from "@/core/location";
+import { entityIdSchema } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
+import { parseInput } from "../boundary";
 import { persistPatchCandidate } from "../ai-fix-persist";
 import { runAiFixOnCheckout } from "../ai-fix-run";
 import { assertAiRateLimit } from "../rate-limit";
@@ -26,13 +28,14 @@ import {
 } from "./shared";
 
 export async function generateAiFixAction(
-  findingId: string,
+  findingIdRaw: string,
   _previous: ActionMessageState,
   _formData: FormData,
 ): Promise<ActionMessageState> {
   void _previous;
   void _formData;
   return runActionMessage(async () => {
+    const findingId = parseInput(entityIdSchema, findingIdRaw);
     const preview = await getWorkspace();
     const finding = findingById(preview.db, findingId);
     requireOnFindingProject(preview, finding, "project.remediate");

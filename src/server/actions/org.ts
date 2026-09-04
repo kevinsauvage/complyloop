@@ -1,19 +1,18 @@
 "use server";
 
+import { z } from "zod";
 import { auth } from "@/auth";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { isOrgRole } from "@/core/rbac";
-import type { OrgRole } from "@/core/project-types";
+import { entityIdSchema, requiredField } from "@/core/boundary";
 import {
   actionErrorState,
   formError,
   formSuccess,
   publicErrorMessage,
-  readFormString,
-  requireFormString,
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
+import { parseForm, parseFormState, parseInput } from "../boundary";
 import {
   writeActiveOrgCookie,
   writeActiveProjectCookie,
@@ -36,16 +35,45 @@ import { refresh } from "./shared";
 export type OrgMemberFormState = ActionMessageState;
 export type CreateOrgFormState = ActionMessageState;
 
+const switchOrgInput = z.object({
+  orgId: requiredField("An organization id is required."),
+});
+
+const createOrgInput = z.object({
+  name: requiredField("Enter an organization name.", 200),
+});
+
+const inviteOrgMemberInput = z.object({
+  orgId: requiredField("Select an organization."),
+  githubLogin: requiredField("Enter a GitHub username.", 39),
+  role: z.enum(["admin", "member", "viewer"], {
+    error: "Choose a role: admin, member, or viewer.",
+  }),
+});
+
+const orgMembershipInput = z.object({
+  orgId: requiredField("Organization id is required."),
+  membershipId: requiredField("Membership id is required."),
+});
+
+const changeOrgMemberRoleInput = orgMembershipInput.extend({
+  role: z.enum(["admin", "member", "viewer"], {
+    error: "Choose a role: admin, member, or viewer.",
+  }),
+});
+
+const deleteOrgInput = z.object({
+  orgId: requiredField("Organization id is required."),
+  confirm: z.literal("DELETE", {
+    error: "Type DELETE to confirm organization deletion.",
+  }),
+});
+
 export async function switchOrgAction(formData: FormData): Promise<void> {
+  const { orgId } = parseForm(switchOrgInput, formData);
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) throw new PublicError("Sign in to switch organizations.");
-
-  const orgId = requireFormString(
-    formData,
-    "orgId",
-    "An organization id is required.",
-  );
 
   let projectIdToActivate: string | null = null;
   await withOrgWrite(({ organizations, db }) => {
@@ -75,15 +103,13 @@ export async function createOrgAction(
     return formError("Sign in with GitHub to create an organization.");
   }
 
-  const nameRaw = readFormString(formData, "name");
-  if (nameRaw == null || nameRaw.trim().length === 0) {
-    return formError("Enter an organization name.");
-  }
+  const parsed = parseFormState(createOrgInput, formData);
+  if (!parsed.ok) return parsed.state;
 
   try {
     const org = await withOrgWrite((workspace) =>
       createOrganization(workspace.db, {
-        name: nameRaw,
+        name: parsed.data.name,
         creatorUserId: userId,
         githubLogin,
       }),
@@ -104,29 +130,19 @@ export async function inviteOrgMemberAction(
   const userId = session?.user?.id;
   if (!userId) return formError("Sign in to manage organization members.");
 
-  const orgIdRaw = readFormString(formData, "orgId");
-  const loginRaw = readFormString(formData, "githubLogin");
-  const roleRaw = formData.get("role");
-  if (orgIdRaw == null) {
-    return formError("Select an organization.");
-  }
-  if (loginRaw == null || loginRaw.trim().length === 0) {
-    return formError("Enter a GitHub username.");
-  }
-  if (!isOrgRole(roleRaw) || roleRaw === "owner") {
-    return formError("Choose a role: admin, member, or viewer.");
-  }
-  const role: OrgRole = roleRaw;
+  const parsed = parseFormState(inviteOrgMemberInput, formData);
+  if (!parsed.ok) return parsed.state;
+  const { orgId, githubLogin, role } = parsed.data;
 
   try {
     await withOrgWrite(({ db }) => {
-      if (!canManageOrgMembers(db, orgIdRaw, userId)) {
+      if (!canManageOrgMembers(db, orgId, userId)) {
         throw new PublicError("Only org owners and admins can invite members.");
       }
-      inviteOrgMember(db, orgIdRaw, userId, loginRaw, role);
+      inviteOrgMember(db, orgId, userId, githubLogin, role);
     });
     refresh();
-    return formSuccess(`Invited @${loginRaw.trim()} as ${role}.`);
+    return formSuccess(`Invited @${githubLogin} as ${role}.`);
   } catch (error) {
     return actionErrorState(error);
   }
@@ -141,28 +157,19 @@ export async function removeOrgMemberAction(
     const userId = session?.user?.id;
     if (!userId) throw new PublicError("Sign in to manage organization members.");
 
-    const orgIdRaw = requireFormString(
-      formData,
-      "orgId",
-      "Organization id is required.",
-    );
-    const membershipId = requireFormString(
-      formData,
-      "membershipId",
-      "Membership id is required.",
-    );
+    const { orgId, membershipId } = parseForm(orgMembershipInput, formData);
 
     let revokedInvite = false;
     await withOrgWrite(({ db }) => {
-      if (!canManageOrgMembers(db, orgIdRaw, userId)) {
+      if (!canManageOrgMembers(db, orgId, userId)) {
         throw new PublicError("Only org owners and admins can remove members.");
       }
       const target = db.memberships.find(
         (membership) =>
-          membership.id === membershipId && membership.orgId === orgIdRaw,
+          membership.id === membershipId && membership.orgId === orgId,
       );
       revokedInvite = Boolean(target && !target.userId);
-      removeOrgMember(db, orgIdRaw, userId, membershipId);
+      removeOrgMember(db, orgId, userId, membershipId);
     });
     refresh();
     return revokedInvite ? "Invite revoked." : "Member removed.";
@@ -178,27 +185,16 @@ export async function changeOrgMemberRoleAction(
     const userId = session?.user?.id;
     if (!userId) throw new PublicError("Sign in to manage organization members.");
 
-    const orgIdRaw = requireFormString(
+    const { orgId, membershipId, role } = parseForm(
+      changeOrgMemberRoleInput,
       formData,
-      "orgId",
-      "Organization id is required.",
     );
-    const membershipId = requireFormString(
-      formData,
-      "membershipId",
-      "Membership id is required.",
-    );
-    const roleRaw = formData.get("role");
-    if (!isOrgRole(roleRaw) || roleRaw === "owner") {
-      throw new PublicError("Choose a role: admin, member, or viewer.");
-    }
-    const role: OrgRole = roleRaw;
 
     await withOrgWrite(({ db }) => {
-      if (!canManageOrgMembers(db, orgIdRaw, userId)) {
+      if (!canManageOrgMembers(db, orgId, userId)) {
         throw new PublicError("Only org owners and admins can change member roles.");
       }
-      changeOrgMemberRole(db, orgIdRaw, userId, membershipId, role);
+      changeOrgMemberRole(db, orgId, userId, membershipId, role);
     });
     refresh();
     return `Role updated to ${role}.`;
@@ -206,7 +202,7 @@ export async function changeOrgMemberRoleAction(
 }
 
 export async function exportOrgDataAction(
-  orgId: string,
+  orgIdRaw: string,
 ): Promise<{ error: string | null; json: string | null }> {
   const session = await auth();
   const userId = session?.user?.id;
@@ -214,6 +210,7 @@ export async function exportOrgDataAction(
     return { error: "Sign in to export organization data.", json: null };
   }
   try {
+    const orgId = parseInput(entityIdSchema, orgIdRaw);
     const { db } = await getWorkspace();
     const projectIds = db.projects
       .filter((project) => project.orgId === orgId)
@@ -241,18 +238,11 @@ export async function deleteOrgAction(
     const userId = session?.user?.id;
     if (!userId) throw new PublicError("Sign in to delete an organization.");
 
-    const orgIdRaw = requireFormString(
-      formData,
-      "orgId",
-      "Organization id is required.",
-    );
-    if (formData.get("confirm") !== "DELETE") {
-      throw new PublicError('Type DELETE to confirm organization deletion.');
-    }
+    const { orgId } = parseForm(deleteOrgInput, formData);
 
     let nextOrgId: string | undefined;
     await withOrgWrite(({ db }) => {
-      deleteOrganization(db, orgIdRaw, userId);
+      deleteOrganization(db, orgId, userId);
       nextOrgId = resolveActiveOrgId(db, userId, null);
     });
     if (nextOrgId) {

@@ -1,4 +1,4 @@
-import { PublicError, isPublicError } from "@complyloop/analysis-core/contract/public-error";
+import { isPublicError } from "@complyloop/analysis-core/contract/public-error";
 import { reportError } from "./observability";
 
 export type ActionMessageState = {
@@ -27,25 +27,6 @@ export function formError(error: string): ActionMessageState {
 
 export function formSuccess(message: string): ActionMessageState {
   return { error: null, message };
-}
-
-export function readFormString(
-  formData: FormData,
-  key: string,
-): string | null {
-  const value = formData.get(key);
-  if (typeof value !== "string" || value.length === 0) return null;
-  return value;
-}
-
-export function requireFormString(
-  formData: FormData,
-  key: string,
-  message: string,
-): string {
-  const value = readFormString(formData, key);
-  if (value == null) throw new PublicError(message, "validation");
-  return value;
 }
 
 /** Public copy, or a generic message plus a short reference after logging. */

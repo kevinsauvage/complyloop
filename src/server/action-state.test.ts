@@ -6,8 +6,6 @@ import {
   formError,
   formSuccess,
   publicErrorMessage,
-  readFormString,
-  requireFormString,
   runActionMessage,
   unexpectedActionMessage,
 } from "./action-state";
@@ -102,24 +100,5 @@ describe("actionErrorState / publicErrorMessage", () => {
       message: null,
     });
     expect(spy).toHaveBeenCalled();
-  });
-});
-
-describe("readFormString / requireFormString", () => {
-  it("reads non-empty string fields", () => {
-    const formData = new FormData();
-    formData.set("orgId", "org-1");
-    expect(readFormString(formData, "orgId")).toBe("org-1");
-    expect(requireFormString(formData, "orgId", "required")).toBe("org-1");
-  });
-
-  it("treats missing and empty values as absent", () => {
-    const formData = new FormData();
-    formData.set("orgId", "");
-    expect(readFormString(formData, "orgId")).toBeNull();
-    expect(readFormString(formData, "missing")).toBeNull();
-    expect(() =>
-      requireFormString(formData, "orgId", "Organization id is required."),
-    ).toThrow("Organization id is required.");
   });
 });

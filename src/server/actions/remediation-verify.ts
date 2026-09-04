@@ -8,11 +8,14 @@ import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import { formatLocationRef, isSourceLocation } from "@/core/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
+import { entityIdSchema, optionalNoteSchema, requiredField } from "@/core/boundary";
+import { z } from "zod";
 import {
   actionErrorState,
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
+import { parseForm, parseInput } from "../boundary";
 import { mergeFix } from "../assessment-helpers";
 import { refreshRequirementStatuses } from "../assessment-status";
 import { addEvidence } from "../db";
@@ -32,14 +35,26 @@ import {
   sessionCheckoutTokenOptions,
 } from "./shared";
 
+const markImplementedInput = z.object({
+  note: optionalNoteSchema,
+});
+
+const manualVerifyInput = z.object({
+  note: requiredField(
+    "A verification note is required for manual verification.",
+    2000,
+  ),
+});
+
 export async function verifyRemediationAction(
-  findingId: string,
+  findingIdRaw: string,
   previous: ActionMessageState,
   formData: FormData,
 ): Promise<ActionMessageState> {
   void previous;
   void formData;
   try {
+    const findingId = parseInput(entityIdSchema, findingIdRaw);
     let stillFailing = false;
     const preview = await getWorkspace();
     const finding = findingById(preview.db, findingId);
@@ -173,21 +188,21 @@ export async function verifyRemediationAction(
  * change outside ComplyLoop (or there is no automatable fix).
  */
 export async function markRemediationImplementedAction(
-  findingId: string,
+  findingIdRaw: string,
   _previous: ActionMessageState,
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
+    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const { note: parsedNote } = parseForm(markImplementedInput, formData);
     await withProjectWrite(async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
       const remediation = remediationForFinding(db, findingId);
-      const noteRaw = formData.get("note");
       const note =
-        typeof noteRaw === "string" && noteRaw.trim().length > 0
-          ? noteRaw.trim()
-          : "Marked implemented by user (applied outside the platform)";
+        parsedNote ??
+        "Marked implemented by user (applied outside the platform)";
 
       replaceRemediation(
         db,
@@ -212,23 +227,18 @@ export async function markRemediationImplementedAction(
  * has verified the fix by other means. Still requires an explicit note.
  */
 export async function manualVerifyRemediationAction(
-  findingId: string,
+  findingIdRaw: string,
   _previous: ActionMessageState,
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
+    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const { note } = parseForm(manualVerifyInput, formData);
     await withProjectWrite(async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
       const remediation = remediationForFinding(db, findingId);
-      const noteRaw = formData.get("note");
-      if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
-        throw new PublicError(
-          "A verification note is required for manual verification.",
-        );
-      }
-      const note = noteRaw.trim();
 
       if (remediation.status !== "implemented") {
         throw new PublicError("Verification requires status implemented.");

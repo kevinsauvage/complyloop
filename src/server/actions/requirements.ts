@@ -1,19 +1,51 @@
 "use server";
 
+import { z } from "zod";
 import type { Project, Requirement } from "@/core/project-types";
 import {
-  isRequirementExceptionReason,
+  REQUIREMENT_EXCEPTION_REASONS,
   TEMPORARY_EXCEPTION_REASON,
 } from "@/core/project-types";
+import { entityIdSchema, requiredField } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
+import { parseForm, parseInput } from "../boundary";
 import { refreshRequirementStatuses } from "../assessment-status";
 import { addEvidence, type Db } from "../db";
 import { controlById, withProjectWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
+
+const markExceptionInput = z
+  .object({
+    reason: z.enum(REQUIREMENT_EXCEPTION_REASONS, {
+      error: "A valid exception reason is required.",
+    }),
+    note: requiredField(
+      "A note is required when setting a requirement exception.",
+      2000,
+    ),
+    expiresAt: z.string().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.reason !== TEMPORARY_EXCEPTION_REASON) return;
+    if (value.expiresAt == null || value.expiresAt.trim().length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["expiresAt"],
+        message: "Temporary exceptions require an expiry date.",
+      });
+    }
+  });
+
+const markPassedInput = z.object({
+  note: requiredField(
+    "A note is required when marking a requirement passed.",
+    2000,
+  ),
+});
 
 function requireRequirement(
   db: Db,
@@ -73,11 +105,13 @@ function clearRequirementOverride(
 }
 
 export async function markRequirementExceptionAction(
-  requirementId: string,
+  requirementIdRaw: string,
   _previous: ActionMessageState,
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
+    const requirementId = parseInput(entityIdSchema, requirementIdRaw);
+    const parsed = parseForm(markExceptionInput, formData);
     await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
@@ -87,24 +121,8 @@ export async function markRequirementExceptionAction(
         requirementId,
       );
 
-      const reason = formData.get("reason");
-      const noteRaw = formData.get("note");
-      const expiresRaw = formData.get("expiresAt");
-      if (!isRequirementExceptionReason(reason)) {
-        throw new PublicError("A valid exception reason is required.");
-      }
-      if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
-        throw new PublicError(
-          "A note is required when setting a requirement exception.",
-        );
-      }
-      if (reason === TEMPORARY_EXCEPTION_REASON) {
-        if (typeof expiresRaw !== "string" || expiresRaw.trim().length === 0) {
-          throw new PublicError("Temporary exceptions require an expiry date.");
-        }
-      }
-
-      const note = noteRaw.trim();
+      const { reason, note } = parsed;
+      const expiresRaw = parsed.expiresAt;
       const previous = requirement.status;
       const expiresAt =
         reason === TEMPORARY_EXCEPTION_REASON && typeof expiresRaw === "string"
@@ -154,11 +172,13 @@ export async function markRequirementExceptionAction(
 }
 
 export async function markRequirementPassedAction(
-  requirementId: string,
+  requirementIdRaw: string,
   _previous: ActionMessageState,
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
+    const requirementId = parseInput(entityIdSchema, requirementIdRaw);
+    const { note } = parseForm(markPassedInput, formData);
     await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
@@ -175,11 +195,6 @@ export async function markRequirementPassedAction(
         );
       }
 
-      const noteRaw = formData.get("note");
-      if (typeof noteRaw !== "string" || noteRaw.trim().length === 0) {
-        throw new PublicError("A note is required when marking a requirement passed.");
-      }
-      const note = noteRaw.trim();
       const previous = requirement.status;
 
       delete requirement.exception;
@@ -219,12 +234,13 @@ export async function markRequirementPassedAction(
 }
 
 export async function clearRequirementHumanPassAction(
-  requirementId: string,
+  requirementIdRaw: string,
   _previous: ActionMessageState,
   _formData: FormData,
 ): Promise<ActionMessageState> {
   void _formData;
   return runActionMessage(async () => {
+    const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
@@ -241,12 +257,13 @@ export async function clearRequirementHumanPassAction(
 }
 
 export async function clearRequirementExceptionAction(
-  requirementId: string,
+  requirementIdRaw: string,
   _previous: ActionMessageState,
   _formData: FormData,
 ): Promise<ActionMessageState> {
   void _formData;
   return runActionMessage(async () => {
+    const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;

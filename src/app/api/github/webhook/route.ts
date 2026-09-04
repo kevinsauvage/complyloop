@@ -9,8 +9,19 @@ import {
 } from "@/server/assessment-job-drain";
 import { claimWebhookDelivery } from "@/server/webhook-deliveries";
 import { after } from "next/server";
+import { z } from "zod";
 
 export const runtime = "nodejs";
+
+const githubWebhookHeadersSchema = z.object({
+  deliveryId: z
+    .string()
+    .trim()
+    .min(1, { error: "x-github-delivery header is required." }),
+  eventName: z.string(),
+});
+
+const githubWebhookPayloadSchema = z.record(z.string(), z.unknown());
 
 export async function POST(request: Request): Promise<Response> {
   if (!isWebhookConfigured()) {
@@ -26,17 +37,20 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Invalid signature." }, { status: 401 });
   }
 
-  const deliveryId = request.headers.get("x-github-delivery")?.trim() ?? "";
-  if (!deliveryId) {
+  const headers = githubWebhookHeadersSchema.safeParse({
+    deliveryId: request.headers.get("x-github-delivery") ?? "",
+    eventName: request.headers.get("x-github-event") ?? "",
+  });
+  if (!headers.success) {
     return Response.json(
       { error: "x-github-delivery header is required." },
       { status: 400 },
     );
   }
-  const eventName = request.headers.get("x-github-event") ?? "";
+  const { deliveryId, eventName } = headers.data;
   let payload: unknown;
   try {
-    payload = JSON.parse(rawBody);
+    payload = githubWebhookPayloadSchema.parse(JSON.parse(rawBody));
   } catch {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }

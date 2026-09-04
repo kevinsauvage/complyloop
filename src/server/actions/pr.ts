@@ -1,9 +1,11 @@
 "use server";
 
+import { entityIdSchema } from "@/core/boundary";
 import { formatLocationRef } from "@/core/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import { publicErrorMessage } from "../action-state";
+import { parseInput } from "../boundary";
 import { addEvidence } from "../db";
 import { patchCandidateFromEvidence } from "../ai-fix-result";
 import { getDrizzle } from "../db-store/client";
@@ -30,12 +32,22 @@ export type CreatePrFormState = {
 };
 
 export async function createPullRequestAction(
-  findingId: string,
+  findingIdRaw: string,
   previous: CreatePrFormState,
   formData: FormData,
 ): Promise<CreatePrFormState> {
   void previous;
   void formData;
+  let findingId: string;
+  try {
+    findingId = parseInput(entityIdSchema, findingIdRaw);
+  } catch (error) {
+    return {
+      error: publicErrorMessage(error),
+      message: null,
+      prUrl: null,
+    };
+  }
   const preview = await getWorkspace();
   const finding = findingById(preview.db, findingId);
   try {

@@ -4,12 +4,14 @@ import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
 import { setAiWarn } from "@/ai/warn";
 import { formatLocationRef } from "@/core/location";
+import { entityIdSchema } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
+import { parseInput } from "../boundary";
 import { addEvidence } from "../db";
 import { reportWarning } from "../observability";
 import { assertAiRateLimit } from "../rate-limit";
@@ -32,13 +34,14 @@ setAiWarn((message, context) => {
 export type AiActionState = ActionMessageState;
 
 export async function generateAiExplanationAction(
-  findingId: string,
+  findingIdRaw: string,
   _previous: AiActionState,
   _formData: FormData,
 ): Promise<AiActionState> {
   void _previous;
   void _formData;
   return runActionMessage(async () => {
+    const findingId = parseInput(entityIdSchema, findingIdRaw);
     await withProjectWrite(async (workspace) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const { db } = workspace;
@@ -65,13 +68,14 @@ export async function generateAiExplanationAction(
 }
 
 export async function generateAiRemediationAction(
-  findingId: string,
+  findingIdRaw: string,
   _previous: AiActionState,
   _formData: FormData,
 ): Promise<AiActionState> {
   void _previous;
   void _formData;
   return runActionMessage(async () => {
+    const findingId = parseInput(entityIdSchema, findingIdRaw);
     await withProjectWrite(async (workspace) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const { db } = workspace;

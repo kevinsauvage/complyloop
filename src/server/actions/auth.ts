@@ -1,16 +1,23 @@
 "use server";
 
+import { z } from "zod";
 import { signIn, signOut } from "@/auth";
+import { parseForm } from "../boundary";
 
-function safeCallbackUrl(value: FormDataEntryValue | null): string {
-  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
+const signInInput = z.object({
+  callbackUrl: z.string().optional(),
+});
+
+function safeCallbackUrl(value: string | undefined): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
     return "/dashboard";
   }
   return value;
 }
 
 export async function signInWithGitHubAction(formData?: FormData): Promise<void> {
-  const redirectTo = safeCallbackUrl(formData?.get("callbackUrl") ?? null);
+  const parsed = parseForm(signInInput, formData ?? new FormData());
+  const redirectTo = safeCallbackUrl(parsed.callbackUrl);
   await signIn("github", { redirectTo });
 }
 

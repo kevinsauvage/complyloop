@@ -1,9 +1,13 @@
 "use client";
 
-import type { AssessmentJob } from "@/server/assessment-jobs";
+import {
+  assessmentJobsResponseSchema,
+  parseUnknown,
+} from "@/core/boundary";
 import { AssessmentJobStatus } from "@/components/dashboard/assessment-job-status";
-import { useEffect, useState } from "react";
+import type { AssessmentJob } from "@/server/assessment-jobs";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const POLL_MS = 3_000;
 
@@ -39,7 +43,11 @@ export function AssessmentJobStatusLive({
           setPollError("Could not refresh assessment job status.");
           return;
         }
-        const payload = (await response.json()) as { jobs: AssessmentJob[] };
+        const payload = parseUnknown(
+          assessmentJobsResponseSchema,
+          await response.json(),
+          "Could not refresh assessment job status.",
+        );
         if (cancelled) return;
         const nextJobs = payload.jobs;
         const isActive = hasActiveJob(nextJobs);

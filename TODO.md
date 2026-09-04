@@ -16,8 +16,7 @@ _(P0-3 compose migrate password — cleared. Shared `x-db-url` + e2e fallback `c
 
 ### 7. Server-action inputs are not validated at the boundary
 
-- **Wrong:** `code-quality.mdc` requires validation at system boundaries; `zod` is used only in `src/ai/`. Server actions and `src/app/api` routes read `FormData`/JSON with ad-hoc string helpers (`action-state.ts`). Client code casts `response.json()` (`github-repo-picker.tsx`, `assessment-job-status-live.tsx`).
-- **Change:** one small zod schema per action/route (`z.object({ findingId: z.string().uuid(), note: z.string().max(2000).optional() })`), parsed at the top. Same for the two client fetches.
+_(cleared — Zod schemas at the top of each action/route; client fetches parse with `src/core/boundary.ts`.)_
 
 _(P1-3 newest jobs, P1-4 drop per-file git blame, P1-5 `label-adjacent` runtime-only only, P1-6 media captions runtime-only / `media-controls-present` heuristic, P1-8 `#copy-handoff`, P1-9 local-install docs, P1-10 schema index + check — cleared.)_
 

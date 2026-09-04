@@ -2,7 +2,6 @@
 
 import { canBulkApproveRemediation } from "@/core/finding-act";
 import {
-  isDismissalReason,
   type Dismissal,
   type Finding,
   type Remediation,
@@ -11,9 +10,16 @@ import { formatLocationRef } from "@/core/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
+  entityIdSchema,
+  findingIdsField,
+  optionalNoteSchema,
+} from "@/core/boundary";
+import { z } from "zod";
+import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
+import { parseForm, parseInput } from "../boundary";
 import { refreshRequirementStatuses } from "../assessment-status";
 import { addEvidence, type Db } from "../db";
 import {
@@ -23,10 +29,34 @@ import {
 } from "../workspace";
 import {
   refresh,
-  readFindingIds,
   replaceRemediation,
   requireOnFindingProject,
 } from "./shared";
+
+const DISMISSAL_REASONS = [
+  "false_positive",
+  "not_applicable",
+  "accepted_risk",
+] as const;
+
+const bulkApproveInput = z.object({
+  findingIds: findingIdsField("Select at least one finding to approve."),
+});
+
+const dismissFindingInput = z.object({
+  reason: z.enum(DISMISSAL_REASONS, {
+    error: "A dismissal reason is required.",
+  }),
+  note: optionalNoteSchema,
+});
+
+const bulkDismissInput = z.object({
+  findingIds: findingIdsField("Select at least one finding to dismiss."),
+  reason: z.enum(DISMISSAL_REASONS, {
+    error: "A dismissal reason is required.",
+  }),
+  note: optionalNoteSchema,
+});
 
 function approveRemediationInDb(
   db: Db,
@@ -76,13 +106,14 @@ function dismissFindingInDb(
 }
 
 export async function approveRemediationAction(
-  findingId: string,
+  findingIdRaw: string,
   _previous: ActionMessageState,
   _formData: FormData,
 ): Promise<ActionMessageState> {
   void _previous;
   void _formData;
   return runActionMessage(async () => {
+    const findingId = parseInput(entityIdSchema, findingIdRaw);
     await withProjectWrite(async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
@@ -104,10 +135,7 @@ export async function bulkApproveRemediationsAction(
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
-    const findingIds = readFindingIds(formData);
-    if (findingIds.length === 0) {
-      throw new PublicError("Select at least one finding to approve.");
-    }
+    const { findingIds } = parseForm(bulkApproveInput, formData);
     let approved = 0;
 
     await withProjectWrite(async (workspace) => {
@@ -137,29 +165,23 @@ export async function bulkApproveRemediationsAction(
 }
 
 export async function dismissFindingAction(
-  findingId: string,
+  findingIdRaw: string,
   _previous: ActionMessageState,
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
+    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const { reason, note } = parseForm(dismissFindingInput, formData);
     await withProjectWrite(async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
 
-      const reason = formData.get("reason");
-      if (!isDismissalReason(reason)) {
-        throw new PublicError("A dismissal reason is required.");
-      }
-
-      const note = typeof formData.get("note") === "string"
-        ? formData.get("note")!.toString().trim()
-        : "";
       dismissFindingInDb(
         db,
         finding,
         reason,
-        note,
+        note ?? "",
         new Date().toISOString(),
         {},
       );
@@ -175,16 +197,8 @@ export async function bulkDismissFindingsAction(
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
-    const findingIds = readFindingIds(formData);
-    if (findingIds.length === 0) {
-      throw new PublicError("Select at least one finding to dismiss.");
-    }
-    const reason = formData.get("reason");
-    const note = formData.get("note");
-    if (!isDismissalReason(reason)) {
-      throw new PublicError("A dismissal reason is required.");
-    }
-    const dismissalNote = typeof note === "string" ? note.trim() : "";
+    const { findingIds, reason, note } = parseForm(bulkDismissInput, formData);
+    const dismissalNote = note ?? "";
     const at = new Date().toISOString();
     let dismissed = 0;
     const projectIds = new Set<string>();

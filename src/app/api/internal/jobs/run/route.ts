@@ -3,15 +3,24 @@ import {
   isWorkerAuthConfigured,
   isWorkerRequestAuthorized,
 } from "@/server/worker-auth";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const workerBatchSizeSchema = z
+  .string()
+  .optional()
+  .transform((value) => {
+    const parsed = value ? Number(value) : 1;
+    if (!Number.isInteger(parsed) || parsed < 1) return 1;
+    return Math.min(parsed, 10);
+  });
+
 function requestedBatchSize(request: Request): number {
-  const value = new URL(request.url).searchParams.get("limit");
-  const parsed = value ? Number(value) : 1;
-  if (!Number.isInteger(parsed) || parsed < 1) return 1;
-  return Math.min(parsed, 10);
+  return workerBatchSizeSchema.parse(
+    new URL(request.url).searchParams.get("limit") ?? undefined,
+  );
 }
 
 /**

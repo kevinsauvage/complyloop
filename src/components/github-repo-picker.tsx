@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { githubRepoSearchResponseSchema, parseUnknown } from "@/core/boundary";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   connectGitHubRepoAction,
@@ -24,6 +25,7 @@ import {
 } from "@/server/actions/connect";
 import type { GitHubRepoSummary } from "@/server/github";
 import { groupReposByOwner } from "@/server/github-repo";
+import { z } from "zod";
 
 const connectInitial: ConnectGitHubFormState = { error: null, message: null };
 const disconnectInitial: DisconnectGitHubFormState = {
@@ -31,18 +33,15 @@ const disconnectInitial: DisconnectGitHubFormState = {
   message: null,
 };
 
-type RepoSearchResponse = {
-  repos: GitHubRepoSummary[];
-  page: number;
-  hasMore: boolean;
-  error?: string;
-};
+const repoSearchErrorSchema = z.object({
+  error: z.string().optional(),
+});
 
 async function fetchRepos(options: {
   q: string;
   page: number;
   signal?: AbortSignal;
-}): Promise<RepoSearchResponse> {
+}): Promise<z.infer<typeof githubRepoSearchResponseSchema>> {
   const params = new URLSearchParams();
   if (options.q) params.set("q", options.q);
   if (options.page > 1) params.set("page", String(options.page));
@@ -51,13 +50,19 @@ async function fetchRepos(options: {
     `/api/github/repos${params.size > 0 ? `?${params.toString()}` : ""}`,
     { signal: options.signal },
   );
-  const payload = (await response.json()) as RepoSearchResponse & {
-    error?: string;
-  };
+  const json: unknown = await response.json();
   if (!response.ok) {
-    throw new Error(payload.error ?? "Could not load repositories.");
+    const payload = repoSearchErrorSchema.safeParse(json);
+    throw new Error(
+      (payload.success ? payload.data.error : undefined) ??
+        "Could not load repositories.",
+    );
   }
-  return payload;
+  return parseUnknown(
+    githubRepoSearchResponseSchema,
+    json,
+    "Could not load repositories.",
+  );
 }
 
 export function GitHubRepoPicker({

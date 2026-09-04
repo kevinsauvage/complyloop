@@ -1,11 +1,25 @@
 import { auth, getGitHubAccessToken } from "@/auth";
 import { parsePageParam } from "@/core/pagination";
+import { z } from "zod";
 import { listGitHubRepos } from "@/server/github";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { publicErrorMessage } from "@/server/action-state";
+import { parseInput } from "@/server/boundary";
 import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
+
+const githubReposQuerySchema = z.object({
+  q: z
+    .string()
+    .max(256)
+    .optional()
+    .transform((value) => {
+      const trimmed = value?.trim();
+      return trimmed && trimmed.length > 0 ? trimmed : undefined;
+    }),
+  page: z.string().optional(),
+});
 
 export async function GET(request: Request): Promise<Response> {
   const session = await auth();
@@ -32,8 +46,21 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const url = new URL(request.url);
-  const q = url.searchParams.get("q")?.trim() || undefined;
-  const page = parsePageParam(url.searchParams.get("page") ?? undefined);
+  let query: z.infer<typeof githubReposQuerySchema>;
+  try {
+    query = parseInput(
+      githubReposQuerySchema,
+      {
+        q: url.searchParams.get("q") ?? undefined,
+        page: url.searchParams.get("page") ?? undefined,
+      },
+      "Invalid repository search.",
+    );
+  } catch (error) {
+    return Response.json({ error: publicErrorMessage(error) }, { status: 400 });
+  }
+  const q = query.q;
+  const page = parsePageParam(query.page);
   const perPage = 30;
 
   try {

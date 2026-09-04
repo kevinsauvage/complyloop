@@ -1,17 +1,24 @@
 "use server";
 
+import { z } from "zod";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
+import { parseForm } from "../boundary";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
 import { withProjectWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
 export type RuntimeAuditFormState = ActionMessageState;
 
-function parseRoutes(raw: FormDataEntryValue | null): string[] {
-  if (typeof raw !== "string") return ["/"];
+const updateRuntimeAuditInput = z.object({
+  runtimeBaseUrl: z.string().optional(),
+  runtimeRoutes: z.string().optional(),
+});
+
+function parseRoutes(raw: string | undefined): string[] {
+  if (raw == null) return ["/"];
   const routes = raw
     .split(/[\n,]+/)
     .map((route) => route.trim())
@@ -27,9 +34,9 @@ export async function updateRuntimeAuditAction(
   formData: FormData,
 ): Promise<RuntimeAuditFormState> {
   return runActionMessage(async () => {
-    const baseRaw = formData.get("runtimeBaseUrl");
-    const base = typeof baseRaw === "string" ? baseRaw.trim() : "";
-    const routes = parseRoutes(formData.get("runtimeRoutes"));
+    const parsed = parseForm(updateRuntimeAuditInput, formData);
+    const base = parsed.runtimeBaseUrl?.trim() ?? "";
+    const routes = parseRoutes(parsed.runtimeRoutes);
 
     // DNS check outside the write lock so a slow lookup does not block writers.
     let normalized: string | null = null;

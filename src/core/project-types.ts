@@ -106,7 +106,7 @@ export interface Project {
   runtimeRoutes?: string[];
 }
 
-const REQUIREMENT_EXCEPTION_REASONS = [
+export const REQUIREMENT_EXCEPTION_REASONS = [
   "not_applicable",
   "accepted_risk",
   "compensating_control",

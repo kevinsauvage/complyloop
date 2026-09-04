@@ -1,14 +1,15 @@
 "use server";
 
+import { z } from "zod";
 import { auth, getGitHubAccessToken } from "@/auth";
+import { requiredField } from "@/core/boundary";
 import {
   actionErrorState,
   formError,
   formSuccess,
-  readFormString,
-  requireFormString,
   type ActionMessageState,
 } from "../action-state";
+import { parseForm, parseFormState } from "../boundary";
 import {
   readActiveOrgCookie,
   writeActiveProjectCookie,
@@ -40,12 +41,28 @@ import { refresh } from "./shared";
 export type ConnectGitHubFormState = ActionMessageState;
 export type DisconnectGitHubFormState = ActionMessageState;
 
+const switchProjectInput = z.object({
+  projectId: requiredField("A project id is required."),
+});
+
+const connectGitHubRepoInput = z.object({
+  fullName: requiredField("Select a GitHub repository.", 256),
+  installationId: z
+    .string()
+    .optional()
+    .transform((raw) => {
+      if (raw == null || raw.trim() === "") return undefined;
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }),
+});
+
+const disconnectGitHubRepoInput = z.object({
+  projectId: requiredField("Select a connected project to disconnect."),
+});
+
 export async function switchProjectAction(formData: FormData): Promise<void> {
-  const projectId = requireFormString(
-    formData,
-    "projectId",
-    "A project id is required.",
-  );
+  const { projectId } = parseForm(switchProjectInput, formData);
   const workspace = await getWorkspace();
   setActiveProject(workspace.db, projectId, workspace.userId);
   await writeActiveProjectCookie(projectId);
@@ -56,11 +73,10 @@ export async function connectGitHubRepoAction(
   _previous: ConnectGitHubFormState,
   formData: FormData,
 ): Promise<ConnectGitHubFormState> {
-  const fullNameRaw = readFormString(formData, "fullName");
-  if (fullNameRaw == null || fullNameRaw.trim().length === 0) {
-    return formError("Select a GitHub repository.");
-  }
-  const fullName = fullNameRaw.trim();
+  const parsed = parseFormState(connectGitHubRepoInput, formData);
+  if (!parsed.ok) return parsed.state;
+  const fullName = parsed.data.fullName;
+  const claimedInstallationId = parsed.data.installationId;
 
   const session = await auth();
   const userId = session?.user?.id;
@@ -68,10 +84,6 @@ export async function connectGitHubRepoAction(
   if (!userId) {
     return formError("Sign in with GitHub to connect a repository.");
   }
-
-  const installationIdRaw = readFormString(formData, "installationId");
-  const claimedInstallationId =
-    installationIdRaw != null ? Number(installationIdRaw) : undefined;
 
   try {
     await assertConnectRateLimit(userId);
@@ -89,10 +101,7 @@ export async function connectGitHubRepoAction(
       installationId = await resolveUserInstallationForRepo({
         userAccessToken,
         fullName,
-        claimedInstallationId:
-          claimedInstallationId != null && Number.isFinite(claimedInstallationId)
-            ? claimedInstallationId
-            : undefined,
+        claimedInstallationId,
       });
       accessToken = await createInstallationAccessToken(installationId);
     }
@@ -161,10 +170,9 @@ export async function disconnectGitHubRepoAction(
   _previous: DisconnectGitHubFormState,
   formData: FormData,
 ): Promise<DisconnectGitHubFormState> {
-  const projectIdRaw = readFormString(formData, "projectId");
-  if (projectIdRaw == null) {
-    return formError("Select a connected project to disconnect.");
-  }
+  const parsed = parseFormState(disconnectGitHubRepoInput, formData);
+  if (!parsed.ok) return parsed.state;
+  const { projectId } = parsed.data;
 
   const session = await auth();
   const userId = session?.user?.id;
@@ -181,16 +189,16 @@ export async function disconnectGitHubRepoAction(
       const db = await loadWorkspaceDb(tx, {
         userId,
         githubLogin,
-        activeProjectId: projectIdRaw,
+        activeProjectId: projectId,
         evidenceLimit: 0,
       });
       const project = db.projects.find(
-        (candidate: (typeof db.projects)[number]) => candidate.id === projectIdRaw,
+        (candidate: (typeof db.projects)[number]) => candidate.id === projectId,
       );
       disconnectedName = project?.github?.fullName ?? project?.name ?? "repository";
       const evidenceStart = db.evidence.length;
-      nextProjectId = disconnectGitHubRepo(db, projectIdRaw, userId);
-      await deleteProject(tx, projectIdRaw);
+      nextProjectId = disconnectGitHubRepo(db, projectId, userId);
+      await deleteProject(tx, projectId);
       for (const record of db.evidence.slice(evidenceStart)) {
         await insertEvidence(tx, record);
       }

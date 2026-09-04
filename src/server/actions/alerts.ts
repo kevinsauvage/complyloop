@@ -1,24 +1,27 @@
 "use server";
 
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { z } from "zod";
+import { requiredField } from "@/core/boundary";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
+import { parseForm } from "../boundary";
 import { getDrizzle } from "../db-store/client";
 import { markAlertRead } from "../db-store/repo/alerts";
 import { alertById, getWorkspace } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
+
+const markAlertReadInput = z.object({
+  alertId: requiredField("Unknown alert."),
+});
 
 export async function markAlertReadAction(
   _previous: ActionMessageState,
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
-    const alertId = formData.get("alertId");
-    if (typeof alertId !== "string" || alertId.length === 0) {
-      throw new PublicError("Unknown alert.");
-    }
+    const { alertId } = parseForm(markAlertReadInput, formData);
     const workspace = await getWorkspace();
     requireOnActive(workspace, "project.view");
     const alert = alertById(workspace.db, alertId, workspace.project!.id);
