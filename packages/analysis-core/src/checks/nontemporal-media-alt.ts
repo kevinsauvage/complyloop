@@ -1,6 +1,6 @@
 import ts from "typescript";
-import { isAriaHidden, isPresentationRole } from "../a11y-aria.js";
-import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.js";
+import { isAriaHidden, isPresentationRole } from "../a11y-aria.ts";
+import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   getAttribute,
   hasTextContent,
@@ -10,8 +10,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const NON_TEMPORAL_MEDIA_TAGS = new Set(["object", "embed", "canvas"]);
 const IMAGE_MIME = /^image\//i;

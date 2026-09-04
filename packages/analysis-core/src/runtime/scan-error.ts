@@ -1,5 +1,5 @@
-import { isPublicError } from "../contract/public-error.js";
-import { TOO_MANY_REDIRECTS_MESSAGE } from "./url-safety.js";
+import { isPublicError } from "../contract/public-error.ts";
+import { TOO_MANY_REDIRECTS_MESSAGE } from "./url-safety.ts";
 
 export const RUNTIME_SCAN_FAILED_MESSAGE = "Runtime scan failed.";
 

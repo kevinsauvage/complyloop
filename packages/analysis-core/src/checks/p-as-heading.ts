@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { classNameTextOf } from "./heuristic-utils.js";
+import { classNameTextOf } from "./heuristic-utils.ts";
 import {
   getAttribute,
   locationOf,
@@ -7,8 +7,8 @@ import {
   tagNameOf,
   type JsxTagNode,
   visitJsxTags,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const HEADING_CLASS =
   /\b(text-(2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)|text-h[1-6])\b/;

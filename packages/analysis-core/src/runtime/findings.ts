@@ -1,14 +1,14 @@
-import type { Confidence, Severity } from "../contract/statuses.js";
-import { axeCorePackageVersion } from "../analyzer-versions.js";
-import { isHeuristicCheck } from "../check-authority.js";
-import type { RawFinding } from "../types.js";
-import { checkIdForAxeRule } from "./axe-map.js";
-import { dedupeRuntimeFindings } from "./dedupe-runtime-findings.js";
+import type { Confidence, Severity } from "../contract/statuses.ts";
+import { axeCorePackageVersion } from "../analyzer-versions.ts";
+import { isHeuristicCheck } from "../check-authority.ts";
+import type { RawFinding } from "../types.ts";
+import { checkIdForAxeRule } from "./axe-map.ts";
+import { dedupeRuntimeFindings } from "./dedupe-runtime-findings.ts";
 
-import type { CheckId } from "../types.js";
-import type { RuntimePageSnapshot } from "./site-level/types.js";
-import type { ApplicabilityObservation } from "./applicability.js";
-import { runSiteLevelChecks } from "./site-level/checks.js";
+import type { CheckId } from "../types.ts";
+import type { RuntimePageSnapshot } from "./site-level/types.ts";
+import type { ApplicabilityObservation } from "./applicability.ts";
+import { runSiteLevelChecks } from "./site-level/checks.ts";
 
 interface AxeNodeLike {
   html: string;

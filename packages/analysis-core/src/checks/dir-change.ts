@@ -5,8 +5,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const RTL_CHAR = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F]/;
 const LTR_CHAR = /[A-Za-z]/;

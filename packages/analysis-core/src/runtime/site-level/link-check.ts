@@ -1,11 +1,11 @@
-import type { Confidence, Severity } from "../../contract/statuses.js";
-import { maxRuntimePages } from "../../contract/assessment-limits.js";
-import type { RawFinding } from "../../types.js";
+import type { Confidence, Severity } from "../../contract/statuses.ts";
+import { maxRuntimePages } from "../../contract/assessment-limits.ts";
+import type { RawFinding } from "../../types.ts";
 import {
   assertSafeRuntimeUrl,
   type DnsLookup,
-} from "../url-safety.js";
-import type { RuntimePageSnapshot } from "./types.js";
+} from "../url-safety.ts";
+import type { RuntimePageSnapshot } from "./types.ts";
 
 const SKIP_LINK_SCHEMES = /^(mailto:|tel:|javascript:|data:)/i;
 

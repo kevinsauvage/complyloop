@@ -2,8 +2,8 @@ import {
   isCompositionSensitiveCheck,
   isPackageTwinSourceCheck,
   isRuntimeOnlyCheck,
-} from "./check-authority.js";
-import type { RawFinding } from "./types.js";
+} from "./check-authority.ts";
+import type { RawFinding } from "./types.ts";
 
 /**
  * When runtime owns composition-sensitive OR runtime-only rules, drop AST

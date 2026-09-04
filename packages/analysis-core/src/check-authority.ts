@@ -1,5 +1,5 @@
-import type { CheckId } from "./types.js";
-import type { CheckAuthority } from "./contract/requirement-status.js";
+import type { CheckId } from "./types.ts";
+import type { CheckAuthority } from "./contract/requirement-status.ts";
 
 /**
  * Rules where composition across components makes source AST unreliable.

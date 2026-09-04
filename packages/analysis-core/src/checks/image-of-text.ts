@@ -5,9 +5,9 @@ import {
   stringValueOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse.js";
-import { styleHasBackgroundImage, visitJsxElements } from "./heuristic-utils.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import { styleHasBackgroundImage, visitJsxElements } from "./heuristic-utils.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 export const imageOfTextCheck: AccessibilityCheck = {
   id: "image-of-text",

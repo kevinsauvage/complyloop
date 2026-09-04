@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import type { CustomViolation } from "./types.js";
+import type { CustomViolation } from "./types.ts";
 
 interface CssOffHit {
   html: string;

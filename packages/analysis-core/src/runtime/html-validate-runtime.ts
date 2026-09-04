@@ -14,9 +14,9 @@
  */
 import { HtmlValidate } from "html-validate";
 import type { Page } from "playwright";
-import { htmlValidatePackageVersion } from "../analyzer-versions.js";
-import { checkIdForHtmlValidateRule } from "./html-validate-map.js";
-import type { RawFinding } from "../types.js";
+import { htmlValidatePackageVersion } from "../analyzer-versions.ts";
+import { checkIdForHtmlValidateRule } from "./html-validate-map.ts";
+import type { RawFinding } from "../types.ts";
 
 /**
  * Curated html-validate rules for RGAA 8.2 markup validity and 10.1 deprecated

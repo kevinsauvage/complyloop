@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
-import type { CustomViolation, CustomViolationNode } from "./types.js";
-import { isKeyboardFocusable, selectorOf } from "./widget-keyboard-utils.js";
+import type { CustomViolation, CustomViolationNode } from "./types.ts";
+import { isKeyboardFocusable, selectorOf } from "./widget-keyboard-utils.ts";
 
 /**
  * ARIA widget keyboard reachability (§7 Interaction: tabs, disclosure, menu).

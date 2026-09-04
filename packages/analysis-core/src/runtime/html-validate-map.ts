@@ -1,4 +1,4 @@
-import type { CheckId } from "../types.js";
+import type { CheckId } from "../types.ts";
 
 /**
  * Maps html-validate rule ids to ComplyLoop check ids.

@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { isPropSpreadingHost } from "../jsx-primitives.js";
+import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   getAttribute,
   humanizeFileName,
@@ -9,8 +9,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const UNLABELED_EXEMPT_TYPES = new Set([
   "hidden",

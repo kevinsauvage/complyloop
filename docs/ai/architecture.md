@@ -19,7 +19,7 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 
 **Connectors today:** GitHub only. **Persistence:** Postgres via Drizzle (`DATABASE_URL`). Evidence is **append-only** (no FKs — rows outlive project disconnect and org deletion). GitHub tokens encrypted at rest (AES-256-GCM). Assessments run as **durable jobs** (`npm run worker` in prod).
 
-**Build coupling:** the app and tests import `@complyloop/analysis-core/*` through the workspace symlink, whose `package.json` `exports` point at **`packages/analysis-core/dist`**. `dist/` is gitignored and only produced by `npm run build:core` (`predev` / `prebuild`). On a fresh clone, `lint`, `typecheck`, and `test` fail until `build:core` has run, and after editing `packages/analysis-core/src` the app-side tests keep running against the stale `dist` until it is rebuilt. `@complyloop/check` is different: `scripts/build-check.mjs` bundles the CLI from **source** via an esbuild alias.
+**Build coupling:** `@complyloop/analysis-core` `exports` point at **`src/*.ts`**. Relative imports inside the package use `.ts` specifiers so Turbopack can resolve them; `tsc` rewrites those to `.js` when emitting `dist` (`rewriteRelativeImportExtensions`). Next transpiles the workspace package (`transpilePackages`); tsx/Vitest load the same files. `dist/` is gitignored and only produced by `npm run build:core` for npm publish (`publishConfig` remaps exports to `dist`). `@complyloop/check` is bundled from source via an esbuild alias in `scripts/build-check.mjs`.
 
 ## System diagram
 
@@ -237,7 +237,7 @@ HTML exports from `/evidence/report/html`: engineering (`report-html/engineering
 
 Excluded from the unit coverage gate (`vitest.config.mts`): `src/server/db-store/**` (Drizzle/Postgres integration), `packages/analysis-core/src/runtime/scan.ts`, `active-cookies.ts`, `workspace.ts`, `db.ts`, `repo-checkout.ts`, `github-tokens.ts`, `github-app.ts`, `octokit.ts`, `github.ts`, `connect-github.ts`, `pr.ts`, `webhook-deliveries.ts`, `github-repo.ts`, `report.ts`, `actions/remediation-verify.ts`. Several excluded modules (`pr.ts`, `github.ts`, `webhook-deliveries.ts`, `remediation-verify.ts`) do have unit tests. HTML reports are exercised through `report.test.ts` and `report-html/shared.test.ts`; `audit.ts` / `engineering.ts` have no colocated tests.
 
-`npm run test` resolves `@complyloop/analysis-core/*` to the compiled `dist/` (see *Build coupling* above).
+`npm run test` resolves `@complyloop/analysis-core/*` to analysis-core **source** (see *Build coupling* above).
 
 ## Related
 

@@ -3,8 +3,8 @@ import {
   AGREE_LABEL,
   CONFIRM_LABEL,
   HIGH_RISK,
-} from "../../patterns/multilingual.js";
-import type { CustomViolation } from "./types.js";
+} from "../../patterns/multilingual.ts";
+import type { CustomViolation } from "./types.ts";
 
 interface FormHit {
   html: string;

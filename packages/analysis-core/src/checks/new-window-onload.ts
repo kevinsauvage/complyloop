@@ -6,9 +6,9 @@ import {
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
-import { textContentOf } from "./heuristic-utils.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
+import { textContentOf } from "./heuristic-utils.ts";
 
 const NEW_WINDOW_WARNING = /new (window|tab)|nouvelle fen[êe]tre|nouvel onglet/i;
 

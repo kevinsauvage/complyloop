@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { hasAriaName } from "../jsx-primitives.js";
+import { hasAriaName } from "../jsx-primitives.ts";
 import {
   getAttribute,
   hasTextContent,
@@ -9,8 +9,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 function roleOf(node: JsxTagNode): string | undefined {
   const attr = getAttribute(node, "role");

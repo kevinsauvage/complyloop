@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
     "axe-core",
     "html-validate",
   ],
+  transpilePackages: ["@complyloop/analysis-core"],
   // Pin the workspace root so Turbopack ignores lockfiles above this directory.
   turbopack: {
     root: __dirname,

@@ -1,6 +1,6 @@
-import { locationOf } from "../parse.js";
+import { locationOf } from "../parse.ts";
 import ts from "typescript";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const SENSORY_RE =
   /\b(red|green|blue|yellow|orange|purple|black|white|gray|grey|pink)\b[^<.]{0,24}\b(button|link|icon|tab|field|checkbox|toggle)\b|\b(left|right|above|below|top|bottom)\b[^<.]{0,24}\b(button|link|icon|tab|field|column|sidebar)\b/i;

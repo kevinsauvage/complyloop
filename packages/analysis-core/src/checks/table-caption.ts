@@ -1,13 +1,13 @@
-import { isPresentationRole } from "../a11y-aria.js";
-import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.js";
+import { isPresentationRole } from "../a11y-aria.ts";
+import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   jsxElementOf,
   locationOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
-import { descendantTags } from "./heuristic-utils.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
+import { descendantTags } from "./heuristic-utils.ts";
 
 function isDataTable(node: Parameters<typeof tagNameOf>[0]): boolean {
   const element = jsxElementOf(node);

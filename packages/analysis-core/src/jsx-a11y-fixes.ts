@@ -1,4 +1,4 @@
-import type { ProposedFix } from "./contract/finding-types.js";
+import type { ProposedFix } from "./contract/finding-types.ts";
 import {
   attributeRemovalSpan,
   getAttribute,
@@ -7,8 +7,8 @@ import {
   visitJsxTags,
   type JsxTagNode,
   type ParsedSource,
-} from "./parse.js";
-import type { CheckId } from "./types.js";
+} from "./parse.ts";
+import type { CheckId } from "./types.ts";
 
 function innermostTagAt(parsed: ParsedSource, offset: number): JsxTagNode | undefined {
   let match: JsxTagNode | undefined;

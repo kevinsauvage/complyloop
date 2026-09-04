@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
-import { TARGET_SIZE_ENHANCED_MIN_PX } from "../viewport-conditions.js";
-import type { CustomViolation, CustomViolationNode } from "./types.js";
+import { TARGET_SIZE_ENHANCED_MIN_PX } from "../viewport-conditions.ts";
+import type { CustomViolation, CustomViolationNode } from "./types.ts";
 
 const CONTROL_SELECTOR = [
   "button:not([disabled])",

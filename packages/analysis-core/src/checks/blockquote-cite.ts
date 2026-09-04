@@ -5,9 +5,9 @@ import {
   locationOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse.js";
-import { descendantTags, textContentOf } from "./heuristic-utils.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import { descendantTags, textContentOf } from "./heuristic-utils.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 function hasCitationContent(element: ts.JsxElement): boolean {
   if (descendantTags(element).some((tag) => tagNameOf(tag) === "cite")) {

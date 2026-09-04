@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { isPropSpreadingHost } from "../jsx-primitives.js";
+import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   booleanAttributeValue,
   getAttribute,
@@ -7,8 +7,8 @@ import {
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const FORM_CONTROLS = new Set(["input", "select", "textarea"]);
 

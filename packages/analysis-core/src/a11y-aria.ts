@@ -5,7 +5,7 @@ import {
   stringValueOf,
   tagNameOf,
   type JsxTagNode,
-} from "./parse.js";
+} from "./parse.ts";
 
 const ariaPropertyNames = new Set<string>(aria.keys());
 

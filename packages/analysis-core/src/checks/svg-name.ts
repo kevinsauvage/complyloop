@@ -1,14 +1,14 @@
-import { explicitRoles, isAriaHidden, isPresentationRole } from "../a11y-aria.js";
-import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.js";
+import { explicitRoles, isAriaHidden, isPresentationRole } from "../a11y-aria.ts";
+import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   hasTextContent,
   jsxElementOf,
   locationOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
-import { descendantTags, isInsideNamingHost } from "./heuristic-utils.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
+import { descendantTags, isInsideNamingHost } from "./heuristic-utils.ts";
 
 function hasTitleChild(node: Parameters<typeof tagNameOf>[0]): boolean {
   const element = jsxElementOf(node);

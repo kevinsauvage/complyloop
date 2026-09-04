@@ -1,13 +1,13 @@
-import { isAriaHidden, isDomHost, isPresentationRole } from "../a11y-aria.js";
-import { isPropSpreadingHost } from "../jsx-primitives.js";
+import { isAriaHidden, isDomHost, isPresentationRole } from "../a11y-aria.ts";
+import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   locationOf,
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse.js";
-import { handlerTriggersContextChange, hasAnyAttr } from "./heuristic-utils.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import { handlerTriggersContextChange, hasAnyAttr } from "./heuristic-utils.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const FOCUS_HANDLERS = ["onFocus", "onfocus"];
 

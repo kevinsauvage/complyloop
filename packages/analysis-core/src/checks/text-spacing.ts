@@ -1,6 +1,6 @@
-import { styleLocksTextSpacing } from "./heuristic-utils.js";
-import { locationOf, visitJsxTags } from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { styleLocksTextSpacing } from "./heuristic-utils.ts";
+import { locationOf, visitJsxTags } from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 export const textSpacingCheck: AccessibilityCheck = {
   id: "text-spacing",

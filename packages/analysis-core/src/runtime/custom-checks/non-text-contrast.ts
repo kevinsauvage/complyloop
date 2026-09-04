@@ -1,6 +1,6 @@
 import type { Locator, Page } from "playwright";
-import { contrastRatio, parseRgb, relativeLuminance } from "./non-text-contrast-math.js";
-import type { CustomViolation, CustomViolationNode } from "./types.js";
+import { contrastRatio, parseRgb, relativeLuminance } from "./non-text-contrast-math.ts";
+import type { CustomViolation, CustomViolationNode } from "./types.ts";
 
 const CONTROL_SELECTOR =
   'button, input:not([type="hidden"]), select, textarea, a[href], [role="button"], [role="checkbox"], [role="radio"]';

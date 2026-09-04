@@ -1,5 +1,5 @@
 import ts from "typescript";
-import type { SourceLocation, Span } from "./contract/finding-types.js";
+import type { SourceLocation, Span } from "./contract/finding-types.ts";
 
 export interface ParsedSource {
   /** Path relative to the scanned project root. */

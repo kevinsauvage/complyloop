@@ -1,4 +1,4 @@
-import { hasChildTrackKind } from "./heuristic-utils.js";
+import { hasChildTrackKind } from "./heuristic-utils.ts";
 import {
   getAttribute,
   locationOf,
@@ -6,8 +6,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const CAPTION_KINDS = new Set(["captions", "subtitles"]);
 const LIVE_HINT = /live|stream|broadcast|\.m3u8/i;

@@ -2,9 +2,9 @@ import {
   ariaDescribedByPointsToTranscript,
   hasAdjacentTranscriptLink,
   hasChildTrackKind,
-} from "./heuristic-utils.js";
-import { locationOf, tagNameOf, visitJsxTags } from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "./heuristic-utils.ts";
+import { locationOf, tagNameOf, visitJsxTags } from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const DESCRIPTION_KINDS = new Set(["descriptions"]);
 

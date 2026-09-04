@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import type { CustomViolation } from "./types.js";
+import type { CustomViolation } from "./types.ts";
 
 /** Form-validation feedback — not marketing copy with incidental substrings. */
 const FORM_STATUS_PATTERN_SOURCE =

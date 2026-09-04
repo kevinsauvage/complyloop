@@ -1,4 +1,4 @@
-import type { FindingKind, RequirementStatus } from "./statuses.js";
+import type { FindingKind, RequirementStatus } from "./statuses.ts";
 
 /** html-validate-owned runtime checks (see check-authority.ts). */
 function requiresHtmlValidatePass(checkId: string): boolean {

@@ -1,4 +1,4 @@
-import type { CheckId } from "./types.js";
+import type { CheckId } from "./types.ts";
 
 /**
  * Maps eslint-plugin-jsx-a11y rule ids (with or without the plugin prefix)

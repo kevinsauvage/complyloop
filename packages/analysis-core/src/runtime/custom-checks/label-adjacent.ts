@@ -2,8 +2,8 @@ import type { Page } from "playwright";
 import {
   gapBetweenRects,
   MAX_LABEL_GAP_PX,
-} from "./label-adjacent-math.js";
-import type { CustomViolation } from "./types.js";
+} from "./label-adjacent-math.ts";
+import type { CustomViolation } from "./types.ts";
 
 export async function labelAdjacentViolation(
   page: Page,

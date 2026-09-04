@@ -1,6 +1,6 @@
-import type { Confidence, FindingKind, Severity } from "./contract/statuses.js";
-import type { FindingLocation, ProposedFix } from "./contract/finding-types.js";
-import type { ParsedSource } from "./parse.js";
+import type { Confidence, FindingKind, Severity } from "./contract/statuses.ts";
+import type { FindingLocation, ProposedFix } from "./contract/finding-types.ts";
+import type { ParsedSource } from "./parse.ts";
 
 export type CheckId =
   | "img-alt"

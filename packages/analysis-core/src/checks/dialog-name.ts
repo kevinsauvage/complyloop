@@ -1,12 +1,12 @@
-import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.js";
+import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   getAttribute,
   locationOf,
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 function isDialog(node: Parameters<typeof tagNameOf>[0]): boolean {
   if (tagNameOf(node) === "dialog") return true;

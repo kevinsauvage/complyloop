@@ -1,5 +1,5 @@
-import type { RawFinding } from "../../types.js";
-import type { RuntimePageSnapshot } from "./types.js";
+import type { RawFinding } from "../../types.ts";
+import type { RuntimePageSnapshot } from "./types.ts";
 
 function siteFinding(
   checkId: RawFinding["checkId"],

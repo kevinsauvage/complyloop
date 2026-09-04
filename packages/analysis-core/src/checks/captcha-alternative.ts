@@ -3,8 +3,8 @@ import {
   CAPTCHA_ALTERNATIVE,
   CAPTCHA_TOKEN,
   matchesMultilingual,
-} from "../patterns/multilingual.js";
-import { descendantTags, textContentOf } from "./heuristic-utils.js";
+} from "../patterns/multilingual.ts";
+import { descendantTags, textContentOf } from "./heuristic-utils.ts";
 import {
   getAttribute,
   jsxElementOf,
@@ -13,8 +13,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const CAPTCHA_HOSTS = new Set([
   "ReCAPTCHA",

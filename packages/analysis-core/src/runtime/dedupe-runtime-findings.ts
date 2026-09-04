@@ -1,4 +1,4 @@
-import type { AnalyzerContribution, AnalyzerId, RawFinding } from "../types.js";
+import type { AnalyzerContribution, AnalyzerId, RawFinding } from "../types.ts";
 
 const ANALYZER_PRIORITY: Record<AnalyzerId, number> = {
   axe: 0,

@@ -1,9 +1,9 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
-import { PublicError, publicMessage } from "../contract/public-error.js";
-import { classifyRuntimeScanError } from "./scan-error.js";
-import type { RawFinding } from "../types.js";
+import { PublicError, publicMessage } from "../contract/public-error.ts";
+import { classifyRuntimeScanError } from "./scan-error.ts";
+import type { RawFinding } from "../types.ts";
 import {
   findingsFromAxePages,
   joinRuntimeUrl,
@@ -12,8 +12,8 @@ import {
   type AxeViolationLike,
   type RuntimeScanPageResult,
   type RuntimeScanResult,
-} from "./findings.js";
-import { capturePageSnapshot } from "./site-level/snapshot.js";
+} from "./findings.ts";
+import { capturePageSnapshot } from "./site-level/snapshot.ts";
 import {
   allowRuntimeNavigation,
   assertSafeRuntimeUrl,
@@ -21,15 +21,15 @@ import {
   TOO_MANY_REDIRECTS_MESSAGE,
   UNSAFE_RUNTIME_URL_MESSAGE,
   type DnsLookup,
-} from "./url-safety.js";
-import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./custom-checks/index.js";
-import { htmlValidateFindingsForPage } from "./html-validate-runtime.js";
-import { brokenLinkFindingsForUrls } from "./site-level/link-check.js";
+} from "./url-safety.ts";
+import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./custom-checks/index.ts";
+import { htmlValidateFindingsForPage } from "./html-validate-runtime.ts";
+import { brokenLinkFindingsForUrls } from "./site-level/link-check.ts";
 import {
   aggregateApplicabilityObservations,
   applicabilityObservationsForPage,
-} from "./applicability.js";
-import { maxRuntimePages } from "../contract/assessment-limits.js";
+} from "./applicability.ts";
+import { maxRuntimePages } from "../contract/assessment-limits.ts";
 import {
   conditionLabel,
   conditionSpecificViolations,
@@ -37,14 +37,14 @@ import {
   RESET_EMULATION,
   THEME_SENSITIVE_AXE_RULES,
   type BrowserCondition,
-} from "./theme-conditions.js";
+} from "./theme-conditions.ts";
 import {
   COARSE_POINTER_LABEL,
   MOBILE_TARGET_SIZE_LABEL,
   MOBILE_VIEWPORT,
   TARGET_SIZE_AXE_RULE,
   emulateCoarsePointer,
-} from "./viewport-conditions.js";
+} from "./viewport-conditions.ts";
 
 export type RuntimePageScanner = (
   urls: ReadonlyArray<string>,

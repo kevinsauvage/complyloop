@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
-import type { CheckId } from "../types.js";
-import { CAPTCHA_TOKEN } from "../patterns/multilingual.js";
+import type { CheckId } from "../types.ts";
+import { CAPTCHA_TOKEN } from "../patterns/multilingual.ts";
 
 export interface ApplicabilityObservation {
   checkId: CheckId;

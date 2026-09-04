@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { listSourceFiles } from "./source-files.js";
-import { allChecks } from "./checks/registry.js";
-import { lintJsxA11y } from "./jsx-a11y-scan.js";
-import { parseSource } from "./parse.js";
-import type { RawFinding } from "./types.js";
-import { resolveInside } from "./workspace-path.js";
+import { listSourceFiles } from "./source-files.ts";
+import { allChecks } from "./checks/registry.ts";
+import { lintJsxA11y } from "./jsx-a11y-scan.ts";
+import { parseSource } from "./parse.ts";
+import type { RawFinding } from "./types.ts";
+import { resolveInside } from "./workspace-path.ts";
 
 export interface ScanResult {
   findings: RawFinding[];

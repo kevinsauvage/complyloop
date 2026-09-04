@@ -7,106 +7,9 @@
     "dist"
   ],
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    },
-    "./scan": {
-      "types": "./dist/scan.d.ts",
-      "import": "./dist/scan.js",
-      "default": "./dist/scan.js"
-    },
-    "./jsx-a11y-map": {
-      "types": "./dist/jsx-a11y-map.d.ts",
-      "import": "./dist/jsx-a11y-map.js",
-      "default": "./dist/jsx-a11y-map.js"
-    },
-    "./fixes": {
-      "types": "./dist/fixes.d.ts",
-      "import": "./dist/fixes.js",
-      "default": "./dist/fixes.js"
-    },
-    "./check-authority": {
-      "types": "./dist/check-authority.d.ts",
-      "import": "./dist/check-authority.js",
-      "default": "./dist/check-authority.js"
-    },
-    "./merge-findings": {
-      "types": "./dist/merge-findings.d.ts",
-      "import": "./dist/merge-findings.js",
-      "default": "./dist/merge-findings.js"
-    },
-    "./parse": {
-      "types": "./dist/parse.d.ts",
-      "import": "./dist/parse.js",
-      "default": "./dist/parse.js"
-    },
-    "./source-files": {
-      "types": "./dist/source-files.d.ts",
-      "import": "./dist/source-files.js",
-      "default": "./dist/source-files.js"
-    },
-    "./types": {
-      "types": "./dist/types.d.ts",
-      "import": "./dist/types.js",
-      "default": "./dist/types.js"
-    },
-    "./workspace-path": {
-      "types": "./dist/workspace-path.d.ts",
-      "import": "./dist/workspace-path.js",
-      "default": "./dist/workspace-path.js"
-    },
-    "./runtime/*": {
-      "types": "./dist/runtime/*.d.ts",
-      "import": "./dist/runtime/*.js",
-      "default": "./dist/runtime/*.js"
-    },
-    "./runtime/scan": {
-      "types": "./dist/runtime/scan.d.ts",
-      "import": "./dist/runtime/scan.js",
-      "default": "./dist/runtime/scan.js"
-    },
-    "./checks/*": {
-      "types": "./dist/checks/*.d.ts",
-      "import": "./dist/checks/*.js",
-      "default": "./dist/checks/*.js"
-    },
-    "./contract": {
-      "types": "./dist/contract/index.d.ts",
-      "import": "./dist/contract/index.js",
-      "default": "./dist/contract/index.js"
-    },
-    "./contract/statuses": {
-      "types": "./dist/contract/statuses.d.ts",
-      "import": "./dist/contract/statuses.js",
-      "default": "./dist/contract/statuses.js"
-    },
-    "./contract/finding-types": {
-      "types": "./dist/contract/finding-types.d.ts",
-      "import": "./dist/contract/finding-types.js",
-      "default": "./dist/contract/finding-types.js"
-    },
-    "./contract/requirement-status": {
-      "types": "./dist/contract/requirement-status.d.ts",
-      "import": "./dist/contract/requirement-status.js",
-      "default": "./dist/contract/requirement-status.js"
-    },
-    "./contract/public-error": {
-      "types": "./dist/contract/public-error.d.ts",
-      "import": "./dist/contract/public-error.js",
-      "default": "./dist/contract/public-error.js"
-    },
-    "./contract/assessment-limits": {
-      "types": "./dist/contract/assessment-limits.d.ts",
-      "import": "./dist/contract/assessment-limits.js",
-      "default": "./dist/contract/assessment-limits.js"
-    },
-    "./contract/*": {
-      "types": "./dist/contract/*.d.ts",
-      "import": "./dist/contract/*.js",
-      "default": "./dist/contract/*.js"
-    }
+    ".": "./src/index.ts",
+    "./contract": "./src/contract/index.ts",
+    "./*": "./src/*.ts"
   },
   "engines": {
     "node": ">=20"
@@ -143,5 +46,24 @@
     "url": "https://github.com/complyloop/compliance-engineering-platform.git",
     "directory": "packages/analysis-core"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      },
+      "./contract": {
+        "types": "./dist/contract/index.d.ts",
+        "import": "./dist/contract/index.js",
+        "default": "./dist/contract/index.js"
+      },
+      "./*": {
+        "types": "./dist/*.d.ts",
+        "import": "./dist/*.js",
+        "default": "./dist/*.js"
+      }
+    }
+  }
 }

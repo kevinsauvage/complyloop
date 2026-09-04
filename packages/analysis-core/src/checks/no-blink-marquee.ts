@@ -3,7 +3,7 @@ import {
   classNameTextOf,
   descendantTags,
   textContentOf,
-} from "./heuristic-utils.js";
+} from "./heuristic-utils.ts";
 import {
   booleanAttributeValue,
   getAttribute,
@@ -13,8 +13,8 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const DISTRACTING = new Set(["marquee", "blink"]);
 const CAROUSEL_TAGS = new Set([

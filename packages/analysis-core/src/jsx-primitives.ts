@@ -1,6 +1,6 @@
 import { aria } from "aria-query";
 import ts from "typescript";
-import { getAttribute, type JsxTagNode } from "./parse.js";
+import { getAttribute, type JsxTagNode } from "./parse.ts";
 
 /**
  * True when the element spreads props onto a host tag (typical design-system

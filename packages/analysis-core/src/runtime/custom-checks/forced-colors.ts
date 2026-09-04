@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import type { CustomViolation, CustomViolationNode } from "./types.js";
+import type { CustomViolation, CustomViolationNode } from "./types.ts";
 
 /**
  * Windows High Contrast / forced-colors mode strips decorative boundaries.

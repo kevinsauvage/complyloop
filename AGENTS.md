@@ -53,10 +53,10 @@ Record new stack decisions here and in `docs/ai/architecture.md`.
 ## Commands
 
 ```bash
-npm run dev              # Dev server (Turbopack); runs build:core first
-npm run build            # Production build; runs build:core first
-npm run build:core       # Compile packages/analysis-core → dist (lint/typecheck/test import dist)
-npm run build:core && npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done
+npm run dev              # Dev server (Turbopack); transpiles analysis-core from source
+npm run build            # Production build; transpiles analysis-core from source
+npm run build:core       # Compile packages/analysis-core → dist (publish)
+npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done
 npm run test:coverage    # Coverage gates (vitest.config.mts)
 npm run check -- [path]  # Local a11y CI gate
 npm run worker           # Assessment worker

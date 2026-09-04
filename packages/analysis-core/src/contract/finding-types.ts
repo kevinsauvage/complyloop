@@ -6,11 +6,11 @@ import type {
   RemediationStatus,
   RequirementStatus,
   Severity,
-} from "./statuses.js";
+} from "./statuses.ts";
 import type {
   AnalyzerContribution,
   AnalyzerId,
-} from "../types.js";
+} from "../types.ts";
 
 export interface FileChange {
   filePath: string;

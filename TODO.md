@@ -36,12 +36,6 @@ Guiding rule for this list: the product spec's MVP is *one complete loop for one
 
 ## P1 — High
 
-### 1. `lint` / `typecheck` / `test` depend on a stale or missing `dist`
-
-- **Wrong:** `@complyloop/analysis-core`'s `exports` point at `dist/`, which is gitignored. Only `predev`/`prebuild` build it. On a fresh clone, `npm run typecheck` fails with `TS2307` (verified), and CI's `quality` job runs `lint`/`typecheck`/`test` **before** `build`. Locally, editing `packages/analysis-core/src` and running `npm test` tests the app against the previous build.
-- **Why it matters:** the Definition of Done is not reproducible; a green local test run can be testing old analysis code.
-- **Change:** add a tsconfig `paths` entry and a Vitest alias so `@complyloop/analysis-core/*` resolves to `packages/analysis-core/src/*` inside this repo (Next 16/Turbopack transpiles workspace TS), or add a `development` condition to the package `exports`. Keep `dist` only for publishing. Add `build:core` to the CI job before `lint` until then. Remove `.tsbuildinfo` from `include` interplay by leaving `incremental` on but not relying on it.
-
 ### 3. `recentAssessmentJobsForProject` returns the oldest jobs
 
 - **Wrong:** `.orderBy(asc(createdAt)).limit(limit)` then `.reverse()` (`src/server/assessment-jobs.ts`). With more than `limit` jobs the dashboard and `GET /api/projects/[projectId]/assessment-jobs` show the first N runs ever.

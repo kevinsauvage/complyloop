@@ -1,11 +1,11 @@
 import type { Page } from "playwright";
-import { captureDomTarget } from "../dom-target.js";
+import { captureDomTarget } from "../dom-target.ts";
 import {
   hasVisibleFocusIndicator,
   snapshotFocusStyles,
-} from "./focus-indicator.js";
-import { isSuspectedKeyboardTrap } from "./focus-trap.js";
-import type { CustomViolation, CustomViolationNode } from "./types.js";
+} from "./focus-indicator.ts";
+import { isSuspectedKeyboardTrap } from "./focus-trap.ts";
+import type { CustomViolation, CustomViolationNode } from "./types.ts";
 
 const MAX_TAB_STEPS = 80;
 const CAPTURE_DOM_TARGET_SOURCE = captureDomTarget.toString();

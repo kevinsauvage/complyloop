@@ -1,6 +1,6 @@
 import ts from "typescript";
-import { getAttribute, locationOf, visitJsxTags } from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { getAttribute, locationOf, visitJsxTags } from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const COLOR_PROPS = new Set(["color", "backgroundColor", "background"]);
 

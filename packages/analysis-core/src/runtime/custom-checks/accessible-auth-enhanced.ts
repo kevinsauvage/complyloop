@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
-import { AUTH_CONTEXT, PUZZLE_CAPTCHA } from "../../patterns/multilingual.js";
-import type { CustomViolation } from "./types.js";
+import { AUTH_CONTEXT, PUZZLE_CAPTCHA } from "../../patterns/multilingual.ts";
+import type { CustomViolation } from "./types.ts";
 
 export async function accessibleAuthEnhancedViolation(
   page: Page,

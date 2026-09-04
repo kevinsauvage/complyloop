@@ -69,6 +69,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "packages/check/testdata/**",
     "packages/check/dist/**",
+    "packages/analysis-core/dist/**",
     "e2e/fixtures/**",
     ".data/**",
   ]),

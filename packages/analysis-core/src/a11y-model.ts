@@ -8,7 +8,7 @@ import {
   stringValueOf,
   tagNameOf,
   type JsxTagNode,
-} from "./parse.js";
+} from "./parse.ts";
 
 interface ConceptAttribute {
   name: string;

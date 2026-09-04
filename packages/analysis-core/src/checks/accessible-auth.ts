@@ -5,9 +5,9 @@ import {
   locationOf,
   stringValueOf,
   visitJsxTags,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
-import { AUTH_AUTOCOMPLETE, isAuthField } from "./auth-field.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
+import { AUTH_AUTOCOMPLETE, isAuthField } from "./auth-field.ts";
 
 function blocksPaste(node: Parameters<typeof getAttribute>[0]): boolean {
   const paste = getAttribute(node, "onPaste");

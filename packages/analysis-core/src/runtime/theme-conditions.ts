@@ -1,4 +1,4 @@
-import type { AxeViolationLike } from "./findings.js";
+import type { AxeViolationLike } from "./findings.ts";
 
 /**
  * Browser-condition (color scheme) analysis — dark/light (§4).

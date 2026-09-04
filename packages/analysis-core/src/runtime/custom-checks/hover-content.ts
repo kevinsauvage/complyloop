@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import type { CustomViolation, CustomViolationNode } from "./types.js";
+import type { CustomViolation, CustomViolationNode } from "./types.ts";
 
 const MAX_TRIGGERS = 8;
 const CONTENT_DELTA = 8;

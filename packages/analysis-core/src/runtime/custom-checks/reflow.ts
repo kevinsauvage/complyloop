@@ -1,7 +1,7 @@
 import type { Page } from "playwright";
-import { isTwoDimensionalLayout } from "./reflow-exceptions.js";
-import { REFLOW_VIEWPORT } from "./reflow-math.js";
-import type { CustomViolation } from "./types.js";
+import { isTwoDimensionalLayout } from "./reflow-exceptions.ts";
+import { REFLOW_VIEWPORT } from "./reflow-math.ts";
+import type { CustomViolation } from "./types.ts";
 const TWO_D_LAYOUT_SOURCE = isTwoDimensionalLayout.toString();
 
 export async function reflowViolation(page: Page): Promise<CustomViolation | null> {

@@ -1,6 +1,6 @@
-import { getAttribute, locationOf, stringValueOf } from "../parse.js";
-import { textContentOf, visitJsxElements } from "./heuristic-utils.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+import { getAttribute, locationOf, stringValueOf } from "../parse.ts";
+import { textContentOf, visitJsxElements } from "./heuristic-utils.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const ERROR_RE = /(error|invalid|required|missing)/i;
 const SUGGESTION_RE =

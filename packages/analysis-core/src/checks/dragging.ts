@@ -1,6 +1,6 @@
-import { isAriaHidden, isDomHost, isPresentationRole } from "../a11y-aria.js";
-import { isNativeInteractive } from "../a11y-model.js";
-import { isPropSpreadingHost } from "../jsx-primitives.js";
+import { isAriaHidden, isDomHost, isPresentationRole } from "../a11y-aria.ts";
+import { isNativeInteractive } from "../a11y-model.ts";
+import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   booleanAttributeValue,
   getAttribute,
@@ -8,9 +8,9 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse.js";
-import { hasAnyAttr } from "./heuristic-utils.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import { hasAnyAttr } from "./heuristic-utils.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const KEY_HANDLERS = ["onKeyDown", "onKeyUp", "onKeyPress"];
 const DRAG_HANDLERS = ["onDrag", "onDragStart", "onDragEnd", "onDrop"];

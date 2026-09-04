@@ -4,8 +4,8 @@ import {
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 /** WCAG 1.4.4 — viewport must not prevent zooming/scaling. */
 function viewportBlocksZoom(content: string): boolean {

@@ -5,7 +5,7 @@ import {
   stringValueOf,
   tagNameOf,
   type JsxTagNode,
-} from "../parse.js";
+} from "../parse.ts";
 
 export function hasAnyAttr(node: JsxTagNode, names: string[]): boolean {
   return names.some((name) => getAttribute(node, name) !== undefined);

@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { isPropSpreadingHost } from "../jsx-primitives.js";
+import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   getAttribute,
   locationOf,
@@ -7,9 +7,9 @@ import {
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
-} from "../parse.js";
-import type { AccessibilityCheck, RawFinding } from "../types.js";
-import { textContentOf } from "./heuristic-utils.js";
+} from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
+import { textContentOf } from "./heuristic-utils.ts";
 
 const OFFICE_DOC_HREF = /\.(pdf|docx?|odt|pptx?|xlsx?)(\?|#|$)/i;
 const HTML_ALTERNATIVE_HREF = /\.(html?|txt)(\?|#|$)/i;
