@@ -20,7 +20,7 @@ import {
   orderedFindingIdsForQueue,
   parseFindingListParams,
 } from "@/core/finding-list-filter";
-import { PageHeader, formatDateTime } from "@/components/page-primitives";
+import { PageContent, PageHeader, PageSection, formatDateTime } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { pullRequestUrlFromEvidence } from "@/server/finding-pr-url";
@@ -108,30 +108,32 @@ export default async function FindingPage({
         <Button variant="ghost" size="sm" className="-ml-2.5 w-fit" asChild>
           <Link href={findingsListHref(listParams)}>← Back to findings</Link>
         </Button>
-        <FindingQueueNav
-          listParams={listParams}
-          prevId={queuePosition.prevId}
-          nextId={queuePosition.nextId}
-          index={queuePosition.index}
-          total={queuePosition.total}
-        />
+        <div className="surface-panel rounded-xl px-3 py-2.5">
+          <FindingQueueNav
+            listParams={listParams}
+            prevId={queuePosition.prevId}
+            nextId={queuePosition.nextId}
+            index={queuePosition.index}
+            total={queuePosition.total}
+          />
+        </div>
       </div>
       <PageHeader
         title={`${control.code} — ${control.title}`}
         description={`${control.secondaryCode} · ${control.description}`}
-      />
+      >
+        <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+          <SeverityBadge severity={finding.severity} />
+          <ConfidenceBadge confidence={finding.confidence} />
+          <RemediationStatusBadge status={remediation.status} />
+          <EngineBadge engine={finding.engine ?? "ast"} />
+          <span className="w-full font-mono text-xs text-muted-foreground sm:w-auto sm:text-right">
+            {finding.checkId}
+          </span>
+        </div>
+      </PageHeader>
 
-      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5 shadow-sm">
-        <SeverityBadge severity={finding.severity} />
-        <ConfidenceBadge confidence={finding.confidence} />
-        <RemediationStatusBadge status={remediation.status} />
-        <EngineBadge engine={finding.engine ?? "ast"} />
-        <span className="ml-auto font-mono text-xs text-muted-foreground">
-          {finding.checkId}
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-6">
+      <PageContent>
         <FindingUnderstandCard
           finding={finding}
           canRemediate={caps.canRemediate}
@@ -149,26 +151,18 @@ export default async function FindingPage({
         <RemediationHistory remediation={remediation} />
 
         {handoff ? (
-          <details id="copy-handoff">
-            <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
-              Copy patch / PR body
-            </summary>
-            <div className="mt-3">
-              <DeveloperHandoffCard handoff={handoff} />
-            </div>
-          </details>
+          <PageSection title="Copy patch / PR body">
+            <DeveloperHandoffCard handoff={handoff} />
+          </PageSection>
         ) : null}
 
-        <details>
-          <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
-            Evidence trail ({evidence.length})
-          </summary>
-          <div className="mt-3">
-            {evidence.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No evidence recorded yet.
-              </p>
-            ) : (
+        <PageSection title={`Evidence trail (${evidence.length})`}>
+          {evidence.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No evidence recorded yet.
+            </p>
+          ) : (
+            <div className="surface-panel rounded-2xl p-4">
               <ol className="relative flex flex-col gap-0 border-l border-border/70 pl-4">
                 {evidence.map((record, index) => (
                   <li key={record.id} className="relative pb-4 last:pb-0">
@@ -196,10 +190,10 @@ export default async function FindingPage({
                   </li>
                 ))}
               </ol>
-            )}
-          </div>
-        </details>
-      </div>
+            </div>
+          )}
+        </PageSection>
+      </PageContent>
     </>
   );
 }

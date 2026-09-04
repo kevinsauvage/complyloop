@@ -5,7 +5,7 @@ import { FindingsTabPanel } from "@/components/findings/findings-tab-panel";
 import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
 import { toFindingListItems } from "@/components/findings/finding-list-items";
 import { PaginationNav } from "@/components/pagination-nav";
-import { EmptyState, PageActionLink, PageHeader } from "@/components/page-primitives";
+import { EmptyState, PageActionLink, PageContent, PageHeader } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -156,9 +156,9 @@ export default async function FindingsPage({
         </Button>
       </PageHeader>
 
-      <div className="flex flex-col gap-6">
+      <PageContent>
         <Tabs key={defaultTab} defaultValue={defaultTab}>
-          <TabsList className="panel-frost sticky top-[68px] z-20 rounded-lg border border-border/60 shadow-sm sm:top-[72px]">
+          <TabsList className="surface-panel w-full justify-start rounded-xl p-1">
             <TabsTrigger value="open" asChild>
               <Link href={tabHref("open", listParams)}>
                 Open{openSlice.total > 0 ? ` (${openSlice.total})` : ""}
@@ -261,7 +261,7 @@ export default async function FindingsPage({
             paginationLabel="Dismissed findings pagination"
           />
         </Tabs>
-      </div>
+      </PageContent>
     </>
   );
 }

@@ -1,13 +1,10 @@
-import { EmptyState, MetaTile, PageActionLink, PageHeader } from "@/components/page-primitives";
+import { EmptyState, MetaTile, PageActionLink, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { DefaultPresetForm } from "@/components/settings/default-preset-form";
 import { RuntimeAuditForm } from "@/components/runtime-audit-form";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { allFrameworkPresets, presetById, presetCatalog } from "@/adapters/registry";
 import { projectDefaultPresetId } from "@/core/project-preset";
@@ -61,103 +58,95 @@ export default async function SettingsPage() {
         description={`Project configuration for "${project.name}".`}
       />
 
-      <div className="flex flex-col gap-6">
-        <Card className="shadow-none ring-1 ring-border/60">
-          <CardHeader>
-            <CardTitle>Project</CardTitle>
-            <CardDescription>
-              Connected repository used for assessments and remediations.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <MetaTile label="Name">
-              <p className="font-medium">{project.name}</p>
-            </MetaTile>
-            {githubFullName ? (
-              <MetaTile label="GitHub repository">
-                {repoUrl ? (
-                  <a
-                    href={repoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-mono text-sm text-foreground underline-offset-4 hover:underline"
-                  >
-                    {githubFullName}
-                  </a>
-                ) : (
-                  <p className="font-mono">{githubFullName}</p>
-                )}
+      <PageContent>
+        <PageSection title="Project" description="Connected repository and assessment defaults.">
+          <Card className="shadow-none">
+            <CardContent className="space-y-3 pt-6 text-sm">
+              <MetaTile label="Name">
+                <p className="font-medium">{project.name}</p>
               </MetaTile>
-            ) : null}
-            {project.runtimeBaseUrl ? (
-              <MetaTile label="Runtime audit URL">
-                <p className="font-mono text-sm break-all">
-                  {project.runtimeBaseUrl}
+              {githubFullName ? (
+                <MetaTile label="GitHub repository">
+                  {repoUrl ? (
+                    <a
+                      href={repoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-mono text-sm text-foreground underline-offset-4 hover:underline"
+                    >
+                      {githubFullName}
+                    </a>
+                  ) : (
+                    <p className="font-mono">{githubFullName}</p>
+                  )}
+                </MetaTile>
+              ) : null}
+              {project.runtimeBaseUrl ? (
+                <MetaTile label="Runtime audit URL">
+                  <p className="font-mono text-sm break-all">
+                    {project.runtimeBaseUrl}
+                  </p>
+                </MetaTile>
+              ) : (
+                <p className="surface-panel rounded-xl px-3 py-2.5 text-muted-foreground">
+                  Runtime audit is off — assessments use source (AST) checks only.
                 </p>
-              </MetaTile>
-            ) : (
-              <p className="rounded-lg border border-dashed border-border/60 px-3 py-2.5 text-muted-foreground">
-                Runtime audit is off — assessments use source (AST) checks only.
-              </p>
-            )}
-            {defaultPreset ? (
-              <MetaTile label="Default assessment preset">
-                <p className="font-medium">{defaultPreset.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {defaultPreset.controlIds.length} controls
-                </p>
-              </MetaTile>
-            ) : null}
-          </CardContent>
-        </Card>
+              )}
+              {defaultPreset ? (
+                <MetaTile label="Default assessment preset">
+                  <p className="font-medium">{defaultPreset.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {defaultPreset.controlIds.length} controls
+                  </p>
+                </MetaTile>
+              ) : null}
+            </CardContent>
+          </Card>
+        </PageSection>
 
-        <Card className="shadow-none ring-1 ring-border/60">
-          <CardHeader>
-            <CardTitle>Assessment preset</CardTitle>
-            <CardDescription>
-              Default framework and level for assessments. Browse other presets
-              on Requirements without changing this default.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {caps.canConnect ? (
-              <DefaultPresetForm
-                key={defaultPresetId}
-                presets={presets}
-                defaultPresetId={defaultPresetId}
-              />
-            ) : (
-              <PermissionNotice>
-                Changing the default preset requires an admin or owner role in
-                the active organization.
-              </PermissionNotice>
-            )}
-          </CardContent>
-        </Card>
+        <PageSection
+          title="Assessment preset"
+          description="Default framework and level for assessments. Browse other presets on Requirements without changing this default."
+        >
+          <Card className="shadow-none">
+            <CardContent className="pt-6">
+              {caps.canConnect ? (
+                <DefaultPresetForm
+                  key={defaultPresetId}
+                  presets={presets}
+                  defaultPresetId={defaultPresetId}
+                />
+              ) : (
+                <PermissionNotice>
+                  Changing the default preset requires an admin or owner role in
+                  the active organization.
+                </PermissionNotice>
+              )}
+            </CardContent>
+          </Card>
+        </PageSection>
 
-        <Card className="shadow-none ring-1 ring-border/60">
-          <CardHeader>
-            <CardTitle>Runtime audit</CardTitle>
-            <CardDescription>
-              Staging or preview URL for rendered-page checks (labels, names,
-              headings). Leave empty to assess source only. {runtimeStatus}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {caps.canConnect ? (
-              <RuntimeAuditForm
-                runtimeBaseUrl={project.runtimeBaseUrl}
-                runtimeRoutes={project.runtimeRoutes}
-              />
-            ) : (
-              <PermissionNotice>
-                Configuring the preview URL requires an admin or owner role in
-                the active organization.
-              </PermissionNotice>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+        <PageSection
+          title="Runtime audit"
+          description={`Staging or preview URL for rendered-page checks. ${runtimeStatus}`}
+        >
+          <Card className="shadow-none">
+            <CardContent className="pt-6">
+              {caps.canConnect ? (
+                <RuntimeAuditForm
+                  runtimeBaseUrl={project.runtimeBaseUrl}
+                  runtimeRoutes={project.runtimeRoutes}
+                />
+              ) : (
+                <PermissionNotice>
+                  Configuring the preview URL requires an admin or owner role in
+                  the active organization.
+                </PermissionNotice>
+              )}
+            </CardContent>
+          </Card>
+        </PageSection>
+      </PageContent>
     </>
   );
 }

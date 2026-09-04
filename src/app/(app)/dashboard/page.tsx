@@ -1,6 +1,8 @@
 import { ConnectProjectCard, ConnectProjectPanel } from "@/components/connect-project-panel";
 import { DashboardActivitySections } from "@/components/dashboard/dashboard-activity-sections";
 import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-card";
+import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
+import { DashboardSection } from "@/components/dashboard/dashboard-section";
 import { DashboardStatusCounts } from "@/components/dashboard/dashboard-status-counts";
 import {
   FirstAssessmentChecklist,
@@ -8,8 +10,9 @@ import {
 } from "@/components/dashboard/first-assessment-checklist";
 import { AssessmentJobStatusLive } from "@/components/dashboard/assessment-job-status-live";
 import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
+import { DashboardWorkspaceToolbar } from "@/components/dashboard/dashboard-workspace-toolbar";
 import { projectDescription } from "@/components/dashboard/project-description";
-import { EmptyState, PageHeader } from "@/components/page-primitives";
+import { EmptyState } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import {
@@ -36,25 +39,38 @@ export default async function DashboardPage() {
   const caps = projectCapabilities(project, access, activeOrgId);
   const hasConnectedProject = visibleProjects.length > 0;
 
+  const assessAction = caps.canAssess ? (
+    <StatefulActionForm
+      action={runAssessmentAction}
+      submitLabel="Run assessment"
+      pendingLabel="Assessing…"
+    />
+  ) : (
+    <PermissionNotice>
+      View-only role — you can browse results but not run assessments.
+    </PermissionNotice>
+  );
+
   if (!project) {
     return (
-      <>
-        <PageHeader
-          title="Dashboard"
-          description="Connect a repository to start the compliance loop."
+      <div className="flex flex-col gap-6">
+        <DashboardOverview
+          title="Welcome to ComplyLoop"
+          description="Connect a GitHub repository to start the compliance loop — from requirement to verified evidence."
+          stats={[]}
+          toolbar={<DashboardWorkspaceToolbar />}
+          actions={assessAction}
         />
-        <div className="mb-6">
-          <ConnectProjectCard>
-            <ConnectProjectPanel defaultOpen />
-          </ConnectProjectCard>
-        </div>
+        <ConnectProjectCard>
+          <ConnectProjectPanel defaultOpen />
+        </ConnectProjectCard>
         <EmptyState title="Connect a repository to get started" action={undefined}>
           <p>
-            Connect a GitHub project above, then run an assessment to walk the
-            compliance loop.
+            Link a GitHub project above, then run an assessment to populate your
+            dashboard with requirements, findings, and evidence.
           </p>
         </EmptyState>
-      </>
+      </div>
     );
   }
 
@@ -100,35 +116,67 @@ export default async function DashboardPage() {
     counts.set(requirement.status, (counts.get(requirement.status) ?? 0) + 1);
   }
 
-  const assessAction = caps.canAssess ? (
-    <StatefulActionForm
-      action={runAssessmentAction}
-      submitLabel="Run assessment"
-      pendingLabel="Assessing…"
-    />
-  ) : (
-    <PermissionNotice>
-      View-only role — you can browse results but not run assessments.
-    </PermissionNotice>
-  );
+  const failedCount = counts.get("failed") ?? 0;
+  const passedCount = counts.get("passed") ?? 0;
+  const totalRequirements = requirements.length;
+  const passRate =
+    totalRequirements > 0
+      ? `${Math.round((passedCount / totalRequirements) * 100)}%`
+      : "—";
+
+  const quickStats = latestAssessment
+    ? [
+        {
+          label: "Open findings",
+          value: openFindings.length,
+          href: openFindings.length > 0 ? "/findings" : undefined,
+          tone: openFindings.length > 0 ? ("warning" as const) : ("success" as const),
+        },
+        {
+          label: "Unread alerts",
+          value: unreadAlerts.length,
+          tone: unreadAlerts.length > 0 ? ("warning" as const) : ("muted" as const),
+        },
+        {
+          label: "Failed requirements",
+          value: failedCount,
+          href: failedCount > 0 ? "/requirements?status=failed" : undefined,
+          tone: failedCount > 0 ? ("warning" as const) : ("muted" as const),
+        },
+        {
+          label: "Pass rate",
+          value: passRate,
+          tone: "signal" as const,
+        },
+      ]
+    : [];
 
   return (
-    <>
-      <PageHeader
-        title="Dashboard"
+    <div className="flex flex-col gap-2">
+      <DashboardOverview
+        title={project.name}
+        repoLabel={project.github?.fullName ?? project.sourceRef ?? undefined}
         description={projectDescription(project, latestAssessment)}
-      >
-        {caps.canAssess ? assessAction : null}
-      </PageHeader>
+        stats={quickStats}
+        toolbar={<DashboardWorkspaceToolbar />}
+        meta={
+          latestAssessment ? (
+            <RuntimeCoverageChip
+              project={project}
+              engines={latestAssessment.engines}
+              compact
+            />
+          ) : null
+        }
+        actions={caps.canAssess ? assessAction : undefined}
+      />
 
-      {!caps.canAssess ? <div className="mb-6">{assessAction}</div> : null}
+      {!caps.canAssess ? assessAction : null}
 
       {!hasConnectedProject ? (
-        <div className="mb-6">
-          <ConnectProjectCard>
-            <ConnectProjectPanel defaultOpen />
-          </ConnectProjectCard>
-        </div>
+        <ConnectProjectCard>
+          <ConnectProjectPanel defaultOpen />
+        </ConnectProjectCard>
       ) : null}
 
       {!latestAssessment && hasConnectedProject ? (
@@ -141,39 +189,55 @@ export default async function DashboardPage() {
       ) : null}
 
       {latestAssessment ? (
-        <div className="flex flex-col gap-6">
-          <RuntimeCoverageChip
-            project={project}
-            engines={latestAssessment.engines}
-          />
-          <UnableToVerifyRuntimeHint
-            count={counts.get("unable_to_verify") ?? 0}
-            hasPreviewUrl={Boolean(project.runtimeBaseUrl?.trim())}
-          />
-          <DashboardStatusCounts counts={counts} />
-          <AssessmentJobStatusLive
-            key={recentJobs.map((job) => `${job.id}:${job.status}`).join("|")}
-            projectId={project.id}
-            initialJobs={recentJobs}
-            canRetry={caps.canAssess}
-          />
-          <DashboardAlertsCard alerts={unreadAlerts} project={project} />
-          <DashboardActivitySections
-            regressions={regressions}
-            recentChanges={recentChanges}
-            clusters={clusters}
-            openFindings={openFindings}
-            recentVerified={recentVerified}
-            recentEvidence={recentEvidence}
-            controlById={(controlId) =>
-              controlForDisplay(
-                controlById(db, controlId),
-                frameworkForProject(db, project).id,
-              )
-            }
-          />
-        </div>
+        <>
+          {unreadAlerts.length > 0 ? (
+            <DashboardAlertsCard alerts={unreadAlerts} project={project} />
+          ) : null}
+
+          <DashboardSection
+            title="Compliance snapshot"
+            description="Requirement statuses from your latest assessment."
+          >
+            <UnableToVerifyRuntimeHint
+              count={counts.get("unable_to_verify") ?? 0}
+              hasPreviewUrl={Boolean(project.runtimeBaseUrl?.trim())}
+            />
+            <DashboardStatusCounts counts={counts} />
+          </DashboardSection>
+
+          <DashboardSection
+            title="Pipeline"
+            description="Recent assessment job history."
+          >
+            <AssessmentJobStatusLive
+              key={recentJobs.map((job) => `${job.id}:${job.status}`).join("|")}
+              projectId={project.id}
+              initialJobs={recentJobs}
+              canRetry={caps.canAssess}
+            />
+          </DashboardSection>
+
+          <DashboardSection
+            title="Activity"
+            description="Findings, changes, and evidence from recent work."
+          >
+            <DashboardActivitySections
+              regressions={regressions}
+              recentChanges={recentChanges}
+              clusters={clusters}
+              openFindings={openFindings}
+              recentVerified={recentVerified}
+              recentEvidence={recentEvidence}
+              controlById={(controlId) =>
+                controlForDisplay(
+                  controlById(db, controlId),
+                  frameworkForProject(db, project).id,
+                )
+              }
+            />
+          </DashboardSection>
+        </>
       ) : null}
-    </>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { AuthControls } from "@/components/auth-controls";
 import { WorkspaceContext } from "@/components/workspace-context";
+import { WorkspaceContextRouteGate } from "@/components/workspace-context-route-gate";
 import { navAttentionCounts } from "@/server/nav-attention";
 import { getWorkspace } from "@/server/workspace";
 
@@ -12,7 +13,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <AppShell
-      workspaceContext={<WorkspaceContext />}
+      workspaceContext={
+        <WorkspaceContextRouteGate>
+          <WorkspaceContext />
+        </WorkspaceContextRouteGate>
+      }
       authControls={<AuthControls />}
       navAttention={navAttention}
     >

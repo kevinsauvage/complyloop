@@ -5,6 +5,15 @@ import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@/core/statuses";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@/core/statuses";
 
+const filterChipClass = (selected: boolean) =>
+  cn(
+    "surface-panel flex items-center gap-2 rounded-xl px-2.5 py-1.5 outline-none transition-[border-color,background-color] duration-200",
+    "hover:bg-card/90 focus-visible:ring-2 focus-visible:ring-ring",
+    selected
+      ? "border-signal/40 bg-signal/10 ring-1 ring-signal/30"
+      : "hover:border-signal/25",
+  );
+
 export function RequirementsStatusChips({
   counts,
   selected,
@@ -26,14 +35,7 @@ export function RequirementsStatusChips({
     >
       {selected ? (
         <li>
-          <Link
-            href={pageHref()}
-            className={cn(
-              "flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-1.5 text-sm font-medium",
-              "outline-none transition-colors hover:bg-accent/40 hover:ring-1 hover:ring-signal/40",
-              "focus-visible:ring-2 focus-visible:ring-ring",
-            )}
-          >
+          <Link href={pageHref()} className={filterChipClass(false)}>
             All
           </Link>
         </li>
@@ -47,14 +49,7 @@ export function RequirementsStatusChips({
             <Link
               href={isSelected ? pageHref() : pageHref(status)}
               aria-current={isSelected ? "true" : undefined}
-              className={cn(
-                "flex items-center gap-2 rounded-lg border bg-card/60 px-2.5 py-1.5",
-                "outline-none transition-colors hover:bg-accent/40",
-                "focus-visible:ring-2 focus-visible:ring-ring",
-                isSelected
-                  ? "border-signal/50 bg-signal/10 ring-1 ring-signal/40"
-                  : "border-border/60 hover:ring-1 hover:ring-signal/40",
-              )}
+              className={filterChipClass(isSelected)}
             >
               <RequirementStatusBadge status={status} />
               <span className="font-mono text-sm font-semibold tabular-nums">

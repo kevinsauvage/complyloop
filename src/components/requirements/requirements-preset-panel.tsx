@@ -17,7 +17,7 @@ export function RequirementsPresetPanel({
   const viewingDefault = selectedPresetId === defaultPresetId;
 
   return (
-    <Card size="sm" className="shadow-none ring-1 ring-border/60">
+    <Card size="sm" className="sticky top-6 shadow-none lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
       <CardHeader>
         <CardTitle>Preset</CardTitle>
         <CardDescription>

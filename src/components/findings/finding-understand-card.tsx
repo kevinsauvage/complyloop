@@ -38,7 +38,7 @@ export function FindingUnderstandCard({
   );
 
   return (
-    <Card className="shadow-none ring-1 ring-border/60">
+    <Card className="shadow-none">
       <CardHeader className="gap-1">
         <CardTitle className="flex items-center gap-2">
           <MapPin className="size-4 text-signal" aria-hidden />

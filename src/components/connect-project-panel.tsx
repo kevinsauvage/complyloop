@@ -134,7 +134,7 @@ export async function ConnectProjectPanel({
 /** Full-page connect card used on the empty dashboard. */
 export function ConnectProjectCard({ children }: { children: ReactNode }) {
   return (
-    <Card className="shadow-none ring-1 ring-border/60">
+    <Card className="shadow-none">
       <CardHeader>
         <div className="flex items-center gap-2">
           <span

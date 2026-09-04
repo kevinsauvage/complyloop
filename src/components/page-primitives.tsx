@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+const PAGE_HERO_GLOW =
+  "pointer-events-none absolute inset-x-0 top-0 h-20 bg-[radial-gradient(ellipse_80%_70%_at_50%_-40%,color-mix(in_oklch,var(--signal)_12%,transparent),transparent)]";
+
 export function PageHeader({
   title,
   description,
@@ -21,32 +24,79 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <div className="panel-frost sticky top-0 z-30 -mx-4 mb-6 border-b border-border/70 px-4 py-4 sm:-mx-8 sm:px-8 md:top-0">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <header className="surface-panel card-sheen relative mb-6 overflow-hidden rounded-2xl">
+      <div aria-hidden className={PAGE_HERO_GLOW} />
+      <div className="relative z-[1] flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
         <div className="min-w-0 space-y-1">
-          <div className="flex items-center gap-2.5">
-            <span
-              className="hidden h-5 w-1 shrink-0 rounded-full bg-gradient-to-b from-signal to-signal/40 sm:block"
-              aria-hidden
-            />
-            <h1
-              tabIndex={-1}
-              className="text-xl font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:text-2xl"
-            >
-              {title}
-            </h1>
-          </div>
+          <h1
+            tabIndex={-1}
+            className="text-2xl font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:text-3xl"
+          >
+            {title}
+          </h1>
           {description ? (
-            <p className="max-w-2xl text-sm text-muted-foreground sm:pl-3.5">
+            <p className="max-w-2xl text-sm text-muted-foreground">
               {description}
             </p>
           ) : null}
         </div>
         {children ? (
-          <div className="flex flex-wrap items-center gap-2">{children}</div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {children}
+          </div>
         ) : null}
       </div>
-    </div>
+    </header>
+  );
+}
+
+export function PageSection({
+  title,
+  description,
+  action,
+  children,
+  className,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={cn(
+        "flex flex-col gap-4 border-t border-border/50 pt-8 first:border-t-0 first:pt-0",
+        className,
+      )}
+    >
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {title}
+          </h2>
+          {description ? (
+            <p className="text-sm text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
+        {action ? (
+          <div className="flex shrink-0 items-center gap-2">{action}</div>
+        ) : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function PageContent({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-col gap-6", className)}>{children}</div>
   );
 }
 
@@ -64,13 +114,13 @@ export function EmptyState({
   return (
     <Card
       className={cn(
-        "border-dashed bg-card/50 shadow-none ring-1 ring-border/40",
+        "border-dashed border-border/60 bg-card/40 shadow-none",
         className,
       )}
     >
       <CardHeader className="items-center justify-items-center gap-2 text-center">
         <span
-          className="flex size-11 items-center justify-center rounded-full border border-dashed border-signal/40 bg-signal/10 shadow-[0_0_0_4px] shadow-signal/[0.04]"
+          className="flex size-11 items-center justify-center rounded-full border border-dashed border-signal/40 bg-signal/10"
           aria-hidden
         >
           <span className="size-2 rounded-full bg-signal/60" />
@@ -105,7 +155,7 @@ export function PageActionLink({
 
 export function CodeBlock({ children }: { children: string }) {
   return (
-    <pre className="overflow-x-auto rounded-lg border border-border/50 bg-muted/60 px-4 py-3 font-mono text-xs leading-relaxed text-foreground shadow-[inset_0_1px_2px] shadow-foreground/[0.04]">
+    <pre className="surface-panel overflow-x-auto rounded-xl px-4 py-3 font-mono text-xs leading-relaxed text-foreground">
       <code>{children}</code>
     </pre>
   );
@@ -121,12 +171,7 @@ export function MetaTile({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "card-sheen rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5 text-sm",
-        className,
-      )}
-    >
+    <div className={cn("surface-panel rounded-xl px-3 py-2.5 text-sm", className)}>
       <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </p>

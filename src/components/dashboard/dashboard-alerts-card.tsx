@@ -70,15 +70,28 @@ export function DashboardAlertsCard({
   const githubFullName = project.github?.fullName;
 
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="regression-alerts-heading">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2
-          id="regression-alerts-heading"
-          className="text-sm font-semibold tracking-tight text-foreground"
-        >
-          Regression alerts
-        </h2>
-        <p className="font-mono text-xs text-muted-foreground tabular-nums">
+    <section
+      className="surface-panel rounded-2xl border-destructive/30 bg-destructive/5 p-4 sm:p-5"
+      aria-labelledby="regression-alerts-heading"
+    >
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-destructive/15 text-destructive">
+            <TriangleAlert className="size-4" aria-hidden />
+          </span>
+          <div>
+            <h2
+              id="regression-alerts-heading"
+              className="text-sm font-semibold tracking-tight text-foreground"
+            >
+              Regression alerts
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Unread status changes that need review
+            </p>
+          </div>
+        </div>
+        <p className="rounded-full border border-destructive/25 bg-background/60 px-2.5 py-1 font-mono text-xs text-destructive tabular-nums">
           {alerts.length} unread
         </p>
       </div>
@@ -91,12 +104,12 @@ export function DashboardAlertsCard({
             <li key={alert.id}>
               <Alert
                 variant="destructive"
-                className="border-destructive/40 bg-destructive/5 shadow-none"
+                className="border-destructive/30 bg-background/70 shadow-none"
               >
                 <TriangleAlert aria-hidden />
                 <AlertTitle className="text-base leading-snug">
                   {primaryHref ? (
-                    <Link href={primaryHref} className="hover:underline">
+                    <Link href={primaryHref} className="hover:text-destructive hover:underline">
                       {alert.summary}
                     </Link>
                   ) : (
@@ -135,10 +148,7 @@ export function DashboardAlertsCard({
                     </p>
                   ) : null}
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <time
-                      className="text-xs opacity-70"
-                      dateTime={alert.at}
-                    >
+                    <time className="text-xs opacity-70" dateTime={alert.at}>
                       {formatDateTime(alert.at)}
                     </time>
                     <StatefulActionForm

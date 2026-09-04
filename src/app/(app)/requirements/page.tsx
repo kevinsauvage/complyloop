@@ -1,7 +1,7 @@
 import { AssessedRequirementList } from "@/components/requirements/assessed-requirement-list";
 import { RequirementsPresetPanel } from "@/components/requirements/requirements-preset-panel";
 import { RequirementsStatusChips } from "@/components/requirements/requirements-status-chips";
-import { EmptyState, PageActionLink, PageHeader } from "@/components/page-primitives";
+import { EmptyState, PageActionLink, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
 import { presetById, defaultConnectPreset, presetCatalog } from "@/adapters/registry";
 import { projectDefaultPresetId } from "@/core/project-preset";
 import {
@@ -111,20 +111,26 @@ export default async function RequirementsPage({
         description={`"${project.name}" — ${targetLabel}`}
       />
 
-      {assessed.length > 0 ? (
-        <RequirementsStatusChips
-          counts={statusCounts}
-          selected={statusFilter}
-          presetId={selectedPresetId}
-          defaultPresetId={defaultPresetId}
-        />
-      ) : null}
+      <PageContent>
+        {assessed.length > 0 ? (
+          <RequirementsStatusChips
+            counts={statusCounts}
+            selected={statusFilter}
+            presetId={selectedPresetId}
+            defaultPresetId={defaultPresetId}
+          />
+        ) : null}
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <section
-          aria-label="Assessed requirements"
-          className="flex flex-col gap-3 lg:col-span-2"
-        >
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <PageSection
+            title="Assessed requirements"
+            description={
+              statusFilter
+                ? `Showing ${filtered.length} requirement${filtered.length === 1 ? "" : "s"} with selected status.`
+                : `${assessed.length} requirement${assessed.length === 1 ? "" : "s"} in this preset.`
+            }
+            className="lg:col-span-2"
+          >
           {assessed.length === 0 ? (
             <EmptyState
               title="No requirements assessed yet"
@@ -159,18 +165,23 @@ export default async function RequirementsPage({
               project={project}
             />
           )}
-        </section>
+          </PageSection>
 
-        <aside aria-label="Preset navigation" className="lg:col-span-1">
-          <div className="lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-            <RequirementsPresetPanel
-              defaultPresetId={defaultPresetId}
-              selectedPresetId={selectedPresetId}
-              statusFilter={statusFilter}
-            />
-          </div>
-        </aside>
-      </div>
+          <aside aria-label="Preset navigation" className="lg:col-span-1">
+            <PageSection
+              title="Preset"
+              description="Browse requirement scope by preset."
+              className="border-t-0 pt-0"
+            >
+              <RequirementsPresetPanel
+                defaultPresetId={defaultPresetId}
+                selectedPresetId={selectedPresetId}
+                statusFilter={statusFilter}
+              />
+            </PageSection>
+          </aside>
+        </div>
+      </PageContent>
     </>
   );
 }

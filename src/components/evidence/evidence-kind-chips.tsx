@@ -7,6 +7,15 @@ import {
 import type { EvidenceKind } from "@/core/finding-types";
 import { cn } from "@/lib/utils";
 
+const filterChipClass = (selected: boolean) =>
+  cn(
+    "surface-panel flex items-center rounded-xl px-2.5 py-1.5 text-sm font-medium outline-none transition-[border-color,background-color] duration-200",
+    "hover:bg-card/90 focus-visible:ring-2 focus-visible:ring-ring",
+    selected
+      ? "border-signal/40 bg-signal/10 ring-1 ring-signal/30"
+      : "hover:border-signal/25",
+  );
+
 export function EvidenceKindChips({
   counts,
   selected,
@@ -28,14 +37,7 @@ export function EvidenceKindChips({
         <Link
           href={evidenceKindHref()}
           aria-current={selected ? undefined : "true"}
-          className={cn(
-            "flex items-center rounded-lg border bg-card/60 px-2.5 py-1.5 text-sm font-medium",
-            "outline-none transition-colors hover:bg-accent/40",
-            "focus-visible:ring-2 focus-visible:ring-ring",
-            selected
-              ? "border-border/60 hover:ring-1 hover:ring-signal/40"
-              : "border-signal/50 bg-signal/10 ring-1 ring-signal/40",
-          )}
+          className={filterChipClass(!selected)}
         >
           All
         </Link>
@@ -48,14 +50,7 @@ export function EvidenceKindChips({
             <Link
               href={isSelected ? evidenceKindHref() : evidenceKindHref(kind)}
               aria-current={isSelected ? "true" : undefined}
-              className={cn(
-                "flex items-center gap-2 rounded-lg border bg-card/60 px-2.5 py-1.5",
-                "outline-none transition-colors hover:bg-accent/40",
-                "focus-visible:ring-2 focus-visible:ring-ring",
-                isSelected
-                  ? "border-signal/50 bg-signal/10 ring-1 ring-signal/40"
-                  : "border-border/60 hover:ring-1 hover:ring-signal/40",
-              )}
+              className={cn(filterChipClass(isSelected), "gap-2")}
             >
               <EvidenceKindBadge kind={kind} />
               <span className="font-mono text-sm font-semibold tabular-nums">

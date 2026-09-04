@@ -158,9 +158,9 @@ export function AppShell({
 
         <main
           id="main-content"
-          className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-10"
+          className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8"
         >
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-7xl">
             {workspaceContext}
             {children}
           </div>

@@ -44,7 +44,7 @@ function RuntimeCoverageDisplay({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <Badge className={cn("font-normal", tint)}>
+      <Badge className={cn("rounded-full border-0 font-normal", tint)}>
         {summary.label}
       </Badge>
       {!compact && summary.runtimeError ? (

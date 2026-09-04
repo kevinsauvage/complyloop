@@ -53,7 +53,7 @@ export function OrgAccountOverview({
   supportEmail,
 }: OrgAccountOverviewProps) {
   return (
-    <Card className="shadow-none ring-1 ring-border/60">
+    <Card className="shadow-none">
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span

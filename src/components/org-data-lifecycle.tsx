@@ -83,7 +83,7 @@ export function OrgDataLifecycle({
   const deleteReady = confirmText === "DELETE";
 
   return (
-    <Card className="shadow-none ring-1 ring-border/60">
+    <Card className="shadow-none">
       <CardHeader>
         <CardTitle>Data lifecycle</CardTitle>
         <CardDescription>

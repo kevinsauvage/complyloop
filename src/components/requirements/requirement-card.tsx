@@ -49,7 +49,7 @@ export function RequirementCard({
       : null;
 
   return (
-    <Card className="relative overflow-hidden shadow-none ring-1 ring-border/60 transition-[box-shadow,border-color] hover:ring-signal/30">
+    <Card className="relative overflow-hidden shadow-none transition-[border-color] hover:border-signal/30">
       <RequirementStatusAccent status={requirement.status} />
       <CardHeader className="pb-2 pl-5">
         <div className="flex flex-wrap items-start justify-between gap-3">

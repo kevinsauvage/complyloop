@@ -4,17 +4,11 @@ import { InviteMemberForm } from "@/components/invite-member-form";
 import { OrgAccountOverview } from "@/components/org-account-overview";
 import { OrgDataLifecycle } from "@/components/org-data-lifecycle";
 import { OrgMembersCard } from "@/components/org-members-card";
-import { EmptyState, PageHeader } from "@/components/page-primitives";
+import { EmptyState, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
 import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -135,7 +129,7 @@ export default async function OrgPage() {
         </Dialog>
       </PageHeader>
 
-      <div className="flex flex-col gap-6">
+      <PageContent>
         <OrgAccountOverview
           orgName={org.name}
           orgSlug={org.slug}
@@ -148,32 +142,29 @@ export default async function OrgPage() {
           supportEmail={supportEmail}
         />
 
-        <Card className="shadow-none ring-1 ring-border/60">
-          <CardHeader>
-            <CardTitle>Members &amp; access</CardTitle>
-            <CardDescription>
-              Owners and admins control invites and roles. Viewers can read
-              project compliance data; members can work remediations per
-              project permissions.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <OrgMembersCard
-              orgId={org.id}
-              members={members}
-              currentUserId={userId}
-              canManage={canManage}
-              canAssignAdmin={role === "owner"}
-            />
-          </CardContent>
-        </Card>
+        <PageSection
+          title="Members & access"
+          description="Owners and admins control invites and roles. Viewers can read project compliance data."
+        >
+          <Card className="overflow-hidden shadow-none">
+            <CardContent className="p-0">
+              <OrgMembersCard
+                orgId={org.id}
+                members={members}
+                currentUserId={userId}
+                canManage={canManage}
+                canAssignAdmin={role === "owner"}
+              />
+            </CardContent>
+          </Card>
+        </PageSection>
 
         {role === "owner" ? (
           <OrgDataLifecycle orgId={org.id} orgName={org.name} />
         ) : null}
 
         {!canManage ? (
-          <Alert className="border-border/60 bg-muted/40">
+          <Alert className="surface-panel border-border/60 bg-muted/30">
             <AlertDescription>
               Only owners and admins can invite, change roles, or revoke invites
               for this organization. Only the workspace owner can export or
@@ -181,7 +172,7 @@ export default async function OrgPage() {
             </AlertDescription>
           </Alert>
         ) : null}
-      </div>
+      </PageContent>
     </>
   );
 }

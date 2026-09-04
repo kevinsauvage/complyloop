@@ -18,7 +18,7 @@ export function DeveloperHandoffCard({
   const prFile = `${handoff.title.replace(/[^\w.-]+/g, "-").toLowerCase()}-pr.md`;
 
   return (
-    <Card className="shadow-none ring-1 ring-border/60">
+    <Card className="shadow-none">
       <CardHeader className="gap-1">
         <CardTitle>Developer handoff (patch / PR)</CardTitle>
         <p className="text-sm text-muted-foreground">

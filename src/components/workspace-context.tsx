@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { FolderGit2, Layers } from "lucide-react";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { ProjectSwitcher } from "@/components/project-switcher";
@@ -5,6 +6,26 @@ import { ConnectProjectPanel } from "@/components/connect-project-panel";
 import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
+import { cn } from "@/lib/utils";
+
+function ContextStrip({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "mb-6 flex flex-wrap items-center gap-2 surface-panel px-3 py-2.5 text-sm text-muted-foreground backdrop-blur-sm",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
 
 /** Active org/project context + switchers for every workflow page. */
 export async function WorkspaceContext() {
@@ -43,8 +64,8 @@ export async function WorkspaceContext() {
 
   if (!project) {
     return (
-      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5 text-sm text-muted-foreground shadow-sm">
-        <Layers className="size-4 text-muted-foreground/70" aria-hidden />
+      <ContextStrip>
+        <Layers className="size-4 text-signal" aria-hidden />
         <span className="font-medium text-foreground">No project connected</span>
         {orgName ? (
           <>
@@ -55,18 +76,14 @@ export async function WorkspaceContext() {
           </>
         ) : null}
         {connectProject ? <div className="ml-auto">{connectProject}</div> : null}
-      </div>
+      </ContextStrip>
     );
   }
 
-  // Nothing to switch — quiet identity strip (+ optional add project).
   if (!showOrgSwitcher && !showProjectSwitcher) {
     return (
-      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5 text-sm text-muted-foreground shadow-sm">
-        <FolderGit2
-          className="size-4 shrink-0 text-muted-foreground/70"
-          aria-hidden
-        />
+      <ContextStrip>
+        <FolderGit2 className="size-4 shrink-0 text-signal" aria-hidden />
         <span className="font-medium text-foreground">{project.name}</span>
         {orgName ? (
           <>
@@ -80,12 +97,12 @@ export async function WorkspaceContext() {
         {addProject ? (
           <div className={coverageStrip ? "" : "ml-auto"}>{addProject}</div>
         ) : null}
-      </div>
+      </ContextStrip>
     );
   }
 
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card/60 px-3 py-2.5 shadow-sm">
+    <ContextStrip className="gap-3">
       {showOrgSwitcher && activeOrgId ? (
         <OrgSwitcher organizations={organizations} activeOrgId={activeOrgId} />
       ) : orgName ? (
@@ -101,6 +118,6 @@ export async function WorkspaceContext() {
       )}
       {coverageStrip}
       {addProject ? <div className={coverageStrip ? "" : "ml-auto"}>{addProject}</div> : null}
-    </div>
+    </ContextStrip>
   );
 }

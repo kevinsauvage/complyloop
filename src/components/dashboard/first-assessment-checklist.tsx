@@ -72,7 +72,7 @@ export function FirstAssessmentChecklist({
   );
 
   return (
-    <Card className="shadow-none ring-1 ring-border/60">
+    <Card className="border-border/70 bg-card/80 shadow-none">
       <CardHeader>
         <CardTitle>First assessment checklist</CardTitle>
         <CardDescription>
@@ -183,7 +183,7 @@ export function UnableToVerifyRuntimeHint({
   if (count === 0 || hasPreviewUrl) return null;
 
   return (
-    <p className="rounded-lg border border-status-unverifiable/30 bg-status-unverifiable/10 px-3 py-2.5 text-sm text-muted-foreground">
+    <p className="rounded-xl border border-status-unverifiable/30 bg-status-unverifiable/10 px-4 py-3 text-sm text-muted-foreground">
       <span className="font-medium text-foreground">
         {count} requirement{count === 1 ? "" : "s"} unable to verify
       </span>{" "}

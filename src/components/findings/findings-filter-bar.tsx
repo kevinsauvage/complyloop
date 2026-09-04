@@ -33,7 +33,7 @@ export function FindingsFilterBar({
     <form
       method="get"
       action="/findings"
-      className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/20 p-3"
+      className="surface-panel flex flex-col gap-3 rounded-xl p-4"
       aria-label="Findings filter"
     >
       {params.tab !== "open" ? (

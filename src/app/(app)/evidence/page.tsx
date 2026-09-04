@@ -4,6 +4,7 @@ import { EvidenceKindBadge } from "@/components/badges";
 import {
   EmptyState,
   PageActionLink,
+  PageContent,
   PageHeader,
   formatDateTime,
 } from "@/components/page-primitives";
@@ -144,7 +145,7 @@ export default async function EvidencePage({
           </p>
         </EmptyState>
       ) : (
-        <>
+        <PageContent>
           <EvidenceKindChips counts={kindCounts} selected={kindFilter} />
           {total === 0 && kindFilter ? (
             <EmptyState title={`No ${evidenceKindLabel(kindFilter).toLowerCase()} evidence`}>
@@ -157,7 +158,7 @@ export default async function EvidencePage({
               </p>
             </EmptyState>
           ) : (
-            <Card className="shadow-none ring-1 ring-border/60">
+            <Card className="overflow-hidden shadow-none">
               <CardContent className="p-0">
                 <ol
                   className="divide-y divide-border/60"
@@ -224,7 +225,7 @@ export default async function EvidencePage({
               </div>
             </Card>
           )}
-        </>
+        </PageContent>
       )}
     </>
   );
