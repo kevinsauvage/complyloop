@@ -25,7 +25,7 @@ AI accelerates the product but is never the source of truth.
 ## Implementation
 
 - Parse AI output into typed Zod (or equivalent) schemas before use; reject or flag unparseable output.
-- Persist provenance: model, timestamp, feature id, and `ai_generated: true` (shown in UI).
+- Persist provenance: model, timestamp, feature id, and `provenance: "ai"` (`ExplanationProvenance`; shown in UI).
 - Suggested remediations enter the workflow at `suggested` only.
 - Include a confidence field on explanations/suggestions and display it.
 - Only deterministic checks (or explicit human decisions) may set `passed` / `failed` / `verified`.

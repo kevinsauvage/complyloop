@@ -55,7 +55,7 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 
 ## How it works
 
-1. **Assess** — Default preset is **Full RGAA 4** on connect (change in **Settings**). On **Requirements**, browse presets via **`?presetId=`** (shareable URLs). **78 AST checks** scan connected code; changed JSX only on re-assess when possible. Optional **preview URL** (Settings → Runtime audit) enables Playwright + axe for contrast, landmarks, reflow, and other **runtime-only** rules (see `check-authority.ts`). First runtime run: `npm run playwright:install`.
+1. **Assess** — Default preset is **Full RGAA 4** on connect (change in **Settings**). On **Requirements**, browse presets via **`?presetId=`** (shareable URLs). **58 custom AST checks + `eslint-plugin-jsx-a11y`** scan connected code (77 distinct check ids); changed JSX only on re-assess when possible. Optional **preview URL** (Settings → Runtime audit) enables Playwright + axe for contrast, landmarks, reflow, and other **runtime-only** rules (see `check-authority.ts`). First runtime run: `npm run playwright:install`.
 2. **Understand** — Each finding: what failed, why, where, impact, confidence, engine (`ast` or `runtime`).
 3. **Remediate** — Source: verified patch → draft PR. Runtime: call-site guidance — fix in the app, not a generic `aria-label` on a shared component.
 4. **Verify** — Merge PR + re-assess, or re-run page audit / manual note. Only `verified` closes the loop.
@@ -80,17 +80,23 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 | `npm run test`               | Vitest                                  |
 | `npm run playwright:install` | Chromium for runtime audits             |
 | `npm run check -- [path]`    | Local a11y CI gate                      |
-| `npx complyloop-check`       | Same gate (published package)           |
+| `npx complyloop-check`       | Same gate via `@complyloop/check` (not yet on npm — install from `./packages/check` after `build:check`) |
+| `npm run build:core`         | Compile `packages/analysis-core` → `dist` (needed before lint/typecheck/test on a fresh clone; also runs as `predev` / `prebuild`) |
+| `npm run build:check`        | Bundle the `@complyloop/check` CLI      |
+| `npm run db:generate` / `db:reset -- --confirm` / `db:studio` | Drizzle helpers |
+| `npm run test:coverage` / `test:e2e` / `e2e:seed` | Coverage gate; Playwright e2e |
+| `npm run ops:check` / `ops:backup` | Prod config sanity; `pg_dump` wrapper |
+| `npm run analyze`            | Turbopack bundle report                 |
 
-Definition of done: `npm run lint && npm run typecheck && npm run test && npm run build`
+Definition of done: `npm run build:core && npm run lint && npm run typecheck && npm run test && npm run build`
 
 ---
 
 ## CI in your app
 
 ```bash
-npm run build:check    # from this monorepo
-npm install @complyloop/check
+npm run build:check                 # from this monorepo
+npm install /path/to/packages/check # @complyloop/check is not published yet
 npx complyloop-check .
 ```
 
@@ -102,13 +108,17 @@ Or copy [`templates/github-actions/complyloop-check.yml`](./templates/github-act
 
 ```
 src/core/                Domain model (framework-agnostic)
-packages/analysis-core/  AST checks + Playwright/axe runtime
+packages/analysis-core/  AST checks + Playwright/axe runtime + shared contract
 src/adapters/            RGAA/WCAG controls & guidance
-src/ai/          Optional AI (never sets statuses)
-src/server/      Postgres, assessment, GitHub, actions
-src/app/         Next.js UI
-packages/check/  @complyloop/check CLI
+src/ai/                  Optional AI (never sets statuses)
+src/server/              Postgres, assessment, GitHub, actions
+src/app/                 Next.js UI + API routes
+src/components/          UI (feature folders + shadcn ui/)
+src/cli/                 Source of the complyloop-check CLI
+packages/check/          @complyloop/check package (bundled from src/cli)
 ```
+
+Known gaps and planned work: [`TODO.md`](./TODO.md).
 
 ---
 

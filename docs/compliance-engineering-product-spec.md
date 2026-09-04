@@ -4,7 +4,7 @@
 > requirements into remediated, verified, auditable code changes — across
 > every client project, continuously, not as a one-time audit.
 
-**Related docs:** [README](./README.md) · [Architecture](./docs/ai/architecture.md) · [AGENTS](./AGENTS.md)
+**Related docs:** [README](../README.md) · [Architecture](./ai/architecture.md) · [AGENTS](../AGENTS.md)
 
 ## Contents
 

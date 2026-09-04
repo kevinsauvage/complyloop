@@ -1,0 +1,199 @@
+# TODO
+
+Prioritized backlog produced by a full audit of `docs/*` and the source tree (Sep 2026). Every item states **what is wrong**, **why it matters**, and **what to change**, with file references. Items are ordered within each priority; verify the referenced lines before acting — code moves.
+
+Guiding rule for this list: the product spec's MVP is *one complete loop for one client project*. Anything that does not make that loop correct, observable, or simpler is P2 or lower.
+
+---
+
+## P0 — Critical
+
+### 1. The draft-PR → merge → re-assess → `verified` loop never closes in the job path
+
+- **Wrong:** `verifyDraftPrRemediation` (`src/server/assessment.ts`) decides whether to advance an `approved` remediation to `implemented` → `verified` by scanning `db.evidence` for a `remediation_approved` record with `approvalAction: "create_draft_pull_request"`. The worker loads the write snapshot with `resolveProjectLoadScope(drizzle, projectId, 0)` (`assessment-worker.ts`) and `withWorkspaceDbWrite` uses `evidenceLimit: 0` (`db.ts`), so `db.evidence` only ever contains rows added during the current write. The check is always false outside hand-built test fixtures.
+- **Why it matters:** this is the "Verification" stage of the core loop for source findings (README, `finding-flow.md`). Findings resolve, but remediations stay `approved`, no `remediation_verified` evidence is written, and the product cannot prove the fix. Tests pass because fixtures pre-populate `db.evidence`.
+- **Change:** stop reading history from the in-memory `Db` during writes. Either query it directly (`listEvidenceForFinding` in `db-store/postgres-queries.ts`, as `actions/pr.ts` already does) before entering `withDbWrite`, or store `approvalAction` on the `Remediation` payload when approving so the decision is local. Add an integration test that runs the worker path with an empty evidence snapshot.
+
+### 2. All writes are serialized behind one global lock, held for the whole assessment
+
+- **Wrong:** `withDbWrite` takes a process mutex plus a single `pg_advisory_xact_lock(748_291_063)` (`db-store/write-lock.ts`). `enqueueAssessmentJob` and `claimNextAssessmentJob` take the same key. The worker wraps the entire `runAssessment` — AST scan, Playwright audit of up to 25 pages × 2 theme conditions, html-validate, linkinator — inside `withDbWrite` (`assessment-worker.ts`), so a Postgres transaction and the global lock are held for minutes.
+- **Why it matters:** while any assessment runs for any tenant, every server action (approve, dismiss, connect, invite, mark alert read), every job enqueue/claim, and even first-page-load provisioning in `getWorkspace` (`workspace.ts`) blocks. Multiple workers cannot run in parallel in practice. Long-held transactions also hold back autovacuum. The docs said "serial per project"; reality is serial globally.
+- **Change:** run the scan **outside** the lock. Compute `rawFindings`, `snapshot`, and `runtimeResult` first (pure inputs), then open a short `withDbWrite` that only applies the diff. Once that is done, replace the global key with a per-project named lock (`withNamedPostgresAdvisoryLock` already exists) for project-scoped writes, and keep a per-org key for org writes. The job queue does not need the store lock at all — `claimNextAssessmentJob` can use `UPDATE … WHERE status='queued' … FOR UPDATE SKIP LOCKED` or its own named key.
+
+### 3. "Latest assessment" and scoped re-scans rely on undefined row order
+
+- **Wrong:** `loadScopedRuntime` / `loadFull` (`db-store/postgres-load.ts`) select `assessments`, `findings`, etc. without `ORDER BY`. `runAssessment` picks `previous = [...db.assessments].reverse().find(...)`; `dashboard/page.tsx`, `settings/page.tsx`, and `components/workspace-context.tsx` use `.at(-1)`. Every write upserts every row (new tuple versions), so heap order drifts.
+- **Why it matters:** the wrong "previous" assessment yields wrong `changesSincePrevious`, a scoped AST re-scan against the wrong file set (findings outside the changed set are skipped for resolution), wrong regression attribution, and a dashboard that shows a stale run as current.
+- **Change:** sort by `startedAt` where "latest" is meant (a small `latestAssessmentFor(db, projectId)` helper in `src/core`), or add `ORDER BY` to the loaders. Long-term, item P1-1 removes the need to hold all assessments in memory.
+
+### 4. The Docker image cannot run the worker (and probably does not build)
+
+- **Wrong:** `Dockerfile` copies only `packages/check/package.json` into the `deps` and `prod-deps` stages before `npm ci`, never `packages/analysis-core/`. The lockfile lists the `packages/analysis-core` workspace, so `npm ci` either fails the lock consistency check or installs without the workspace and its dependencies (`html-validate`, `linkinator`, `@typescript-eslint/parser`). The `runner` stage copies `src/`, `scripts/`, `drizzle/`, and `node_modules`, but not `packages/`, so `npx tsx scripts/run-assessment-worker.ts` (docker-compose `worker` service) cannot resolve `@complyloop/analysis-core/*`.
+- **Why it matters:** `deploy.md` presents compose as the reference deployment; the worker is "required in production".
+- **Change:** copy `packages/analysis-core/package.json` in the deps stages, run `npm run build:core` in the builder, and copy `packages/analysis-core/{package.json,dist}` into the runner. Add a CI step that builds the image and runs `node -e "import('@complyloop/analysis-core/scan')"` in it.
+
+### 5. The compose `migrate` service uses a redacted password
+
+- **Wrong:** `docker-compose.yml` L28 sets `DATABASE_URL: postgres://complyloop:***@postgres:5432/complyloop` — a literal `***` (a secret-scrubber artifact). `app` and `worker` use `complyloop:complyloop`. The same `***` is the fallback in `e2e/webhook-helpers.ts` L25.
+- **Why it matters:** `docker compose --profile app up` fails at the migrate step, so the reference deployment in `deploy.md` does not start; `app` never starts because it depends on `migrate` completing.
+- **Change:** restore the password (or better, a shared `x-db-url` anchor / `${DATABASE_URL}` from the environment). Fix the e2e fallback the same way.
+
+---
+
+## P1 — High
+
+### 1. Replace the "load whole tenant slice → mutate arrays → rewrite everything" persistence with row-level operations
+
+- **Wrong:** Domain state is a JSON document store emulated on Postgres. Each write reloads the catalog (163 controls), all orgs/projects/requirements/assessments/findings/remediations/alerts in scope, mutates arrays, then `syncPayloadTable` upserts **every** row and prunes the rest (`db-store/postgres-persist-*.ts`). Reads (`getWorkspace`) load the same slice on every request — across **all** of the viewer's orgs — including every `Assessment.snapshot.fileHashes` (one sha256 per source file, per assessment, never pruned). Indexed columns (`status`, `project_id`) duplicate payload fields and can drift. Two access styles coexist (in-memory `Db` vs direct Drizzle for jobs/tokens/evidence), so there are two ways to answer every question.
+- **Why it matters:** write cost and read cost grow with total history, not with the change. Marking one alert read rewrites all requirements and findings for all the user's projects. The global lock (P0-2) exists only to make this pattern safe. Tests for the highest-risk path (`db-store/**`) are excluded from the coverage gate.
+- **Change (incremental, no big-bang):**
+  1. Move `snapshot` out of the `assessments` payload into its own table/column loaded only by `runAssessment` (immediate win: page loads stop shipping file-hash maps).
+  2. Give `getWorkspace` a *project-scoped* load (active project + org list), not "all projects in all orgs".
+  3. Introduce plain repository functions per aggregate (`updateRemediation`, `insertFinding`, `setRequirementStatus`, …) using Drizzle directly, and migrate actions one at a time off `withWorkspaceWrite`. Keep `runAssessment` pure: return a diff (`findingsToCreate`, `findingsToResolve`, `requirementUpdates`, `evidence`) and apply it in one transaction.
+  4. Delete `syncPayloadTable`, the prune logic, and `postgres-persist-catalog.ts` (catalog changes only on seed/deploy).
+- **Not the goal:** a generic ORM layer or repository interface. Direct Drizzle calls at the edges are the simplest thing that works.
+
+### 2. `lint` / `typecheck` / `test` depend on a stale or missing `dist`
+
+- **Wrong:** `@complyloop/analysis-core`'s `exports` point at `dist/`, which is gitignored. Only `predev`/`prebuild` build it. On a fresh clone, `npm run typecheck` fails with `TS2307` (verified), and CI's `quality` job runs `lint`/`typecheck`/`test` **before** `build`. Locally, editing `packages/analysis-core/src` and running `npm test` tests the app against the previous build.
+- **Why it matters:** the Definition of Done is not reproducible; a green local test run can be testing old analysis code.
+- **Change:** add a tsconfig `paths` entry and a Vitest alias so `@complyloop/analysis-core/*` resolves to `packages/analysis-core/src/*` inside this repo (Next 16/Turbopack transpiles workspace TS), or add a `development` condition to the package `exports`. Keep `dist` only for publishing. Add `build:core` to the CI job before `lint` until then. Remove `.tsbuildinfo` from `include` interplay by leaving `incremental` on but not relying on it.
+
+### 3. `recentAssessmentJobsForProject` returns the oldest jobs
+
+- **Wrong:** `.orderBy(asc(createdAt)).limit(limit)` then `.reverse()` (`src/server/assessment-jobs.ts`). With more than `limit` jobs the dashboard and `GET /api/projects/[projectId]/assessment-jobs` show the first N runs ever.
+- **Change:** `orderBy(desc(createdAt)).limit(limit)`. Extend `assessment-jobs.test.ts` with > `limit` rows.
+
+### 4. Change attribution is wrong on every re-assessment
+
+- **Wrong:** `repo-checkout.ts` fetches `--depth 1`; `monitor.ts` attributes changed files with `git log -1 -- <file>`, which on a depth-1 clone returns HEAD for every file. `FileChange.author/commitSha` (stored in `monitoring_changes_detected` evidence and regression alerts) is the tip commit's author regardless of who touched the file.
+- **Why it matters:** the platform records misleading evidence about who introduced a regression.
+- **Change:** either drop per-file attribution (record only `previousGitHead → gitHead`, which is truthful) or fetch enough history (`--depth` covering the previous head, or `git fetch --shallow-since`). Prefer dropping it: it is not a core-loop requirement.
+
+### 5. `label-adjacent` can never fail a requirement
+
+- **Wrong:** listed in both `RUNTIME_ONLY_CHECK_IDS` and `HEURISTIC_CHECK_IDS` (`packages/analysis-core/src/check-authority.ts`). `authorityForCheck` returns `runtime_only`, but `findingsFromAxeHits` (`runtime/findings.ts`) downgrades any `isHeuristicCheck` id to `kind: "warning"`, so hits produce `needs_review` and a clean audit produces `passed`.
+- **Change:** pick one class. If the adjacency probe is trustworthy, remove it from the heuristic list; if not, remove it from runtime-only so an empty run stays `unable_to_verify`. Add a `check-authority.test.ts` case asserting no id is in two lists (or asserting the intended precedence for each dual-listed id).
+
+### 6. Media caption checks auto-pass without runtime
+
+- **Wrong:** `video-caption`, `audio-caption`, `media-controls-present` are `standard`, so a source tree with no `<video>`/`<audio>` JSX passes RGAA 4.x criteria even when media is client-rendered or embedded. `analysis-strategy.md` principle 4 says untested ≠ passed.
+- **Change:** classify them `heuristic` (AST cannot prove absence), and let runtime applicability (`runtime/applicability.ts`) turn them `not_applicable` when a preview URL is configured.
+
+### 7. Server-action inputs are not validated at the boundary
+
+- **Wrong:** `code-quality.mdc` requires validation at system boundaries; `zod` is used only in `src/ai/`. Server actions and `src/app/api` routes read `FormData`/JSON with ad-hoc string helpers (`action-state.ts`). Client code casts `response.json()` (`github-repo-picker.tsx`, `assessment-job-status-live.tsx`).
+- **Change:** one small zod schema per action/route (`z.object({ findingId: z.string().uuid(), note: z.string().max(2000).optional() })`), parsed at the top. Same for the two client fetches.
+
+### 8. Broken in-page action on runtime findings
+
+- **Wrong:** `FindingNextStepPanel` links "Generate guidance" state to `#copy-handoff` (`finding-next-step-panel.tsx`), but no element has that id.
+- **Change:** add `id="copy-handoff"` to the handoff section in `findings/[id]/page.tsx` or point the link at the existing section. Add a panel test asserting the target exists (`getByRole("link", …)` + `document.getElementById`).
+
+### 9. `@complyloop/check` is documented as published but is not
+
+- **Wrong:** README ("Same gate (published package)", "CI in your app": `npm install @complyloop/check`) and `templates/github-actions/complyloop-check.yml` assume the package is on npm. `npm view @complyloop/check` → 404 (same for `@complyloop/analysis-core`). Today the only working path is `npm run build:check && npm install ./packages/check` (or a tarball; see `src/cli/check-pack.smoke.test.ts`).
+- **Change:** either publish (the bundle is self-contained — analysis-core is inlined by esbuild), or reword README/template to the tarball/local-install flow until then.
+
+### 10. Schema and migration disagree
+
+- **Wrong:** `drizzle/0000_init.sql` has `webhook_deliveries_processed_at_idx` and `rate_limit_buckets_count_check` (`count >= 0`); `db-store/schema.ts` has neither. `drizzle-kit generate` would emit a migration that drops them.
+- **Change:** add both to `schema.ts`, then run `db:generate` and confirm it produces no diff. Consider a CI step doing exactly that.
+
+---
+
+## P2 — Medium
+
+### 1. Decide what the org/multi-tenant surface is for
+
+- **Observation:** The spec's MVP is "single client project per workspace; portfolio view can follow". The code ships orgs, roles (`owner|admin|member|viewer`), invitations by GitHub login, role changes, org export, org deletion, org switcher, personal-org auto-provisioning (`orgs.ts` 374 lines, 7 org actions, 6 org components, `org-account.spec.ts`), and all of it multiplies the load scope (P1-1).
+- **Why it matters:** this is the largest non-core-loop surface in the repo and the one that made the tenant-slice persistence necessary.
+- **Change:** either declare multi-org a product decision and update the spec's MVP section, or freeze it (hide invites/role management behind a flag, keep the personal org only) until the single-project loop is verified end-to-end. Do not build more on it before deciding.
+
+### 2. Remove the `src/core` re-export shims
+
+- **Observation:** `statuses.ts`, `finding-types.ts`, `requirement-status.ts`, `public-error.ts`, `assessment-limits.ts` are pure `export *` shims over `packages/analysis-core/src/contract/*` (with duplicated shim tests). `code-quality.mdc` forbids barrel files. The ESLint boundary rule for `src/core` matches `**/analysis/**`, which does not match `@complyloop/analysis-core/*`, so the boundary is not actually enforced.
+- **Change:** import `@complyloop/analysis-core/contract/*` directly (or move the contract into `src/core` and have analysis-core depend on it — the contract is domain, not analysis). Fix the ESLint pattern to `@complyloop/analysis-core/**` with an allow-list for `contract/*`.
+
+### 3. Enforce "adapters only via registry" or drop the rule
+
+- **Observation:** `architecture.md` says server/app import adapters only through `src/adapters/registry.ts`; pages, `report.ts`, and `report-html/*` import `@/adapters/control-theme` directly; `wcag/presets.ts` imports `rgaaControls` directly. Nothing enforces it.
+- **Change:** either export `controlForDisplay` from the registry and add a `no-restricted-imports` rule for `@/adapters/*` outside `src/adapters`, or delete the rule from the docs. With one real catalog, the registry indirection is not paying for itself yet; keep it minimal.
+
+### 4. Catalog as data, not 1800-line TS
+
+- **Observation:** `src/adapters/rgaa/controls.ts` (1802 lines) and `guidance.ts` (836) are static literals in code; `code-quality.mdc` says split files past ~300 lines.
+- **Change:** move to JSON (or one file per RGAA topic) with a typed loader and keep `catalog-coverage.test.ts` as the integrity gate. Low risk, purely mechanical.
+
+### 5. Duplicate id/ownership lists
+
+- `requiresHtmlValidatePass` in `contract/requirement-status.ts` re-declares the two ids already in `HTML_VALIDATE_OWNED_CHECK_IDS`; `isHtmlValidateOwnedCheck` is exported and unused. Pass the flag in from the adapter (`assessment-status.ts`) instead of hard-coding ids in the contract.
+- `keepIdsOrNeverMatch` duplicated in `postgres-persist-catalog.ts` and `postgres-persist-runtime.ts` (goes away with P1-1).
+- RequirementStatus → colour maps duplicated in `requirement-status-accent.tsx` and `dashboard-status-counts.tsx`; role → badge classes duplicated in `org-members-card.tsx` and `org-account-overview.tsx`; "passed" tint hard-coded in `preset-navigator.tsx`, `default-preset-form.tsx`, `github-repo-picker.tsx`. One `statusTone()` in `components/badges.tsx`.
+- Custom Playwright probes are wrapped into a synthetic axe violation shape (`custom-checks/index.ts` → `toAxeViolation` → `complyloop-*` ids in `axe-map.ts`) just to reuse the axe mapping. Emit `RawFinding` directly and drop the fake axe layer.
+
+### 6. Dead code
+
+- `assertSafeRuntimeBaseUrl` (`runtime/url-safety.ts`) — tests only; the app uses `assertSafeRuntimeUrl`.
+- `normalizeDomSnippet` (`runtime/dedupe-runtime-findings.ts`) — unused.
+- `hasProcessedWebhookDelivery` (`webhook-deliveries.ts`) — tests only.
+- `appMeta` table (`schema.ts`, migration) — never read or written by product code.
+- `DEFAULT_CONNECT_PRESET_ID`, `allFrameworks`, `allControls` exports — tests only.
+- `.gitignore` still references IBM Equal Access output (`/results`), removed in `69958f9`. It also ignores only the root `/node_modules`, so `packages/analysis-core/node_modules/.vite/vitest/**/results.json` is **committed**; change to `node_modules/` and `git rm --cached` the tracked file.
+- `drizzle.config.ts` falls back to `localhost:5432` while compose exposes `5433`; drop the fallback and require `DATABASE_URL` (as everything else does).
+
+### 7. Cookie-controlled load scope
+
+- **Observation:** `listProjectIdsForTenant` adds the `preferredProjectId` cookie value to the load (and write) scope before any RBAC check; visibility is applied in memory afterwards (`project-visibility.ts`). Not exploitable today because every action re-checks `canOnProject`, but a foreign project's rows are loaded and rewritten on every request that carries a stale cookie.
+- **Change:** resolve the active project from the membership-scoped list only; ignore the cookie if it points outside it. Disappears with P1-1 step 2.
+
+### 8. Swallowed errors that hide real failures
+
+- `assessment-job-status-live.tsx` ignores every fetch error forever (a broken endpoint looks like "still running").
+- `github-repo-picker.tsx` debounced search has no `AbortController`; a slow earlier response can overwrite a newer one.
+- `pr.ts` L117–125, `handoff.ts`, `monitor.ts` `git` calls: fine to fall back, but record a `reportWarning` so the fallback is visible in Sentry.
+
+### 9. Coverage gate excludes the riskiest code
+
+- `db-store/**`, `actions/remediation-verify.ts`, `pr.ts`, `github.ts`, `webhook-deliveries.ts` are excluded from thresholds although several have unit tests. Add colocated tests for `postgres-load.ts` / `postgres-persist-runtime.ts` against the CI Postgres service (the `constraints.test.ts` harness already exists) and drop the exclusions that have tests. Add tests for `analysis-core/src/scan.ts`, `parse.ts`, `site-level/snapshot.ts`, `heuristic-utils.ts`, and `authorityForCheck` precedence.
+
+### 10. Small correctness items
+
+- `queuedAssessmentJobCount` selects all queued/running rows to count them — use `count()`.
+- `theme-conditions.ts` switches lack the `never` default required by `typescript-conventions.mdc`; `jsx-a11y-fixes.ts` `default: return null` is not exhaustive over `CheckId` (acceptable, but document it or switch to a `Partial<Record>`).
+- `finding-list-filter.ts` uses `value as Severity` / `as RemediationStatus` after `includes` — replace with a type-predicate parser.
+- `assessment-jobs.ts` `jobFromRow` casts `status`/`trigger`/`payload`; validate with a zod schema or `satisfies`.
+- Automated `verifyRemediationAction` does not check `status === "implemented"` before advancing (manual path does); align the two for consistent error messages.
+- `webhook_deliveries` does not gate anything: `api/github/webhook/route.ts` calls `claimWebhookDelivery` and then handles the event regardless, only echoing `duplicate: !firstDelivery`. Real idempotency comes from the job `idempotencyKey`. Either return early on a duplicate (and claim only after a successful enqueue) or delete the table and `webhook-deliveries.ts`.
+
+---
+
+## P3 — Low
+
+1. **Finding-flow doc vs UI copy** — already aligned in `docs/ai/finding-flow.md`; keep titles in `finding-act.ts` as the single source (consider generating the doc table from the test fixtures).
+2. **Platform a11y polish** — `#dismiss-finding` hash lands on a closed `<details>` (open it on hash match); `j`/`k` queue nav has no live-region announcement; badge descriptions are tooltip-only; `StepIndicator` is `aria-hidden` without a textual "completed" state.
+3. **Tests that query CSS classes** — `evidence-kind-chips.test.tsx` (`.text-status-failed`), `confirm-submit-button.test.tsx` (`button[type="submit"]`), `dashboard-status-counts.test.tsx` (`.closest("div")`) — switch to role/name queries per `code-quality.mdc`.
+4. **Untested interactive components** — `FindingQueueNav`, `findings-filter-bar`, `developer-handoff`, connect dialog, `requirement-remediation-actions`. Add the `prUrl`-hides-handoff assertion at panel level.
+5. **Copy** — `handoff.ts` says "issue"; domain vocabulary says Finding. `FindingKind = "violation" | "warning"` is a deliberate tension with the "don't call a Finding a violation" rule — record the exception in `domain-model.mdc` or rename to `"fail" | "review"`.
+6. **`badges.tsx` is a client component** only because of tooltip wrappers; every status badge becomes a client island. Split the tooltip into a thin client child.
+7. **Files over ~300 lines** (`runtime/scan.ts` 490, `report-html/shared.ts` 438, `orgs.ts` 374, `custom-checks/focus.ts` 357, `site-level/checks.ts` 347, `heuristic-utils.ts` 323, `html-validate-runtime.ts` 321, `assessment.ts` 310). Split when touching, not as a project.
+8. **Low-confidence AST heuristics** (`sensory-characteristics`, `image-of-text`, `error-suggestion`, `pointer-gesture`, `motion-actuation`, `audio-description-track`, `captions-live`, `p-as-heading`) emit `confidence: "low"` noise in CI. Per `analysis-strategy.md` ("skip low-trust heuristics"), review each: keep as `needs_review` producers only if a developer can act on the output, otherwise delete.
+9. **`tsx` + `typescript` as runtime dependencies** — required because the worker and migrations run TypeScript in production. Acceptable for now; a compiled `scripts/` output would shrink the image and remove the dependency on `tsc` at runtime.
+
+---
+
+## Product follow-ups (from `finding-flow.md`)
+
+- Cluster → one PR (root-cause clusters already exist in `src/core/root-cause.ts`; the PR flow is per finding).
+- Auto-propose deterministic patches at assessment time (still gated by ComplyLoop + human PR).
+
+## What NOT to do
+
+Parked deliberately — see `docs/analysis-strategy.md` for the reasoning:
+
+- Add Lighthouse, Pa11y, WAVE, IBM Equal Access, Alfa, `jest-axe`, or another axe-class scanner.
+- Add `@axe-core/playwright` (bundling breaks axe `source`).
+- Enable `html-validate:recommended` / `@html-validate/wcag`, or use html-validate for anything beyond RGAA 8.2 / 10.1.
+- Screenshot or visual-regression every route × viewport × theme.
+- Build a generic repository/ORM abstraction while fixing P1-1 — direct Drizzle at the edges is enough.
+- Add a second framework adapter before the single-project loop is verified end-to-end (P0-1).

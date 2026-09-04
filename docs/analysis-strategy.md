@@ -58,9 +58,11 @@ The layers in **What we have** are the intended architecture. This is not a scan
 
 1. **Preview URL adoption** — assessments without `runtimeBaseUrl` leave runtime-only check ids at `unable_to_verify`. That is a product/onboarding gap, not a missing-engine problem. Wire preview URLs before proposing another scanner.
 2. **One engine per responsibility** — axe is the only rendered-accessibility scanner; html-validate covers RGAA 8.2 / 10.1 structural evidence only; Playwright custom probes own behaviour axe cannot see. Do not add a sibling a11y engine to “fill gaps”.
-3. **Human verification** — 26 catalog controls stay manual (`checkId: null`). Required stage, not automation backlog.
+3. **Human verification** — 25 catalog controls stay manual (`checkId: null`). Required stage, not automation backlog.
 
 Parked ideas (visual regression, Nu HTML Checker, a11y-tree before/after, extra keyboard frameworks, Lighthouse, Pa11y, `@html-validate/wcag`) belong in **What not to add as a core engine** above and in [`TODO.md`](../TODO.md) (**What NOT to do**). Do not treat them as ordered next work.
+
+**Known tension with principle 4 ("never collapse unknowns"):** `video-caption`, `audio-caption`, and `media-controls-present` are classified `standard`, so a source tree with no `<video>`/`<audio>` literal passes them even though client-rendered media is invisible to AST. Runtime applicability probes fix this only when a preview URL is configured. See `TODO.md`.
 
 ## How a new check earns a place
 

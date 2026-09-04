@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Product Context
 
-This repo is a **compliance engineering platform**: it turns compliance requirements into actionable, verifiable engineering work. Source of truth: `compliance-engineering-product-spec.md`.
+This repo is a **compliance engineering platform**: it turns compliance requirements into actionable, verifiable engineering work. Source of truth: `docs/compliance-engineering-product-spec.md`.
 
 The core loop every feature must serve:
 

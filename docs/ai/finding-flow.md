@@ -20,9 +20,10 @@ Queue nav (`j` / `k`) stays. Everything else is secondary.
 | Header | `PageHeader` | Control, severity, confidence, status, engine |
 | Understand | `FindingUnderstandCard` | Why, where, how to fix; AI folded in |
 | Act | `FindingNextStepPanel` | Single CTA from `findingAct()` |
-| Details | Handoff + evidence | Handoff when needed; evidence collapsed |
+| History | `RemediationHistory` | Remediation status timeline |
+| Details | `DeveloperHandoffCard` ("Copy patch / PR body") + evidence trail | Handoff only when `showHandoff`; evidence trail is always expanded (rendered inline in `page.tsx`) |
 
-Dismiss lives in a disclosure inside Act (`#dismiss-finding`).
+Dismiss lives in a `<details>` disclosure inside Act (`#dismiss-finding`). The runtime "Generate guidance" beat links to `#copy-handoff`, but no element carries that id — the in-page jump is dead (`TODO.md`).
 
 ## User beats
 
@@ -78,12 +79,14 @@ Input: `finding`, `remediation`, `canRemediate`, `prUrl`, `patchReady`, `githubC
 
 | State | Title | Primary action |
 | --- | --- | --- |
-| Open, no patch | Fix this Finding | **Generate patch** |
+| Open, no patch | Fix this Finding | **Generate patch** (label is **Verify and prepare patch** when a deterministic fix exists) |
 | Patch ready | Review patch | **Create draft PR** |
 | PR open | In review on GitHub | **Open draft PR** |
 | Verified | Verified | — |
 
-Deterministic fixes still go through Generate (fresh checkout + ComplyLoop). Editable attributes (e.g. alt text) use AI or human review in the patch flow.
+Deterministic fixes still go through Generate (fresh checkout + ComplyLoop). Editable attributes (e.g. alt text) use AI or human review in the patch flow. The source path ignores the intermediate remediation statuses — the beat is driven by `patchReady` / `prUrl`, not by `remediation.status`.
+
+Closing the loop: **Merge on GitHub → re-assess → `verified`** depends on `verifyDraftPrRemediation` in `src/server/assessment.ts`, which currently cannot see the prior `remediation_approved` evidence in the worker (see `TODO.md` P0). Until fixed, source remediations approved via draft PR stay `approved` after the finding resolves.
 
 ### Runtime findings
 
@@ -91,8 +94,8 @@ Deterministic fixes still go through Generate (fresh checkout + ComplyLoop). Edi
 | --- | --- | --- |
 | Open | Fix at the call site | **Generate guidance** |
 | Suggested | Review guidance | **Approve** |
-| Approved | Implemented outside | **Mark implemented** |
-| Implemented | Confirm fix | **Verify** |
+| Approved | Implemented outside ComplyLoop | **Mark implemented** |
+| Implemented | Confirm the page is fixed | **Verify** |
 
 ### UI flags
 
@@ -125,10 +128,10 @@ Colocate with `finding-act.ts` and `finding-next-step-panel.tsx`:
 
 - Source: generate, review + PR, in review, verified.
 - Runtime: approve, verify; no patch/PR actions.
-- Handoff hidden when `prUrl` is set.
+- Handoff hidden when `prUrl` is set — asserted in `finding-act.test.ts` only; the panel test does not cover it.
 - Bulk approve: runtime only (`findings-bulk-list.test.tsx`).
+- Not covered: `FindingQueueNav` (`j`/`k`) has no test.
 
 ## Follow-ups
 
-- Cluster → one PR (`todo.md` item 9).
-- Auto-propose deterministic patches at assessment (still require ComplyLoop + human PR).
+Tracked in [`TODO.md`](../../TODO.md): cluster → one PR, auto-propose deterministic patches at assessment (still require ComplyLoop + human PR).

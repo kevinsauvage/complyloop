@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -20,8 +20,6 @@
 
 # local leftover data (unused; Postgres is the store)
 /.data
-# IBM Equal Access default dump dir (file output is disabled in ibm-runtime)
-/results
 
 # next.js
 /.next/

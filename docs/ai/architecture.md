@@ -15,9 +15,11 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 | App         | `src/app/`                            | Next.js UI + API routes                                           |
 | CI          | `packages/check/`                     | `npx complyloop-check` (AST only)                                 |
 
-`src/core/statuses.ts`, `finding-types.ts`, `requirement-status.ts`, `public-error.ts`, and `assessment-limits.ts` are **re-export shims** of the analysis-core contract so the app keeps `@/core/…` imports.
+`src/core/statuses.ts`, `finding-types.ts`, `requirement-status.ts`, `public-error.ts`, and `assessment-limits.ts` are **re-export shims** of the analysis-core contract so the app keeps `@/core/…` imports. They are the one sanctioned exception to "core imports nothing from analysis" (the ESLint boundary rule does not catch `@complyloop/analysis-core/*` — see [`TODO.md`](../../TODO.md)).
 
-**Connectors today:** GitHub only. **Persistence:** Postgres via Drizzle (`DATABASE_URL`). Evidence is **append-only** (no FKs — rows outlive project disconnect and org deletion). GitHub tokens encrypted at rest. Assessments run as **durable jobs** (`npm run worker` in prod).
+**Connectors today:** GitHub only. **Persistence:** Postgres via Drizzle (`DATABASE_URL`). Evidence is **append-only** (no FKs — rows outlive project disconnect and org deletion). GitHub tokens encrypted at rest (AES-256-GCM). Assessments run as **durable jobs** (`npm run worker` in prod).
+
+**Build coupling:** the app and tests import `@complyloop/analysis-core/*` through the workspace symlink, whose `package.json` `exports` point at **`packages/analysis-core/dist`**. `dist/` is gitignored and only produced by `npm run build:core` (`predev` / `prebuild`). On a fresh clone, `lint`, `typecheck`, and `test` fail until `build:core` has run, and after editing `packages/analysis-core/src` the app-side tests keep running against the stale `dist` until it is rebuilt. `@complyloop/check` is different: `scripts/build-check.mjs` bundles the CLI from **source** via an esbuild alias.
 
 ## System diagram
 
@@ -50,11 +52,13 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 
 ## Persistence & tenancy
 
-- **Postgres** — frameworks, controls, orgs, memberships, projects, requirements, assessments, findings, remediations, alerts, evidence, encrypted GitHub tokens, webhook delivery ids, `assessment_jobs`, rate-limit buckets, `app_meta`. Domain rows store typed JSONB payloads (`src/server/db-store/schema.ts`).
+- **Postgres** — frameworks, controls, orgs, memberships, projects, requirements, assessments, findings, remediations, alerts, evidence, encrypted GitHub tokens, webhook delivery ids, `assessment_jobs`, rate-limit buckets. Domain rows store typed JSONB payloads (`src/server/db-store/schema.ts`); the row also carries a few indexed columns (`project_id`, `status`, …) that duplicate fields of the payload. `app_meta` exists in the schema but nothing reads or writes it. One hand-written migration (`drizzle/0000_init.sql`) — two of its constraints/indexes are not mirrored in `schema.ts` (see `TODO.md`).
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`); projects belong to orgs.
-- **Load shape** — request paths load a tenant slice, not the whole DB. Evidence reads are bounded (`WORKSPACE_EVIDENCE_LIMIT`) or paginated in SQL.
-- **Writes** — `withDbWrite`: process mutex + Postgres advisory lock around load → mutate → save so concurrent writers cannot clobber each other.
-- **Jobs** — queued in DB; worker leases, retries ×3, serial per project; triggers `manual` \| `webhook`. HTTP paths only enqueue (`src/server/assessment-jobs.ts`). In `next dev` and the Playwright harness, the action drains the queue in-process (`assessment-job-drain.ts`).
+- **Two data-access styles.** Domain state (orgs, projects, requirements, assessments, findings, remediations, alerts) goes through an in-memory **`Db` snapshot** (`db-store/types.ts`): load a scope into arrays, mutate the arrays, write everything back. Jobs, tokens, webhook deliveries, rate limits, and evidence *reads* use direct Drizzle queries (`db-store/postgres-queries.ts`, `assessment-jobs.ts`, …).
+- **Load shape** — `getWorkspace()` loads the catalog plus **every** project in **all** of the viewer's orgs (requirements, assessments incl. full `snapshot.fileHashes`, findings, remediations, alerts) on every request, with evidence capped at `WORKSPACE_EVIDENCE_LIMIT` (100). The cookie-preferred project id is added to the load scope before RBAC is applied; visibility is enforced in memory afterwards (`project-visibility.ts`). Evidence pages/exports/finding detail query SQL directly.
+- **Writes** — `withDbWrite` = process mutex + **one global** `pg_advisory_xact_lock` (key `748_291_063`) around load → mutate → **replace-all sync**: every table in scope is upserted row-by-row and rows missing from memory are pruned (`postgres-persist-*.ts`); frameworks and controls are re-upserted on every write; evidence is insert-only. Writes load **no** historical evidence (`evidenceLimit: 0`), so mutation code must not read `db.evidence` for anything but rows it just added. `enqueueAssessmentJob` / `claimNextAssessmentJob` take the **same** global lock. The worker runs the whole `runAssessment` (AST + Playwright) **inside** `withDbWrite`, so all app writes block while any assessment runs — the main scalability risk in the codebase (`TODO.md` P0).
+- **Ordering caveat** — `Db` arrays are loaded without `ORDER BY`. Code that takes `.at(-1)` or `[...db.assessments].reverse()` as "latest" relies on insertion order that Postgres does not guarantee after upserts.
+- **Jobs** — queued in DB; worker leases (30 min), **3 attempts total** with exponential backoff, serial per project; triggers `manual` \| `webhook`. HTTP paths only enqueue (`src/server/assessment-jobs.ts`). In `next dev` and the Playwright harness, the action drains the queue in-process (`assessment-job-drain.ts`).
 - **Clones** — shallow git checkout per job into OS temp; deleted after (`src/server/repo-checkout.ts`). See [`docs/deploy.md`](../deploy.md).
 - **Observability** — Sentry via `src/instrumentation.ts`; product code uses `reportError` / `reportWarning`.
 
@@ -67,9 +71,9 @@ packages/analysis-core/  ← no imports from src/server/ or src/app/
 src/server/, app/        ← integrate core + analysis via src/adapters/registry.ts
 ```
 
-WCAG reuses the RGAA control catalog (`wcag` adapter registers presets only). Server/app import adapters **only** via `registry.ts`.
+WCAG reuses the RGAA control catalog (`wcag` adapter registers framework metadata + presets; `wcag/presets.ts` reads `rgaaControls` directly). Server/app are meant to import adapters **only** via `registry.ts`; in practice `src/adapters/control-theme.ts` is also imported directly by pages, `report.ts`, and `report-html/*`, and nothing enforces the rule.
 
-**Finding merge:** `filterAstFindingsForAuthority` — when runtime ran, drop composition-sensitive, runtime-only, and package-twin source findings.
+**Finding merge:** `filterAstFindingsForAuthority` (`merge-findings.ts`) — when runtime ran, drop composition-sensitive, runtime-only, and package-twin source findings. This is where "runtime wins for composition-sensitive checks" is implemented; `deriveRequirementStatus` treats `composition_sensitive` exactly like `standard`.
 
 ## Analysis engines
 
@@ -78,7 +82,7 @@ Three deterministic engines; AI is separate and never authoritative.
 ### 1. AST (`packages/analysis-core/src/checks/`)
 
 - Runs on source in CI, local dev, and `complyloop-check`.
-- Custom AST checks registered in `registry.ts`, plus `eslint-plugin-jsx-a11y` on the same files (`jsx-a11y-scan.ts`).
+- **58** custom AST checks registered in `checks/registry.ts` (`allChecks`), plus `eslint-plugin-jsx-a11y` on the same files (`jsx-a11y-scan.ts`; 30 plugin rules mapped to 20 check ids in `jsx-a11y-map.ts`). Together they can emit **77** distinct check ids. The `CheckId` union and the catalog's non-null `checkId`s are both **138** (the rest are runtime/axe/html-validate/site-level ids); **25** catalog controls are manual (`checkId: null`).
 - Text heuristics (confirm labels, CAPTCHA cues, vague links) live in `patterns/multilingual.ts` with accent folding for FR/EN/ES/DE.
 - Safe auto-fixes and verified AI patches target AST findings.
 
@@ -150,13 +154,14 @@ overlap axe — exclusive ownership, not dedupe. `duplicate-id` is axe + AST onl
 | Class                     | Behavior                                                                           |
 | ------------------------- | ---------------------------------------------------------------------------------- |
 | **Runtime-only**          | `unable_to_verify` until page audit runs — never `passed` from empty AST           |
-| **Composition-sensitive** | AST runs in CI; runtime wins for status when both run (labels, names, headings, …) |
+| **Composition-sensitive** | AST runs in CI; runtime findings replace AST findings when both run (labels, names, headings, …); status derivation itself = standard |
 | **Heuristic AST**         | Empty scan → `unable_to_verify`, not `passed` (pertinence-style rules)             |
-| **Site-level**            | Subset of runtime-only; needs ≥2 preview routes                                    |
+| **Site-level**            | Needs `runtimeRan` + ≥2 preview routes. Mostly runtime-only ids, but `consistent-lang` and `consistent-page-heading` are site-level without being in the runtime-only list |
+| **Standard**              | Everything else: empty AST scan → `passed`. Note this includes `video-caption`, `audio-caption`, `media-controls-present`, which AST cannot see for client-rendered media |
 
-**Source of truth for ids:** `check-authority.ts` and `registry.ts` — do not duplicate long id lists in docs.
+**Source of truth for ids:** `check-authority.ts` and `checks/registry.ts` — do not duplicate long id lists in docs.
 
-Classifier precedence in `authorityForCheck`: site_level → runtime_only → heuristic → composition_sensitive → standard.
+Classifier precedence in `authorityForCheck`: site_level → runtime_only → heuristic → composition_sensitive → standard. A check id may appear in several lists; today the only dual-listed id is `label-adjacent` (runtime-only **and** heuristic). Because `findingsFromAxeHits` downgrades any heuristic id to `kind: "warning"`, `label-adjacent` runtime hits can only ever yield `needs_review`, never `failed` (`TODO.md`).
 
 ### Status derivation (`packages/analysis-core/src/contract/requirement-status.ts`)
 
@@ -179,12 +184,14 @@ Each project stores a **`defaultPresetId`** (set on connect, editable in Setting
 
 ### Assessment
 
-1. UI / webhook **enqueues** an `assessment_jobs` row. The worker (or inline drain in dev/e2e) leases it, clones, and scans — never in the request path.
-2. AST scan of connected tree (changed JSX only on re-assess when possible).
-3. If preview URL set → Playwright audit per route: axe + custom checks + html-validate + applicability probes + viewport/pointer target-size + theme conditions; then site-level + link check.
-4. Merge findings; runtime wins for composition-sensitive rules.
-5. Re-derive requirement statuses (sticky humans, applicability, authority gates).
-6. Manual controls stay `unable_to_verify` until human pass or exception.
+1. UI / webhook **enqueues** an `assessment_jobs` row. The worker (or inline drain in dev/e2e) leases it, clones (depth-1 fetch of the ref), and scans — never in the request path.
+2. `detectChanges` hashes every source file into `assessment.snapshot.fileHashes` and diffs against the previous assessment's snapshot; changed files are attributed with `git log -1 -- <file>`, which on a depth-1 clone always returns the HEAD commit, so `author` / `commitSha` on `FileChange` and regression alerts is the tip commit, not the real last author.
+3. AST scan of connected tree (changed JSX only on re-assess when possible).
+4. If preview URL set → Playwright audit per route: axe + custom checks + html-validate + applicability probes + viewport/pointer target-size + theme conditions; then site-level + link check.
+5. Merge findings; runtime wins for composition-sensitive rules.
+6. Re-derive requirement statuses (sticky humans, applicability, authority gates).
+7. Manual controls stay `unable_to_verify` until human pass or exception.
+8. `verifyDraftPrRemediation` is meant to move an `approved` (via draft PR) remediation to `verified` when its finding is no longer detected. It checks `db.evidence` for the `remediation_approved` record, but the worker loads the write snapshot with `evidenceLimit: 0`, so in the job path this never fires (`TODO.md` P0).
 
 ### Remediation
 
@@ -199,7 +206,7 @@ Finding page UX: [`finding-flow.md`](./finding-flow.md).
 
 Webhook or manual re-assess → scoped JSX re-scan + optional runtime → regression alerts + optional PR Check Run.
 
-**Webhook-driven re-assessment** (`src/app/api/github/webhook` → `src/server/webhook.ts` → `assessment-jobs` → worker) is validated and idempotent on `x-github-delivery`. It never clones or scans in the request path — it only enqueues a durable job that the worker (`assessment-worker.ts`) runs, collecting `compliance_regression` alerts and, for PR events, posting a GitHub Check Run (`github-checks.ts`). Full coverage lives in `e2e/webhook.spec.ts`, which drives signed push/PR deliveries through the real app. In the Playwright harness the app's Octokit is pointed at a local fixture GitHub API via `GITHUB_API_BASE_URL` (defaults to `api.github.com` in prod; also useful for GitHub Enterprise Server).
+**Webhook-driven re-assessment** (`src/app/api/github/webhook` → `src/server/webhook.ts` → `assessment-jobs` → worker) is signature-validated. `x-github-delivery` is recorded in `webhook_deliveries`, but a duplicate delivery is still handled (the response only carries `duplicate: true`); actual idempotency comes from the `assessment_jobs.idempotency_key` derived from the delivery id. It never clones or scans in the request path — it only enqueues a durable job that the worker (`assessment-worker.ts`) runs, collecting `compliance_regression` alerts and, for PR events, posting a GitHub Check Run (`github-checks.ts`). Clone failures surface as `assessment_job_failed` evidence, not as a webhook response code. Full coverage lives in `e2e/webhook.spec.ts`, which drives signed push/PR deliveries through the real app. In the Playwright harness the app's Octokit is pointed at a local fixture GitHub API via `GITHUB_API_BASE_URL` (unset → Octokit's own `api.github.com` default; also useful for GitHub Enterprise Server).
 
 ### Reports
 
@@ -210,7 +217,7 @@ HTML exports from `/evidence/report/html`: engineering (`report-html/engineering
 - Evidence append-only; exceptions and decisions keep history.
 - Every status records `automated` vs `human_review`.
 - `verified` only via deterministic re-check or recorded human verification.
-- Webhook deliveries idempotent on `x-github-delivery`.
+- Webhook-triggered assessments idempotent via the job `idempotencyKey` (derived from `x-github-delivery`).
 - Human exceptions / human passes are sticky until explicitly cleared or a temporary exception expires.
 
 ## Adding a framework
@@ -224,10 +231,12 @@ HTML exports from `/evidence/report/html`: engineering (`report-html/engineering
 | Command                 | What                                                                                |
 | ----------------------- | ----------------------------------------------------------------------------------- |
 | `npm run test`          | Vitest unit/integration                                                             |
-| `npm run test:coverage` | Gates on `src/core`, `src/adapters`, `packages/analysis-core`, `src/ai`, `src/hooks`, most of `src/server` |
+| `npm run test:coverage` | Gates on `src/core`, `src/adapters`, `packages/analysis-core`, `src/ai`, `src/hooks`, most of `src/server` (lines 96 / functions 96 / branches 85 / statements 94) |
 | `npm run test:e2e`      | Playwright (gated harness)                                                          |
 
-Excluded from unit coverage gate (`vitest.config.mts`): `src/server/db-store/**`, `runtime/scan.ts`, live GitHub/git I/O, Auth/cookie/workspace glue, markdown `report.ts`, `remediation-verify.ts`. HTML reports are covered by `report-html` tests.
+Excluded from the unit coverage gate (`vitest.config.mts`): `src/server/db-store/**` (the whole load/persist stack), `packages/analysis-core/src/runtime/scan.ts`, `active-cookies.ts`, `workspace.ts`, `db.ts`, `repo-checkout.ts`, `github-tokens.ts`, `github-app.ts`, `octokit.ts`, `github.ts`, `connect-github.ts`, `pr.ts`, `webhook-deliveries.ts`, `github-repo.ts`, `report.ts`, `actions/remediation-verify.ts`. Several excluded modules (`pr.ts`, `github.ts`, `webhook-deliveries.ts`, `remediation-verify.ts`) do have unit tests. HTML reports are exercised through `report.test.ts` and `report-html/shared.test.ts`; `audit.ts` / `engineering.ts` have no colocated tests.
+
+`npm run test` resolves `@complyloop/analysis-core/*` to the compiled `dist/` (see *Build coupling* above).
 
 ## Related
 

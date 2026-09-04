@@ -20,7 +20,7 @@ Orientation for agents. **Do not duplicate** product principles, domain vocabula
 | [`docs/ai/architecture.md`](./docs/ai/architecture.md)                                    | System shape, persistence, analysis            |
 | [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                                    | Finding page UX contract                       |
 | [`docs/analysis-strategy.md`](./docs/analysis-strategy.md)                                | Analysis engines, what/when to add tooling     |
-| [`docs/analysis-checks-challenge.md`](./docs/analysis-checks-challenge.md)                | Challenge of current checks / extra packages   |
+| [`TODO.md`](./TODO.md)                                                                    | Prioritized bugs, debt, decisions to revisit   |
 | [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …) |
 
 ## What this is
@@ -53,9 +53,10 @@ Record new stack decisions here and in `docs/ai/architecture.md`.
 ## Commands
 
 ```bash
-npm run dev              # Dev server (Turbopack)
-npm run build            # Production build
-npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done
+npm run dev              # Dev server (Turbopack); runs build:core first
+npm run build            # Production build; runs build:core first
+npm run build:core       # Compile packages/analysis-core → dist (lint/typecheck/test import dist)
+npm run build:core && npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done
 npm run test:coverage    # Coverage gates (vitest.config.mts)
 npm run check -- [path]  # Local a11y CI gate
 npm run worker           # Assessment worker
@@ -66,8 +67,8 @@ npm run test:e2e         # Playwright (after e2e:seed)
 ## Where code lives
 
 ```
-src/core/                          Framework-agnostic domain
-packages/analysis-core/src/        AST + runtime audits
+src/core/                          Framework-agnostic domain (5 files are shims over analysis-core/contract)
+packages/analysis-core/src/        AST checks (checks/registry.ts) + runtime audits + contract/ (statuses, findings, status derivation)
 src/adapters/rgaa/                 RGAA/WCAG catalog & guidance
 src/ai/                            Optional AI (provenance-tagged)
 src/server/                        Persistence, assessment, GitHub, actions

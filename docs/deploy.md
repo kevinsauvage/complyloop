@@ -21,10 +21,11 @@ Production checklist and reference. **App overview:** [`README.md`](../README.md
 | --- | --- |
 | **State** | Postgres only — no durable repo workspace on disk |
 | **Clones** | Shallow temp checkout per job; deleted after |
-| **Jobs** | Queued in DB; worker leases, retries ×3, serial per project |
+| **Jobs** | Queued in DB; worker leases (30 min), 3 attempts total with backoff, serial per project |
 | **Webhooks** | Acknowledge after enqueue — no long HTTP hold for clone/Playwright |
+| **Write lock** | All domain writes (actions **and** the worker's assessment) share one global Postgres advisory lock; while an assessment runs, other writes wait. Size worker count and expectations accordingly (see `TODO.md` P0). |
 
-Webhooks that cannot clone return `handled: false` (`code: webhook_clone_failed`) without crashing the process.
+Webhooks never clone. Clone or scan failures happen in the worker and end as `assessment_job_failed` evidence after the last attempt.
 
 ---
 
@@ -46,7 +47,13 @@ Webhooks that cannot clone return `handled: false` (`code: webhook_clone_failed`
 | `ASSESSMENT_MAX_CHECKOUT_FILES` | No | Clone file cap (default 50,000) |
 | `ASSESSMENT_MAX_RUNTIME_PAGES` | No | Runtime audit page quota (default 25) |
 | `NEXT_PUBLIC_SENTRY_DSN` | No | Browser Sentry |
+| `SENTRY_TRACES_SAMPLE_RATE` | No | 0–1, default 0.05 in production |
+| `AI_GATEWAY_API_KEY` | No | Enables AI explanations / suggestions / patches (Vercel AI Gateway) |
+| `GITHUB_API_BASE_URL` | No | GitHub REST base override (GHES, or the e2e fixture API) |
+| `COMPLYLOOP_SUPPORT_EMAIL` | No | Support contact shown on the Organization page |
+| `COMPLYLOOP_BACKUP_DIR` | For `ops:backup` | Destination for `scripts/backup-postgres.sh` |
 | `DATABASE_SSL_INSECURE` | Dev only | Skip TLS verify for some hosted Postgres |
+| `E2E_AUTH_ENABLED` / `E2E_FIXTURE_ROOT` / `E2E_AUTH_SECRET` / `E2E_GITHUB_TOKEN` | CI/local e2e only | Playwright harness — never on customer deploys |
 
 ---
 
@@ -126,10 +133,10 @@ Compose has no default `AUTH_SECRET`. Copy-pasting `replace-me` or `e2e-secret-c
 
 `GET /api/health`:
 
-- `200` — `{ status: "ok", database: "up" }`
-- `503` — database unreachable
+- `200` — `{ status: "ok", database: "up", assessmentJobs: <queued+running>, latencyMs }`
+- `503` — `{ status: "unavailable", database: "down", error, latencyMs }`
 
-Use for readiness probes.
+Use for readiness probes. `assessmentJobs` is a cheap queue-depth signal for alerting. Note `queuedAssessmentJobCount` selects the rows instead of `COUNT(*)`.
 
 ### Backup & restore
 
@@ -189,8 +196,8 @@ Sign-out clears encrypted tokens. OAuth tokens stay server-side (not in JWT).
 With `SENTRY_DSN`, alert on:
 
 - Unhandled exceptions / `reportError`
-- Webhooks: `workspace_missing`, repeated `webhook_clone_failed`
-- Assessment failures after deploy
+- `assessment_job_failed` / `assessment_job_retrying` (worker), `github_check_run_failed`, `github_token_missing`
+- Growing `assessmentJobs` on `/api/health`, and assessment failures after deploy
 
 Do not alert on `health_database_down` — the health probe reports it as a warning so uptime checks cannot flood error alerts.
 
