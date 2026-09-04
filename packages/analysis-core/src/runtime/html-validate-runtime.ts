@@ -33,6 +33,12 @@ const RENDERED_RULES = {
   deprecated: "error",
 } as const;
 
+export const HTML_VALIDATE_RENDERED_RULE_IDS = Object.keys(
+  RENDERED_RULES,
+) as Array<keyof typeof RENDERED_RULES>;
+
+export const HTML_VALIDATE_INPUT_KIND = "live-dom-serialization" as const;
+
 // Lazily built (module-level HtmlValidate is fine; it stays offline).
 let validator: HtmlValidate | null = null;
 function getValidator(): HtmlValidate {
@@ -60,6 +66,8 @@ const VOID_ELEMENTS = new Set([
 
 interface SerializedElement {
   offset: number;
+  /** Exclusive end of this element in the serialized string (includes closing tag). */
+  closeEndOffset?: number;
   selector: string;
   html: string;
 }
@@ -141,6 +149,7 @@ export function serializeDocument(voidTags: string[]): SerializeDocumentResult {
     out.html += open;
 
     const snippet = (el.outerHTML || "").replace(/\s+/g, " ").trim();
+    const elIndex = out.elements.length;
     out.elements.push({
       offset,
       selector: selectorOf(el),
@@ -150,6 +159,9 @@ export function serializeDocument(voidTags: string[]): SerializeDocumentResult {
     if (!isVoid) {
       for (const child of Array.from(el.childNodes)) build(child);
       out.html += `</${tag}>`;
+      out.elements[elIndex]!.closeEndOffset = out.html.length;
+    } else {
+      out.elements[elIndex]!.closeEndOffset = out.html.length;
     }
   }
 
@@ -200,17 +212,42 @@ function offsetForLineColumn(text: string, line: number, column: number): number
   return Math.min(offset + Math.max(0, column - 1), text.length);
 }
 
-/** The element whose start offset is at or before `offset` (deepest match). */
+/** The element whose serialized span contains `offset` (deepest match). */
 function elementAtOffset(
   elements: SerializedElement[],
   offset: number,
 ): SerializedElement | undefined {
   let match: SerializedElement | undefined;
   for (const el of elements) {
+    const end = el.closeEndOffset ?? el.offset;
+    if (offset >= el.offset && offset < end) {
+      if (!match || el.offset >= match.offset) match = el;
+    }
+  }
+  if (match) return match;
+
+  for (const el of elements) {
     if (el.offset <= offset) match = el;
     else break;
   }
   return match;
+}
+
+function findingConfidence(checkId: string): RawFinding["confidence"] {
+  return checkId === "markup-nesting" ? "medium" : "high";
+}
+
+function htmlValidateReason(
+  msg: HtmlValidateMessage,
+  version: string | undefined,
+): string {
+  const rule = msg.ruleId ?? "unknown";
+  const detail = msg.message ?? "structural HTML issue";
+  const versionLabel = version ?? "unknown";
+  return (
+    `Live DOM serialization (html-validate ${versionLabel}, not SSR/source HTML): ` +
+    `[${rule}] ${detail}. Browser-repaired tree only; doctype omitted from validated string.`
+  );
 }
 
 function findingSeverity(checkId: string): RawFinding["severity"] {
@@ -225,11 +262,14 @@ function findingSeverity(checkId: string): RawFinding["severity"] {
 export function htmlValidateFindingsFromSerialized(
   serialized: SerializeDocumentResult,
   url: string,
+  options?: { doctypeIncludedInInput?: boolean },
 ): RawFinding[] {
   const report = getValidator().validateStringSync(serialized.html, url);
   const messages: HtmlValidateMessage[] =
     report.results[0]?.messages ?? [];
   const findings: RawFinding[] = [];
+  const version = htmlValidatePackageVersion();
+  const doctypeIncludedInInput = options?.doctypeIncludedInInput ?? false;
 
   for (const msg of messages) {
     if (msg.severity !== 2) continue;
@@ -246,8 +286,8 @@ export function htmlValidateFindingsFromSerialized(
       checkId,
       kind: "violation",
       severity: findingSeverity(checkId),
-      confidence: "high",
-      reason: `html-validate [${msg.ruleId}]: ${msg.message ?? "structural HTML issue"}`,
+      confidence: findingConfidence(checkId),
+      reason: htmlValidateReason(msg, version),
       location: {
         kind: "dom",
         url,
@@ -260,7 +300,10 @@ export function htmlValidateFindingsFromSerialized(
       engine: "runtime",
       analyzerId: "html-validate",
       analyzerRuleId: msg.ruleId,
-      analyzerVersion: htmlValidatePackageVersion(),
+      analyzerVersion: version,
+      validationInput: HTML_VALIDATE_INPUT_KIND,
+      validationRules: [...HTML_VALIDATE_RENDERED_RULE_IDS],
+      doctypeIncludedInInput,
     });
   }
 
@@ -273,5 +316,7 @@ export async function htmlValidateFindingsForPage(
   url: string,
 ): Promise<RawFinding[]> {
   const serialized = await captureSerializedDom(page);
-  return htmlValidateFindingsFromSerialized(serialized, url);
+  return htmlValidateFindingsFromSerialized(serialized, url, {
+    doctypeIncludedInInput: false,
+  });
 }

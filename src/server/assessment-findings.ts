@@ -68,6 +68,13 @@ export function createFinding(
       ...(raw.analyzerId ? { analyzerId: raw.analyzerId } : {}),
       ...(raw.analyzerRuleId ? { analyzerRuleId: raw.analyzerRuleId } : {}),
       ...(raw.analyzerVersion ? { analyzerVersion: raw.analyzerVersion } : {}),
+      ...(raw.validationInput ? { validationInput: raw.validationInput } : {}),
+      ...(raw.validationRules?.length
+        ? { validationRules: raw.validationRules }
+        : {}),
+      ...(raw.doctypeIncludedInInput !== undefined
+        ? { doctypeIncludedInInput: raw.doctypeIncludedInInput }
+        : {}),
       ...(raw.contributingAnalyzers?.length
         ? { contributingAnalyzers: raw.contributingAnalyzers }
         : {}),

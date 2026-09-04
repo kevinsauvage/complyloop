@@ -175,6 +175,12 @@ export interface RawFinding {
   analyzerRuleId?: string;
   /** Package version of the analyzer when cheap to resolve. */
   analyzerVersion?: string;
+  /** What was validated (e.g. live DOM serialization vs source HTML). */
+  validationInput?: string;
+  /** Rule ids enabled for this validation pass. */
+  validationRules?: string[];
+  /** Whether a doctype was included in the validated string. */
+  doctypeIncludedInInput?: boolean;
   /** Other analyzers merged into this finding during runtime dedupe. */
   contributingAnalyzers?: AnalyzerContribution[];
 }

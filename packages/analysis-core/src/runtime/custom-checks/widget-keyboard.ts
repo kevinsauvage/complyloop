@@ -3,22 +3,10 @@ import type { CustomViolation, CustomViolationNode } from "./types.js";
 import { isKeyboardFocusable, selectorOf } from "./widget-keyboard-utils.js";
 
 /**
- * ARIA widget keyboard operability (§7 Interaction: tabs, disclosure, menu).
+ * ARIA widget keyboard reachability (§7 Interaction: tabs, disclosure, menu).
  *
- * axe validates ARIA attributes and names but never asks whether the *items
- * inside a composite widget* are reachable with a keyboard. These deterministic
- * check families cover the three ARIA widgets the roadmap calls next:
- *
- * - `role=tablist` → at least one `role=tab` must be in the tab order.
- * - `aria-expanded` toggle → the element carrying it must itself be
- *   keyboard-activatable (a non-focusable `<div aria-expanded>` is a widget a
- *   keyboard user can never operate).
- * - `role=menu`/`role=menubar` → each `menuitem` must be keyboard-focusable,
- *   otherwise keyboard navigation through the menu is impossible.
- *
- * The recurrence rule is deliberately conservative (reachability only) to keep
- * the false-positive rate near zero. All map to RGAA 7.3 / WCAG 2.1.1
- * (`keyboard-interaction`).
+ * These checks verify that composite widgets are reachable in the tab order.
+ * They do not simulate arrow-key operability inside the widget.
  */
 
 const BROWSER_HELPERS = `(function helperSource() {
@@ -42,7 +30,7 @@ export async function widgetKeyboardViolations(
       impact: "serious",
       description:
         "A tablist has no tab in the keyboard tab order.",
-      help: "Keyboard users must be able to reach and switch tabs with the Tab and arrow keys (RGAA 7.3 / WCAG 2.1.1).",
+      help: "At least one tab must be in the keyboard tab order so the widget is reachable (RGAA 7.3 / WCAG 2.1.1). Arrow-key navigation inside the tablist is not verified by this check.",
       nodes: tabNodes,
     });
   }
@@ -181,7 +169,7 @@ async function collectMenuNodes(page: Page): Promise<CustomViolationNode[]> {
           target: [sel],
           elementLabel: "menu item",
           failureSummary:
-            "This menu item is not keyboard-focusable, so a keyboard user cannot navigate to it with arrow keys.",
+            "This menu item is not keyboard-focusable, so a keyboard user cannot reach it with Tab.",
         });
       });
 

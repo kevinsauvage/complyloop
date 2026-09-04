@@ -53,7 +53,7 @@ describe("runSiteLevelChecks", () => {
     );
   });
 
-  it("flags inconsistent navigation signatures", () => {
+  it("warns when navigation signatures differ in order", () => {
     const findings = runSiteLevelChecks([
       snapshot("https://x.test/a", {
         navLinks: ["Home::/", "About::/about"],
@@ -62,9 +62,55 @@ describe("runSiteLevelChecks", () => {
         navLinks: ["About::/about", "Home::/"],
       }),
     ]);
-    expect(findings.some((finding) => finding.checkId === "consistent-nav")).toBe(
-      true,
+    const navFindings = findings.filter(
+      (finding) => finding.checkId === "consistent-nav",
     );
+    expect(navFindings).toHaveLength(1);
+    expect(navFindings[0]?.kind).toBe("warning");
+  });
+
+  it("does not flag when only trailing auth links differ", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", {
+        navLinks: ["Home::/", "About::/about", "Logout::/logout"],
+      }),
+      snapshot("https://x.test/b", {
+        navLinks: ["Home::/", "About::/about"],
+      }),
+    ]);
+    expect(findings.some((finding) => finding.checkId === "consistent-nav")).toBe(
+      false,
+    );
+  });
+
+  it("warns when primary navigation content differs", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", {
+        navLinks: ["Home::/", "About::/about"],
+      }),
+      snapshot("https://x.test/b", {
+        navLinks: ["Home::/", "Pricing::/pricing"],
+      }),
+    ]);
+    const navFindings = findings.filter(
+      (finding) => finding.checkId === "consistent-nav",
+    );
+    expect(navFindings).toHaveLength(1);
+    expect(navFindings[0]?.kind).toBe("warning");
+  });
+
+  it("violates when primary navigation is missing on some routes", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", {
+        navLinks: ["Home::/", "About::/about"],
+      }),
+      snapshot("https://x.test/b"),
+    ]);
+    const navFindings = findings.filter(
+      (finding) => finding.checkId === "consistent-nav",
+    );
+    expect(navFindings).toHaveLength(1);
+    expect(navFindings[0]?.kind).toBe("violation");
   });
 
   it("flags inconsistent labels for the same field name", () => {

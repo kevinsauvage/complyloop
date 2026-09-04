@@ -4,6 +4,8 @@ import { chromium, type Browser, type Page } from "playwright";
 
 let sharedBrowser: Browser | null = null;
 
+const PROBE_PAGE_ORIGIN = "https://complyloop-probe.test";
+
 export function chromiumExecutableAvailable(): boolean {
   try {
     return fs.existsSync(chromium.executablePath());
@@ -14,11 +16,21 @@ export function chromiumExecutableAvailable(): boolean {
 
 export async function withPlaywrightPage(
   html: string,
+  options?: { routable?: boolean },
 ): Promise<{ page: Page; close: () => Promise<void> }> {
   sharedBrowser ??= await chromium.launch({ headless: true });
   const context = await sharedBrowser.newContext();
   const page = await context.newPage();
-  await page.setContent(html);
+  if (options?.routable) {
+    await page.route(`${PROBE_PAGE_ORIGIN}/**`, async (route) => {
+      await route.fulfill({ contentType: "text/html", body: html });
+    });
+    await page.goto(`${PROBE_PAGE_ORIGIN}/`, {
+      waitUntil: "domcontentloaded",
+    });
+  } else {
+    await page.setContent(html);
+  }
   return {
     page,
     close: async () => {

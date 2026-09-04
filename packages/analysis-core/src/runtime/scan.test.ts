@@ -1,20 +1,21 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { chromium, type Browser } from "playwright";
 import {
   gotoForRuntimeAudit,
   resolveAxeMinJsPath,
   runAxeOnPage,
 } from "./scan";
+import * as htmlValidateRuntime from "./html-validate-runtime";
+import * as ibmRuntime from "./ibm-runtime";
+import {
+  chromiumExecutableAvailable,
+  PLAYWRIGHT_TEST_TIMEOUT_MS,
+  registerPlaywrightBrowserTeardown,
+  withPlaywrightPage,
+} from "./custom-checks/playwright-page";
 import fs from "node:fs";
 
-function chromiumExecutableAvailable(): boolean {
-  try {
-    const executablePath = chromium.executablePath();
-    return fs.existsSync(executablePath);
-  } catch {
-    return false;
-  }
-}
+registerPlaywrightBrowserTeardown();
 
 describe("runAxeOnPage", () => {
   let browser: Browser | null = null;
@@ -81,5 +82,62 @@ describe("gotoForRuntimeAudit", () => {
       expect(await page.locator("h1").textContent()).toBe("Ready");
     },
     30_000,
+  );
+});
+
+describe("runtime engine isolation", () => {
+  it.skipIf(!chromiumExecutableAvailable())(
+    "preserves axe violations when html-validate and IBM throw",
+    async () => {
+      const htmlValidateSpy = vi
+        .spyOn(htmlValidateRuntime, "htmlValidateFindingsForPage")
+        .mockRejectedValue(new Error("html-validate down"));
+      const ibmSpy = vi
+        .spyOn(ibmRuntime, "ibmFindingsForPage")
+        .mockRejectedValue(new Error("ibm down"));
+
+      const { page, close } = await withPlaywrightPage(`
+        <!doctype html><html lang="en"><head><title>t</title></head>
+        <body><img src="x.png"></body></html>
+      `);
+      try {
+        const axeResults = await runAxeOnPage(page);
+        let htmlValidateFindings: unknown[] = [];
+        let pageHtmlValidateRan = false;
+        try {
+          htmlValidateFindings = await htmlValidateRuntime.htmlValidateFindingsForPage(
+            page,
+            "https://app.example/",
+          );
+          pageHtmlValidateRan = true;
+        } catch {
+          // Non-fatal in scan.ts
+        }
+
+        let ibmFindings: unknown[] = [];
+        let pageIbmCheckerRan = false;
+        try {
+          ibmFindings = await ibmRuntime.ibmFindingsForPage(page, "https://app.example/", {
+            url: "https://app.example/",
+            violations: axeResults.violations,
+            incomplete: axeResults.incomplete,
+          });
+          pageIbmCheckerRan = true;
+        } catch {
+          // Non-fatal in scan.ts
+        }
+
+        expect(axeResults.violations.some((v) => v.id === "image-alt")).toBe(true);
+        expect(pageHtmlValidateRan).toBe(false);
+        expect(htmlValidateFindings).toEqual([]);
+        expect(pageIbmCheckerRan).toBe(false);
+        expect(ibmFindings).toEqual([]);
+      } finally {
+        htmlValidateSpy.mockRestore();
+        ibmSpy.mockRestore();
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
 });

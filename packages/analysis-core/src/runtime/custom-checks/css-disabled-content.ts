@@ -15,34 +15,51 @@ export async function cssDisabledContentViolations(
       return el.tagName.toLowerCase();
     }
 
-    function directText(el: Element): string {
-      let text = "";
-      for (const node of el.childNodes) {
-        if (node.nodeType === Node.TEXT_NODE) {
-          text += node.textContent ?? "";
-        }
-      }
-      return text.trim();
+    function hasVisibleDomText(el: Element): boolean {
+      return (el.textContent ?? "").trim().length > 0;
+    }
+
+    function normalizePseudoContent(value: string): string {
+      return value
+        .replace(/^["']|["']$/g, "")
+        .replace(/\\([0-9a-fA-F]{1,6})\s?/g, (_, hex: string) =>
+          String.fromCodePoint(Number.parseInt(hex, 16)),
+        )
+        .trim();
+    }
+
+    function isSymbolicOnly(text: string): boolean {
+      const compact = text.replace(/\s+/g, "");
+      if (compact.length === 0) return true;
+      if (compact.length === 1) return true;
+      return /^[\u2190-\u21FF\u25A0-\u25FF\u2600-\u26FF→←▼▶»‹›*•·+×÷|/\\-–—:;,.!?()[\]{}]+$/u.test(
+        compact,
+      );
+    }
+
+    function looksLikeWords(text: string): boolean {
+      return /\p{L}{2,}/u.test(text);
     }
 
     const results: CssContentHit[] = [];
 
     for (const el of document.querySelectorAll("body *")) {
       if (!(el instanceof HTMLElement)) continue;
-      if (directText(el).length > 0) continue;
+      if (hasVisibleDomText(el)) continue;
 
       const before = getComputedStyle(el, "::before").content;
       const after = getComputedStyle(el, "::after").content;
       const pseudoText = [before, after]
         .filter((value) => value && value !== "none" && value !== '""')
+        .map(normalizePseudoContent)
         .join(" ")
-        .replace(/^["']|["']$/g, "")
         .trim();
       if (pseudoText.length === 0) continue;
+      if (isSymbolicOnly(pseudoText)) continue;
 
       const bg = getComputedStyle(el).backgroundImage;
       const hasBgImage = bg && bg !== "none";
-      if (!hasBgImage && pseudoText.length < 2) continue;
+      if (!looksLikeWords(pseudoText) && !hasBgImage) continue;
 
       const html = el.outerHTML.replace(/\s+/g, " ").trim();
       results.push({

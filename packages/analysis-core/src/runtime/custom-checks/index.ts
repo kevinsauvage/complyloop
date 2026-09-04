@@ -21,6 +21,7 @@ import { forcedColorsViolation } from "./forced-colors.js";
 import { reducedMotionViolation } from "./reduced-motion.js";
 import { dialogFocusViolations } from "./dialog-focus.js";
 import { widgetKeyboardViolations } from "./widget-keyboard.js";
+import { restorePageAfterMutatingProbes } from "./page-restore.js";
 import { reflowViolation } from "./reflow.js";
 import { resizeTextViolation } from "./resize-text.js";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime.js";
@@ -68,15 +69,19 @@ export async function runCustomRuntimeChecks(
     ...(await widgetKeyboardViolations(page)),
   ];
 
-  // Form submit, reduced-motion, forced-colors, and css-off mutate page state
-  // or emulate media; run sequentially so they never race the shared-page batch
-  // (each check restores state after). Viewport-mutating checks (reflow,
-  // 200% resize, 44×44 target size) belong on the same sequential path.
-  for (const emulated of [
+  // css-off restores styles in-page; form submit, live-region, and hover mutate
+  // DOM state — reload before media/viewport probes so later checks stay clean.
+  for (const mutating of [
     await cssOffUnderstandableViolation(page),
     await formErrorSubmitViolation(page),
     await liveRegionUpdatesViolation(page),
     await hoverContentViolation(page),
+  ]) {
+    if (mutating) violations.push(mutating);
+  }
+  await restorePageAfterMutatingProbes(page);
+
+  for (const emulated of [
     await forcedColorsViolation(page),
     await reducedMotionViolation(page),
     await reflowViolation(page),

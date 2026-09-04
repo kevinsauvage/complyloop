@@ -98,6 +98,23 @@ describe("runAssessment with runtime engine", () => {
     ).toBe("passed");
   });
 
+  it("records default theme conditions on the assessment engines", async () => {
+    const assessment = await runAssessment(db, project.id, {
+      rootPath,
+      runtimeLookup: publicLookup,
+      runtimeScanner: async (urls) => [
+        {
+          url: urls[0]!,
+          violations: [],
+          incomplete: [],
+          htmlValidateRan: false,
+        },
+      ],
+    });
+
+    expect(assessment.engines?.themeConditions).toEqual(["dark", "light"]);
+  });
+
   it("records runtimeError without failing the whole assessment", async () => {
     const assessment = await runAssessment(db, project.id, {
       rootPath,

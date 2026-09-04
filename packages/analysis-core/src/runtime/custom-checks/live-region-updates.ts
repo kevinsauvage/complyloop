@@ -1,17 +1,15 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.js";
 
-/**
- * WCAG 4.1.3 — after a user action, visible status text must be exposed through
- * a live region (not merely present in the DOM).
- */
+/** Form-validation feedback — not marketing copy with incidental substrings. */
+const FORM_STATUS_PATTERN_SOURCE =
+  String.raw`\b(error|invalid|incorrect|required|must|missing|failed|warning|alert)\b`;
+
 export async function liveRegionUpdatesViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const before = await page.evaluate(() => {
-    const statusPattern =
-      /error|invalid|required|success|saved|failed|warning|alert|sent|updated/i;
-
+  const before = await page.evaluate(({ patternSource }) => {
+    const statusPattern = new RegExp(patternSource, "i");
     function selectorOf(el: Element): string {
       if (el.id) return `#${el.id}`;
       return el.tagName.toLowerCase();
@@ -46,38 +44,53 @@ export async function liveRegionUpdatesViolation(
         .join("|"),
       statusKeys: collectStatusHits().map((hit) => `${hit.selector}::${hit.text}`),
     };
-  });
+  }, { patternSource: FORM_STATUS_PATTERN_SOURCE });
 
-  const triggered = await page.evaluate(() => {
+  const submitted = await page.evaluate(() => {
     for (const form of document.querySelectorAll("form")) {
       if (form.hasAttribute("novalidate")) continue;
       const submit = form.querySelector(
         'button[type="submit"], input[type="submit"], button:not([type])',
       );
       if (!submit) continue;
+      const field = form.querySelector(
+        "input[required], select[required], textarea[required], input[type=email]:not([readonly]), input[type=url]:not([readonly])",
+      );
+      if (!field) continue;
       if (submit instanceof HTMLElement) submit.click();
       else form.requestSubmit();
-      return true;
-    }
-    const button = document.querySelector("button:not([disabled])");
-    if (button instanceof HTMLElement) {
-      button.click();
       return true;
     }
     return false;
   });
 
-  if (!triggered) return null;
+  if (!submitted) return null;
 
   await page.waitForTimeout(300);
 
-  const after = await page.evaluate(({ beforeKeys, beforeLiveText }) => {
-    const statusPattern =
-      /error|invalid|required|success|saved|failed|warning|alert|sent|updated/i;
-
+  const after = await page.evaluate(({ beforeKeys, beforeLiveText, patternSource }) => {
+    const statusPattern = new RegExp(patternSource, "i");
     function selectorOf(el: Element): string {
       if (el.id) return `#${el.id}`;
       return el.tagName.toLowerCase();
+    }
+
+    function isInvalid(el: Element): boolean {
+      if (
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLSelectElement ||
+        el instanceof HTMLTextAreaElement
+      ) {
+        return !el.checkValidity();
+      }
+      return el.getAttribute("aria-invalid") === "true";
+    }
+
+    const invalidFields = Array.from(
+      document.querySelectorAll("input, select, textarea, [aria-invalid='true']"),
+    ).filter(isInvalid);
+    if (invalidFields.length === 0) {
+      return { liveText: "", newHits: [], beforeLiveText, hasInvalidFields: false };
     }
 
     const liveSelector = '[aria-live], [role="status"], [role="alert"]';
@@ -110,17 +123,21 @@ export async function liveRegionUpdatesViolation(
       if (newHits.length >= 5) break;
     }
 
-    return { liveText, newHits, beforeLiveText };
-  }, { beforeKeys: before.statusKeys, beforeLiveText: before.liveText });
+    return { liveText, newHits, beforeLiveText, hasInvalidFields: true };
+  }, {
+    beforeKeys: before.statusKeys,
+    beforeLiveText: before.liveText,
+    patternSource: FORM_STATUS_PATTERN_SOURCE,
+  });
 
-  if (after.newHits.length === 0) return null;
+  if (!after.hasInvalidFields || after.newHits.length === 0) return null;
   if (after.liveText !== after.beforeLiveText) return null;
 
   return {
     id: "complyloop-live-region-updates",
-    impact: "serious",
+    impact: "moderate",
     description:
-      "Status feedback appeared after an action but was not exposed through a live region.",
+      "Validation feedback appeared after submit but was not exposed through a live region.",
     help: 'Wrap dynamic status text in role="status", role="alert", or aria-live (WCAG 4.1.3 / RGAA 7.5).',
     nodes: after.newHits.map((hit) => ({
       html: hit.html,

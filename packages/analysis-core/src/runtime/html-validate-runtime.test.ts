@@ -8,6 +8,8 @@ import {
 import {
   htmlValidateFindingsForPage,
   htmlValidateFindingsFromSerialized,
+  HTML_VALIDATE_INPUT_KIND,
+  HTML_VALIDATE_RENDERED_RULE_IDS,
 } from "./html-validate-runtime";
 
 registerPlaywrightBrowserTeardown();
@@ -20,15 +22,44 @@ import { checkIdForHtmlValidateRule } from "./html-validate-map";
  * Used to drive htmlValidateFindingsFromSerialized without a browser.
  */
 function serialized(html: string): SerializeDocumentResult {
-  const elements = [];
-  const re = /<([a-z][a-z0-9-]*)((?:\s+[^>]*?)?)(\/?)>/gi;
+  const elements: Array<{
+    offset: number;
+    closeEndOffset?: number;
+    selector: string;
+    html: string;
+    tag: string;
+  }> = [];
+  const re = /<(\/?)([a-z][a-z0-9-]*)((?:\s+[^>]*?)?)(\/?)>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
-    const selfClosing = m[3] === "/";
-    elements.push({ offset: m.index, selector: m[1].toLowerCase(), html: m[0] });
-    if (selfClosing) continue;
+    const closing = m[1] === "/";
+    const tag = m[2]!.toLowerCase();
+    if (closing) {
+      for (let index = elements.length - 1; index >= 0; index -= 1) {
+        const candidate = elements[index]!;
+        if (candidate.tag === tag && candidate.closeEndOffset === undefined) {
+          candidate.closeEndOffset = m.index + m[0].length;
+          break;
+        }
+      }
+      continue;
+    }
+    const selfClosing = m[4] === "/";
+    elements.push({
+      offset: m.index,
+      tag,
+      selector: tag,
+      html: m[0],
+      closeEndOffset: selfClosing ? m.index + m[0].length : undefined,
+    });
   }
-  return { html, elements };
+  return {
+    html,
+    elements: elements.map(({ tag, ...element }) => {
+      void tag;
+      return element;
+    }),
+  };
 }
 
 const URL = "https://app.example/";
@@ -53,6 +84,26 @@ describe("html-validate rendered pass", () => {
     const dep = f.find((x) => x.checkId === "css-for-presentation");
     expect(dep?.severity).toBe("moderate");
     expect(dep?.engine).toBe("runtime");
+    const nesting = f.find((x) => x.checkId === "markup-nesting");
+    expect(nesting?.confidence).toBe("medium");
+    expect(nesting?.validationInput).toBe(HTML_VALIDATE_INPUT_KIND);
+    expect(nesting?.validationRules).toEqual(HTML_VALIDATE_RENDERED_RULE_IDS);
+    expect(nesting?.doctypeIncludedInInput).toBe(false);
+    expect(nesting?.reason).toMatch(/Live DOM serialization/);
+    expect(nesting?.reason).not.toMatch(/source HTML is valid/i);
+  });
+
+  it("maps closing-tag messages to the element being closed, not a later sibling", () => {
+    const s = serialized(
+      `<html><body><button type="button">a<button type="button">b</button></button><p id="after">later</p></body></html>`,
+    );
+    const f = htmlValidateFindingsFromSerialized(s, URL);
+    const nesting = f.find((x) => x.checkId === "markup-nesting");
+    expect(nesting).toBeDefined();
+    expect(nesting?.location.kind).toBe("dom");
+    if (nesting?.location.kind !== "dom") return;
+    expect(nesting.location.selector).toBe("button");
+    expect(nesting.location.selector).not.toBe("p");
   });
 
   it.skipIf(!chromiumExecutableAvailable())(

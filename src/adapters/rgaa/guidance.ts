@@ -130,9 +130,9 @@ const guidance: Record<CheckId, CheckGuidance> = {
   },
   "tabs-keyboard": {
     impact:
-      "Tab widgets without a focusable tab leave keyboard users unable to operate the control.",
+      "Tab widgets without a focusable tab leave keyboard users unable to reach the control.",
     howToFix:
-      "Use native buttons or links for tabs, or ensure at least one tab has tabindex 0 and arrow keys move between tabs.",
+      "Use native buttons or links for tabs, or ensure at least one tab has tabindex 0 so the tablist is reachable with Tab. Arrow-key navigation between tabs is not verified by this check.",
   },
   "disclosure-keyboard": {
     impact:
@@ -144,7 +144,7 @@ const guidance: Record<CheckId, CheckGuidance> = {
     impact:
       "Menu items that are plain divs without tabindex cannot receive keyboard focus.",
     howToFix:
-      "Use native menuitem hosts or add tabindex={0} and keyboard handlers for Enter, Space, and arrow keys.",
+      "Use native interactive hosts or add tabindex={0} so each menuitem is reachable with Tab. Arrow-key navigation inside the menu is not verified by this check.",
   },
   "color-contrast": {
     impact:

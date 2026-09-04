@@ -14,6 +14,7 @@ const violation = (
 });
 
 const mocks = vi.hoisted(() => ({
+  restorePageAfterMutatingProbes: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   textSpacingRuntimeViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   nonTextContrastViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   labelAdjacentViolation: vi.fn<() => Promise<CustomViolation | null>>(),
@@ -40,6 +41,9 @@ const mocks = vi.hoisted(() => ({
   targetSizeEnhancedViolation: vi.fn<() => Promise<CustomViolation | null>>(),
 }));
 
+vi.mock("./page-restore.js", () => ({
+  restorePageAfterMutatingProbes: mocks.restorePageAfterMutatingProbes,
+}));
 vi.mock("./text-spacing-runtime.js", () => ({
   textSpacingRuntimeViolation: mocks.textSpacingRuntimeViolation,
 }));
@@ -168,6 +172,7 @@ describe("runCustomRuntimeChecks", () => {
     expect(results.every((result) => result.nodes.every((node) => "failureSummary" in node === false))).toBe(
       true,
     );
+    expect(mocks.restorePageAfterMutatingProbes).toHaveBeenCalledTimes(1);
   });
 });
 

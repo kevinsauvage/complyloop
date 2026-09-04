@@ -22,8 +22,9 @@ describe("createFinding analyzer evidence", () => {
       checkId: "markup-nesting",
       kind: "violation",
       severity: "moderate",
-      confidence: "high",
-      reason: "html-validate [element-permitted-order]: invalid nesting",
+      confidence: "medium",
+      reason:
+        "Live DOM serialization (html-validate 11.12.0, not SSR/source HTML): [element-permitted-order] invalid nesting",
       location: {
         kind: "dom",
         url: "https://app.example/",
@@ -35,6 +36,9 @@ describe("createFinding analyzer evidence", () => {
       analyzerId: "html-validate",
       analyzerRuleId: "element-permitted-order",
       analyzerVersion: "11.12.0",
+      validationInput: "live-dom-serialization",
+      validationRules: ["element-permitted-content", "close-order"],
+      doctypeIncludedInInput: false,
       contributingAnalyzers: [{ analyzerId: "axe", analyzerRuleId: "list" }],
     });
 
@@ -49,6 +53,9 @@ describe("createFinding analyzer evidence", () => {
       analyzerId: "html-validate",
       analyzerRuleId: "element-permitted-order",
       analyzerVersion: "11.12.0",
+      validationInput: "live-dom-serialization",
+      validationRules: ["element-permitted-content", "close-order"],
+      doctypeIncludedInInput: false,
       contributingAnalyzers: [{ analyzerId: "axe", analyzerRuleId: "list" }],
     });
   });

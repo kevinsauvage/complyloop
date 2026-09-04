@@ -6,11 +6,12 @@ function siteFinding(
   pages: string[],
   detail: string,
   reason: string,
+  kind: RawFinding["kind"] = "violation",
 ): RawFinding {
   return {
     checkId,
-    kind: "violation",
-    severity: "serious",
+    kind,
+    severity: kind === "warning" ? "moderate" : "serious",
     confidence: "medium",
     reason,
     location: { kind: "site", pages, detail },
@@ -18,6 +19,27 @@ function siteFinding(
     engine: "runtime",
     analyzerId: "site-level",
   };
+}
+
+/** Trailing auth/account chrome (Logout, Admin, …) may differ per session. */
+const TRAILING_AUTH_NAV_LABEL =
+  /^(log\s?out|sign\s?out|admin(?:istration)?|account|profile|my account|settings)$/i;
+
+function normalizeNavLinks(links: readonly string[]): string[] {
+  const copy = [...links];
+  while (copy.length > 0) {
+    const label = (copy[copy.length - 1]?.split("::")[0] ?? "").trim();
+    if (TRAILING_AUTH_NAV_LABEL.test(label)) {
+      copy.pop();
+      continue;
+    }
+    break;
+  }
+  return copy;
+}
+
+function normalizedNavSignature(links: readonly string[]): string {
+  return normalizeNavLinks(links).join(">");
 }
 
 function mechanismCount(snapshots: ReadonlyArray<RuntimePageSnapshot>): number {
@@ -34,9 +56,11 @@ function mechanismCount(snapshots: ReadonlyArray<RuntimePageSnapshot>): number {
   return [hasNav, hasSearch, hasSitemap].filter(Boolean).length;
 }
 
-function navSignatures(snapshots: ReadonlyArray<RuntimePageSnapshot>): string[] {
+function normalizedNavSignatures(
+  snapshots: ReadonlyArray<RuntimePageSnapshot>,
+): string[] {
   return snapshots
-    .map((snapshot) => snapshot.navLinks.join(">"))
+    .map((snapshot) => normalizedNavSignature(snapshot.navLinks))
     .filter((signature) => signature.length > 0);
 }
 
@@ -115,17 +139,32 @@ export function runSiteLevelChecks(
     );
   }
 
-  const signatures = navSignatures(snapshots);
-  const uniqueSignatures = new Set(signatures);
-  if (signatures.length > 1 && uniqueSignatures.size > 1) {
+  const navPresent = snapshots.map((snapshot) => snapshot.navLinks.length > 0);
+  const someMissingNav =
+    navPresent.some(Boolean) && navPresent.some((present) => !present);
+  if (someMissingNav) {
     findings.push(
       siteFinding(
         "consistent-nav",
         pages,
-        "Primary navigation differs between pages",
-        "Navigation link order or labels differ across the configured preview routes.",
+        "Primary navigation missing on some routes",
+        "Some preview routes expose a primary navigation landmark while others do not.",
       ),
     );
+  } else {
+    const signatures = normalizedNavSignatures(snapshots);
+    const uniqueSignatures = new Set(signatures);
+    if (signatures.length > 1 && uniqueSignatures.size > 1) {
+      findings.push(
+        siteFinding(
+          "consistent-nav",
+          pages,
+          "Primary navigation differs between pages",
+          "Navigation link order or labels differ across the configured preview routes — review whether the difference is intentional (e.g. localized or role-specific chrome).",
+          "warning",
+        ),
+      );
+    }
   }
 
   const labelMismatches = inconsistentLabels(snapshots);
