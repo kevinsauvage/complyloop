@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  authorityForCheck,
   isCompositionSensitiveCheck,
   isHeuristicCheck,
+  isHtmlValidateOwnedCheck,
   isPackageTwinSourceCheck,
   isRuntimeOnlyCheck,
+  isSiteLevelCheck,
   keepOpenWhenRuntimeScanSkipped,
 } from "./check-authority";
 
@@ -121,5 +124,46 @@ describe("check authority", () => {
     expect(isHeuristicCheck("img-alt")).toBe(false);
     expect(keepOpenWhenRuntimeScanSkipped("image-of-text")).toBe(false);
     expect(isRuntimeOnlyCheck("duplicate-page-title")).toBe(true);
+  });
+
+  it("classifies with site_level → runtime_only → heuristic → composition_sensitive → standard", () => {
+    expect(isSiteLevelCheck("consistent-nav")).toBe(true);
+    expect(isRuntimeOnlyCheck("consistent-nav")).toBe(true);
+    expect(authorityForCheck("consistent-nav")).toBe("site_level");
+
+    expect(isSiteLevelCheck("consistent-lang")).toBe(true);
+    expect(isRuntimeOnlyCheck("consistent-lang")).toBe(false);
+    expect(authorityForCheck("consistent-lang")).toBe("site_level");
+
+    expect(isRuntimeOnlyCheck("label-adjacent")).toBe(true);
+    expect(isHeuristicCheck("label-adjacent")).toBe(true);
+    expect(authorityForCheck("label-adjacent")).toBe("runtime_only");
+
+    expect(authorityForCheck("color-contrast")).toBe("runtime_only");
+    expect(authorityForCheck("image-of-text")).toBe("heuristic");
+    expect(authorityForCheck("input-label")).toBe("composition_sensitive");
+    expect(authorityForCheck("img-alt")).toBe("standard");
+  });
+
+  it("never returns a lower class when a higher list also contains the id", () => {
+    const dualListed = [
+      "consistent-nav",
+      "consistent-labels",
+      "label-adjacent",
+    ] as const;
+    for (const checkId of dualListed) {
+      const authority = authorityForCheck(checkId);
+      if (isSiteLevelCheck(checkId)) {
+        expect(authority).toBe("site_level");
+      } else if (isRuntimeOnlyCheck(checkId)) {
+        expect(authority).toBe("runtime_only");
+      }
+    }
+  });
+
+  it("marks html-validate-owned check ids", () => {
+    expect(isHtmlValidateOwnedCheck("markup-nesting")).toBe(true);
+    expect(isHtmlValidateOwnedCheck("css-for-presentation")).toBe(true);
+    expect(isHtmlValidateOwnedCheck("img-alt")).toBe(false);
   });
 });

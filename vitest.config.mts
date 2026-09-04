@@ -27,7 +27,6 @@ export default defineConfig({
       exclude: [
         "src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/**/*.test.{ts,tsx}",
-        "src/server/db-store/**",
         "packages/analysis-core/src/runtime/scan.ts",
         // Thin Next Auth / cookie / workspace glue — covered via e2e.
         "src/server/active-cookies.ts",
@@ -36,17 +35,19 @@ export default defineConfig({
         // Live GitHub/git checkout I/O — e2e + fixture paths cover the contract.
         "src/server/repo-checkout.ts",
         "src/server/github-tokens.ts",
-        "src/server/github-app.ts",
         "src/server/octokit.ts",
-        "src/server/github.ts",
         "src/server/connect-github.ts",
-        "src/server/pr.ts",
-        "src/server/webhook-deliveries.ts",
         "src/server/github-repo.ts",
         // Markdown report assembly — HTML covered by report-html.ts tests.
         "src/server/report.ts",
-        // Verify paths mix AST + Playwright DOM re-check; unit suite covers the AST/manual branches.
-        "src/server/actions/remediation-verify.ts",
+        // Live Postgres wiring without a default-suite unit driver.
+        "src/server/db-store/client.ts",
+        "src/server/db-store/schema.ts",
+        "src/server/db-store/workspace-load.ts",
+        "src/server/db-store/postgres-url.ts",
+        "src/server/db-store/postgres-queries.ts",
+        "src/server/db-store/write-lock.ts",
+        "src/server/db-store/repo/**",
       ],
       thresholds: {
         lines: 96,

@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { claimWebhookDelivery } from "./webhook-deliveries";
 
 const claimed = vi.hoisted(() => new Set<string>());
+const pruneState = vi.hoisted(() => ({
+  totalOverride: null as number | null,
+  deletedIds: [] as string[],
+}));
 
 vi.mock("./db-store/client", () => ({
   getDrizzle: async () => ({
@@ -19,25 +23,34 @@ vi.mock("./db-store/client", () => ({
     select: (shape?: { total?: unknown }) => {
       if (shape && "total" in shape) {
         return {
-          from: async () => [{ total: claimed.size }],
+          from: async () => [
+            { total: pruneState.totalOverride ?? claimed.size },
+          ],
         };
       }
       return {
         from: () => ({
           orderBy: () => ({
-            limit: async () => [],
+            limit: async (overflow: number) =>
+              Array.from({ length: overflow }, (_, index) => ({
+                deliveryId: `old-${index}`,
+              })),
           }),
         }),
       };
     },
     delete: () => ({
-      where: async () => undefined,
+      where: async () => {
+        pruneState.deletedIds.push("pruned");
+      },
     }),
   }),
 }));
 
 beforeEach(() => {
   claimed.clear();
+  pruneState.totalOverride = null;
+  pruneState.deletedIds = [];
 });
 
 describe("webhook delivery idempotency", () => {
@@ -58,5 +71,11 @@ describe("webhook delivery idempotency", () => {
     await expect(claimWebhookDelivery("")).rejects.toThrow(
       /x-github-delivery/,
     );
+  });
+
+  it("prunes oldest rows once the delivery table exceeds the cap", async () => {
+    pruneState.totalOverride = 2001;
+    expect(await claimWebhookDelivery("del-overflow")).toBe(true);
+    expect(pruneState.deletedIds).toEqual(["pruned"]);
   });
 });

@@ -2,7 +2,7 @@
 
 Prioritized backlog produced by a full audit of `docs/*` and the source tree (Sep 2026). Every item states **what is wrong**, **why it matters**, and **what to change**, with file references. Items are ordered within each priority; verify the referenced lines before acting — code moves.
 
-Guiding rule for this list: the product spec's MVP is *one complete loop for one client project*. Anything that does not make that loop correct, observable, or simpler is P2 or lower.
+Guiding rule for this list: the product spec's MVP is _one complete loop for one client project_. Anything that does not make that loop correct, observable, or simpler is P2 or lower.
 
 ---
 
@@ -63,14 +63,6 @@ Guiding rule for this list: the product spec's MVP is *one complete loop for one
 
 ## P2 — Medium
 
-### 1. Org/multi-tenant is the product model
-
-_(decided — spec §24: orgs, roles, invites, and the org switcher are in scope. The complete loop still has to work for one client project; tenancy is multi-org, not a later add-on.)_
-
-### 2. Remove the `src/core` re-export shims
-
-_(cleared — callers import `@complyloop/analysis-core/contract/*`; ESLint allow-lists that subpath from `src/core`.)_
-
 ### 3. Enforce "adapters only via registry" or drop the rule
 
 - **Observation:** `architecture.md` says server/app import adapters only through `src/adapters/registry.ts`; pages, `report.ts`, and `report-html/*` import `@/adapters/control-theme` directly; `wcag/presets.ts` imports `rgaaControls` directly. Nothing enforces it.
@@ -103,7 +95,7 @@ _(cleared — workspace load is membership-org + active project only; stale proj
 
 ### 9. Coverage gate excludes the riskiest code
 
-- `db-store/**`, `actions/remediation-verify.ts`, `pr.ts`, `github.ts`, `webhook-deliveries.ts` are excluded from thresholds although several have unit tests (`repo/*`, `constraints.test.ts`). Drop exclusions that have tests. Add tests for `analysis-core/src/scan.ts`, `parse.ts`, `site-level/snapshot.ts`, `heuristic-utils.ts`, and `authorityForCheck` precedence.
+_(cleared — modules with unit tests are in the gate; remaining `db-store` exclusions are live Postgres wiring. `scan` / `parse` / `snapshot` / `heuristic-utils` / `authorityForCheck` precedence have colocated tests.)_
 
 ### 10. Small correctness items
 

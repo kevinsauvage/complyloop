@@ -211,7 +211,7 @@ export function isHeuristicCheck(checkId: string): boolean {
  * 4. `composition_sensitive` (AST owns status; runtime wins when it ran)
  * 5. `standard` (plain AST check)
  *
- * Consumers: `deriveRequirementStatus` (`src/core/requirement-status.ts`) via
+ * Consumers: `deriveRequirementStatus` (`contract/requirement-status.ts`) via
  * the adapter in `src/server/assessment-status.ts`.
  */
 export function authorityForCheck(checkId: string): CheckAuthority {
