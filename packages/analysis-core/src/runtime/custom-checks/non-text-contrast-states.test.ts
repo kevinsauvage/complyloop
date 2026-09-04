@@ -23,7 +23,7 @@ describe("nonTextContrastViolation interactive states", () => {
       `);
       try {
         const violation = await nonTextContrastViolation(page);
-        expect(violation?.id).toBe("complyloop-non-text-contrast");
+        expect(violation?.id).toBe("non-text-contrast");
         expect(
           violation?.nodes.some((n) => n.failureSummary?.includes("hover")),
         ).toBe(true);
@@ -47,7 +47,7 @@ describe("nonTextContrastViolation interactive states", () => {
       `);
       try {
         const violation = await nonTextContrastViolation(page);
-        expect(violation?.id).toBe("complyloop-non-text-contrast");
+        expect(violation?.id).toBe("non-text-contrast");
         expect(
           violation?.nodes.some((n) => n.failureSummary?.includes("selected")),
         ).toBe(true);

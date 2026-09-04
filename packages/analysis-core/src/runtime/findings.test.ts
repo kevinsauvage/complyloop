@@ -14,6 +14,12 @@ describe("axe rule mapping", () => {
     expect(checkIdForAxeRule("video-caption")).toBe("video-caption");
     expect(checkIdForAxeRule("html-has-doctype")).toBe("doctype");
     expect(checkIdForAxeRule("aria-roles")).toBe("aria-role");
+    expect(checkIdForAxeRule("focus-order-semantics")).toBe("focus-order-logical");
+    expect(checkIdForAxeRule("identical-links-same-purpose")).toBe(
+      "identical-links-purpose",
+    );
+    expect(checkIdForAxeRule("hidden-content")).toBe("hidden-content");
+    expect(checkIdForAxeRule("html-lang-valid")).toBe("html-lang-valid");
     expect(checkIdForAxeRule("unknown-rule")).toBeUndefined();
   });
 });
@@ -59,21 +65,27 @@ describe("findingsFromAxePages", () => {
     const findings = findingsFromAxePages([
       {
         url: "https://app.example/",
-        violations: [
+        violations: [],
+        customFindings: [
           {
-            id: "complyloop-focus-not-obscured-enhanced",
-            impact: "serious",
-            description: "Obscured",
-            help: "No part hidden",
-            nodes: [
-              {
-                html: '<a href="/x">Go</a>',
-                target: ['a[href="/x"]'],
-                elementLabel: 'link “Go”',
-                failureSummary:
-                  "Covered by `header.sticky` at the top-left of the focus ring",
-              },
-            ],
+            checkId: "focus-not-obscured-enhanced",
+            kind: "violation",
+            severity: "serious",
+            confidence: "high",
+            reason: "No part hidden Obscured",
+            location: {
+              kind: "dom",
+              url: "https://app.example/",
+              selector: 'a[href="/x"]',
+              snippet: '<a href="/x">Go</a>',
+              elementLabel: 'link “Go”',
+              context:
+                "Covered by `header.sticky` at the top-left of the focus ring",
+            },
+            fix: null,
+            engine: "runtime",
+            analyzerId: "playwright-custom",
+            analyzerRuleId: "focus-not-obscured-enhanced",
           },
         ],
       },
@@ -132,13 +144,24 @@ describe("findingsFromAxePages", () => {
     const findings = findingsFromAxePages([
       {
         url: "https://app.example/",
-        violations: [
+        violations: [],
+        customFindings: [
           {
-            id: "complyloop-captcha-alternative",
-            impact: "moderate",
-            description: "CAPTCHA may lack an accessible alternative",
-            help: "Provide an audio or non-visual fallback",
-            nodes: [{ html: '<div class="g-recaptcha">', target: [".g-recaptcha"] }],
+            checkId: "captcha-alternative",
+            kind: "warning",
+            severity: "moderate",
+            confidence: "medium",
+            reason: "Provide an audio or non-visual fallback CAPTCHA may lack an accessible alternative",
+            location: {
+              kind: "dom",
+              url: "https://app.example/",
+              selector: ".g-recaptcha",
+              snippet: '<div class="g-recaptcha">',
+            },
+            fix: null,
+            engine: "runtime",
+            analyzerId: "playwright-custom",
+            analyzerRuleId: "captcha-alternative",
           },
         ],
       },

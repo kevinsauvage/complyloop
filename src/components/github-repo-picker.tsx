@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { githubRepoSearchResponseSchema, parseUnknown } from "@/core/boundary";
+import { STATUS_TONE_BADGE } from "@/core/status-tone";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   connectGitHubRepoAction,
@@ -260,7 +261,7 @@ export function GitHubRepoPicker({
                       <p className="flex flex-wrap items-center gap-2 truncate font-mono text-sm font-medium">
                         {repo.fullName}
                         {connected ? (
-                          <Badge className="border-transparent bg-status-passed/15 font-sans text-status-passed dark:bg-status-passed/25">
+                          <Badge className={`${STATUS_TONE_BADGE.passed} font-sans`}>
                             Connected
                           </Badge>
                         ) : null}

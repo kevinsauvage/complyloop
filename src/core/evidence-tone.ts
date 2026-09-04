@@ -49,7 +49,7 @@ export const EVIDENCE_TONE_DOT: Record<EvidenceTone, string> = {
   signal: "bg-signal",
 };
 
-/** Matches requirement-status badge tints in `components/badges.tsx`. */
+/** Matches `STATUS_TONE_BADGE` in `status-tone.ts`. */
 export const EVIDENCE_TONE_BADGE: Record<EvidenceTone, string> = {
   default: "",
   pass: "border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25",

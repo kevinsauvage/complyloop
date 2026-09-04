@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { FormEvent } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -51,9 +51,7 @@ describe("ConfirmSubmitButton", () => {
 
     await user.click(screen.getByRole("button", { name: "Delete" }));
     const dialog = screen.getByRole("alertdialog");
-    const confirmButtons = dialog.querySelectorAll('button[type="submit"]');
-    expect(confirmButtons.length).toBeGreaterThan(0);
-    await user.click(confirmButtons[0]!);
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     expect(onSubmit).toHaveBeenCalled();
   });
 });

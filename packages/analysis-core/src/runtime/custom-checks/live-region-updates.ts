@@ -134,7 +134,7 @@ export async function liveRegionUpdatesViolation(
   if (after.liveText !== after.beforeLiveText) return null;
 
   return {
-    id: "complyloop-live-region-updates",
+    id: "live-region-updates",
     impact: "moderate",
     description:
       "Validation feedback appeared after submit but was not exposed through a live region.",

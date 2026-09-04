@@ -55,7 +55,7 @@ export async function mediaKeyboardViolation(
       : "Native media controls did not respond to the Space key.";
 
   return {
-    id: "complyloop-media-keyboard",
+    id: "media-keyboard",
     impact: "serious",
     description: detail,
     help: "Ensure <video controls> and <audio controls> can be focused and operated with the keyboard (WCAG 2.1.1 / RGAA 4.11).",

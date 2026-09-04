@@ -21,7 +21,7 @@ describe("mediaIdentificationViolation", () => {
       `);
       try {
         const violation = await mediaIdentificationViolation(page);
-        expect(violation?.id).toBe("complyloop-media-identification");
+        expect(violation?.id).toBe("media-identification");
         expect(violation?.nodes.some((n) => n.html.includes("canvas"))).toBe(
           true,
         );

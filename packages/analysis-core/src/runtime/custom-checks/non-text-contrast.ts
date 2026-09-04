@@ -55,7 +55,7 @@ export async function nonTextContrastViolation(
   }));
 
   return {
-    id: "complyloop-non-text-contrast",
+    id: "non-text-contrast",
     impact: "serious",
     description:
       "UI control chrome does not meet 3:1 contrast against its background in default, hover, or selected state (WCAG 1.4.11).",

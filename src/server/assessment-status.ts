@@ -4,7 +4,10 @@ import {
   deriveRequirementStatus,
   isStickyHumanDecision,
 } from "@complyloop/analysis-core/contract/requirement-status";
-import { authorityForCheck } from "@complyloop/analysis-core/check-authority";
+import {
+  authorityForCheck,
+  isHtmlValidateOwnedCheck,
+} from "@complyloop/analysis-core/check-authority";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Control, Project, Requirement } from "@/core/project-types";
@@ -157,10 +160,11 @@ function statusFromFindings(
 ): RequirementStatus {
   return deriveRequirementStatus({
     authority: checkId === null ? "manual" : authorityForCheck(checkId),
-    checkId,
     openFindings,
     runtimeRan,
     siteLevelChecksRan,
+    htmlValidateRequired:
+      checkId !== null && isHtmlValidateOwnedCheck(checkId),
     htmlValidateRan,
     applicabilityConfirmed:
       checkId !== null && Boolean(applicabilityFacts?.has(checkId)),

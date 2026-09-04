@@ -23,7 +23,7 @@ describe("reducedMotionViolation", () => {
       `);
       try {
         const violation = await reducedMotionViolation(page);
-        expect(violation?.id).toBe("complyloop-reduced-motion");
+        expect(violation?.id).toBe("reduced-motion");
       } finally {
         await close();
       }

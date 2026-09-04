@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls } from "@/adapters/rgaa/controls";
-import { authorityForCheck } from "@complyloop/analysis-core/check-authority";
+import {
+  authorityForCheck,
+  isHtmlValidateOwnedCheck,
+} from "@complyloop/analysis-core/check-authority";
 import { deriveRequirementStatus } from "@complyloop/analysis-core/contract/requirement-status";
 
 /**
@@ -53,6 +56,8 @@ describe("check authority × RGAA catalog", () => {
         authority,
         runtimeRan: authority !== "standard" && authority !== "composition_sensitive",
         siteLevelChecksRan: true,
+        htmlValidateRequired: isHtmlValidateOwnedCheck(control.checkId as string),
+        htmlValidateRan: true,
       });
       expect(status).toBe("passed");
     }

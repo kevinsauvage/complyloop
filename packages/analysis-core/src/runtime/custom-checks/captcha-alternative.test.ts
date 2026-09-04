@@ -20,7 +20,7 @@ describe("captchaAlternativeViolation", () => {
       `);
       try {
         const violation = await captchaAlternativeViolation(page);
-        expect(violation?.id).toBe("complyloop-captcha-alternative");
+        expect(violation?.id).toBe("captcha-alternative");
       } finally {
         await close();
       }

@@ -33,7 +33,6 @@ export function isHtmlValidateOwnedCheck(checkId: string): boolean {
   return HTML_VALIDATE_OWNED.has(checkId);
 }
 
-
 /**
  * Checks the AST engine cannot pass. Without a successful runtime audit they
  * stay `unable_to_verify` — never `passed` from an empty source scan.
@@ -206,7 +205,7 @@ export function isHeuristicCheck(checkId: string): boolean {
  * The single authority classifier. Precedence matters — a check id may appear
  * in more than one list (site-level ids are also in RUNTIME_ONLY). Heuristic
  * and runtime-only must not overlap: runtime hits for heuristic ids are
- * downgraded to warnings in `findingsFromAxeHits`.
+ * downgraded to warnings when those hits become findings.
  *
  * This order is the contract:
  *

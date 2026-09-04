@@ -3,7 +3,7 @@ import type { Page } from "playwright";
 import type { CustomViolation } from "./types";
 
 const violation = (
-  id: string,
+  id: CustomViolation["id"],
   nodes: CustomViolation["nodes"] = [{ html: "<x/>", target: ["#x"] }],
 ): CustomViolation => ({
   id,
@@ -125,12 +125,12 @@ import {
 const page = {} as Page;
 
 describe("runCustomRuntimeChecks", () => {
-  it("merges optional, composite, and sequential violations into axe-shaped results", async () => {
+  it("merges optional, composite, and sequential violations into findings", async () => {
     mocks.textSpacingRuntimeViolation.mockResolvedValue(null);
     mocks.nonTextContrastViolation.mockResolvedValue(null);
-    mocks.labelAdjacentViolation.mockResolvedValue(violation("complyloop-label-adjacent"));
+    mocks.labelAdjacentViolation.mockResolvedValue(violation("label-adjacent"));
     mocks.cssDisabledContentViolations.mockResolvedValue([
-      violation("complyloop-css-disabled-content"),
+      violation("css-disabled-content"),
     ]);
     mocks.mediaKeyboardViolation.mockResolvedValue(null);
     mocks.cssHoverKeyboardViolation.mockResolvedValue(null);
@@ -142,34 +142,34 @@ describe("runCustomRuntimeChecks", () => {
     mocks.mediaIdentificationViolation.mockResolvedValue(null);
     mocks.supplementaryContentKeyboardViolation.mockResolvedValue(null);
     mocks.focusCustomViolations.mockResolvedValue([
-      violation("complyloop-focus-visible"),
+      violation("focus-visible"),
     ]);
     mocks.dialogFocusViolations.mockResolvedValue([
-      violation("complyloop-dialog-focus"),
+      violation("dialog-keyboard"),
     ]);
     mocks.widgetKeyboardViolations.mockResolvedValue([
-      violation("complyloop-tabs-keyboard"),
+      violation("tabs-keyboard"),
     ]);
     mocks.formErrorSubmitViolation.mockResolvedValue(null);
     mocks.liveRegionUpdatesViolation.mockResolvedValue(null);
     mocks.hoverContentViolation.mockResolvedValue(null);
-    mocks.forcedColorsViolation.mockResolvedValue(violation("complyloop-forced-colors"));
+    mocks.forcedColorsViolation.mockResolvedValue(violation("forced-colors"));
     mocks.reducedMotionViolation.mockResolvedValue(null);
     mocks.reflowViolation.mockResolvedValue(null);
     mocks.resizeTextViolation.mockResolvedValue(null);
     mocks.targetSizeEnhancedViolation.mockResolvedValue(null);
 
-    const results = await runCustomRuntimeChecks(page);
+    const results = await runCustomRuntimeChecks(page, "https://app.example/");
 
-    expect(results.map((result) => result.id).sort()).toEqual([
-      "complyloop-css-disabled-content",
-      "complyloop-dialog-focus",
-      "complyloop-focus-visible",
-      "complyloop-forced-colors",
-      "complyloop-label-adjacent",
-      "complyloop-tabs-keyboard",
+    expect(results.map((result) => result.checkId).sort()).toEqual([
+      "css-disabled-content",
+      "dialog-keyboard",
+      "focus-visible",
+      "forced-colors",
+      "label-adjacent",
+      "tabs-keyboard",
     ]);
-    expect(results.every((result) => result.nodes.every((node) => "failureSummary" in node === false))).toBe(
+    expect(results.every((result) => result.analyzerId === "playwright-custom")).toBe(
       true,
     );
     expect(mocks.restorePageAfterMutatingProbes).toHaveBeenCalledTimes(1);
@@ -179,17 +179,20 @@ describe("runCustomRuntimeChecks", () => {
 describe("runThemeSensitiveCustomChecks", () => {
   it("returns focus and contrast violations for the theme pass", async () => {
     mocks.focusCustomViolations.mockResolvedValue([
-      violation("complyloop-focus-visible"),
+      violation("focus-visible"),
     ]);
     mocks.nonTextContrastViolation.mockResolvedValue(
-      violation("complyloop-non-text-contrast"),
+      violation("non-text-contrast"),
     );
 
-    const results = await runThemeSensitiveCustomChecks(page);
+    const results = await runThemeSensitiveCustomChecks(
+      page,
+      "https://app.example/",
+    );
 
-    expect(results.map((result) => result.id)).toEqual([
-      "complyloop-focus-visible",
-      "complyloop-non-text-contrast",
+    expect(results.map((result) => result.checkId)).toEqual([
+      "focus-visible",
+      "non-text-contrast",
     ]);
   });
 
@@ -197,6 +200,8 @@ describe("runThemeSensitiveCustomChecks", () => {
     mocks.focusCustomViolations.mockResolvedValue([]);
     mocks.nonTextContrastViolation.mockResolvedValue(null);
 
-    expect(await runThemeSensitiveCustomChecks(page)).toEqual([]);
+    expect(await runThemeSensitiveCustomChecks(page, "https://app.example/")).toEqual(
+      [],
+    );
   });
 });

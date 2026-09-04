@@ -24,7 +24,7 @@ describe("targetSizeEnhancedViolation", () => {
       `);
       try {
         const violation = await targetSizeEnhancedViolation(page);
-        expect(violation?.id).toBe("complyloop-target-size-enhanced");
+        expect(violation?.id).toBe("target-size-enhanced");
         expect(violation?.nodes.some((n) => n.html.includes("small"))).toBe(
           true,
         );

@@ -27,7 +27,7 @@ describe("cssOffUnderstandableViolation", () => {
       `);
       try {
         const violation = await cssOffUnderstandableViolation(page);
-        expect(violation?.id).toBe("complyloop-css-off-understandable");
+        expect(violation?.id).toBe("css-off-understandable");
       } finally {
         await close();
       }

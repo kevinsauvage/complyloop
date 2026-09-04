@@ -86,7 +86,7 @@ describe("labelAdjacentViolation", () => {
       `);
       try {
         const violation = await labelAdjacentViolation(page);
-        expect(violation?.id).toBe("complyloop-label-adjacent");
+        expect(violation?.id).toBe("label-adjacent");
         expect(violation?.nodes.some((n) => n.html.includes('id="email"'))).toBe(
           true,
         );

@@ -170,7 +170,7 @@ export interface RawFinding {
   engine?: "ast" | "runtime";
   /** Specific analyzer within the coarse `engine` bucket. */
   analyzerId?: AnalyzerId;
-  /** axe / html-validate / jsx-a11y rule id, or `complyloop-*` probe id. */
+  /** axe / html-validate / jsx-a11y rule id, or custom probe check id. */
   analyzerRuleId?: string;
   /** Package version of the analyzer when cheap to resolve. */
   analyzerVersion?: string;

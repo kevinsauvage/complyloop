@@ -66,7 +66,7 @@ export async function hoverContentViolation(
   if (nodes.length === 0) return null;
 
   return {
-    id: "complyloop-hover-content",
+    id: "hover-content",
     impact: "moderate",
     description:
       "Extra content shown on hover is not dismissible with Escape or lacks a keyboard-equivalent reveal path.",

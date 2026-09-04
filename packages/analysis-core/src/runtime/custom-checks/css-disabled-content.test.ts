@@ -28,7 +28,7 @@ describe("cssDisabledContentViolations", () => {
       `);
       try {
         const violations = await cssDisabledContentViolations(page);
-        expect(violations.some((v) => v.id === "complyloop-css-disabled-content")).toBe(
+        expect(violations.some((v) => v.id === "css-disabled-content")).toBe(
           true,
         );
       } finally {

@@ -31,6 +31,8 @@ export interface RuntimeScanPageResult {
   /** axe incomplete nodes — emitted as `warning` findings (`needs_review`). */
   incomplete?: AxeViolationLike[];
   snapshot?: RuntimePageSnapshot;
+  /** Playwright custom-probe findings for this page. */
+  customFindings?: RawFinding[];
   /** html-validate rendered findings for this page. */
   htmlValidateFindings?: RawFinding[];
   /** html-validate rendered pass succeeded on this page. */
@@ -90,7 +92,6 @@ function findingsFromAxeHits(
     const heuristic = isHeuristicCheck(checkId);
     const asReview = kind === "warning" || violation.id === "frame-tested" || heuristic;
     for (const node of violation.nodes) {
-      const customProbe = violation.id.startsWith("complyloop-");
       findings.push({
         checkId,
         kind: asReview ? "warning" : "violation",
@@ -109,9 +110,9 @@ function findingsFromAxeHits(
         },
         fix: null,
         engine: "runtime",
-        analyzerId: customProbe ? "playwright-custom" : "axe",
+        analyzerId: "axe",
         analyzerRuleId: violation.id,
-        analyzerVersion: customProbe ? undefined : axeCorePackageVersion(),
+        analyzerVersion: axeCorePackageVersion(),
       });
     }
   }
@@ -134,6 +135,9 @@ export function findingsFromAxePages(
       pageFindings.push(
         ...findingsFromAxeHits(page, page.incomplete, "warning", "medium"),
       );
+    }
+    if (page.customFindings) {
+      pageFindings.push(...page.customFindings);
     }
     if (page.htmlValidateFindings) {
       pageFindings.push(...page.htmlValidateFindings);

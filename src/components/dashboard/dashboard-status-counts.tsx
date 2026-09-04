@@ -5,14 +5,7 @@ import { requirementsStatusHref } from "@/core/requirement-status-filter";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
-
-const STATUS_ACCENT: Record<RequirementStatus, string> = {
-  failed: "bg-status-failed",
-  needs_review: "bg-status-review",
-  passed: "bg-status-passed",
-  not_applicable: "bg-status-na",
-  unable_to_verify: "bg-status-unverifiable",
-};
+import { STATUS_TONE_ACCENT, statusTone } from "@/core/status-tone";
 
 export function DashboardStatusCounts({
   counts,
@@ -35,7 +28,7 @@ export function DashboardStatusCounts({
             <span
               className={cn(
                 "absolute inset-y-3 left-0 w-1 rounded-full",
-                STATUS_ACCENT[status],
+                STATUS_TONE_ACCENT[statusTone(status)],
               )}
               aria-hidden
             />

@@ -68,7 +68,7 @@ export async function captchaAlternativeViolation(
   if (nodes.length === 0) return null;
 
   return {
-    id: "complyloop-captcha-alternative",
+    id: "captcha-alternative",
     impact: "serious",
     description: "CAPTCHA does not expose a non-visual alternative modality.",
     help: "Provide audio, logic, or human-contact alternatives for image CAPTCHA (RGAA 1.5).",

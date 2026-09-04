@@ -23,7 +23,7 @@ describe("resizeTextViolation", () => {
       `);
       try {
         const violation = await resizeTextViolation(page);
-        expect(violation?.id).toBe("complyloop-resize-text");
+        expect(violation?.id).toBe("resize-text");
       } finally {
         await close();
       }
@@ -104,7 +104,7 @@ describe("resize vs reflow separation", () => {
       `);
       try {
         expect(await resizeTextViolation(page)).toBeNull();
-        expect((await reflowViolation(page))?.id).toBe("complyloop-reflow");
+        expect((await reflowViolation(page))?.id).toBe("reflow");
       } finally {
         await close();
       }

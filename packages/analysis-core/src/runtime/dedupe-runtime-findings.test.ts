@@ -32,14 +32,14 @@ describe("dedupeRuntimeFindings", () => {
     const snippet = "<button>";
     const deduped = dedupeRuntimeFindings([
       domFinding("focus-visible", "axe", "focus-order-semantics", snippet),
-      domFinding("focus-visible", "playwright-custom", "complyloop-focus-visible", snippet),
+      domFinding("focus-visible", "playwright-custom", "focus-visible", snippet),
     ]);
     expect(deduped).toHaveLength(1);
     expect(deduped[0]?.analyzerId).toBe("axe");
     expect(deduped[0]?.contributingAnalyzers).toEqual([
       {
         analyzerId: "playwright-custom",
-        analyzerRuleId: "complyloop-focus-visible",
+        analyzerRuleId: "focus-visible",
       },
     ]);
   });

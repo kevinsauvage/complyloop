@@ -20,7 +20,7 @@ describe("supplementaryContentKeyboardViolation", () => {
       `);
       try {
         const violation = await supplementaryContentKeyboardViolation(page);
-        expect(violation?.id).toBe("complyloop-supplementary-content-keyboard");
+        expect(violation?.id).toBe("supplementary-content-keyboard");
       } finally {
         await close();
       }

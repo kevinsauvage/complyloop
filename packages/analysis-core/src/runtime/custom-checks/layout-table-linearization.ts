@@ -66,7 +66,7 @@ export async function layoutTableLinearizationViolation(
   if (!hit) return null;
 
   return {
-    id: "complyloop-layout-table-linearization",
+    id: "layout-table-linearization",
     impact: "moderate",
     description:
       "Layout table cells appear in a different visual order than DOM order, so disabling CSS will scramble reading order.",

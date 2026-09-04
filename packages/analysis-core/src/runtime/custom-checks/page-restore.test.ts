@@ -37,7 +37,7 @@ describe("restorePageAfterMutatingProbes", () => {
 
         expect(await page.locator("h1").textContent()).toBe("Contact");
         const reflow = await reflowViolation(page);
-        expect(reflow?.id).toBe("complyloop-reflow");
+        expect(reflow?.id).toBe("reflow");
       } finally {
         await close();
       }
@@ -64,9 +64,9 @@ describe("runCustomRuntimeChecks page restore", () => {
         { routable: true },
       );
       try {
-        const results = await runCustomRuntimeChecks(page);
+        const results = await runCustomRuntimeChecks(page, page.url());
         expect(await page.locator("h1").textContent()).toBe("Dashboard");
-        expect(results.some((result) => result.id === "complyloop-reflow")).toBe(
+        expect(results.some((result) => result.checkId === "reflow")).toBe(
           true,
         );
       } finally {

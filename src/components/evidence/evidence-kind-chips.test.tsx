@@ -15,7 +15,7 @@ function countsOf(
 }
 
 describe("EvidenceKindChips", () => {
-  it("renders tinted badges for each kind filter", () => {
+  it("renders a filter link for each kind with its count", () => {
     renderWithUiProviders(
       <EvidenceKindChips
         counts={countsOf({
@@ -26,10 +26,19 @@ describe("EvidenceKindChips", () => {
       />,
     );
 
-    const detected = screen.getByRole("link", { name: /finding detected/i });
-    expect(detected.querySelector(".text-status-failed")).not.toBeNull();
-
-    const resolved = screen.getByRole("link", { name: /finding resolved/i });
-    expect(resolved.querySelector(".text-status-passed")).not.toBeNull();
+    expect(
+      screen.getByRole("link", {
+        name: (accessibleName) =>
+          /finding detected/i.test(accessibleName) &&
+          accessibleName.includes("3"),
+      }),
+    ).toHaveAttribute("href", "/evidence?kind=finding_detected");
+    expect(
+      screen.getByRole("link", {
+        name: (accessibleName) =>
+          /finding resolved/i.test(accessibleName) &&
+          accessibleName.includes("1"),
+      }),
+    ).toHaveAttribute("href", "/evidence?kind=finding_resolved");
   });
 });

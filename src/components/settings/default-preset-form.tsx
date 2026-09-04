@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Badge } from "@/components/ui/badge";
+import { STATUS_TONE_BADGE } from "@/core/status-tone";
 import { Label } from "@/components/ui/label";
 import type { FrameworkPreset } from "@/adapters/types";
 import { setDefaultPresetAction } from "@/server/actions/project-preset";
@@ -52,7 +53,7 @@ export function DefaultPresetForm({
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium">{preset.name}</span>
                     {preset.id === defaultPresetId ? (
-                      <Badge className="border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25">
+                      <Badge className={STATUS_TONE_BADGE.passed}>
                         Current
                       </Badge>
                     ) : null}

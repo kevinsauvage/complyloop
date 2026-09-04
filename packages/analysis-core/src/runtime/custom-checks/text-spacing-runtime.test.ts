@@ -27,7 +27,7 @@ describe("textSpacingRuntimeViolation", () => {
       `);
       try {
         const violation = await textSpacingRuntimeViolation(page);
-        expect(violation?.id).toBe("complyloop-text-spacing-runtime");
+        expect(violation?.id).toBe("text-spacing-runtime");
       } finally {
         await close();
       }

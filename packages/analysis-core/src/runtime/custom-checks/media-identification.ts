@@ -56,7 +56,7 @@ export async function mediaIdentificationViolation(
   if (nodes.length === 0) return null;
 
   return {
-    id: "complyloop-media-identification",
+    id: "media-identification",
     impact: "serious",
     description:
       "Non-temporal media is not clearly identified and lacks an accessible alternative.",

@@ -22,7 +22,7 @@ export async function focusCustomViolations(
   const focusVisibleNodes = await collectFocusVisibleViolations(page);
   if (focusVisibleNodes.length > 0) {
     violations.push({
-      id: "complyloop-focus-visible",
+      id: "focus-visible",
       impact: "serious",
       description:
         "Focused element has no visible change from its unfocused appearance (outline, ring, border, or background).",
@@ -34,7 +34,7 @@ export async function focusCustomViolations(
   const trapNode = await detectKeyboardTrap(page);
   if (trapNode) {
     violations.push({
-      id: "complyloop-keyboard-trap",
+      id: "keyboard-trap",
       impact: "critical",
       description:
         "Keyboard focus appears trapped in a small set of elements and cannot reach the rest of the page.",
@@ -46,7 +46,7 @@ export async function focusCustomViolations(
   const obscuredNodes = await collectFocusObscuredViolations(page, false);
   if (obscuredNodes.length > 0) {
     violations.push({
-      id: "complyloop-focus-not-obscured",
+      id: "focus-not-obscured",
       impact: "serious",
       description:
         "Focused control is covered by another element (sticky header, banner, or overlay).",
@@ -58,7 +58,7 @@ export async function focusCustomViolations(
   const obscuredEnhancedNodes = await collectFocusObscuredViolations(page, true);
   if (obscuredEnhancedNodes.length > 0) {
     violations.push({
-      id: "complyloop-focus-not-obscured-enhanced",
+      id: "focus-not-obscured-enhanced",
       impact: "serious",
       description:
         "Any part of the focused control is covered by other content.",
@@ -70,7 +70,7 @@ export async function focusCustomViolations(
   const appearanceNodes = await collectFocusAppearanceViolations(page);
   if (appearanceNodes.length > 0) {
     violations.push({
-      id: "complyloop-focus-appearance",
+      id: "focus-appearance",
       impact: "moderate",
       description:
         "Focus indicator is too thin to meet minimum size requirements.",

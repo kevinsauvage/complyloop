@@ -26,7 +26,7 @@ export async function widgetKeyboardViolations(
   const tabNodes = await collectTablistNodes(page);
   if (tabNodes.length > 0) {
     violations.push({
-      id: "complyloop-tabs-keyboard",
+      id: "tabs-keyboard",
       impact: "serious",
       description:
         "A tablist has no tab in the keyboard tab order.",
@@ -38,7 +38,7 @@ export async function widgetKeyboardViolations(
   const disclosureNodes = await collectDisclosureNodes(page);
   if (disclosureNodes.length > 0) {
     violations.push({
-      id: "complyloop-disclosure-keyboard",
+      id: "disclosure-keyboard",
       impact: "serious",
       description:
         "An aria-expanded toggle is not keyboard-activatable.",
@@ -50,7 +50,7 @@ export async function widgetKeyboardViolations(
   const menuNodes = await collectMenuNodes(page);
   if (menuNodes.length > 0) {
     violations.push({
-      id: "complyloop-menu-keyboard",
+      id: "menu-keyboard",
       impact: "serious",
       description:
         "Menu items are not reachable with a keyboard.",

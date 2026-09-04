@@ -23,7 +23,7 @@ describe("errorPreventionViolation", () => {
       `);
       try {
         const violation = await errorPreventionViolation(page);
-        expect(violation?.id).toBe("complyloop-error-prevention");
+        expect(violation?.id).toBe("error-prevention");
       } finally {
         await close();
       }

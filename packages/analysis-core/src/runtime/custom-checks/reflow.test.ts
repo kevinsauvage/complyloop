@@ -54,7 +54,7 @@ describe("reflowViolation", () => {
       `);
       try {
         const violation = await reflowViolation(page);
-        expect(violation?.id).toBe("complyloop-reflow");
+        expect(violation?.id).toBe("reflow");
       } finally {
         await close();
       }

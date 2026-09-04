@@ -24,7 +24,7 @@ describe("dialogFocusViolations", () => {
       try {
         await page.focus("#open");
         const violations = await dialogFocusViolations(page);
-        expect(violations.some((v) => v.id === "complyloop-dialog-focus")).toBe(
+        expect(violations.some((v) => v.id === "dialog-keyboard")).toBe(
           true,
         );
       } finally {

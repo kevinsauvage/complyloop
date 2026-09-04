@@ -25,7 +25,7 @@ describe("formErrorSubmitViolation", () => {
       `);
       try {
         const violation = await formErrorSubmitViolation(page);
-        expect(violation?.id).toBe("complyloop-form-error-submit");
+        expect(violation?.id).toBe("form-error-association");
         expect(violation?.nodes.some((n) => n.html.includes('id="email"'))).toBe(
           true,
         );

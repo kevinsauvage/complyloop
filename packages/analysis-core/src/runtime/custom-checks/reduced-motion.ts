@@ -17,7 +17,7 @@ interface AnimationLike {
  * preference and flag CSS / WAAPI animations that keep running — i.e. pages
  * that did not gate their animation behind the media query.
  *
- * Returns a `complyloop-reduced-motion` violation (maps to `reduced-motion`).
+ * Returns a `reduced-motion` finding.
  */
 export async function reducedMotionViolation(
   page: Page,
@@ -91,7 +91,7 @@ export async function reducedMotionViolation(
 
     if (nodes.length === 0) return null;
     return {
-      id: "complyloop-reduced-motion",
+      id: "reduced-motion",
       impact: "moderate",
       description:
         "A CSS or JavaScript animation keeps running when the user prefers reduced motion.",

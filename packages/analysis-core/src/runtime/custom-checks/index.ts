@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
-import type { AxeViolationLike } from "../findings.ts";
+import { isHeuristicCheck } from "../../check-authority.ts";
+import type { RawFinding } from "../../types.ts";
 import { cssDisabledContentViolations } from "./css-disabled-content.ts";
 import { cssOffUnderstandableViolation } from "./css-off-understandable.ts";
 import { errorPreventionViolation } from "./error-prevention.ts";
@@ -27,27 +28,51 @@ import { resizeTextViolation } from "./resize-text.ts";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime.ts";
 import type { CustomViolation } from "./types.ts";
 
-function toAxeViolation(violation: CustomViolation): AxeViolationLike {
-  return {
-    id: violation.id,
-    impact: violation.impact,
-    description: violation.description,
-    help: violation.help,
-    nodes: violation.nodes.map((node) => ({
-      html: node.html,
-      target: node.target,
-      ...(node.failureSummary ? { failureSummary: node.failureSummary } : {}),
-    })),
-  };
+export { customProbeCheckIds } from "./types.ts";
+
+function snippetOf(html: string): string {
+  const trimmed = html.replace(/\s+/g, " ").trim();
+  return trimmed.length > 200 ? `${trimmed.slice(0, 197)}…` : trimmed;
 }
 
-/**
- * Playwright checks that axe / html-validate do not cover.
- * Returns synthetic violations using complyloop-* ids mapped in axe-map.ts.
- */
-export async function runCustomRuntimeChecks(
-  page: Page,
-): Promise<AxeViolationLike[]> {
+function selectorOf(target: string[]): string {
+  const first = target[0];
+  return typeof first === "string" && first.length > 0 ? first : "(unknown)";
+}
+
+export function findingsFromCustomViolations(
+  pageUrl: string,
+  violations: ReadonlyArray<CustomViolation>,
+): RawFinding[] {
+  const findings: RawFinding[] = [];
+  for (const violation of violations) {
+    const heuristic = isHeuristicCheck(violation.id);
+    for (const node of violation.nodes) {
+      findings.push({
+        checkId: violation.id,
+        kind: heuristic ? "warning" : "violation",
+        severity: heuristic ? "moderate" : violation.impact,
+        confidence: heuristic ? "medium" : "high",
+        reason: `${violation.help} ${violation.description}`.trim(),
+        location: {
+          kind: "dom",
+          url: pageUrl,
+          selector: selectorOf(node.target),
+          snippet: snippetOf(node.html),
+          elementLabel: node.elementLabel,
+          context: node.failureSummary,
+        },
+        fix: null,
+        engine: "runtime",
+        analyzerId: "playwright-custom",
+        analyzerRuleId: violation.id,
+      });
+    }
+  }
+  return findings;
+}
+
+async function collectCustomViolations(page: Page): Promise<CustomViolation[]> {
   const optional = await Promise.all([
     textSpacingRuntimeViolation(page),
     nonTextContrastViolation(page),
@@ -99,7 +124,15 @@ export async function runCustomRuntimeChecks(
     }),
   );
 
-  return violations.map(toAxeViolation);
+  return violations;
+}
+
+/** Playwright checks that axe / html-validate do not cover. */
+export async function runCustomRuntimeChecks(
+  page: Page,
+  pageUrl: string,
+): Promise<RawFinding[]> {
+  return findingsFromCustomViolations(pageUrl, await collectCustomViolations(page));
 }
 
 /**
@@ -109,9 +142,10 @@ export async function runCustomRuntimeChecks(
  */
 export async function runThemeSensitiveCustomChecks(
   page: Page,
-): Promise<AxeViolationLike[]> {
+  pageUrl: string,
+): Promise<RawFinding[]> {
   const theme: CustomViolation[] = [...(await focusCustomViolations(page))];
   const contrast = await nonTextContrastViolation(page);
   if (contrast) theme.push(contrast);
-  return theme.map(toAxeViolation);
+  return findingsFromCustomViolations(pageUrl, theme);
 }

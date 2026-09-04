@@ -9,29 +9,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { OrgMembership, OrgRole } from "@/core/project-types";
+import type { OrgMembership } from "@/core/project-types";
 import {
   changeOrgMemberRoleAction,
   removeOrgMemberAction,
 } from "@/server/actions/org";
+import { STATUS_TONE_BADGE, roleTone } from "@/core/status-tone";
 import { cn } from "@/lib/utils";
-
-function roleBadgeClass(role: OrgRole): string {
-  switch (role) {
-    case "owner":
-      return "border-transparent bg-signal/15 text-signal dark:bg-signal/25";
-    case "admin":
-      return "border-transparent bg-status-review/15 text-status-review dark:bg-status-review/25";
-    case "member":
-      return "border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25";
-    case "viewer":
-      return "border-transparent bg-status-na/15 text-status-na dark:bg-status-na/25";
-    default: {
-      const _exhaustive: never = role;
-      throw new Error(`Unhandled org role: ${_exhaustive}`);
-    }
-  }
-}
 
 export function OrgMembersCard({
   orgId,
@@ -87,7 +71,7 @@ export function OrgMembersCard({
                 <Badge
                   className={cn(
                     "capitalize",
-                    roleBadgeClass(membership.role),
+                    STATUS_TONE_BADGE[roleTone(membership.role)],
                   )}
                 >
                   {membership.role}
@@ -95,11 +79,11 @@ export function OrgMembersCard({
               </TableCell>
               <TableCell>
                 {pending ? (
-                  <Badge className="border-transparent bg-status-review/15 text-status-review dark:bg-status-review/25">
+                  <Badge className={STATUS_TONE_BADGE.review}>
                     Invite pending
                   </Badge>
                 ) : (
-                  <Badge className="border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25">
+                  <Badge className={STATUS_TONE_BADGE.passed}>
                     Signed in
                   </Badge>
                 )}

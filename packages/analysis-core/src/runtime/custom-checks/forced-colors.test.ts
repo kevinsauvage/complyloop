@@ -28,7 +28,7 @@ describe("forcedColorsViolation", () => {
       `);
       try {
         const violation = await forcedColorsViolation(page);
-        expect(violation?.id).toBe("complyloop-forced-colors");
+        expect(violation?.id).toBe("forced-colors");
         expect(violation?.nodes.some((n) => n.html.includes("icon-btn"))).toBe(
           true,
         );

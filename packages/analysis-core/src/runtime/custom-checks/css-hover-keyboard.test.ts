@@ -34,7 +34,7 @@ describe("cssHoverKeyboardViolation", () => {
       `);
       try {
         const violation = await cssHoverKeyboardViolation(page);
-        expect(violation?.id).toBe("complyloop-css-hover-keyboard");
+        expect(violation?.id).toBe("css-hover-keyboard");
       } finally {
         await close();
       }

@@ -53,7 +53,7 @@ describe("hoverContentViolation", () => {
       `);
       try {
         const violation = await hoverContentViolation(page);
-        expect(violation?.id).toBe("complyloop-hover-content");
+        expect(violation?.id).toBe("hover-content");
       } finally {
         await close();
       }

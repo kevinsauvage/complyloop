@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { STATUS_TONE_BADGE } from "@/core/status-tone";
 import { requirementsPageHref } from "@/core/requirements-page";
 import type { FrameworkPreset } from "@/adapters/types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
@@ -52,7 +53,7 @@ export function PresetNavigator({
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium">{preset.name}</span>
                     {isDefault ? (
-                      <Badge className="border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25">
+                      <Badge className={STATUS_TONE_BADGE.passed}>
                         Default
                       </Badge>
                     ) : null}

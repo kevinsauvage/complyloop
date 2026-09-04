@@ -63,7 +63,7 @@ export async function targetSizeEnhancedViolation(
 
   if (nodes.length === 0) return null;
   return {
-    id: "complyloop-target-size-enhanced",
+    id: "target-size-enhanced",
     impact: "moderate",
     description:
       "An interactive target is smaller than 44×44 CSS pixels (WCAG 2.5.5 Target Size Enhanced).",

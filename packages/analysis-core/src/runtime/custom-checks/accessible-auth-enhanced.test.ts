@@ -24,7 +24,7 @@ describe("accessibleAuthEnhancedViolation", () => {
       `);
       try {
         const violation = await accessibleAuthEnhancedViolation(page);
-        expect(violation?.id).toBe("complyloop-accessible-auth-enhanced");
+        expect(violation?.id).toBe("accessible-auth-enhanced");
       } finally {
         await close();
       }

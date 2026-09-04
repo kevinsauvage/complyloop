@@ -55,7 +55,7 @@ export async function reflowViolation(page: Page): Promise<CustomViolation | nul
 
     if (!hit) return null;
     return {
-      id: "complyloop-reflow",
+      id: "reflow",
       impact: "serious",
       description:
         "Page content requires horizontal scrolling at 320 CSS pixels without a qualifying exception.",

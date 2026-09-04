@@ -98,10 +98,10 @@ from disk; `runAxeOnPage` re-injects if viewport/CDP emulation cleared `window.a
 
 | Piece          | Path                    | Role                                                                 |
 | -------------- | ----------------------- | -------------------------------------------------------------------- |
-| Axe mapping    | `axe-map.ts`            | axe / `complyloop-*` probe id → catalog check id                     |
+| Axe mapping    | `axe-map.ts`            | axe rule id → catalog check id                                       |
 | Theme pass     | `theme-conditions.ts`   | Re-runs theme-sensitive axe + custom checks under `browserConditions`. Assessments default to `dark` + `light` via `DEFAULT_THEME_CONDITIONS`. |
 | Viewport pass  | `viewport-conditions.ts` | Target-size at 320×568 and under `pointer: coarse` (touch emulation). |
-| Custom checks  | `custom-checks/`        | Focus, widgets, contrast, reflow, media, hover, live regions, …      |
+| Custom checks  | `custom-checks/`        | Playwright probes emit `RawFinding` (catalog check ids, no axe wrap) |
 | Applicability  | `applicability.ts`      | Absence probes (media, CAPTCHA, layout tables) → `not_applicable`    |
 | Site-level     | `site-level/`           | Cross-route consistency (nav, help, titles) + `link-check.ts` (linkinator, same-origin broken links) |
 
@@ -137,9 +137,11 @@ idrefs stay on axe / custom Playwright checks.
 Runs only when `runtimeBaseUrl` is set (needs a browser). The `@complyloop/check`
 CLI / source scan does **not** use html-validate.
 
-**html-validate-owned gate:** `markup-nesting` and `css-for-presentation` stay
-`unable_to_verify` until html-validate succeeded on at least one page
-(`htmlValidateRan`) — an axe-only runtime pass is not enough.
+**html-validate-owned gate:** the adapter sets `htmlValidateRequired` from
+`isHtmlValidateOwnedCheck` (`markup-nesting`, `css-for-presentation`). Those
+stay `unable_to_verify` until html-validate succeeded on at least one page
+(`htmlValidateRan`) — an axe-only runtime pass is not enough. The contract
+does not hard-code those ids.
 
 **Analyzer provenance:** `RawFinding` / persisted `Finding` carry optional
 `analyzerId`, `analyzerRuleId`, `analyzerVersion`, and `contributingAnalyzers`
@@ -174,7 +176,7 @@ feeds scan flags. Precedence:
 1. **Sticky human decisions** — exception or human pass (`determination: "human_review"`) is never overwritten by a new assessment. Temporary exceptions expire via `clearExpiredExceptions` (historized, not deleted).
 2. **Open findings** — any `violation` → `failed`; otherwise `needs_review`.
 3. **Applicability** — when runtime ran and every audited page confirmed absence for that check id → `not_applicable` (fact stored on `requirement_status_changed` evidence). Observables today: temporal/nontemporal media, CAPTCHA, layout tables (`runtime/applicability.ts`).
-4. **Authority gates** — manual and heuristic stay `unable_to_verify`; runtime-only needs `runtimeRan` (and `htmlValidateRan` for html-validate-owned ids); site-level needs `runtimeRan` + `siteLevelChecksRan`; standard / composition-sensitive with no open findings → `passed`.
+4. **Authority gates** — manual and heuristic stay `unable_to_verify`; runtime-only needs `runtimeRan` (and `htmlValidateRan` when `htmlValidateRequired`); site-level needs `runtimeRan` + `siteLevelChecksRan`; standard / composition-sensitive with no open findings → `passed`.
 
 Controls with `checkId: null` stay `unable_to_verify` until a human pass or exception.
 

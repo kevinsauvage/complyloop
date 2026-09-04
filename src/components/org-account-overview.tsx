@@ -8,6 +8,7 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import type { OrgRole } from "@/core/project-types";
+import { STATUS_TONE_BADGE, roleTone } from "@/core/status-tone";
 import { cn } from "@/lib/utils";
 
 type OrgAccountOverviewProps = {
@@ -21,25 +22,6 @@ type OrgAccountOverviewProps = {
   pendingInviteCount: number;
   supportEmail: string | null;
 };
-
-function roleBadgeClass(role: OrgRole | null): string {
-  switch (role) {
-    case "owner":
-      return "border-transparent bg-signal/15 text-signal dark:bg-signal/25";
-    case "admin":
-      return "border-transparent bg-status-review/15 text-status-review dark:bg-status-review/25";
-    case "member":
-      return "border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25";
-    case "viewer":
-      return "border-transparent bg-status-na/15 text-status-na dark:bg-status-na/25";
-    case null:
-      return "";
-    default: {
-      const _exhaustive: never = role;
-      throw new Error(`Unhandled org role: ${_exhaustive}`);
-    }
-  }
-}
 
 export function OrgAccountOverview({
   orgName,
@@ -65,7 +47,7 @@ export function OrgAccountOverview({
           </h2>
           <Badge variant="secondary">Early access pilot</Badge>
           {viewerRole ? (
-            <Badge className={cn("capitalize", roleBadgeClass(viewerRole))}>
+            <Badge className={cn("capitalize", STATUS_TONE_BADGE[roleTone(viewerRole)])}>
               {viewerRole}
             </Badge>
           ) : null}

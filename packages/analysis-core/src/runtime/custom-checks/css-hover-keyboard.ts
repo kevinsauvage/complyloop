@@ -93,7 +93,7 @@ export async function cssHoverKeyboardViolation(
   if (nodes.length === 0) return null;
 
   return {
-    id: "complyloop-css-hover-keyboard",
+    id: "css-hover-keyboard",
     impact: "moderate",
     description:
       "Extra content may appear on pointer hover without an equivalent reveal on keyboard focus.",

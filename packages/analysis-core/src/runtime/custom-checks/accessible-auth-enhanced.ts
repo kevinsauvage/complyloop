@@ -60,7 +60,7 @@ export async function accessibleAuthEnhancedViolation(
   if (nodes.length === 0) return null;
 
   return {
-    id: "complyloop-accessible-auth-enhanced",
+    id: "accessible-auth-enhanced",
     impact: "serious",
     description:
       "Authentication uses object-recognition or image-selection CAPTCHA.",

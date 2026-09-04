@@ -65,7 +65,7 @@ describe("widgetKeyboardViolations", () => {
       `);
       try {
         const violations = await widgetKeyboardViolations(page);
-        expect(violations.some((v) => v.id === "complyloop-tabs-keyboard")).toBe(
+        expect(violations.some((v) => v.id === "tabs-keyboard")).toBe(
           true,
         );
       } finally {
@@ -88,7 +88,7 @@ describe("widgetKeyboardViolations", () => {
       `);
       try {
         const violations = await widgetKeyboardViolations(page);
-        expect(violations.some((v) => v.id === "complyloop-tabs-keyboard")).toBe(
+        expect(violations.some((v) => v.id === "tabs-keyboard")).toBe(
           false,
         );
       } finally {
@@ -110,7 +110,7 @@ describe("widgetKeyboardViolations", () => {
       try {
         const violations = await widgetKeyboardViolations(page);
         expect(
-          violations.some((v) => v.id === "complyloop-disclosure-keyboard"),
+          violations.some((v) => v.id === "disclosure-keyboard"),
         ).toBe(true);
       } finally {
         await close();
@@ -131,7 +131,7 @@ describe("widgetKeyboardViolations", () => {
       try {
         const violations = await widgetKeyboardViolations(page);
         expect(
-          violations.some((v) => v.id === "complyloop-disclosure-keyboard"),
+          violations.some((v) => v.id === "disclosure-keyboard"),
         ).toBe(false);
       } finally {
         await close();
@@ -153,7 +153,7 @@ describe("widgetKeyboardViolations", () => {
       `);
       try {
         const violations = await widgetKeyboardViolations(page);
-        expect(violations.some((v) => v.id === "complyloop-menu-keyboard")).toBe(
+        expect(violations.some((v) => v.id === "menu-keyboard")).toBe(
           true,
         );
       } finally {

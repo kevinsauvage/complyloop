@@ -32,6 +32,7 @@ import {
 import { maxRuntimePages } from "../contract/assessment-limits.ts";
 import {
   conditionLabel,
+  conditionSpecificFindings,
   conditionSpecificViolations,
   emulationForCondition,
   RESET_EMULATION,
@@ -252,7 +253,7 @@ function createPlaywrightAxeScanner(options?: {
             throw new PublicError(blockedReason);
           }
           const results = await runAxeOnPage(page);
-          const customViolations = await runCustomRuntimeChecks(page);
+          const customFindings = await runCustomRuntimeChecks(page, url);
           // Rendered pass: validate the generated DOM. Serialize on
           // the open page (no extra browser cost) and validate in-process.
           const snapshot = await capturePageSnapshot(page, url);
@@ -271,10 +272,9 @@ function createPlaywrightAxeScanner(options?: {
           }
 
           let violations = hasDoctype
-            ? [...results.violations, ...customViolations]
+            ? [...results.violations]
             : [
               ...results.violations,
-              ...customViolations,
               {
                 id: "html-has-doctype",
                 impact: "moderate",
@@ -327,6 +327,7 @@ function createPlaywrightAxeScanner(options?: {
           // each requested condition and keep only findings that fail in that
           // condition but not in the default pass.
           const conditionViolations: AxeViolationLike[] = [];
+          const conditionCustomFindings: RawFinding[] = [];
           for (const condition of conditions) {
             await page.emulateMedia(emulationForCondition(condition));
             try {
@@ -334,13 +335,14 @@ function createPlaywrightAxeScanner(options?: {
               const themeAxe = axeResult.violations.filter((v) =>
                 THEME_SENSITIVE_AXE_RULES.has(v.id),
               );
-              const themeCustom = await runThemeSensitiveCustomChecks(page);
-              const conditionSpecific = conditionSpecificViolations(
-                violations,
-                [...themeAxe, ...themeCustom],
-                conditionLabel(condition),
+              const themeCustom = await runThemeSensitiveCustomChecks(page, url);
+              const label = conditionLabel(condition);
+              conditionViolations.push(
+                ...conditionSpecificViolations(violations, themeAxe, label),
               );
-              conditionViolations.push(...conditionSpecific);
+              conditionCustomFindings.push(
+                ...conditionSpecificFindings(customFindings, themeCustom, label),
+              );
             } finally {
               await page.emulateMedia(RESET_EMULATION);
             }
@@ -350,6 +352,7 @@ function createPlaywrightAxeScanner(options?: {
             url,
             violations: [...violations, ...conditionViolations],
             incomplete: results.incomplete,
+            customFindings: [...customFindings, ...conditionCustomFindings],
             htmlValidateFindings,
             htmlValidateRan: pageHtmlValidateRan,
             snapshot,

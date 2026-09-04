@@ -31,7 +31,7 @@ describe("liveRegionUpdatesViolation", () => {
       `);
       try {
         const violation = await liveRegionUpdatesViolation(page);
-        expect(violation?.id).toBe("complyloop-live-region-updates");
+        expect(violation?.id).toBe("live-region-updates");
         expect(violation?.impact).toBe("moderate");
       } finally {
         await close();

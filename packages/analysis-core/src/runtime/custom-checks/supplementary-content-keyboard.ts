@@ -68,7 +68,7 @@ export async function supplementaryContentKeyboardViolation(
   if (nodes.length === 0) return null;
 
   return {
-    id: "complyloop-supplementary-content-keyboard",
+    id: "supplementary-content-keyboard",
     impact: "moderate",
     description:
       "Supplementary content appears available only through pointer hover or hidden popups.",

@@ -1,3 +1,4 @@
+import type { RawFinding } from "../types.ts";
 import type { AxeViolationLike } from "./findings.ts";
 
 /**
@@ -104,6 +105,35 @@ export function conditionSpecificViolations(
     specific.push({
       ...violation,
       description: `[${conditionLabel} only] ${violation.description}`,
+    });
+  }
+  return specific;
+}
+
+function findingKey(finding: RawFinding): string {
+  const selector =
+    finding.location.kind === "dom" ? finding.location.selector : "";
+  return `${finding.checkId}::${selector}`;
+}
+
+/** Same as `conditionSpecificViolations` for Playwright custom findings. */
+export function conditionSpecificFindings(
+  baseline: ReadonlyArray<RawFinding>,
+  condition: ReadonlyArray<RawFinding>,
+  conditionLabel: string,
+): RawFinding[] {
+  const baselineKeys = new Set(baseline.map(findingKey));
+  const seen = new Set<string>();
+  const specific: RawFinding[] = [];
+
+  for (const finding of condition) {
+    const key = findingKey(finding);
+    if (baselineKeys.has(key)) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    specific.push({
+      ...finding,
+      reason: `[${conditionLabel} only] ${finding.reason}`,
     });
   }
   return specific;

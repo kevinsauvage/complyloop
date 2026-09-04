@@ -84,7 +84,7 @@ export async function labelAdjacentViolation(
 
   if (nodes.length === 0) return null;
   return {
-    id: "complyloop-label-adjacent",
+    id: "label-adjacent",
     impact: "moderate",
     description:
       "Visible label is programmatically associated but may not be visually adjacent to its field.",

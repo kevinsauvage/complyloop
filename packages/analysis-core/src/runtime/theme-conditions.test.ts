@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   conditionLabel,
+  conditionSpecificFindings,
   conditionSpecificViolations,
   emulationForCondition,
   THEME_SENSITIVE_AXE_RULES,
@@ -119,7 +120,7 @@ describe("dark color-scheme condition (Playwright)", () => {
       `);
 
       async function themeFindings() {
-        return runThemeSensitiveCustomChecks(page);
+        return runThemeSensitiveCustomChecks(page, page.url());
       }
 
       await page.emulateMedia({ colorScheme: "light" });
@@ -128,8 +129,8 @@ describe("dark color-scheme condition (Playwright)", () => {
       const dark = await themeFindings();
       await page.emulateMedia({ colorScheme: null });
 
-      const darkOnly = conditionSpecificViolations(light, dark, "dark");
-      expect(darkOnly.some((v) => v.id === "complyloop-non-text-contrast")).toBe(
+      const darkOnly = conditionSpecificFindings(light, dark, "dark");
+      expect(darkOnly.some((v) => v.checkId === "non-text-contrast")).toBe(
         true,
       );
     },

@@ -36,7 +36,7 @@ describe("layoutTableLinearizationViolation", () => {
       `);
       try {
         const violation = await layoutTableLinearizationViolation(page);
-        expect(violation?.id).toBe("complyloop-layout-table-linearization");
+        expect(violation?.id).toBe("layout-table-linearization");
       } finally {
         await close();
       }

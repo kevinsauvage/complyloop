@@ -109,7 +109,7 @@ export async function cssOffUnderstandableViolation(
       : "Flex/grid order properties reorder content visually; that order is lost when CSS is disabled.";
 
   return {
-    id: "complyloop-css-off-understandable",
+    id: "css-off-understandable",
     impact: "moderate",
     description,
     help: "Keep reading order and essential content in the DOM so it remains understandable without CSS (WCAG 1.3.2 / RGAA 10.3).",

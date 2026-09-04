@@ -1,4 +1,4 @@
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { renderWithUiProviders } from "@/test/render-ui";
@@ -57,10 +57,7 @@ describe("DashboardStatusCounts", () => {
     );
 
     expect(screen.getByRole("link", { name: /failed/i })).toBeInTheDocument();
-    const passedCard = screen.getByText("Passed").closest("div");
-    expect(passedCard).toBeTruthy();
-    expect(
-      within(passedCard!.parentElement as HTMLElement).queryByRole("link"),
-    ).toBeNull();
+    expect(screen.getByText("Passed")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /passed/i })).toBeNull();
   });
 });

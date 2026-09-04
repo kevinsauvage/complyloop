@@ -100,7 +100,7 @@ export async function forcedColorsViolation(
 
     if (nodes.length === 0) return null;
     return {
-      id: "complyloop-forced-colors",
+      id: "forced-colors",
       impact: "serious",
       description:
         "An interactive control has no visible boundary under forced-colors mode — no text, border, outline, or filled background.",

@@ -75,7 +75,7 @@ export async function cssDisabledContentViolations(
 
   return [
     {
-      id: "complyloop-css-disabled-content",
+      id: "css-disabled-content",
       impact: "moderate",
       description:
         "Visible text may depend on CSS pseudo-elements or background images instead of HTML.",

@@ -1,23 +1,9 @@
+import { STATUS_TONE_ACCENT, statusTone } from "@/core/status-tone";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
 export function statusAccentClass(status: RequirementStatus): string {
-  switch (status) {
-    case "passed":
-      return "bg-status-passed";
-    case "failed":
-      return "bg-status-failed";
-    case "needs_review":
-      return "bg-status-review";
-    case "not_applicable":
-      return "bg-status-na";
-    case "unable_to_verify":
-      return "bg-status-unverifiable";
-    default: {
-      const _exhaustive: never = status;
-      throw new Error(`Unhandled requirement status: ${_exhaustive}`);
-    }
-  }
+  return STATUS_TONE_ACCENT[statusTone(status)];
 }
 
 export function RequirementStatusAccent({

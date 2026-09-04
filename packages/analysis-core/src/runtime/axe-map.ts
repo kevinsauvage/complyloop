@@ -91,7 +91,6 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "landmark-no-duplicate-contentinfo": "landmark-unique",
   "nested-interactive": "nested-interactive",
   "target-size": "target-size",
-  "complyloop-target-size-enhanced": "target-size-enhanced",
 
   // Structure / zoom / autocomplete (new modeled checks)
   list: "list-structure",
@@ -130,39 +129,9 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "p-as-heading": "p-as-heading",
   "html-has-doctype": "doctype",
 
-  "complyloop-focus-visible": "focus-visible",
-  "complyloop-keyboard-trap": "keyboard-trap",
-  "complyloop-focus-not-obscured": "focus-not-obscured",
-  "complyloop-focus-not-obscured-enhanced": "focus-not-obscured-enhanced",
-  "complyloop-focus-appearance": "focus-appearance",
-  "complyloop-reflow": "reflow",
-  "complyloop-text-spacing-runtime": "text-spacing-runtime",
-  "complyloop-non-text-contrast": "non-text-contrast",
-  "complyloop-label-adjacent": "label-adjacent",
-  "complyloop-css-disabled-content": "css-disabled-content",
-  "complyloop-media-keyboard": "media-keyboard",
-  "complyloop-resize-text": "resize-text",
-  "complyloop-css-hover-keyboard": "css-hover-keyboard",
   "focus-order-semantics": "focus-order-logical",
   "identical-links-same-purpose": "identical-links-purpose",
   "hidden-content": "hidden-content",
-  "complyloop-css-off-understandable": "css-off-understandable",
-  "complyloop-layout-table-linearization": "layout-table-linearization",
-  "complyloop-error-prevention": "error-prevention",
-  "complyloop-captcha-alternative": "captcha-alternative",
-  "complyloop-accessible-auth-enhanced": "accessible-auth-enhanced",
-  "complyloop-media-identification": "media-identification",
-  "complyloop-supplementary-content-keyboard": "supplementary-content-keyboard",
-  "complyloop-form-error-submit": "form-error-association",
-  "complyloop-forced-colors": "forced-colors",
-  "complyloop-reduced-motion": "reduced-motion",
-  "complyloop-dialog-focus": "dialog-keyboard",
-  "complyloop-dialog-trap": "keyboard-trap",
-  "complyloop-tabs-keyboard": "tabs-keyboard",
-  "complyloop-disclosure-keyboard": "disclosure-keyboard",
-  "complyloop-menu-keyboard": "menu-keyboard",
-  "complyloop-hover-content": "hover-content",
-  "complyloop-live-region-updates": "live-region-updates",
 };
 
 /**
@@ -179,7 +148,7 @@ export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {
   return AXE_TO_CHECK[axeRuleId];
 }
 
-/** Distinct catalog ids axe or custom Playwright probes can emit. */
+/** Distinct catalog ids axe can emit. */
 export function axeMappedCheckIds(): CheckId[] {
   return [...new Set(Object.values(AXE_TO_CHECK))];
 }

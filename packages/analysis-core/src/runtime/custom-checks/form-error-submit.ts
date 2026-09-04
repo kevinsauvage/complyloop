@@ -108,7 +108,7 @@ export async function formErrorSubmitViolation(
   if (nodes.length === 0) return null;
 
   return {
-    id: "complyloop-form-error-submit",
+    id: "form-error-association",
     impact: "serious",
     description:
       "Form validation errors after submit are not programmatically associated with their fields, or focus did not move predictably.",

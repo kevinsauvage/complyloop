@@ -60,7 +60,7 @@ export async function dialogFocusViolations(
     }, sel);
     if (!inDialog) {
       violations.push({
-        id: "complyloop-dialog-focus",
+        id: "dialog-keyboard",
         impact: "serious",
         description:
           "Opening the dialog did not move keyboard focus into it.",
@@ -96,7 +96,7 @@ export async function dialogFocusViolations(
       }
       if (leaked) {
         violations.push({
-          id: "complyloop-dialog-trap",
+          id: "keyboard-trap",
           impact: "critical",
           description:
             "Tab focus leaks out of an open modal dialog.",
@@ -120,7 +120,7 @@ export async function dialogFocusViolations(
       }, triggerSel);
       if (!restored) {
         violations.push({
-          id: "complyloop-dialog-focus",
+          id: "dialog-keyboard",
           impact: "serious",
           description:
             "Closing the dialog did not return focus to the trigger.",

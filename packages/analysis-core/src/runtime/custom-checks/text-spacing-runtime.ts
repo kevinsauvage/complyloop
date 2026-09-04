@@ -58,7 +58,7 @@ export async function textSpacingRuntimeViolation(
 
   if (nodes.length === 0) return null;
   return {
-    id: "complyloop-text-spacing-runtime",
+    id: "text-spacing-runtime",
     impact: "serious",
     description:
       "Text is clipped or hidden when WCAG 1.4.12 text-spacing overrides are applied.",

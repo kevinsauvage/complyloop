@@ -132,7 +132,6 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "heuristic",
-        checkId: "captcha-alternative",
         runtimeRan: true,
         applicabilityConfirmed: true,
       }),
@@ -140,7 +139,6 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "standard",
-        checkId: "video-caption",
         runtimeRan: true,
         applicabilityConfirmed: true,
       }),
@@ -151,7 +149,6 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "heuristic",
-        checkId: "captcha-alternative",
         runtimeRan: true,
       }),
     ).toBe("unable_to_verify");
@@ -161,7 +158,6 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "heuristic",
-        checkId: "captcha-alternative",
         runtimeRan: true,
         applicabilityConfirmed: true,
         openFindings: [{ kind: "violation" }],
@@ -173,7 +169,7 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "runtime_only",
-        checkId: "markup-nesting",
+        htmlValidateRequired: true,
         runtimeRan: true,
         htmlValidateRan: false,
       }),
@@ -181,7 +177,7 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "runtime_only",
-        checkId: "css-for-presentation",
+        htmlValidateRequired: true,
         runtimeRan: true,
         htmlValidateRan: true,
       }),
@@ -189,7 +185,6 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "composition_sensitive",
-        checkId: "duplicate-id",
         runtimeRan: true,
         htmlValidateRan: false,
       }),

@@ -25,7 +25,7 @@ describe("focusCustomViolations", () => {
       `);
       try {
         const violations = await focusCustomViolations(page);
-        expect(violations.some((v) => v.id === "complyloop-focus-visible")).toBe(
+        expect(violations.some((v) => v.id === "focus-visible")).toBe(
           true,
         );
       } finally {
@@ -54,7 +54,7 @@ describe("focusCustomViolations", () => {
       `);
       try {
         const violations = await focusCustomViolations(page);
-        expect(violations.some((v) => v.id === "complyloop-focus-visible")).toBe(
+        expect(violations.some((v) => v.id === "focus-visible")).toBe(
           false,
         );
       } finally {
@@ -79,7 +79,7 @@ describe("focusCustomViolations", () => {
       `);
       try {
         const violations = await focusCustomViolations(page);
-        expect(violations.some((v) => v.id === "complyloop-focus-visible")).toBe(
+        expect(violations.some((v) => v.id === "focus-visible")).toBe(
           true,
         );
       } finally {

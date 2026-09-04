@@ -27,7 +27,7 @@ describe("mediaKeyboardViolation", () => {
           return media instanceof HTMLMediaElement && media.readyState >= 1;
         });
         const violation = await mediaKeyboardViolation(page);
-        expect(violation?.id).toBe("complyloop-media-keyboard");
+        expect(violation?.id).toBe("media-keyboard");
       } finally {
         await close();
       }

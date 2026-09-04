@@ -85,7 +85,7 @@ export async function errorPreventionViolation(
   if (hits.length === 0) return null;
 
   return {
-    id: "complyloop-error-prevention",
+    id: "error-prevention",
     impact: "serious",
     description:
       "High-impact form can submit without a review, confirm, or agreement step.",

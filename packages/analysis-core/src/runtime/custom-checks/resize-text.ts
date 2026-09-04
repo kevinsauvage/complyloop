@@ -45,7 +45,7 @@ export async function resizeTextViolation(
 
     if (!hit) return null;
     return {
-      id: "complyloop-resize-text",
+      id: "resize-text",
       impact: "serious",
       description:
         "Text is clipped after 200% text resize at the default viewport.",
