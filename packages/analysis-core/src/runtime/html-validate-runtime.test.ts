@@ -24,10 +24,8 @@ function serialized(html: string): SerializeDocumentResult {
   const re = /<([a-z][a-z0-9-]*)((?:\s+[^>]*?)?)(\/?)>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
-    const tag = m[1].toLowerCase();
     const selfClosing = m[3] === "/";
-    // Skip text nodes / attribute-only matches; record element start offsets.
-    elements.push({ offset: m.index, selector: tag, html: m[0] });
+    elements.push({ offset: m.index, selector: m[1].toLowerCase(), html: m[0] });
     if (selfClosing) continue;
   }
   return { html, elements };
@@ -36,26 +34,13 @@ function serialized(html: string): SerializeDocumentResult {
 const URL = "https://app.example/";
 
 describe("html-validate rendered pass", () => {
-  it("does not flag a single-main document", () => {
-    const s = serialized(`<html><body><main><p>x</p></main></body></html>`);
-    const f = htmlValidateFindingsFromSerialized(s, URL);
-    const main = f.filter((x) => x.checkId === "landmark-one-main");
-    expect(main.length).toBe(0);
-  });
-
-  it("reports multiple <main> with a dom location and runtime engine", () => {
+  it("does not emit findings for multiple main (landmarks are axe-owned)", () => {
     const s = serialized(
       `<html><body><main id="a"><p>x</p></main><main id="b"><p>y</p></main></body></html>`,
     );
     const f = htmlValidateFindingsFromSerialized(s, URL);
-    const main = f.find((x) => x.checkId === "landmark-one-main");
-    expect(main).toBeDefined();
-    expect(main?.engine).toBe("runtime");
-    expect(main?.location.kind).toBe("dom");
-    if (main?.location.kind === "dom") {
-      expect(main.location.url).toBe(URL);
-      expect(main.location.selector.length).toBeGreaterThan(0);
-    }
+    expect(f.some((x) => x.checkId === "landmark-one-main")).toBe(false);
+    expect(f.some((x) => x.checkId === "landmark-unique")).toBe(false);
   });
 
   it("maps content-model violations and css-for-presentation", () => {
@@ -63,7 +48,6 @@ describe("html-validate rendered pass", () => {
       `<html><body><button type="button">a<button type="button">b</button></button><table><td>x</td></table><p align="center">y</p></body></html>`,
     );
     const f = htmlValidateFindingsFromSerialized(s, URL);
-    // element-permitted-content (interactive or otherwise) ⇒ markup-nesting.
     expect(f.some((x) => x.checkId === "markup-nesting")).toBe(true);
     expect(f.some((x) => x.checkId === "nested-interactive")).toBe(false);
     const dep = f.find((x) => x.checkId === "css-for-presentation");
@@ -86,8 +70,9 @@ describe("html-validate rendered pass", () => {
         const f = await htmlValidateFindingsForPage(page, "https://app.example/page");
         expect(f.every((x) => x.engine === "runtime")).toBe(true);
         expect(f.every((x) => x.location.kind === "dom")).toBe(true);
-        expect(f.some((x) => x.checkId === "landmark-one-main")).toBe(true);
+        expect(f.some((x) => x.checkId === "landmark-one-main")).toBe(false);
         expect(f.some((x) => x.checkId === "css-for-presentation")).toBe(true);
+        expect(f.some((x) => x.checkId === "markup-nesting")).toBe(true);
         expect(f.some((x) => x.checkId === "nested-interactive")).toBe(false);
         const dom = f
           .filter((x) => x.location.kind === "dom")
@@ -109,7 +94,7 @@ describe("html-validate rendered pass", () => {
     expect(f.some((x) => x.engine === "runtime")).toBe(true);
   });
 
-  it("reports broken for and aria-describedby as form-error-association", () => {
+  it("does not emit form-error-association for broken idrefs (axe-owned)", () => {
     const brokenFor = serialized(
       `<html><body><label for="missing">Email</label></body></html>`,
     );
@@ -117,7 +102,7 @@ describe("html-validate rendered pass", () => {
       htmlValidateFindingsFromSerialized(brokenFor, URL).some(
         (x) => x.checkId === "form-error-association",
       ),
-    ).toBe(true);
+    ).toBe(false);
 
     const brokenDescribedBy = serialized(
       `<html><body><input aria-describedby="gone" /></body></html>`,
@@ -126,41 +111,41 @@ describe("html-validate rendered pass", () => {
       htmlValidateFindingsFromSerialized(brokenDescribedBy, URL).some(
         (x) => x.checkId === "form-error-association",
       ),
-    ).toBe(true);
-
-    const ok = serialized(
-      `<html><body><label for="e">Email</label><input id="e" /></body></html>`,
-    );
-    expect(
-      htmlValidateFindingsFromSerialized(ok, URL).some(
-        (x) => x.checkId === "form-error-association",
-      ),
     ).toBe(false);
+  });
+
+  it("only emits markup-nesting, css-for-presentation, and duplicate-id", () => {
+    const s = serialized(
+      `<html><body><main id="a"></main><main id="b"></main><label for="x">x</label><p align="center">y</p><span id="d"></span><span id="d"></span></body></html>`,
+    );
+    const checkIds = new Set(
+      htmlValidateFindingsFromSerialized(s, URL).map((f) => f.checkId),
+    );
+    for (const id of checkIds) {
+      expect(["markup-nesting", "css-for-presentation", "duplicate-id"]).toContain(
+        id,
+      );
+    }
   });
 });
 
 describe("checkIdForHtmlValidateRule", () => {
-  it("maps rendered-pass rules to check ids", () => {
-    expect(checkIdForHtmlValidateRule("no-multiple-main")).toBe(
-      "landmark-one-main",
-    );
-    expect(checkIdForHtmlValidateRule("unique-landmark")).toBe(
-      "landmark-unique",
-    );
+  it("maps 8.2 / 10.1 rules only", () => {
     expect(checkIdForHtmlValidateRule("no-dup-id")).toBe("duplicate-id");
     expect(checkIdForHtmlValidateRule("no-deprecated-attr")).toBe(
       "css-for-presentation",
     );
-    expect(checkIdForHtmlValidateRule("deprecated")).toBe(
-      "css-for-presentation",
-    );
+    expect(checkIdForHtmlValidateRule("deprecated")).toBe("css-for-presentation");
     expect(checkIdForHtmlValidateRule("no-dup-attr")).toBe("markup-nesting");
     expect(checkIdForHtmlValidateRule("element-permitted-content")).toBe(
       "markup-nesting",
     );
-    expect(checkIdForHtmlValidateRule("no-missing-references")).toBe(
-      "form-error-association",
-    );
     expect(checkIdForHtmlValidateRule("not-a-rule")).toBeUndefined();
+  });
+
+  it("does not map landmark or idref rules", () => {
+    expect(checkIdForHtmlValidateRule("no-multiple-main")).toBeUndefined();
+    expect(checkIdForHtmlValidateRule("unique-landmark")).toBeUndefined();
+    expect(checkIdForHtmlValidateRule("no-missing-references")).toBeUndefined();
   });
 });

@@ -18,11 +18,9 @@ import { checkIdForHtmlValidateRule } from "./html-validate-map.js";
 import type { RawFinding } from "../types.js";
 
 /**
- * Rendered-pass rules = Pass A curated set plus the rendered-only rules that
- * need the concrete document (no-dup-id; the AST `duplicate-id` check already
- * owns source). `no-missing-references` covers broken `for` / aria idrefs on
- * the generated DOM (form-error-association). `valid-for` is unused — it does
- * not fire on missing targets in this html-validate version.
+ * Curated html-validate rules for RGAA 8.2 (markup validity, duplicate ids) and
+ * 10.1 (deprecated presentational markup) only. Landmarks, labels, ARIA, and
+ * broken idrefs are axe / IBM / custom Playwright — not enabled here.
  */
 const RENDERED_RULES = {
   "element-permitted-content": "error",
@@ -31,11 +29,8 @@ const RENDERED_RULES = {
   "no-implicit-close": "error",
   "no-dup-attr": "error",
   "no-dup-id": "error",
-  "no-multiple-main": "error",
-  "unique-landmark": "error",
   "no-deprecated-attr": "error",
   deprecated: "error",
-  "no-missing-references": "error",
 } as const;
 
 // Lazily built (module-level HtmlValidate is fine; it stays offline).
