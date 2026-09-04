@@ -23,7 +23,7 @@ Production checklist and reference. **App overview:** [`README.md`](../README.md
 | **Clones** | Shallow temp checkout per job; deleted after |
 | **Jobs** | Queued in DB; worker leases (30 min), 3 attempts total with backoff, serial per project |
 | **Webhooks** | Acknowledge after enqueue — no long HTTP hold for clone/Playwright |
-| **Write lock** | All domain writes (actions **and** the worker's assessment) share one global Postgres advisory lock; while an assessment runs, other writes wait. Size worker count and expectations accordingly (see `TODO.md` P0). |
+| **Write lock** | Job claim uses `FOR UPDATE SKIP LOCKED` so workers can dequeue in parallel across projects (still one running assessment per project). Rate limits use per-key named locks. Workspace writes use a normal transaction. |
 
 Webhooks never clone. Clone or scan failures happen in the worker and end as `assessment_job_failed` evidence after the last attempt.
 

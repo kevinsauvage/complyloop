@@ -1,8 +1,7 @@
-import { and, asc, eq, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
 import { PublicError } from "@/core/public-error";
 import { getDrizzle, type DrizzleDb } from "./db-store/client";
 import { assessmentJobs } from "./db-store/schema";
-import { withPostgresAdvisoryLock } from "./db-store/write-lock";
 
 export type AssessmentJobStatus =
   | "queued"
@@ -43,6 +42,15 @@ const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_LEASE_MS = 30 * 60_000;
 const RETRY_BASE_MS = 30_000;
 
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "23505"
+  );
+}
+
 function jobFromRow(row: AssessmentJobRow): AssessmentJob {
   return {
     id: row.id,
@@ -80,18 +88,18 @@ export async function enqueueAssessmentJob(
   input: EnqueueAssessmentJobInput,
 ): Promise<AssessmentJob> {
   const drizzle = await getDrizzle();
-  return withPostgresAdvisoryLock(drizzle, async (tx) => {
-    if (input.idempotencyKey) {
-      const [existing] = await tx
-        .select()
-        .from(assessmentJobs)
-        .where(eq(assessmentJobs.idempotencyKey, input.idempotencyKey))
-        .limit(1);
-      if (existing) return jobFromRow(existing);
-    }
+  if (input.idempotencyKey) {
+    const [existing] = await drizzle
+      .select()
+      .from(assessmentJobs)
+      .where(eq(assessmentJobs.idempotencyKey, input.idempotencyKey))
+      .limit(1);
+    if (existing) return jobFromRow(existing);
+  }
 
-    const now = new Date().toISOString();
-    const [created] = await tx
+  const now = new Date().toISOString();
+  try {
+    const [created] = await drizzle
       .insert(assessmentJobs)
       .values({
         id: crypto.randomUUID(),
@@ -110,7 +118,17 @@ export async function enqueueAssessmentJob(
       .returning();
     if (!created) throw new Error("Could not enqueue assessment job.");
     return jobFromRow(created);
-  });
+  } catch (error) {
+    if (input.idempotencyKey && isUniqueViolation(error)) {
+      const [existing] = await drizzle
+        .select()
+        .from(assessmentJobs)
+        .where(eq(assessmentJobs.idempotencyKey, input.idempotencyKey))
+        .limit(1);
+      if (existing) return jobFromRow(existing);
+    }
+    throw error;
+  }
 }
 
 async function recoverExpiredLeases(tx: DrizzleDb, now: string): Promise<void> {
@@ -134,9 +152,21 @@ async function recoverExpiredLeases(tx: DrizzleDb, now: string): Promise<void> {
 /** Claims one ready job while ensuring only one assessment runs per project. */
 export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
   const drizzle = await getDrizzle();
-  return withPostgresAdvisoryLock(drizzle, async (tx) => {
+  return drizzle.transaction(async (tx) => {
     const now = new Date().toISOString();
     await recoverExpiredLeases(tx, now);
+
+    const locked = await tx.execute<{ id: string }>(sql`
+      SELECT id
+      FROM assessment_jobs
+      WHERE status = 'queued'
+        AND available_at <= ${now}
+      ORDER BY available_at ASC, created_at ASC
+      LIMIT 100
+      FOR UPDATE SKIP LOCKED
+    `);
+    const lockedIds = [...locked].map((row) => String(row.id));
+    if (lockedIds.length === 0) return null;
 
     const running = await tx
       .select({ projectId: assessmentJobs.projectId })
@@ -146,15 +176,11 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
     const ready = await tx
       .select()
       .from(assessmentJobs)
-      .where(
-        and(
-          eq(assessmentJobs.status, "queued"),
-          lte(assessmentJobs.availableAt, now),
-        ),
-      )
-      .orderBy(asc(assessmentJobs.availableAt), asc(assessmentJobs.createdAt))
-      .limit(100);
-    const candidate = ready.find((job) => !runningProjectIds.has(job.projectId));
+      .where(inArray(assessmentJobs.id, lockedIds));
+    const byId = new Map(ready.map((job) => [job.id, job]));
+    const candidate = lockedIds
+      .map((id) => byId.get(id))
+      .find((job) => job !== undefined && !runningProjectIds.has(job.projectId));
     if (!candidate) return null;
 
     const leaseExpiresAt = new Date(Date.now() + DEFAULT_LEASE_MS).toISOString();

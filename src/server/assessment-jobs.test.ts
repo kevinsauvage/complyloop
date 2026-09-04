@@ -27,17 +27,9 @@ type Clause =
 
 const jobs = vi.hoisted(() => new Map<string, JobRow>());
 const getDrizzle = vi.hoisted(() => vi.fn());
-const withPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 
 vi.mock("./db-store/client", () => ({
   getDrizzle: () => getDrizzle(),
-}));
-
-vi.mock("./db-store/write-lock", () => ({
-  withPostgresAdvisoryLock: (
-    drizzle: unknown,
-    fn: (tx: unknown) => unknown,
-  ) => withPostgresAdvisoryLock(drizzle, fn),
 }));
 
 vi.mock("drizzle-orm", async () => {
@@ -85,7 +77,21 @@ function lteValues(clause: Clause | undefined): unknown[] {
 }
 
 function createDrizzle() {
-  return {
+  const drizzle = {
+    execute: async () =>
+      [...jobs.values()]
+        .filter(
+          (row) =>
+            row.status === "queued" &&
+            row.availableAt <= new Date().toISOString(),
+        )
+        .sort((a, b) =>
+          a.availableAt === b.availableAt
+            ? a.createdAt.localeCompare(b.createdAt)
+            : a.availableAt.localeCompare(b.availableAt),
+        )
+        .slice(0, 100)
+        .map((row) => ({ id: row.id })),
     select: (shape?: { projectId?: unknown; id?: unknown }) => ({
       from: () => ({
         where: (clause: Clause) => {
@@ -93,7 +99,9 @@ function createDrizzle() {
           const ins = inValues(clause);
           const ltes = lteValues(clause);
           const filtered = [...jobs.values()].filter((row) => {
-            if (ins.length > 0) return ins.includes(row.status);
+            if (ins.length > 0) {
+              return ins.includes(row.status) || ins.includes(row.id);
+            }
             if (eqs.includes(row.idempotencyKey)) return true;
             if (eqs.includes(row.projectId) && eqs.length === 1) return true;
             if (eqs.includes("running") && row.status === "running") return true;
@@ -168,6 +176,10 @@ function createDrizzle() {
       }),
     }),
   };
+  return {
+    ...drizzle,
+    transaction: async (fn: (tx: typeof drizzle) => unknown) => fn(drizzle),
+  };
 }
 
 import {
@@ -183,11 +195,7 @@ import {
 
 beforeEach(() => {
   jobs.clear();
-  const drizzle = createDrizzle();
-  getDrizzle.mockResolvedValue(drizzle);
-  withPostgresAdvisoryLock.mockImplementation(
-    async (_drizzle: unknown, fn: (tx: unknown) => unknown) => fn(drizzle),
-  );
+  getDrizzle.mockResolvedValue(createDrizzle());
 });
 
 afterEach(() => {

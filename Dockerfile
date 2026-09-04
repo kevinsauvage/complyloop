@@ -9,6 +9,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 COPY packages/check/package.json ./packages/check/
+COPY packages/analysis-core/package.json ./packages/analysis-core/
 RUN npm ci
 
 # Runtime-only dependency tree for the runner stage. tsx + dotenv live in
@@ -18,6 +19,7 @@ FROM node:22-bookworm-slim AS prod-deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/check/package.json ./packages/check/
+COPY packages/analysis-core/package.json ./packages/analysis-core/
 RUN npm ci --omit=dev
 
 FROM deps AS builder
@@ -28,7 +30,7 @@ ENV DOCKER_BUILD=1
 # Build-time placeholders — runtime env overrides via compose / host.
 ENV AUTH_SECRET=build-placeholder
 ENV DATABASE_URL=postgres://complyloop:complyloop@postgres:5432/complyloop
-RUN npm run build
+RUN npm run build:core && npm run build
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
@@ -50,8 +52,13 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/package.json ./package.json
 COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=builder /app/packages/analysis-core/package.json ./packages/analysis-core/package.json
+COPY --from=builder /app/packages/analysis-core/dist ./packages/analysis-core/dist
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Local exports point at src/*.ts for Next/tsx. The image ships compiled JS.
+RUN node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('packages/analysis-core/package.json','utf8')); p.exports=p.publishConfig.exports; delete p.publishConfig; fs.writeFileSync('packages/analysis-core/package.json', JSON.stringify(p,null,2))"
 
 USER nextjs
 EXPOSE 3000

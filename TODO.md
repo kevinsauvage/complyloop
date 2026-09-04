@@ -8,18 +8,6 @@ Guiding rule for this list: the product spec's MVP is *one complete loop for one
 
 ## P0 — Critical
 
-### 1. Job enqueue/claim still share one global lock
-
-- **Wrong:** `enqueueAssessmentJob` and `claimNextAssessmentJob` take `pg_advisory_xact_lock(748_291_063)` (`db-store/write-lock.ts`). Workspace writes no longer use that key, and the worker scans **outside** the persist transaction, but two workers still cannot claim jobs in parallel while another is enqueueing.
-- **Why it matters:** queue throughput stays serial across tenants.
-- **Change:** drop the store lock from the job queue — `claimNextAssessmentJob` can use `UPDATE … WHERE status='queued' … FOR UPDATE SKIP LOCKED` (or its own named key). Use `withNamedPostgresAdvisoryLock` only where a critical section still needs it (rate limits already do).
-
-### 2. The Docker image cannot run the worker (and probably does not build)
-
-- **Wrong:** `Dockerfile` copies only `packages/check/package.json` into the `deps` and `prod-deps` stages before `npm ci`, never `packages/analysis-core/`. The lockfile lists the `packages/analysis-core` workspace, so `npm ci` either fails the lock consistency check or installs without the workspace and its dependencies (`html-validate`, `linkinator`, `@typescript-eslint/parser`). The `runner` stage copies `src/`, `scripts/`, `drizzle/`, and `node_modules`, but not `packages/`, so `npx tsx scripts/run-assessment-worker.ts` (docker-compose `worker` service) cannot resolve `@complyloop/analysis-core/*`.
-- **Why it matters:** `deploy.md` presents compose as the reference deployment; the worker is "required in production".
-- **Change:** copy `packages/analysis-core/package.json` in the deps stages, run `npm run build:core` in the builder, and copy `packages/analysis-core/{package.json,dist}` into the runner. Add a CI step that builds the image and runs `node -e "import('@complyloop/analysis-core/scan')"` in it.
-
 ### 3. The compose `migrate` service uses a redacted password
 
 - **Wrong:** `docker-compose.yml` L28 sets `DATABASE_URL: postgres://complyloop:***@postgres:5432/complyloop` — a literal `***` (a secret-scrubber artifact). `app` and `worker` use `complyloop:complyloop`. The same `***` is the fallback in `e2e/webhook-helpers.ts` L25.

@@ -7,8 +7,7 @@ export type DrizzleDb = PostgresJsDatabase<typeof schema>;
 
 /**
  * Free-tier Postgres (Neon/Aiven) often allows ~20 connections with a few
- * reserved for superuser. Keep the pool small; concurrency is serialized by
- * the store write lock anyway.
+ * reserved for superuser. Keep the pool small.
  */
 const POOL_MAX = 3;
 
