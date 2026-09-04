@@ -119,15 +119,6 @@ export type RequirementExceptionReason =
 /** Reason whose exceptions expire automatically after `expiresAt`. */
 export const TEMPORARY_EXCEPTION_REASON: RequirementExceptionReason = "temporary";
 
-export function isRequirementExceptionReason(
-  value: unknown,
-): value is RequirementExceptionReason {
-  return (
-    typeof value === "string" &&
-    (REQUIREMENT_EXCEPTION_REASONS as readonly string[]).includes(value)
-  );
-}
-
 export interface RequirementException {
   reason: RequirementExceptionReason;
   note: string;

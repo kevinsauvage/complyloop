@@ -1,4 +1,4 @@
-import { isAriaHidden, isDomHost, isPresentationRole } from "../a11y-aria.ts";
+import { isDecorativeOrHidden, isDomHost } from "../a11y-aria.ts";
 import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   locationOf,
@@ -16,7 +16,7 @@ export const pointerCancellationCheck: AccessibilityCheck = {
     visitJsxTags(source.sourceFile, (node: JsxTagNode) => {
       if (!isDomHost(tagNameOf(node))) return;
       if (isPropSpreadingHost(node)) return;
-      if (isAriaHidden(node) || isPresentationRole(node)) return;
+      if (isDecorativeOrHidden(node)) return;
       if (!hasAnyAttr(node, ["onPointerDown", "onMouseDown"])) return;
       if (hasAnyAttr(node, ["onPointerUp", "onPointerCancel", "onMouseUp"])) {
         return;

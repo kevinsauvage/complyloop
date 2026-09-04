@@ -1,4 +1,4 @@
-import { isAriaHidden, isDomHost, isPresentationRole } from "../a11y-aria.ts";
+import { isDecorativeOrHidden, isDomHost } from "../a11y-aria.ts";
 import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   locationOf,
@@ -25,7 +25,7 @@ export const inputContextChangeCheck: AccessibilityCheck = {
     visitJsxTags(source.sourceFile, (node: JsxTagNode) => {
       if (!isDomHost(tagNameOf(node))) return;
       if (isPropSpreadingHost(node)) return;
-      if (isAriaHidden(node) || isPresentationRole(node)) return;
+      if (isDecorativeOrHidden(node)) return;
       if (!hasAnyAttr(node, INPUT_HANDLERS)) return;
       if (!handlerTriggersContextChange(node, INPUT_HANDLERS)) return;
       findings.push({

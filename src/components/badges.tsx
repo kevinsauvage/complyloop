@@ -53,82 +53,56 @@ export function EvidenceKindBadge({ kind }: { kind: EvidenceKind }) {
   );
 }
 
+const REMEDIATION_BADGE: Record<RemediationStatus, string> = {
+  detected: "",
+  suggested: STATUS_TONE_BADGE.signal,
+  approved:
+    "border-transparent bg-indigo-500/15 text-indigo-700 dark:bg-indigo-400/25 dark:text-indigo-300",
+  implemented: STATUS_TONE_BADGE.unverifiable,
+  verified: STATUS_TONE_BADGE.passed,
+};
+
+const REMEDIATION_VARIANT: Record<RemediationStatus, "secondary" | undefined> = {
+  detected: "secondary",
+  suggested: undefined,
+  approved: undefined,
+  implemented: undefined,
+  verified: undefined,
+};
+
 export function RemediationStatusBadge({ status }: { status: RemediationStatus }) {
-  const label = remediationStatusLabel(status);
-  switch (status) {
-    case "detected":
-      return (
-        <BadgeWithDescription description={remediationStatusDescription(status)}>
-          <Badge variant="secondary">{label}</Badge>
-        </BadgeWithDescription>
-      );
-    case "suggested":
-      return (
-        <BadgeWithDescription description={remediationStatusDescription(status)}>
-          <Badge className={STATUS_TONE_BADGE.signal}>{label}</Badge>
-        </BadgeWithDescription>
-      );
-    case "approved":
-      return (
-        <BadgeWithDescription description={remediationStatusDescription(status)}>
-          <Badge className="border-transparent bg-indigo-500/15 text-indigo-700 dark:bg-indigo-400/25 dark:text-indigo-300">
-            {label}
-          </Badge>
-        </BadgeWithDescription>
-      );
-    case "implemented":
-      return (
-        <BadgeWithDescription description={remediationStatusDescription(status)}>
-          <Badge className={STATUS_TONE_BADGE.unverifiable}>{label}</Badge>
-        </BadgeWithDescription>
-      );
-    case "verified":
-      return (
-        <BadgeWithDescription description={remediationStatusDescription(status)}>
-          <Badge className={STATUS_TONE_BADGE.passed}>{label}</Badge>
-        </BadgeWithDescription>
-      );
-    default: {
-      const _exhaustive: never = status;
-      throw new Error(`Unhandled remediation status: ${_exhaustive}`);
-    }
-  }
+  return (
+    <BadgeWithDescription description={remediationStatusDescription(status)}>
+      <Badge variant={REMEDIATION_VARIANT[status]} className={cn(REMEDIATION_BADGE[status] || undefined)}>
+        {remediationStatusLabel(status)}
+      </Badge>
+    </BadgeWithDescription>
+  );
 }
 
+const SEVERITY_BADGE: Record<Severity, string> = {
+  critical: STATUS_TONE_BADGE.failed,
+  serious:
+    "border-transparent bg-orange-500/15 text-orange-700 dark:bg-orange-400/25 dark:text-orange-300",
+  moderate: STATUS_TONE_BADGE.review,
+  minor: "",
+};
+
+const SEVERITY_VARIANT: Record<Severity, "secondary" | undefined> = {
+  critical: undefined,
+  serious: undefined,
+  moderate: undefined,
+  minor: "secondary",
+};
+
 export function SeverityBadge({ severity }: { severity: Severity }) {
-  const label = severityLabel(severity);
-  switch (severity) {
-    case "critical":
-      return (
-        <BadgeWithDescription description={severityDescription(severity)}>
-          <Badge className={STATUS_TONE_BADGE.failed}>{label}</Badge>
-        </BadgeWithDescription>
-      );
-    case "serious":
-      return (
-        <BadgeWithDescription description={severityDescription(severity)}>
-          <Badge className="border-transparent bg-orange-500/15 text-orange-700 dark:bg-orange-400/25 dark:text-orange-300">
-            {label}
-          </Badge>
-        </BadgeWithDescription>
-      );
-    case "moderate":
-      return (
-        <BadgeWithDescription description={severityDescription(severity)}>
-          <Badge className={STATUS_TONE_BADGE.review}>{label}</Badge>
-        </BadgeWithDescription>
-      );
-    case "minor":
-      return (
-        <BadgeWithDescription description={severityDescription(severity)}>
-          <Badge variant="secondary">{label}</Badge>
-        </BadgeWithDescription>
-      );
-    default: {
-      const _exhaustive: never = severity;
-      throw new Error(`Unhandled severity: ${_exhaustive}`);
-    }
-  }
+  return (
+    <BadgeWithDescription description={severityDescription(severity)}>
+      <Badge variant={SEVERITY_VARIANT[severity]} className={cn(SEVERITY_BADGE[severity] || undefined)}>
+        {severityLabel(severity)}
+      </Badge>
+    </BadgeWithDescription>
+  );
 }
 
 export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
@@ -141,74 +115,58 @@ export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
   );
 }
 
+const DETERMINATION_BADGE: Record<DeterminationMethod, { className: string; label: string }> = {
+  automated: { className: STATUS_TONE_BADGE.signal, label: "Automated" },
+  human_review: {
+    className:
+      "border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300",
+    label: "Human review",
+  },
+};
+
 export function DeterminationBadge({ method }: { method: DeterminationMethod }) {
-  switch (method) {
-    case "automated":
-      return (
-        <BadgeWithDescription description={determinationDescription(method)}>
-          <Badge className={STATUS_TONE_BADGE.signal}>Automated</Badge>
-        </BadgeWithDescription>
-      );
-    case "human_review":
-      return (
-        <BadgeWithDescription description={determinationDescription(method)}>
-          <Badge className="border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300">
-            Human review
-          </Badge>
-        </BadgeWithDescription>
-      );
-    default: {
-      const _exhaustive: never = method;
-      throw new Error(`Unhandled determination: ${_exhaustive}`);
-    }
-  }
+  const { className, label } = DETERMINATION_BADGE[method];
+  return (
+    <BadgeWithDescription description={determinationDescription(method)}>
+      <Badge className={className}>{label}</Badge>
+    </BadgeWithDescription>
+  );
 }
 
+const PROVENANCE_BADGE: Record<ExplanationProvenance, { className: string; label: string }> = {
+  deterministic: { className: STATUS_TONE_BADGE.signal, label: "Deterministic" },
+  ai: {
+    className:
+      "border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300",
+    label: "AI-generated",
+  },
+};
+
 export function ProvenanceBadge({ provenance }: { provenance: ExplanationProvenance }) {
-  switch (provenance) {
-    case "deterministic":
-      return (
-        <BadgeWithDescription description={provenanceDescription(provenance)}>
-          <Badge className={STATUS_TONE_BADGE.signal}>Deterministic</Badge>
-        </BadgeWithDescription>
-      );
-    case "ai":
-      return (
-        <BadgeWithDescription description={provenanceDescription(provenance)}>
-          <Badge className="border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300">
-            AI-generated
-          </Badge>
-        </BadgeWithDescription>
-      );
-    default: {
-      const _exhaustive: never = provenance;
-      throw new Error(`Unhandled provenance: ${_exhaustive}`);
-    }
-  }
+  const { className, label } = PROVENANCE_BADGE[provenance];
+  return (
+    <BadgeWithDescription description={provenanceDescription(provenance)}>
+      <Badge className={className}>{label}</Badge>
+    </BadgeWithDescription>
+  );
 }
+
+const ENGINE_BADGE: Record<AssessmentEngine, { variant: "outline" | undefined; className: string; label: string }> = {
+  ast: { variant: "outline", className: "text-muted-foreground", label: "Source (AST)" },
+  runtime: {
+    variant: undefined,
+    className:
+      "border-transparent bg-teal-500/15 text-teal-700 dark:bg-teal-400/25 dark:text-teal-300",
+    label: "Runtime (DOM)",
+  },
+};
 
 /** Which analysis engine produced a finding (AST source vs rendered DOM). */
 export function EngineBadge({ engine }: { engine: AssessmentEngine }) {
-  switch (engine) {
-    case "ast":
-      return (
-        <BadgeWithDescription description={engineDescription(engine)}>
-          <Badge variant="outline" className="text-muted-foreground">
-            Source (AST)
-          </Badge>
-        </BadgeWithDescription>
-      );
-    case "runtime":
-      return (
-        <BadgeWithDescription description={engineDescription(engine)}>
-          <Badge className="border-transparent bg-teal-500/15 text-teal-700 dark:bg-teal-400/25 dark:text-teal-300">
-            Runtime (DOM)
-          </Badge>
-        </BadgeWithDescription>
-      );
-    default: {
-      const _exhaustive: never = engine;
-      throw new Error(`Unhandled assessment engine: ${_exhaustive}`);
-    }
-  }
+  const { variant, className, label } = ENGINE_BADGE[engine];
+  return (
+    <BadgeWithDescription description={engineDescription(engine)}>
+      <Badge variant={variant} className={className}>{label}</Badge>
+    </BadgeWithDescription>
+  );
 }

@@ -1,4 +1,4 @@
-import { isAriaHidden, isPresentationRole } from "../a11y-aria.ts";
+import { isDecorativeOrHidden, isPresentationRole } from "../a11y-aria.ts";
 import { hasAriaName } from "../jsx-primitives.ts";
 import {
   getAttribute,
@@ -31,7 +31,7 @@ function altText(node: JsxTagNode): string | undefined {
 }
 
 function isMarkedDecorative(node: JsxTagNode): boolean {
-  if (isAriaHidden(node) || isPresentationRole(node)) return true;
+  if (isDecorativeOrHidden(node)) return true;
   const alt = altText(node);
   return alt !== undefined && alt.length === 0;
 }

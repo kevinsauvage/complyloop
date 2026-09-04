@@ -10,40 +10,27 @@ export type StatusTone =
   | "signal";
 
 export function statusTone(status: RequirementStatus): Exclude<StatusTone, "signal"> {
-  switch (status) {
-    case "passed":
-      return "passed";
-    case "failed":
-      return "failed";
-    case "needs_review":
-      return "review";
-    case "not_applicable":
-      return "na";
-    case "unable_to_verify":
-      return "unverifiable";
-    default: {
-      const _exhaustive: never = status;
-      throw new Error(`Unhandled requirement status: ${_exhaustive}`);
-    }
-  }
+  return STATUS_TONE[status] ?? assertExhaustive(status, "requirement status");
 }
 
+const STATUS_TONE: Record<RequirementStatus, Exclude<StatusTone, "signal">> = {
+  passed: "passed",
+  failed: "failed",
+  needs_review: "review",
+  not_applicable: "na",
+  unable_to_verify: "unverifiable",
+};
+
 export function roleTone(role: OrgRole): StatusTone {
-  switch (role) {
-    case "owner":
-      return "signal";
-    case "admin":
-      return "review";
-    case "member":
-      return "passed";
-    case "viewer":
-      return "na";
-    default: {
-      const _exhaustive: never = role;
-      throw new Error(`Unhandled org role: ${_exhaustive}`);
-    }
-  }
+  return ROLE_TONE[role] ?? assertExhaustive(role, "org role");
 }
+
+const ROLE_TONE: Record<OrgRole, StatusTone> = {
+  owner: "signal",
+  admin: "review",
+  member: "passed",
+  viewer: "na",
+};
 
 /** Soft tint + readable text; stronger fill in dark mode for contrast. */
 export const STATUS_TONE_BADGE: Record<StatusTone, string> = {
@@ -66,3 +53,7 @@ export const STATUS_TONE_ACCENT: Record<Exclude<StatusTone, "signal">, string> =
   na: "bg-status-na",
   unverifiable: "bg-status-unverifiable",
 };
+
+function assertExhaustive(value: string, kind: string): never {
+  throw new Error(`Unhandled ${kind}: ${value}`);
+}

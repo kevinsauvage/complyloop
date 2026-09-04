@@ -13,22 +13,19 @@ export function escapeHtml(text: string): string {
 }
 
 export function statusClass(status: RequirementStatus): string {
-  switch (status) {
-    case "passed":
-      return "status-passed";
-    case "failed":
-      return "status-failed";
-    case "needs_review":
-      return "status-needs-review";
-    case "not_applicable":
-      return "status-not-applicable";
-    case "unable_to_verify":
-      return "status-unable";
-    default: {
-      const _exhaustive: never = status;
-      throw new Error(`Unhandled requirement status: ${_exhaustive}`);
-    }
-  }
+  return STATUS_CLASS[status] ?? assertExhaustive(status, "requirement status");
+}
+
+const STATUS_CLASS: Record<RequirementStatus, string> = {
+  passed: "status-passed",
+  failed: "status-failed",
+  needs_review: "status-needs-review",
+  not_applicable: "status-not-applicable",
+  unable_to_verify: "status-unable",
+};
+
+function assertExhaustive(value: string, kind: string): never {
+  throw new Error(`Unhandled ${kind}: ${value}`);
 }
 
 const REPORT_STYLES = `

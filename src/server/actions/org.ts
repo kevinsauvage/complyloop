@@ -30,7 +30,7 @@ import {
 import { getDrizzle } from "../db-store/client";
 import { listAllEvidenceForProjects } from "../db-store/postgres-queries";
 import { getWorkspace, withOrgWrite } from "../workspace";
-import { refresh } from "./shared";
+import { refresh, requireSignedIn } from "./shared";
 
 export type OrgMemberFormState = ActionMessageState;
 export type CreateOrgFormState = ActionMessageState;
@@ -71,9 +71,7 @@ const deleteOrgInput = z.object({
 
 export async function switchOrgAction(formData: FormData): Promise<void> {
   const { orgId } = parseForm(switchOrgInput, formData);
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) throw new PublicError("Sign in to switch organizations.");
+  await requireSignedIn("Sign in to switch organizations.");
 
   let projectIdToActivate: string | null = null;
   await withOrgWrite(({ organizations, db }) => {
@@ -153,9 +151,7 @@ export async function removeOrgMemberAction(
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
-    const session = await auth();
-    const userId = session?.user?.id;
-    if (!userId) throw new PublicError("Sign in to manage organization members.");
+    const { userId } = await requireSignedIn("Sign in to manage organization members.");
 
     const { orgId, membershipId } = parseForm(orgMembershipInput, formData);
 
@@ -181,9 +177,7 @@ export async function changeOrgMemberRoleAction(
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
-    const session = await auth();
-    const userId = session?.user?.id;
-    if (!userId) throw new PublicError("Sign in to manage organization members.");
+    const { userId } = await requireSignedIn("Sign in to manage organization members.");
 
     const { orgId, membershipId, role } = parseForm(
       changeOrgMemberRoleInput,
@@ -234,9 +228,7 @@ export async function deleteOrgAction(
   formData: FormData,
 ): Promise<ActionMessageState> {
   return runActionMessage(async () => {
-    const session = await auth();
-    const userId = session?.user?.id;
-    if (!userId) throw new PublicError("Sign in to delete an organization.");
+    const { userId } = await requireSignedIn("Sign in to delete an organization.");
 
     const { orgId } = parseForm(deleteOrgInput, formData);
 

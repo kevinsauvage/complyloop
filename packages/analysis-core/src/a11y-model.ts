@@ -199,9 +199,6 @@ function explicitWidgetRole(node: JsxTagNode): boolean {
   return widgetRoleNames.has(role);
 }
 
-export function isExplicitWidgetRole(node: JsxTagNode): boolean {
-  return explicitWidgetRole(node);
-}
 
 /** Implicit ARIA roles for this host from aria-query element/role tables. */
 export function implicitRoles(node: JsxTagNode): string[] {
@@ -220,13 +217,6 @@ export function isNativeInteractive(node: JsxTagNode): boolean {
   return isInherentInteractive(
     tagNameOf(node).toLowerCase(),
     staticAttributes(node),
-  );
-}
-
-export function hasTabIndexAttribute(node: JsxTagNode): boolean {
-  return (
-    getAttribute(node, "tabIndex") !== undefined ||
-    getAttribute(node, "tabindex") !== undefined
   );
 }
 

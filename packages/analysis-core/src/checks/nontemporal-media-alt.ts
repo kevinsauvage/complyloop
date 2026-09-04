@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { isAriaHidden, isPresentationRole } from "../a11y-aria.ts";
+import { isDecorativeOrHidden } from "../a11y-aria.ts";
 import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   getAttribute,
@@ -59,7 +59,7 @@ export const nontemporalMediaAltCheck: AccessibilityCheck = {
       const tag = tagNameOf(node);
       if (!NON_TEMPORAL_MEDIA_TAGS.has(tag)) return;
       if (isPropSpreadingHost(node)) return;
-      if (isAriaHidden(node) || isPresentationRole(node)) return;
+      if (isDecorativeOrHidden(node)) return;
       if ((tag === "object" || tag === "embed") && isSkippedTypedMedia(node)) return;
       if (hasAriaName(node)) return;
       if (tag === "canvas") {

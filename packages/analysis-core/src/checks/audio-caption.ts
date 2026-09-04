@@ -1,12 +1,11 @@
 import {
+  AUDIO_ALT_KINDS,
   ariaDescribedByPointsToTranscript,
   hasAdjacentTranscriptLink,
   hasChildTrackKind,
 } from "./heuristic-utils.ts";
 import { locationOf, tagNameOf, visitJsxTags } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-
-const AUDIO_ALT_KINDS = new Set(["captions", "subtitles", "descriptions"]);
 
 export const audioCaptionCheck: AccessibilityCheck = {
   id: "audio-caption",

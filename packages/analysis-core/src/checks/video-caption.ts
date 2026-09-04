@@ -8,8 +8,8 @@ import {
   type JsxTagNode,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
+import { CAPTION_KINDS } from "./heuristic-utils.ts";
 
-const CAPTION_KINDS = new Set(["captions", "subtitles"]);
 const EMBED_HOSTS = /(?:youtube(?:-nocookie)?\.com|youtu\.be|player\.vimeo\.com|vimeo\.com)/i;
 const EMBED_TAGS = new Set(["YouTube", "Vimeo"]);
 

@@ -1,4 +1,4 @@
-import { explicitRoles, isAriaHidden, isPresentationRole } from "../a11y-aria.ts";
+import { explicitRoles, isDecorativeOrHidden } from "../a11y-aria.ts";
 import { hasAriaName, isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   hasTextContent,
@@ -27,7 +27,7 @@ export const svgNameCheck: AccessibilityCheck = {
     visitJsxTags(source.sourceFile, (node) => {
       if (tagNameOf(node) !== "svg") return;
       if (isPropSpreadingHost(node)) return;
-      if (isAriaHidden(node) || isPresentationRole(node)) return;
+      if (isDecorativeOrHidden(node)) return;
       if (isInsideNamingHost(node)) return;
       const informative = hasAriaName(node) || hasTitleChild(node);
       if (!informative) {

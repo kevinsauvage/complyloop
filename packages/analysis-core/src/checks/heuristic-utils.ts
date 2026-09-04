@@ -69,6 +69,15 @@ export function walkMotionActuationCalls(
 
 const MEDIA_TRACK_TAGS = new Set(["track"]);
 
+/** Track `kind` values that count as captions/subtitles. */
+export const CAPTION_KINDS = new Set(["captions", "subtitles"]);
+
+/** Track `kind` values that count as audio description. */
+export const DESCRIPTION_KINDS = new Set(["descriptions"]);
+
+/** Track `kind` values for audio alternative text. */
+export const AUDIO_ALT_KINDS = new Set(["captions", "subtitles", "descriptions"]);
+
 export function hasChildTrackKind(
   node: JsxTagNode,
   kinds: ReadonlySet<string>,

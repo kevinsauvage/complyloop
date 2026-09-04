@@ -1,4 +1,4 @@
-import { isAriaHidden, isDomHost, isPresentationRole } from "../a11y-aria.ts";
+import { isDecorativeOrHidden, isDomHost } from "../a11y-aria.ts";
 import { isNativeInteractive } from "../a11y-model.ts";
 import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
@@ -22,7 +22,7 @@ export const draggingCheck: AccessibilityCheck = {
     visitJsxTags(source.sourceFile, (node: JsxTagNode) => {
       if (!isDomHost(tagNameOf(node))) return;
       if (isPropSpreadingHost(node)) return;
-      if (isAriaHidden(node) || isPresentationRole(node)) return;
+      if (isDecorativeOrHidden(node)) return;
 
       const draggable = getAttribute(node, "draggable");
       const isDraggable =

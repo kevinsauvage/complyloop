@@ -1,8 +1,6 @@
-import { hasChildTrackKind } from "./heuristic-utils.ts";
+import { DESCRIPTION_KINDS, hasChildTrackKind } from "./heuristic-utils.ts";
 import { locationOf, tagNameOf, visitJsxTags } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-
-const DESCRIPTION_KINDS = new Set(["descriptions"]);
 
 export const audioDescriptionTrackCheck: AccessibilityCheck = {
   id: "audio-description-track",

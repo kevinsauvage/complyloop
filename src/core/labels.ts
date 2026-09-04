@@ -2,133 +2,84 @@ import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-ty
 import type { RemediationStatus, RequirementStatus, Severity } from "@complyloop/analysis-core/contract/statuses";
 
 export function requirementStatusLabel(status: RequirementStatus): string {
-  switch (status) {
-    case "passed":
-      return "Passed";
-    case "failed":
-      return "Failed";
-    case "needs_review":
-      return "Needs review";
-    case "not_applicable":
-      return "Not applicable";
-    case "unable_to_verify":
-      return "Unable to verify";
-    default: {
-      const _exhaustive: never = status;
-      throw new Error(`Unhandled requirement status: ${_exhaustive}`);
-    }
-  }
+  return REQUIREMENT_STATUS_LABEL[status] ?? assertExhaustive(status, "requirement status");
 }
 
+const REQUIREMENT_STATUS_LABEL: Record<RequirementStatus, string> = {
+  passed: "Passed",
+  failed: "Failed",
+  needs_review: "Needs review",
+  not_applicable: "Not applicable",
+  unable_to_verify: "Unable to verify",
+};
+
 export function remediationStatusLabel(status: RemediationStatus): string {
-  switch (status) {
-    case "detected":
-      return "Detected";
-    case "suggested":
-      return "Suggested";
-    case "approved":
-      return "Approved";
-    case "implemented":
-      return "Implemented";
-    case "verified":
-      return "Verified";
-    default: {
-      const _exhaustive: never = status;
-      throw new Error(`Unhandled remediation status: ${_exhaustive}`);
-    }
-  }
+  return REMEDIATION_STATUS_LABEL[status] ?? assertExhaustive(status, "remediation status");
 }
+
+export const REMEDIATION_STATUS_LABEL: Record<RemediationStatus, string> = {
+  detected: "Detected",
+  suggested: "Suggested",
+  approved: "Approved",
+  implemented: "Implemented",
+  verified: "Verified",
+};
 
 /** Lower rank sorts first. Used to order findings by urgency. */
 export function severityRank(severity: Severity): number {
-  switch (severity) {
-    case "critical":
-      return 0;
-    case "serious":
-      return 1;
-    case "moderate":
-      return 2;
-    case "minor":
-      return 3;
-    default: {
-      const _exhaustive: never = severity;
-      throw new Error(`Unhandled severity: ${_exhaustive}`);
-    }
-  }
+  return SEVERITY_RANK[severity] ?? assertExhaustive(severity, "severity");
 }
 
-export function evidenceKindLabel(kind: EvidenceKind): string {
-  switch (kind) {
-    case "project_connected":
-      return "Project connected";
-    case "project_disconnected":
-      return "Project disconnected";
-    case "project_reset":
-      return "Project reset";
-    case "assessment_completed":
-      return "Assessment completed";
-    case "assessment_job_queued":
-      return "Assessment queued";
-    case "assessment_job_completed":
-      return "Assessment job completed";
-    case "assessment_job_failed":
-      return "Assessment job failed";
-    case "finding_detected":
-      return "Finding detected";
-    case "finding_resolved":
-      return "Finding resolved";
-    case "finding_dismissed":
-      return "Finding dismissed";
-    case "remediation_approved":
-      return "Remediation approved";
-    case "remediation_implemented":
-      return "Remediation implemented";
-    case "remediation_verified":
-      return "Remediation verified";
-    case "remediation_manually_verified":
-      return "Manually verified";
-    case "ai_remediation_suggested":
-      return "AI suggestion";
-    case "ai_patch_ready":
-      return "Patch ready";
-    case "requirement_status_changed":
-      return "Requirement status";
-    case "requirement_exception_set":
-      return "Exception recorded";
-    case "requirement_exception_cleared":
-      return "Exception cleared";
-    case "requirement_human_passed":
-      return "Human pass";
-    case "requirement_human_pass_cleared":
-      return "Human pass cleared";
-    case "requirements_imported":
-      return "Scope updated";
-    case "pull_request_prepared":
-      return "Pull request prepared";
-    case "monitoring_changes_detected":
-      return "Repo changes detected";
-    case "webhook_reassessment":
-      return "Webhook reassessment";
-    default: {
-      const _exhaustive: never = kind;
-      throw new Error(`Unhandled evidence kind: ${_exhaustive}`);
-    }
-  }
-}
+const SEVERITY_RANK: Record<Severity, number> = {
+  critical: 0,
+  serious: 1,
+  moderate: 2,
+  minor: 3,
+};
 
 export function severityLabel(severity: Severity): string {
-  switch (severity) {
-    case "critical":
-      return "Critical";
-    case "serious":
-      return "Serious";
-    case "moderate":
-      return "Moderate";
-    case "minor":
-      return "Minor";
-    default: {
-      const _exhaustive: never = severity;
-      throw new Error(`Unhandled severity: ${_exhaustive}`);
-    }
-  }
+  return SEVERITY_LABEL[severity] ?? assertExhaustive(severity, "severity");
+}
+
+const SEVERITY_LABEL: Record<Severity, string> = {
+  critical: "Critical",
+  serious: "Serious",
+  moderate: "Moderate",
+  minor: "Minor",
+};
+
+export function evidenceKindLabel(kind: EvidenceKind): string {
+  return EVIDENCE_KIND_LABEL[kind] ?? assertExhaustive(kind, "evidence kind");
+}
+
+const EVIDENCE_KIND_LABEL: Record<EvidenceKind, string> = {
+  project_connected: "Project connected",
+  project_disconnected: "Project disconnected",
+  project_reset: "Project reset",
+  assessment_completed: "Assessment completed",
+  assessment_job_queued: "Assessment queued",
+  assessment_job_completed: "Assessment job completed",
+  assessment_job_failed: "Assessment job failed",
+  finding_detected: "Finding detected",
+  finding_resolved: "Finding resolved",
+  finding_dismissed: "Finding dismissed",
+  remediation_approved: "Remediation approved",
+  remediation_implemented: "Remediation implemented",
+  remediation_verified: "Remediation verified",
+  remediation_manually_verified: "Manually verified",
+  ai_remediation_suggested: "AI suggestion",
+  ai_patch_ready: "Patch ready",
+  requirement_status_changed: "Requirement status",
+  requirement_exception_set: "Exception recorded",
+  requirement_exception_cleared: "Exception cleared",
+  requirement_human_passed: "Human pass",
+  requirement_human_pass_cleared: "Human pass cleared",
+  requirements_imported: "Scope updated",
+  pull_request_prepared: "Pull request prepared",
+  monitoring_changes_detected: "Repo changes detected",
+  webhook_reassessment: "Webhook reassessment",
+};
+
+function assertExhaustive(value: string, kind: string): never {
+  throw new Error(`Unhandled ${kind}: ${value}`);
 }

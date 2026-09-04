@@ -1,5 +1,5 @@
 import { isPropSpreadingHost } from "../jsx-primitives.ts";
-import { isAriaHidden, isPresentationRole } from "../a11y-aria.ts";
+import { isDecorativeOrHidden } from "../a11y-aria.ts";
 import {
   locationOf,
   tagNameOf,
@@ -29,7 +29,7 @@ export const mediaKeyboardStaticCheck: AccessibilityCheck = {
       const tag = tagNameOf(node);
       if (!STATIC_MEDIA_TAGS.has(tag)) return;
       if (isPropSpreadingHost(node)) return;
-      if (isAriaHidden(node) || isPresentationRole(node)) return;
+      if (isDecorativeOrHidden(node)) return;
       if (hasKeyboardPath(node)) return;
 
       findings.push({

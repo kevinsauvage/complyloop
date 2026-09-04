@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { getGitHubAccessToken } from "@/auth";
+import { auth, getGitHubAccessToken } from "@/auth";
 import { advanceRemediation } from "@/core/remediation";
 import type { Project } from "@/core/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
@@ -9,6 +9,21 @@ import type { Db } from "../db";
 import type { ResolveProjectGitHubTokenOptions } from "../github-access";
 import { assertProjectPermission } from "../project-visibility";
 import type { Workspace } from "../workspace";
+
+export interface SignedInUser {
+  userId: string;
+  githubLogin: string | null;
+}
+
+/** Throws `PublicError` if not signed in; returns the user id + GitHub login. */
+export async function requireSignedIn(
+  message = "Sign in to continue.",
+): Promise<SignedInUser> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) throw new PublicError(message);
+  return { userId, githubLogin: session?.user?.login ?? null };
+}
 
 export function refresh(): void {
   revalidatePath("/", "layout");

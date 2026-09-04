@@ -9,7 +9,6 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 export {
   maxCheckoutBytes,
   maxCheckoutFiles,
-  maxRuntimePages,
 } from "@complyloop/analysis-core/contract/assessment-limits";
 
 /** Rejects oversized clones before AST parsing or Playwright can consume capacity. */

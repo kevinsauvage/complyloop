@@ -8,8 +8,8 @@ import {
   type JsxTagNode,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
+import { CAPTION_KINDS } from "./heuristic-utils.ts";
 
-const CAPTION_KINDS = new Set(["captions", "subtitles"]);
 const LIVE_HINT = /live|stream|broadcast|\.m3u8/i;
 
 function isLiveMedia(node: JsxTagNode): boolean {

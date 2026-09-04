@@ -63,6 +63,11 @@ export function isAriaHidden(node: JsxTagNode): boolean {
   return booleanAttributeValue(getAttribute(node, "aria-hidden")) === true;
 }
 
+/** Shortcut for the common decorative-or-hidden guard used across naming checks. */
+export function isDecorativeOrHidden(node: JsxTagNode): boolean {
+  return isAriaHidden(node) || isPresentationRole(node);
+}
+
 /**
  * Native HTML that already implies the role's required ARIA properties
  * (e.g. `<h2 role="heading">` implies aria-level).
