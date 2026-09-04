@@ -1,7 +1,9 @@
 import type { Confidence, Severity } from "../contract/statuses.js";
+import { axeCorePackageVersion } from "../analyzer-versions.js";
 import { isHeuristicCheck } from "../check-authority.js";
 import type { RawFinding } from "../types.js";
 import { checkIdForAxeRule } from "./axe-map.js";
+import { dedupeRuntimeFindings } from "./dedupe-runtime-findings.js";
 
 import type { RuntimePageSnapshot } from "./site-level/types.js";
 import { runSiteLevelChecks } from "./site-level/checks.js";
@@ -84,6 +86,7 @@ function findingsFromAxeHits(
     const heuristic = isHeuristicCheck(checkId);
     const asReview = kind === "warning" || violation.id === "frame-tested" || heuristic;
     for (const node of violation.nodes) {
+      const customProbe = violation.id.startsWith("complyloop-");
       findings.push({
         checkId,
         kind: asReview ? "warning" : "violation",
@@ -102,6 +105,9 @@ function findingsFromAxeHits(
         },
         fix: null,
         engine: "runtime",
+        analyzerId: customProbe ? "playwright-custom" : "axe",
+        analyzerRuleId: violation.id,
+        analyzerVersion: customProbe ? undefined : axeCorePackageVersion(),
       });
     }
   }
@@ -117,16 +123,19 @@ export function findingsFromAxePages(
 ): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const page of pages) {
-    findings.push(
+    const pageFindings: RawFinding[] = [
       ...findingsFromAxeHits(page, page.violations, "violation", "high"),
-    );
+    ];
     if (page.incomplete) {
-      findings.push(
+      pageFindings.push(
         ...findingsFromAxeHits(page, page.incomplete, "warning", "medium"),
       );
     }
-    if (page.htmlValidateFindings) findings.push(...page.htmlValidateFindings);
-    if (page.ibmFindings) findings.push(...page.ibmFindings);
+    if (page.htmlValidateFindings) {
+      pageFindings.push(...page.htmlValidateFindings);
+    }
+    if (page.ibmFindings) pageFindings.push(...page.ibmFindings);
+    findings.push(...dedupeRuntimeFindings(pageFindings));
   }
   return findings;
 }

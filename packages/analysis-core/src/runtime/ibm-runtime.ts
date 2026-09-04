@@ -1,8 +1,10 @@
 import type { Confidence, FindingKind, Severity } from "../contract/statuses.js";
+import { ibmCheckerPackageVersion } from "../analyzer-versions.js";
 import { isHeuristicCheck } from "../check-authority.js";
 import type { RawFinding } from "../types.js";
 import { checkIdForAxeRule } from "./axe-map.js";
 import { checkIdForIbmRule } from "./ibm-map.js";
+import { normalizeDomSnippet } from "./dedupe-runtime-findings.js";
 import type { RuntimeScanPageResult } from "./findings.js";
 
 const IBM_NO_FILE_OUTPUT: { outputFormat: ["disable"] } = {
@@ -25,7 +27,7 @@ interface IbmReport {
 }
 
 function normalizeSnippet(snippet: string): string {
-  return snippet.replace(/\s+/g, " ").trim().toLowerCase();
+  return normalizeDomSnippet(snippet);
 }
 
 function severityForLevel(
@@ -52,19 +54,6 @@ function confidenceForLevel(
   return "high";
 }
 
-function axeCheckIdsOnPage(page: RuntimeScanPageResult): Set<string> {
-  const ids = new Set<string>();
-  for (const violation of page.violations) {
-    const checkId = checkIdForAxeRule(violation.id);
-    if (checkId) ids.add(checkId);
-  }
-  for (const incomplete of page.incomplete ?? []) {
-    const checkId = checkIdForAxeRule(incomplete.id);
-    if (checkId) ids.add(checkId);
-  }
-  return ids;
-}
-
 function axeSnippetKeys(page: RuntimeScanPageResult): Set<string> {
   const keys = new Set<string>();
   for (const violation of page.violations) {
@@ -80,11 +69,9 @@ function axeSnippetKeys(page: RuntimeScanPageResult): Set<string> {
 function shouldSkipIbmFinding(
   checkId: RawFinding["checkId"],
   snippet: string,
-  axeIds: Set<string>,
   axeSnippets: Set<string>,
 ): boolean {
-  if (axeSnippets.has(`${checkId}::${normalizeSnippet(snippet)}`)) return true;
-  return axeIds.has(checkId);
+  return axeSnippets.has(`${checkId}::${normalizeSnippet(snippet)}`);
 }
 
 export function ibmFindingsFromReport(
@@ -92,7 +79,6 @@ export function ibmFindingsFromReport(
   url: string,
   axePage: RuntimeScanPageResult,
 ): RawFinding[] {
-  const axeIds = axeCheckIdsOnPage(axePage);
   const axeSnippets = axeSnippetKeys(axePage);
   const findings: RawFinding[] = [];
 
@@ -102,7 +88,7 @@ export function ibmFindingsFromReport(
     const snippet = (issue.snippet ?? issue.path?.dom ?? "(unknown)")
       .replace(/\s+/g, " ")
       .trim();
-    if (shouldSkipIbmFinding(checkId, snippet, axeIds, axeSnippets)) continue;
+    if (shouldSkipIbmFinding(checkId, snippet, axeSnippets)) continue;
 
     const heuristic = isHeuristicCheck(checkId);
     const xpath = issue.path?.dom;
@@ -121,6 +107,9 @@ export function ibmFindingsFromReport(
       },
       fix: null,
       engine: "runtime",
+      analyzerId: "ibm",
+      analyzerRuleId: issue.ruleId,
+      analyzerVersion: ibmCheckerPackageVersion(),
     });
   }
 

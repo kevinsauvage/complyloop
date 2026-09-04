@@ -7,6 +7,10 @@ import type {
   RequirementStatus,
   Severity,
 } from "./statuses.js";
+import type {
+  AnalyzerContribution,
+  AnalyzerId,
+} from "../types.js";
 
 export interface FileChange {
   filePath: string;
@@ -168,6 +172,10 @@ export interface Finding {
   location: FindingLocation;
   /** Detection engine that produced this finding. */
   engine?: AssessmentEngine;
+  analyzerId?: AnalyzerId;
+  analyzerRuleId?: string;
+  analyzerVersion?: string;
+  contributingAnalyzers?: AnalyzerContribution[];
   fix: ProposedFix | null;
   explanations: Explanation[];
   detectedAt: string;

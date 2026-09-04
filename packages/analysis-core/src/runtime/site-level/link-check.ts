@@ -54,6 +54,7 @@ function brokenLinkFinding(
     },
     fix: null,
     engine: "runtime",
+    analyzerId: "linkinator",
   };
 }
 

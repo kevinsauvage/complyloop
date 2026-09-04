@@ -88,6 +88,8 @@ export function lintJsxA11y(parsed: ParsedSource): RawFinding[] {
       },
       fix: proposedFixForJsxA11y(parsed, checkId, start),
       engine: "ast",
+      analyzerId: "jsx-a11y",
+      analyzerRuleId: message.ruleId,
     });
   }
   return findings;

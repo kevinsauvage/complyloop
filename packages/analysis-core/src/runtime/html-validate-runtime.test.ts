@@ -62,7 +62,7 @@ describe("html-validate rendered pass", () => {
         <!doctype html><html lang="fr"><body>
           <main id="a"><p>One</p></main>
           <main id="b"><p>Two</p></main>
-          <button type="button">Save<button type="button">Nested</button></button>
+          <span id="dup"></span><span id="dup"></span>
           <p align="center">Deprecated</p>
         </body></html>
       `);
@@ -72,7 +72,7 @@ describe("html-validate rendered pass", () => {
         expect(f.every((x) => x.location.kind === "dom")).toBe(true);
         expect(f.some((x) => x.checkId === "landmark-one-main")).toBe(false);
         expect(f.some((x) => x.checkId === "css-for-presentation")).toBe(true);
-        expect(f.some((x) => x.checkId === "markup-nesting")).toBe(true);
+        expect(f.some((x) => x.checkId === "duplicate-id")).toBe(false);
         expect(f.some((x) => x.checkId === "nested-interactive")).toBe(false);
         const dom = f
           .filter((x) => x.location.kind === "dom")
@@ -85,13 +85,12 @@ describe("html-validate rendered pass", () => {
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
 
-  it("reports duplicate ids under no-dup-id → duplicate-id", () => {
+  it("does not emit duplicate-id (axe owns id uniqueness on the rendered DOM)", () => {
     const s = serialized(
       `<html><body><span id="d"></span><span id="d"></span></body></html>`,
     );
     const f = htmlValidateFindingsFromSerialized(s, URL);
-    expect(f.some((x) => x.checkId === "duplicate-id")).toBe(true);
-    expect(f.some((x) => x.engine === "runtime")).toBe(true);
+    expect(f.some((x) => x.checkId === "duplicate-id")).toBe(false);
   });
 
   it("does not emit form-error-association for broken idrefs (axe-owned)", () => {
@@ -114,7 +113,7 @@ describe("html-validate rendered pass", () => {
     ).toBe(false);
   });
 
-  it("only emits markup-nesting, css-for-presentation, and duplicate-id", () => {
+  it("only emits markup-nesting and css-for-presentation", () => {
     const s = serialized(
       `<html><body><main id="a"></main><main id="b"></main><label for="x">x</label><p align="center">y</p><span id="d"></span><span id="d"></span></body></html>`,
     );
@@ -122,16 +121,13 @@ describe("html-validate rendered pass", () => {
       htmlValidateFindingsFromSerialized(s, URL).map((f) => f.checkId),
     );
     for (const id of checkIds) {
-      expect(["markup-nesting", "css-for-presentation", "duplicate-id"]).toContain(
-        id,
-      );
+      expect(["markup-nesting", "css-for-presentation"]).toContain(id);
     }
   });
 });
 
 describe("checkIdForHtmlValidateRule", () => {
   it("maps 8.2 / 10.1 rules only", () => {
-    expect(checkIdForHtmlValidateRule("no-dup-id")).toBe("duplicate-id");
     expect(checkIdForHtmlValidateRule("no-deprecated-attr")).toBe(
       "css-for-presentation",
     );
@@ -143,7 +139,8 @@ describe("checkIdForHtmlValidateRule", () => {
     expect(checkIdForHtmlValidateRule("not-a-rule")).toBeUndefined();
   });
 
-  it("does not map landmark or idref rules", () => {
+  it("does not map duplicate-id, landmark, or idref rules", () => {
+    expect(checkIdForHtmlValidateRule("no-dup-id")).toBeUndefined();
     expect(checkIdForHtmlValidateRule("no-multiple-main")).toBeUndefined();
     expect(checkIdForHtmlValidateRule("unique-landmark")).toBeUndefined();
     expect(checkIdForHtmlValidateRule("no-missing-references")).toBeUndefined();

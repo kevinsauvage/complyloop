@@ -42,6 +42,8 @@ describe("findingsFromAxePages", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]?.checkId).toBe("input-label");
     expect(findings[0]?.engine).toBe("runtime");
+    expect(findings[0]?.analyzerId).toBe("axe");
+    expect(findings[0]?.analyzerRuleId).toBe("label");
     expect(findings[0]?.location).toEqual({
       kind: "dom",
       url: "https://app.example/login",

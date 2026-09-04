@@ -16,6 +16,7 @@ function siteFinding(
     location: { kind: "site", pages, detail },
     fix: null,
     engine: "runtime",
+    analyzerId: "site-level",
   };
 }
 
@@ -241,6 +242,7 @@ export function runSiteLevelChecks(
       },
       fix: null,
       engine: "runtime",
+      analyzerId: "site-level",
     });
   }
 
@@ -262,6 +264,7 @@ export function runSiteLevelChecks(
       },
       fix: null,
       engine: "runtime",
+      analyzerId: "site-level",
     });
   }
 

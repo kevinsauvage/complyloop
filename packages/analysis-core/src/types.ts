@@ -142,6 +142,23 @@ export type CheckId =
   | "markup-nesting"
   | "broken-link";
 
+/** Which analyzer produced an observation (finer than `engine`). */
+export type AnalyzerId =
+  | "ast"
+  | "jsx-a11y"
+  | "axe"
+  | "html-validate"
+  | "ibm"
+  | "playwright-custom"
+  | "site-level"
+  | "linkinator";
+
+export interface AnalyzerContribution {
+  analyzerId: AnalyzerId;
+  analyzerRuleId?: string;
+  analyzerVersion?: string;
+}
+
 export interface RawFinding {
   checkId: CheckId;
   kind: FindingKind;
@@ -152,6 +169,14 @@ export interface RawFinding {
   fix: ProposedFix | null;
   /** Defaults to `ast` when omitted. */
   engine?: "ast" | "runtime";
+  /** Specific analyzer within the coarse `engine` bucket. */
+  analyzerId?: AnalyzerId;
+  /** axe / html-validate / IBM / jsx-a11y rule id, or `complyloop-*` probe id. */
+  analyzerRuleId?: string;
+  /** Package version of the analyzer when cheap to resolve. */
+  analyzerVersion?: string;
+  /** Other analyzers merged into this finding during runtime dedupe. */
+  contributingAnalyzers?: AnalyzerContribution[];
 }
 
 export interface AccessibilityCheck {

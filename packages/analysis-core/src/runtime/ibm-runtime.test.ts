@@ -81,7 +81,7 @@ describe("ibmFindingsFromReport", () => {
     expect(findings).toHaveLength(0);
   });
 
-  it("skips IBM when axe already reported the same check id (even with different snippet)", () => {
+  it("still emits IBM when axe reported the same check id on a different node", () => {
     const pageWithRegion: RuntimeScanPageResult = {
       url: "https://app.example/",
       violations: [
@@ -109,7 +109,8 @@ describe("ibmFindingsFromReport", () => {
       "https://app.example/",
       pageWithRegion,
     );
-    expect(findings).toHaveLength(0);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.checkId).toBe("content-region");
   });
 
   it("emits warning findings for heuristic check ids", () => {

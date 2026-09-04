@@ -98,18 +98,28 @@ idrefs stay on axe / IBM / custom Playwright checks.
   `document.documentElement` in the page (recording node→offset), validates the
   exact string in-process, and builds `dom` locations (selector + snippet). A
   clean audit is a real rendered-document verdict — it can *pass* a requirement.
-- Curated rules (8): `element-permitted-content`, `element-permitted-order`,
-  `close-order`, `no-implicit-close`, `no-dup-attr`, `no-dup-id`,
-  `no-deprecated-attr`, `deprecated`. Do not enable `html-validate:recommended`
-  or `@html-validate/wcag`.
+- Curated rules (7): `element-permitted-content`, `element-permitted-order`,
+  `close-order`, `no-implicit-close`, `no-dup-attr`, `no-deprecated-attr`,
+  `deprecated`. Do not enable `html-validate:recommended` or `@html-validate/wcag`.
+  Duplicate ids are **not** checked here — axe owns `duplicate-id` on the
+  rendered DOM; AST owns source duplicate ids in CI.
 - Check-id mapping (`runtime/html-validate-map.ts`): nesting/order/close/dup-attr
   → `markup-nesting` (`ctl-markup-validity`, RGAA 8.2); deprecated
-  attrs/elements → `css-for-presentation` (RGAA 10.1); `no-dup-id` →
-  `duplicate-id` (RGAA 8.2). Interactive nesting is axe's job on the generated
-  DOM (the browser auto-repairs it, so it never reaches html-validate).
+  attrs/elements → `css-for-presentation` (RGAA 10.1). Interactive nesting is
+  axe's job on the generated DOM (the browser auto-repairs it, so it never
+  reaches html-validate).
 
 Runs only when `runtimeBaseUrl` is set (needs a browser). The `@complyloop/check`
 CLI / source scan does **not** use html-validate.
+
+**Analyzer provenance:** `RawFinding` / persisted `Finding` carry optional
+`analyzerId`, `analyzerRuleId`, `analyzerVersion`, and `contributingAnalyzers`
+(when runtime dedupe merges the same dom node). Coarse `engine: "ast" | "runtime"`
+is unchanged for remediation routing. `finding_detected` evidence stores the same
+fields in `detail`. Per-page dedupe (`runtime/dedupe-runtime-findings.ts`):
+axe > IBM > playwright-custom when the same check id hits the same node.
+html-validate check ids (`markup-nesting`, `css-for-presentation`) do not
+overlap axe — exclusive ownership, not dedupe. `duplicate-id` is axe + AST only.
 
 ### Check authority (`packages/analysis-core/src/check-authority.ts`)
 

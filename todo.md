@@ -6,9 +6,9 @@ ComplyLoop already has a real multi-engine accessibility pipeline: custom AST ch
 
 The analyzer is **not yet trustworthy enough to treat a green requirement as compliance evidence** for every runtime-only control, but the three P0 defects that emitted or suppressed wrong RGAA status are **fixed** (see Completed below).
 
-`html-validate` is in the right place (runtime, generated DOM, not CI) but **not in the right role**. It currently maps landmarks to RGAA 12.6 and broken idrefs to RGAA 11.10. The intended job is structural evidence for **RGAA 8.2 and 10.1 only**. There is no `AnalysisObservation` type: every engine collapses into `RawFinding` with `engine: "ast" | "runtime"`, so provenance, rule id, and analyzer version are lost except as text inside `reason`.
+`html-validate` is scoped to **RGAA 8.2 and 10.1 structural evidence only** on the generated DOM. Runtime observations now carry optional `analyzerId` / `analyzerRuleId` (axe, html-validate, IBM, playwright-custom, site-level, linkinator); same check + dom node is deduped per page with contributing analyzers preserved. Coarse `engine: "ast" | "runtime"` remains for remediation routing.
 
-Do not add another scanner. Fix html-validate scope, observation/dedup types, then evidence and tests. Empty runtime-only scans currently **pass** requirements (including CAPTCHA, hover content, media) — that is a compliance overclaim, not a coverage gap.
+Do not add another scanner. Next: isolate engine failures, gate 8.2/10.1 on `htmlValidateRan`, stop over-passing applicability-gated checks. Empty runtime-only scans currently **pass** requirements (including CAPTCHA, hover content, media) — that is a compliance overclaim, not a coverage gap.
 
 This document replaces the previous product-ops `todo.md` for analyzer work. Ops go-live items (deploy checklist, backups, Sentry alerts) still live in `docs/deploy.md` and are out of scope here.
 
@@ -62,18 +62,17 @@ RENDERED / RUNTIME (only if project.runtimeBaseUrl is set)
 | Priority | Count | Focus |
 |---|---:|---|
 | P0 | 0 | — (critical items completed 2026-09-04) |
-| P1 | 14 | html-validate role, observation/provenance, dedup, engine isolation, over-pass, dead theme pass, tests |
+| P1 | 11 | engine isolation, over-pass, dead theme pass, tests |
 | P2 | 8 | Applicability, probe quality, SSR HTML capture, CLI evidence |
 | P3 | 6 | Docs drift, `networkidle`, IBM install weight, serializer cleanup |
 | P4 | 5 | Visual regression, SR automation, extra engines — do not start |
 
 ## Recommended Execution Order
 
-1. **#4–#6** Narrow html-validate to 8.2 / 10.1; introduce analyzer-tagged observations; dedupe html-validate vs axe on the same check.
-2. **#7–#9** Isolate engine failures; gate 8.2/10.1 on `htmlValidateRan`; stop auto-passing applicability-gated runtime-only checks.
-3. **#10–#14** Restore page after submit/hover probes; wire theme conditions; fix resize-text; fix remaining mapping/help mismatches.
-4. **#15–#17** Tests that lock the above (especially false-positive regressions).
-5. **#18+** Coverage and quality only after the pipeline stops lying.
+1. **#7–#9** Isolate engine failures; gate 8.2/10.1 on `htmlValidateRan`; stop auto-passing applicability-gated runtime-only checks.
+2. **#10–#14** Restore page after submit/hover probes; wire theme conditions; fix resize-text; fix remaining mapping/help mismatches.
+3. **#15–#17** Tests that lock the above (especially false-positive regressions).
+4. **#18+** Coverage and quality only after the pipeline stops lying.
 
 ---
 
@@ -87,7 +86,7 @@ RENDERED / RUNTIME (only if project.runtimeBaseUrl is set)
 
 ### P0 — cross-route duplicate-id false fails
 
-- `site-level/checks.ts`: removed site-level `duplicate-id` for shared ids across routes (per-document uniqueness stays on axe / html-validate / AST).
+- `site-level/checks.ts`: removed site-level `duplicate-id` for shared ids across routes (per-document uniqueness stays on axe / AST).
 - `site-level/checks.test.ts`: regression test that `#header` on two routes does not fail.
 
 ### P0 — consistent-lang vs RGAA 8.4
@@ -95,6 +94,26 @@ RENDERED / RUNTIME (only if project.runtimeBaseUrl is set)
 - `site-level/checks.ts`: `consistent-lang` is now `kind: "warning"` (needs_review), not a violation against 8.4.
 - `controls.ts`: recoded `ctl-consistent-lang` to RGAA 8.3 with review-oriented copy; `ctl-html-lang-valid` remains the only 8.4 automated control.
 - `guidance.ts`: updated impact/how-to-fix for review semantics.
+
+### P1 — Restrict html-validate to RGAA 8.2 / 10.1 structural evidence
+
+- `html-validate-map.ts`: removed `no-multiple-main`, `unique-landmark`, and `no-missing-references` mappings; only `markup-nesting` and `css-for-presentation` remain.
+- `html-validate-runtime.ts`: `RENDERED_RULES` trimmed to 7 rules (8.2 markup + 10.1 presentation).
+- `html-validate-runtime.test.ts`: asserts landmarks, broken idrefs, and duplicate ids do not emit html-validate findings.
+
+### P1 — duplicate-id exclusive ownership (axe runtime, not html-validate)
+
+- Removed `no-dup-id` from html-validate `RENDERED_RULES` and map — axe owns rendered DOM duplicate ids; AST owns source.
+- IBM skip simplified (axe node match only); dedupe kept for IBM vs axe same-node overlap.
+- `docs/ai/architecture.md`, `docs/analysis-checks-challenge.md`: updated scope and rule count.
+
+### P1 — Analyzer identity on observations + runtime dedupe
+
+- `types.ts` / `contract/finding-types.ts`: optional `analyzerId`, `analyzerRuleId`, `analyzerVersion`, `contributingAnalyzers` on findings.
+- All runtime engines tag observations (`axe`, `html-validate`, `ibm`, `playwright-custom`, `site-level`, `linkinator`); jsx-a11y tagged separately from custom AST.
+- `runtime/dedupe-runtime-findings.ts`: collapses same check + dom node per page (axe > IBM > custom); merged analyzers kept on survivor. html-validate check ids do not overlap axe.
+- `ibm-runtime.ts`: skip only when axe already reported the **same node**, not any hit of the check id.
+- `assessment-findings.ts`: persists analyzer fields on findings and `finding_detected` evidence detail.
 
 ---
 
@@ -105,8 +124,8 @@ RENDERED / RUNTIME (only if project.runtimeBaseUrl is set)
 | Source | Custom AST (`checks/`, 58) | TSX/JSX | React patterns jsx-a11y cannot see; CI gate | Many (CAPTCHA cues, office docs, heuristics, …) | Active. Heuristic ids do not pass on empty scan. |
 | Source | `eslint-plugin-jsx-a11y` (28 mapped rules) | TSX | CI source twin | img-alt, names, ARIA, keyboard heuristics | Active. `control-has-associated-label` is intentionally off. |
 | Rendered DOM | axe-core (~123 mapped rules) | Live page via `axe.min.js` | Baseline a11y tree | Broad WCAG; mapped through `axe-map.ts` | Active. Incomplete nodes → `warning` / `needs_review`. |
-| Rendered HTML | html-validate (11 curated rules) | Custom-serialized `document.documentElement` | Intended: RGAA 8.2 / 10.1. Actual: also 12.6 landmarks + 11.10 idrefs | 8.2 (`markup-nesting`, `duplicate-id`), 10.1 (`css-for-presentation`), **plus** 12.6 and 11.10 | Active, **mis-scoped**. Not used by CLI. |
-| Rendered DOM | IBM Equal Access (15 curated rules) | Same Playwright page after axe | Sibling engine; skip if axe already emitted the check id | Landmarks, lists, form errors, skip link, … | Active. Check-id-level skip is aggressive. Throws abort the whole runtime scan. |
+| Rendered HTML | html-validate (7 curated rules) | Custom-serialized `document.documentElement` | RGAA 8.2 markup + 10.1 presentation only | 8.2 (`markup-nesting`), 10.1 (`css-for-presentation`) | Active. Not used by CLI. Duplicate ids: axe runtime + AST. |
+| Rendered DOM | IBM Equal Access (15 curated rules) | Same Playwright page after axe | Sibling engine; skip when axe already reported same node | Landmarks, lists, form errors, skip link, … | Active. Node-level skip (not check-id blanket). Throws abort the whole runtime scan. |
 | Runtime | Playwright custom (~26 probes) | Browser (tab, emulateMedia, viewport) | Behaviour axe cannot see | Focus, reflow, widgets, hover, live regions, 44×44, forced-colors, reduced-motion, … | Active. css-off restore fixed; submit/hover probes still mutate page (#11). |
 | Runtime conditions | Theme pass (`theme-conditions.ts`) | dark / light / `prefers-contrast: more` | Re-run contrast/focus under theme | 1.4.3 / 1.4.6 / 1.4.11 | **Dead in product assessments** — `scanRuntime` accepts `browserConditions` but `src/server/assessment.ts` never passes them. |
 | Runtime conditions | Viewport / pointer (`viewport-conditions.ts`) | default, `320×568`, `pointer: coarse` | axe `target-size` 24×24 | 2.5.8 / RGAA target size | Active. |
@@ -119,129 +138,6 @@ RENDERED / RUNTIME (only if project.runtimeBaseUrl is set)
 ---
 
 ## P1 — Core correctness
-
-### [P1] Restrict html-validate to structural evidence for RGAA 8.2 and 10.1
-
-**Location**
-- `packages/analysis-core/src/runtime/html-validate-map.ts`
-- `packages/analysis-core/src/runtime/html-validate-runtime.ts` (`RENDERED_RULES`)
-- `packages/analysis-core/src/runtime/html-validate-runtime.test.ts`
-- `docs/ai/architecture.md` (currently documents landmark and form-error mappings as intended)
-
-**Problem**
-
-html-validate is wired correctly as a **runtime** pass on generated DOM (`engine: "runtime"`, not CLI). The rule set is curated (`root: true`, not `html-validate:recommended`). That part is right.
-
-The map is not. Today:
-
-| html-validate rule | Check id | Catalog | Should stay? |
-| --- | --- | --- | --- |
-| `element-permitted-content`, `element-permitted-order`, `close-order`, `no-implicit-close`, `no-dup-attr` | `markup-nesting` | RGAA 8.2 `ctl-markup-validity` | Yes |
-| `no-dup-id` | `duplicate-id` | RGAA 8.2 `ctl-duplicate-id` | Yes (document uniqueness is 8.2; axe already owns this — dedupe in #6) |
-| `no-deprecated-attr`, `deprecated` | `css-for-presentation` | RGAA 10.1 | Yes |
-| `no-multiple-main` | `landmark-one-main` | RGAA 12.6 | **No — axe owns landmarks** |
-| `unique-landmark` | `landmark-unique` | RGAA 12.6 | **No** |
-| `no-missing-references` | `form-error-association` | RGAA 11.10 | **No — axe/IBM/form-error-submit own association** |
-
-Tests currently **require** multiple `<main>` → `landmark-one-main` and broken `for` / `aria-describedby` → `form-error-association`.
-
-**Why it matters**
-
-html-validate is becoming a third accessibility scanner. Landmark and idref hits duplicate axe/IBM and can double-count findings. 8.2/10.1 evidence is mixed with 12.6/11.10, so a clean html-validate pass is no longer a clean 8.2/10.1 verdict.
-
-**Recommended change**
-
-Keep only 8.2 + 10.1 rules in `RENDERED_RULES` and `HTML_VALIDATE_TO_CHECK`. Do not enable `@html-validate/wcag` or `html-validate:recommended`. Do not re-check labels, headings, ARIA, or landmarks here. Rewrite tests to assert unmapped rules are dropped.
-
-**Acceptance criteria**
-- [ ] Mapped check ids are only `markup-nesting`, `css-for-presentation`, and `duplicate-id` (8.2 uniqueness).
-- [ ] Multiple `<main>` does **not** emit html-validate findings (axe still can).
-- [ ] Broken `for` / `aria-describedby` do **not** emit html-validate findings.
-- [ ] Deprecated `align` / presentational elements still map to `css-for-presentation`.
-- [ ] Invalid nesting / duplicate attributes still map to `markup-nesting`.
-- [ ] Architecture docs match the map (no 12.6 / 11.10 html-validate story).
-
-**Dependencies**
-- #6 if `duplicate-id` is kept from both axe and html-validate.
-
----
-
-### [P1] Add a stable analyzer identity on observations (stop collapsing every runtime engine into `engine: "runtime"`)
-
-**Location**
-- `packages/analysis-core/src/types.ts` (`RawFinding.engine`)
-- `packages/analysis-core/src/contract/finding-types.ts` (`AssessmentEngine = "ast" | "runtime"`)
-- `packages/analysis-core/src/runtime/findings.ts`
-- `packages/analysis-core/src/runtime/html-validate-runtime.ts`
-- `packages/analysis-core/src/runtime/ibm-runtime.ts`
-- `src/server/assessment-findings.ts` (evidence `detail: { engine }`)
-- `src/components/badges.tsx` (`EngineBadge`)
-
-**Problem**
-
-There is no `AnalysisObservation` type. Axe, html-validate, IBM, Playwright probes, site-level, and linkinator all produce `RawFinding` with `engine: "runtime"`. html-validate and IBM stash the rule name in `reason` (`html-validate [no-dup-id]: …`). Custom probes look like axe (`help` + `description`). Evidence records store only `ast` | `runtime`. The UI badge is “Runtime (DOM)” for all of them. Analyzer version is never recorded.
-
-**Why it matters**
-
-An auditor cannot see what proved the claim. Dedup, verification, and “html-validate owns 8.2” cannot be implemented honestly. Re-running verification via `runtimeViolationStillPresent` cannot distinguish an axe miss from an html-validate miss.
-
-**Recommended change**
-
-Add a small, additive observation payload on `RawFinding` (or a type the engines map into `RawFinding`):
-
-- `analyzerId`: `ast` | `jsx-a11y` | `axe` | `html-validate` | `ibm` | `playwright-custom` | `site-level` | `linkinator`
-- `analyzerRuleId`: axe/html-validate/IBM/jsx-a11y rule id or `complyloop-*` probe id
-- `analyzerVersion`: package version string where cheap (html-validate, axe-core, accessibility-checker)
-
-Keep `engine: "ast" | "runtime"` for remediation routing (source patch vs DOM guidance). Persist analyzer fields in `finding_detected` evidence `detail`. UI can keep a coarse badge and surface analyzer in the finding header/evidence.
-
-Do not invent a parallel finding store.
-
-**Acceptance criteria**
-- [ ] New html-validate findings include `analyzerId: "html-validate"` and the html-validate rule id.
-- [ ] Axe findings include `analyzerId: "axe"` and the axe rule id.
-- [ ] Existing assessments without the fields still load (optional fields).
-- [ ] Evidence serialization includes analyzer id/rule/version when present.
-- [ ] Tests for mapping + evidence round-trip.
-
-**Dependencies**
-- None, but #4 and #6 should use these fields.
-
----
-
-### [P1] Dedupe html-validate against axe (and IBM) on the same check + node
-
-**Location**
-- `packages/analysis-core/src/runtime/findings.ts` (`findingsFromAxePages` concatenates html-validate with no dedupe)
-- `packages/analysis-core/src/runtime/ibm-runtime.ts` (`shouldSkipIbmFinding` — axe only, not html-validate)
-- `packages/analysis-core/src/merge-findings.ts` (AST vs runtime only)
-
-**Problem**
-
-`duplicate-id` can be emitted by AST, axe (`duplicate-id`, `duplicate-id-active`, `duplicate-id-aria`), and html-validate (`no-dup-id`). After #4, html-validate still shares `duplicate-id` with axe. `findingsFromAxePages` appends html-validate findings with no check-id/snippet/selector collapse. IBM dedupes vs axe at **check id** (any axe hit of that id drops every IBM hit of that id) but ignores html-validate.
-
-Result: two open findings for one duplicate id; or IBM suppressed because axe already fired a different node of the same check.
-
-**Why it matters**
-
-Duplicate tickets and noisy 8.2. IBM’s check-id skip can hide a distinct IBM-only node.
-
-**Recommended change**
-
-After all page engines run, collapse runtime findings that share `checkId` + comparable location (normalized snippet or selector) into one finding. Prefer a deterministic priority: axe > html-validate > IBM > custom, **keeping the dropped analyzer ids on the surviving observation** (#5). Change IBM skip from “any axe hit of this check id” to “same check + same node”, so IBM can still add a *different* node.
-
-Do not collapse site-level `site` locations with `dom` locations.
-
-**Acceptance criteria**
-- [ ] One duplicate id in the DOM → at most one open `duplicate-id` finding per URL.
-- [ ] Surviving finding evidence lists contributing analyzers.
-- [ ] IBM can still emit `form-error-association` on a node axe did not report.
-- [ ] Tests: html-validate+axe same node; IBM different node; site vs dom not merged.
-
-**Dependencies**
-- #5 (analyzer ids). #4 (narrower html-validate overlap).
-
----
 
 ### [P1] Isolate runtime engines so IBM or html-validate failure does not discard axe findings
 
@@ -544,7 +440,7 @@ Add/replace tests as acceptance criteria of #4–#14. Prefer Playwright page tes
 
 **Acceptance criteria**
 - [ ] Each remaining P1 item above has a failing test before the fix (or a new test that would have caught it).
-- [ ] `npm run test` covers: html-validate map ⊆ {markup-nesting, css-for-presentation, duplicate-id}, engine isolation, 8.2 gated on htmlValidateRan, no auto-pass CAPTCHA.
+- [ ] `npm run test` covers: html-validate map ⊆ {markup-nesting, css-for-presentation}, engine isolation, 8.2 gated on htmlValidateRan, no auto-pass CAPTCHA.
 
 **Dependencies**
 - Lands with #4–#14, not as a vague “add more tests” leftover.
@@ -1067,11 +963,11 @@ Use this when touching mappings. Not every row needs a TODO.
 
 | Check id | Engines that can emit it | Authority | Notes |
 | --- | --- | --- | --- |
-| `markup-nesting` | html-validate only | runtime_only | 8.2 owner after #4/#8 |
+| `markup-nesting` | html-validate only | runtime_only | 8.2 owner |
 | `css-for-presentation` | html-validate | runtime_only | 10.1 owner |
-| `duplicate-id` | AST, axe, html-validate | composition_sensitive | Per-document only; dedupe #6 |
-| `landmark-one-main` / `landmark-unique` | axe, html-validate (remove), IBM | runtime_only | html-validate out (#4) |
-| `form-error-association` | AST, axe, html-validate (remove), IBM, form-error-submit | composition_sensitive | html-validate out; help text #12 |
+| `duplicate-id` | AST, axe | composition_sensitive | Per-document; axe owns rendered DOM |
+| `landmark-one-main` / `landmark-unique` | axe, IBM | runtime_only | html-validate does not emit |
+| `form-error-association` | AST, axe, IBM, form-error-submit | composition_sensitive | html-validate does not emit; help text #12 |
 | `img-alt` | AST/jsx-a11y, axe (many rules collapsed) | package-twin source | Many axe rules → one control (intentional) |
 | `hover-content` | Playwright; listed heuristic **and** runtime_only → runtime_only | Over-pass (#9, #14) |
 | `reduced-motion` | Playwright; heuristic only | Correct: empty ≠ pass |

@@ -31,6 +31,10 @@ export function createFinding(
     reason: raw.reason,
     location: raw.location,
     engine: raw.engine ?? "ast",
+    analyzerId: raw.analyzerId,
+    analyzerRuleId: raw.analyzerRuleId,
+    analyzerVersion: raw.analyzerVersion,
+    contributingAnalyzers: raw.contributingAnalyzers,
     fix: raw.fix,
     explanations: [deterministicExplanation(raw.reason, guidance)],
     detectedAt: now,
@@ -59,7 +63,15 @@ export function createFinding(
     controlId,
     findingId: finding.id,
     assessmentId,
-    detail: { engine: raw.engine ?? "ast" },
+    detail: {
+      engine: raw.engine ?? "ast",
+      ...(raw.analyzerId ? { analyzerId: raw.analyzerId } : {}),
+      ...(raw.analyzerRuleId ? { analyzerRuleId: raw.analyzerRuleId } : {}),
+      ...(raw.analyzerVersion ? { analyzerVersion: raw.analyzerVersion } : {}),
+      ...(raw.contributingAnalyzers?.length
+        ? { contributingAnalyzers: raw.contributingAnalyzers }
+        : {}),
+    },
   });
 }
 

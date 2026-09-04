@@ -14,13 +14,14 @@
  */
 import { HtmlValidate } from "html-validate";
 import type { Page } from "playwright";
+import { htmlValidatePackageVersion } from "../analyzer-versions.js";
 import { checkIdForHtmlValidateRule } from "./html-validate-map.js";
 import type { RawFinding } from "../types.js";
 
 /**
- * Curated html-validate rules for RGAA 8.2 (markup validity, duplicate ids) and
- * 10.1 (deprecated presentational markup) only. Landmarks, labels, ARIA, and
- * broken idrefs are axe / IBM / custom Playwright — not enabled here.
+ * Curated html-validate rules for RGAA 8.2 markup validity and 10.1 deprecated
+ * presentational markup. Duplicate ids, landmarks, labels, ARIA, and broken
+ * idrefs are axe / IBM / custom Playwright — not enabled here.
  */
 const RENDERED_RULES = {
   "element-permitted-content": "error",
@@ -28,7 +29,6 @@ const RENDERED_RULES = {
   "close-order": "error",
   "no-implicit-close": "error",
   "no-dup-attr": "error",
-  "no-dup-id": "error",
   "no-deprecated-attr": "error",
   deprecated: "error",
 } as const;
@@ -258,6 +258,9 @@ export function htmlValidateFindingsFromSerialized(
       },
       fix: null,
       engine: "runtime",
+      analyzerId: "html-validate",
+      analyzerRuleId: msg.ruleId,
+      analyzerVersion: htmlValidatePackageVersion(),
     });
   }
 
