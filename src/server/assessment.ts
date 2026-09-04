@@ -256,6 +256,7 @@ export async function runAssessment(
     runtimeRan,
     siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
     htmlValidateRan: runtimeResult.htmlValidateRan,
+    applicabilityFacts: runtimeResult.applicabilityFacts,
   });
 
   const summary: Record<RequirementStatus, number> = {

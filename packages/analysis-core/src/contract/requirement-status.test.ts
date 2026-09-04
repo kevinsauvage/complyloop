@@ -128,6 +128,47 @@ describe("deriveRequirementStatus", () => {
     ).toBe("passed");
   });
 
+  it("returns not_applicable when runtime confirmed absence on all pages", () => {
+    expect(
+      deriveRequirementStatus({
+        authority: "heuristic",
+        checkId: "captcha-alternative",
+        runtimeRan: true,
+        applicabilityConfirmed: true,
+      }),
+    ).toBe("not_applicable");
+    expect(
+      deriveRequirementStatus({
+        authority: "standard",
+        checkId: "video-caption",
+        runtimeRan: true,
+        applicabilityConfirmed: true,
+      }),
+    ).toBe("not_applicable");
+  });
+
+  it("keeps unable_to_verify for heuristic checks without applicability confirmation", () => {
+    expect(
+      deriveRequirementStatus({
+        authority: "heuristic",
+        checkId: "captcha-alternative",
+        runtimeRan: true,
+      }),
+    ).toBe("unable_to_verify");
+  });
+
+  it("does not apply not_applicable when open findings exist", () => {
+    expect(
+      deriveRequirementStatus({
+        authority: "heuristic",
+        checkId: "captcha-alternative",
+        runtimeRan: true,
+        applicabilityConfirmed: true,
+        openFindings: [{ kind: "violation" }],
+      }),
+    ).toBe("failed");
+  });
+
   it("gates html-validate-owned checks on htmlValidateRan, not runtimeRan alone", () => {
     expect(
       deriveRequirementStatus({

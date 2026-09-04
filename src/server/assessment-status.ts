@@ -123,6 +123,8 @@ export interface RefreshRequirementStatusesOptions {
   siteLevelChecksRan?: boolean;
   /** html-validate structural pass succeeded on at least one page. */
   htmlValidateRan?: boolean;
+  /** Check ids confirmed not applicable on every audited page (checkId → fact). */
+  applicabilityFacts?: ReadonlyMap<string, string>;
 }
 
 /**
@@ -136,6 +138,7 @@ function statusFromFindings(
   runtimeRan: boolean | undefined,
   siteLevelChecksRan: boolean | undefined,
   htmlValidateRan: boolean | undefined,
+  applicabilityFacts: ReadonlyMap<string, string> | undefined,
 ): RequirementStatus {
   return deriveRequirementStatus({
     authority: checkId === null ? "manual" : authorityForCheck(checkId),
@@ -144,6 +147,8 @@ function statusFromFindings(
     runtimeRan,
     siteLevelChecksRan,
     htmlValidateRan,
+    applicabilityConfirmed:
+      checkId !== null && Boolean(applicabilityFacts?.has(checkId)),
   });
 }
 
@@ -157,7 +162,7 @@ export function refreshRequirementStatuses(
   projectId: string,
   options: RefreshRequirementStatusesOptions = {},
 ): void {
-  const { assessmentId, changeContext, runtimeRan, siteLevelChecksRan, htmlValidateRan } =
+  const { assessmentId, changeContext, runtimeRan, siteLevelChecksRan, htmlValidateRan, applicabilityFacts } =
     options;
   const now = new Date().toISOString();
   const project = db.projects.find((candidate) => candidate.id === projectId);
@@ -213,6 +218,7 @@ export function refreshRequirementStatuses(
       runtimeRan,
       siteLevelChecksRan,
       htmlValidateRan,
+      applicabilityFacts,
     );
 
     if (!requirement) {
@@ -243,6 +249,13 @@ export function refreshRequirementStatuses(
           to: status,
           regression,
           changeContext: regression ? changeContext : undefined,
+          ...(status === "not_applicable" && control.checkId
+            ? {
+                applicabilityFact:
+                  applicabilityFacts?.get(control.checkId) ??
+                  "Criterion does not apply on audited pages.",
+              }
+            : {}),
         },
       });
       requirement.status = status;

@@ -42,6 +42,8 @@ export interface DeriveRequirementStatusInput {
   checkId?: string | null;
   /** Did html-validate succeed on at least one preview page? */
   htmlValidateRan?: boolean;
+  /** Runtime confirmed the criterion does not apply (all audited pages). */
+  applicabilityConfirmed?: boolean;
 }
 
 /**
@@ -80,6 +82,14 @@ export function deriveRequirementStatus(
       return "failed";
     }
     return "needs_review";
+  }
+
+  if (
+    input.applicabilityConfirmed === true &&
+    input.runtimeRan === true &&
+    input.checkId
+  ) {
+    return "not_applicable";
   }
 
   switch (input.authority) {

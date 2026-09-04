@@ -26,6 +26,10 @@ import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./custom-
 import { htmlValidateFindingsForPage } from "./html-validate-runtime.js";
 import { ibmFindingsForPage } from "./ibm-runtime.js";
 import { brokenLinkFindingsForUrls } from "./site-level/link-check.js";
+import {
+  aggregateApplicabilityObservations,
+  applicabilityObservationsForPage,
+} from "./applicability.js";
 import { maxRuntimePages } from "../contract/assessment-limits.js";
 import {
   conditionLabel,
@@ -249,6 +253,8 @@ function createPlaywrightAxeScanner(options?: {
           // Rendered pass: validate the generated DOM. Serialize on
           // the open page (no extra browser cost) and validate in-process.
           const snapshot = await capturePageSnapshot(page, url);
+          const applicabilityObservations =
+            await applicabilityObservationsForPage(page, url);
           const hasDoctype = await page.evaluate(
             () => document.doctype !== null,
           );
@@ -359,6 +365,7 @@ function createPlaywrightAxeScanner(options?: {
             htmlValidateRan: pageHtmlValidateRan,
             ibmCheckerRan: pageIbmCheckerRan,
             snapshot,
+            applicabilityObservations,
           });
         } finally {
           await page.close();
@@ -457,6 +464,7 @@ export async function scanRuntime(
       ...(siteLevelChecksRan ? siteLevelFindingsFromPages(pages) : []),
       ...linkFindings,
     ];
+    const applicabilityFacts = aggregateApplicabilityObservations(pages);
     return {
       findings,
       pagesScanned: pages.length,
@@ -464,6 +472,7 @@ export async function scanRuntime(
       htmlValidateRan,
       ibmCheckerRan,
       linkCheckRan,
+      applicabilityFacts,
     };
   } catch (error) {
     return {

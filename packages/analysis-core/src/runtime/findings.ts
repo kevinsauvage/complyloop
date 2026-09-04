@@ -5,7 +5,9 @@ import type { RawFinding } from "../types.js";
 import { checkIdForAxeRule } from "./axe-map.js";
 import { dedupeRuntimeFindings } from "./dedupe-runtime-findings.js";
 
+import type { CheckId } from "../types.js";
 import type { RuntimePageSnapshot } from "./site-level/types.js";
+import type { ApplicabilityObservation } from "./applicability.js";
 import { runSiteLevelChecks } from "./site-level/checks.js";
 
 interface AxeNodeLike {
@@ -37,6 +39,8 @@ export interface RuntimeScanPageResult {
   htmlValidateRan?: boolean;
   /** IBM Equal Access succeeded on this page. */
   ibmCheckerRan?: boolean;
+  /** Deterministic absence probes for applicability-gated checks. */
+  applicabilityObservations?: ApplicabilityObservation[];
 }
 
 export interface RuntimeScanResult {
@@ -49,6 +53,8 @@ export interface RuntimeScanResult {
   ibmCheckerRan?: boolean;
   /** linkinator same-origin link check ran on preview routes. */
   linkCheckRan?: boolean;
+  /** Check ids confirmed not applicable on every audited page (checkId → fact). */
+  applicabilityFacts?: ReadonlyMap<CheckId, string>;
   error?: string;
 }
 

@@ -42,7 +42,7 @@ RENDERED / RUNTIME (only if project.runtimeBaseUrl is set)
   Finding + append-only EvidenceRecord (detail.engine = ast | runtime)
 ```
 
-**Status derivation** (`deriveRequirementStatus`): sticky human decisions win; open `violation` → `failed`; open `warning` → `needs_review`; else authority gate. `runtime_only` with no findings and `runtimeRan` → **`passed`** except html-validate-owned ids (need `htmlValidateRan`) and applicability-gated ids (heuristic — empty ≠ pass).
+**Status derivation** (`deriveRequirementStatus`): sticky human decisions win; open `violation` → `failed`; open `warning` → `needs_review`; runtime applicability observations → `not_applicable` when all pages confirm absence; else authority gate. Applicability-gated ids without confirmation stay `unable_to_verify`.
 
 **CLI** (`npx complyloop-check` / `src/cli/check.ts`): AST + jsx-a11y only. Exit 1 on violations. No runtime, no JSON.
 
@@ -63,7 +63,7 @@ RENDERED / RUNTIME (only if project.runtimeBaseUrl is set)
 |---|---:|---|
 | P0 | 0 | — (critical items completed 2026-09-04) |
 | P1 | 4 | page restore after probes, resize-text, evidence honesty, remaining regression tests |
-| P2 | 7 | Applicability observations, probe quality, SSR HTML capture, CLI evidence |
+| P2 | 6 | probe quality, SSR HTML capture, CLI evidence |
 | P3 | 3 | `networkidle` ready signal, IBM install weight, serializer cleanup |
 | P4 | 5 | Visual regression, SR automation, extra engines — do not start |
 
@@ -164,6 +164,13 @@ RENDERED / RUNTIME (only if project.runtimeBaseUrl is set)
 - `docs/ai/architecture.md`: runtime goto strategy, per-page axe inject, IBM node-level dedupe, theme pass default.
 - `docs/analysis-checks-challenge.md`: theme pass wired; IBM same-node skip; custom-check tests 26/26 colocated; navigation row.
 - `docs/analysis-strategy.md`: `DEFAULT_THEME_CONDITIONS` documented for assessments.
+
+### P2 — First-class applicability observations (media, CAPTCHA, tables)
+
+- `runtime/applicability.ts`: deterministic DOM absence probes per page; site-wide aggregation when every page confirms absence.
+- Observable check ids: `video-caption`, `audio-caption`, `media-keyboard`, `media-identification`, `captcha-alternative`, `layout-table-linearization`.
+- `requirement-status.ts`: `applicabilityConfirmed` → `not_applicable` (after open-finding precedence).
+- `scan.ts` / `assessment.ts` / `assessment-status.ts`: observations flow through runtime scan into status refresh with evidence fact.
 
 ---
 
@@ -313,35 +320,6 @@ Add tests as acceptance criteria of #11–#13 land. Prefer Playwright page tests
 ---
 
 ## P2 — Coverage
-
-### [P2] First-class applicability observations (media, CAPTCHA, tables) instead of pass/fail only
-
-**Location**
-- `packages/analysis-core/src/contract/requirement-status.ts`
-- Custom checks: `captcha-alternative.ts`, `media-identification.ts`, `media-keyboard.ts`, `layout-table-linearization.ts`
-- `src/adapters/rgaa/controls.ts`
-
-**Problem**
-
-Heuristic gate landed 2026-09-04 (#9): empty scan → `unable_to_verify`, not `passed`. Domain already has `not_applicable`, but engines still never emit “this criterion does not apply on this page”.
-
-**Why it matters**
-
-Honest RGAA: 4.x N/A when there is no temporal media; 1.5 N/A when there is no CAPTCHA; 5.3 N/A when there is no layout table.
-
-**Recommended change**
-
-If a probe can **deterministically** assert absence (no `video`/`audio`/`track`, no captcha iframe/class, no `table` without `th`), emit an applicability observation that derivation maps to `not_applicable` with evidence. If absence is heuristic, keep `unable_to_verify`. Never auto-fail for absence.
-
-**Acceptance criteria**
-- [ ] Page without media → relevant 4.x controls `not_applicable` or `unable_to_verify`, never `passed` from silence.
-- [ ] Page with `<video>` and no captions still `failed` / `needs_review` as today.
-- [ ] Evidence states the applicability fact (e.g. “no video/audio elements in audited DOM”).
-
-**Dependencies**
-- #9 (heuristic gate landed 2026-09-04). Full `not_applicable` observations still open.
-
----
 
 ### [P2] Capture navigation/SSR HTML as a second 8.2 input (not a second scanner)
 

@@ -436,7 +436,43 @@ describe("refreshRequirementStatuses html-validate-owned", () => {
 });
 
 describe("refreshRequirementStatuses applicability-gated", () => {
-  it("does not pass captcha-alternative when no probe finding ran", () => {
+  it("sets not_applicable when runtime confirmed no captcha on all pages", () => {
+    const db = emptyDb();
+    db.frameworks.push(rgaaFramework);
+    db.controls.push({
+      id: "ctl-captcha-alternative",
+      frameworkId: rgaaFramework.id,
+      code: "RGAA 1.5",
+      secondaryCode: "WCAG 1.1.1",
+      title: "CAPTCHA alternative",
+      description: "CAPTCHA.",
+      checkId: "captcha-alternative",
+    });
+    db.projects.push({
+      id: "p1",
+      name: "App",
+      source: "github",
+      orgId: "org-test",
+      createdAt: new Date().toISOString(),
+    });
+
+    refreshRequirementStatuses(db, "p1", {
+      runtimeRan: true,
+      applicabilityFacts: new Map([
+        [
+          "captcha-alternative",
+          "No CAPTCHA challenge in audited DOM.",
+        ],
+      ]),
+    });
+
+    expect(
+      db.requirements.find((r) => r.controlId === "ctl-captcha-alternative")
+        ?.status,
+    ).toBe("not_applicable");
+  });
+
+  it("does not pass captcha-alternative when applicability was not confirmed", () => {
     const db = emptyDb();
     db.frameworks.push(rgaaFramework);
     db.controls.push({
@@ -462,5 +498,59 @@ describe("refreshRequirementStatuses applicability-gated", () => {
       db.requirements.find((r) => r.controlId === "ctl-captcha-alternative")
         ?.status,
     ).toBe("unable_to_verify");
+  });
+
+  it("still fails video-caption when a violation is open", () => {
+    const db = emptyDb();
+    db.frameworks.push(rgaaFramework);
+    db.controls.push({
+      id: "ctl-video-caption",
+      frameworkId: rgaaFramework.id,
+      code: "RGAA 4.3",
+      secondaryCode: "WCAG 1.2.2",
+      title: "Video captions",
+      description: "Captions.",
+      checkId: "video-caption",
+    });
+    db.projects.push({
+      id: "p1",
+      name: "App",
+      source: "github",
+      orgId: "org-test",
+      createdAt: new Date().toISOString(),
+    });
+    db.findings.push({
+      id: "f1",
+      projectId: "p1",
+      controlId: "ctl-video-caption",
+      assessmentId: "a1",
+      checkId: "video-caption",
+      status: "open",
+      kind: "violation",
+      severity: "serious",
+      confidence: "high",
+      reason: "Missing captions",
+      location: {
+        kind: "dom",
+        url: "https://app/",
+        selector: "video",
+        snippet: "<video>",
+      },
+      engine: "runtime",
+      fix: null,
+      explanations: [],
+      detectedAt: new Date().toISOString(),
+    });
+
+    refreshRequirementStatuses(db, "p1", {
+      runtimeRan: true,
+      applicabilityFacts: new Map([
+        ["video-caption", "No video, audio, or track elements in audited DOM."],
+      ]),
+    });
+
+    expect(
+      db.requirements.find((r) => r.controlId === "ctl-video-caption")?.status,
+    ).toBe("failed");
   });
 });

@@ -77,7 +77,7 @@ Ask, in order:
 
 Prefer: high-confidence + high-impact + cheap → good evidence but medium confidence (review) → skip low-trust heuristics even if the theory is sound.
 
-**Applicability:** “no video on this page” is **not applicable**, not a failure.
+**Applicability:** “no video on this page” is **not applicable**, not a failure. Runtime probes emit deterministic absence observations (`runtime/applicability.ts`); when every audited page confirms absence, status becomes `not_applicable` with the fact recorded in evidence.
 
 **Evidence preference:** browser observation > source > document validation > behavioural test > screenshot regression > correlated multi-analyzer > human > AI interpretation.
 
