@@ -402,3 +402,65 @@ describe("refreshRequirementStatuses heuristic", () => {
     ).toBe("needs_review");
   });
 });
+
+describe("refreshRequirementStatuses html-validate-owned", () => {
+  it("does not pass markup-nesting when runtime ran but html-validate did not", () => {
+    const db = emptyDb();
+    db.frameworks.push(rgaaFramework);
+    db.controls.push({
+      id: "ctl-markup-validity",
+      frameworkId: rgaaFramework.id,
+      code: "RGAA 8.2",
+      secondaryCode: "WCAG 4.1.1",
+      title: "Markup validity",
+      description: "Valid HTML.",
+      checkId: "markup-nesting",
+    });
+    db.projects.push({
+      id: "p1",
+      name: "App",
+      source: "github",
+      orgId: "org-test",
+      createdAt: new Date().toISOString(),
+    });
+
+    refreshRequirementStatuses(db, "p1", {
+      runtimeRan: true,
+      htmlValidateRan: false,
+    });
+
+    expect(
+      db.requirements.find((r) => r.controlId === "ctl-markup-validity")?.status,
+    ).toBe("unable_to_verify");
+  });
+});
+
+describe("refreshRequirementStatuses applicability-gated", () => {
+  it("does not pass captcha-alternative when no probe finding ran", () => {
+    const db = emptyDb();
+    db.frameworks.push(rgaaFramework);
+    db.controls.push({
+      id: "ctl-captcha-alternative",
+      frameworkId: rgaaFramework.id,
+      code: "RGAA 1.5",
+      secondaryCode: "WCAG 1.1.1",
+      title: "CAPTCHA alternative",
+      description: "CAPTCHA.",
+      checkId: "captcha-alternative",
+    });
+    db.projects.push({
+      id: "p1",
+      name: "App",
+      source: "github",
+      orgId: "org-test",
+      createdAt: new Date().toISOString(),
+    });
+
+    refreshRequirementStatuses(db, "p1", { runtimeRan: true });
+
+    expect(
+      db.requirements.find((r) => r.controlId === "ctl-captcha-alternative")
+        ?.status,
+    ).toBe("unable_to_verify");
+  });
+});

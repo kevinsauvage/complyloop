@@ -55,15 +55,11 @@ const RUNTIME_ONLY = [
   "hidden-content",
   "css-for-presentation",
   "css-off-understandable",
-  "layout-table-linearization",
-  "error-prevention",
-  "captcha-alternative",
-  "accessible-auth-enhanced",
-  "media-identification",
   "supplementary-content-keyboard",
   "color-contrast-enhanced",
   "consistent-landmarks",
   "duplicate-page-title",
+  "markup-nesting",
 ] as const;
 
 describe("check authority", () => {
@@ -115,6 +111,12 @@ describe("check authority", () => {
     expect(isHeuristicCheck("accessible-auth-enhanced")).toBe(true);
     expect(isHeuristicCheck("hover-content")).toBe(true);
     expect(isHeuristicCheck("label-adjacent")).toBe(true);
+    expect(isHeuristicCheck("captcha-alternative")).toBe(true);
+    expect(isHeuristicCheck("media-identification")).toBe(true);
+    expect(isHeuristicCheck("layout-table-linearization")).toBe(true);
+    expect(isHeuristicCheck("live-region-updates")).toBe(true);
+    expect(isRuntimeOnlyCheck("captcha-alternative")).toBe(false);
+    expect(isRuntimeOnlyCheck("hover-content")).toBe(false);
     expect(isHeuristicCheck("blockquote-cite")).toBe(false);
     expect(isHeuristicCheck("img-alt")).toBe(false);
     expect(keepOpenWhenRuntimeScanSkipped("image-of-text")).toBe(false);

@@ -223,11 +223,19 @@ function createPlaywrightAxeScanner(options?: {
           const customViolations = await runCustomRuntimeChecks(page);
           // Rendered pass: validate the generated DOM. Serialize on
           // the open page (no extra browser cost) and validate in-process.
-          const htmlValidateFindings = await htmlValidateFindingsForPage(page, url);
           const snapshot = await capturePageSnapshot(page, url);
           const hasDoctype = await page.evaluate(
             () => document.doctype !== null,
           );
+          let htmlValidateFindings: RawFinding[] = [];
+          let pageHtmlValidateRan = false;
+          try {
+            htmlValidateFindings = await htmlValidateFindingsForPage(page, url);
+            pageHtmlValidateRan = true;
+          } catch {
+            // Non-fatal: axe + custom findings are still valid evidence.
+          }
+
           let violations = hasDoctype
             ? [...results.violations, ...customViolations]
             : [
@@ -280,11 +288,18 @@ function createPlaywrightAxeScanner(options?: {
             ),
           ];
 
-          const ibmFindings = await ibmFindingsForPage(page, url, {
-            url,
-            violations,
-            incomplete: results.incomplete,
-          });
+          let ibmFindings: RawFinding[] = [];
+          let pageIbmCheckerRan = false;
+          try {
+            ibmFindings = await ibmFindingsForPage(page, url, {
+              url,
+              violations,
+              incomplete: results.incomplete,
+            });
+            pageIbmCheckerRan = true;
+          } catch {
+            // Non-fatal: keep axe + custom + html-validate findings.
+          }
 
           // Browser-condition pass (same requirement, different condition,
           // different evidence): re-run the theme-sensitive analyzers under
@@ -316,6 +331,8 @@ function createPlaywrightAxeScanner(options?: {
             incomplete: results.incomplete,
             htmlValidateFindings,
             ibmFindings,
+            htmlValidateRan: pageHtmlValidateRan,
+            ibmCheckerRan: pageIbmCheckerRan,
             snapshot,
           });
         } finally {
@@ -396,8 +413,8 @@ export async function scanRuntime(
     }
     const pages = await scanner(urls);
     const siteLevelChecksRan = pages.length >= 2;
-    const htmlValidateRan = pages.length > 0;
-    const ibmCheckerRan = pages.length > 0;
+    const htmlValidateRan = pages.some((page) => page.htmlValidateRan === true);
+    const ibmCheckerRan = pages.some((page) => page.ibmCheckerRan === true);
     const linkFindings =
       pages.length > 0
         ? await brokenLinkFindingsForUrls(urls, {

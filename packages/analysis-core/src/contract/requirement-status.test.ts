@@ -128,6 +128,33 @@ describe("deriveRequirementStatus", () => {
     ).toBe("passed");
   });
 
+  it("gates html-validate-owned checks on htmlValidateRan, not runtimeRan alone", () => {
+    expect(
+      deriveRequirementStatus({
+        authority: "runtime_only",
+        checkId: "markup-nesting",
+        runtimeRan: true,
+        htmlValidateRan: false,
+      }),
+    ).toBe("unable_to_verify");
+    expect(
+      deriveRequirementStatus({
+        authority: "runtime_only",
+        checkId: "css-for-presentation",
+        runtimeRan: true,
+        htmlValidateRan: true,
+      }),
+    ).toBe("passed");
+    expect(
+      deriveRequirementStatus({
+        authority: "composition_sensitive",
+        checkId: "duplicate-id",
+        runtimeRan: true,
+        htmlValidateRan: false,
+      }),
+    ).toBe("passed");
+  });
+
   it("throws on an unrecognized authority", () => {
     expect(() =>
       deriveRequirementStatus({ authority: "bogus" as never }),

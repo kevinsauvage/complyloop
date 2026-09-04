@@ -11,6 +11,26 @@ registerPlaywrightBrowserTeardown();
 
 describe("hoverContentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
+    "does not flag aria-describedby static hints as hover-only content",
+    async () => {
+      const { page, close } = await withPlaywrightPage(`
+        <!doctype html><html lang="fr"><body>
+          <label for="email">Email</label>
+          <input id="email" aria-describedby="hint" />
+          <p id="hint">Use your work address.</p>
+        </body></html>
+      `);
+      try {
+        const violation = await hoverContentViolation(page);
+        expect(violation).toBeNull();
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "flags hover-only supplementary content",
     async () => {
       const { page, close } = await withPlaywrightPage(`

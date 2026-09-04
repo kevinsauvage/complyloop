@@ -102,6 +102,8 @@ export interface AssessmentEngines {
   ibmCheckerRan?: boolean;
   /** Same-origin link validation ran on preview routes. */
   linkCheckRan?: boolean;
+  /** Color-scheme conditions re-audited (e.g. dark, light). */
+  themeConditions?: readonly string[];
   /** Non-fatal runtime errors (e.g. unreachable URL). */
   runtimeError?: string;
 }

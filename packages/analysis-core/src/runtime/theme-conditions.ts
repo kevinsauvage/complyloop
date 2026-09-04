@@ -18,6 +18,12 @@ import type { AxeViolationLike } from "./findings.js";
 /** Browser conditions a scan can re-audit theme-sensitive checks under. */
 export type BrowserCondition = "dark" | "light" | "more-contrast";
 
+/** Default product assessment pass — dark and light scheme re-audits. */
+export const DEFAULT_THEME_CONDITIONS: readonly BrowserCondition[] = [
+  "dark",
+  "light",
+];
+
 /** Human-readable label shown on condition-specific findings. */
 export function conditionLabel(condition: BrowserCondition): string {
   switch (condition) {

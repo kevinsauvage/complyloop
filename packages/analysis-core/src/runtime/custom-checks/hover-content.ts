@@ -12,7 +12,7 @@ export async function hoverContentViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const triggers = page.locator(
-    "[title], [aria-describedby], [data-tooltip], [aria-haspopup='true']",
+    "[title], [data-tooltip], [aria-haspopup='true']",
   );
   const count = Math.min(await triggers.count(), MAX_TRIGGERS);
   const nodes: CustomViolationNode[] = [];

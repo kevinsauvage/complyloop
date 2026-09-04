@@ -1,5 +1,10 @@
 import type { FindingKind, RequirementStatus } from "./statuses.js";
 
+/** html-validate-owned runtime checks (see check-authority.ts). */
+function requiresHtmlValidatePass(checkId: string): boolean {
+  return checkId === "markup-nesting" || checkId === "css-for-presentation";
+}
+
 /**
  * Which engine "owns" status for this requirement's check. Mirrors the four
  * authority classes in `packages/analysis-core/src/check-authority.ts` (manual = no check).
@@ -33,6 +38,10 @@ export interface DeriveRequirementStatusInput {
   runtimeRan?: boolean;
   /** Did site-level checks run (requires ≥2 audited routes)? */
   siteLevelChecksRan?: boolean;
+  /** Catalog check id being derived (needed for html-validate-owned gates). */
+  checkId?: string | null;
+  /** Did html-validate succeed on at least one preview page? */
+  htmlValidateRan?: boolean;
 }
 
 /**
@@ -78,6 +87,13 @@ export function deriveRequirementStatus(
     case "heuristic":
       return "unable_to_verify";
     case "runtime_only":
+      if (
+        input.checkId &&
+        requiresHtmlValidatePass(input.checkId) &&
+        input.htmlValidateRan !== true
+      ) {
+        return "unable_to_verify";
+      }
       return input.runtimeRan === true ? "passed" : "unable_to_verify";
     case "site_level":
       return input.runtimeRan === true && input.siteLevelChecksRan === true

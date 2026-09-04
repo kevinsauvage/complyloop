@@ -112,7 +112,7 @@ export async function formErrorSubmitViolation(
     impact: "serious",
     description:
       "Form validation errors after submit are not programmatically associated with their fields, or focus did not move predictably.",
-    help: "Associate error text with aria-describedby or aria-errormessage and move focus to the first invalid field (WCAG 3.3.1 / RGAA 11.11).",
+    help: "Associate error text with aria-describedby or aria-errormessage and move focus to the first invalid field (WCAG 3.3.1 / RGAA 11.10).",
     nodes,
   };
 }

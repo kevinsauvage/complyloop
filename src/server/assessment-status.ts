@@ -121,6 +121,8 @@ export interface RefreshRequirementStatusesOptions {
   runtimeRan?: boolean;
   /** Runtime checks that need ≥2 audited routes use this flag. */
   siteLevelChecksRan?: boolean;
+  /** html-validate structural pass succeeded on at least one page. */
+  htmlValidateRan?: boolean;
 }
 
 /**
@@ -133,12 +135,15 @@ function statusFromFindings(
   openFindings: ReadonlyArray<Pick<Finding, "kind">>,
   runtimeRan: boolean | undefined,
   siteLevelChecksRan: boolean | undefined,
+  htmlValidateRan: boolean | undefined,
 ): RequirementStatus {
   return deriveRequirementStatus({
     authority: checkId === null ? "manual" : authorityForCheck(checkId),
+    checkId,
     openFindings,
     runtimeRan,
     siteLevelChecksRan,
+    htmlValidateRan,
   });
 }
 
@@ -152,7 +157,7 @@ export function refreshRequirementStatuses(
   projectId: string,
   options: RefreshRequirementStatusesOptions = {},
 ): void {
-  const { assessmentId, changeContext, runtimeRan, siteLevelChecksRan } =
+  const { assessmentId, changeContext, runtimeRan, siteLevelChecksRan, htmlValidateRan } =
     options;
   const now = new Date().toISOString();
   const project = db.projects.find((candidate) => candidate.id === projectId);
@@ -207,6 +212,7 @@ export function refreshRequirementStatuses(
       openFindings,
       runtimeRan,
       siteLevelChecksRan,
+      htmlValidateRan,
     );
 
     if (!requirement) {

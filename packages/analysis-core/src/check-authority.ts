@@ -19,13 +19,46 @@ const COMPOSITION_SENSITIVE_CHECK_IDS = [
 ] as const satisfies readonly CheckId[];
 
 /**
+ * RGAA 8.2 markup validity and 10.1 presentation — only html-validate emits
+ * these at runtime. Status requires html-validate to have run, not just axe.
+ */
+const HTML_VALIDATE_OWNED_CHECK_IDS = [
+  "markup-nesting",
+  "css-for-presentation",
+] as const satisfies readonly CheckId[];
+
+const HTML_VALIDATE_OWNED = new Set<string>(HTML_VALIDATE_OWNED_CHECK_IDS);
+
+export function isHtmlValidateOwnedCheck(checkId: string): boolean {
+  return HTML_VALIDATE_OWNED.has(checkId);
+}
+
+/**
+ * Runtime probes for patterns that may not exist on a page (CAPTCHA, hover
+ * overlays, layout tables, media). An empty scan is not evidence of compliance.
+ */
+const APPLICABILITY_GATED_CHECK_IDS = [
+  "captcha-alternative",
+  "hover-content",
+  "media-identification",
+  "media-keyboard",
+  "layout-table-linearization",
+  "live-region-updates",
+] as const satisfies readonly CheckId[];
+
+const APPLICABILITY_GATED = new Set<string>(APPLICABILITY_GATED_CHECK_IDS);
+
+export function isApplicabilityGatedCheck(checkId: string): boolean {
+  return APPLICABILITY_GATED.has(checkId);
+}
+
+/**
  * Checks the AST engine cannot pass. Without a successful runtime audit they
  * stay `unable_to_verify` — never `passed` from an empty source scan.
  * Includes axe-mapped rules with no AST implementation.
  *
- * Note: `error-prevention` and `accessible-auth-enhanced` are intentionally
- * listed here AND in `HEURISTIC_CHECK_IDS` — the AST engine emits only
- * heuristic warnings for them, while the runtime audit owns the verdict.
+ * Note: `error-prevention` and `accessible-auth-enhanced` are heuristic-only
+ * for status derivation — runtime probes may still emit violations.
  */
 const RUNTIME_ONLY_CHECK_IDS = [
   "color-contrast",
@@ -58,7 +91,6 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "label-adjacent",
   "html-lang-valid",
   "css-disabled-content",
-  "media-keyboard",
   "resize-text",
   "css-hover-keyboard",
   "multiple-ways",
@@ -76,14 +108,7 @@ const RUNTIME_ONLY_CHECK_IDS = [
   "hidden-content",
   "css-for-presentation",
   "css-off-understandable",
-  "layout-table-linearization",
-  "error-prevention",
-  "captcha-alternative",
-  "accessible-auth-enhanced",
-  "media-identification",
   "supplementary-content-keyboard",
-  "hover-content",
-  "live-region-updates",
   "dialog-keyboard",
   "tabs-keyboard",
   "disclosure-keyboard",
@@ -132,6 +157,11 @@ const HEURISTIC_CHECK_IDS = [
   "accessible-auth-enhanced",
   "hover-content",
   "label-adjacent",
+  "captcha-alternative",
+  "media-identification",
+  "media-keyboard",
+  "layout-table-linearization",
+  "live-region-updates",
 ] as const satisfies readonly CheckId[];
 
 const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);

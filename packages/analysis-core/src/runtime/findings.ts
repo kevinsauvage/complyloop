@@ -33,6 +33,10 @@ export interface RuntimeScanPageResult {
   htmlValidateFindings?: RawFinding[];
   /** IBM Equal Access findings for this page (deduped vs axe). */
   ibmFindings?: RawFinding[];
+  /** html-validate rendered pass succeeded on this page. */
+  htmlValidateRan?: boolean;
+  /** IBM Equal Access succeeded on this page. */
+  ibmCheckerRan?: boolean;
 }
 
 export interface RuntimeScanResult {

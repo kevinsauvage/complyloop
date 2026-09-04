@@ -4,6 +4,7 @@ import {
   scanRuntime,
   type RuntimePageScanner,
 } from "@complyloop/analysis-core/runtime/scan";
+import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
 import { formatLocationRef, isSourceLocation } from "@/core/location";
 import { PublicError } from "@/core/public-error";
@@ -151,6 +152,7 @@ export async function runAssessment(
     ? await scanRuntime({
         runtimeBaseUrl: project.runtimeBaseUrl,
         runtimeRoutes: project.runtimeRoutes,
+        browserConditions: DEFAULT_THEME_CONDITIONS,
         scanner: options.runtimeScanner,
         lookup: options.runtimeLookup,
       })
@@ -168,6 +170,7 @@ export async function runAssessment(
     htmlValidateRan: runtimeResult.htmlValidateRan,
     ibmCheckerRan: runtimeResult.ibmCheckerRan,
     linkCheckRan: runtimeResult.linkCheckRan,
+    themeConditions: runtimeConfigured ? [...DEFAULT_THEME_CONDITIONS] : undefined,
     runtimeError: runtimeResult.error,
   };
 
@@ -252,6 +255,7 @@ export async function runAssessment(
     changeContext,
     runtimeRan,
     siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
+    htmlValidateRan: runtimeResult.htmlValidateRan,
   });
 
   const summary: Record<RequirementStatus, number> = {
