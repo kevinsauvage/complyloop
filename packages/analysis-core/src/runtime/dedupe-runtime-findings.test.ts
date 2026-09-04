@@ -28,26 +28,29 @@ function domFinding(
 }
 
 describe("dedupeRuntimeFindings", () => {
-  it("collapses axe and IBM on the same check and node", () => {
-    const snippet = "<body>";
+  it("collapses axe and playwright-custom on the same check and node", () => {
+    const snippet = "<button>";
     const deduped = dedupeRuntimeFindings([
-      domFinding("bypass", "axe", "bypass", snippet),
-      domFinding("bypass", "ibm", "skip_main_exists", snippet),
+      domFinding("focus-visible", "axe", "focus-order-semantics", snippet),
+      domFinding("focus-visible", "playwright-custom", "complyloop-focus-visible", snippet),
     ]);
     expect(deduped).toHaveLength(1);
     expect(deduped[0]?.analyzerId).toBe("axe");
     expect(deduped[0]?.contributingAnalyzers).toEqual([
-      { analyzerId: "ibm", analyzerRuleId: "skip_main_exists" },
+      {
+        analyzerId: "playwright-custom",
+        analyzerRuleId: "complyloop-focus-visible",
+      },
     ]);
   });
 
-  it("keeps IBM when axe reported the same check on a different node", () => {
+  it("keeps findings when the same check hits different nodes", () => {
     const deduped = dedupeRuntimeFindings([
       domFinding("duplicate-id", "axe", "duplicate-id", '<span id="a"></span>'),
       domFinding(
         "content-region",
-        "ibm",
-        "aria_content_in_landmark",
+        "axe",
+        "region",
         '<a href="/help">Help</a>',
       ),
     ]);

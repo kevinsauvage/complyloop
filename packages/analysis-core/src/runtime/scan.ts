@@ -24,7 +24,6 @@ import {
 } from "./url-safety.js";
 import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./custom-checks/index.js";
 import { htmlValidateFindingsForPage } from "./html-validate-runtime.js";
-import { ibmFindingsForPage } from "./ibm-runtime.js";
 import { brokenLinkFindingsForUrls } from "./site-level/link-check.js";
 import {
   aggregateApplicabilityObservations,
@@ -319,19 +318,6 @@ function createPlaywrightAxeScanner(options?: {
             ),
           ];
 
-          let ibmFindings: RawFinding[] = [];
-          let pageIbmCheckerRan = false;
-          try {
-            ibmFindings = await ibmFindingsForPage(page, url, {
-              url,
-              violations,
-              incomplete: results.incomplete,
-            });
-            pageIbmCheckerRan = true;
-          } catch {
-            // Non-fatal: keep axe + custom + html-validate findings.
-          }
-
           // Browser-condition pass (same requirement, different condition,
           // different evidence): re-run the theme-sensitive analyzers under
           // each requested condition and keep only findings that fail in that
@@ -361,9 +347,7 @@ function createPlaywrightAxeScanner(options?: {
             violations: [...violations, ...conditionViolations],
             incomplete: results.incomplete,
             htmlValidateFindings,
-            ibmFindings,
             htmlValidateRan: pageHtmlValidateRan,
-            ibmCheckerRan: pageIbmCheckerRan,
             snapshot,
             applicabilityObservations,
           });
@@ -446,7 +430,6 @@ export async function scanRuntime(
     const pages = await scanner(urls);
     const siteLevelChecksRan = pages.length >= 2;
     const htmlValidateRan = pages.some((page) => page.htmlValidateRan === true);
-    const ibmCheckerRan = pages.some((page) => page.ibmCheckerRan === true);
     const linkFindings =
       pages.length > 0
         ? await brokenLinkFindingsForUrls(urls, {
@@ -470,7 +453,6 @@ export async function scanRuntime(
       pagesScanned: pages.length,
       siteLevelChecksRan,
       htmlValidateRan,
-      ibmCheckerRan,
       linkCheckRan,
       applicabilityFacts,
     };

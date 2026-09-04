@@ -8,7 +8,6 @@ const nextConfig: NextConfig = {
   // Runtime analysis engines use dynamic requires Playwright/Node APIs; keep them
   // out of the Turbopack graph (same rationale as disk-loaded axe.min.js).
   serverExternalPackages: [
-    "accessibility-checker",
     "linkinator",
     "playwright",
     "axe-core",

@@ -21,7 +21,7 @@ import type { RawFinding } from "../types.js";
 /**
  * Curated html-validate rules for RGAA 8.2 markup validity and 10.1 deprecated
  * presentational markup. Duplicate ids, landmarks, labels, ARIA, and broken
- * idrefs are axe / IBM / custom Playwright — not enabled here.
+ * idrefs are axe / custom Playwright — not enabled here.
  */
 const RENDERED_RULES = {
   "element-permitted-content": "error",

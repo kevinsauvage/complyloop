@@ -33,24 +33,6 @@ export function isHtmlValidateOwnedCheck(checkId: string): boolean {
   return HTML_VALIDATE_OWNED.has(checkId);
 }
 
-/**
- * Runtime probes for patterns that may not exist on a page (CAPTCHA, hover
- * overlays, layout tables, media). An empty scan is not evidence of compliance.
- */
-const APPLICABILITY_GATED_CHECK_IDS = [
-  "captcha-alternative",
-  "hover-content",
-  "media-identification",
-  "media-keyboard",
-  "layout-table-linearization",
-  "live-region-updates",
-] as const satisfies readonly CheckId[];
-
-const APPLICABILITY_GATED = new Set<string>(APPLICABILITY_GATED_CHECK_IDS);
-
-export function isApplicabilityGatedCheck(checkId: string): boolean {
-  return APPLICABILITY_GATED.has(checkId);
-}
 
 /**
  * Checks the AST engine cannot pass. Without a successful runtime audit they

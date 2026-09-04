@@ -7,7 +7,7 @@ const publicLookup: DnsLookup = async () => [
 ];
 
 describe("scanRuntime engine flags", () => {
-  it("aggregates htmlValidateRan and ibmCheckerRan from per-page success", async () => {
+  it("aggregates htmlValidateRan from per-page success", async () => {
     const result = await scanRuntime({
       runtimeBaseUrl: "https://preview.example.com",
       runtimeRoutes: ["/", "/about"],
@@ -25,14 +25,11 @@ describe("scanRuntime engine flags", () => {
             },
           ],
           htmlValidateRan: false,
-          ibmCheckerRan: true,
-          ibmFindings: [],
         },
         {
           url: "https://preview.example.com/about",
           violations: [],
           htmlValidateRan: true,
-          ibmCheckerRan: false,
           htmlValidateFindings: [],
         },
       ],
@@ -40,7 +37,6 @@ describe("scanRuntime engine flags", () => {
 
     expect(result.pagesScanned).toBe(2);
     expect(result.htmlValidateRan).toBe(true);
-    expect(result.ibmCheckerRan).toBe(true);
     expect(result.findings.some((f) => f.checkId === "input-label")).toBe(true);
   });
 });

@@ -33,12 +33,8 @@ export interface RuntimeScanPageResult {
   snapshot?: RuntimePageSnapshot;
   /** html-validate rendered findings for this page. */
   htmlValidateFindings?: RawFinding[];
-  /** IBM Equal Access findings for this page (deduped vs axe). */
-  ibmFindings?: RawFinding[];
   /** html-validate rendered pass succeeded on this page. */
   htmlValidateRan?: boolean;
-  /** IBM Equal Access succeeded on this page. */
-  ibmCheckerRan?: boolean;
   /** Deterministic absence probes for applicability-gated checks. */
   applicabilityObservations?: ApplicabilityObservation[];
 }
@@ -49,8 +45,6 @@ export interface RuntimeScanResult {
   siteLevelChecksRan?: boolean;
   /** Whether html-validate's rendered pass ran on any page. */
   htmlValidateRan?: boolean;
-  /** IBM Equal Access ran on any page. */
-  ibmCheckerRan?: boolean;
   /** linkinator same-origin link check ran on preview routes. */
   linkCheckRan?: boolean;
   /** Check ids confirmed not applicable on every audited page (checkId → fact). */
@@ -144,7 +138,6 @@ export function findingsFromAxePages(
     if (page.htmlValidateFindings) {
       pageFindings.push(...page.htmlValidateFindings);
     }
-    if (page.ibmFindings) pageFindings.push(...page.ibmFindings);
     findings.push(...dedupeRuntimeFindings(pageFindings));
   }
   return findings;

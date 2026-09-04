@@ -6,7 +6,7 @@ import type { CheckId } from "../types.js";
  * html-validate is **narrow by design**: structural evidence for RGAA 8.2 markup
  * validity and RGAA 10.1 presentational markup — not a second accessibility
  * scanner. Duplicate ids, landmarks, labels, ARIA, and broken idrefs stay on
- * axe / AST / IBM / custom Playwright checks.
+ * axe / AST / custom Playwright checks.
  *
  * Every rule must map to a check id a catalog control owns; an unmapped rule is
  * never emitted (there is no "advisory" tier — a finding with no control is

@@ -168,7 +168,6 @@ export async function runAssessment(
     runtimePagesScanned: runtimeResult.pagesScanned,
     siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
     htmlValidateRan: runtimeResult.htmlValidateRan,
-    ibmCheckerRan: runtimeResult.ibmCheckerRan,
     linkCheckRan: runtimeResult.linkCheckRan,
     themeConditions: runtimeConfigured ? [...DEFAULT_THEME_CONDITIONS] : undefined,
     runtimeError: runtimeResult.error,

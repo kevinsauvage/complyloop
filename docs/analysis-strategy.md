@@ -1,6 +1,6 @@
 # Accessibility analysis strategy
 
-How we decide **what to analyze**, **which layer owns it**, and **what to add next**.
+How we decide **what to analyze**, **which layer owns it**, and **what not to expand**.
 
 Engine implementations live in [`docs/ai/architecture.md`](./ai/architecture.md). This doc is the decision record.
 
@@ -32,6 +32,7 @@ Objective is **maximum independent evidence with minimal duplication** — not m
 | Browser / interaction | Playwright custom checks | Focus, reflow, widgets, media, reduced motion, forced colors |
 | Theme / contrast conditions | `browserConditions` scan pass | Re-run theme-sensitive axe + custom checks under dark, light, `prefers-contrast: more`; assessments pass `DEFAULT_THEME_CONDITIONS` (`dark` + `light`) when runtime is configured |
 | Site | `runtime/site-level/` | Cross-route nav, titles, help consistency |
+| Site | `runtime/site-level/link-check.ts` (linkinator) | Same-origin broken links and fragment targets |
 
 `complyloop-check` is AST-only (no browser). Runtime needs a preview URL.
 
@@ -42,6 +43,7 @@ Objective is **maximum independent evidence with minimal duplication** — not m
 | Approach | Why |
 | --- | --- |
 | Lighthouse, Pa11y, WAVE, Tenon, `jest-axe` | Same class as axe |
+| IBM Equal Access / Alfa | Same class as axe; overlapping evidence, heavy install |
 | `@axe-core/playwright` | Bundling issue; we inject local `axe.min.js` |
 | Generic AI vision scanner | Not deterministic or defensible |
 | CSS/HTML style linters | Noise vs compliance |
@@ -50,21 +52,15 @@ Objective is **maximum independent evidence with minimal duplication** — not m
 
 html-validate is **document structure evidence**, not a second accessibility engine. Style rules, ARIA, labels, and headings stay out.
 
-## What to add next
+## What to prioritize
 
-In order. Prefer behaviour that a scanner cannot see over another static rule.
+The layers in **What we have** are the intended architecture. This is not a scanner backlog.
 
-1. **Visual regression as Playwright screenshot assertions** — regression evidence only, not an “AI vision scanner”.
-2. **Site / content integrity** — broken links, fragment targets, duplicate IDs across composition, language, titles, heading/landmark and navigation consistency. Normalize overlaps with axe/html-validate into one finding.
-3. **Keyboard and widget completeness** — tab order, Enter/Space/Escape, arrow-key patterns, focus trap/restore/reachability; dialog/menu/tab/accordion open → operate → close → restore.
-4. **Forms end-to-end** — invalid submit → associated errors → focus → correction → success.
-5. **Dynamic announcements** — `aria-live` present is not proof; capture before/after a11y-tree and DOM.
-6. **State-dependent contrast** — hover/selected/disabled, icons, borders, themes; apply the right threshold (text vs non-text vs focus vs decorative). Keep axe as the baseline. **Shipped** for non-text chrome: hover + selected at 3:1; disabled skipped (1.4.11 inactive exception).
-7. **Target size follow-ups** — `pointer: coarse` vs desktop; 44×44 AAA as a separate check, not a replacement for 24×24. **Shipped:** axe `target-size` at default, `320×568`, and `pointer: coarse`; custom `target-size-enhanced` for 44×44.
-8. **Hover/pointer-only content** — appears, stays usable, dismissible, does not obscure; keyboard equivalent.
-9. **Human verification** — screen reader, keyboard, zoom, caption/content quality. Required stage, not a backlog item to automate away.
+1. **Preview URL adoption** — assessments without `runtimeBaseUrl` leave runtime-only check ids at `unable_to_verify`. That is a product/onboarding gap, not a missing-engine problem. Wire preview URLs before proposing another scanner.
+2. **One engine per responsibility** — axe is the only rendered-accessibility scanner; html-validate covers RGAA 8.2 / 10.1 structural evidence only; Playwright custom probes own behaviour axe cannot see. Do not add a sibling a11y engine to “fill gaps”.
+3. **Human verification** — 26 catalog controls stay manual (`checkId: null`). Required stage, not automation backlog.
 
-**Later / lower:** language mismatch as **needs review** (never auto-fail); media caption *quality* (human); tables; targeted CSS a11y (`outline: none` without replacement, clipping, overlays over focus) — not a CSS linter; Nu HTML Checker.
+Parked ideas (visual regression, Nu HTML Checker, a11y-tree before/after, extra keyboard frameworks, Lighthouse, Pa11y, `@html-validate/wcag`) belong in **What not to add as a core engine** above and in [`TODO.md`](../TODO.md) (**What NOT to do**). Do not treat them as ordered next work.
 
 ## How a new check earns a place
 

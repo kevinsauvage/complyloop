@@ -4,7 +4,6 @@ import { isSiteLevelCheck } from "@complyloop/analysis-core/check-authority";
 import { jsxA11yMappedCheckIds } from "@complyloop/analysis-core/jsx-a11y-map";
 import { axeMappedCheckIds } from "@complyloop/analysis-core/runtime/axe-map";
 import { htmlValidateMappedCheckIds } from "@complyloop/analysis-core/runtime/html-validate-map";
-import { ibmMappedCheckIds } from "@complyloop/analysis-core/runtime/ibm-map";
 import { wcagPresets } from "@/adapters/wcag/presets";
 import { rgaaControls } from "./controls";
 import { rgaaPresets } from "./presets";
@@ -73,7 +72,6 @@ describe("RGAA 4.1.2 catalog coverage", () => {
       ...jsxA11yMappedCheckIds(),
       ...axeMappedCheckIds(),
       ...htmlValidateMappedCheckIds(),
-      ...ibmMappedCheckIds(),
       "broken-link",
     ]);
     const unbound = rgaaControls

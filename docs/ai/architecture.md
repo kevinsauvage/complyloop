@@ -79,14 +79,13 @@ once per page; theme and viewport condition passes call `axe.run` only.
 | Piece         | Path             | Role                                                         |
 | ------------- | ---------------- | ------------------------------------------------------------ |
 | Axe mapping   | `axe-map.ts`     | ~122 axe rule → check id mappings                            |
-| IBM Equal Access | `ibm-map.ts`, `ibm-runtime.ts` | Curated second engine on the same Playwright page after axe; skips only when axe already reported the **same node** (`checkId::snippet`); per-page failure is non-fatal. `setConfig({ outputFormat: ["disable"] })` so IBM does not write `results/*.json` on the worker disk. |
 | Theme pass    | `theme-conditions.ts` | Re-runs theme-sensitive axe + custom checks under `browserConditions` (assessments default to `dark` + `light` via `DEFAULT_THEME_CONDITIONS`). |
 | Custom checks | `custom-checks/` | Contrast, reflow, focus, error-prevention, CAPTCHA, media, … |
 | Site-level    | `site-level/`    | Cross-route consistency (nav, help, titles) + `link-check.ts` (linkinator, same-origin broken links) |
 
 **Do not** add `@axe-core/playwright` — webpack breaks on axe `source` string.
 
-`accessibility-checker` and `linkinator` are **server externals** in `next.config.ts`
+`linkinator` is a **server external** in `next.config.ts`
 (dynamic `import()` at runtime; do not bundle with Turbopack).
 
 **Runtime URL safety:** `ssrf-guard` + DNS/port checks + redirect limits (`packages/analysis-core/src/runtime/`). Never import `ssrf-guard/node` in app code.
@@ -97,7 +96,7 @@ once per page; theme and viewport condition passes call `axe.run` only.
 only** — invalid nesting, duplicate attributes/ids, deprecated presentational
 markup — on the **generated DOM** of a page, inside the existing runtime audit.
 It is not a second accessibility scanner: landmarks, labels, ARIA, and broken
-idrefs stay on axe / IBM / custom Playwright checks.
+idrefs stay on axe / custom Playwright checks.
 
 - **`runtime/html-validate-runtime.ts`**, `engine: "runtime"`. Serializes
   `document.documentElement` in the page (recording node→offset), validates the
@@ -122,7 +121,7 @@ CLI / source scan does **not** use html-validate.
 (when runtime dedupe merges the same dom node). Coarse `engine: "ast" | "runtime"`
 is unchanged for remediation routing. `finding_detected` evidence stores the same
 fields in `detail`. Per-page dedupe (`runtime/dedupe-runtime-findings.ts`):
-axe > IBM > playwright-custom when the same check id hits the same node.
+axe > html-validate > playwright-custom when the same check id hits the same node.
 html-validate check ids (`markup-nesting`, `css-for-presentation`) do not
 overlap axe — exclusive ownership, not dedupe. `duplicate-id` is axe + AST only.
 

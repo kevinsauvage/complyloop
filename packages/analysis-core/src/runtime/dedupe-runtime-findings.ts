@@ -3,12 +3,11 @@ import type { AnalyzerContribution, AnalyzerId, RawFinding } from "../types.js";
 const ANALYZER_PRIORITY: Record<AnalyzerId, number> = {
   axe: 0,
   "html-validate": 1,
-  ibm: 2,
-  "playwright-custom": 3,
-  "site-level": 4,
-  linkinator: 5,
-  ast: 6,
-  "jsx-a11y": 7,
+  "playwright-custom": 2,
+  "site-level": 3,
+  linkinator: 4,
+  ast: 5,
+  "jsx-a11y": 6,
 };
 
 function effectiveAnalyzerId(finding: RawFinding): AnalyzerId {
@@ -66,8 +65,8 @@ function mergeContributors(
 
 /**
  * Collapses runtime findings that share a check id and dom node.
- * Priority: axe > html-validate > IBM > playwright-custom. html-validate and axe
- * do not overlap on check ids (exclusive ownership); dedupe mainly covers IBM vs axe.
+ * Priority: axe > html-validate > playwright-custom. html-validate and axe
+ * do not overlap on check ids (exclusive ownership).
  * Site-level findings are never merged with dom findings.
  */
 export function dedupeRuntimeFindings(

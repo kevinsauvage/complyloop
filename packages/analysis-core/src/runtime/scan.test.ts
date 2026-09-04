@@ -6,7 +6,6 @@ import {
   runAxeOnPage,
 } from "./scan";
 import * as htmlValidateRuntime from "./html-validate-runtime";
-import * as ibmRuntime from "./ibm-runtime";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
@@ -87,14 +86,11 @@ describe("gotoForRuntimeAudit", () => {
 
 describe("runtime engine isolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
-    "preserves axe violations when html-validate and IBM throw",
+    "preserves axe violations when html-validate throws",
     async () => {
       const htmlValidateSpy = vi
         .spyOn(htmlValidateRuntime, "htmlValidateFindingsForPage")
         .mockRejectedValue(new Error("html-validate down"));
-      const ibmSpy = vi
-        .spyOn(ibmRuntime, "ibmFindingsForPage")
-        .mockRejectedValue(new Error("ibm down"));
 
       const { page, close } = await withPlaywrightPage(`
         <!doctype html><html lang="en"><head><title>t</title></head>
@@ -114,27 +110,11 @@ describe("runtime engine isolation", () => {
           // Non-fatal in scan.ts
         }
 
-        let ibmFindings: unknown[] = [];
-        let pageIbmCheckerRan = false;
-        try {
-          ibmFindings = await ibmRuntime.ibmFindingsForPage(page, "https://app.example/", {
-            url: "https://app.example/",
-            violations: axeResults.violations,
-            incomplete: axeResults.incomplete,
-          });
-          pageIbmCheckerRan = true;
-        } catch {
-          // Non-fatal in scan.ts
-        }
-
         expect(axeResults.violations.some((v) => v.id === "image-alt")).toBe(true);
         expect(pageHtmlValidateRan).toBe(false);
         expect(htmlValidateFindings).toEqual([]);
-        expect(pageIbmCheckerRan).toBe(false);
-        expect(ibmFindings).toEqual([]);
       } finally {
         htmlValidateSpy.mockRestore();
-        ibmSpy.mockRestore();
         await close();
       }
     },
