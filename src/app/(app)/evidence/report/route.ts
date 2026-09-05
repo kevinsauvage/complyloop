@@ -1,27 +1,17 @@
 import { sanitizeDownloadFilename } from "@/server/download-filename";
-import { getDrizzle } from "@complyloop/db/client";
-import { listAllEvidenceForProject } from "@complyloop/db/postgres-queries";
 import {
   buildAuditReportMarkdown,
   buildEngineeringReportMarkdown,
-  reportInputForProject,
 } from "@/server/report";
-import { parseReportViewParam } from "@/core/report-view";
-import { getWorkspace } from "@/server/workspace";
+import { loadReportRequestContext } from "@/server/report-load";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<Response> {
-  const { db, project } = await getWorkspace();
-  if (!project) {
-    return new Response("No project connected.", { status: 404 });
-  }
-  const view = parseReportViewParam(new URL(request.url).searchParams.get("view"));
-  const evidence = await listAllEvidenceForProject(
-    await getDrizzle(),
-    project.id,
-  );
-  const input = reportInputForProject({ ...db, evidence }, project);
+  const context = await loadReportRequestContext(request);
+  if (!context.ok) return context.response;
+
+  const { project, view, input } = context;
   const markdown =
     view === "engineering"
       ? buildEngineeringReportMarkdown(input)

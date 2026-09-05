@@ -11,6 +11,10 @@ export function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
+export function summaryStat(label: string, value: string | number): string {
+  return `<div class="summary-stat"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(String(value))}</div></div>`;
+}
+
 export function statusClass(status: RequirementStatus): string {
   return lookupExhaustive(STATUS_CLASS, status, "requirement status");
 }

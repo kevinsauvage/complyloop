@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeHtml, reportShell, statusClass } from "./shared";
+import { escapeHtml, reportShell, statusClass, summaryStat } from "./shared";
 
 describe("escapeHtml", () => {
   it("escapes the five HTML-significant characters", () => {
@@ -24,6 +24,16 @@ describe("statusClass", () => {
     expect(() => statusClass("bogus" as never)).toThrow(
       /Unhandled requirement status/,
     );
+  });
+});
+
+describe("summaryStat", () => {
+  it("renders a labeled stat with escaped values", () => {
+    const html = summaryStat('Open "<findings>"', 3);
+
+    expect(html).toContain('class="summary-stat"');
+    expect(html).toContain("&lt;findings&gt;");
+    expect(html).toContain(">3<");
   });
 });
 

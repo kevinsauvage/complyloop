@@ -48,7 +48,7 @@ function countByStatus<T extends string>(
   return counts;
 }
 
-export function countRequirementsByStatus(
+function countRequirementsByStatus(
   requirements: Requirement[],
 ): Record<RequirementStatus, number> {
   return countByStatus(requirements, REQUIREMENT_STATUSES);
@@ -149,6 +149,13 @@ function evidenceRowsForProject(
     }));
 }
 
+function indexBy<T, K extends string>(
+  items: readonly T[],
+  key: (item: T) => K,
+): Map<K, T> {
+  return new Map(items.map((item) => [key(item), item]));
+}
+
 function toEngineeringFindingCard(
   finding: Finding,
   framework: Framework,
@@ -219,12 +226,14 @@ export function composeEngineeringReport(
 ): EngineeringReportModel {
   const { framework, controls, requirements, findings, remediations } = input;
   const openFindings = findings.filter((finding) => finding.status === "open");
-  const controlById = new Map(controls.map((control) => [control.id, control]));
-  const requirementByControlId = new Map(
-    requirements.map((requirement) => [requirement.controlId, requirement]),
+  const controlById = indexBy(controls, (control) => control.id);
+  const requirementByControlId = indexBy(
+    requirements,
+    (requirement) => requirement.controlId,
   );
-  const remediationByFindingId = new Map(
-    remediations.map((remediation) => [remediation.findingId, remediation]),
+  const remediationByFindingId = indexBy(
+    remediations,
+    (remediation) => remediation.findingId,
   );
 
   return {
@@ -250,8 +259,9 @@ export function composeAuditReport(input: ReportInput): AuditReportModel {
     input;
   const statusCounts = countRequirementsByStatus(requirements);
   const totalRequirements = requirements.length;
-  const requirementByControlId = new Map(
-    requirements.map((requirement) => [requirement.controlId, requirement]),
+  const requirementByControlId = indexBy(
+    requirements,
+    (requirement) => requirement.controlId,
   );
 
   return {

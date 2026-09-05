@@ -1,7 +1,6 @@
 import { formatDateTime } from "@/core/format-datetime";
-import { composeAuditReport, type AuditReportModel } from "../report-model";
-import type { ReportInput } from "../report";
-import { escapeHtml, reportShell } from "./shared";
+import { composeAuditReport, type AuditReportModel, type ReportInput } from "../report-model";
+import { escapeHtml, reportShell, summaryStat } from "./shared";
 import { renderRequirements, renderSummaryRows } from "./requirements-section";
 
 function renderEvidence(model: AuditReportModel): string {
@@ -36,11 +35,11 @@ export function buildAuditReportHtml(input: ReportInput): string {
     <section id="summary">
       <h2>Summary</h2>
       <div class="summary-grid">
-        <div class="summary-stat"><div class="label">Total</div><div class="value">${totalRequirements}</div></div>
-        <div class="summary-stat"><div class="label">Passed</div><div class="value">${statusCounts.passed}</div></div>
-        <div class="summary-stat"><div class="label">Failed</div><div class="value">${statusCounts.failed}</div></div>
-        <div class="summary-stat"><div class="label">Pass rate</div><div class="value">${passRate}%</div></div>
-        <div class="summary-stat"><div class="label">Open findings</div><div class="value">${findingCounts.open}</div></div>
+        ${summaryStat("Total", totalRequirements)}
+        ${summaryStat("Passed", statusCounts.passed)}
+        ${summaryStat("Failed", statusCounts.failed)}
+        ${summaryStat("Pass rate", `${passRate}%`)}
+        ${summaryStat("Open findings", findingCounts.open)}
       </div>
       <table class="data-table">
         <thead><tr><th>Status</th><th>Count</th></tr></thead>

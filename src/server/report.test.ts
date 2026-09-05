@@ -45,6 +45,7 @@ describe("buildEngineeringReportMarkdown", () => {
     expect(markdown).toContain("## Open findings");
     expect(markdown).toContain("Button.tsx:4");
     expect(markdown).toContain("<button><svg /></button>");
+    expect(markdown).toContain("Critical / high");
     expect(markdown).not.toContain("## Requirements");
     expect(markdown).not.toContain("## Evidence trail");
   });

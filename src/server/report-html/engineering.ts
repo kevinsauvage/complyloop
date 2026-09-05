@@ -1,6 +1,9 @@
-import { composeEngineeringReport, type EngineeringReportModel } from "../report-model";
-import type { ReportInput } from "../report";
-import { escapeHtml, reportShell } from "./shared";
+import {
+  composeEngineeringReport,
+  type EngineeringReportModel,
+  type ReportInput,
+} from "../report-model";
+import { escapeHtml, reportShell, summaryStat } from "./shared";
 
 function renderEngineeringFindings(model: EngineeringReportModel): string {
   if (model.findings.length === 0) {
@@ -50,8 +53,8 @@ export function buildEngineeringReportHtml(input: ReportInput): string {
     <section id="summary">
       <h2>Summary</h2>
       <div class="summary-grid">
-        <div class="summary-stat"><div class="label">Open findings</div><div class="value">${model.findings.length}</div></div>
-        <div class="summary-stat"><div class="label">Shared root causes</div><div class="value">${model.clusters.length}</div></div>
+        ${summaryStat("Open findings", model.findings.length)}
+        ${summaryStat("Shared root causes", model.clusters.length)}
       </div>
     </section>
 

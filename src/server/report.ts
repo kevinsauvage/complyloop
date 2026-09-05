@@ -120,7 +120,7 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
         lines.push(`- **Requirement:** ${finding.requirementLine}`);
       }
       lines.push(
-        `- **Severity / confidence:** ${finding.severityClass} / ${finding.confidence}`,
+        `- **Severity / confidence:** ${finding.severity} / ${finding.confidence}`,
       );
       lines.push(
         `- **Check:** \`${finding.checkId}\`${finding.engine ? ` · **Engine:** \`${finding.engine}\`` : ""}`,
