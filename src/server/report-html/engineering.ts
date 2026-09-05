@@ -3,11 +3,11 @@ import {
   type EngineeringReportModel,
   type ReportInput,
 } from "../report-model";
-import { escapeHtml, reportShell, summaryStat } from "./shared";
+import { emptyParagraph, escapeHtml, reportSection, reportShell, summaryStat } from "./shared";
 
 function renderEngineeringFindings(model: EngineeringReportModel): string {
   if (model.findings.length === 0) {
-    return `<p class="empty">No open findings.</p>`;
+    return emptyParagraph("No open findings.");
   }
 
   return model.findings
@@ -35,7 +35,7 @@ function renderEngineeringFindings(model: EngineeringReportModel): string {
 
 function renderClusters(model: EngineeringReportModel): string {
   if (model.clusters.length === 0) {
-    return `<p class="empty">No shared root causes detected.</p>`;
+    return emptyParagraph("No shared root causes detected.");
   }
   const items = model.clusters
     .map(
@@ -49,24 +49,26 @@ function renderClusters(model: EngineeringReportModel): string {
 export function buildEngineeringReportHtml(input: ReportInput): string {
   const model = composeEngineeringReport(input);
 
-  const body = `
-    <section id="summary">
-      <h2>Summary</h2>
-      <div class="summary-grid">
+  const sections = [
+    reportSection(
+      "summary",
+      "Summary",
+      `<div class="summary-grid">
         ${summaryStat("Open findings", model.findings.length)}
         ${summaryStat("Shared root causes", model.clusters.length)}
-      </div>
-    </section>
+      </div>`,
+    ),
+  ];
 
-    <section id="clusters">
-      <h2>Shared root causes</h2>
-      ${renderClusters(model)}
-    </section>
+  if (model.clusters.length > 0) {
+    sections.push(
+      reportSection("clusters", "Shared root causes", renderClusters(model)),
+    );
+  }
 
-    <section id="findings">
-      <h2>Open findings</h2>
-      ${renderEngineeringFindings(model)}
-    </section>`;
+  sections.push(
+    reportSection("findings", "Open findings", renderEngineeringFindings(model)),
+  );
 
-  return reportShell(model.header, body);
+  return reportShell(model.header, sections.join("\n"));
 }

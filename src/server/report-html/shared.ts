@@ -15,6 +15,18 @@ export function summaryStat(label: string, value: string | number): string {
   return `<div class="summary-stat"><div class="label">${escapeHtml(label)}</div><div class="value">${escapeHtml(String(value))}</div></div>`;
 }
 
+export function emptyParagraph(message: string): string {
+  return `<p class="empty">${escapeHtml(message)}</p>`;
+}
+
+export function reportSection(id: string, title: string, body: string): string {
+  return `
+    <section id="${escapeHtml(id)}">
+      <h2>${escapeHtml(title)}</h2>
+      ${body}
+    </section>`;
+}
+
 export function statusClass(status: RequirementStatus): string {
   return lookupExhaustive(STATUS_CLASS, status, "requirement status");
 }

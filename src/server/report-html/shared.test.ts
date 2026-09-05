@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeHtml, reportShell, statusClass, summaryStat } from "./shared";
+import { emptyParagraph, escapeHtml, reportSection, reportShell, statusClass, summaryStat } from "./shared";
 
 describe("escapeHtml", () => {
   it("escapes the five HTML-significant characters", () => {
@@ -24,6 +24,23 @@ describe("statusClass", () => {
     expect(() => statusClass("bogus" as never)).toThrow(
       /Unhandled requirement status/,
     );
+  });
+});
+
+describe("emptyParagraph", () => {
+  it("renders an escaped empty-state message", () => {
+    expect(emptyParagraph('No "<items>"')).toContain("class=\"empty\"");
+    expect(emptyParagraph('No "<items>"')).toContain("&lt;items&gt;");
+  });
+});
+
+describe("reportSection", () => {
+  it("wraps body content in a titled section", () => {
+    const html = reportSection("summary", "Summary", "<p>Body</p>");
+
+    expect(html).toContain('id="summary"');
+    expect(html).toContain("<h2>Summary</h2>");
+    expect(html).toContain("<p>Body</p>");
   });
 });
 

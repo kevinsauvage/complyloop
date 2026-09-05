@@ -5,7 +5,7 @@ import {
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
 import type { AuditRequirementRow } from "../report-model";
-import { escapeHtml, statusClass } from "./shared";
+import { emptyParagraph, escapeHtml, statusClass } from "./shared";
 
 export function renderSummaryRows(counts: Record<RequirementStatus, number>): string {
   return REQUIREMENT_STATUSES.map(
@@ -16,7 +16,7 @@ export function renderSummaryRows(counts: Record<RequirementStatus, number>): st
 
 export function renderRequirements(requirements: AuditRequirementRow[]): string {
   if (requirements.length === 0) {
-    return `<p class="empty">No requirements recorded.</p>`;
+    return emptyParagraph("No requirements recorded.");
   }
 
   const rows = requirements

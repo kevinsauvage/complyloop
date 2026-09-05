@@ -33,7 +33,7 @@ describe("buildEngineeringReportHtml", () => {
     input.remediations = [];
     const html = buildEngineeringReportHtml(input);
     expect(html).toContain("No open findings.");
-    expect(html).toContain("No shared root causes detected.");
+    expect(html).not.toContain('id="clusters"');
   });
 
   it("omits snippet and remediation lines when they are absent", () => {
