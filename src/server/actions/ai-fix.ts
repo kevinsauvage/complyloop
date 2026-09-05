@@ -3,7 +3,7 @@
 import { PATCH_PR_SOURCE_ONLY_MESSAGE } from "@/ai/verified-fix";
 import { aiExplanationAvailable } from "@/ai/explainer";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
-import { isSourceLocation } from "@/core/location";
+import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { entityIdSchema } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {

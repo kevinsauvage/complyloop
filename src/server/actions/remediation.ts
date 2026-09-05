@@ -6,7 +6,7 @@ import {
   type Finding,
   type Remediation,
 } from "@complyloop/analysis-core/contract/finding-types";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
@@ -76,9 +76,9 @@ function approveRemediationInDb(
     findingId: finding.id,
     detail: options.bulk
       ? {
-          bulk: true,
-          ...(finding.fix ? { fix: { ...finding.fix } } : {}),
-        }
+        bulk: true,
+        ...(finding.fix ? { fix: { ...finding.fix } } : {}),
+      }
       : finding.fix
         ? { fix: { ...finding.fix } }
         : undefined,

@@ -1,3 +1,5 @@
+import { buildHref } from "@/core/query-param.ts";
+
 export type ReportView = "engineering" | "audit";
 
 export function parseReportViewParam(
@@ -8,9 +10,9 @@ export function parseReportViewParam(
 }
 
 export function reportMarkdownHref(view: ReportView): string {
-  return `/evidence/report?view=${view}`;
+  return buildHref("/evidence/report", { view });
 }
 
 export function reportHtmlHref(view: ReportView): string {
-  return `/evidence/report/html?view=${view}`;
+  return buildHref("/evidence/report/html", { view });
 }

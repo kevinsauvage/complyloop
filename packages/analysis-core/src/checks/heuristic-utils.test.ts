@@ -11,7 +11,6 @@ import {
   descendantTags,
   handlerTriggersContextChange,
   hasAdjacentTranscriptLink,
-  hasAnyAttr,
   hasChildTrackKind,
   isComplexDataTable,
   isInsideNamingHost,
@@ -21,6 +20,7 @@ import {
   visitJsxElements,
   walkMotionActuationCalls,
 } from "./heuristic-utils";
+import { hasAnyAttr } from "../parse";
 
 function firstTag(source: string): JsxTagNode {
   const parsed = parseSource("test.tsx", source);

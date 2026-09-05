@@ -1,7 +1,7 @@
 "use server";
 
 import { entityIdSchema } from "@/core/boundary";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import { publicErrorMessage } from "../action-state";

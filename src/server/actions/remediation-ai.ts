@@ -3,7 +3,7 @@
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
 import { setAiWarn } from "@/ai/warn";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { entityIdSchema } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";

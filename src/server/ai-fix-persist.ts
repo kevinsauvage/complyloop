@@ -1,5 +1,5 @@
 import type { PatchCandidate } from "@/ai/verified-fix";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
@@ -36,10 +36,10 @@ export function persistPatchCandidate(
     provenance: candidate.provenance,
     ...(candidate.provenance === "ai"
       ? {
-          confidence: "medium" as const,
-          model: candidate.model,
-          generatedAt: new Date().toISOString(),
-        }
+        confidence: "medium" as const,
+        model: candidate.model,
+        generatedAt: new Date().toISOString(),
+      }
       : {}),
   };
   if (remediation.status === "detected") {

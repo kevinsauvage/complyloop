@@ -5,7 +5,7 @@ import { applyFix } from "@complyloop/analysis-core/fixes";
 import type { CheckId } from "@complyloop/analysis-core/types";
 import { runtimeViolationStillPresent } from "@complyloop/analysis-core/runtime/scan";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
-import { formatLocationRef, isSourceLocation } from "@/core/location";
+import { formatLocationRef, isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import { entityIdSchema, optionalNoteSchema, requiredField } from "@/core/boundary";
@@ -113,57 +113,57 @@ export async function verifyRemediationAction(
       await withProjectCheckout(
         project,
         async (rootPath) => {
-        await withProjectWrite(async (workspace) => {
-          const { db } = workspace;
-          const live = findingById(db, findingId);
-          requireOnFindingProject(workspace, live, "project.remediate");
-          const remediation = remediationForFinding(db, findingId);
+          await withProjectWrite(async (workspace) => {
+            const { db } = workspace;
+            const live = findingById(db, findingId);
+            requireOnFindingProject(workspace, live, "project.remediate");
+            const remediation = remediationForFinding(db, findingId);
 
-          // Apply the proposed fix on the ephemeral tree, then re-scan.
-          if (live.fix && isSourceLocation(live.location)) {
-            const match = locateViolation(db, live, rootPath).match;
-            const fix = mergeFix(live.fix, match?.fix ?? null);
-            if (fix) {
-              const absolutePath = resolveInside(
-                rootPath,
-                live.location.filePath,
-              );
-              const text = fs.readFileSync(absolutePath, "utf8");
-              fs.writeFileSync(absolutePath, applyFix(text, fix));
+            // Apply the proposed fix on the ephemeral tree, then re-scan.
+            if (live.fix && isSourceLocation(live.location)) {
+              const match = locateViolation(db, live, rootPath).match;
+              const fix = mergeFix(live.fix, match?.fix ?? null);
+              if (fix) {
+                const absolutePath = resolveInside(
+                  rootPath,
+                  live.location.filePath,
+                );
+                const text = fs.readFileSync(absolutePath, "utf8");
+                fs.writeFileSync(absolutePath, applyFix(text, fix));
+              }
             }
-          }
 
-          const { match } = locateViolation(db, live, rootPath);
-          if (match) {
-            stillFailing = true;
-            remediation.history.push({
-              status: remediation.status,
-              at: new Date().toISOString(),
-              note: "Verification failed: the violation is still detected at this location.",
+            const { match } = locateViolation(db, live, rootPath);
+            if (match) {
+              stillFailing = true;
+              remediation.history.push({
+                status: remediation.status,
+                at: new Date().toISOString(),
+                note: "Verification failed: the violation is still detected at this location.",
+              });
+              return;
+            }
+
+            replaceRemediation(
+              db,
+              advanceRemediation(
+                remediation,
+                "verified",
+                "Automated re-check found no remaining violation after applying the suggested fix",
+              ),
+            );
+            live.status = "resolved";
+            live.resolvedNote = "Fix verified by re-running the automated check.";
+            addEvidence(db, {
+              kind: "remediation_verified",
+              summary: `Verified: ${live.checkId} no longer fails at ${formatLocationRef(live.location)}`,
+              projectId: live.projectId,
+              controlId: live.controlId,
+              findingId: live.id,
+              detail: { engine: "ast" },
             });
-            return;
-          }
-
-          replaceRemediation(
-            db,
-            advanceRemediation(
-              remediation,
-              "verified",
-              "Automated re-check found no remaining violation after applying the suggested fix",
-            ),
-          );
-          live.status = "resolved";
-          live.resolvedNote = "Fix verified by re-running the automated check.";
-          addEvidence(db, {
-            kind: "remediation_verified",
-            summary: `Verified: ${live.checkId} no longer fails at ${formatLocationRef(live.location)}`,
-            projectId: live.projectId,
-            controlId: live.controlId,
-            findingId: live.id,
-            detail: { engine: "ast" },
+            refreshRequirementStatuses(db, live.projectId);
           });
-          refreshRequirementStatuses(db, live.projectId);
-        });
         },
         undefined,
         tokenOptions,

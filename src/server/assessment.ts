@@ -7,7 +7,7 @@ import {
 import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
 import { latestAssessmentFor } from "@/core/assessment-latest";
-import { formatLocationRef, isSourceLocation } from "@/core/location";
+import { formatLocationRef, isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
@@ -129,19 +129,19 @@ export async function runAssessment(
     filesScanned,
     scanMode,
   } = useScoped
-    ? scanChangedFiles(rootPath, changedJsx)
-    : scanProject(rootPath);
+      ? scanChangedFiles(rootPath, changedJsx)
+      : scanProject(rootPath);
   const scopedFileSet = useScoped ? new Set(changedJsx) : null;
 
   const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
   const runtimeResult = runtimeConfigured
     ? await scanRuntime({
-        runtimeBaseUrl: project.runtimeBaseUrl,
-        runtimeRoutes: project.runtimeRoutes,
-        browserConditions: DEFAULT_THEME_CONDITIONS,
-        scanner: options.runtimeScanner,
-        lookup: options.runtimeLookup,
-      })
+      runtimeBaseUrl: project.runtimeBaseUrl,
+      runtimeRoutes: project.runtimeRoutes,
+      browserConditions: DEFAULT_THEME_CONDITIONS,
+      scanner: options.runtimeScanner,
+      lookup: options.runtimeLookup,
+    })
     : { findings: [], pagesScanned: 0 };
   const runtimeRan =
     runtimeConfigured &&
@@ -213,14 +213,14 @@ export async function runAssessment(
       }
       // When runtime owns this check, do not resolve prior AST-only opens mid-flight
       // on a failed runtime scan — only resolve when we have authority this run.
-    if (
-      runtimeConfigured &&
-      !runtimeRan &&
-      keepOpenWhenRuntimeScanSkipped(finding.checkId) &&
-      finding.engine === "runtime"
-    ) {
-      continue;
-    }
+      if (
+        runtimeConfigured &&
+        !runtimeRan &&
+        keepOpenWhenRuntimeScanSkipped(finding.checkId) &&
+        finding.engine === "runtime"
+      ) {
+        continue;
+      }
       finding.status = "resolved";
       finding.resolvedNote = "No longer detected by the latest assessment.";
       addEvidence(db, {

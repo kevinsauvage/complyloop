@@ -1,4 +1,9 @@
-import type { DomLocation, FindingLocation, SiteLocation, SourceLocation } from "@complyloop/analysis-core/contract/finding-types";
+import type {
+  DomLocation,
+  FindingLocation,
+  SiteLocation,
+  SourceLocation,
+} from "./finding-types.ts";
 
 export function isSourceLocation(
   location: FindingLocation,

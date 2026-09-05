@@ -10,7 +10,7 @@ import {
   type PatchCandidate,
   type ProposedFixEdits,
 } from "@/ai/verified-fix";
-import { isSourceLocation } from "@/core/location";
+import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Control } from "@/core/project-types";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
@@ -85,17 +85,17 @@ export async function runAiFixOnCheckout(
     deterministic !== null
       ? async () => deterministic
       : options.propose ??
-        (async () =>
-          proposeFixEdits({
-            finding,
-            control,
-            fileContents: {
-              [filePath]: fs.readFileSync(
-                resolveInside(rootPath, filePath),
-                "utf8",
-              ),
-            },
-          }));
+      (async () =>
+        proposeFixEdits({
+          finding,
+          control,
+          fileContents: {
+            [filePath]: fs.readFileSync(
+              resolveInside(rootPath, filePath),
+              "utf8",
+            ),
+          },
+        }));
 
   if (deterministic === null && options.aiAvailable === false) {
     throw new PublicError(

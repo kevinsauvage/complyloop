@@ -3,7 +3,7 @@ import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import type { RawFinding } from "@complyloop/analysis-core/types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { ExplanationProvenance } from "@complyloop/analysis-core/contract/statuses";
-import { isSourceLocation } from "@/core/location";
+import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 export const PATCH_PR_SOURCE_ONLY_MESSAGE =

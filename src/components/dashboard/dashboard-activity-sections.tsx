@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { evidenceKindLabel } from "@/core/labels";
 import type { Control } from "@/core/project-types";
 import type { EvidenceRecord, FileChange, Finding, FindingCluster } from "@complyloop/analysis-core/contract/finding-types";

@@ -16,7 +16,7 @@ import {
   findingDetailHref,
   type FindingListParams,
 } from "@/core/finding-list-filter";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { cn } from "@/lib/utils";
 import {
   bulkApproveRemediationsAction,

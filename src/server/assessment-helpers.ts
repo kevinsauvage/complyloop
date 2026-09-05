@@ -3,7 +3,7 @@ import { describeFix, previewFixedLine } from "@complyloop/analysis-core/fixes";
 import { scanFile } from "@complyloop/analysis-core/scan";
 import type { RawFinding } from "@complyloop/analysis-core/types";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
-import { isDomLocation, isSiteLocation, isSourceLocation } from "@/core/location";
+import { isDomLocation, isSiteLocation, isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Finding, FindingLocation, ProposedFix, RemediationSuggestion } from "@complyloop/analysis-core/contract/finding-types";
 
 /**

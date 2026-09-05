@@ -13,15 +13,23 @@ export interface ScanResult {
   scanMode: "full" | "scoped";
 }
 
+/**
+ * Resolves `filePath` (relative to `rootPath`) to an absolute path,
+ * returning `null` if it escapes `rootPath` or doesn't exist on disk.
+ */
+function resolveExistingFile(rootPath: string, filePath: string): string | null {
+  try {
+    const absolute = resolveInside(rootPath, filePath);
+    return fs.existsSync(absolute) ? absolute : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Runs every check against a single file. `filePath` is relative to `rootPath`. */
 export function scanFile(rootPath: string, filePath: string): RawFinding[] {
-  let absolute: string;
-  try {
-    absolute = resolveInside(rootPath, filePath);
-  } catch {
-    return [];
-  }
-  if (!fs.existsSync(absolute)) return [];
+  const absolute = resolveExistingFile(rootPath, filePath);
+  if (!absolute) return [];
   const text = fs.readFileSync(absolute, "utf8");
   const parsed = parseSource(filePath, text);
   return [
@@ -56,13 +64,9 @@ export function scanChangedFiles(
     ),
   ].sort();
   const findings = jsxPaths.flatMap((filePath) => scanFile(rootPath, filePath));
-  const existing = jsxPaths.filter((filePath) => {
-    try {
-      return fs.existsSync(resolveInside(rootPath, filePath));
-    } catch {
-      return false;
-    }
-  });
+  const existing = jsxPaths.filter((filePath) =>
+    resolveExistingFile(rootPath, filePath) !== null,
+  );
   return {
     findings,
     filesScanned: existing.length,

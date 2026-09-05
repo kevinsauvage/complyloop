@@ -2,7 +2,7 @@ import { guidanceFor } from "@/adapters/registry";
 import { deterministicExplanation } from "@/ai/explainer";
 import { filterAstFindingsForAuthority } from "@complyloop/analysis-core/merge-findings";
 import type { RawFinding } from "@complyloop/analysis-core/types";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@/core/project-types";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { addEvidence, type Db } from "./db";
@@ -49,9 +49,9 @@ export function createFinding(
     suggestion,
     history: suggestion
       ? [
-          { status: "detected", at: now },
-          { status: "suggested", at: now, note: suggestion.description },
-        ]
+        { status: "detected", at: now },
+        { status: "suggested", at: now, note: suggestion.description },
+      ]
       : [{ status: "detected", at: now }],
   };
   db.remediations.push(remediation);

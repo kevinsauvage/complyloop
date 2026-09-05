@@ -2,7 +2,7 @@ import type { Finding, Remediation } from "@complyloop/analysis-core/contract/fi
 import { remediationStatusLabel, severityLabel } from "@/core/labels";
 import { prioritizeClusters } from "@/core/prioritization";
 import type { Control } from "@/core/project-types";
-import { formatLocationRef } from "@/core/location";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { controlDisplayCodes } from "@/adapters/control-theme";
 import type { ReportInput } from "../report";
 import { escapeHtml, reportShell } from "./shared";

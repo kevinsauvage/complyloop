@@ -4,7 +4,7 @@ import type { EvidenceRecord, Finding, Remediation } from "@complyloop/analysis-
 import { controlDisplayCodes } from "@/adapters/control-theme";
 import { presetById, presetCatalog } from "@/adapters/registry";
 import { projectDefaultPresetId } from "@/core/project-preset";
-import { formatLocationRef, locationSnippet } from "@/core/location";
+import { formatLocationRef, locationSnippet } from "@complyloop/analysis-core/contract/location";
 import {
   evidenceKindLabel,
   remediationStatusLabel,

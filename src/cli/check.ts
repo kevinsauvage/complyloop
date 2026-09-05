@@ -10,7 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { scanProject } from "@complyloop/analysis-core/scan";
-import { formatLocationRef } from "../core/location";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 
 function main(): void {
   const targetArg = process.argv[2];

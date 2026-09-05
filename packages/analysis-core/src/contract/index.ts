@@ -6,3 +6,4 @@ export * from "./finding-types.ts";
 export * from "./requirement-status.ts";
 export * from "./public-error.ts";
 export * from "./assessment-limits.ts";
+export * from "./location.ts";

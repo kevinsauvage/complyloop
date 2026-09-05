@@ -1,4 +1,4 @@
-import { isDomLocation, isSourceLocation } from "./location";
+import { isDomLocation, isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import type { RemediationStatus } from "@complyloop/analysis-core/contract/statuses";
 
