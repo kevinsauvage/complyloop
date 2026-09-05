@@ -57,7 +57,7 @@ Statuses, findings, requirement derivation, `PublicError`, and assessment limits
 - **Postgres** — frameworks, controls, orgs, memberships, projects, requirements, assessments, `assessment_snapshots`, findings, remediations, alerts, evidence, encrypted GitHub tokens, webhook delivery ids, `assessment_jobs`, rate-limit buckets. Domain rows store typed JSONB payloads (`packages/db/src/schema.ts`) plus a few indexed columns (`project_id`, `status`, …). Catalog is seeded on deploy (`npm run seed` / `db:migrate`), not rewritten on every user action. One hand-written init migration (`drizzle/0000_init.sql`).
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`); projects belong to orgs. This **is** the product model (invites by GitHub login, roles `owner|admin|member|viewer`, org switcher, personal-org auto-provisioning) — see [product spec §24](../compliance-engineering-product-spec.md#24-mvp-scope). Workspace load stays membership-org + active project.
 - **Reads** — `getWorkspace()` loads the catalog, the viewer's orgs/memberships, the project switcher list for those orgs, and **runtime for the active project only** (requirements, assessments **without** file-hash snapshots, findings, remediations, alerts, evidence window). File hashes live in `assessment_snapshots` and are loaded only for `runAssessment` (`loadProjectAssessmentDb`). Evidence pages/exports/finding detail query Postgres directly through Drizzle (`postgres-queries.ts`), outside the workspace slice.
-- **Writes** — finding/requirement mutations use `withTargetedProjectWrite` (load and persist only touched rows). Project settings and assessment enqueue use `withProjectRowWrite` (project row + new evidence). Single-row alert reads use `withProjectLock`. All interactive diffs go through `changedEntities` in `repo/apply.ts`. Assessment apply uses `applyAssessmentPayload` atomically.
+- **Writes** — project mutations use `withProjectWrite(scope, fn)` (`src/server/workspace.ts`): `{ touch: "project" }` for settings/enqueue (project row + new evidence), `{ touch: "entities", findingIds? / requirementIds? / refreshControlIds? }` for hot-path finding/requirement mutations (targeted load + stale guards). Org admin uses `withOrgWrite`. Single-row alert reads use `withProjectLock`. All interactive diffs go through `changedEntities` in `repo/apply.ts`. Assessment apply uses `applyAssessmentPayload` atomically.
 - **Persistence ownership rule** — the slice model persists `findings | remediations | requirements | alerts` as row **upserts** plus evidence inserts **only**; it cannot express deletions. Structural entities outside the slice (orgs, memberships, projects, tokens, jobs) are written exclusively through their `packages/db/src/repo/*` modules. Every slice-persisted table upserts by id (`onConflictDoUpdate` — including `markAlertRead` / alerts); deleting a project cascades its alerts. `persistProjectSliceDiff` (repo/apply) no-ops on empty diffs; evidence rows are insert-only everywhere.
 - **Assessments** — the worker clones and scans **outside** a store transaction, snapshots the loaded project slice, then `applyAssessmentPayload` inserts the assessment + snapshot and diffs findings/requirements/remediations/alerts against that snapshot (only changed rows + new evidence) in one short transaction (`assessment-worker.ts`). `runAssessment` mutates a project-scoped in-memory `Db` for the duration of the scan; that is the apply payload, not a tenant-wide rewrite.
 - **Locks** — job claim uses `FOR UPDATE SKIP LOCKED` (enqueue is an ordinary insert; idempotent webhook keys rely on the unique index). Rate limits use per-key named locks. Interactive project writes and assessment apply both acquire a per-project Postgres advisory lock (`project-write:{projectId}`) inside their persist transaction so concurrent actions serialize instead of last-write-wins. Requirement upserts also skip rows whose DB `updatedAt` is newer than the loaded snapshot (defense against stale `refreshRequirementStatuses` during long assessment runs).
@@ -83,7 +83,7 @@ dependency direction:  analysis-core/contract  →  domain  →  { db, adapters,
 
 WCAG reuses the RGAA control catalog (`wcag` adapter registers framework metadata + presets; `wcag/presets.ts` reads `rgaaControls` directly). Pages, reports, and `control-theme.ts` may import adapter modules directly — with one catalog, a registry-only import rule is not worth enforcing.
 
-**Finding merge:** `filterAstFindingsForAuthority` (`merge-findings.ts`) — when runtime ran, drop composition-sensitive, runtime-only, and package-twin source findings. This is where "runtime wins for composition-sensitive checks" is implemented; `deriveRequirementStatus` treats `composition_sensitive` exactly like `standard`.
+**Finding merge:** `filterAstFindingsForAuthority` (`merge-findings.ts`) — when runtime ran, drop composition-sensitive, runtime-only, and package-twin source findings. This is where "runtime wins for composition-sensitive checks" is implemented; those checks use `standard` authority in status derivation.
 
 ## Analysis engines
 
@@ -154,8 +154,8 @@ does not hard-code those ids.
 **Analyzer provenance:** `RawFinding` / persisted `Finding` carry optional
 `analyzerId`, `analyzerRuleId`, `analyzerVersion`, and `contributingAnalyzers`
 (when runtime dedupe merges the same dom node). Coarse `engine: "ast" | "runtime"`
-is unchanged for remediation routing. `finding_detected` evidence stores the same
-fields in `detail`. Per-page dedupe (`runtime/dedupe-runtime-findings.ts`) priority:
+is unchanged for remediation routing. `finding` evidence uses `detail.event`
+(`detected` | `resolved` | `dismissed`) and stores analyzer fields in `detail`. Per-page dedupe (`runtime/dedupe-runtime-findings.ts`) priority:
 axe > html-validate > playwright-custom > site-level > linkinator > ast > jsx-a11y
 when the same check id hits the same node.
 html-validate check ids (`markup-nesting`, `css-for-presentation`) do not
@@ -173,7 +173,7 @@ overlap axe — exclusive ownership, not dedupe. `duplicate-id` is axe + AST onl
 
 **Source of truth for ids:** `check-authority.ts` and `checks/registry.ts` — do not duplicate long id lists in docs.
 
-Classifier precedence in `authorityForCheck`: site_level → runtime_only → heuristic → composition_sensitive → standard. Site-level ids also appear in the runtime-only list. Heuristic and runtime-only must not overlap (`check-authority.test.ts`). `video-caption` / `audio-caption` are runtime-only (axe can pass them); `media-controls-present` is heuristic (no runtime probe).
+Classifier precedence in `authorityForCheck`: site_level → runtime_only → heuristic → standard. Composition-sensitive checks use `standard` authority; runtime override is handled by `isCompositionSensitiveCheck` + merge, not a separate authority class.
 
 #### Adding a check id
 
