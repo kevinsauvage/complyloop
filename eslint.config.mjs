@@ -64,11 +64,16 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Persistence and domain packages are framework-agnostic leaves: they must
-  // not import app/server/adapters layers. They may import the analysis
-  // contract and each other.
+  // Persistence, domain, and adapters packages are framework-agnostic leaves:
+  // they must not import app/server/adapters-at-app layers. They may import the
+  // analysis contract and each other. adapters depends on domain + analysis-core;
+  // db depends on domain + analysis-core; domain depends only on analysis-core contract.
   {
-    files: ["packages/db/**/*.{ts,tsx}", "packages/domain/**/*.{ts,tsx}"],
+    files: [
+      "packages/db/**/*.{ts,tsx}",
+      "packages/domain/**/*.{ts,tsx}",
+      "packages/adapters/**/*.{ts,tsx}",
+    ],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -88,12 +93,12 @@ const eslintConfig = defineConfig([
                 "**/ai/**",
               ],
               message:
-                "packages/db and packages/domain must not import app/server/adapters/AI layers — see docs/ai/architecture.md (module boundaries).",
+                "packages/db, domain, adapters must not import app/server/adapters/AI layers — see docs/ai/architecture.md (module boundaries).",
             },
             {
               regex: "^(../)*src/",
               message:
-                "packages/db and packages/domain must not reach outside the package (no ../src) — see docs/ai/architecture.md (module boundaries).",
+                "packages/db, domain, adapters must not reach outside their package (no ../src) — see docs/ai/architecture.md (module boundaries).",
             },
           ],
         },
@@ -115,6 +120,7 @@ const eslintConfig = defineConfig([
     "packages/analysis-core/dist/**",
     "packages/db/dist/**",
     "packages/domain/dist/**",
+    "packages/adapters/dist/**",
     "e2e/fixtures/**",
     ".data/**",
   ]),

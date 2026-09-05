@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { presetById } from "@/adapters/registry";
+import { presetById } from "../registry.ts";
 
 describe("WCAG preset tiers", () => {
   it("keeps AAA-only controls out of the AA preset", () => {

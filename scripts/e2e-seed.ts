@@ -14,7 +14,7 @@ import {
 } from "../e2e/constants";
 import { getDrizzle } from "@complyloop/db/client";
 import { seedCatalog, loadCatalog } from "@complyloop/db/repo/catalog";
-import { mergeAdapterControls } from "../src/adapters/registry";
+import { mergeAdapterControls } from "@complyloop/adapters/registry";
 import { upsertFinding } from "@complyloop/db/repo/findings";
 import { insertMembership, insertOrganization } from "@complyloop/db/repo/orgs";
 import { insertProject } from "@complyloop/db/repo/projects";

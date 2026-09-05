@@ -2,7 +2,7 @@ import { AssessedRequirementList } from "@/components/requirements/assessed-requ
 import { RequirementsPresetPanel } from "@/components/requirements/requirements-preset-panel";
 import { RequirementsStatusChips } from "@/components/requirements/requirements-status-chips";
 import { EmptyState, PageActionLink, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
-import { presetById, defaultConnectPreset, presetCatalog } from "@/adapters/registry";
+import { presetById, defaultConnectPreset, presetCatalog } from "@complyloop/adapters/registry";
 import { projectDefaultPresetId } from "@/core/project-preset";
 import {
   effectiveRequirementsPresetId,

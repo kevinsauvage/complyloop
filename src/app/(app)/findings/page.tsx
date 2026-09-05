@@ -31,7 +31,7 @@ import {
   remediationForFinding,
 } from "@/server/workspace";
 import { frameworkForProject } from "@/server/report";
-import { controlForDisplay } from "@/adapters/control-theme";
+import { controlForDisplay } from "@complyloop/adapters/control-theme";
 
 export const dynamic = "force-dynamic";
 

@@ -1,8 +1,8 @@
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Control, Framework, Project, Requirement } from "@complyloop/domain/project-types";
 import type { EvidenceRecord, Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
-import { controlDisplayCodes } from "@/adapters/control-theme";
-import { presetById, presetCatalog } from "@/adapters/registry";
+import { controlDisplayCodes } from "@complyloop/adapters/control-theme";
+import { presetById, presetCatalog } from "@complyloop/adapters/registry";
 import { projectDefaultPresetId } from "@/core/project-preset";
 import { formatLocationRef, locationSnippet } from "@complyloop/analysis-core/contract/location";
 import {

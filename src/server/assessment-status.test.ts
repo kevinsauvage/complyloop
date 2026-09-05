@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
+import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project, Requirement } from "@complyloop/domain/project-types";
 import { testProject } from "@/test-fixtures/project";

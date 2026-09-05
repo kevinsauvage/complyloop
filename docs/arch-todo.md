@@ -6,15 +6,17 @@ Where we are, what to extract next, and with what payoff. **Sibling doc:** [`ai/
 
 | Layer                    | LOC   | Nature                                                      |
 | ------------------------ | ----- | ----------------------------------------------------------- |
-| `packages/analysis-core` | 12.4k | True package: `contract/`, `checks/`, `runtime/`, `scan.ts` |
-| `src/server`             | 9.2k  | App layer; `actions/` 4.5k, `db-store/` 2.1k                |
+| `packages/analysis-core` | 12.4k | Analysis engine + contract: `contract/`, `checks/`, `runtime/`, `scan.ts` |
+| `packages/adapters`      | ~3.2k | RGAA/WCAG catalog, presets, guidance, control-theme         |
+| `packages/db`            | ~3k   | Postgres persistence — schema, `repo/` mappers, workspace-load, client |
+| `packages/domain`        | ~0.5k | Product domain model — orgs, projects, requirements, catalog types, `PresetCatalog` port |
+| `src/server`             | 7.1k  | App layer; `actions/` 4.5k, application logic                |
 | `src/components`         | 8.0k  | UI (feature folders)                                        |
-| `src/adapters`           | 3.2k  | RGAA/WCAG catalog + presets + guidance                      |
 | `src/app`                | 2.3k  | Next routes/API                                             |
-| `src/core`               | 1.8k  | 26 framework-agnostic helpers                               |
+| `src/core`               | 1.7k  | 25 framework-agnostic helpers (domain types + PresetCatalog moved out) |
 | `src/ai`                 | 0.4k  | explain / fix / remediate                                   |
 
-Already healthy: `contract/` is the shared seam, `src/core` is framework-agnostic and ESLint-enforced, `db-store` is a clean leaf. Extraction work below is about **releasing** the seams, not creating them.
+Already healthy: the shared contract (`analysis-core/contract`), domain model, adapters catalog, and DB are each their own package; `src/core` is framework-agnostic and ESLint-enforced; the app imports all four packages directly. Extraction work below is about *releasing* the remaining seam (worker).
 
 ## Extraction candidates
 
@@ -31,7 +33,9 @@ Already healthy: `contract/` is the shared seam, `src/core` is framework-agnosti
 
 ### T2 ~~Extract `src/server/db-store/` → `@complyloop/db`~~ **DONE**
 
-> Done (option A): extracted a `@complyloop/domain` package (the product domain model from `src/core/project-types.ts` + `DEFAULT_PAGE_SIZE`), extracted `@complyloop/db` (all 27 db-store files: 16 src + 11 repo) on top of it, parameterized the adapter catalog merge as a `CatalogMerger` port injected by app callers, and added `addEvidence` to the db package. App keeps re-export shims at `@complyloop/domain/project-types` / `@/core/pagination` / `src/server/db.ts` so ~80 import sites didn't all need rewriting. Wired workspaces, vitest include/coverage, eslint package boundary guards, `next.config` `transpilePackages`, Dockerfile (build + ship dist + exports swap), npm `build:domain`/`build:db`, nested `.gitignore`. db package emits publish-safe `.js`-extension `dist`. Verified: root + package `typecheck`, `lint`, `build:domain`, `build:db`, isolated db build, full `npm run test` (253 passed), full `next build` (all routes), compose config valid.
+> Done (option A): extracted a `@complyloop/domain` package (the product domain model from `src/core/project-types.ts` + `DEFAULT_PAGE_SIZE`), extracted `@complyloop/db` (all 27 db-store files: 16 src + 11 repo) on top of it, parameterized the adapter catalog merge as a `CatalogMerger` port injected by app callers, and added `addEvidence` to the db package. Wired workspaces, vitest include/coverage, eslint package boundary guards, `next.config` `transpilePackages`, Dockerfile (build + ship dist + exports swap for all 3 packages), npm `build:domain`/`build:db`, nested `.gitignore`. Db package emits publish-safe `.js`-extension `dist`.
+> **Full cutover done:** the temporary `src/core/project-types.ts` re-export shim was **removed** — all 88 import sites now use `@complyloop/domain/project-types` directly, and no reference to the old `@/core/project-types` path remains. `@/core/pagination` remains (real pagination logic; its `DEFAULT_PAGE_SIZE` re-export from domain is a legit re-export, not a shim).
+> Verified final: root + package `typecheck`, `lint`, `build:domain`, `build:db`, build:core, full `next build` (all routes), compose config valid, full `npm run test` (252 passed / 2 skipped; the single flake — `check-pack.smoke.test.ts` 10s hook timeout under full-suite parallel load — passes in isolation and doesn't touch db/domain).
 > **Note (premise correction):** the task's "clean leaf" assumption was false — db-store rows are the app's domain types (Project/Organization/etc., not in the analysis contract), so standalone extraction required extracting the domain model first. Read the archived original "Why" below for the original framing.
 
 - **Why.** Two deployables ship one tree today: the Next app (docker `app`) and the worker (`npx tsx scripts/run-assessment-worker.ts`, docker `worker`); both pull `src/server` incl. `db-store`. `db-store` is already a clean leaf (only `drizzle-orm` + `postgres`, no app imports, emits `contract` types) — schema, 11 `repo/` mappers, `client`.
@@ -44,12 +48,16 @@ Already healthy: `contract/` is the shared seam, `src/core` is framework-agnosti
 
 **Scope:** `scripts/run-assessment-worker.ts` + `assessment-worker.ts` + `assessment-jobs.ts` + `repo-checkout.ts` + `git.ts`.
 
-- **Workload:** 3–5 days.
-- **Priority:** P2 (needs T2 first) — only pays if "scale" means independent worker deployment/throughput.
+- **Workload:** 2–4 days (reduced from 3–5 — the persistence boundary is already a package via T2; worker now needs only `@complyloop/db` + `@complyloop/analysis-core`).
+- **Priority:** P2 — only pays if "scale" means independent worker deployment/throughput.
 - **Win:** worker can be released, versioned, and scaled without the web app; isolates heavy deps (`playwright`, `linkinator`, `html-validate`).
-- **Risks:** large; needs a stable shared contract with the app; do only after T2.
+- **Risks:** medium now (T2 already split out DB); still needs a stable shared contract with the app.
 
-### T4 Extract `src/adapters/` → `@complyloop/adapters`
+### T4 ~~Extract `src/adapters/` → `@complyloop/adapters`~~ **DONE**
+
+> Done: moved all 9 adapters source files (`registry`, `control-theme`, `types`, `rgaa/{controls,guidance,pertinence-twins,presets}`, `wcag/{controls,presets}`) + 9 test files into `@complyloop/adapters` (git renames detected). Moved the `PresetCatalog` port interface into `@complyloop/domain/preset.ts` (the adapters' only app import was `@/core/project-preset`, now gone — adapters imports only `domain` + `analysis-core`). Rewired internal imports to relative `.ts`, rewrote 29 app consumers to `@complyloop/adapters/*`, updated 2 scripts. Wired vitest include/coverage, eslint leaf-boundary guard (now covers adapters + db + domain), dist-ignore, `next.config` `transpilePackages`, Dockerfile (build + ship dist + exports swap), npm `build:adapters`. Adapters emits publish-safe `.js`-extension `dist`. `src/adapters` fully removed.
+> **Note (premise refinement):** adapters imports the analysis **engine** subpaths (`types`, `check-authority`, `checks/registry`, `runtime/*`), not just `contract` — but no app/server layers, so the package is a clean standalone leaf. Catalog ↔ check-id alignment preserved (catalog-coverage + check-authority integration tests pass).
+> Verified: `typecheck`, `lint`, `build:adapters` (isolated + dist `.js` confirmed), `build:domain`, `build:core`, adapter tests (9 files / 35 passed), full `npm run test` (253 passed / 2 skipped), full `next build` (all routes).
 
 Pure catalog data + guidance; imports only `contract`; "how to add a framework" is already the documented seam. Payoff is independent versioning of the RGAA/WCAG catalog against the product.
 
@@ -61,17 +69,17 @@ Pure catalog data + guidance; imports only `contract`; "how to add a framework" 
 ## Explicitly NOT extracting now
 
 - `src/ai/` (428 LOC) — single consumer; cost > benefit.
-- Most of `src/core/` — product-domain (RBAC, finding-UX, presets); only `location.ts` is reusable outside the app.
+- Most of `src/core/` — product-domain helpers (RBAC, finding-UX, presets); the domain types they operate on already live in `@complyloop/domain`. Only a `location.ts`-style pure helper would justify a move, and it's now in contract.
 
 ## Guardrails
 
-- **G1 · Turbopack `.ts`-extension rule.** `analysis-core` exports point at `src/*.ts` with `.ts` specifiers. A published consumer must resolve through `publishConfig.exports → dist/` + `predev`/`prebuild` hooks, never `paths → src/`.
+- **G1 · Turbopack `.ts`-extension rule.** `analysis-core`, `domain`, `db`, and `adapters` exports point at `src/*.ts` with `.ts` specifiers. A published consumer must resolve through `publishConfig.exports → dist/` + `predev`/`prebuild` hooks, never `paths → src/`. The packages emit `.js`-extension `dist` via `rewriteRelativeImportExtensions`.
 - **G2 · Catalog alignment.** Any adapter/db split must preserve catalog ↔ check-id mapping and the `htmlValidateOwned` gate.
 - **G3 · One source of truth.** Extraction must be live import (one source), not a copy-at-build snapshot.
 
 ## Suggested order
 
-1. **T1** — do first; cheapest, cleans the CLI.
-2. **T2** — the scale prereq.
-3. **T3** — worker independence (after T2).
-4. **T4** — adapters only when a second consumer appears.
+1. ~~**T1** — location → contract~~ ✅
+2. ~~**T2** — domain + db extraction~~ ✅
+3. ~~**T4** — adapters package~~ ✅
+4. **T3** — worker independence (now the only remaining; can proceed directly since DB + analysis + domain are packaged).

@@ -4,7 +4,7 @@ import { config as loadEnv } from "dotenv";
 import path from "node:path";
 import { getDrizzle } from "@complyloop/db/client";
 import { seedCatalog } from "@complyloop/db/repo/catalog";
-import { mergeAdapterControls } from "../src/adapters/registry";
+import { mergeAdapterControls } from "@complyloop/adapters/registry";
 import { processNextAssessmentJob } from "../src/server/assessment-worker";
 
 loadEnv({ path: path.join(process.cwd(), ".env.local") });

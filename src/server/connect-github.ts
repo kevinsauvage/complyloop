@@ -1,6 +1,6 @@
 import type { Project, ProjectGitHubMeta } from "@complyloop/domain/project-types";
 import { canOnProject } from "@/core/rbac";
-import { defaultConnectPreset } from "@/adapters/registry";
+import { defaultConnectPreset } from "@complyloop/adapters/registry";
 import { addEvidence, type Db } from "./db";
 import { ConnectError } from "./connect-error";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";

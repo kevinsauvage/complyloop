@@ -1,6 +1,6 @@
-import { rgaaControls } from "@/adapters/rgaa/controls";
+import { rgaaControls } from "../rgaa/controls.ts";
 import { wcagFramework } from "./controls";
-import type { FrameworkPreset } from "@/adapters/types";
+import type { FrameworkPreset } from "../types.ts";
 
 /** Framework + level targets for WCAG assessment. */
 export const wcagPresets: FrameworkPreset[] = [

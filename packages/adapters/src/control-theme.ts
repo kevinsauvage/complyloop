@@ -1,5 +1,5 @@
 import type { Control } from "@complyloop/domain/project-types";
-import { wcagFramework } from "@/adapters/wcag/controls";
+import { wcagFramework } from "./wcag/controls.ts";
 
 const RGAA_THEMES = [
   { id: "images", label: "Images", criterion: 1 },

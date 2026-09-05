@@ -2,7 +2,7 @@ import { config as loadEnv } from "dotenv";
 import path from "node:path";
 import { getDrizzle } from "@complyloop/db/client";
 import { seedCatalog } from "@complyloop/db/repo/catalog";
-import { mergeAdapterControls } from "@/adapters/registry";
+import { mergeAdapterControls } from "@complyloop/adapters/registry";
 
 function loadLocalEnv(): void {
   if (process.env.DATABASE_URL?.trim()) return;

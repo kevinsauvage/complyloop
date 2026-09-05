@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
+import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import type { Requirement } from "@complyloop/domain/project-types";
 import { AssessedRequirementList } from "./assessed-requirement-list";
 

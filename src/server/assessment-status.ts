@@ -1,4 +1,4 @@
-import { presetById } from "@/adapters/registry";
+import { presetById } from "@complyloop/adapters/registry";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   deriveRequirementStatus,

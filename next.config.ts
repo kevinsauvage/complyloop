@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
     "@complyloop/analysis-core",
     "@complyloop/domain",
     "@complyloop/db",
+    "@complyloop/adapters",
   ],
   // Pin the workspace root so Turbopack ignores lockfiles above this directory.
   turbopack: {

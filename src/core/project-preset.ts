@@ -1,16 +1,7 @@
 import type { Project } from "@complyloop/domain/project-types";
+import type { PresetCatalog } from "@complyloop/domain/preset";
 
-/**
- * Port over the preset catalog. Core must not import adapters
- * (docs/ai/architecture.md — module boundaries): the registry implements
- * this interface and callers pass it in.
- */
-export interface PresetCatalog {
-  /** True when the id names a registered framework preset. */
-  isValidPresetId(id: string): boolean;
-  /** Preset id used when a project has no valid stored default. */
-  defaultConnectPresetId: string;
-}
+export type { PresetCatalog } from "@complyloop/domain/preset";
 
 /** Project default assessment preset, else catalog connect default. */
 export function projectDefaultPresetId(

@@ -3,7 +3,7 @@ import { remediationStatusLabel, severityLabel } from "@/core/labels";
 import { prioritizeClusters } from "@/core/prioritization";
 import type { Control } from "@complyloop/domain/project-types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import { controlDisplayCodes } from "@/adapters/control-theme";
+import { controlDisplayCodes } from "@complyloop/adapters/control-theme";
 import type { ReportInput } from "../report";
 import { escapeHtml, reportShell } from "./shared";
 

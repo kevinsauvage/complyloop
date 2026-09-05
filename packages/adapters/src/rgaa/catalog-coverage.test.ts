@@ -5,7 +5,7 @@ import { jsxA11yMappedCheckIds } from "@complyloop/analysis-core/jsx-a11y-map";
 import { axeMappedCheckIds } from "@complyloop/analysis-core/runtime/axe-map";
 import { customProbeCheckIds } from "@complyloop/analysis-core/runtime/custom-checks/index";
 import { htmlValidateMappedCheckIds } from "@complyloop/analysis-core/runtime/html-validate-map";
-import { wcagPresets } from "@/adapters/wcag/presets";
+import { wcagPresets } from "../wcag/presets.ts";
 import { rgaaControls } from "./controls";
 import { rgaaPresets } from "./presets";
 

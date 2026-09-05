@@ -3,7 +3,7 @@ import {
   isHeuristicCheck,
   isRuntimeOnlyCheck,
 } from "@complyloop/analysis-core/check-authority";
-import { isPertinenceTwinControl } from "@/adapters/registry";
+import { isPertinenceTwinControl } from "@complyloop/adapters/registry";
 import { DeterminationBadge, RequirementStatusBadge } from "@/components/badges";
 import { formatDateTime } from "@/components/page-primitives";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

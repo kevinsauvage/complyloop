@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { presetById, presetCatalog } from "@/adapters/registry";
+import { presetById, presetCatalog } from "@complyloop/adapters/registry";
 import { projectDefaultPresetId } from "@/core/project-preset";
 import type { Project } from "@complyloop/domain/project-types";
 import { cn } from "@/lib/utils";

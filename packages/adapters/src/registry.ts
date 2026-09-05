@@ -1,11 +1,11 @@
-import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
-import { guidanceFor as rgaaGuidanceFor } from "@/adapters/rgaa/guidance";
-import { rgaaPresets } from "@/adapters/rgaa/presets";
-import { wcagFramework } from "@/adapters/wcag/controls";
-import { wcagPresets } from "@/adapters/wcag/presets";
+import { rgaaControls, rgaaFramework } from "./rgaa/controls.ts";
+import { guidanceFor as rgaaGuidanceFor } from "./rgaa/guidance.ts";
+import { rgaaPresets } from "./rgaa/presets.ts";
+import { wcagFramework } from "./wcag/controls.ts";
+import { wcagPresets } from "./wcag/presets.ts";
 import type { CheckId } from "@complyloop/analysis-core/types";
 import type { Control, Framework } from "@complyloop/domain/project-types";
-import type { PresetCatalog } from "@/core/project-preset";
+import type { PresetCatalog } from "@complyloop/domain/preset";
 import type { CheckGuidance, FrameworkAdapter, FrameworkPreset } from "./types";
 
 const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";
@@ -51,7 +51,7 @@ export function defaultConnectPreset(): FrameworkPreset {
   return preset;
 }
 
-export { isPertinenceTwinControl } from "@/adapters/rgaa/pertinence-twins";
+export { isPertinenceTwinControl } from "./rgaa/pertinence-twins.ts";
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {
   for (const adapter of frameworkAdapters) {

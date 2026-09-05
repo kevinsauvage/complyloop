@@ -1,5 +1,5 @@
 import { rgaaControls, rgaaFramework } from "./controls";
-import type { FrameworkPreset } from "@/adapters/types";
+import type { FrameworkPreset } from "../types.ts";
 
 /**
  * Controls that are genuinely RGAA 4: those whose primary code is an RGAA

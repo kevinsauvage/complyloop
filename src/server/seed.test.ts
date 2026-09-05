@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mergeAdapterControls } from "@/adapters/registry";
-import { rgaaFramework } from "@/adapters/rgaa/controls";
+import { mergeAdapterControls } from "@complyloop/adapters/registry";
+import { rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import { emptyDb } from "./db";
 
 function ensureSeededInMemory(db: ReturnType<typeof emptyDb>): boolean {

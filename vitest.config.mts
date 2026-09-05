@@ -14,6 +14,7 @@ export default defineConfig({
       "packages/analysis-core/src/**/*.test.{ts,tsx}",
       "packages/db/src/**/*.test.{ts,tsx}",
       "packages/domain/src/**/*.test.{ts,tsx}",
+      "packages/adapters/src/**/*.test.{ts,tsx}",
     ],
     // Assessment / temp-fs tests can exceed 5s under parallel load.
     testTimeout: 15_000,
@@ -29,12 +30,14 @@ export default defineConfig({
         "src/server/**",
         "packages/analysis-core/src/**",
         "packages/db/src/**",
+        "packages/adapters/src/**",
       ],
       exclude: [
         "src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/**/*.test.{ts,tsx}",
         "packages/db/src/**/*.test.{ts,tsx}",
         "packages/domain/src/**/*.test.{ts,tsx}",
+        "packages/adapters/src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/runtime/scan.ts",
         // Playwright page probes — unit job has no Chromium, so these skip.
         "packages/analysis-core/src/runtime/custom-checks/**",

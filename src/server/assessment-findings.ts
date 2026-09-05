@@ -1,4 +1,4 @@
-import { guidanceFor } from "@/adapters/registry";
+import { guidanceFor } from "@complyloop/adapters/registry";
 import { deterministicExplanation } from "@/ai/explainer";
 import { filterAstFindingsForAuthority } from "@complyloop/analysis-core/merge-findings";
 import type { RawFinding } from "@complyloop/analysis-core/types";

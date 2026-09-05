@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
+import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import type { Project } from "@complyloop/domain/project-types";
 import {
   connectedGitHubProjectsByFullName,

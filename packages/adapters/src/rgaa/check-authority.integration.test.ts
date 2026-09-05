@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rgaaControls } from "@/adapters/rgaa/controls";
+import { rgaaControls } from "../rgaa/controls.ts";
 import {
   authorityForCheck,
   isHtmlValidateOwnedCheck,

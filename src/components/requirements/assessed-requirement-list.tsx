@@ -2,7 +2,7 @@ import { RequirementCard } from "@/components/requirements/requirement-card";
 import {
   controlDisplayCodes,
   groupControlsByTheme,
-} from "@/adapters/control-theme";
+} from "@complyloop/adapters/control-theme";
 import type { Control, Project, Requirement } from "@complyloop/domain/project-types";
 
 export function AssessedRequirementList({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
-import { wcagFramework } from "@/adapters/wcag/controls";
+import { rgaaControls, rgaaFramework } from "./rgaa/controls.ts";
+import { wcagFramework } from "./wcag/controls.ts";
 import {
   controlDisplayCodes,
   controlForDisplay,

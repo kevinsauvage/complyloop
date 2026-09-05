@@ -6,7 +6,7 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { allFrameworkPresets, presetById, presetCatalog } from "@/adapters/registry";
+import { allFrameworkPresets, presetById, presetCatalog } from "@complyloop/adapters/registry";
 import { latestAssessmentFor } from "@/core/assessment-latest";
 import { projectDefaultPresetId } from "@/core/project-preset";
 import { projectCapabilities } from "@/server/project-capabilities";

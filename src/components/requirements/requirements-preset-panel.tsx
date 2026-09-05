@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { allFrameworkPresets } from "@/adapters/registry";
+import { allFrameworkPresets } from "@complyloop/adapters/registry";
 import { PresetNavigator } from "./preset-navigator";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 

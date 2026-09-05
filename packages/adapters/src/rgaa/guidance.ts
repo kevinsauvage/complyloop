@@ -1,5 +1,5 @@
 import type { CheckId } from "@complyloop/analysis-core/types";
-import type { CheckGuidance } from "@/adapters/types";
+import type { CheckGuidance } from "../types.ts";
 
 const guidance: Record<CheckId, CheckGuidance> = {
   "img-alt": {

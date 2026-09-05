@@ -5,7 +5,7 @@ import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_TONE_BADGE } from "@/core/status-tone";
 import { Label } from "@/components/ui/label";
-import type { FrameworkPreset } from "@/adapters/types";
+import type { FrameworkPreset } from "@complyloop/adapters/types";
 import { setDefaultPresetAction } from "@/server/actions/project-preset";
 
 export function DefaultPresetForm({

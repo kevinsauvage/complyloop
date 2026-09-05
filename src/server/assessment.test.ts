@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
+import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/domain/project-types";
 import { runAssessment } from "./assessment";
