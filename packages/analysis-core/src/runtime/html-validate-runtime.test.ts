@@ -14,7 +14,7 @@ import {
 
 registerPlaywrightBrowserTeardown();
 import type { SerializeDocumentResult } from "./html-validate-runtime";
-import { checkIdForHtmlValidateRule } from "./html-validate-map";
+import { checkIdForHtmlValidateRule, HTML_VALIDATE_TO_CHECK_RULE_IDS } from "./html-validate-map";
 
 /**
  * Builds a SerializeDocumentResult from a one-line HTML string, recording each
@@ -188,6 +188,14 @@ describe("checkIdForHtmlValidateRule", () => {
       "markup-nesting",
     );
     expect(checkIdForHtmlValidateRule("not-a-rule")).toBeUndefined();
+  });
+
+  it("keeps the rendered rule set in sync with the map", () => {
+    // Adding/removing a rendered rule must be mirrored in the map, or a rule
+    // either runs unmapped (invisible) or is claimed without being enabled.
+    expect(new Set(HTML_VALIDATE_RENDERED_RULE_IDS)).toEqual(
+      new Set(HTML_VALIDATE_TO_CHECK_RULE_IDS),
+    );
   });
 
   it("does not map duplicate-id, landmark, or idref rules", () => {

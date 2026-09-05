@@ -75,6 +75,7 @@ const eslintConfig = defineConfig([
       "packages/adapters/**/*.{ts,tsx}",
     ],
     rules: {
+      // domain imports analysis-core's contract only (same rule as src/core).
       "no-restricted-imports": [
         "error",
         {
@@ -99,6 +100,26 @@ const eslintConfig = defineConfig([
               regex: "^(../)*src/",
               message:
                 "packages/db, domain, adapters must not reach outside their package (no ../src) — see docs/ai/architecture.md (module boundaries).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // domain depends on analysis-core's contract subpath only — a domain check
+    // that reaches the engines drags the whole graph into every consumer.
+    files: ["packages/domain/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex:
+                "^@complyloop/analysis-core(?!/contract(?:/|$))(?:$|/)",
+              message:
+                "packages/domain may import only @complyloop/analysis-core/contract/* — see docs/ai/architecture.md (module boundaries).",
             },
           ],
         },

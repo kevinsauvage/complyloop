@@ -1,4 +1,3 @@
-import { generateObject } from "ai";
 import { z } from "zod";
 import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/domain/project-types";
@@ -7,7 +6,7 @@ import { formatLocationRef, locationSnippet } from "@complyloop/analysis-core/co
 import { aiExplanationAvailable } from "./explainer";
 import { AI_MODEL } from "./model";
 import { confidenceSchema } from "./schemas";
-import { aiWarn } from "./warn";
+import { aiCall } from "./ai-call";
 
 const remediationSchema = z.object({
   description: z.string(),
@@ -31,46 +30,38 @@ export async function generateAiRemediation(
   finding: Finding,
   control: Control,
 ): Promise<AiRemediationResult | null> {
-  if (!aiExplanationAvailable()) return null;
-  try {
-    const { object } = await generateObject({
+  const object = await aiCall({
+    schema: remediationSchema,
+    available: aiExplanationAvailable(),
+    warnMessage: "AI remediation unavailable or failed",
+    warnCode: "ai_remediation_failed",
+    warnDetail: { findingId: finding.id, controlId: control.id },
+    prompt: [
+      "You propose accessibility remediations for React/TypeScript source.",
+      `Requirement: ${control.code} / ${control.secondaryCode} — ${control.title}.`,
+      `Finding: ${finding.reason}`,
+      `Location: ${formatLocationRef(finding.location)}`,
+      `Current snippet: ${locationSnippet(finding.location)}`,
+      finding.engine === "runtime"
+        ? "Runtime finding — propose a call-site fix, not a generic aria-label on a shared Input/Button primitive."
+        : "",
+      finding.fix
+        ? `A deterministic fix template exists (${finding.fix.kind}). Improve the developer-facing description and the proposed fixed line. If an attribute value is needed, put the best value in attributeValue.`
+        : "No automated fix template exists. Propose a concrete one-line (or short) code change as proposedSnippet and describe it.",
+      "Be concise. Output only the structured fields.",
+    ],
+  });
+  if (!object) return null;
+  const confidence: Confidence = object.confidence;
+  return {
+    suggestion: {
+      description: object.description,
+      proposedSnippet: object.proposedSnippet,
+      provenance: "ai",
+      confidence,
       model: AI_MODEL,
-      schema: remediationSchema,
-      prompt: [
-        "You propose accessibility remediations for React/TypeScript source.",
-        `Requirement: ${control.code} / ${control.secondaryCode} — ${control.title}.`,
-        `Finding: ${finding.reason}`,
-        `Location: ${formatLocationRef(finding.location)}`,
-        `Current snippet: ${locationSnippet(finding.location)}`,
-        finding.engine === "runtime"
-          ? "Runtime finding — propose a call-site fix, not a generic aria-label on a shared Input/Button primitive."
-          : "",
-        finding.fix
-          ? `A deterministic fix template exists (${finding.fix.kind}). Improve the developer-facing description and the proposed fixed line. If an attribute value is needed, put the best value in attributeValue.`
-          : "No automated fix template exists. Propose a concrete one-line (or short) code change as proposedSnippet and describe it.",
-        "Be concise. Output only the structured fields.",
-      ].join("\n"),
-    });
-
-    const confidence: Confidence = object.confidence;
-    return {
-      suggestion: {
-        description: object.description,
-        proposedSnippet: object.proposedSnippet,
-        provenance: "ai",
-        confidence,
-        model: AI_MODEL,
-        generatedAt: new Date().toISOString(),
-      },
-      attributeValue: object.attributeValue?.trim() || undefined,
-    };
-  } catch (error) {
-    aiWarn("AI remediation unavailable or failed", {
-      code: "ai_remediation_failed",
-      findingId: finding.id,
-      controlId: control.id,
-      detail: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
+      generatedAt: new Date().toISOString(),
+    },
+    attributeValue: object.attributeValue?.trim() || undefined,
+  };
 }

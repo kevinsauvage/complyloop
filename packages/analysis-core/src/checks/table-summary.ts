@@ -1,37 +1,19 @@
-import ts from "typescript";
+import { isComplexDataTable, isDataTable } from "./heuristic-utils.ts";
 import { isPresentationRole } from "../a11y-aria.ts";
 import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   getAttribute,
   locationOf,
-  stringValueOf,
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-import { isComplexDataTable, isDataTable } from "./heuristic-utils.ts";
 
 function hasSummary(node: JsxTagNode): boolean {
   if (getAttribute(node, "summary")) return true;
   if (getAttribute(node, "aria-describedby")) return true;
   if (getAttribute(node, "aria-details")) return true;
-  return false;
-}
-
-function spanExceedsOne(node: JsxTagNode): boolean {
-  const attr = getAttribute(node, "colSpan") ?? getAttribute(node, "colspan");
-  if (!attr) return false;
-  const value = stringValueOf(attr);
-  if (value !== undefined) {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) && parsed > 1;
-  }
-  if (attr.initializer && ts.isJsxExpression(attr.initializer)) {
-    const text = attr.initializer.expression?.getText() ?? "";
-    const match = text.match(/\d+/);
-    return match !== null && Number.parseInt(match[0], 10) > 1;
-  }
   return false;
 }
 
@@ -44,7 +26,9 @@ export const tableSummaryCheck: AccessibilityCheck = {
       if (isPropSpreadingHost(node)) return;
       if (isPresentationRole(node)) return;
       if (!isDataTable(node)) return;
-      if (!isComplexDataTable(node, { spanExceedsOne })) return;
+      // The built-in complexity check now covers JSX-expression spans
+      // (colSpan={4}) too — the shared definition, no per-check overrides.
+      if (!isComplexDataTable(node)) return;
       if (hasSummary(node)) return;
 
       findings.push({

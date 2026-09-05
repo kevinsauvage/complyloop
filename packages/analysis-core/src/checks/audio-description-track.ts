@@ -1,26 +1,8 @@
-import { DESCRIPTION_KINDS, hasChildTrackKind } from "./heuristic-utils.ts";
-import { locationOf, tagNameOf, visitJsxTags } from "../parse.ts";
-import type { AccessibilityCheck, RawFinding } from "../types.ts";
+import { makeVideoDescriptionCheck } from "./heuristic-utils.ts";
 
-export const audioDescriptionTrackCheck: AccessibilityCheck = {
+export const audioDescriptionTrackCheck = makeVideoDescriptionCheck({
   id: "audio-description-track",
-  run(source) {
-    const findings: RawFinding[] = [];
-    visitJsxTags(source.sourceFile, (node) => {
-      if (tagNameOf(node) !== "video") return;
-      if (hasChildTrackKind(node, DESCRIPTION_KINDS)) return;
-
-      findings.push({
-        checkId: "audio-description-track",
-        kind: "warning",
-        severity: "moderate",
-        confidence: "low",
-        reason:
-          "<video> has no descriptions track; visual information not in the soundtrack may be missing for blind users (RGAA 4.5).",
-        location: locationOf(source, node),
-        fix: null,
-      });
-    });
-    return findings;
-  },
-};
+  acceptTranscriptAlternative: false,
+  reason:
+    "<video> has no descriptions track; visual information not in the soundtrack may be missing for blind users (RGAA 4.5).",
+});

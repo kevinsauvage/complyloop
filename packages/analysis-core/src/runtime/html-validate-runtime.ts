@@ -16,6 +16,7 @@ import type { HtmlValidate } from "html-validate";
 import type { Page } from "playwright";
 import { htmlValidatePackageVersion } from "../analyzer-versions.ts";
 import { checkIdForHtmlValidateRule } from "./html-validate-map.ts";
+import { htmlSnippet } from "./dom-location.ts";
 import type { RawFinding } from "../types.ts";
 
 /**
@@ -297,7 +298,7 @@ export async function htmlValidateFindingsFromSerialized(
         kind: "dom",
         url,
         selector: el?.selector ?? "(document)",
-        snippet: el?.html ?? "(whole document)",
+        snippet: htmlSnippet(el?.html ?? "(whole document)"),
         elementLabel: el ? `element (${el.selector})` : undefined,
         context: msg.message,
       },

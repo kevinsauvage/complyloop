@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
-import { isHeuristicCheck } from "../../check-authority.ts";
+import { HEURISTIC_RUNTIME_DOWNGRADE, isHeuristicCheck } from "../../check-authority.ts";
 import type { RawFinding } from "../../types.ts";
+import { htmlSnippet, selectorFromTarget } from "../dom-location.ts";
 import { cssDisabledContentViolations } from "./css-disabled-content.ts";
 import { cssOffUnderstandableViolation } from "./css-off-understandable.ts";
 import { errorPreventionViolation } from "./error-prevention.ts";
@@ -30,35 +31,27 @@ import type { CustomViolation } from "./types.ts";
 
 export { customProbeCheckIds } from "./types.ts";
 
-function snippetOf(html: string): string {
-  const trimmed = html.replace(/\s+/g, " ").trim();
-  return trimmed.length > 200 ? `${trimmed.slice(0, 197)}…` : trimmed;
-}
-
-function selectorOf(target: string[]): string {
-  const first = target[0];
-  return typeof first === "string" && first.length > 0 ? first : "(unknown)";
-}
-
 export function findingsFromCustomViolations(
   pageUrl: string,
   violations: ReadonlyArray<CustomViolation>,
 ): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const violation of violations) {
-    const heuristic = isHeuristicCheck(violation.id);
+    const downgrade = isHeuristicCheck(violation.id)
+      ? HEURISTIC_RUNTIME_DOWNGRADE
+      : undefined;
     for (const node of violation.nodes) {
       findings.push({
         checkId: violation.id,
-        kind: heuristic ? "warning" : "violation",
-        severity: heuristic ? "moderate" : violation.impact,
-        confidence: heuristic ? "medium" : "high",
+        kind: downgrade?.kind ?? "violation",
+        severity: downgrade?.severity ?? violation.impact,
+        confidence: downgrade?.confidence ?? "high",
         reason: `${violation.help} ${violation.description}`.trim(),
         location: {
           kind: "dom",
           url: pageUrl,
-          selector: selectorOf(node.target),
-          snippet: snippetOf(node.html),
+          selector: selectorFromTarget(node.target),
+          snippet: htmlSnippet(node.html),
           elementLabel: node.elementLabel,
           context: node.failureSummary,
         },

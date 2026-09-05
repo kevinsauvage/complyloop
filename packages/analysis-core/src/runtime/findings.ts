@@ -1,8 +1,9 @@
 import type { Confidence, Severity } from "../contract/statuses.ts";
 import { axeCorePackageVersion } from "../analyzer-versions.ts";
-import { isHeuristicCheck } from "../check-authority.ts";
+import { HEURISTIC_RUNTIME_DOWNGRADE, isHeuristicCheck } from "../check-authority.ts";
 import type { RawFinding } from "../types.ts";
 import { checkIdForAxeRule } from "./axe-map.ts";
+import { htmlSnippet, selectorFromTarget } from "./dom-location.ts";
 import { dedupeRuntimeFindings } from "./dedupe-runtime-findings.ts";
 
 import type { CheckId } from "../types.ts";
@@ -69,16 +70,6 @@ function severityFromImpact(impact: string | null | undefined): Severity {
   }
 }
 
-function selectorOf(node: AxeNodeLike): string {
-  const first = node.target[0];
-  return typeof first === "string" && first.length > 0 ? first : "(unknown)";
-}
-
-function snippetOf(node: AxeNodeLike): string {
-  const trimmed = node.html.replace(/\s+/g, " ").trim();
-  return trimmed.length > 200 ? `${trimmed.slice(0, 197)}…` : trimmed;
-}
-
 function findingsFromAxeHits(
   page: RuntimeScanPageResult,
   hits: ReadonlyArray<AxeViolationLike>,
@@ -96,15 +87,15 @@ function findingsFromAxeHits(
         checkId,
         kind: asReview ? "warning" : "violation",
         severity: heuristic
-          ? "moderate"
+          ? HEURISTIC_RUNTIME_DOWNGRADE.severity
           : severityFromImpact(violation.impact),
         confidence: asReview ? "medium" : confidence,
         reason: `${violation.help} ${violation.description}`.trim(),
         location: {
           kind: "dom",
           url: page.url,
-          selector: selectorOf(node),
-          snippet: snippetOf(node),
+          selector: selectorFromTarget(node.target),
+          snippet: htmlSnippet(node.html),
           elementLabel: node.elementLabel,
           context: node.failureSummary,
         },

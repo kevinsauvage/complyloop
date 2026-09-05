@@ -212,3 +212,15 @@ export function keepOpenWhenRuntimeScanSkipped(checkId: string): boolean {
     isCompositionSensitiveCheck(checkId) || isRuntimeOnlyCheck(checkId)
   );
 }
+
+/**
+ * Runtime hits for heuristic check ids are never authoritative violations —
+ * they downgrade to warnings at moderate/medium, so an empty-heuristic scan can
+ * never pass a criterion. Both runtime adapters (axe + Playwright probes) share
+ * this single definition.
+ */
+export const HEURISTIC_RUNTIME_DOWNGRADE = {
+  kind: "warning",
+  severity: "moderate",
+  confidence: "medium",
+} as const;

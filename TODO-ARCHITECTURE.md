@@ -275,85 +275,69 @@ is enumerable (type-level equality test or forcing `rgaaControls` to `as const`)
 
 ## P3 — Low (do not start without a trigger)
 
-- **P3-1 · `frameworkAdapters` registry is half-realized.** _(size S)_ `wcag` registers
-  `controls: []` and no `guidanceFor`; `guidanceFor` returns the first adapter with
+- **P3-1 · `frameworkAdapters` registry is half-realized.** _(size S — keep, no action)_ `wcag`
+  registers `controls: []` and no `guidanceFor`; `guidanceFor` returns the first adapter with
   guidance (`packages/adapters/src/registry.ts:24-36,56-63`). Fine for one real
   framework — keep. Do **not** build the "Adding a framework" ceremony
   (`docs/ai/architecture.md:233-237`) further until a second framework exists.
-- **P3-2 · AI gateway shell duplicated ×3.** _(size S)_ `src/ai/{explainer,remediation,fix-propose}.ts`
-  repeat the same available-check + `generateObject` + try/catch + `aiWarn` + null shell
-  (verified in `explainer.ts:46-84` and `remediation.ts:1-10,35-36`). `verified-fix.ts`
-  is **not** a fourth copy — it is a patch-application pipeline that receives
-  `propose()` by injection (`src/ai/verified-fix.ts:38-43`), which is the better
-  pattern. Prompts legitimately differ; extract a ~20-line `aiCall(schema,
-buildPrompt)` helper when a fourth call site appears.
-- **P3-3 · `report-html/audit.ts` + `engineering.ts` have no colocated tests.** _(size S)_
-  They're inside the coverage gate, so untested LOC drag thresholds; tracked with P1-2's
-  shared-IR work.
-- **P3-4 · Docs drift on coverage excludes.** _(size S)_ `docs/ai/architecture.md:247` says the
-  gate excludes `write-lock` and `repo/**`; `vitest.config.mts:50-77` actually keeps
-  `repo/apply.ts`, `repo/mappers.ts`, `write-lock.ts`, `postgres-evidence.ts` **in** the
-  gate (only the individual `repo/*.ts` files listed are out). Update the doc. (Stale
-  docs are a defect in this repo.)
+- **~~P3-2 · AI gateway shell duplicated ×3.~~ COMPLETED** Extract `src/ai/ai-call.ts`
+  (availability + `generateObject` + warn-and-null); `explainer.ts` and `remediation.ts`
+  now use it. `fix-propose.ts` legitimately differs (throws `PublicError`, no null path)
+  and is left alone; `verified-fix.ts` is injection-based. Verified via the existing
+  mocked-`generateObject` AI suites.
+- **~~P3-3 · `report-html/audit.ts` + `engineering.ts` have no colocated tests.~~ ALREADY DONE**
+  `report.test.ts:164-270` has colocated `buildAuditReportHtml` / `buildEngineeringReportHtml`
+  suites (content, HTML escaping, empty states, clusters). Stale doc entry — removed.
+- **~~P3-4 · Docs drift on coverage excludes.~~ COMPLETED** `docs/ai/architecture.md` Tests
+  paragraph now reflects `vitest.config.mts` exactly (per-entity `repo/*` excluded;
+  `repo/apply.ts`, `repo/mappers.ts`, `write-lock.ts`, `postgres-evidence.ts` in gate;
+  `workspace.ts` excluded + covered by `test:db`); dropped the outdated "audit/engineering
+  untested" claim.
 - **P3-5 · Repeated pushes re-mint regression alerts.** _(size M)_ `collectRegressionAlerts`
   (`assessment-worker.ts:30-74`) creates a fresh UUID alert per regressed control per
   assessment — N pushes for the same unfixed regression = N alert rows. Verify this is
   intended (it may be — each assessment is a separate event); if not, dedupe by
   (controlId, projectId) latest-wins.
-- **P3-6 · "domain imports only the contract" is documented but not lint-enforced.** _(size S)_
-  The package rule (`eslint.config.mjs:71-107`) blocks app/server/adapters/components/
-  AI and `../src`, but `packages/domain` may still import
-  `@complyloop/analysis-core/anything`. Add the same contract-only regex used for
-  `src/core` (`:47-51`) for `packages/domain` — one rule, currently pure convention.
-- **P3-7 · `markAlertReadAction` is the lone direct-repo write.** _(size S)_ It bypasses the
-  write wrappers (own `getDrizzle` transaction, no lock) and loads the **full**
-  workspace to touch one alert row (`actions/alerts.ts`). Functionally safe
-  (idempotent `onConflictDoUpdate`; the worker never writes the same alert id) — keep
-  the direct-repo style, but fetch only what RBAC needs, and document it as the
-  canonical targeted-repo exception.
-- **P3-8 · Divergent "complex table" definitions.** _(size S)_ `checks/table-summary.ts:22-36`
-  defines a private `spanExceedsOne` (only `colSpan`/`colspan`, `parseInt` on string
-  values, `/\d+/` on JSX expressions) and injects it into `isComplexDataTable`
-  (`:47`), re-implementing the built-in default at
-  `checks/heuristic-utils.ts:200-213` (all four span attrs, `stringValueOf` only). The
-  same table can be "complex" for `table-summary` and not for `layout-table-markup`.
-  Unify on one helper in `heuristic-utils.ts`.
-- **P3-9 · html-validate rule set maintained in two files with no equality test.** _(size S)_
-  `runtime/html-validate-map.ts:20-28` and `runtime/html-validate-runtime.ts:26-34`
-  list the identical 7-rule set; adding/removing a rendered rule edits both, and
-  `html-validate-map.ts:12-13` asserts an invariant ("every rule must map to a check
-  id") no test checks. Add a one-line test asserting
-  `Object.keys(RENDERED_RULES) == Object.keys(HTML_VALIDATE_TO_CHECK)`.
-- **P3-10 · Runtime engine error containment is inconsistent.** _(size S)_ Custom probes run bare
-  (one throwing `page.evaluate` fails the whole audit — `runtime/custom-checks/index.ts:75-128`),
-  html-validate failures are caught and treated as non-fatal (`scan.ts:271-276`), axe
-  failures kill the scan, and individual probes disagree internally
-  (`forced-colors.ts:13` wraps, `text-spacing-runtime.ts:6-68` doesn't). Define (and
-  document) one resilience contract per engine class: probes should be per-probe
-  caught, like html-validate.
-- **P3-11 · Heuristic-downgrade policy is duplicated across the two runtime adapters.** _(size S)_
-  "Runtime hits for heuristic ids become warnings" is implemented twice:
-  `runtime/findings.ts:92-100` (axe) and `runtime/custom-checks/index.ts:49-55`
-  (Playwright). It feeds `deriveRequirementStatus`; a one-sided change silently alters
-  requirement outcomes for only one engine. Extract one shared helper.
-- **P3-12 · `foldAccents`/`matchesMultilingual` byte-copied into page.evaluate ×4.** _(size S)_
-  `patterns/multilingual.ts:10-16` is the canonical home, but identical inline copies
-  exist at `runtime/applicability.ts:60-66`, `runtime/custom-checks/error-prevention.ts:27-33`,
-  `runtime/custom-checks/captcha-alternative.ts:13-19`, and
-  `runtime/custom-checks/accessible-auth-enhanced.ts:13-19`. Unlike the documented
-  `*-math.ts` split this is undocumented; the `fn.toString()` reuse precedent exists at
-  `html-validate-runtime.ts:187-191`. Favor the `toString`-injection pattern when a
-  fourth copy lands.
-- **P3-13 · `audio-description-track` ≈ `audio-description-or-alt` (~90% identical).** _(size S)_
-  Same `<video>` visit pass, same `DESCRIPTION_KINDS`, same finding shape; only the
-  transcript-adjacency rule and reason differ (`checks/audio-description-track.ts` vs
-  `checks/audio-description-or-alt.ts`). The criterion split is intentional, the code
-  isn't — one parameterized helper (track kinds + transcript acceptance + reason).
-- **P3-14 · DOM-finding construction duplicated ×3.** _(size S)_ `snippetOf`/`selectorOf`
-  (incl. the same `197…` truncation) exist at `runtime/findings.ts:72-80` and
-  `runtime/custom-checks/index.ts:33-41`; `html-validate-runtime.ts:296-303` builds a
-  third `dom` location inline. The merge/dedupe layer is centralized; the per-engine
-  translation into `RawFinding` is not. Extract one `rawFindingFromDom` helper.
+- **~~P3-6 · "domain imports only the contract" is documented but not lint-enforced.~~ COMPLETED**
+  `eslint.config.mjs` now has a `packages/domain` block with the same
+  `@complyloop/analysis-core(?!/contract)` regex already used for `src/core`.
+  Verified `domain` imports only the contract.
+- **P3-7 · `markAlertReadAction` is the lone direct-repo write.** _(size S — keep as-is)_
+  It bypasses the write wrappers (own `getDrizzle` transaction, no lock) and loads the
+  **full** workspace to touch one alert row (`actions/alerts.ts`). Functionally safe
+  (idempotent `onConflictDoUpdate`; the worker never writes the same alert id) and already
+  documented as the canonical direct-repo exception (Decisions). Trimming the load would
+  complicate the RBAC check for marginal gain — kept.
+- **~~P3-8 · Divergent "complex table" definitions.~~ COMPLETED** Folded the
+  JSX-expression span detection (`colSpan={4}`) that `table-summary.ts`'s private
+  `spanExceedsOne` had into the shared `isComplexDataTable` default in
+  `heuristic-utils.ts` (now covering all four span attrs + JSX expressions as a superset),
+  and removed the private injector + the `options` param entirely. Both consumers now
+  share one definition.
+- **~~P3-9 · html-validate rule set maintained in two files with no equality test.~~ COMPLETED**
+  Exported `HTML_VALIDATE_TO_CHECK_RULE_IDS` from `html-validate-map.ts` and added a
+  `html-validate-runtime.test.ts` assertion that it equals `HTML_VALIDATE_RENDERED_RULE_IDS`.
+- **P3-10 · Runtime engine error containment is inconsistent.** _(size S — deliberate, keep)_
+  Custom probes run bare (one throwing `page.evaluate` fails the audit), html-validate is
+  caught non-fatal, axe kills the scan. Per-probe error-swallowing into a compliance
+  scanner could silently produce a "clean" audit for a probe that crashed — failing loudly
+  is the safer contract for this product. Kept as a documented decision, not changed.
+- **~~P3-11 · Heuristic-downgrade policy is duplicated across the two runtime adapters.~~ COMPLETED**
+  Added `HEURISTIC_RUNTIME_DOWNGRADE` (`warning`/`moderate`/`medium`) to
+  `check-authority.ts`; both `runtime/findings.ts` (axe) and `runtime/custom-checks/index.ts`
+  (Playwright) now reference it.
+- **P3-12 · `foldAccents`/`matchesMultilingual` byte-copied into page.evaluate ×4.** _(size S — not
+  cleanly, kept)_ The copies are forced by browser-side `page.evaluate` serialization; fixing
+  all four via `fn.toString()` injection would be a real refactor over browser probes, not a
+  half-day change. Tracked; reuse the `html-validate-runtime.ts:187-191` injection precedent
+  when the next copy lands or a serialization helper is built.
+- **~~P3-13 · `audio-description-track` ≈ `audio-description-or-alt` (~90% identical).~~ COMPLETED**
+  Added `makeVideoDescriptionCheck({ id, reason, acceptTranscriptAlternative })` to
+  `heuristic-utils.ts`; both checks are now two-line declarations.
+- **~~P3-14 · DOM-finding construction duplicated ×3.~~ COMPLETED** Added
+  `runtime/dom-location.ts` (`htmlSnippet`, `selectorFromTarget`); `runtime/findings.ts`,
+  `runtime/custom-checks/index.ts`, and `runtime/html-validate-runtime.ts` now share them
+  (identical whitespace-collapse + 200-char truncation / unknown-selector fallback).
 
 ---
 

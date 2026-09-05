@@ -3,10 +3,13 @@ import {
   getAttribute,
   hasAnyAttr,
   jsxElementOf,
+  locationOf,
   stringValueOf,
   tagNameOf,
+  visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";
+import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 /** React keyboard event handler prop names. */
 export const KEY_HANDLERS = ["onKeyDown", "onKeyUp", "onKeyPress"] as const;
@@ -189,28 +192,29 @@ export function isDataTable(node: JsxTagNode): boolean {
 }
 
 /** True when a data table likely needs a structural summary (RGAA 5.1). */
-export function isComplexDataTable(
-  tableNode: JsxTagNode,
-  options?: { spanExceedsOne?: (node: JsxTagNode) => boolean },
-): boolean {
+export function isComplexDataTable(tableNode: JsxTagNode): boolean {
   const element = jsxElementOf(tableNode);
   if (!element) return false;
 
   const tags = descendantTags(element);
-  const spanExceedsOne =
-    options?.spanExceedsOne ??
-    ((node: JsxTagNode) => {
-      for (const name of ["colSpan", "colspan", "rowSpan", "rowspan"] as const) {
-        const attr = getAttribute(node, name);
-        if (!attr) continue;
-        const value = stringValueOf(attr);
-        if (value !== undefined) {
-          const parsed = Number.parseInt(value, 10);
-          if (Number.isFinite(parsed) && parsed > 1) return true;
-        }
+  const spanExceedsOne = (node: JsxTagNode): boolean => {
+    for (const name of ["colSpan", "colspan", "rowSpan", "rowspan"] as const) {
+      const attr = getAttribute(node, name);
+      if (!attr) continue;
+      const value = stringValueOf(attr);
+      if (value !== undefined) {
+        const parsed = Number.parseInt(value, 10);
+        if (Number.isFinite(parsed) && parsed > 1) return true;
       }
-      return false;
-    });
+      // <td colSpan={4}> — the value is a JSX expression, not a literal string.
+      if (attr.initializer && ts.isJsxExpression(attr.initializer)) {
+        const text = attr.initializer.expression?.getText() ?? "";
+        const match = text.match(/\d+/);
+        if (match !== null && Number.parseInt(match[0], 10) > 1) return true;
+      }
+    }
+    return false;
+  };
 
   let headerRows = 0;
   let dataRows = 0;
@@ -351,4 +355,40 @@ export function hasTrackOrTranscriptAlt(
   if (hasChildTrackKind(node, kinds)) return true;
   if (hasAdjacentTranscriptLink(node)) return true;
   return ariaDescribedByPointsToTranscript(node, sourceFile);
+}
+
+/**
+ * Shared AST check for `<video>` without an audio description. The two
+ * criteria (strict descriptions track vs. descriptions-or-transcript) differ
+ * only in whether an adjacent transcript is accepted — one factory, two checks.
+ */
+export function makeVideoDescriptionCheck(options: {
+  id: "audio-description-track" | "audio-description-or-alt";
+  reason: string;
+  acceptTranscriptAlternative: boolean;
+}): AccessibilityCheck {
+  return {
+    id: options.id,
+    run(source) {
+      const findings: RawFinding[] = [];
+      visitJsxTags(source.sourceFile, (node) => {
+        if (tagNameOf(node) !== "video") return;
+        const satisfied = options.acceptTranscriptAlternative
+          ? hasTrackOrTranscriptAlt(node, DESCRIPTION_KINDS, source.sourceFile)
+          : hasChildTrackKind(node, DESCRIPTION_KINDS);
+        if (satisfied) return;
+
+        findings.push({
+          checkId: options.id,
+          kind: "warning",
+          severity: "moderate",
+          confidence: "low",
+          reason: options.reason,
+          location: locationOf(source, node),
+          fix: null,
+        });
+      });
+      return findings;
+    },
+  };
 }

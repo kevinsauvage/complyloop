@@ -38,3 +38,8 @@ export function checkIdForHtmlValidateRule(
 export function htmlValidateMappedCheckIds(): CheckId[] {
   return [...new Set(Object.values(HTML_VALIDATE_TO_CHECK))];
 }
+
+/** Rule ids the map knows — kept in sync with the rendered pass by test. */
+export const HTML_VALIDATE_TO_CHECK_RULE_IDS = Object.keys(
+  HTML_VALIDATE_TO_CHECK,
+);
