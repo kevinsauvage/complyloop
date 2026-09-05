@@ -1,6 +1,6 @@
 "use client";
 
-import type { Project } from "@/core/project-types";
+import type { Project } from "@complyloop/domain/project-types";
 import { switchProjectAction } from "@/server/actions/connect";
 import { Label } from "@/components/ui/label";
 

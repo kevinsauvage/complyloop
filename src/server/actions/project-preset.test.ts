@@ -1,6 +1,6 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OrgMembership } from "@/core/project-types";
+import type { OrgMembership } from "@complyloop/domain/project-types";
 import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";

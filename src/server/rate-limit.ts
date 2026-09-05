@@ -2,9 +2,9 @@
 
 import { eq, lt } from "drizzle-orm";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { getDrizzle } from "./db-store/client";
-import { rateLimitBuckets } from "./db-store/schema";
-import { withNamedPostgresAdvisoryLock } from "./db-store/write-lock";
+import { getDrizzle } from "@complyloop/db/client";
+import { rateLimitBuckets } from "@complyloop/db/schema";
+import { withNamedPostgresAdvisoryLock } from "@complyloop/db/write-lock";
 
 export class RateLimitError extends PublicError {
   constructor(message = "Too many requests. Try again shortly.") {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { userCanConnectProjects } from "./connect-policy";
-import type { OrgMembership } from "@/core/project-types";
+import type { OrgMembership } from "@complyloop/domain/project-types";
 
 describe("userCanConnectProjects", () => {
   const membership: OrgMembership = {

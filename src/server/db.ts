@@ -1,15 +1,14 @@
-import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
-import { getDrizzle } from "./db-store/client";
-import { newEvidenceRecord } from "./db-store/repo/mappers";
+import { getDrizzle } from "@complyloop/db/client";
 import {
   loadProjectAssessmentDb,
   loadWorkspaceDb,
-} from "./db-store/workspace-load";
-import { WORKSPACE_EVIDENCE_LIMIT } from "./db-store/postgres-scope";
-import type { Db } from "./db-store/types";
+} from "@complyloop/db/workspace-load";
+import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/postgres-scope";
+import type { Db } from "@complyloop/db/types";
 
-export type { Db } from "./db-store/types";
-export { emptyDb } from "./db-store/types";
+export type { Db } from "@complyloop/db/types";
+export { emptyDb } from "@complyloop/db/types";
+export { addEvidence } from "@complyloop/db/repo/evidence";
 
 /** Loads a single project's assessment slice (no snapshots in assessment list). */
 export async function loadProjectDb(projectId: string): Promise<Db> {
@@ -28,14 +27,4 @@ export async function loadWorkspaceDbForViewer(input: {
     activeProjectId: input.preferredProjectId ?? null,
     evidenceLimit: WORKSPACE_EVIDENCE_LIMIT,
   });
-}
-
-/** Evidence is append-only: records are queued in memory then inserted via repo. */
-export function addEvidence(
-  db: Db,
-  entry: Omit<EvidenceRecord, "id" | "at">,
-): EvidenceRecord {
-  const record = newEvidenceRecord(entry);
-  db.evidence.push(record);
-  return record;
 }

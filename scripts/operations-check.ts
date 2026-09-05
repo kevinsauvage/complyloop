@@ -3,7 +3,7 @@
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
 import { sql } from "drizzle-orm";
-import { getDrizzle } from "../src/server/db-store/client";
+import { getDrizzle } from "@complyloop/db/client";
 import { queuedAssessmentJobCount } from "../src/server/assessment-jobs";
 
 loadEnv({ path: path.join(process.cwd(), ".env.local") });

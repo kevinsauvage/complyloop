@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canOnProject, isOrgRole, roleHasPermission } from "./rbac";
-import type { OrgMembership } from "./project-types";
+import type { OrgMembership } from "@complyloop/domain/project-types";
 import { testProject } from "@/test-fixtures/project";
 
 const project = testProject({ orgId: "org-1", name: "shop" });

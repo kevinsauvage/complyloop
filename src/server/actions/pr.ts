@@ -8,8 +8,8 @@ import { publicErrorMessage } from "../action-state";
 import { parseInput } from "../boundary";
 import { addEvidence } from "../db";
 import { patchCandidateFromEvidence } from "../ai-fix-result";
-import { getDrizzle } from "../db-store/client";
-import { listEvidenceForFinding } from "../db-store/postgres-queries";
+import { getDrizzle } from "@complyloop/db/client";
+import { listEvidenceForFinding } from "@complyloop/db/postgres-queries";
 import { preparePullRequest } from "../pr";
 import {
   controlById,

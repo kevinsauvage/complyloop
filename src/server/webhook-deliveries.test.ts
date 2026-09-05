@@ -7,7 +7,7 @@ const pruneState = vi.hoisted(() => ({
   deletedIds: [] as string[],
 }));
 
-vi.mock("./db-store/client", () => ({
+vi.mock("@complyloop/db/client", () => ({
   getDrizzle: async () => ({
     insert: () => ({
       values: (value: { deliveryId: string; processedAt: string }) => ({

@@ -1,6 +1,6 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Control, Requirement } from "@/core/project-types";
+import type { Control, Requirement } from "@complyloop/domain/project-types";
 import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
 import { testControl } from "@/test-fixtures/control";
 import { testFinding } from "@/test-fixtures/finding";
@@ -34,11 +34,11 @@ const refreshRequirementStatuses = vi.hoisted(() => vi.fn());
 const markAlertRead = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
 
-vi.mock("../db-store/client", () => ({
+vi.mock("@complyloop/db/client", () => ({
   getDrizzle: async () => ({ transaction }),
 }));
 
-vi.mock("../db-store/repo/alerts", () => ({
+vi.mock("@complyloop/db/repo/alerts", () => ({
   markAlertRead: (...args: unknown[]) => markAlertRead(...args),
 }));
 

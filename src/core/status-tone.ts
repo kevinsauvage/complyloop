@@ -1,5 +1,5 @@
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import type { OrgRole } from "./project-types";
+import type { OrgRole } from "@complyloop/domain/project-types";
 import { lookupExhaustive } from "./assert-exhaustive";
 
 export type StatusTone =

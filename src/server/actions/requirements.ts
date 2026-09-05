@@ -1,11 +1,11 @@
 "use server";
 
 import { z } from "zod";
-import type { Project, Requirement } from "@/core/project-types";
+import type { Project, Requirement } from "@complyloop/domain/project-types";
 import {
   REQUIREMENT_EXCEPTION_REASONS,
   TEMPORARY_EXCEPTION_REASON,
-} from "@/core/project-types";
+} from "@complyloop/domain/project-types";
 import { entityIdSchema, requiredField } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {

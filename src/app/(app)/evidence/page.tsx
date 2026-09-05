@@ -28,12 +28,12 @@ import {
   parsePageParam,
 } from "@/core/pagination";
 import { cn } from "@/lib/utils";
-import { getDrizzle } from "@/server/db-store/client";
+import { getDrizzle } from "@complyloop/db/client";
 import {
   countEvidenceForProject,
   countEvidenceKindsForProject,
   listEvidencePageForProject,
-} from "@/server/db-store/postgres-queries";
+} from "@complyloop/db/postgres-queries";
 import { getWorkspace } from "@/server/workspace";
 import { ChevronDownIcon } from "lucide-react";
 import Link from "next/link";

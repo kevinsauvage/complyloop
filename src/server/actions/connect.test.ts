@@ -1,7 +1,7 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { actionAuthMocks, actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
-import type { OrgMembership } from "@/core/project-types";
+import type { OrgMembership } from "@complyloop/domain/project-types";
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
@@ -66,20 +66,20 @@ vi.mock("./shared", () => ({
   refresh: () => refresh(),
 }));
 
-vi.mock("../db-store/client", () => ({
+vi.mock("@complyloop/db/client", () => ({
   getDrizzle: async () => ({ transaction }),
 }));
 
-vi.mock("../db-store/workspace-load", () => ({
+vi.mock("@complyloop/db/workspace-load", () => ({
   loadWorkspaceDb: (...args: unknown[]) => loadWorkspaceDb(...args),
 }));
 
-vi.mock("../db-store/repo/projects", () => ({
+vi.mock("@complyloop/db/repo/projects", () => ({
   insertProject: vi.fn(),
   deleteProject: vi.fn(),
 }));
 
-vi.mock("../db-store/repo/evidence", () => ({
+vi.mock("@complyloop/db/repo/evidence", () => ({
   insertEvidence: vi.fn(),
 }));
 

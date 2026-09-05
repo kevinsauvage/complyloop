@@ -1,6 +1,8 @@
 import { firstParam } from "./query-param";
 
-export const DEFAULT_PAGE_SIZE = 25;
+import { DEFAULT_PAGE_SIZE } from "@complyloop/domain/project-types";
+
+export { DEFAULT_PAGE_SIZE };
 
 export function parsePageParam(
   raw: string | string[] | undefined,

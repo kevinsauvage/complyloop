@@ -1,6 +1,6 @@
 import { sanitizeDownloadFilename } from "@/server/download-filename";
-import { getDrizzle } from "@/server/db-store/client";
-import { listAllEvidenceForProject } from "@/server/db-store/postgres-queries";
+import { getDrizzle } from "@complyloop/db/client";
+import { listAllEvidenceForProject } from "@complyloop/db/postgres-queries";
 import {
   buildAuditReportMarkdown,
   buildEngineeringReportMarkdown,

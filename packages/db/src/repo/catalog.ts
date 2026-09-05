@@ -1,9 +1,24 @@
 import { sql } from "drizzle-orm";
-import { mergeAdapterControls } from "@/adapters/registry";
-import type { Control, Framework } from "@/core/project-types";
-import type { DrizzleDb } from "../client";
-import { controls, frameworks } from "../schema";
-import { controlToRow, frameworkToRow } from "./mappers";
+import type { Control, Framework } from "@complyloop/domain/project-types";
+import type { DrizzleDb } from "../client.ts";
+import { controls, frameworks } from "../schema.ts";
+import { controlToRow, frameworkToRow } from "./mappers.ts";
+
+/** Result of merging a shipped adapter catalog into an existing one. */
+export interface CatalogMergeResult {
+  frameworks: Framework[];
+  controls: Control[];
+  changed: boolean;
+}
+
+/**
+ * Merges a shipped adapter catalog into the existing catalog. Injected as a
+ * port so `@complyloop/db` stays free of the app's adapter/registry layer.
+ */
+export type CatalogMerger = (
+  existingFrameworks: Framework[],
+  existingControls: Control[],
+) => CatalogMergeResult;
 
 export async function loadCatalog(
   drizzle: DrizzleDb,
@@ -19,12 +34,15 @@ export async function loadCatalog(
 }
 
 /** Seeds or merges adapter catalog — run on deploy / e2e seed, not per request. */
-export async function seedCatalog(drizzle: DrizzleDb): Promise<boolean> {
+export async function seedCatalog(
+  drizzle: DrizzleDb,
+  merge: CatalogMerger,
+): Promise<boolean> {
   const existing = await loadCatalog(drizzle);
   const merged =
     existing.frameworks.length === 0
-      ? mergeAdapterControls([], [])
-      : mergeAdapterControls(existing.frameworks, existing.controls);
+      ? merge([], [])
+      : merge(existing.frameworks, existing.controls);
   if (existing.frameworks.length > 0 && !merged.changed) return false;
 
   if (merged.frameworks.length > 0) {

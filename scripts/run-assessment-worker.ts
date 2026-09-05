@@ -2,8 +2,9 @@
 /** Runs one durable assessment worker process outside the web request path. */
 import { config as loadEnv } from "dotenv";
 import path from "node:path";
-import { getDrizzle } from "../src/server/db-store/client";
-import { seedCatalog } from "../src/server/db-store/repo/catalog";
+import { getDrizzle } from "@complyloop/db/client";
+import { seedCatalog } from "@complyloop/db/repo/catalog";
+import { mergeAdapterControls } from "../src/adapters/registry";
 import { processNextAssessmentJob } from "../src/server/assessment-worker";
 
 loadEnv({ path: path.join(process.cwd(), ".env.local") });
@@ -24,7 +25,7 @@ async function sleep(ms: number): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  await seedCatalog(await getDrizzle());
+  await seedCatalog(await getDrizzle(), mergeAdapterControls);
   while (!stopping) {
     const result = await processNextAssessmentJob();
     if (result.kind === "idle") await sleep(pollMs);

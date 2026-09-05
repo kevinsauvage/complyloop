@@ -3,7 +3,7 @@ import postgres from "postgres";
 import {
   isDatabaseSslInsecureEnabled,
   resolvePostgresSslOptions,
-} from "./postgres-ssl";
+} from "./postgres-ssl.ts";
 
 /**
  * Opens a postgres.js client from DATABASE_URL.

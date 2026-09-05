@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { testProject } from "@/test-fixtures/project";
 import type { Db } from "./db";
-import { emptyDb as baseEmptyDb } from "./db-store/types";
+import { emptyDb as baseEmptyDb } from "@complyloop/db/types";
 import { navAttentionCounts } from "./nav-attention";
 
 const project = testProject({

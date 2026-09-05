@@ -6,10 +6,10 @@ const findProjectByGithubFullName = vi.hoisted(() => vi.fn());
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const assertRateLimit = vi.hoisted(() => vi.fn());
 
-vi.mock("./db-store/client", () => ({
+vi.mock("@complyloop/db/client", () => ({
   getDrizzle: async () => ({}),
 }));
-vi.mock("./db-store/postgres-queries", () => ({
+vi.mock("@complyloop/db/postgres-queries", () => ({
   findProjectByGithubFullName: (...args: unknown[]) =>
     findProjectByGithubFullName(...args),
 }));

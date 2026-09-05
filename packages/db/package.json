@@ -1,0 +1,34 @@
+{
+  "name": "@complyloop/db",
+  "version": "0.1.0",
+  "description": "ComplyLoop Postgres persistence layer — Drizzle schema, repo mappers, workspace load, evidence store. Framework-agnostic; depends on the domain model and analysis contract.",
+  "type": "module",
+  "files": ["dist"],
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "engines": {"node": ">=20"},
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.build.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@complyloop/analysis-core": "^0.1.0",
+    "@complyloop/domain": "^0.1.0",
+    "drizzle-orm": "^0.45.2"
+  },
+  "peerDependencies": {
+    "postgres": "^3.4.9",
+    "typescript": "^5"
+  },
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "exports": {
+      ".": {"types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js"},
+      "./*": {"types": "./dist/*.d.ts", "import": "./dist/*.js", "default": "./dist/*.js"}
+    }
+  }
+}

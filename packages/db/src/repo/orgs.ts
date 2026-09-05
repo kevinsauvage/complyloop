@@ -1,8 +1,8 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { OrgMembership, Organization } from "@/core/project-types";
-import type { DrizzleDb } from "../client";
-import { memberships, organizations } from "../schema";
-import { membershipToRow, organizationToRow } from "./mappers";
+import type { OrgMembership, Organization } from "@complyloop/domain/project-types";
+import type { DrizzleDb } from "../client.ts";
+import { memberships, organizations } from "../schema.ts";
+import { membershipToRow, organizationToRow } from "./mappers.ts";
 
 export async function insertOrganization(
   tx: DrizzleDb,

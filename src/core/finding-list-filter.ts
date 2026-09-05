@@ -1,5 +1,5 @@
 import type { AssessmentEngine, Finding } from "@complyloop/analysis-core/contract/finding-types";
-import type { Control } from "./project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import { formatLocationRef, locationPathOrUrl } from "@complyloop/analysis-core/contract/location";
 import { parsePageParam } from "./pagination";
 import { parseEnumParam, firstParam, buildHref } from "./query-param";
@@ -67,11 +67,11 @@ export function hasActiveFindingFilters(
 ): boolean {
   return Boolean(
     params.q ||
-      params.severity ||
-      params.engine ||
-      params.remediation ||
-      params.control ||
-      params.cluster,
+    params.severity ||
+    params.engine ||
+    params.remediation ||
+    params.control ||
+    params.cluster,
   );
 }
 

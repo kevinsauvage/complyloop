@@ -1,8 +1,8 @@
 import type { EmitterWebhookEvent } from "@octokit/webhooks";
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
 import { enqueueAssessmentJob } from "./assessment-jobs";
-import { getDrizzle } from "./db-store/client";
-import { findProjectByGithubFullName } from "./db-store/postgres-queries";
+import { getDrizzle } from "@complyloop/db/client";
+import { findProjectByGithubFullName } from "@complyloop/db/postgres-queries";
 import { assertRateLimit } from "./rate-limit";
 
 type PushPayload = EmitterWebhookEvent<"push">["payload"];

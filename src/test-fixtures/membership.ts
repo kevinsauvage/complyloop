@@ -1,4 +1,4 @@
-import type { OrgMembership } from "@/core/project-types";
+import type { OrgMembership } from "@complyloop/domain/project-types";
 
 export function testMembership(
   role: OrgMembership["role"],

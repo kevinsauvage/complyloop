@@ -64,6 +64,42 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // Persistence and domain packages are framework-agnostic leaves: they must
+  // not import app/server/adapters layers. They may import the analysis
+  // contract and each other.
+  {
+    files: ["packages/db/**/*.{ts,tsx}", "packages/domain/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/server",
+                "**/server/**",
+                "**/adapters",
+                "**/adapters/**",
+                "**/components",
+                "**/components/**",
+                "**/app",
+                "**/app/**",
+                "**/ai",
+                "**/ai/**",
+              ],
+              message:
+                "packages/db and packages/domain must not import app/server/adapters/AI layers — see docs/ai/architecture.md (module boundaries).",
+            },
+            {
+              regex: "^(../)*src/",
+              message:
+                "packages/db and packages/domain must not reach outside the package (no ../src) — see docs/ai/architecture.md (module boundaries).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   // `.data/` is legacy local junk (gitignored); `packages/check/testdata` and
   // `e2e/fixtures` have deliberate accessibility violations — do not lint.
@@ -77,6 +113,8 @@ const eslintConfig = defineConfig([
     "packages/check/testdata/**",
     "packages/check/dist/**",
     "packages/analysis-core/dist/**",
+    "packages/db/dist/**",
+    "packages/domain/dist/**",
     "e2e/fixtures/**",
     ".data/**",
   ]),

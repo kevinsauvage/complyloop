@@ -6,7 +6,7 @@ import { buttonNameCheck } from "@complyloop/analysis-core/checks/button-name";
 import { applyFix } from "@complyloop/analysis-core/fixes";
 import { parseSource } from "@complyloop/analysis-core/parse";
 import { scanFile } from "@complyloop/analysis-core/scan";
-import type { Control, Project } from "@/core/project-types";
+import type { Control, Project } from "@complyloop/domain/project-types";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { testProject } from "@/test-fixtures/project";
 import { locateViolationInProject, mergeFix } from "./assessment-helpers";

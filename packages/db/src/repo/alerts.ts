@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import type { Alert } from "@complyloop/analysis-core/contract/finding-types";
-import type { DrizzleDb } from "../client";
-import { alerts } from "../schema";
-import { alertToRow } from "./mappers";
+import type { DrizzleDb } from "../client.ts";
+import { alerts } from "../schema.ts";
+import { alertToRow } from "./mappers.ts";
 
 export async function markAlertRead(tx: DrizzleDb, alert: Alert): Promise<void> {
   const updated = { ...alert, read: true };

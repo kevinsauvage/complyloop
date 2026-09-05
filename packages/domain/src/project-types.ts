@@ -1,5 +1,8 @@
 import type { DeterminationMethod, RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
+/** Default page size for list queries/views across app and db layers. */
+export const DEFAULT_PAGE_SIZE = 25;
+
 export interface Framework {
   id: string;
   name: string;

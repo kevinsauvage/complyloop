@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
-import type { DrizzleDb } from "../client";
-import { findings } from "../schema";
-import { findingToRow } from "./mappers";
+import type { DrizzleDb } from "../client.ts";
+import { findings } from "../schema.ts";
+import { findingToRow } from "./mappers.ts";
 
 export async function upsertFindings(
   tx: DrizzleDb,

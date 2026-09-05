@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
-import type { Requirement } from "@/core/project-types";
+import type { Requirement } from "@complyloop/domain/project-types";
 import { AssessedRequirementList } from "./assessed-requirement-list";
 
 vi.mock("./requirement-card", () => ({

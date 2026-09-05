@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Control } from "@/core/project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { generateObject } from "ai";
 import { generateAiRemediation } from "./remediation";
@@ -16,7 +16,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
   warn.mockClear();
   generate.mockReset();
-  setAiWarn(() => {});
+  setAiWarn(() => { });
 });
 
 const control = {

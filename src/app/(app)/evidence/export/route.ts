@@ -1,5 +1,5 @@
-import { getDrizzle } from "@/server/db-store/client";
-import { listAllEvidenceForProject } from "@/server/db-store/postgres-queries";
+import { getDrizzle } from "@complyloop/db/client";
+import { listAllEvidenceForProject } from "@complyloop/db/postgres-queries";
 import {
   controlsInScope,
   requirementsInScope,

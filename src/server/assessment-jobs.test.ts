@@ -28,7 +28,7 @@ type Clause =
 const jobs = vi.hoisted(() => new Map<string, JobRow>());
 const getDrizzle = vi.hoisted(() => vi.fn());
 
-vi.mock("./db-store/client", () => ({
+vi.mock("@complyloop/db/client", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 

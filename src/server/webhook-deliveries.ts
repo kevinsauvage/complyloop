@@ -1,6 +1,6 @@
 import { asc, count, inArray } from "drizzle-orm";
-import { getDrizzle } from "./db-store/client";
-import { webhookDeliveries } from "./db-store/schema";
+import { getDrizzle } from "@complyloop/db/client";
+import { webhookDeliveries } from "@complyloop/db/schema";
 
 const MAX_DELIVERIES = 2000;
 

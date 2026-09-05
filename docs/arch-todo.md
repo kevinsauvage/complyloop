@@ -1,18 +1,18 @@
 # Architecture refactor backlog
 
-Where we are, what to extract next, and with what payoff. **Sibling doc:** [`ai/architecture.md`](./ai/architecture.md) for the current shape; this file is the *work* backlog on top of it.
+Where we are, what to extract next, and with what payoff. **Sibling doc:** [`ai/architecture.md`](./ai/architecture.md) for the current shape; this file is the _work_ backlog on top of it.
 
 ## Current shape (snapshot)
 
-| Layer | LOC | Nature |
-| --- | --- | --- |
+| Layer                    | LOC   | Nature                                                      |
+| ------------------------ | ----- | ----------------------------------------------------------- |
 | `packages/analysis-core` | 12.4k | True package: `contract/`, `checks/`, `runtime/`, `scan.ts` |
-| `src/server` | 9.2k | App layer; `actions/` 4.5k, `db-store/` 2.1k |
-| `src/components` | 8.0k | UI (feature folders) |
-| `src/adapters` | 3.2k | RGAA/WCAG catalog + presets + guidance |
-| `src/app` | 2.3k | Next routes/API |
-| `src/core` | 1.8k | 26 framework-agnostic helpers |
-| `src/ai` | 0.4k | explain / fix / remediate |
+| `src/server`             | 9.2k  | App layer; `actions/` 4.5k, `db-store/` 2.1k                |
+| `src/components`         | 8.0k  | UI (feature folders)                                        |
+| `src/adapters`           | 3.2k  | RGAA/WCAG catalog + presets + guidance                      |
+| `src/app`                | 2.3k  | Next routes/API                                             |
+| `src/core`               | 1.8k  | 26 framework-agnostic helpers                               |
+| `src/ai`                 | 0.4k  | explain / fix / remediate                                   |
 
 Already healthy: `contract/` is the shared seam, `src/core` is framework-agnostic and ESLint-enforced, `db-store` is a clean leaf. Extraction work below is about **releasing** the seams, not creating them.
 
@@ -29,7 +29,10 @@ Already healthy: `contract/` is the shared seam, `src/core` is framework-agnosti
 - **Win:** CLI decouples from the app and becomes buildable from `analysis-core` alone; removes a build-snapshot wart.
 - **Risks:** low. Respect `.ts`-specifier Turbopack rule (see G1).
 
-### T2 · Extract `src/server/db-store/` → `@complyloop/db`
+### T2 ~~Extract `src/server/db-store/` → `@complyloop/db`~~ **DONE**
+
+> Done (option A): extracted a `@complyloop/domain` package (the product domain model from `src/core/project-types.ts` + `DEFAULT_PAGE_SIZE`), extracted `@complyloop/db` (all 27 db-store files: 16 src + 11 repo) on top of it, parameterized the adapter catalog merge as a `CatalogMerger` port injected by app callers, and added `addEvidence` to the db package. App keeps re-export shims at `@complyloop/domain/project-types` / `@/core/pagination` / `src/server/db.ts` so ~80 import sites didn't all need rewriting. Wired workspaces, vitest include/coverage, eslint package boundary guards, `next.config` `transpilePackages`, Dockerfile (build + ship dist + exports swap), npm `build:domain`/`build:db`, nested `.gitignore`. db package emits publish-safe `.js`-extension `dist`. Verified: root + package `typecheck`, `lint`, `build:domain`, `build:db`, isolated db build, full `npm run test` (253 passed), full `next build` (all routes), compose config valid.
+> **Note (premise correction):** the task's "clean leaf" assumption was false — db-store rows are the app's domain types (Project/Organization/etc., not in the analysis contract), so standalone extraction required extracting the domain model first. Read the archived original "Why" below for the original framing.
 
 - **Why.** Two deployables ship one tree today: the Next app (docker `app`) and the worker (`npx tsx scripts/run-assessment-worker.ts`, docker `worker`); both pull `src/server` incl. `db-store`. `db-store` is already a clean leaf (only `drizzle-orm` + `postgres`, no app imports, emits `contract` types) — schema, 11 `repo/` mappers, `client`.
 - **Workload:** 2–4 days (move + package.json + exports + Dockerfile paths + migration step).

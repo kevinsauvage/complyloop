@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import type { Remediation } from "@complyloop/analysis-core/contract/finding-types";
-import type { DrizzleDb } from "../client";
-import { remediations } from "../schema";
-import { remediationToRow } from "./mappers";
+import type { DrizzleDb } from "../client.ts";
+import { remediations } from "../schema.ts";
+import { remediationToRow } from "./mappers.ts";
 
 export async function upsertRemediations(
   tx: DrizzleDb,

@@ -12,6 +12,8 @@
     "dev": "next dev",
     "build": "next build",
     "build:core": "npm run build --workspace @complyloop/analysis-core",
+    "build:domain": "npm run build --workspace @complyloop/domain",
+    "build:db": "npm run build --workspace @complyloop/db",
     "analyze": "next experimental-analyze --output",
     "start": "next start",
     "lint": "eslint",

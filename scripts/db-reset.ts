@@ -8,7 +8,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
-import { createPostgresClient } from "../src/server/db-store/postgres-url";
+import { createPostgresClient } from "@complyloop/db/postgres-url";
 
 function loadLocalEnv(): void {
   if (process.env.DATABASE_URL?.trim()) return;

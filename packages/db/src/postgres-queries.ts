@@ -1,9 +1,9 @@
 import { and, asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
 import type { EvidenceKind, EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
-import { DEFAULT_PAGE_SIZE } from "@/core/pagination";
-import type { DrizzleDb } from "./client";
-import { rowToEvidence } from "./postgres-evidence";
-import { evidence, memberships, projects } from "./schema";
+import { DEFAULT_PAGE_SIZE } from "@complyloop/domain/project-types";
+import type { DrizzleDb } from "./client.ts";
+import { rowToEvidence } from "./postgres-evidence.ts";
+import { evidence, memberships, projects } from "./schema.ts";
 
 /** Zero-based OFFSET for a 1-based UI page. */
 export function sqlPageOffset(page: number, pageSize: number): number {

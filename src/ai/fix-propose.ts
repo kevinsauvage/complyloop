@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import type { Control } from "@/core/project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";

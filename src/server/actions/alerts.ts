@@ -7,8 +7,8 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm } from "../boundary";
-import { getDrizzle } from "../db-store/client";
-import { markAlertRead } from "../db-store/repo/alerts";
+import { getDrizzle } from "@complyloop/db/client";
+import { markAlertRead } from "@complyloop/db/repo/alerts";
 import { alertById, getWorkspace } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 

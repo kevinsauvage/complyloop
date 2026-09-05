@@ -1,7 +1,7 @@
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
-import type { OrgMembership, Project } from "@/core/project-types";
+import type { OrgMembership, Project } from "@complyloop/domain/project-types";
 import type { Db } from "@/server/db";
-import { emptyDb } from "@/server/db-store/types";
+import { emptyDb } from "@complyloop/db/types";
 import type { Workspace } from "@/server/workspace";
 import { testFinding } from "./finding";
 import { testMembership } from "./membership";

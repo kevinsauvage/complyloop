@@ -1,8 +1,8 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { Project } from "@/core/project-types";
-import type { DrizzleDb } from "../client";
-import { projects } from "../schema";
-import { projectToRow } from "./mappers";
+import type { Project } from "@complyloop/domain/project-types";
+import type { DrizzleDb } from "../client.ts";
+import { projects } from "../schema.ts";
+import { projectToRow } from "./mappers.ts";
 
 export async function insertProject(tx: DrizzleDb, project: Project): Promise<void> {
   await tx.insert(projects).values(projectToRow(project));

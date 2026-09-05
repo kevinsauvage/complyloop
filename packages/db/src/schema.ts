@@ -10,7 +10,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { ORG_ROLES } from "@/core/project-types";
+import { ORG_ROLES } from "@complyloop/domain/project-types";
 import type {
   Control,
   Framework,
@@ -18,7 +18,7 @@ import type {
   Organization,
   Project,
   Requirement,
-} from "@/core/project-types";
+} from "@complyloop/domain/project-types";
 import type {
   Alert,
   Assessment,

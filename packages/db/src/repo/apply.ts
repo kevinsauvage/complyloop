@@ -6,14 +6,14 @@ import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/finding-types";
-import type { Requirement } from "@/core/project-types";
-import type { DrizzleDb } from "../client";
-import { insertAlerts } from "./alerts";
-import { insertAssessment } from "./assessments";
-import { insertEvidenceRecords } from "./evidence";
-import { upsertFindings } from "./findings";
-import { upsertRemediations } from "./remediations";
-import { upsertRequirements } from "./requirements";
+import type { Requirement } from "@complyloop/domain/project-types";
+import type { DrizzleDb } from "../client.ts";
+import { insertAlerts } from "./alerts.ts";
+import { insertAssessment } from "./assessments.ts";
+import { insertEvidenceRecords } from "./evidence.ts";
+import { upsertFindings } from "./findings.ts";
+import { upsertRemediations } from "./remediations.ts";
+import { upsertRequirements } from "./requirements.ts";
 
 export interface AssessmentApplyPayload {
   assessment: Assessment;

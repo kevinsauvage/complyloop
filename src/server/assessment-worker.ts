@@ -7,12 +7,12 @@ import {
 } from "./assessment-jobs";
 import { runAssessment } from "./assessment";
 import { loadProjectDb, type Db } from "./db";
-import { getDrizzle } from "./db-store/client";
+import { getDrizzle } from "@complyloop/db/client";
 import {
   applyAssessmentPayload,
   buildAssessmentApplyPayload,
-} from "./db-store/repo/apply";
-import { insertEvidence } from "./db-store/repo/evidence";
+} from "@complyloop/db/repo/apply";
+import { insertEvidence } from "@complyloop/db/repo/evidence";
 import {
   postPullRequestCheckRun,
   summarizeAssessmentForCheckRun,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { wcagFramework } from "@/adapters/wcag/controls";
-import type { Requirement } from "@/core/project-types";
+import type { Requirement } from "@complyloop/domain/project-types";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { testProject } from "@/test-fixtures/project";
 import { emptyDb } from "./db";

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testProject } from "@/test-fixtures/project";
 import { testMembership } from "@/test-fixtures/membership";
-import { emptyDb } from "@/server/db-store/types";
+import { emptyDb } from "@complyloop/db/types";
 
 const auth = vi.hoisted(() => vi.fn());
 const readActiveOrgCookie = vi.hoisted(() => vi.fn());
@@ -16,11 +16,11 @@ vi.mock("./active-cookies", () => ({
   readActiveOrgCookie,
   readActiveProjectCookie,
 }));
-vi.mock("./db-store/client", () => ({ getDrizzle }));
-vi.mock("./db-store/workspace-load", () => ({ loadWorkspaceDb }));
-vi.mock("./db-store/repo/apply", async () => {
-  const actual = await vi.importActual<typeof import("./db-store/repo/apply")>(
-    "./db-store/repo/apply",
+vi.mock("@complyloop/db/client", () => ({ getDrizzle }));
+vi.mock("@complyloop/db/workspace-load", () => ({ loadWorkspaceDb }));
+vi.mock("@complyloop/db/repo/apply", async () => {
+  const actual = await vi.importActual<typeof import("@complyloop/db/repo/apply")>(
+    "@complyloop/db/repo/apply",
   );
   return {
     ...actual,
@@ -28,7 +28,7 @@ vi.mock("./db-store/repo/apply", async () => {
       persistProjectSliceDiff(...args),
   };
 });
-vi.mock("./db-store/repo/projects", () => ({ updateProject }));
+vi.mock("@complyloop/db/repo/projects", () => ({ updateProject }));
 
 import { withProjectWrite } from "./workspace";
 

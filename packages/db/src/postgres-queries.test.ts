@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PAGE_SIZE } from "@/core/pagination";
+import { DEFAULT_PAGE_SIZE } from "@complyloop/domain/project-types";
 import { sqlPageOffset } from "./postgres-queries";
 
 describe("sqlPageOffset", () => {

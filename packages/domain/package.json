@@ -1,0 +1,31 @@
+{
+  "name": "@complyloop/domain",
+  "version": "0.1.0",
+  "description": "ComplyLoop product domain model — orgs, projects, requirements, catalog types. Framework-agnostic; depends only on the analysis contract.",
+  "type": "module",
+  "files": ["dist"],
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "engines": {"node": ">=20"},
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.build.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@complyloop/analysis-core": "^0.1.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "exports": {
+      ".": {"types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js"},
+      "./*": {"types": "./dist/*.d.ts", "import": "./dist/*.js", "default": "./dist/*.js"}
+    }
+  }
+}

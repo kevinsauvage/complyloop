@@ -10,8 +10,8 @@ import {
 } from "@complyloop/analysis-core/check-authority";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import type { Control, Project, Requirement } from "@/core/project-types";
-import { TEMPORARY_EXCEPTION_REASON } from "@/core/project-types";
+import type { Control, Project, Requirement } from "@complyloop/domain/project-types";
+import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/domain/project-types";
 import { addEvidence, type Db } from "./db";
 import { findingsForProject, requirementsForProject } from "./project-visibility";
 
@@ -278,10 +278,10 @@ export function refreshRequirementStatuses(
           changeContext: regression ? changeContext : undefined,
           ...(status === "not_applicable" && control.checkId
             ? {
-                applicabilityFact:
-                  applicabilityFacts?.get(control.checkId) ??
-                  "Criterion does not apply on audited pages.",
-              }
+              applicabilityFact:
+                applicabilityFacts?.get(control.checkId) ??
+                "Criterion does not apply on audited pages.",
+            }
             : {}),
         },
       });

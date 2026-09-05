@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyDb } from "./db-store/types";
+import { emptyDb } from "@complyloop/db/types";
 import {
   claimMembershipsForLogin,
   changeOrgMemberRole,

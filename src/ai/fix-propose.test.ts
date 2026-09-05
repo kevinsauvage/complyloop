@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateObject } from "ai";
-import type { Control } from "@/core/project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { proposeFixEdits } from "./fix-propose";
 

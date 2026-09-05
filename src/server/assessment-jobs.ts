@@ -1,7 +1,7 @@
 import { and, count, desc, eq, inArray, lte, sql } from "drizzle-orm";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { getDrizzle, type DrizzleDb } from "./db-store/client";
-import { assessmentJobs } from "./db-store/schema";
+import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
+import { assessmentJobs } from "@complyloop/db/schema";
 
 export type AssessmentJobStatus =
   | "queued"

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Control } from "@/core/project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { runAiFixOnCheckout } from "./ai-fix-run";
 
@@ -94,27 +94,27 @@ describe("runAiFixOnCheckout", () => {
             "autoFocus",
           )
             ? [
-                {
-                  checkId: "no-autofocus",
-                  kind: "violation",
-                  severity: "serious",
-                  confidence: "high",
-                  reason: "Avoid autofocus",
-                  location: {
-                    kind: "source",
-                    filePath: "Footer.tsx",
-                    line: 1,
-                    column: 28,
-                    snippet: "<input autoFocus />",
-                    span: {
-                      start: source.indexOf("<input"),
-                      end: source.indexOf("/>") + 2,
-                    },
+              {
+                checkId: "no-autofocus",
+                kind: "violation",
+                severity: "serious",
+                confidence: "high",
+                reason: "Avoid autofocus",
+                location: {
+                  kind: "source",
+                  filePath: "Footer.tsx",
+                  line: 1,
+                  column: 28,
+                  snippet: "<input autoFocus />",
+                  span: {
+                    start: source.indexOf("<input"),
+                    end: source.indexOf("/>") + 2,
                   },
-                  fix: null,
-                  engine: "ast",
                 },
-              ]
+                fix: null,
+                engine: "ast",
+              },
+            ]
             : [],
       },
     );

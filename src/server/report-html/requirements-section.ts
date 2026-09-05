@@ -1,6 +1,6 @@
 import { determinationLabel, requirementStatusLabel } from "@/core/labels";
 import { formatDateTime } from "@/core/format-datetime";
-import type { Control, Requirement } from "@/core/project-types";
+import type { Control, Requirement } from "@complyloop/domain/project-types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { controlDisplayCodes } from "@/adapters/control-theme";
 import { escapeHtml, statusClass } from "./shared";

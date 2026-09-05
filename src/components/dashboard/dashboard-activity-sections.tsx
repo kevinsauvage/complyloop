@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { evidenceKindLabel } from "@/core/labels";
-import type { Control } from "@/core/project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import type { EvidenceRecord, FileChange, Finding, FindingCluster } from "@complyloop/analysis-core/contract/finding-types";
 import { cn } from "@/lib/utils";
 

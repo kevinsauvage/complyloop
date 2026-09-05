@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { addEvidence, emptyDb } from "../db";
+import { emptyDb } from "./types";
+import { addEvidence } from "./repo/evidence";
 import {
   evidenceRecordsToInsert,
   evidenceToRow,

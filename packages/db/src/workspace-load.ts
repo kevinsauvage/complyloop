@@ -1,23 +1,23 @@
 import { desc, eq, inArray } from "drizzle-orm";
-import type { Db } from "./types";
-import type { DrizzleDb } from "./client";
-import { rowToEvidence } from "./postgres-evidence";
-import { WORKSPACE_EVIDENCE_LIMIT } from "./postgres-scope";
-import { listOrgIdsForUser } from "./postgres-queries";
-import { loadCatalog } from "./repo/catalog";
-import { listMembershipsForOrgs, listOrganizationsForUser } from "./repo/orgs";
+import type { Db } from "./types.ts";
+import type { DrizzleDb } from "./client.ts";
+import { rowToEvidence } from "./postgres-evidence.ts";
+import { WORKSPACE_EVIDENCE_LIMIT } from "./postgres-scope.ts";
+import { listOrgIdsForUser } from "./postgres-queries.ts";
+import { loadCatalog } from "./repo/catalog.ts";
+import { listMembershipsForOrgs, listOrganizationsForUser } from "./repo/orgs.ts";
 import {
   getProjectById,
   listProjectsForOrgs,
-} from "./repo/projects";
+} from "./repo/projects.ts";
 import {
   alerts,
   evidence,
   findings,
   remediations,
   requirements,
-} from "./schema";
-import { listAssessmentsForProject, getLatestAssessmentSnapshot } from "./repo/assessments";
+} from "./schema.ts";
+import { listAssessmentsForProject, getLatestAssessmentSnapshot } from "./repo/assessments.ts";
 
 async function loadEvidenceWindow(
   drizzle: DrizzleDb,

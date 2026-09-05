@@ -12,7 +12,7 @@ import {
 } from "@/ai/verified-fix";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { Control } from "@/core/project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { locateViolationInProject, mergeFix } from "./assessment-helpers";

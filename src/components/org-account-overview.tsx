@@ -7,7 +7,7 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
-import type { OrgRole } from "@/core/project-types";
+import type { OrgRole } from "@complyloop/domain/project-types";
 import { STATUS_TONE_BADGE, roleTone } from "@/core/status-tone";
 import { cn } from "@/lib/utils";
 

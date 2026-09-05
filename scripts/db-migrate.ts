@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
-import { createPostgresClient } from "../src/server/db-store/postgres-url";
+import { createPostgresClient } from "@complyloop/db/postgres-url";
 
 // Deterministic per-database lock key for serializing migrations across
 // processes. hashtext makes it stable without hand-picking a magic number.

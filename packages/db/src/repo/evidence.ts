@@ -1,8 +1,19 @@
 import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
-import type { DrizzleDb } from "../client";
-import { evidenceToRow } from "../postgres-evidence";
-import { evidence } from "../schema";
-import { newEvidenceRecord } from "./mappers";
+import type { DrizzleDb } from "../client.ts";
+import type { Db } from "../types.ts";
+import { evidenceToRow } from "../postgres-evidence.ts";
+import { evidence } from "../schema.ts";
+import { newEvidenceRecord } from "./mappers.ts";
+
+/** Evidence is append-only: queue a record in memory for a later repo insert. */
+export function addEvidence(
+  db: Db,
+  entry: Omit<EvidenceRecord, "id" | "at">,
+): EvidenceRecord {
+  const record = newEvidenceRecord(entry);
+  db.evidence.push(record);
+  return record;
+}
 
 export async function insertEvidence(
   tx: DrizzleDb,

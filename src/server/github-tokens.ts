@@ -5,8 +5,8 @@ import {
   randomBytes,
 } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { getDrizzle } from "./db-store/client";
-import { githubTokens } from "./db-store/schema";
+import { getDrizzle } from "@complyloop/db/client";
+import { githubTokens } from "@complyloop/db/schema";
 
 interface EncryptedTokenEntry {
   v: 1;

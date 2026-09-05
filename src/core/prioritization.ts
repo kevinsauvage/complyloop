@@ -1,5 +1,5 @@
 import { severityRank } from "./labels";
-import type { Control } from "./project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import type { Finding, FindingCluster } from "@complyloop/analysis-core/contract/finding-types";
 import { clusterFindings } from "./root-cause";
 

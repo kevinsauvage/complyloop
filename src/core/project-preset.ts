@@ -1,4 +1,4 @@
-import type { Project } from "./project-types";
+import type { Project } from "@complyloop/domain/project-types";
 
 /**
  * Port over the preset catalog. Core must not import adapters

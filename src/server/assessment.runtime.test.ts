@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@/adapters/rgaa/controls";
 import { isDomLocation } from "@complyloop/analysis-core/contract/location";
-import type { Project } from "@/core/project-types";
+import type { Project } from "@complyloop/domain/project-types";
 import { runAssessment } from "./assessment";
 import type { Db } from "./db";
 

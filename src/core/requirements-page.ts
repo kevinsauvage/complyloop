@@ -1,6 +1,6 @@
 import { projectDefaultPresetId } from "./project-preset";
 import type { PresetCatalog } from "./project-preset";
-import type { Project } from "./project-types";
+import type { Project } from "@complyloop/domain/project-types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { firstParam, buildHref } from "./query-param";
 

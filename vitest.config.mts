@@ -9,7 +9,12 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    include: ["src/**/*.test.{ts,tsx}", "packages/analysis-core/src/**/*.test.{ts,tsx}"],
+    include: [
+      "src/**/*.test.{ts,tsx}",
+      "packages/analysis-core/src/**/*.test.{ts,tsx}",
+      "packages/db/src/**/*.test.{ts,tsx}",
+      "packages/domain/src/**/*.test.{ts,tsx}",
+    ],
     // Assessment / temp-fs tests can exceed 5s under parallel load.
     testTimeout: 15_000,
     coverage: {
@@ -23,10 +28,13 @@ export default defineConfig({
         "src/hooks/**",
         "src/server/**",
         "packages/analysis-core/src/**",
+        "packages/db/src/**",
       ],
       exclude: [
         "src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/**/*.test.{ts,tsx}",
+        "packages/db/src/**/*.test.{ts,tsx}",
+        "packages/domain/src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/runtime/scan.ts",
         // Playwright page probes — unit job has no Chromium, so these skip.
         "packages/analysis-core/src/runtime/custom-checks/**",
@@ -49,13 +57,13 @@ export default defineConfig({
         // Markdown report assembly — HTML covered by report-html.ts tests.
         "src/server/report.ts",
         // Live Postgres wiring without a default-suite unit driver.
-        "src/server/db-store/client.ts",
-        "src/server/db-store/schema.ts",
-        "src/server/db-store/workspace-load.ts",
-        "src/server/db-store/postgres-url.ts",
-        "src/server/db-store/postgres-queries.ts",
-        "src/server/db-store/write-lock.ts",
-        "src/server/db-store/repo/**",
+        "packages/db/src/client.ts",
+        "packages/db/src/schema.ts",
+        "packages/db/src/workspace-load.ts",
+        "packages/db/src/postgres-url.ts",
+        "packages/db/src/postgres-queries.ts",
+        "packages/db/src/write-lock.ts",
+        "packages/db/src/repo/**",
       ],
       thresholds: {
         lines: 94,

@@ -13,7 +13,7 @@ import {
   parseRequirementStatusParam,
 } from "@/core/requirement-status-filter";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import type { Control } from "@/core/project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 
@@ -131,40 +131,40 @@ export default async function RequirementsPage({
             }
             className="lg:col-span-2"
           >
-          {assessed.length === 0 ? (
-            <EmptyState
-              title="No requirements assessed yet"
-              action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
-            >
-              <p>
-                Run an assessment from the dashboard to evaluate each in-scope
-                requirement for this preset.
-              </p>
-            </EmptyState>
-          ) : filtered.length === 0 ? (
-            <EmptyState
-              title="No requirements match this status"
-              action={
-                <PageActionLink href={requirementsPageHref({ presetId: selectedPresetId, defaultPresetId })}>
-                  Clear filter
-                </PageActionLink>
-              }
-            >
-              <p>
-                Try another status chip, or clear the filter to see the full
-                assessed list.
-              </p>
-            </EmptyState>
-          ) : (
-            <AssessedRequirementList
-              controls={filteredControls}
-              requirements={filtered}
-              openFindingCounts={openFindingCounts}
-              frameworkId={frameworkId}
-              canRemediate={caps.canRemediate}
-              project={project}
-            />
-          )}
+            {assessed.length === 0 ? (
+              <EmptyState
+                title="No requirements assessed yet"
+                action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
+              >
+                <p>
+                  Run an assessment from the dashboard to evaluate each in-scope
+                  requirement for this preset.
+                </p>
+              </EmptyState>
+            ) : filtered.length === 0 ? (
+              <EmptyState
+                title="No requirements match this status"
+                action={
+                  <PageActionLink href={requirementsPageHref({ presetId: selectedPresetId, defaultPresetId })}>
+                    Clear filter
+                  </PageActionLink>
+                }
+              >
+                <p>
+                  Try another status chip, or clear the filter to see the full
+                  assessed list.
+                </p>
+              </EmptyState>
+            ) : (
+              <AssessedRequirementList
+                controls={filteredControls}
+                requirements={filtered}
+                openFindingCounts={openFindingCounts}
+                frameworkId={frameworkId}
+                canRemediate={caps.canRemediate}
+                project={project}
+              />
+            )}
           </PageSection>
 
           <aside aria-label="Preset navigation" className="lg:col-span-1">

@@ -27,8 +27,8 @@ import {
   removeOrgMember,
   resolveActiveOrgId,
 } from "../orgs";
-import { getDrizzle } from "../db-store/client";
-import { listAllEvidenceForProjects } from "../db-store/postgres-queries";
+import { getDrizzle } from "@complyloop/db/client";
+import { listAllEvidenceForProjects } from "@complyloop/db/postgres-queries";
 import { getWorkspace, withOrgWrite } from "../workspace";
 import { refresh, requireSignedIn } from "./shared";
 

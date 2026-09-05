@@ -1,7 +1,7 @@
 import { buildAuditReportHtml } from "@/server/report-html/audit";
 import { buildEngineeringReportHtml } from "@/server/report-html/engineering";
-import { getDrizzle } from "@/server/db-store/client";
-import { listAllEvidenceForProject } from "@/server/db-store/postgres-queries";
+import { getDrizzle } from "@complyloop/db/client";
+import { listAllEvidenceForProject } from "@complyloop/db/postgres-queries";
 import { reportInputForProject } from "@/server/report";
 import { parseReportViewParam } from "@/core/report-view";
 import { getWorkspace } from "@/server/workspace";

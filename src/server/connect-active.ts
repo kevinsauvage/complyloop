@@ -1,4 +1,4 @@
-import type { Project } from "@/core/project-types";
+import type { Project } from "@complyloop/domain/project-types";
 import type { Db } from "./db";
 import { ConnectError } from "./connect-error";
 import { accessFromStore, isProjectVisible } from "./project-visibility";

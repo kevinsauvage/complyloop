@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { prioritizeClusters, prioritizeFindings } from "./prioritization";
-import type { Control } from "./project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 
 function finding(

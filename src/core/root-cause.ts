@@ -4,7 +4,7 @@ import type {
   DomLocation,
   SourceLocation,
 } from "@complyloop/analysis-core/contract/finding-types";
-import type { Control } from "./project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import { isDomLocation, isSourceLocation } from "@complyloop/analysis-core/contract/location";
 
 type DomFinding = Finding & { location: DomLocation };

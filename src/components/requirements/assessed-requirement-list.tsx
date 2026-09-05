@@ -3,7 +3,7 @@ import {
   controlDisplayCodes,
   groupControlsByTheme,
 } from "@/adapters/control-theme";
-import type { Control, Project, Requirement } from "@/core/project-types";
+import type { Control, Project, Requirement } from "@complyloop/domain/project-types";
 
 export function AssessedRequirementList({
   controls,

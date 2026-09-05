@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { DrizzleDb } from "./client";
+import type { DrizzleDb } from "./client.ts";
 
 /** Per-resource advisory lock (e.g. rate-limit buckets). */
 export async function withNamedPostgresAdvisoryLock<T>(

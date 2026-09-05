@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import type { Db } from "./db";
-import { emptyDb as baseEmptyDb } from "./db-store/types";
+import { emptyDb as baseEmptyDb } from "@complyloop/db/types";
 import type { AssessmentJob } from "./assessment-jobs";
 
 const claimNextAssessmentJob = vi.hoisted(() => vi.fn());
@@ -28,16 +28,16 @@ vi.mock("./assessment-jobs", () => ({
   failAssessmentJob: (...args: unknown[]) => failAssessmentJob(...args),
 }));
 
-vi.mock("./db-store/client", () => ({
+vi.mock("@complyloop/db/client", () => ({
   getDrizzle: async () => ({ transaction }),
 }));
 
-vi.mock("./db-store/repo/apply", () => ({
+vi.mock("@complyloop/db/repo/apply", () => ({
   applyAssessmentPayload: (...args: unknown[]) => applyAssessmentPayload(...args),
   buildAssessmentApplyPayload: (input: unknown) => input,
 }));
 
-vi.mock("./db-store/repo/evidence", () => ({
+vi.mock("@complyloop/db/repo/evidence", () => ({
   insertEvidence: (...args: unknown[]) => insertEvidence(...args),
 }));
 

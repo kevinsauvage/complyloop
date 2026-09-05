@@ -4,7 +4,7 @@ import { rgaaPresets } from "@/adapters/rgaa/presets";
 import { wcagFramework } from "@/adapters/wcag/controls";
 import { wcagPresets } from "@/adapters/wcag/presets";
 import type { CheckId } from "@complyloop/analysis-core/types";
-import type { Control, Framework } from "@/core/project-types";
+import type { Control, Framework } from "@complyloop/domain/project-types";
 import type { PresetCatalog } from "@/core/project-preset";
 import type { CheckGuidance, FrameworkAdapter, FrameworkPreset } from "./types";
 

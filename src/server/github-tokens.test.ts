@@ -7,7 +7,7 @@ import {
 
 const getDrizzle = vi.hoisted(() => vi.fn());
 
-vi.mock("./db-store/client", () => ({
+vi.mock("@complyloop/db/client", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 

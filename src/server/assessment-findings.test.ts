@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Project } from "@/core/project-types";
-import { emptyDb } from "./db-store/types";
+import type { Project } from "@complyloop/domain/project-types";
+import { emptyDb } from "@complyloop/db/types";
 import { createFinding } from "./assessment-findings";
 
 const project: Project = {

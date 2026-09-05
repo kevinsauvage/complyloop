@@ -1,4 +1,4 @@
-import type { Control } from "@/core/project-types";
+import type { Control } from "@complyloop/domain/project-types";
 import { wcagFramework } from "@/adapters/wcag/controls";
 
 const RGAA_THEMES = [

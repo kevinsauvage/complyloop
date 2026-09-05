@@ -2,7 +2,7 @@ import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { actionAuthMocks, actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { Organization } from "@/core/project-types";
+import type { Organization } from "@complyloop/domain/project-types";
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
@@ -59,11 +59,11 @@ vi.mock("./shared", async () => {
   };
 });
 
-vi.mock("../db-store/client", () => ({
+vi.mock("@complyloop/db/client", () => ({
   getDrizzle: async () => ({}),
 }));
 
-vi.mock("../db-store/postgres-queries", () => ({
+vi.mock("@complyloop/db/postgres-queries", () => ({
   listAllEvidenceForProjects: async () => [],
 }));
 

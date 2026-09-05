@@ -1,17 +1,17 @@
 import { cache } from "react";
 import { auth } from "@/auth";
-import type { Control, OrgMembership, Organization, Project } from "@/core/project-types";
+import type { Control, OrgMembership, Organization, Project } from "@complyloop/domain/project-types";
 import type { Alert, Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   readActiveOrgCookie,
   readActiveProjectCookie,
 } from "./active-cookies";
-import { getDrizzle } from "./db-store/client";
+import { getDrizzle } from "@complyloop/db/client";
 import {
   persistProjectSliceDiff,
   snapshotProjectSlice,
-} from "./db-store/repo/apply";
+} from "@complyloop/db/repo/apply";
 import {
   claimMembershipsForLogin,
   deleteMembership,
@@ -19,9 +19,9 @@ import {
   insertMembership,
   insertOrganization,
   upsertMembership,
-} from "./db-store/repo/orgs";
-import { updateProject } from "./db-store/repo/projects";
-import { loadWorkspaceDb } from "./db-store/workspace-load";
+} from "@complyloop/db/repo/orgs";
+import { updateProject } from "@complyloop/db/repo/projects";
+import { loadWorkspaceDb } from "@complyloop/db/workspace-load";
 import {
   loadWorkspaceDbForViewer,
   type Db,

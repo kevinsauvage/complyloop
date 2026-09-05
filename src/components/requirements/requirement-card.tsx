@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { findingsListHref } from "@/core/finding-list-filter";
-import type { Control, Project, Requirement } from "@/core/project-types";
+import type { Control, Project, Requirement } from "@complyloop/domain/project-types";
 import {
   unableToVerifyReason,
   unableToVerifyReasonLabel,
@@ -34,14 +34,14 @@ export function RequirementCard({
   const unverifiableReason =
     requirement.status === "unable_to_verify"
       ? unableToVerifyReason(control, project, {
-          isRuntimeOnlyCheck: control.checkId
-            ? isRuntimeOnlyCheck(control.checkId)
-            : false,
-          isHeuristicCheck: control.checkId
-            ? isHeuristicCheck(control.checkId)
-            : false,
-          isPertinenceTwin: isPertinenceTwinControl(control.id),
-        })
+        isRuntimeOnlyCheck: control.checkId
+          ? isRuntimeOnlyCheck(control.checkId)
+          : false,
+        isHeuristicCheck: control.checkId
+          ? isHeuristicCheck(control.checkId)
+          : false,
+        isPertinenceTwin: isPertinenceTwinControl(control.id),
+      })
       : null;
   const openFindingsHref =
     openCount > 0
@@ -102,7 +102,7 @@ export function RequirementCard({
             <AlertDescription className="text-sm text-muted-foreground">
               {unableToVerifyReasonLabel(unverifiableReason)}
               {unverifiableReason === "needs_preview_url" ||
-              unverifiableReason === "runtime_only_pending" ? (
+                unverifiableReason === "runtime_only_pending" ? (
                 <span className="mt-2 block">
                   <Link
                     href="/settings"

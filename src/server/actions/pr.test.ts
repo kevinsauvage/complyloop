@@ -25,11 +25,11 @@ vi.mock("../pr", () => ({
   preparePullRequest: (...args: unknown[]) => preparePullRequest(...args),
 }));
 
-vi.mock("../db-store/client", () => ({
+vi.mock("@complyloop/db/client", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 
-vi.mock("../db-store/postgres-queries", () => ({
+vi.mock("@complyloop/db/postgres-queries", () => ({
   listEvidenceForFinding: (...args: unknown[]) =>
     listEvidenceForFinding(...args),
 }));

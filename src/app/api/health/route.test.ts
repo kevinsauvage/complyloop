@@ -5,7 +5,7 @@ import { reportError, reportWarning } from "@/server/observability";
 const getDrizzle = vi.hoisted(() => vi.fn());
 const queuedAssessmentJobCount = vi.hoisted(() => vi.fn());
 
-vi.mock("@/server/db-store/client", () => ({
+vi.mock("@complyloop/db/client", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 

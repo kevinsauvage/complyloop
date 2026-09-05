@@ -13,8 +13,8 @@ import type {
   Organization,
   Project,
   Requirement,
-} from "@/core/project-types";
-import type { AssessmentPayload } from "../schema";
+} from "@complyloop/domain/project-types";
+import type { AssessmentPayload } from "../schema.ts";
 
 export function frameworkToRow(framework: Framework) {
   return { id: framework.id, payload: framework };

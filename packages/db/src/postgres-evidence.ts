@@ -1,5 +1,5 @@
 import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
-import { evidence } from "./schema";
+import { evidence } from "./schema.ts";
 
 export function evidenceToRow(record: EvidenceRecord) {
   return {

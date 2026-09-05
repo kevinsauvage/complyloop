@@ -1,7 +1,8 @@
 import { config as loadEnv } from "dotenv";
 import path from "node:path";
-import { getDrizzle } from "./db-store/client";
-import { seedCatalog } from "./db-store/repo/catalog";
+import { getDrizzle } from "@complyloop/db/client";
+import { seedCatalog } from "@complyloop/db/repo/catalog";
+import { mergeAdapterControls } from "@/adapters/registry";
 
 function loadLocalEnv(): void {
   if (process.env.DATABASE_URL?.trim()) return;
@@ -14,7 +15,7 @@ function loadLocalEnv(): void {
 /** Seeds registered framework adapters — run via `npm run seed` or deploy hook. */
 export async function seedDatabaseCatalog(): Promise<void> {
   loadLocalEnv();
-  const changed = await seedCatalog(await getDrizzle());
+  const changed = await seedCatalog(await getDrizzle(), mergeAdapterControls);
   console.log(changed ? "Catalog seeded." : "Catalog already up to date.");
 }
 

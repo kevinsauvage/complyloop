@@ -1,4 +1,4 @@
-import { getDrizzle } from "@/server/db-store/client";
+import { getDrizzle } from "@complyloop/db/client";
 import { queuedAssessmentJobCount } from "@/server/assessment-jobs";
 import { reportWarning } from "@/server/observability";
 import { sql } from "drizzle-orm";

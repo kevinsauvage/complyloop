@@ -12,14 +12,15 @@ import {
   E2E_PROJECT_ID,
   E2E_VIEWER,
 } from "../e2e/constants";
-import { getDrizzle } from "../src/server/db-store/client";
-import { seedCatalog, loadCatalog } from "../src/server/db-store/repo/catalog";
-import { upsertFinding } from "../src/server/db-store/repo/findings";
-import { insertMembership, insertOrganization } from "../src/server/db-store/repo/orgs";
-import { insertProject } from "../src/server/db-store/repo/projects";
-import { upsertRemediation } from "../src/server/db-store/repo/remediations";
-import { insertAssessment } from "../src/server/db-store/repo/assessments";
-import { createPostgresClient } from "../src/server/db-store/postgres-url";
+import { getDrizzle } from "@complyloop/db/client";
+import { seedCatalog, loadCatalog } from "@complyloop/db/repo/catalog";
+import { mergeAdapterControls } from "../src/adapters/registry";
+import { upsertFinding } from "@complyloop/db/repo/findings";
+import { insertMembership, insertOrganization } from "@complyloop/db/repo/orgs";
+import { insertProject } from "@complyloop/db/repo/projects";
+import { upsertRemediation } from "@complyloop/db/repo/remediations";
+import { insertAssessment } from "@complyloop/db/repo/assessments";
+import { createPostgresClient } from "@complyloop/db/postgres-url";
 import { storeUserGitHubToken } from "../src/server/github-tokens";
 
 function loadLocalEnv(): void {
@@ -68,7 +69,7 @@ async function main(): Promise<void> {
 
   const now = new Date().toISOString();
   const drizzle = await getDrizzle();
-  await seedCatalog(drizzle);
+  await seedCatalog(drizzle, mergeAdapterControls);
 
   const catalog = await loadCatalog(drizzle);
   const control =

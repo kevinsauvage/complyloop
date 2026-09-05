@@ -14,7 +14,7 @@ import { ReasonNoteFields } from "@/components/reason-note-fields";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { Control, Requirement } from "@/core/project-types";
+import type { Control, Requirement } from "@complyloop/domain/project-types";
 import {
   clearRequirementExceptionAction,
   clearRequirementHumanPassAction,

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Organization } from "@/core/project-types";
+import type { Organization } from "@complyloop/domain/project-types";
 import { switchOrgAction } from "@/server/actions/org";
 import { Label } from "@/components/ui/label";
 

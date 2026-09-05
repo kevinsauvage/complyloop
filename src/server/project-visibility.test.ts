@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { OrgMembership, Organization, Project, Requirement } from "@/core/project-types";
+import type { OrgMembership, Organization, Project, Requirement } from "@complyloop/domain/project-types";
 import type { EvidenceRecord, Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { testProject } from "@/test-fixtures/project";
 import {

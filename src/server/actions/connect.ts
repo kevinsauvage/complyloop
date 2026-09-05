@@ -22,10 +22,10 @@ import {
   findConnectedGitHubProject,
 } from "../connect-github";
 import { userCanConnectProjects } from "../connect-policy";
-import { getDrizzle } from "../db-store/client";
-import { insertEvidence } from "../db-store/repo/evidence";
-import { deleteProject, insertProject } from "../db-store/repo/projects";
-import { loadWorkspaceDb } from "../db-store/workspace-load";
+import { getDrizzle } from "@complyloop/db/client";
+import { insertEvidence } from "@complyloop/db/repo/evidence";
+import { deleteProject, insertProject } from "@complyloop/db/repo/projects";
+import { loadWorkspaceDb } from "@complyloop/db/workspace-load";
 import { fetchGitHubRepo } from "../github";
 import {
   createInstallationAccessToken,
