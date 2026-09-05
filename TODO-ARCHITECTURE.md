@@ -37,7 +37,7 @@ migration). Rough planning estimates; the priority class is the impact signal.
   Grep-verified: **no client component imports server or AI code**.
 - **Status derivation is single-sourced** (`contract/requirement-status.ts`); the
   authority classifier has documented precedence `site_level → runtime_only →
-  heuristic → composition_sensitive → standard` (`check-authority.ts:184-207`) with
+heuristic → composition_sensitive → standard` (`check-authority.ts:184-207`) with
   overlap tests. Check-id lists are compile-checked with `satisfies readonly CheckId[]`.
 - **Worker and job model are sound.** SKIP LOCKED claim, 30-min lease with recovery,
   3 attempts + exponential backoff, serial per project, per-project advisory lock at
@@ -86,12 +86,12 @@ migration). Rough planning estimates; the priority class is the impact signal.
 
 ## P0 — Critical
 
-### P0-1 · Human decisions on findings/remediations can be silently reverted by a stale webhook assessment (successor of the old P0-2) — *size L*
+### P0-1 · Human decisions on findings/remediations can be silently reverted by a stale webhook assessment (successor of the old P0-2) — _size L_
 
 **What is wrong.** The worker loads the project slice **before** the scan and outside
 its persist transaction (`src/server/assessment-worker.ts:80-91,112-137`). When the
 assessment commits, `applyAssessmentPayload` unconditionally upserts any finding the
-scan mutated relative to that *stale* load. `upsertFindings` is a full-row overwrite
+scan mutated relative to that _stale_ load. `upsertFindings` is a full-row overwrite
 with no version check (`packages/db/src/repo/findings.ts:15-26`; same for
 `remediations.ts`), and `Finding` has **no `updatedAt` field at all** — only
 `detectedAt` (`contract/finding-types.ts:161-184`) — so the requirements stale-guard
@@ -133,7 +133,7 @@ exercised by the same test.
 
 ## P1 — High
 
-### P1-1 · Advisory locks are acquired *after* the load; org writes have no lock at all — *size M*
+### P1-1 · Advisory locks are acquired _after_ the load; org writes have no lock at all — _size M_
 
 **What is wrong.** In `withProjectWrite` the workspace load happens before
 `acquireNamedPostgresAdvisoryLock` (`src/server/workspace.ts:183-200`); the same order
@@ -162,7 +162,7 @@ or route it through the shared write wrapper. Keep the worker's lock-at-persist 
 `withProjectWrite` calls each see the other's committed state (lock-before-load), and
 that concurrent org membership writes serialize instead of overwriting.
 
-### P1-2 · Report section composition is written twice (markdown + HTML) — *size L*
+### P1-2 · Report section composition is written twice (markdown + HTML) — _size L_
 
 **What is wrong.** `src/server/report.ts` (295 LOC, engineering + audit markdown) and
 `src/server/report-html/` (`shared.ts` 430 LOC — mostly CSS — plus `audit.ts`,
@@ -189,7 +189,7 @@ thresholds today).
 **Definition of done.** A new evidence kind renders in both formats through one
 composer; `audit.ts`/`engineering.ts` have component tests.
 
-### P1-3 · Change detection is re-implemented 4×; the whole-slice diff model is still the default for non-hot actions — *size L*
+### P1-3 · Change detection is re-implemented 4×; the whole-slice diff model is still the default for non-hot actions — _size L_
 
 **What is wrong.** The canonical-order `JSON.stringify` comparison appears in
 `repo/apply.ts:61-76` (`changedEntities`), `src/server/workspace.ts:202-227`
@@ -223,65 +223,7 @@ correct endpoint.
 
 ## P2 — Medium
 
-### P2-1 · The targeted-write `Db` lies about its shape — *size S*
-
-**What is wrong.** `loadTargetedProjectWriteDb` returns `evidence: []` and
-`loadTargetedProjectRuntime` returns `assessments: []`
-(`packages/db/src/workspace-load.ts:206-214,260`) even when rows exist. A handler that
-reads `db.evidence` to decide an action (e.g. "already verified", "previously
-dismissed") silently sees an empty store.
-
-**Why it matters.** Silent empty-data reads are the worst failure mode — the action
-"works" and decides on nothing. Today's handlers don't read these arrays (verified);
-the contract is implicit.
-
-**What should change.** Narrow the type for targeted writes (`Omit<Db, "evidence" |
-"assessments">` or a documented `TargetedWriteDb`), or load the evidence window.
-A type change makes the lie a compile error.
-
-**Files.** `packages/db/src/workspace-load.ts:138-262`, `src/server/workspace.ts:352-404`.
-
-### P2-2 · Personal-org provisioning runs on the read path of every page — *size S*
-
-**What is wrong.** `getWorkspace` calls `ensurePersonalOrgProvisioned` on every
-signed-in render (`src/server/workspace.ts:150-152`), which performs a full workspace
-load + membership claim + possible `insertOrganization` transaction
-(`:114-137`), then `loadWorkspaceDbForViewer` loads everything again.
-
-**Why it matters.** Write-adjacent side effects on GET renders; every page pays twice
-the load cost for a one-time bootstrap.
-
-**What should change.** Gate with a cheap "org already exists" check (the load it
-already does can short-circuit), provision on first authenticated write, or cache the
-result per user in the session/cookie. The memoization (`cache()`) only dedupes within
-a request — not across them.
-
-**Files.** `src/server/workspace.ts:114-137,143-166`.
-
-### P2-3 · Check-id knowledge is spread across 6+ manual lists — *size S*
-
-**What is wrong.** One check id is known to: `types.ts` (`CheckId` union),
-`check-authority.ts` (6 const lists: composition-sensitive, html-validate-owned,
-runtime-only, site-level, heuristic, package-twin), `checks/registry.ts` (58-entry
-`allChecks`), the three engine maps (`jsx-a11y-map.ts`, `axe-map.ts`,
-`html-validate-map.ts`), and the catalog `packages/adapters/src/rgaa/controls.ts`.
-Consistency is held by `satisfies readonly CheckId[]` on every list plus overlap tests —
-no runtime source of truth.
-
-**Why it matters.** Adding or re-classifying a check id touches most of these files;
-the classifiers (which list wins) are only documented in a comment
-(`check-authority.ts:184-200`).
-
-**What should change.** **Do not build an abstraction** (no registry-of-registries, no
-metadata-driven engine) — that's speculative machinery for a tight MVP surface. Add an
-"adding a check id" checklist to `docs/ai/architecture.md` (which lists to touch, where
-the precedence is defined), and consider a single per-check `authority` declaration
-table only when the list count or drift incidents justify it.
-
-**Files.** `packages/analysis-core/src/{types.ts,check-authority.ts,checks/registry.ts,jsx-a11y-map.ts,runtime/axe-map.ts,runtime/html-validate-map.ts}`,
-`packages/adapters/src/rgaa/controls.ts`.
-
-### P2-4 · The customer CLI is not a self-contained package — *size M*
+### P2-4 · The customer CLI is not a self-contained package — _size M_
 
 **What is wrong.** `packages/check/` contains only `bin.js` + `testdata/`; the actual
 CLI source lives at `src/cli/check.ts` and is bundled by
@@ -302,14 +244,14 @@ bundling from source with a CI smoke — `check-pack.smoke.test.ts` exists). Upd
 
 **Files.** `packages/check/bin.js`, `src/cli/check.ts`, `scripts/build-check.mjs`; `AGENTS.md`.
 
-### P2-5 · The riskiest procedural code is outside the default unit gate — only the opt-in Postgres job covers it — *size M*
+### P2-5 · The riskiest procedural code is outside the default unit gate — only the opt-in Postgres job covers it — _size M_
 
 **What is wrong.** The coverage gate excludes `src/server/workspace.ts`, every
 `packages/db/src/repo/*` file, `schema.ts`, `client.ts`, `workspace-load.ts`,
 `postgres-queries.ts`, and `report.ts` (`vitest.config.mts:50-77`) — the write path.
 The integration suite (`persist-project-slice.integration.test.ts`,
 `workspace.integration.test.ts`, constraints, evidence-append-only, alerts-upsert) is
-the only net and *is* wired into CI's `db-integration` job with a real Postgres
+the only net and _is_ wired into CI's `db-integration` job with a real Postgres
 (`ci.yml:50-76`) — so coverage exists, but it's opt-in per suite and was previously
 tracked as a gap (old P1-7; the repo/apply + mappers + write-lock files are now in the
 gate — good progress).
@@ -326,32 +268,10 @@ with unit tests), and/or add a CI guard that PRs touching `packages/db/src/repo/
 **Files.** `vitest.config.mts:35-78`, `.github/workflows/ci.yml:50-76`,
 `packages/db/src/repo/apply.ts`, `src/server/workspace.ts`.
 
-### P2-6 · `contract/` is not self-contained — the "contract-only" boundary is hollow below the lint rule — *size S*
-
-**What is wrong.** `contract/finding-types.ts:10-13` imports `AnalyzerContribution` /
-`AnalyzerId` from `../types.ts`, and `types.ts:3` imports `ParsedSource` from
-`./parse.ts` (the TypeScript-compiler-backed parser). A consumer that wants `Finding`
-pulls the entire core graph, parser included. The `contract/index.ts` aggregate entry
-frames contract as a clean leaf, but it isn't one.
-
-**Why it matters.** The enforced invariant "`domain` (and `src/core`) depend only on
-`contract/*`" (`eslint.config.mjs:47-51`) is true at the import level but not at the
-bundle/graph level: the contract leaks the engines. Any future contract-only package
-split pays for untangling this first.
-
-**What should change.** Move `AnalyzerId` / `AnalyzerContribution` (and any other
-engine-coupled types they transitively pull) into `contract/`, so `contract/*` imports
-nothing above itself. Add a repo-wide grep-style lint or a test asserting no
-`contract/**` file imports from outside `contract/`.
-
-**Files.** `packages/analysis-core/src/contract/finding-types.ts:10-13`,
-`packages/analysis-core/src/types.ts:3`, `packages/analysis-core/src/parse.ts:1`,
-`packages/analysis-core/src/contract/index.ts:1-8`.
-
-### P2-7 · Check-id governance is one-way; a reverse coverage gap and a rotting test copy — *size M*
+### P2-7 · Check-id governance is one-way; a reverse coverage gap and a rotting test copy — _size M_
 
 **What is wrong.** Enforcement is unidirectional: `satisfies readonly CheckId[]` verifies
-each manual list is *within* the union; `catalog-coverage.test.ts:70-86` checks
+each manual list is _within_ the union; `catalog-coverage.test.ts:70-86` checks
 catalog→(engines∪site-level). Nothing checks the reverse — that **every** union member
 is reachable from the catalog (a check id in the union but in no catalog control is
 silently dead across the product). Additionally, `check-authority.test.ts:15-68`
@@ -381,68 +301,68 @@ and derive the WCAG-AA list from the catalog like the full preset does.
 
 ## P3 — Low (do not start without a trigger)
 
-- **P3-1 · `frameworkAdapters` registry is half-realized.** *(size S)* `wcag` registers
+- **P3-1 · `frameworkAdapters` registry is half-realized.** _(size S)_ `wcag` registers
   `controls: []` and no `guidanceFor`; `guidanceFor` returns the first adapter with
   guidance (`packages/adapters/src/registry.ts:24-36,56-63`). Fine for one real
   framework — keep. Do **not** build the "Adding a framework" ceremony
   (`docs/ai/architecture.md:233-237`) further until a second framework exists.
-- **P3-2 · AI gateway shell duplicated ×3.** *(size S)* `src/ai/{explainer,remediation,fix-propose}.ts`
+- **P3-2 · AI gateway shell duplicated ×3.** _(size S)_ `src/ai/{explainer,remediation,fix-propose}.ts`
   repeat the same available-check + `generateObject` + try/catch + `aiWarn` + null shell
   (verified in `explainer.ts:46-84` and `remediation.ts:1-10,35-36`). `verified-fix.ts`
   is **not** a fourth copy — it is a patch-application pipeline that receives
   `propose()` by injection (`src/ai/verified-fix.ts:38-43`), which is the better
   pattern. Prompts legitimately differ; extract a ~20-line `aiCall(schema,
-  buildPrompt)` helper when a fourth call site appears.
-- **P3-3 · `report-html/audit.ts` + `engineering.ts` have no colocated tests.** *(size S)*
+buildPrompt)` helper when a fourth call site appears.
+- **P3-3 · `report-html/audit.ts` + `engineering.ts` have no colocated tests.** _(size S)_
   They're inside the coverage gate, so untested LOC drag thresholds; tracked with P1-2's
   shared-IR work.
-- **P3-4 · Docs drift on coverage excludes.** *(size S)* `docs/ai/architecture.md:247` says the
+- **P3-4 · Docs drift on coverage excludes.** _(size S)_ `docs/ai/architecture.md:247` says the
   gate excludes `write-lock` and `repo/**`; `vitest.config.mts:50-77` actually keeps
   `repo/apply.ts`, `repo/mappers.ts`, `write-lock.ts`, `postgres-evidence.ts` **in** the
   gate (only the individual `repo/*.ts` files listed are out). Update the doc. (Stale
   docs are a defect in this repo.)
-- **P3-5 · Repeated pushes re-mint regression alerts.** *(size M)* `collectRegressionAlerts`
+- **P3-5 · Repeated pushes re-mint regression alerts.** _(size M)_ `collectRegressionAlerts`
   (`assessment-worker.ts:30-74`) creates a fresh UUID alert per regressed control per
   assessment — N pushes for the same unfixed regression = N alert rows. Verify this is
   intended (it may be — each assessment is a separate event); if not, dedupe by
   (controlId, projectId) latest-wins.
-- **P3-6 · "domain imports only the contract" is documented but not lint-enforced.** *(size S)*
+- **P3-6 · "domain imports only the contract" is documented but not lint-enforced.** _(size S)_
   The package rule (`eslint.config.mjs:71-107`) blocks app/server/adapters/components/
   AI and `../src`, but `packages/domain` may still import
   `@complyloop/analysis-core/anything`. Add the same contract-only regex used for
   `src/core` (`:47-51`) for `packages/domain` — one rule, currently pure convention.
-- **P3-7 · `markAlertReadAction` is the lone direct-repo write.** *(size S)* It bypasses the
+- **P3-7 · `markAlertReadAction` is the lone direct-repo write.** _(size S)_ It bypasses the
   write wrappers (own `getDrizzle` transaction, no lock) and loads the **full**
   workspace to touch one alert row (`actions/alerts.ts`). Functionally safe
   (idempotent `onConflictDoUpdate`; the worker never writes the same alert id) — keep
   the direct-repo style, but fetch only what RBAC needs, and document it as the
   canonical targeted-repo exception.
-- **P3-8 · Divergent "complex table" definitions.** *(size S)* `checks/table-summary.ts:22-36`
+- **P3-8 · Divergent "complex table" definitions.** _(size S)_ `checks/table-summary.ts:22-36`
   defines a private `spanExceedsOne` (only `colSpan`/`colspan`, `parseInt` on string
   values, `/\d+/` on JSX expressions) and injects it into `isComplexDataTable`
   (`:47`), re-implementing the built-in default at
   `checks/heuristic-utils.ts:200-213` (all four span attrs, `stringValueOf` only). The
   same table can be "complex" for `table-summary` and not for `layout-table-markup`.
   Unify on one helper in `heuristic-utils.ts`.
-- **P3-9 · html-validate rule set maintained in two files with no equality test.** *(size S)*
+- **P3-9 · html-validate rule set maintained in two files with no equality test.** _(size S)_
   `runtime/html-validate-map.ts:20-28` and `runtime/html-validate-runtime.ts:26-34`
   list the identical 7-rule set; adding/removing a rendered rule edits both, and
   `html-validate-map.ts:12-13` asserts an invariant ("every rule must map to a check
   id") no test checks. Add a one-line test asserting
   `Object.keys(RENDERED_RULES) == Object.keys(HTML_VALIDATE_TO_CHECK)`.
-- **P3-10 · Runtime engine error containment is inconsistent.** *(size S)* Custom probes run bare
+- **P3-10 · Runtime engine error containment is inconsistent.** _(size S)_ Custom probes run bare
   (one throwing `page.evaluate` fails the whole audit — `runtime/custom-checks/index.ts:75-128`),
   html-validate failures are caught and treated as non-fatal (`scan.ts:271-276`), axe
   failures kill the scan, and individual probes disagree internally
   (`forced-colors.ts:13` wraps, `text-spacing-runtime.ts:6-68` doesn't). Define (and
   document) one resilience contract per engine class: probes should be per-probe
   caught, like html-validate.
-- **P3-11 · Heuristic-downgrade policy is duplicated across the two runtime adapters.** *(size S)*
+- **P3-11 · Heuristic-downgrade policy is duplicated across the two runtime adapters.** _(size S)_
   "Runtime hits for heuristic ids become warnings" is implemented twice:
   `runtime/findings.ts:92-100` (axe) and `runtime/custom-checks/index.ts:49-55`
   (Playwright). It feeds `deriveRequirementStatus`; a one-sided change silently alters
   requirement outcomes for only one engine. Extract one shared helper.
-- **P3-12 · `foldAccents`/`matchesMultilingual` byte-copied into page.evaluate ×4.** *(size S)*
+- **P3-12 · `foldAccents`/`matchesMultilingual` byte-copied into page.evaluate ×4.** _(size S)_
   `patterns/multilingual.ts:10-16` is the canonical home, but identical inline copies
   exist at `runtime/applicability.ts:60-66`, `runtime/custom-checks/error-prevention.ts:27-33`,
   `runtime/custom-checks/captcha-alternative.ts:13-19`, and
@@ -450,12 +370,12 @@ and derive the WCAG-AA list from the catalog like the full preset does.
   `*-math.ts` split this is undocumented; the `fn.toString()` reuse precedent exists at
   `html-validate-runtime.ts:187-191`. Favor the `toString`-injection pattern when a
   fourth copy lands.
-- **P3-13 · `audio-description-track` ≈ `audio-description-or-alt` (~90% identical).** *(size S)*
+- **P3-13 · `audio-description-track` ≈ `audio-description-or-alt` (~90% identical).** _(size S)_
   Same `<video>` visit pass, same `DESCRIPTION_KINDS`, same finding shape; only the
   transcript-adjacency rule and reason differ (`checks/audio-description-track.ts` vs
   `checks/audio-description-or-alt.ts`). The criterion split is intentional, the code
   isn't — one parameterized helper (track kinds + transcript acceptance + reason).
-- **P3-14 · DOM-finding construction duplicated ×3.** *(size S)* `snippetOf`/`selectorOf`
+- **P3-14 · DOM-finding construction duplicated ×3.** _(size S)_ `snippetOf`/`selectorOf`
   (incl. the same `197…` truncation) exist at `runtime/findings.ts:72-80` and
   `runtime/custom-checks/index.ts:33-41`; `html-validate-runtime.ts:296-303` builds a
   third `dom` location inline. The merge/dedupe layer is centralized; the per-engine
@@ -465,9 +385,9 @@ and derive the WCAG-AA list from the catalog like the full preset does.
 
 ## "Could this be simpler?" — direct answers
 
-1. **In-memory workspace + diff-persist — worth it?** Partly. The *read* side (one
+1. **In-memory workspace + diff-persist — worth it?** Partly. The _read_ side (one
    consistent per-request workspace, memoized) is a genuine simplification and should
-   stay. The *write* side should converge on **targeted repo writes + stale guards**
+   stay. The _write_ side should converge on **targeted repo writes + stale guards**
    (P0-1, P1-3); the whole-slice stringify-diff is machinery that fights back (can't
    delete, order-sensitive, 4 copies) and is only still needed by four bounded actions.
    Do **not** build more machinery on top — no canonical-hash layer, no event log.
@@ -479,7 +399,7 @@ and derive the WCAG-AA list from the catalog like the full preset does.
 3. **`src/core` vs `packages/domain`?** Keep the lint-enforced split; `domain` stays
    types + ports. **The old "display maps belong next to UI" advice (old P2-1) is now
    wrong**: `labels.ts`, `format-datetime.ts`, `status-tone.ts` are imported by server
-   report code (`report.ts:8-12`, `report-html/shared.ts:3`) *and* client components;
+   report code (`report.ts:8-12`, `report-html/shared.ts:3`) _and_ client components;
    `src/core` is the only layer both sides may import. Moving them would create a
    server→components boundary violation. Keep them where they are.
 4. **Two report builders?** Keep both outputs, but one shared section composer
@@ -504,7 +424,7 @@ and derive the WCAG-AA list from the catalog like the full preset does.
 - Runtime engines lazy; html-validate runtime-only (the CLI stays browserless AST-only).
 - `markAlertReadAction`'s direct-repo write — targeted, idempotent, and the worker never
   touches the same alert id (P3-7 documents it).
-- Display maps in `src/core` — shared presentation vocabulary for server reports *and*
+- Display maps in `src/core` — shared presentation vocabulary for server reports _and_
   client components (see answer 3).
 
 ## Definition of done (remaining P0/P1)

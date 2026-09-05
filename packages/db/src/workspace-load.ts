@@ -203,14 +203,22 @@ async function loadTargetedProjectRuntime(
   // Rows are already scoped to the active project in SQL.
   const projectRequirements = requirementRows.map((row) => row.payload);
 
+  // Assessments and alerts are bounded per-project context the handler may read;
+  // they are not the cost the targeted loader exists to avoid (only the
+  // potentially-large requirements/findings/remediations are scoped).
+  const [assessmentsList, alertRows] = await Promise.all([
+    listAssessmentsForProject(drizzle, projectId),
+    drizzle.select().from(alerts).where(eq(alerts.projectId, projectId)),
+  ]);
+
   return {
     requirements: projectRequirements,
-    assessments: [],
+    assessments: assessmentsList,
     findings: findingRows
       .map((row) => row.payload)
       .filter((finding) => finding.projectId === projectId),
     remediations: remediationRows.map((row) => row.payload),
-    alerts: [],
+    alerts: alertRows.map((row) => row.payload),
   };
 }
 
@@ -251,13 +259,24 @@ export async function loadTargetedProjectWriteDb(
           alerts: [],
         };
 
+  // Evidence window is bounded and append-accessible; give handlers a truthful
+  // snapshot so a read of db.evidence reflects what is already persisted.
+  const evidence =
+    activeProjectId != null
+      ? await loadEvidenceWindow(
+          drizzle,
+          activeProjectId,
+          input.evidenceLimit ?? WORKSPACE_EVIDENCE_LIMIT,
+        )
+      : [];
+
   return {
     ...catalog,
     organizations,
     memberships,
     projects,
     ...runtime,
-    evidence: [],
+    evidence,
   };
 }
 

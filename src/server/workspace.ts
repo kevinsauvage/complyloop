@@ -27,8 +27,11 @@ import {
   deleteOrganizationRow,
   insertMembership,
   insertOrganization,
+  listMembershipsForOrgs,
+  listOrganizationsForUser,
   upsertMembership,
 } from "@complyloop/db/repo/orgs";
+import { listOrgIdsForUser } from "@complyloop/db/postgres-queries";
 import { updateProject } from "@complyloop/db/repo/projects";
 import {
   loadTargetedProjectWriteDb,
@@ -38,7 +41,9 @@ import {
   acquireNamedPostgresAdvisoryLock,
   projectWriteLockKey,
 } from "@complyloop/db/write-lock";
+import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/postgres-scope";
 import {
+  emptyDb,
   loadWorkspaceDbForViewer,
   type Db,
 } from "./db";
@@ -116,12 +121,14 @@ async function ensurePersonalOrgProvisioned(
   githubLogin: string,
 ): Promise<void> {
   const drizzle = await getDrizzle();
-  const db = await loadWorkspaceDb(drizzle, {
-    userId,
-    githubLogin,
-    activeProjectId: null,
-    evidenceLimit: 0,
-  });
+  // Provisioning only inspects orgs + memberships — no need for a full workspace
+  // load (catalog, project runtime, evidence) on every signed-in render.
+  const orgIds = await listOrgIdsForUser(drizzle, userId, githubLogin);
+  const [organizations, memberships] = await Promise.all([
+    listOrganizationsForUser(drizzle, orgIds),
+    listMembershipsForOrgs(drizzle, orgIds),
+  ]);
+  const db = { ...emptyDb(), organizations, memberships };
   await claimMembershipsForLogin(drizzle, userId, githubLogin);
   const result = ensurePersonalOrg(db, userId, githubLogin);
   if (!result.changed) return;
@@ -301,6 +308,7 @@ function collectTargetedWritePayload(
   projectId: string,
   before: TrackedWriteEntities,
   scope: TargetedProjectWriteScope,
+  evidenceStart: number,
 ): TargetedProjectWritePayload {
   const findingIds = new Set(scope.findingIds ?? []);
   const requirementIds = new Set(scope.requirementIds ?? []);
@@ -310,7 +318,9 @@ function collectTargetedWritePayload(
     findings: [],
     remediations: [],
     requirements: [],
-    evidence: db.evidence,
+    // Only evidence added during this write — the loaded window is pre-existing
+    // and must not be re-inserted (evidence has an id primary key).
+    evidence: db.evidence.slice(evidenceStart),
   };
 
   for (const finding of db.findings) {
@@ -372,7 +382,7 @@ export async function withTargetedProjectWrite<T>(
       userId,
       githubLogin,
       activeProjectId: preferredProjectId,
-      evidenceLimit: 0,
+      evidenceLimit: WORKSPACE_EVIDENCE_LIMIT,
       findingIds: scope.findingIds,
       requirementIds: scope.requirementIds,
       controlIds: scope.refreshControlIds,
@@ -394,8 +404,15 @@ export async function withTargetedProjectWrite<T>(
     const loadedRequirementUpdatedAtById = requirementUpdatedAtById([
       ...before.requirements.values(),
     ]);
+    const evidenceStart = db.evidence.length;
     const result = await fn(workspace);
-    const payload = collectTargetedWritePayload(db, projectId, before, scope);
+    const payload = collectTargetedWritePayload(
+      db,
+      projectId,
+      before,
+      scope,
+      evidenceStart,
+    );
     await persistTargetedProjectWrite(tx, payload, {
       loadedRequirementUpdatedAtById,
     });

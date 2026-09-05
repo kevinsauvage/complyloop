@@ -27,6 +27,9 @@ const assertConnectRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 const loadWorkspaceDb = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
+const listOrgIdsForUser = vi.hoisted(() => vi.fn());
+const listOrganizationsForUser = vi.hoisted(() => vi.fn());
+const listMembershipsForOrgs = vi.hoisted(() => vi.fn());
 
 vi.mock("../active-cookies", () => ({
   writeActiveProjectCookie: (...args: unknown[]) =>
@@ -83,6 +86,25 @@ vi.mock("@complyloop/db/repo/evidence", () => ({
   insertEvidence: vi.fn(),
 }));
 
+vi.mock("@complyloop/db/postgres-queries", () => ({
+  listOrgIdsForUser: (...args: unknown[]) => listOrgIdsForUser(...args),
+}));
+
+// ensurePersonalOrgProvisioned (read path) inspects orgs/memberships alone; the
+// connect action's own full workspace load is mocked separately via loadWorkspaceDb.
+vi.mock("@complyloop/db/repo/orgs", async () => {
+  const actual = await vi.importActual<typeof import("@complyloop/db/repo/orgs")>(
+    "@complyloop/db/repo/orgs",
+  );
+  return {
+    ...actual,
+    listOrganizationsForUser: (...args: unknown[]) =>
+      listOrganizationsForUser(...args),
+    listMembershipsForOrgs: (...args: unknown[]) =>
+      listMembershipsForOrgs(...args),
+  };
+});
+
 const project = testProject({
   orgId: "org-1",
   ownerUserId: "user-1",
@@ -117,6 +139,19 @@ function workspaceFor(membership: OrgMembership) {
 afterEach(() => {
   vi.clearAllMocks();
   transaction.mockImplementation(async (fn: (tx: object) => unknown) => fn({}));
+  // Personal org already exists for user-1 (owner) → provisioning short-circuits.
+  const provisioned = testWorkspace({
+    role: "owner",
+    userId: "user-1",
+    project,
+    findings: [],
+    remediations: [],
+  }).db;
+  listOrgIdsForUser.mockResolvedValue(
+    provisioned.organizations.map((org) => org.id),
+  );
+  listOrganizationsForUser.mockResolvedValue(provisioned.organizations);
+  listMembershipsForOrgs.mockResolvedValue(provisioned.memberships);
 });
 
 describe("switchProjectAction", () => {
