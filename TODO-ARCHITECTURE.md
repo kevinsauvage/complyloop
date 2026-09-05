@@ -46,38 +46,6 @@ naming, speculative work (do not start without a concrete trigger).
 
 ## P0 — Critical
 
-### P0-2 · No concurrency control on project writes → lost updates + stale re-derivation
-
-**What is wrong.** Every `withProjectWrite` loads a full snapshot, mutates, diffs
-against *its own* snapshot, and upserts whole rows (`workspace.ts:156-210`,
-`repo/apply.ts:40-58,86-109`). Two concurrent actions on the same project each
-overwrite the other's rows; last commit wins. Worse, `refreshRequirementStatuses`
-(`src/server/assessment-status.ts:187-293`) re-derives and rewrites **every requirement
-row** for the project from the local (possibly stale) findings view — a dismiss racing
-a webhook-triggered assessment can re-persist stale statuses. The worker serializes per
-project (`assessment-jobs.ts:217-229`) but interactive actions do not.
-
-**Why it matters.** Two reviewers acting at once (bulk-dismiss + approve, or dismiss +
-monitoring reassessment) silently lose decisions; requirement statuses flip back and
-forth. In a compliance product, a silently-overwritten human decision is worse than a
-merge conflict: it erodes the audit trail the whole loop exists to produce.
-
-**What should change.** Cheapest first — do not build a big locking framework:
-1. Per-project optimistic concurrency: bump `projects.updatedAt` (or a `version`
-   column) inside `withProjectWrite` and compare-and-set before persist; on mismatch,
-   re-run or fail loudly.
-2. Or a per-project advisory lock around the write transaction (same mechanism the
-   worker already uses).
-3. Make `refreshRequirementStatuses` skip persisting requirement rows whose
-   `updatedAt` is newer in the DB than in the loaded snapshot.
-4. Add an integration test with concurrent `withProjectWrite`s (two findings, one
-   shared remediation) asserting no silent overwrite.
-
-**Files.** `src/server/workspace.ts:156-210`, `src/server/assessment-status.ts:187-293`,
-`packages/db/src/repo/apply.ts`, `packages/db/src/repo/projects.ts`.
-
----
-
 ## P1 — High
 
 ### P1-1 · Every write loads, clones, and string-compares the whole project slice
@@ -91,7 +59,7 @@ that ever emits a derived/extra field causes phantom upserts of the whole row.
 
 **Why it matters.** This is the first scaling ceiling (multi-tenant, projects with tens
 of thousands of findings), and the diff mechanism is the most fragile part of the
-persistence layer. At MVP scale it is *fine* — the issue is that the docs present it as
+persistence layer. At MVP scale it is _fine_ — the issue is that the docs present it as
 the write model of record, so it will be extended, not replaced.
 
 **What should change.** Hot-path actions (dismiss, approve, verify, exception set)
@@ -161,9 +129,10 @@ by convention.
 the display maps earn their framework-agnostic label only by accident.
 
 **What should change.** Move display-only maps next to their consumers (keep them pure
-+ tested); keep `src/core` for decision logic. Do **not** merge `src/core` into
-`packages/domain` without a second consumer — the lint-enforced boundary is cheap and
-working.
+
+- tested); keep `src/core` for decision logic. Do **not** merge `src/core` into
+  `packages/domain` without a second consumer — the lint-enforced boundary is cheap and
+  working.
 
 **Files.** `src/core/labels.ts`, `status-tone.ts`, `evidence-tone.ts`,
 `badge-descriptions.ts`, `format-datetime.ts`, `runtime-coverage.ts`.
@@ -172,8 +141,9 @@ working.
 
 **What is wrong.** `ensurePersonalOrgProvisioned` (`workspace.ts:98-121`) runs for every
 signed-in request inside `getWorkspace`, doing a full workspace load + membership claim
-+ possible transaction, then `loadWorkspaceDbForViewer` loads again. (This is the
-remaining part of the old P1-2 after the action/worker double-loads were removed.)
+
+- possible transaction, then `loadWorkspaceDbForViewer` loads again. (This is the
+  remaining part of the old P1-2 after the action/worker double-loads were removed.)
 
 **Why it matters.** Write-adjacent side effects on GET renders; doubles the load cost of
 every page.
@@ -203,12 +173,14 @@ Db against the previously loaded slice and persist only changed rows (reuse
 ## P3 — Low (do not start without a trigger)
 
 ### P3-1 · `frameworkAdapters` registry abstraction is half-realized
+
 `wcag` registers `controls: []` and no guidance; `guidanceFor` returns the first adapter
 with guidance (`registry.ts:24-36,56-63`). Fine for one real framework — keep as-is;
 do **not** build the “Adding a framework” ceremony (`architecture.md`) any further
 until a second framework actually exists.
 
 ### P3-5 · AI gateway plumbing copied 4×
+
 `explainer.ts`, `remediation.ts`, `fix-propose.ts`, `verified-fix.ts` repeat the same
 credential check + `generateObject` + try/catch + `aiWarn` shell. Prompts legitimately
 differ; extract a ~20-line `aiCall(schema, buildPrompt)` helper and keep prompts
@@ -219,8 +191,8 @@ per-feature.
 ## “Could this be simpler?” — direct answers
 
 1. **Is the in-memory DB + snapshot/diff persistence worth it?**
-   Partly. The *read* side (one consistent per-request workspace) is a genuine
-   simplification. The *write* side (diff every action, string-compare rows, can't
+   Partly. The _read_ side (one consistent per-request workspace) is a genuine
+   simplification. The _write_ side (diff every action, string-compare rows, can't
    delete, no concurrency) is machinery that fights back — and the repo/ layer it
    diffs against already exists. **Simpler route:** keep the workspace read model;
    persist hot-path actions with targeted repo calls + version check; delete the
@@ -268,8 +240,8 @@ smoke all green).
 - **P1-3 · Persistence styles undocumented/inconsistent.**
   The ownership rule is documented in `docs/ai/architecture.md` (“Persistence
   ownership rule”): slice model = upserts (findings/remediations/requirements/alerts)
-  + evidence inserts, no deletions; structural entities via their repo modules.
-  Files: `docs/ai/architecture.md`.
+  - evidence inserts, no deletions; structural entities via their repo modules.
+    Files: `docs/ai/architecture.md`.
 - **P1-4 (+P3-3) · Job status/trigger/shape triplicated.**
   `ASSESSMENT_JOB_STATUSES` / `ASSESSMENT_JOB_TRIGGERS` now live in
   `packages/domain/src/assessment-jobs.ts` (new) and feed the DB CHECK constraints
@@ -294,10 +266,11 @@ smoke all green).
   persistence-only fields (source and dom variants).
 - **P2-4 · Dead code and stale doc references.**
   Removed unused `evidenceRecordsToInsert` (and its test block in `store.test.ts`);
-  `AGENTS.md` doc map and `docs/analysis-strategy.md` now point at
-  `TODO-ARCHITECTURE.md` instead of the deleted `TODO.md`.
+  `AGENTS.md` doc map now points at `TODO-ARCHITECTURE.md` instead of the deleted
+  `TODO.md` (the remaining `TODO.md` references lived in `docs/analysis-strategy.md`,
+  which a concurrent refactor removed in the same session).
   Files: `packages/db/src/postgres-evidence.ts`, `packages/db/src/store.test.ts`,
-  `AGENTS.md`, `docs/analysis-strategy.md`.
+  `AGENTS.md`.
 - **P3-2 · `JSON.stringify` row comparison depends on canonical key order.**
   Invariant documented at both diff sites (`repo/apply.ts`, `workspace.ts`) and
   pinned by `packages/db/src/repo/mappers.test.ts` (exact key order per mapper,

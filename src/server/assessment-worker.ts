@@ -14,6 +14,10 @@ import {
 } from "@complyloop/db/repo/apply";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
 import {
+  acquireNamedPostgresAdvisoryLock,
+  projectWriteLockKey,
+} from "@complyloop/db/write-lock";
+import {
   postPullRequestCheckRun,
   summarizeAssessmentForCheckRun,
 } from "./github-checks";
@@ -77,6 +81,11 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
     (candidate) => candidate.id === job.projectId,
   );
   if (!project) throw new Error("Project was removed before its assessment job ran.");
+  const loadedRequirementUpdatedAtById = new Map(
+    db.requirements
+      .filter((requirement) => requirement.projectId === project.id)
+      .map((requirement) => [requirement.id, requirement.updatedAt]),
+  );
 
   const result = await withProjectCheckout(
     project,
@@ -98,6 +107,10 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
 
       const drizzle = await getDrizzle();
       await drizzle.transaction(async (tx) => {
+        await acquireNamedPostgresAdvisoryLock(
+          tx,
+          projectWriteLockKey(project.id),
+        );
         await applyAssessmentPayload(
           tx,
           buildAssessmentApplyPayload({
@@ -109,6 +122,7 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
             requirements: db.requirements,
             alerts,
           }),
+          { loadedRequirementUpdatedAtById },
         );
         await insertEvidence(tx, {
           kind: "assessment_job_completed",

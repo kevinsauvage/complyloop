@@ -23,6 +23,10 @@ import {
 import { updateProject } from "@complyloop/db/repo/projects";
 import { loadWorkspaceDb } from "@complyloop/db/workspace-load";
 import {
+  acquireNamedPostgresAdvisoryLock,
+  projectWriteLockKey,
+} from "@complyloop/db/write-lock";
+import {
   loadWorkspaceDbForViewer,
   type Db,
 } from "./db";
@@ -181,6 +185,7 @@ export async function withProjectWrite<T>(
       throw new PublicError("Select a project first.");
     }
     const projectId = workspace.project.id;
+    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
     const projectBefore = structuredClone(workspace.project);
     const before = snapshotProjectSlice(
       db.requirements,

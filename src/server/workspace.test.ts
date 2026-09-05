@@ -10,6 +10,7 @@ const getDrizzle = vi.hoisted(() => vi.fn());
 const loadWorkspaceDb = vi.hoisted(() => vi.fn());
 const persistProjectSliceDiff = vi.hoisted(() => vi.fn());
 const updateProject = vi.hoisted(() => vi.fn());
+const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/auth", () => ({ auth }));
 vi.mock("./active-cookies", () => ({
@@ -29,6 +30,12 @@ vi.mock("@complyloop/db/repo/apply", async () => {
   };
 });
 vi.mock("@complyloop/db/repo/projects", () => ({ updateProject }));
+vi.mock("@complyloop/db/write-lock", () => ({
+  acquireNamedPostgresAdvisoryLock: (
+    ...args: Parameters<typeof acquireNamedPostgresAdvisoryLock>
+  ) => acquireNamedPostgresAdvisoryLock(...args),
+  projectWriteLockKey: (projectId: string) => `project-write:${projectId}`,
+}));
 
 import { withProjectWrite } from "./workspace";
 
@@ -57,6 +64,7 @@ describe("withProjectWrite", () => {
     });
     persistProjectSliceDiff.mockResolvedValue(undefined);
     updateProject.mockResolvedValue(undefined);
+    acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
   });
 
   it("persists active project row changes", async () => {
@@ -65,6 +73,10 @@ describe("withProjectWrite", () => {
       workspace.project!.runtimeRoutes = ["/"];
     });
 
+    expect(acquireNamedPostgresAdvisoryLock).toHaveBeenCalledWith(
+      tx,
+      `project-write:${project.id}`,
+    );
     expect(updateProject).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({

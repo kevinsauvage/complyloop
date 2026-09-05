@@ -18,6 +18,7 @@ const resolveProjectGitHubToken = vi.hoisted(() => vi.fn());
 const postPullRequestCheckRun = vi.hoisted(() => vi.fn());
 const applyAssessmentPayload = vi.hoisted(() => vi.fn());
 const insertEvidence = vi.hoisted(() => vi.fn());
+const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
 
 vi.mock("./assessment-jobs", () => ({
@@ -39,6 +40,13 @@ vi.mock("@complyloop/db/repo/apply", () => ({
 
 vi.mock("@complyloop/db/repo/evidence", () => ({
   insertEvidence: (...args: unknown[]) => insertEvidence(...args),
+}));
+
+vi.mock("@complyloop/db/write-lock", () => ({
+  acquireNamedPostgresAdvisoryLock: (
+    ...args: Parameters<typeof acquireNamedPostgresAdvisoryLock>
+  ) => acquireNamedPostgresAdvisoryLock(...args),
+  projectWriteLockKey: (projectId: string) => `project-write:${projectId}`,
 }));
 
 vi.mock("./db", async () => {
@@ -122,6 +130,7 @@ function emptyDb(): Db {
 
 beforeEach(() => {
   transaction.mockImplementation(async (fn: (tx: object) => unknown) => fn({}));
+  acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -222,6 +231,9 @@ describe("processNextAssessmentJob", () => {
       expect.objectContaining({
         remediations: [expect.objectContaining({ status: "verified" })],
         evidence: [],
+      }),
+      expect.objectContaining({
+        loadedRequirementUpdatedAtById: expect.any(Map),
       }),
     );
   });

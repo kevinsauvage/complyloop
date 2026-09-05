@@ -13,7 +13,10 @@ import { insertAssessment } from "./assessments.ts";
 import { insertEvidenceRecords } from "./evidence.ts";
 import { upsertFindings } from "./findings.ts";
 import { upsertRemediations } from "./remediations.ts";
-import { upsertRequirements } from "./requirements.ts";
+import {
+  upsertRequirements,
+  type UpsertRequirementsOptions,
+} from "./requirements.ts";
 
 export interface AssessmentApplyPayload {
   assessment: Assessment;
@@ -25,14 +28,24 @@ export interface AssessmentApplyPayload {
   alerts: Alert[];
 }
 
+export interface ApplyAssessmentPayloadOptions {
+  /** Requirement timestamps captured when the assessment job loaded the project. */
+  loadedRequirementUpdatedAtById?: ReadonlyMap<string, string>;
+}
+
 export async function applyAssessmentPayload(
   tx: DrizzleDb,
   payload: AssessmentApplyPayload,
+  options: ApplyAssessmentPayloadOptions = {},
 ): Promise<void> {
+  const requirementOptions: UpsertRequirementsOptions | undefined =
+    options.loadedRequirementUpdatedAtById
+      ? { loadedUpdatedAtById: options.loadedRequirementUpdatedAtById }
+      : undefined;
   await insertAssessment(tx, payload.assessment, payload.snapshot);
   await upsertFindings(tx, payload.findings);
   await upsertRemediations(tx, payload.remediations);
-  await upsertRequirements(tx, payload.requirements);
+  await upsertRequirements(tx, payload.requirements, requirementOptions ?? {});
   await insertAlerts(tx, payload.alerts);
   await insertEvidenceRecords(tx, payload.evidence);
 }
@@ -86,6 +99,12 @@ export function snapshotProjectSlice(
   };
 }
 
+function requirementUpdatedAtById(
+  items: ReadonlyArray<Requirement>,
+): Map<string, string> {
+  return new Map(items.map((item) => [item.id, item.updatedAt]));
+}
+
 export async function persistProjectSliceDiff(
   tx: DrizzleDb,
   before: ProjectSlice,
@@ -95,6 +114,7 @@ export async function persistProjectSliceDiff(
   await upsertRequirements(
     tx,
     changedEntities(entityMap(before.requirements), after.requirements),
+    { loadedUpdatedAtById: requirementUpdatedAtById(before.requirements) },
   );
   await upsertFindings(
     tx,
