@@ -107,6 +107,17 @@ export function requirementUpdatedAtById(
   return new Map(items.map((item) => [item.id, item.updatedAt]));
 }
 
+/** `updatedAt` per id for entities that carry it (findings, remediations). */
+export function updatedAtById(
+  items: ReadonlyArray<{ id: string; updatedAt?: string }>,
+): Map<string, string> {
+  return new Map(
+    items
+      .filter((item) => item.updatedAt !== undefined)
+      .map((item) => [item.id, item.updatedAt as string]),
+  );
+}
+
 export async function persistProjectSliceDiff(
   tx: DrizzleDb,
   before: ProjectSlice,
@@ -118,13 +129,17 @@ export async function persistProjectSliceDiff(
     changedEntities(entityMap(before.requirements), after.requirements),
     { loadedUpdatedAtById: requirementUpdatedAtById(before.requirements) },
   );
+  // The loaded slice's `updatedAt` values guard against reverting a human
+  // decision made while a webhook assessment was scanning against that slice.
   await upsertFindings(
     tx,
     changedEntities(entityMap(before.findings), after.findings),
+    { loadedUpdatedAtById: updatedAtById(before.findings) },
   );
   await upsertRemediations(
     tx,
     changedEntities(entityMap(before.remediations), after.remediations),
+    { loadedUpdatedAtById: updatedAtById(before.remediations) },
   );
   await insertAlerts(
     tx,
@@ -143,6 +158,8 @@ export interface TargetedProjectWritePayload {
 
 export interface PersistTargetedProjectWriteOptions {
   loadedRequirementUpdatedAtById?: ReadonlyMap<string, string>;
+  loadedFindingUpdatedAtById?: ReadonlyMap<string, string>;
+  loadedRemediationUpdatedAtById?: ReadonlyMap<string, string>;
 }
 
 /** Persists explicit row upserts for hot-path actions (no whole-slice diff). */
@@ -155,8 +172,12 @@ export async function persistTargetedProjectWrite(
     options.loadedRequirementUpdatedAtById
       ? { loadedUpdatedAtById: options.loadedRequirementUpdatedAtById }
       : undefined;
-  await upsertFindings(tx, payload.findings ?? []);
-  await upsertRemediations(tx, payload.remediations ?? []);
+  await upsertFindings(tx, payload.findings ?? [], {
+    loadedUpdatedAtById: options.loadedFindingUpdatedAtById,
+  });
+  await upsertRemediations(tx, payload.remediations ?? [], {
+    loadedUpdatedAtById: options.loadedRemediationUpdatedAtById,
+  });
   await upsertRequirements(
     tx,
     payload.requirements ?? [],

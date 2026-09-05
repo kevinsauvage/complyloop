@@ -191,6 +191,13 @@ export interface Finding {
   fix: ProposedFix | null;
   explanations: Explanation[];
   detectedAt: string;
+  /**
+   * Last-write timestamp for stale-write protection. Set on every upsert by
+   * the repo layer; a concurrent write with a newer `updatedAt` wins, so a
+   * webhook assessment applying a stale slice cannot revert a human decision.
+   * Optional: legacy rows without it write unconditionally.
+   */
+  updatedAt?: string;
   resolvedNote?: string;
   dismissal?: Dismissal;
 }
@@ -219,6 +226,11 @@ export interface Remediation {
   history: RemediationHistoryEntry[];
   /** Local to the payload so reassessment can verify without evidence history. */
   approvalAction?: "create_draft_pull_request";
+  /**
+   * Last-write timestamp for stale-write protection (set on every upsert by the
+   * repo layer, like `Finding.updatedAt`). Optional for legacy rows.
+   */
+  updatedAt?: string;
 }
 
 export type EvidenceKind =

@@ -2,9 +2,11 @@ import { afterAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
 import { closeDrizzle, getDrizzle } from "./client";
-import { persistProjectSliceDiff } from "./repo/apply";
+import { persistProjectSliceDiff, updatedAtById } from "./repo/apply";
+import { upsertFindings } from "./repo/findings";
+import { upsertRemediations } from "./repo/remediations";
 import { upsertRequirements } from "./repo/requirements";
-import { requirements } from "./schema";
+import { findings, remediations, requirements } from "./schema";
 import {
   cleanupProjectSliceFixture,
   insertProjectSliceFixture,
@@ -205,6 +207,105 @@ describe.skipIf(!enabled)("persistProjectSliceDiff integration", () => {
       expect(rows).toHaveLength(1);
       expect(rows[0]?.payload.status).toBe("passed");
       expect(rows[0]?.payload.updatedAt).toBe(newerAt);
+    } finally {
+      await cleanupProjectSliceFixture(drizzle, fixture);
+    }
+  });
+
+  it("does not let a stale worker apply revert a concurrent finding dismissal (P0-1)", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-finding-stale`;
+    const fixture = await insertProjectSliceFixture(drizzle, suffix);
+
+    try {
+      // This is the slice the worker captured before scanning (job start).
+      const loadedSlice = await loadProjectSlice(drizzle, fixture.projectId);
+
+      // A human dismisses finding #2 while the worker is scanning, bumping
+      // updatedAt strictly after the worker's recorded timestamp.
+      // (Direct repo bump — the product path is withTargetedProjectWrite.)
+      const humanNow = new Date(Date.now() + 1000).toISOString();
+      await drizzle.transaction(async (tx) => {
+        await upsertFindings(
+          tx,
+          [
+            {
+              ...(loadedSlice.findings.find(
+                (item) => item.id === fixture.findingTwoId,
+              )!),
+              status: "dismissed",
+              updatedAt: humanNow,
+            },
+          ],
+          { loadedUpdatedAtById: updatedAtById(loadedSlice.findings) },
+        );
+      });
+
+      // The worker's assessment re-detects the violation and applies its stale
+      // slice — persistProjectSliceDiff derives loaded versions from `loadedSlice`
+      // and must skip the finding the human dismissed meanwhile.
+      const workerAfter = structuredClone(loadedSlice);
+      const reappeared = workerAfter.findings.find(
+        (item) => item.id === fixture.findingTwoId,
+      )!;
+      reappeared.status = "open";
+
+      await drizzle.transaction(async (tx) => {
+        await persistProjectSliceDiff(tx, loadedSlice, workerAfter, []);
+      });
+
+      const persisted = await loadProjectSlice(drizzle, fixture.projectId);
+      expect(
+        persisted.findings.find((item) => item.id === fixture.findingTwoId)
+          ?.status,
+      ).toBe("dismissed");
+    } finally {
+      await cleanupProjectSliceFixture(drizzle, fixture);
+    }
+  });
+
+  it("does not let a stale worker apply revert a concurrent remediation approval (P0-1)", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-remediation-stale`;
+    const fixture = await insertProjectSliceFixture(drizzle, suffix);
+
+    try {
+      const loadedSlice = await loadProjectSlice(drizzle, fixture.projectId);
+
+      // Human approves remediation #2 while the worker scans.
+      const humanNow = new Date(Date.now() + 1000).toISOString();
+      await drizzle.transaction(async (tx) => {
+        await upsertRemediations(
+          tx,
+          [
+            {
+              ...(loadedSlice.remediations.find(
+                (item) => item.id === fixture.remediationTwoId,
+              )!),
+              status: "approved",
+              updatedAt: humanNow,
+            },
+          ],
+          { loadedUpdatedAtById: updatedAtById(loadedSlice.remediations) },
+        );
+      });
+
+      // Worker's stale apply re-derives the remediation to "detected".
+      const workerAfter = structuredClone(loadedSlice);
+      workerAfter.remediations.find(
+        (item) => item.id === fixture.remediationTwoId,
+      )!.status = "detected";
+
+      await drizzle.transaction(async (tx) => {
+        await persistProjectSliceDiff(tx, loadedSlice, workerAfter, []);
+      });
+
+      const persisted = await loadProjectSlice(drizzle, fixture.projectId);
+      expect(
+        persisted.remediations.find(
+          (item) => item.id === fixture.remediationTwoId,
+        )?.status,
+      ).toBe("approved");
     } finally {
       await cleanupProjectSliceFixture(drizzle, fixture);
     }

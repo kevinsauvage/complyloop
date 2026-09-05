@@ -84,53 +84,6 @@ heuristic → composition_sensitive → standard` (`check-authority.ts:184-207`)
 
 ---
 
-## P0 — Critical
-
-### P0-1 · Human decisions on findings/remediations can be silently reverted by a stale webhook assessment (successor of the old P0-2) — _size L_
-
-**What is wrong.** The worker loads the project slice **before** the scan and outside
-its persist transaction (`src/server/assessment-worker.ts:80-91,112-137`). When the
-assessment commits, `applyAssessmentPayload` unconditionally upserts any finding the
-scan mutated relative to that _stale_ load. `upsertFindings` is a full-row overwrite
-with no version check (`packages/db/src/repo/findings.ts:15-26`; same for
-`remediations.ts`), and `Finding` has **no `updatedAt` field at all** — only
-`detectedAt` (`contract/finding-types.ts:161-184`) — so the requirements stale-guard
-mechanism (`requirements.ts:16-27`) cannot be reused as-is. Concretely: user dismisses
-finding F while a push-triggered assessment is mid-scan; the scan re-detects the same
-violation (still present in the code), updates F in place (assessment.ts matching loop
-mutates `existing` fields), and the apply writes F as `open` over the dismissal. The
-dismissal evidence remains, but the row is open again, and requirement status —
-independently guarded — may already say `passed`, leaving an open finding under a
-passed requirement until the next scan.
-
-**Why it matters.** This is the production pattern (continuous monitoring + UI on the
-same project). A human compliance decision is silently discarded, and the workspace
-renders contradictory compliance state. Evidence is append-only so nothing is destroyed,
-but the presented state is wrong and a reviewer can act on it.
-
-**What should change.** Give findings (and remediations, which share the failure) the
-same stale-write protection requirements have: add `updatedAt` to the `Finding` /
-`Remediation` payloads, bump it on every write (mappers + actions), and have
-`upsertFindings` / `upsertRemediations` accept `loadedUpdatedAtById` and skip rows whose
-DB copy is newer — mirroring `requirements.ts:16-52`. The worker then passes its
-job-start values. No schema migration needed (`payload` is JSONB). Alternative if a
-payload field feels heavy: a dedicated `updated_at` column on `findings`/`remediations`.
-Also consider having the worker **re-load the slice inside the persist transaction
-before diffing** (cheap: one indexed read per table) instead of trusting a snapshot
-taken minutes earlier.
-
-**Files.** `src/server/assessment-worker.ts:80-137`, `packages/db/src/repo/findings.ts`,
-`packages/db/src/repo/remediations.ts`, `packages/db/src/repo/apply.ts:36-53,110-134`,
-`packages/analysis-core/src/contract/finding-types.ts:161-184`,
-`packages/db/src/repo/requirements.ts:16-52` (the pattern to mirror).
-
-**Definition of done.** A live-Postgres regression test: worker apply with a stale slice
-racing a concurrent `withTargetedProjectWrite` dismissal of the same finding — the
-dismissal survives and the finding row is not overwritten. Requirements guard logic is
-exercised by the same test.
-
----
-
 ## P1 — High
 
 ### P1-2 · Report section composition is written twice (markdown + HTML) — _size L_
@@ -246,13 +199,3 @@ is enumerable (type-level equality test or forcing `rgaaControls` to `as const`)
 **Files.** `packages/analysis-core/src/types.ts:5-143`, `packages/analysis-core/src/check-authority.test.ts`,
 `packages/adapters/src/wcag/presets.ts:12,19-80`, `packages/adapters/src/types.ts:14`,
 `packages/adapters/src/rgaa/catalog-coverage.test.ts:70-86`.
-
----
-
-## P3 — Low (do not start without a trigger)
-
-- **P3-5 · Repeated pushes re-mint regression alerts.** _(size M)_ `collectRegressionAlerts`
-  (`assessment-worker.ts:30-74`) creates a fresh UUID alert per regressed control per
-  assessment — N pushes for the same unfixed regression = N alert rows. Verify this is
-  intended (it may be — each assessment is a separate event); if not, dedupe by
-  (controlId, projectId) latest-wins.

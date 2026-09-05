@@ -19,6 +19,7 @@ import {
   persistTargetedProjectWrite,
   requirementUpdatedAtById,
   snapshotProjectSlice,
+  updatedAtById,
   type TargetedProjectWritePayload,
 } from "@complyloop/db/repo/apply";
 import {
@@ -431,6 +432,10 @@ export async function withTargetedProjectWrite<T>(
     );
     await persistTargetedProjectWrite(tx, payload, {
       loadedRequirementUpdatedAtById,
+      loadedFindingUpdatedAtById: updatedAtById([...before.findings.values()]),
+      loadedRemediationUpdatedAtById: updatedAtById([
+        ...before.remediations.values(),
+      ]),
     });
     return result;
   });

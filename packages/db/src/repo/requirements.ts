@@ -3,6 +3,7 @@ import type { Requirement } from "@complyloop/domain/project-types";
 import type { DrizzleDb } from "../client.ts";
 import { requirements } from "../schema.ts";
 import { requirementToRow } from "./mappers.ts";
+import { filterItemsNotStaleInDb } from "./stale-guard.ts";
 
 export interface UpsertRequirementsOptions {
   /**
@@ -13,19 +14,6 @@ export interface UpsertRequirementsOptions {
   loadedUpdatedAtById?: ReadonlyMap<string, string>;
 }
 
-function filterRequirementsNotStaleInDb(
-  items: ReadonlyArray<Requirement>,
-  loadedUpdatedAtById: ReadonlyMap<string, string>,
-  dbUpdatedAtById: ReadonlyMap<string, string>,
-): Requirement[] {
-  return items.filter((item) => {
-    const loadedAt = loadedUpdatedAtById.get(item.id);
-    const dbUpdatedAt = dbUpdatedAtById.get(item.id);
-    if (!loadedAt || !dbUpdatedAt) return true;
-    return Date.parse(dbUpdatedAt) <= Date.parse(loadedAt);
-  });
-}
-
 export async function upsertRequirements(
   tx: DrizzleDb,
   items: ReadonlyArray<Requirement>,
@@ -33,7 +21,7 @@ export async function upsertRequirements(
 ): Promise<void> {
   if (items.length === 0) return;
 
-  let toWrite = items;
+  let toWrite = [...items];
   const { loadedUpdatedAtById } = options;
   if (loadedUpdatedAtById && loadedUpdatedAtById.size > 0) {
     const ids = items.map((item) => item.id);
@@ -44,8 +32,8 @@ export async function upsertRequirements(
     const dbUpdatedAtById = new Map(
       rows.map((row) => [row.id, row.payload.updatedAt]),
     );
-    toWrite = filterRequirementsNotStaleInDb(
-      items,
+    toWrite = filterItemsNotStaleInDb(
+      toWrite,
       loadedUpdatedAtById,
       dbUpdatedAtById,
     );

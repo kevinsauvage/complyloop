@@ -195,8 +195,12 @@ describe("applyAssessmentPayload", () => {
       assessment,
       assessment.snapshot,
     );
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [updatedFinding]);
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, []);
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [updatedFinding], {
+      loadedUpdatedAtById: new Map(),
+    });
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, [], {
+      loadedUpdatedAtById: new Map(),
+    });
     expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {
       loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
@@ -238,8 +242,12 @@ describe("applyAssessmentPayload", () => {
     expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {
       loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
-    expect(upsertFindings).toHaveBeenCalledWith(tx, []);
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, []);
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
+      loadedUpdatedAtById: new Map(),
+    });
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, [], {
+      loadedUpdatedAtById: new Map(),
+    });
     expect(insertAlerts).toHaveBeenCalledWith(tx, []);
   });
 });
@@ -269,8 +277,12 @@ describe("persistProjectSliceDiff", () => {
     expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {
       loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
-    expect(upsertFindings).toHaveBeenCalledWith(tx, []);
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, []);
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
+      loadedUpdatedAtById: new Map(),
+    });
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, [], {
+      loadedUpdatedAtById: new Map(),
+    });
     expect(insertAlerts).toHaveBeenCalledWith(tx, []);
     expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, []);
   });
@@ -316,8 +328,12 @@ describe("persistProjectSliceDiff", () => {
         loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
       },
     );
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [updatedFinding]);
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [updatedRemediation]);
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [updatedFinding], {
+      loadedUpdatedAtById: new Map(),
+    });
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, [updatedRemediation], {
+      loadedUpdatedAtById: new Map(),
+    });
     expect(insertAlerts).toHaveBeenCalledWith(tx, [readAlert]);
     expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, evidence);
   });
