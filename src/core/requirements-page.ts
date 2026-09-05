@@ -2,7 +2,7 @@ import { projectDefaultPresetId } from "./project-preset";
 import type { PresetCatalog } from "./project-preset";
 import type { Project } from "./project-types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import { firstParam } from "./query-param";
+import { firstParam, buildHref } from "./query-param";
 
 export function parsePresetIdParam(
   raw: string | string[] | undefined,
@@ -28,14 +28,10 @@ export function requirementsPageHref(options: {
   status?: RequirementStatus;
   defaultPresetId: string;
 }): string {
-  const params = new URLSearchParams();
-  if (
-    options.presetId &&
-    options.presetId !== options.defaultPresetId
-  ) {
-    params.set("presetId", options.presetId);
+  const params: Record<string, string> = {};
+  if (options.presetId && options.presetId !== options.defaultPresetId) {
+    params.presetId = options.presetId;
   }
-  if (options.status) params.set("status", options.status);
-  const query = params.toString();
-  return query ? `/requirements?${query}` : "/requirements";
+  if (options.status) params.status = options.status;
+  return buildHref("/requirements", params);
 }

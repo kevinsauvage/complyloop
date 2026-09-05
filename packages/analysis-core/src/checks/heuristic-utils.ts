@@ -1,15 +1,12 @@
 import ts from "typescript";
 import {
   getAttribute,
+  hasAnyAttr,
   jsxElementOf,
   stringValueOf,
   tagNameOf,
   type JsxTagNode,
 } from "../parse.ts";
-
-export function hasAnyAttr(node: JsxTagNode, names: string[]): boolean {
-  return names.some((name) => getAttribute(node, name) !== undefined);
-}
 
 /** React keyboard event handler prop names. */
 export const KEY_HANDLERS = ["onKeyDown", "onKeyUp", "onKeyPress"] as const;

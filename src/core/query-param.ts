@@ -15,3 +15,15 @@ export function parseEnumParam(
   if (!value) return undefined;
   return allowed.includes(value) ? value : undefined;
 }
+
+/**
+ * Builds a `base?key=value…` href from a plain record, omitting the `?`
+ * when there are no entries. Values must already be encoded strings.
+ */
+export function buildHref(
+  base: string,
+  params: Record<string, string>,
+): string {
+  const qs = new URLSearchParams(params).toString();
+  return qs ? `${base}?${qs}` : base;
+}

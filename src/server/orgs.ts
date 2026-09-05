@@ -132,7 +132,6 @@ export function inviteOrgMember(
   );
   if (existing) {
     assertCanManageTarget(actorRole, existing.role, "change");
-    assertCanAssignRole(actorRole, role);
     existing.role = role;
     return existing;
   }

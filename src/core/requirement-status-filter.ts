@@ -2,7 +2,7 @@ import {
   REQUIREMENT_STATUSES,
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
-import { parseEnumParam } from "./query-param";
+import { parseEnumParam, buildHref } from "./query-param";
 
 export function parseRequirementStatusParam(
   raw: string | string[] | undefined,
@@ -14,6 +14,5 @@ export function parseRequirementStatusParam(
 export function requirementsStatusHref(
   status?: RequirementStatus,
 ): string {
-  if (!status) return "/requirements";
-  return `/requirements?status=${status}`;
+  return buildHref("/requirements", status ? { status } : {});
 }

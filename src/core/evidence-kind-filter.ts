@@ -1,5 +1,5 @@
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
-import { parseEnumParam } from "./query-param";
+import { parseEnumParam, buildHref } from "./query-param";
 
 export const EVIDENCE_KIND_FILTER_ORDER: readonly EvidenceKind[] = [
   "finding_detected",
@@ -25,9 +25,8 @@ export function evidenceKindHref(
   kind?: EvidenceKind,
   page?: number,
 ): string {
-  const params = new URLSearchParams();
-  if (kind) params.set("kind", kind);
-  if (page && page > 1) params.set("page", String(page));
-  const query = params.toString();
-  return query ? `/evidence?${query}` : "/evidence";
+  const params: Record<string, string> = {};
+  if (kind) params.kind = kind;
+  if (page && page > 1) params.page = String(page);
+  return buildHref("/evidence", params);
 }

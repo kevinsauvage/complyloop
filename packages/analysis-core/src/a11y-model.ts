@@ -2,6 +2,7 @@ import type { ARIARoleRelationConcept } from "aria-query";
 import { dom, elementRoles, roles } from "aria-query";
 import { AXObjects, elementAXObjects } from "axobject-query";
 import ts from "typescript";
+import { explicitRoles } from "./a11y-aria.ts";
 import {
   booleanAttributeValue,
   getAttribute,
@@ -123,18 +124,9 @@ function staticAttributes(node: JsxTagNode): StaticAttribute[] {
       attrs.push({ name, value: text });
       continue;
     }
-    if (
-      ts.isJsxExpression(prop.initializer) &&
-      prop.initializer.expression
-    ) {
-      const expr = prop.initializer.expression;
-      if (expr.kind === ts.SyntaxKind.TrueKeyword) {
-        attrs.push({ name, value: "true" });
-      } else if (expr.kind === ts.SyntaxKind.FalseKeyword) {
-        attrs.push({ name, value: "false" });
-      } else if (ts.isNumericLiteral(expr)) {
-        attrs.push({ name, value: expr.text });
-      }
+    const boolVal = booleanAttributeValue(prop);
+    if (boolVal !== null) {
+      attrs.push({ name, value: String(boolVal) });
     }
   }
   return attrs;
@@ -142,10 +134,7 @@ function staticAttributes(node: JsxTagNode): StaticAttribute[] {
 
 function isDisabled(node: JsxTagNode): boolean {
   const disabled = getAttribute(node, "disabled");
-  if (disabled) {
-    const value = stringValueOf(disabled);
-    if (value === undefined || value === "true") return true;
-  }
+  if (disabled && booleanAttributeValue(disabled) !== false) return true;
   return booleanAttributeValue(getAttribute(node, "aria-disabled")) === true;
 }
 
@@ -159,20 +148,18 @@ export function tabIndexValue(node: JsxTagNode): number | undefined {
     return Number.isFinite(n) ? n : undefined;
   }
   if (
-    !attr.initializer ||
-    !ts.isJsxExpression(attr.initializer) ||
-    !attr.initializer.expression
+    attr.initializer &&
+    ts.isJsxExpression(attr.initializer) &&
+    attr.initializer.expression
   ) {
-    return undefined;
-  }
-  const expr = attr.initializer.expression;
-  if (ts.isNumericLiteral(expr)) return Number(expr.text);
-  if (
-    ts.isPrefixUnaryExpression(expr) &&
-    expr.operator === ts.SyntaxKind.MinusToken &&
-    ts.isNumericLiteral(expr.operand)
-  ) {
-    return -Number(expr.operand.text);
+    const expr = attr.initializer.expression;
+    if (
+      ts.isPrefixUnaryExpression(expr) &&
+      expr.operator === ts.SyntaxKind.MinusToken &&
+      ts.isNumericLiteral(expr.operand)
+    ) {
+      return -Number(expr.operand.text);
+    }
   }
   return undefined;
 }
@@ -193,10 +180,7 @@ function isInherentInteractive(
 }
 
 function explicitWidgetRole(node: JsxTagNode): boolean {
-  const roleAttr = getAttribute(node, "role");
-  const role = roleAttr ? stringValueOf(roleAttr) : undefined;
-  if (!role) return false;
-  return widgetRoleNames.has(role);
+  return explicitRoles(node).some((role) => widgetRoleNames.has(role));
 }
 
 

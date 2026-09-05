@@ -1,12 +1,13 @@
 import { isDecorativeOrHidden, isDomHost } from "../a11y-aria.ts";
 import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
+  hasAnyAttr,
   locationOf,
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";
-import { handlerTriggersContextChange, hasAnyAttr } from "./heuristic-utils.ts";
+import { handlerTriggersContextChange } from "./heuristic-utils.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const FOCUS_HANDLERS = ["onFocus", "onfocus"];

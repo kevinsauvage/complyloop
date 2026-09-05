@@ -1,10 +1,17 @@
 import type {
   Finding,
   FindingCluster,
+  DomLocation,
   SourceLocation,
 } from "@complyloop/analysis-core/contract/finding-types";
 import type { Control } from "./project-types";
-import { isSourceLocation } from "./location";
+import { isDomLocation, isSourceLocation } from "./location";
+
+type DomFinding = Finding & { location: DomLocation };
+
+function isDomFinding(finding: Finding): finding is DomFinding {
+  return isDomLocation(finding.location);
+}
 
 function directoryOf(filePath: string): string {
   const parts = filePath.split("/");
@@ -90,9 +97,7 @@ export function clusterFindings(
       checkId;
 
     const sourceGroup = group.filter(isSourceFinding);
-    const domGroup = group.filter(
-      (finding) => finding.location.kind === "dom",
-    );
+    const domGroup = group.filter(isDomFinding);
 
     const byFile = new Map<string, Finding[]>();
     const byDir = new Map<string, Finding[]>();
@@ -113,7 +118,6 @@ export function clusterFindings(
 
     const byUrl = new Map<string, Finding[]>();
     for (const finding of domGroup) {
-      if (finding.location.kind !== "dom") continue;
       byUrl.set(finding.location.url, [
         ...(byUrl.get(finding.location.url) ?? []),
         finding,

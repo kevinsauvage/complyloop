@@ -27,12 +27,6 @@ const HTML_VALIDATE_OWNED_CHECK_IDS = [
   "css-for-presentation",
 ] as const satisfies readonly CheckId[];
 
-const HTML_VALIDATE_OWNED = new Set<string>(HTML_VALIDATE_OWNED_CHECK_IDS);
-
-export function isHtmlValidateOwnedCheck(checkId: string): boolean {
-  return HTML_VALIDATE_OWNED.has(checkId);
-}
-
 /**
  * Checks the AST engine cannot pass. Without a successful runtime audit they
  * stay `unable_to_verify` — never `passed` from an empty source scan.
@@ -101,7 +95,7 @@ export const RUNTIME_ONLY_CHECK_IDS = [
   "broken-link",
 ] as const satisfies readonly CheckId[];
 
-const SITE_LEVEL_CHECK_IDS = [
+export const SITE_LEVEL_CHECK_IDS = [
   "multiple-ways",
   "consistent-nav",
   "consistent-labels",
@@ -147,18 +141,16 @@ export const HEURISTIC_CHECK_IDS = [
   "live-region-updates",
 ] as const satisfies readonly CheckId[];
 
-const COMPOSITION_SENSITIVE = new Set<string>(COMPOSITION_SENSITIVE_CHECK_IDS);
-const RUNTIME_ONLY = new Set<string>(RUNTIME_ONLY_CHECK_IDS);
-const SITE_LEVEL = new Set<string>(SITE_LEVEL_CHECK_IDS);
-const HEURISTIC = new Set<string>(HEURISTIC_CHECK_IDS);
+const createChecker = (ids: readonly string[]) => {
+  const set = new Set(ids);
+  return (checkId: string): boolean => set.has(checkId);
+};
 
-export function isCompositionSensitiveCheck(checkId: string): boolean {
-  return COMPOSITION_SENSITIVE.has(checkId);
-}
-
-export function isRuntimeOnlyCheck(checkId: string): boolean {
-  return RUNTIME_ONLY.has(checkId);
-}
+export const isHtmlValidateOwnedCheck = createChecker(HTML_VALIDATE_OWNED_CHECK_IDS);
+export const isCompositionSensitiveCheck = createChecker(COMPOSITION_SENSITIVE_CHECK_IDS);
+export const isRuntimeOnlyCheck = createChecker(RUNTIME_ONLY_CHECK_IDS);
+export const isSiteLevelCheck = createChecker(SITE_LEVEL_CHECK_IDS);
+export const isHeuristicCheck = createChecker(HEURISTIC_CHECK_IDS);
 
 /**
  * Source findings for these ids duplicate axe / html-validate / jsx-a11y on
@@ -187,19 +179,7 @@ const PACKAGE_TWIN_SOURCE_CHECK_IDS = [
   "positive-tabindex",
 ] as const satisfies readonly CheckId[];
 
-const PACKAGE_TWIN_SOURCE = new Set<string>(PACKAGE_TWIN_SOURCE_CHECK_IDS);
-
-export function isPackageTwinSourceCheck(checkId: string): boolean {
-  return PACKAGE_TWIN_SOURCE.has(checkId);
-}
-
-export function isSiteLevelCheck(checkId: string): boolean {
-  return SITE_LEVEL.has(checkId);
-}
-
-export function isHeuristicCheck(checkId: string): boolean {
-  return HEURISTIC.has(checkId);
-}
+export const isPackageTwinSourceCheck = createChecker(PACKAGE_TWIN_SOURCE_CHECK_IDS);
 
 /**
  * The single authority classifier. Precedence matters — a check id may appear

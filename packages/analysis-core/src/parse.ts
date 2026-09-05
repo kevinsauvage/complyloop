@@ -58,19 +58,21 @@ export function getAttribute(
   return undefined;
 }
 
-/** Returns the literal string value of an attribute (alt="x" or alt={"x"}), if any. */
+/** Returns the literal string value of an attribute (alt="x", alt={"x"}, colSpan={2}), if any. */
 export function stringValueOf(attr: ts.JsxAttribute): string | undefined {
   const initializer = attr.initializer;
   if (!initializer) return undefined;
   if (ts.isStringLiteral(initializer)) return initializer.text;
-  if (
-    ts.isJsxExpression(initializer) &&
-    initializer.expression &&
-    ts.isStringLiteral(initializer.expression)
-  ) {
-    return initializer.expression.text;
+  if (ts.isJsxExpression(initializer) && initializer.expression) {
+    const expr = initializer.expression;
+    if (ts.isStringLiteral(expr)) return expr.text;
+    if (ts.isNumericLiteral(expr)) return expr.text;
   }
   return undefined;
+}
+
+export function hasAnyAttr(node: JsxTagNode, names: ReadonlyArray<string>): boolean {
+  return names.some((name) => getAttribute(node, name) !== undefined);
 }
 
 /**

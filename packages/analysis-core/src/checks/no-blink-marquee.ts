@@ -123,7 +123,7 @@ function hasPauseControlAttr(node: JsxTagNode): boolean {
     "withPauseButton",
   ]) {
     const attr = getAttribute(node, name);
-    if (booleanAttributeValue(attr) === true) return true;
+    if (booleanAttributeValue(attr)) return true;
   }
   return false;
 }

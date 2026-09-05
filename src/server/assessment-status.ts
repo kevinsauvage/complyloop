@@ -13,6 +13,7 @@ import type { RequirementStatus } from "@complyloop/analysis-core/contract/statu
 import type { Control, Project, Requirement } from "@/core/project-types";
 import { TEMPORARY_EXCEPTION_REASON } from "@/core/project-types";
 import { addEvidence, type Db } from "./db";
+import { findingsForProject, requirementsForProject } from "./project-visibility";
 
 /**
  * Control IDs this project assesses. A named preset always uses the live
@@ -72,9 +73,7 @@ export function requirementsInScope(
   requirements: ReadonlyArray<Requirement>,
   project: Project,
 ): Requirement[] {
-  const forProject = requirements.filter(
-    (requirement) => requirement.projectId === project.id,
-  );
+  const forProject = requirementsForProject(requirements, project.id);
   const controlIds = scopedControlIds(project);
   if (!controlIds) return forProject;
   return forProject.filter((requirement) =>
@@ -87,9 +86,7 @@ export function findingsInScope(
   findings: ReadonlyArray<Finding>,
   project: Project,
 ): Finding[] {
-  const forProject = findings.filter(
-    (finding) => finding.projectId === project.id,
-  );
+  const forProject = findingsForProject(findings, project.id);
   const controlIds = scopedControlIds(project);
   if (!controlIds) return forProject;
   return forProject.filter((finding) => controlIds.has(finding.controlId));
@@ -192,8 +189,14 @@ export function refreshRequirementStatuses(
   projectId: string,
   options: RefreshRequirementStatusesOptions = {},
 ): void {
-  const { assessmentId, changeContext, runtimeRan, siteLevelChecksRan, htmlValidateRan, applicabilityFacts } =
-    options;
+  const {
+    assessmentId,
+    changeContext,
+    runtimeRan,
+    siteLevelChecksRan,
+    htmlValidateRan,
+    applicabilityFacts,
+  } = options;
   const now = new Date().toISOString();
   const project = db.projects.find((candidate) => candidate.id === projectId);
   const scoped = project ? controlsInScope(db, project) : db.controls;

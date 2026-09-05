@@ -59,7 +59,7 @@ export const accessibleAuthCheck: AccessibilityCheck = {
       }
 
       const readOnly = getAttribute(node, "readOnly") ?? getAttribute(node, "readonly");
-      if (readOnly && booleanAttributeValue(readOnly) === true) {
+      if (readOnly && booleanAttributeValue(readOnly)) {
         const autoValue = auto ? stringValueOf(auto)?.toLowerCase() : undefined;
         if (autoValue && AUTH_AUTOCOMPLETE.has(autoValue)) {
           findings.push({

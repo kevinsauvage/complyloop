@@ -4,12 +4,13 @@ import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   booleanAttributeValue,
   getAttribute,
+  hasAnyAttr,
   locationOf,
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";
-import { hasAnyAttr, hasKeyboardHandlers } from "./heuristic-utils.ts";
+import { hasKeyboardHandlers } from "./heuristic-utils.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const DRAG_HANDLERS = ["onDrag", "onDragStart", "onDragEnd", "onDrop"];

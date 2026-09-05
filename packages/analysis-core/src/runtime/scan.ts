@@ -292,61 +292,16 @@ function createPlaywrightAxeScanner(options?: {
 
           const defaultTargetSize = await axeTargetSizeViolations(page);
           violations = [...violations, ...defaultTargetSize];
+          violations = await collectViewportAndPointerViolations(page, violations);
 
-          const defaultViewport = page.viewportSize();
-          await page.setViewportSize(MOBILE_VIEWPORT);
-          try {
-            violations = [
-              ...violations,
-              ...conditionSpecificViolations(
-                violations,
-                await axeTargetSizeViolations(page),
-                MOBILE_TARGET_SIZE_LABEL,
-              ),
-            ];
-          } finally {
-            if (defaultViewport) {
-              await page.setViewportSize(defaultViewport);
-            }
-          }
-
-          const coarseTargetSize = await emulateCoarsePointer(page, () =>
-            axeTargetSizeViolations(page),
-          );
-          violations = [
-            ...violations,
-            ...conditionSpecificViolations(
+          const { conditionViolations, conditionCustomFindings } =
+            await collectBrowserConditionFindings(
+              page,
+              url,
+              conditions,
               violations,
-              coarseTargetSize,
-              COARSE_POINTER_LABEL,
-            ),
-          ];
-
-          // Browser-condition pass (same requirement, different condition,
-          // different evidence): re-run the theme-sensitive analyzers under
-          // each requested condition and keep only findings that fail in that
-          // condition but not in the default pass.
-          const conditionViolations: AxeViolationLike[] = [];
-          const conditionCustomFindings: RawFinding[] = [];
-          for (const condition of conditions) {
-            await page.emulateMedia(emulationForCondition(condition));
-            try {
-              const axeResult = await runAxeOnPage(page);
-              const themeAxe = axeResult.violations.filter((v) =>
-                THEME_SENSITIVE_AXE_RULES.has(v.id),
-              );
-              const themeCustom = await runThemeSensitiveCustomChecks(page, url);
-              const label = conditionLabel(condition);
-              conditionViolations.push(
-                ...conditionSpecificViolations(violations, themeAxe, label),
-              );
-              conditionCustomFindings.push(
-                ...conditionSpecificFindings(customFindings, themeCustom, label),
-              );
-            } finally {
-              await page.emulateMedia(RESET_EMULATION);
-            }
-          }
+              customFindings,
+            );
 
           pages.push({
             url,
@@ -458,6 +413,75 @@ export async function scanRuntime(
       error: classifyRuntimeScanError(error),
     };
   }
+}
+
+async function collectViewportAndPointerViolations(
+  page: Page,
+  baseViolations: AxeViolationLike[],
+): Promise<AxeViolationLike[]> {
+  let violations = [...baseViolations];
+  const defaultViewport = page.viewportSize();
+  await page.setViewportSize(MOBILE_VIEWPORT);
+  try {
+    violations = [
+      ...violations,
+      ...conditionSpecificViolations(
+        violations,
+        await axeTargetSizeViolations(page),
+        MOBILE_TARGET_SIZE_LABEL,
+      ),
+    ];
+  } finally {
+    if (defaultViewport) {
+      await page.setViewportSize(defaultViewport);
+    }
+  }
+
+  const coarseTargetSize = await emulateCoarsePointer(page, () =>
+    axeTargetSizeViolations(page),
+  );
+  return [
+    ...violations,
+    ...conditionSpecificViolations(
+      violations,
+      coarseTargetSize,
+      COARSE_POINTER_LABEL,
+    ),
+  ];
+}
+
+async function collectBrowserConditionFindings(
+  page: Page,
+  url: string,
+  conditions: ReadonlyArray<BrowserCondition>,
+  baseViolations: AxeViolationLike[],
+  baseCustomFindings: RawFinding[],
+): Promise<{
+  conditionViolations: AxeViolationLike[];
+  conditionCustomFindings: RawFinding[];
+}> {
+  const conditionViolations: AxeViolationLike[] = [];
+  const conditionCustomFindings: RawFinding[] = [];
+  for (const condition of conditions) {
+    await page.emulateMedia(emulationForCondition(condition));
+    try {
+      const axeResult = await runAxeOnPage(page);
+      const themeAxe = axeResult.violations.filter((v) =>
+        THEME_SENSITIVE_AXE_RULES.has(v.id),
+      );
+      const themeCustom = await runThemeSensitiveCustomChecks(page, url);
+      const label = conditionLabel(condition);
+      conditionViolations.push(
+        ...conditionSpecificViolations(baseViolations, themeAxe, label),
+      );
+      conditionCustomFindings.push(
+        ...conditionSpecificFindings(baseCustomFindings, themeCustom, label),
+      );
+    } finally {
+      await page.emulateMedia(RESET_EMULATION);
+    }
+  }
+  return { conditionViolations, conditionCustomFindings };
 }
 
 /**

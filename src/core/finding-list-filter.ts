@@ -2,7 +2,7 @@ import type { AssessmentEngine, Finding } from "@complyloop/analysis-core/contra
 import type { Control } from "./project-types";
 import { formatLocationRef, locationPathOrUrl } from "./location";
 import { parsePageParam } from "./pagination";
-import { parseEnumParam, firstParam } from "./query-param";
+import { parseEnumParam, firstParam, buildHref } from "./query-param";
 import { prioritizeFindings } from "./prioritization";
 import { severityRank } from "./labels";
 import {
@@ -78,15 +78,10 @@ export function hasActiveFindingFilters(
 export function findingsListHref(
   params?: Partial<FindingListParams>,
 ): string {
-  const merged: FindingListParams = {
-    tab: "open",
-    page: 1,
-    ...params,
-  };
-  const search = new URLSearchParams(findingListPaginationQuery(merged));
-  if (merged.page > 1) search.set("page", String(merged.page));
-  const qs = search.toString();
-  return qs ? `/findings?${qs}` : "/findings";
+  const merged: FindingListParams = { tab: "open", page: 1, ...params };
+  const query = findingListPaginationQuery(merged);
+  if (merged.page > 1) query.page = String(merged.page);
+  return buildHref("/findings", query);
 }
 
 /** Query params preserved on pagination links (excludes `page`). */
@@ -108,10 +103,9 @@ export function findingDetailHref(
   findingId: string,
   params: FindingListParams,
 ): string {
-  const search = new URLSearchParams(findingListPaginationQuery(params));
-  if (params.page > 1) search.set("page", String(params.page));
-  const qs = search.toString();
-  return qs ? `/findings/${findingId}?${qs}` : `/findings/${findingId}`;
+  const query = findingListPaginationQuery(params);
+  if (params.page > 1) query.page = String(params.page);
+  return buildHref(`/findings/${findingId}`, query);
 }
 
 export interface FilterFindingsContext {

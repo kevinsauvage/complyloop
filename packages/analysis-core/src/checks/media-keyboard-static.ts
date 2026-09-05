@@ -1,13 +1,14 @@
 import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import { isDecorativeOrHidden } from "../a11y-aria.ts";
 import {
+  hasAnyAttr,
   locationOf,
   tagNameOf,
   visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-import { hasAnyAttr, KEY_HANDLERS } from "./heuristic-utils.ts";
+import { KEY_HANDLERS } from "./heuristic-utils.ts";
 
 const STATIC_MEDIA_TAGS = new Set(["object", "embed"]);
 
