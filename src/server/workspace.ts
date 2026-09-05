@@ -279,11 +279,13 @@ async function runProjectWriteTransaction<T>(
       }
     }
     const { db, workspace } = loaded;
+    const project = workspace.project;
+    if (!project) {
+      throw new PublicError("Select a project first.");
+    }
 
     const projectBefore =
-      scope.touch === "project"
-        ? structuredClone(workspace.project)
-        : null;
+      scope.touch === "project" ? structuredClone(project) : null;
     const before =
       scope.touch === "entities"
         ? snapshotTrackedEntities(db, {
@@ -302,14 +304,15 @@ async function runProjectWriteTransaction<T>(
       await persistTargetedProjectWrite(tx, {
         evidence: db.evidence.slice(evidenceStart),
       });
+      const projectAfter = workspace.project ?? project;
       if (
         projectBefore &&
         changedEntities(
           new Map([[projectBefore.id, projectBefore]]),
-          [workspace.project],
+          [projectAfter],
         ).length > 0
       ) {
-        await updateProject(tx, workspace.project);
+        await updateProject(tx, projectAfter);
       }
     } else {
       const payload = collectTargetedWritePayload(

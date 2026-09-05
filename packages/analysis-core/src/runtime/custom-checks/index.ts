@@ -2,6 +2,7 @@ import type { Page } from "playwright";
 import { HEURISTIC_RUNTIME_DOWNGRADE, isHeuristicCheck } from "../../check-authority.ts";
 import type { RawFinding } from "../../types.ts";
 import { htmlSnippet, selectorFromTarget } from "../dom-location.ts";
+import { rawFindingFromDom } from "../raw-finding-from-dom.ts";
 import { cssDisabledContentViolations } from "./css-disabled-content.ts";
 import { cssOffUnderstandableViolation } from "./css-off-understandable.ts";
 import { errorPreventionViolation } from "./error-prevention.ts";
@@ -41,25 +42,22 @@ export function findingsFromCustomViolations(
       ? HEURISTIC_RUNTIME_DOWNGRADE
       : undefined;
     for (const node of violation.nodes) {
-      findings.push({
-        checkId: violation.id,
-        kind: downgrade?.kind ?? "violation",
-        severity: downgrade?.severity ?? violation.impact,
-        confidence: downgrade?.confidence ?? "high",
-        reason: `${violation.help} ${violation.description}`.trim(),
-        location: {
-          kind: "dom",
+      findings.push(
+        rawFindingFromDom({
+          checkId: violation.id,
+          kind: downgrade?.kind ?? "violation",
+          severity: downgrade?.severity ?? violation.impact,
+          confidence: downgrade?.confidence ?? "high",
+          reason: `${violation.help} ${violation.description}`.trim(),
           url: pageUrl,
           selector: selectorFromTarget(node.target),
           snippet: htmlSnippet(node.html),
           elementLabel: node.elementLabel,
           context: node.failureSummary,
-        },
-        fix: null,
-        engine: "runtime",
-        analyzerId: "playwright-custom",
-        analyzerRuleId: violation.id,
-      });
+          analyzerId: "playwright-custom",
+          analyzerRuleId: violation.id,
+        }),
+      );
     }
   }
   return findings;
@@ -85,7 +83,7 @@ async function runProbe(
 ): Promise<CustomViolation[]> {
   try {
     const result = await probe();
-    if (result === null) return [];
+    if (result == null) return [];
     return Array.isArray(result) ? result : [result];
   } catch {
     failures.push(probeId);

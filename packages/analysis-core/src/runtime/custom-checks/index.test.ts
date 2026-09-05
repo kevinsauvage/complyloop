@@ -202,6 +202,7 @@ describe("runCustomRuntimeChecks", () => {
     ]) {
       mock.mockResolvedValue(null);
     }
+    mocks.cssDisabledContentViolations.mockResolvedValue([]);
     mocks.focusCustomViolations.mockResolvedValue([]);
     mocks.dialogFocusViolations.mockResolvedValue([]);
     mocks.widgetKeyboardViolations.mockResolvedValue([]);

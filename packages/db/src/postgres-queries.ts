@@ -7,8 +7,19 @@ import type {
 import { DEFAULT_PAGE_SIZE } from "@complyloop/domain/project-types";
 import type { DrizzleDb } from "./client.ts";
 import { rowToEvidence } from "./postgres-evidence.ts";
+import { EVIDENCE_EXPORT_LIMIT } from "./postgres-scope.ts";
 import { assessmentFromRow } from "./repo/mappers.ts";
 import { assessments, evidence, memberships, projects } from "./schema.ts";
+
+export { EVIDENCE_EXPORT_LIMIT } from "./postgres-scope.ts";
+
+/** How many rows an export should take, and whether the table was larger. */
+export function evidenceExportWindow(
+  total: number,
+  limit: number,
+): { take: number; truncated: boolean } {
+  return { take: Math.min(total, limit), truncated: total > limit };
+}
 
 /** Zero-based OFFSET for a 1-based UI page. */
 export function sqlPageOffset(page: number, pageSize: number): number {
@@ -69,7 +80,7 @@ export async function listEvidencePageForProject(
   return rows.map(rowToEvidence);
 }
 
-/** All evidence for a project, oldest-first (exports / reports). */
+/** All evidence for a project, oldest-first (unbounded — prefer {@link listEvidenceForExport}). */
 export async function listAllEvidenceForProject(
   drizzle: DrizzleDb,
   projectId: string,
@@ -80,6 +91,38 @@ export async function listAllEvidenceForProject(
     .where(eq(evidence.projectId, projectId))
     .orderBy(asc(evidence.at));
   return rows.map(rowToEvidence);
+}
+
+export interface EvidenceExportPage {
+  records: EvidenceRecord[];
+  total: number;
+  truncated: boolean;
+  limit: number;
+}
+
+/** Newest `limit` evidence rows, returned oldest-first, with a truncation flag. */
+export async function listEvidenceForExport(
+  drizzle: DrizzleDb,
+  projectId: string,
+  limit: number = EVIDENCE_EXPORT_LIMIT,
+): Promise<EvidenceExportPage> {
+  const total = await countEvidenceForProject(drizzle, projectId);
+  const { take, truncated } = evidenceExportWindow(total, limit);
+  if (take === 0) {
+    return { records: [], total, truncated, limit };
+  }
+  const rows = await drizzle
+    .select()
+    .from(evidence)
+    .where(eq(evidence.projectId, projectId))
+    .orderBy(desc(evidence.at))
+    .limit(take);
+  return {
+    records: rows.reverse().map(rowToEvidence),
+    total,
+    truncated,
+    limit,
+  };
 }
 
 /** Full assessment history for many projects (org export only). */

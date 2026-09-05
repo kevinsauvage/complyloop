@@ -17,6 +17,7 @@ import type { Page } from "playwright";
 import { htmlValidatePackageVersion } from "../analyzer-versions.ts";
 import { checkIdForHtmlValidateRule } from "./html-validate-map.ts";
 import { htmlSnippet } from "./dom-location.ts";
+import { rawFindingFromDom } from "./raw-finding-from-dom.ts";
 import type { RawFinding } from "../types.ts";
 
 /**
@@ -288,29 +289,26 @@ export async function htmlValidateFindingsFromSerialized(
     const offset = offsetForLineColumn(serialized.html, line, column);
     const el = elementAtOffset(serialized.elements, offset);
 
-    findings.push({
-      checkId,
-      kind: "violation",
-      severity: findingSeverity(checkId),
-      confidence: findingConfidence(checkId),
-      reason: htmlValidateReason(msg, version),
-      location: {
-        kind: "dom",
+    findings.push(
+      rawFindingFromDom({
+        checkId,
+        kind: "violation",
+        severity: findingSeverity(checkId),
+        confidence: findingConfidence(checkId),
+        reason: htmlValidateReason(msg, version),
         url,
         selector: el?.selector ?? "(document)",
         snippet: htmlSnippet(el?.html ?? "(whole document)"),
         elementLabel: el ? `element (${el.selector})` : undefined,
         context: msg.message,
-      },
-      fix: null,
-      engine: "runtime",
-      analyzerId: "html-validate",
-      analyzerRuleId: msg.ruleId,
-      analyzerVersion: version,
-      validationInput: HTML_VALIDATE_INPUT_KIND,
-      validationRules: [...HTML_VALIDATE_RENDERED_RULE_IDS],
-      doctypeIncludedInInput,
-    });
+        analyzerId: "html-validate",
+        analyzerRuleId: msg.ruleId,
+        analyzerVersion: version,
+        validationInput: HTML_VALIDATE_INPUT_KIND,
+        validationRules: [...HTML_VALIDATE_RENDERED_RULE_IDS],
+        doctypeIncludedInInput,
+      }),
+    );
   }
 
   return findings;

@@ -65,6 +65,7 @@ vi.mock("@complyloop/db/client", () => ({
 
 vi.mock("@complyloop/db/postgres-queries", () => ({
   listAllEvidenceForProjects: async () => [],
+  listAssessmentsForProjects: async () => [],
 }));
 
 const org: Organization = {

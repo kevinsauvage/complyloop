@@ -1,5 +1,5 @@
 import { getDrizzle } from "@complyloop/db/client";
-import { listAllEvidenceForProject } from "@complyloop/db/postgres-queries";
+import { listEvidenceForExport } from "@complyloop/db/postgres-queries";
 import {
   controlsInScope,
   requirementsInScope,
@@ -14,17 +14,17 @@ export async function GET(): Promise<Response> {
   if (!project) {
     return new Response("No project connected.", { status: 404 });
   }
-  const evidence = await listAllEvidenceForProject(
-    await getDrizzle(),
-    project.id,
-  );
+  const exported = await listEvidenceForExport(await getDrizzle(), project.id);
   const payload = {
     exportedAt: new Date().toISOString(),
     project: { name: project.name, connectedAt: project.createdAt },
     framework: frameworkForProject(db, project),
     controls: controlsInScope(db, project),
     requirements: requirementsInScope(db.requirements, project),
-    evidence,
+    evidence: exported.records,
+    evidenceTotal: exported.total,
+    evidenceLimit: exported.limit,
+    truncated: exported.truncated,
   };
   return new Response(JSON.stringify(payload, null, 2), {
     headers: {

@@ -1,6 +1,6 @@
 import type { Project } from "@complyloop/domain/project-types";
 import { getDrizzle } from "@complyloop/db/client";
-import { listAllEvidenceForProject } from "@complyloop/db/postgres-queries";
+import { listEvidenceForExport } from "@complyloop/db/postgres-queries";
 import { parseReportViewParam, type ReportView } from "@/core/report-view";
 import { getWorkspace } from "./workspace";
 import { reportInputForProject, type ReportInput } from "./report";
@@ -24,15 +24,12 @@ export async function loadReportRequestContext(
   const view = parseReportViewParam(
     new URL(request.url).searchParams.get("view"),
   );
-  const evidence = await listAllEvidenceForProject(
-    await getDrizzle(),
-    project.id,
-  );
+  const exported = await listEvidenceForExport(await getDrizzle(), project.id);
 
   return {
     ok: true,
     project,
     view,
-    input: reportInputForProject({ ...db, evidence }, project),
+    input: reportInputForProject({ ...db, evidence: exported.records }, project),
   };
 }

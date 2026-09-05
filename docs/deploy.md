@@ -111,19 +111,19 @@ The DB trigger rejects `UPDATE`/`DELETE` on evidence. Proof tests:
 npm run test -- packages/db/src/constraints.test.ts packages/db/src/evidence-append-only.test.ts
 ```
 
-**Growth is unbounded by design** — there is no retention or compaction job.
-Every assessment (including each webhook push) appends `assessment_completed`,
-per-finding, status-change, and job rows; assessments and snapshots grow the
-same way. The evidence page paginates, but the JSON export and the audit
-report's evidence trail read **all** rows for the project. Operational
-guidance:
+**Table growth is unbounded** — there is no compaction job. The append-only
+trigger means pruning is a superuser-level migration, not app code. Keep
+decision records (`requirement_exception_*`, `requirement_human_*`,
+`remediation_*`, `finding` dismissals) forever if you ever prune; only noise
+kinds (`assessment_completed`, `assessment_job`, `monitoring_changes_detected`)
+are candidates.
+
+JSON and HTML/markdown exports take the newest
+`EVIDENCE_EXPORT_LIMIT` (5000) rows and set `truncated` / `evidenceTotal`
+on the JSON payload. The evidence page paginates. Operational guidance:
 
 - Alert on table size (`pg_total_relation_size('evidence')`) alongside the
   `/api/health` queue-depth signal.
-- If a retention policy is introduced later, prune only noise kinds
-  (`assessment_completed`, job records) — decision records and exceptions are
-  the audit trail and must be kept permanently. The append-only trigger means
-  pruning is a deliberate, superuser-level migration, not app code.
 
 ### Reset (local / pre-launch only)
 

@@ -5,6 +5,7 @@ import {
   joinRuntimeUrl,
   runtimeRoutesFor,
 } from "./findings";
+import { rawFindingFromDom } from "./raw-finding-from-dom";
 
 describe("axe rule mapping", () => {
   it("maps label and button-name to check ids", () => {
@@ -189,6 +190,47 @@ describe("findingsFromAxePages", () => {
     ]);
     expect(findings[0]?.checkId).toBe("frame-keyboard");
     expect(findings[0]?.kind).toBe("warning");
+  });
+});
+
+describe("rawFindingFromDom", () => {
+  it("builds a runtime dom finding from shared fields", () => {
+    expect(
+      rawFindingFromDom({
+        checkId: "input-label",
+        kind: "violation",
+        severity: "critical",
+        confidence: "high",
+        reason: "Form elements must have labels",
+        url: "https://app.example/login",
+        selector: "input[type=email]",
+        snippet: '<input type="email">',
+        analyzerId: "axe",
+        analyzerRuleId: "label",
+      }),
+    ).toEqual({
+      checkId: "input-label",
+      kind: "violation",
+      severity: "critical",
+      confidence: "high",
+      reason: "Form elements must have labels",
+      location: {
+        kind: "dom",
+        url: "https://app.example/login",
+        selector: "input[type=email]",
+        snippet: '<input type="email">',
+        elementLabel: undefined,
+        context: undefined,
+      },
+      fix: null,
+      engine: "runtime",
+      analyzerId: "axe",
+      analyzerRuleId: "label",
+      analyzerVersion: undefined,
+      validationInput: undefined,
+      validationRules: undefined,
+      doctypeIncludedInInput: undefined,
+    });
   });
 });
 

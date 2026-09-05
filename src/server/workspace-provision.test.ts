@@ -7,6 +7,7 @@ const listMembershipsForOrgs = vi.hoisted(() => vi.fn());
 const claimMembershipsForLogin = vi.hoisted(() => vi.fn());
 const insertOrganization = vi.hoisted(() => vi.fn());
 const insertMembership = vi.hoisted(() => vi.fn());
+const isPersonalOrgProvisioned = vi.hoisted(() => vi.fn());
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 vi.mock("./active-cookies", () => ({
@@ -19,6 +20,7 @@ vi.mock("@complyloop/db/repo/orgs", () => ({
   claimMembershipsForLogin,
   insertOrganization,
   insertMembership,
+  isPersonalOrgProvisioned,
   deleteMembership: vi.fn(),
   deleteOrganizationRow: vi.fn(),
   listMembershipsForOrgs,
@@ -43,6 +45,7 @@ describe("ensurePersonalOrgProvisioned", () => {
     claimMembershipsForLogin.mockResolvedValue(undefined);
     insertOrganization.mockResolvedValue(undefined);
     insertMembership.mockResolvedValue(undefined);
+    isPersonalOrgProvisioned.mockResolvedValue(false);
   });
 
   it("persists a newly created personal org when the user has none in Postgres", async () => {
@@ -58,6 +61,16 @@ describe("ensurePersonalOrgProvisioned", () => {
         githubLogin: "dev",
       }),
     );
+  });
+
+  it("skips all writes when the personal org is already claimed", async () => {
+    isPersonalOrgProvisioned.mockResolvedValue(true);
+
+    await ensurePersonalOrgProvisioned("user-1", "dev");
+
+    expect(listOrgIdsForUser).not.toHaveBeenCalled();
+    expect(claimMembershipsForLogin).not.toHaveBeenCalled();
+    expect(insertOrganization).not.toHaveBeenCalled();
   });
 
   it("does not re-insert when the user already owns an org in Postgres", async () => {

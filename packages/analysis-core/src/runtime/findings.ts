@@ -1,12 +1,12 @@
 import type { Confidence, Severity } from "../contract/statuses.ts";
 import { axeCorePackageVersion } from "../analyzer-versions.ts";
 import { HEURISTIC_RUNTIME_DOWNGRADE, isHeuristicCheck } from "../check-authority.ts";
-import type { RawFinding } from "../types.ts";
+import type { CheckId, RawFinding } from "../types.ts";
 import { checkIdForAxeRule } from "./axe-map.ts";
 import { htmlSnippet, selectorFromTarget } from "./dom-location.ts";
 import { dedupeRuntimeFindings } from "./dedupe-runtime-findings.ts";
+import { rawFindingFromDom } from "./raw-finding-from-dom.ts";
 
-import type { CheckId } from "../types.ts";
 import type { RuntimePageSnapshot } from "./site-level/types.ts";
 import type { ApplicabilityObservation } from "./applicability.ts";
 import { runSiteLevelChecks } from "./site-level/checks.ts";
@@ -87,28 +87,25 @@ function findingsFromAxeHits(
     const heuristic = isHeuristicCheck(checkId);
     const asReview = kind === "warning" || violation.id === "frame-tested" || heuristic;
     for (const node of violation.nodes) {
-      findings.push({
-        checkId,
-        kind: asReview ? "warning" : "violation",
-        severity: heuristic
-          ? HEURISTIC_RUNTIME_DOWNGRADE.severity
-          : severityFromImpact(violation.impact),
-        confidence: asReview ? "medium" : confidence,
-        reason: `${violation.help} ${violation.description}`.trim(),
-        location: {
-          kind: "dom",
+      findings.push(
+        rawFindingFromDom({
+          checkId,
+          kind: asReview ? "warning" : "violation",
+          severity: heuristic
+            ? HEURISTIC_RUNTIME_DOWNGRADE.severity
+            : severityFromImpact(violation.impact),
+          confidence: asReview ? "medium" : confidence,
+          reason: `${violation.help} ${violation.description}`.trim(),
           url: page.url,
           selector: selectorFromTarget(node.target),
           snippet: htmlSnippet(node.html),
           elementLabel: node.elementLabel,
           context: node.failureSummary,
-        },
-        fix: null,
-        engine: "runtime",
-        analyzerId: "axe",
-        analyzerRuleId: violation.id,
-        analyzerVersion: axeCorePackageVersion(),
-      });
+          analyzerId: "axe",
+          analyzerRuleId: violation.id,
+          analyzerVersion: axeCorePackageVersion(),
+        }),
+      );
     }
   }
   return findings;

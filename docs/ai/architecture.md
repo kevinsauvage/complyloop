@@ -75,6 +75,10 @@ Navigate with `domcontentloaded` + settle, not `networkidle`. Never add
 `linkinator`, `playwright`, `axe-core`, `html-validate` are server
 externals in `next.config.ts`.
 
+Engine containment: a throwing custom probe is recorded on
+`probeFailures` and the rest of the pass continues. html-validate
+failures are non-fatal. An axe crash still fails the scan.
+
 **html-validate** — structural HTML for RGAA 8.2 / 10.1 only
 (`markup-nesting`, `css-for-presentation`). Those stay `unable_to_verify`
 until `htmlValidateRan`. Duplicate ids stay on axe + AST.
