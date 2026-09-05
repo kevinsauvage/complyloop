@@ -8,7 +8,7 @@ import {
 } from "../action-state";
 import { parseForm } from "../boundary";
 import { setDefaultPreset } from "../project-preset";
-import { withProjectWrite } from "../workspace";
+import { withProjectRowWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
 const setDefaultPresetInput = z.object({
@@ -22,7 +22,7 @@ export async function setDefaultPresetAction(
   return runActionMessage(async () => {
     const { presetId } = parseForm(setDefaultPresetInput, formData);
     let changed = false;
-    await withProjectWrite(async (workspace) => {
+    await withProjectRowWrite(async (workspace) => {
       requireOnActive(workspace, "project.connect");
       const { db, project } = workspace;
       changed = setDefaultPreset(db, project, presetId).changed;

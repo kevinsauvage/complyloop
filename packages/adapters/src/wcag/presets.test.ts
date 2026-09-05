@@ -30,4 +30,10 @@ describe("WCAG preset tiers", () => {
     expect(aa?.controlIds).toContain("ctl-supplementary-content-keyboard");
     expect(aa?.controlIds).toContain("ctl-media-identification");
   });
+
+  it("keeps the extra-checks preset a superset of AA", () => {
+    const aa = new Set(presetById("preset-wcag-aa")?.controlIds ?? []);
+    const extra = new Set(presetById("preset-wcag-aaa")?.controlIds ?? []);
+    expect([...aa].filter((id) => !extra.has(id))).toEqual([]);
+  });
 });

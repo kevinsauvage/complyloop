@@ -26,6 +26,8 @@ import type { DrizzleDb } from "../client.ts";
 import {
   applyAssessmentPayload,
   buildAssessmentApplyPayload,
+  changedEntities,
+  entityMap,
   persistProjectSliceDiff,
   snapshotProjectSlice,
 } from "./apply.ts";
@@ -77,6 +79,27 @@ const alert: Alert = {
   at: "2026-01-01T00:00:00.000Z",
   read: false,
 };
+
+describe("changedEntities", () => {
+  it("returns items that are new or whose canonical JSON differs", () => {
+    const before = entityMap([{ id: "a", n: 1 }, { id: "b", n: 2 }]);
+    expect(
+      changedEntities(before, [
+        { id: "a", n: 1 },
+        { id: "b", n: 3 },
+        { id: "c", n: 4 },
+      ]),
+    ).toEqual([
+      { id: "b", n: 3 },
+      { id: "c", n: 4 },
+    ]);
+  });
+
+  it("treats key-order-stable clones as unchanged", () => {
+    const before = entityMap([requirement]);
+    expect(changedEntities(before, [{ ...requirement }])).toEqual([]);
+  });
+});
 
 describe("snapshotProjectSlice", () => {
   it("scopes runtime rows to the active project and linked remediations", () => {

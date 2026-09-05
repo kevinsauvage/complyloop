@@ -121,7 +121,7 @@ describe("remediation action authz", () => {
   });
 
   it("denies run assessment for viewers", async () => {
-    actionWorkspaceMocks.withProjectWrite.mockImplementation(async (fn) =>
+    actionWorkspaceMocks.withProjectRowWrite.mockImplementation(async (fn) =>
       fn(workspaceFor("viewer")),
     );
     const result = await runAssessmentAction(
@@ -214,7 +214,7 @@ describe("bulkApproveRemediationsAction", () => {
 describe("runAssessmentAction", () => {
   it("queues and drains inline when enabled", async () => {
     const workspace = workspaceFor("member");
-    actionWorkspaceMocks.withProjectWrite.mockImplementation(async (fn) => fn(workspace));
+    actionWorkspaceMocks.withProjectRowWrite.mockImplementation(async (fn) => fn(workspace));
     enqueueAssessmentJob.mockResolvedValue({ id: "job-1" });
     shouldDrainAssessmentJobsInline.mockReturnValue(true);
     drainAssessmentJobQueue.mockResolvedValue(undefined);
@@ -242,7 +242,7 @@ describe("runAssessmentAction", () => {
 
   it("returns queued message when inline drain is disabled", async () => {
     const workspace = workspaceFor("member");
-    actionWorkspaceMocks.withProjectWrite.mockImplementation(async (fn) => fn(workspace));
+    actionWorkspaceMocks.withProjectRowWrite.mockImplementation(async (fn) => fn(workspace));
     enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
     shouldDrainAssessmentJobsInline.mockReturnValue(false);
     assertAssessRateLimit.mockResolvedValue(undefined);
@@ -258,7 +258,7 @@ describe("runAssessmentAction", () => {
 
   it("surfaces rate limit errors", async () => {
     const workspace = workspaceFor("member");
-    actionWorkspaceMocks.withProjectWrite.mockImplementation(async (fn) => fn(workspace));
+    actionWorkspaceMocks.withProjectRowWrite.mockImplementation(async (fn) => fn(workspace));
     assertAssessRateLimit.mockRejectedValue(new RateLimitError());
 
     const result = await runAssessmentAction(

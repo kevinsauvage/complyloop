@@ -11,7 +11,8 @@ export interface FrameworkPreset {
   name: string;
   description: string;
   frameworkId: string;
-  controlIds: string[];
+  /** Catalog control ids (`ctl-*`). Unknown ids fail at construction via `catalogControlIds`. */
+  controlIds: readonly string[];
 }
 
 /**

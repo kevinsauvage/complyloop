@@ -29,7 +29,7 @@ import {
 
 /**
  * The slice-diff write model compares rows with `JSON.stringify`
- * (repo/apply.ts `changedEntities`, src/server/workspace.ts). Because the diff
+ * (repo/apply.ts `changedEntities`). Because the diff
  * runs over the in-memory shaped entities (not the row shape), key order here
  * does not affect it directly — but the row shapes are what get persisted, and
  * these tests pin them so a future mapper change cannot silently reorder or

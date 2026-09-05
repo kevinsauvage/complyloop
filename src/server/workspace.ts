@@ -13,12 +13,11 @@ import {
   readActiveOrgCookie,
   readActiveProjectCookie,
 } from "./active-cookies";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
 import {
-  persistProjectSliceDiff,
+  changedEntities,
   persistTargetedProjectWrite,
   requirementUpdatedAtById,
-  snapshotProjectSlice,
   updatedAtById,
   type TargetedProjectWritePayload,
 } from "@complyloop/db/repo/apply";
@@ -174,24 +173,35 @@ export const getWorkspace = cache(async (): Promise<Workspace> => {
   );
 });
 
-/**
- * Mutates the active project's runtime slice in one transaction.
- * Domain helpers may mutate `workspace.db` in memory; only changed rows persist.
- */
-export async function withProjectWrite<T>(
-  fn: (workspace: Workspace) => Promise<T> | T,
-): Promise<T> {
+async function sessionWriteContext(): Promise<{
+  userId: string | null;
+  githubLogin: string | null;
+  preferredOrgId: string | null;
+  preferredProjectId: string | null;
+}> {
   const session = await auth();
   const userId = session?.user?.id ?? null;
   const githubLogin = session?.user?.login ?? null;
-  const preferredOrgId = userId ? await readActiveOrgCookie() : null;
-  const preferredProjectId = await readActiveProjectCookie();
+  return {
+    userId,
+    githubLogin,
+    preferredOrgId: userId ? await readActiveOrgCookie() : null,
+    preferredProjectId: await readActiveProjectCookie(),
+  };
+}
+
+/**
+ * Project-row + new-evidence writes (settings, assessment enqueue). Finding
+ * mutations use {@link withTargetedProjectWrite}.
+ */
+export async function withProjectRowWrite<T>(
+  fn: (workspace: Workspace) => Promise<T> | T,
+): Promise<T> {
+  const { userId, githubLogin, preferredOrgId, preferredProjectId } =
+    await sessionWriteContext();
 
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
-    // Acquire the project lock before loading so a concurrent writer's commit is
-    // visible to this load — the lock serializes load→mutate→persist, not just the
-    // final commit. The active project cookie names the project being mutated.
     if (preferredProjectId) {
       await acquireNamedPostgresAdvisoryLock(
         tx,
@@ -214,35 +224,37 @@ export async function withProjectWrite<T>(
     if (!workspace.project) {
       throw new PublicError("Select a project first.");
     }
-    const projectId = workspace.project.id;
-    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
-    const projectBefore = structuredClone(workspace.project);
-    const before = snapshotProjectSlice(
-      db.requirements,
-      db.findings,
-      db.remediations,
-      db.alerts,
-      projectId,
+    await acquireNamedPostgresAdvisoryLock(
+      tx,
+      projectWriteLockKey(workspace.project.id),
     );
+    const projectBefore = structuredClone(workspace.project);
     const evidenceStart = db.evidence.length;
     const result = await fn(workspace);
-    const after = snapshotProjectSlice(
-      db.requirements,
-      db.findings,
-      db.remediations,
-      db.alerts,
-      projectId,
-    );
-    const newEvidence = db.evidence.slice(evidenceStart);
-    await persistProjectSliceDiff(tx, before, after, newEvidence);
-    // Canonical-order equality (same invariant as repo/apply.ts) — keep the
-    // project mapper key order stable or every write looks like a change.
+    await persistTargetedProjectWrite(tx, {
+      evidence: db.evidence.slice(evidenceStart),
+    });
     if (
-      JSON.stringify(projectBefore) !== JSON.stringify(workspace.project)
+      changedEntities(
+        new Map([[projectBefore.id, projectBefore]]),
+        [workspace.project],
+      ).length > 0
     ) {
       await updateProject(tx, workspace.project);
     }
     return result;
+  });
+}
+
+/** Serializes a single-row project mutation (e.g. mark alert read). */
+export async function withProjectLock<T>(
+  projectId: string,
+  fn: (tx: DrizzleDb) => Promise<T>,
+): Promise<T> {
+  const drizzle = await getDrizzle();
+  return drizzle.transaction(async (tx) => {
+    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
+    return fn(tx);
   });
 }
 
@@ -325,50 +337,37 @@ function collectTargetedWritePayload(
   const requirementIds = new Set(scope.requirementIds ?? []);
   const controlIds = effectiveRefreshControlIds(db, scope);
 
-  const payload: TargetedProjectWritePayload = {
-    findings: [],
-    remediations: [],
-    requirements: [],
+  return {
+    findings: changedEntities(
+      before.findings,
+      db.findings.filter((finding) => findingIds.has(finding.id)),
+    ),
+    remediations: changedEntities(
+      before.remediations,
+      db.remediations.filter((remediation) =>
+        findingIds.has(remediation.findingId),
+      ),
+    ),
+    requirements: changedEntities(
+      before.requirements,
+      db.requirements.filter((requirement) => {
+        if (requirement.projectId !== projectId) return false;
+        return (
+          requirementIds.has(requirement.id) ||
+          controlIds.has(requirement.controlId)
+        );
+      }),
+    ),
     // Only evidence added during this write — the loaded window is pre-existing
     // and must not be re-inserted (evidence has an id primary key).
     evidence: db.evidence.slice(evidenceStart),
   };
-
-  for (const finding of db.findings) {
-    if (!findingIds.has(finding.id)) continue;
-    const prev = before.findings.get(finding.id);
-    if (!prev || JSON.stringify(prev) !== JSON.stringify(finding)) {
-      payload.findings!.push(finding);
-    }
-  }
-
-  for (const remediation of db.remediations) {
-    if (!findingIds.has(remediation.findingId)) continue;
-    const prev = before.remediations.get(remediation.id);
-    if (!prev || JSON.stringify(prev) !== JSON.stringify(remediation)) {
-      payload.remediations!.push(remediation);
-    }
-  }
-
-  for (const requirement of db.requirements) {
-    if (requirement.projectId !== projectId) continue;
-    const inScope =
-      requirementIds.has(requirement.id) ||
-      controlIds.has(requirement.controlId);
-    if (!inScope) continue;
-    const prev = before.requirements.get(requirement.id);
-    if (!prev || JSON.stringify(prev) !== JSON.stringify(requirement)) {
-      payload.requirements!.push(requirement);
-    }
-  }
-
-  return payload;
 }
 
 /**
  * Hot-path writes: load and persist only the findings/remediations/requirements
- * touched by the callback. Assessment apply and project settings still use
- * {@link withProjectWrite} or the worker payload path.
+ * touched by the callback. Project settings and enqueue use
+ * {@link withProjectRowWrite}. Assessment apply uses the worker payload path.
  */
 export async function withTargetedProjectWrite<T>(
   scope: TargetedProjectWriteScope,
@@ -381,11 +380,8 @@ export async function withTargetedProjectWrite<T>(
     throw new PublicError("Targeted write requires at least one entity id.");
   }
 
-  const session = await auth();
-  const userId = session?.user?.id ?? null;
-  const githubLogin = session?.user?.login ?? null;
-  const preferredOrgId = userId ? await readActiveOrgCookie() : null;
-  const preferredProjectId = await readActiveProjectCookie();
+  const { userId, githubLogin, preferredOrgId, preferredProjectId } =
+    await sessionWriteContext();
 
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
@@ -483,11 +479,11 @@ export async function withOrgWrite<T>(
         await insertOrganization(tx, org);
       }
     }
-    for (const membership of db.memberships) {
-      const prev = membershipsBefore.get(membership.id);
-      if (!prev || JSON.stringify(prev) !== JSON.stringify(membership)) {
-        await upsertMembership(tx, membership);
-      }
+    for (const membership of changedEntities(
+      membershipsBefore,
+      db.memberships,
+    )) {
+      await upsertMembership(tx, membership);
     }
     for (const [id] of membershipsBefore) {
       if (!db.memberships.some((item) => item.id === id)) {

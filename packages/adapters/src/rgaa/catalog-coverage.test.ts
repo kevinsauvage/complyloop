@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CHECK_IDS } from "@complyloop/analysis-core/check-ids";
 import { allChecks } from "@complyloop/analysis-core/checks/registry";
 import { isSiteLevelCheck } from "@complyloop/analysis-core/check-authority";
 import { jsxA11yMappedCheckIds } from "@complyloop/analysis-core/jsx-a11y-map";
@@ -91,5 +92,23 @@ describe("RGAA 4.1.2 catalog coverage", () => {
         preset.controlIds.length,
       );
     }
+  });
+
+  it("only names catalog control ids in presets", () => {
+    const known = new Set(rgaaControls.map((control) => control.id));
+    for (const preset of [...rgaaPresets, ...wcagPresets]) {
+      const unknown = preset.controlIds.filter((id) => !known.has(id));
+      expect(unknown, preset.id).toEqual([]);
+    }
+  });
+
+  it("reaches every CheckId from at least one catalog control", () => {
+    const catalogCheckIds = new Set(
+      rgaaControls
+        .map((control) => control.checkId)
+        .filter((checkId): checkId is string => checkId !== null),
+    );
+    const unreachable = CHECK_IDS.filter((id) => !catalogCheckIds.has(id));
+    expect(unreachable).toEqual([]);
   });
 });

@@ -8,7 +8,7 @@ const readActiveOrgCookie = vi.hoisted(() => vi.fn());
 const readActiveProjectCookie = vi.hoisted(() => vi.fn());
 const getDrizzle = vi.hoisted(() => vi.fn());
 const loadWorkspaceDb = vi.hoisted(() => vi.fn());
-const persistProjectSliceDiff = vi.hoisted(() => vi.fn());
+const persistTargetedProjectWrite = vi.hoisted(() => vi.fn());
 const updateProject = vi.hoisted(() => vi.fn());
 const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 
@@ -25,8 +25,8 @@ vi.mock("@complyloop/db/repo/apply", async () => {
   );
   return {
     ...actual,
-    persistProjectSliceDiff: (...args: unknown[]) =>
-      persistProjectSliceDiff(...args),
+    persistTargetedProjectWrite: (...args: unknown[]) =>
+      persistTargetedProjectWrite(...args),
   };
 });
 vi.mock("@complyloop/db/repo/projects", () => ({ updateProject }));
@@ -37,9 +37,9 @@ vi.mock("@complyloop/db/write-lock", () => ({
   projectWriteLockKey: (projectId: string) => `project-write:${projectId}`,
 }));
 
-import { withProjectWrite } from "./workspace";
+import { withProjectRowWrite } from "./workspace";
 
-describe("withProjectWrite", () => {
+describe("withProjectRowWrite", () => {
   const orgId = "org-1";
   const userId = "user-1";
   const project = testProject({ orgId, ownerUserId: userId });
@@ -62,13 +62,13 @@ describe("withProjectWrite", () => {
       memberships: [testMembership("owner", { userId, orgId })],
       projects: [structuredClone(project)],
     });
-    persistProjectSliceDiff.mockResolvedValue(undefined);
+    persistTargetedProjectWrite.mockResolvedValue(undefined);
     updateProject.mockResolvedValue(undefined);
     acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
   });
 
   it("persists active project row changes", async () => {
-    await withProjectWrite(async (workspace) => {
+    await withProjectRowWrite(async (workspace) => {
       workspace.project!.runtimeBaseUrl = "https://preview.example";
       workspace.project!.runtimeRoutes = ["/"];
     });
@@ -88,7 +88,7 @@ describe("withProjectWrite", () => {
   });
 
   it("skips project update when only runtime slice rows change", async () => {
-    await withProjectWrite(async () => {
+    await withProjectRowWrite(async () => {
       /* no project mutation */
     });
 

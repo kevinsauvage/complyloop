@@ -58,8 +58,7 @@ heuristic → composition_sensitive → standard` (`check-authority.ts:184-207`)
   action/route, and clients parse the same payload shapes from `src/core/boundary.ts`.
   `alerts.ts` is the one documented exception (direct repo write — see Decisions).
 - **Evidence is append-only by constitution** (no FKs, insert-only, DB-trigger
-  constrained, live-Postgres tests). Reports `audit.ts`/`engineering.ts` are the only
-  untested HTML surface (tracked P3-3).
+  constrained, live-Postgres tests). Report HTML and markdown share one `ReportModel`.
 - **CI is strong**: quality (lint/typecheck/unit/coverage/build), `db-integration`
   (real Postgres service → migrate + `test:db`), e2e against a fixture GitHub API,
   docker-image import smoke, bundle-analysis artifact (`.github/workflows/ci.yml`).
@@ -84,97 +83,35 @@ heuristic → composition_sensitive → standard` (`check-authority.ts:184-207`)
 
 ---
 
-## P1 — High
+## Open
 
-### P1-2 · Report section composition is written twice (markdown + HTML) — _size L_
-
-**What is wrong.** `src/server/report.ts` (295 LOC, engineering + audit markdown) and
-`src/server/report-html/` (`shared.ts` 430 LOC — mostly CSS — plus `audit.ts`,
-`engineering.ts`, `requirements-section.ts`) compose the **same sections** (header,
-summary counts, requirement table, finding cards, evidence trail) in two formats.
-Only `ReportInput` + `countRequirementsByStatus` are shared; clustering, scoping, and
-section layout are re-implemented per format. `audit.ts`/`engineering.ts` have **no
-colocated tests** (only `shared.test.ts`).
-
-**Why it matters.** Any report change — a new evidence kind, a status label, a scope
-rule — must be made twice. The outputs drift exactly where compliance reviewers read
-them. Reports are the product's external compliance artifact; this is the highest-drift,
-lowest-test surface in `src/server`.
-
-**What should change.** One structured section model built once (a `ReportModel` of
-header/summary/finding-cards/requirement-table/evidence-trail), with markdown and HTML
-as thin renderers — the IR already exists in embryo (`ReportInput`). At minimum, lift
-the section-composition logic into `report-html/shared.ts` and add colocated tests for
-`audit.ts` and `engineering.ts` (they're in the coverage gate, so untested LOC drag
-thresholds today).
-
-**Files.** `src/server/report.ts`, `src/server/report-html/{shared,audit,engineering,requirements-section}.ts`.
-
-**Definition of done.** A new evidence kind renders in both formats through one
-composer; `audit.ts`/`engineering.ts` have component tests.
-
-### P1-3 · Change detection is re-implemented 4×; the whole-slice diff model is still the default for non-hot actions — _size L_
-
-**What is wrong.** The canonical-order `JSON.stringify` comparison appears in
-`repo/apply.ts:61-76` (`changedEntities`), `src/server/workspace.ts:202-227`
-(`withProjectWrite` whole-slice snapshots + project-row compare), `:299-345` (targeted
-payload collection), and `:431-460` (`withOrgWrite`) — four implementations of the same
-clone/stringify-diff idea, each with its own shape. Meanwhile `withProjectWrite` (full
-slice load + `structuredClone` + stringify) is still used by `actions/pr.ts:101`,
-`actions/ai-fix.ts:71`, `actions/remediation-ai.ts:43,77`, and
-`actions/assessment.ts:23` (enqueue), and `markAlertReadAction` is a fifth, lockless
-direct-repo style.
-
-**Why it matters.** The stringify-diff is the most fragile piece of persistence (depends
-on canonical mapper key order — pinned only by `repo/mappers.test.ts`); four copies mean
-a fix lands in one and not the others. Keeping two interactive write models
-(slice-diff vs targeted) means every future action picks a style by momentum, not by
-load.
-
-**What should change.** Extract **one** `changedEntities(before, after)` helper (the
-`apply.ts` one is the natural home; export it) and use it everywhere, deleting the
-workspace-local copies. Then migrate the remaining `withProjectWrite` users to targeted
-or direct-transaction scopes where the mutation is bounded (assessment enqueue touches
-one job row + rate limit + evidence; PR approval touches one remediation). Once no
-caller needs the whole-slice diff, retire `withProjectWrite`'s stringify machinery. Do
-**not** build a canonical-hash layer on top — one shared helper is the simplest
-correct endpoint.
-
-**Files.** `packages/db/src/repo/apply.ts:61-76`, `src/server/workspace.ts:202-227,260-345,431-460`,
-`src/server/actions/{pr.ts,ai-fix.ts,remediation-ai.ts,assessment.ts,alerts.ts}`.
+None. Remaining items were P3 polish and are not listed here.
 
 ---
 
-## P2 — Medium
+## Completed
 
-### P2-7 · Check-id governance is one-way; a reverse coverage gap and a rotting test copy
+### P1-2 · Report section composition is written twice — _done 2026-09-05_
 
-**What is wrong.** Enforcement is unidirectional: `satisfies readonly CheckId[]` verifies
-each manual list is _within_ the union; `catalog-coverage.test.ts:70-86` checks
-catalog→(engines∪site-level). Nothing checks the reverse — that **every** union member
-is reachable from the catalog (a check id in the union but in no catalog control is
-silently dead across the product). In adapters, `wcag/presets.ts:19-80`
-(`preset-wcag-aa`) hand-lists ~140 `ctl-*` strings with no `satisfies` binding to the
-catalog (unlike `preset-wcag-full` at `:12`) — a typo silently drops a control from
-every WCAG-AA assessment.
+`composeEngineeringReport` / `composeAuditReport` in `src/server/report-model.ts`
+build one IR; markdown (`report.ts`) and HTML (`report-html/{audit,engineering}.ts`)
+are thin renderers. Evidence kinds are labeled in the composer. Colocated tests
+live next to `audit.ts` and `engineering.ts`.
 
-**Why it matters.** Silent-drift failure modes in the product's core vocabulary: an id
-that exists but is unreachable, or a preset that omits a control, changes assessment
-scope with no error.
+### P1-3 · Change detection re-implemented 4× — _done 2026-09-05_
 
-**What changed (2026-09-05, partial).** `check-authority.test.ts`'s hardcoded
-`RUNTIME_ONLY` re-list (40 of 57 ids) was replaced with a loop over the source
-`RUNTIME_ONLY_CHECK_IDS` — the copy can no longer rot, and the test now guards
-`keepOpenWhenRuntimeScanSkipped` for the full set. **Still open:** the reverse canary
-(the `CheckId` union is a type, not a runtime value, so it needs either a
-type-level/catalog-`as const` equality assertion or a codegen step) and the WCAG-AA
-preset derivation/typing.
+`changedEntities` is exported from `repo/apply.ts` and used by targeted writes,
+project-row compares, and org membership diffs. `withProjectWrite` is gone:
+finding mutations use `withTargetedProjectWrite`, settings/enqueue use
+`withProjectRowWrite`, `markAlertReadAction` uses `withProjectLock`.
 
-**What should change (remaining).** Type `FrameworkPreset.controlIds` as
-`readonly CheckId[]` (or add `satisfies`) in `adapters` and derive the WCAG-AA list from
-the catalog like the full preset does. Add a reverse reachability guard once the union
-is enumerable (type-level equality test or forcing `rgaaControls` to `as const`).
+### P2-4 · The customer CLI is not a self-contained package — _done 2026-09-05_
 
-**Files.** `packages/analysis-core/src/types.ts:5-143`, `packages/analysis-core/src/check-authority.test.ts`,
-`packages/adapters/src/wcag/presets.ts:12,19-80`, `packages/adapters/src/types.ts:14`,
-`packages/adapters/src/rgaa/catalog-coverage.test.ts:70-86`.
+CLI source lives in `packages/check/src/`. analysis-core is a workspace
+devDependency bundled by `packages/check/scripts/build.mjs`.
+
+### P2-7 · Check-id governance is one-way — _done 2026-09-05_
+
+`CHECK_IDS` is the runtime source of the `CheckId` union. Catalog coverage
+asserts every id is reachable. WCAG AA/extra presets derive from the catalog
+minus small extra-only / full-only sets validated by `catalogControlIds`.

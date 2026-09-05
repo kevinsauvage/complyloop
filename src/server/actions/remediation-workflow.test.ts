@@ -27,7 +27,8 @@ import { markAlertReadAction } from "./alerts";
 import type { Db } from "../db";
 import type { Workspace } from "../workspace";
 
-const { withTargetedProjectWrite, getWorkspace } = actionWorkspaceMocks;
+const { withTargetedProjectWrite, getWorkspace, withProjectLock } =
+  actionWorkspaceMocks;
 const locateViolationInProject = vi.hoisted(() => vi.fn());
 const runtimeViolationStillPresent = vi.hoisted(() => vi.fn());
 const refreshRequirementStatusesForControls = vi.hoisted(() => vi.fn());
@@ -453,7 +454,7 @@ describe("markAlertReadAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    transaction.mockImplementation(async (fn: (tx: object) => unknown) => fn({}));
+    withProjectLock.mockImplementation(async (_id, fn) => fn({}));
     const form = new FormData();
     form.set("alertId", "alert-1");
 

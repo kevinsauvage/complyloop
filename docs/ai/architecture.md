@@ -57,7 +57,7 @@ Statuses, findings, requirement derivation, `PublicError`, and assessment limits
 - **Postgres** — frameworks, controls, orgs, memberships, projects, requirements, assessments, `assessment_snapshots`, findings, remediations, alerts, evidence, encrypted GitHub tokens, webhook delivery ids, `assessment_jobs`, rate-limit buckets. Domain rows store typed JSONB payloads (`packages/db/src/schema.ts`) plus a few indexed columns (`project_id`, `status`, …). Catalog is seeded on deploy (`npm run seed` / `db:migrate`), not rewritten on every user action. One hand-written init migration (`drizzle/0000_init.sql`).
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`); projects belong to orgs. This **is** the product model (invites by GitHub login, roles `owner|admin|member|viewer`, org switcher, personal-org auto-provisioning) — see [product spec §24](../compliance-engineering-product-spec.md#24-mvp-scope). Workspace load stays membership-org + active project.
 - **Reads** — `getWorkspace()` loads the catalog, the viewer's orgs/memberships, the project switcher list for those orgs, and **runtime for the active project only** (requirements, assessments **without** file-hash snapshots, findings, remediations, alerts, evidence window). File hashes live in `assessment_snapshots` and are loaded only for `runAssessment` (`loadProjectAssessmentDb`). Evidence pages/exports/finding detail query Postgres directly through Drizzle (`postgres-queries.ts`), outside the workspace slice.
-- **Writes** — hot-path actions (dismiss, approve, verify, exception set) use `withTargetedProjectWrite` to load and persist only touched findings/remediations/requirements; project settings and other multi-row edits still use `withProjectWrite` (whole-slice diff). Assessment apply uses `applyAssessmentPayload` atomically.
+- **Writes** — finding/requirement mutations use `withTargetedProjectWrite` (load and persist only touched rows). Project settings and assessment enqueue use `withProjectRowWrite` (project row + new evidence). Single-row alert reads use `withProjectLock`. All interactive diffs go through `changedEntities` in `repo/apply.ts`. Assessment apply uses `applyAssessmentPayload` atomically.
 - **Persistence ownership rule** — the slice model persists `findings | remediations | requirements | alerts` as row **upserts** plus evidence inserts **only**; it cannot express deletions. Structural entities outside the slice (orgs, memberships, projects, tokens, jobs) are written exclusively through their `packages/db/src/repo/*` modules. Every slice-persisted table upserts by id (`onConflictDoUpdate` — including `markAlertRead` / alerts); deleting a project cascades its alerts. `persistProjectSliceDiff` (repo/apply) no-ops on empty diffs; evidence rows are insert-only everywhere.
 - **Assessments** — the worker clones and scans **outside** a store transaction, snapshots the loaded project slice, then `applyAssessmentPayload` inserts the assessment + snapshot and diffs findings/requirements/remediations/alerts against that snapshot (only changed rows + new evidence) in one short transaction (`assessment-worker.ts`). `runAssessment` mutates a project-scoped in-memory `Db` for the duration of the scan; that is the apply payload, not a tenant-wide rewrite.
 - **Locks** — job claim uses `FOR UPDATE SKIP LOCKED` (enqueue is an ordinary insert; idempotent webhook keys rely on the unique index). Rate limits use per-key named locks. Interactive project writes and assessment apply both acquire a per-project Postgres advisory lock (`project-write:{projectId}`) inside their persist transaction so concurrent actions serialize instead of last-write-wins. Requirement upserts also skip rows whose DB `updatedAt` is newer than the loaded snapshot (defense against stale `refreshRequirementStatuses` during long assessment runs).
@@ -180,7 +180,7 @@ Classifier precedence in `authorityForCheck`: site_level → runtime_only → he
 A check id is known in many places; adding one touches them all. Keep the lists in
 sync or a check ships with the wrong authority / is unreachable from the catalog.
 
-- **`types.ts`** — add the id to the `CheckId` union (the source of truth for every list below).
+- **`check-ids.ts`** — add the id to `CHECK_IDS` (the source of truth for the `CheckId` union and the catalog reverse-reachability test).
 - **`checks/registry.ts`** — register the AST check (or map a jsx-a11y rule in `jsx-a11y-map.ts`).
 - **`check-authority.ts`** — add the id to the authority list(s) that apply. Precedence is
   `site_level` → `runtime_only` → `heuristic` → `composition_sensitive` → `standard`;
@@ -194,7 +194,8 @@ sync or a check ships with the wrong authority / is unreachable from the catalog
 - **`packages/adapters/src/rgaa/guidance.ts`** — add a `CheckGuidance` entry
   (`Record<CheckId, CheckGuidance>` is compile-enforced).
 - **Presets** — if a control id changed rather than a check id, rebuild preset lists
-  (`rgaa/presets.ts` derives from `rgaaControls`; `wcag/presets.ts` hand-lists).
+  (`rgaa/presets.ts` and `wcag/presets.ts` derive from `rgaaControls`; WCAG AA/extra
+  exclude only the small extra-only / full-only sets).
 
 `check-authority.test.ts` and `rgaa/catalog-coverage.test.ts` catch overlap and
 catalog-reachability drift; run them after any id change.
@@ -246,7 +247,7 @@ Webhook or manual re-assess → scoped JSX re-scan + optional runtime → regres
 
 ### Reports
 
-HTML exports from `/evidence/report/html`: engineering (`report-html/engineering.ts`) for developers, audit (`report-html/audit.ts`) for reviewers. Markdown assembly in `src/server/report.ts` is excluded from the unit coverage gate.
+HTML exports from `/evidence/report/html` and markdown from `src/server/report.ts` both render a shared `ReportModel` (`report-model.ts` composers). Engineering and audit HTML have colocated tests. Markdown assembly in `src/server/report.ts` is excluded from the unit coverage gate.
 
 ## Data invariants
 

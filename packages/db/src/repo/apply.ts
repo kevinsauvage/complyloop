@@ -52,13 +52,14 @@ export async function applyAssessmentPayload(
   );
 }
 
-function entityMap<T extends { id: string }>(
+export function entityMap<T extends { id: string }>(
   items: ReadonlyArray<T>,
 ): Map<string, T> {
   return new Map(items.map((item) => [item.id, structuredClone(item)]));
 }
 
-function changedEntities<T extends { id: string }>(
+/** Canonical-order JSON equality. Mapper key order is pinned by mappers.test.ts. */
+export function changedEntities<T extends { id: string }>(
   before: Map<string, T>,
   after: ReadonlyArray<T>,
 ): T[] {

@@ -17,12 +17,12 @@ vi.mock("./active-cookies", () => ({
   readActiveProjectCookie,
 }));
 
-import { withProjectWrite } from "./workspace";
+import { withTargetedProjectWrite } from "./workspace";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Run via `npm run test:db`. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());
 
-describe.skipIf(!enabled)("withProjectWrite postgres integration", () => {
+describe.skipIf(!enabled)("withTargetedProjectWrite postgres integration", () => {
   afterAll(async () => {
     await closeDrizzle();
   });
@@ -43,13 +43,16 @@ describe.skipIf(!enabled)("withProjectWrite postgres integration", () => {
     readActiveProjectCookie.mockResolvedValue(fixture.projectId);
 
     try {
-      await withProjectWrite(async (workspace) => {
-        const finding = workspace.db.findings.find(
-          (item) => item.id === fixture.findingOneId,
-        );
-        if (!finding) throw new Error("Expected seeded finding.");
-        finding.status = "dismissed";
-      });
+      await withTargetedProjectWrite(
+        { findingIds: [fixture.findingOneId] },
+        async (workspace) => {
+          const finding = workspace.db.findings.find(
+            (item) => item.id === fixture.findingOneId,
+          );
+          if (!finding) throw new Error("Expected seeded finding.");
+          finding.status = "dismissed";
+        },
+      );
 
       const rows = await drizzle
         .select({ payload: findings.payload })

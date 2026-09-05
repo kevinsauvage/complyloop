@@ -7,7 +7,7 @@ import {
 } from "../action-state";
 import { parseForm } from "../boundary";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
-import { withProjectWrite } from "../workspace";
+import { withProjectRowWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
 const updateRuntimeAuditInput = z.object({
@@ -43,7 +43,7 @@ export async function updateRuntimeAuditAction(
       normalized = new URL(resolved).origin;
     }
 
-    await withProjectWrite(async (workspace) => {
+    await withProjectRowWrite(async (workspace) => {
       requireOnActive(workspace, "project.connect");
       const { project } = workspace;
 

@@ -7,9 +7,8 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm } from "../boundary";
-import { getDrizzle } from "@complyloop/db/client";
 import { markAlertRead } from "@complyloop/db/repo/alerts";
-import { alertById, getWorkspace } from "../workspace";
+import { alertById, getWorkspace, withProjectLock } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
 const markAlertReadInput = z.object({
@@ -26,8 +25,7 @@ export async function markAlertReadAction(
     requireOnActive(workspace, "project.view");
     const alert = alertById(workspace.db, alertId, workspace.project!.id);
 
-    const drizzle = await getDrizzle();
-    await drizzle.transaction(async (tx) => {
+    await withProjectLock(workspace.project!.id, async (tx) => {
       await markAlertRead(tx, alert);
     });
     refresh();

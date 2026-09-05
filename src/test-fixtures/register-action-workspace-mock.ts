@@ -23,13 +23,17 @@ vi.mock("@/server/workspace", async () => {
   return {
     ...actual,
     getWorkspace: () => actionWorkspaceMocks.getWorkspace(),
-    withProjectWrite: (fn: Parameters<typeof actual.withProjectWrite>[0]) =>
-      actionWorkspaceMocks.withProjectWrite(fn),
+    withProjectRowWrite: (fn: Parameters<typeof actual.withProjectRowWrite>[0]) =>
+      actionWorkspaceMocks.withProjectRowWrite(fn),
     withTargetedProjectWrite: (
       scope: Parameters<typeof actual.withTargetedProjectWrite>[0],
       fn: Parameters<typeof actual.withTargetedProjectWrite>[1],
     ) => actionWorkspaceMocks.withTargetedProjectWrite(scope, fn),
     withOrgWrite: (fn: Parameters<typeof actual.withOrgWrite>[0]) =>
       actionWorkspaceMocks.withOrgWrite(fn),
+    withProjectLock: (
+      projectId: Parameters<typeof actual.withProjectLock>[0],
+      fn: Parameters<typeof actual.withProjectLock>[1],
+    ) => actionWorkspaceMocks.withProjectLock(projectId, fn),
   };
 });
