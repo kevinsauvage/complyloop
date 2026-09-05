@@ -7,10 +7,22 @@ import type {
   RequirementStatus,
   Severity,
 } from "./statuses.ts";
-import type {
-  AnalyzerContribution,
-  AnalyzerId,
-} from "../types.ts";
+
+/** Which analyzer produced an observation (finer than `engine`). */
+export type AnalyzerId =
+  | "ast"
+  | "jsx-a11y"
+  | "axe"
+  | "html-validate"
+  | "playwright-custom"
+  | "site-level"
+  | "linkinator";
+
+export interface AnalyzerContribution {
+  analyzerId: AnalyzerId;
+  analyzerRuleId?: string;
+  analyzerVersion?: string;
+}
 
 export interface FileChange {
   filePath: string;

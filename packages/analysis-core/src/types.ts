@@ -1,5 +1,10 @@
 import type { Confidence, FindingKind, Severity } from "./contract/statuses.ts";
-import type { FindingLocation, ProposedFix } from "./contract/finding-types.ts";
+import type {
+  AnalyzerContribution,
+  AnalyzerId,
+  FindingLocation,
+  ProposedFix,
+} from "./contract/finding-types.ts";
 import type { ParsedSource } from "./parse.ts";
 
 export type CheckId =
@@ -141,22 +146,6 @@ export type CheckId =
   | "color-contrast-enhanced"
   | "markup-nesting"
   | "broken-link";
-
-/** Which analyzer produced an observation (finer than `engine`). */
-export type AnalyzerId =
-  | "ast"
-  | "jsx-a11y"
-  | "axe"
-  | "html-validate"
-  | "playwright-custom"
-  | "site-level"
-  | "linkinator";
-
-export interface AnalyzerContribution {
-  analyzerId: AnalyzerId;
-  analyzerRuleId?: string;
-  analyzerVersion?: string;
-}
 
 export interface RawFinding {
   checkId: CheckId;

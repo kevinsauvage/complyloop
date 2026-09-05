@@ -1,4 +1,5 @@
-import type { AnalyzerContribution, AnalyzerId, RawFinding } from "../types.ts";
+import type { AnalyzerContribution, AnalyzerId } from "../contract/finding-types.ts";
+import type { RawFinding } from "../types.ts";
 
 const ANALYZER_PRIORITY: Record<AnalyzerId, number> = {
   axe: 0,

@@ -173,6 +173,30 @@ overlap axe — exclusive ownership, not dedupe. `duplicate-id` is axe + AST onl
 
 Classifier precedence in `authorityForCheck`: site_level → runtime_only → heuristic → composition_sensitive → standard. Site-level ids also appear in the runtime-only list. Heuristic and runtime-only must not overlap (`check-authority.test.ts`). `video-caption` / `audio-caption` are runtime-only (axe can pass them); `media-controls-present` is heuristic (no runtime probe).
 
+#### Adding a check id
+
+A check id is known in many places; adding one touches them all. Keep the lists in
+sync or a check ships with the wrong authority / is unreachable from the catalog.
+
+- **`types.ts`** — add the id to the `CheckId` union (the source of truth for every list below).
+- **`checks/registry.ts`** — register the AST check (or map a jsx-a11y rule in `jsx-a11y-map.ts`).
+- **`check-authority.ts`** — add the id to the authority list(s) that apply. Precedence is
+  `site_level` → `runtime_only` → `heuristic` → `composition_sensitive` → `standard`;
+  `site-level` ids also belong in the runtime-only list, and heuristic must not overlap runtime-only.
+- **Runtime engines** — if emitted at runtime, map it in the relevant engine map
+  (`runtime/axe-map.ts`, `runtime/html-validate-map.ts`, or a custom probe in
+  `runtime/custom-checks/`).
+- **`packages/adapters/src/rgaa/controls.ts`** — give at least one control a
+  `checkId` (the union and the catalog's non-null counts, both 138, must keep parity),
+  or it is unreachable from assessments.
+- **`packages/adapters/src/rgaa/guidance.ts`** — add a `CheckGuidance` entry
+  (`Record<CheckId, CheckGuidance>` is compile-enforced).
+- **Presets** — if a control id changed rather than a check id, rebuild preset lists
+  (`rgaa/presets.ts` derives from `rgaaControls`; `wcag/presets.ts` hand-lists).
+
+`check-authority.test.ts` and `rgaa/catalog-coverage.test.ts` catch overlap and
+catalog-reachability drift; run them after any id change.
+
 ### Status derivation (`packages/analysis-core/src/contract/requirement-status.ts`)
 
 `deriveRequirementStatus` is the single source of truth. The server adapter
