@@ -60,5 +60,5 @@ ${renderSummaryRows(statusCounts)}
       ${renderEvidence(model)}
     </section>`;
 
-  return reportShell("Audit report", input, body);
+  return reportShell(model.header, body);
 }

@@ -28,20 +28,34 @@ describe("statusClass", () => {
 });
 
 describe("reportShell", () => {
-  const input = {
-    project: { name: 'Demo "<project>"', source: "github", sourceRef: "acme/demo" },
-    framework: { name: "RGAA", version: "4.1.2" },
+  const header = {
+    title: 'Audit "report"',
+    projectName: 'Demo "<project>"',
+    frameworkName: "RGAA",
+    frameworkVersion: "4.1.2",
+    sourceKind: "github",
+    sourceRef: "acme/demo",
     exportedAt: "2026-01-02T12:00:00.000Z",
   };
 
   it("wraps body sections in a printable HTML shell with escaped metadata", () => {
-    const html = reportShell('Audit "report"', input as never, "<section>Body</section>");
+    const html = reportShell(header, "<section>Body</section>");
 
     expect(html).toContain("<!DOCTYPE html>");
-    expect(html).toContain('<style>');
+    expect(html).toContain("<style>");
     expect(html).toContain("<section>Body</section>");
-    expect(html).not.toContain('<script');
+    expect(html).not.toContain("<script");
     expect(html).toContain("&lt;project&gt;");
     expect(html).toContain("window.print()");
+  });
+
+  it("includes GitHub metadata when present on the header model", () => {
+    const html = reportShell(
+      { ...header, githubFullName: "acme/demo" },
+      "<section>Body</section>",
+    );
+
+    expect(html).toContain("<strong>GitHub:</strong>");
+    expect(html).toContain("acme/demo");
   });
 });

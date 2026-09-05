@@ -36,6 +36,25 @@ describe("buildEngineeringReportHtml", () => {
     expect(html).toContain("No shared root causes detected.");
   });
 
+  it("omits snippet and remediation lines when they are absent", () => {
+    const input = sampleReportInput();
+    input.findings[0] = {
+      ...input.findings[0],
+      location: {
+        kind: "source",
+        filePath: "Empty.tsx",
+        line: 1,
+        column: 1,
+        snippet: "",
+        span: { start: 0, end: 0 },
+      },
+    };
+    input.remediations = [];
+    const html = buildEngineeringReportHtml(input);
+    expect(html).not.toContain("<pre class=\"snippet\">");
+    expect(html).not.toContain("<strong>Remediation:</strong>");
+  });
+
   it("lists clusters when open findings share a root cause", () => {
     const input = sampleReportInput();
     const second: Finding = {

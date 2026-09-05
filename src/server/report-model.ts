@@ -1,7 +1,15 @@
-import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import {
+  FINDING_STATUSES,
+  REQUIREMENT_STATUSES,
+  type FindingStatus,
+  type RequirementStatus,
+} from "@complyloop/analysis-core/contract/statuses";
 import type { Control, Framework, Project, Requirement } from "@complyloop/domain/project-types";
 import type { EvidenceRecord, Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
-import { controlDisplayCodes } from "@complyloop/adapters/control-theme";
+import {
+  controlDisplayCodes,
+  secondaryReferenceLabel,
+} from "@complyloop/adapters/control-theme";
 import {
   determinationLabel,
   evidenceKindLabel,
@@ -26,20 +34,30 @@ export interface ReportInput {
   exportedAt: string;
 }
 
+function countByStatus<T extends string>(
+  items: readonly { status: T }[],
+  statuses: readonly T[],
+): Record<T, number> {
+  const counts = Object.fromEntries(statuses.map((status) => [status, 0])) as Record<
+    T,
+    number
+  >;
+  for (const item of items) {
+    counts[item.status] += 1;
+  }
+  return counts;
+}
+
 export function countRequirementsByStatus(
   requirements: Requirement[],
 ): Record<RequirementStatus, number> {
-  const counts: Record<RequirementStatus, number> = {
-    passed: 0,
-    failed: 0,
-    needs_review: 0,
-    not_applicable: 0,
-    unable_to_verify: 0,
-  };
-  for (const requirement of requirements) {
-    counts[requirement.status] += 1;
-  }
-  return counts;
+  return countByStatus(requirements, REQUIREMENT_STATUSES);
+}
+
+function countFindingsByStatus(
+  findings: Finding[],
+): Record<FindingStatus, number> {
+  return countByStatus(findings, FINDING_STATUSES);
 }
 
 export interface ReportHeaderModel {
@@ -51,11 +69,6 @@ export interface ReportHeaderModel {
   sourceRef?: string;
   githubFullName?: string;
   exportedAt: string;
-}
-
-export interface ReportMetric {
-  label: string;
-  value: number;
 }
 
 export interface EngineeringFindingCard {
@@ -75,7 +88,6 @@ export interface EngineeringFindingCard {
 
 export interface EngineeringReportModel {
   header: ReportHeaderModel;
-  metrics: ReportMetric[];
   clusters: { label: string; findingCount: number }[];
   findings: EngineeringFindingCard[];
 }
@@ -87,7 +99,6 @@ export interface AuditRequirementRow {
   secondaryCode: string;
   status: RequirementStatus;
   statusLabel: string;
-  determination: string;
   determinationLabel: string;
   description: string;
   updatedAt: string;
@@ -103,7 +114,7 @@ export interface AuditEvidenceRow {
 export interface AuditReportModel {
   header: ReportHeaderModel;
   statusCounts: Record<RequirementStatus, number>;
-  findingCounts: { open: number; resolved: number; dismissed: number };
+  findingCounts: Record<FindingStatus, number>;
   totalRequirements: number;
   passRate: number;
   requirements: AuditRequirementRow[];
@@ -123,10 +134,84 @@ function reportHeader(title: string, input: ReportInput): ReportHeaderModel {
   };
 }
 
-function secondaryReferenceLabel(secondaryCode: string): string {
-  if (secondaryCode.startsWith("WCAG")) return "WCAG";
-  if (secondaryCode.startsWith("RGAA")) return "RGAA";
-  return "Also";
+function evidenceRowsForProject(
+  evidence: EvidenceRecord[],
+  projectId: string,
+): AuditEvidenceRow[] {
+  return evidence
+    .filter((record) => record.projectId === projectId || !record.projectId)
+    .slice()
+    .reverse()
+    .map((record) => ({
+      at: record.at,
+      kindLabel: evidenceKindLabel(record.kind),
+      summary: record.summary,
+    }));
+}
+
+function toEngineeringFindingCard(
+  finding: Finding,
+  framework: Framework,
+  controlById: ReadonlyMap<string, Control>,
+  requirementByControlId: ReadonlyMap<string, Requirement>,
+  remediationByFindingId: ReadonlyMap<string, Remediation>,
+): EngineeringFindingCard {
+  const control = controlById.get(finding.controlId);
+  const requirement = requirementByControlId.get(finding.controlId);
+  const remediation = remediationByFindingId.get(finding.id);
+  const display = control
+    ? controlDisplayCodes(control, framework.id)
+    : undefined;
+
+  return {
+    code: display?.code ?? control?.code ?? finding.controlId,
+    locationRef: formatLocationRef(finding.location),
+    requirementLine: requirement
+      ? `${requirementStatusLabel(requirement.status)} (${determinationLabel(requirement.determination)})`
+      : undefined,
+    severity: severityLabel(finding.severity),
+    severityClass: finding.severity,
+    confidence: finding.confidence,
+    checkId: finding.checkId,
+    engine: finding.engine,
+    reason: finding.reason,
+    snippet: locationSnippet(finding.location),
+    remediationStatus: remediation
+      ? remediationStatusLabel(remediation.status)
+      : undefined,
+    suggestion: remediation?.suggestion
+      ? {
+          provenance: remediation.suggestion.provenance,
+          description: remediation.suggestion.description,
+        }
+      : undefined,
+  };
+}
+
+function toAuditRequirementRow(
+  control: Control,
+  requirement: Requirement,
+  framework: Framework,
+): AuditRequirementRow {
+  const display = controlDisplayCodes(control, framework.id);
+  return {
+    code: display.code,
+    title: control.title,
+    secondaryLabel: secondaryReferenceLabel(display.secondaryCode),
+    secondaryCode: display.secondaryCode,
+    status: requirement.status,
+    statusLabel: requirementStatusLabel(requirement.status),
+    determinationLabel: determinationLabel(requirement.determination),
+    description: control.description,
+    updatedAt: requirement.updatedAt,
+    exception: requirement.exception
+      ? {
+          reason: requirement.exception.reason.replace(/_/g, " "),
+          note: requirement.exception.note || "(no note)",
+          at: requirement.exception.at,
+        }
+      : undefined,
+  };
 }
 
 export function composeEngineeringReport(
@@ -134,113 +219,55 @@ export function composeEngineeringReport(
 ): EngineeringReportModel {
   const { framework, controls, requirements, findings, remediations } = input;
   const openFindings = findings.filter((finding) => finding.status === "open");
-  const clusters = prioritizeClusters(openFindings, controls);
+  const controlById = new Map(controls.map((control) => [control.id, control]));
+  const requirementByControlId = new Map(
+    requirements.map((requirement) => [requirement.controlId, requirement]),
+  );
+  const remediationByFindingId = new Map(
+    remediations.map((remediation) => [remediation.findingId, remediation]),
+  );
 
   return {
     header: reportHeader("Engineering report", input),
-    metrics: [
-      { label: "Open findings", value: openFindings.length },
-      { label: "Shared root causes", value: clusters.length },
-    ],
-    clusters: clusters.map((cluster) => ({
+    clusters: prioritizeClusters(openFindings, controls).map((cluster) => ({
       label: cluster.label,
       findingCount: cluster.findingIds.length,
     })),
-    findings: openFindings.map((finding) => {
-      const control = controls.find((candidate) => candidate.id === finding.controlId);
-      const requirement = requirements.find(
-        (candidate) => candidate.controlId === finding.controlId,
-      );
-      const remediation = remediations.find(
-        (candidate) => candidate.findingId === finding.id,
-      );
-      const display = control
-        ? controlDisplayCodes(control, framework.id)
-        : undefined;
-      return {
-        code: display?.code ?? control?.code ?? finding.controlId,
-        locationRef: formatLocationRef(finding.location),
-        requirementLine: requirement
-          ? `${requirementStatusLabel(requirement.status)} (${requirement.determination})`
-          : undefined,
-        severity: severityLabel(finding.severity),
-        severityClass: finding.severity,
-        confidence: finding.confidence,
-        checkId: finding.checkId,
-        engine: finding.engine,
-        reason: finding.reason,
-        snippet: locationSnippet(finding.location),
-        remediationStatus: remediation
-          ? remediationStatusLabel(remediation.status)
-          : undefined,
-        suggestion: remediation?.suggestion
-          ? {
-              provenance: remediation.suggestion.provenance,
-              description: remediation.suggestion.description,
-            }
-          : undefined,
-      };
-    }),
+    findings: openFindings.map((finding) =>
+      toEngineeringFindingCard(
+        finding,
+        framework,
+        controlById,
+        requirementByControlId,
+        remediationByFindingId,
+      ),
+    ),
   };
 }
 
 export function composeAuditReport(input: ReportInput): AuditReportModel {
   const { framework, controls, requirements, findings, evidence, project } =
     input;
-  const counts = countRequirementsByStatus(requirements);
-  const openFindings = findings.filter((finding) => finding.status === "open");
+  const statusCounts = countRequirementsByStatus(requirements);
   const totalRequirements = requirements.length;
+  const requirementByControlId = new Map(
+    requirements.map((requirement) => [requirement.controlId, requirement]),
+  );
 
   return {
     header: reportHeader("Audit report", input),
-    statusCounts: counts,
-    findingCounts: {
-      open: openFindings.length,
-      resolved: findings.filter((finding) => finding.status === "resolved").length,
-      dismissed: findings.filter((finding) => finding.status === "dismissed")
-        .length,
-    },
+    statusCounts,
+    findingCounts: countFindingsByStatus(findings),
     totalRequirements,
     passRate:
       totalRequirements > 0
-        ? Math.round((counts.passed / totalRequirements) * 100)
+        ? Math.round((statusCounts.passed / totalRequirements) * 100)
         : 0,
     requirements: controls.flatMap((control) => {
-      const requirement = requirements.find(
-        (candidate) => candidate.controlId === control.id,
-      );
+      const requirement = requirementByControlId.get(control.id);
       if (!requirement) return [];
-      const display = controlDisplayCodes(control, framework.id);
-      return [
-        {
-          code: display.code,
-          title: control.title,
-          secondaryLabel: secondaryReferenceLabel(display.secondaryCode),
-          secondaryCode: display.secondaryCode,
-          status: requirement.status,
-          statusLabel: requirementStatusLabel(requirement.status),
-          determination: requirement.determination,
-          determinationLabel: determinationLabel(requirement.determination),
-          description: control.description,
-          updatedAt: requirement.updatedAt,
-          exception: requirement.exception
-            ? {
-                reason: requirement.exception.reason.replace(/_/g, " "),
-                note: requirement.exception.note || "(no note)",
-                at: requirement.exception.at,
-              }
-            : undefined,
-        },
-      ];
+      return [toAuditRequirementRow(control, requirement, framework)];
     }),
-    evidence: evidence
-      .filter((record) => record.projectId === project.id || !record.projectId)
-      .slice()
-      .reverse()
-      .map((record) => ({
-        at: record.at,
-        kindLabel: evidenceKindLabel(record.kind),
-        summary: record.summary,
-      })),
+    evidence: evidenceRowsForProject(evidence, project.id),
   };
 }

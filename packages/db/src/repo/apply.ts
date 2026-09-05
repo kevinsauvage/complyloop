@@ -112,11 +112,13 @@ export function requirementUpdatedAtById(
 export function updatedAtById(
   items: ReadonlyArray<{ id: string; updatedAt?: string }>,
 ): Map<string, string> {
-  return new Map(
-    items
-      .filter((item) => item.updatedAt !== undefined)
-      .map((item) => [item.id, item.updatedAt as string]),
-  );
+  const entries: Array<[string, string]> = [];
+  for (const item of items) {
+    if (item.updatedAt !== undefined) {
+      entries.push([item.id, item.updatedAt]);
+    }
+  }
+  return new Map(entries);
 }
 
 export async function persistProjectSliceDiff(

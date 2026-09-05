@@ -20,7 +20,7 @@ afterEach(() => {
       fs.rmSync(path.join(packageDir, entry), { force: true });
     }
   }
-});
+}, 30_000);
 
 function run(
   command: string,

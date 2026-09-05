@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   determinationLabel,
   evidenceKindLabel,
+  findingStatusLabel,
   remediationStatusLabel,
   requirementStatusLabel,
   severityLabel,
@@ -9,6 +10,7 @@ import {
 } from "./labels";
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
 import {
+  FINDING_STATUSES,
   REMEDIATION_STATUSES,
   REQUIREMENT_STATUSES,
   type RemediationStatus,
@@ -111,6 +113,18 @@ describe("evidenceKindLabel", () => {
     expect(() =>
       evidenceKindLabel("bogus" as EvidenceKind),
     ).toThrow(/Unhandled evidence kind/);
+  });
+});
+
+describe("findingStatusLabel", () => {
+  it("labels every finding status", () => {
+    expect(
+      FINDING_STATUSES.map((status) => [status, findingStatusLabel(status)]),
+    ).toEqual([
+      ["open", "Open"],
+      ["resolved", "Resolved"],
+      ["dismissed", "Dismissed"],
+    ]);
   });
 });
 

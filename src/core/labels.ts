@@ -1,6 +1,7 @@
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
 import type {
   DeterminationMethod,
+  FindingStatus,
   RemediationStatus,
   RequirementStatus,
   Severity,
@@ -52,6 +53,16 @@ const SEVERITY_LABEL: Record<Severity, string> = {
   serious: "Serious",
   moderate: "Moderate",
   minor: "Minor",
+};
+
+export function findingStatusLabel(status: FindingStatus): string {
+  return lookupExhaustive(FINDING_STATUS_LABEL, status, "finding status");
+}
+
+const FINDING_STATUS_LABEL: Record<FindingStatus, string> = {
+  open: "Open",
+  resolved: "Resolved",
+  dismissed: "Dismissed",
 };
 
 export function determinationLabel(method: DeterminationMethod): string {

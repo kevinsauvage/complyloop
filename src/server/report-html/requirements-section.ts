@@ -1,16 +1,17 @@
 import { requirementStatusLabel } from "@/core/labels";
 import { formatDateTime } from "@/core/format-datetime";
-import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import {
+  REQUIREMENT_STATUSES,
+  type RequirementStatus,
+} from "@complyloop/analysis-core/contract/statuses";
 import type { AuditRequirementRow } from "../report-model";
 import { escapeHtml, statusClass } from "./shared";
 
 export function renderSummaryRows(counts: Record<RequirementStatus, number>): string {
-  return (Object.keys(counts) as RequirementStatus[])
-    .map(
-      (status) =>
-        `<tr><td><span class="badge ${statusClass(status)}">${escapeHtml(requirementStatusLabel(status))}</span></td><td class="num">${counts[status]}</td></tr>`,
-    )
-    .join("\n");
+  return REQUIREMENT_STATUSES.map(
+    (status) =>
+      `<tr><td><span class="badge ${statusClass(status)}">${escapeHtml(requirementStatusLabel(status))}</span></td><td class="num">${counts[status]}</td></tr>`,
+  ).join("\n");
 }
 
 export function renderRequirements(requirements: AuditRequirementRow[]): string {

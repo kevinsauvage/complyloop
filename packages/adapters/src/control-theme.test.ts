@@ -5,6 +5,7 @@ import {
   controlDisplayCodes,
   controlForDisplay,
   groupControlsByTheme,
+  secondaryReferenceLabel,
 } from "./control-theme";
 
 function controlById(id: string) {
@@ -12,6 +13,14 @@ function controlById(id: string) {
   if (!control) throw new Error(`Missing control ${id}`);
   return control;
 }
+
+describe("secondaryReferenceLabel", () => {
+  it("labels WCAG and RGAA cross-references and falls back for others", () => {
+    expect(secondaryReferenceLabel("WCAG 1.1.1")).toBe("WCAG");
+    expect(secondaryReferenceLabel("RGAA 1.1")).toBe("RGAA");
+    expect(secondaryReferenceLabel("ISO 40500")).toBe("Also");
+  });
+});
 
 describe("controlDisplayCodes", () => {
   it("keeps RGAA as the primary code when that framework is the target", () => {

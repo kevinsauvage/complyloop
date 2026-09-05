@@ -62,6 +62,7 @@ export default defineConfig({
         "packages/db/src/repo/projects.ts",
         "packages/db/src/repo/remediations.ts",
         "packages/db/src/repo/requirements.ts",
+        "packages/db/src/test-fixtures/**",
         // Write path covered by workspace.test.ts + workspace.integration.test.ts (test:db).
         "src/server/workspace.ts",
         // Thin Next Auth / cookie glue — covered via e2e.

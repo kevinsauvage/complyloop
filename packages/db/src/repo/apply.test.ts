@@ -29,7 +29,9 @@ import {
   changedEntities,
   entityMap,
   persistProjectSliceDiff,
+  persistTargetedProjectWrite,
   snapshotProjectSlice,
+  updatedAtById,
 } from "./apply.ts";
 
 const projectId = "p1";
@@ -79,6 +81,17 @@ const alert: Alert = {
   at: "2026-01-01T00:00:00.000Z",
   read: false,
 };
+
+describe("updatedAtById", () => {
+  it("keeps only entities that already have updatedAt", () => {
+    expect(
+      updatedAtById([
+        { id: "a", updatedAt: "2026-01-01T00:00:00.000Z" },
+        { id: "b" },
+      ]),
+    ).toEqual(new Map([["a", "2026-01-01T00:00:00.000Z"]]));
+  });
+});
 
 describe("changedEntities", () => {
   it("returns items that are new or whose canonical JSON differs", () => {
@@ -272,6 +285,70 @@ describe("applyAssessmentPayload", () => {
       loadedUpdatedAtById: new Map(),
     });
     expect(insertAlerts).toHaveBeenCalledWith(tx, []);
+  });
+});
+
+describe("persistTargetedProjectWrite", () => {
+  const tx = { kind: "tx" } as unknown as DrizzleDb;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    upsertRequirements.mockResolvedValue(undefined);
+    upsertFindings.mockResolvedValue(undefined);
+    upsertRemediations.mockResolvedValue(undefined);
+    insertAlerts.mockResolvedValue(undefined);
+    insertEvidenceRecords.mockResolvedValue(undefined);
+  });
+
+  it("upserts only the provided rows", async () => {
+    const evidence: EvidenceRecord[] = [
+      {
+        id: "ev-1",
+        at: "2026-01-02T00:00:00.000Z",
+        kind: "finding_dismissed",
+        summary: "dismissed",
+        projectId,
+        findingId: finding.id,
+      },
+    ];
+    await persistTargetedProjectWrite(
+      tx,
+      {
+        findings: [finding],
+        remediations: [remediation],
+        requirements: [requirement],
+        alerts: [alert],
+        evidence,
+      },
+      {
+        loadedRequirementUpdatedAtById: new Map([
+          [requirement.id, requirement.updatedAt],
+        ]),
+        loadedFindingUpdatedAtById: new Map([[finding.id, "2026-01-01"]]),
+        loadedRemediationUpdatedAtById: new Map([[remediation.id, "2026-01-01"]]),
+      },
+    );
+
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [finding], {
+      loadedUpdatedAtById: new Map([[finding.id, "2026-01-01"]]),
+    });
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, [remediation], {
+      loadedUpdatedAtById: new Map([[remediation.id, "2026-01-01"]]),
+    });
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, [requirement], {
+      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
+    });
+    expect(insertAlerts).toHaveBeenCalledWith(tx, [alert]);
+    expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, evidence);
+  });
+
+  it("no-ops when the payload is empty", async () => {
+    await persistTargetedProjectWrite(tx, {});
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
+      loadedUpdatedAtById: undefined,
+    });
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {});
+    expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, []);
   });
 });
 

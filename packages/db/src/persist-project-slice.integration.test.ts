@@ -241,14 +241,23 @@ describe.skipIf(!enabled)("persistProjectSliceDiff integration", () => {
         );
       });
 
-      // The worker's assessment re-detects the violation and applies its stale
-      // slice — persistProjectSliceDiff derives loaded versions from `loadedSlice`
-      // and must skip the finding the human dismissed meanwhile.
+      // The worker's assessment re-detects the violation at a shifted location and
+      // applies its stale slice. The location change makes it a real diff entry —
+      // persistProjectSliceDiff must still skip it because the human dismissed the
+      // finding (newer updatedAt) after the worker loaded its slice.
       const workerAfter = structuredClone(loadedSlice);
       const reappeared = workerAfter.findings.find(
         (item) => item.id === fixture.findingTwoId,
       )!;
       reappeared.status = "open";
+      reappeared.location = {
+        kind: "source",
+        filePath: "App.tsx",
+        line: 9,
+        column: 1,
+        snippet: '<img src="x" alt="" />',
+        span: { start: 100, end: 120 },
+      };
 
       await drizzle.transaction(async (tx) => {
         await persistProjectSliceDiff(tx, loadedSlice, workerAfter, []);

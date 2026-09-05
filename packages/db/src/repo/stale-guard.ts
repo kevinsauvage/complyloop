@@ -23,6 +23,6 @@ export function filterItemsNotStaleInDb<T extends { id: string; updatedAt?: stri
 }
 
 /** Timestamps now — call before persisting so every write bumps `updatedAt`. */
-export function stampedNow<T extends { updatedAt?: string }>(item: T): T {
+export function stampedNow<T extends object>(item: T): T & { updatedAt: string } {
   return { ...item, updatedAt: new Date().toISOString() };
 }

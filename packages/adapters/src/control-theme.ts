@@ -24,6 +24,13 @@ const WCAG_PRINCIPLES = [
   { id: "robust", label: "Robust", criterion: 4 },
 ] as const;
 
+/** Label for the cross-framework reference column in audit reports. */
+export function secondaryReferenceLabel(secondaryCode: string): string {
+  if (secondaryCode.startsWith("WCAG")) return "WCAG";
+  if (secondaryCode.startsWith("RGAA")) return "RGAA";
+  return "Also";
+}
+
 export function controlDisplayCodes(
   control: Control,
   frameworkId: string,

@@ -45,18 +45,13 @@ function renderClusters(model: EngineeringReportModel): string {
 
 export function buildEngineeringReportHtml(input: ReportInput): string {
   const model = composeEngineeringReport(input);
-  const openFindings =
-    model.metrics.find((metric) => metric.label === "Open findings")?.value ?? 0;
-  const clusterCount =
-    model.metrics.find((metric) => metric.label === "Shared root causes")?.value ??
-    0;
 
   const body = `
     <section id="summary">
       <h2>Summary</h2>
       <div class="summary-grid">
-        <div class="summary-stat"><div class="label">Open findings</div><div class="value">${openFindings}</div></div>
-        <div class="summary-stat"><div class="label">Shared root causes</div><div class="value">${clusterCount}</div></div>
+        <div class="summary-stat"><div class="label">Open findings</div><div class="value">${model.findings.length}</div></div>
+        <div class="summary-stat"><div class="label">Shared root causes</div><div class="value">${model.clusters.length}</div></div>
       </div>
     </section>
 
@@ -70,5 +65,5 @@ export function buildEngineeringReportHtml(input: ReportInput): string {
       ${renderEngineeringFindings(model)}
     </section>`;
 
-  return reportShell("Engineering report", input, body);
+  return reportShell(model.header, body);
 }

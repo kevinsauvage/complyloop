@@ -11,15 +11,20 @@ import { evidenceForProject } from "./project-visibility";
 import {
   composeAuditReport,
   composeEngineeringReport,
-  countRequirementsByStatus,
   type AuditReportModel,
   type EngineeringReportModel,
   type ReportHeaderModel,
   type ReportInput,
 } from "./report-model";
+import {
+  FINDING_STATUSES,
+  REQUIREMENT_STATUSES,
+  type FindingStatus,
+  type RequirementStatus,
+} from "@complyloop/analysis-core/contract/statuses";
+import { findingStatusLabel, requirementStatusLabel } from "@/core/labels";
 
 export type { ReportInput };
-export { countRequirementsByStatus };
 
 /** Resolves the framework named by the project's assessment preset. */
 export function frameworkForProject(db: Db, project: Project): Framework {
@@ -40,6 +45,7 @@ export function frameworkForProject(db: Db, project: Project): Framework {
 /** Builds report input for a project's current store snapshot. */
 export function reportInputForProject(db: Db, project: Project): ReportInput {
   const findings = findingsInScope(db.findings, project);
+  const findingIds = new Set(findings.map((finding) => finding.id));
   const framework = frameworkForProject(db, project);
   return {
     project,
@@ -47,7 +53,7 @@ export function reportInputForProject(db: Db, project: Project): ReportInput {
     controls: controlsInScope(db, project),
     findings,
     remediations: db.remediations.filter((remediation) =>
-      findings.some((finding) => finding.id === remediation.findingId),
+      findingIds.has(remediation.findingId),
     ),
     requirements: requirementsInScope(db.requirements, project),
     evidence: evidenceForProject(db.evidence, project.id),
@@ -84,7 +90,8 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
     ``,
     `| Metric | Count |`,
     `| --- | ---: |`,
-    ...model.metrics.map((metric) => `| ${metric.label} | ${metric.value} |`),
+    `| Open findings | ${model.findings.length} |`,
+    `| Shared root causes | ${model.clusters.length} |`,
     ``,
   ];
 
@@ -139,6 +146,20 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
   return lines.join("\n");
 }
 
+function statusCountRows(
+  counts: Record<RequirementStatus, number>,
+): string[] {
+  return REQUIREMENT_STATUSES.map(
+    (status) => `| ${requirementStatusLabel(status)} | ${counts[status]} |`,
+  );
+}
+
+function findingCountRows(counts: Record<FindingStatus, number>): string[] {
+  return FINDING_STATUSES.map(
+    (status) => `| ${findingStatusLabel(status)} | ${counts[status]} |`,
+  );
+}
+
 function renderAuditMarkdown(model: AuditReportModel): string {
   const { statusCounts, findingCounts } = model;
   const lines: string[] = [
@@ -147,17 +168,11 @@ function renderAuditMarkdown(model: AuditReportModel): string {
     ``,
     `| Status | Count |`,
     `| --- | ---: |`,
-    `| Passed | ${statusCounts.passed} |`,
-    `| Failed | ${statusCounts.failed} |`,
-    `| Needs review | ${statusCounts.needs_review} |`,
-    `| Not applicable | ${statusCounts.not_applicable} |`,
-    `| Unable to verify | ${statusCounts.unable_to_verify} |`,
+    ...statusCountRows(statusCounts),
     ``,
     `| Findings | Count |`,
     `| --- | ---: |`,
-    `| Open | ${findingCounts.open} |`,
-    `| Resolved | ${findingCounts.resolved} |`,
-    `| Dismissed | ${findingCounts.dismissed} |`,
+    ...findingCountRows(findingCounts),
     ``,
     `## Requirements`,
     ``,
@@ -170,7 +185,7 @@ function renderAuditMarkdown(model: AuditReportModel): string {
       `- **${requirement.secondaryLabel}:** ${requirement.secondaryCode}`,
     );
     lines.push(
-      `- **Status:** ${requirement.statusLabel} (${requirement.determination})`,
+      `- **Status:** ${requirement.statusLabel} (${requirement.determinationLabel})`,
     );
     if (requirement.exception) {
       lines.push(
