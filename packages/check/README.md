@@ -39,10 +39,14 @@ Copy [`templates/github-actions/complyloop-check.yml`](../../templates/github-ac
 
 ## Develop in the monorepo
 
+Source lives in this package (`src/check.ts`). `analysis-core` is a workspace
+devDependency and is bundled into `dist/cli.js`; published runtime deps stay
+external so the tarball does not pull Playwright.
+
 ```bash
 npm run build:check   # build packages/check/dist/cli.js
 npm run check -- .    # bundle or tsx fallback
-npm run check -- packages/check/testdata   # deliberate violations (see src/cli/check.test.ts)
+npm run check -- packages/check/testdata   # deliberate violations (see src/check.test.ts)
 ```
 
 `testdata/Bad.tsx` exercises heuristic checks (`error-prevention`, `captcha-alternative`, …) plus jsx-a11y `img-alt`.

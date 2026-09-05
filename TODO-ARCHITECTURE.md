@@ -147,27 +147,6 @@ correct endpoint.
 
 ## P2 — Medium
 
-### P2-4 · The customer CLI is not a self-contained package — _size M_
-
-**What is wrong.** `packages/check/` contains only `bin.js` + `testdata/`; the actual
-CLI source lives at `src/cli/check.ts` and is bundled by
-`scripts/build-check.mjs:11-42` with esbuild aliases `"@" → src` and
-`"@complyloop/analysis-core" → packages/analysis-core/src` — the publishable artifact's
-build depends on the app repo's layout, and the externals list must be kept in sync with
-`packages/check/package.json` by hand (documented at `build-check.mjs:24-30`).
-`AGENTS.md` describes the CLI as living in `packages/check/`.
-
-**Why it matters.** Any app-side refactor (moving `src/cli`, renaming aliased modules)
-silently breaks the published package; the doc map points at the wrong home.
-
-**What should change.** Fine for today (documented, documented fallback to tsx source).
-When publish automation or a second consumer appears: move `cli/` under
-`packages/check/src/` and give the package its own analysis-core dependency (or accept
-bundling from source with a CI smoke — `check-pack.smoke.test.ts` exists). Update
-`AGENTS.md`'s "Where code lives" line meanwhile.
-
-**Files.** `packages/check/bin.js`, `src/cli/check.ts`, `scripts/build-check.mjs`; `AGENTS.md`.
-
 ### P2-7 · Check-id governance is one-way; a reverse coverage gap and a rotting test copy
 
 **What is wrong.** Enforcement is unidirectional: `satisfies readonly CheckId[]` verifies

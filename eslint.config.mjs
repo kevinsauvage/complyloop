@@ -64,15 +64,17 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Persistence, domain, and adapters packages are framework-agnostic leaves:
+  // Persistence, domain, adapters, and the CI CLI are framework-agnostic leaves:
   // they must not import app/server/adapters-at-app layers. They may import the
   // analysis contract and each other. adapters depends on domain + analysis-core;
-  // db depends on domain + analysis-core; domain depends only on analysis-core contract.
+  // db depends on domain + analysis-core; domain depends only on analysis-core contract;
+  // check depends on analysis-core (bundled at publish).
   {
     files: [
       "packages/db/**/*.{ts,tsx}",
       "packages/domain/**/*.{ts,tsx}",
       "packages/adapters/**/*.{ts,tsx}",
+      "packages/check/**/*.{ts,tsx}",
     ],
     rules: {
       // domain imports analysis-core's contract only (same rule as src/core).
@@ -94,12 +96,17 @@ const eslintConfig = defineConfig([
                 "**/ai/**",
               ],
               message:
-                "packages/db, domain, adapters must not import app/server/adapters/AI layers — see docs/ai/architecture.md (module boundaries).",
+                "packages/db, domain, adapters, check must not import app/server/adapters/AI layers — see docs/ai/architecture.md (module boundaries).",
             },
             {
               regex: "^(../)*src/",
               message:
-                "packages/db, domain, adapters must not reach outside their package (no ../src) — see docs/ai/architecture.md (module boundaries).",
+                "packages/db, domain, adapters, check must not reach outside their package (no ../src) — see docs/ai/architecture.md (module boundaries).",
+            },
+            {
+              group: ["@/*"],
+              message:
+                "workspace packages must not use the app @ alias — see docs/ai/architecture.md (module boundaries).",
             },
           ],
         },

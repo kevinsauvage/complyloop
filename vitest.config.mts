@@ -15,6 +15,7 @@ export default defineConfig({
       "packages/db/src/**/*.test.{ts,tsx}",
       "packages/domain/src/**/*.test.{ts,tsx}",
       "packages/adapters/src/**/*.test.{ts,tsx}",
+      "packages/check/src/**/*.test.{ts,tsx}",
     ],
     // Assessment / temp-fs tests can exceed 5s under parallel load.
     testTimeout: 15_000,

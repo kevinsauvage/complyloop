@@ -116,8 +116,7 @@ src/ai/                  Optional AI (never sets statuses)
 src/server/              Assessment, GitHub, actions (wires the packages)
 src/app/                 Next.js UI + API routes
 src/components/          UI (feature folders + shadcn ui/)
-src/cli/                 Source of the complyloop-check CLI
-packages/check/          @complyloop/check package (bundled from src/cli)
+packages/check/          CI CLI (`src/` + testdata/; bundled for `npx complyloop-check`)
 ```
 
 Known gaps and planned work: [`TODO.md`](./TODO.md).

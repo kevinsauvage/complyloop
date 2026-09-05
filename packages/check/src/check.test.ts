@@ -5,7 +5,7 @@ import { scanProject } from "@complyloop/analysis-core/scan";
 
 const testdataDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  "../../packages/check/testdata",
+  "../testdata",
 );
 
 describe("complyloop-check testdata", () => {

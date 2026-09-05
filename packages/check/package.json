@@ -21,8 +21,12 @@
     "fast-glob": "^3.3.3",
     "typescript": "^5"
   },
+  "devDependencies": {
+    "@complyloop/analysis-core": "^0.1.0",
+    "esbuild": "^0.28.1"
+  },
   "scripts": {
-    "build": "node ../../scripts/build-check.mjs"
+    "build": "node scripts/build.mjs"
   },
   "repository": {
     "type": "git",

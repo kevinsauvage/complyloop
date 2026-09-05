@@ -76,7 +76,7 @@ src/ai/                            Optional AI (provenance-tagged)
 src/server/                        Application logic: assessment, GitHub, actions (wires the packages)
 src/app/                           App Router pages + API routes
 src/components/                    UI (feature folders + ui/)
-packages/check/                    CI CLI (testdata/ = deliberate violations)
+packages/check/                    CI CLI (`src/` + testdata/; bundled for `npx complyloop-check`)
 docs/ai/                           Architecture notes
 .cursor/rules/                     Agent rules
 ```

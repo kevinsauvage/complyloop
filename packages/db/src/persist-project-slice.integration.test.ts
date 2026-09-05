@@ -6,7 +6,7 @@ import { persistProjectSliceDiff, updatedAtById } from "./repo/apply";
 import { upsertFindings } from "./repo/findings";
 import { upsertRemediations } from "./repo/remediations";
 import { upsertRequirements } from "./repo/requirements";
-import { findings, remediations, requirements } from "./schema";
+import { requirements } from "./schema";
 import {
   cleanupProjectSliceFixture,
   insertProjectSliceFixture,

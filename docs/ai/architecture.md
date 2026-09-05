@@ -15,13 +15,13 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 | AI       | `src/ai/`                              | Explain / remediate — never sets status                                                  |
 | Server   | `src/server/`                          | Postgres wiring, jobs, GitHub, actions; application logic                                |
 | App      | `src/app/`                             | Next.js UI + API routes                                                                  |
-| CI       | `packages/check/`                      | `npx complyloop-check` (AST only)                                                        |
+| CI       | `packages/check/src/`                  | `npx complyloop-check` (AST only; bundled for publish)                                   |
 
 Statuses, findings, requirement derivation, `PublicError`, and assessment limits live in `packages/analysis-core/src/contract/`. The product domain model (orgs, projects, requirements, catalog types, `PresetCatalog`) lives in `packages/domain/src/`. Postgres persistence lives in `packages/db/src/`; the RGAA/WCAG catalog lives in `packages/adapters/src/`. App, server, UI, and `src/core/` import `@complyloop/analysis-core/contract/*`, `@complyloop/domain/*`, `@complyloop/db/*`, and `@complyloop/adapters/*` directly. `src/core` must not import adapters, db, or any analysis-core subpath beyond `contract/*` (ESLint `no-restricted-imports`).
 
 **Connectors today:** GitHub only. **Persistence:** Postgres via Drizzle (`DATABASE_URL`). Evidence is **append-only** (no FKs — rows outlive project disconnect and org deletion). GitHub tokens encrypted at rest (AES-256-GCM). Assessments run as **durable jobs** (`npm run worker` in prod).
 
-**Build coupling:** `@complyloop/analysis-core`, `@complyloop/domain`, `@complyloop/db`, and `@complyloop/adapters` all point their `exports` at **`src/*.ts`**. Relative imports inside each package use `.ts` specifiers so Turbopack can resolve them; `tsc` rewrites those to `.js` when emitting `dist` (`rewriteRelativeImportExtensions`). Next transpiles the workspace packages (`transpilePackages`); tsx/Vitest load the same files. Each `dist/` is gitignored and only produced by its `npm run build:*` for npm publish (`publishConfig` remaps exports to `dist`). `@complyloop/check` is bundled from source via an esbuild alias in `scripts/build-check.mjs`.
+**Build coupling:** `@complyloop/analysis-core`, `@complyloop/domain`, `@complyloop/db`, and `@complyloop/adapters` all point their `exports` at **`src/*.ts`**. Relative imports inside each package use `.ts` specifiers so Turbopack can resolve them; `tsc` rewrites those to `.js` when emitting `dist` (`rewriteRelativeImportExtensions`). Next transpiles the workspace packages (`transpilePackages`); tsx/Vitest load the same files. Each `dist/` is gitignored and only produced by its `npm run build:*` for npm publish (`publishConfig` remaps exports to `dist`). `@complyloop/check` lives in `packages/check/src/` and is bundled by `packages/check/scripts/build.mjs`: analysis-core is a workspace devDependency inlined from its source exports; published runtime deps (the AST engine packages) are externals derived from `package.json`.
 
 ## System diagram
 
@@ -75,8 +75,10 @@ packages/domain/         ← imports analysis-core/contract/* only
 packages/adapters/       ← imports domain + analysis-core (engine subpaths), never app/server
 packages/db/             ← imports domain + analysis-core/contract/*, never app/server/adapters
 packages/analysis-core/  ← no imports from src/server/ or src/app/; contract/ is the shared types
+packages/check/          ← CI CLI; depends on analysis-core (bundled at publish); never app/server
 src/server/, app/        ← integrate core + domain + db + adapters + analysis
 dependency direction:  analysis-core/contract  →  domain  →  { db, adapters, app }
+                           analysis-core (AST scan)  →  check
 ```
 
 WCAG reuses the RGAA control catalog (`wcag` adapter registers framework metadata + presets; `wcag/presets.ts` reads `rgaaControls` directly). Pages, reports, and `control-theme.ts` may import adapter modules directly — with one catalog, a registry-only import rule is not worth enforcing.

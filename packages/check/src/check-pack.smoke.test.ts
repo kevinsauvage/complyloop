@@ -5,11 +5,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-const repoRoot = path.resolve(
+const packageDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  "../..",
+  "..",
 );
-const packageDir = path.join(repoRoot, "packages/check");
 const tempDirs: string[] = [];
 
 afterEach(() => {
@@ -44,7 +43,7 @@ describe("@complyloop/check pack smoke", () => {
   it(
     "builds a tarball that runs in a clean directory without the monorepo",
     () => {
-      const build = run("npm", ["run", "build:check"], repoRoot);
+      const build = run("npm", ["run", "build"], packageDir);
       expect(build.status, build.stderr).toBe(0);
       expect(
         fs.existsSync(path.join(packageDir, "dist/cli.js")),
