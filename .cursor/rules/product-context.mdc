@@ -13,7 +13,7 @@ The core loop every feature must serve:
 Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Continuous monitoring
 ```
 
-MVP: accessibility compliance (RGAA/WCAG) for React/Next.js/TypeScript apps — but the domain model stays framework-agnostic so other frameworks (SOC 2, ISO 27001, EU CRA, EAA, custom) can be added later.
+Current product: accessibility compliance (RGAA/WCAG) for React/Next.js/TypeScript apps. The domain model stays framework-agnostic so other frameworks (SOC 2, ISO 27001, EU CRA, EAA, custom) can be added later.
 
 ## Non-Negotiable Principles
 

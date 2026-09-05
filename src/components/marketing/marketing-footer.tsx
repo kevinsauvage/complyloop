@@ -12,7 +12,7 @@ export function MarketingFooter() {
           </p>
         </div>
         <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:items-end">
-          <p>MVP — RGAA / WCAG accessibility</p>
+          <p>RGAA / WCAG accessibility</p>
           <p>
             <Link
               href="/legal/terms"

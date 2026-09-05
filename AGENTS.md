@@ -16,17 +16,17 @@ Orientation for agents. **Do not duplicate** product principles, domain vocabula
 
 | Doc                                                                                       | Use when                                       |
 | ----------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md) | Product decisions, MVP scope                   |
+| [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md) | Product decisions, current scope               |
 | [`docs/ai/architecture.md`](./docs/ai/architecture.md)                                    | System shape, persistence, analysis            |
 | [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                                    | Finding page UX contract                       |
-| [`TODO-ARCHITECTURE.md`](./TODO-ARCHITECTURE.md)                                          | Prioritized architecture debt (P0–P3)          |
+| [`TODO.md`](./TODO.md)                                                         | Prioritized gaps, bugs, and design decisions to revisit |
 | [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …) |
 
 ## What this is
 
 Compliance engineering platform: **Finding → Remediation → Evidence**, with continuous re-assessment.
 
-MVP = accessibility (RGAA/WCAG) for React/Next.js/TypeScript, in **orgs** (roles, invites, multiple projects per org). Domain stays framework-agnostic.
+Product = accessibility (RGAA/WCAG) for React/Next.js/TypeScript, in **orgs** (roles, invites, multiple projects per org). Domain stays framework-agnostic.
 
 ```
 Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Monitoring

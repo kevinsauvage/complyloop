@@ -1,282 +1,152 @@
-# Architecture (AI-facing)
+# Architecture
 
-How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enforceable rules:** [`.cursor/rules/`](../../.cursor/rules/).
+How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md).
+**Rules:** [`.cursor/rules/`](../../.cursor/rules/).
+**Product:** [`compliance-engineering-product-spec.md`](../compliance-engineering-product-spec.md).
 
-## At a glance
+## Modules
 
-| Piece    | Location                               | Role                                                                                     |
-| -------- | -------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, requirement derivation — shared with analysis                        |
-| Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                                                     |
-| Domain   | `packages/domain/src/`                 | Product domain model — orgs, projects, requirements, catalog types, `PresetCatalog` port |
-| DB       | `packages/db/src/`                     | Postgres persistence — Drizzle schema, `repo/` mappers, workspace-load, client           |
-| Adapters | `packages/adapters/src/`               | RGAA/WCAG catalog, presets, guidance (depends on domain + analysis-core)                 |
-| App core | `src/core/`                            | Framework-agnostic product helpers, RBAC, finding UX (imports contract + domain only)    |
-| AI       | `src/ai/`                              | Explain / remediate — never sets status                                                  |
-| Server   | `src/server/`                          | Postgres wiring, jobs, GitHub, actions; application logic                                |
-| App      | `src/app/`                             | Next.js UI + API routes                                                                  |
-| CI       | `packages/check/src/`                  | `npx complyloop-check` (AST only; bundled for publish)                                   |
+| Piece    | Location                               | Role                                                          |
+| -------- | -------------------------------------- | ------------------------------------------------------------- |
+| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, requirement derivation                    |
+| Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                          |
+| Domain   | `packages/domain/src/`                 | Orgs, projects, requirements, catalog types                   |
+| DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load                       |
+| Adapters | `packages/adapters/src/`               | RGAA/WCAG catalog, presets, guidance                          |
+| App core | `src/core/`                            | RBAC, finding UX (contract + domain only)                     |
+| AI       | `src/ai/`                              | Explain / remediate — never sets status                       |
+| Server   | `src/server/`                          | Jobs, GitHub, actions                                         |
+| App      | `src/app/`                             | Next.js UI + API                                              |
+| CI       | `packages/check/src/`                  | `npx complyloop-check` (AST only)                             |
 
-Statuses, findings, requirement derivation, `PublicError`, and assessment limits live in `packages/analysis-core/src/contract/`. The product domain model (orgs, projects, requirements, catalog types, `PresetCatalog`) lives in `packages/domain/src/`. Postgres persistence lives in `packages/db/src/`; the RGAA/WCAG catalog lives in `packages/adapters/src/`. App, server, UI, and `src/core/` import `@complyloop/analysis-core/contract/*`, `@complyloop/domain/*`, `@complyloop/db/*`, and `@complyloop/adapters/*` directly. `src/core` must not import adapters, db, or any analysis-core subpath beyond `contract/*` (ESLint `no-restricted-imports`).
+`src/core` must not import adapters, db, or analysis-core beyond `contract/*`
+(ESLint). Dependency direction: `contract → domain → { db, adapters, app }`.
 
-**Connectors today:** GitHub only. **Persistence:** Postgres via Drizzle (`DATABASE_URL`). Evidence is **append-only** (no FKs — rows outlive project disconnect and org deletion). GitHub tokens encrypted at rest (AES-256-GCM). Assessments run as **durable jobs** (`npm run worker` in prod).
+Workspace packages export `src/*.ts`. Next transpiles them; `dist/` is
+publish-only. `@complyloop/check` bundles analysis-core; Playwright stays
+external.
 
-**Build coupling:** `@complyloop/analysis-core`, `@complyloop/domain`, `@complyloop/db`, and `@complyloop/adapters` all point their `exports` at **`src/*.ts`**. Relative imports inside each package use `.ts` specifiers so Turbopack can resolve them; `tsc` rewrites those to `.js` when emitting `dist` (`rewriteRelativeImportExtensions`). Next transpiles the workspace packages (`transpilePackages`); tsx/Vitest load the same files. Each `dist/` is gitignored and only produced by its `npm run build:*` for npm publish (`publishConfig` remaps exports to `dist`). `@complyloop/check` lives in `packages/check/src/` and is bundled by `packages/check/scripts/build.mjs`: analysis-core is a workspace devDependency inlined from its source exports; published runtime deps (the AST engine packages) are externals derived from `package.json`.
-
-## System diagram
-
-```
-┌─────────────────────────────────────────┐
-│     Next.js App (UI + API + actions)     │
-│     enqueue only — no clone/scan here    │
-└──────────────────┬──────────────────────┘
-                   │ assessment_jobs
-┌──────────────────▼──────────────────────┐
-│  Worker (assessment-worker.ts)           │
-│  lease → ephemeral clone → scan → persist│
-└──────────────────┬──────────────────────┘
-                   │
-┌──────────────────▼──────────────────────┐
-│  Core + contract (requirements, findings)│
-└───┬──────────────┬──────────────┬───────┘
-    │              │              │
-┌───▼───┐    ┌─────▼─────┐  ┌────▼────┐
-│Adapter│    │ Analysis  │  │   AI    │
-│RGAA/  │    │ AST +     │  │ optional│
-│WCAG   │    │ runtime   │  │         │
-└───────┘    └─────┬─────┘  └─────────┘
-                   │
-            ┌──────▼──────┐
-            │ GitHub clone │
-            │ (ephemeral)  │
-            └─────────────┘
-```
-
-## Persistence & tenancy
-
-- **Postgres** — frameworks, controls, orgs, memberships, projects, requirements, assessments, `assessment_snapshots`, findings, remediations, alerts, evidence, encrypted GitHub tokens, webhook delivery ids, `assessment_jobs`, rate-limit buckets. Domain rows store typed JSONB payloads (`packages/db/src/schema.ts`) plus a few indexed columns (`project_id`, `status`, …). Catalog is seeded on deploy (`npm run seed` / `db:migrate`), not rewritten on every user action. One hand-written init migration (`drizzle/0000_init.sql`).
-- **Tenancy** — orgs + RBAC (`src/core/rbac.ts`); projects belong to orgs. This **is** the product model (invites by GitHub login, roles `owner|admin|member|viewer`, org switcher, personal-org auto-provisioning) — see [product spec §24](../compliance-engineering-product-spec.md#24-mvp-scope). Workspace load stays membership-org + active project.
-- **Reads** — `getWorkspace()` loads the catalog, the viewer's orgs/memberships, the project switcher list for those orgs, and **runtime for the active project only** (requirements, assessments **without** file-hash snapshots, findings, remediations, alerts, evidence window). File hashes live in `assessment_snapshots` and are loaded only for `runAssessment` (`loadProjectAssessmentDb`). Evidence pages/exports/finding detail query Postgres directly through Drizzle (`postgres-queries.ts`), outside the workspace slice.
-- **Writes** — project mutations use `withProjectWrite(scope, fn)` (`src/server/workspace.ts`): `{ touch: "project" }` for settings/enqueue (project row + new evidence), `{ touch: "entities", findingIds? / requirementIds? / refreshControlIds? }` for hot-path finding/requirement mutations (targeted load + stale guards). Org admin uses `withOrgWrite`. Single-row alert reads use `withProjectLock`. All interactive diffs go through `changedEntities` in `repo/apply.ts`. Assessment apply uses `applyAssessmentPayload` atomically.
-- **Persistence ownership rule** — the slice model persists `findings | remediations | requirements | alerts` as row **upserts** plus evidence inserts **only**; it cannot express deletions. Structural entities outside the slice (orgs, memberships, projects, tokens, jobs) are written exclusively through their `packages/db/src/repo/*` modules. Every slice-persisted table upserts by id (`onConflictDoUpdate` — including `markAlertRead` / alerts); deleting a project cascades its alerts. `persistProjectSliceDiff` (repo/apply) no-ops on empty diffs; evidence rows are insert-only everywhere.
-- **Assessments** — the worker clones and scans **outside** a store transaction, snapshots the loaded project slice, then `applyAssessmentPayload` inserts the assessment + snapshot and diffs findings/requirements/remediations/alerts against that snapshot (only changed rows + new evidence) in one short transaction (`assessment-worker.ts`). `runAssessment` mutates a project-scoped in-memory `Db` for the duration of the scan; that is the apply payload, not a tenant-wide rewrite.
-- **Locks** — job claim uses `FOR UPDATE SKIP LOCKED` (enqueue is an ordinary insert; idempotent webhook keys rely on the unique index). Rate limits use per-key named locks. Interactive project writes and assessment apply both acquire a per-project Postgres advisory lock (`project-write:{projectId}`) inside their persist transaction so concurrent actions serialize instead of last-write-wins. Requirement upserts also skip rows whose DB `updatedAt` is newer than the loaded snapshot (defense against stale `refreshRequirementStatuses` during long assessment runs).
-- **Latest assessment** — `latestAssessmentFor` (`src/core/assessment-latest.ts`) compares `completedAt`. Do not use `.at(-1)` on `db.assessments` (loaders return newest-first).
-- **Jobs** — queued in DB; worker leases (30 min), **3 attempts total** with exponential backoff, serial per project; triggers `manual` \| `webhook`. HTTP paths only enqueue (`src/server/assessment-jobs.ts`). In `next dev` and the Playwright harness, the action drains the queue in-process (`assessment-job-drain.ts`).
-- **Clones** — shallow git checkout per job into OS temp; deleted after (`src/server/repo-checkout.ts`). See [`docs/deploy.md`](../deploy.md).
-- **Observability** — Sentry via `src/instrumentation.ts`; product code uses `reportError` / `reportWarning`.
-- **Boundary validation** — server actions and `src/app/api` routes parse `FormData` / query / JSON with Zod at the top (`src/server/boundary.ts`, schemas next to each action/route). Client fetches that consume those routes (`github-repo-picker`, `assessment-job-status-live`) parse the JSON with the same payload schemas in `src/core/boundary.ts`. AI output was already Zod-validated in `src/ai/`.
-
-## Module boundaries
+**Connectors:** GitHub only. **State:** Postgres (`DATABASE_URL`). Evidence is
+append-only. Tokens AES-256-GCM at rest. Assessments are durable jobs
+(`npm run worker` in prod).
 
 ```
-src/core/                ← no imports from adapters, db, analysis (except contract/), server, app
-packages/domain/         ← imports analysis-core/contract/* only
-packages/adapters/       ← imports domain + analysis-core (engine subpaths), never app/server
-packages/db/             ← imports domain + analysis-core/contract/*, never app/server/adapters
-packages/analysis-core/  ← no imports from src/server/ or src/app/; contract/ is the shared types
-packages/check/          ← CI CLI; depends on analysis-core (bundled at publish); never app/server
-src/server/, app/        ← integrate core + domain + db + adapters + analysis
-dependency direction:  analysis-core/contract  →  domain  →  { db, adapters, app }
-                           analysis-core (AST scan)  →  check
+App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
+                                         ↓
+                         Core + contract → Adapter / Analysis / AI
+                                         ↓
+                                   GitHub clone (ephemeral)
 ```
 
-WCAG reuses the RGAA control catalog (`wcag` adapter registers framework metadata + presets; `wcag/presets.ts` reads `rgaaControls` directly). Pages, reports, and `control-theme.ts` may import adapter modules directly — with one catalog, a registry-only import rule is not worth enforcing.
+## Persistence
 
-**Finding merge:** `filterAstFindingsForAuthority` (`merge-findings.ts`) — when runtime ran, drop composition-sensitive, runtime-only, and package-twin source findings. This is where "runtime wins for composition-sensitive checks" is implemented; those checks use `standard` authority in status derivation.
+- **Tenancy** — orgs + RBAC (`src/core/rbac.ts`). Roles
+  `owner|admin|member|viewer`. Workspace load is membership-org + active
+  project.
+- **Reads** — `getWorkspace()` loads catalog, orgs, project switcher, and
+  runtime for the **active project only**. File hashes live in
+  `assessment_snapshots` and load only for `runAssessment`. Evidence pages
+  query Postgres directly (`postgres-queries.ts`).
+- **Writes** — `withProjectWrite` / `withOrgWrite` / `withProjectLock`.
+  Slice persists `findings | remediations | requirements | alerts` as
+  upserts + evidence inserts. Structural entities go through `repo/*`.
+  Assessment apply diffs against a job-start snapshot
+  (`applyAssessmentPayload`).
+- **Locks** — job claim `FOR UPDATE SKIP LOCKED`; interactive writes and
+  apply take `project-write:{projectId}`. Requirement upserts skip rows
+  whose DB `updatedAt` is newer than the loaded snapshot.
+- **Latest assessment** — `latestAssessmentFor` compares `completedAt`.
+  Do not use `.at(-1)` (loaders return newest-first).
+- **Jobs** — 30-min lease, 3 attempts, serial per project. HTTP only
+  enqueues. Dev/e2e drain in-process.
+- **Clones** — shallow temp checkout per job; deleted after. See
+  [`deploy.md`](../deploy.md).
 
-## Analysis engines
+## Analysis
 
-Three deterministic engines; AI is separate and never authoritative.
+Three deterministic engines. AI is separate and never authoritative.
 
-### 1. AST (`packages/analysis-core/src/checks/`)
+**AST** (`checks/` + jsx-a11y) — 77 check ids from source. Safe auto-fixes
+and verified AI patches target AST findings.
 
-- Runs on source in CI, local dev, and `complyloop-check`.
-- **58** custom AST checks registered in `checks/registry.ts` (`allChecks`), plus `eslint-plugin-jsx-a11y` on the same files (`jsx-a11y-scan.ts`; 30 plugin rules mapped to 20 check ids in `jsx-a11y-map.ts`). Together they can emit **77** distinct check ids. The `CheckId` union and the catalog's non-null `checkId`s are both **138** (the rest are runtime/axe/html-validate/site-level ids); **25** catalog controls are manual (`checkId: null`).
-- Text heuristics (confirm labels, CAPTCHA cues, vague links) live in `patterns/multilingual.ts` with accent folding for FR/EN/ES/DE.
-- Safe auto-fixes and verified AI patches target AST findings.
+**Runtime** (when `runtimeBaseUrl` is set) — Playwright + axe from disk.
+Navigate with `domcontentloaded` + settle, not `networkidle`. Never add
+`@axe-core/playwright`. Never import `ssrf-guard/node` in app code.
+`linkinator`, `playwright`, `axe-core`, `html-validate` are server
+externals in `next.config.ts`.
 
-### 2. Runtime (`packages/analysis-core/src/runtime/`)
+**html-validate** — structural HTML for RGAA 8.2 / 10.1 only
+(`markup-nesting`, `css-for-presentation`). Those stay `unable_to_verify`
+until `htmlValidateRan`. Duplicate ids stay on axe + AST.
 
-Runs when `project.runtimeBaseUrl` is set (Playwright + axe from `axe.min.js` on disk).
+**Merge:** when runtime ran, drop composition-sensitive / runtime-only /
+package-twin AST findings (`merge-findings.ts`). Dedupe priority:
+axe > html-validate > playwright-custom > site-level > linkinator > ast > jsx-a11y.
 
-Navigation uses `domcontentloaded` plus a brief settle (`gotoForRuntimeAudit`) — not
-`networkidle`, which SPAs with analytics or HMR often never reach. Axe is injected
-from disk; `runAxeOnPage` re-injects if viewport/CDP emulation cleared `window.axe`.
+### Check authority (`check-authority.ts`)
 
-| Piece         | Path                     | Role                                                                                                                                           |
-| ------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Axe mapping   | `axe-map.ts`             | axe rule id → catalog check id                                                                                                                 |
-| Theme pass    | `theme-conditions.ts`    | Re-runs theme-sensitive axe + custom checks under `browserConditions`. Assessments default to `dark` + `light` via `DEFAULT_THEME_CONDITIONS`. |
-| Viewport pass | `viewport-conditions.ts` | Target-size at 320×568 and under `pointer: coarse` (touch emulation).                                                                          |
-| Custom checks | `custom-checks/`         | Playwright probes emit `RawFinding` (catalog check ids, no axe wrap)                                                                           |
-| Applicability | `applicability.ts`       | Absence probes (media, CAPTCHA, layout tables) → `not_applicable`                                                                              |
-| Site-level    | `site-level/`            | Cross-route consistency (nav, help, titles) + `link-check.ts` (linkinator, same-origin broken links)                                           |
+| Class                 | Behavior                                                                 |
+| --------------------- | ------------------------------------------------------------------------ |
+| Runtime-only          | `unable_to_verify` until page audit — never `passed` from empty AST      |
+| Composition-sensitive | AST in CI; runtime findings replace AST when both run                    |
+| Heuristic AST         | Empty scan → `unable_to_verify`, not `passed`                            |
+| Site-level            | Needs `runtimeRan` + ≥2 preview routes                                   |
+| Standard              | Empty AST scan → `passed`                                                |
 
-**Do not** add `@axe-core/playwright` — webpack breaks on axe `source` string.
+Precedence: site_level → runtime_only → heuristic → standard.
+Composition-sensitive uses `standard` authority; runtime override is merge,
+not a separate class. Do not duplicate id lists in docs — the source is
+`check-authority.ts` + `checks/registry.ts`.
 
-`linkinator`, `playwright`, `axe-core`, and `html-validate` are **server externals** in `next.config.ts` (dynamic `import()` / Node APIs at runtime; do not bundle with Turbopack).
+**Adding a check id:** `CHECK_IDS` → registry or jsx-a11y map → authority
+list → runtime map if needed → catalog `checkId` → `guidance.ts`. Tests:
+`check-authority.test.ts`, `catalog-coverage.test.ts`.
 
-**Runtime URL safety:** `ssrf-guard` + DNS/port checks + redirect limits (`packages/analysis-core/src/runtime/`). Never import `ssrf-guard/node` in app code.
+### Status derivation (`contract/requirement-status.ts`)
 
-### 3. html-validate (rendered structural, `packages/analysis-core/src/runtime/`)
+1. Sticky human decisions (never overwritten; temp exceptions expire via
+   `clearExpiredExceptions`).
+2. Open findings → `failed` / `needs_review`.
+3. Applicability (runtime absence) → `not_applicable`.
+4. Authority gates → `unable_to_verify` or `passed`.
 
-`html-validate` (npm) validates **structural HTML evidence for RGAA 8.2 and 10.1
-only** — invalid nesting, duplicate attributes/ids, deprecated presentational
-markup — on the **generated DOM** of a page, inside the existing runtime audit.
-It is not a second accessibility scanner: landmarks, labels, ARIA, and broken
-idrefs stay on axe / custom Playwright checks.
+Manual controls (`checkId: null`) stay `unable_to_verify` until a human
+pass or exception.
 
-- **`runtime/html-validate-runtime.ts`**, `engine: "runtime"`. Serializes
-  `document.documentElement` in the page (recording node→offset), validates the
-  exact string in-process, and builds `dom` locations (selector + snippet). A
-  clean audit is a real rendered-document verdict — it can _pass_ a requirement.
-- Curated rules (7): `element-permitted-content`, `element-permitted-order`,
-  `close-order`, `no-implicit-close`, `no-dup-attr`, `no-deprecated-attr`,
-  `deprecated`. Do not enable `html-validate:recommended` or `@html-validate/wcag`.
-  Duplicate ids are **not** checked here — axe owns `duplicate-id` on the
-  rendered DOM; AST owns source duplicate ids in CI.
-- Check-id mapping (`runtime/html-validate-map.ts`): nesting/order/close/dup-attr
-  → `markup-nesting` (`ctl-markup-validity`, RGAA 8.2); deprecated
-  attrs/elements → `css-for-presentation` (RGAA 10.1). Interactive nesting is
-  axe's job on the generated DOM (the browser auto-repairs it, so it never
-  reaches html-validate).
-
-Runs only when `runtimeBaseUrl` is set (needs a browser). The `@complyloop/check`
-CLI / source scan does **not** use html-validate.
-
-**html-validate-owned gate:** the adapter sets `htmlValidateRequired` from
-`isHtmlValidateOwnedCheck` (`markup-nesting`, `css-for-presentation`). Those
-stay `unable_to_verify` until html-validate succeeded on at least one page
-(`htmlValidateRan`) — an axe-only runtime pass is not enough. The contract
-does not hard-code those ids.
-
-**Analyzer provenance:** `RawFinding` / persisted `Finding` carry optional
-`analyzerId`, `analyzerRuleId`, `analyzerVersion`, and `contributingAnalyzers`
-(when runtime dedupe merges the same dom node). Coarse `engine: "ast" | "runtime"`
-is unchanged for remediation routing. `finding` evidence uses `detail.event`
-(`detected` | `resolved` | `dismissed`) and stores analyzer fields in `detail`. Per-page dedupe (`runtime/dedupe-runtime-findings.ts`) priority:
-axe > html-validate > playwright-custom > site-level > linkinator > ast > jsx-a11y
-when the same check id hits the same node.
-html-validate check ids (`markup-nesting`, `css-for-presentation`) do not
-overlap axe — exclusive ownership, not dedupe. `duplicate-id` is axe + AST only.
-
-### Check authority (`packages/analysis-core/src/check-authority.ts`)
-
-| Class                     | Behavior                                                                                                                                                                   |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Runtime-only**          | `unable_to_verify` until page audit runs — never `passed` from empty AST                                                                                                   |
-| **Composition-sensitive** | AST runs in CI; runtime findings replace AST findings when both run (labels, names, headings, …); status derivation itself = standard                                      |
-| **Heuristic AST**         | Empty scan → `unable_to_verify`, not `passed` (pertinence-style rules)                                                                                                     |
-| **Site-level**            | Needs `runtimeRan` + ≥2 preview routes. Mostly runtime-only ids, but `consistent-lang` and `consistent-page-heading` are site-level without being in the runtime-only list |
-| **Standard**              | Everything else: empty AST scan → `passed`                                                                                                                                 |
-
-**Source of truth for ids:** `check-authority.ts` and `checks/registry.ts` — do not duplicate long id lists in docs.
-
-Classifier precedence in `authorityForCheck`: site_level → runtime_only → heuristic → standard. Composition-sensitive checks use `standard` authority; runtime override is handled by `isCompositionSensitiveCheck` + merge, not a separate authority class.
-
-#### Adding a check id
-
-A check id is known in many places; adding one touches them all. Keep the lists in
-sync or a check ships with the wrong authority / is unreachable from the catalog.
-
-- **`check-ids.ts`** — add the id to `CHECK_IDS` (the source of truth for the `CheckId` union and the catalog reverse-reachability test).
-- **`checks/registry.ts`** — register the AST check (or map a jsx-a11y rule in `jsx-a11y-map.ts`).
-- **`check-authority.ts`** — add the id to the authority list(s) that apply. Precedence is
-  `site_level` → `runtime_only` → `heuristic` → `composition_sensitive` → `standard`;
-  `site-level` ids also belong in the runtime-only list, and heuristic must not overlap runtime-only.
-- **Runtime engines** — if emitted at runtime, map it in the relevant engine map
-  (`runtime/axe-map.ts`, `runtime/html-validate-map.ts`, or a custom probe in
-  `runtime/custom-checks/`).
-- **`packages/adapters/src/rgaa/controls.ts`** — give at least one control a
-  `checkId` (the union and the catalog's non-null counts, both 138, must keep parity),
-  or it is unreachable from assessments.
-- **`packages/adapters/src/rgaa/guidance.ts`** — add a `CheckGuidance` entry
-  (`Record<CheckId, CheckGuidance>` is compile-enforced).
-- **Presets** — if a control id changed rather than a check id, rebuild preset lists
-  (`rgaa/presets.ts` and `wcag/presets.ts` derive from `rgaaControls`; WCAG AA/extra
-  exclude only the small extra-only / full-only sets).
-
-`check-authority.test.ts` and `rgaa/catalog-coverage.test.ts` catch overlap and
-catalog-reachability drift; run them after any id change.
-
-### Status derivation (`packages/analysis-core/src/contract/requirement-status.ts`)
-
-`deriveRequirementStatus` is the single source of truth. The server adapter
-(`src/server/assessment-status.ts`) maps catalog `checkId` → authority class and
-feeds scan flags. Precedence:
-
-1. **Sticky human decisions** — exception or human pass (`determination: "human_review"`) is never overwritten by a new assessment. Temporary exceptions expire via `clearExpiredExceptions` (historized, not deleted).
-2. **Open findings** — any `violation` → `failed`; otherwise `needs_review`.
-3. **Applicability** — when runtime ran and every audited page confirmed absence for that check id → `not_applicable` (fact stored on `requirement_status_changed` evidence). Observables today: temporal/nontemporal media, CAPTCHA, layout tables (`runtime/applicability.ts`).
-4. **Authority gates** — manual and heuristic stay `unable_to_verify`; runtime-only needs `runtimeRan` (and `htmlValidateRan` when `htmlValidateRequired`); site-level needs `runtimeRan` + `siteLevelChecksRan`; standard / composition-sensitive with no open findings → `passed`.
-
-Controls with `checkId: null` stay `unable_to_verify` until a human pass or exception.
-
-### Requirements intake
-
-Each project stores a **`defaultPresetId`** (set on connect, editable in Settings). Assessments always use that default. The Requirements page accepts an optional **`?presetId=`** URL param to browse other presets (shareable links); status filters use **`?status=`** and preserve `presetId`. Connect defaults to Full RGAA. Topical groups on the Requirements page are **display only**, not intake scope.
+Assessments always use the project's `defaultPresetId`. Requirements page
+`?presetId=` is browse-only.
 
 ## Key flows
 
-### Assessment
+**Assessment:** enqueue → worker clones + scans → `detectChanges` (depth-1
+clone: author is HEAD) → AST → optional Playwright → merge → re-derive
+statuses → `verifyDraftPrRemediation` (uses `approvalAction` on the
+remediation, not historical evidence).
 
-1. UI / webhook **enqueues** an `assessment_jobs` row. The worker (or inline drain in dev/e2e) leases it, clones (depth-1 fetch of the ref), and scans — never in the request path.
-2. `detectChanges` hashes every source file into `assessment_snapshots.fileHashes` (not on the assessment list payload) and diffs against the previous run's snapshot; changed files are attributed with `git log -1 -- <file>`, which on a depth-1 clone always returns the HEAD commit, so `author` / `commitSha` on `FileChange` and regression alerts is the tip commit, not the real last author.
-3. AST scan of connected tree (changed JSX only on re-assess when possible).
-4. If preview URL set → Playwright audit per route: axe + custom checks + html-validate + applicability probes + viewport/pointer target-size + theme conditions; then site-level + link check.
-5. Merge findings; runtime wins for composition-sensitive rules.
-6. Re-derive requirement statuses (sticky humans, applicability, authority gates).
-7. Manual controls stay `unable_to_verify` until human pass or exception.
-8. `verifyDraftPrRemediation` moves an `approved` (via draft PR) remediation to `verified` when its finding is no longer detected. Draft-PR approval is stored on the remediation payload (`approvalAction`) so the worker does not need historical `db.evidence` (write snapshots load none).
+**Remediation:** source = patch → ComplyLoop → draft PR → merge → re-assess
+→ `verified`. Runtime = guidance → approve → implement → re-audit or
+manual verify. UX: [`finding-flow.md`](./finding-flow.md).
 
-### Remediation
+**Monitoring:** webhook enqueues only (`idempotency_key` from delivery id).
+PR events post a Check Run. Failures become `assessment_job_failed`
+evidence.
 
-| Finding type      | Path                                                                                                       |
-| ----------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Source (AST)**  | Deterministic fix or constrained AI patch → ComplyLoop re-scan → draft PR → merge → re-assess → `verified` |
-| **Runtime (DOM)** | Guidance → approve → implement in app → re-audit or manual verify                                          |
+**Reports:** shared `ReportModel` (`report-model.ts`).
 
-Finding page UX: [`finding-flow.md`](./finding-flow.md).
+## Invariants
 
-### Continuous monitoring
-
-Webhook or manual re-assess → scoped JSX re-scan + optional runtime → regression alerts + optional PR Check Run.
-
-**Webhook-driven re-assessment** (`src/app/api/github/webhook` → `src/server/webhook.ts` → `assessment-jobs` → worker) is signature-validated. `x-github-delivery` is recorded in `webhook_deliveries`, but a duplicate delivery is still handled (the response only carries `duplicate: true`); actual idempotency comes from the `assessment_jobs.idempotency_key` derived from the delivery id. It never clones or scans in the request path — it only enqueues a durable job that the worker (`assessment-worker.ts`) runs, collecting `compliance_regression` alerts and, for PR events, posting a GitHub Check Run (`github-checks.ts`). Clone failures surface as `assessment_job_failed` evidence, not as a webhook response code. Full coverage lives in `e2e/webhook.spec.ts`, which drives signed push/PR deliveries through the real app. In the Playwright harness the app's Octokit is pointed at a local fixture GitHub API via `GITHUB_API_BASE_URL` (unset → Octokit's own `api.github.com` default; also useful for GitHub Enterprise Server).
-
-### Reports
-
-HTML exports from `/evidence/report/html` and markdown from `src/server/report.ts` both render a shared `ReportModel` (`report-model.ts` composers). Engineering and audit HTML have colocated tests. Markdown assembly in `src/server/report.ts` is excluded from the unit coverage gate.
-
-## Data invariants
-
-- Evidence append-only; exceptions and decisions keep history.
+- Evidence append-only; decisions keep history.
 - Every status records `automated` vs `human_review`.
 - `verified` only via deterministic re-check or recorded human verification.
-- Webhook-triggered assessments idempotent via the job `idempotencyKey` (derived from `x-github-delivery`).
-- Human exceptions / human passes are sticky until explicitly cleared or a temporary exception expires.
+- Webhook assessments idempotent via job `idempotencyKey`.
 
 ## Adding a framework
 
-1. `packages/adapters/src/<name>/` — metadata, presets, controls (or reuse a catalog like WCAG does with RGAA).
-2. Register in `packages/adapters/src/registry.ts` (optional `guidanceFor` on the adapter).
-3. Server/app import adapters **only** via registry — not `adapters/rgaa/*` directly.
+`packages/adapters/src/<name>/` + register in `registry.ts`. WCAG already
+reuses the RGAA catalog. Pages may import adapter modules directly — one
+catalog, no registry-only import rule.
 
 ## Tests
 
-| Command                 | What                                                                                                                                                                                                      |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run test`          | Vitest unit/integration                                                                                                                                                                                   |
-| `npm run test` / `test:coverage` / `test:db` | Vitest unit suite; coverage gates; Postgres persistence integration |
-| `npm run test:e2e`      | Playwright (gated harness)                                                                                                                                                                                |
-
-Excluded from the unit coverage gate (`vitest.config.mts`): Playwright `runtime/scan.ts` and page probes (`custom-checks/**`, `html-validate-runtime.ts`, `applicability.ts`, `dom-target.ts`, `site-level/link-check.ts` — they skip or need a browser/network in the unit job), `seed.ts`, thin Next/cookie/workspace glue, live GitHub checkout/token/app/octokit helpers, markdown `report.ts`, and live Postgres wiring (`packages/db/src/client`, `schema`, `workspace-load`, `postgres-url`, `postgres-queries`, plus the per-entity `repo/alerts|assessments|catalog|evidence|findings|orgs|projects|remediations|requirements` — the write path is covered by the opt-in `test:db` integration suite in CI). Pure write logic that IS in the gate: `repo/apply.ts`, `repo/mappers.ts`, `write-lock.ts`, `postgres-evidence.ts` (the per-entity `repo/*` loaders and `workspace.ts` are the excluded slice, covered by the `test:db` suite). Modules with unit tests (`pr.ts`, `github.ts`, `webhook-deliveries.ts`, `remediation-verify.ts`, `postgres-ssl.ts`, `postgres-evidence.ts`) are in the gate. Thresholds (lines 94 / functions 96 / branches 80 / statements 90) match that unit-job surface — Playwright probes used to be counted at ~30% and made the old 96/94/85 numbers unreachable. HTML reports are exercised through colocated suites in `report.test.ts` (both builders: content, escaping, empty states, clusters).
-
-`npm run test` resolves `@complyloop/analysis-core/*`, `@complyloop/domain/*`, `@complyloop/db/*`, and `@complyloop/adapters/*` to their **source** (see _Build coupling_ below).
-
-## Related
-
-- [Finding page flow](./finding-flow.md)
-- [Deploy](../deploy.md)
-- [All docs](../README.md)
+Commands: [`AGENTS.md`](../../AGENTS.md). Coverage excludes and thresholds:
+`vitest.config.mts`. Vitest resolves workspace packages to **source**.

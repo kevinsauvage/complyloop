@@ -6,7 +6,7 @@ Developer-first **compliance engineering**: turn requirements into verifiable en
 Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Monitoring
 ```
 
-**MVP:** accessibility (RGAA 4 / WCAG 2.2) for React/Next.js/TypeScript. The domain core is framework-agnostic — other frameworks plug in as adapters.
+**Product:** accessibility (RGAA 4 / WCAG 2.2) for React/Next.js/TypeScript. The domain core is framework-agnostic — other frameworks plug in as adapters.
 
 Full product spec: [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md)
 

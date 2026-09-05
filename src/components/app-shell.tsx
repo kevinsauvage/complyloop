@@ -62,7 +62,7 @@ function SidebarBody({
         </div>
         {authControls}
         <p className="px-3 text-[11px] leading-relaxed text-muted-foreground/80">
-          MVP — RGAA / WCAG for React &amp; Next.js
+          RGAA / WCAG for React &amp; Next.js
         </p>
         <p className="px-3 text-[11px] text-muted-foreground/80">
           <Link
