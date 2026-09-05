@@ -1,22 +1,32 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+const domIncludes = [
+  "src/components/**/*.test.{ts,tsx}",
+  "src/hooks/**/*.test.ts",
+  "src/app/**/*.test.tsx",
+  "packages/analysis-core/src/runtime/dom-target.test.ts",
+  "packages/analysis-core/src/runtime/site-level/snapshot.test.ts",
+  "packages/analysis-core/src/runtime/custom-checks/widget-keyboard.test.ts",
+];
+
+const unitIncludes = [
+  "src/**/*.test.{ts,tsx}",
+  "packages/analysis-core/src/**/*.test.{ts,tsx}",
+  "packages/db/src/**/*.test.{ts,tsx}",
+  "packages/domain/src/**/*.test.{ts,tsx}",
+  "packages/adapters/src/**/*.test.{ts,tsx}",
+  "packages/check/src/**/*.test.{ts,tsx}",
+];
+
+const smokeTest = "packages/check/src/check-pack.smoke.test.ts";
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
     tsconfigPaths: true,
   },
   test: {
-    environment: "jsdom",
-    setupFiles: ["./vitest.setup.ts"],
-    include: [
-      "src/**/*.test.{ts,tsx}",
-      "packages/analysis-core/src/**/*.test.{ts,tsx}",
-      "packages/db/src/**/*.test.{ts,tsx}",
-      "packages/domain/src/**/*.test.{ts,tsx}",
-      "packages/adapters/src/**/*.test.{ts,tsx}",
-      "packages/check/src/**/*.test.{ts,tsx}",
-    ],
     // Assessment / temp-fs tests can exceed 5s under parallel load.
     testTimeout: 15_000,
     coverage: {
@@ -85,5 +95,26 @@ export default defineConfig({
         statements: 90,
       },
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          environment: "node",
+          setupFiles: ["./vitest.setup.ts"],
+          include: unitIncludes,
+          exclude: [...domIncludes, smokeTest],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "dom",
+          environment: "jsdom",
+          setupFiles: ["./vitest.setup.ts"],
+          include: domIncludes,
+        },
+      },
+    ],
   },
 });

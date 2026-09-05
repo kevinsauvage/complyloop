@@ -129,11 +129,13 @@ async function ensurePersonalOrgProvisioned(
     listOrganizationsForUser(drizzle, orgIds),
     listMembershipsForOrgs(drizzle, orgIds),
   ]);
+  const orgIdsBefore = new Set(organizations.map((org) => org.id));
   const db = { ...emptyDb(), organizations, memberships };
   await claimMembershipsForLogin(drizzle, userId, githubLogin);
   const result = ensurePersonalOrg(db, userId, githubLogin);
   if (!result.changed) return;
-  if (db.organizations.some((org) => org.id === result.org.id)) return;
+  // Skip when the org already existed in Postgres — only persist newly created orgs.
+  if (orgIdsBefore.has(result.org.id)) return;
 
   const membership = db.memberships.find(
     (item) => item.orgId === result.org.id && item.userId === userId,

@@ -22,6 +22,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:check-pack": "vitest run --config vitest.smoke.config.mts",
     "test:coverage": "vitest run --coverage",
     "test:db": "vitest run packages/db/src/alerts-upsert.test.ts packages/db/src/constraints.test.ts packages/db/src/evidence-append-only.test.ts packages/db/src/persist-project-slice.integration.test.ts src/server/workspace.integration.test.ts",
     "e2e:seed": "tsx scripts/e2e-seed.ts",
