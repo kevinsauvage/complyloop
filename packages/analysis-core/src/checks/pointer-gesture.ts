@@ -1,3 +1,4 @@
+import { hasAnyAttr } from "../parse.ts";
 import { isDecorativeOrHidden, isDomHost } from "../a11y-aria.ts";
 import { isNativeInteractive } from "../a11y-model.ts";
 import { isPropSpreadingHost } from "../jsx-primitives.ts";
@@ -7,7 +8,7 @@ import {
   visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";
-import { hasAnyAttr, hasKeyboardHandlers } from "./heuristic-utils.ts";
+import { hasKeyboardHandlers } from "./heuristic-utils.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 export const pointerGestureCheck: AccessibilityCheck = {

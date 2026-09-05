@@ -6,7 +6,7 @@ import {
   visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";
-import { hasAnyAttr } from "./heuristic-utils.ts";
+import { hasAnyAttr } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 export const pointerCancellationCheck: AccessibilityCheck = {
