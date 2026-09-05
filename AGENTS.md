@@ -57,6 +57,7 @@ npm run build            # Production build; transpiles analysis-core from sourc
 npm run build:core       # Compile packages/analysis-core → dist (publish)
 npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done
 npm run test:coverage    # Coverage gates (vitest.config.mts)
+npm run test:db          # Postgres persistence integration (needs DATABASE_URL)
 npm run check -- [path]  # Local a11y CI gate
 npm run worker           # Assessment worker
 npm run db:migrate       # Apply migrations

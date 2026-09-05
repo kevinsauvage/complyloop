@@ -46,9 +46,25 @@ export default defineConfig({
         "packages/analysis-core/src/runtime/dom-target.ts",
         "packages/analysis-core/src/runtime/site-level/link-check.ts",
         "src/server/seed.ts",
-        // Thin Next Auth / cookie / workspace glue — covered via e2e.
-        "src/server/active-cookies.ts",
+        // Live Postgres wiring without a default-suite unit driver.
+        "packages/db/src/client.ts",
+        "packages/db/src/schema.ts",
+        "packages/db/src/workspace-load.ts",
+        "packages/db/src/postgres-url.ts",
+        "packages/db/src/postgres-queries.ts",
+        "packages/db/src/repo/alerts.ts",
+        "packages/db/src/repo/assessments.ts",
+        "packages/db/src/repo/catalog.ts",
+        "packages/db/src/repo/evidence.ts",
+        "packages/db/src/repo/findings.ts",
+        "packages/db/src/repo/orgs.ts",
+        "packages/db/src/repo/projects.ts",
+        "packages/db/src/repo/remediations.ts",
+        "packages/db/src/repo/requirements.ts",
+        // Write path covered by workspace.test.ts + workspace.integration.test.ts (test:db).
         "src/server/workspace.ts",
+        // Thin Next Auth / cookie glue — covered via e2e.
+        "src/server/active-cookies.ts",
         "src/server/db.ts",
         // Live GitHub/git checkout I/O — e2e + fixture paths cover the contract.
         "src/server/repo-checkout.ts",
@@ -59,14 +75,6 @@ export default defineConfig({
         "src/server/github-repo.ts",
         // Markdown report assembly — HTML covered by report-html.ts tests.
         "src/server/report.ts",
-        // Live Postgres wiring without a default-suite unit driver.
-        "packages/db/src/client.ts",
-        "packages/db/src/schema.ts",
-        "packages/db/src/workspace-load.ts",
-        "packages/db/src/postgres-url.ts",
-        "packages/db/src/postgres-queries.ts",
-        "packages/db/src/write-lock.ts",
-        "packages/db/src/repo/**",
       ],
       thresholds: {
         lines: 94,

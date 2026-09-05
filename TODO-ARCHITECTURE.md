@@ -44,8 +44,6 @@ naming, speculative work (do not start without a concrete trigger).
 
 ---
 
-## P0 — Critical
-
 ## P1 — High
 
 ### P1-1 · Every write loads, clones, and string-compares the whole project slice
@@ -91,28 +89,6 @@ two small renderers. At minimum, move the shared section logic into `report-html
 and add tests for both HTML builders.
 
 **Files.** `src/server/report.ts`, `src/server/report-html/*`.
-
-### P1-7 · The riskiest persistence code is outside the unit coverage gate
-
-**What is wrong.** `vitest.config.mts` excludes `workspace.ts`, `workspace-load.ts`,
-`client.ts`, `schema.ts`, `postgres-queries.ts`, `write-lock.ts`, `repo/**` — exactly
-the modules where P0-2 (concurrency) and P1-1 (diff semantics) live. The gate covers the
-in-memory domain logic well, but the diff-persist semantics, upsert behavior, and
-concurrency behavior are untested in the unit job (only happy-path e2e). The alert-upsert
-regression test (`packages/db/src/alerts-upsert.test.ts`) is opt-in live-Postgres, like
-`constraints.test.ts` / `evidence-append-only.test.ts`.
-
-**Why it matters.** The remaining P0 ships as “we only find out in production” unless
-the persistence core gets real tests. The repo already has the pattern.
-
-**What should change.** Add an integration suite (real Postgres, as in the existing
-`db` tests) covering: `persistProjectSliceDiff` for each entity, concurrent writes
-(P0-2), and the no-op path (no changes → no queries). Bring `repo/apply.ts` + the
-`workspace.ts` write path into the gate.
-
-**Files.** `vitest.config.mts`, `packages/db/src/repo/*`, `src/server/workspace.ts`.
-
----
 
 ## P2 — Medium
 
