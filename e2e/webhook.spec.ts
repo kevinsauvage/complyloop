@@ -123,6 +123,100 @@ test.describe("webhook-driven continuous monitoring", () => {
     }
   });
 
+  test("draft-PR merge (push) re-assesses and verifies the approved remediation", async ({
+    request,
+  }) => {
+    try {
+      // 1. A violation lands on main and a webhook assessment records it.
+      fs.writeFileSync(fixturePath, NEW_REGRESS_CONTENT);
+      const detect = await deliverWebhook({
+        request,
+        eventName: "push",
+        payload: pushPayload({ after: "e".repeat(40) }),
+        deliveryId: `e2e-verify-detect-${Date.now()}`,
+      });
+      expect(detect.ok()).toBeTruthy();
+      await waitForJobSuccess({ jobId: (await detect.json()).jobId });
+      await expect
+        .poll(() => emptyHeadingStatus(), { timeout: 30_000 })
+        .toBe("failed");
+
+      // 2. A human approved the remediation with the draft-PR action
+      //    (the UI path; seeded directly to keep the fixture offline).
+      const approved = await withDb(async (sql) => {
+        const rows = await sql<Array<{ id: string }>>`
+          UPDATE remediations r
+          SET status = 'approved',
+              payload = r.payload || jsonb_build_object(
+                'status', 'approved',
+                'approvalAction', 'create_draft_pull_request'
+              )
+          FROM findings f
+          WHERE f.id = r.finding_id
+            AND f.project_id = ${E2E_PROJECT_ID}
+            AND f.status = 'open'
+            AND f.payload->>'checkId' = 'empty-heading'
+          RETURNING r.id
+        `;
+        return rows.length;
+      });
+      expect(approved).toBeGreaterThan(0);
+
+      // 3. The draft PR merges — on GitHub that is a push to the monitored
+      //    branch with the fix applied.
+      fs.rmSync(fixturePath, { force: true });
+      const merge = await deliverWebhook({
+        request,
+        eventName: "push",
+        payload: pushPayload({ after: "f".repeat(40) }),
+        deliveryId: `e2e-verify-merge-${Date.now()}`,
+      });
+      expect(merge.ok()).toBeTruthy();
+      await waitForJobSuccess({ jobId: (await merge.json()).jobId });
+
+      // 4. Deterministic reassessment closes the loop: requirement passes,
+      //    the remediation is verified, and the evidence trail says how.
+      await expect
+        .poll(() => emptyHeadingStatus(), { timeout: 30_000 })
+        .toBe("passed");
+      await expect
+        .poll(
+          () =>
+            withDb(async (sql) => {
+              const rows = await sql<Array<{ n: number }>>`
+                SELECT count(*)::int AS n
+                FROM remediations r
+                JOIN findings f ON f.id = r.finding_id
+                WHERE f.project_id = ${E2E_PROJECT_ID}
+                  AND f.payload->>'checkId' = 'empty-heading'
+                  AND r.status = 'verified'
+              `;
+              return rows[0]?.n ?? 0;
+            }),
+          { timeout: 30_000 },
+        )
+        .toBeGreaterThan(0);
+      await expect
+        .poll(
+          () =>
+            withDb(async (sql) => {
+              const rows = await sql<Array<{ n: number }>>`
+                SELECT count(*)::int AS n
+                FROM evidence
+                WHERE project_id = ${E2E_PROJECT_ID}
+                  AND kind = 'remediation_verified'
+                  AND detail->>'method' = 'deterministic_reassessment'
+              `;
+              return rows[0]?.n ?? 0;
+            }),
+          { timeout: 30_000 },
+        )
+        .toBeGreaterThan(0);
+    } finally {
+      fs.rmSync(fixturePath, { force: true });
+    }
+  });
+
   test("push event re-assesses and surfaces a compliance regression alert", async ({
     request,
   }) => {

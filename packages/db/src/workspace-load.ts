@@ -17,7 +17,10 @@ import {
   remediations,
   requirements,
 } from "./schema.ts";
-import { listAssessmentsForProject, getLatestAssessmentSnapshot } from "./repo/assessments.ts";
+import {
+  getLatestAssessmentSnapshot,
+  listLatestAssessmentForProject,
+} from "./repo/assessments.ts";
 
 async function loadEvidenceWindow(
   drizzle: DrizzleDb,
@@ -51,7 +54,8 @@ async function loadProjectRuntime(
         .where(eq(requirements.projectId, projectId)),
       drizzle.select().from(findings).where(eq(findings.projectId, projectId)),
       drizzle.select().from(alerts).where(eq(alerts.projectId, projectId)),
-      listAssessmentsForProject(drizzle, projectId),
+      // Latest only — the app consumes latestAssessmentFor + "has any" (P2-3).
+      listLatestAssessmentForProject(drizzle, projectId),
     ]);
 
   const findingIds = findingRows.map((row) => row.id);
@@ -225,11 +229,11 @@ async function loadTargetedProjectRuntime(
   // Rows are already scoped to the active project in SQL.
   const projectRequirements = requirementRows.map((row) => row.payload);
 
-  // Assessments and alerts are bounded per-project context the handler may read;
-  // they are not the cost the targeted loader exists to avoid (only the
-  // potentially-large requirements/findings/remediations are scoped).
+  // Latest assessment + alerts are bounded per-project context the handler may
+  // read; only the potentially-large requirements/findings/remediations are
+  // scoped by id.
   const [assessmentsList, alertRows] = await Promise.all([
-    listAssessmentsForProject(drizzle, projectId),
+    listLatestAssessmentForProject(drizzle, projectId),
     drizzle.select().from(alerts).where(eq(alerts.projectId, projectId)),
   ]);
 

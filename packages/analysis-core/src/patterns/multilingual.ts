@@ -5,6 +5,15 @@
  *
  * Use {@link matchesMultilingual} instead of `pattern.test(text)` — JS `\b` does not
  * treat accented letters (e.g. É) as word characters.
+ *
+ * DELIBERATE COPIES: `foldAccents`/`matchesMultilingual` are re-inlined inside
+ * the `page.evaluate` callbacks of `runtime/applicability.ts`,
+ * `runtime/custom-checks/error-prevention.ts`, `captcha-alternative.ts`, and
+ * `accessible-auth-enhanced.ts`. Evaluate callbacks must be self-contained
+ * (they serialize into the page), and `new Function`-source injection can be
+ * blocked by a strict CSP on the audited page. Keep the inline copies
+ * byte-identical to this implementation; switch to source injection only if a
+ * fifth copy lands.
  */
 
 export function foldAccents(value: string): string {

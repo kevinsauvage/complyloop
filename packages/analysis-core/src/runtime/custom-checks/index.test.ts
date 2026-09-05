@@ -161,7 +161,7 @@ describe("runCustomRuntimeChecks", () => {
 
     const results = await runCustomRuntimeChecks(page, "https://app.example/");
 
-    expect(results.map((result) => result.checkId).sort()).toEqual([
+    expect(results.findings.map((result) => result.checkId).sort()).toEqual([
       "css-disabled-content",
       "dialog-keyboard",
       "focus-visible",
@@ -169,10 +169,52 @@ describe("runCustomRuntimeChecks", () => {
       "label-adjacent",
       "tabs-keyboard",
     ]);
-    expect(results.every((result) => result.analyzerId === "playwright-custom")).toBe(
-      true,
-    );
+    expect(
+      results.findings.every((result) => result.analyzerId === "playwright-custom"),
+    ).toBe(true);
+    expect(results.probeFailures).toEqual([]);
     expect(mocks.restorePageAfterMutatingProbes).toHaveBeenCalledTimes(1);
+  });
+
+  it("contains a throwing probe and records it instead of aborting the audit (P2-5)", async () => {
+    for (const mock of Object.values(mocks)) mock.mockReset();
+    mocks.restorePageAfterMutatingProbes.mockResolvedValue(undefined);
+    for (const mock of [
+      mocks.textSpacingRuntimeViolation,
+      mocks.nonTextContrastViolation,
+      mocks.labelAdjacentViolation,
+      mocks.mediaKeyboardViolation,
+      mocks.cssHoverKeyboardViolation,
+      mocks.cssOffUnderstandableViolation,
+      mocks.layoutTableLinearizationViolation,
+      mocks.errorPreventionViolation,
+      mocks.captchaAlternativeViolation,
+      mocks.accessibleAuthEnhancedViolation,
+      mocks.mediaIdentificationViolation,
+      mocks.supplementaryContentKeyboardViolation,
+      mocks.formErrorSubmitViolation,
+      mocks.liveRegionUpdatesViolation,
+      mocks.hoverContentViolation,
+      mocks.reducedMotionViolation,
+      mocks.reflowViolation,
+      mocks.resizeTextViolation,
+      mocks.targetSizeEnhancedViolation,
+    ]) {
+      mock.mockResolvedValue(null);
+    }
+    mocks.focusCustomViolations.mockResolvedValue([]);
+    mocks.dialogFocusViolations.mockResolvedValue([]);
+    mocks.widgetKeyboardViolations.mockResolvedValue([]);
+    // One flaky probe (e.g. frozen matchMedia emulation) throws.
+    mocks.forcedColorsViolation.mockRejectedValue(new Error("evaluate hung"));
+    mocks.labelAdjacentViolation.mockResolvedValue(violation("label-adjacent"));
+
+    const results = await runCustomRuntimeChecks(page, "https://app.example/");
+
+    expect(results.probeFailures).toEqual(["forced-colors"]);
+    expect(results.findings.map((result) => result.checkId)).toEqual([
+      "label-adjacent",
+    ]);
   });
 });
 
@@ -190,18 +232,22 @@ describe("runThemeSensitiveCustomChecks", () => {
       "https://app.example/",
     );
 
-    expect(results.map((result) => result.checkId)).toEqual([
+    expect(results.findings.map((result) => result.checkId)).toEqual([
       "focus-visible",
       "non-text-contrast",
     ]);
+    expect(results.probeFailures).toEqual([]);
   });
 
   it("omits contrast when the check is clean", async () => {
     mocks.focusCustomViolations.mockResolvedValue([]);
     mocks.nonTextContrastViolation.mockResolvedValue(null);
 
-    expect(await runThemeSensitiveCustomChecks(page, "https://app.example/")).toEqual(
-      [],
+    const results = await runThemeSensitiveCustomChecks(
+      page,
+      "https://app.example/",
     );
+    expect(results.findings).toEqual([]);
+    expect(results.probeFailures).toEqual([]);
   });
 });

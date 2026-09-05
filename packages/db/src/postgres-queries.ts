@@ -1,9 +1,14 @@
 import { and, asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
-import type { EvidenceKind, EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
+import type {
+  Assessment,
+  EvidenceKind,
+  EvidenceRecord,
+} from "@complyloop/analysis-core/contract/finding-types";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/domain/project-types";
 import type { DrizzleDb } from "./client.ts";
 import { rowToEvidence } from "./postgres-evidence.ts";
-import { evidence, memberships, projects } from "./schema.ts";
+import { assessmentFromRow } from "./repo/mappers.ts";
+import { assessments, evidence, memberships, projects } from "./schema.ts";
 
 /** Zero-based OFFSET for a 1-based UI page. */
 export function sqlPageOffset(page: number, pageSize: number): number {
@@ -75,6 +80,20 @@ export async function listAllEvidenceForProject(
     .where(eq(evidence.projectId, projectId))
     .orderBy(asc(evidence.at));
   return rows.map(rowToEvidence);
+}
+
+/** Full assessment history for many projects (org export only). */
+export async function listAssessmentsForProjects(
+  drizzle: DrizzleDb,
+  projectIds: readonly string[],
+): Promise<Assessment[]> {
+  if (projectIds.length === 0) return [];
+  const rows = await drizzle
+    .select()
+    .from(assessments)
+    .where(inArray(assessments.projectId, [...projectIds]))
+    .orderBy(desc(sql`${assessments.payload}->>'completedAt'`));
+  return rows.map((row) => assessmentFromRow(row));
 }
 
 /** All evidence for many projects, oldest-first (org export). */

@@ -257,6 +257,86 @@ describe("processNextAssessmentJob", () => {
     );
   });
 
+  it("reuses the unread regression alert id per control instead of minting a new row (P2-1)", async () => {
+    const db = emptyDb();
+    db.alerts = [
+      {
+        id: "alert-existing",
+        projectId: "p1",
+        kind: "compliance_regression",
+        summary: "old regression",
+        at: "2026-01-01T00:00:00.000Z",
+        read: false,
+        detail: { controlId: "c1" },
+      },
+      {
+        id: "alert-read",
+        projectId: "p1",
+        kind: "compliance_regression",
+        summary: "acknowledged regression",
+        at: "2026-01-01T00:00:00.000Z",
+        read: true,
+        detail: { controlId: "c2" },
+      },
+    ];
+    db.evidence = [
+      {
+        id: "ev-reg-1",
+        at: "2026-01-02T00:00:00.000Z",
+        kind: "requirement_status_changed",
+        summary: "Control c1 regressed",
+        projectId: "p1",
+        controlId: "c1",
+        assessmentId: "a1",
+        detail: { regression: true },
+      },
+      {
+        id: "ev-reg-2",
+        at: "2026-01-02T00:00:00.000Z",
+        kind: "requirement_status_changed",
+        summary: "Control c2 regressed",
+        projectId: "p1",
+        controlId: "c2",
+        assessmentId: "a1",
+        detail: { regression: true },
+      },
+    ];
+    claimNextAssessmentJob.mockResolvedValue(
+      job({ trigger: "webhook", payload: { eventName: "push" } }),
+    );
+    loadProjectDb.mockResolvedValue(db);
+    withProjectCheckout.mockImplementation(
+      async (
+        _project: unknown,
+        fn: (rootPath: string) => Promise<unknown>,
+      ) => fn("/tmp/checkout"),
+    );
+    runAssessment.mockResolvedValue({
+      id: "a1",
+      projectId: "p1",
+      snapshot: { fileHashes: {} },
+    });
+    completeAssessmentJob.mockResolvedValue(undefined);
+
+    await expect(processNextAssessmentJob()).resolves.toEqual({
+      kind: "succeeded",
+      jobId: "job-1",
+    });
+    const payload = applyAssessmentPayload.mock.calls[0]?.[1] as {
+      alerts: Array<{ id: string; detail?: Record<string, unknown> }>;
+    };
+    const alertForC1 = payload.alerts.find(
+      (alert) => alert.detail?.controlId === "c1",
+    );
+    const alertForC2 = payload.alerts.find(
+      (alert) => alert.detail?.controlId === "c2",
+    );
+    // Unread alert for the same control is refreshed in place.
+    expect(alertForC1?.id).toBe("alert-existing");
+    // A read alert does not swallow the recurrence — fresh row.
+    expect(alertForC2?.id).not.toBe("alert-read");
+  });
+
   it("retries when failAssessmentJob returns queued", async () => {
     claimNextAssessmentJob.mockResolvedValue(job({ attempts: 1 }));
     loadProjectDb.mockResolvedValue(emptyDb());

@@ -66,9 +66,9 @@ describe("runCustomRuntimeChecks page restore", () => {
       try {
         const results = await runCustomRuntimeChecks(page, page.url());
         expect(await page.locator("h1").textContent()).toBe("Dashboard");
-        expect(results.some((result) => result.checkId === "reflow")).toBe(
-          true,
-        );
+        expect(
+          results.findings.some((result) => result.checkId === "reflow"),
+        ).toBe(true);
       } finally {
         await close();
       }

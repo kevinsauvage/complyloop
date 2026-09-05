@@ -40,6 +40,8 @@ export interface RuntimeScanPageResult {
   htmlValidateRan?: boolean;
   /** Deterministic absence probes for applicability-gated checks. */
   applicabilityObservations?: ApplicabilityObservation[];
+  /** Custom probes that threw on this page (contained, not fatal — P2-5). */
+  probeFailures?: string[];
 }
 
 export interface RuntimeScanResult {
@@ -52,6 +54,8 @@ export interface RuntimeScanResult {
   linkCheckRan?: boolean;
   /** Check ids confirmed not applicable on every audited page (checkId → fact). */
   applicabilityFacts?: ReadonlyMap<CheckId, string>;
+  /** Unique custom-probe ids that threw on at least one page (P2-5). */
+  probeFailures?: string[];
   error?: string;
 }
 

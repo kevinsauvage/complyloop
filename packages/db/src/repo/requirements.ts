@@ -40,14 +40,18 @@ export async function upsertRequirements(
   }
 
   if (toWrite.length === 0) return;
+  // Conflict target is the composite unique index, not the id: two writers
+  // that each created an in-memory row for the same (project, control) with
+  // fresh ids must converge on one DB row instead of inserting a duplicate.
+  // Same-id updates hit the same arbiter (same row), so the common status-flip
+  // path is unchanged.
   await tx
     .insert(requirements)
     .values(toWrite.map(requirementToRow))
     .onConflictDoUpdate({
-      target: requirements.id,
+      target: [requirements.projectId, requirements.controlId],
       set: {
-        projectId: sql`excluded.project_id`,
-        controlId: sql`excluded.control_id`,
+        id: sql`excluded.id`,
         status: sql`excluded.status`,
         payload: sql`excluded.payload`,
       },

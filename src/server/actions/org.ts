@@ -28,7 +28,10 @@ import {
   resolveActiveOrgId,
 } from "../orgs";
 import { getDrizzle } from "@complyloop/db/client";
-import { listAllEvidenceForProjects } from "@complyloop/db/postgres-queries";
+import {
+  listAllEvidenceForProjects,
+  listAssessmentsForProjects,
+} from "@complyloop/db/postgres-queries";
 import { getWorkspace, withOrgWrite } from "../workspace";
 import { refresh, requireSignedIn } from "./shared";
 
@@ -209,11 +212,14 @@ export async function exportOrgDataAction(
     const projectIds = db.projects
       .filter((project) => project.orgId === orgId)
       .map((project) => project.id);
-    const evidence = await listAllEvidenceForProjects(
-      await getDrizzle(),
-      projectIds,
-    );
-    const payload = exportOrgData({ ...db, evidence }, orgId, userId);
+    // The workspace slice is bounded (latest assessment, evidence window);
+    // the export is the audit artifact, so fetch full history directly.
+    const drizzle = await getDrizzle();
+    const [evidence, assessments] = await Promise.all([
+      listAllEvidenceForProjects(drizzle, projectIds),
+      listAssessmentsForProjects(drizzle, projectIds),
+    ]);
+    const payload = exportOrgData({ ...db, evidence, assessments }, orgId, userId);
     return { error: null, json: JSON.stringify(payload, null, 2) };
   } catch (error) {
     return {

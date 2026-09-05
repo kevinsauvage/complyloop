@@ -83,6 +83,12 @@ export interface ProjectSlice {
   alerts: Alert[];
 }
 
+/**
+ * Deep-clones every row: the caller's arrays share object references with the
+ * in-memory `Db` that `runAssessment` mutates in place, so a shallow copy
+ * would make the "before" diff state identical to "after" and turn every
+ * re-assessment persist into a no-op (P0 regression, see apply.test.ts).
+ */
 export function snapshotProjectSlice(
   requirements: ReadonlyArray<Requirement>,
   findings: ReadonlyArray<Finding>,
@@ -94,12 +100,12 @@ export function snapshotProjectSlice(
     (item) => item.projectId === projectId,
   );
   const findingIds = new Set(projectFindings.map((item) => item.id));
-  return {
+  return structuredClone({
     requirements: requirements.filter((item) => item.projectId === projectId),
     findings: projectFindings,
     remediations: remediations.filter((item) => findingIds.has(item.findingId)),
     alerts: alerts.filter((item) => item.projectId === projectId),
-  };
+  });
 }
 
 export function requirementUpdatedAtById(

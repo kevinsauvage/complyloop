@@ -20,6 +20,7 @@ npm install ./packages/check
 ```bash
 npx complyloop-check .
 npx complyloop-check path/to/app
+npx complyloop-check --help
 ```
 
 | Exit code | Meaning |

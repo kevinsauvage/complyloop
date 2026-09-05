@@ -3,6 +3,11 @@
  * Playwright custom probes, html-validate). Keep the whitespace-normalization
  * and truncation behaviour identical across engines so findings render the
  * same snippet shape regardless of source.
+ *
+ * DELIBERATE COPY: `serializeDocument` in `html-validate-runtime.ts` re-inlines
+ * the 197-char truncation and a selector builder because it is injected into
+ * the page as serialized source and cannot import. Keep its truncation
+ * identical to {@link htmlSnippet}.
  */
 
 /** Collapses whitespace and truncates an element's HTML to ≤200 chars. */

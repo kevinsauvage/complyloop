@@ -257,7 +257,8 @@ function createPlaywrightAxeScanner(options?: {
             throw new PublicError(blockedReason);
           }
           const results = await runAxeOnPage(page);
-          const customFindings = await runCustomRuntimeChecks(page, url);
+          const customChecks = await runCustomRuntimeChecks(page, url);
+          const customFindings = customChecks.findings;
           // Rendered pass: validate the generated DOM. Serialize on
           // the open page (no extra browser cost) and validate in-process.
           const snapshot = await capturePageSnapshot(page, url);
@@ -298,7 +299,7 @@ function createPlaywrightAxeScanner(options?: {
           violations = [...violations, ...defaultTargetSize];
           violations = await collectViewportAndPointerViolations(page, violations);
 
-          const { conditionViolations, conditionCustomFindings } =
+          const { conditionViolations, conditionCustomFindings, conditionProbeFailures } =
             await collectBrowserConditionFindings(
               page,
               url,
@@ -316,6 +317,10 @@ function createPlaywrightAxeScanner(options?: {
             htmlValidateRan: pageHtmlValidateRan,
             snapshot,
             applicabilityObservations,
+            probeFailures: [
+              ...customChecks.probeFailures,
+              ...conditionProbeFailures,
+            ],
           });
         } finally {
           await page.close();
@@ -402,6 +407,9 @@ export async function scanRuntime(
       ...linkFindings,
     ];
     const applicabilityFacts = aggregateApplicabilityObservations(pages);
+    const probeFailures = [
+      ...new Set(pages.flatMap((page) => page.probeFailures ?? [])),
+    ];
     return {
       findings,
       pagesScanned: pages.length,
@@ -409,6 +417,7 @@ export async function scanRuntime(
       htmlValidateRan,
       linkCheckRan,
       applicabilityFacts,
+      probeFailures,
     };
   } catch (error) {
     return {
@@ -463,9 +472,11 @@ async function collectBrowserConditionFindings(
 ): Promise<{
   conditionViolations: AxeViolationLike[];
   conditionCustomFindings: RawFinding[];
+  conditionProbeFailures: string[];
 }> {
   const conditionViolations: AxeViolationLike[] = [];
   const conditionCustomFindings: RawFinding[] = [];
+  const conditionProbeFailures: string[] = [];
   for (const condition of conditions) {
     await page.emulateMedia(emulationForCondition(condition));
     try {
@@ -479,13 +490,14 @@ async function collectBrowserConditionFindings(
         ...conditionSpecificViolations(baseViolations, themeAxe, label),
       );
       conditionCustomFindings.push(
-        ...conditionSpecificFindings(baseCustomFindings, themeCustom, label),
+        ...conditionSpecificFindings(baseCustomFindings, themeCustom.findings, label),
       );
+      conditionProbeFailures.push(...themeCustom.probeFailures);
     } finally {
       await page.emulateMedia(RESET_EMULATION);
     }
   }
-  return { conditionViolations, conditionCustomFindings };
+  return { conditionViolations, conditionCustomFindings, conditionProbeFailures };
 }
 
 /**

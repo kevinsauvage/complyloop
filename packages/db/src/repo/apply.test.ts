@@ -130,6 +130,64 @@ describe("snapshotProjectSlice", () => {
     expect(slice.remediations).toEqual([remediation]);
     expect(slice.alerts).toEqual([alert]);
   });
+
+  // P0 regression: the worker snapshots the loaded slice, then runAssessment
+  // mutates the SAME object references in place. The snapshot must deep-clone
+  // or every re-assessment diff is empty and nothing persists.
+  it("captures pre-scan state even when the source rows are mutated in place afterwards", async () => {
+    const liveRequirement: Requirement = structuredClone(requirement);
+    const liveFinding: Finding = structuredClone(finding);
+    const liveRemediation: Remediation = structuredClone(remediation);
+
+    const loadedSlice = snapshotProjectSlice(
+      [liveRequirement],
+      [liveFinding],
+      [liveRemediation],
+      [],
+      projectId,
+    );
+
+    // Worker-shape in-place mutations (assessment-status.ts / assessment-findings.ts).
+    liveRequirement.status = "passed";
+    liveRequirement.updatedAt = "2026-01-02T00:00:00.000Z";
+    liveFinding.status = "resolved";
+    liveFinding.assessmentId = "a2";
+
+    expect(
+      changedEntities(entityMap(loadedSlice.requirements), [liveRequirement]),
+    ).toEqual([liveRequirement]);
+    expect(
+      changedEntities(entityMap(loadedSlice.findings), [liveFinding]),
+    ).toEqual([liveFinding]);
+
+    const tx = { kind: "tx" } as unknown as DrizzleDb;
+    upsertRequirements.mockResolvedValue(undefined);
+    upsertFindings.mockResolvedValue(undefined);
+    upsertRemediations.mockResolvedValue(undefined);
+    insertAlerts.mockResolvedValue(undefined);
+    insertEvidenceRecords.mockResolvedValue(undefined);
+
+    await persistProjectSliceDiff(
+      tx,
+      loadedSlice,
+      {
+        requirements: [liveRequirement],
+        findings: [liveFinding],
+        remediations: [liveRemediation],
+        alerts: [],
+      },
+      [],
+    );
+
+    // The stale-write guard still receives the PRE-scan updatedAt so a
+    // concurrent human decision (newer DB updatedAt) is not reverted.
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, [liveRequirement], {
+      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
+    });
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [liveFinding], {
+      loadedUpdatedAtById: new Map(),
+    });
+  });
 });
 
 describe("buildAssessmentApplyPayload", () => {

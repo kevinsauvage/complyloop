@@ -1,8 +1,20 @@
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Alert } from "@complyloop/analysis-core/contract/finding-types";
 import type { DrizzleDb } from "../client.ts";
 import { alerts } from "../schema.ts";
 import { alertToRow } from "./mappers.ts";
+
+export async function getAlertById(
+  drizzle: DrizzleDb,
+  alertId: string,
+): Promise<Alert | undefined> {
+  const rows = await drizzle
+    .select({ payload: alerts.payload })
+    .from(alerts)
+    .where(eq(alerts.id, alertId))
+    .limit(1);
+  return rows[0]?.payload;
+}
 
 export async function markAlertRead(tx: DrizzleDb, alert: Alert): Promise<void> {
   const updated = { ...alert, read: true };

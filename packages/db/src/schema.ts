@@ -147,6 +147,10 @@ export const requirements = pgTable(
   },
   (table) => [
     index("requirements_project_status_idx").on(table.projectId, table.status),
+    uniqueIndex("requirements_project_control_uidx").on(
+      table.projectId,
+      table.controlId,
+    ),
     check(
       "requirements_status_check",
       sqlIn(sql`${table.status}`, REQUIREMENT_STATUSES),

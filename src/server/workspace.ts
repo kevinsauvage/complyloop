@@ -7,7 +7,7 @@ import type {
   Project,
   Requirement,
 } from "@complyloop/domain/project-types";
-import type { Alert, Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   readActiveOrgCookie,
@@ -27,6 +27,7 @@ import {
   deleteOrganizationRow,
   insertMembership,
   insertOrganization,
+  isPersonalOrgProvisioned,
   listMembershipsForOrgs,
   listOrganizationsForUser,
   upsertMembership,
@@ -122,6 +123,9 @@ async function ensurePersonalOrgProvisioned(
   githubLogin: string,
 ): Promise<void> {
   const drizzle = await getDrizzle();
+  // Steady state (personal org exists, all login rows claimed) is one indexed
+  // read and no writes — GET renders must stay side-effect free (P1-2).
+  if (await isPersonalOrgProvisioned(drizzle, userId, githubLogin)) return;
   // Provisioning only inspects orgs + memberships — no need for a full workspace
   // load (catalog, project runtime, evidence) on every signed-in render.
   const orgIds = await listOrgIdsForUser(drizzle, userId, githubLogin);
@@ -221,6 +225,40 @@ async function runProjectWriteTransaction<T>(
 
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
+    const loadWorkspace = async (): Promise<{ db: Db; workspace: Workspace }> => {
+      const db =
+        scope.touch === "project"
+          ? await loadWorkspaceDb(tx, {
+              userId,
+              githubLogin,
+              activeProjectId: preferredProjectId,
+              evidenceLimit: 0,
+            })
+          : await loadTargetedProjectWriteDb(tx, {
+              userId,
+              githubLogin,
+              activeProjectId: preferredProjectId,
+              evidenceLimit: WORKSPACE_EVIDENCE_LIMIT,
+              findingIds: scope.findingIds,
+              requirementIds: scope.requirementIds,
+              controlIds: scope.refreshControlIds,
+            });
+      return {
+        db,
+        workspace: prepareWorkspaceState(
+          db,
+          userId,
+          githubLogin,
+          preferredOrgId,
+          preferredProjectId,
+        ),
+      };
+    };
+
+    // Single-lock protocol: the cookie names the expected project, so lock it
+    // before loading. If the resolved project differs (stale/absent cookie),
+    // lock the real project and RE-LOAD under it — otherwise load→mutate is
+    // not atomic and two cookieless writers could last-write-win.
     if (preferredProjectId) {
       await acquireNamedPostgresAdvisoryLock(
         tx,
@@ -228,36 +266,19 @@ async function runProjectWriteTransaction<T>(
       );
     }
 
-    const db =
-      scope.touch === "project"
-        ? await loadWorkspaceDb(tx, {
-            userId,
-            githubLogin,
-            activeProjectId: preferredProjectId,
-            evidenceLimit: 0,
-          })
-        : await loadTargetedProjectWriteDb(tx, {
-            userId,
-            githubLogin,
-            activeProjectId: preferredProjectId,
-            evidenceLimit: WORKSPACE_EVIDENCE_LIMIT,
-            findingIds: scope.findingIds,
-            requirementIds: scope.requirementIds,
-            controlIds: scope.refreshControlIds,
-          });
-
-    const workspace = prepareWorkspaceState(
-      db,
-      userId,
-      githubLogin,
-      preferredOrgId,
-      preferredProjectId,
-    );
-    if (!workspace.project) {
+    let loaded = await loadWorkspace();
+    if (!loaded.workspace.project) {
       throw new PublicError("Select a project first.");
     }
-    const projectId = workspace.project.id;
-    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
+    const projectId = loaded.workspace.project.id;
+    if (projectId !== preferredProjectId) {
+      await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
+      loaded = await loadWorkspace();
+      if (!loaded.workspace.project || loaded.workspace.project.id !== projectId) {
+        throw new PublicError("Select a project first.");
+      }
+    }
+    const { db, workspace } = loaded;
 
     const projectBefore =
       scope.touch === "project"
@@ -525,14 +546,6 @@ export function remediationForFinding(db: Db, findingId: string): Remediation {
   );
   if (!remediation) throw new PublicError("No remediation for that finding.");
   return remediation;
-}
-
-export function alertById(db: Db, alertId: string, projectId: string): Alert {
-  const alert = db.alerts.find(
-    (candidate) => candidate.id === alertId && candidate.projectId === projectId,
-  );
-  if (!alert) throw new PublicError("Unknown alert.");
-  return alert;
 }
 
 export { ensurePersonalOrgProvisioned };

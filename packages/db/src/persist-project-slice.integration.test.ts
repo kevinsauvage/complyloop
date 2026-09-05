@@ -2,7 +2,11 @@ import { afterAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
 import { closeDrizzle, getDrizzle } from "./client";
-import { persistProjectSliceDiff, updatedAtById } from "./repo/apply";
+import {
+  persistProjectSliceDiff,
+  snapshotProjectSlice,
+  updatedAtById,
+} from "./repo/apply";
 import { upsertFindings } from "./repo/findings";
 import { upsertRemediations } from "./repo/remediations";
 import { upsertRequirements } from "./repo/requirements";
@@ -207,6 +211,87 @@ describe.skipIf(!enabled)("persistProjectSliceDiff integration", () => {
       expect(rows).toHaveLength(1);
       expect(rows[0]?.payload.status).toBe("passed");
       expect(rows[0]?.payload.updatedAt).toBe(newerAt);
+    } finally {
+      await cleanupProjectSliceFixture(drizzle, fixture);
+    }
+  });
+
+  it("persists worker-shape in-place mutations after the job-start snapshot (P0-1)", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-inplace`;
+    const fixture = await insertProjectSliceFixture(drizzle, suffix);
+
+    try {
+      // Worker shape: load once, snapshot the slice, then runAssessment mutates
+      // the SAME loaded objects in place before apply.
+      const live = await loadProjectSlice(drizzle, fixture.projectId);
+      const loadedSlice = snapshotProjectSlice(
+        live.requirements,
+        live.findings,
+        live.remediations,
+        live.alerts,
+        fixture.projectId,
+      );
+
+      const requirement = live.requirements[0]!;
+      requirement.status = "passed";
+      requirement.updatedAt = "2026-02-01T00:00:00.000Z";
+      const finding = live.findings.find(
+        (item) => item.id === fixture.findingOneId,
+      )!;
+      finding.status = "resolved";
+
+      await drizzle.transaction(async (tx) => {
+        await persistProjectSliceDiff(tx, loadedSlice, live, []);
+      });
+
+      const persisted = await loadProjectSlice(drizzle, fixture.projectId);
+      expect(persisted.requirements[0]?.status).toBe("passed");
+      expect(
+        persisted.findings.find((item) => item.id === fixture.findingOneId)
+          ?.status,
+      ).toBe("resolved");
+    } finally {
+      await cleanupProjectSliceFixture(drizzle, fixture);
+    }
+  });
+
+  it("collapses interleaved fresh-id creates for the same control into one row (P1-1)", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-dup`;
+    const fixture = await insertProjectSliceFixture(drizzle, suffix);
+
+    try {
+      // Both writers loaded before any row existed for this control.
+      await drizzle.execute(
+        sql`DELETE FROM requirements WHERE id = ${fixture.requirementId}`,
+      );
+
+      const base = {
+        projectId: fixture.projectId,
+        controlId: fixture.controlId,
+        status: "failed" as const,
+        determination: "automated" as const,
+      };
+      await upsertRequirements(drizzle, [
+        { ...base, id: `dup-a-${suffix}`, updatedAt: "2026-01-01T00:00:00.000Z" },
+      ]);
+      await upsertRequirements(drizzle, [
+        {
+          ...base,
+          id: `dup-b-${suffix}`,
+          status: "passed",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+        },
+      ]);
+
+      const rows = await drizzle
+        .select({ id: requirements.id, payload: requirements.payload })
+        .from(requirements)
+        .where(eq(requirements.projectId, fixture.projectId));
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.id).toBe(`dup-b-${suffix}`);
+      expect(rows[0]?.payload.status).toBe("passed");
     } finally {
       await cleanupProjectSliceFixture(drizzle, fixture);
     }

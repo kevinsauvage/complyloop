@@ -65,67 +65,109 @@ export function findingsFromCustomViolations(
   return findings;
 }
 
-async function collectCustomViolations(page: Page): Promise<CustomViolation[]> {
+export interface CustomChecksResult {
+  findings: RawFinding[];
+  /**
+   * Probe ids that threw. Per-probe containment contract (P2-5): a flaky
+   * probe (frozen matchMedia emulation, a page that hangs an evaluate) must
+   * not abort the rest of the runtime pass — the failure is recorded on the
+   * audit result instead, mirroring the html-validate treatment in scan.ts.
+   */
+  probeFailures: string[];
+}
+
+type ProbeResult = CustomViolation | CustomViolation[] | null;
+
+async function runProbe(
+  failures: string[],
+  probeId: string,
+  probe: () => Promise<ProbeResult>,
+): Promise<CustomViolation[]> {
+  try {
+    const result = await probe();
+    if (result === null) return [];
+    return Array.isArray(result) ? result : [result];
+  } catch {
+    failures.push(probeId);
+    return [];
+  }
+}
+
+async function collectCustomViolations(
+  page: Page,
+): Promise<{ violations: CustomViolation[]; probeFailures: string[] }> {
+  const probeFailures: string[] = [];
+  const guarded = (
+    probeId: string,
+    probe: () => Promise<ProbeResult>,
+  ): Promise<CustomViolation[]> => runProbe(probeFailures, probeId, probe);
+
   const optional = await Promise.all([
-    textSpacingRuntimeViolation(page),
-    nonTextContrastViolation(page),
-    labelAdjacentViolation(page),
-    cssDisabledContentViolations(page),
-    mediaKeyboardViolation(page),
-    cssHoverKeyboardViolation(page),
-    layoutTableLinearizationViolation(page),
-    errorPreventionViolation(page),
-    captchaAlternativeViolation(page),
-    accessibleAuthEnhancedViolation(page),
-    mediaIdentificationViolation(page),
-    supplementaryContentKeyboardViolation(page),
+    guarded("text-spacing-runtime", () => textSpacingRuntimeViolation(page)),
+    guarded("non-text-contrast", () => nonTextContrastViolation(page)),
+    guarded("label-adjacent", () => labelAdjacentViolation(page)),
+    guarded("css-disabled-content", () => cssDisabledContentViolations(page)),
+    guarded("media-keyboard", () => mediaKeyboardViolation(page)),
+    guarded("css-hover-keyboard", () => cssHoverKeyboardViolation(page)),
+    guarded("layout-table-linearization", () =>
+      layoutTableLinearizationViolation(page),
+    ),
+    guarded("error-prevention", () => errorPreventionViolation(page)),
+    guarded("captcha-alternative", () => captchaAlternativeViolation(page)),
+    guarded("accessible-auth-enhanced", () =>
+      accessibleAuthEnhancedViolation(page),
+    ),
+    guarded("media-identification", () => mediaIdentificationViolation(page)),
+    guarded("supplementary-content-keyboard", () =>
+      supplementaryContentKeyboardViolation(page),
+    ),
   ]);
 
   const violations: CustomViolation[] = [
-    ...(await focusCustomViolations(page)),
-    ...(await dialogFocusViolations(page)),
-    ...(await widgetKeyboardViolations(page)),
+    ...(await guarded("focus", () => focusCustomViolations(page))),
+    ...(await guarded("dialog-focus", () => dialogFocusViolations(page))),
+    ...(await guarded("widget-keyboard", () => widgetKeyboardViolations(page))),
   ];
 
   // css-off restores styles in-page; form submit, live-region, and hover mutate
   // DOM state — reload before media/viewport probes so later checks stay clean.
-  for (const mutating of [
-    await cssOffUnderstandableViolation(page),
-    await formErrorSubmitViolation(page),
-    await liveRegionUpdatesViolation(page),
-    await hoverContentViolation(page),
-  ]) {
-    if (mutating) violations.push(mutating);
-  }
+  violations.push(
+    ...(await guarded("css-off-understandable", () =>
+      cssOffUnderstandableViolation(page),
+    )),
+    ...(await guarded("form-error-submit", () => formErrorSubmitViolation(page))),
+    ...(await guarded("live-region-updates", () =>
+      liveRegionUpdatesViolation(page),
+    )),
+    ...(await guarded("hover-content", () => hoverContentViolation(page))),
+  );
   await restorePageAfterMutatingProbes(page);
 
-  for (const emulated of [
-    await forcedColorsViolation(page),
-    await reducedMotionViolation(page),
-    await reflowViolation(page),
-    await resizeTextViolation(page),
-    await targetSizeEnhancedViolation(page),
-  ]) {
-    if (emulated) violations.push(emulated);
-  }
-
   violations.push(
-    ...optional.flatMap((result) => {
-      if (result === null) return [];
-      if (Array.isArray(result)) return result;
-      return [result];
-    }),
+    ...(await guarded("forced-colors", () => forcedColorsViolation(page))),
+    ...(await guarded("reduced-motion", () => reducedMotionViolation(page))),
+    ...(await guarded("reflow", () => reflowViolation(page))),
+    ...(await guarded("resize-text", () => resizeTextViolation(page))),
+    ...(await guarded("target-size-enhanced", () =>
+      targetSizeEnhancedViolation(page),
+    )),
   );
 
-  return violations;
+  violations.push(...optional.flat());
+
+  return { violations, probeFailures };
 }
 
 /** Playwright checks that axe / html-validate do not cover. */
 export async function runCustomRuntimeChecks(
   page: Page,
   pageUrl: string,
-): Promise<RawFinding[]> {
-  return findingsFromCustomViolations(pageUrl, await collectCustomViolations(page));
+): Promise<CustomChecksResult> {
+  const { violations, probeFailures } = await collectCustomViolations(page);
+  return {
+    findings: findingsFromCustomViolations(pageUrl, violations),
+    probeFailures,
+  };
 }
 
 /**
@@ -136,9 +178,16 @@ export async function runCustomRuntimeChecks(
 export async function runThemeSensitiveCustomChecks(
   page: Page,
   pageUrl: string,
-): Promise<RawFinding[]> {
-  const theme: CustomViolation[] = [...(await focusCustomViolations(page))];
-  const contrast = await nonTextContrastViolation(page);
-  if (contrast) theme.push(contrast);
-  return findingsFromCustomViolations(pageUrl, theme);
+): Promise<CustomChecksResult> {
+  const probeFailures: string[] = [];
+  const theme: CustomViolation[] = [
+    ...(await runProbe(probeFailures, "focus", () => focusCustomViolations(page))),
+    ...(await runProbe(probeFailures, "non-text-contrast", () =>
+      nonTextContrastViolation(page),
+    )),
+  ];
+  return {
+    findings: findingsFromCustomViolations(pageUrl, theme),
+    probeFailures,
+  };
 }

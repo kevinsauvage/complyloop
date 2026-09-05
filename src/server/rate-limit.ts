@@ -16,6 +16,12 @@ export class RateLimitError extends PublicError {
 /**
  * Atomically consumes one slot from a shared Postgres window. A keyed advisory
  * lock avoids a read/modify/write race without serializing unrelated users.
+ *
+ * The lock IS the correctness argument: the insert branch resets the window
+ * with `count: 1` on conflict, which would silently swallow a concurrent
+ * increment if two writers could reach it for the same key. They cannot —
+ * the per-key lock serializes them. Do not remove the lock without replacing
+ * this reset with an atomic upsert increment.
  */
 export async function assertRateLimit(
   key: string,

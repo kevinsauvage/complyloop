@@ -52,9 +52,22 @@ function collectRegressionAlerts(
               finding.status === "open",
           )
         : undefined;
+      // Latest-wins per control: an unread regression alert for the same
+      // control is refreshed in place (alerts upsert by id) instead of
+      // minting a new row on every webhook push. Once read, a recurrence
+      // mints a fresh alert.
+      const existingUnread = record.controlId
+        ? db.alerts.find(
+            (alert) =>
+              alert.projectId === projectId &&
+              alert.kind === "compliance_regression" &&
+              !alert.read &&
+              alert.detail?.controlId === record.controlId,
+          )
+        : undefined;
 
       return {
-        id: crypto.randomUUID(),
+        id: existingUnread?.id ?? crypto.randomUUID(),
         projectId,
         kind: "compliance_regression" as const,
         summary: `${record.summary} (triggered by ${trigger})`,

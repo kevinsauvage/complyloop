@@ -16,6 +16,7 @@ export async function insertAssessment(
   });
 }
 
+/** Full history — reserve for surfaces that render it (org export). */
 export async function listAssessmentsForProject(
   drizzle: DrizzleDb,
   projectId: string,
@@ -25,6 +26,24 @@ export async function listAssessmentsForProject(
     .from(assessments)
     .where(eq(assessments.projectId, projectId))
     .orderBy(desc(sql`${assessments.payload}->>'completedAt'`));
+  return rows.map((row) => assessmentFromRow(row));
+}
+
+/**
+ * Latest assessment only (newest-first, length 0 or 1). Webhook pushes append
+ * assessment rows without bound; hot-path loads must not read the full
+ * history when the app consumes only the latest (P2-3).
+ */
+export async function listLatestAssessmentForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+): Promise<Assessment[]> {
+  const rows = await drizzle
+    .select()
+    .from(assessments)
+    .where(eq(assessments.projectId, projectId))
+    .orderBy(desc(sql`${assessments.payload}->>'completedAt'`))
+    .limit(1);
   return rows.map((row) => assessmentFromRow(row));
 }
 

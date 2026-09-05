@@ -111,6 +111,20 @@ The DB trigger rejects `UPDATE`/`DELETE` on evidence. Proof tests:
 npm run test -- packages/db/src/constraints.test.ts packages/db/src/evidence-append-only.test.ts
 ```
 
+**Growth is unbounded by design** — there is no retention or compaction job.
+Every assessment (including each webhook push) appends `assessment_completed`,
+per-finding, status-change, and job rows; assessments and snapshots grow the
+same way. The evidence page paginates, but the JSON export and the audit
+report's evidence trail read **all** rows for the project. Operational
+guidance:
+
+- Alert on table size (`pg_total_relation_size('evidence')`) alongside the
+  `/api/health` queue-depth signal.
+- If a retention policy is introduced later, prune only noise kinds
+  (`assessment_completed`, job records) — decision records and exceptions are
+  the audit trail and must be kept permanently. The append-only trigger means
+  pruning is a deliberate, superuser-level migration, not app code.
+
 ### Reset (local / pre-launch only)
 
 ```bash
@@ -162,6 +176,11 @@ Schedule daily dumps; keep an off-host copy. After restore: hit `/api/health`, s
 ```bash
 npm run worker
 ```
+
+Docker Compose already ships a `worker` service (`profiles: ["app"]`), so
+`docker compose --profile app up` runs one worker alongside the app — the
+default for single-node deploys. Other orchestrators run `npm run worker`
+as a separate process.
 
 Or HTTP trigger (scheduler):
 

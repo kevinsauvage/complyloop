@@ -120,7 +120,8 @@ describe("dark color-scheme condition (Playwright)", () => {
       `);
 
       async function themeFindings() {
-        return runThemeSensitiveCustomChecks(page, page.url());
+        const result = await runThemeSensitiveCustomChecks(page, page.url());
+        return result.findings;
       }
 
       await page.emulateMedia({ colorScheme: "light" });
