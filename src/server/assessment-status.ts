@@ -150,21 +150,23 @@ export interface RefreshRequirementStatusesOptions {
 function statusFromFindings(
   checkId: string | null,
   openFindings: ReadonlyArray<Pick<Finding, "kind">>,
-  runtimeRan: boolean | undefined,
-  siteLevelChecksRan: boolean | undefined,
-  htmlValidateRan: boolean | undefined,
-  applicabilityFacts: ReadonlyMap<string, string> | undefined,
+  options: Pick<
+    RefreshRequirementStatusesOptions,
+    "runtimeRan" | "siteLevelChecksRan" | "htmlValidateRan" | "applicabilityFacts"
+  >,
 ): RequirementStatus {
   return deriveRequirementStatus({
     authority: checkId === null ? "manual" : authorityForCheck(checkId),
     openFindings,
-    runtimeRan,
-    siteLevelChecksRan,
-    htmlValidateRequired:
-      checkId !== null && isHtmlValidateOwnedCheck(checkId),
-    htmlValidateRan,
-    applicabilityConfirmed:
-      checkId !== null && Boolean(applicabilityFacts?.has(checkId)),
+    audit: {
+      runtimeRan: options.runtimeRan,
+      siteLevelChecksRan: options.siteLevelChecksRan,
+      htmlValidateRequired:
+        checkId !== null && isHtmlValidateOwnedCheck(checkId),
+      htmlValidateRan: options.htmlValidateRan,
+      applicabilityConfirmed:
+        checkId !== null && Boolean(options.applicabilityFacts?.has(checkId)),
+    },
   });
 }
 
@@ -232,14 +234,12 @@ function refreshRequirementForControl(
       finding.controlId === control.id &&
       finding.status === "open",
   );
-  const status = statusFromFindings(
-    control.checkId,
-    openFindings,
+  const status = statusFromFindings(control.checkId, openFindings, {
     runtimeRan,
     siteLevelChecksRan,
     htmlValidateRan,
     applicabilityFacts,
-  );
+  });
 
   if (!requirement) {
     requirement = {

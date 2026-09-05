@@ -1,4 +1,4 @@
-import { keepOpenWhenRuntimeScanSkipped } from "@complyloop/analysis-core/check-authority";
+import { latestAssessmentFor } from "@/core/assessment-latest";
 import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
 import {
   scanRuntime,
@@ -6,27 +6,21 @@ import {
 } from "@complyloop/analysis-core/runtime/scan";
 import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
-import { latestAssessmentFor } from "@/core/assessment-latest";
 import { formatLocationRef, isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { advanceRemediation } from "@/core/remediation";
-import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type {
   Assessment,
-  AssessmentEngines,
   Finding,
 } from "@complyloop/analysis-core/contract/finding-types";
+import { advanceRemediation } from "@/core/remediation";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import { buildAssessmentEngines } from "./assessment-engines";
 import { addEvidence, type Db } from "./db";
 import { detectChanges, summarizeChanges } from "./monitor";
 import {
-  createFinding,
   mergeRawFindings,
+  reconcileControlFindings,
 } from "./assessment-findings";
-import {
-  findingLocationMatchesScope,
-  mergeFix,
-  sameInstance,
-} from "./assessment-helpers";
 import {
   assertAssessableCatalog,
   clearExpiredExceptions,
@@ -148,16 +142,11 @@ export async function runAssessment(
     runtimeResult.error === undefined &&
     runtimeResult.pagesScanned > 0;
 
-  const engines: AssessmentEngines = {
-    ast: true,
-    runtime: runtimeRan,
-    runtimePagesScanned: runtimeResult.pagesScanned,
-    siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
-    htmlValidateRan: runtimeResult.htmlValidateRan,
-    linkCheckRan: runtimeResult.linkCheckRan,
-    themeConditions: runtimeConfigured ? [...DEFAULT_THEME_CONDITIONS] : undefined,
-    runtimeError: runtimeResult.error,
-  };
+  const engines = buildAssessmentEngines(
+    runtimeConfigured,
+    runtimeRan,
+    runtimeResult,
+  );
 
   const rawFindings = mergeRawFindings(
     astFindings,
@@ -170,69 +159,21 @@ export async function runAssessment(
 
   for (const control of scoped) {
     if (control.checkId === null) continue;
-    const rawForControl = rawFindings.filter(
-      (raw) => raw.checkId === control.checkId,
-    );
-    const openFindings = db.findings.filter(
-      (finding) =>
-        finding.projectId === projectId &&
-        finding.controlId === control.id &&
-        finding.status === "open",
-    );
-    const dismissedFindings = db.findings.filter(
-      (finding) =>
-        finding.projectId === projectId &&
-        finding.controlId === control.id &&
-        finding.status === "dismissed",
-    );
-
-    const matchedIds = new Set<string>();
-    for (const raw of rawForControl) {
-      if (dismissedFindings.some((finding) => sameInstance(finding, raw))) {
-        continue;
-      }
-      const existing = openFindings.find(
-        (finding) => !matchedIds.has(finding.id) && sameInstance(finding, raw),
-      );
-      if (existing) {
-        matchedIds.add(existing.id);
-        existing.assessmentId = assessmentId;
-        existing.fix = mergeFix(existing.fix, raw.fix);
-        existing.location = raw.location;
-        existing.engine = raw.engine ?? existing.engine ?? "ast";
-      } else {
-        createFinding(db, project, rootPath, control.id, assessmentId, raw);
-      }
-    }
-
-    for (const finding of openFindings) {
-      if (matchedIds.has(finding.id)) continue;
-      // Scoped AST scans must not resolve findings outside the changed file set.
-      if (!findingLocationMatchesScope(finding.location, scopedFileSet)) {
-        continue;
-      }
-      // When runtime owns this check, do not resolve prior AST-only opens mid-flight
-      // on a failed runtime scan — only resolve when we have authority this run.
-      if (
-        runtimeConfigured &&
-        !runtimeRan &&
-        keepOpenWhenRuntimeScanSkipped(finding.checkId) &&
-        finding.engine === "runtime"
-      ) {
-        continue;
-      }
-      finding.status = "resolved";
-      finding.resolvedNote = "No longer detected by the latest assessment.";
-      addEvidence(db, {
-        kind: "finding_resolved",
-        summary: `${finding.checkId}: ${formatLocationRef(finding.location)} no longer detected`,
-        projectId,
-        controlId: control.id,
-        findingId: finding.id,
-        assessmentId,
-      });
-      verifyDraftPrRemediation(db, finding, assessmentId);
-    }
+    reconcileControlFindings({
+      db,
+      project,
+      control,
+      assessmentId,
+      rootPath,
+      rawForControl: rawFindings.filter(
+        (raw) => raw.checkId === control.checkId,
+      ),
+      scopedFileSet,
+      runtimeConfigured,
+      runtimeRan,
+      onFindingResolved: (finding) =>
+        verifyDraftPrRemediation(db, finding, assessmentId),
+    });
   }
 
   refreshRequirementStatuses(db, projectId, {

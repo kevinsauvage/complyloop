@@ -9,12 +9,8 @@ const EVIDENCE_TONE: Record<EvidenceKind, EvidenceTone> = {
   project_disconnected: "default",
   project_reset: "default",
   assessment_completed: "pass",
-  assessment_job_queued: "signal",
-  assessment_job_completed: "pass",
-  assessment_job_failed: "fail",
-  finding_detected: "fail",
-  finding_resolved: "pass",
-  finding_dismissed: "review",
+  assessment_job: "signal",
+  finding: "fail",
   remediation_approved: "signal",
   remediation_implemented: "signal",
   remediation_verified: "pass",
@@ -32,7 +28,30 @@ const EVIDENCE_TONE: Record<EvidenceKind, EvidenceTone> = {
   webhook_reassessment: "signal",
 };
 
-export function evidenceTone(kind: EvidenceKind): EvidenceTone {
+export function evidenceTone(
+  kind: EvidenceKind,
+  detail?: Record<string, unknown>,
+): EvidenceTone {
+  if (kind === "finding") {
+    switch (detail?.event) {
+      case "resolved":
+        return "pass";
+      case "dismissed":
+        return "review";
+      default:
+        return "fail";
+    }
+  }
+  if (kind === "assessment_job") {
+    switch (detail?.phase) {
+      case "completed":
+        return "pass";
+      case "failed":
+        return "fail";
+      default:
+        return "signal";
+    }
+  }
   return lookupExhaustive(EVIDENCE_TONE, kind, "evidence kind");
 }
 

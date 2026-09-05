@@ -74,21 +74,45 @@ const DETERMINATION_LABEL: Record<DeterminationMethod, string> = {
   human_review: "Human review",
 };
 
-export function evidenceKindLabel(kind: EvidenceKind): string {
+export function evidenceKindLabel(
+  kind: EvidenceKind,
+  detail?: Record<string, unknown>,
+): string {
+  if (kind === "finding") {
+    switch (detail?.event) {
+      case "detected":
+        return "Finding detected";
+      case "resolved":
+        return "Finding resolved";
+      case "dismissed":
+        return "Finding dismissed";
+      default:
+        return "Finding";
+    }
+  }
+  if (kind === "assessment_job") {
+    switch (detail?.phase) {
+      case "queued":
+        return "Assessment queued";
+      case "completed":
+        return "Assessment job completed";
+      case "failed":
+        return "Assessment job failed";
+      default:
+        return "Assessment job";
+    }
+  }
   return lookupExhaustive(EVIDENCE_KIND_LABEL, kind, "evidence kind");
 }
 
-const EVIDENCE_KIND_LABEL: Record<EvidenceKind, string> = {
+const EVIDENCE_KIND_LABEL: Record<
+  Exclude<EvidenceKind, "finding" | "assessment_job">,
+  string
+> = {
   project_connected: "Project connected",
   project_disconnected: "Project disconnected",
   project_reset: "Project reset",
   assessment_completed: "Assessment completed",
-  assessment_job_queued: "Assessment queued",
-  assessment_job_completed: "Assessment job completed",
-  assessment_job_failed: "Assessment job failed",
-  finding_detected: "Finding detected",
-  finding_resolved: "Finding resolved",
-  finding_dismissed: "Finding dismissed",
   remediation_approved: "Remediation approved",
   remediation_implemented: "Remediation implemented",
   remediation_verified: "Remediation verified",

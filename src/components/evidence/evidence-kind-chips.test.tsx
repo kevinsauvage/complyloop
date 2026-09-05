@@ -19,8 +19,7 @@ describe("EvidenceKindChips", () => {
     renderWithUiProviders(
       <EvidenceKindChips
         counts={countsOf({
-          finding_detected: 3,
-          finding_resolved: 1,
+          finding: 4,
         })}
         selected={undefined}
       />,
@@ -29,16 +28,9 @@ describe("EvidenceKindChips", () => {
     expect(
       screen.getByRole("link", {
         name: (accessibleName) =>
-          /finding detected/i.test(accessibleName) &&
-          accessibleName.includes("3"),
+          /finding/i.test(accessibleName) &&
+          accessibleName.includes("4"),
       }),
-    ).toHaveAttribute("href", "/evidence?kind=finding_detected");
-    expect(
-      screen.getByRole("link", {
-        name: (accessibleName) =>
-          /finding resolved/i.test(accessibleName) &&
-          accessibleName.includes("1"),
-      }),
-    ).toHaveAttribute("href", "/evidence?kind=finding_resolved");
+    ).toHaveAttribute("href", "/evidence?kind=finding");
   });
 });

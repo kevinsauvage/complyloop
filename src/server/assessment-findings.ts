@@ -1,12 +1,134 @@
+import { keepOpenWhenRuntimeScanSkipped } from "@complyloop/analysis-core/check-authority";
 import { guidanceFor } from "@complyloop/adapters/registry";
 import { deterministicExplanation } from "@/ai/explainer";
 import { filterAstFindingsForAuthority } from "@complyloop/analysis-core/merge-findings";
 import type { RawFinding } from "@complyloop/analysis-core/types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import type { Project } from "@complyloop/domain/project-types";
+import type { Control, Project } from "@complyloop/domain/project-types";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { addEvidence, type Db } from "./db";
-import { buildSuggestion } from "./assessment-helpers";
+import {
+  buildSuggestion,
+  findingLocationMatchesScope,
+  mergeFix,
+  sameInstance,
+} from "./assessment-helpers";
+
+export interface ReconcileControlFindingsInput {
+  db: Db;
+  project: Project;
+  control: Control;
+  assessmentId: string;
+  rootPath: string;
+  rawForControl: RawFinding[];
+  scopedFileSet: Set<string> | null;
+  runtimeConfigured: boolean;
+  runtimeRan: boolean;
+  onFindingResolved: (finding: Finding) => void;
+}
+
+/** Pure decision: should an unmatched open finding be resolved this run? */
+export function shouldResolveOpenFinding(input: {
+  finding: Finding;
+  scopedFileSet: Set<string> | null;
+  runtimeConfigured: boolean;
+  runtimeRan: boolean;
+}): boolean {
+  if (
+    !findingLocationMatchesScope(input.finding.location, input.scopedFileSet)
+  ) {
+    return false;
+  }
+  if (
+    input.runtimeConfigured &&
+    !input.runtimeRan &&
+    keepOpenWhenRuntimeScanSkipped(input.finding.checkId) &&
+    input.finding.engine === "runtime"
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Matches raw scan hits to open findings, creates new ones, and resolves
+ * opens that no longer appear — for one control in one assessment run.
+ */
+export function reconcileControlFindings(
+  input: ReconcileControlFindingsInput,
+): void {
+  const {
+    db,
+    project,
+    control,
+    assessmentId,
+    rootPath,
+    rawForControl,
+    scopedFileSet,
+    runtimeConfigured,
+    runtimeRan,
+    onFindingResolved,
+  } = input;
+  const projectId = project.id;
+
+  const openFindings = db.findings.filter(
+    (finding) =>
+      finding.projectId === projectId &&
+      finding.controlId === control.id &&
+      finding.status === "open",
+  );
+  const dismissedFindings = db.findings.filter(
+    (finding) =>
+      finding.projectId === projectId &&
+      finding.controlId === control.id &&
+      finding.status === "dismissed",
+  );
+
+  const matchedIds = new Set<string>();
+  for (const raw of rawForControl) {
+    if (dismissedFindings.some((finding) => sameInstance(finding, raw))) {
+      continue;
+    }
+    const existing = openFindings.find(
+      (finding) => !matchedIds.has(finding.id) && sameInstance(finding, raw),
+    );
+    if (existing) {
+      matchedIds.add(existing.id);
+      existing.assessmentId = assessmentId;
+      existing.fix = mergeFix(existing.fix, raw.fix);
+      existing.location = raw.location;
+      existing.engine = raw.engine ?? existing.engine ?? "ast";
+    } else {
+      createFinding(db, project, rootPath, control.id, assessmentId, raw);
+    }
+  }
+
+  for (const finding of openFindings) {
+    if (matchedIds.has(finding.id)) continue;
+    if (
+      !shouldResolveOpenFinding({
+        finding,
+        scopedFileSet,
+        runtimeConfigured,
+        runtimeRan,
+      })
+    ) {
+      continue;
+    }
+    finding.status = "resolved";
+    finding.resolvedNote = "No longer detected by the latest assessment.";
+    addEvidence(db, {
+      kind: "finding",
+      summary: `${finding.checkId}: ${formatLocationRef(finding.location)} no longer detected`,
+      projectId,
+      controlId: control.id,
+      findingId: finding.id,
+      assessmentId,
+      detail: { event: "resolved" },
+    });
+    onFindingResolved(finding);
+  }
+}
 
 export function createFinding(
   db: Db,
@@ -57,13 +179,14 @@ export function createFinding(
   db.remediations.push(remediation);
 
   addEvidence(db, {
-    kind: "finding_detected",
+    kind: "finding",
     summary: `${raw.checkId}: ${formatLocationRef(raw.location)} — ${raw.reason}`,
     projectId: project.id,
     controlId,
     findingId: finding.id,
     assessmentId,
     detail: {
+      event: "detected",
       engine: raw.engine ?? "ast",
       ...(raw.analyzerId ? { analyzerId: raw.analyzerId } : {}),
       ...(raw.analyzerRuleId ? { analyzerRuleId: raw.analyzerRuleId } : {}),

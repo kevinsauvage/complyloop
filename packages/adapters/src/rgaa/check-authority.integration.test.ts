@@ -23,7 +23,6 @@ describe("check authority × RGAA catalog", () => {
     );
     // All classes are reachable from the live catalog; nothing falls through.
     expect([...classes].sort()).toEqual([
-      "composition_sensitive",
       "heuristic",
       "runtime_only",
       "site_level",
@@ -54,10 +53,12 @@ describe("check authority × RGAA catalog", () => {
       if (authority === "heuristic") continue; // heuristic needs a human, never auto-passes
       const status = deriveRequirementStatus({
         authority,
-        runtimeRan: authority !== "standard" && authority !== "composition_sensitive",
-        siteLevelChecksRan: true,
-        htmlValidateRequired: isHtmlValidateOwnedCheck(control.checkId as string),
-        htmlValidateRan: true,
+        audit: {
+          runtimeRan: authority !== "standard",
+          siteLevelChecksRan: true,
+          htmlValidateRequired: isHtmlValidateOwnedCheck(control.checkId as string),
+          htmlValidateRan: true,
+        },
       });
       expect(status).toBe("passed");
     }

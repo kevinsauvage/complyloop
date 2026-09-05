@@ -10,7 +10,7 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { createPullRequestAction } from "./pr";
 
-const { getWorkspace, withTargetedProjectWrite } = actionWorkspaceMocks;
+const { getWorkspace, withProjectWrite } = actionWorkspaceMocks;
 const preparePullRequest = vi.hoisted(() => vi.fn());
 const getGitHubAccessToken = vi.hoisted(() => vi.fn());
 const getDrizzle = vi.hoisted(() => vi.fn());
@@ -126,7 +126,7 @@ describe("createPullRequestAction", () => {
   it("records evidence when a PR is prepared", async () => {
     const workspace = workspaceFor("member");
     getWorkspace.mockResolvedValue(workspace);
-    withTargetedProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
     getGitHubAccessToken.mockResolvedValue("gho_token");
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
@@ -159,7 +159,7 @@ describe("createPullRequestAction", () => {
       status: "suggested",
     };
     getWorkspace.mockResolvedValue(workspace);
-    withTargetedProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
     getGitHubAccessToken.mockResolvedValue("gho_token");
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",

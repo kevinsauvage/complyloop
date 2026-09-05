@@ -98,7 +98,8 @@ export default async function DashboardPage() {
         (record.projectId === project.id || !record.projectId) &&
         (record.kind === "remediation_verified" ||
           record.kind === "remediation_manually_verified" ||
-          record.kind === "finding_resolved"),
+          record.kind === "finding" &&
+          record.detail?.event === "resolved"),
     )
     .slice(-5)
     .reverse();

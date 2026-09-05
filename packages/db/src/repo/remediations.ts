@@ -3,7 +3,7 @@ import type { Remediation } from "@complyloop/analysis-core/contract/finding-typ
 import type { DrizzleDb } from "../client.ts";
 import { remediations } from "../schema.ts";
 import { remediationToRow } from "./mappers.ts";
-import { filterItemsNotStaleInDb, stampedNow } from "./stale-guard.ts";
+import { filterNotStale, stampedNow } from "./upsert-guard.ts";
 
 export interface UpsertRemediationsOptions {
   /**
@@ -32,7 +32,7 @@ export async function upsertRemediations(
     const dbUpdatedAtById = new Map(
       rows.map((row) => [row.id, row.payload.updatedAt]),
     );
-    toWrite = filterItemsNotStaleInDb(
+    toWrite = filterNotStale(
       toWrite,
       loadedUpdatedAtById,
       dbUpdatedAtById,

@@ -190,13 +190,30 @@ async function sessionWriteContext(): Promise<{
   };
 }
 
-/**
- * Project-row + new-evidence writes (settings, assessment enqueue). Finding
- * mutations use {@link withTargetedProjectWrite}.
- */
-export async function withProjectRowWrite<T>(
+/** What rows a project write may load and persist. */
+export type ProjectWriteScope =
+  /** Project settings and assessment enqueue — project row + new evidence only. */
+  | { touch: "project" }
+  /** Hot-path entity mutations — only the listed findings/requirements/controls. */
+  | {
+      touch: "entities";
+      findingIds?: readonly string[];
+      requirementIds?: readonly string[];
+      refreshControlIds?: readonly string[];
+    };
+
+async function runProjectWriteTransaction<T>(
+  scope: ProjectWriteScope,
   fn: (workspace: Workspace) => Promise<T> | T,
 ): Promise<T> {
+  if (
+    scope.touch === "entities" &&
+    (scope.findingIds?.length ?? 0) === 0 &&
+    (scope.requirementIds?.length ?? 0) === 0
+  ) {
+    throw new PublicError("Project write requires at least one entity id.");
+  }
+
   const { userId, githubLogin, preferredOrgId, preferredProjectId } =
     await sessionWriteContext();
 
@@ -208,12 +225,25 @@ export async function withProjectRowWrite<T>(
         projectWriteLockKey(preferredProjectId),
       );
     }
-    const db = await loadWorkspaceDb(tx, {
-      userId,
-      githubLogin,
-      activeProjectId: preferredProjectId,
-      evidenceLimit: 0,
-    });
+
+    const db =
+      scope.touch === "project"
+        ? await loadWorkspaceDb(tx, {
+            userId,
+            githubLogin,
+            activeProjectId: preferredProjectId,
+            evidenceLimit: 0,
+          })
+        : await loadTargetedProjectWriteDb(tx, {
+            userId,
+            githubLogin,
+            activeProjectId: preferredProjectId,
+            evidenceLimit: WORKSPACE_EVIDENCE_LIMIT,
+            findingIds: scope.findingIds,
+            requirementIds: scope.requirementIds,
+            controlIds: scope.refreshControlIds,
+          });
+
     const workspace = prepareWorkspaceState(
       db,
       userId,
@@ -224,26 +254,74 @@ export async function withProjectRowWrite<T>(
     if (!workspace.project) {
       throw new PublicError("Select a project first.");
     }
-    await acquireNamedPostgresAdvisoryLock(
-      tx,
-      projectWriteLockKey(workspace.project.id),
-    );
-    const projectBefore = structuredClone(workspace.project);
+    const projectId = workspace.project.id;
+    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
+
+    const projectBefore =
+      scope.touch === "project"
+        ? structuredClone(workspace.project)
+        : null;
+    const before =
+      scope.touch === "entities"
+        ? snapshotTrackedEntities(db, {
+            findingIds: scope.findingIds,
+            requirementIds: scope.requirementIds,
+            refreshControlIds: scope.refreshControlIds,
+          })
+        : null;
+    const loadedRequirementUpdatedAtById = before
+      ? requirementUpdatedAtById([...before.requirements.values()])
+      : undefined;
     const evidenceStart = db.evidence.length;
     const result = await fn(workspace);
-    await persistTargetedProjectWrite(tx, {
-      evidence: db.evidence.slice(evidenceStart),
-    });
-    if (
-      changedEntities(
-        new Map([[projectBefore.id, projectBefore]]),
-        [workspace.project],
-      ).length > 0
-    ) {
-      await updateProject(tx, workspace.project);
+
+    if (scope.touch === "project") {
+      await persistTargetedProjectWrite(tx, {
+        evidence: db.evidence.slice(evidenceStart),
+      });
+      if (
+        projectBefore &&
+        changedEntities(
+          new Map([[projectBefore.id, projectBefore]]),
+          [workspace.project],
+        ).length > 0
+      ) {
+        await updateProject(tx, workspace.project);
+      }
+    } else {
+      const payload = collectTargetedWritePayload(
+        db,
+        projectId,
+        before!,
+        {
+          findingIds: scope.findingIds,
+          requirementIds: scope.requirementIds,
+          refreshControlIds: scope.refreshControlIds,
+        },
+        evidenceStart,
+      );
+      await persistTargetedProjectWrite(tx, payload, {
+        loadedRequirementUpdatedAtById,
+        loadedFindingUpdatedAtById: updatedAtById([...before!.findings.values()]),
+        loadedRemediationUpdatedAtById: updatedAtById([
+          ...before!.remediations.values(),
+        ]),
+      });
     }
+
     return result;
   });
+}
+
+/**
+ * Serializes project mutations under a per-project advisory lock. Pass
+ * {@link ProjectWriteScope} to load only the rows you touch.
+ */
+export async function withProjectWrite<T>(
+  scope: ProjectWriteScope,
+  fn: (workspace: Workspace) => Promise<T> | T,
+): Promise<T> {
+  return runProjectWriteTransaction(scope, fn);
 }
 
 /** Serializes a single-row project mutation (e.g. mark alert read). */
@@ -258,7 +336,7 @@ export async function withProjectLock<T>(
   });
 }
 
-export interface TargetedProjectWriteScope {
+interface TargetedProjectWriteScope {
   findingIds?: readonly string[];
   requirementIds?: readonly string[];
   /** Requirement rows for these controls are loaded and may change during refresh. */
@@ -362,79 +440,6 @@ function collectTargetedWritePayload(
     // and must not be re-inserted (evidence has an id primary key).
     evidence: db.evidence.slice(evidenceStart),
   };
-}
-
-/**
- * Hot-path writes: load and persist only the findings/remediations/requirements
- * touched by the callback. Project settings and enqueue use
- * {@link withProjectRowWrite}. Assessment apply uses the worker payload path.
- */
-export async function withTargetedProjectWrite<T>(
-  scope: TargetedProjectWriteScope,
-  fn: (workspace: Workspace) => Promise<T> | T,
-): Promise<T> {
-  if (
-    (scope.findingIds?.length ?? 0) === 0 &&
-    (scope.requirementIds?.length ?? 0) === 0
-  ) {
-    throw new PublicError("Targeted write requires at least one entity id.");
-  }
-
-  const { userId, githubLogin, preferredOrgId, preferredProjectId } =
-    await sessionWriteContext();
-
-  const drizzle = await getDrizzle();
-  return drizzle.transaction(async (tx) => {
-    if (preferredProjectId) {
-      await acquireNamedPostgresAdvisoryLock(
-        tx,
-        projectWriteLockKey(preferredProjectId),
-      );
-    }
-    const db = await loadTargetedProjectWriteDb(tx, {
-      userId,
-      githubLogin,
-      activeProjectId: preferredProjectId,
-      evidenceLimit: WORKSPACE_EVIDENCE_LIMIT,
-      findingIds: scope.findingIds,
-      requirementIds: scope.requirementIds,
-      controlIds: scope.refreshControlIds,
-    });
-    const workspace = prepareWorkspaceState(
-      db,
-      userId,
-      githubLogin,
-      preferredOrgId,
-      preferredProjectId,
-    );
-    if (!workspace.project) {
-      throw new PublicError("Select a project first.");
-    }
-    const projectId = workspace.project.id;
-    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
-
-    const before = snapshotTrackedEntities(db, scope);
-    const loadedRequirementUpdatedAtById = requirementUpdatedAtById([
-      ...before.requirements.values(),
-    ]);
-    const evidenceStart = db.evidence.length;
-    const result = await fn(workspace);
-    const payload = collectTargetedWritePayload(
-      db,
-      projectId,
-      before,
-      scope,
-      evidenceStart,
-    );
-    await persistTargetedProjectWrite(tx, payload, {
-      loadedRequirementUpdatedAtById,
-      loadedFindingUpdatedAtById: updatedAtById([...before.findings.values()]),
-      loadedRemediationUpdatedAtById: updatedAtById([
-        ...before.remediations.values(),
-      ]),
-    });
-    return result;
-  });
 }
 
 /**

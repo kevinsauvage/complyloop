@@ -37,9 +37,9 @@ vi.mock("@complyloop/db/write-lock", () => ({
   projectWriteLockKey: (projectId: string) => `project-write:${projectId}`,
 }));
 
-import { withProjectRowWrite } from "./workspace";
+import { withProjectWrite } from "./workspace";
 
-describe("withProjectRowWrite", () => {
+describe("withProjectWrite project touch", () => {
   const orgId = "org-1";
   const userId = "user-1";
   const project = testProject({ orgId, ownerUserId: userId });
@@ -68,7 +68,7 @@ describe("withProjectRowWrite", () => {
   });
 
   it("persists active project row changes", async () => {
-    await withProjectRowWrite(async (workspace) => {
+    await withProjectWrite({ touch: "project" }, async (workspace) => {
       workspace.project!.runtimeBaseUrl = "https://preview.example";
       workspace.project!.runtimeRoutes = ["/"];
     });
@@ -88,7 +88,7 @@ describe("withProjectRowWrite", () => {
   });
 
   it("skips project update when only runtime slice rows change", async () => {
-    await withProjectRowWrite(async () => {
+    await withProjectWrite({ touch: "project" }, async () => {
       /* no project mutation */
     });
 

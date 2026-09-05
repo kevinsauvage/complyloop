@@ -165,7 +165,7 @@ export default async function EvidencePage({
                   aria-label="Evidence records"
                 >
                   {slice.items.map((record) => {
-                    const tone = evidenceTone(record.kind);
+                    const tone = evidenceTone(record.kind, record.detail);
                     const href = evidenceRecordHref(record, requirements);
                     const rowClassName = cn(
                       "flex gap-3 px-4 py-3.5 transition-colors",

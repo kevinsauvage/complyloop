@@ -72,7 +72,9 @@ describe("evidenceKindLabel", () => {
       "Assessment completed",
     );
     expect(evidenceKindLabel("requirements_imported")).toBe("Scope updated");
-    expect(evidenceKindLabel("finding_detected")).toBe("Finding detected");
+    expect(
+      evidenceKindLabel("finding", { event: "detected" }),
+    ).toBe("Finding detected");
   });
 
   it("provides a human label for every evidence kind", () => {
@@ -81,12 +83,8 @@ describe("evidenceKindLabel", () => {
       "project_disconnected",
       "project_reset",
       "assessment_completed",
-      "assessment_job_queued",
-      "assessment_job_completed",
-      "assessment_job_failed",
-      "finding_detected",
-      "finding_resolved",
-      "finding_dismissed",
+      "assessment_job",
+      "finding",
       "remediation_approved",
       "remediation_implemented",
       "remediation_verified",

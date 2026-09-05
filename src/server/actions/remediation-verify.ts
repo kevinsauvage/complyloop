@@ -25,7 +25,7 @@ import {
   findingById,
   getWorkspace,
   remediationForFinding,
-  withTargetedProjectWrite,
+  withProjectWrite,
 } from "../workspace";
 import {
   locateViolation,
@@ -65,8 +65,8 @@ export async function verifyRemediationAction(
     }
 
     if (finding.location.kind === "dom") {
-      await withTargetedProjectWrite(
-        { findingIds: [findingId] },
+      await withProjectWrite(
+        { touch: "entities", findingIds: [findingId] },
         async (workspace) => {
         const { db } = workspace;
         const live = findingById(db, findingId);
@@ -118,8 +118,8 @@ export async function verifyRemediationAction(
       await withProjectCheckout(
         project,
         async (rootPath) => {
-          await withTargetedProjectWrite(
-        { findingIds: [findingId] },
+          await withProjectWrite(
+        { touch: "entities", findingIds: [findingId] },
         async (workspace) => {
             const { db } = workspace;
             const live = findingById(db, findingId);
@@ -205,8 +205,8 @@ export async function markRemediationImplementedAction(
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const { note: parsedNote } = parseForm(markImplementedInput, formData);
-    await withTargetedProjectWrite(
-      { findingIds: [findingId] },
+    await withProjectWrite(
+      { touch: "entities", findingIds: [findingId] },
       async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
@@ -247,8 +247,8 @@ export async function manualVerifyRemediationAction(
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const { note } = parseForm(manualVerifyInput, formData);
-    await withTargetedProjectWrite(
-      { findingIds: [findingId] },
+    await withProjectWrite(
+      { touch: "entities", findingIds: [findingId] },
       async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);

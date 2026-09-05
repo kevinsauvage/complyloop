@@ -305,7 +305,7 @@ describe("persistTargetedProjectWrite", () => {
       {
         id: "ev-1",
         at: "2026-01-02T00:00:00.000Z",
-        kind: "finding_dismissed",
+        kind: "finding",
         summary: "dismissed",
         projectId,
         findingId: finding.id,
@@ -412,7 +412,7 @@ describe("persistProjectSliceDiff", () => {
       {
         id: "ev-1",
         at: "2026-01-02T00:00:00.000Z",
-        kind: "finding_dismissed",
+        kind: "finding",
         summary: "dismissed",
         projectId,
         findingId: finding.id,

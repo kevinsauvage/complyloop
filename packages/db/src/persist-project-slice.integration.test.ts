@@ -62,7 +62,7 @@ describe.skipIf(!enabled)("persistProjectSliceDiff integration", () => {
         {
           id: `evidence-${suffix}`,
           at: "2026-01-02T00:00:00.000Z",
-          kind: "finding_dismissed",
+          kind: "finding",
           summary: "dismissed in integration test",
           projectId: fixture.projectId,
           findingId: fixture.findingOneId,

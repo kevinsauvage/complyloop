@@ -191,7 +191,10 @@ describe("processNextAssessmentJob", () => {
     expect(applyAssessmentPayload).toHaveBeenCalled();
     expect(insertEvidence).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ kind: "assessment_job_completed" }),
+      expect.objectContaining({
+        kind: "assessment_job",
+        detail: expect.objectContaining({ phase: "completed" }),
+      }),
     );
     expect(completeAssessmentJob).toHaveBeenCalledWith("job-1");
     expect(pruneRateLimitBuckets).not.toHaveBeenCalled();
@@ -281,7 +284,10 @@ describe("processNextAssessmentJob", () => {
     });
     expect(insertEvidence).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ kind: "assessment_job_failed" }),
+      expect.objectContaining({
+        kind: "assessment_job",
+        detail: expect.objectContaining({ phase: "failed" }),
+      }),
     );
   });
 

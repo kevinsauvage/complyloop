@@ -47,7 +47,7 @@ describe("evidence row mapping", () => {
     const record = {
       id: "e3",
       at: "2026-01-03T00:00:00.000Z",
-      kind: "finding_detected" as const,
+      kind: "finding" as const,
       summary: "mapped",
       projectId: "p1",
       controlId: "c1",

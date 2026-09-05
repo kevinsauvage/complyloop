@@ -19,7 +19,7 @@ import {
   controlById,
   findingById,
   remediationForFinding,
-  withTargetedProjectWrite,
+  withProjectWrite,
 } from "../workspace";
 import {
   refresh,
@@ -40,7 +40,7 @@ export async function generateAiExplanationAction(
   void _formData;
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
-    await withTargetedProjectWrite({ findingIds: [findingId] }, async (workspace) => {
+    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const { db } = workspace;
       const finding = findingById(db, findingId);
@@ -74,7 +74,7 @@ export async function generateAiRemediationAction(
   void _formData;
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
-    await withTargetedProjectWrite({ findingIds: [findingId] }, async (workspace) => {
+    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const { db } = workspace;
       const finding = findingById(db, findingId);

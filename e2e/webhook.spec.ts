@@ -98,7 +98,8 @@ test.describe("webhook-driven continuous monitoring", () => {
               SELECT count(*)::int AS n
               FROM evidence
               WHERE project_id = ${E2E_PROJECT_ID}
-                AND kind = 'assessment_job_completed'
+                AND kind = 'assessment_job'
+                AND detail->>'phase' = 'completed'
                 AND detail->>'trigger' = 'webhook'
             `;
             return rows[0]?.n ?? 0;

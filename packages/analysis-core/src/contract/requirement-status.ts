@@ -8,7 +8,6 @@ import type { FindingKind, RequirementStatus } from "./statuses.ts";
 export type CheckAuthority =
   | "manual"
   | "standard"
-  | "composition_sensitive"
   | "runtime_only"
   | "heuristic"
   | "site_level";
@@ -16,6 +15,15 @@ export type CheckAuthority =
 /** Minimal finding view needed to derive status. */
 export interface DerivationFinding {
   kind: FindingKind;
+}
+
+/** Which engines ran during the latest assessment — gates status derivation. */
+export interface AuditEnginesRan {
+  runtimeRan?: boolean;
+  siteLevelChecksRan?: boolean;
+  htmlValidateRan?: boolean;
+  htmlValidateRequired?: boolean;
+  applicabilityConfirmed?: boolean;
 }
 
 /** Everything that can influence a requirement's status, in precedence order. */
@@ -29,16 +37,7 @@ export interface DeriveRequirementStatusInput {
   determination?: "automated" | "human_review";
   hasException?: boolean;
   hasHumanPass?: boolean;
-  /** Did the rendered-page (runtime) audit run for the latest assessment? */
-  runtimeRan?: boolean;
-  /** Did site-level checks run (requires ≥2 audited routes)? */
-  siteLevelChecksRan?: boolean;
-  /** Adapter sets this for html-validate-owned checks (`isHtmlValidateOwnedCheck`). */
-  htmlValidateRequired?: boolean;
-  /** Did html-validate succeed on at least one preview page? */
-  htmlValidateRan?: boolean;
-  /** Runtime confirmed the criterion does not apply (all audited pages). */
-  applicabilityConfirmed?: boolean;
+  audit?: AuditEnginesRan;
 }
 
 /**
@@ -80,27 +79,27 @@ export function deriveRequirementStatus(
   }
 
   if (
-    input.applicabilityConfirmed === true &&
-    input.runtimeRan === true
+    input.audit?.applicabilityConfirmed === true &&
+    input.audit?.runtimeRan === true
   ) {
     return "not_applicable";
   }
 
+  const audit = input.audit;
   switch (input.authority) {
     case "manual":
     case "heuristic":
       return "unable_to_verify";
     case "runtime_only":
-      if (input.htmlValidateRequired === true && input.htmlValidateRan !== true) {
+      if (audit?.htmlValidateRequired === true && audit.htmlValidateRan !== true) {
         return "unable_to_verify";
       }
-      return input.runtimeRan === true ? "passed" : "unable_to_verify";
+      return audit?.runtimeRan === true ? "passed" : "unable_to_verify";
     case "site_level":
-      return input.runtimeRan === true && input.siteLevelChecksRan === true
+      return audit?.runtimeRan === true && audit.siteLevelChecksRan === true
         ? "passed"
         : "unable_to_verify";
     case "standard":
-    case "composition_sensitive":
       return "passed";
     default: {
       const _exhaustive: never = input.authority;

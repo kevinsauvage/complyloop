@@ -9,7 +9,7 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 import { emptyActionMessageState } from "../action-state";
 import { generateAiFixAction } from "./ai-fix";
 
-const { withTargetedProjectWrite, getWorkspace } = actionWorkspaceMocks;
+const { withProjectWrite, getWorkspace } = actionWorkspaceMocks;
 const withProjectCheckout = vi.hoisted(() => vi.fn());
 const runAiFixOnCheckout = vi.hoisted(() => vi.fn());
 const persistPatchCandidate = vi.hoisted(() => vi.fn());
@@ -93,7 +93,7 @@ describe("generateAiFixAction", () => {
   it("generates and persists a verified patch in the request", async () => {
     const current = workspace();
     getWorkspace.mockResolvedValue(current);
-    withTargetedProjectWrite.mockImplementation(async (_scope, fn) => fn(current));
+    withProjectWrite.mockImplementation(async (_scope, fn) => fn(current));
     withProjectCheckout.mockImplementation(
       async (_project, fn: (rootPath: string) => unknown) =>
         fn("/tmp/checkout"),
@@ -169,7 +169,7 @@ describe("generateAiFixAction", () => {
       },
     };
     getWorkspace.mockResolvedValue(current);
-    withTargetedProjectWrite.mockImplementation(async (_scope, fn) => fn(current));
+    withProjectWrite.mockImplementation(async (_scope, fn) => fn(current));
     withProjectCheckout.mockImplementation(
       async (_project, fn: (rootPath: string) => unknown) =>
         fn("/tmp/checkout"),

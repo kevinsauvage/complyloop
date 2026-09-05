@@ -98,23 +98,23 @@ export interface SiteLocation {
 /** Where a finding was observed — source AST, rendered DOM, or site-wide. */
 export type FindingLocation = SourceLocation | DomLocation | SiteLocation;
 
-/** Which analysis engines contributed to an assessment. */
+/** Which analysis engine produced a finding (`analyzerId` is finer-grained). */
 export type AssessmentEngine = "ast" | "runtime";
 
+/** Which analysis engines contributed to an assessment run (derived from runtime scan). */
 export interface AssessmentEngines {
-  ast: boolean;
+  /** AST scan always runs. */
+  ast: true;
   runtime: boolean;
-  /** Pages successfully audited when runtime ran. */
   runtimePagesScanned?: number;
-  /** Site-level checks ran (requires at least two configured routes). */
-  siteLevelChecksRan?: boolean;
-  /** html-validate rendered pass ran — validates the generated DOM. */
-  htmlValidateRan?: boolean;
-  /** Same-origin link validation ran on preview routes. */
-  linkCheckRan?: boolean;
-  /** Color-scheme conditions re-audited (e.g. dark, light). */
+  /** Optional runtime passes that ran (empty when runtime did not run). */
+  scanFeatures?: readonly (
+    | "site_level"
+    | "html_validate"
+    | "link_check"
+    | "theme_conditions"
+  )[];
   themeConditions?: readonly string[];
-  /** Non-fatal runtime errors (e.g. unreachable URL). */
   runtimeError?: string;
 }
 
@@ -184,6 +184,7 @@ export interface Finding {
   location: FindingLocation;
   /** Detection engine that produced this finding. */
   engine?: AssessmentEngine;
+  /** Finer-grained analyzer id; `engine` is derived when absent (`analyzerId` starting with axe/html-validate → runtime). */
   analyzerId?: AnalyzerId;
   analyzerRuleId?: string;
   analyzerVersion?: string;
@@ -238,12 +239,8 @@ export type EvidenceKind =
   | "project_disconnected"
   | "project_reset"
   | "assessment_completed"
-  | "assessment_job_queued"
-  | "assessment_job_completed"
-  | "assessment_job_failed"
-  | "finding_detected"
-  | "finding_resolved"
-  | "finding_dismissed"
+  | "assessment_job"
+  | "finding"
   | "remediation_approved"
   | "remediation_implemented"
   | "remediation_verified"
@@ -259,6 +256,18 @@ export type EvidenceKind =
   | "pull_request_prepared"
   | "monitoring_changes_detected"
   | "webhook_reassessment";
+
+export interface EvidenceRecord {
+  id: string;
+  at: string;
+  kind: EvidenceKind;
+  summary: string;
+  projectId?: string;
+  controlId?: string;
+  findingId?: string;
+  assessmentId?: string;
+  detail?: Record<string, unknown>;
+}
 
 /** Groups findings that share a common technical cause. */
 export interface FindingCluster {
@@ -285,18 +294,6 @@ export interface Alert {
   summary: string;
   at: string;
   read: boolean;
-  assessmentId?: string;
-  detail?: Record<string, unknown>;
-}
-
-export interface EvidenceRecord {
-  id: string;
-  at: string;
-  kind: EvidenceKind;
-  summary: string;
-  projectId?: string;
-  controlId?: string;
-  findingId?: string;
   assessmentId?: string;
   detail?: Record<string, unknown>;
 }

@@ -2,23 +2,19 @@ import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-ty
 import { parseEnumParam, buildHref } from "./query-param";
 
 export const EVIDENCE_KIND_FILTER_ORDER: readonly EvidenceKind[] = [
-  "finding_detected",
-  "finding_resolved",
-  "finding_dismissed",
+  "finding",
   "remediation_verified",
   "remediation_manually_verified",
   "ai_patch_ready",
   "requirement_status_changed",
   "assessment_completed",
-  "assessment_job_completed",
-  "assessment_job_failed",
+  "assessment_job",
 ] as const;
 
 export function parseEvidenceKindParam(
   raw: string | string[] | undefined,
 ): EvidenceKind | undefined {
-  const value = parseEnumParam(raw, EVIDENCE_KIND_FILTER_ORDER);
-  return value as EvidenceKind | undefined;
+  return parseEnumParam(raw, EVIDENCE_KIND_FILTER_ORDER) as EvidenceKind | undefined;
 }
 
 export function evidenceKindHref(

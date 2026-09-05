@@ -17,12 +17,12 @@ vi.mock("./active-cookies", () => ({
   readActiveProjectCookie,
 }));
 
-import { withTargetedProjectWrite } from "./workspace";
+import { withProjectWrite } from "./workspace";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Run via `npm run test:db`. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());
 
-describe.skipIf(!enabled)("withTargetedProjectWrite postgres integration", () => {
+describe.skipIf(!enabled)("withProjectWrite postgres integration", () => {
   afterAll(async () => {
     await closeDrizzle();
   });
@@ -43,8 +43,8 @@ describe.skipIf(!enabled)("withTargetedProjectWrite postgres integration", () =>
     readActiveProjectCookie.mockResolvedValue(fixture.projectId);
 
     try {
-      await withTargetedProjectWrite(
-        { findingIds: [fixture.findingOneId] },
+      await withProjectWrite(
+        { touch: "entities", findingIds: [fixture.findingOneId] },
         async (workspace) => {
           const finding = workspace.db.findings.find(
             (item) => item.id === fixture.findingOneId,

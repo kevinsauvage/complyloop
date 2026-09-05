@@ -3,7 +3,7 @@ import type { Requirement } from "@complyloop/domain/project-types";
 import type { DrizzleDb } from "../client.ts";
 import { requirements } from "../schema.ts";
 import { requirementToRow } from "./mappers.ts";
-import { filterItemsNotStaleInDb } from "./stale-guard.ts";
+import { filterNotStale } from "./upsert-guard.ts";
 
 export interface UpsertRequirementsOptions {
   /**
@@ -32,7 +32,7 @@ export async function upsertRequirements(
     const dbUpdatedAtById = new Map(
       rows.map((row) => [row.id, row.payload.updatedAt]),
     );
-    toWrite = filterItemsNotStaleInDb(
+    toWrite = filterNotStale(
       toWrite,
       loadedUpdatedAtById,
       dbUpdatedAtById,

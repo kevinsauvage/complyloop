@@ -128,11 +128,16 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
           { loadedSlice },
         );
         await insertEvidence(tx, {
-          kind: "assessment_job_completed",
+          kind: "assessment_job",
           summary: `Assessment job ${job.id} completed for "${project.name}"`,
           projectId: project.id,
           assessmentId: assessment.id,
-          detail: { jobId: job.id, trigger: job.trigger, alerts: alerts.length },
+          detail: {
+            phase: "completed",
+            jobId: job.id,
+            trigger: job.trigger,
+            alerts: alerts.length,
+          },
         });
       });
 
@@ -224,10 +229,11 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
         const drizzle = await getDrizzle();
         await drizzle.transaction(async (tx) => {
           await insertEvidence(tx, {
-            kind: "assessment_job_failed",
+            kind: "assessment_job",
             summary: `Assessment job ${job.id} failed after ${job.attempts} attempt(s).`,
             projectId: project.id,
             detail: {
+              phase: "failed",
               jobId: job.id,
               attempts: job.attempts,
               error: errorMessage,

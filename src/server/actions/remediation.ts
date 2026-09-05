@@ -25,7 +25,7 @@ import { addEvidence, type Db } from "../db";
 import {
   findingById,
   remediationForFinding,
-  withTargetedProjectWrite,
+  withProjectWrite,
 } from "../workspace";
 import {
   refresh,
@@ -96,12 +96,14 @@ function dismissFindingInDb(
   finding.status = "dismissed";
   finding.dismissal = { reason, note, at };
   addEvidence(db, {
-    kind: "finding_dismissed",
+    kind: "finding",
     summary: `Finding dismissed (${reason}): ${finding.checkId} at ${formatLocationRef(finding.location)}`,
     projectId: finding.projectId,
     controlId: finding.controlId,
     findingId: finding.id,
-    detail: options.bulk ? { reason, note, bulk: true } : { reason, note },
+    detail: options.bulk
+      ? { event: "dismissed", reason, note, bulk: true }
+      : { event: "dismissed", reason, note },
   });
 }
 
@@ -114,8 +116,8 @@ export async function approveRemediationAction(
   void _formData;
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
-    await withTargetedProjectWrite(
-      { findingIds: [findingId] },
+    await withProjectWrite(
+      { touch: "entities", findingIds: [findingId] },
       async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
@@ -141,8 +143,8 @@ export async function bulkApproveRemediationsAction(
     const { findingIds } = parseForm(bulkApproveInput, formData);
     let approved = 0;
 
-    await withTargetedProjectWrite(
-      { findingIds },
+    await withProjectWrite(
+      { touch: "entities", findingIds },
       async (workspace) => {
       const { db } = workspace;
       for (const findingId of findingIds) {
@@ -178,8 +180,8 @@ export async function dismissFindingAction(
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const { reason, note } = parseForm(dismissFindingInput, formData);
-    await withTargetedProjectWrite(
-      { findingIds: [findingId] },
+    await withProjectWrite(
+      { touch: "entities", findingIds: [findingId] },
       async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
@@ -214,8 +216,8 @@ export async function bulkDismissFindingsAction(
     let dismissed = 0;
     const projectIds = new Set<string>();
 
-    await withTargetedProjectWrite(
-      { findingIds },
+    await withProjectWrite(
+      { touch: "entities", findingIds },
       async (workspace) => {
       const { db } = workspace;
       const refreshedControlIds = new Set<string>();

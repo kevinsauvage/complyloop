@@ -144,7 +144,7 @@ function evidenceRowsForProject(
     .reverse()
     .map((record) => ({
       at: record.at,
-      kindLabel: evidenceKindLabel(record.kind),
+      kindLabel: evidenceKindLabel(record.kind, record.detail),
       summary: record.summary,
     }));
 }

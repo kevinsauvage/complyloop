@@ -50,7 +50,7 @@ describe("deriveRequirementStatus", () => {
         currentStatus: "passed",
         determination: "human_review",
         hasException: true,
-        runtimeRan: false,
+        audit: { runtimeRan: false },
       }),
     ).toBe("passed");
   });
@@ -97,7 +97,10 @@ describe("deriveRequirementStatus", () => {
       "unable_to_verify",
     );
     expect(
-      deriveRequirementStatus({ authority: "runtime_only", runtimeRan: true }),
+      deriveRequirementStatus({
+        authority: "runtime_only",
+        audit: { runtimeRan: true },
+      }),
     ).toBe("passed");
   });
 
@@ -108,39 +111,32 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "site_level",
-        runtimeRan: true,
-        siteLevelChecksRan: false,
+        audit: { runtimeRan: true, siteLevelChecksRan: false },
       }),
     ).toBe("unable_to_verify");
     expect(
       deriveRequirementStatus({
         authority: "site_level",
-        runtimeRan: true,
-        siteLevelChecksRan: true,
+        audit: { runtimeRan: true, siteLevelChecksRan: true },
       }),
     ).toBe("passed");
   });
 
-  it("passes standard and composition-sensitive checks when nothing is open", () => {
+  it("passes standard checks when nothing is open", () => {
     expect(deriveRequirementStatus({ authority: "standard" })).toBe("passed");
-    expect(
-      deriveRequirementStatus({ authority: "composition_sensitive" }),
-    ).toBe("passed");
   });
 
   it("returns not_applicable when runtime confirmed absence on all pages", () => {
     expect(
       deriveRequirementStatus({
         authority: "heuristic",
-        runtimeRan: true,
-        applicabilityConfirmed: true,
+        audit: { runtimeRan: true, applicabilityConfirmed: true },
       }),
     ).toBe("not_applicable");
     expect(
       deriveRequirementStatus({
         authority: "standard",
-        runtimeRan: true,
-        applicabilityConfirmed: true,
+        audit: { runtimeRan: true, applicabilityConfirmed: true },
       }),
     ).toBe("not_applicable");
   });
@@ -149,7 +145,7 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "heuristic",
-        runtimeRan: true,
+        audit: { runtimeRan: true },
       }),
     ).toBe("unable_to_verify");
   });
@@ -158,8 +154,7 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "heuristic",
-        runtimeRan: true,
-        applicabilityConfirmed: true,
+        audit: { runtimeRan: true, applicabilityConfirmed: true },
         openFindings: [{ kind: "violation" }],
       }),
     ).toBe("failed");
@@ -169,24 +164,27 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "runtime_only",
-        htmlValidateRequired: true,
-        runtimeRan: true,
-        htmlValidateRan: false,
+        audit: {
+          htmlValidateRequired: true,
+          runtimeRan: true,
+          htmlValidateRan: false,
+        },
       }),
     ).toBe("unable_to_verify");
     expect(
       deriveRequirementStatus({
         authority: "runtime_only",
-        htmlValidateRequired: true,
-        runtimeRan: true,
-        htmlValidateRan: true,
+        audit: {
+          htmlValidateRequired: true,
+          runtimeRan: true,
+          htmlValidateRan: true,
+        },
       }),
     ).toBe("passed");
     expect(
       deriveRequirementStatus({
-        authority: "composition_sensitive",
-        runtimeRan: true,
-        htmlValidateRan: false,
+        authority: "standard",
+        audit: { runtimeRan: true, htmlValidateRan: false },
       }),
     ).toBe("passed");
   });

@@ -3,7 +3,7 @@ import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { DrizzleDb } from "../client.ts";
 import { findings } from "../schema.ts";
 import { findingToRow } from "./mappers.ts";
-import { filterItemsNotStaleInDb, stampedNow } from "./stale-guard.ts";
+import { filterNotStale, stampedNow } from "./upsert-guard.ts";
 
 export interface UpsertFindingsOptions {
   /**
@@ -32,7 +32,7 @@ export async function upsertFindings(
     const dbUpdatedAtById = new Map(
       rows.map((row) => [row.id, row.payload.updatedAt]),
     );
-    toWrite = filterItemsNotStaleInDb(
+    toWrite = filterNotStale(
       toWrite,
       loadedUpdatedAtById,
       dbUpdatedAtById,

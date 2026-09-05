@@ -175,7 +175,7 @@ export default async function FindingPage({
                     />
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                       <Badge variant="secondary" className="text-[10px]">
-                        {evidenceKindLabel(record.kind)}
+                        {evidenceKindLabel(record.kind, record.detail)}
                       </Badge>
                       <time
                         dateTime={record.at}

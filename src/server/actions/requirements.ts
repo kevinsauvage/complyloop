@@ -15,7 +15,7 @@ import {
 import { parseForm, parseInput } from "../boundary";
 import { refreshRequirementStatusesForControls } from "../assessment-status";
 import { addEvidence, type Db } from "../db";
-import { controlById, withTargetedProjectWrite } from "../workspace";
+import { controlById, withProjectWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
 const markExceptionInput = z
@@ -112,8 +112,8 @@ export async function markRequirementExceptionAction(
   return runActionMessage(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     const parsed = parseForm(markExceptionInput, formData);
-    await withTargetedProjectWrite(
-      { requirementIds: [requirementId] },
+    await withProjectWrite(
+      { touch: "entities", requirementIds: [requirementId] },
       async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
@@ -182,8 +182,8 @@ export async function markRequirementPassedAction(
   return runActionMessage(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     const { note } = parseForm(markPassedInput, formData);
-    await withTargetedProjectWrite(
-      { requirementIds: [requirementId] },
+    await withProjectWrite(
+      { touch: "entities", requirementIds: [requirementId] },
       async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
@@ -277,8 +277,8 @@ async function clearRequirementOverrideAction(
   void _formData;
   return runActionMessage(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
-    await withTargetedProjectWrite(
-      { requirementIds: [requirementId] },
+    await withProjectWrite(
+      { touch: "entities", requirementIds: [requirementId] },
       async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;

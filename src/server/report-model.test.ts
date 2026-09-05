@@ -11,9 +11,10 @@ describe("report model composers", () => {
     input.evidence.push({
       id: "e-kind",
       at: "2026-01-03T00:00:00.000Z",
-      kind: "finding_detected",
+      kind: "finding",
       summary: "New finding recorded",
       projectId: input.project.id,
+      detail: { event: "detected" },
     });
 
     const model = composeAuditReport(input);

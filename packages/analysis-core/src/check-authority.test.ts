@@ -88,7 +88,7 @@ describe("check authority", () => {
     expect(isRuntimeOnlyCheck("duplicate-page-title")).toBe(true);
   });
 
-  it("classifies with site_level → runtime_only → heuristic → composition_sensitive → standard", () => {
+  it("classifies with site_level → runtime_only → heuristic → standard", () => {
     expect(isSiteLevelCheck("consistent-nav")).toBe(true);
     expect(isRuntimeOnlyCheck("consistent-nav")).toBe(true);
     expect(authorityForCheck("consistent-nav")).toBe("site_level");
@@ -106,7 +106,8 @@ describe("check authority", () => {
 
     expect(authorityForCheck("color-contrast")).toBe("runtime_only");
     expect(authorityForCheck("image-of-text")).toBe("heuristic");
-    expect(authorityForCheck("input-label")).toBe("composition_sensitive");
+    expect(authorityForCheck("input-label")).toBe("standard");
+    expect(isCompositionSensitiveCheck("input-label")).toBe(true);
     expect(authorityForCheck("img-alt")).toBe("standard");
   });
 

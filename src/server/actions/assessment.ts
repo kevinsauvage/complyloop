@@ -8,7 +8,7 @@ import { drainAssessmentJobQueue, shouldDrainAssessmentJobsInline } from "../ass
 import { enqueueAssessmentJob, type AssessmentJob } from "../assessment-jobs";
 import { addEvidence } from "../db";
 import { assertAssessRateLimit } from "../rate-limit";
-import { withProjectRowWrite } from "../workspace";
+import { withProjectWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
 export async function runAssessmentAction(
@@ -20,7 +20,7 @@ export async function runAssessmentAction(
     // One workspace load for the whole action: enqueue + evidence in the same
     // project write (rate limit + permission checks included).
     let job: AssessmentJob;
-    await withProjectRowWrite(async (workspace) => {
+    await withProjectWrite({ touch: "project" }, async (workspace) => {
       requireOnActive(workspace, "project.assess");
       if (workspace.userId) await assertAssessRateLimit(workspace.userId);
       job = await enqueueAssessmentJob({
@@ -29,10 +29,10 @@ export async function runAssessmentAction(
         requestedByUserId: workspace.userId,
       });
       addEvidence(workspace.db, {
-        kind: "assessment_job_queued",
+        kind: "assessment_job",
         summary: `Assessment job ${job.id} queued for "${workspace.project.name}"`,
         projectId: workspace.project.id,
-        detail: { jobId: job.id, trigger: "manual" },
+        detail: { phase: "queued", jobId: job.id, trigger: "manual" },
       });
     });
 

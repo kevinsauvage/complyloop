@@ -192,8 +192,9 @@ export const isPackageTwinSourceCheck = createChecker(PACKAGE_TWIN_SOURCE_CHECK_
  * 1. `site_level` (subset of runtime-only, needs ≥2 routes)
  * 2. `runtime_only` (runtime audit owns the verdict)
  * 3. `heuristic` (empty AST scan must not pass)
- * 4. `composition_sensitive` (AST owns status; runtime wins when it ran)
- * 5. `standard` (plain AST check)
+ * 4. `standard` (plain AST check; composition-sensitive ids use standard authority
+ *    but runtime overrides AST when it ran — see `isCompositionSensitiveCheck`)
+ * 5. `standard` (default)
  *
  * Consumers: `deriveRequirementStatus` (`contract/requirement-status.ts`) via
  * the adapter in `src/server/assessment-status.ts`.
@@ -202,7 +203,6 @@ export function authorityForCheck(checkId: string): CheckAuthority {
   if (isSiteLevelCheck(checkId)) return "site_level";
   if (isRuntimeOnlyCheck(checkId)) return "runtime_only";
   if (isHeuristicCheck(checkId)) return "heuristic";
-  if (isCompositionSensitiveCheck(checkId)) return "composition_sensitive";
   return "standard";
 }
 

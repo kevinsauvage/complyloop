@@ -83,10 +83,16 @@ export interface WorkspaceLoadInput {
  * Loads catalog + viewer orgs + project switcher list + active-project runtime.
  * Does not load assessment snapshots or other projects' runtime rows.
  */
-export async function loadWorkspaceDb(
+async function loadWorkspaceTenancy(
   drizzle: DrizzleDb,
-  input: WorkspaceLoadInput,
-): Promise<Db> {
+  input: Pick<WorkspaceLoadInput, "userId" | "githubLogin" | "activeProjectId">,
+): Promise<{
+  catalog: Awaited<ReturnType<typeof loadCatalog>>;
+  organizations: Db["organizations"];
+  memberships: Db["memberships"];
+  projects: Db["projects"];
+  activeProjectId: string | null;
+}> {
   const orgIds = await listOrgIdsForUser(
     drizzle,
     input.userId,
@@ -104,6 +110,22 @@ export async function loadWorkspaceDb(
     projects.some((project) => project.id === input.activeProjectId)
       ? input.activeProjectId
       : (projects[0]?.id ?? null);
+
+  return {
+    catalog,
+    organizations,
+    memberships,
+    projects,
+    activeProjectId,
+  };
+}
+
+export async function loadWorkspaceDb(
+  drizzle: DrizzleDb,
+  input: WorkspaceLoadInput,
+): Promise<Db> {
+  const { catalog, organizations, memberships, projects, activeProjectId } =
+    await loadWorkspaceTenancy(drizzle, input);
 
   const runtime =
     activeProjectId != null
@@ -230,23 +252,8 @@ export async function loadTargetedProjectWriteDb(
   drizzle: DrizzleDb,
   input: TargetedProjectWriteLoadInput,
 ): Promise<Db> {
-  const orgIds = await listOrgIdsForUser(
-    drizzle,
-    input.userId,
-    input.githubLogin,
-  );
-  const [catalog, organizations, memberships, projects] = await Promise.all([
-    loadCatalog(drizzle),
-    listOrganizationsForUser(drizzle, orgIds),
-    listMembershipsForOrgs(drizzle, orgIds),
-    listProjectsForOrgs(drizzle, orgIds),
-  ]);
-
-  const activeProjectId =
-    input.activeProjectId &&
-    projects.some((project) => project.id === input.activeProjectId)
-      ? input.activeProjectId
-      : (projects[0]?.id ?? null);
+  const { catalog, organizations, memberships, projects, activeProjectId } =
+    await loadWorkspaceTenancy(drizzle, input);
 
   const runtime =
     activeProjectId != null
