@@ -50,6 +50,9 @@ function changedEntities<T extends { id: string }>(
   const changed: T[] = [];
   for (const item of after) {
     const prev = before.get(item.id);
+    // Canonical-order equality: the `*ToRow` mappers must keep a stable key
+    // order, or a same-state row would "change" on every write. Pinned by
+    // packages/db/src/repo/mappers.test.ts.
     if (!prev || JSON.stringify(prev) !== JSON.stringify(item)) {
       changed.push(item);
     }

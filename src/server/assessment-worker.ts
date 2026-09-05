@@ -69,8 +69,11 @@ function collectRegressionAlerts(
 }
 
 async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
-  const dbForProject = await loadProjectDb(job.projectId);
-  const project = dbForProject.projects.find(
+  // One load for the whole job: the checkout touches the filesystem, not the
+  // DB, so the slice stays fresh. The FK cascade on project deletion still
+  // fails the apply transaction loudly if the project disappears mid-run.
+  const db = await loadProjectDb(job.projectId);
+  const project = db.projects.find(
     (candidate) => candidate.id === job.projectId,
   );
   if (!project) throw new Error("Project was removed before its assessment job ran.");
@@ -78,22 +81,14 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
   const result = await withProjectCheckout(
     project,
     async (rootPath) => {
-      const db = await loadProjectDb(job.projectId);
-      const liveProject = db.projects.find(
-        (candidate) => candidate.id === job.projectId,
-      );
-      if (!liveProject) {
-        throw new Error("Project was removed during assessment.");
-      }
-
       const evidenceStart = db.evidence.length;
-      const assessment = await runAssessment(db, liveProject.id, {
+      const assessment = await runAssessment(db, project.id, {
         rootPath,
       });
       const trigger = job.payload.eventName ?? "manual assessment";
       const alerts =
         job.trigger === "webhook"
-          ? collectRegressionAlerts(db, liveProject.id, assessment.id, trigger)
+          ? collectRegressionAlerts(db, project.id, assessment.id, trigger)
           : [];
 
       const snapshot = assessment.snapshot;
@@ -117,8 +112,8 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
         );
         await insertEvidence(tx, {
           kind: "assessment_job_completed",
-          summary: `Assessment job ${job.id} completed for "${liveProject.name}"`,
-          projectId: liveProject.id,
+          summary: `Assessment job ${job.id} completed for "${project.name}"`,
+          projectId: project.id,
           assessmentId: assessment.id,
           detail: { jobId: job.id, trigger: job.trigger, alerts: alerts.length },
         });
@@ -126,17 +121,17 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
 
       const openViolations = db.findings.filter(
         (finding) =>
-          finding.projectId === liveProject.id &&
+          finding.projectId === project.id &&
           finding.status === "open" &&
           finding.kind === "violation",
       ).length;
       const failedRequirements = db.requirements.filter(
         (requirement) =>
-          requirement.projectId === liveProject.id &&
+          requirement.projectId === project.id &&
           requirement.status === "failed",
       ).length;
       return {
-        project: liveProject,
+        project,
         assessment,
         openViolations,
         failedRequirements,

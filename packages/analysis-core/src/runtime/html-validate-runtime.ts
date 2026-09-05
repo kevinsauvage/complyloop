@@ -12,7 +12,7 @@
  * message back to the element under its offset to build a `dom` location
  * (selector + snippet) that looks like every other runtime finding.
  */
-import { HtmlValidate } from "html-validate";
+import type { HtmlValidate } from "html-validate";
 import type { Page } from "playwright";
 import { htmlValidatePackageVersion } from "../analyzer-versions.ts";
 import { checkIdForHtmlValidateRule } from "./html-validate-map.ts";
@@ -39,11 +39,15 @@ export const HTML_VALIDATE_RENDERED_RULE_IDS = Object.keys(
 
 export const HTML_VALIDATE_INPUT_KIND = "live-dom-serialization" as const;
 
-// Lazily built (module-level HtmlValidate is fine; it stays offline).
-let validator: HtmlValidate | null = null;
-function getValidator(): HtmlValidate {
-  validator ??= new HtmlValidate({ root: true, rules: RENDERED_RULES });
-  return validator;
+// Lazily loaded so importing this module never pulls html-validate at startup
+// (same rationale as playwright in scan.ts and linkinator in link-check.ts).
+// Cached as a promise: load once, reuse for every page.
+let validatorPromise: Promise<HtmlValidate> | null = null;
+function getValidator(): Promise<HtmlValidate> {
+  validatorPromise ??= import("html-validate").then(
+    (module) => new module.HtmlValidate({ root: true, rules: RENDERED_RULES }),
+  );
+  return validatorPromise;
 }
 
 /** HTML void elements — serializer emits them self-closed. */
@@ -257,14 +261,15 @@ function findingSeverity(checkId: string): RawFinding["severity"] {
 /**
  * Runs html-validate over a captured serialized document and converts every
  * mapped message into a runtime `dom` finding. Pure — used by the Playwright
- * runner and unit tests.
+ * runner and unit tests. Async because the validator loads lazily.
  */
-export function htmlValidateFindingsFromSerialized(
+export async function htmlValidateFindingsFromSerialized(
   serialized: SerializeDocumentResult,
   url: string,
   options?: { doctypeIncludedInInput?: boolean },
-): RawFinding[] {
-  const report = getValidator().validateStringSync(serialized.html, url);
+): Promise<RawFinding[]> {
+  const validator = await getValidator();
+  const report = validator.validateStringSync(serialized.html, url);
   const messages: HtmlValidateMessage[] =
     report.results[0]?.messages ?? [];
   const findings: RawFinding[] = [];

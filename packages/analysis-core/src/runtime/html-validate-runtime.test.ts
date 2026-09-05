@@ -65,20 +65,20 @@ function serialized(html: string): SerializeDocumentResult {
 const URL = "https://app.example/";
 
 describe("html-validate rendered pass", () => {
-  it("does not emit findings for multiple main (landmarks are axe-owned)", () => {
+  it("does not emit findings for multiple main (landmarks are axe-owned)", async () => {
     const s = serialized(
       `<html><body><main id="a"><p>x</p></main><main id="b"><p>y</p></main></body></html>`,
     );
-    const f = htmlValidateFindingsFromSerialized(s, URL);
+    const f = await htmlValidateFindingsFromSerialized(s, URL);
     expect(f.some((x) => x.checkId === "landmark-one-main")).toBe(false);
     expect(f.some((x) => x.checkId === "landmark-unique")).toBe(false);
   });
 
-  it("maps content-model violations and css-for-presentation", () => {
+  it("maps content-model violations and css-for-presentation", async () => {
     const s = serialized(
       `<html><body><button type="button">a<button type="button">b</button></button><table><td>x</td></table><p align="center">y</p></body></html>`,
     );
-    const f = htmlValidateFindingsFromSerialized(s, URL);
+    const f = await htmlValidateFindingsFromSerialized(s, URL);
     expect(f.some((x) => x.checkId === "markup-nesting")).toBe(true);
     expect(f.some((x) => x.checkId === "nested-interactive")).toBe(false);
     const dep = f.find((x) => x.checkId === "css-for-presentation");
@@ -93,11 +93,11 @@ describe("html-validate rendered pass", () => {
     expect(nesting?.reason).not.toMatch(/source HTML is valid/i);
   });
 
-  it("maps closing-tag messages to the element being closed, not a later sibling", () => {
+  it("maps closing-tag messages to the element being closed, not a later sibling", async () => {
     const s = serialized(
       `<html><body><button type="button">a<button type="button">b</button></button><p id="after">later</p></body></html>`,
     );
-    const f = htmlValidateFindingsFromSerialized(s, URL);
+    const f = await htmlValidateFindingsFromSerialized(s, URL);
     const nesting = f.find((x) => x.checkId === "markup-nesting");
     expect(nesting).toBeDefined();
     expect(nesting?.location.kind).toBe("dom");
@@ -136,20 +136,20 @@ describe("html-validate rendered pass", () => {
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
 
-  it("does not emit duplicate-id (axe owns id uniqueness on the rendered DOM)", () => {
+  it("does not emit duplicate-id (axe owns id uniqueness on the rendered DOM)", async () => {
     const s = serialized(
       `<html><body><span id="d"></span><span id="d"></span></body></html>`,
     );
-    const f = htmlValidateFindingsFromSerialized(s, URL);
+    const f = await htmlValidateFindingsFromSerialized(s, URL);
     expect(f.some((x) => x.checkId === "duplicate-id")).toBe(false);
   });
 
-  it("does not emit form-error-association for broken idrefs (axe-owned)", () => {
+  it("does not emit form-error-association for broken idrefs (axe-owned)", async () => {
     const brokenFor = serialized(
       `<html><body><label for="missing">Email</label></body></html>`,
     );
     expect(
-      htmlValidateFindingsFromSerialized(brokenFor, URL).some(
+      (await htmlValidateFindingsFromSerialized(brokenFor, URL)).some(
         (x) => x.checkId === "form-error-association",
       ),
     ).toBe(false);
@@ -158,18 +158,18 @@ describe("html-validate rendered pass", () => {
       `<html><body><input aria-describedby="gone" /></body></html>`,
     );
     expect(
-      htmlValidateFindingsFromSerialized(brokenDescribedBy, URL).some(
+      (await htmlValidateFindingsFromSerialized(brokenDescribedBy, URL)).some(
         (x) => x.checkId === "form-error-association",
       ),
     ).toBe(false);
   });
 
-  it("only emits markup-nesting and css-for-presentation", () => {
+  it("only emits markup-nesting and css-for-presentation", async () => {
     const s = serialized(
       `<html><body><main id="a"></main><main id="b"></main><label for="x">x</label><p align="center">y</p><span id="d"></span><span id="d"></span></body></html>`,
     );
     const checkIds = new Set(
-      htmlValidateFindingsFromSerialized(s, URL).map((f) => f.checkId),
+      (await htmlValidateFindingsFromSerialized(s, URL)).map((f) => f.checkId),
     );
     for (const id of checkIds) {
       expect(["markup-nesting", "css-for-presentation"]).toContain(id);

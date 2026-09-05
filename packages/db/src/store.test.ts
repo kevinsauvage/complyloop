@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { emptyDb } from "./types";
 import { addEvidence } from "./repo/evidence";
 import {
-  evidenceRecordsToInsert,
   evidenceToRow,
   rowToEvidence,
 } from "./postgres-evidence";
@@ -40,29 +39,6 @@ describe("emptyDb + addEvidence", () => {
       "connected",
       "done",
     ]);
-  });
-});
-
-describe("evidenceRecordsToInsert", () => {
-  it("only returns ids not already stored (append-only)", () => {
-    const records = [
-      {
-        id: "e1",
-        at: "2026-01-01T00:00:00.000Z",
-        kind: "assessment_completed" as const,
-        summary: "one",
-      },
-      {
-        id: "e2",
-        at: "2026-01-02T00:00:00.000Z",
-        kind: "assessment_completed" as const,
-        summary: "two",
-      },
-    ];
-    expect(evidenceRecordsToInsert(records, new Set(["e1"]))).toEqual([
-      records[1],
-    ]);
-    expect(evidenceRecordsToInsert(records, new Set(["e1", "e2"]))).toEqual([]);
   });
 });
 

@@ -200,6 +200,8 @@ export async function withProjectWrite<T>(
     );
     const newEvidence = db.evidence.slice(evidenceStart);
     await persistProjectSliceDiff(tx, before, after, newEvidence);
+    // Canonical-order equality (same invariant as repo/apply.ts) — keep the
+    // project mapper key order stable or every write looks like a change.
     if (
       JSON.stringify(projectBefore) !== JSON.stringify(workspace.project)
     ) {

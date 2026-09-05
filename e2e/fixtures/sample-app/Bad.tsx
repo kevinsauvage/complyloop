@@ -1,4 +1,5 @@
-/** Deliberate accessibility violations for Playwright e2e assessment. */
+/** Deliberate accessibility violations for Playwright e2e assessment.
+ * Keep separate from packages/check/testdata/Bad.tsx (CLI fixture; do not dedupe). */
 export function Bad() {
   return (
     <div>

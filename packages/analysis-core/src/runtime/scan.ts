@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import path from "node:path";
-import { chromium, type Browser, type Page } from "playwright";
+import type { Browser, Page } from "playwright";
 import { PublicError, publicMessage } from "../contract/public-error.ts";
 import { classifyRuntimeScanError } from "./scan-error.ts";
 import type { RawFinding } from "../types.ts";
@@ -75,6 +75,10 @@ export async function gotoForRuntimeAudit(
 
 async function getBrowser(): Promise<Browser> {
   if (!sharedBrowser) {
+    // Loaded lazily so any consumer that imports this module (or bundles the
+    // AST-only path) never pulls the Playwright runtime — same rationale as
+    // the dynamic `linkinator` import in site-level/link-check.ts.
+    const { chromium } = await import("playwright");
     sharedBrowser = await chromium.launch({ headless: true });
   }
   return sharedBrowser;

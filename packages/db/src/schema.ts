@@ -11,6 +11,10 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { ORG_ROLES } from "@complyloop/domain/project-types";
+import {
+  ASSESSMENT_JOB_STATUSES,
+  ASSESSMENT_JOB_TRIGGERS,
+} from "@complyloop/domain/assessment-jobs";
 import type {
   Control,
   Framework,
@@ -311,11 +315,11 @@ export const assessmentJobs = pgTable(
       .where(sql`${table.idempotencyKey} IS NOT NULL`),
     check(
       "assessment_jobs_status_check",
-      sql`${table.status} IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')`,
+      sqlIn(sql`${table.status}`, ASSESSMENT_JOB_STATUSES),
     ),
     check(
       "assessment_jobs_trigger_check",
-      sql`${table.trigger} IN ('manual', 'webhook')`,
+      sqlIn(sql`${table.trigger}`, ASSESSMENT_JOB_TRIGGERS),
     ),
   ],
 );

@@ -2,14 +2,14 @@ import { and, count, desc, eq, inArray, lte, sql } from "drizzle-orm";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
 import { assessmentJobs } from "@complyloop/db/schema";
+import {
+  ASSESSMENT_JOB_STATUSES,
+  ASSESSMENT_JOB_TRIGGERS,
+  type AssessmentJobStatus,
+  type AssessmentJobTrigger,
+} from "@complyloop/domain/assessment-jobs";
 
-export type AssessmentJobStatus =
-  | "queued"
-  | "running"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
-export type AssessmentJobTrigger = "manual" | "webhook";
+export type { AssessmentJobStatus, AssessmentJobTrigger } from "@complyloop/domain/assessment-jobs";
 
 export interface AssessmentJobPayload {
   ref?: string;
@@ -51,18 +51,9 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
-const JOB_STATUSES = [
-  "queued",
-  "running",
-  "succeeded",
-  "failed",
-  "cancelled",
-] as const satisfies readonly AssessmentJobStatus[];
+const JOB_STATUSES = ASSESSMENT_JOB_STATUSES;
 
-const JOB_TRIGGERS = [
-  "manual",
-  "webhook",
-] as const satisfies readonly AssessmentJobTrigger[];
+const JOB_TRIGGERS = ASSESSMENT_JOB_TRIGGERS;
 
 function parseJobStatus(value: string): AssessmentJobStatus {
   for (const status of JOB_STATUSES) {

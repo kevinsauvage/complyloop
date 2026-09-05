@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  ASSESSMENT_JOB_STATUSES,
+  ASSESSMENT_JOB_TRIGGERS,
+} from "@complyloop/domain/assessment-jobs";
 
 export const entityIdSchema = z.string().trim().min(1).max(128);
 
@@ -56,8 +60,8 @@ export const githubRepoSearchResponseSchema = z.object({
 const assessmentJobSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
-  status: z.enum(["queued", "running", "succeeded", "failed", "cancelled"]),
-  trigger: z.enum(["manual", "webhook"]),
+  status: z.enum(ASSESSMENT_JOB_STATUSES),
+  trigger: z.enum(ASSESSMENT_JOB_TRIGGERS),
   requestedByUserId: z.string().optional(),
   idempotencyKey: z.string().optional(),
   payload: z.object({

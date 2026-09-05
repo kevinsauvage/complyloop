@@ -4,18 +4,18 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 
 ## At a glance
 
-| Piece       | Location                              | Role                                                              |
-| ----------- | ------------------------------------- | ----------------------------------------------------------------- |
-| Contract    | `packages/analysis-core/src/contract/` | Statuses, findings, requirement derivation — shared with analysis |
-| Analysis    | `packages/analysis-core/src/`         | AST checks + optional runtime audits                              |
-| Domain      | `packages/domain/src/`                | Product domain model — orgs, projects, requirements, catalog types, `PresetCatalog` port |
-| DB          | `packages/db/src/`                    | Postgres persistence — Drizzle schema, `repo/` mappers, workspace-load, client |
-| Adapters    | `packages/adapters/src/`              | RGAA/WCAG catalog, presets, guidance (depends on domain + analysis-core) |
-| App core    | `src/core/`                           | Framework-agnostic product helpers, RBAC, finding UX (imports contract + domain only) |
-| AI          | `src/ai/`                             | Explain / remediate — never sets status                           |
-| Server      | `src/server/`                         | Postgres wiring, jobs, GitHub, actions; application logic         |
-| App         | `src/app/`                            | Next.js UI + API routes                                           |
-| CI          | `packages/check/`                     | `npx complyloop-check` (AST only)                                 |
+| Piece    | Location                               | Role                                                                                     |
+| -------- | -------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, requirement derivation — shared with analysis                        |
+| Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                                                     |
+| Domain   | `packages/domain/src/`                 | Product domain model — orgs, projects, requirements, catalog types, `PresetCatalog` port |
+| DB       | `packages/db/src/`                     | Postgres persistence — Drizzle schema, `repo/` mappers, workspace-load, client           |
+| Adapters | `packages/adapters/src/`               | RGAA/WCAG catalog, presets, guidance (depends on domain + analysis-core)                 |
+| App core | `src/core/`                            | Framework-agnostic product helpers, RBAC, finding UX (imports contract + domain only)    |
+| AI       | `src/ai/`                              | Explain / remediate — never sets status                                                  |
+| Server   | `src/server/`                          | Postgres wiring, jobs, GitHub, actions; application logic                                |
+| App      | `src/app/`                             | Next.js UI + API routes                                                                  |
+| CI       | `packages/check/`                      | `npx complyloop-check` (AST only)                                                        |
 
 Statuses, findings, requirement derivation, `PublicError`, and assessment limits live in `packages/analysis-core/src/contract/`. The product domain model (orgs, projects, requirements, catalog types, `PresetCatalog`) lives in `packages/domain/src/`. Postgres persistence lives in `packages/db/src/`; the RGAA/WCAG catalog lives in `packages/adapters/src/`. App, server, UI, and `src/core/` import `@complyloop/analysis-core/contract/*`, `@complyloop/domain/*`, `@complyloop/db/*`, and `@complyloop/adapters/*` directly. `src/core` must not import adapters, db, or any analysis-core subpath beyond `contract/*` (ESLint `no-restricted-imports`).
 
@@ -56,8 +56,9 @@ Statuses, findings, requirement derivation, `PublicError`, and assessment limits
 
 - **Postgres** — frameworks, controls, orgs, memberships, projects, requirements, assessments, `assessment_snapshots`, findings, remediations, alerts, evidence, encrypted GitHub tokens, webhook delivery ids, `assessment_jobs`, rate-limit buckets. Domain rows store typed JSONB payloads (`packages/db/src/schema.ts`) plus a few indexed columns (`project_id`, `status`, …). Catalog is seeded on deploy (`npm run seed` / `db:migrate`), not rewritten on every user action. One hand-written init migration (`drizzle/0000_init.sql`).
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`); projects belong to orgs. This **is** the product model (invites by GitHub login, roles `owner|admin|member|viewer`, org switcher, personal-org auto-provisioning) — see [product spec §24](../compliance-engineering-product-spec.md#24-mvp-scope). Workspace load stays membership-org + active project.
-- **Reads** — `getWorkspace()` loads the catalog, the viewer's orgs/memberships, the project switcher list for those orgs, and **runtime for the active project only** (requirements, assessments **without** file-hash snapshots, findings, remediations, alerts, evidence window). File hashes live in `assessment_snapshots` and are loaded only for `runAssessment` (`loadProjectAssessmentDb`). Evidence pages/exports/finding detail query SQL directly (`postgres-queries.ts`).
+- **Reads** — `getWorkspace()` loads the catalog, the viewer's orgs/memberships, the project switcher list for those orgs, and **runtime for the active project only** (requirements, assessments **without** file-hash snapshots, findings, remediations, alerts, evidence window). File hashes live in `assessment_snapshots` and are loaded only for `runAssessment` (`loadProjectAssessmentDb`). Evidence pages/exports/finding detail query Postgres directly through Drizzle (`postgres-queries.ts`), outside the workspace slice.
 - **Writes** — actions use `withProjectWrite` / `withOrgWrite` (`workspace.ts`): load the scoped slice, mutate in memory, persist **changed rows** via `packages/db/src/repo/*` (upserts by id, evidence insert-only). Project field changes (`runtimeBaseUrl`, `defaultPresetId`, …) update the project row. There is no replace-all sync or prune of untouched rows.
+- **Persistence ownership rule** — the slice model persists `findings | remediations | requirements | alerts` as row **upserts** plus evidence inserts **only**; it cannot express deletions. Structural entities outside the slice (orgs, memberships, projects, tokens, jobs) are written exclusively through their `packages/db/src/repo/*` modules. Every slice-persisted table upserts by id (`onConflictDoUpdate` — including `markAlertRead` / alerts); deleting a project cascades its alerts. `persistProjectSliceDiff` (repo/apply) no-ops on empty diffs; evidence rows are insert-only everywhere.
 - **Assessments** — the worker clones and scans **outside** a store transaction, then `applyAssessmentPayload` upserts findings/requirements/remediations and inserts the assessment + snapshot + evidence in one short transaction (`assessment-worker.ts`). `runAssessment` still mutates a project-scoped in-memory `Db` for the duration of the scan; that is the apply payload, not a tenant-wide rewrite.
 - **Locks** — job claim uses `FOR UPDATE SKIP LOCKED` (enqueue is an ordinary insert; idempotent webhook keys rely on the unique index). Rate limits use per-key named locks. Workspace writes use a normal Drizzle transaction.
 - **Latest assessment** — `latestAssessmentFor` (`src/core/assessment-latest.ts`) compares `completedAt`. Do not use `.at(-1)` on `db.assessments` (loaders return newest-first).
@@ -101,14 +102,14 @@ Navigation uses `domcontentloaded` plus a brief settle (`gotoForRuntimeAudit`) �
 `networkidle`, which SPAs with analytics or HMR often never reach. Axe is injected
 from disk; `runAxeOnPage` re-injects if viewport/CDP emulation cleared `window.axe`.
 
-| Piece          | Path                    | Role                                                                 |
-| -------------- | ----------------------- | -------------------------------------------------------------------- |
-| Axe mapping    | `axe-map.ts`            | axe rule id → catalog check id                                       |
-| Theme pass     | `theme-conditions.ts`   | Re-runs theme-sensitive axe + custom checks under `browserConditions`. Assessments default to `dark` + `light` via `DEFAULT_THEME_CONDITIONS`. |
-| Viewport pass  | `viewport-conditions.ts` | Target-size at 320×568 and under `pointer: coarse` (touch emulation). |
-| Custom checks  | `custom-checks/`        | Playwright probes emit `RawFinding` (catalog check ids, no axe wrap) |
-| Applicability  | `applicability.ts`      | Absence probes (media, CAPTCHA, layout tables) → `not_applicable`    |
-| Site-level     | `site-level/`           | Cross-route consistency (nav, help, titles) + `link-check.ts` (linkinator, same-origin broken links) |
+| Piece         | Path                     | Role                                                                                                                                           |
+| ------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Axe mapping   | `axe-map.ts`             | axe rule id → catalog check id                                                                                                                 |
+| Theme pass    | `theme-conditions.ts`    | Re-runs theme-sensitive axe + custom checks under `browserConditions`. Assessments default to `dark` + `light` via `DEFAULT_THEME_CONDITIONS`. |
+| Viewport pass | `viewport-conditions.ts` | Target-size at 320×568 and under `pointer: coarse` (touch emulation).                                                                          |
+| Custom checks | `custom-checks/`         | Playwright probes emit `RawFinding` (catalog check ids, no axe wrap)                                                                           |
+| Applicability | `applicability.ts`       | Absence probes (media, CAPTCHA, layout tables) → `not_applicable`                                                                              |
+| Site-level    | `site-level/`            | Cross-route consistency (nav, help, titles) + `link-check.ts` (linkinator, same-origin broken links)                                           |
 
 **Do not** add `@axe-core/playwright` — webpack breaks on axe `source` string.
 
@@ -127,7 +128,7 @@ idrefs stay on axe / custom Playwright checks.
 - **`runtime/html-validate-runtime.ts`**, `engine: "runtime"`. Serializes
   `document.documentElement` in the page (recording node→offset), validates the
   exact string in-process, and builds `dom` locations (selector + snippet). A
-  clean audit is a real rendered-document verdict — it can *pass* a requirement.
+  clean audit is a real rendered-document verdict — it can _pass_ a requirement.
 - Curated rules (7): `element-permitted-content`, `element-permitted-order`,
   `close-order`, `no-implicit-close`, `no-dup-attr`, `no-deprecated-attr`,
   `deprecated`. Do not enable `html-validate:recommended` or `@html-validate/wcag`.
@@ -160,13 +161,13 @@ overlap axe — exclusive ownership, not dedupe. `duplicate-id` is axe + AST onl
 
 ### Check authority (`packages/analysis-core/src/check-authority.ts`)
 
-| Class                     | Behavior                                                                           |
-| ------------------------- | ---------------------------------------------------------------------------------- |
-| **Runtime-only**          | `unable_to_verify` until page audit runs — never `passed` from empty AST           |
-| **Composition-sensitive** | AST runs in CI; runtime findings replace AST findings when both run (labels, names, headings, …); status derivation itself = standard |
-| **Heuristic AST**         | Empty scan → `unable_to_verify`, not `passed` (pertinence-style rules)             |
+| Class                     | Behavior                                                                                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Runtime-only**          | `unable_to_verify` until page audit runs — never `passed` from empty AST                                                                                                   |
+| **Composition-sensitive** | AST runs in CI; runtime findings replace AST findings when both run (labels, names, headings, …); status derivation itself = standard                                      |
+| **Heuristic AST**         | Empty scan → `unable_to_verify`, not `passed` (pertinence-style rules)                                                                                                     |
 | **Site-level**            | Needs `runtimeRan` + ≥2 preview routes. Mostly runtime-only ids, but `consistent-lang` and `consistent-page-heading` are site-level without being in the runtime-only list |
-| **Standard**              | Everything else: empty AST scan → `passed` |
+| **Standard**              | Everything else: empty AST scan → `passed`                                                                                                                                 |
 
 **Source of truth for ids:** `check-authority.ts` and `checks/registry.ts` — do not duplicate long id lists in docs.
 
@@ -237,19 +238,18 @@ HTML exports from `/evidence/report/html`: engineering (`report-html/engineering
 
 ## Tests
 
-| Command                 | What                                                                                |
-| ----------------------- | ----------------------------------------------------------------------------------- |
-| `npm run test`          | Vitest unit/integration                                                             |
+| Command                 | What                                                                                                                                                                                                      |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run test`          | Vitest unit/integration                                                                                                                                                                                   |
 | `npm run test:coverage` | Gates on `src/core`, `packages/analysis-core`, `packages/domain`, `packages/db`, `packages/adapters`, `src/ai`, `src/hooks`, most of `src/server` (lines 94 / functions 96 / branches 80 / statements 90) |
-| `npm run test:e2e`      | Playwright (gated harness)                                                          |
+| `npm run test:e2e`      | Playwright (gated harness)                                                                                                                                                                                |
 
 Excluded from the unit coverage gate (`vitest.config.mts`): Playwright `runtime/scan.ts` and page probes (`custom-checks/**`, `html-validate-runtime.ts`, `applicability.ts`, `dom-target.ts`, `site-level/link-check.ts` — they skip or need a browser/network in the unit job), `seed.ts`, thin Next/cookie/workspace glue, live GitHub checkout/token/app/octokit helpers, markdown `report.ts`, and live Postgres wiring (`packages/db/src/client`, `schema`, `workspace-load`, `postgres-url`, `postgres-queries`, `write-lock`, `repo/**`). Modules with unit tests (`pr.ts`, `github.ts`, `webhook-deliveries.ts`, `remediation-verify.ts`, `postgres-ssl.ts`, `postgres-evidence.ts`) are in the gate. Thresholds (lines 94 / functions 96 / branches 80 / statements 90) match that unit-job surface — Playwright probes used to be counted at ~30% and made the old 96/94/85 numbers unreachable. HTML reports are exercised through `report.test.ts` and `report-html/shared.test.ts`; `audit.ts` / `engineering.ts` have no colocated tests.
 
-`npm run test` resolves `@complyloop/analysis-core/*`, `@complyloop/domain/*`, `@complyloop/db/*`, and `@complyloop/adapters/*` to their **source** (see *Build coupling* below).
+`npm run test` resolves `@complyloop/analysis-core/*`, `@complyloop/domain/*`, `@complyloop/db/*`, and `@complyloop/adapters/*` to their **source** (see _Build coupling_ below).
 
 ## Related
 
 - [Finding page flow](./finding-flow.md)
-- [Analysis strategy](../analysis-strategy.md)
 - [Deploy](../deploy.md)
 - [All docs](../README.md)
