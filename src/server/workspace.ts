@@ -1,6 +1,12 @@
 import { cache } from "react";
 import { auth } from "@/auth";
-import type { Control, OrgMembership, Organization, Project } from "@complyloop/domain/project-types";
+import type {
+  Control,
+  OrgMembership,
+  Organization,
+  Project,
+  Requirement,
+} from "@complyloop/domain/project-types";
 import type { Alert, Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
@@ -10,7 +16,10 @@ import {
 import { getDrizzle } from "@complyloop/db/client";
 import {
   persistProjectSliceDiff,
+  persistTargetedProjectWrite,
+  requirementUpdatedAtById,
   snapshotProjectSlice,
+  type TargetedProjectWritePayload,
 } from "@complyloop/db/repo/apply";
 import {
   claimMembershipsForLogin,
@@ -21,7 +30,10 @@ import {
   upsertMembership,
 } from "@complyloop/db/repo/orgs";
 import { updateProject } from "@complyloop/db/repo/projects";
-import { loadWorkspaceDb } from "@complyloop/db/workspace-load";
+import {
+  loadTargetedProjectWriteDb,
+  loadWorkspaceDb,
+} from "@complyloop/db/workspace-load";
 import {
   acquireNamedPostgresAdvisoryLock,
   projectWriteLockKey,
@@ -212,6 +224,181 @@ export async function withProjectWrite<T>(
     ) {
       await updateProject(tx, workspace.project);
     }
+    return result;
+  });
+}
+
+export interface TargetedProjectWriteScope {
+  findingIds?: readonly string[];
+  requirementIds?: readonly string[];
+  /** Requirement rows for these controls are loaded and may change during refresh. */
+  refreshControlIds?: readonly string[];
+}
+
+interface TrackedWriteEntities {
+  findings: Map<string, Finding>;
+  remediations: Map<string, Remediation>;
+  requirements: Map<string, Requirement>;
+}
+
+function effectiveRefreshControlIds(
+  db: Db,
+  scope: TargetedProjectWriteScope,
+): Set<string> {
+  const controlIds = new Set(scope.refreshControlIds ?? []);
+  for (const findingId of scope.findingIds ?? []) {
+    const finding = db.findings.find((item) => item.id === findingId);
+    if (finding) controlIds.add(finding.controlId);
+  }
+  for (const requirementId of scope.requirementIds ?? []) {
+    const requirement = db.requirements.find((item) => item.id === requirementId);
+    if (requirement) controlIds.add(requirement.controlId);
+  }
+  return controlIds;
+}
+
+function snapshotTrackedEntities(
+  db: Db,
+  scope: TargetedProjectWriteScope,
+): TrackedWriteEntities {
+  const findingIds = new Set(scope.findingIds ?? []);
+  const requirementIds = new Set(scope.requirementIds ?? []);
+  const controlIds = effectiveRefreshControlIds(db, scope);
+
+  const trackedFindings = new Map<string, Finding>();
+  for (const finding of db.findings) {
+    if (findingIds.has(finding.id)) {
+      trackedFindings.set(finding.id, structuredClone(finding));
+    }
+  }
+
+  const trackedRemediations = new Map<string, Remediation>();
+  for (const remediation of db.remediations) {
+    if (findingIds.has(remediation.findingId)) {
+      trackedRemediations.set(remediation.id, structuredClone(remediation));
+    }
+  }
+
+  const trackedRequirements = new Map<string, Requirement>();
+  for (const requirement of db.requirements) {
+    if (
+      requirementIds.has(requirement.id) ||
+      controlIds.has(requirement.controlId)
+    ) {
+      trackedRequirements.set(requirement.id, structuredClone(requirement));
+    }
+  }
+
+  return {
+    findings: trackedFindings,
+    remediations: trackedRemediations,
+    requirements: trackedRequirements,
+  };
+}
+
+function collectTargetedWritePayload(
+  db: Db,
+  projectId: string,
+  before: TrackedWriteEntities,
+  scope: TargetedProjectWriteScope,
+): TargetedProjectWritePayload {
+  const findingIds = new Set(scope.findingIds ?? []);
+  const requirementIds = new Set(scope.requirementIds ?? []);
+  const controlIds = effectiveRefreshControlIds(db, scope);
+
+  const payload: TargetedProjectWritePayload = {
+    findings: [],
+    remediations: [],
+    requirements: [],
+    evidence: db.evidence,
+  };
+
+  for (const finding of db.findings) {
+    if (!findingIds.has(finding.id)) continue;
+    const prev = before.findings.get(finding.id);
+    if (!prev || JSON.stringify(prev) !== JSON.stringify(finding)) {
+      payload.findings!.push(finding);
+    }
+  }
+
+  for (const remediation of db.remediations) {
+    if (!findingIds.has(remediation.findingId)) continue;
+    const prev = before.remediations.get(remediation.id);
+    if (!prev || JSON.stringify(prev) !== JSON.stringify(remediation)) {
+      payload.remediations!.push(remediation);
+    }
+  }
+
+  for (const requirement of db.requirements) {
+    if (requirement.projectId !== projectId) continue;
+    const inScope =
+      requirementIds.has(requirement.id) ||
+      controlIds.has(requirement.controlId);
+    if (!inScope) continue;
+    const prev = before.requirements.get(requirement.id);
+    if (!prev || JSON.stringify(prev) !== JSON.stringify(requirement)) {
+      payload.requirements!.push(requirement);
+    }
+  }
+
+  return payload;
+}
+
+/**
+ * Hot-path writes: load and persist only the findings/remediations/requirements
+ * touched by the callback. Assessment apply and project settings still use
+ * {@link withProjectWrite} or the worker payload path.
+ */
+export async function withTargetedProjectWrite<T>(
+  scope: TargetedProjectWriteScope,
+  fn: (workspace: Workspace) => Promise<T> | T,
+): Promise<T> {
+  if (
+    (scope.findingIds?.length ?? 0) === 0 &&
+    (scope.requirementIds?.length ?? 0) === 0
+  ) {
+    throw new PublicError("Targeted write requires at least one entity id.");
+  }
+
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  const githubLogin = session?.user?.login ?? null;
+  const preferredOrgId = userId ? await readActiveOrgCookie() : null;
+  const preferredProjectId = await readActiveProjectCookie();
+
+  const drizzle = await getDrizzle();
+  return drizzle.transaction(async (tx) => {
+    const db = await loadTargetedProjectWriteDb(tx, {
+      userId,
+      githubLogin,
+      activeProjectId: preferredProjectId,
+      evidenceLimit: 0,
+      findingIds: scope.findingIds,
+      requirementIds: scope.requirementIds,
+      controlIds: scope.refreshControlIds,
+    });
+    const workspace = prepareWorkspaceState(
+      db,
+      userId,
+      githubLogin,
+      preferredOrgId,
+      preferredProjectId,
+    );
+    if (!workspace.project) {
+      throw new PublicError("Select a project first.");
+    }
+    const projectId = workspace.project.id;
+    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
+
+    const before = snapshotTrackedEntities(db, scope);
+    const loadedRequirementUpdatedAtById = requirementUpdatedAtById([
+      ...before.requirements.values(),
+    ]);
+    const result = await fn(workspace);
+    const payload = collectTargetedWritePayload(db, projectId, before, scope);
+    await persistTargetedProjectWrite(tx, payload, {
+      loadedRequirementUpdatedAtById,
+    });
     return result;
   });
 }

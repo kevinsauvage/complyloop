@@ -20,12 +20,12 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
-import { refreshRequirementStatuses } from "../assessment-status";
+import { refreshRequirementStatusesForControls } from "../assessment-status";
 import { addEvidence, type Db } from "../db";
 import {
   findingById,
   remediationForFinding,
-  withProjectWrite,
+  withTargetedProjectWrite,
 } from "../workspace";
 import {
   refresh,
@@ -114,7 +114,9 @@ export async function approveRemediationAction(
   void _formData;
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
-    await withProjectWrite(async (workspace) => {
+    await withTargetedProjectWrite(
+      { findingIds: [findingId] },
+      async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
@@ -123,7 +125,8 @@ export async function approveRemediationAction(
       approveRemediationInDb(db, finding, remediation, {
         approvalNote: "Approved by user",
       });
-    });
+    },
+    );
     refresh();
     return "Remediation approved.";
   });
@@ -138,7 +141,9 @@ export async function bulkApproveRemediationsAction(
     const { findingIds } = parseForm(bulkApproveInput, formData);
     let approved = 0;
 
-    await withProjectWrite(async (workspace) => {
+    await withTargetedProjectWrite(
+      { findingIds },
+      async (workspace) => {
       const { db } = workspace;
       for (const findingId of findingIds) {
         const finding = findingById(db, findingId);
@@ -152,7 +157,8 @@ export async function bulkApproveRemediationsAction(
         });
         approved += 1;
       }
-    });
+    },
+    );
 
     if (approved === 0) {
       throw new PublicError(
@@ -172,7 +178,9 @@ export async function dismissFindingAction(
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const { reason, note } = parseForm(dismissFindingInput, formData);
-    await withProjectWrite(async (workspace) => {
+    await withTargetedProjectWrite(
+      { findingIds: [findingId] },
+      async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
@@ -185,8 +193,11 @@ export async function dismissFindingAction(
         new Date().toISOString(),
         {},
       );
-      refreshRequirementStatuses(db, finding.projectId);
-    });
+      refreshRequirementStatusesForControls(db, finding.projectId, [
+        finding.controlId,
+      ]);
+    },
+    );
     refresh();
     return "Finding dismissed.";
   });
@@ -203,8 +214,11 @@ export async function bulkDismissFindingsAction(
     let dismissed = 0;
     const projectIds = new Set<string>();
 
-    await withProjectWrite(async (workspace) => {
+    await withTargetedProjectWrite(
+      { findingIds },
+      async (workspace) => {
       const { db } = workspace;
+      const refreshedControlIds = new Set<string>();
       for (const findingId of findingIds) {
         const finding = findingById(db, findingId);
         requireOnFindingProject(workspace, finding, "project.remediate");
@@ -214,12 +228,18 @@ export async function bulkDismissFindingsAction(
           bulk: true,
         });
         projectIds.add(finding.projectId);
+        refreshedControlIds.add(finding.controlId);
         dismissed += 1;
       }
       for (const projectId of projectIds) {
-        refreshRequirementStatuses(db, projectId);
+        refreshRequirementStatusesForControls(
+          db,
+          projectId,
+          [...refreshedControlIds],
+        );
       }
-    });
+    },
+    );
 
     if (dismissed === 0) {
       throw new PublicError("No open findings were dismissed.");

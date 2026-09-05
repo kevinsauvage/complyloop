@@ -132,6 +132,12 @@ describe("buildAssessmentApplyPayload", () => {
 
 describe("applyAssessmentPayload", () => {
   const tx = { kind: "tx" } as unknown as DrizzleDb;
+  const loadedSlice = {
+    requirements: [requirement],
+    findings: [finding],
+    remediations: [remediation],
+    alerts: [alert],
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -143,7 +149,7 @@ describe("applyAssessmentPayload", () => {
     insertEvidenceRecords.mockResolvedValue(undefined);
   });
 
-  it("writes assessment rows and forwards stale-requirement options", async () => {
+  it("writes assessment rows and diffs only changed entities", async () => {
     const assessment: Assessment = {
       id: "a1",
       projectId,
@@ -168,9 +174,7 @@ describe("applyAssessmentPayload", () => {
         projectId,
       },
     ];
-    const loadedRequirementUpdatedAtById = new Map([
-      [requirement.id, requirement.updatedAt],
-    ]);
+    const updatedFinding = { ...finding, status: "dismissed" as const };
 
     await applyAssessmentPayload(
       tx,
@@ -178,12 +182,12 @@ describe("applyAssessmentPayload", () => {
         assessment,
         snapshot: assessment.snapshot!,
         evidence,
-        findings: [finding],
+        findings: [updatedFinding],
         remediations: [remediation],
         requirements: [requirement],
-        alerts: [alert],
+        alerts: [],
       },
-      { loadedRequirementUpdatedAtById },
+      { loadedSlice },
     );
 
     expect(insertAssessment).toHaveBeenCalledWith(
@@ -191,16 +195,16 @@ describe("applyAssessmentPayload", () => {
       assessment,
       assessment.snapshot,
     );
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [finding]);
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [remediation]);
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [requirement], {
-      loadedUpdatedAtById: loadedRequirementUpdatedAtById,
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [updatedFinding]);
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, []);
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {
+      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
-    expect(insertAlerts).toHaveBeenCalledWith(tx, [alert]);
+    expect(insertAlerts).toHaveBeenCalledWith(tx, []);
     expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, evidence);
   });
 
-  it("omits stale-requirement options when no load snapshot was captured", async () => {
+  it("no-ops entity upserts when the loaded slice is unchanged", async () => {
     const assessment: Assessment = {
       id: "a2",
       projectId,
@@ -217,17 +221,26 @@ describe("applyAssessmentPayload", () => {
       snapshot: { fileHashes: {} },
     };
 
-    await applyAssessmentPayload(tx, {
-      assessment,
-      snapshot: assessment.snapshot!,
-      evidence: [],
-      findings: [],
-      remediations: [],
-      requirements: [],
-      alerts: [],
-    });
+    await applyAssessmentPayload(
+      tx,
+      {
+        assessment,
+        snapshot: assessment.snapshot!,
+        evidence: [],
+        findings: loadedSlice.findings,
+        remediations: loadedSlice.remediations,
+        requirements: loadedSlice.requirements,
+        alerts: [],
+      },
+      { loadedSlice },
+    );
 
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {});
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {
+      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
+    });
+    expect(upsertFindings).toHaveBeenCalledWith(tx, []);
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, []);
+    expect(insertAlerts).toHaveBeenCalledWith(tx, []);
   });
 });
 

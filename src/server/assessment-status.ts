@@ -179,15 +179,11 @@ function requirementForControl(
   );
 }
 
-/**
- * Re-derives requirement statuses from the findings currently open in the db,
- * recording status changes (and regressions) as evidence. Used both after a
- * full assessment and after single-finding events like verification.
- */
-export function refreshRequirementStatuses(
+function refreshRequirementForControl(
   db: Db,
   projectId: string,
-  options: RefreshRequirementStatusesOptions = {},
+  control: Control,
+  options: RefreshRequirementStatusesOptions & { now: string },
 ): void {
   const {
     assessmentId,
@@ -196,98 +192,136 @@ export function refreshRequirementStatuses(
     siteLevelChecksRan,
     htmlValidateRan,
     applicabilityFacts,
+    now,
   } = options;
+
+  if (control.checkId === null) {
+    // Manual / custom controls without a check stay unable_to_verify unless
+    // a human pass or exception already sets a different status.
+    const requirement = requirementForControl(db, projectId, control.id);
+    if (requirementIsSticky(requirement)) {
+      return;
+    }
+    if (!requirement) {
+      db.requirements.push({
+        id: crypto.randomUUID(),
+        projectId,
+        controlId: control.id,
+        status: "unable_to_verify",
+        determination: "automated",
+        updatedAt: now,
+      });
+    } else if (requirement.status !== "unable_to_verify") {
+      requirement.status = "unable_to_verify";
+      requirement.determination = "automated";
+      requirement.updatedAt = now;
+    }
+    return;
+  }
+
+  let requirement = requirementForControl(db, projectId, control.id);
+  // Human exceptions / human passes are sticky until explicitly cleared
+  // (temporary exceptions may expire earlier — see clearExpiredExceptions).
+  if (requirementIsSticky(requirement)) {
+    return;
+  }
+
+  const openFindings = db.findings.filter(
+    (finding) =>
+      finding.projectId === projectId &&
+      finding.controlId === control.id &&
+      finding.status === "open",
+  );
+  const status = statusFromFindings(
+    control.checkId,
+    openFindings,
+    runtimeRan,
+    siteLevelChecksRan,
+    htmlValidateRan,
+    applicabilityFacts,
+  );
+
+  if (!requirement) {
+    requirement = {
+      id: crypto.randomUUID(),
+      projectId,
+      controlId: control.id,
+      status,
+      determination: "automated",
+      updatedAt: now,
+    };
+    db.requirements.push(requirement);
+    return;
+  }
+
+  if (requirement.status !== status) {
+    const regression = requirement.status === "passed" && status === "failed";
+    const attribution =
+      regression && changeContext ? ` — ${changeContext}` : "";
+    addEvidence(db, {
+      kind: "requirement_status_changed",
+      summary: `${control.code} (${control.title}): ${requirement.status} → ${status}${regression ? " — compliance regression" : ""}${attribution}`,
+      projectId,
+      controlId: control.id,
+      assessmentId,
+      detail: {
+        from: requirement.status,
+        to: status,
+        regression,
+        changeContext: regression ? changeContext : undefined,
+        ...(status === "not_applicable" && control.checkId
+          ? {
+            applicabilityFact:
+              applicabilityFacts?.get(control.checkId) ??
+              "Criterion does not apply on audited pages.",
+          }
+          : {}),
+      },
+    });
+    requirement.status = status;
+    requirement.determination = "automated";
+    requirement.updatedAt = now;
+  }
+}
+
+/**
+ * Re-derives requirement statuses for specific controls after a targeted
+ * finding event (dismiss, verify, exception clear).
+ */
+export function refreshRequirementStatusesForControls(
+  db: Db,
+  projectId: string,
+  controlIds: readonly string[],
+  options: RefreshRequirementStatusesOptions = {},
+): void {
+  if (controlIds.length === 0) return;
+  const now = new Date().toISOString();
+  const project = db.projects.find((candidate) => candidate.id === projectId);
+  const controlIdSet = new Set(controlIds);
+  const scoped = (project ? controlsInScope(db, project) : db.controls).filter(
+    (control) => controlIdSet.has(control.id),
+  );
+  for (const control of scoped) {
+    refreshRequirementForControl(db, projectId, control, { ...options, now });
+  }
+}
+
+/**
+ * Re-derives requirement statuses from the findings currently open in the db,
+ * recording status changes (and regressions) as evidence. Used after a
+ * full assessment; hot-path actions should prefer
+ * {@link refreshRequirementStatusesForControls}.
+ */
+export function refreshRequirementStatuses(
+  db: Db,
+  projectId: string,
+  options: RefreshRequirementStatusesOptions = {},
+): void {
   const now = new Date().toISOString();
   const project = db.projects.find((candidate) => candidate.id === projectId);
   const scoped = project ? controlsInScope(db, project) : db.controls;
 
   for (const control of scoped) {
-    if (control.checkId === null) {
-      // Manual / custom controls without a check stay unable_to_verify unless
-      // a human pass or exception already sets a different status.
-      const requirement = requirementForControl(db, projectId, control.id);
-      if (requirementIsSticky(requirement)) {
-        continue;
-      }
-      if (!requirement) {
-        db.requirements.push({
-          id: crypto.randomUUID(),
-          projectId,
-          controlId: control.id,
-          status: "unable_to_verify",
-          determination: "automated",
-          updatedAt: now,
-        });
-      } else if (requirement.status !== "unable_to_verify") {
-        requirement.status = "unable_to_verify";
-        requirement.determination = "automated";
-        requirement.updatedAt = now;
-      }
-      continue;
-    }
-
-    let requirement = requirementForControl(db, projectId, control.id);
-    // Human exceptions / human passes are sticky until explicitly cleared
-    // (temporary exceptions may expire earlier — see clearExpiredExceptions).
-    if (requirementIsSticky(requirement)) {
-      continue;
-    }
-
-    const openFindings = db.findings.filter(
-      (finding) =>
-        finding.projectId === projectId &&
-        finding.controlId === control.id &&
-        finding.status === "open",
-    );
-    const status = statusFromFindings(
-      control.checkId,
-      openFindings,
-      runtimeRan,
-      siteLevelChecksRan,
-      htmlValidateRan,
-      applicabilityFacts,
-    );
-
-    if (!requirement) {
-      requirement = {
-        id: crypto.randomUUID(),
-        projectId,
-        controlId: control.id,
-        status,
-        determination: "automated",
-        updatedAt: now,
-      };
-      db.requirements.push(requirement);
-      continue;
-    }
-
-    if (requirement.status !== status) {
-      const regression = requirement.status === "passed" && status === "failed";
-      const attribution =
-        regression && changeContext ? ` — ${changeContext}` : "";
-      addEvidence(db, {
-        kind: "requirement_status_changed",
-        summary: `${control.code} (${control.title}): ${requirement.status} → ${status}${regression ? " — compliance regression" : ""}${attribution}`,
-        projectId,
-        controlId: control.id,
-        assessmentId,
-        detail: {
-          from: requirement.status,
-          to: status,
-          regression,
-          changeContext: regression ? changeContext : undefined,
-          ...(status === "not_applicable" && control.checkId
-            ? {
-              applicabilityFact:
-                applicabilityFacts?.get(control.checkId) ??
-                "Criterion does not apply on audited pages.",
-            }
-            : {}),
-        },
-      });
-      requirement.status = status;
-      requirement.determination = "automated";
-      requirement.updatedAt = now;
-    }
+    refreshRequirementForControl(db, projectId, control, { ...options, now });
   }
 }

@@ -14,7 +14,7 @@ import {
   dismissFindingAction,
 } from "./remediation";
 
-const { withProjectWrite, getWorkspace } = actionWorkspaceMocks;
+const { withTargetedProjectWrite, getWorkspace } = actionWorkspaceMocks;
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const drainAssessmentJobQueue = vi.hoisted(() => vi.fn());
@@ -60,7 +60,7 @@ vi.mock("../rate-limit", async () => {
 });
 
 vi.mock("../assessment-status", () => ({
-  refreshRequirementStatuses: vi.fn(),
+  refreshRequirementStatusesForControls: vi.fn(),
 }));
 
 const project = testProject({ orgId: "org-1" });
@@ -82,7 +82,7 @@ afterEach(() => {
 
 describe("remediation action authz", () => {
   it("denies approve for viewers", async () => {
-    withProjectWrite.mockImplementation(async (fn) => fn(workspaceFor("viewer")));
+    withTargetedProjectWrite.mockImplementation(async (_scope, fn) => fn(workspaceFor("viewer")));
     const result = await approveRemediationAction(
       "f1",
       emptyActionMessageState,
@@ -94,7 +94,7 @@ describe("remediation action authz", () => {
 
   it("approves for members", async () => {
     const workspace = workspaceFor("member");
-    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
+    withTargetedProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
     const result = await approveRemediationAction(
       "f1",
       emptyActionMessageState,
@@ -108,7 +108,7 @@ describe("remediation action authz", () => {
   });
 
   it("denies dismiss for viewers", async () => {
-    withProjectWrite.mockImplementation(async (fn) => fn(workspaceFor("viewer")));
+    withTargetedProjectWrite.mockImplementation(async (_scope, fn) => fn(workspaceFor("viewer")));
     const formData = new FormData();
     formData.set("reason", "false_positive");
     formData.set("note", "not a real issue");
@@ -121,7 +121,9 @@ describe("remediation action authz", () => {
   });
 
   it("denies run assessment for viewers", async () => {
-    getWorkspace.mockResolvedValue(workspaceFor("viewer"));
+    actionWorkspaceMocks.withProjectWrite.mockImplementation(async (fn) =>
+      fn(workspaceFor("viewer")),
+    );
     const result = await runAssessmentAction(
       emptyActionMessageState,
       new FormData(),
@@ -132,7 +134,7 @@ describe("remediation action authz", () => {
 
 describe("bulkApproveRemediationsAction", () => {
   it("requires at least one finding id", async () => {
-    withProjectWrite.mockImplementation(async (fn) => fn(workspaceFor("member")));
+    withTargetedProjectWrite.mockImplementation(async (_scope, fn) => fn(workspaceFor("member")));
     const result = await bulkApproveRemediationsAction(
       emptyActionMessageState,
       new FormData(),
@@ -172,7 +174,7 @@ describe("bulkApproveRemediationsAction", () => {
         history: [],
       },
     );
-    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
+    withTargetedProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
 
     const form = new FormData();
     form.append("findingIds", "f1");
@@ -196,7 +198,7 @@ describe("bulkApproveRemediationsAction", () => {
     const remediationRow = workspace.db.remediations[0];
     if (!remediationRow) throw new Error("expected remediation");
     remediationRow.status = "approved";
-    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
+    withTargetedProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
 
     const form = new FormData();
     form.append("findingIds", "f1");
@@ -212,7 +214,7 @@ describe("bulkApproveRemediationsAction", () => {
 describe("runAssessmentAction", () => {
   it("queues and drains inline when enabled", async () => {
     const workspace = workspaceFor("member");
-    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
+    actionWorkspaceMocks.withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     enqueueAssessmentJob.mockResolvedValue({ id: "job-1" });
     shouldDrainAssessmentJobsInline.mockReturnValue(true);
     drainAssessmentJobQueue.mockResolvedValue(undefined);
@@ -240,7 +242,7 @@ describe("runAssessmentAction", () => {
 
   it("returns queued message when inline drain is disabled", async () => {
     const workspace = workspaceFor("member");
-    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
+    actionWorkspaceMocks.withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
     shouldDrainAssessmentJobsInline.mockReturnValue(false);
     assertAssessRateLimit.mockResolvedValue(undefined);
@@ -256,7 +258,7 @@ describe("runAssessmentAction", () => {
 
   it("surfaces rate limit errors", async () => {
     const workspace = workspaceFor("member");
-    withProjectWrite.mockImplementation(async (fn) => fn(workspace));
+    actionWorkspaceMocks.withProjectWrite.mockImplementation(async (fn) => fn(workspace));
     assertAssessRateLimit.mockRejectedValue(new RateLimitError());
 
     const result = await runAssessmentAction(

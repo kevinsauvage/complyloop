@@ -13,9 +13,9 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
-import { refreshRequirementStatuses } from "../assessment-status";
+import { refreshRequirementStatusesForControls } from "../assessment-status";
 import { addEvidence, type Db } from "../db";
-import { controlById, withProjectWrite } from "../workspace";
+import { controlById, withTargetedProjectWrite } from "../workspace";
 import { refresh, requireOnActive } from "./shared";
 
 const markExceptionInput = z
@@ -101,7 +101,7 @@ function clearRequirementOverride(
     });
   }
 
-  refreshRequirementStatuses(db, project.id);
+  refreshRequirementStatusesForControls(db, project.id, [requirement.controlId]);
 }
 
 export async function markRequirementExceptionAction(
@@ -112,7 +112,9 @@ export async function markRequirementExceptionAction(
   return runActionMessage(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     const parsed = parseForm(markExceptionInput, formData);
-    await withProjectWrite(async (workspace) => {
+    await withTargetedProjectWrite(
+      { requirementIds: [requirementId] },
+      async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
       const requirement = requireRequirement(
@@ -165,7 +167,8 @@ export async function markRequirementExceptionAction(
           detail: { from: previous, to: requirement.status, regression: false },
         });
       }
-    });
+    },
+    );
     refresh();
     return "Exception recorded.";
   });
@@ -179,7 +182,9 @@ export async function markRequirementPassedAction(
   return runActionMessage(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     const { note } = parseForm(markPassedInput, formData);
-    await withProjectWrite(async (workspace) => {
+    await withTargetedProjectWrite(
+      { requirementIds: [requirementId] },
+      async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
       const requirement = requireRequirement(
@@ -227,7 +232,8 @@ export async function markRequirementPassedAction(
           },
         });
       }
-    });
+    },
+    );
     refresh();
     return "Human pass recorded.";
   });
@@ -271,7 +277,9 @@ async function clearRequirementOverrideAction(
   void _formData;
   return runActionMessage(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
-    await withProjectWrite(async (workspace) => {
+    await withTargetedProjectWrite(
+      { requirementIds: [requirementId] },
+      async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
       const requirement = requireRequirement(
@@ -280,7 +288,8 @@ async function clearRequirementOverrideAction(
         requirementId,
       );
       clearRequirementOverride(db, project, requirement, field);
-    });
+    },
+    );
     refresh();
     return message;
   });

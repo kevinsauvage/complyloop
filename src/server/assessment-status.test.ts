@@ -3,12 +3,14 @@ import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls"
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project, Requirement } from "@complyloop/domain/project-types";
 import { testProject } from "@/test-fixtures/project";
+import { testControl } from "@/test-fixtures/control";
 import { emptyDb } from "./db";
 import {
   assertAssessableCatalog,
   controlsInScope,
   findingsInScope,
   refreshRequirementStatuses,
+  refreshRequirementStatusesForControls,
   requirementsInScope,
 } from "./assessment-status";
 
@@ -141,6 +143,44 @@ describe("assessment scope filters", () => {
     expect(scoped.map((control) => control.id)).toContain("ctl-video-caption");
     expect(scoped).toHaveLength(
       rgaaControls.filter((control) => control.code.startsWith("RGAA")).length,
+    );
+  });
+});
+
+describe("refreshRequirementStatusesForControls", () => {
+  it("re-derives only the requested controls", () => {
+    const db = emptyDb();
+    db.projects = [project({ id: "p1" })];
+    db.controls = [
+      testControl({ id: "c1", checkId: "img-alt" }),
+      testControl({ id: "c2", checkId: "button-name" }),
+    ];
+    db.requirements = [
+      {
+        id: "r1",
+        projectId: "p1",
+        controlId: "c1",
+        status: "failed",
+        determination: "automated",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      {
+        id: "r2",
+        projectId: "p1",
+        controlId: "c2",
+        status: "failed",
+        determination: "automated",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ];
+
+    refreshRequirementStatusesForControls(db, "p1", ["c1"], { runtimeRan: false });
+
+    expect(db.requirements.find((item) => item.controlId === "c1")?.status).toBe(
+      "passed",
+    );
+    expect(db.requirements.find((item) => item.controlId === "c2")?.status).toBe(
+      "failed",
     );
   });
 });

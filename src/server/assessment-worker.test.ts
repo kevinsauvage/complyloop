@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import type { Db } from "./db";
@@ -33,10 +34,17 @@ vi.mock("@complyloop/db/client", () => ({
   getDrizzle: async () => ({ transaction }),
 }));
 
-vi.mock("@complyloop/db/repo/apply", () => ({
-  applyAssessmentPayload: (...args: unknown[]) => applyAssessmentPayload(...args),
-  buildAssessmentApplyPayload: (input: unknown) => input,
-}));
+vi.mock("@complyloop/db/repo/apply", async () => {
+  const actual = await vi.importActual<
+    typeof import("@complyloop/db/repo/apply")
+  >("@complyloop/db/repo/apply");
+  return {
+    ...actual,
+    applyAssessmentPayload: (...args: unknown[]) =>
+      applyAssessmentPayload(...args),
+    buildAssessmentApplyPayload: (input: unknown) => input,
+  };
+});
 
 vi.mock("@complyloop/db/repo/evidence", () => ({
   insertEvidence: (...args: unknown[]) => insertEvidence(...args),
@@ -192,6 +200,7 @@ describe("processNextAssessmentJob", () => {
   it("persists remediations after a run whose evidence snapshot is empty", async () => {
     const db = emptyDb();
     db.evidence = [];
+    db.findings = [testFinding()];
     db.remediations = [
       testRemediation({
         status: "approved",
@@ -233,7 +242,14 @@ describe("processNextAssessmentJob", () => {
         evidence: [],
       }),
       expect.objectContaining({
-        loadedRequirementUpdatedAtById: expect.any(Map),
+        loadedSlice: expect.objectContaining({
+          requirements: [],
+          findings: [expect.objectContaining({ id: "f1" })],
+          remediations: expect.arrayContaining([
+            expect.objectContaining({ status: "approved" }),
+          ]),
+          alerts: [],
+        }),
       }),
     );
   });

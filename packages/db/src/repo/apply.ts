@@ -29,25 +29,27 @@ export interface AssessmentApplyPayload {
 }
 
 export interface ApplyAssessmentPayloadOptions {
-  /** Requirement timestamps captured when the assessment job loaded the project. */
-  loadedRequirementUpdatedAtById?: ReadonlyMap<string, string>;
+  /** Project slice captured when the assessment job loaded the project. */
+  loadedSlice: ProjectSlice;
 }
 
 export async function applyAssessmentPayload(
   tx: DrizzleDb,
   payload: AssessmentApplyPayload,
-  options: ApplyAssessmentPayloadOptions = {},
+  options: ApplyAssessmentPayloadOptions,
 ): Promise<void> {
-  const requirementOptions: UpsertRequirementsOptions | undefined =
-    options.loadedRequirementUpdatedAtById
-      ? { loadedUpdatedAtById: options.loadedRequirementUpdatedAtById }
-      : undefined;
   await insertAssessment(tx, payload.assessment, payload.snapshot);
-  await upsertFindings(tx, payload.findings);
-  await upsertRemediations(tx, payload.remediations);
-  await upsertRequirements(tx, payload.requirements, requirementOptions ?? {});
-  await insertAlerts(tx, payload.alerts);
-  await insertEvidenceRecords(tx, payload.evidence);
+  await persistProjectSliceDiff(
+    tx,
+    options.loadedSlice,
+    {
+      requirements: payload.requirements,
+      findings: payload.findings,
+      remediations: payload.remediations,
+      alerts: payload.alerts,
+    },
+    payload.evidence,
+  );
 }
 
 function entityMap<T extends { id: string }>(
@@ -99,7 +101,7 @@ export function snapshotProjectSlice(
   };
 }
 
-function requirementUpdatedAtById(
+export function requirementUpdatedAtById(
   items: ReadonlyArray<Requirement>,
 ): Map<string, string> {
   return new Map(items.map((item) => [item.id, item.updatedAt]));
@@ -129,6 +131,39 @@ export async function persistProjectSliceDiff(
     changedEntities(entityMap(before.alerts), after.alerts),
   );
   await insertEvidenceRecords(tx, evidence);
+}
+
+export interface TargetedProjectWritePayload {
+  findings?: Finding[];
+  remediations?: Remediation[];
+  requirements?: Requirement[];
+  evidence?: EvidenceRecord[];
+  alerts?: Alert[];
+}
+
+export interface PersistTargetedProjectWriteOptions {
+  loadedRequirementUpdatedAtById?: ReadonlyMap<string, string>;
+}
+
+/** Persists explicit row upserts for hot-path actions (no whole-slice diff). */
+export async function persistTargetedProjectWrite(
+  tx: DrizzleDb,
+  payload: TargetedProjectWritePayload,
+  options: PersistTargetedProjectWriteOptions = {},
+): Promise<void> {
+  const requirementOptions: UpsertRequirementsOptions | undefined =
+    options.loadedRequirementUpdatedAtById
+      ? { loadedUpdatedAtById: options.loadedRequirementUpdatedAtById }
+      : undefined;
+  await upsertFindings(tx, payload.findings ?? []);
+  await upsertRemediations(tx, payload.remediations ?? []);
+  await upsertRequirements(
+    tx,
+    payload.requirements ?? [],
+    requirementOptions ?? {},
+  );
+  await insertAlerts(tx, payload.alerts ?? []);
+  await insertEvidenceRecords(tx, payload.evidence ?? []);
 }
 
 export function buildAssessmentApplyPayload(input: {

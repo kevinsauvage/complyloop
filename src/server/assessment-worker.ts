@@ -11,6 +11,7 @@ import { getDrizzle } from "@complyloop/db/client";
 import {
   applyAssessmentPayload,
   buildAssessmentApplyPayload,
+  snapshotProjectSlice,
 } from "@complyloop/db/repo/apply";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
 import {
@@ -81,10 +82,12 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
     (candidate) => candidate.id === job.projectId,
   );
   if (!project) throw new Error("Project was removed before its assessment job ran.");
-  const loadedRequirementUpdatedAtById = new Map(
-    db.requirements
-      .filter((requirement) => requirement.projectId === project.id)
-      .map((requirement) => [requirement.id, requirement.updatedAt]),
+  const loadedSlice = snapshotProjectSlice(
+    db.requirements,
+    db.findings,
+    db.remediations,
+    db.alerts,
+    project.id,
   );
 
   const result = await withProjectCheckout(
@@ -122,7 +125,7 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
             requirements: db.requirements,
             alerts,
           }),
-          { loadedRequirementUpdatedAtById },
+          { loadedSlice },
         );
         await insertEvidence(tx, {
           kind: "assessment_job_completed",

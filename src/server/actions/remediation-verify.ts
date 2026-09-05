@@ -17,7 +17,7 @@ import {
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
 import { mergeFix } from "../assessment-helpers";
-import { refreshRequirementStatuses } from "../assessment-status";
+import { refreshRequirementStatusesForControls } from "../assessment-status";
 import { addEvidence } from "../db";
 import { withProjectCheckout } from "../repo-checkout";
 import { STILL_FAILING_VERIFY_MESSAGE } from "../verify-messages";
@@ -25,7 +25,7 @@ import {
   findingById,
   getWorkspace,
   remediationForFinding,
-  withProjectWrite,
+  withTargetedProjectWrite,
 } from "../workspace";
 import {
   locateViolation,
@@ -65,7 +65,9 @@ export async function verifyRemediationAction(
     }
 
     if (finding.location.kind === "dom") {
-      await withProjectWrite(async (workspace) => {
+      await withTargetedProjectWrite(
+        { findingIds: [findingId] },
+        async (workspace) => {
         const { db } = workspace;
         const live = findingById(db, findingId);
         requireOnFindingProject(workspace, live, "project.remediate");
@@ -101,8 +103,11 @@ export async function verifyRemediationAction(
           findingId: live.id,
           detail: { engine: "runtime" },
         });
-        refreshRequirementStatuses(db, live.projectId);
-      });
+        refreshRequirementStatusesForControls(db, live.projectId, [
+          live.controlId,
+        ]);
+      },
+      );
     } else {
       const project = preview.db.projects.find(
         (candidate) => candidate.id === finding.projectId,
@@ -113,7 +118,9 @@ export async function verifyRemediationAction(
       await withProjectCheckout(
         project,
         async (rootPath) => {
-          await withProjectWrite(async (workspace) => {
+          await withTargetedProjectWrite(
+        { findingIds: [findingId] },
+        async (workspace) => {
             const { db } = workspace;
             const live = findingById(db, findingId);
             requireOnFindingProject(workspace, live, "project.remediate");
@@ -162,8 +169,11 @@ export async function verifyRemediationAction(
               findingId: live.id,
               detail: { engine: "ast" },
             });
-            refreshRequirementStatuses(db, live.projectId);
-          });
+            refreshRequirementStatusesForControls(db, live.projectId, [
+              live.controlId,
+            ]);
+          },
+          );
         },
         undefined,
         tokenOptions,
@@ -195,7 +205,9 @@ export async function markRemediationImplementedAction(
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const { note: parsedNote } = parseForm(markImplementedInput, formData);
-    await withProjectWrite(async (workspace) => {
+    await withTargetedProjectWrite(
+      { findingIds: [findingId] },
+      async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
@@ -216,7 +228,8 @@ export async function markRemediationImplementedAction(
         findingId: finding.id,
         detail: { manual: true, note },
       });
-    });
+    },
+    );
     refresh();
     return "Marked as implemented.";
   });
@@ -234,7 +247,9 @@ export async function manualVerifyRemediationAction(
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const { note } = parseForm(manualVerifyInput, formData);
-    await withProjectWrite(async (workspace) => {
+    await withTargetedProjectWrite(
+      { findingIds: [findingId] },
+      async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
@@ -262,8 +277,11 @@ export async function manualVerifyRemediationAction(
         findingId: finding.id,
         detail: { note, determination: "human_review" },
       });
-      refreshRequirementStatuses(db, finding.projectId);
-    });
+      refreshRequirementStatusesForControls(db, finding.projectId, [
+        finding.controlId,
+      ]);
+    },
+    );
     refresh();
     return "Manually verified.";
   });
