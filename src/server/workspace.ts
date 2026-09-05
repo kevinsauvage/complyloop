@@ -39,6 +39,7 @@ import {
 } from "@complyloop/db/workspace-load";
 import {
   acquireNamedPostgresAdvisoryLock,
+  orgWriteLockKey,
   projectWriteLockKey,
 } from "@complyloop/db/write-lock";
 import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/postgres-scope";
@@ -187,6 +188,15 @@ export async function withProjectWrite<T>(
 
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
+    // Acquire the project lock before loading so a concurrent writer's commit is
+    // visible to this load — the lock serializes load→mutate→persist, not just the
+    // final commit. The active project cookie names the project being mutated.
+    if (preferredProjectId) {
+      await acquireNamedPostgresAdvisoryLock(
+        tx,
+        projectWriteLockKey(preferredProjectId),
+      );
+    }
     const db = await loadWorkspaceDb(tx, {
       userId,
       githubLogin,
@@ -378,6 +388,12 @@ export async function withTargetedProjectWrite<T>(
 
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
+    if (preferredProjectId) {
+      await acquireNamedPostgresAdvisoryLock(
+        tx,
+        projectWriteLockKey(preferredProjectId),
+      );
+    }
     const db = await loadTargetedProjectWriteDb(tx, {
       userId,
       githubLogin,
@@ -438,6 +454,9 @@ export async function withOrgWrite<T>(
 
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
+    // Org writes are rare admin ops but can race (two role changes on the same
+    // membership); serialize per user so load→mutate→persist is atomic.
+    await acquireNamedPostgresAdvisoryLock(tx, orgWriteLockKey(userId));
     const db = await loadWorkspaceDb(tx, {
       userId,
       githubLogin,

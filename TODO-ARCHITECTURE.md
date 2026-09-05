@@ -133,35 +133,6 @@ exercised by the same test.
 
 ## P1 — High
 
-### P1-1 · Advisory locks are acquired _after_ the load; org writes have no lock at all — _size M_
-
-**What is wrong.** In `withProjectWrite` the workspace load happens before
-`acquireNamedPostgresAdvisoryLock` (`src/server/workspace.ts:183-200`); the same order
-in `withTargetedProjectWrite` (`:371-391`). The xact-scoped lock serializes
-**commits**, but the second writer's in-memory state predates the first writer's commit
-— entity-level last-write-wins survives the lock (P0-1 is the concrete instance).
-`withOrgWrite` (`:409-464`) takes **no advisory lock at all** while doing
-JSON.stringify-diffed org/membership writes, so two concurrent role changes on the same
-membership silently last-write-win.
-
-**Why it matters.** The lock gives a false sense of serialization; the correct
-serialization point is load→mutate→persist. The fix is a two-line order swap for the
-interactive writers, and it narrows P0-1's window to the worker path only (which cannot
-hold the lock across the scan — hence the P0-1 guard is still required).
-
-**What should change.** Acquire the project lock **before** the load inside the
-transaction in both interactive writers (the load then sees the previous writer's
-commit). For `withOrgWrite`, add an org-scoped advisory lock (same mechanism,
-`project-write:{orgId}`-style key) plus the same updatedAt guard for membership rows,
-or route it through the shared write wrapper. Keep the worker's lock-at-persist as-is
-(it can't hold a tx during the multi-minute scan) — P0-1's guard covers it.
-
-**Files.** `src/server/workspace.ts:181-200,369-404,409-464`; `packages/db/src/write-lock.ts`.
-
-**Definition of done.** Integration test asserting that two interleaved
-`withProjectWrite` calls each see the other's committed state (lock-before-load), and
-that concurrent org membership writes serialize instead of overwriting.
-
 ### P1-2 · Report section composition is written twice (markdown + HTML) — _size L_
 
 **What is wrong.** `src/server/report.ts` (295 LOC, engineering + audit markdown) and
@@ -268,32 +239,35 @@ with unit tests), and/or add a CI guard that PRs touching `packages/db/src/repo/
 **Files.** `vitest.config.mts:35-78`, `.github/workflows/ci.yml:50-76`,
 `packages/db/src/repo/apply.ts`, `src/server/workspace.ts`.
 
-### P2-7 · Check-id governance is one-way; a reverse coverage gap and a rotting test copy — _size M_
+### P2-7 · Check-id governance is one-way; a reverse coverage gap and a rotting test copy
 
 **What is wrong.** Enforcement is unidirectional: `satisfies readonly CheckId[]` verifies
 each manual list is _within_ the union; `catalog-coverage.test.ts:70-86` checks
 catalog→(engines∪site-level). Nothing checks the reverse — that **every** union member
 is reachable from the catalog (a check id in the union but in no catalog control is
-silently dead across the product). Additionally, `check-authority.test.ts:15-68`
-re-lists a RUNTIME_ONLY subset (≈40 of the 57 source ids) that additions to
-`check-authority.ts` never fail, so the test copy rots silently. In adapters,
-`wcag/presets.ts:19-80` (`preset-wcag-aa`) hand-lists ~140 `ctl-*` strings with no
-`satisfies` binding to the catalog (unlike `preset-wcag-full` at `:12`, which derives
-from `rgaaControls`) — a typo silently drops a control from every WCAG-AA assessment.
+silently dead across the product). In adapters, `wcag/presets.ts:19-80`
+(`preset-wcag-aa`) hand-lists ~140 `ctl-*` strings with no `satisfies` binding to the
+catalog (unlike `preset-wcag-full` at `:12`) — a typo silently drops a control from
+every WCAG-AA assessment.
 
-**Why it matters.** These are silent-drift failure modes in the product's core
-vocabulary: an id that exists but is unreachable, or a preset that omits a control,
-changes assessment scope with no error.
+**Why it matters.** Silent-drift failure modes in the product's core vocabulary: an id
+that exists but is unreachable, or a preset that omits a control, changes assessment
+scope with no error.
 
-**What should change.** Add a reverse canary, mirroring the existing
-`finding-raw-assignability` pattern: every `CheckId` union member must appear in at
-least one engine map, the site-level list, or the catalog's non-null `checkId`s.
-Rebuild `check-authority.test.ts`'s subset assertions to derive from the source lists
-(or delete them — the disjunction test at `:162-168` is the one that matters). Type
-`FrameworkPreset.controlIds` as `readonly CheckId[]` (or add `satisfies`) in `adapters`
-and derive the WCAG-AA list from the catalog like the full preset does.
+**What changed (2026-09-05, partial).** `check-authority.test.ts`'s hardcoded
+`RUNTIME_ONLY` re-list (40 of 57 ids) was replaced with a loop over the source
+`RUNTIME_ONLY_CHECK_IDS` — the copy can no longer rot, and the test now guards
+`keepOpenWhenRuntimeScanSkipped` for the full set. **Still open:** the reverse canary
+(the `CheckId` union is a type, not a runtime value, so it needs either a
+type-level/catalog-`as const` equality assertion or a codegen step) and the WCAG-AA
+preset derivation/typing.
 
-**Files.** `packages/analysis-core/src/types.ts:5-143`, `packages/analysis-core/src/check-authority.test.ts:15-68,162-168`,
+**What should change (remaining).** Type `FrameworkPreset.controlIds` as
+`readonly CheckId[]` (or add `satisfies`) in `adapters` and derive the WCAG-AA list from
+the catalog like the full preset does. Add a reverse reachability guard once the union
+is enumerable (type-level equality test or forcing `rgaaControls` to `as const`).
+
+**Files.** `packages/analysis-core/src/types.ts:5-143`, `packages/analysis-core/src/check-authority.test.ts`,
 `packages/adapters/src/wcag/presets.ts:12,19-80`, `packages/adapters/src/types.ts:14`,
 `packages/adapters/src/rgaa/catalog-coverage.test.ts:70-86`.
 

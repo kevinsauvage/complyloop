@@ -6,6 +6,11 @@ export function projectWriteLockKey(projectId: string): string {
   return `project-write:${projectId}`;
 }
 
+/** Serialize a user's org-scoped writes (membership/org row mutations). */
+export function orgWriteLockKey(userId: string): string {
+  return `org-write:${userId}`;
+}
+
 /** Holds until the surrounding transaction commits or rolls back. */
 export async function acquireNamedPostgresAdvisoryLock(
   tx: DrizzleDb,

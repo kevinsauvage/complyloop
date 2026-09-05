@@ -24,49 +24,6 @@ const COMPOSITION_SENSITIVE = [
   "text-spacing",
 ] as const;
 
-const RUNTIME_ONLY = [
-  "color-contrast",
-  "document-title",
-  "bypass",
-  "landmark-one-main",
-  "nested-interactive",
-  "target-size",
-  "table-headers",
-  "page-heading",
-  "content-region",
-  "label-in-name",
-  "lang-parts",
-  "aria-roledescription",
-  "presentation-role",
-  "no-auto-refresh",
-  "no-orientation-lock",
-  "landmark-unique",
-  "use-of-color",
-  "frame-keyboard",
-  "doctype",
-  "focus-visible",
-  "keyboard-trap",
-  "focus-not-obscured",
-  "non-text-contrast",
-  "reflow",
-  "text-spacing-runtime",
-  "label-adjacent",
-  "resize-text",
-  "css-hover-keyboard",
-  "focus-order-logical",
-  "focus-not-obscured-enhanced",
-  "focus-appearance",
-  "identical-links-purpose",
-  "hidden-content",
-  "css-for-presentation",
-  "css-off-understandable",
-  "supplementary-content-keyboard",
-  "color-contrast-enhanced",
-  "consistent-landmarks",
-  "duplicate-page-title",
-  "markup-nesting",
-] as const;
-
 describe("check authority", () => {
   it("marks every composition-sensitive AST check", () => {
     for (const checkId of COMPOSITION_SENSITIVE) {
@@ -77,13 +34,16 @@ describe("check authority", () => {
     expect(isCompositionSensitiveCheck("color-contrast")).toBe(false);
   });
 
-  it("marks every rendered-page-only check", () => {
-    for (const checkId of RUNTIME_ONLY) {
+  it("keeps runtime findings open for every runtime-only id", () => {
+    // Iterates the source list directly — the rendered-page-only set must not
+    // drift from check-authority.ts (a hardcopy rots silently on additions).
+    for (const checkId of RUNTIME_ONLY_CHECK_IDS) {
       expect(isRuntimeOnlyCheck(checkId)).toBe(true);
       expect(keepOpenWhenRuntimeScanSkipped(checkId)).toBe(true);
     }
     expect(isRuntimeOnlyCheck("img-alt")).toBe(false);
     expect(isRuntimeOnlyCheck("input-label")).toBe(false);
+    expect(RUNTIME_ONLY_CHECK_IDS.length).toBeGreaterThan(55);
   });
 
   it("keeps runtime findings open only for authority-gated ids", () => {
