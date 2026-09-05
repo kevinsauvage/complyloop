@@ -25,7 +25,6 @@ vi.mock("@/server/actions/remediation", () => ({
 vi.mock("@/server/actions/remediation-verify", () => ({
   verifyRemediationAction: vi.fn(),
   markRemediationImplementedAction: vi.fn(),
-  manualVerifyRemediationAction: vi.fn(),
 }));
 
 const useActionStateMock = vi.fn();

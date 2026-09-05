@@ -112,8 +112,7 @@ function runtimeAct(input: FindingActInput): FindingActView {
         ...chrome(input),
         beat: "runtime_verify",
         title: "Confirm the page is fixed",
-        description:
-          "Re-run the runtime audit, or verify manually with a note.",
+        description: "Re-run the runtime audit to confirm the page is fixed.",
       };
     case "verified":
       return {
@@ -122,7 +121,7 @@ function runtimeAct(input: FindingActInput): FindingActView {
         title: "Verified",
         description:
           input.finding.resolvedNote ??
-          "Fix confirmed by automated re-check or human verification.",
+          "Fix confirmed by automated re-check.",
       };
     default: {
       const _exhaustive: never = input.remediation.status;
@@ -180,7 +179,7 @@ export function findingAct(input: FindingActInput): FindingActView {
       title: "Verified",
       description:
         input.finding.resolvedNote ??
-        "Fix confirmed by automated re-check or human verification.",
+        "Fix confirmed by automated re-check.",
     };
   }
 

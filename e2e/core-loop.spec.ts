@@ -49,21 +49,8 @@ test.describe("compliance core loop", () => {
     await expect(verify).toBeVisible();
     await verify.click();
     await expect(
-      page.getByText(/Fix verified|Manually verified|still detected/i).first(),
+      page.getByText(/Fix verified|still detected/i).first(),
     ).toBeVisible({ timeout: 60_000 });
-
-    const stillFailing = await page
-      .getByText(/still detected/i)
-      .first()
-      .isVisible()
-      .catch(() => false);
-    if (stillFailing) {
-      await page
-        .getByLabel("Verification note")
-        .fill("Verified in Playwright e2e");
-      await page.getByRole("button", { name: "Verify manually" }).click();
-      await expect(page.getByText(/Manually verified/i)).toBeVisible();
-    }
 
     await page
       .getByRole("navigation", { name: "Main" })

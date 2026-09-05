@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import type { FindingActView } from "@/core/finding-act";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { cn } from "@/lib/utils";
@@ -25,7 +24,6 @@ import { dismissFindingAction } from "@/server/actions/remediation";
 import { generateAiRemediationAction } from "@/server/actions/remediation-ai";
 import { approveRemediationAction } from "@/server/actions/remediation";
 import {
-  manualVerifyRemediationAction,
   markRemediationImplementedAction,
   verifyRemediationAction,
 } from "@/server/actions/remediation-verify";
@@ -173,31 +171,12 @@ function ActControls({
       );
     case "runtime_verify":
       return (
-        <div className="flex flex-col gap-3">
-          <StatefulActionForm
-            action={verifyRemediationAction.bind(null, finding.id)}
-            submitLabel="Verify fix (automated re-check)"
-            pendingLabel="Verifying…"
-            variant="default"
-          />
-          <StatefulActionForm
-            action={manualVerifyRemediationAction.bind(null, finding.id)}
-            submitLabel="Verify manually"
-            variant="outline"
-            className="flex flex-col gap-3"
-          >
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="manual-verify-note">Verification note</Label>
-              <Textarea
-                id="manual-verify-note"
-                name="note"
-                required
-                rows={2}
-                className="max-w-md"
-              />
-            </div>
-          </StatefulActionForm>
-        </div>
+        <StatefulActionForm
+          action={verifyRemediationAction.bind(null, finding.id)}
+          submitLabel="Verify fix (automated re-check)"
+          pendingLabel="Verifying…"
+          variant="default"
+        />
       );
     case "verified":
     case "dismissed":

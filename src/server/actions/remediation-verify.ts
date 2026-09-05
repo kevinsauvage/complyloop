@@ -8,7 +8,7 @@ import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import { formatLocationRef, isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
-import { entityIdSchema, optionalNoteSchema, requiredField } from "@/core/boundary";
+import { entityIdSchema, optionalNoteSchema } from "@/core/boundary";
 import { z } from "zod";
 import {
   actionErrorState,
@@ -37,13 +37,6 @@ import {
 
 const markImplementedInput = z.object({
   note: optionalNoteSchema,
-});
-
-const manualVerifyInput = z.object({
-  note: requiredField(
-    "A verification note is required for manual verification.",
-    2000,
-  ),
 });
 
 export async function verifyRemediationAction(
@@ -232,57 +225,5 @@ export async function markRemediationImplementedAction(
     );
     refresh();
     return "Marked as implemented.";
-  });
-}
-
-/**
- * Human verification path when automated re-check is unavailable or the user
- * has verified the fix by other means. Still requires an explicit note.
- */
-export async function manualVerifyRemediationAction(
-  findingIdRaw: string,
-  _previous: ActionMessageState,
-  formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
-    const findingId = parseInput(entityIdSchema, findingIdRaw);
-    const { note } = parseForm(manualVerifyInput, formData);
-    await withProjectWrite(
-      { touch: "entities", findingIds: [findingId] },
-      async (workspace) => {
-      const { db } = workspace;
-      const finding = findingById(db, findingId);
-      requireOnFindingProject(workspace, finding, "project.remediate");
-      const remediation = remediationForFinding(db, findingId);
-
-      if (remediation.status !== "implemented") {
-        throw new PublicError("Verification requires status implemented.");
-      }
-
-      replaceRemediation(
-        db,
-        advanceRemediation(
-          remediation,
-          "verified",
-          `Manual verification: ${note}`,
-        ),
-      );
-      finding.status = "resolved";
-      finding.resolvedNote = `Manually verified by human review: ${note}`;
-      addEvidence(db, {
-        kind: "remediation_manually_verified",
-        summary: `Manually verified ${finding.checkId} at ${formatLocationRef(finding.location)}`,
-        projectId: finding.projectId,
-        controlId: finding.controlId,
-        findingId: finding.id,
-        detail: { note, determination: "human_review" },
-      });
-      refreshRequirementStatusesForControls(db, finding.projectId, [
-        finding.controlId,
-      ]);
-    },
-    );
-    refresh();
-    return "Manually verified.";
   });
 }

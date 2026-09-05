@@ -14,7 +14,6 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 import { emptyActionMessageState } from "../action-state";
 import {
   markRemediationImplementedAction,
-  manualVerifyRemediationAction,
   verifyRemediationAction,
 } from "./remediation-verify";
 import {
@@ -274,69 +273,6 @@ describe("markRemediationImplementedAction", () => {
 
     expect(result.message).toMatch(/implemented/i);
     expect(workspace.db.remediations[0]?.status).toBe("implemented");
-  });
-});
-
-describe("manualVerifyRemediationAction", () => {
-  it("requires a verification note", async () => {
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(baseWorkspace()));
-    const result = await manualVerifyRemediationAction(
-      "f1",
-      emptyActionMessageState,
-      new FormData(),
-    );
-    expect(result.error).toMatch(/verification note is required/);
-  });
-
-  it("requires implemented status", async () => {
-    const workspace = baseWorkspace({
-      remediations: [
-        {
-          id: "r1",
-          findingId: "f1",
-          status: "approved",
-          suggestion: null,
-          history: [],
-        },
-      ],
-    });
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
-    const form = new FormData();
-    form.set("note", "Checked in staging");
-
-    const result = await manualVerifyRemediationAction(
-      "f1",
-      emptyActionMessageState,
-      form,
-    );
-    expect(result.error).toMatch(/requires status implemented/);
-  });
-
-  it("manually verifies an implemented remediation", async () => {
-    const workspace = baseWorkspace();
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
-    const form = new FormData();
-    form.set("note", "Checked in staging");
-
-    const result = await manualVerifyRemediationAction(
-      "f1",
-      emptyActionMessageState,
-      form,
-    );
-
-    expect(result.message).toBe("Manually verified.");
-    expect(workspace.db.remediations[0]?.status).toBe("verified");
-    expect(workspace.db.findings[0]?.status).toBe("resolved");
-    expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
-      workspace.db,
-      "p1",
-      ["c1"],
-    );
-    expect(
-      workspace.db.evidence.some(
-        (row) => row.kind === "remediation_manually_verified",
-      ),
-    ).toBe(true);
   });
 });
 

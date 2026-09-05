@@ -128,8 +128,7 @@ statuses → `verifyDraftPrRemediation` (uses `approvalAction` on the
 remediation, not historical evidence).
 
 **Remediation:** source = patch → ComplyLoop → draft PR → merge → re-assess
-→ `verified`. Runtime = guidance → approve → implement → re-audit or
-manual verify. UX: [`finding-flow.md`](./finding-flow.md).
+→ `verified`. Runtime = guidance → approve → implement → re-audit.
 
 **Monitoring:** webhook enqueues only (`idempotency_key` from delivery id).
 PR events post a Check Run. Failures become `assessment_job_failed`
@@ -141,7 +140,7 @@ evidence.
 
 - Evidence append-only; decisions keep history.
 - Every status records `automated` vs `human_review`.
-- `verified` only via deterministic re-check or recorded human verification.
+- `verified` only via deterministic re-check.
 - Webhook assessments idempotent via job `idempotencyKey`.
 
 ## Adding a framework
