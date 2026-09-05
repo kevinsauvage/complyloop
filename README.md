@@ -107,11 +107,13 @@ Or copy [`templates/github-actions/complyloop-check.yml`](./templates/github-act
 ## Repo layout
 
 ```
-src/core/                Domain model (framework-agnostic)
+src/core/                Framework-agnostic product helpers, RBAC, finding UX
 packages/analysis-core/  AST checks + Playwright/axe runtime + shared contract
-src/adapters/            RGAA/WCAG controls & guidance
+packages/domain/         Product domain model (orgs, projects, requirements, catalog)
+packages/db/             Postgres persistence (Drizzle schema + repo mappers)
+packages/adapters/       RGAA/WCAG catalog, presets, guidance
 src/ai/                  Optional AI (never sets statuses)
-src/server/              Postgres, assessment, GitHub, actions
+src/server/              Assessment, GitHub, actions (wires the packages)
 src/app/                 Next.js UI + API routes
 src/components/          UI (feature folders + shadcn ui/)
 src/cli/                 Source of the complyloop-check CLI

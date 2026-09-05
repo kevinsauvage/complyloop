@@ -6,20 +6,22 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md). **Enf
 
 | Piece       | Location                              | Role                                                              |
 | ----------- | ------------------------------------- | ----------------------------------------------------------------- |
-| Domain core | `src/core/`                           | Product helpers, RBAC, finding UX — framework-agnostic            |
 | Contract    | `packages/analysis-core/src/contract/` | Statuses, findings, requirement derivation — shared with analysis |
-| Adapters    | `src/adapters/`                       | RGAA/WCAG catalog, presets, guidance                              |
 | Analysis    | `packages/analysis-core/src/`         | AST checks + optional runtime audits                              |
+| Domain      | `packages/domain/src/`                | Product domain model — orgs, projects, requirements, catalog types, `PresetCatalog` port |
+| DB          | `packages/db/src/`                    | Postgres persistence — Drizzle schema, `repo/` mappers, workspace-load, client |
+| Adapters    | `packages/adapters/src/`              | RGAA/WCAG catalog, presets, guidance (depends on domain + analysis-core) |
+| App core    | `src/core/`                           | Framework-agnostic product helpers, RBAC, finding UX (imports contract + domain only) |
 | AI          | `src/ai/`                             | Explain / remediate — never sets status                           |
-| Server      | `src/server/`                         | Postgres, jobs, GitHub, actions                                   |
+| Server      | `src/server/`                         | Postgres wiring, jobs, GitHub, actions; application logic         |
 | App         | `src/app/`                            | Next.js UI + API routes                                           |
 | CI          | `packages/check/`                     | `npx complyloop-check` (AST only)                                 |
 
-Statuses, findings, requirement derivation, `PublicError`, and assessment limits live in `packages/analysis-core/src/contract/`. App, server, UI, and `src/core/` import `@complyloop/analysis-core/contract/*` directly. `src/core` must not import any other analysis-core subpath (ESLint `no-restricted-imports` allow-lists `contract/*` only).
+Statuses, findings, requirement derivation, `PublicError`, and assessment limits live in `packages/analysis-core/src/contract/`. The product domain model (orgs, projects, requirements, catalog types, `PresetCatalog`) lives in `packages/domain/src/`. Postgres persistence lives in `packages/db/src/`; the RGAA/WCAG catalog lives in `packages/adapters/src/`. App, server, UI, and `src/core/` import `@complyloop/analysis-core/contract/*`, `@complyloop/domain/*`, `@complyloop/db/*`, and `@complyloop/adapters/*` directly. `src/core` must not import adapters, db, or any analysis-core subpath beyond `contract/*` (ESLint `no-restricted-imports`).
 
 **Connectors today:** GitHub only. **Persistence:** Postgres via Drizzle (`DATABASE_URL`). Evidence is **append-only** (no FKs — rows outlive project disconnect and org deletion). GitHub tokens encrypted at rest (AES-256-GCM). Assessments run as **durable jobs** (`npm run worker` in prod).
 
-**Build coupling:** `@complyloop/analysis-core` `exports` point at **`src/*.ts`**. Relative imports inside the package use `.ts` specifiers so Turbopack can resolve them; `tsc` rewrites those to `.js` when emitting `dist` (`rewriteRelativeImportExtensions`). Next transpiles the workspace package (`transpilePackages`); tsx/Vitest load the same files. `dist/` is gitignored and only produced by `npm run build:core` for npm publish (`publishConfig` remaps exports to `dist`). `@complyloop/check` is bundled from source via an esbuild alias in `scripts/build-check.mjs`.
+**Build coupling:** `@complyloop/analysis-core`, `@complyloop/domain`, `@complyloop/db`, and `@complyloop/adapters` all point their `exports` at **`src/*.ts`**. Relative imports inside each package use `.ts` specifiers so Turbopack can resolve them; `tsc` rewrites those to `.js` when emitting `dist` (`rewriteRelativeImportExtensions`). Next transpiles the workspace packages (`transpilePackages`); tsx/Vitest load the same files. Each `dist/` is gitignored and only produced by its `npm run build:*` for npm publish (`publishConfig` remaps exports to `dist`). `@complyloop/check` is bundled from source via an esbuild alias in `scripts/build-check.mjs`.
 
 ## System diagram
 
@@ -52,10 +54,10 @@ Statuses, findings, requirement derivation, `PublicError`, and assessment limits
 
 ## Persistence & tenancy
 
-- **Postgres** — frameworks, controls, orgs, memberships, projects, requirements, assessments, `assessment_snapshots`, findings, remediations, alerts, evidence, encrypted GitHub tokens, webhook delivery ids, `assessment_jobs`, rate-limit buckets. Domain rows store typed JSONB payloads (`src/server/db-store/schema.ts`) plus a few indexed columns (`project_id`, `status`, …). Catalog is seeded on deploy (`npm run seed` / `db:migrate`), not rewritten on every user action. One hand-written init migration (`drizzle/0000_init.sql`).
+- **Postgres** — frameworks, controls, orgs, memberships, projects, requirements, assessments, `assessment_snapshots`, findings, remediations, alerts, evidence, encrypted GitHub tokens, webhook delivery ids, `assessment_jobs`, rate-limit buckets. Domain rows store typed JSONB payloads (`packages/db/src/schema.ts`) plus a few indexed columns (`project_id`, `status`, …). Catalog is seeded on deploy (`npm run seed` / `db:migrate`), not rewritten on every user action. One hand-written init migration (`drizzle/0000_init.sql`).
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`); projects belong to orgs. This **is** the product model (invites by GitHub login, roles `owner|admin|member|viewer`, org switcher, personal-org auto-provisioning) — see [product spec §24](../compliance-engineering-product-spec.md#24-mvp-scope). Workspace load stays membership-org + active project.
 - **Reads** — `getWorkspace()` loads the catalog, the viewer's orgs/memberships, the project switcher list for those orgs, and **runtime for the active project only** (requirements, assessments **without** file-hash snapshots, findings, remediations, alerts, evidence window). File hashes live in `assessment_snapshots` and are loaded only for `runAssessment` (`loadProjectAssessmentDb`). Evidence pages/exports/finding detail query SQL directly (`postgres-queries.ts`).
-- **Writes** — actions use `withProjectWrite` / `withOrgWrite` (`workspace.ts`): load the scoped slice, mutate in memory, persist **changed rows** via `src/server/db-store/repo/*` (upserts by id, evidence insert-only). Project field changes (`runtimeBaseUrl`, `defaultPresetId`, …) update the project row. There is no replace-all sync or prune of untouched rows.
+- **Writes** — actions use `withProjectWrite` / `withOrgWrite` (`workspace.ts`): load the scoped slice, mutate in memory, persist **changed rows** via `packages/db/src/repo/*` (upserts by id, evidence insert-only). Project field changes (`runtimeBaseUrl`, `defaultPresetId`, …) update the project row. There is no replace-all sync or prune of untouched rows.
 - **Assessments** — the worker clones and scans **outside** a store transaction, then `applyAssessmentPayload` upserts findings/requirements/remediations and inserts the assessment + snapshot + evidence in one short transaction (`assessment-worker.ts`). `runAssessment` still mutates a project-scoped in-memory `Db` for the duration of the scan; that is the apply payload, not a tenant-wide rewrite.
 - **Locks** — job claim uses `FOR UPDATE SKIP LOCKED` (enqueue is an ordinary insert; idempotent webhook keys rely on the unique index). Rate limits use per-key named locks. Workspace writes use a normal Drizzle transaction.
 - **Latest assessment** — `latestAssessmentFor` (`src/core/assessment-latest.ts`) compares `completedAt`. Do not use `.at(-1)` on `db.assessments` (loaders return newest-first).
@@ -67,10 +69,13 @@ Statuses, findings, requirement derivation, `PublicError`, and assessment limits
 ## Module boundaries
 
 ```
-src/core/                ← no imports from adapters, analysis (except contract/), server, app
-packages/analysis-core/  ← no imports from src/server/ or src/app/
-                           contract/ is the shared status/finding types
-src/server/, app/        ← integrate core + analysis; catalog via adapters
+src/core/                ← no imports from adapters, db, analysis (except contract/), server, app
+packages/domain/         ← imports analysis-core/contract/* only
+packages/adapters/       ← imports domain + analysis-core (engine subpaths), never app/server
+packages/db/             ← imports domain + analysis-core/contract/*, never app/server/adapters
+packages/analysis-core/  ← no imports from src/server/ or src/app/; contract/ is the shared types
+src/server/, app/        ← integrate core + domain + db + adapters + analysis
+dependency direction:  analysis-core/contract  →  domain  →  { db, adapters, app }
 ```
 
 WCAG reuses the RGAA control catalog (`wcag` adapter registers framework metadata + presets; `wcag/presets.ts` reads `rgaaControls` directly). Pages, reports, and `control-theme.ts` may import adapter modules directly — with one catalog, a registry-only import rule is not worth enforcing.
@@ -226,8 +231,8 @@ HTML exports from `/evidence/report/html`: engineering (`report-html/engineering
 
 ## Adding a framework
 
-1. `src/adapters/<name>/` — metadata, presets, controls (or reuse a catalog like WCAG does with RGAA).
-2. Register in `src/adapters/registry.ts` (optional `guidanceFor` on the adapter).
+1. `packages/adapters/src/<name>/` — metadata, presets, controls (or reuse a catalog like WCAG does with RGAA).
+2. Register in `packages/adapters/src/registry.ts` (optional `guidanceFor` on the adapter).
 3. Server/app import adapters **only** via registry — not `adapters/rgaa/*` directly.
 
 ## Tests
@@ -235,12 +240,12 @@ HTML exports from `/evidence/report/html`: engineering (`report-html/engineering
 | Command                 | What                                                                                |
 | ----------------------- | ----------------------------------------------------------------------------------- |
 | `npm run test`          | Vitest unit/integration                                                             |
-| `npm run test:coverage` | Gates on `src/core`, `src/adapters`, `packages/analysis-core`, `src/ai`, `src/hooks`, most of `src/server` (lines 94 / functions 96 / branches 80 / statements 90) |
+| `npm run test:coverage` | Gates on `src/core`, `packages/analysis-core`, `packages/domain`, `packages/db`, `packages/adapters`, `src/ai`, `src/hooks`, most of `src/server` (lines 94 / functions 96 / branches 80 / statements 90) |
 | `npm run test:e2e`      | Playwright (gated harness)                                                          |
 
-Excluded from the unit coverage gate (`vitest.config.mts`): Playwright `runtime/scan.ts` and page probes (`custom-checks/**`, `html-validate-runtime.ts`, `applicability.ts`, `dom-target.ts`, `site-level/link-check.ts` — they skip or need a browser/network in the unit job), `seed.ts`, thin Next/cookie/workspace glue, live GitHub checkout/token/app/octokit helpers, markdown `report.ts`, and live Postgres wiring (`db-store/client`, `schema`, `workspace-load`, `postgres-url`, `postgres-queries`, `write-lock`, `repo/**`). Modules with unit tests (`pr.ts`, `github.ts`, `webhook-deliveries.ts`, `remediation-verify.ts`, `postgres-ssl.ts`, `postgres-evidence.ts`) are in the gate. Thresholds (lines 94 / functions 96 / branches 80 / statements 90) match that unit-job surface — Playwright probes used to be counted at ~30% and made the old 96/94/85 numbers unreachable. HTML reports are exercised through `report.test.ts` and `report-html/shared.test.ts`; `audit.ts` / `engineering.ts` have no colocated tests.
+Excluded from the unit coverage gate (`vitest.config.mts`): Playwright `runtime/scan.ts` and page probes (`custom-checks/**`, `html-validate-runtime.ts`, `applicability.ts`, `dom-target.ts`, `site-level/link-check.ts` — they skip or need a browser/network in the unit job), `seed.ts`, thin Next/cookie/workspace glue, live GitHub checkout/token/app/octokit helpers, markdown `report.ts`, and live Postgres wiring (`packages/db/src/client`, `schema`, `workspace-load`, `postgres-url`, `postgres-queries`, `write-lock`, `repo/**`). Modules with unit tests (`pr.ts`, `github.ts`, `webhook-deliveries.ts`, `remediation-verify.ts`, `postgres-ssl.ts`, `postgres-evidence.ts`) are in the gate. Thresholds (lines 94 / functions 96 / branches 80 / statements 90) match that unit-job surface — Playwright probes used to be counted at ~30% and made the old 96/94/85 numbers unreachable. HTML reports are exercised through `report.test.ts` and `report-html/shared.test.ts`; `audit.ts` / `engineering.ts` have no colocated tests.
 
-`npm run test` resolves `@complyloop/analysis-core/*` to analysis-core **source** (see *Build coupling* above).
+`npm run test` resolves `@complyloop/analysis-core/*`, `@complyloop/domain/*`, `@complyloop/db/*`, and `@complyloop/adapters/*` to their **source** (see *Build coupling* below).
 
 ## Related
 

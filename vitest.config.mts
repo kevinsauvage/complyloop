@@ -24,12 +24,12 @@ export default defineConfig({
       // are exercised by integration suites and excluded from unit thresholds.
       include: [
         "src/core/**",
-        "src/adapters/**",
         "src/ai/**",
         "src/hooks/**",
         "src/server/**",
         "packages/analysis-core/src/**",
         "packages/db/src/**",
+        "packages/domain/src/**",
         "packages/adapters/src/**",
       ],
       exclude: [

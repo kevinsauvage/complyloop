@@ -108,7 +108,7 @@ use the same `npm run db:migrate`.
 The DB trigger rejects `UPDATE`/`DELETE` on evidence. Proof tests:
 
 ```bash
-npm run test -- src/server/db-store/constraints.test.ts src/server/db-store/evidence-append-only.test.ts
+npm run test -- packages/db/src/constraints.test.ts packages/db/src/evidence-append-only.test.ts
 ```
 
 ### Reset (local / pre-launch only)

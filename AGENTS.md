@@ -67,11 +67,13 @@ npm run test:e2e         # Playwright (after e2e:seed)
 ## Where code lives
 
 ```
-src/core/                          Framework-agnostic domain helpers; statuses/findings live in analysis-core/contract
+src/core/                          Framework-agnostic product helpers, RBAC, finding UX (imports contract + domain only)
 packages/analysis-core/src/        AST checks (checks/registry.ts) + runtime audits + contract/ (statuses, findings, status derivation)
-src/adapters/rgaa/                 RGAA/WCAG catalog & guidance
+packages/domain/src/               Product domain model — orgs, projects, requirements, catalog types (depends on analysis-core/contract only)
+packages/db/src/                   Postgres persistence — Drizzle schema, repo/ mappers, workspace-load, client
+packages/adapters/src/             RGAA/WCAG catalog, presets, guidance (depends on domain + analysis-core)
 src/ai/                            Optional AI (provenance-tagged)
-src/server/                        Persistence, assessment, GitHub, actions
+src/server/                        Application logic: assessment, GitHub, actions (wires the packages)
 src/app/                           App Router pages + API routes
 src/components/                    UI (feature folders + ui/)
 packages/check/                    CI CLI (testdata/ = deliberate violations)
@@ -83,6 +85,6 @@ docs/ai/                           Architecture notes
 
 1. Check the product spec section that applies.
 2. Map the change to a core-loop stage.
-3. Keep `src/core/` framework-agnostic; RGAA/WCAG behind `src/adapters/`.
+3. Keep `src/core/` framework-agnostic; RGAA/WCAG catalog in `packages/adapters/`.
 4. Use canonical statuses with exhaustive `switch` + `never` default ([`domain-model`](./.cursor/rules/domain-model.mdc)).
 5. Update `docs/ai/architecture.md` when system shape or persistence changes.
