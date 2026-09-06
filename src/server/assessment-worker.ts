@@ -103,16 +103,23 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
     project.id,
   );
 
+  // Only the default branch (or an explicit manual assessment) is
+  // authoritative for the project's compliance state. A webhook pull-request
+  // scan assesses a proposed change: it posts a Check Run but must not
+  // resolve findings, flip statuses, or auto-verify remediations.
+  const authoritative = !job.payload.pullRequestHeadSha;
+
   const result = await withProjectCheckout(
     project,
     async (rootPath) => {
       const evidenceStart = db.evidence.length;
       const assessment = await runAssessment(db, project.id, {
         rootPath,
+        authoritative,
       });
       const trigger = job.payload.eventName ?? "manual assessment";
       const alerts =
-        job.trigger === "webhook"
+        authoritative && job.trigger === "webhook"
           ? collectRegressionAlerts(db, project.id, assessment.id, trigger)
           : [];
 
@@ -121,38 +128,40 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
         throw new Error("Assessment completed without a snapshot.");
       }
 
-      const drizzle = await getDrizzle();
-      await drizzle.transaction(async (tx) => {
-        await acquireNamedPostgresAdvisoryLock(
-          tx,
-          projectWriteLockKey(project.id),
-        );
-        await applyAssessmentPayload(
-          tx,
-          buildAssessmentApplyPayload({
-            assessment,
-            snapshot,
-            evidence: db.evidence.slice(evidenceStart),
-            findings: db.findings,
-            remediations: db.remediations,
-            requirements: db.requirements,
-            alerts,
-          }),
-          { loadedSlice },
-        );
-        await insertEvidence(tx, {
-          kind: "assessment_job",
-          summary: `Assessment job ${job.id} completed for "${project.name}"`,
-          projectId: project.id,
-          assessmentId: assessment.id,
-          detail: {
-            phase: "completed",
-            jobId: job.id,
-            trigger: job.trigger,
-            alerts: alerts.length,
-          },
+      if (authoritative) {
+        const drizzle = await getDrizzle();
+        await drizzle.transaction(async (tx) => {
+          await acquireNamedPostgresAdvisoryLock(
+            tx,
+            projectWriteLockKey(project.id),
+          );
+          await applyAssessmentPayload(
+            tx,
+            buildAssessmentApplyPayload({
+              assessment,
+              snapshot,
+              evidence: db.evidence.slice(evidenceStart),
+              findings: db.findings,
+              remediations: db.remediations,
+              requirements: db.requirements,
+              alerts,
+            }),
+            { loadedSlice },
+          );
+          await insertEvidence(tx, {
+            kind: "assessment_job",
+            summary: `Assessment job ${job.id} completed for "${project.name}"`,
+            projectId: project.id,
+            assessmentId: assessment.id,
+            detail: {
+              phase: "completed",
+              jobId: job.id,
+              trigger: job.trigger,
+              alerts: alerts.length,
+            },
+          });
         });
-      });
+      }
 
       const openViolations = db.findings.filter(
         (finding) =>

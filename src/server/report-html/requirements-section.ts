@@ -1,5 +1,5 @@
 import { requirementStatusLabel } from "@/core/labels";
-import { formatDateTime } from "@/core/format-datetime";
+import { formatDateTimeWithZone } from "@/core/format-datetime";
 import {
   REQUIREMENT_STATUSES,
   type RequirementStatus,
@@ -25,14 +25,14 @@ export function renderRequirements(requirements: AuditRequirementRow[]): string 
         ? `<div class="note">${escapeHtml(req.exception.note)}</div>`
         : "";
       const exceptionReason = req.exception
-        ? `<div class="note">Exception: ${escapeHtml(req.exception.reason)} · ${escapeHtml(formatDateTime(req.exception.at))}</div>`
+        ? `<div class="note">Exception: ${escapeHtml(req.exception.reason)} · ${escapeHtml(formatDateTimeWithZone(req.exception.at))}</div>`
         : "";
       return `<tr>
   <td><code>${escapeHtml(req.code)}</code></td>
   <td>${escapeHtml(req.title)}</td>
   <td><span class="badge ${statusClass(req.status)}">${escapeHtml(req.statusLabel)}</span></td>
   <td class="muted">${escapeHtml(req.determinationLabel)}</td>
-  <td class="nowrap muted">${escapeHtml(formatDateTime(req.updatedAt))}</td>
+  <td class="nowrap muted">${escapeHtml(formatDateTimeWithZone(req.updatedAt))}</td>
 </tr>${exceptionReason || exceptionNote ? `<tr class="exception-row"><td colspan="5">${exceptionReason}${exceptionNote}</td></tr>` : ""}`;
     })
     .join("\n");

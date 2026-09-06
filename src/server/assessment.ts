@@ -35,6 +35,13 @@ export interface RunAssessmentOptions {
   runtimeScanner?: RuntimePageScanner;
   /** Injected DNS lookup for runtime SSRF checks in tests. */
   runtimeLookup?: DnsLookup;
+  /**
+   * When false this is a preview scan (e.g. a pull-request head) and must not
+   * derive persistent compliance decisions: finding resolution stays
+   * in-memory for the check summary but remediation auto-verification is
+   * skipped, and the worker does not persist the diff. Defaults to true.
+   */
+  authoritative?: boolean;
 }
 
 function verifyDraftPrRemediation(
@@ -171,8 +178,13 @@ export async function runAssessment(
       scopedFileSet,
       runtimeConfigured,
       runtimeRan,
-      onFindingResolved: (finding) =>
-        verifyDraftPrRemediation(db, finding, assessmentId),
+      // A preview scan (PR head / feature branch) must not derive the
+      // persistent compliance decision: never auto-verify an approved
+      // remediation off a branch the project's state does not reflect.
+      onFindingResolved:
+        options.authoritative === false
+          ? () => {}
+          : (finding) => verifyDraftPrRemediation(db, finding, assessmentId),
     });
   }
 

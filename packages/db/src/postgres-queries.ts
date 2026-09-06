@@ -169,13 +169,13 @@ export async function listEvidenceForFinding(
 export async function findProjectByGithubFullName(
   drizzle: DrizzleDb,
   fullName: string,
-): Promise<{ id: string; orgId: string } | null> {
+): Promise<{ id: string; orgId: string; defaultBranch?: string } | null> {
   const normalized = fullName.toLowerCase();
   const rows = await drizzle
     .select({
       id: projects.id,
       orgId: projects.orgId,
-      payload: projects.payload,
+      githubDefaultBranch: sql<string | null>`${projects.payload}->'github'->>'defaultBranch'`,
     })
     .from(projects)
     .where(
@@ -184,7 +184,13 @@ export async function findProjectByGithubFullName(
     .limit(1);
   const row = rows[0];
   if (!row?.orgId) return null;
-  return { id: row.id, orgId: row.orgId };
+  return {
+    id: row.id,
+    orgId: row.orgId,
+    ...(typeof row.githubDefaultBranch === "string"
+      ? { defaultBranch: row.githubDefaultBranch }
+      : {}),
+  };
 }
 
 /** Org ids the user belongs to (membership lookup before a scoped load). */

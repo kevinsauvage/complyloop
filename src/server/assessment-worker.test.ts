@@ -187,6 +187,7 @@ describe("processNextAssessmentJob", () => {
     });
     expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
       rootPath: "/tmp/checkout",
+      authoritative: true,
     });
     expect(applyAssessmentPayload).toHaveBeenCalled();
     expect(insertEvidence).toHaveBeenCalledWith(
@@ -237,6 +238,7 @@ describe("processNextAssessmentJob", () => {
     });
     expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
       rootPath: "/tmp/checkout",
+      authoritative: true,
     });
     expect(applyAssessmentPayload).toHaveBeenCalledWith(
       expect.anything(),
@@ -402,6 +404,14 @@ describe("processNextAssessmentJob", () => {
       kind: "succeeded",
       jobId: "job-1",
     });
+    // A PR-head scan is a preview: it posts the Check Run but must not
+    // persist any project compliance state.
+    expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
+      rootPath: "/tmp/checkout",
+      authoritative: false,
+    });
+    expect(applyAssessmentPayload).not.toHaveBeenCalled();
+    expect(insertEvidence).not.toHaveBeenCalled();
     expect(postPullRequestCheckRun).toHaveBeenCalledWith(
       expect.objectContaining({
         fullName: "acme/shop",
@@ -409,6 +419,40 @@ describe("processNextAssessmentJob", () => {
         token: "ghs_token",
       }),
     );
+  });
+
+  it("treats a default-branch webhook push as authoritative and persists", async () => {
+    const db = emptyDb();
+    claimNextAssessmentJob.mockResolvedValue(
+      job({
+        trigger: "webhook",
+        payload: { eventName: "push" },
+      }),
+    );
+    loadProjectDb.mockResolvedValue(db);
+    withProjectCheckout.mockImplementation(
+      async (
+        _project: unknown,
+        fn: (rootPath: string) => Promise<unknown>,
+      ) => fn("/tmp/checkout"),
+    );
+    runAssessment.mockResolvedValue({
+      id: "a1",
+      projectId: "p1",
+      snapshot: { fileHashes: {} },
+    });
+    completeAssessmentJob.mockResolvedValue(undefined);
+
+    await expect(processNextAssessmentJob()).resolves.toEqual({
+      kind: "succeeded",
+      jobId: "job-1",
+    });
+    expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
+      rootPath: "/tmp/checkout",
+      authoritative: true,
+    });
+    expect(applyAssessmentPayload).toHaveBeenCalled();
+    expect(insertEvidence).toHaveBeenCalled();
   });
 
   it("warns when a PR check cannot be posted", async () => {

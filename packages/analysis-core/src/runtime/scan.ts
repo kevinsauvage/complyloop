@@ -502,18 +502,36 @@ async function collectBrowserConditionFindings(
 
 /**
  * Re-checks whether a specific DOM finding still fails on its URL.
- * Returns true when the same check + selector (or snippet) is still present.
+ * Returns true when the same check + selector (or snippet) is still present,
+ * and fails closed (returns true) whenever the page cannot be shown to have
+ * rendered cleanly — an unreachable/blocked page or an empty scan must never
+ * allow "verified".
  */
 export async function runtimeViolationStillPresent(
   finding: Pick<RawFinding, "checkId" | "location">,
   scanner: RuntimePageScanner = createPlaywrightAxeScanner(),
 ): Promise<boolean> {
-  if (finding.location.kind !== "dom") return false;
+  if (finding.location.kind !== "dom") {
+    throw new PublicError(
+      "Runtime verification requires a finding with a DOM location.",
+    );
+  }
   const url = finding.location.url;
   const selector = finding.location.selector;
   const snippet = finding.location.snippet;
-  await assertSafeRuntimeUrl(url);
-  const pages = await scanner([url]);
+
+  let pages: RuntimeScanPageResult[];
+  try {
+    await assertSafeRuntimeUrl(url);
+    pages = await scanner([url]);
+  } catch {
+    // Unreachable / blocked / scan failure: we cannot prove the fix, so the
+    // violation is treated as still present (fail closed — never verified).
+    return true;
+  }
+  // A page that rendered nothing also cannot be verified clean.
+  if (pages.length === 0) return true;
+
   const raw = findingsFromAxePages(pages);
   return raw.some(
     (candidate) =>

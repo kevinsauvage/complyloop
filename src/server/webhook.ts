@@ -79,6 +79,20 @@ function checkoutRef(event: HandledWebhookEvent): string | undefined {
   return typeof sha === "string" && sha.length > 0 ? sha : undefined;
 }
 
+/**
+ * Only pushes to the project's default branch are authoritative for the
+ * project's compliance state. Scans of feature branches must not resolve
+ * findings or auto-verify remediations, so we do not enqueue them here.
+ */
+function isDefaultBranchPush(
+  payload: PushPayload,
+  project: { defaultBranch?: string } | null,
+): boolean {
+  const branch = project?.defaultBranch;
+  return typeof payload.ref === "string" && typeof branch === "string" &&
+    payload.ref === `refs/heads/${branch}`;
+}
+
 export interface WebhookHandleResult {
   handled: boolean;
   message: string;
@@ -104,6 +118,18 @@ export async function handleGitHubWebhookEvent(
   const project = await findProjectByGithubFullName(drizzle, fullName);
   if (!project) {
     return { handled: false, message: `No connected project for ${fullName}` };
+  }
+
+  if (
+    parsed.event.kind === "push" &&
+    !isDefaultBranchPush(parsed.event.payload, project)
+  ) {
+    // Feature-branch pushes are not authoritative; scanning them could resolve
+    // findings / auto-verify remediations off the project's real state.
+    return {
+      handled: false,
+      message: `Ignored push to a non-default branch for ${fullName}.`,
+    };
   }
 
   await assertRateLimit(`webhook:${project.id}`, 60, 60_000);

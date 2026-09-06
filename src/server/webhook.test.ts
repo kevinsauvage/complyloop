@@ -38,7 +38,11 @@ describe("verifyGitHubSignature", () => {
 
 describe("handleGitHubWebhookEvent", () => {
   it("enqueues an idempotent push assessment without cloning in the request path", async () => {
-    findProjectByGithubFullName.mockResolvedValue({ id: "p1", orgId: "org-1" });
+    findProjectByGithubFullName.mockResolvedValue({
+      id: "p1",
+      orgId: "org-1",
+      defaultBranch: "main",
+    });
     enqueueAssessmentJob.mockResolvedValue({ id: "job-1" });
 
     const result = await handleGitHubWebhookEvent(
@@ -67,6 +71,29 @@ describe("handleGitHubWebhookEvent", () => {
       message: "Queued re-assessment of acme/app.",
       jobId: "job-1",
     });
+  });
+
+  it("ignores push events to a non-default branch", async () => {
+    findProjectByGithubFullName.mockResolvedValue({
+      id: "p1",
+      orgId: "org-1",
+      defaultBranch: "main",
+    });
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        repository: { full_name: "acme/app" },
+        ref: "refs/heads/feature/foo",
+        after: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      "delivery-feature",
+    );
+
+    expect(result.handled).toBe(false);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+    // A feature branch must not consume the project webhook rate limit.
+    expect(assertRateLimit).not.toHaveBeenCalled();
   });
 
   it("retains the PR head SHA for the worker Check Run", async () => {

@@ -4,7 +4,7 @@ import {
   type FindingStatus,
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
-import { formatDateTime } from "@/core/format-datetime";
+import { formatDateTimeWithZone } from "@/core/format-datetime";
 import { findingStatusLabel, requirementStatusLabel } from "@/core/labels";
 import {
   composeAuditReport,
@@ -29,7 +29,7 @@ function headerMarkdown(header: ReportHeaderModel): string[] {
   return [
     `# ${header.title} — ${inline(header.projectName)}`,
     ``,
-    `**Exported:** ${formatDateTime(header.exportedAt)}`,
+    `**Exported:** ${formatDateTimeWithZone(header.exportedAt)}`,
     `**Framework:** ${header.frameworkName} (${header.frameworkVersion})`,
     `**Project source:** ${header.sourceKind}${header.sourceRef ? ` — ${header.sourceRef}` : ""}`,
     header.githubFullName
@@ -151,10 +151,10 @@ function renderAuditMarkdown(model: AuditReportModel): string {
     );
     if (requirement.exception) {
       lines.push(
-        `- **Exception:** ${inline(requirement.exception.reason)} — ${inline(requirement.exception.note)} (${formatDateTime(requirement.exception.at)})`,
+        `- **Exception:** ${inline(requirement.exception.reason)} — ${inline(requirement.exception.note)} (${formatDateTimeWithZone(requirement.exception.at)})`,
       );
     }
-    lines.push(`- **Updated:** ${formatDateTime(requirement.updatedAt)}`);
+    lines.push(`- **Updated:** ${formatDateTimeWithZone(requirement.updatedAt)}`);
     lines.push(`- ${inline(requirement.description)}`);
     lines.push(``);
   }
@@ -166,7 +166,7 @@ function renderAuditMarkdown(model: AuditReportModel): string {
   } else {
     for (const record of model.evidence) {
       lines.push(
-        `- ${formatDateTime(record.at)} · **${record.kindLabel}** — ${inline(record.summary)}`,
+        `- ${formatDateTimeWithZone(record.at)} · **${record.kindLabel}** — ${inline(record.summary)}`,
       );
     }
   }

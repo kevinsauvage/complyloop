@@ -4,9 +4,12 @@ import {
   gotoForRuntimeAudit,
   resolveAxeMinJsPath,
   runAxeOnPage,
+  runtimeViolationStillPresent,
+  type RuntimePageScanner,
 } from "./scan";
 import { emulateCoarsePointer } from "./viewport-conditions";
 import * as htmlValidateRuntime from "./html-validate-runtime";
+import type { RawFinding } from "../types";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
@@ -143,4 +146,83 @@ describe("runtime engine isolation", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+});
+
+describe("runtimeViolationStillPresent", () => {
+  const domFinding = {
+    checkId: "color-contrast" as const,
+    location: {
+      kind: "dom" as const,
+      // Literal public IP: passes the SSRF hostname check and skips DNS in tests.
+      url: "https://8.8.8.8/checkout",
+      selector: "#total",
+      snippet: "<button id=\"total\">Total</button>",
+    },
+  };
+
+  const presentFinding: RawFinding = {
+    checkId: "color-contrast",
+    kind: "violation",
+    severity: "serious",
+    confidence: "high",
+    reason: "Low contrast on the total button",
+    location: domFinding.location,
+    fix: null,
+    engine: "runtime",
+  };
+
+  function pageWith(findings: RawFinding[]): RuntimePageScanner {
+    return async () => [
+      {
+        url: "https://8.8.8.8/checkout",
+        violations: [],
+        customFindings: findings,
+      },
+    ];
+  }
+
+  it("returns true when the same violation is still present", async () => {
+    await expect(
+      runtimeViolationStillPresent(domFinding, pageWith([presentFinding])),
+    ).resolves.toBe(true);
+  });
+
+  it("returns false when the violating node is gone from a rendered page", async () => {
+    await expect(
+      runtimeViolationStillPresent(domFinding, pageWith([])),
+    ).resolves.toBe(false);
+  });
+
+  it("fails closed (true) when no page is produced", async () => {
+    await expect(
+      runtimeViolationStillPresent(domFinding, async () => []),
+    ).resolves.toBe(true);
+  });
+
+  it("fails closed (true) when the scan throws (unreachable preview)", async () => {
+    await expect(
+      runtimeViolationStillPresent(domFinding, async () => {
+        throw new Error("preview url unreachable");
+      }),
+    ).resolves.toBe(true);
+  });
+
+  it("throws for a non-DOM finding instead of under-verifying", async () => {
+    await expect(
+      runtimeViolationStillPresent(
+        {
+          checkId: "color-contrast",
+          location: {
+            kind: "source",
+            filePath: "src/Checkout.tsx",
+            line: 3,
+            column: 1,
+            snippet: "<button>Total</button>",
+            span: { start: 0, end: 21 },
+          },
+        },
+        pageWith([]),
+      ),
+    ).rejects.toThrow(/DOM location/);
+  });
 });

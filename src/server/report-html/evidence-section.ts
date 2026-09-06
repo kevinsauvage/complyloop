@@ -1,4 +1,4 @@
-import { formatDateTime } from "@/core/format-datetime";
+import { formatDateTimeWithZone } from "@/core/format-datetime";
 import type { AuditEvidenceRow } from "../report-model";
 import { emptyParagraph, escapeHtml } from "./shared";
 
@@ -11,7 +11,7 @@ export function renderEvidence(evidence: AuditEvidenceRow[]): string {
     .map(
       (entry) =>
         `<tr>
-  <td class="nowrap">${escapeHtml(formatDateTime(entry.at))}</td>
+  <td class="nowrap">${escapeHtml(formatDateTimeWithZone(entry.at))}</td>
   <td>${escapeHtml(entry.kindLabel)}</td>
   <td>${escapeHtml(entry.summary)}</td>
 </tr>`,

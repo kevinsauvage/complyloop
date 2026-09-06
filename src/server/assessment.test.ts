@@ -158,6 +158,31 @@ describe("runAssessment", () => {
     expect(remediation.status).toBe("approved");
   });
 
+  it("does not auto-verify a draft-PR remediation on a preview (non-authoritative) scan", async () => {
+    await runAssessment(db, project.id, { rootPath });
+    const finding = db.findings[0]!;
+    const remediation = db.remediations[0]!;
+    remediation.status = "approved";
+    remediation.approvalAction = "create_draft_pull_request";
+    remediation.history.push({
+      status: "approved",
+      at: new Date().toISOString(),
+      note: "Approved by creating a draft pull request",
+    });
+
+    // The fix is present on the scanned ref, so the finding resolves — but
+    // because this is a preview scan (non-authoritative), the approved
+    // remediation must NOT be auto-verified.
+    fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
+    await runAssessment(db, project.id, { rootPath, authoritative: false });
+
+    expect(finding.status).toBe("resolved");
+    expect(db.remediations[0]?.status).toBe("approved");
+    expect(
+      db.remediations[0]?.history.some((entry) => entry.status === "verified"),
+    ).toBe(false);
+  });
+
   it("keeps dismissed findings dismissed on re-assessment", async () => {
     await runAssessment(db, project.id, { rootPath });
     db.findings[0].status = "dismissed";

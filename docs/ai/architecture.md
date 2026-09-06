@@ -53,8 +53,10 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
   Assessment apply diffs against a job-start snapshot
   (`applyAssessmentPayload`).
 - **Locks** — job claim `FOR UPDATE SKIP LOCKED`; interactive writes and
-  apply take `project-write:{projectId}`. Requirement upserts skip rows
-  whose DB `updatedAt` is newer than the loaded snapshot.
+  apply take `project-write:{projectId}`. Requirement, finding and remediation
+  upserts skip rows whose DB `updatedAt` is newer than the loaded slice
+  (`repo/upsert-guard.ts`), so a stale apply cannot revert a concurrent human
+  decision.
 - **Latest assessment** — `latestAssessmentFor` compares `completedAt`.
   Do not use `.at(-1)` (loaders return newest-first).
 - **Jobs** — 30-min lease, 3 attempts, serial per project. HTTP only
@@ -125,14 +127,19 @@ Assessments always use the project's `defaultPresetId`. Requirements page
 **Assessment:** enqueue → worker clones + scans → `detectChanges` (depth-1
 clone: author is HEAD) → AST → optional Playwright → merge → re-derive
 statuses → `verifyDraftPrRemediation` (uses `approvalAction` on the
-remediation, not historical evidence).
+remediation, not historical evidence). Only a **default-branch** scan (or a
+manual assessment) is authoritative: it persists findings/statuses and may
+auto-verify. A **pull-request head** scan is a preview — it runs the same
+analysis to post a Check Run but never resolves findings, flips statuses, or
+auto-verifies, and persists nothing to the project store.
 
 **Remediation:** source = patch → ComplyLoop → draft PR → merge → re-assess
 → `verified`. Runtime = guidance → approve → implement → re-audit.
 
 **Monitoring:** webhook enqueues only (`idempotency_key` from delivery id).
-PR events post a Check Run. Failures become `assessment_job_failed`
-evidence.
+Only pushes to the project's default branch are enqueued as authoritative
+assessments; feature-branch pushes are ignored. PR events post a Check Run.
+Failures become `assessment_job_failed` evidence.
 
 **Reports:** shared `ReportModel` (`report-model.ts`).
 

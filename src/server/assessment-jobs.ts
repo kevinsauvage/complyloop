@@ -51,19 +51,15 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
-const JOB_STATUSES = ASSESSMENT_JOB_STATUSES;
-
-const JOB_TRIGGERS = ASSESSMENT_JOB_TRIGGERS;
-
 function parseJobStatus(value: string): AssessmentJobStatus {
-  for (const status of JOB_STATUSES) {
+  for (const status of ASSESSMENT_JOB_STATUSES) {
     if (status === value) return status;
   }
   throw new Error(`Unexpected assessment job status: ${value}`);
 }
 
 function parseJobTrigger(value: string): AssessmentJobTrigger {
-  for (const trigger of JOB_TRIGGERS) {
+  for (const trigger of ASSESSMENT_JOB_TRIGGERS) {
     if (trigger === value) return trigger;
   }
   throw new Error(`Unexpected assessment job trigger: ${value}`);
