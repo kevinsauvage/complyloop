@@ -66,7 +66,7 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
 
 Three deterministic engines. AI is separate and never authoritative.
 
-**AST** (`checks/` + jsx-a11y) — 77 check ids from source. Safe auto-fixes
+**AST** (`checks/` + jsx-a11y) — 75 check ids from source. Safe auto-fixes
 and verified AI patches target AST findings.
 
 **Runtime** (when `runtimeBaseUrl` is set) — Playwright + axe from disk.

@@ -19,7 +19,6 @@ Orientation for agents. **Do not duplicate** product principles, domain vocabula
 | [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md) | Product decisions, current scope               |
 | [`docs/ai/architecture.md`](./docs/ai/architecture.md)                                    | System shape, persistence, analysis            |
 | [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                                    | Finding page UX contract                       |
-| [`TODO.md`](./TODO.md)                                                         | Prioritized gaps, bugs, and design decisions to revisit |
 | [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …) |
 
 ## What this is

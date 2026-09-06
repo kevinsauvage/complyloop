@@ -55,7 +55,7 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 
 ## How it works
 
-1. **Assess** — Default preset is **Full RGAA 4** on connect (change in **Settings**). On **Requirements**, browse presets via **`?presetId=`** (shareable URLs). **58 custom AST checks + `eslint-plugin-jsx-a11y`** scan connected code (77 distinct check ids); changed JSX only on re-assess when possible. Optional **preview URL** (Settings → Runtime audit) enables Playwright + axe for contrast, landmarks, reflow, and other **runtime-only** rules (see `check-authority.ts`). First runtime run: `npm run playwright:install`.
+1. **Assess** — Default preset is **Full RGAA 4** on connect (change in **Settings**). On **Requirements**, browse presets via **`?presetId=`** (shareable URLs). **58 custom AST checks + `eslint-plugin-jsx-a11y`** scan connected code (75 distinct check ids); changed JSX only on re-assess when possible. Optional **preview URL** (Settings → Runtime audit) enables Playwright + axe for contrast, landmarks, reflow, and other **runtime-only** rules (see `check-authority.ts`). First runtime run: `npm run playwright:install`.
 2. **Understand** — Each finding: what failed, why, where, impact, confidence, engine (`ast` or `runtime`).
 3. **Remediate** — Source: verified patch → draft PR. Runtime: call-site guidance — fix in the app, not a generic `aria-label` on a shared component.
 4. **Verify** — Merge PR + re-assess, or re-run page audit. Only `verified` closes the loop.
@@ -118,8 +118,6 @@ src/app/                 Next.js UI + API routes
 src/components/          UI (feature folders + shadcn ui/)
 packages/check/          CI CLI (`src/` + testdata/; bundled for `npx complyloop-check`)
 ```
-
-Known gaps and planned work: [`TODO.md`](./TODO.md).
 
 ---
 
