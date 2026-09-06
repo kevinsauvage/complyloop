@@ -1,4 +1,4 @@
-import { ConnectError } from "./connect-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 export interface GitHubRepoSummary {
   fullName: string;
@@ -86,7 +86,7 @@ export function parseOwnerRepo(fullName: string): {
 } {
   const [owner, repo] = fullName.split("/");
   if (!owner || !repo) {
-    throw new ConnectError(`Invalid repository full name: ${fullName}`);
+    throw new PublicError(`Invalid repository full name: ${fullName}`, "connect");
   }
   return { owner, repo };
 }

@@ -4,7 +4,9 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { testProject } from "@/test-fixtures/project";
 import { emptyDb } from "./db";
-import { ConnectError } from "./connect-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { testProject } from "@/test-fixtures/project";
+import { emptyDb } from "./db";
 
 const clone = vi.hoisted(() => vi.fn());
 
@@ -16,10 +18,7 @@ import {
   addConnectedProject,
   assertAssessableRoot,
   cloneShallow,
-  deriveProjectName,
-  githubCloneUrl,
-  uniqueProjectName,
-} from "./connect-shared";
+} from "./connect-github";
 
 const tempDirs: string[] = [];
 
@@ -137,7 +136,7 @@ describe("cloneShallow", () => {
     const root = path.join(os.tmpdir(), `complyloop-clone-fail-${Date.now()}`, "repo");
     tempDirs.push(path.dirname(root));
     await expect(cloneShallow("https://example.com/r.git", root)).rejects.toBeInstanceOf(
-      ConnectError,
+      PublicError,
     );
     expect(fs.existsSync(root)).toBe(false);
   });

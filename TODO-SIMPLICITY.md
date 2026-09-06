@@ -11,25 +11,7 @@ The product loop (Requirement → Assessment → Finding → Remediation → Ver
 
 This is not a broken codebase. Status derivation, check authority, append-only evidence, advisory locks, and stale-write guards are load-bearing. Those stay. The findings below are places where the _mechanism_ is heavier than the _invariant_.
 
----
-
-## Verdict
-
-The single complexity that infects the most code is the **in-memory `Db` blob**: load collections into arrays, mutate them in place, deep-clone a “before” snapshot, then persist a `JSON.stringify` diff. That pattern is a document-store leftover sitting on Postgres. It is why writes need scopes, two persist functions, key-order mapper tests, and `structuredClone` landmines.
-
-After that: a **183-line domain package**, a **catalog copied into Postgres**, and a **FrameworkAdapter registry for one shared catalog**. None of those earn their packaging cost at current product scope (RGAA/WCAG, one agency, GitHub only).
-
-Do not flatten the analysis engines, merge the two report renderers, or move jobs off Postgres. Those would add concepts, not remove them.
-
----
-
-## P0 — Critical
-
 ## P1 — High
-
-### 3. ~~`@complyloop/domain` is a workspace package for 183 lines of types~~ **Done (2026-09-06)**
-
-Product types live in `@complyloop/analysis-core/contract/` (`project-types.ts`, `preset.ts`, `assessment-jobs.ts`). The `packages/domain` workspace, `build:domain`, and eslint special-case are removed.
 
 ### 4. `FrameworkAdapter` registry for one catalog and an empty WCAG adapter
 
@@ -38,24 +20,7 @@ Product types live in `@complyloop/analysis-core/contract/` (`project-types.ts`,
 - **How it could be simplified:** One catalog module, one presets module (RGAA + WCAG lists), one `guidanceFor(checkId)`. `presetById` is `PRESETS.find(...)`. Delete `FrameworkAdapter`, the `frameworkAdapters` array, and the “add `packages/adapters/src/<name>/`” story until a second _catalog_ exists. WCAG as a **preset over the same controls** is the actual product; keep that, drop the plugin interface.
 - **Files:** `packages/adapters/src/types.ts`, `packages/adapters/src/registry.ts`, `packages/adapters/src/wcag/controls.ts`, `packages/adapters/src/wcag/presets.ts`, `docs/ai/architecture.md` (“Adding a framework”).
 
-### 5. ~~`inScopeControlIds` is a second, usually-dead copy of the preset~~ **Done (2026-09-06)**
-
-Store `defaultPresetId` only; assessment scope resolves via live `presetById(id).controlIds`. Removed `inScopeControlIds` from `Project` and stopped copying control id arrays on connect/preset change.
-
----
-
 ## P2 — Medium
-
-### 6. ~~Assessment is split across too many modules for one use case~~ **Done (2026-09-06)**
-
-Folded `buildAssessmentEngines` into `assessment.ts`, merged `assessment-helpers.ts` into `assessment-findings.ts`, and replaced job status/trigger linear scans with `Set` + type guards. Worker / jobs / drain / status remain separate (real async and scope boundaries).
-
-### 7. Connect is five modules plus a one-off error class
-
-- **What is unnecessarily complex:** GitHub connect is `connect-github.ts`, `connect-shared.ts`, `connect-active.ts`, `connect-policy.ts` (16 lines wrapping `roleHasPermission`), `connect-error.ts` (`ConnectError extends PublicError` with code `"connect"`), plus `actions/connect.ts`. `setActiveProject` is a visibility check, not connect.
-- **Why the complexity is a problem:** Five files to clone a repo and insert a project. `ConnectError` vs `PublicError("…", "connect")` is a second error type with no extra behavior.
-- **How it could be simplified:** One `connect-github.ts` (clone + record + name helpers) and the action. Inline `userCanConnectProjects` next to RBAC or `project-capabilities`. Throw `PublicError`. Move `setActiveProject` next to cookies / visibility.
-- **Files:** `src/server/connect-github.ts`, `src/server/connect-shared.ts`, `src/server/connect-active.ts`, `src/server/connect-policy.ts`, `src/server/connect-error.ts`, `src/server/actions/connect.ts`.
 
 ### 8. Optional AI is a pipeline of many small files
 
@@ -101,10 +66,10 @@ Folded `buildAssessmentEngines` into `assessment.ts`, merged `assessment-helpers
 
 ### 14. `src/server` has several one-function files that do not earn a module
 
-- **What is unnecessarily complex:** `verify-messages.ts` (one string), `connect-policy.ts` (one RBAC wrapper), `assessment-engines.ts` (one mapper), `src/server/db.ts` (re-exports + two load wrappers), `src/components/dashboard/dashboard-section.tsx` (re-exports `PageSection` under another name).
+- **What is unnecessarily complex:** `verify-messages.ts` (one string), `src/server/db.ts` (re-exports + two load wrappers), `src/components/dashboard/dashboard-section.tsx` (re-exports `PageSection` under another name).
 - **Why the complexity is a problem:** Import graphs grow; grep for the behavior lands on a trampoline.
 - **How it could be simplified:** Inline the string next to the verify action. Import `@complyloop/db` from server modules (or keep one `loadWorkspaceDbForViewer` next to `workspace.ts`). Use `PageSection` in the dashboard. No new helpers.
-- **Files:** `src/server/verify-messages.ts`, `src/server/connect-policy.ts`, `src/server/assessment-engines.ts`, `src/server/db.ts`, `src/components/dashboard/dashboard-section.tsx`.
+- **Files:** `src/server/verify-messages.ts`, `src/server/db.ts`, `src/components/dashboard/dashboard-section.tsx`.
 
 ---
 
@@ -137,47 +102,3 @@ Folded `buildAssessmentEngines` into `assessment.ts`, merged `assessment-helpers
 - **Why the complexity is a problem:** Editing the dashboard means opening the page plus a folder of fragments. `dashboard-section.tsx` is a pure alias.
 - **How it could be simplified:** Collocate the screen: keep genuinely reused pieces (`RuntimeCoverageChip`, `AssessmentJobStatusLive`, `FirstAssessmentChecklist`). Inline one-off cards into `dashboard-overview.tsx` or the page. Use `PageSection` directly.
 - **Files:** `src/app/(app)/dashboard/page.tsx`, `src/components/dashboard/*`.
-
-### 19. `graft/` is a second index of the same codebase
-
-- **What is unnecessarily complex:** A generated graph (`graft/`) plus `graft ask/map` workflow, documented in AGENTS.md, that must be rebuilt after large changes.
-- **Why the complexity is a problem:** Another artifact to keep in sync. Useful for agents; not required for the product.
-- **How it could be simplified:** Keep it if you actually query it; do not treat `graft build` as part of the definition of done. Do not add a third index.
-- **Files:** `graft/`, `AGENTS.md` (Graft section).
-
----
-
-## Explicitly rejected — do not “simplify” these
-
-These look like complexity. Removing them would lose correctness, an actual product boundary, or replace a boring solution with a fancier one.
-
-| Temptation                                                                    | Why to leave it                                                                                                                                                                                                |
-| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Flatten Finding/Remediation JSONB into columns                                | Nested `location` / `fix` / engines would become a worse schema. JSONB for the document + a few indexed columns is the boring Postgres choice. The problem is the **mutate-and-diff layer on top**, not JSONB. |
-| Share markdown + HTML report _renderers_                                      | One `ReportModel` is enough sharing. Escaping and layout differ. A shared renderer would be the over-abstraction.                                                                                              |
-| Split `analysis-core` or extract `contract/` as a sixth package               | The CLI (`packages/check`) already justifies the analysis package. More packages is the opposite of simpler. Collapse _domain_ instead.                                                                        |
-| Move jobs to Redis/SQS                                                        | `FOR UPDATE SKIP LOCKED` + leases + per-project serial is the standard Postgres queue. A broker is a new operational dependency.                                                                               |
-| Split the worker into its own deployable                                      | It is a script over the same code. Packaging it separately adds a release graph for no isolation win.                                                                                                          |
-| Delete check-authority / merge-findings / html-validate                       | Fail-closed status rules and RGAA 8.2 / 10.1 ownership are product correctness, not ceremony.                                                                                                                  |
-| SQL-paginate findings “for cleanliness”                                       | One active project at agency scale. In-memory filter after a project load is fine until a measurement says otherwise. Prefer P11’s “load what the page needs” over a generic pagination framework.             |
-| Dedup `e2e/fixtures/sample-app/Bad.tsx` and `packages/check/testdata/Bad.tsx` | Different harnesses; coupling them is not simpler.                                                                                                                                                             |
-| Remove AES-256-GCM token storage, SSRF guards, rate limits, evidence trigger  | Security / audit invariants.                                                                                                                                                                                   |
-| `finding-act.ts` state machine                                                | One exhaustive view model for the finding page. Folding it into JSX would hide the workflow.                                                                                                                   |
-| shadcn `cn()` / `clsx` / `tailwind-merge` / Radix                             | Standard UI stack; replacing it is churn.                                                                                                                                                                      |
-| 75 AST checks in one registry                                                 | The domain _is_ the check list. Splitting by RGAA theme would add navigation without shrinking the problem.                                                                                                    |
-
----
-
-## Suggested order
-
-1. **P0 #1** — replace mutate-and-diff with explicit upserts (keep locks + stale-write + append-only evidence). This unlocks simpler actions and tests.
-2. **P1 #2 + #5** — catalog from source; one field for assessment scope.
-3. **P1 #3 + #4 + P2 #9** — delete the domain package and the adapter plugin interface in one packaging pass.
-4. **P2 #6–#8, #12–#14** — fold trampoline files as you touch those features.
-5. **P3** — opportunistically.
-
-Do not start a “simplicity rewrite” branch that touches all of this at once. Each item should land as a small, behavior-preserving change with the existing quality gate:
-
-```bash
-npm run lint && npm run typecheck && npm run test && npm run build
-```

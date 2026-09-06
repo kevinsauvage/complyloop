@@ -1,4 +1,4 @@
-import { ConnectError } from "./connect-error";
+import { isPublicError } from "@complyloop/analysis-core/contract/public-error";
 import { parseOwnerRepo } from "./github-repo";
 import { createOctokit, octokitErrorMessage } from "./octokit";
 
@@ -33,7 +33,7 @@ export async function postPullRequestCheckRun(
     return {
       ok: false,
       error:
-        error instanceof ConnectError
+        isPublicError(error) && error.code === "connect"
           ? error.message
           : `Invalid repository full name: ${input.fullName}`,
     };

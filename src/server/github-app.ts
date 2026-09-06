@@ -2,7 +2,7 @@ import { createAppAuth } from "@octokit/auth-app";
 import type { Octokit } from "@octokit/rest";
 import { isProductionRuntime } from "@/auth-secret";
 import { normalizeGitHubFullName } from "./connect-github";
-import { ConnectError } from "./connect-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   filterReposByQuery,
   mapGitHubRepo,
@@ -131,22 +131,25 @@ export async function resolveUserInstallationForRepo(options: {
   try {
     installationIds = await listUserInstallationIds(octokit);
   } catch (error) {
-    throw new ConnectError(
+    throw new PublicError(
       octokitErrorMessage(error, "GitHub App installation API error"),
+      "connect",
     );
   }
 
   if (installationIds.length === 0) {
-    throw new ConnectError(
+    throw new PublicError(
       "No GitHub App installations found for your account. Install the App on the target repos first.",
+      "connect",
     );
   }
 
   const claimed = options.claimedInstallationId;
   if (claimed != null && Number.isFinite(claimed)) {
     if (!installationIds.includes(claimed)) {
-      throw new ConnectError(
+      throw new PublicError(
         "That GitHub App installation is not available on your account.",
+        "connect",
       );
     }
     try {
@@ -154,12 +157,14 @@ export async function resolveUserInstallationForRepo(options: {
         return claimed;
       }
     } catch (error) {
-      throw new ConnectError(
+      throw new PublicError(
         octokitErrorMessage(error, "GitHub App installation API error"),
+        "connect",
       );
     }
-    throw new ConnectError(
+    throw new PublicError(
       `${options.fullName.trim()} is not accessible via the selected GitHub App installation.`,
+      "connect",
     );
   }
 
@@ -170,13 +175,15 @@ export async function resolveUserInstallationForRepo(options: {
       }
     }
   } catch (error) {
-    throw new ConnectError(
+    throw new PublicError(
       octokitErrorMessage(error, "GitHub App installation API error"),
+      "connect",
     );
   }
 
-  throw new ConnectError(
+  throw new PublicError(
     `${options.fullName.trim()} is not available via your GitHub App installations. Install the App on that repository first.`,
+    "connect",
   );
 }
 
@@ -207,8 +214,9 @@ export async function listReposViaInstallations(options: {
       if (repos.length >= perPage) break;
     }
   } catch (error) {
-    throw new ConnectError(
+    throw new PublicError(
       octokitErrorMessage(error, "GitHub App installation API error"),
+      "connect",
     );
   }
 

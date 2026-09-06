@@ -10,18 +10,16 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseFormState } from "../boundary";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   readActiveOrgCookie,
   writeActiveProjectCookie,
 } from "../active-cookies";
-import { ConnectError } from "../connect-error";
-import { setActiveProject } from "../connect-active";
 import {
   connectGitHubRepo,
   disconnectGitHubRepo,
   findConnectedGitHubProject,
 } from "../connect-github";
-import { userCanConnectProjects } from "../connect-policy";
 import { getDrizzle } from "@complyloop/db/client";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
 import { deleteProject, insertProject } from "@complyloop/db/repo/projects";
@@ -33,7 +31,8 @@ import {
   isGitHubAppConfigured,
   resolveUserInstallationForRepo,
 } from "../github-app";
-import { accessFromStore } from "../project-visibility";
+import { accessFromStore, setActiveProject } from "../project-visibility";
+import { projectCapabilities } from "../project-capabilities";
 import { assertConnectRateLimit } from "../rate-limit";
 import { resolveActiveOrgId } from "../orgs";
 import { getWorkspace, ensurePersonalOrgProvisioned } from "../workspace";
@@ -127,9 +126,10 @@ export async function connectGitHubRepoAction(
         db.organizations[0]?.id ??
         null;
       const access = accessFromStore(db, userId, githubLogin);
-      if (!orgId || !userCanConnectProjects(access.memberships, userId, orgId)) {
-        throw new ConnectError(
+      if (!orgId || !projectCapabilities(null, access, orgId).canConnect) {
+        throw new PublicError(
           "You need admin or owner access in the active organization to connect a project.",
+          "connect",
         );
       }
       const alreadyConnected = findConnectedGitHubProject(
@@ -138,8 +138,9 @@ export async function connectGitHubRepoAction(
         orgId,
       );
       if (alreadyConnected) {
-        throw new ConnectError(
+        throw new PublicError(
           `${fullName} is already connected. Disconnect it first.`,
+          "connect",
         );
       }
       const evidenceStart = db.evidence.length;

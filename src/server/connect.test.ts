@@ -5,13 +5,11 @@ import {
   connectedGitHubProjectsByFullName,
   disconnectGitHubRepo,
   findConnectedGitHubProject,
-} from "./connect-github";
-import { setActiveProject } from "./connect-active";
-import {
   deriveProjectName,
   githubCloneUrl,
   uniqueProjectName,
-} from "./connect-shared";
+} from "./connect-github";
+import { setActiveProject } from "./project-visibility";
 import { emptyDb, type Db } from "./db";
 
 function githubProject(

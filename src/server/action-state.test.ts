@@ -9,7 +9,6 @@ import {
   runActionMessage,
   unexpectedActionMessage,
 } from "./action-state";
-import { ConnectError } from "./connect-error";
 import { RateLimitError } from "./rate-limit";
 
 afterEach(() => {
@@ -85,11 +84,13 @@ describe("actionErrorState / publicErrorMessage", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("maps RateLimitError and ConnectError as public copy", () => {
+  it("maps RateLimitError and connect PublicError as public copy", () => {
     expect(publicErrorMessage(new RateLimitError())).toBe(
       "Too many requests. Try again shortly.",
     );
-    expect(publicErrorMessage(new ConnectError("Bad path."))).toBe("Bad path.");
+    expect(publicErrorMessage(new PublicError("Bad path.", "connect"))).toBe(
+      "Bad path.",
+    );
   });
 
   it("sanitizes unexpected Error messages and reports them", () => {

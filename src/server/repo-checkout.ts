@@ -2,8 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { cloneShallow, githubCloneUrl } from "./connect-shared";
-import { ConnectError } from "./connect-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { cloneShallow, githubCloneUrl } from "./connect-github";
 import {
   assertE2EFixtureRoot,
   isE2EHarnessEnabled,
@@ -92,14 +92,15 @@ export async function withProjectCheckout<T>(
 
   const fullName = project.github?.fullName;
   if (!fullName) {
-    throw new ConnectError("Project has no GitHub repository metadata.");
+    throw new PublicError("Project has no GitHub repository metadata.", "connect");
   }
   const accessToken = await resolveProjectGitHubToken(project, tokenOptions);
   if (!accessToken) {
-    throw new ConnectError(
+    throw new PublicError(
       project.github?.installationId
         ? "Could not mint a GitHub App installation token for this repository."
         : "No stored GitHub token for this session - sign out and sign in with GitHub again.",
+      "connect",
     );
   }
   return withRepoCheckout({ fullName, accessToken, ref }, fn);

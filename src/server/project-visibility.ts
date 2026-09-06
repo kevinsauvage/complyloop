@@ -125,3 +125,21 @@ export function assertProjectPermission(
     throw new PublicError(`Not allowed: missing permission ${permission}.`);
   }
 }
+
+/** Validates the viewer can access `projectId` (active selection is cookie-scoped). */
+export function setActiveProject(
+  db: {
+    projects: ReadonlyArray<Project>;
+    organizations: ReadonlyArray<Organization>;
+    memberships: ReadonlyArray<OrgMembership>;
+  },
+  projectId: string,
+  userId?: string | null,
+): Project {
+  const project = db.projects.find((candidate) => candidate.id === projectId);
+  if (!project) throw new PublicError("Unknown project.", "connect");
+  if (!isProjectVisible(project, accessFromStore(db, userId))) {
+    throw new PublicError("You do not have access to that project.", "connect");
+  }
+  return project;
+}

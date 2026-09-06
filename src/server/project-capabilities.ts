@@ -1,6 +1,5 @@
-import { canOnProject, type Permission } from "@/core/rbac";
+import { canOnProject, roleHasPermission, type Permission } from "@/core/rbac";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { userCanConnectProjects } from "./connect-policy";
 import type { AccessContext } from "./project-visibility";
 
 export interface ProjectCapabilities {
@@ -10,6 +9,19 @@ export interface ProjectCapabilities {
   canConnect: boolean;
 }
 
+function canConnectInOrg(
+  access: AccessContext,
+  activeOrgId: string | null | undefined,
+): boolean {
+  if (!access.userId || !activeOrgId) return false;
+  const membership = access.memberships.find(
+    (candidate) =>
+      candidate.orgId === activeOrgId && candidate.userId === access.userId,
+  );
+  if (!membership) return false;
+  return roleHasPermission(membership.role, "project.connect");
+}
+
 export function projectCapabilities(
   project: Project | null,
   access: AccessContext,
@@ -17,13 +29,7 @@ export function projectCapabilities(
 ): ProjectCapabilities {
   if (!project) {
     // Unsigned users still see the connect panel so they can sign in.
-    const signedInConnect =
-      Boolean(access.userId) &&
-      userCanConnectProjects(
-        access.memberships,
-        access.userId as string,
-        activeOrgId,
-      );
+    const signedInConnect = canConnectInOrg(access, activeOrgId);
     return {
       canView: false,
       canAssess: false,

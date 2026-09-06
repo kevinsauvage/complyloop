@@ -53,7 +53,7 @@ vi.mock("./github-access", () => ({
   resolveProjectGitHubToken,
 }));
 
-vi.mock("./connect-shared", () => ({
+vi.mock("./connect-github", () => ({
   githubCloneUrl,
 }));
 

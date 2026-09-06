@@ -1,4 +1,4 @@
-import { ConnectError } from "./connect-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   isGitHubAppConfigured,
   listReposViaInstallations,
@@ -44,8 +44,9 @@ export async function listGitHubRepos(options: {
     });
     return filterReposByQuery(data.map((repo) => mapGitHubRepo(repo)), options.q);
   } catch (error) {
-    throw new ConnectError(
+    throw new PublicError(
       octokitErrorMessage(error, "GitHub API error"),
+      "connect",
     );
   }
 }
@@ -60,8 +61,9 @@ export async function fetchGitHubRepo(
     const { data } = await octokit.rest.repos.get({ owner, repo });
     return mapGitHubRepo(data);
   } catch (error) {
-    throw new ConnectError(
+    throw new PublicError(
       octokitErrorMessage(error, `Could not load repository ${fullName}`),
+      "connect",
     );
   }
 }

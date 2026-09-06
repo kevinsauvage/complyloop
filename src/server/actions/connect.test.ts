@@ -5,7 +5,7 @@ import type { OrgMembership } from "@complyloop/analysis-core/contract/project-t
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { ConnectError } from "../connect-error";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { emptyActionMessageState } from "../action-state";
 import {
   connectGitHubRepoAction,
@@ -37,9 +37,15 @@ vi.mock("../active-cookies", () => ({
   readActiveOrgCookie: async () => "org-1",
 }));
 
-vi.mock("../connect-active", () => ({
-  setActiveProject: (...args: unknown[]) => setActiveProject(...args),
-}));
+vi.mock("../project-visibility", async () => {
+  const actual = await vi.importActual<typeof import("../project-visibility")>(
+    "../project-visibility",
+  );
+  return {
+    ...actual,
+    setActiveProject: (...args: unknown[]) => setActiveProject(...args),
+  };
+});
 
 vi.mock("../connect-github", () => ({
   connectGitHubRepo: (...args: unknown[]) => connectGitHubRepo(...args),
@@ -361,10 +367,10 @@ describe("disconnectGitHubRepoAction", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
-  it("maps ConnectError from disconnect into form state", async () => {
+  it("maps connect PublicError from disconnect into form state", async () => {
     actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     transaction.mockImplementation(async () => {
-      throw new ConnectError("Not allowed to disconnect this project.");
+      throw new PublicError("Not allowed to disconnect this project.", "connect");
     });
     const form = new FormData();
     form.set("projectId", "p1");
