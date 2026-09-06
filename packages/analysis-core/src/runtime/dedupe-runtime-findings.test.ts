@@ -7,6 +7,7 @@ function domFinding(
   analyzerId: NonNullable<RawFinding["analyzerId"]>,
   analyzerRuleId: string,
   snippet: string,
+  selector = "#x",
 ): RawFinding {
   return {
     checkId,
@@ -17,7 +18,7 @@ function domFinding(
     location: {
       kind: "dom",
       url: "https://app.example/",
-      selector: "#x",
+      selector,
       snippet,
     },
     fix: null,
@@ -55,6 +56,34 @@ describe("dedupeRuntimeFindings", () => {
       ),
     ]);
     expect(deduped).toHaveLength(2);
+  });
+
+  it("does not collapse distinct nodes that share identical markup", () => {
+    const deduped = dedupeRuntimeFindings([
+      domFinding("button-name", "axe", "button-name", "<button>OK</button>", "#btn1"),
+      domFinding("button-name", "axe", "button-name", "<button>OK</button>", "#btn2"),
+    ]);
+    expect(deduped).toHaveLength(2);
+    expect(
+      deduped.map(
+        (finding) =>
+          finding.location.kind === "dom" ? finding.location.selector : null,
+      ),
+    ).toEqual(["#btn1", "#btn2"]);
+  });
+
+  it("falls back to the snippet when selectors are unknown or missing", () => {
+    const deduped = dedupeRuntimeFindings([
+      domFinding("button-name", "axe", "button-name", "<button>OK</button>", "(unknown)"),
+      domFinding(
+        "button-name",
+        "playwright-custom",
+        "button-name",
+        "<button>OK</button>",
+        "(unknown)",
+      ),
+    ]);
+    expect(deduped).toHaveLength(1);
   });
 
   it("does not merge site-level findings with dom findings", () => {

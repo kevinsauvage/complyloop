@@ -71,7 +71,7 @@ describe("report model composers", () => {
     expect(model.findings[0]?.suggestion?.provenance).toBe("ai");
   });
 
-  it("includes evidence without a project id and github metadata on the header", () => {
+  it("excludes project-less evidence and includes github metadata on the header", () => {
     const input = sampleReportInput();
     input.project = {
       ...input.project,
@@ -89,7 +89,9 @@ describe("report model composers", () => {
     });
     const model = composeAuditReport(input);
     expect(model.header.githubFullName).toBe("acme/demo-app");
-    expect(model.evidence.some((row) => row.summary === "Connected")).toBe(true);
+    expect(model.evidence.some((row) => row.summary === "Connected")).toBe(
+      false,
+    );
   });
 
   it("labels a non-RGAA/WCAG secondary reference as Also", () => {

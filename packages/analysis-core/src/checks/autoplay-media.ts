@@ -1,5 +1,6 @@
 import {
   attributeRemovalSpan,
+  booleanAttributeValue,
   getAttribute,
   locationOf,
   tagNameOf,
@@ -17,6 +18,9 @@ export const autoplayMediaCheck: AccessibilityCheck = {
       const autoPlay =
         getAttribute(node, "autoPlay") ?? getAttribute(node, "autoplay");
       if (!autoPlay) return;
+      // Only a statically-true autoPlay is a violation; `autoPlay={false}`,
+      // `autoPlay="false"`, and dynamic expressions are not proven enabled.
+      if (booleanAttributeValue(autoPlay) !== true) return;
 
       findings.push({
         checkId: "autoplay-media",

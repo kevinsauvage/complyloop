@@ -88,7 +88,9 @@ export async function applicabilityObservationsForPage(
     }
 
     function isLayoutTable(table: HTMLTableElement): boolean {
-      if (table.getAttribute("role") === "presentation") return false;
+      // role="presentation" declares a layout table (matches
+      // layout-table-linearization.ts). Header markup makes it a data table.
+      if (table.getAttribute("role") === "presentation") return true;
       if (table.querySelector("th, caption, [headers], [scope], thead")) {
         return false;
       }

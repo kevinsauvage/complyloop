@@ -543,10 +543,17 @@ export function findingById(db: Db, findingId: string): Finding {
   return finding;
 }
 
-export function remediationForFinding(db: Db, findingId: string): Remediation {
-  const remediation = db.remediations.find(
+export function findRemediationForFinding(
+  db: Db,
+  findingId: string,
+): Remediation | undefined {
+  return db.remediations.find(
     (candidate) => candidate.findingId === findingId,
   );
+}
+
+export function remediationForFinding(db: Db, findingId: string): Remediation {
+  const remediation = findRemediationForFinding(db, findingId);
   if (!remediation) throw new PublicError("No remediation for that finding.");
   return remediation;
 }

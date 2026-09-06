@@ -138,7 +138,9 @@ export const errorPreventionCheck: AccessibilityCheck = {
         if (name !== "button") return false;
         const typeAttr = getAttribute(tag, "type");
         const type = typeAttr ? stringValueOf(typeAttr)?.toLowerCase() : "submit";
-        return type === "submit" || type === undefined;
+        // Only an absent attribute (HTML default) or an explicit literal counts
+        // as submit; a dynamic expression has an unknown type.
+        return type === "submit";
       });
       if (!submitLike) return;
 

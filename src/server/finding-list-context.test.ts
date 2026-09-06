@@ -6,6 +6,12 @@ import { emptyDb } from "./db";
 import { buildFindingFilterContext } from "./finding-list-context";
 
 vi.mock("./workspace", () => ({
+  findRemediationForFinding: (
+    db: { remediations: Array<{ findingId: string; status: string }> },
+    findingId: string,
+  ) => {
+    return db.remediations.find((row) => row.findingId === findingId);
+  },
   remediationForFinding: (
     db: { remediations: Array<{ findingId: string; status: string }> },
     findingId: string,
@@ -27,6 +33,15 @@ describe("buildFindingFilterContext", () => {
     expect(context.controls).toEqual(db.controls);
     expect(context.remediationStatusFor("f1")).toBe("approved");
     expect(context.clusterFindingIds).toBeUndefined();
+  });
+
+  it("returns undefined when a finding has no remediation row", () => {
+    const db = emptyDb();
+    db.controls.push(testControl());
+    db.findings.push(testFinding());
+
+    const context = buildFindingFilterContext(db, {}, []);
+    expect(context.remediationStatusFor("f1")).toBeUndefined();
   });
 
   it("narrows to the selected cluster's finding ids", () => {

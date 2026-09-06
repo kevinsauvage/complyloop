@@ -58,6 +58,9 @@ export async function withRepoCheckout<T>(
       rootPath,
     );
     if (options.ref) {
+      // Ref fetches can pull more tree than the default shallow clone: fail
+      // fast on quota before fetching instead of after.
+      assertCheckoutWithinQuota(rootPath);
       const git = createGit({ baseDir: rootPath });
       try {
         await git.fetch(["--depth", "1", "origin", options.ref]);

@@ -3,6 +3,7 @@ import { generateObject } from "ai";
 import type { Control } from "@complyloop/domain/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { proposeFixEdits } from "./fix-propose";
+import { setAiWarn } from "./warn";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
@@ -136,5 +137,38 @@ describe("proposeFixEdits", () => {
     };
     await expect(proposeFixEdits(input)).rejects.toThrow(/at least one edit/);
     await expect(proposeFixEdits(input)).rejects.toThrow(/target Hero\.tsx/);
+  });
+
+  it("degrades a gateway failure to a PublicError and records an aiWarn", async () => {
+    const warn = vi.fn();
+    setAiWarn(warn);
+    try {
+      generate.mockRejectedValue(new Error("rate limited"));
+      await expect(
+        proposeFixEdits({
+          finding,
+          control,
+          fileContents: { "Hero.tsx": "<img />\n" },
+        }),
+      ).rejects.toThrow(/AI patch generation failed/);
+      expect(warn).toHaveBeenCalledWith(
+        "AI patch generation failed",
+        expect.objectContaining({ code: "ai_fix_propose" }),
+      );
+    } finally {
+      setAiWarn(() => {});
+    }
+  });
+
+  it("fails fast with actionable copy when AI is unavailable", async () => {
+    await expect(
+      proposeFixEdits({
+        finding,
+        control,
+        fileContents: { "Hero.tsx": "<img />\n" },
+        aiAvailable: false,
+      }),
+    ).rejects.toThrow(/requires AI \(set AI_GATEWAY_API_KEY\)/);
+    expect(generate).not.toHaveBeenCalled();
   });
 });

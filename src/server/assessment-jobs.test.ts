@@ -80,12 +80,18 @@ function lteValues(clause: Clause | undefined): unknown[] {
 
 function createDrizzle() {
   const drizzle = {
-    execute: async () =>
-      [...jobs.values()]
+    execute: async () => {
+      const runningProjectIds = new Set(
+        [...jobs.values()]
+          .filter((row) => row.status === "running")
+          .map((row) => row.projectId),
+      );
+      return [...jobs.values()]
         .filter(
           (row) =>
             row.status === "queued" &&
-            row.availableAt <= new Date().toISOString(),
+            row.availableAt <= new Date().toISOString() &&
+            !runningProjectIds.has(row.projectId),
         )
         .sort((a, b) =>
           a.availableAt === b.availableAt
@@ -93,7 +99,8 @@ function createDrizzle() {
             : a.availableAt.localeCompare(b.availableAt),
         )
         .slice(0, 100)
-        .map((row) => ({ id: row.id })),
+        .map((row) => ({ id: row.id }));
+    },
     select: (shape?: { projectId?: unknown; id?: unknown }) => ({
       from: () => ({
         where: (clause: Clause) => {
@@ -264,6 +271,27 @@ describe("claimNextAssessmentJob", () => {
     const claimed = await claimNextAssessmentJob();
     expect(claimed?.projectId).toBe("p2");
     expect(jobs.get(first.id)?.status).toBe("running");
+  });
+
+  it("claims a free project beyond queued jobs blocked by running projects", async () => {
+    const running = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    await claimNextAssessmentJob();
+    // Fill more than the 100-row lock window with jobs for the running project.
+    for (let index = 0; index < 110; index += 1) {
+      await enqueueAssessmentJob({
+        projectId: "p1",
+        trigger: "webhook",
+        idempotencyKey: `blocked-${index}`,
+      });
+    }
+    await enqueueAssessmentJob({ projectId: "p2", trigger: "manual" });
+
+    const claimed = await claimNextAssessmentJob();
+    expect(claimed?.projectId).toBe("p2");
+    expect(jobs.get(running.id)?.status).toBe("running");
   });
 
   it("requeues jobs whose lease expired", async () => {

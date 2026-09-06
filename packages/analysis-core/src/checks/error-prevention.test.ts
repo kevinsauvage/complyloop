@@ -97,4 +97,35 @@ describe("error-prevention", () => {
       ),
     ).toHaveLength(0);
   });
+
+  it("does not treat a dynamic-typed button as the submit in a high-risk component", () => {
+    expect(
+      errorPreventionCheck.run(
+        parseSource(
+          "checkout.tsx",
+          `const Checkout = () => (
+            <div>
+              <p>Your payment is being processed.</p>
+              <button type={ctaType}>Place order</button>
+            </div>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("still warns when an attribute-less button is the only submit button", () => {
+    const findings = errorPreventionCheck.run(
+      parseSource(
+        "checkout.tsx",
+        `const Checkout = () => (
+          <div>
+            <p>Your payment is being processed.</p>
+            <button>Place order</button>
+          </div>
+        );`,
+      ),
+    );
+    expect(findings.some((f) => f.checkId === "error-prevention")).toBe(true);
+  });
 });

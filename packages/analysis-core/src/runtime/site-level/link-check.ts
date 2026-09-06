@@ -77,7 +77,13 @@ function fragmentFindingsFromSnapshots(
     for (const link of snapshot.fragmentLinks) {
       const hashIndex = link.href.indexOf("#");
       if (hashIndex === -1) continue;
-      const fragmentId = decodeURIComponent(link.href.slice(hashIndex + 1));
+      let fragmentId: string;
+      try {
+        fragmentId = decodeURIComponent(link.href.slice(hashIndex + 1));
+      } catch {
+        // Malformed percent-escape (e.g. href="#%zz"): skip the link, never the audit.
+        continue;
+      }
       if (!fragmentId) continue;
 
       try {

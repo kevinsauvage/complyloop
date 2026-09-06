@@ -1,0 +1,32 @@
+# Extra AI-context exclusions beyond .gitignore
+# (Cursor already respects .gitignore; this adds noise/secrets safety.)
+
+# Secrets / local env (belt-and-suspenders)
+.env
+.env.*
+!.env.example
+**/*.pem
+**/credentials*.json
+**/service-account*.json
+
+# Heavy / regenerable artifacts
+**/*.tsbuildinfo
+**/*.map
+**/coverage/
+**/playwright-report/
+**/test-results/
+**/blob-report/
+**/.vercel/
+**/.turbo/
+**/graft/.cache/
+**/graft/.graph/
+
+# Package manager / install noise
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/*.tgz
+
+# Large binary / media (rarely useful as agent context)
+**/*.{png,jpg,jpeg,gif,webp,ico,mp4,webm,pdf,zip,gz,woff,woff2}

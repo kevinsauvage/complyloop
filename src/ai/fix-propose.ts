@@ -5,6 +5,7 @@ import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { AI_MODEL } from "./model";
+import { aiWarn } from "./warn";
 import type { ProposedFixEdits } from "./verified-fix";
 
 const editsSchema = z.object({
@@ -24,6 +25,8 @@ interface ProposeFixEditsInput {
   finding: Finding;
   control: Control;
   fileContents: Record<string, string>;
+  /** When false, skip the gateway call and fail fast with actionable copy. */
+  aiAvailable?: boolean;
 }
 
 function clip(text: string): string {
@@ -38,6 +41,11 @@ function clip(text: string): string {
 export async function proposeFixEdits(
   input: ProposeFixEditsInput,
 ): Promise<ProposedFixEdits> {
+  if (input.aiAvailable === false) {
+    throw new PublicError(
+      "Generating a patch requires AI (set AI_GATEWAY_API_KEY) or a deterministic fix template for this Finding. Use the developer handoff to fix it manually.",
+    );
+  }
   if (input.finding.location.kind !== "source") {
     throw new PublicError("AI patch generation requires a source Finding.");
   }
@@ -45,23 +53,35 @@ export async function proposeFixEdits(
   const files = Object.entries(input.fileContents)
     .map(([path, content]) => `--- ${path}\n${clip(content)}`)
     .join("\n\n");
-  const { object } = await generateObject({
-    model: AI_MODEL,
-    schema: editsSchema,
-    prompt: [
-      "You fix accessibility failures in a React/TypeScript repository.",
-      "Return unique search/replace edits. oldText must match exactly once in that file.",
-      `Change only the Finding source file (${targetPath}) and only what is needed to fix this Finding.`,
-      "Prefer the call site, not a shared primitive.",
-      `Requirement: ${input.control.code} / ${input.control.secondaryCode} — ${input.control.title}.`,
-      `Finding: ${input.finding.reason}`,
-      `Location: ${formatLocationRef(input.finding.location)}`,
-      "Current files:",
-      files,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  });
+  let object: z.infer<typeof editsSchema>;
+  try {
+    const result = await generateObject({
+      model: AI_MODEL,
+      schema: editsSchema,
+      prompt: [
+        "You fix accessibility failures in a React/TypeScript repository.",
+        "Return unique search/replace edits. oldText must match exactly once in that file.",
+        `Change only the Finding source file (${targetPath}) and only what is needed to fix this Finding.`,
+        "Prefer the call site, not a shared primitive.",
+        `Requirement: ${input.control.code} / ${input.control.secondaryCode} — ${input.control.title}.`,
+        `Finding: ${input.finding.reason}`,
+        `Location: ${formatLocationRef(input.finding.location)}`,
+        "Current files:",
+        files,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+    object = result.object;
+  } catch (error) {
+    aiWarn("AI patch generation failed", {
+      code: "ai_fix_propose",
+      detail: error instanceof Error ? error.message : String(error),
+    });
+    throw new PublicError(
+      "AI patch generation failed. Re-run the assessment and try again, or use the developer handoff to fix it manually.",
+    );
+  }
   if (object.edits.length === 0) {
     throw new PublicError("AI patch must contain at least one edit.");
   }

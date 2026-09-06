@@ -4,6 +4,7 @@ import {
   type FindingStatus,
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
+import { formatDateTime } from "@/core/format-datetime";
 import { findingStatusLabel, requirementStatusLabel } from "@/core/labels";
 import {
   composeAuditReport,
@@ -14,11 +15,21 @@ import {
   type ReportInput,
 } from "./report-model";
 
+/** Collapses hard newlines so analyzer/user text cannot break markdown structure. */
+function inline(text: string): string {
+  return text.replace(/\s*\n\s*/g, " ").trim();
+}
+
+/** Renders a snippet as an indented code block, safe against embedded fences. */
+function codeBlockLines(content: string): string[] {
+  return ["", ...content.split("\n").map((line) => `    ${line}`), ""];
+}
+
 function headerMarkdown(header: ReportHeaderModel): string[] {
   return [
-    `# ${header.title} — ${header.projectName}`,
+    `# ${header.title} — ${inline(header.projectName)}`,
     ``,
-    `**Exported:** ${header.exportedAt}`,
+    `**Exported:** ${formatDateTime(header.exportedAt)}`,
     `**Framework:** ${header.frameworkName} (${header.frameworkVersion})`,
     `**Project source:** ${header.sourceKind}${header.sourceRef ? ` — ${header.sourceRef}` : ""}`,
     header.githubFullName
@@ -92,19 +103,17 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
       lines.push(
         `- **Check:** \`${finding.checkId}\`${finding.engine ? ` · **Engine:** \`${finding.engine}\`` : ""}`,
       );
-      lines.push(`- **Reason:** ${finding.reason}`);
+      lines.push(`- **Reason:** ${inline(finding.reason)}`);
       if (finding.remediationStatus) {
         lines.push(`- **Remediation:** ${finding.remediationStatus}`);
       }
       if (finding.suggestion) {
         lines.push(
-          `- **Suggestion (${finding.suggestion.provenance}):** ${finding.suggestion.description}`,
+          `- **Suggestion (${finding.suggestion.provenance}):** ${inline(finding.suggestion.description)}`,
         );
       }
       lines.push(``);
-      lines.push("```");
-      lines.push(finding.snippet);
-      lines.push("```");
+      lines.push(...codeBlockLines(finding.snippet));
       lines.push(``);
     }
   }
@@ -142,11 +151,11 @@ function renderAuditMarkdown(model: AuditReportModel): string {
     );
     if (requirement.exception) {
       lines.push(
-        `- **Exception:** ${requirement.exception.reason} — ${requirement.exception.note} (${requirement.exception.at})`,
+        `- **Exception:** ${inline(requirement.exception.reason)} — ${inline(requirement.exception.note)} (${formatDateTime(requirement.exception.at)})`,
       );
     }
-    lines.push(`- **Updated:** ${requirement.updatedAt}`);
-    lines.push(`- ${requirement.description}`);
+    lines.push(`- **Updated:** ${formatDateTime(requirement.updatedAt)}`);
+    lines.push(`- ${inline(requirement.description)}`);
     lines.push(``);
   }
 
@@ -157,7 +166,7 @@ function renderAuditMarkdown(model: AuditReportModel): string {
   } else {
     for (const record of model.evidence) {
       lines.push(
-        `- \`${record.at}\` · **${record.kindLabel}** — ${record.summary}`,
+        `- ${formatDateTime(record.at)} · **${record.kindLabel}** — ${inline(record.summary)}`,
       );
     }
   }

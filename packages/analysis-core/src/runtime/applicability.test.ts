@@ -135,4 +135,50 @@ describe("applicabilityObservationsForPage", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "does not emit a layout-table fact for role=presentation tables",
+    async () => {
+      const { page, close } = await withPlaywrightPage(
+        `<!doctype html><html lang="en"><body><table role="presentation"><tr><td>a</td><td>b</td></tr></table></body></html>`,
+      );
+      try {
+        const observations = await applicabilityObservationsForPage(
+          page,
+          "https://app.example/",
+        );
+        expect(
+          observations.some(
+            (obs) => obs.checkId === "layout-table-linearization",
+          ),
+        ).toBe(false);
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "emits a layout-table fact when no layout table exists",
+    async () => {
+      const { page, close } = await withPlaywrightPage(
+        `<!doctype html><html lang="en"><body><h1>Static</h1></body></html>`,
+      );
+      try {
+        const observations = await applicabilityObservationsForPage(
+          page,
+          "https://app.example/",
+        );
+        expect(
+          observations.some(
+            (obs) => obs.checkId === "layout-table-linearization",
+          ),
+        ).toBe(true);
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 });

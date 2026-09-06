@@ -139,7 +139,7 @@ function evidenceRowsForProject(
   projectId: string,
 ): AuditEvidenceRow[] {
   return evidence
-    .filter((record) => record.projectId === projectId || !record.projectId)
+    .filter((record) => record.projectId === projectId)
     .slice()
     .reverse()
     .map((record) => ({

@@ -42,7 +42,9 @@ export async function mediaKeyboardViolation(
       };
     }
 
-    if (!wasPaused) media.pause();
+    // Restore the pre-probe play state: a paused media that Space started
+    // must be paused again, and vice versa.
+    if (wasPaused) media.pause();
     else void media.play();
     return null;
   });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import { wcagFramework } from "@complyloop/adapters/wcag/controls";
+import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { sampleReportInput, reportSampleProject } from "@/test-fixtures/report-input";
 import { emptyDb } from "./db";
 import {
@@ -48,6 +49,29 @@ describe("buildEngineeringReportMarkdown", () => {
     expect(markdown).toContain("Critical / high");
     expect(markdown).not.toContain("## Requirements");
     expect(markdown).not.toContain("## Evidence trail");
+  });
+
+  it("renders snippets as indented code blocks, immune to embedded fences", () => {
+    const input = sampleReportInput();
+    input.findings[0] = {
+      ...input.findings[0],
+      reason: "Template literal with a fence\ninside",
+      location: {
+        ...input.findings[0]!.location,
+        snippet: "const s = `template with ``` inside`;",
+      },
+    } as Finding;
+
+    const markdown = buildEngineeringReportMarkdown(input);
+
+    // The snippet is preserved verbatim, indented as a code block, and the
+    // embedded fence cannot terminate it early.
+    expect(markdown).toContain("    const s = `template with ``` inside`;");
+    // A raw fence line around the snippet would imply an unescaped block.
+    expect(markdown).not.toMatch(/\n```\nconst s = /);
+    // Multiline reason is collapsed into the bullet.
+    expect(markdown).toContain("- **Reason:** Template literal with a fence inside");
+    expect(markdown).not.toContain("Reason:** Template literal with a fence\n");
   });
 });
 

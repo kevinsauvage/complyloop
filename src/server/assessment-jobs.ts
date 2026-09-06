@@ -198,6 +198,11 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
       FROM assessment_jobs
       WHERE status = 'queued'
         AND available_at <= ${now}
+        AND project_id NOT IN (
+          SELECT project_id
+          FROM assessment_jobs
+          WHERE status = 'running'
+        )
       ORDER BY available_at ASC, created_at ASC
       LIMIT 100
       FOR UPDATE SKIP LOCKED
@@ -205,11 +210,6 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
     const lockedIds = [...locked].map((row) => String(row.id));
     if (lockedIds.length === 0) return null;
 
-    const running = await tx
-      .select({ projectId: assessmentJobs.projectId })
-      .from(assessmentJobs)
-      .where(eq(assessmentJobs.status, "running"));
-    const runningProjectIds = new Set(running.map((job) => job.projectId));
     const ready = await tx
       .select()
       .from(assessmentJobs)
@@ -217,7 +217,7 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
     const byId = new Map(ready.map((job) => [job.id, job]));
     const candidate = lockedIds
       .map((id) => byId.get(id))
-      .find((job) => job !== undefined && !runningProjectIds.has(job.projectId));
+      .find((job) => job !== undefined);
     if (!candidate) return null;
 
     const leaseExpiresAt = new Date(Date.now() + DEFAULT_LEASE_MS).toISOString();

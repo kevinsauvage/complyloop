@@ -4,7 +4,7 @@ import type {
 } from "@/core/finding-list-filter";
 import type { FindingCluster } from "@complyloop/analysis-core/contract/finding-types";
 import type { Db } from "./db";
-import { remediationForFinding } from "./workspace";
+import { findRemediationForFinding } from "./workspace";
 
 export function buildFindingFilterContext(
   db: Db,
@@ -21,7 +21,7 @@ export function buildFindingFilterContext(
   return {
     controls: db.controls,
     remediationStatusFor: (findingId) =>
-      remediationForFinding(db, findingId).status,
+      findRemediationForFinding(db, findingId)?.status,
     clusterFindingIds,
   };
 }

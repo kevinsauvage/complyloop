@@ -26,7 +26,14 @@ export function runtimeFindingLocationKey(finding: RawFinding): string | null {
   const location = finding.location;
   if (location.kind === "site") return null;
   if (location.kind === "dom") {
-    return `${location.url}::${finding.checkId}::${normalizeSnippet(location.snippet)}`;
+    // Two distinct nodes can share a snippet (identical markup), so the node
+    // selector is part of node identity. Fall back to the snippet only when
+    // no usable selector is reported.
+    const selector =
+      location.selector && location.selector !== "(unknown)"
+        ? normalizeSnippet(location.selector)
+        : "";
+    return `${location.url}::${finding.checkId}::${selector}::${normalizeSnippet(location.snippet)}`;
   }
   return null;
 }

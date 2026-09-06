@@ -78,4 +78,32 @@ describe("brokenLinkFindingsForUrls", () => {
     expect(findings[0]?.checkId).toBe("broken-link");
     expect(findings[0]?.reason).toContain("fragment target missing");
   });
+
+  it("skips malformed fragment encodings without losing other findings", async () => {
+    checkMock.mockResolvedValue({ passed: true, links: [] });
+
+    const findings = await brokenLinkFindingsForUrls(["https://app.example/"], {
+      snapshots: [
+        {
+          url: "https://app.example/",
+          title: "Home",
+          htmlLang: "en",
+          elementIds: ["intro"],
+          fragmentLinks: [
+            { href: "#%zz", label: "Broken" },
+            { href: "#missing", label: "Skip" },
+          ],
+          navLinks: [],
+          helpLinks: [],
+          searchInputs: [],
+          sitemapLinks: [],
+          formFields: [],
+          landmarkRoles: [],
+        },
+      ],
+    });
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.reason).toContain("fragment target missing");
+  });
 });
