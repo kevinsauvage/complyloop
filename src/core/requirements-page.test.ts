@@ -1,43 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { testProject } from "@/test-fixtures/project";
 import {
   effectiveRequirementsPresetId,
   parsePresetIdParam,
   requirementsPageHref,
 } from "./requirements-page";
 
-const catalog = {
-  isValidPresetId: (id: string) =>
-    ["preset-rgaa-full", "preset-wcag-aa", "preset-wcag-full"].includes(id),
-  defaultConnectPresetId: "preset-rgaa-full",
-};
+const isValidPresetId = (id: string) =>
+  ["preset-rgaa-full", "preset-wcag-aa", "preset-wcag-full"].includes(id);
 
 describe("requirements page preset URL", () => {
-  const project = testProject({ defaultPresetId: "preset-rgaa-full" });
-
   it("parses only known preset ids", () => {
-    expect(parsePresetIdParam("preset-wcag-aa", catalog)).toBe(
+    expect(parsePresetIdParam("preset-wcag-aa", isValidPresetId)).toBe(
       "preset-wcag-aa",
     );
-    expect(parsePresetIdParam("nope", catalog)).toBeUndefined();
-    expect(parsePresetIdParam(undefined, catalog)).toBeUndefined();
-    expect(parsePresetIdParam("", catalog)).toBeUndefined();
+    expect(parsePresetIdParam("nope", isValidPresetId)).toBeUndefined();
+    expect(parsePresetIdParam(undefined, isValidPresetId)).toBeUndefined();
+    expect(parsePresetIdParam("", isValidPresetId)).toBeUndefined();
   });
 
   it("accepts the first element of a searchParams array", () => {
-    expect(parsePresetIdParam(["preset-wcag-aa", "junk"], catalog)).toBe(
+    expect(parsePresetIdParam(["preset-wcag-aa", "junk"], isValidPresetId)).toBe(
       "preset-wcag-aa",
     );
-    expect(parsePresetIdParam([], catalog)).toBeUndefined();
+    expect(parsePresetIdParam([], isValidPresetId)).toBeUndefined();
   });
 
   it("uses the URL preset when present, otherwise the project default", () => {
     expect(
-      effectiveRequirementsPresetId(project, "preset-wcag-aa", catalog),
+      effectiveRequirementsPresetId("preset-wcag-aa", "preset-rgaa-full"),
     ).toBe("preset-wcag-aa");
-    expect(effectiveRequirementsPresetId(project, undefined, catalog)).toBe(
-      "preset-rgaa-full",
-    );
+    expect(
+      effectiveRequirementsPresetId(undefined, "preset-rgaa-full"),
+    ).toBe("preset-rgaa-full");
   });
 
   it("omits presetId from the URL when it matches the project default", () => {

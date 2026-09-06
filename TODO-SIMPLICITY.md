@@ -22,13 +22,6 @@ This is not a broken codebase. Status derivation, check authority, append-only e
 
 ## P2 — Medium
 
-### 9. `PresetCatalog` port is ceremony around one fallback
-
-- **What is unnecessarily complex:** `src/core` must not import adapters, so `projectDefaultPresetId(project, catalog)` takes a `PresetCatalog` `{ isValidPresetId, defaultConnectPresetId }`. Adapters export a matching object. Core re-exports the type from domain.
-- **Why the complexity is a problem:** Three modules (domain port, core helper, adapter implementation) for “use the stored preset id if it exists, else `preset-rgaa-full`.” Validity is already `presetById(id) !== undefined` at the server boundary.
-- **How it could be simplified:** Resolve the preset in server/adapter code (`presetById(project.defaultPresetId) ?? defaultConnectPreset()`). Delete `PresetCatalog`, `src/core/project-preset.ts`, and the domain `preset.ts` file. Core does not need this helper.
-- **Files:** `packages/domain/src/preset.ts`, `src/core/project-preset.ts`, `packages/adapters/src/registry.ts` (`presetCatalog`).
-
 ### 10. Product types live inside the scanner package
 
 - **What is unnecessarily complex:** `Finding`, `Remediation`, `Assessment`, `EvidenceRecord`, `Alert`, and `PublicError` live in `packages/analysis-core/src/contract/`. Domain and the app import product entities from the analysis package. `RawFinding` (scan output) vs `Finding` (persisted) is a real split; stuffing the product aggregate into the scanner is not.

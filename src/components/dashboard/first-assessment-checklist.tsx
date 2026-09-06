@@ -10,8 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { presetById, presetCatalog } from "@complyloop/adapters/registry";
-import { projectDefaultPresetId } from "@/core/project-preset";
+import { presetById, projectDefaultPresetId } from "@complyloop/adapters/registry";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { cn } from "@/lib/utils";
 import { runAssessmentAction } from "@/server/actions/assessment";
@@ -53,7 +52,7 @@ export function FirstAssessmentChecklist({
   canConnect: boolean;
   hasAssessment: boolean;
 }) {
-  const defaultPresetId = projectDefaultPresetId(project, presetCatalog);
+  const defaultPresetId = projectDefaultPresetId(project);
   const preset = presetById(defaultPresetId);
   const targetDone = Boolean(preset);
   const previewDone = Boolean(project.runtimeBaseUrl?.trim());

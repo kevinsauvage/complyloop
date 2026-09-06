@@ -2,8 +2,12 @@ import { AssessedRequirementList } from "@/components/requirements/assessed-requ
 import { RequirementsPresetPanel } from "@/components/requirements/requirements-preset-panel";
 import { RequirementsStatusChips } from "@/components/requirements/requirements-status-chips";
 import { EmptyState, PageActionLink, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
-import { presetById, defaultConnectPreset, presetCatalog } from "@complyloop/adapters/registry";
-import { projectDefaultPresetId } from "@/core/project-preset";
+import {
+  defaultConnectPreset,
+  isValidPresetId,
+  presetById,
+  projectDefaultPresetId,
+} from "@complyloop/adapters/registry";
 import {
   effectiveRequirementsPresetId,
   parsePresetIdParam,
@@ -36,7 +40,7 @@ export default async function RequirementsPage({
 }) {
   const params = await searchParams;
   const statusFilter = parseRequirementStatusParam(params.status);
-  const urlPresetId = parsePresetIdParam(params.presetId, presetCatalog);
+  const urlPresetId = parsePresetIdParam(params.presetId, isValidPresetId);
   const { db, project, access, activeOrgId } = await getWorkspace();
   const caps = projectCapabilities(project, access, activeOrgId);
   if (!project) {
@@ -56,11 +60,10 @@ export default async function RequirementsPage({
     );
   }
 
-  const defaultPresetId = projectDefaultPresetId(project, presetCatalog);
+  const defaultPresetId = projectDefaultPresetId(project);
   const selectedPresetId = effectiveRequirementsPresetId(
-    project,
     urlPresetId,
-    presetCatalog,
+    defaultPresetId,
   );
   const selectedPreset = presetById(selectedPresetId);
   const frameworkId =

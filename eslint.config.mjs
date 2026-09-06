@@ -24,8 +24,7 @@ const eslintConfig = defineConfig([
   // src/core/ is framework-agnostic and must not import from adapters,
   // analysis engines, server, or app. The shared contract
   // (@complyloop/analysis-core/contract/*) is the exception. server/app
-  // integrate core via src/adapters/registry.ts. Core helpers that need
-  // catalog data define a port (e.g. PresetCatalog) that callers pass in.
+  // integrate core via src/adapters/registry.ts.
   {
     files: ["src/core/**/*.{ts,tsx}"],
     rules: {

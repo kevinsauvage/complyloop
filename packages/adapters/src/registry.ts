@@ -4,16 +4,10 @@ import { rgaaPresets } from "./rgaa/presets.ts";
 import { wcagFramework } from "./wcag/controls.ts";
 import { wcagPresets } from "./wcag/presets.ts";
 import type { CheckId } from "@complyloop/analysis-core/types";
-import type { PresetCatalog } from "@complyloop/analysis-core/contract/preset";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { CheckGuidance, FrameworkAdapter, FrameworkPreset } from "./types";
 
 const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";
-
-/** Adapter-backed PresetCatalog for core helpers — pass this into them. */
-export const presetCatalog: PresetCatalog = {
-  isValidPresetId: (id) => presetById(id) !== undefined,
-  defaultConnectPresetId: DEFAULT_CONNECT_PRESET_ID,
-};
 
 /**
  * Registered framework adapters. RGAA and WCAG share one unique control
@@ -48,6 +42,17 @@ export function defaultConnectPreset(): FrameworkPreset {
     throw new Error(`Missing connect preset: ${DEFAULT_CONNECT_PRESET_ID}`);
   }
   return preset;
+}
+
+export function isValidPresetId(id: string): boolean {
+  return presetById(id) !== undefined;
+}
+
+/** Project default assessment preset id, else the connect default. */
+export function projectDefaultPresetId(project: Project): string {
+  const stored = project.defaultPresetId;
+  if (stored && presetById(stored)) return stored;
+  return defaultConnectPreset().id;
 }
 
 export { isPertinenceTwinControl } from "./rgaa/pertinence-twins.ts";

@@ -1,9 +1,24 @@
 import { describe, expect, it } from "vitest";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import {
   allFrameworkPresets,
   defaultConnectPreset,
   presetById,
+  projectDefaultPresetId,
 } from "./registry";
+
+function testProject(
+  partial: Partial<Project> = {},
+): Project {
+  return {
+    id: "p1",
+    name: "test-project",
+    source: "github",
+    orgId: "org-test",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    ...partial,
+  };
+}
 import { shippedCatalog } from "./catalog";
 
 describe("framework adapter registry", () => {
@@ -45,5 +60,17 @@ describe("framework adapter registry", () => {
     const preset = defaultConnectPreset();
     expect(preset.id).toBe("preset-rgaa-full");
     expect(preset.controlIds).toBeDefined();
+  });
+
+  it("resolves the project default preset id with connect fallback", () => {
+    expect(
+      projectDefaultPresetId(
+        testProject({ defaultPresetId: "preset-wcag-aa" }),
+      ),
+    ).toBe("preset-wcag-aa");
+    expect(projectDefaultPresetId(testProject())).toBe("preset-rgaa-full");
+    expect(
+      projectDefaultPresetId(testProject({ defaultPresetId: "gone" })),
+    ).toBe("preset-rgaa-full");
   });
 });

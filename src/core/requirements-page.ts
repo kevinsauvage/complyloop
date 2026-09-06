@@ -1,26 +1,21 @@
-import { projectDefaultPresetId } from "./project-preset";
-import type { PresetCatalog } from "./project-preset";
-import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { firstParam, buildHref } from "./query-param";
 
 export function parsePresetIdParam(
   raw: string | string[] | undefined,
-  catalog: PresetCatalog,
+  isValidPresetId: (id: string) => boolean,
 ): string | undefined {
   const value = firstParam(raw);
   if (!value) return undefined;
-  return catalog.isValidPresetId(value) ? value : undefined;
+  return isValidPresetId(value) ? value : undefined;
 }
 
 /** Preset shown on Requirements: URL override, else project default. */
 export function effectiveRequirementsPresetId(
-  project: Project,
   urlPresetId: string | undefined,
-  catalog: PresetCatalog,
+  defaultPresetId: string,
 ): string {
-  if (urlPresetId) return urlPresetId;
-  return projectDefaultPresetId(project, catalog);
+  return urlPresetId ?? defaultPresetId;
 }
 
 export function requirementsPageHref(options: {

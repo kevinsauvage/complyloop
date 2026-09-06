@@ -6,9 +6,12 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { allFrameworkPresets, presetById, presetCatalog } from "@complyloop/adapters/registry";
+import {
+  allFrameworkPresets,
+  presetById,
+  projectDefaultPresetId,
+} from "@complyloop/adapters/registry";
 import { latestAssessmentFor } from "@/core/assessment-latest";
-import { projectDefaultPresetId } from "@/core/project-preset";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 
@@ -46,7 +49,7 @@ export default async function SettingsPage() {
   const repoUrl =
     project.sourceRef ??
     (githubFullName ? `https://github.com/${githubFullName}` : undefined);
-  const defaultPresetId = projectDefaultPresetId(project, presetCatalog);
+  const defaultPresetId = projectDefaultPresetId(project);
   const defaultPreset = presetById(defaultPresetId);
   const presets = allFrameworkPresets();
 

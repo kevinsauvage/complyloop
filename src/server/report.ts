@@ -1,6 +1,5 @@
 import type { Framework, Project } from "@complyloop/analysis-core/contract/project-types";
-import { presetById, presetCatalog } from "@complyloop/adapters/registry";
-import { projectDefaultPresetId } from "@/core/project-preset";
+import { presetById, projectDefaultPresetId } from "@complyloop/adapters/registry";
 import type { ReportView } from "@/core/report-view";
 import type { Db } from "./db";
 import {
@@ -19,7 +18,7 @@ export type ReportLoadResult =
 
 /** Resolves the framework named by the project's assessment preset. */
 export function frameworkForProject(db: Db, project: Project): Framework {
-  const preset = presetById(projectDefaultPresetId(project, presetCatalog));
+  const preset = presetById(projectDefaultPresetId(project));
   if (preset) {
     const fromPreset = db.frameworks.find(
       (framework) => framework.id === preset.frameworkId,
