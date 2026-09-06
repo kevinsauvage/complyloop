@@ -1,9 +1,7 @@
 import type { Framework, Project } from "@complyloop/analysis-core/contract/project-types";
 import { presetById, presetCatalog } from "@complyloop/adapters/registry";
-import { getDrizzle } from "@complyloop/db/client";
-import { listEvidenceForExport } from "@complyloop/db/postgres-queries";
 import { projectDefaultPresetId } from "@/core/project-preset";
-import { parseReportViewParam, type ReportView } from "@/core/report-view";
+import type { ReportView } from "@/core/report-view";
 import type { Db } from "./db";
 import {
   controlsInScope,
@@ -12,7 +10,6 @@ import {
 } from "./assessment-status";
 import { evidenceForProject } from "./project-visibility";
 import type { ReportInput } from "./report-model";
-import { getWorkspace } from "./workspace";
 
 export type { ReportInput } from "./report-model";
 
@@ -59,6 +56,13 @@ export function reportInputForProject(db: Db, project: Project): ReportInput {
 export async function loadReportInput(
   request: Request,
 ): Promise<ReportLoadResult> {
+  const { parseReportViewParam } = await import("@/core/report-view");
+  const { getDrizzle } = await import("@complyloop/db/client");
+  const { listEvidenceForExport } = await import(
+    "@complyloop/db/postgres-queries"
+  );
+  const { getWorkspace } = await import("./workspace");
+
   const { db, project } = await getWorkspace();
   if (!project) {
     return {

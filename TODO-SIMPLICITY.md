@@ -43,10 +43,6 @@ This is not a broken codebase. Status derivation, check authority, append-only e
 - **How it could be simplified:** After P0, stop assembling a `Db` for mutations. For reads, keep a small workspace context (viewer, org, project, capabilities) and let pages load what they render — the evidence page is the template. Do not introduce a query-builder framework; a few functions in `postgres-queries.ts` / `repo/*` are enough. Do **not** add Redis or a read-model service.
 - **Files:** `src/server/workspace.ts`, `packages/db/src/workspace-load.ts`, `src/app/(app)/findings/page.tsx`, `src/app/(app)/dashboard/page.tsx`, `packages/db/src/postgres-queries.ts`.
 
-### 12. ~~Report loading is three entry modules~~ **Done (2026-09-06)**
-
-`report.ts` is the single entry: `loadReportInput(request)` for export routes, plus `frameworkForProject` / `reportInputForProject`. Markdown and HTML renderers import from `report-markdown` and `report-html/*`; IR stays in `report-model.ts`. Removed `report-load.ts` and markdown re-exports from `report.ts`.
-
 ### 13. Display maps are split into many one-topic core files
 
 - **What is unnecessarily complex:** Labels, badge descriptions, status tones, evidence tones, and evidence-kind / requirement-status URL helpers each have their own module + test. Same exhaustive-`Record` pattern repeated. `src/core` is 46 files / ~3.7k lines, many of them 20–80 line maps.
