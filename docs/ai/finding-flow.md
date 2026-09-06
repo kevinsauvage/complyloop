@@ -33,8 +33,8 @@ Dismissed            → Exception on record
 
 **Source:** never show Create draft PR or Generate patch for
 `location.kind === "dom"`. Path is driven by `patchReady` / `prUrl`, not
-intermediate remediation statuses. Code: `ai-fix.ts`, `ai-fix-run.ts`,
-`verified-fix.ts`, `pr.ts`, `assessment.ts`.
+intermediate remediation statuses. Code: `actions/ai-fix.ts`, `ai-fix.ts`,
+`verified-fix.ts`, `patch.ts`, `pr.ts`, `assessment.ts`.
 
 **Runtime:** Generate guidance → Approve → Mark implemented → Verify.
 Code: `generateAiRemediationAction`, `FindingNextStepPanel`.

@@ -22,13 +22,6 @@ This is not a broken codebase. Status derivation, check authority, append-only e
 
 ## P2 — Medium
 
-### 8. Optional AI is a pipeline of many small files
-
-- **What is unnecessarily complex:** AI is `src/ai/` (`ai-call.ts`, `explainer.ts`, `remediation.ts`, `fix-propose.ts`, `verified-fix.ts`, `schemas.ts` = one `z.enum`, `model.ts`, `warn.ts`) plus server `ai-fix-run.ts`, `ai-fix-persist.ts`, `ai-fix-result.ts`, `actions/ai-fix.ts`, `actions/remediation-ai.ts`. `proposeFixEdits` duplicates the `generateObject` + warn shell that `aiCall` already provides, because it must throw instead of returning null — that difference is one parameter, not a second module family.
-- **Why the complexity is a problem:** Explain / suggest / patch are three features, not twelve concepts. New work means guessing which `ai-fix-*` file owns the next line.
-- **How it could be simplified:** Keep three feature modules (explain, suggest, patch) and one `aiCall` that accepts `{ onFailure: "null" | "throw" }`. Collapse `ai-fix-run` + `ai-fix-persist` + `ai-fix-result` into the patch action (or one `ai-fix.ts`). Leave `verified-fix.ts` if the verify-before-suggest invariant needs a name.
-- **Files:** `src/ai/*`, `src/server/ai-fix-run.ts`, `src/server/ai-fix-persist.ts`, `src/server/ai-fix-result.ts`, `src/server/actions/ai-fix.ts`, `src/server/actions/remediation-ai.ts`.
-
 ### 9. `PresetCatalog` port is ceremony around one fallback
 
 - **What is unnecessarily complex:** `src/core` must not import adapters, so `projectDefaultPresetId(project, catalog)` takes a `PresetCatalog` `{ isValidPresetId, defaultConnectPresetId }`. Adapters export a matching object. Core re-exports the type from domain.

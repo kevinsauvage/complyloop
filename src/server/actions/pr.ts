@@ -6,7 +6,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import { publicErrorMessage } from "../action-state";
 import { parseInput } from "../boundary";
-import { patchCandidateFromEvidence } from "../ai-fix-result";
+import { patchCandidateFromEvidence } from "../ai-fix";
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForFinding } from "@complyloop/db/postgres-queries";
 import { preparePullRequest } from "../pr";

@@ -18,7 +18,7 @@ import type { FindingActView } from "@/core/finding-act";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { cn } from "@/lib/utils";
 import type { PatchCandidate } from "@/ai/verified-fix";
-import type { PatchUiState } from "@/server/ai-fix-result";
+import type { PatchUiState } from "@/server/ai-fix";
 import { generateAiFixAction } from "@/server/actions/ai-fix";
 import { dismissFindingAction } from "@/server/actions/remediation";
 import { generateAiRemediationAction } from "@/server/actions/remediation-ai";

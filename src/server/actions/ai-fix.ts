@@ -11,8 +11,7 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseInput } from "../boundary";
-import { persistPatchCandidate } from "../ai-fix-persist";
-import { runAiFixOnCheckout } from "../ai-fix-run";
+import { persistPatchCandidate, runAiFixOnCheckout } from "../ai-fix";
 import { assertAiRateLimit } from "../rate-limit";
 import { withProjectCheckout } from "../repo-checkout";
 import {

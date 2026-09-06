@@ -24,7 +24,7 @@ import { PageContent, PageHeader, PageSection, formatDateTime } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { pullRequestUrlFromEvidence } from "@/server/finding-pr-url";
-import { latestPatchState } from "@/server/ai-fix-result";
+import { latestPatchState } from "@/server/ai-fix";
 import { buildDeveloperHandoff } from "@/server/handoff";
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForFinding } from "@complyloop/db/postgres-queries";

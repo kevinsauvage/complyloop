@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateObject } from "ai";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
-import { proposeFixEdits } from "./fix-propose";
+import { proposeFixEdits } from "./patch";
 import { setAiWarn } from "./warn";
 
 vi.mock("ai", () => ({

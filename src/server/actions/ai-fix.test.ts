@@ -20,20 +20,15 @@ vi.mock("../repo-checkout", () => ({
   withProjectCheckout: (...args: unknown[]) => withProjectCheckout(...args),
 }));
 
-vi.mock("../ai-fix-run", async () => {
-  const actual = await vi.importActual<typeof import("../ai-fix-run")>(
-    "../ai-fix-run",
-  );
+vi.mock("../ai-fix", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../ai-fix")>();
   return {
     ...actual,
     runAiFixOnCheckout: (...args: unknown[]) => runAiFixOnCheckout(...args),
+    persistPatchCandidate: (...args: unknown[]) =>
+      persistPatchCandidate(...args),
   };
 });
-
-vi.mock("../ai-fix-persist", () => ({
-  persistPatchCandidate: (...args: unknown[]) =>
-    persistPatchCandidate(...args),
-}));
 
 vi.mock("../rate-limit", () => ({
   assertAiRateLimit: (...args: unknown[]) => assertAiRateLimit(...args),
