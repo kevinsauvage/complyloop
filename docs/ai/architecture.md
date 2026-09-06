@@ -1,8 +1,8 @@
 # Architecture
 
-How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md).
-**Rules:** [`.cursor/rules/`](../../.cursor/rules/).
-**Product:** [`compliance-engineering-product-spec.md`](../compliance-engineering-product-spec.md).
+**Orientation:** [`AGENTS.md`](../../AGENTS.md) (commands, graft). **Product scope:**
+[`compliance-engineering-product-spec.md`](../compliance-engineering-product-spec.md).
+**Enforceable rules:** [`.cursor/rules/`](../../.cursor/rules/).
 
 ## Modules
 
@@ -150,7 +150,7 @@ when it changes) are enqueued as authoritative assessments; feature-branch
 pushes are ignored. PR events post a Check Run. Failures become
 `assessment_job_failed` evidence.
 
-**Reports:** shared `ReportModel` (`report-model.ts`).
+**Reports:** `report-model.ts` + markdown/HTML renderers; routes load via `loadReportInput` in `report.ts`.
 
 ## Invariants
 
@@ -158,12 +158,6 @@ pushes are ignored. PR events post a Check Run. Failures become
 - Every status records `automated` vs `human_review`.
 - `verified` only via deterministic re-check.
 - Webhook assessments idempotent via job `idempotencyKey`.
-
-## Adding a framework
-
-`packages/adapters/src/<name>/` + register in `registry.ts`. WCAG already
-reuses the RGAA catalog. Pages may import adapter modules directly — one
-catalog, no registry-only import rule.
 
 ## Tests
 

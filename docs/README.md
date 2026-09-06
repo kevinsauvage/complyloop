@@ -4,7 +4,7 @@
 | ---------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------- |
 | [../README.md](../README.md)                                                       | Everyone              | Quick start, core loop, commands                        |
 | [deploy.md](./deploy.md)                                                           | Operators             | Postgres, workers, auth, monitoring, backups            |
-| [ai/architecture.md](./ai/architecture.md)                                         | Engineers & agents    | Modules, data flow, analysis engines                    |
+| [ai/architecture.md](./ai/architecture.md)                                         | Engineers & agents    | Modules, persistence, analysis engines, key flows       |
 | [ai/finding-flow.md](./ai/finding-flow.md)                                         | Engineers & designers | Finding page UX contract                                |
 | [compliance-engineering-product-spec.md](./compliance-engineering-product-spec.md) | Product               | Who it's for, scope, success                            |
 | [../AGENTS.md](../AGENTS.md)                                                       | AI agents             | Repo layout, commands, where rules live                 |

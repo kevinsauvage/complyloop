@@ -6,7 +6,7 @@ Developer-first **compliance engineering**: turn requirements into verifiable en
 Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Monitoring
 ```
 
-**Product:** accessibility (RGAA 4 / WCAG 2.2) for React/Next.js/TypeScript. The domain core is framework-agnostic — other frameworks plug in as adapters.
+**Product:** accessibility (RGAA 4 / WCAG 2.2) for React/Next.js/TypeScript.
 
 Full product spec: [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md)
 
@@ -106,18 +106,7 @@ Or copy [`templates/github-actions/complyloop-check.yml`](./templates/github-act
 
 ## Repo layout
 
-```
-src/core/                Framework-agnostic product helpers, RBAC, finding UX
-packages/analysis-core/  AST checks + Playwright/axe runtime + shared contract
-packages/analysis-core/  Analysis engine + contract (statuses, findings, org/project types, job enums)
-packages/db/             Postgres persistence (Drizzle schema + repo mappers)
-packages/adapters/       RGAA/WCAG catalog, presets, guidance
-src/ai/                  Optional AI (never sets statuses)
-src/server/              Assessment, GitHub, actions (wires the packages)
-src/app/                 Next.js UI + API routes
-src/components/          UI (feature folders + shadcn ui/)
-packages/check/          CI CLI (`src/` + testdata/; bundled for `npx complyloop-check`)
-```
+See [`AGENTS.md`](./AGENTS.md) (commands, graft) and [`docs/ai/architecture.md`](./docs/ai/architecture.md) (modules, persistence, flows).
 
 ---
 

@@ -23,15 +23,7 @@ Orientation for agents. **Do not duplicate** product principles, domain vocabula
 
 ## What this is
 
-Compliance engineering platform: **Finding → Remediation → Evidence**, with continuous re-assessment.
-
-Product = accessibility (RGAA/WCAG) for React/Next.js/TypeScript, in **orgs** (roles, invites, multiple projects per org). Domain stays framework-agnostic.
-
-```
-Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Monitoring
-```
-
-The loop must work for one client project; tenancy is already multi-org. A second framework adapter is still out of scope.
+Compliance engineering for **RGAA/WCAG** on React/Next.js/TypeScript — orgs, projects, continuous re-assessment. Product scope and success criteria: [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md). Core loop and principles: [`.cursor/rules/product-context.mdc`](./.cursor/rules/product-context.mdc) (not repeated here).
 
 ## Stack
 
@@ -65,28 +57,14 @@ npm run test:e2e         # Playwright (after e2e:seed)
 
 ## Where code lives
 
-```
-src/core/                             Framework-agnostic product helpers, RBAC, finding UX (imports contract only)
-packages/analysis-core/src/contract/  Shared types — statuses, findings, orgs, projects, requirements, job enums
-packages/analysis-core/src/           AST checks (checks/registry.ts) + runtime audits
-packages/db/src/                      Postgres persistence — Drizzle schema, repo/ mappers, workspace-load, client
-packages/adapters/src/                RGAA/WCAG catalog, presets, guidance (depends on analysis-core contract)
-src/ai/                            Optional AI (provenance-tagged)
-src/server/                        Application logic: assessment, GitHub, actions (wires the packages)
-src/app/                           App Router pages + API routes
-src/components/                    UI (feature folders + ui/)
-packages/check/                    CI CLI (`src/` + testdata/; bundled for `npx complyloop-check`)
-docs/ai/                           Architecture notes
-.cursor/rules/                     Agent rules
-```
+Module layout (packages, boundaries, data flow): [`docs/ai/architecture.md`](./docs/ai/architecture.md). Use **graft** (below) for file-level lookup — do not rely on a second folder map here.
 
 ## When building features
 
 1. Check the product spec section that applies.
-2. Map the change to a core-loop stage.
-3. Keep `src/core/` framework-agnostic; RGAA/WCAG catalog in `packages/adapters/`.
-4. Use canonical statuses with exhaustive `switch` + `never` default ([`domain-model`](./.cursor/rules/domain-model.mdc)).
-5. Update `docs/ai/architecture.md` when system shape or persistence changes.
+2. Map the change to a core-loop stage ([`product-context.mdc`](./.cursor/rules/product-context.mdc)).
+3. Use canonical statuses with exhaustive `switch` + `never` default ([`domain-model.mdc`](./.cursor/rules/domain-model.mdc)).
+4. Update `docs/ai/architecture.md` when persistence or system shape changes.
 
 <!-- graft:start -->
 ## Graft — repo context graph

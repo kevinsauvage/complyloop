@@ -13,7 +13,7 @@ The core loop every feature must serve:
 Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Continuous monitoring
 ```
 
-Current product: accessibility compliance (RGAA/WCAG) for React/Next.js/TypeScript apps. The domain model stays framework-agnostic so other frameworks (SOC 2, ISO 27001, EU CRA, EAA, custom) can be added later.
+Current product: accessibility compliance (RGAA/WCAG) for React/Next.js/TypeScript apps. Scope and audience: `docs/compliance-engineering-product-spec.md`.
 
 ## Non-Negotiable Principles
 
@@ -26,6 +26,6 @@ Current product: accessibility compliance (RGAA/WCAG) for React/Next.js/TypeScri
 
 ## Architectural Rules
 
-- Core domain modules are framework-agnostic; RGAA/WCAG specifics live behind adapters/plugins.
 - Deterministic analysis and AI features are separated at module boundaries; AI output is typed, validated, and labeled as AI-generated.
 - Always distinguish automatically verified results from human-reviewed results in data model and UI.
+- Module boundaries and import rules: `docs/ai/architecture.md` and ESLint `no-restricted-imports` on `src/core/`.

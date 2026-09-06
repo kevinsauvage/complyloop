@@ -68,12 +68,9 @@ This is not a broken codebase. Status derivation, check authority, append-only e
 - **How it could be simplified:** After P0/P11, put reads that are not generic repo CRUD in one `queries.ts`. Constants can live at the top of that file. Keep `postgres-ssl.ts` / `postgres-url.ts` next to the client — those are connection concerns.
 - **Files:** `packages/db/src/postgres-*.ts`, `packages/db/src/repo/*`.
 
-### 17. Agent/doc surface restates the same module map
+### 17. ~~Agent/doc surface restates the same module map~~ **Done (2026-09-06)**
 
-- **What is unnecessarily complex:** `AGENTS.md`, `CLAUDE.md`, `docs/ai/architecture.md`, `docs/compliance-engineering-product-spec.md`, and eight `.cursor/rules/*.mdc` files all list packages, the core loop, and “framework-agnostic / second adapter later.” CLAUDE.md is mostly a Next.js-injected stub that points at AGENTS.md.
-- **Why the complexity is a problem:** The “later” adapter story leaks into every orientation doc and quietly justifies items 3–4. Agents get three maps of the same folders.
-- **How it could be simplified:** One orientation (`AGENTS.md`) + architecture (shape/persistence only) + product spec (who/scope). Rules stay enforceable constraints, not a second architecture essay. Drop “add `adapters/src/<name>`” until that work is in scope.
-- **Files:** `AGENTS.md`, `CLAUDE.md`, `docs/ai/architecture.md`, `docs/compliance-engineering-product-spec.md`, `.cursor/rules/*`.
+Single module map in `docs/ai/architecture.md`. `AGENTS.md` points there (and graft) instead of duplicating a folder tree. Product spec and `product-context.mdc` drop speculative “second adapter / framework-agnostic for later” copy. Removed “Adding a framework” from architecture.
 
 ### 18. Dashboard UI is over-filed
 
