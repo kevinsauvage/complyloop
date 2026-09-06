@@ -5,6 +5,7 @@
  */
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
+import { shippedCatalog } from "@complyloop/adapters/catalog";
 import {
   E2E_ORG_ID,
   E2E_OWNER,
@@ -13,8 +14,6 @@ import {
   E2E_VIEWER,
 } from "../e2e/constants";
 import { getDrizzle } from "@complyloop/db/client";
-import { seedCatalog, loadCatalog } from "@complyloop/db/repo/catalog";
-import { mergeAdapterControls } from "@complyloop/adapters/registry";
 import { upsertFinding } from "@complyloop/db/repo/findings";
 import { insertMembership, insertOrganization } from "@complyloop/db/repo/orgs";
 import { insertProject } from "@complyloop/db/repo/projects";
@@ -46,8 +45,6 @@ async function truncateAll(connectionString: string): Promise<void> {
         projects,
         memberships,
         organizations,
-        controls,
-        frameworks,
         github_tokens,
         webhook_deliveries
       RESTART IDENTITY CASCADE;
@@ -69,12 +66,13 @@ async function main(): Promise<void> {
 
   const now = new Date().toISOString();
   const drizzle = await getDrizzle();
-  await seedCatalog(drizzle, mergeAdapterControls);
-
-  const catalog = await loadCatalog(drizzle);
+  const { controls } = shippedCatalog();
   const control =
-    catalog.controls.find((candidate) => candidate.checkId === "img-alt") ??
-    catalog.controls[0];
+    controls.find((candidate) => candidate.checkId === "img-alt") ??
+    controls[0];
+  if (!control) {
+    throw new Error("Shipped catalog has no controls.");
+  }
 
   const findingId = "e2e-finding-img-alt";
   const assessmentId = "e2e-assessment-seed";

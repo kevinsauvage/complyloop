@@ -1,22 +1,7 @@
 -- ComplyLoop Postgres schema (pre-launch single migration).
 -- Evidence is append-only (no FKs) so history survives project/org deletion.
 -- Mutable tables use ON DELETE CASCADE for scoped persist prune.
-
--- ---------------------------------------------------------------------------
--- Catalog
--- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS "frameworks" (
-  "id" text PRIMARY KEY NOT NULL,
-  "payload" jsonb NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS "controls" (
-  "id" text PRIMARY KEY NOT NULL,
-  "framework_id" text NOT NULL REFERENCES "frameworks" ("id") ON DELETE CASCADE,
-  "payload" jsonb NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS "controls_framework_id_idx" ON "controls" ("framework_id");
+-- Compliance catalog (frameworks/controls) lives in @complyloop/adapters — not here.
 
 -- ---------------------------------------------------------------------------
 -- Tenancy
@@ -71,7 +56,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "projects_org_github_uidx"
 CREATE TABLE IF NOT EXISTS "requirements" (
   "id" text PRIMARY KEY NOT NULL,
   "project_id" text NOT NULL REFERENCES "projects" ("id") ON DELETE CASCADE,
-  "control_id" text NOT NULL REFERENCES "controls" ("id") ON DELETE CASCADE,
+  "control_id" text NOT NULL,
   "status" text NOT NULL,
   "payload" jsonb NOT NULL,
   CONSTRAINT "requirements_status_check"
@@ -100,7 +85,7 @@ CREATE INDEX IF NOT EXISTS "assessment_snapshots_assessment_id_idx"
 CREATE TABLE IF NOT EXISTS "findings" (
   "id" text PRIMARY KEY NOT NULL,
   "project_id" text NOT NULL REFERENCES "projects" ("id") ON DELETE CASCADE,
-  "control_id" text NOT NULL REFERENCES "controls" ("id") ON DELETE CASCADE,
+  "control_id" text NOT NULL,
   "assessment_id" text NOT NULL REFERENCES "assessments" ("id") ON DELETE CASCADE,
   "status" text NOT NULL,
   "payload" jsonb NOT NULL,

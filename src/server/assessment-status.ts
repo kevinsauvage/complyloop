@@ -63,7 +63,7 @@ export function assertAssessableCatalog(
   if (scoped.length > 0) return scoped;
   throw new PublicError(
     db.controls.length === 0
-      ? "Compliance catalog is not seeded. Run `npm run seed`, then re-run the assessment."
+      ? "Compliance catalog is unavailable."
       : "No controls are in scope for this project. Check the assessment preset in Settings.",
   );
 }

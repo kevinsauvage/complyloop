@@ -26,6 +26,7 @@ import { getDrizzle } from "@complyloop/db/client";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
 import { deleteProject, insertProject } from "@complyloop/db/repo/projects";
 import { loadWorkspaceDb } from "@complyloop/db/workspace-load";
+import { withShippedCatalog } from "../catalog";
 import { fetchGitHubRepo } from "../github";
 import {
   createInstallationAccessToken,
@@ -113,12 +114,14 @@ export async function connectGitHubRepoAction(
 
     const drizzle = await getDrizzle();
     await drizzle.transaction(async (tx) => {
-      const db = await loadWorkspaceDb(tx, {
-        userId,
-        githubLogin,
-        activeProjectId: null,
-        evidenceLimit: 0,
-      });
+      const db = withShippedCatalog(
+        await loadWorkspaceDb(tx, {
+          userId,
+          githubLogin,
+          activeProjectId: null,
+          evidenceLimit: 0,
+        }),
+      );
       const orgId =
         resolveActiveOrgId(db, userId, preferredOrgId) ??
         db.organizations[0]?.id ??
@@ -186,12 +189,14 @@ export async function disconnectGitHubRepoAction(
     let disconnectedName = "repository";
     const drizzle = await getDrizzle();
     await drizzle.transaction(async (tx) => {
-      const db = await loadWorkspaceDb(tx, {
-        userId,
-        githubLogin,
-        activeProjectId: projectId,
-        evidenceLimit: 0,
-      });
+      const db = withShippedCatalog(
+        await loadWorkspaceDb(tx, {
+          userId,
+          githubLogin,
+          activeProjectId: projectId,
+          evidenceLimit: 0,
+        }),
+      );
       const project = db.projects.find(
         (candidate: (typeof db.projects)[number]) => candidate.id === projectId,
       );

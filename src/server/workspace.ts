@@ -49,6 +49,7 @@ import {
   loadWorkspaceDbForViewer,
   type Db,
 } from "./db";
+import { withShippedCatalog } from "./catalog";
 import { ensurePersonalOrg, orgsForUser, resolveActiveOrgId } from "./orgs";
 import {
   type AccessContext,
@@ -226,7 +227,7 @@ async function runProjectWriteTransaction<T>(
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
     const loadWorkspace = async (): Promise<{ db: Db; workspace: Workspace }> => {
-      const db =
+      const db = withShippedCatalog(
         scope.touch === "project"
           ? await loadWorkspaceDb(tx, {
               userId,
@@ -242,7 +243,8 @@ async function runProjectWriteTransaction<T>(
               findingIds: scope.findingIds,
               requirementIds: scope.requirementIds,
               controlIds: scope.refreshControlIds,
-            });
+            }),
+      );
       return {
         db,
         workspace: prepareWorkspaceState(
@@ -489,12 +491,14 @@ export async function withOrgWrite<T>(
     // Org writes are rare admin ops but can race (two role changes on the same
     // membership); serialize per user so load→mutate→persist is atomic.
     await acquireNamedPostgresAdvisoryLock(tx, orgWriteLockKey(userId));
-    const db = await loadWorkspaceDb(tx, {
-      userId,
-      githubLogin,
-      activeProjectId: null,
-      evidenceLimit: 0,
-    });
+    const db = withShippedCatalog(
+      await loadWorkspaceDb(tx, {
+        userId,
+        githubLogin,
+        activeProjectId: null,
+        evidenceLimit: 0,
+      }),
+    );
     const organizations = orgsForUser(db, userId);
     const membershipsBefore = new Map<string, OrgMembership>(
       db.memberships.map((item) => [item.id, structuredClone(item)]),

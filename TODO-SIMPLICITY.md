@@ -41,12 +41,12 @@ Do not flatten the analysis engines, merge the two report renderers, or move job
 
 ## P1 — High
 
-### 2. The compliance catalog is compile-time data copied into Postgres
+### 2. ~~The compliance catalog is compile-time data copied into Postgres~~ **Done (2026-09-06)**
 
-- **What is unnecessarily complex:** Controls and frameworks are authored in TypeScript (`packages/adapters/src/rgaa/controls.ts`, ~1800 lines of data) and then **seeded into `frameworks` / `controls` tables** as JSONB payloads. Every workspace load reads that copy back out. `seedCatalog` takes a `CatalogMerger` port so `@complyloop/db` never imports adapters. `mergeAdapterControls` merges shipped rows into existing rows and **preserves unknown “custom” controls**. There is no UI or API to create a custom control. A seed test exists specifically for “do not wipe a custom control.”
-- **Why the complexity is a problem:** Two sources of truth for the same catalog. Deploy/seed drift, extra tables, a merger port, and a preservation rule for a product feature that does not exist. Workspace pages pay a catalog query for data the process already has on disk.
-- **How it could be simplified:** Treat `rgaaControls` / `rgaaFramework` / `wcagFramework` as the only catalog. Attach them in `src/server` when building a workspace view. Delete `CatalogMerger`, `mergeAdapterControls`, and the preserve-unknown merge. Either drop the catalog tables (migration) or overwrite them from source on seed with no merge. `npm run seed` then only exists if something else still needs it.
-- **Files:** `packages/adapters/src/registry.ts` (`mergeAdapterControls`), `packages/db/src/repo/catalog.ts`, `packages/db/src/schema.ts` (`frameworks`, `controls`), `packages/db/src/workspace-load.ts` (`loadCatalog`), `src/server/seed.ts`, `src/server/seed.test.ts`.
+Shipped catalog is `@complyloop/adapters/catalog` (`shippedCatalog()`). Server attaches it via `withShippedCatalog` at load boundaries. Postgres `frameworks` / `controls` tables removed from `drizzle/0000_init.sql` — reset the DB (`npm run db:reset -- --confirm`), no incremental migration.
+
+- **Removed:** `seedCatalog`, `mergeAdapterControls`, `npm run seed`, `packages/db/src/repo/catalog.ts`, `src/server/seed.ts`.
+- **Added:** `packages/adapters/src/catalog.ts`, `src/server/catalog.ts`.
 
 ### 3. `@complyloop/domain` is a workspace package for 183 lines of types
 

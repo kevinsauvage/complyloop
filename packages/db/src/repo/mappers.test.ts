@@ -7,8 +7,6 @@ import type {
   Remediation,
 } from "@complyloop/analysis-core/contract/finding-types";
 import type {
-  Control,
-  Framework,
   OrgMembership,
   Organization,
   Project,
@@ -17,9 +15,7 @@ import type {
 import {
   alertToRow,
   assessmentToRow,
-  controlToRow,
   findingToRow,
-  frameworkToRow,
   membershipToRow,
   organizationToRow,
   projectToRow,
@@ -71,7 +67,7 @@ describe("repo mappers emit stable row shapes", () => {
     ]);
   });
 
-  it("pins project/membership/org/catalog/assessment row shapes", () => {
+  it("pins project/membership/org/assessment row shapes", () => {
     expect(Object.keys(projectToRow({} as unknown as Project))).toEqual([
       "id",
       "name",
@@ -90,15 +86,6 @@ describe("repo mappers emit stable row shapes", () => {
     expect(Object.keys(organizationToRow({} as unknown as Organization))).toEqual([
       "id",
       "slug",
-      "payload",
-    ]);
-    expect(Object.keys(frameworkToRow({} as unknown as Framework))).toEqual([
-      "id",
-      "payload",
-    ]);
-    expect(Object.keys(controlToRow({} as unknown as Control))).toEqual([
-      "id",
-      "frameworkId",
       "payload",
     ]);
     expect(

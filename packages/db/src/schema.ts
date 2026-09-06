@@ -16,8 +16,6 @@ import {
   ASSESSMENT_JOB_TRIGGERS,
 } from "@complyloop/domain/assessment-jobs";
 import type {
-  Control,
-  Framework,
   OrgMembership,
   Organization,
   Project,
@@ -54,25 +52,6 @@ function sqlIn(column: ReturnType<typeof sql>, values: readonly string[]) {
     .join(", ");
   return sql`${column} IN (${sql.raw(list)})`;
 }
-
-export const frameworks = pgTable("frameworks", {
-  id: text("id").primaryKey(),
-  payload: jsonb("payload").$type<Framework>().notNull(),
-});
-
-export const controls = pgTable(
-  "controls",
-  {
-    id: text("id").primaryKey(),
-    frameworkId: text("framework_id")
-      .notNull()
-      .references(() => frameworks.id, { onDelete: "cascade" }),
-    payload: jsonb("payload").$type<Control>().notNull(),
-  },
-  (table) => [
-    index("controls_framework_id_idx").on(table.frameworkId),
-  ],
-);
 
 export const organizations = pgTable(
   "organizations",
@@ -139,9 +118,7 @@ export const requirements = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    controlId: text("control_id")
-      .notNull()
-      .references(() => controls.id, { onDelete: "cascade" }),
+    controlId: text("control_id").notNull(),
     status: text("status").notNull(),
     payload: jsonb("payload").$type<Requirement>().notNull(),
   },
@@ -192,9 +169,7 @@ export const findings = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    controlId: text("control_id")
-      .notNull()
-      .references(() => controls.id, { onDelete: "cascade" }),
+    controlId: text("control_id").notNull(),
     assessmentId: text("assessment_id")
       .notNull()
       .references(() => assessments.id, { onDelete: "cascade" }),

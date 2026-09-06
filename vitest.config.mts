@@ -56,7 +56,6 @@ export default defineConfig({
         "packages/analysis-core/src/runtime/applicability.ts",
         "packages/analysis-core/src/runtime/dom-target.ts",
         "packages/analysis-core/src/runtime/site-level/link-check.ts",
-        "src/server/seed.ts",
         // Live Postgres wiring without a default-suite unit driver.
         "packages/db/src/client.ts",
         "packages/db/src/schema.ts",
@@ -65,7 +64,6 @@ export default defineConfig({
         "packages/db/src/postgres-queries.ts",
         "packages/db/src/repo/alerts.ts",
         "packages/db/src/repo/assessments.ts",
-        "packages/db/src/repo/catalog.ts",
         "packages/db/src/repo/evidence.ts",
         "packages/db/src/repo/findings.ts",
         "packages/db/src/repo/orgs.ts",

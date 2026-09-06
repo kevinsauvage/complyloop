@@ -43,10 +43,12 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`). Roles
   `owner|admin|member|viewer`. Workspace load is membership-org + active
   project.
-- **Reads** — `getWorkspace()` loads catalog, orgs, project switcher, and
-  runtime for the **active project only**. File hashes live in
-  `assessment_snapshots` and load only for `runAssessment`. Evidence pages
-  query Postgres directly (`postgres-queries.ts`).
+- **Reads** — `getWorkspace()` loads orgs, project switcher, and runtime for
+  the **active project only**. The compliance catalog (frameworks/controls) is
+  attached from `@complyloop/adapters/catalog` at the server boundary — not
+  stored in Postgres. File hashes live in `assessment_snapshots` and load
+  only for `runAssessment`. Evidence pages query Postgres directly
+  (`postgres-queries.ts`).
 - **Writes** — `withProjectWrite` / `withOrgWrite` / `withProjectLock`.
   Slice persists `findings | remediations | requirements | alerts` as
   upserts + evidence inserts. Structural entities go through `repo/*`.

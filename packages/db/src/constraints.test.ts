@@ -110,10 +110,6 @@ describe.skipIf(!enabled)("tenant database constraints", () => {
       sql`DELETE FROM memberships WHERE id = ${ids.membershipId}`,
     );
     await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${ids.orgId}`);
-    await drizzle.execute(sql`DELETE FROM controls WHERE id = ${ids.controlId}`);
-    await drizzle.execute(
-      sql`DELETE FROM frameworks WHERE id = ${ids.frameworkId}`,
-    );
   });
 
   it("uses project-scoped indexes for findings, requirements, and evidence", async () => {
@@ -155,7 +151,6 @@ describe.skipIf(!enabled)("tenant database constraints", () => {
 });
 
 type FixtureIds = {
-  frameworkId: string;
   controlId: string;
   orgId: string;
   orgSlug: string;
@@ -174,7 +169,6 @@ async function insertFixtureGraph(
   suffix: string,
 ): Promise<FixtureIds> {
   const ids: FixtureIds = {
-    frameworkId: `fw-${suffix}`,
     controlId: `ctrl-${suffix}`,
     orgId: `org-${suffix}`,
     orgSlug: `slug-${suffix}`,
@@ -186,13 +180,6 @@ async function insertFixtureGraph(
     remediationId: `rem-${suffix}`,
   };
 
-  await drizzle.execute(sql`
-    INSERT INTO frameworks (id, payload) VALUES (${ids.frameworkId}, '{}'::jsonb)
-  `);
-  await drizzle.execute(sql`
-    INSERT INTO controls (id, framework_id, payload)
-    VALUES (${ids.controlId}, ${ids.frameworkId}, '{}'::jsonb)
-  `);
   await drizzle.execute(sql`
     INSERT INTO organizations (id, slug, payload)
     VALUES (${ids.orgId}, ${ids.orgSlug}, '{}'::jsonb)
@@ -244,8 +231,6 @@ async function cleanupFixtureGraph(
   await drizzle.execute(sql`DELETE FROM projects WHERE id = ${ids.projectId}`);
   await drizzle.execute(sql`DELETE FROM memberships WHERE id = ${ids.membershipId}`);
   await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${ids.orgId}`);
-  await drizzle.execute(sql`DELETE FROM controls WHERE id = ${ids.controlId}`);
-  await drizzle.execute(sql`DELETE FROM frameworks WHERE id = ${ids.frameworkId}`);
 }
 
 function rowCount(result: unknown): number {

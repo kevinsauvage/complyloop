@@ -597,7 +597,7 @@ describe("refreshRequirementStatuses applicability-gated", () => {
 });
 
 describe("assertAssessableCatalog", () => {
-  it("throws when the catalog was never seeded", () => {
+  it("throws when the catalog is unavailable", () => {
     const db = emptyDb();
     const project = testProject({
       defaultPresetId: "preset-rgaa-full",
@@ -606,7 +606,7 @@ describe("assertAssessableCatalog", () => {
     db.projects.push(project);
 
     expect(() => assertAssessableCatalog(db, project)).toThrow(
-      /Compliance catalog is not seeded/,
+      /Compliance catalog is unavailable/,
     );
   });
 });

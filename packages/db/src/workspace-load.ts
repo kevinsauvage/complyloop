@@ -4,7 +4,6 @@ import type { DrizzleDb } from "./client.ts";
 import { rowToEvidence } from "./postgres-evidence.ts";
 import { WORKSPACE_EVIDENCE_LIMIT } from "./postgres-scope.ts";
 import { listOrgIdsForUser } from "./postgres-queries.ts";
-import { loadCatalog } from "./repo/catalog.ts";
 import { listMembershipsForOrgs, listOrganizationsForUser } from "./repo/orgs.ts";
 import {
   getProjectById,
@@ -21,6 +20,8 @@ import {
   getLatestAssessmentSnapshot,
   listLatestAssessmentForProject,
 } from "./repo/assessments.ts";
+
+const emptyCatalog = { frameworks: [], controls: [] } as const;
 
 async function loadEvidenceWindow(
   drizzle: DrizzleDb,
@@ -83,15 +84,10 @@ export interface WorkspaceLoadInput {
   evidenceLimit?: number;
 }
 
-/**
- * Loads catalog + viewer orgs + project switcher list + active-project runtime.
- * Does not load assessment snapshots or other projects' runtime rows.
- */
 async function loadWorkspaceTenancy(
   drizzle: DrizzleDb,
   input: Pick<WorkspaceLoadInput, "userId" | "githubLogin" | "activeProjectId">,
 ): Promise<{
-  catalog: Awaited<ReturnType<typeof loadCatalog>>;
   organizations: Db["organizations"];
   memberships: Db["memberships"];
   projects: Db["projects"];
@@ -102,8 +98,7 @@ async function loadWorkspaceTenancy(
     input.userId,
     input.githubLogin,
   );
-  const [catalog, organizations, memberships, projects] = await Promise.all([
-    loadCatalog(drizzle),
+  const [organizations, memberships, projects] = await Promise.all([
     listOrganizationsForUser(drizzle, orgIds),
     listMembershipsForOrgs(drizzle, orgIds),
     listProjectsForOrgs(drizzle, orgIds),
@@ -116,7 +111,6 @@ async function loadWorkspaceTenancy(
       : (projects[0]?.id ?? null);
 
   return {
-    catalog,
     organizations,
     memberships,
     projects,
@@ -127,8 +121,8 @@ async function loadWorkspaceTenancy(
 export async function loadWorkspaceDb(
   drizzle: DrizzleDb,
   input: WorkspaceLoadInput,
-): Promise<Db> {
-  const { catalog, organizations, memberships, projects, activeProjectId } =
+): Promise<Omit<Db, "frameworks" | "controls">> {
+  const { organizations, memberships, projects, activeProjectId } =
     await loadWorkspaceTenancy(drizzle, input);
 
   const runtime =
@@ -152,7 +146,7 @@ export async function loadWorkspaceDb(
       : [];
 
   return {
-    ...catalog,
+    ...emptyCatalog,
     organizations,
     memberships,
     projects,
@@ -249,14 +243,14 @@ async function loadTargetedProjectRuntime(
 }
 
 /**
- * Loads catalog + tenancy + only the runtime rows touched by a hot-path write.
+ * Loads tenancy + only the runtime rows touched by a hot-path write.
  * Findings outside the active project are dropped so RBAC checks still fail loud.
  */
 export async function loadTargetedProjectWriteDb(
   drizzle: DrizzleDb,
   input: TargetedProjectWriteLoadInput,
-): Promise<Db> {
-  const { catalog, organizations, memberships, projects, activeProjectId } =
+): Promise<Omit<Db, "frameworks" | "controls">> {
+  const { organizations, memberships, projects, activeProjectId } =
     await loadWorkspaceTenancy(drizzle, input);
 
   const runtime =
@@ -282,7 +276,7 @@ export async function loadTargetedProjectWriteDb(
       : [];
 
   return {
-    ...catalog,
+    ...emptyCatalog,
     organizations,
     memberships,
     projects,
@@ -295,12 +289,11 @@ export async function loadTargetedProjectWriteDb(
 export async function loadProjectAssessmentDb(
   drizzle: DrizzleDb,
   projectId: string,
-): Promise<Db> {
+): Promise<Omit<Db, "frameworks" | "controls">> {
   const project = await getProjectById(drizzle, projectId);
   if (!project) {
     return {
-      frameworks: [],
-      controls: [],
+      ...emptyCatalog,
       organizations: [],
       memberships: [],
       projects: [],
@@ -313,8 +306,7 @@ export async function loadProjectAssessmentDb(
     };
   }
 
-  const [catalog, runtime, latestSnapshot] = await Promise.all([
-    loadCatalog(drizzle),
+  const [runtime, latestSnapshot] = await Promise.all([
     loadProjectRuntime(drizzle, projectId),
     getLatestAssessmentSnapshot(drizzle, projectId),
   ]);
@@ -331,7 +323,7 @@ export async function loadProjectAssessmentDb(
   ]);
 
   return {
-    ...catalog,
+    ...emptyCatalog,
     organizations,
     memberships,
     projects: [project],

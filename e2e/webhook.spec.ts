@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
+import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { E2E_PROJECT_ID } from "./constants";
 import {
   MockGitHub,
@@ -31,14 +32,20 @@ const NEW_REGRESS_CONTENT = `export function NewRegress() {
 }
 `;
 
+const emptyHeadingControlId = shippedCatalog().controls.find(
+  (control) => control.checkId === "empty-heading",
+)?.id;
+
 async function emptyHeadingStatus(): Promise<string | null> {
+  if (!emptyHeadingControlId) {
+    throw new Error("Shipped catalog is missing empty-heading control.");
+  }
   return withDb(async (sql) => {
     const rows = await sql<Array<{ status: string }>>`
       SELECT r.status
       FROM requirements r
-      JOIN controls c ON c.id = r.control_id
       WHERE r.project_id = ${E2E_PROJECT_ID}
-        AND (c.payload->>'checkId') = 'empty-heading'
+        AND r.control_id = ${emptyHeadingControlId}
     `;
     return rows[0]?.status ?? null;
   });

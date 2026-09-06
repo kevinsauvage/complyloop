@@ -7,26 +7,12 @@ import type {
   Remediation,
 } from "@complyloop/analysis-core/contract/finding-types";
 import type {
-  Control,
-  Framework,
   OrgMembership,
   Organization,
   Project,
   Requirement,
 } from "@complyloop/domain/project-types";
 import type { AssessmentPayload } from "../schema.ts";
-
-export function frameworkToRow(framework: Framework) {
-  return { id: framework.id, payload: framework };
-}
-
-export function controlToRow(control: Control) {
-  return {
-    id: control.id,
-    frameworkId: control.frameworkId,
-    payload: control,
-  };
-}
 
 export function organizationToRow(org: Organization) {
   return { id: org.id, slug: org.slug, payload: org };
