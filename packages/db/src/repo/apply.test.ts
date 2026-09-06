@@ -23,6 +23,7 @@ import type { DrizzleDb } from "../client.ts";
 import {
   applyAssessmentPayload,
   buildAssessmentApplyPayload,
+  persistProjectRows,
   persistProjectSlice,
   snapshotProjectSlice,
   updatedAtById,
@@ -371,6 +372,60 @@ describe("persistProjectWrite", () => {
     });
     expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {});
     expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, []);
+    expect(updateProject).not.toHaveBeenCalled();
+  });
+});
+
+describe("persistProjectRows", () => {
+  const tx = { kind: "tx" } as unknown as DrizzleDb;
+  const evidence: EvidenceRecord[] = [
+    {
+      id: "ev-1",
+      at: "2026-01-02T00:00:00.000Z",
+      kind: "finding",
+      summary: "dismissed",
+      projectId,
+      findingId: finding.id,
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    upsertRequirements.mockResolvedValue(undefined);
+    upsertFindings.mockResolvedValue(undefined);
+    upsertRemediations.mockResolvedValue(undefined);
+    insertAlerts.mockResolvedValue(undefined);
+    insertEvidenceRecords.mockResolvedValue(undefined);
+    updateProject.mockResolvedValue(undefined);
+  });
+
+  it("upserts only provided rows and forwards stale guards", async () => {
+    await persistProjectRows(
+      tx,
+      {
+        findings: [finding],
+        remediations: [remediation],
+        requirements: [requirement],
+        alerts: [alert],
+        evidence,
+      },
+      {
+        loadedRequirementUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
+        loadedFindingUpdatedAtById: new Map([[finding.id, "2026-01-01"]]),
+        loadedRemediationUpdatedAtById: new Map([[remediation.id, "2026-01-01"]]),
+      },
+    );
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [finding], {
+      loadedUpdatedAtById: new Map([[finding.id, "2026-01-01"]]),
+    });
+    expect(updateProject).not.toHaveBeenCalled();
+  });
+
+  it("no-ops when the payload is empty", async () => {
+    await persistProjectRows(tx, {});
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
+      loadedUpdatedAtById: undefined,
+    });
     expect(updateProject).not.toHaveBeenCalled();
   });
 });

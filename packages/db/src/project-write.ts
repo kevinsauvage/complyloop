@@ -1,33 +1,16 @@
 import type { Alert, EvidenceRecord, Finding, Remediation } from "./types";
 import type { Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "./client.ts";
-import { insertAlerts } from "./repo/alerts.ts";
-import { insertEvidenceRecords } from "./repo/evidence.ts";
-import { upsertFindings } from "./repo/findings.ts";
 import { newEvidenceRecord } from "./repo/mappers.ts";
-import { upsertRemediations } from "./repo/remediations.ts";
 import {
-  upsertRequirements,
-  type UpsertRequirementsOptions,
-} from "./repo/requirements.ts";
-import { updateProject } from "./repo/projects.ts";
+  persistProjectRows,
+  type PersistProjectRowsOptions,
+  type ProjectWritePayload,
+} from "./repo/apply.ts";
 import type { Db } from "./types.ts";
 
-/** Explicit rows to persist for a project-scoped write. */
-export interface ProjectWritePayload {
-  findings?: Finding[];
-  remediations?: Remediation[];
-  requirements?: Requirement[];
-  evidence?: EvidenceRecord[];
-  alerts?: Alert[];
-  project?: Project;
-}
-
-export interface PersistProjectWriteOptions {
-  loadedRequirementUpdatedAtById?: ReadonlyMap<string, string>;
-  loadedFindingUpdatedAtById?: ReadonlyMap<string, string>;
-  loadedRemediationUpdatedAtById?: ReadonlyMap<string, string>;
-}
+export type { ProjectWritePayload };
+export type PersistProjectWriteOptions = PersistProjectRowsOptions;
 
 export interface ProjectWriteCollector {
   upsertFinding(finding: Finding): void;
@@ -105,25 +88,5 @@ export async function persistProjectWrite(
   payload: ProjectWritePayload,
   options: PersistProjectWriteOptions = {},
 ): Promise<void> {
-  const requirementOptions: UpsertRequirementsOptions | undefined =
-    options.loadedRequirementUpdatedAtById
-      ? { loadedUpdatedAtById: options.loadedRequirementUpdatedAtById }
-      : undefined;
-
-  await upsertFindings(tx, payload.findings ?? [], {
-    loadedUpdatedAtById: options.loadedFindingUpdatedAtById,
-  });
-  await upsertRemediations(tx, payload.remediations ?? [], {
-    loadedUpdatedAtById: options.loadedRemediationUpdatedAtById,
-  });
-  await upsertRequirements(
-    tx,
-    payload.requirements ?? [],
-    requirementOptions ?? {},
-  );
-  await insertAlerts(tx, payload.alerts ?? []);
-  await insertEvidenceRecords(tx, payload.evidence ?? []);
-  if (payload.project) {
-    await updateProject(tx, payload.project);
-  }
+  await persistProjectRows(tx, payload, options);
 }

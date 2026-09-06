@@ -1,12 +1,16 @@
 import type { Alert, Assessment, AssessmentSnapshot, EvidenceRecord, Finding, Remediation } from "../types";
-import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../client.ts";
 import { insertAssessment } from "./assessments.ts";
 import { insertAlerts } from "./alerts.ts";
 import { insertEvidenceRecords } from "./evidence.ts";
 import { upsertFindings } from "./findings.ts";
 import { upsertRemediations } from "./remediations.ts";
-import { upsertRequirements } from "./requirements.ts";
+import {
+  upsertRequirements,
+  type UpsertRequirementsOptions,
+} from "./requirements.ts";
+import { updateProject } from "./projects.ts";
 
 export interface AssessmentApplyPayload {
   assessment: Assessment;
@@ -29,16 +33,24 @@ export async function applyAssessmentPayload(
   options: ApplyAssessmentPayloadOptions,
 ): Promise<void> {
   await insertAssessment(tx, payload.assessment, payload.snapshot);
-  await persistProjectSlice(
+  await persistProjectRows(
     tx,
-    options.loadedSlice,
     {
       requirements: payload.requirements,
       findings: payload.findings,
       remediations: payload.remediations,
       alerts: payload.alerts,
+      evidence: payload.evidence,
     },
-    payload.evidence,
+    {
+      loadedRequirementUpdatedAtById: requirementUpdatedAtById(
+        options.loadedSlice.requirements,
+      ),
+      loadedFindingUpdatedAtById: updatedAtById(options.loadedSlice.findings),
+      loadedRemediationUpdatedAtById: updatedAtById(
+        options.loadedSlice.remediations,
+      ),
+    },
   );
 }
 
@@ -91,25 +103,70 @@ export function updatedAtById(
   return new Map(entries);
 }
 
+export interface ProjectWritePayload {
+  findings?: Finding[];
+  remediations?: Remediation[];
+  requirements?: Requirement[];
+  evidence?: EvidenceRecord[];
+  alerts?: Alert[];
+  project?: Project;
+}
+
+export interface PersistProjectRowsOptions {
+  loadedRequirementUpdatedAtById?: ReadonlyMap<string, string>;
+  loadedFindingUpdatedAtById?: ReadonlyMap<string, string>;
+  loadedRemediationUpdatedAtById?: ReadonlyMap<string, string>;
+}
+
+export async function persistProjectRows(
+  tx: DrizzleDb,
+  payload: ProjectWritePayload,
+  options: PersistProjectRowsOptions = {},
+): Promise<void> {
+  const requirementOptions: UpsertRequirementsOptions | undefined =
+    options.loadedRequirementUpdatedAtById
+      ? { loadedUpdatedAtById: options.loadedRequirementUpdatedAtById }
+      : undefined;
+
+  await upsertFindings(tx, payload.findings ?? [], {
+    loadedUpdatedAtById: options.loadedFindingUpdatedAtById,
+  });
+  await upsertRemediations(tx, payload.remediations ?? [], {
+    loadedUpdatedAtById: options.loadedRemediationUpdatedAtById,
+  });
+  await upsertRequirements(
+    tx,
+    payload.requirements ?? [],
+    requirementOptions ?? {},
+  );
+  await insertAlerts(tx, payload.alerts ?? []);
+  await insertEvidenceRecords(tx, payload.evidence ?? []);
+  if (payload.project) {
+    await updateProject(tx, payload.project);
+  }
+}
+
 export async function persistProjectSlice(
   tx: DrizzleDb,
   loadedSlice: ProjectSlice,
   after: ProjectSlice,
   evidence: ReadonlyArray<EvidenceRecord>,
 ): Promise<void> {
-  await upsertRequirements(tx, after.requirements, {
-    loadedUpdatedAtById: requirementUpdatedAtById(loadedSlice.requirements),
-  });
-  // The loaded slice's `updatedAt` values guard against reverting a human
-  // decision made while a webhook assessment was scanning against that slice.
-  await upsertFindings(tx, after.findings, {
-    loadedUpdatedAtById: updatedAtById(loadedSlice.findings),
-  });
-  await upsertRemediations(tx, after.remediations, {
-    loadedUpdatedAtById: updatedAtById(loadedSlice.remediations),
-  });
-  await insertAlerts(tx, after.alerts);
-  await insertEvidenceRecords(tx, evidence);
+  await persistProjectRows(
+    tx,
+    {
+      requirements: after.requirements,
+      findings: after.findings,
+      remediations: after.remediations,
+      alerts: after.alerts,
+      evidence: [...evidence],
+    },
+    {
+      loadedRequirementUpdatedAtById: requirementUpdatedAtById(loadedSlice.requirements),
+      loadedFindingUpdatedAtById: updatedAtById(loadedSlice.findings),
+      loadedRemediationUpdatedAtById: updatedAtById(loadedSlice.remediations),
+    },
+  );
 }
 
 export function buildAssessmentApplyPayload(input: {
