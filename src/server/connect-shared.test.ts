@@ -2,8 +2,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { testProject } from "@/test-fixtures/project";
-import { emptyDb } from "./db";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { testProject } from "@/test-fixtures/project";
 import { emptyDb } from "./db";
@@ -18,6 +16,9 @@ import {
   addConnectedProject,
   assertAssessableRoot,
   cloneShallow,
+  deriveProjectName,
+  githubCloneUrl,
+  uniqueProjectName,
 } from "./connect-github";
 
 const tempDirs: string[] = [];
