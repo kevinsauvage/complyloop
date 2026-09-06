@@ -4,7 +4,7 @@ import { advanceRemediation } from "@/core/remediation";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { locateViolationInProject } from "../assessment-helpers";
+import { locateViolationInProject } from "../assessment-findings";
 import type { ProjectWriteCollector } from "@complyloop/db/project-write";
 import type { Db } from "../db";
 import type { ResolveProjectGitHubTokenOptions } from "../github-access";

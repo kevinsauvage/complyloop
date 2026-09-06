@@ -9,7 +9,7 @@ import { scanFile } from "@complyloop/analysis-core/scan";
 import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { testProject } from "@/test-fixtures/project";
-import { locateViolationInProject, mergeFix } from "./assessment-helpers";
+import { locateViolationInProject, mergeFix } from "./assessment-findings";
 import { createGit } from "./git";
 import { preparePullRequest } from "./pr";
 

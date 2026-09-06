@@ -51,18 +51,29 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
+const JOB_STATUSES = new Set<string>(ASSESSMENT_JOB_STATUSES);
+const JOB_TRIGGERS = new Set<string>(ASSESSMENT_JOB_TRIGGERS);
+
+function isAssessmentJobStatus(value: string): value is AssessmentJobStatus {
+  return JOB_STATUSES.has(value);
+}
+
+function isAssessmentJobTrigger(value: string): value is AssessmentJobTrigger {
+  return JOB_TRIGGERS.has(value);
+}
+
 function parseJobStatus(value: string): AssessmentJobStatus {
-  for (const status of ASSESSMENT_JOB_STATUSES) {
-    if (status === value) return status;
+  if (!isAssessmentJobStatus(value)) {
+    throw new Error(`Unexpected assessment job status: ${value}`);
   }
-  throw new Error(`Unexpected assessment job status: ${value}`);
+  return value;
 }
 
 function parseJobTrigger(value: string): AssessmentJobTrigger {
-  for (const trigger of ASSESSMENT_JOB_TRIGGERS) {
-    if (trigger === value) return trigger;
+  if (!isAssessmentJobTrigger(value)) {
+    throw new Error(`Unexpected assessment job trigger: ${value}`);
   }
-  throw new Error(`Unexpected assessment job trigger: ${value}`);
+  return value;
 }
 
 function parseJobPayload(value: unknown): AssessmentJobPayload {

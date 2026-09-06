@@ -49,12 +49,9 @@ Product types live in `@complyloop/analysis-core/contract/` (`project-types.ts`,
 
 ## P2 — Medium
 
-### 6. Assessment is split across too many modules for one use case
+### 6. ~~Assessment is split across too many modules for one use case~~ **Done (2026-09-06)**
 
-- **What is unnecessarily complex:** The assessment use case is `assessment.ts`, `assessment-engines.ts` (43 lines), `assessment-findings.ts`, `assessment-helpers.ts`, `assessment-status.ts`, `assessment-jobs.ts`, `assessment-job-drain.ts`, `assessment-worker.ts`, plus `actions/assessment.ts`. `buildAssessmentEngines` is a single mapper. Job status/trigger parsers still hand-roll linear scans of 5- and 2-element unions.
-- **Why the complexity is a problem:** Eight files and eight names for “run a scan and persist.” The split is past the point of single responsibility and into “one concept per file.” Navigating a bug means hopping the graph.
-- **How it could be simplified:** Fold `assessment-engines.ts` into `assessment.ts`. Keep worker / jobs / drain as the async boundary (that split is real). Merge `assessment-helpers.ts` into `assessment-findings.ts` unless a second caller appears. Implement `parseJobStatus` / `parseJobTrigger` with a `Set` (or a one-liner type guard) on the imported consts — no aliases.
-- **Files:** `src/server/assessment.ts`, `src/server/assessment-engines.ts`, `src/server/assessment-findings.ts`, `src/server/assessment-helpers.ts`, `src/server/assessment-status.ts`, `src/server/assessment-jobs.ts`, `src/server/assessment-job-drain.ts`, `src/server/assessment-worker.ts`, `src/server/actions/assessment.ts`.
+Folded `buildAssessmentEngines` into `assessment.ts`, merged `assessment-helpers.ts` into `assessment-findings.ts`, and replaced job status/trigger linear scans with `Set` + type guards. Worker / jobs / drain / status remain separate (real async and scope boundaries).
 
 ### 7. Connect is five modules plus a one-off error class
 

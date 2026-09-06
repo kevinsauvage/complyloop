@@ -73,12 +73,18 @@ vi.mock("../observability", () => ({
   reportWarning: vi.fn(),
 }));
 
-vi.mock("../assessment-helpers", () => ({
-  buildSuggestion: vi.fn(() => null),
-  locateViolationInProject: (...args: unknown[]) =>
-    locateViolationInProject(...args),
-  mergeFix: vi.fn((existing, fresh) => fresh ?? existing),
-}));
+vi.mock("../assessment-findings", async () => {
+  const actual = await vi.importActual<typeof import("../assessment-findings")>(
+    "../assessment-findings",
+  );
+  return {
+    ...actual,
+    buildSuggestion: vi.fn(() => null),
+    locateViolationInProject: (...args: unknown[]) =>
+      locateViolationInProject(...args),
+    mergeFix: vi.fn((existing, fresh) => fresh ?? existing),
+  };
+});
 
 vi.mock("../assessment-status", () => ({
   refreshRequirementStatusesForControls: (...args: unknown[]) =>

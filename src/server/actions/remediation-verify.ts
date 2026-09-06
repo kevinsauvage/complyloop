@@ -17,7 +17,7 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
-import { sameInstance } from "../assessment-helpers";
+import { sameInstance } from "../assessment-findings";
 import { refreshRequirementStatusesForControls } from "../assessment-status";
 import type { ProjectWriteCollector } from "../workspace";
 import type { Db } from "../db";

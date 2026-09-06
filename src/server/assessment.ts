@@ -10,11 +10,11 @@ import { formatLocationRef, isSourceLocation } from "@complyloop/analysis-core/c
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type {
   Assessment,
+  AssessmentEngines,
   Finding,
 } from "@complyloop/analysis-core/contract/finding-types";
 import { advanceRemediation } from "@/core/remediation";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import { buildAssessmentEngines } from "./assessment-engines";
 import { addEvidence, type Db } from "./db";
 import { detectChanges, summarizeChanges } from "./monitor";
 import {
@@ -27,6 +27,39 @@ import {
   refreshRequirementStatuses,
   scopedControlIds,
 } from "./assessment-status";
+
+interface RuntimeScanEngineInput {
+  pagesScanned: number;
+  siteLevelChecksRan?: boolean;
+  htmlValidateRan?: boolean;
+  linkCheckRan?: boolean;
+  error?: string;
+}
+
+function buildAssessmentEngines(
+  runtimeConfigured: boolean,
+  runtimeRan: boolean,
+  runtimeResult: RuntimeScanEngineInput,
+): AssessmentEngines {
+  const scanFeatures: Array<
+    NonNullable<AssessmentEngines["scanFeatures"]>[number]
+  > = [];
+  if (runtimeRan) {
+    if (runtimeResult.siteLevelChecksRan) scanFeatures.push("site_level");
+    if (runtimeResult.htmlValidateRan) scanFeatures.push("html_validate");
+    if (runtimeResult.linkCheckRan) scanFeatures.push("link_check");
+    if (runtimeConfigured) scanFeatures.push("theme_conditions");
+  }
+
+  return {
+    ast: true,
+    runtime: runtimeRan,
+    runtimePagesScanned: runtimeResult.pagesScanned,
+    scanFeatures: scanFeatures.length > 0 ? scanFeatures : undefined,
+    themeConditions: runtimeConfigured ? [...DEFAULT_THEME_CONDITIONS] : undefined,
+    runtimeError: runtimeResult.error,
+  };
+}
 
 export interface RunAssessmentOptions {
   /** Absolute path of the current ephemeral (or test) checkout to scan. */

@@ -15,7 +15,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
-import { locateViolationInProject, mergeFix } from "./assessment-helpers";
+import { locateViolationInProject, mergeFix } from "./assessment-findings";
 
 export interface RunAiFixOnCheckoutOptions {
   propose?: GeneratePatchCandidateOptions["propose"];
