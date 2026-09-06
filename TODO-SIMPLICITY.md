@@ -38,12 +38,9 @@ Product types live in `@complyloop/analysis-core/contract/` (`project-types.ts`,
 - **How it could be simplified:** One catalog module, one presets module (RGAA + WCAG lists), one `guidanceFor(checkId)`. `presetById` is `PRESETS.find(...)`. Delete `FrameworkAdapter`, the `frameworkAdapters` array, and the “add `packages/adapters/src/<name>/`” story until a second _catalog_ exists. WCAG as a **preset over the same controls** is the actual product; keep that, drop the plugin interface.
 - **Files:** `packages/adapters/src/types.ts`, `packages/adapters/src/registry.ts`, `packages/adapters/src/wcag/controls.ts`, `packages/adapters/src/wcag/presets.ts`, `docs/ai/architecture.md` (“Adding a framework”).
 
-### 5. `inScopeControlIds` is a second, usually-dead copy of the preset
+### 5. ~~`inScopeControlIds` is a second, usually-dead copy of the preset~~ **Done (2026-09-06)**
 
-- **What is unnecessarily complex:** Connect and Settings write both `defaultPresetId` and `inScopeControlIds` (a snapshot of `preset.controlIds`). Assessment scope prefers the **live** preset membership and only reads `inScopeControlIds` when no preset is set. Connect always sets a preset. So the stored id list is unused on the path that matters, and can drift from the live preset.
-- **Why the complexity is a problem:** Two fields for one idea (“which controls does this project assess?”). Writers must keep them in sync; readers must know which one wins. The snapshot does not freeze assessment scope — the comment on `scopedControlIds` says the live preset is intentional.
-- **How it could be simplified:** Store `defaultPresetId` only. Resolve scope with `presetById(id).controlIds`. Drop `inScopeControlIds` from `Project` and stop copying arrays on connect/preset change. If a future “custom subset” is needed, add it then — not now.
-- **Files:** `packages/domain/src/project-types.ts`, `src/server/assessment-status.ts` (`scopedControlIds`), `src/server/project-preset.ts`, `src/server/connect-github.ts`, `src/server/actions/project-preset.ts`.
+Store `defaultPresetId` only; assessment scope resolves via live `presetById(id).controlIds`. Removed `inScopeControlIds` from `Project` and stopped copying control id arrays on connect/preset change.
 
 ---
 

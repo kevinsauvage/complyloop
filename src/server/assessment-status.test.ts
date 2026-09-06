@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
+import * as registry from "@complyloop/adapters/registry";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import { testProject } from "@/test-fixtures/project";
@@ -18,11 +19,22 @@ function project(partial: Partial<Project> & Pick<Project, "id">): Project {
   return testProject(partial);
 }
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("assessment scope filters", () => {
-  it("keeps only in-scope requirements and findings for a custom subset", () => {
+  it("keeps only in-scope requirements and findings for a preset", () => {
+    vi.spyOn(registry, "presetById").mockReturnValue({
+      id: "preset-test-img-alt",
+      name: "Image alt only",
+      description: "test preset",
+      frameworkId: rgaaFramework.id,
+      controlIds: ["ctl-img-alt"],
+    });
     const scoped = project({
       id: "p1",
-      inScopeControlIds: ["ctl-img-alt"],
+      defaultPresetId: "preset-test-img-alt",
     });
     const requirements: Requirement[] = [
       {
@@ -129,7 +141,7 @@ describe("assessment scope filters", () => {
     expect(requirementsInScope(requirements, open)).toHaveLength(2);
   });
 
-  it("uses live Full RGAA membership, not a stale stored snapshot", () => {
+  it("uses live Full RGAA membership from the preset", () => {
     const db = emptyDb();
     db.controls.push(...rgaaControls);
     const scoped = controlsInScope(
@@ -137,7 +149,6 @@ describe("assessment scope filters", () => {
       project({
         id: "p1",
         defaultPresetId: "preset-rgaa-full",
-        inScopeControlIds: ["ctl-img-alt"],
       }),
     );
     expect(scoped.map((control) => control.id)).toContain("ctl-video-caption");
@@ -601,7 +612,6 @@ describe("assertAssessableCatalog", () => {
     const db = emptyDb();
     const project = testProject({
       defaultPresetId: "preset-rgaa-full",
-      inScopeControlIds: ["ctl-img-alt"],
     });
     db.projects.push(project);
 

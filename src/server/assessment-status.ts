@@ -18,21 +18,18 @@ import { addEvidence, type Db } from "./db";
 import { findingsForProject, requirementsForProject } from "./project-visibility";
 
 /**
- * Control IDs this project assesses. A named preset always uses the live
- * catalog membership so new rules apply without rewriting stored snapshots.
- * Custom subsets (no preset) use `inScopeControlIds`. `undefined` means
- * the whole catalog.
+ * Control IDs this project assesses. Uses live preset membership so new rules
+ * apply without rewriting stored project fields. `undefined` means the whole
+ * catalog.
  */
 export function scopedControlIds(
   project: Project,
 ): ReadonlySet<string> | undefined {
   const presetId = project.defaultPresetId;
-  if (presetId) {
-    const preset = presetById(presetId);
-    if (preset) return new Set(preset.controlIds);
-  }
-  if (project.inScopeControlIds === undefined) return undefined;
-  return new Set(project.inScopeControlIds);
+  if (!presetId) return undefined;
+  const preset = presetById(presetId);
+  if (!preset) return undefined;
+  return new Set(preset.controlIds);
 }
 
 /** Human exceptions and human passes block automated status overwrite. */

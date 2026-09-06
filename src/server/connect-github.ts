@@ -128,7 +128,6 @@ export async function connectGitHubRepo(
       orgId,
       github,
       defaultPresetId: connectPreset.id,
-      inScopeControlIds: [...connectPreset.controlIds],
       createdAt: new Date().toISOString(),
     },
     `Connected GitHub repository ${fullName}`,

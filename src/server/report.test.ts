@@ -83,7 +83,6 @@ describe("reportInputForProject", () => {
     db.projects.push({
       ...reportSampleProject,
       defaultPresetId: "preset-wcag-aa",
-      inScopeControlIds: ["ctl-img-alt"],
     });
     db.requirements.push({
       id: "r1",

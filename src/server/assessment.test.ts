@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
+import * as registry from "@complyloop/adapters/registry";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { runAssessment } from "./assessment";
@@ -43,6 +44,7 @@ beforeEach(() => {
 
 afterEach(() => {
   fs.rmSync(rootPath, { recursive: true, force: true });
+  vi.restoreAllMocks();
 });
 
 function requirementStatus(controlId: string) {
@@ -72,13 +74,11 @@ describe("runAssessment", () => {
     ).toMatch(/unable to verify/);
   });
 
-  it("assesses the live Full RGAA preset even when the stored snapshot is stale", async () => {
+  it("assesses the live Full RGAA preset membership", async () => {
     project.defaultPresetId = "preset-rgaa-full";
-    project.inScopeControlIds = ["ctl-img-alt"];
 
     await runAssessment(db, project.id, { rootPath });
 
-    expect(project.inScopeControlIds).toEqual(["ctl-img-alt"]);
     expect(requirementStatus("ctl-video-caption")).toBe("unable_to_verify");
     expect(requirementStatus("ctl-img-alt-relevant")).toBe("unable_to_verify");
     expect(
@@ -262,8 +262,15 @@ describe("runAssessment", () => {
     ).toBe(true);
   });
 
-  it("only assesses controls in the project scope", async () => {
-    project.inScopeControlIds = ["ctl-button-name"];
+  it("only assesses controls in the project preset scope", async () => {
+    vi.spyOn(registry, "presetById").mockReturnValue({
+      id: "preset-test-button-name",
+      name: "Button name only",
+      description: "test preset",
+      frameworkId: rgaaFramework.id,
+      controlIds: ["ctl-button-name"],
+    });
+    project.defaultPresetId = "preset-test-button-name";
     await runAssessment(db, project.id, { rootPath });
     expect(db.findings).toHaveLength(0);
     expect(requirementStatus("ctl-button-name")).toBe("passed");
@@ -280,7 +287,14 @@ describe("runAssessment", () => {
       description: "Marketing pages link to the privacy notice",
       checkId: null,
     });
-    project.inScopeControlIds = ["ctl-manual"];
+    vi.spyOn(registry, "presetById").mockReturnValue({
+      id: "preset-test-manual",
+      name: "Manual control only",
+      description: "test preset",
+      frameworkId: rgaaFramework.id,
+      controlIds: ["ctl-manual"],
+    });
+    project.defaultPresetId = "preset-test-manual";
 
     await runAssessment(db, project.id, { rootPath });
     expect(requirementStatus("ctl-manual")).toBe("unable_to_verify");

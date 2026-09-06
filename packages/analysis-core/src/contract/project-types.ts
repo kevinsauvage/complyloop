@@ -86,15 +86,10 @@ export interface Project {
   /** Present when source is `github`. */
   github?: ProjectGitHubMeta;
   /**
-   * Custom control IDs in scope. Ignored when a project preset is set
-   * (assessment then uses the live preset membership). `undefined` with no
-   * preset means every control in the catalog is in scope.
-   */
-  inScopeControlIds?: string[];
-  /**
    * Default framework preset for this project. Set on connect, editable in
    * Settings. Drives assessment scope and the Requirements page when no
-   * `?presetId=` is present.
+   * `?presetId=` is present. When unset, every control in the catalog is
+   * in scope.
    */
   defaultPresetId?: string;
   /**

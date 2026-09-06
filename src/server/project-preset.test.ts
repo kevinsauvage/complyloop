@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
-import { wcagPresets } from "@complyloop/adapters/wcag/presets";
 import { testProject } from "@/test-fixtures/project";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Db } from "./db";
@@ -23,16 +22,12 @@ function emptyDb(project: Project): Db {
 }
 
 describe("setDefaultPreset", () => {
-  const wcagAa = wcagPresets.find((preset) => preset.id === "preset-wcag-aa");
-  if (!wcagAa) throw new Error("Expected WCAG AA preset");
-
-  it("sets defaultPresetId and syncs the in-scope snapshot", () => {
+  it("sets defaultPresetId", () => {
     const project = testProject();
     const db = emptyDb(project);
     const result = setDefaultPreset(db, project, "preset-wcag-aa");
     expect(result.changed).toBe(true);
     expect(project.defaultPresetId).toBe("preset-wcag-aa");
-    expect(project.inScopeControlIds).toEqual(wcagAa.controlIds);
   });
 
   it("is a no-op when the default is unchanged", () => {

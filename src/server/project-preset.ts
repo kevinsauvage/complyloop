@@ -4,10 +4,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWriteCollector } from "@complyloop/db/project-write";
 import { addEvidence, type Db } from "./db";
 
-/**
- * Sets the project's default assessment preset (Settings). Also syncs the
- * in-scope snapshot for stored projects.
- */
+/** Sets the project's default assessment preset (Settings). */
 export function setDefaultPreset(
   db: Db,
   project: Project,
@@ -21,7 +18,6 @@ export function setDefaultPreset(
   }
 
   project.defaultPresetId = preset.id;
-  project.inScopeControlIds = [...preset.controlIds];
 
   const evidenceEntry = {
     kind: "requirements_imported" as const,
