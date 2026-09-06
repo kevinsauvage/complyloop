@@ -11,7 +11,7 @@ import type {
   Organization,
   Project,
   Requirement,
-} from "@complyloop/domain/project-types";
+} from "@complyloop/analysis-core/contract/project-types";
 import type { AssessmentPayload } from "../schema.ts";
 
 export function organizationToRow(org: Organization) {

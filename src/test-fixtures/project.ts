@@ -1,4 +1,4 @@
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 /** Default org-scoped project for server/core tests. */
 export function testProject(partial: Partial<Project> = {}): Project {

@@ -1,4 +1,4 @@
-import type { Project, ProjectGitHubMeta } from "@complyloop/domain/project-types";
+import type { Project, ProjectGitHubMeta } from "@complyloop/analysis-core/contract/project-types";
 import { canOnProject } from "@/core/rbac";
 import { defaultConnectPreset } from "@complyloop/adapters/registry";
 import { addEvidence, type Db } from "./db";

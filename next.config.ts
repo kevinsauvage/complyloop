@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
   ],
   transpilePackages: [
     "@complyloop/analysis-core",
-    "@complyloop/domain",
+    "@complyloop/analysis-core/contract",
     "@complyloop/db",
     "@complyloop/adapters",
   ],

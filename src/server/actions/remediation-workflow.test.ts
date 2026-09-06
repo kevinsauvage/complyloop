@@ -1,6 +1,6 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Control, Requirement } from "@complyloop/domain/project-types";
+import type { Control, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,

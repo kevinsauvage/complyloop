@@ -1,4 +1,4 @@
-import type { Framework, Project } from "@complyloop/domain/project-types";
+import type { Framework, Project } from "@complyloop/analysis-core/contract/project-types";
 import { presetById, presetCatalog } from "@complyloop/adapters/registry";
 import { projectDefaultPresetId } from "@/core/project-preset";
 import type { Db } from "./db";

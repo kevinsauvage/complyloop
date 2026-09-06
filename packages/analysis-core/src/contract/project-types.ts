@@ -1,4 +1,4 @@
-import type { DeterminationMethod, RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import type { DeterminationMethod, RequirementStatus } from "./statuses.ts";
 
 /** Default page size for list queries/views across app and db layers. */
 export const DEFAULT_PAGE_SIZE = 25;

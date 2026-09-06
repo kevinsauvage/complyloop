@@ -8,19 +8,18 @@ How ComplyLoop is shaped. **Orientation:** [`AGENTS.md`](../../AGENTS.md).
 
 | Piece    | Location                               | Role                                                          |
 | -------- | -------------------------------------- | ------------------------------------------------------------- |
-| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, requirement derivation                    |
+| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, org/project/requirement types, job enums |
 | Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                          |
-| Domain   | `packages/domain/src/`                 | Orgs, projects, requirements, catalog types                   |
 | DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load                       |
 | Adapters | `packages/adapters/src/`               | RGAA/WCAG catalog, presets, guidance                          |
-| App core | `src/core/`                            | RBAC, finding UX (contract + domain only)                     |
+| App core | `src/core/`                            | RBAC, finding UX (contract only)                              |
 | AI       | `src/ai/`                              | Explain / remediate — never sets status                       |
 | Server   | `src/server/`                          | Jobs, GitHub, actions                                         |
 | App      | `src/app/`                             | Next.js UI + API                                              |
 | CI       | `packages/check/src/`                  | `npx complyloop-check` (AST only)                             |
 
 `src/core` must not import adapters, db, or analysis-core beyond `contract/*`
-(ESLint). Dependency direction: `contract → domain → { db, adapters, app }`.
+(ESLint). Dependency direction: `contract → { db, adapters, app }`.
 
 Workspace packages export `src/*.ts`. Next transpiles them; `dist/` is
 publish-only. `@complyloop/check` bundles analysis-core; Playwright stays

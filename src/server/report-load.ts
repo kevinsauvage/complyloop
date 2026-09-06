@@ -1,4 +1,4 @@
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForExport } from "@complyloop/db/postgres-queries";
 import { parseReportViewParam, type ReportView } from "@/core/report-view";

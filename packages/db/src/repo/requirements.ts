@@ -1,5 +1,5 @@
 import { inArray, sql } from "drizzle-orm";
-import type { Requirement } from "@complyloop/domain/project-types";
+import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../client.ts";
 import { requirements } from "../schema.ts";
 import { requirementToRow } from "./mappers.ts";

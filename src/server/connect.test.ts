@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import {
   connectedGitHubProjectsByFullName,
   disconnectGitHubRepo,

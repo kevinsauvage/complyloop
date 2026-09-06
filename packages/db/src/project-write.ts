@@ -4,7 +4,7 @@ import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/finding-types";
-import type { Project, Requirement } from "@complyloop/domain/project-types";
+import type { Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "./client.ts";
 import { insertAlerts } from "./repo/alerts.ts";
 import { insertEvidenceRecords } from "./repo/evidence.ts";

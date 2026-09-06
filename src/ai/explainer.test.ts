@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Control } from "@complyloop/domain/project-types";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { generateObject } from "ai";
 import {

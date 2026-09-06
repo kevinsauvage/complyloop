@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { presetById, presetCatalog } from "@complyloop/adapters/registry";
 import { projectDefaultPresetId } from "@/core/project-preset";
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { cn } from "@/lib/utils";
 import { runAssessmentAction } from "@/server/actions/assessment";
 

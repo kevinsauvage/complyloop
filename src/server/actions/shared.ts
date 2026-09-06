@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { auth, getGitHubAccessToken } from "@/auth";
 import { advanceRemediation } from "@/core/remediation";
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { locateViolationInProject } from "../assessment-helpers";

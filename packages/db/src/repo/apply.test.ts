@@ -6,7 +6,7 @@ import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/finding-types";
-import type { Requirement } from "@complyloop/domain/project-types";
+import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 
 const insertAssessment = vi.hoisted(() => vi.fn());
 const insertAlerts = vi.hoisted(() => vi.fn());

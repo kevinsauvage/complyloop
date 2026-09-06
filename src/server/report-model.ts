@@ -4,7 +4,7 @@ import {
   type FindingStatus,
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
-import type { Control, Framework, Project, Requirement } from "@complyloop/domain/project-types";
+import type { Control, Framework, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type { EvidenceRecord, Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import {
   controlDisplayCodes,

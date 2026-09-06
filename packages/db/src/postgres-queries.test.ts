@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PAGE_SIZE } from "@complyloop/domain/project-types";
+import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 import { evidenceExportWindow, sqlPageOffset } from "./postgres-queries";
 
 describe("sqlPageOffset", () => {

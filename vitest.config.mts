@@ -14,7 +14,6 @@ const unitIncludes = [
   "src/**/*.test.{ts,tsx}",
   "packages/analysis-core/src/**/*.test.{ts,tsx}",
   "packages/db/src/**/*.test.{ts,tsx}",
-  "packages/domain/src/**/*.test.{ts,tsx}",
   "packages/adapters/src/**/*.test.{ts,tsx}",
   "packages/check/src/**/*.test.{ts,tsx}",
 ];
@@ -40,14 +39,12 @@ export default defineConfig({
         "src/server/**",
         "packages/analysis-core/src/**",
         "packages/db/src/**",
-        "packages/domain/src/**",
         "packages/adapters/src/**",
       ],
       exclude: [
         "src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/**/*.test.{ts,tsx}",
         "packages/db/src/**/*.test.{ts,tsx}",
-        "packages/domain/src/**/*.test.{ts,tsx}",
         "packages/adapters/src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/runtime/scan.ts",
         // Playwright page probes — unit job has no Chromium, so these skip.

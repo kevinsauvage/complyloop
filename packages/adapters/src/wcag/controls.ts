@@ -1,4 +1,4 @@
-import type { Framework } from "@complyloop/domain/project-types";
+import type { Framework } from "@complyloop/analysis-core/contract/project-types";
 
 export const wcagFramework: Framework = {
   id: "fw-wcag-2-1",

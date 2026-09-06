@@ -25,27 +25,11 @@ Do not flatten the analysis engines, merge the two report renderers, or move job
 
 ## P0 — Critical
 
-### 1. ~~Mutations still go through an in-memory `Db` blob, then a JSON diff~~ **Done (2026-09-06)**
-
-Interactive writes now queue explicit upserts via `ProjectWriteCollector` (`packages/db/src/project-write.ts`); `withProjectWrite` persists the collector snapshot with stale-write guards — no `changedEntities` / `JSON.stringify` diff. Assessment applies upsert the full project slice with guards from `snapshotProjectSlice` (load-time `updatedAt` only). Removed `snapshotTrackedEntities`, `collectTargetedWritePayload`, `persistTargetedProjectWrite`, `persistProjectSliceDiff`, and `changedEntities`.
-
-- **Added:** `packages/db/src/project-write.ts` (`createProjectWriteCollector`, `persistProjectWrite`).
-- **Updated:** all `withProjectWrite` action call sites, `assessment-status` optional `writes`, assessment `persistProjectSlice`.
-
-<!-- was:
-- **What is unnecessarily complex:** Almost every write loads project collections into a `Db` object ...
--->
-
----
-
 ## P1 — High
 
-### 3. `@complyloop/domain` is a workspace package for 183 lines of types
+### 3. ~~`@complyloop/domain` is a workspace package for 183 lines of types~~ **Done (2026-09-06)**
 
-- **What is unnecessarily complex:** `packages/domain/src/` is four files: `project-types.ts` (entities), `preset.ts` (a 3-method `PresetCatalog` port), `assessment-jobs.ts` (two const arrays), and a barrel `index.ts`. That package has its own `package.json`, build/lint/typecheck scripts, `tsconfig.build.json`, eslint boundary, `transpilePackages` entry, and `build:domain` script. It exists so `src/core` can stay “framework-agnostic” and so job status unions are single-sourced into the DB CHECK constraint.
-- **Why the complexity is a problem:** A published-looking package for types the app already owns. Every import is `@complyloop/domain/...` instead of a local module. The `PresetCatalog` port exists so one 8-line helper (`projectDefaultPresetId`) does not import adapters. Job status constants are a real single-source need — they do not require a package.
-- **How it could be simplified:** Move `Project`, `Organization`, `Requirement`, … next to the analysis contract (or into `src/core/` + a types module that `packages/db` may import). Keep `ASSESSMENT_JOB_STATUSES` / `ORG_ROLES` as one module imported by schema and worker. Delete the workspace package, its build graph, and the eslint special-case for `packages/domain`. `packages/db` and `packages/adapters` can import that module the same way they already import `@complyloop/analysis-core/contract/*`.
-- **Files:** `packages/domain/**`, `packages/domain/package.json`, `package.json` (`build:domain`), `next.config.ts` (`transpilePackages`), `eslint.config.mjs` (domain import rules), `src/core/project-preset.ts`, `packages/db/src/schema.ts`.
+Product types live in `@complyloop/analysis-core/contract/` (`project-types.ts`, `preset.ts`, `assessment-jobs.ts`). The `packages/domain` workspace, `build:domain`, and eslint special-case are removed.
 
 ### 4. `FrameworkAdapter` registry for one catalog and an empty WCAG adapter
 

@@ -1,5 +1,5 @@
 import { canOnProject, type Permission } from "@/core/rbac";
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { userCanConnectProjects } from "./connect-policy";
 import type { AccessContext } from "./project-visibility";
 

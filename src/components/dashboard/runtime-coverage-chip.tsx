@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { runtimeCoverageSummary } from "@/core/runtime-coverage";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { cn } from "@/lib/utils";
 
 export function RuntimeCoverageChip({

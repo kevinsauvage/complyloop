@@ -1,4 +1,4 @@
-import type { OrgMembership } from "@complyloop/domain/project-types";
+import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 import { roleHasPermission } from "@/core/rbac";
 
 export function userCanConnectProjects(

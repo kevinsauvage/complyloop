@@ -12,7 +12,6 @@
     "dev": "next dev",
     "build": "next build",
     "build:core": "npm run build --workspace @complyloop/analysis-core",
-    "build:domain": "npm run build --workspace @complyloop/domain",
     "build:db": "npm run build --workspace @complyloop/db",
     "build:adapters": "npm run build --workspace @complyloop/adapters",
     "analyze": "next experimental-analyze --output",

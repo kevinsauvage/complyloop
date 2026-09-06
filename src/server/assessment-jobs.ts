@@ -7,9 +7,9 @@ import {
   ASSESSMENT_JOB_TRIGGERS,
   type AssessmentJobStatus,
   type AssessmentJobTrigger,
-} from "@complyloop/domain/assessment-jobs";
+} from "@complyloop/analysis-core/contract/assessment-jobs";
 
-export type { AssessmentJobStatus, AssessmentJobTrigger } from "@complyloop/domain/assessment-jobs";
+export type { AssessmentJobStatus, AssessmentJobTrigger } from "@complyloop/analysis-core/contract/assessment-jobs";
 
 export interface AssessmentJobPayload {
   ref?: string;

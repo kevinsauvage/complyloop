@@ -1,4 +1,4 @@
-import type { OrgMembership, OrgRole, Organization } from "@complyloop/domain/project-types";
+import type { OrgMembership, OrgRole, Organization } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { isOrgRole } from "@/core/rbac";
 import type { Db } from "./db";

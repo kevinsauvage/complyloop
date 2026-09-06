@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import { wcagPresets } from "@complyloop/adapters/wcag/presets";
 import { testProject } from "@/test-fixtures/project";
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Db } from "./db";
 import { setDefaultPreset } from "./project-preset";
 

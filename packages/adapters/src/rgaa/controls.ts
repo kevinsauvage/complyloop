@@ -1,4 +1,4 @@
-import type { Control, Framework } from "@complyloop/domain/project-types";
+import type { Control, Framework } from "@complyloop/analysis-core/contract/project-types";
 
 export const rgaaFramework: Framework = {
   id: "fw-rgaa-4",

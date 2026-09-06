@@ -1,4 +1,4 @@
-import { ORG_ROLES, type OrgMembership, type OrgRole, type Project } from "@complyloop/domain/project-types";
+import { ORG_ROLES, type OrgMembership, type OrgRole, type Project } from "@complyloop/analysis-core/contract/project-types";
 
 export type Permission =
   | "project.view"

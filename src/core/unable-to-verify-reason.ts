@@ -1,5 +1,5 @@
 import { lookupExhaustive } from "./assert-exhaustive";
-import type { Control, Project } from "@complyloop/domain/project-types";
+import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
 
 export type UnableToVerifyReason =
   | "needs_preview_url"

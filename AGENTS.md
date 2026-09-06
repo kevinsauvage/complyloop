@@ -66,11 +66,11 @@ npm run test:e2e         # Playwright (after e2e:seed)
 ## Where code lives
 
 ```
-src/core/                          Framework-agnostic product helpers, RBAC, finding UX (imports contract + domain only)
-packages/analysis-core/src/        AST checks (checks/registry.ts) + runtime audits + contract/ (statuses, findings, status derivation)
-packages/domain/src/               Product domain model — orgs, projects, requirements, catalog types (depends on analysis-core/contract only)
-packages/db/src/                   Postgres persistence — Drizzle schema, repo/ mappers, workspace-load, client
-packages/adapters/src/             RGAA/WCAG catalog, presets, guidance (depends on domain + analysis-core)
+src/core/                             Framework-agnostic product helpers, RBAC, finding UX (imports contract only)
+packages/analysis-core/src/contract/  Shared types — statuses, findings, orgs, projects, requirements, job enums
+packages/analysis-core/src/           AST checks (checks/registry.ts) + runtime audits
+packages/db/src/                      Postgres persistence — Drizzle schema, repo/ mappers, workspace-load, client
+packages/adapters/src/                RGAA/WCAG catalog, presets, guidance (depends on analysis-core contract)
 src/ai/                            Optional AI (provenance-tagged)
 src/server/                        Application logic: assessment, GitHub, actions (wires the packages)
 src/app/                           App Router pages + API routes

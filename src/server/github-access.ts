@@ -1,4 +1,4 @@
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { getStoredGitHubToken } from "./github-tokens";
 import {
   createInstallationAccessToken,

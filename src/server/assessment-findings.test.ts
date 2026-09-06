@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { emptyDb } from "@complyloop/db/types";
 import { testFinding } from "@/test-fixtures/finding";
 import { createFinding, shouldResolveOpenFinding } from "./assessment-findings";

@@ -4,7 +4,7 @@ import type {
   EvidenceKind,
   EvidenceRecord,
 } from "@complyloop/analysis-core/contract/finding-types";
-import { DEFAULT_PAGE_SIZE } from "@complyloop/domain/project-types";
+import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "./client.ts";
 import { rowToEvidence } from "./postgres-evidence.ts";
 import { EVIDENCE_EXPORT_LIMIT } from "./postgres-scope.ts";

@@ -1,5 +1,5 @@
 import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
-import type { Requirement } from "@complyloop/domain/project-types";
+import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import { requirementsStatusHref } from "./requirement-status-filter";
 
 /** Primary navigation target for an evidence row in the compliance loop. */

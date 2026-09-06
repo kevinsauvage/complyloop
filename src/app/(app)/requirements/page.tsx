@@ -13,7 +13,7 @@ import {
   parseRequirementStatusParam,
 } from "@/core/requirement-status-filter";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import type { Control } from "@complyloop/domain/project-types";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 

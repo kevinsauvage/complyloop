@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { cloneShallow, githubCloneUrl } from "./connect-shared";
 import { ConnectError } from "./connect-error";
 import {

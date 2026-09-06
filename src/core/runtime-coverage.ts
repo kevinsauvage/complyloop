@@ -1,5 +1,5 @@
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 export type RuntimeCoverageMode = "source_only" | "source_and_preview";
 

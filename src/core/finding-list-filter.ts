@@ -1,5 +1,5 @@
 import type { AssessmentEngine, Finding } from "@complyloop/analysis-core/contract/finding-types";
-import type { Control } from "@complyloop/domain/project-types";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { formatLocationRef, locationPathOrUrl } from "@complyloop/analysis-core/contract/location";
 import { parsePageParam } from "./pagination";
 import { parseEnumParam, firstParam, buildHref } from "./query-param";

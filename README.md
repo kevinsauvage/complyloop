@@ -109,7 +109,7 @@ Or copy [`templates/github-actions/complyloop-check.yml`](./templates/github-act
 ```
 src/core/                Framework-agnostic product helpers, RBAC, finding UX
 packages/analysis-core/  AST checks + Playwright/axe runtime + shared contract
-packages/domain/         Product domain model (orgs, projects, requirements, catalog)
+packages/analysis-core/  Analysis engine + contract (statuses, findings, org/project types, job enums)
 packages/db/             Postgres persistence (Drizzle schema + repo mappers)
 packages/adapters/       RGAA/WCAG catalog, presets, guidance
 src/ai/                  Optional AI (never sets statuses)

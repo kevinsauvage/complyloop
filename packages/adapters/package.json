@@ -16,8 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@complyloop/analysis-core": "^0.1.0",
-    "@complyloop/domain": "^0.1.0"
+    "@complyloop/analysis-core": "^0.1.0"
   },
   "peerDependencies": {
     "typescript": "^5"

@@ -64,20 +64,18 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Persistence, domain, adapters, and the CI CLI are framework-agnostic leaves:
+  // Persistence, adapters, and the CI CLI are framework-agnostic leaves:
   // they must not import app/server/adapters-at-app layers. They may import the
-  // analysis contract and each other. adapters depends on domain + analysis-core;
-  // db depends on domain + analysis-core; domain depends only on analysis-core contract;
+  // analysis contract and each other. adapters and db depend on analysis-core contract;
   // check depends on analysis-core (bundled at publish).
   {
     files: [
       "packages/db/**/*.{ts,tsx}",
-      "packages/domain/**/*.{ts,tsx}",
       "packages/adapters/**/*.{ts,tsx}",
       "packages/check/**/*.{ts,tsx}",
     ],
     rules: {
-      // domain imports analysis-core's contract only (same rule as src/core).
+      // packages import analysis-core's contract only (same rule as src/core).
       "no-restricted-imports": [
         "error",
         {
@@ -96,37 +94,17 @@ const eslintConfig = defineConfig([
                 "**/ai/**",
               ],
               message:
-                "packages/db, domain, adapters, check must not import app/server/adapters/AI layers — see docs/ai/architecture.md (module boundaries).",
+                "packages/db, adapters, check must not import app/server/adapters/AI layers — see docs/ai/architecture.md (module boundaries).",
             },
             {
               regex: "^(../)*src/",
               message:
-                "packages/db, domain, adapters, check must not reach outside their package (no ../src) — see docs/ai/architecture.md (module boundaries).",
+                "packages/db, adapters, check must not reach outside their package (no ../src) — see docs/ai/architecture.md (module boundaries).",
             },
             {
               group: ["@/*"],
               message:
                 "workspace packages must not use the app @ alias — see docs/ai/architecture.md (module boundaries).",
-            },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    // domain depends on analysis-core's contract subpath only — a domain check
-    // that reaches the engines drags the whole graph into every consumer.
-    files: ["packages/domain/**/*.{ts,tsx}"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              regex:
-                "^@complyloop/analysis-core(?!/contract(?:/|$))(?:$|/)",
-              message:
-                "packages/domain may import only @complyloop/analysis-core/contract/* — see docs/ai/architecture.md (module boundaries).",
             },
           ],
         },
@@ -147,7 +125,6 @@ const eslintConfig = defineConfig([
     "packages/check/dist/**",
     "packages/analysis-core/dist/**",
     "packages/db/dist/**",
-    "packages/domain/dist/**",
     "packages/adapters/dist/**",
     "e2e/fixtures/**",
     ".data/**",

@@ -1,7 +1,7 @@
-import type { Project } from "@complyloop/domain/project-types";
-import type { PresetCatalog } from "@complyloop/domain/preset";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
+import type { PresetCatalog } from "@complyloop/analysis-core/contract/preset";
 
-export type { PresetCatalog } from "@complyloop/domain/preset";
+export type { PresetCatalog } from "@complyloop/analysis-core/contract/preset";
 
 /** Project default assessment preset, else catalog connect default. */
 export function projectDefaultPresetId(

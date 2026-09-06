@@ -5,7 +5,7 @@ import type {
   OrgMembership,
   Organization,
   Project,
-} from "@complyloop/domain/project-types";
+} from "@complyloop/analysis-core/contract/project-types";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {

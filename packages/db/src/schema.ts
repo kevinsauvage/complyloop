@@ -10,17 +10,17 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { ORG_ROLES } from "@complyloop/domain/project-types";
+import { ORG_ROLES } from "@complyloop/analysis-core/contract/project-types";
 import {
   ASSESSMENT_JOB_STATUSES,
   ASSESSMENT_JOB_TRIGGERS,
-} from "@complyloop/domain/assessment-jobs";
+} from "@complyloop/analysis-core/contract/assessment-jobs";
 import type {
   OrgMembership,
   Organization,
   Project,
   Requirement,
-} from "@complyloop/domain/project-types";
+} from "@complyloop/analysis-core/contract/project-types";
 import type {
   Alert,
   Assessment,

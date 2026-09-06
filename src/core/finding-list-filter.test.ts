@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
-import type { Control } from "@complyloop/domain/project-types";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import {
   filterFindings,
   findingDetailHref,

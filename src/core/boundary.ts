@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   ASSESSMENT_JOB_STATUSES,
   ASSESSMENT_JOB_TRIGGERS,
-} from "@complyloop/domain/assessment-jobs";
+} from "@complyloop/analysis-core/contract/assessment-jobs";
 
 export const entityIdSchema = z.string().trim().min(1).max(128);
 

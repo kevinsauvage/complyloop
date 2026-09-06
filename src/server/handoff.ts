@@ -3,7 +3,7 @@ import { createTwoFilesPatch } from "diff";
 import { applyFix } from "@complyloop/analysis-core/fixes";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import { formatLocationRef, isSourceLocation, locationSnippet } from "@complyloop/analysis-core/contract/location";
-import type { Control, Project } from "@complyloop/domain/project-types";
+import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding, ProposedFix, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 
 export interface DeveloperHandoff {

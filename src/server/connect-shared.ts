@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { hasSourceFiles } from "@complyloop/analysis-core/source-files";
-import type { Project } from "@complyloop/domain/project-types";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { addEvidence, type Db } from "./db";
 import { createGit } from "./git";
 import { ConnectError } from "./connect-error";

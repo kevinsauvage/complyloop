@@ -4,7 +4,7 @@ import { rgaaPresets } from "./rgaa/presets.ts";
 import { wcagFramework } from "./wcag/controls.ts";
 import { wcagPresets } from "./wcag/presets.ts";
 import type { CheckId } from "@complyloop/analysis-core/types";
-import type { PresetCatalog } from "@complyloop/domain/preset";
+import type { PresetCatalog } from "@complyloop/analysis-core/contract/preset";
 import type { CheckGuidance, FrameworkAdapter, FrameworkPreset } from "./types";
 
 const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";

@@ -1,7 +1,7 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Remediation } from "@complyloop/analysis-core/contract/finding-types";
-import type { OrgMembership } from "@complyloop/domain/project-types";
+import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
 import { testControl } from "@/test-fixtures/control";
 import { testFinding } from "@/test-fixtures/finding";

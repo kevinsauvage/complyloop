@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { OrgMembership } from "@complyloop/domain/project-types";
+import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 import {
   changeOrgMemberRoleAction,
   removeOrgMemberAction,

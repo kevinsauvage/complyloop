@@ -1,5 +1,5 @@
 import { eq, inArray, or, sql } from "drizzle-orm";
-import type { OrgMembership, Organization } from "@complyloop/domain/project-types";
+import type { OrgMembership, Organization } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../client.ts";
 import { memberships, organizations } from "../schema.ts";
 import { membershipToRow, organizationToRow } from "./mappers.ts";

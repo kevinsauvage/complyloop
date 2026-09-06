@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { findingsListHref } from "@/core/finding-list-filter";
-import type { Control, Project, Requirement } from "@complyloop/domain/project-types";
+import type { Control, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import {
   unableToVerifyReason,
   unableToVerifyReasonLabel,

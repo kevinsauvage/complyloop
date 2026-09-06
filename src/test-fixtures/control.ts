@@ -1,4 +1,4 @@
-import type { Control } from "@complyloop/domain/project-types";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
 /** Default img-alt control for server tests. */
 export function testControl(partial: Partial<Control> = {}): Control {

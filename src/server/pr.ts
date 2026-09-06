@@ -1,6 +1,6 @@
 import { applyFileEdits, type PatchCandidate } from "@/ai/verified-fix";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
-import type { Control, Project } from "@complyloop/domain/project-types";
+import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { githubCloneUrl } from "./connect-shared";
