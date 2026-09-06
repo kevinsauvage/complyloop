@@ -1,11 +1,11 @@
 import { buildAuditReportHtml } from "@/server/report-html/audit";
 import { buildEngineeringReportHtml } from "@/server/report-html/engineering";
-import { loadReportRequestContext } from "@/server/report-load";
+import { loadReportInput } from "@/server/report";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<Response> {
-  const context = await loadReportRequestContext(request);
+  const context = await loadReportInput(request);
   if (!context.ok) return context.response;
 
   const { view, input } = context;

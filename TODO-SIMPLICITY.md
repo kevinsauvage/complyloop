@@ -43,12 +43,9 @@ This is not a broken codebase. Status derivation, check authority, append-only e
 - **How it could be simplified:** After P0, stop assembling a `Db` for mutations. For reads, keep a small workspace context (viewer, org, project, capabilities) and let pages load what they render — the evidence page is the template. Do not introduce a query-builder framework; a few functions in `postgres-queries.ts` / `repo/*` are enough. Do **not** add Redis or a read-model service.
 - **Files:** `src/server/workspace.ts`, `packages/db/src/workspace-load.ts`, `src/app/(app)/findings/page.tsx`, `src/app/(app)/dashboard/page.tsx`, `packages/db/src/postgres-queries.ts`.
 
-### 12. Report loading is three entry modules
+### 12. ~~Report loading is three entry modules~~ **Done (2026-09-06)**
 
-- **What is unnecessarily complex:** `report.ts` (scope + re-exports markdown builders), `report-load.ts` (HTTP context), `report-model.ts` (IR), then `report-markdown.ts` and `report-html/*`. `frameworkForProject` / `reportInputForProject` are thin wrappers over assessment-status + visibility helpers.
-- **Why the complexity is a problem:** Three names for “build the export input.” The IR + two renderers are justified (different escaping). The extra facades are not.
-- **How it could be simplified:** Keep `report-model.ts` + the two renderers. Fold `report.ts` + `report-load.ts` into one `loadReportInput(request)` used by the export routes.
-- **Files:** `src/server/report.ts`, `src/server/report-load.ts`, `src/server/report-model.ts`, `src/app/(app)/evidence/report/**`.
+`report.ts` is the single entry: `loadReportInput(request)` for export routes, plus `frameworkForProject` / `reportInputForProject`. Markdown and HTML renderers import from `report-markdown` and `report-html/*`; IR stays in `report-model.ts`. Removed `report-load.ts` and markdown re-exports from `report.ts`.
 
 ### 13. Display maps are split into many one-topic core files
 

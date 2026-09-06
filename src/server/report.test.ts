@@ -7,8 +7,8 @@ import { emptyDb } from "./db";
 import {
   buildAuditReportMarkdown,
   buildEngineeringReportMarkdown,
-  reportInputForProject,
-} from "./report";
+} from "./report-markdown";
+import { reportInputForProject } from "./report";
 
 describe("buildAuditReportMarkdown", () => {
   it("includes summary, requirements, and human evidence labels for auditors", () => {

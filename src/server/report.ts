@@ -1,6 +1,9 @@
 import type { Framework, Project } from "@complyloop/analysis-core/contract/project-types";
 import { presetById, presetCatalog } from "@complyloop/adapters/registry";
+import { getDrizzle } from "@complyloop/db/client";
+import { listEvidenceForExport } from "@complyloop/db/postgres-queries";
 import { projectDefaultPresetId } from "@/core/project-preset";
+import { parseReportViewParam, type ReportView } from "@/core/report-view";
 import type { Db } from "./db";
 import {
   controlsInScope,
@@ -9,12 +12,13 @@ import {
 } from "./assessment-status";
 import { evidenceForProject } from "./project-visibility";
 import type { ReportInput } from "./report-model";
+import { getWorkspace } from "./workspace";
 
-export type { ReportInput };
-export {
-  buildAuditReportMarkdown,
-  buildEngineeringReportMarkdown,
-} from "./report-markdown";
+export type { ReportInput } from "./report-model";
+
+export type ReportLoadResult =
+  | { ok: false; response: Response }
+  | { ok: true; project: Project; view: ReportView; input: ReportInput };
 
 /** Resolves the framework named by the project's assessment preset. */
 export function frameworkForProject(db: Db, project: Project): Framework {
@@ -48,5 +52,30 @@ export function reportInputForProject(db: Db, project: Project): ReportInput {
     requirements: requirementsInScope(db.requirements, project),
     evidence: evidenceForProject(db.evidence, project.id),
     exportedAt: new Date().toISOString(),
+  };
+}
+
+/** Loads workspace, evidence, and report input for markdown/HTML export routes. */
+export async function loadReportInput(
+  request: Request,
+): Promise<ReportLoadResult> {
+  const { db, project } = await getWorkspace();
+  if (!project) {
+    return {
+      ok: false,
+      response: new Response("No project connected.", { status: 404 }),
+    };
+  }
+
+  const view = parseReportViewParam(
+    new URL(request.url).searchParams.get("view"),
+  );
+  const exported = await listEvidenceForExport(await getDrizzle(), project.id);
+
+  return {
+    ok: true,
+    project,
+    view,
+    input: reportInputForProject({ ...db, evidence: exported.records }, project),
   };
 }
