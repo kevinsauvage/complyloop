@@ -4,6 +4,7 @@ import type { Control, Requirement } from "@complyloop/domain/project-types";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,
+  invokeProjectWriteMock,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testControl } from "@/test-fixtures/control";
 import { testFinding } from "@/test-fixtures/finding";
@@ -175,7 +176,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     runtimeViolationStillPresent.mockResolvedValue(false);
 
     const result = await verifyRemediationAction(
@@ -194,7 +195,7 @@ describe("verifyRemediationAction", () => {
       workspace.db,
       "p1",
       ["c1"],
-      expect.objectContaining({ runtimeRan: true }),
+      expect.objectContaining({ runtimeRan: true, writes: expect.any(Object) }),
     );
   });
 
@@ -212,7 +213,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     scanRuntime.mockResolvedValue({
       findings: [],
       pagesScanned: 2,
@@ -235,7 +236,11 @@ describe("verifyRemediationAction", () => {
       workspace.db,
       "p1",
       ["c1"],
-      expect.objectContaining({ runtimeRan: true, siteLevelChecksRan: true }),
+      expect.objectContaining({
+        runtimeRan: true,
+        siteLevelChecksRan: true,
+        writes: expect.any(Object),
+      }),
     );
   });
 
@@ -253,7 +258,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     scanRuntime.mockResolvedValue({
       findings: [],
       pagesScanned: 1,
@@ -284,7 +289,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     runtimeViolationStillPresent.mockResolvedValue(true);
 
     const result = await verifyRemediationAction(
@@ -311,7 +316,7 @@ describe("markRemediationImplementedAction", () => {
         },
       ],
     });
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     const form = new FormData();
     form.set("note", "Fixed in PR #9");
 
@@ -339,7 +344,7 @@ describe("dismissFindingAction", () => {
         },
       ],
     });
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     const form = new FormData();
     form.set("reason", "false_positive");
     form.set("note", "decorative");
@@ -357,7 +362,7 @@ describe("dismissFindingAction", () => {
 
   it("requires a valid dismissal reason", async () => {
     const workspace = baseWorkspace();
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     const result = await dismissFindingAction(
       "f1",
       emptyActionMessageState,
@@ -369,7 +374,7 @@ describe("dismissFindingAction", () => {
 
 describe("bulkDismissFindingsAction", () => {
   it("requires at least one finding id", async () => {
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(baseWorkspace()));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(baseWorkspace(), fn));
     const form = new FormData();
     form.set("reason", "accepted_risk");
     const result = await bulkDismissFindingsAction(
@@ -380,7 +385,7 @@ describe("bulkDismissFindingsAction", () => {
   });
 
   it("requires a valid dismissal reason", async () => {
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(baseWorkspace()));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(baseWorkspace(), fn));
     const form = new FormData();
     form.append("findingIds", "f1");
     const result = await bulkDismissFindingsAction(
@@ -398,7 +403,7 @@ describe("bulkDismissFindingsAction", () => {
       ],
       remediations: [],
     });
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     const form = new FormData();
     form.append("findingIds", "f1");
     form.append("findingIds", "f2");
@@ -421,6 +426,7 @@ describe("bulkDismissFindingsAction", () => {
       workspace.db,
       "p1",
       ["c1"],
+      expect.objectContaining({ writes: expect.any(Object) }),
     );
   });
 
@@ -428,7 +434,7 @@ describe("bulkDismissFindingsAction", () => {
     const workspace = baseWorkspace({
       findings: [{ ...finding, status: "dismissed" }],
     });
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     const form = new FormData();
     form.append("findingIds", "f1");
     form.set("reason", "false_positive");
@@ -532,7 +538,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("reason", "not_applicable");
@@ -561,7 +567,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("reason", "temporary");
@@ -591,7 +597,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("reason", "temporary");
@@ -615,7 +621,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("reason", "accepted_risk");
@@ -638,7 +644,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("note", "Reviewed in staging");
@@ -664,7 +670,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("note", "should not work");
@@ -691,7 +697,7 @@ describe("requirement decision actions", () => {
       },
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
 
     const result = await clearRequirementHumanPassAction(
       "req-pass",
@@ -705,6 +711,7 @@ describe("requirement decision actions", () => {
       workspace.db,
       "p1",
       ["c-manual"],
+      expect.objectContaining({ writes: expect.any(Object) }),
     );
   });
 
@@ -718,7 +725,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
 
     const result = await clearRequirementHumanPassAction(
       "req-no-pass",
@@ -743,7 +750,7 @@ describe("requirement decision actions", () => {
       },
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
 
     const result = await clearRequirementExceptionAction(
       "req-3",
@@ -757,6 +764,7 @@ describe("requirement decision actions", () => {
       workspace.db,
       "p1",
       ["c1"],
+      expect.objectContaining({ writes: expect.any(Object) }),
     );
   });
 
@@ -770,7 +778,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
 
     const result = await clearRequirementExceptionAction(
       "req-no-ex",

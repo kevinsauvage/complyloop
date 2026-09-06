@@ -1,7 +1,7 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../db";
-import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
 import { testControl } from "@/test-fixtures/control";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
@@ -126,7 +126,7 @@ describe("createPullRequestAction", () => {
   it("records evidence when a PR is prepared", async () => {
     const workspace = workspaceFor("member");
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     getGitHubAccessToken.mockResolvedValue("gho_token");
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
@@ -159,7 +159,7 @@ describe("createPullRequestAction", () => {
       status: "suggested",
     };
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     getGitHubAccessToken.mockResolvedValue("gho_token");
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",

@@ -15,24 +15,25 @@ const upsertRequirements = vi.hoisted(() => vi.fn());
 const upsertFindings = vi.hoisted(() => vi.fn());
 const upsertRemediations = vi.hoisted(() => vi.fn());
 
+const updateProject = vi.hoisted(() => vi.fn());
+
 vi.mock("./requirements.ts", () => ({ upsertRequirements }));
 vi.mock("./findings.ts", () => ({ upsertFindings }));
 vi.mock("./remediations.ts", () => ({ upsertRemediations }));
 vi.mock("./alerts.ts", () => ({ insertAlerts }));
 vi.mock("./evidence.ts", () => ({ insertEvidenceRecords }));
 vi.mock("./assessments.ts", () => ({ insertAssessment }));
+vi.mock("./projects.ts", () => ({ updateProject }));
 
 import type { DrizzleDb } from "../client.ts";
 import {
   applyAssessmentPayload,
   buildAssessmentApplyPayload,
-  changedEntities,
-  entityMap,
-  persistProjectSliceDiff,
-  persistTargetedProjectWrite,
+  persistProjectSlice,
   snapshotProjectSlice,
   updatedAtById,
 } from "./apply.ts";
+import { persistProjectWrite } from "../project-write.ts";
 
 const projectId = "p1";
 const requirement: Requirement = {
@@ -93,27 +94,6 @@ describe("updatedAtById", () => {
   });
 });
 
-describe("changedEntities", () => {
-  it("returns items that are new or whose canonical JSON differs", () => {
-    const before = entityMap([{ id: "a", n: 1 }, { id: "b", n: 2 }]);
-    expect(
-      changedEntities(before, [
-        { id: "a", n: 1 },
-        { id: "b", n: 3 },
-        { id: "c", n: 4 },
-      ]),
-    ).toEqual([
-      { id: "b", n: 3 },
-      { id: "c", n: 4 },
-    ]);
-  });
-
-  it("treats key-order-stable clones as unchanged", () => {
-    const before = entityMap([requirement]);
-    expect(changedEntities(before, [{ ...requirement }])).toEqual([]);
-  });
-});
-
 describe("snapshotProjectSlice", () => {
   it("scopes runtime rows to the active project and linked remediations", () => {
     const otherFinding: Finding = { ...finding, id: "f-other", projectId: "p2" };
@@ -131,10 +111,9 @@ describe("snapshotProjectSlice", () => {
     expect(slice.alerts).toEqual([alert]);
   });
 
-  // P0 regression: the worker snapshots the loaded slice, then runAssessment
-  // mutates the SAME object references in place. The snapshot must deep-clone
-  // or every re-assessment diff is empty and nothing persists.
-  it("captures pre-scan state even when the source rows are mutated in place afterwards", async () => {
+  // P0 regression: the worker snapshots the loaded slice for stale-write guards,
+  // then runAssessment mutates the SAME object references in place.
+  it("captures pre-scan updatedAt values even when source rows are mutated in place afterwards", async () => {
     const liveRequirement: Requirement = structuredClone(requirement);
     const liveFinding: Finding = structuredClone(finding);
     const liveRemediation: Remediation = structuredClone(remediation);
@@ -147,18 +126,10 @@ describe("snapshotProjectSlice", () => {
       projectId,
     );
 
-    // Worker-shape in-place mutations (assessment-status.ts / assessment-findings.ts).
     liveRequirement.status = "passed";
     liveRequirement.updatedAt = "2026-01-02T00:00:00.000Z";
     liveFinding.status = "resolved";
     liveFinding.assessmentId = "a2";
-
-    expect(
-      changedEntities(entityMap(loadedSlice.requirements), [liveRequirement]),
-    ).toEqual([liveRequirement]);
-    expect(
-      changedEntities(entityMap(loadedSlice.findings), [liveFinding]),
-    ).toEqual([liveFinding]);
 
     const tx = { kind: "tx" } as unknown as DrizzleDb;
     upsertRequirements.mockResolvedValue(undefined);
@@ -167,7 +138,7 @@ describe("snapshotProjectSlice", () => {
     insertAlerts.mockResolvedValue(undefined);
     insertEvidenceRecords.mockResolvedValue(undefined);
 
-    await persistProjectSliceDiff(
+    await persistProjectSlice(
       tx,
       loadedSlice,
       {
@@ -179,8 +150,6 @@ describe("snapshotProjectSlice", () => {
       [],
     );
 
-    // The stale-write guard still receives the PRE-scan updatedAt so a
-    // concurrent human decision (newer DB updatedAt) is not reverted.
     expect(upsertRequirements).toHaveBeenCalledWith(tx, [liveRequirement], {
       loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
@@ -243,7 +212,7 @@ describe("applyAssessmentPayload", () => {
     insertEvidenceRecords.mockResolvedValue(undefined);
   });
 
-  it("writes assessment rows and diffs only changed entities", async () => {
+  it("writes assessment rows and upserts the project slice with stale guards", async () => {
     const assessment: Assessment = {
       id: "a1",
       projectId,
@@ -292,17 +261,17 @@ describe("applyAssessmentPayload", () => {
     expect(upsertFindings).toHaveBeenCalledWith(tx, [updatedFinding], {
       loadedUpdatedAtById: new Map(),
     });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [], {
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, [remediation], {
       loadedUpdatedAtById: new Map(),
     });
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, [requirement], {
       loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
     expect(insertAlerts).toHaveBeenCalledWith(tx, []);
     expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, evidence);
   });
 
-  it("no-ops entity upserts when the loaded slice is unchanged", async () => {
+  it("upserts the full loaded slice even when values are unchanged", async () => {
     const assessment: Assessment = {
       id: "a2",
       projectId,
@@ -333,20 +302,20 @@ describe("applyAssessmentPayload", () => {
       { loadedSlice },
     );
 
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, loadedSlice.requirements, {
       loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
+    expect(upsertFindings).toHaveBeenCalledWith(tx, loadedSlice.findings, {
       loadedUpdatedAtById: new Map(),
     });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [], {
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, loadedSlice.remediations, {
       loadedUpdatedAtById: new Map(),
     });
     expect(insertAlerts).toHaveBeenCalledWith(tx, []);
   });
 });
 
-describe("persistTargetedProjectWrite", () => {
+describe("persistProjectWrite", () => {
   const tx = { kind: "tx" } as unknown as DrizzleDb;
 
   beforeEach(() => {
@@ -356,6 +325,7 @@ describe("persistTargetedProjectWrite", () => {
     upsertRemediations.mockResolvedValue(undefined);
     insertAlerts.mockResolvedValue(undefined);
     insertEvidenceRecords.mockResolvedValue(undefined);
+    updateProject.mockResolvedValue(undefined);
   });
 
   it("upserts only the provided rows", async () => {
@@ -369,7 +339,7 @@ describe("persistTargetedProjectWrite", () => {
         findingId: finding.id,
       },
     ];
-    await persistTargetedProjectWrite(
+    await persistProjectWrite(
       tx,
       {
         findings: [finding],
@@ -401,16 +371,17 @@ describe("persistTargetedProjectWrite", () => {
   });
 
   it("no-ops when the payload is empty", async () => {
-    await persistTargetedProjectWrite(tx, {});
+    await persistProjectWrite(tx, {});
     expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
       loadedUpdatedAtById: undefined,
     });
     expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {});
     expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, []);
+    expect(updateProject).not.toHaveBeenCalled();
   });
 });
 
-describe("persistProjectSliceDiff", () => {
+describe("persistProjectSlice", () => {
   const tx = { kind: "tx" } as unknown as DrizzleDb;
 
   beforeEach(() => {
@@ -422,7 +393,7 @@ describe("persistProjectSliceDiff", () => {
     insertEvidenceRecords.mockResolvedValue(undefined);
   });
 
-  it("no-ops entity upserts when the slice is unchanged", async () => {
+  it("upserts the full after slice with stale guards from the loaded slice", async () => {
     const slice = {
       requirements: [requirement],
       findings: [finding],
@@ -430,22 +401,22 @@ describe("persistProjectSliceDiff", () => {
       alerts: [alert],
     };
 
-    await persistProjectSliceDiff(tx, slice, slice, []);
+    await persistProjectSlice(tx, slice, slice, []);
 
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, slice.requirements, {
       loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
+    expect(upsertFindings).toHaveBeenCalledWith(tx, slice.findings, {
       loadedUpdatedAtById: new Map(),
     });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [], {
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, slice.remediations, {
       loadedUpdatedAtById: new Map(),
     });
-    expect(insertAlerts).toHaveBeenCalledWith(tx, []);
+    expect(insertAlerts).toHaveBeenCalledWith(tx, slice.alerts);
     expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, []);
   });
 
-  it("persists only changed entities and new evidence", async () => {
+  it("persists updated entities and new evidence", async () => {
     const before = {
       requirements: [requirement],
       findings: [finding],
@@ -477,7 +448,7 @@ describe("persistProjectSliceDiff", () => {
       },
     ];
 
-    await persistProjectSliceDiff(tx, before, after, evidence);
+    await persistProjectSlice(tx, before, after, evidence);
 
     expect(upsertRequirements).toHaveBeenCalledWith(
       tx,

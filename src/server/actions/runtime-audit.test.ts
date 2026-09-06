@@ -1,6 +1,6 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
@@ -39,7 +39,7 @@ afterEach(() => {
 
 describe("updateRuntimeAuditAction", () => {
   it("denies members who cannot connect", async () => {
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspaceFor("member")));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspaceFor("member"), fn));
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
     const form = new FormData();
     form.set("runtimeBaseUrl", "https://app.example");
@@ -53,7 +53,7 @@ describe("updateRuntimeAuditAction", () => {
 
   it("clears runtime settings when the base URL is empty", async () => {
     const workspace = workspaceFor("owner");
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     const form = new FormData();
     form.set("runtimeBaseUrl", "  ");
 
@@ -70,7 +70,7 @@ describe("updateRuntimeAuditAction", () => {
 
   it("normalizes the origin and routes for owners", async () => {
     const workspace = workspaceFor("owner");
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/path");
     const form = new FormData();
     form.set("runtimeBaseUrl", "https://app.example/path");

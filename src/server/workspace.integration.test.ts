@@ -45,12 +45,13 @@ describe.skipIf(!enabled)("withProjectWrite postgres integration", () => {
     try {
       await withProjectWrite(
         { touch: "entities", findingIds: [fixture.findingOneId] },
-        async (workspace) => {
+        async (workspace, writes) => {
           const finding = workspace.db.findings.find(
             (item) => item.id === fixture.findingOneId,
           );
           if (!finding) throw new Error("Expected seeded finding.");
           finding.status = "dismissed";
+          writes.upsertFinding(finding);
         },
       );
 

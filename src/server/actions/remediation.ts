@@ -21,7 +21,8 @@ import {
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
 import { refreshRequirementStatusesForControls } from "../assessment-status";
-import { addEvidence, type Db } from "../db";
+import type { Db } from "../db";
+import type { ProjectWriteCollector } from "../workspace";
 import {
   findingById,
   remediationForFinding,
@@ -60,6 +61,7 @@ const bulkDismissInput = z.object({
 
 function approveRemediationInDb(
   db: Db,
+  writes: ProjectWriteCollector,
   finding: Finding,
   remediation: Remediation,
   options: { bulk?: boolean; approvalNote: string },
@@ -67,8 +69,9 @@ function approveRemediationInDb(
   replaceRemediation(
     db,
     advanceRemediation(remediation, "approved", options.approvalNote),
+    writes,
   );
-  addEvidence(db, {
+  writes.addEvidence({
     kind: "remediation_approved",
     summary: `Remediation approved for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
     projectId: finding.projectId,
@@ -87,6 +90,7 @@ function approveRemediationInDb(
 
 function dismissFindingInDb(
   db: Db,
+  writes: ProjectWriteCollector,
   finding: Finding,
   reason: Dismissal["reason"],
   note: string,
@@ -95,7 +99,8 @@ function dismissFindingInDb(
 ): void {
   finding.status = "dismissed";
   finding.dismissal = { reason, note, at };
-  addEvidence(db, {
+  writes.upsertFinding(finding);
+  writes.addEvidence({
     kind: "finding",
     summary: `Finding dismissed (${reason}): ${finding.checkId} at ${formatLocationRef(finding.location)}`,
     projectId: finding.projectId,
@@ -118,13 +123,13 @@ export async function approveRemediationAction(
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     await withProjectWrite(
       { touch: "entities", findingIds: [findingId] },
-      async (workspace) => {
+      async (workspace, writes) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
       const remediation = remediationForFinding(db, findingId);
 
-      approveRemediationInDb(db, finding, remediation, {
+      approveRemediationInDb(db, writes, finding, remediation, {
         approvalNote: "Approved by user",
       });
     },
@@ -145,7 +150,7 @@ export async function bulkApproveRemediationsAction(
 
     await withProjectWrite(
       { touch: "entities", findingIds },
-      async (workspace) => {
+      async (workspace, writes) => {
       const { db } = workspace;
       for (const findingId of findingIds) {
         const finding = findingById(db, findingId);
@@ -153,7 +158,7 @@ export async function bulkApproveRemediationsAction(
         const remediation = remediationForFinding(db, findingId);
         if (!canBulkApproveRemediation(finding, remediation.status)) continue;
 
-        approveRemediationInDb(db, finding, remediation, {
+        approveRemediationInDb(db, writes, finding, remediation, {
           bulk: true,
           approvalNote: "Approved in bulk",
         });
@@ -182,13 +187,14 @@ export async function dismissFindingAction(
     const { reason, note } = parseForm(dismissFindingInput, formData);
     await withProjectWrite(
       { touch: "entities", findingIds: [findingId] },
-      async (workspace) => {
+      async (workspace, writes) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
 
       dismissFindingInDb(
         db,
+        writes,
         finding,
         reason,
         note ?? "",
@@ -197,7 +203,7 @@ export async function dismissFindingAction(
       );
       refreshRequirementStatusesForControls(db, finding.projectId, [
         finding.controlId,
-      ]);
+      ], { writes });
     },
     );
     refresh();
@@ -218,7 +224,7 @@ export async function bulkDismissFindingsAction(
 
     await withProjectWrite(
       { touch: "entities", findingIds },
-      async (workspace) => {
+      async (workspace, writes) => {
       const { db } = workspace;
       const refreshedControlIds = new Set<string>();
       for (const findingId of findingIds) {
@@ -226,7 +232,7 @@ export async function bulkDismissFindingsAction(
         requireOnFindingProject(workspace, finding, "project.remediate");
         if (finding.status !== "open") continue;
 
-        dismissFindingInDb(db, finding, reason, dismissalNote, at, {
+        dismissFindingInDb(db, writes, finding, reason, dismissalNote, at, {
           bulk: true,
         });
         projectIds.add(finding.projectId);
@@ -238,6 +244,7 @@ export async function bulkDismissFindingsAction(
           db,
           projectId,
           [...refreshedControlIds],
+          { writes },
         );
       }
     },

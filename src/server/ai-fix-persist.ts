@@ -3,6 +3,7 @@ import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { ProjectWriteCollector } from "@complyloop/db/project-write";
 import { addEvidence, type Db } from "./db";
 import { patchCandidateDetail } from "./ai-fix-result";
 
@@ -14,16 +15,22 @@ export function persistPatchCandidate(
   db: Db,
   finding: Finding,
   candidate: PatchCandidate,
+  writes?: ProjectWriteCollector,
 ): void {
   const location = formatLocationRef(finding.location);
-  addEvidence(db, {
-    kind: "ai_patch_ready",
+  const evidenceEntry = {
+    kind: "ai_patch_ready" as const,
     summary: `Patch ready for ${finding.checkId} at ${location} (ComplyLoop passed).`,
     projectId: finding.projectId,
     controlId: finding.controlId,
     findingId: finding.id,
     detail: patchCandidateDetail(candidate),
-  });
+  };
+  if (writes) {
+    writes.addEvidence(evidenceEntry);
+  } else {
+    addEvidence(db, evidenceEntry);
+  }
   const remediation = db.remediations.find(
     (row) => row.findingId === finding.id,
   );
@@ -43,18 +50,21 @@ export function persistPatchCandidate(
       : {}),
   };
   if (remediation.status === "detected") {
-    const index = db.remediations.findIndex((row) => row.id === remediation.id);
-    if (index < 0) return;
-    db.remediations[index] = advanceRemediation(
+    const updated = advanceRemediation(
       remediation,
       "suggested",
       `Patch ready: ${candidate.description}`,
     );
+    const index = db.remediations.findIndex((row) => row.id === remediation.id);
+    if (index < 0) return;
+    db.remediations[index] = updated;
+    writes?.upsertRemediation(updated);
   } else if (remediation.status === "suggested") {
     remediation.history.push({
       status: "suggested",
       at: new Date().toISOString(),
       note: `Patch refreshed: ${candidate.description}`,
     });
+    writes?.upsertRemediation(remediation);
   }
 }

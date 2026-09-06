@@ -8,15 +8,12 @@ import type {
 } from "@complyloop/analysis-core/contract/finding-types";
 import type { Requirement } from "@complyloop/domain/project-types";
 import type { DrizzleDb } from "../client.ts";
-import { insertAlerts } from "./alerts.ts";
 import { insertAssessment } from "./assessments.ts";
+import { insertAlerts } from "./alerts.ts";
 import { insertEvidenceRecords } from "./evidence.ts";
 import { upsertFindings } from "./findings.ts";
 import { upsertRemediations } from "./remediations.ts";
-import {
-  upsertRequirements,
-  type UpsertRequirementsOptions,
-} from "./requirements.ts";
+import { upsertRequirements } from "./requirements.ts";
 
 export interface AssessmentApplyPayload {
   assessment: Assessment;
@@ -39,7 +36,7 @@ export async function applyAssessmentPayload(
   options: ApplyAssessmentPayloadOptions,
 ): Promise<void> {
   await insertAssessment(tx, payload.assessment, payload.snapshot);
-  await persistProjectSliceDiff(
+  await persistProjectSlice(
     tx,
     options.loadedSlice,
     {
@@ -52,30 +49,6 @@ export async function applyAssessmentPayload(
   );
 }
 
-export function entityMap<T extends { id: string }>(
-  items: ReadonlyArray<T>,
-): Map<string, T> {
-  return new Map(items.map((item) => [item.id, structuredClone(item)]));
-}
-
-/** Canonical-order JSON equality. Mapper key order is pinned by mappers.test.ts. */
-export function changedEntities<T extends { id: string }>(
-  before: Map<string, T>,
-  after: ReadonlyArray<T>,
-): T[] {
-  const changed: T[] = [];
-  for (const item of after) {
-    const prev = before.get(item.id);
-    // Canonical-order equality: the `*ToRow` mappers must keep a stable key
-    // order, or a same-state row would "change" on every write. Pinned by
-    // packages/db/src/repo/mappers.test.ts.
-    if (!prev || JSON.stringify(prev) !== JSON.stringify(item)) {
-      changed.push(item);
-    }
-  }
-  return changed;
-}
-
 export interface ProjectSlice {
   requirements: Requirement[];
   findings: Finding[];
@@ -84,10 +57,8 @@ export interface ProjectSlice {
 }
 
 /**
- * Deep-clones every row: the caller's arrays share object references with the
- * in-memory `Db` that `runAssessment` mutates in place, so a shallow copy
- * would make the "before" diff state identical to "after" and turn every
- * re-assessment persist into a no-op (P0 regression, see apply.test.ts).
+ * Captures project-scoped rows for stale-write guards when an assessment job
+ * loads a slice and mutates those same object references in place.
  */
 export function snapshotProjectSlice(
   requirements: ReadonlyArray<Requirement>,
@@ -127,73 +98,25 @@ export function updatedAtById(
   return new Map(entries);
 }
 
-export async function persistProjectSliceDiff(
+export async function persistProjectSlice(
   tx: DrizzleDb,
-  before: ProjectSlice,
+  loadedSlice: ProjectSlice,
   after: ProjectSlice,
   evidence: ReadonlyArray<EvidenceRecord>,
 ): Promise<void> {
-  await upsertRequirements(
-    tx,
-    changedEntities(entityMap(before.requirements), after.requirements),
-    { loadedUpdatedAtById: requirementUpdatedAtById(before.requirements) },
-  );
+  await upsertRequirements(tx, after.requirements, {
+    loadedUpdatedAtById: requirementUpdatedAtById(loadedSlice.requirements),
+  });
   // The loaded slice's `updatedAt` values guard against reverting a human
   // decision made while a webhook assessment was scanning against that slice.
-  await upsertFindings(
-    tx,
-    changedEntities(entityMap(before.findings), after.findings),
-    { loadedUpdatedAtById: updatedAtById(before.findings) },
-  );
-  await upsertRemediations(
-    tx,
-    changedEntities(entityMap(before.remediations), after.remediations),
-    { loadedUpdatedAtById: updatedAtById(before.remediations) },
-  );
-  await insertAlerts(
-    tx,
-    changedEntities(entityMap(before.alerts), after.alerts),
-  );
+  await upsertFindings(tx, after.findings, {
+    loadedUpdatedAtById: updatedAtById(loadedSlice.findings),
+  });
+  await upsertRemediations(tx, after.remediations, {
+    loadedUpdatedAtById: updatedAtById(loadedSlice.remediations),
+  });
+  await insertAlerts(tx, after.alerts);
   await insertEvidenceRecords(tx, evidence);
-}
-
-export interface TargetedProjectWritePayload {
-  findings?: Finding[];
-  remediations?: Remediation[];
-  requirements?: Requirement[];
-  evidence?: EvidenceRecord[];
-  alerts?: Alert[];
-}
-
-export interface PersistTargetedProjectWriteOptions {
-  loadedRequirementUpdatedAtById?: ReadonlyMap<string, string>;
-  loadedFindingUpdatedAtById?: ReadonlyMap<string, string>;
-  loadedRemediationUpdatedAtById?: ReadonlyMap<string, string>;
-}
-
-/** Persists explicit row upserts for hot-path actions (no whole-slice diff). */
-export async function persistTargetedProjectWrite(
-  tx: DrizzleDb,
-  payload: TargetedProjectWritePayload,
-  options: PersistTargetedProjectWriteOptions = {},
-): Promise<void> {
-  const requirementOptions: UpsertRequirementsOptions | undefined =
-    options.loadedRequirementUpdatedAtById
-      ? { loadedUpdatedAtById: options.loadedRequirementUpdatedAtById }
-      : undefined;
-  await upsertFindings(tx, payload.findings ?? [], {
-    loadedUpdatedAtById: options.loadedFindingUpdatedAtById,
-  });
-  await upsertRemediations(tx, payload.remediations ?? [], {
-    loadedUpdatedAtById: options.loadedRemediationUpdatedAtById,
-  });
-  await upsertRequirements(
-    tx,
-    payload.requirements ?? [],
-    requirementOptions ?? {},
-  );
-  await insertAlerts(tx, payload.alerts ?? []);
-  await insertEvidenceRecords(tx, payload.evidence ?? []);
 }
 
 export function buildAssessmentApplyPayload(input: {

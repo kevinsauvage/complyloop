@@ -68,10 +68,10 @@ export async function generateAiFixAction(
       tokenOptions,
     );
 
-    await withProjectWrite({ touch: "entities", findingIds: [finding.id] }, (workspace) => {
+    await withProjectWrite({ touch: "entities", findingIds: [finding.id] }, (workspace, writes) => {
       const liveFinding = findingById(workspace.db, finding.id);
       requireOnFindingProject(workspace, liveFinding, "project.remediate");
-      persistPatchCandidate(workspace.db, liveFinding, candidate);
+      persistPatchCandidate(workspace.db, liveFinding, candidate, writes);
     });
     refresh();
     return "Patch passed ComplyLoop and is ready for review.";

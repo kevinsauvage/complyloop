@@ -43,18 +43,20 @@ export async function updateRuntimeAuditAction(
       normalized = new URL(resolved).origin;
     }
 
-    await withProjectWrite({ touch: "project" }, async (workspace) => {
+    await withProjectWrite({ touch: "project" }, async (workspace, writes) => {
       requireOnActive(workspace, "project.connect");
       const { project } = workspace;
 
       if (normalized == null) {
         delete project.runtimeBaseUrl;
         delete project.runtimeRoutes;
+        writes.setProject(project);
         return;
       }
 
       project.runtimeBaseUrl = normalized;
       project.runtimeRoutes = routes;
+      writes.setProject(project);
     });
     refresh();
     return "Runtime audit settings saved. Run assessment to audit the pages.";

@@ -6,7 +6,6 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import { publicErrorMessage } from "../action-state";
 import { parseInput } from "../boundary";
-import { addEvidence } from "../db";
 import { patchCandidateFromEvidence } from "../ai-fix-result";
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForFinding } from "@complyloop/db/postgres-queries";
@@ -98,7 +97,7 @@ export async function createPullRequestAction(
     if (!result.prUrl) {
       throw new PublicError(result.message);
     }
-    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, ({ db }) => {
+    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, ({ db }, writes) => {
       const liveFinding = findingById(db, findingId);
       const liveRemediation = remediationForFinding(db, findingId);
       if (liveRemediation.status === "suggested") {
@@ -109,8 +108,8 @@ export async function createPullRequestAction(
             "Approved by creating a draft pull request",
           ),
           approvalAction: "create_draft_pull_request",
-        });
-        addEvidence(db, {
+        }, writes);
+        writes.addEvidence({
           kind: "remediation_approved",
           summary: `Remediation approved for ${liveFinding.checkId} at ${formatLocationRef(liveFinding.location)}`,
           projectId: project.id,
@@ -119,7 +118,7 @@ export async function createPullRequestAction(
           detail: { approvalAction: "create_draft_pull_request" },
         });
       }
-      addEvidence(db, {
+      writes.addEvidence({
         kind: "pull_request_prepared",
         summary: result.prUrl
           ? `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`

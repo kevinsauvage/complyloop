@@ -12,6 +12,8 @@ import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Control, Project, Requirement } from "@complyloop/domain/project-types";
 import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/domain/project-types";
+import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
+import type { ProjectWriteCollector } from "@complyloop/db/project-write";
 import { addEvidence, type Db } from "./db";
 import { findingsForProject, requirementsForProject } from "./project-visibility";
 
@@ -140,6 +142,27 @@ export interface RefreshRequirementStatusesOptions {
   htmlValidateRan?: boolean;
   /** Check ids confirmed not applicable on every audited page (checkId → fact). */
   applicabilityFacts?: ReadonlyMap<string, string>;
+  /** When set, status refreshes queue explicit upserts instead of relying on diff. */
+  writes?: ProjectWriteCollector;
+}
+
+function recordRequirementEvidence(
+  db: Db,
+  writes: ProjectWriteCollector | undefined,
+  entry: Omit<EvidenceRecord, "id" | "at">,
+): void {
+  if (writes) {
+    writes.addEvidence(entry);
+    return;
+  }
+  addEvidence(db, entry);
+}
+
+function trackRequirement(
+  writes: ProjectWriteCollector | undefined,
+  requirement: Requirement,
+): void {
+  writes?.upsertRequirement(requirement);
 }
 
 /**
@@ -195,28 +218,32 @@ function refreshRequirementForControl(
     htmlValidateRan,
     applicabilityFacts,
     now,
+    writes,
   } = options;
 
   if (control.checkId === null) {
     // Manual / custom controls without a check stay unable_to_verify unless
     // a human pass or exception already sets a different status.
-    const requirement = requirementForControl(db, projectId, control.id);
+    let requirement = requirementForControl(db, projectId, control.id);
     if (requirementIsSticky(requirement)) {
       return;
     }
     if (!requirement) {
-      db.requirements.push({
+      requirement = {
         id: crypto.randomUUID(),
         projectId,
         controlId: control.id,
         status: "unable_to_verify",
         determination: "automated",
         updatedAt: now,
-      });
+      };
+      db.requirements.push(requirement);
+      trackRequirement(writes, requirement);
     } else if (requirement.status !== "unable_to_verify") {
       requirement.status = "unable_to_verify";
       requirement.determination = "automated";
       requirement.updatedAt = now;
+      trackRequirement(writes, requirement);
     }
     return;
   }
@@ -251,6 +278,7 @@ function refreshRequirementForControl(
       updatedAt: now,
     };
     db.requirements.push(requirement);
+    trackRequirement(writes, requirement);
     return;
   }
 
@@ -258,7 +286,7 @@ function refreshRequirementForControl(
     const regression = requirement.status === "passed" && status === "failed";
     const attribution =
       regression && changeContext ? ` — ${changeContext}` : "";
-    addEvidence(db, {
+    recordRequirementEvidence(db, writes, {
       kind: "requirement_status_changed",
       summary: `${control.code} (${control.title}): ${requirement.status} → ${status}${regression ? " — compliance regression" : ""}${attribution}`,
       projectId,
@@ -281,6 +309,7 @@ function refreshRequirementForControl(
     requirement.status = status;
     requirement.determination = "automated";
     requirement.updatedAt = now;
+    trackRequirement(writes, requirement);
   }
 }
 

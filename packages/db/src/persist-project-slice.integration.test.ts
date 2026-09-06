@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
 import { closeDrizzle, getDrizzle } from "./client";
 import {
-  persistProjectSliceDiff,
+  persistProjectSlice,
   snapshotProjectSlice,
   updatedAtById,
 } from "./repo/apply";
@@ -26,7 +26,7 @@ import {
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Run via `npm run test:db`. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());
 
-describe.skipIf(!enabled)("persistProjectSliceDiff integration", () => {
+describe.skipIf(!enabled)("persistProjectSlice integration", () => {
   afterAll(async () => {
     await closeDrizzle();
   });
@@ -74,7 +74,7 @@ describe.skipIf(!enabled)("persistProjectSliceDiff integration", () => {
       ];
 
       await drizzle.transaction(async (tx) => {
-        await persistProjectSliceDiff(tx, before, after, evidenceRows);
+        await persistProjectSlice(tx, before, after, evidenceRows);
       });
 
       const persisted = await loadProjectSlice(drizzle, fixture.projectId);
@@ -109,7 +109,7 @@ describe.skipIf(!enabled)("persistProjectSliceDiff integration", () => {
       const fingerprintBefore = sliceFingerprint(before);
 
       await drizzle.transaction(async (tx) => {
-        await persistProjectSliceDiff(tx, before, structuredClone(before), []);
+        await persistProjectSlice(tx, before, structuredClone(before), []);
       });
 
       const after = await loadProjectSlice(drizzle, fixture.projectId);
@@ -242,7 +242,7 @@ describe.skipIf(!enabled)("persistProjectSliceDiff integration", () => {
       finding.status = "resolved";
 
       await drizzle.transaction(async (tx) => {
-        await persistProjectSliceDiff(tx, loadedSlice, live, []);
+        await persistProjectSlice(tx, loadedSlice, live, []);
       });
 
       const persisted = await loadProjectSlice(drizzle, fixture.projectId);
@@ -328,7 +328,7 @@ describe.skipIf(!enabled)("persistProjectSliceDiff integration", () => {
 
       // The worker's assessment re-detects the violation at a shifted location and
       // applies its stale slice. The location change makes it a real diff entry —
-      // persistProjectSliceDiff must still skip it because the human dismissed the
+      // persistProjectSlice must still skip it because the human dismissed the
       // finding (newer updatedAt) after the worker loaded its slice.
       const workerAfter = structuredClone(loadedSlice);
       const reappeared = workerAfter.findings.find(
@@ -345,7 +345,7 @@ describe.skipIf(!enabled)("persistProjectSliceDiff integration", () => {
       };
 
       await drizzle.transaction(async (tx) => {
-        await persistProjectSliceDiff(tx, loadedSlice, workerAfter, []);
+        await persistProjectSlice(tx, loadedSlice, workerAfter, []);
       });
 
       const persisted = await loadProjectSlice(drizzle, fixture.projectId);
@@ -391,7 +391,7 @@ describe.skipIf(!enabled)("persistProjectSliceDiff integration", () => {
       )!.status = "detected";
 
       await drizzle.transaction(async (tx) => {
-        await persistProjectSliceDiff(tx, loadedSlice, workerAfter, []);
+        await persistProjectSlice(tx, loadedSlice, workerAfter, []);
       });
 
       const persisted = await loadProjectSlice(drizzle, fixture.projectId);
@@ -418,7 +418,7 @@ async function runLockedProjectSliceWrite(
     await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(fixture.projectId));
     const before = await loadProjectSlice(tx, fixture.projectId);
     const after = mutate(structuredClone(before), fixture);
-    await persistProjectSliceDiff(tx, before, after, []);
+    await persistProjectSlice(tx, before, after, []);
   });
 }
 

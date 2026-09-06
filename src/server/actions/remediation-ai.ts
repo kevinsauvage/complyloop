@@ -12,7 +12,6 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseInput } from "../boundary";
-import { addEvidence } from "../db";
 import { reportWarning } from "../observability";
 import { assertAiRateLimit } from "../rate-limit";
 import {
@@ -40,7 +39,7 @@ export async function generateAiExplanationAction(
   void _formData;
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
-    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace) => {
+    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace, writes) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const { db } = workspace;
       const finding = findingById(db, findingId);
@@ -59,6 +58,7 @@ export async function generateAiExplanationAction(
         );
       }
       finding.explanations.push(explanation);
+      writes.upsertFinding(finding);
     });
     refresh();
     return "AI explanation added.";
@@ -74,7 +74,7 @@ export async function generateAiRemediationAction(
   void _formData;
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
-    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace) => {
+    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace, writes) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const { db } = workspace;
       const finding = findingById(db, findingId);
@@ -113,6 +113,7 @@ export async function generateAiRemediationAction(
         finding.fix.editable
       ) {
         finding.fix = { ...finding.fix, value: result.attributeValue };
+        writes.upsertFinding(finding);
       }
 
       if (remediation.status === "detected") {
@@ -123,6 +124,7 @@ export async function generateAiRemediationAction(
             "suggested",
             `AI suggestion: ${result.suggestion.description}`,
           ),
+          writes,
         );
       } else {
         remediation.history.push({
@@ -130,9 +132,10 @@ export async function generateAiRemediationAction(
           at: new Date().toISOString(),
           note: `AI suggestion refreshed: ${result.suggestion.description}`,
         });
+        writes.upsertRemediation(remediation);
       }
 
-      addEvidence(db, {
+      writes.addEvidence({
         kind: "ai_remediation_suggested",
         summary: `AI remediation suggested for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,

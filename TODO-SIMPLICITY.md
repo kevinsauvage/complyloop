@@ -9,7 +9,7 @@ Every abstraction was asked: **can we get the same result with less code, fewer 
 
 The product loop (Requirement → Assessment → Finding → Remediation → Verification → Evidence) is not the problem. The tax is leftover store-shaped persistence, speculative framework-agnostic packaging, and file-level over-splitting.
 
-This is not a broken codebase. Status derivation, check authority, append-only evidence, advisory locks, and stale-write guards are load-bearing. Those stay. The findings below are places where the *mechanism* is heavier than the *invariant*.
+This is not a broken codebase. Status derivation, check authority, append-only evidence, advisory locks, and stale-write guards are load-bearing. Those stay. The findings below are places where the _mechanism_ is heavier than the _invariant_.
 
 ---
 
@@ -25,28 +25,20 @@ Do not flatten the analysis engines, merge the two report renderers, or move job
 
 ## P0 — Critical
 
-### 1. Mutations still go through an in-memory `Db` blob, then a JSON diff
+### 1. ~~Mutations still go through an in-memory `Db` blob, then a JSON diff~~ **Done (2026-09-06)**
 
-- **What is unnecessarily complex:** Almost every write loads project collections into a `Db` object (`frameworks`, `controls`, `findings`, `remediations`, …), mutates arrays in place (`push`, `findIndex` + assign), snapshots “before” with `structuredClone`, then persists only rows whose `JSON.stringify` changed. Interactive writes go through `withProjectWrite` + a `touch: "project" | "entities"` scope (`findingIds`, `requirementIds`, `refreshControlIds`). Assessment writes go through a second path, `persistProjectSliceDiff` / `applyAssessmentPayload`. Equality depends on mapper key order (`mappers.test.ts` pins it). A shallow clone of the slice makes the diff a no-op — there is a dedicated comment and test for that P0 regression.
-- **Why the complexity is a problem:** This is one conceptual model (a mutable document) implemented with another (row-level Postgres). Every new action must learn: the blob, the scope protocol, the snapshot rules, the stale-write maps, and which persist function applies. The stale-write guard is necessary; the blob + JSON diff is not. The comment on `Db` already says “never bulk-sync this object” — the call sites still think in bulk sync.
-- **How it could be simplified:** Keep the invariants (per-project advisory lock, `updatedAt` stale-write `WHERE`, append-only evidence). Drop the shared mutable blob as the write API.
-  1. Load the rows the use case needs (assessment can still load a project slice).
-  2. Compute new `Finding` / `Remediation` / `Requirement` values as locals or return values.
-  3. Call `upsertFindings` / `upsertRemediations` / `upsertRequirements` / `insertEvidence` directly.
-  4. Delete `changedEntities` + `JSON.stringify`, `snapshotProjectSlice` deep-clone ritual, `collectTargetedWritePayload`, and the `ProjectWriteScope` state machine.
-  `withProjectWrite` becomes “open txn + lock + run function that returns writes,” or go away in favor of named write functions. Tests mock those functions instead of a fake in-memory store.
-- **Files:** `packages/db/src/types.ts`, `packages/db/src/repo/apply.ts`, `packages/db/src/repo/mappers.ts`, `packages/db/src/repo/upsert-guard.ts`, `packages/db/src/workspace-load.ts`, `src/server/workspace.ts` (`withProjectWrite`, `snapshotTrackedEntities`, `collectTargetedWritePayload`), `src/server/db.ts`, `src/server/actions/shared.ts` (`replaceRemediation`), `src/server/assessment.ts`, `src/server/assessment-findings.ts`, `src/server/assessment-status.ts`, `src/server/assessment-worker.ts`, `src/test-fixtures/action-workspace-mocks.ts`.
+Interactive writes now queue explicit upserts via `ProjectWriteCollector` (`packages/db/src/project-write.ts`); `withProjectWrite` persists the collector snapshot with stale-write guards — no `changedEntities` / `JSON.stringify` diff. Assessment applies upsert the full project slice with guards from `snapshotProjectSlice` (load-time `updatedAt` only). Removed `snapshotTrackedEntities`, `collectTargetedWritePayload`, `persistTargetedProjectWrite`, `persistProjectSliceDiff`, and `changedEntities`.
+
+- **Added:** `packages/db/src/project-write.ts` (`createProjectWriteCollector`, `persistProjectWrite`).
+- **Updated:** all `withProjectWrite` action call sites, `assessment-status` optional `writes`, assessment `persistProjectSlice`.
+
+<!-- was:
+- **What is unnecessarily complex:** Almost every write loads project collections into a `Db` object ...
+-->
 
 ---
 
 ## P1 — High
-
-### 2. ~~The compliance catalog is compile-time data copied into Postgres~~ **Done (2026-09-06)**
-
-Shipped catalog is `@complyloop/adapters/catalog` (`shippedCatalog()`). Server attaches it via `withShippedCatalog` at load boundaries. Postgres `frameworks` / `controls` tables removed from `drizzle/0000_init.sql` — reset the DB (`npm run db:reset -- --confirm`), no incremental migration.
-
-- **Removed:** `seedCatalog`, `mergeAdapterControls`, `npm run seed`, `packages/db/src/repo/catalog.ts`, `src/server/seed.ts`.
-- **Added:** `packages/adapters/src/catalog.ts`, `src/server/catalog.ts`.
 
 ### 3. `@complyloop/domain` is a workspace package for 183 lines of types
 
@@ -59,7 +51,7 @@ Shipped catalog is `@complyloop/adapters/catalog` (`shippedCatalog()`). Server a
 
 - **What is unnecessarily complex:** `FrameworkAdapter` models “register a framework with controls + presets + guidance.” RGAA owns the catalog. WCAG registers `controls: []` and only presets. `guidanceFor` walks adapters until one implements it. Architecture docs and the product spec both say a second framework adapter is **out of scope**; the domain is kept agnostic “so one could be added later.”
 - **Why the complexity is a problem:** Speculative architecture. Callers go through `allFrameworkPresets` / `presetById` / `defaultConnectPreset` / `guidanceFor` instead of “here are the presets, here is the catalog.” The empty WCAG adapter and the merge loop exist to look like a plugin system.
-- **How it could be simplified:** One catalog module, one presets module (RGAA + WCAG lists), one `guidanceFor(checkId)`. `presetById` is `PRESETS.find(...)`. Delete `FrameworkAdapter`, the `frameworkAdapters` array, and the “add `packages/adapters/src/<name>/`” story until a second *catalog* exists. WCAG as a **preset over the same controls** is the actual product; keep that, drop the plugin interface.
+- **How it could be simplified:** One catalog module, one presets module (RGAA + WCAG lists), one `guidanceFor(checkId)`. `presetById` is `PRESETS.find(...)`. Delete `FrameworkAdapter`, the `frameworkAdapters` array, and the “add `packages/adapters/src/<name>/`” story until a second _catalog_ exists. WCAG as a **preset over the same controls** is the actual product; keep that, drop the plugin interface.
 - **Files:** `packages/adapters/src/types.ts`, `packages/adapters/src/registry.ts`, `packages/adapters/src/wcag/controls.ts`, `packages/adapters/src/wcag/presets.ts`, `docs/ai/architecture.md` (“Adding a framework”).
 
 ### 5. `inScopeControlIds` is a second, usually-dead copy of the preset
@@ -181,20 +173,20 @@ Shipped catalog is `@complyloop/adapters/catalog` (`shippedCatalog()`). Server a
 
 These look like complexity. Removing them would lose correctness, an actual product boundary, or replace a boring solution with a fancier one.
 
-| Temptation | Why to leave it |
-| --- | --- |
-| Flatten Finding/Remediation JSONB into columns | Nested `location` / `fix` / engines would become a worse schema. JSONB for the document + a few indexed columns is the boring Postgres choice. The problem is the **mutate-and-diff layer on top**, not JSONB. |
-| Share markdown + HTML report *renderers* | One `ReportModel` is enough sharing. Escaping and layout differ. A shared renderer would be the over-abstraction. |
-| Split `analysis-core` or extract `contract/` as a sixth package | The CLI (`packages/check`) already justifies the analysis package. More packages is the opposite of simpler. Collapse *domain* instead. |
-| Move jobs to Redis/SQS | `FOR UPDATE SKIP LOCKED` + leases + per-project serial is the standard Postgres queue. A broker is a new operational dependency. |
-| Split the worker into its own deployable | It is a script over the same code. Packaging it separately adds a release graph for no isolation win. |
-| Delete check-authority / merge-findings / html-validate | Fail-closed status rules and RGAA 8.2 / 10.1 ownership are product correctness, not ceremony. |
-| SQL-paginate findings “for cleanliness” | One active project at agency scale. In-memory filter after a project load is fine until a measurement says otherwise. Prefer P11’s “load what the page needs” over a generic pagination framework. |
-| Dedup `e2e/fixtures/sample-app/Bad.tsx` and `packages/check/testdata/Bad.tsx` | Different harnesses; coupling them is not simpler. |
-| Remove AES-256-GCM token storage, SSRF guards, rate limits, evidence trigger | Security / audit invariants. |
-| `finding-act.ts` state machine | One exhaustive view model for the finding page. Folding it into JSX would hide the workflow. |
-| shadcn `cn()` / `clsx` / `tailwind-merge` / Radix | Standard UI stack; replacing it is churn. |
-| 75 AST checks in one registry | The domain *is* the check list. Splitting by RGAA theme would add navigation without shrinking the problem. |
+| Temptation                                                                    | Why to leave it                                                                                                                                                                                                |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flatten Finding/Remediation JSONB into columns                                | Nested `location` / `fix` / engines would become a worse schema. JSONB for the document + a few indexed columns is the boring Postgres choice. The problem is the **mutate-and-diff layer on top**, not JSONB. |
+| Share markdown + HTML report _renderers_                                      | One `ReportModel` is enough sharing. Escaping and layout differ. A shared renderer would be the over-abstraction.                                                                                              |
+| Split `analysis-core` or extract `contract/` as a sixth package               | The CLI (`packages/check`) already justifies the analysis package. More packages is the opposite of simpler. Collapse _domain_ instead.                                                                        |
+| Move jobs to Redis/SQS                                                        | `FOR UPDATE SKIP LOCKED` + leases + per-project serial is the standard Postgres queue. A broker is a new operational dependency.                                                                               |
+| Split the worker into its own deployable                                      | It is a script over the same code. Packaging it separately adds a release graph for no isolation win.                                                                                                          |
+| Delete check-authority / merge-findings / html-validate                       | Fail-closed status rules and RGAA 8.2 / 10.1 ownership are product correctness, not ceremony.                                                                                                                  |
+| SQL-paginate findings “for cleanliness”                                       | One active project at agency scale. In-memory filter after a project load is fine until a measurement says otherwise. Prefer P11’s “load what the page needs” over a generic pagination framework.             |
+| Dedup `e2e/fixtures/sample-app/Bad.tsx` and `packages/check/testdata/Bad.tsx` | Different harnesses; coupling them is not simpler.                                                                                                                                                             |
+| Remove AES-256-GCM token storage, SSRF guards, rate limits, evidence trigger  | Security / audit invariants.                                                                                                                                                                                   |
+| `finding-act.ts` state machine                                                | One exhaustive view model for the finding page. Folding it into JSX would hide the workflow.                                                                                                                   |
+| shadcn `cn()` / `clsx` / `tailwind-merge` / Radix                             | Standard UI stack; replacing it is churn.                                                                                                                                                                      |
+| 75 AST checks in one registry                                                 | The domain _is_ the check list. Splitting by RGAA theme would add navigation without shrinking the problem.                                                                                                    |
 
 ---
 

@@ -1,7 +1,7 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OrgMembership } from "@complyloop/domain/project-types";
-import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 import { emptyActionMessageState } from "../action-state";
@@ -40,7 +40,7 @@ describe("setDefaultPresetAction", () => {
 
   it("denies viewers", async () => {
     withProjectWrite.mockImplementation(async (_scope, fn) =>
-      fn(workspaceFor("viewer")),
+      invokeProjectWriteMock(workspaceFor("viewer"), fn),
     );
     const form = new FormData();
     form.set("presetId", "preset-wcag-aa");
@@ -50,7 +50,7 @@ describe("setDefaultPresetAction", () => {
 
   it("saves the default preset for admins", async () => {
     const workspace = workspaceFor("admin");
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     setDefaultPreset.mockReturnValue({ changed: true });
     const form = new FormData();
     form.set("presetId", "preset-wcag-aa");
@@ -62,6 +62,7 @@ describe("setDefaultPresetAction", () => {
       workspace.db,
       project,
       "preset-wcag-aa",
+      expect.any(Object),
     );
   });
 });

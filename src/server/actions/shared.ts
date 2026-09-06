@@ -5,6 +5,7 @@ import type { Project } from "@complyloop/domain/project-types";
 import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { locateViolationInProject } from "../assessment-helpers";
+import type { ProjectWriteCollector } from "@complyloop/db/project-write";
 import type { Db } from "../db";
 import type { ResolveProjectGitHubTokenOptions } from "../github-access";
 import { assertProjectPermission } from "../project-visibility";
@@ -32,9 +33,11 @@ export function refresh(): void {
 export function replaceRemediation(
   db: Db,
   updated: ReturnType<typeof advanceRemediation>,
+  writes?: ProjectWriteCollector,
 ): void {
   const index = db.remediations.findIndex((candidate) => candidate.id === updated.id);
   db.remediations[index] = updated;
+  writes?.upsertRemediation(updated);
 }
 
 export function requireOnActive(

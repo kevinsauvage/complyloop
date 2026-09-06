@@ -8,8 +8,7 @@ const readActiveOrgCookie = vi.hoisted(() => vi.fn());
 const readActiveProjectCookie = vi.hoisted(() => vi.fn());
 const getDrizzle = vi.hoisted(() => vi.fn());
 const loadWorkspaceDb = vi.hoisted(() => vi.fn());
-const persistTargetedProjectWrite = vi.hoisted(() => vi.fn());
-const updateProject = vi.hoisted(() => vi.fn());
+const persistProjectWrite = vi.hoisted(() => vi.fn());
 const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/auth", () => ({ auth }));
@@ -19,17 +18,15 @@ vi.mock("./active-cookies", () => ({
 }));
 vi.mock("@complyloop/db/client", () => ({ getDrizzle }));
 vi.mock("@complyloop/db/workspace-load", () => ({ loadWorkspaceDb }));
-vi.mock("@complyloop/db/repo/apply", async () => {
-  const actual = await vi.importActual<typeof import("@complyloop/db/repo/apply")>(
-    "@complyloop/db/repo/apply",
+vi.mock("@complyloop/db/project-write", async () => {
+  const actual = await vi.importActual<typeof import("@complyloop/db/project-write")>(
+    "@complyloop/db/project-write",
   );
   return {
     ...actual,
-    persistTargetedProjectWrite: (...args: unknown[]) =>
-      persistTargetedProjectWrite(...args),
+    persistProjectWrite: (...args: unknown[]) => persistProjectWrite(...args),
   };
 });
-vi.mock("@complyloop/db/repo/projects", () => ({ updateProject }));
 vi.mock("@complyloop/db/write-lock", () => ({
   acquireNamedPostgresAdvisoryLock: (
     ...args: Parameters<typeof acquireNamedPostgresAdvisoryLock>
@@ -62,28 +59,31 @@ describe("withProjectWrite project touch", () => {
       memberships: [testMembership("owner", { userId, orgId })],
       projects: [structuredClone(project)],
     });
-    persistTargetedProjectWrite.mockResolvedValue(undefined);
-    updateProject.mockResolvedValue(undefined);
+    persistProjectWrite.mockResolvedValue(undefined);
     acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
   });
 
   it("persists active project row changes", async () => {
-    await withProjectWrite({ touch: "project" }, async (workspace) => {
+    await withProjectWrite({ touch: "project" }, async (workspace, writes) => {
       workspace.project!.runtimeBaseUrl = "https://preview.example";
       workspace.project!.runtimeRoutes = ["/"];
+      writes.setProject(workspace.project!);
     });
 
     expect(acquireNamedPostgresAdvisoryLock).toHaveBeenCalledWith(
       tx,
       `project-write:${project.id}`,
     );
-    expect(updateProject).toHaveBeenCalledWith(
+    expect(persistProjectWrite).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
-        id: project.id,
-        runtimeBaseUrl: "https://preview.example",
-        runtimeRoutes: ["/"],
+        project: expect.objectContaining({
+          id: project.id,
+          runtimeBaseUrl: "https://preview.example",
+          runtimeRoutes: ["/"],
+        }),
       }),
+      {},
     );
   });
 
@@ -92,6 +92,6 @@ describe("withProjectWrite project touch", () => {
       /* no project mutation */
     });
 
-    expect(updateProject).not.toHaveBeenCalled();
+    expect(persistProjectWrite).toHaveBeenCalledWith(tx, {}, {});
   });
 });

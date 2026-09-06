@@ -1,6 +1,6 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
 import { testControl } from "@/test-fixtures/control";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
@@ -93,7 +93,7 @@ describe("generateAiFixAction", () => {
   it("generates and persists a verified patch in the request", async () => {
     const current = workspace();
     getWorkspace.mockResolvedValue(current);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(current));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(current, fn));
     withProjectCheckout.mockImplementation(
       async (_project, fn: (rootPath: string) => unknown) =>
         fn("/tmp/checkout"),
@@ -131,6 +131,7 @@ describe("generateAiFixAction", () => {
       current.db,
       finding,
       candidate,
+      expect.any(Object),
     );
     expect(assertAiRateLimit).toHaveBeenCalledWith("user-1");
     expect(refresh).toHaveBeenCalled();
@@ -169,7 +170,7 @@ describe("generateAiFixAction", () => {
       },
     };
     getWorkspace.mockResolvedValue(current);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(current));
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(current, fn));
     withProjectCheckout.mockImplementation(
       async (_project, fn: (rootPath: string) => unknown) =>
         fn("/tmp/checkout"),

@@ -5,7 +5,6 @@ import type {
   OrgMembership,
   Organization,
   Project,
-  Requirement,
 } from "@complyloop/domain/project-types";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
@@ -15,12 +14,14 @@ import {
 } from "./active-cookies";
 import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
 import {
-  changedEntities,
-  persistTargetedProjectWrite,
   requirementUpdatedAtById,
   updatedAtById,
-  type TargetedProjectWritePayload,
 } from "@complyloop/db/repo/apply";
+import {
+  createProjectWriteCollector,
+  persistProjectWrite,
+  type ProjectWriteCollector,
+} from "@complyloop/db/project-write";
 import {
   claimMembershipsForLogin,
   deleteMembership,
@@ -33,7 +34,6 @@ import {
   upsertMembership,
 } from "@complyloop/db/repo/orgs";
 import { listOrgIdsForUser } from "@complyloop/db/postgres-queries";
-import { updateProject } from "@complyloop/db/repo/projects";
 import {
   loadTargetedProjectWriteDb,
   loadWorkspaceDb,
@@ -209,9 +209,40 @@ export type ProjectWriteScope =
       refreshControlIds?: readonly string[];
     };
 
+function captureEntityStaleWriteGuards(
+  db: Db,
+  scope: Extract<ProjectWriteScope, { touch: "entities" }>,
+): {
+  loadedRequirementUpdatedAtById: Map<string, string>;
+  loadedFindingUpdatedAtById: Map<string, string>;
+  loadedRemediationUpdatedAtById: Map<string, string>;
+} {
+  const findingIds = new Set(scope.findingIds ?? []);
+  const requirementIds = new Set(scope.requirementIds ?? []);
+  const controlIds = effectiveRefreshControlIds(db, scope);
+
+  const loadedFindings = db.findings.filter((finding) =>
+    findingIds.has(finding.id),
+  );
+  const loadedRemediations = db.remediations.filter((remediation) =>
+    findingIds.has(remediation.findingId),
+  );
+  const loadedRequirements = db.requirements.filter(
+    (requirement) =>
+      requirementIds.has(requirement.id) ||
+      controlIds.has(requirement.controlId),
+  );
+
+  return {
+    loadedRequirementUpdatedAtById: requirementUpdatedAtById(loadedRequirements),
+    loadedFindingUpdatedAtById: updatedAtById(loadedFindings),
+    loadedRemediationUpdatedAtById: updatedAtById(loadedRemediations),
+  };
+}
+
 async function runProjectWriteTransaction<T>(
   scope: ProjectWriteScope,
-  fn: (workspace: Workspace) => Promise<T> | T,
+  fn: (workspace: Workspace, writes: ProjectWriteCollector) => Promise<T> | T,
 ): Promise<T> {
   if (
     scope.touch === "entities" &&
@@ -288,54 +319,25 @@ async function runProjectWriteTransaction<T>(
 
     const projectBefore =
       scope.touch === "project" ? structuredClone(project) : null;
-    const before =
+    const staleGuards =
       scope.touch === "entities"
-        ? snapshotTrackedEntities(db, {
-            findingIds: scope.findingIds,
-            requirementIds: scope.requirementIds,
-            refreshControlIds: scope.refreshControlIds,
-          })
+        ? captureEntityStaleWriteGuards(db, scope)
         : null;
-    const loadedRequirementUpdatedAtById = before
-      ? requirementUpdatedAtById([...before.requirements.values()])
-      : undefined;
-    const evidenceStart = db.evidence.length;
-    const result = await fn(workspace);
+    const writes = createProjectWriteCollector(db);
+    const result = await fn(workspace, writes);
 
+    const payload = writes.snapshot();
     if (scope.touch === "project") {
-      await persistTargetedProjectWrite(tx, {
-        evidence: db.evidence.slice(evidenceStart),
-      });
       const projectAfter = workspace.project ?? project;
       if (
         projectBefore &&
-        changedEntities(
-          new Map([[projectBefore.id, projectBefore]]),
-          [projectAfter],
-        ).length > 0
+        JSON.stringify(projectBefore) !== JSON.stringify(projectAfter)
       ) {
-        await updateProject(tx, projectAfter);
+        payload.project = projectAfter;
       }
-    } else {
-      const payload = collectTargetedWritePayload(
-        db,
-        projectId,
-        before!,
-        {
-          findingIds: scope.findingIds,
-          requirementIds: scope.requirementIds,
-          refreshControlIds: scope.refreshControlIds,
-        },
-        evidenceStart,
-      );
-      await persistTargetedProjectWrite(tx, payload, {
-        loadedRequirementUpdatedAtById,
-        loadedFindingUpdatedAtById: updatedAtById([...before!.findings.values()]),
-        loadedRemediationUpdatedAtById: updatedAtById([
-          ...before!.remediations.values(),
-        ]),
-      });
     }
+
+    await persistProjectWrite(tx, payload, staleGuards ?? {});
 
     return result;
   });
@@ -347,10 +349,12 @@ async function runProjectWriteTransaction<T>(
  */
 export async function withProjectWrite<T>(
   scope: ProjectWriteScope,
-  fn: (workspace: Workspace) => Promise<T> | T,
+  fn: (workspace: Workspace, writes: ProjectWriteCollector) => Promise<T> | T,
 ): Promise<T> {
   return runProjectWriteTransaction(scope, fn);
 }
+
+export type { ProjectWriteCollector } from "@complyloop/db/project-write";
 
 /** Serializes a single-row project mutation (e.g. mark alert read). */
 export async function withProjectLock<T>(
@@ -364,22 +368,16 @@ export async function withProjectLock<T>(
   });
 }
 
-interface TargetedProjectWriteScope {
+interface EntityWriteScope {
   findingIds?: readonly string[];
   requirementIds?: readonly string[];
   /** Requirement rows for these controls are loaded and may change during refresh. */
   refreshControlIds?: readonly string[];
 }
 
-interface TrackedWriteEntities {
-  findings: Map<string, Finding>;
-  remediations: Map<string, Remediation>;
-  requirements: Map<string, Requirement>;
-}
-
 function effectiveRefreshControlIds(
   db: Db,
-  scope: TargetedProjectWriteScope,
+  scope: EntityWriteScope,
 ): Set<string> {
   const controlIds = new Set(scope.refreshControlIds ?? []);
   for (const findingId of scope.findingIds ?? []) {
@@ -393,81 +391,18 @@ function effectiveRefreshControlIds(
   return controlIds;
 }
 
-function snapshotTrackedEntities(
-  db: Db,
-  scope: TargetedProjectWriteScope,
-): TrackedWriteEntities {
-  const findingIds = new Set(scope.findingIds ?? []);
-  const requirementIds = new Set(scope.requirementIds ?? []);
-  const controlIds = effectiveRefreshControlIds(db, scope);
-
-  const trackedFindings = new Map<string, Finding>();
-  for (const finding of db.findings) {
-    if (findingIds.has(finding.id)) {
-      trackedFindings.set(finding.id, structuredClone(finding));
+function changedOrgMemberships<T extends { id: string }>(
+  before: Map<string, T>,
+  after: ReadonlyArray<T>,
+): T[] {
+  const changed: T[] = [];
+  for (const item of after) {
+    const prev = before.get(item.id);
+    if (!prev || JSON.stringify(prev) !== JSON.stringify(item)) {
+      changed.push(item);
     }
   }
-
-  const trackedRemediations = new Map<string, Remediation>();
-  for (const remediation of db.remediations) {
-    if (findingIds.has(remediation.findingId)) {
-      trackedRemediations.set(remediation.id, structuredClone(remediation));
-    }
-  }
-
-  const trackedRequirements = new Map<string, Requirement>();
-  for (const requirement of db.requirements) {
-    if (
-      requirementIds.has(requirement.id) ||
-      controlIds.has(requirement.controlId)
-    ) {
-      trackedRequirements.set(requirement.id, structuredClone(requirement));
-    }
-  }
-
-  return {
-    findings: trackedFindings,
-    remediations: trackedRemediations,
-    requirements: trackedRequirements,
-  };
-}
-
-function collectTargetedWritePayload(
-  db: Db,
-  projectId: string,
-  before: TrackedWriteEntities,
-  scope: TargetedProjectWriteScope,
-  evidenceStart: number,
-): TargetedProjectWritePayload {
-  const findingIds = new Set(scope.findingIds ?? []);
-  const requirementIds = new Set(scope.requirementIds ?? []);
-  const controlIds = effectiveRefreshControlIds(db, scope);
-
-  return {
-    findings: changedEntities(
-      before.findings,
-      db.findings.filter((finding) => findingIds.has(finding.id)),
-    ),
-    remediations: changedEntities(
-      before.remediations,
-      db.remediations.filter((remediation) =>
-        findingIds.has(remediation.findingId),
-      ),
-    ),
-    requirements: changedEntities(
-      before.requirements,
-      db.requirements.filter((requirement) => {
-        if (requirement.projectId !== projectId) return false;
-        return (
-          requirementIds.has(requirement.id) ||
-          controlIds.has(requirement.controlId)
-        );
-      }),
-    ),
-    // Only evidence added during this write — the loaded window is pre-existing
-    // and must not be re-inserted (evidence has an id primary key).
-    evidence: db.evidence.slice(evidenceStart),
-  };
+  return changed;
 }
 
 /**
@@ -514,7 +449,7 @@ export async function withOrgWrite<T>(
         await insertOrganization(tx, org);
       }
     }
-    for (const membership of changedEntities(
+    for (const membership of changedOrgMemberships(
       membershipsBefore,
       db.memberships,
     )) {
