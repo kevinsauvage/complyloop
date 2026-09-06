@@ -134,12 +134,20 @@ analysis to post a Check Run but never resolves findings, flips statuses, or
 auto-verifies, and persists nothing to the project store.
 
 **Remediation:** source = patch → ComplyLoop → draft PR → merge → re-assess
-→ `verified`. Runtime = guidance → approve → implement → re-audit.
+→ `verified`. Runtime = guidance → approve → implement → re-audit. Verify
+fails closed on HTTP errors, redirects away from the finding URL, or an
+empty document. Site-level findings re-run the site audit; source findings
+are not verified by applying a local patch. A successful runtime verify
+forwards `runtimeRan` (and site-level / html-validate flags when those
+engines ran) so the requirement can close. Runtime/DOM/site findings are
+never resolved unless `runtimeRan`.
 
 **Monitoring:** webhook enqueues only (`idempotency_key` from delivery id).
-Only pushes to the project's default branch are enqueued as authoritative
-assessments; feature-branch pushes are ignored. PR events post a Check Run.
-Failures become `assessment_job_failed` evidence.
+Only pushes to the project's **live** default branch
+(`repository.default_branch`, persisted onto `project.github.defaultBranch`
+when it changes) are enqueued as authoritative assessments; feature-branch
+pushes are ignored. PR events post a Check Run. Failures become
+`assessment_job_failed` evidence.
 
 **Reports:** shared `ReportModel` (`report-model.ts`).
 

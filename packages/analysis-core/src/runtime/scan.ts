@@ -62,15 +62,51 @@ export const RUNTIME_GOTO_TIMEOUT_MS = 30_000;
  */
 export const RUNTIME_POST_DOM_SETTLE_MS = 250;
 
+function normalizePathname(pathname: string): string {
+  if (pathname === "/") return "/";
+  return pathname.replace(/\/+$/, "");
+}
+
+/** Origin + pathname must match; query/hash drift is ignored. */
+export function runtimePageMatchesAuditedUrl(
+  loadedUrl: string,
+  auditedUrl: string,
+): boolean {
+  try {
+    const loaded = new URL(loadedUrl);
+    const audited = new URL(auditedUrl);
+    return (
+      loaded.origin === audited.origin &&
+      normalizePathname(loaded.pathname) === normalizePathname(audited.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function gotoForRuntimeAudit(
   page: Page,
   url: string,
 ): Promise<void> {
-  await page.goto(url, {
+  const response = await page.goto(url, {
     waitUntil: "domcontentloaded",
     timeout: RUNTIME_GOTO_TIMEOUT_MS,
   });
   await page.waitForTimeout(RUNTIME_POST_DOM_SETTLE_MS);
+  const status = response?.status() ?? 0;
+  if (status < 200 || status >= 300) {
+    throw new PublicError(`Preview page returned HTTP ${status || "no response"}.`);
+  }
+  if (!runtimePageMatchesAuditedUrl(page.url(), url)) {
+    throw new PublicError("Preview page redirected away from the audited URL.");
+  }
+  const hasDocument = await page.evaluate(() => {
+    const root = document.documentElement;
+    return Boolean(root?.innerHTML.trim());
+  });
+  if (!hasDocument) {
+    throw new PublicError("Preview page did not render a document.");
+  }
 }
 
 async function getBrowser(): Promise<Browser> {
@@ -310,6 +346,8 @@ function createPlaywrightAxeScanner(options?: {
 
           pages.push({
             url,
+            loadedCleanly: true,
+            finalUrl: page.url(),
             violations: [...violations, ...conditionViolations],
             incomplete: results.incomplete,
             customFindings: [...customFindings, ...conditionCustomFindings],
@@ -531,6 +569,15 @@ export async function runtimeViolationStillPresent(
   }
   // A page that rendered nothing also cannot be verified clean.
   if (pages.length === 0) return true;
+  if (pages.some((candidate) => candidate.loadedCleanly !== true)) return true;
+  if (
+    pages.some(
+      (candidate) =>
+        !runtimePageMatchesAuditedUrl(candidate.finalUrl ?? candidate.url, url),
+    )
+  ) {
+    return true;
+  }
 
   const raw = findingsFromAxePages(pages);
   return raw.some(

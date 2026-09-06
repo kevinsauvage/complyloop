@@ -29,6 +29,14 @@ export interface AxeViolationLike {
 export interface RuntimeScanPageResult {
   url: string;
   violations: AxeViolationLike[];
+  /**
+   * True only when navigation returned 2xx, the final URL still matches the
+   * audited path, and the document rendered. Verify/assessment must treat
+   * anything else as “page not shown” (fail closed).
+   */
+  loadedCleanly?: boolean;
+  /** Playwright `page.url()` after settle — used to detect login-wall redirects. */
+  finalUrl?: string;
   /** axe incomplete nodes — emitted as `warning` findings (`needs_review`). */
   incomplete?: AxeViolationLike[];
   snapshot?: RuntimePageSnapshot;

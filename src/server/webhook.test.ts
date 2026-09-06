@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleGitHubWebhookEvent, verifyGitHubSignature } from "./webhook";
 
 const findProjectByGithubFullName = vi.hoisted(() => vi.fn());
+const getProjectById = vi.hoisted(() => vi.fn());
+const updateProject = vi.hoisted(() => vi.fn());
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const assertRateLimit = vi.hoisted(() => vi.fn());
 
@@ -12,6 +14,10 @@ vi.mock("@complyloop/db/client", () => ({
 vi.mock("@complyloop/db/postgres-queries", () => ({
   findProjectByGithubFullName: (...args: unknown[]) =>
     findProjectByGithubFullName(...args),
+}));
+vi.mock("@complyloop/db/repo/projects", () => ({
+  getProjectById: (...args: unknown[]) => getProjectById(...args),
+  updateProject: (...args: unknown[]) => updateProject(...args),
 }));
 vi.mock("./assessment-jobs", () => ({ enqueueAssessmentJob }));
 vi.mock("./rate-limit", () => ({ assertRateLimit }));
@@ -110,6 +116,77 @@ describe("handleGitHubWebhookEvent", () => {
     expect(enqueueAssessmentJob).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: expect.objectContaining({ ref: headSha, pullRequestHeadSha: headSha }),
+      }),
+    );
+  });
+
+  it("enqueues a push to the live default branch and persists a rename", async () => {
+    findProjectByGithubFullName.mockResolvedValue({
+      id: "p1",
+      orgId: "org-1",
+      defaultBranch: "main",
+    });
+    getProjectById.mockResolvedValue({
+      id: "p1",
+      name: "App",
+      source: "github",
+      orgId: "org-1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      github: { fullName: "acme/app", defaultBranch: "main", private: false },
+    });
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-rename" });
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        repository: { full_name: "acme/app", default_branch: "master" },
+        ref: "refs/heads/master",
+        after: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      "delivery-rename",
+    );
+
+    expect(result.handled).toBe(true);
+    expect(updateProject).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        github: expect.objectContaining({ defaultBranch: "master" }),
+      }),
+    );
+    expect(enqueueAssessmentJob).toHaveBeenCalled();
+  });
+
+  it("ignores a push to the stale stored default after GitHub renamed it", async () => {
+    findProjectByGithubFullName.mockResolvedValue({
+      id: "p1",
+      orgId: "org-1",
+      defaultBranch: "main",
+    });
+    getProjectById.mockResolvedValue({
+      id: "p1",
+      name: "App",
+      source: "github",
+      orgId: "org-1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      github: { fullName: "acme/app", defaultBranch: "main", private: false },
+    });
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        repository: { full_name: "acme/app", default_branch: "master" },
+        ref: "refs/heads/main",
+        after: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      "delivery-stale-main",
+    );
+
+    expect(result.handled).toBe(false);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+    expect(updateProject).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        github: expect.objectContaining({ defaultBranch: "master" }),
       }),
     );
   });

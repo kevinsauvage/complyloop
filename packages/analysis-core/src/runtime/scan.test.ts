@@ -4,6 +4,7 @@ import {
   gotoForRuntimeAudit,
   resolveAxeMinJsPath,
   runAxeOnPage,
+  runtimePageMatchesAuditedUrl,
   runtimeViolationStillPresent,
   type RuntimePageScanner,
 } from "./scan";
@@ -86,6 +87,49 @@ describe("gotoForRuntimeAudit", () => {
     },
     30_000,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "fails closed on HTTP 404",
+    async () => {
+      if (!browser) browser = await chromium.launch({ headless: true });
+      const page = await (await browser.newContext()).newPage();
+      try {
+        await page.route("https://missing.example/**", async (route) => {
+          await route.fulfill({
+            status: 404,
+            contentType: "text/html",
+            body: `<!doctype html><html lang="en"><head><title>Not found</title></head><body><p>Missing</p></body></html>`,
+          });
+        });
+        await expect(
+          gotoForRuntimeAudit(page, "https://missing.example/gone"),
+        ).rejects.toThrow(/HTTP 404/);
+      } finally {
+        await page.context().close();
+      }
+    },
+    30_000,
+  );
+});
+
+describe("runtimePageMatchesAuditedUrl", () => {
+  it("matches origin and pathname, ignoring trailing slashes and query", () => {
+    expect(
+      runtimePageMatchesAuditedUrl(
+        "https://8.8.8.8/checkout/",
+        "https://8.8.8.8/checkout?x=1",
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a login-wall redirect", () => {
+    expect(
+      runtimePageMatchesAuditedUrl(
+        "https://8.8.8.8/login",
+        "https://8.8.8.8/checkout",
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("runtime engine isolation", () => {
@@ -171,26 +215,67 @@ describe("runtimeViolationStillPresent", () => {
     engine: "runtime",
   };
 
-  function pageWith(findings: RawFinding[]): RuntimePageScanner {
+  function pageWith(
+    findings: RawFinding[],
+    extras: { loadedCleanly?: boolean; finalUrl?: string; url?: string } = {},
+  ): RuntimePageScanner {
     return async () => [
       {
-        url: "https://8.8.8.8/checkout",
+        url: extras.url ?? "https://8.8.8.8/checkout",
         violations: [],
         customFindings: findings,
+        loadedCleanly: extras.loadedCleanly,
+        finalUrl: extras.finalUrl,
       },
     ];
   }
 
   it("returns true when the same violation is still present", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, pageWith([presentFinding])),
+      runtimeViolationStillPresent(
+        domFinding,
+        pageWith([presentFinding], { loadedCleanly: true }),
+      ),
     ).resolves.toBe(true);
   });
 
-  it("returns false when the violating node is gone from a rendered page", async () => {
+  it("fails closed when a page is returned without proof it loaded cleanly", async () => {
     await expect(
       runtimeViolationStillPresent(domFinding, pageWith([])),
+    ).resolves.toBe(true);
+  });
+
+  it("returns false when the violating node is gone from a cleanly loaded page", async () => {
+    await expect(
+      runtimeViolationStillPresent(
+        domFinding,
+        async () => [
+          {
+            url: "https://8.8.8.8/checkout",
+            violations: [],
+            customFindings: [],
+            loadedCleanly: true,
+          },
+        ],
+      ),
     ).resolves.toBe(false);
+  });
+
+  it("fails closed when the loaded URL is not the audited page", async () => {
+    await expect(
+      runtimeViolationStillPresent(
+        domFinding,
+        async () => [
+          {
+            url: "https://8.8.8.8/login",
+            violations: [],
+            customFindings: [],
+            loadedCleanly: true,
+            finalUrl: "https://8.8.8.8/login",
+          },
+        ],
+      ),
+    ).resolves.toBe(true);
   });
 
   it("fails closed (true) when no page is produced", async () => {

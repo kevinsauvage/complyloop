@@ -201,6 +201,21 @@ describe("findingAct", () => {
     expect(view.showHandoff).toBe(true);
   });
 
+  it("offers Verify for an implemented site-level Finding", () => {
+    const view = act({
+      finding: {
+        ...sourceFinding,
+        location: {
+          kind: "site",
+          pages: ["/", "/about"],
+          detail: "Nav labels differ",
+        },
+      },
+      remediation: rem("implemented"),
+    });
+    expect(view.beat).toBe("runtime_verify");
+  });
+
   it("offers Verify for an implemented runtime Finding", () => {
     const view = act({
       finding: domFinding,

@@ -1,8 +1,9 @@
 import type { EmitterWebhookEvent } from "@octokit/webhooks";
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
 import { enqueueAssessmentJob } from "./assessment-jobs";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
 import { findProjectByGithubFullName } from "@complyloop/db/postgres-queries";
+import { getProjectById, updateProject } from "@complyloop/db/repo/projects";
 import { assertRateLimit } from "./rate-limit";
 
 type PushPayload = EmitterWebhookEvent<"push">["payload"];
@@ -68,6 +69,26 @@ function repositoryFullName(event: HandledWebhookEvent): string | undefined {
   return typeof fullName === "string" && fullName.length > 0 ? fullName : undefined;
 }
 
+function repositoryDefaultBranch(event: HandledWebhookEvent): string | undefined {
+  const branch = event.payload.repository?.default_branch;
+  return typeof branch === "string" && branch.length > 0 ? branch : undefined;
+}
+
+async function persistDefaultBranchIfChanged(
+  drizzle: DrizzleDb,
+  projectId: string,
+  liveBranch: string,
+  storedBranch: string | undefined,
+): Promise<void> {
+  if (liveBranch === storedBranch) return;
+  const full = await getProjectById(drizzle, projectId);
+  if (!full?.github || full.github.defaultBranch === liveBranch) return;
+  await updateProject(drizzle, {
+    ...full,
+    github: { ...full.github, defaultBranch: liveBranch },
+  });
+}
+
 function checkoutRef(event: HandledWebhookEvent): string | undefined {
   if (event.kind === "push") {
     const after = event.payload.after;
@@ -86,11 +107,13 @@ function checkoutRef(event: HandledWebhookEvent): string | undefined {
  */
 function isDefaultBranchPush(
   payload: PushPayload,
-  project: { defaultBranch?: string } | null,
+  defaultBranch: string | undefined,
 ): boolean {
-  const branch = project?.defaultBranch;
-  return typeof payload.ref === "string" && typeof branch === "string" &&
-    payload.ref === `refs/heads/${branch}`;
+  return (
+    typeof payload.ref === "string" &&
+    typeof defaultBranch === "string" &&
+    payload.ref === `refs/heads/${defaultBranch}`
+  );
 }
 
 export interface WebhookHandleResult {
@@ -120,9 +143,20 @@ export async function handleGitHubWebhookEvent(
     return { handled: false, message: `No connected project for ${fullName}` };
   }
 
+  const payloadDefaultBranch = repositoryDefaultBranch(parsed.event);
+  const liveDefaultBranch = payloadDefaultBranch ?? project.defaultBranch;
+  if (payloadDefaultBranch) {
+    await persistDefaultBranchIfChanged(
+      drizzle,
+      project.id,
+      payloadDefaultBranch,
+      project.defaultBranch,
+    );
+  }
+
   if (
     parsed.event.kind === "push" &&
-    !isDefaultBranchPush(parsed.event.payload, project)
+    !isDefaultBranchPush(parsed.event.payload, liveDefaultBranch)
   ) {
     // Feature-branch pushes are not authoritative; scanning them could resolve
     // findings / auto-verify remediations off the project's real state.

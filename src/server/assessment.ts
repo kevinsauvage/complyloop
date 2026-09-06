@@ -176,7 +176,6 @@ export async function runAssessment(
         (raw) => raw.checkId === control.checkId,
       ),
       scopedFileSet,
-      runtimeConfigured,
       runtimeRan,
       // A preview scan (PR head / feature branch) must not derive the
       // persistent compliance decision: never auto-verify an approved

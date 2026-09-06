@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Project } from "@complyloop/domain/project-types";
 import { emptyDb } from "@complyloop/db/types";
-import { createFinding } from "./assessment-findings";
+import { testFinding } from "@/test-fixtures/finding";
+import { createFinding, shouldResolveOpenFinding } from "./assessment-findings";
 
 const project: Project = {
   id: "proj-1",
@@ -58,5 +59,69 @@ describe("createFinding analyzer evidence", () => {
       doctypeIncludedInInput: false,
       contributingAnalyzers: [{ analyzerId: "axe", analyzerRuleId: "list" }],
     });
+  });
+});
+
+describe("shouldResolveOpenFinding", () => {
+  const domFinding = testFinding({
+    engine: "runtime",
+    location: {
+      kind: "dom",
+      url: "https://preview.example/",
+      selector: "button",
+      snippet: "<button></button>",
+    },
+  });
+
+  const sourceFinding = testFinding({
+    engine: "ast",
+    location: {
+      kind: "source",
+      filePath: "Hero.tsx",
+      line: 1,
+      column: 1,
+      snippet: "<img />",
+      span: { start: 0, end: 7 },
+    },
+  });
+
+  it("does not resolve a runtime finding when runtime did not run", () => {
+    expect(
+      shouldResolveOpenFinding({
+        finding: domFinding,
+        scopedFileSet: null,
+        runtimeRan: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("resolves a runtime finding only after a successful runtime audit", () => {
+    expect(
+      shouldResolveOpenFinding({
+        finding: domFinding,
+        scopedFileSet: null,
+        runtimeRan: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps a source finding outside the scoped file set", () => {
+    expect(
+      shouldResolveOpenFinding({
+        finding: sourceFinding,
+        scopedFileSet: new Set(["Other.tsx"]),
+        runtimeRan: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("resolves a source finding in the scoped file set", () => {
+    expect(
+      shouldResolveOpenFinding({
+        finding: sourceFinding,
+        scopedFileSet: new Set(["Hero.tsx"]),
+        runtimeRan: false,
+      }),
+    ).toBe(true);
   });
 });

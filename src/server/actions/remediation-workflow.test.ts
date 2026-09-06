@@ -34,6 +34,7 @@ const { withProjectWrite, getWorkspace, withProjectLock } =
   actionWorkspaceMocks;
 const locateViolationInProject = vi.hoisted(() => vi.fn());
 const runtimeViolationStillPresent = vi.hoisted(() => vi.fn());
+const scanRuntime = vi.hoisted(() => vi.fn());
 const refreshRequirementStatusesForControls = vi.hoisted(() => vi.fn());
 const markAlertRead = vi.hoisted(() => vi.fn());
 const getAlertById = vi.hoisted(() => vi.fn());
@@ -86,6 +87,7 @@ vi.mock("../assessment-status", () => ({
 vi.mock("@complyloop/analysis-core/runtime/scan", () => ({
   runtimeViolationStillPresent: (...args: unknown[]) =>
     runtimeViolationStillPresent(...args),
+  scanRuntime: (...args: unknown[]) => scanRuntime(...args),
 }));
 
 const project = testProject({ orgId: "org-1" });
@@ -126,19 +128,9 @@ afterEach(() => {
 });
 
 describe("verifyRemediationAction", () => {
-  it("reports still-failing when the violation is still located", async () => {
+  it("refuses to verify a source finding by applying a local patch", async () => {
     const workspace = baseWorkspace();
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
-    locateViolationInProject.mockReturnValue({
-      checkId: "img-alt",
-      kind: "violation",
-      severity: "serious",
-      confidence: "high",
-      reason: "still missing",
-      location: finding.location,
-      fix: null,
-    });
 
     const result = await verifyRemediationAction(
       "f1",
@@ -146,29 +138,9 @@ describe("verifyRemediationAction", () => {
       new FormData(),
     );
 
-    expect(result.error).toMatch(/still failing|still detected/i);
+    expect(result.error).toMatch(/draft pull request|re-assess/i);
     expect(workspace.db.remediations[0]?.status).toBe("implemented");
-  });
-
-  it("marks verified when the violation is gone", async () => {
-    const workspace = baseWorkspace();
-    getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
-    locateViolationInProject.mockReturnValue(undefined);
-
-    const result = await verifyRemediationAction(
-      "f1",
-      emptyActionMessageState,
-      new FormData(),
-    );
-
-    expect(result).toEqual({
-      error: null,
-      message: "Fix verified by automated re-check.",
-    });
-    expect(workspace.db.remediations[0]?.status).toBe("verified");
-    expect(workspace.db.findings[0]?.status).toBe("resolved");
-    expect(refreshRequirementStatusesForControls).toHaveBeenCalled();
+    expect(locateViolationInProject).not.toHaveBeenCalled();
   });
 
   it("rejects automated verify until the remediation is implemented", async () => {
@@ -218,6 +190,84 @@ describe("verifyRemediationAction", () => {
     });
     expect(workspace.db.remediations[0]?.status).toBe("verified");
     expect(workspace.db.findings[0]?.status).toBe("resolved");
+    expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
+      workspace.db,
+      "p1",
+      ["c1"],
+      expect.objectContaining({ runtimeRan: true }),
+    );
+  });
+
+  it("verifies a site-level finding only after a clean site-level re-audit", async () => {
+    const workspace = baseWorkspace({
+      findings: [
+        testFinding({
+          checkId: "consistent-nav",
+          location: {
+            kind: "site",
+            pages: ["/", "/about"],
+            detail: "Navigation differs across pages",
+          },
+        }),
+      ],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    scanRuntime.mockResolvedValue({
+      findings: [],
+      pagesScanned: 2,
+      siteLevelChecksRan: true,
+    });
+
+    const result = await verifyRemediationAction(
+      "f1",
+      emptyActionMessageState,
+      new FormData(),
+    );
+
+    expect(result).toEqual({
+      error: null,
+      message: "Fix verified by automated re-check.",
+    });
+    expect(locateViolationInProject).not.toHaveBeenCalled();
+    expect(workspace.db.remediations[0]?.status).toBe("verified");
+    expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
+      workspace.db,
+      "p1",
+      ["c1"],
+      expect.objectContaining({ runtimeRan: true, siteLevelChecksRan: true }),
+    );
+  });
+
+  it("does not verify a site-level finding when the site-level audit did not run", async () => {
+    const workspace = baseWorkspace({
+      findings: [
+        testFinding({
+          checkId: "consistent-nav",
+          location: {
+            kind: "site",
+            pages: ["/", "/about"],
+            detail: "Navigation differs across pages",
+          },
+        }),
+      ],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+    withProjectWrite.mockImplementation(async (_scope, fn) => fn(workspace));
+    scanRuntime.mockResolvedValue({
+      findings: [],
+      pagesScanned: 1,
+      siteLevelChecksRan: false,
+    });
+
+    const result = await verifyRemediationAction(
+      "f1",
+      emptyActionMessageState,
+      new FormData(),
+    );
+
+    expect(result.error).toMatch(/still failing|still detected/i);
+    expect(workspace.db.remediations[0]?.status).toBe("implemented");
   });
 
   it("reports still-failing when the runtime finding is still on the page", async () => {

@@ -1,9 +1,12 @@
-import { keepOpenWhenRuntimeScanSkipped } from "@complyloop/analysis-core/check-authority";
 import { guidanceFor } from "@complyloop/adapters/registry";
 import { deterministicExplanation } from "@/ai/explainer";
 import { filterAstFindingsForAuthority } from "@complyloop/analysis-core/merge-findings";
 import type { RawFinding } from "@complyloop/analysis-core/types";
-import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+import {
+  formatLocationRef,
+  isDomLocation,
+  isSiteLocation,
+} from "@complyloop/analysis-core/contract/location";
 import type { Control, Project } from "@complyloop/domain/project-types";
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
 import { addEvidence, type Db } from "./db";
@@ -22,28 +25,28 @@ export interface ReconcileControlFindingsInput {
   rootPath: string;
   rawForControl: RawFinding[];
   scopedFileSet: Set<string> | null;
-  runtimeConfigured: boolean;
   runtimeRan: boolean;
   onFindingResolved: (finding: Finding) => void;
+}
+
+function isRuntimeOwnedFinding(finding: Finding): boolean {
+  if (finding.engine === "runtime") return true;
+  return (
+    isDomLocation(finding.location) || isSiteLocation(finding.location)
+  );
 }
 
 /** Pure decision: should an unmatched open finding be resolved this run? */
 export function shouldResolveOpenFinding(input: {
   finding: Finding;
   scopedFileSet: Set<string> | null;
-  runtimeConfigured: boolean;
   runtimeRan: boolean;
 }): boolean {
-  if (
-    !findingLocationMatchesScope(input.finding.location, input.scopedFileSet)
-  ) {
-    return false;
+  if (isRuntimeOwnedFinding(input.finding)) {
+    return input.runtimeRan;
   }
   if (
-    input.runtimeConfigured &&
-    !input.runtimeRan &&
-    keepOpenWhenRuntimeScanSkipped(input.finding.checkId) &&
-    input.finding.engine === "runtime"
+    !findingLocationMatchesScope(input.finding.location, input.scopedFileSet)
   ) {
     return false;
   }
@@ -65,7 +68,6 @@ export function reconcileControlFindings(
     rootPath,
     rawForControl,
     scopedFileSet,
-    runtimeConfigured,
     runtimeRan,
     onFindingResolved,
   } = input;
@@ -109,7 +111,6 @@ export function reconcileControlFindings(
       !shouldResolveOpenFinding({
         finding,
         scopedFileSet,
-        runtimeConfigured,
         runtimeRan,
       })
     ) {
