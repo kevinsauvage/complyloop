@@ -4,7 +4,7 @@ import { findingsListHref } from "@/core/finding-list-filter";
 import {
   remediationStatusLabel,
   severityLabel,
-} from "@/core/labels";
+} from "@/core/status-display";
 import type { RemediationStatus, Severity } from "@complyloop/analysis-core/contract/statuses";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

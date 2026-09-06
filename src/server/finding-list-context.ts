@@ -2,7 +2,7 @@ import type {
   FilterFindingsContext,
   FindingListParams,
 } from "@/core/finding-list-filter";
-import type { FindingCluster } from "@complyloop/analysis-core/contract/finding-types";
+import type { FindingCluster } from "@complyloop/db/types";
 import type { Db } from "./db";
 import { findRemediationForFinding } from "./workspace";
 

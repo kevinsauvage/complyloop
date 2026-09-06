@@ -5,7 +5,7 @@ import type { OrgMembership } from "@complyloop/analysis-core/contract/project-t
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import { emptyActionMessageState } from "../action-state";
 import {
   connectGitHubRepoAction,
@@ -92,7 +92,7 @@ vi.mock("@complyloop/db/repo/evidence", () => ({
   insertEvidence: vi.fn(),
 }));
 
-vi.mock("@complyloop/db/postgres-queries", () => ({
+vi.mock("@complyloop/db/queries", () => ({
   listOrgIdsForUser: (...args: unknown[]) => listOrgIdsForUser(...args),
 }));
 

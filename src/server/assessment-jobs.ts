@@ -1,5 +1,5 @@
 import { and, count, desc, eq, inArray, lte, sql } from "drizzle-orm";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
 import { assessmentJobs } from "@complyloop/db/schema";
 import {

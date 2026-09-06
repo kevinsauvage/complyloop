@@ -2,13 +2,13 @@
 
 import { entityIdSchema } from "@/core/boundary";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import { advanceRemediation } from "@/core/remediation";
 import { publicErrorMessage } from "../action-state";
 import { parseInput } from "../boundary";
 import { patchCandidateFromEvidence } from "../ai-fix";
 import { getDrizzle } from "@complyloop/db/client";
-import { listEvidenceForFinding } from "@complyloop/db/postgres-queries";
+import { listEvidenceForFinding } from "@complyloop/db/queries";
 import { preparePullRequest } from "../pr";
 import {
   controlById,

@@ -8,7 +8,7 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import type { OrgRole } from "@complyloop/analysis-core/contract/project-types";
-import { STATUS_TONE_BADGE, roleTone } from "@/core/status-tone";
+import { STATUS_TONE_BADGE, roleTone } from "@/core/status-display";
 import { cn } from "@/lib/utils";
 
 type OrgAccountOverviewProps = {

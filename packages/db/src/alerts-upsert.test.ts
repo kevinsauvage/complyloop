@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 import { closeDrizzle, getDrizzle, type DrizzleDb } from "./client";
 import { upsertAlerts } from "./repo/alerts";
-import type { Alert } from "@complyloop/analysis-core/contract/finding-types";
+import type { Alert } from "./types";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Skipped in the default CI quality job. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());

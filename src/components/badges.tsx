@@ -5,19 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import {
   confidenceDescription,
   determinationDescription,
+  determinationLabel,
   engineDescription,
+  evidenceKindLabel,
   provenanceDescription,
   remediationStatusDescription,
-  requirementStatusDescription,
-  severityDescription,
-} from "@/core/badge-descriptions";
-import {
-  determinationLabel,
-  evidenceKindLabel,
   remediationStatusLabel,
+  requirementStatusDescription,
   requirementStatusLabel,
+  severityDescription,
   severityLabel,
-} from "@/core/labels";
+} from "@/core/status-display";
 import type {
   Confidence,
   DeterminationMethod,
@@ -26,9 +24,9 @@ import type {
   RequirementStatus,
   Severity,
 } from "@complyloop/analysis-core/contract/statuses";
-import type { AssessmentEngine, EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
-import { EVIDENCE_TONE_BADGE, evidenceTone } from "@/core/evidence-tone";
-import { STATUS_TONE_BADGE, statusTone } from "@/core/status-tone";
+import type { EvidenceKind } from "@complyloop/db/types"
+import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
+import { EVIDENCE_TONE_BADGE, evidenceTone, STATUS_TONE_BADGE, statusTone } from "@/core/status-display";
 import { cn } from "@/lib/utils";
 
 export function RequirementStatusBadge({ status }: { status: RequirementStatus }) {

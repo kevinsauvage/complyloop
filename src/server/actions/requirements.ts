@@ -7,7 +7,7 @@ import {
   TEMPORARY_EXCEPTION_REASON,
 } from "@complyloop/analysis-core/contract/project-types";
 import { entityIdSchema, requiredField } from "@/core/boundary";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import {
   runActionMessage,
   type ActionMessageState,

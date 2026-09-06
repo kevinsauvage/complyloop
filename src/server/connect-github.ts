@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { hasSourceFiles } from "@complyloop/analysis-core/source-files";
 import type { Project, ProjectGitHubMeta } from "@complyloop/analysis-core/contract/project-types";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import { canOnProject } from "@/core/rbac";
 import { defaultConnectPreset } from "@complyloop/adapters/registry";
 import { addEvidence, type Db } from "./db";

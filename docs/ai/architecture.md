@@ -47,7 +47,7 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
   attached from `@complyloop/adapters/catalog` at the server boundary — not
   stored in Postgres. File hashes live in `assessment_snapshots` and load
   only for `runAssessment`. Evidence pages query Postgres directly
-  (`postgres-queries.ts`).
+  (`queries.ts`).
 - **Writes** — `withProjectWrite` / `withOrgWrite` / `withProjectLock`.
   Slice persists `findings | remediations | requirements | alerts` as
   upserts + evidence inserts. Structural entities go through `repo/*`.

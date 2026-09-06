@@ -5,7 +5,7 @@ import { generateAiRemediation } from "@/ai/remediation";
 import { setAiWarn } from "@/ai/warn";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { entityIdSchema } from "@/core/boundary";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import { advanceRemediation } from "@/core/remediation";
 import {
   runActionMessage,

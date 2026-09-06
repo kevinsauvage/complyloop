@@ -5,7 +5,7 @@ import { aiExplanationAvailable } from "@/ai/explainer";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { entityIdSchema } from "@/core/boundary";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import {
   runActionMessage,
   type ActionMessageState,

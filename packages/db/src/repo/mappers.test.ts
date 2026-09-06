@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type {
-  Alert,
-  Assessment,
-  EvidenceRecord,
-  Finding,
-  Remediation,
-} from "@complyloop/analysis-core/contract/finding-types";
+import type { Alert, Assessment, EvidenceRecord, Finding, Remediation } from "../types";
 import type {
   OrgMembership,
   Organization,
@@ -114,7 +108,7 @@ describe("repo mappers emit stable row shapes", () => {
       projectId: "p1",
       detail: { files: 3 },
     } satisfies Pick<EvidenceRecord, "id" | "at" | "kind" | "summary" | "projectId" | "detail">;
-    // rowToEvidence is exercised in postgres-evidence.ts; here we only pin the
+    // rowToEvidence is exercised in queries.ts; here we only pin the
     // insert shape via the repo insert path contract (nullable columns).
     expect(record.kind).toBe("assessment_completed");
   });

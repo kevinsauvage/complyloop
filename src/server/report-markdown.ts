@@ -5,7 +5,7 @@ import {
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
 import { formatDateTimeWithZone } from "@/core/format-datetime";
-import { findingStatusLabel, requirementStatusLabel } from "@/core/labels";
+import { findingStatusLabel, requirementStatusLabel } from "@/core/status-display";
 import {
   composeAuditReport,
   composeEngineeringReport,

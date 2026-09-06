@@ -1,5 +1,5 @@
 import { desc, eq, sql } from "drizzle-orm";
-import type { Assessment, AssessmentSnapshot } from "@complyloop/analysis-core/contract/finding-types";
+import type { Assessment, AssessmentSnapshot } from "../types";
 import type { DrizzleDb } from "../client.ts";
 import { assessmentSnapshots, assessments } from "../schema.ts";
 import { assessmentFromRow, assessmentToRow } from "./mappers.ts";

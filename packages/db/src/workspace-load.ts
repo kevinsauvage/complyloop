@@ -1,9 +1,11 @@
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import type { Db } from "./types.ts";
 import type { DrizzleDb } from "./client.ts";
-import { rowToEvidence } from "./postgres-evidence.ts";
-import { WORKSPACE_EVIDENCE_LIMIT } from "./postgres-scope.ts";
-import { listOrgIdsForUser } from "./postgres-queries.ts";
+import {
+  listOrgIdsForUser,
+  rowToEvidence,
+  WORKSPACE_EVIDENCE_LIMIT,
+} from "./queries.ts";
 import { listMembershipsForOrgs, listOrganizationsForUser } from "./repo/orgs.ts";
 import {
   getProjectById,
@@ -82,6 +84,8 @@ export interface WorkspaceLoadInput {
   githubLogin: string | null;
   activeProjectId: string | null;
   evidenceLimit?: number;
+  /** When false, loads tenancy only — pages query project runtime directly. */
+  includeRuntime?: boolean;
 }
 
 async function loadWorkspaceTenancy(
@@ -126,18 +130,18 @@ export async function loadWorkspaceDb(
     await loadWorkspaceTenancy(drizzle, input);
 
   const runtime =
-    activeProjectId != null
-      ? await loadProjectRuntime(drizzle, activeProjectId)
-      : {
+    input.includeRuntime === false || activeProjectId == null
+      ? {
           requirements: [],
           assessments: [],
           findings: [],
           remediations: [],
           alerts: [],
-        };
+        }
+      : await loadProjectRuntime(drizzle, activeProjectId);
 
   const evidenceRows =
-    activeProjectId != null
+    activeProjectId != null && input.includeRuntime !== false
       ? await loadEvidenceWindow(
           drizzle,
           activeProjectId,

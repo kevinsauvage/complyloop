@@ -1,4 +1,4 @@
-import type { Alert } from "@complyloop/analysis-core/contract/finding-types";
+import type { Alert } from "@complyloop/db/types";
 import {
   claimNextAssessmentJob,
   completeAssessmentJob,

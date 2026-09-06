@@ -15,7 +15,7 @@ vi.mock("./active-cookies", () => ({
   readActiveProjectCookie: vi.fn(),
 }));
 vi.mock("@complyloop/db/client", () => ({ getDrizzle }));
-vi.mock("@complyloop/db/postgres-queries", () => ({ listOrgIdsForUser }));
+vi.mock("@complyloop/db/queries", () => ({ listOrgIdsForUser }));
 vi.mock("@complyloop/db/repo/orgs", () => ({
   claimMembershipsForLogin,
   insertOrganization,

@@ -4,10 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PatchCandidate } from "@/ai/verified-fix";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type {
-  Finding,
-  Remediation,
-} from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding, Remediation } from "@complyloop/db/types";
 import { emptyDb } from "./db";
 import {
   latestPatchState,

@@ -1,3 +1,4 @@
+import type {  } from "@complyloop/db/types"
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 

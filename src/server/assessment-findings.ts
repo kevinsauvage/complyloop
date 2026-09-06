@@ -13,13 +13,8 @@ import {
   isSourceLocation,
 } from "@complyloop/analysis-core/contract/location";
 import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
-import type {
-  Finding,
-  FindingLocation,
-  ProposedFix,
-  Remediation,
-  RemediationSuggestion,
-} from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding, Remediation } from "@complyloop/db/types"
+import type { FindingLocation, ProposedFix, RemediationSuggestion } from "@complyloop/analysis-core/contract/finding-types";
 import { addEvidence, type Db } from "./db";
 
 /**

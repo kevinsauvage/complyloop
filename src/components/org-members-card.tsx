@@ -14,7 +14,7 @@ import {
   changeOrgMemberRoleAction,
   removeOrgMemberAction,
 } from "@/server/actions/org";
-import { STATUS_TONE_BADGE, roleTone } from "@/core/status-tone";
+import { STATUS_TONE_BADGE, roleTone } from "@/core/status-display";
 import { cn } from "@/lib/utils";
 
 export function OrgMembersCard({

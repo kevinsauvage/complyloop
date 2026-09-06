@@ -2,7 +2,10 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StatefulActionForm } from "@/components/stateful-action-form";
-import { STILL_FAILING_VERIFY_MESSAGE } from "@/server/verify-messages";
+
+/** Mirrors the server's still-failing message (see remediation-verify.ts). */
+const STILL_FAILING_VERIFY_MESSAGE =
+  "Still failing — the violation is still detected at this location.";
 
 const toastError = vi.fn();
 

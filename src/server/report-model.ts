@@ -5,7 +5,7 @@ import {
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
 import type { Control, Framework, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
-import type { EvidenceRecord, Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
+import type { EvidenceRecord, Finding, Remediation } from "@complyloop/db/types";
 import {
   controlDisplayCodes,
   secondaryReferenceLabel,
@@ -16,7 +16,7 @@ import {
   remediationStatusLabel,
   requirementStatusLabel,
   severityLabel,
-} from "@/core/labels";
+} from "@/core/status-display";
 import { prioritizeClusters } from "@/core/prioritization";
 import {
   formatLocationRef,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import { firstIssueMessage, formRecord } from "@/core/boundary";
 import { formError, type ActionMessageState } from "./action-state";
 

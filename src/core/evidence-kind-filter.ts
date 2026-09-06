@@ -1,4 +1,4 @@
-import type { EvidenceKind } from "@complyloop/analysis-core/contract/finding-types";
+import type { EvidenceKind } from "@complyloop/db/types";
 import { parseEnumParam, buildHref } from "./query-param";
 
 export const EVIDENCE_KIND_FILTER_ORDER: readonly EvidenceKind[] = [

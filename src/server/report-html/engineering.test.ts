@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding } from "@complyloop/db/types";
 import { sampleReportInput } from "@/test-fixtures/report-input";
 import { buildEngineeringReportHtml } from "./engineering";
 

@@ -2,13 +2,13 @@ import { AppShell } from "@/components/app-shell";
 import { AuthControls } from "@/components/auth-controls";
 import { WorkspaceContext } from "@/components/workspace-context";
 import { WorkspaceContextRouteGate } from "@/components/workspace-context-route-gate";
-import { navAttentionCounts } from "@/server/nav-attention";
-import { getWorkspace } from "@/server/workspace";
+import { navAttentionForProject } from "@/server/nav-attention";
+import { getWorkspaceContext } from "@/server/workspace";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const { db, project } = await getWorkspace();
+  const { project } = await getWorkspaceContext();
   const navAttention = project
-    ? navAttentionCounts(db, project.id)
+    ? await navAttentionForProject(project)
     : { openFindings: 0, unreadAlerts: 0 };
 
   return (

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import { wcagFramework } from "@complyloop/adapters/wcag/controls";
-import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding } from "@complyloop/db/types";
 import { sampleReportInput, reportSampleProject } from "@/test-fixtures/report-input";
 import { emptyDb } from "./db";
 import {

@@ -21,7 +21,7 @@ import { reportMarkdownHref } from "@/core/report-view";
 import { paginateSlice } from "@/core/pagination";
 import { prioritizeClusters } from "@/core/prioritization";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
-import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding } from "@complyloop/db/types";
 import { buildFindingFilterContext } from "@/server/finding-list-context";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { findingsInScope } from "@/server/assessment-status";

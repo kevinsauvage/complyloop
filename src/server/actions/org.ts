@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { auth } from "@/auth";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import { entityIdSchema, requiredField } from "@/core/boundary";
 import {
   actionErrorState,
@@ -31,7 +31,7 @@ import { getDrizzle } from "@complyloop/db/client";
 import {
   listAllEvidenceForProjects,
   listAssessmentsForProjects,
-} from "@complyloop/db/postgres-queries";
+} from "@complyloop/db/queries";
 import { getWorkspace, withOrgWrite } from "../workspace";
 import { refresh, requireSignedIn } from "./shared";
 

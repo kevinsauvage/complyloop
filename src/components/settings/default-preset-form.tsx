@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Badge } from "@/components/ui/badge";
-import { STATUS_TONE_BADGE } from "@/core/status-tone";
+import { STATUS_TONE_BADGE } from "@/core/status-display";
 import { Label } from "@/components/ui/label";
 import type { FrameworkPreset } from "@complyloop/adapters/types";
 import { setDefaultPresetAction } from "@/server/actions/project-preset";

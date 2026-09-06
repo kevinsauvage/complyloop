@@ -4,7 +4,7 @@ import { addEvidence } from "./repo/evidence";
 import {
   evidenceToRow,
   rowToEvidence,
-} from "./postgres-evidence";
+} from "./queries";
 
 describe("emptyDb + addEvidence", () => {
   it("starts empty and appends evidence records", () => {

@@ -1,11 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  Alert,
-  Assessment,
-  EvidenceRecord,
-  Finding,
-  Remediation,
-} from "@complyloop/analysis-core/contract/finding-types";
+import type { Alert, Assessment, EvidenceRecord, Finding, Remediation } from "../types";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 
 const insertAssessment = vi.hoisted(() => vi.fn());

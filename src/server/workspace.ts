@@ -6,8 +6,7 @@ import type {
   Organization,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError, type Finding, type Remediation } from "@complyloop/db/types";
 import {
   readActiveOrgCookie,
   readActiveProjectCookie,
@@ -33,7 +32,7 @@ import {
   listOrganizationsForUser,
   upsertMembership,
 } from "@complyloop/db/repo/orgs";
-import { listOrgIdsForUser } from "@complyloop/db/postgres-queries";
+import { listOrgIdsForUser } from "@complyloop/db/queries";
 import {
   loadTargetedProjectWriteDb,
   loadWorkspaceDb,
@@ -43,9 +42,10 @@ import {
   orgWriteLockKey,
   projectWriteLockKey,
 } from "@complyloop/db/write-lock";
-import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/postgres-scope";
+import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/queries";
 import {
   emptyDb,
+  loadWorkspaceContextDbForViewer,
   loadWorkspaceDbForViewer,
   type Db,
 } from "./db";
@@ -151,11 +151,9 @@ async function ensurePersonalOrgProvisioned(
   });
 }
 
-/**
- * Loads the store scoped to the active project + org list.
- * Memoized per React request so layout + page share one load/auth.
- */
-export const getWorkspace = cache(async (): Promise<Workspace> => {
+async function loadViewerWorkspaceState(
+  loadDb: typeof loadWorkspaceDbForViewer,
+): Promise<Workspace> {
   const session = await auth();
   const userId = session?.user?.id ?? null;
   const githubLogin = session?.user?.login ?? null;
@@ -166,7 +164,7 @@ export const getWorkspace = cache(async (): Promise<Workspace> => {
     await ensurePersonalOrgProvisioned(userId, githubLogin);
   }
 
-  const db = await loadWorkspaceDbForViewer({
+  const db = await loadDb({
     userId,
     githubLogin,
     preferredProjectId,
@@ -178,7 +176,23 @@ export const getWorkspace = cache(async (): Promise<Workspace> => {
     preferredOrgId,
     preferredProjectId,
   );
-});
+}
+
+/**
+ * Tenancy + active project only — for layout shell and org management pages.
+ * Memoized per React request separately from {@link getWorkspace}.
+ */
+export const getWorkspaceContext = cache(async (): Promise<Workspace> =>
+  loadViewerWorkspaceState(loadWorkspaceContextDbForViewer),
+);
+
+/**
+ * Loads the store scoped to the active project + org list.
+ * Memoized per React request so layout + page share one load/auth.
+ */
+export const getWorkspace = cache(async (): Promise<Workspace> =>
+  loadViewerWorkspaceState(loadWorkspaceDbForViewer),
+);
 
 async function sessionWriteContext(): Promise<{
   userId: string | null;

@@ -10,7 +10,7 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseFormState } from "../boundary";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import {
   readActiveOrgCookie,
   writeActiveProjectCookie,

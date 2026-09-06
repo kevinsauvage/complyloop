@@ -14,7 +14,7 @@ import {
   dismissFindingAction,
 } from "./remediation";
 
-const { withProjectWrite, getWorkspace } = actionWorkspaceMocks;
+const { withProjectWrite } = actionWorkspaceMocks;
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const drainAssessmentJobQueue = vi.hoisted(() => vi.fn());

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { Explanation, Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding } from "@complyloop/db/types"
+import type { Explanation } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef, locationSnippet } from "@complyloop/analysis-core/contract/location";
 import { AI_MODEL } from "./model";
 import { confidenceSchema } from "./schemas";

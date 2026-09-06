@@ -1,7 +1,7 @@
-import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
+import type { EvidenceRecord } from "../types";
 import type { DrizzleDb } from "../client.ts";
 import type { Db } from "../types.ts";
-import { evidenceToRow } from "../postgres-evidence.ts";
+import { evidenceToRow } from "../queries.ts";
 import { evidence } from "../schema.ts";
 import { newEvidenceRecord } from "./mappers.ts";
 

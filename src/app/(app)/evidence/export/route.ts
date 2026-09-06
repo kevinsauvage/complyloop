@@ -1,5 +1,5 @@
 import { getDrizzle } from "@complyloop/db/client";
-import { listEvidenceForExport } from "@complyloop/db/postgres-queries";
+import { listEvidenceForExport } from "@complyloop/db/queries";
 import {
   controlsInScope,
   requirementsInScope,

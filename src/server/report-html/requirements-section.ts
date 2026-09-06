@@ -1,4 +1,4 @@
-import { requirementStatusLabel } from "@/core/labels";
+import { requirementStatusLabel } from "@/core/status-display";
 import { formatDateTimeWithZone } from "@/core/format-datetime";
 import {
   REQUIREMENT_STATUSES,

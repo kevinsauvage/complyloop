@@ -1,4 +1,4 @@
-import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
+import type { EvidenceRecord } from "@complyloop/db/types";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import { requirementsStatusHref } from "./requirement-status-filter";
 

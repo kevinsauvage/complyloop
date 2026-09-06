@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import type { Alert } from "@complyloop/analysis-core/contract/finding-types";
+import type { Alert } from "../types";
 import type { DrizzleDb } from "../client.ts";
 import { alerts } from "../schema.ts";
 import { alertToRow } from "./mappers.ts";

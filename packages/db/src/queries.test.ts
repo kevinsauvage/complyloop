@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
-import { evidenceExportWindow, sqlPageOffset } from "./postgres-queries";
+import { evidenceExportWindow, sqlPageOffset } from "./queries";
 
 describe("sqlPageOffset", () => {
   it("maps 1-based pages to zero-based offsets", () => {

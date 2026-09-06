@@ -1,10 +1,13 @@
-import { findingsInScope } from "./assessment-status";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
+import { getDrizzle } from "@complyloop/db/client";
+import {
+  countNavAttentionForProject,
+  type NavAttentionCounts,
+} from "@complyloop/db/queries";
+import { findingsInScope, scopedControlIds } from "./assessment-status";
 import type { Db } from "./db";
 
-export interface NavAttentionCounts {
-  openFindings: number;
-  unreadAlerts: number;
-}
+export type { NavAttentionCounts };
 
 export function navAttentionCounts(db: Db, projectId: string): NavAttentionCounts {
   const project = db.projects.find((candidate) => candidate.id === projectId);
@@ -20,4 +23,16 @@ export function navAttentionCounts(db: Db, projectId: string): NavAttentionCount
   ).length;
 
   return { openFindings, unreadAlerts };
+}
+
+/** Nav badges without hydrating the full findings/alerts arrays. */
+export async function navAttentionForProject(
+  project: Project,
+): Promise<NavAttentionCounts> {
+  const controlIds = scopedControlIds(project);
+  return countNavAttentionForProject(
+    await getDrizzle(),
+    project.id,
+    controlIds ? [...controlIds] : undefined,
+  );
 }

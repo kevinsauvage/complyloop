@@ -10,7 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { Explanation, Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding } from "@complyloop/db/types"
+import type { Explanation } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef, isDomLocation, locationSnippet, domLocationDetails } from "@complyloop/analysis-core/contract/location";
 import { generateAiExplanationAction } from "@/server/actions/remediation-ai";
 import { MapPin } from "lucide-react";

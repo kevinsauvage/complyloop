@@ -3,10 +3,11 @@ import { FolderGit2, Layers } from "lucide-react";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
-import { latestAssessmentFor } from "@/core/assessment-latest";
 import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { projectCapabilities } from "@/server/project-capabilities";
-import { getWorkspace } from "@/server/workspace";
+import { getWorkspaceContext } from "@/server/workspace";
+import { getDrizzle } from "@complyloop/db/client";
+import { listLatestAssessmentForProject } from "@complyloop/db/repo/assessments";
 import { cn } from "@/lib/utils";
 
 function ContextStrip({
@@ -31,10 +32,10 @@ function ContextStrip({
 /** Active org/project context + switchers for every workflow page. */
 export async function WorkspaceContext() {
   const { db, project, visibleProjects, organizations, activeOrgId, access } =
-    await getWorkspace();
+    await getWorkspaceContext();
   const caps = projectCapabilities(project, access, activeOrgId);
   const latestAssessment = project
-    ? latestAssessmentFor(db.assessments, project.id)
+    ? (await listLatestAssessmentForProject(await getDrizzle(), project.id))[0]
     : undefined;
   const coverageStrip = project ? (
     <RuntimeCoverageChip

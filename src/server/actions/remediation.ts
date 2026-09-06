@@ -1,13 +1,9 @@
 "use server";
 
 import { canBulkApproveRemediation } from "@/core/finding-act";
-import {
-  type Dismissal,
-  type Finding,
-  type Remediation,
-} from "@complyloop/analysis-core/contract/finding-types";
+import { PublicError, type Finding, type Remediation } from "@complyloop/db/types"
+import { type Dismissal } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
   entityIdSchema,

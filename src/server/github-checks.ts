@@ -1,4 +1,4 @@
-import { isPublicError } from "@complyloop/analysis-core/contract/public-error";
+import { isPublicError } from "@complyloop/db/types";
 import { parseOwnerRepo } from "./github-repo";
 import { createOctokit, octokitErrorMessage } from "./octokit";
 

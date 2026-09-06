@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import * as registry from "@complyloop/adapters/registry";
-import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding } from "@complyloop/db/types";
 import type { Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import { testProject } from "@/test-fixtures/project";
 import { testControl } from "@/test-fixtures/control";

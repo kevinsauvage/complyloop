@@ -7,12 +7,8 @@ import {
 import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
 import { formatLocationRef, isSourceLocation } from "@complyloop/analysis-core/contract/location";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type {
-  Assessment,
-  AssessmentEngines,
-  Finding,
-} from "@complyloop/analysis-core/contract/finding-types";
+import { PublicError, type Assessment, type Finding } from "@complyloop/db/types";
+import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
 import { advanceRemediation } from "@/core/remediation";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { addEvidence, type Db } from "./db";

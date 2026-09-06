@@ -1,5 +1,5 @@
 import { inArray, sql } from "drizzle-orm";
-import type { Remediation } from "@complyloop/analysis-core/contract/finding-types";
+import type { Remediation } from "../types";
 import type { DrizzleDb } from "../client.ts";
 import { remediations } from "../schema.ts";
 import { remediationToRow } from "./mappers.ts";

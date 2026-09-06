@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OrgMembership, Organization, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
-import type { EvidenceRecord, Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { EvidenceRecord, Finding } from "@complyloop/db/types";
 import { testProject } from "@/test-fixtures/project";
 import {
   type AccessContext,

@@ -1,9 +1,5 @@
-import type {
-  Finding,
-  FindingCluster,
-  DomLocation,
-  SourceLocation,
-} from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding, FindingCluster } from "@complyloop/db/types"
+import type { DomLocation, SourceLocation } from "@complyloop/analysis-core/contract/finding-types";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { isDomLocation, isSourceLocation } from "@complyloop/analysis-core/contract/location";
 

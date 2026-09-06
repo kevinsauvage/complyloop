@@ -1,6 +1,6 @@
-import { severityRank } from "./labels";
+import { severityRank } from "./status-display";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding, FindingCluster } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding, FindingCluster } from "@complyloop/db/types";
 import { clusterFindings } from "./root-cause";
 
 const CONFIDENCE_BONUS: Record<Finding["confidence"], number> = {

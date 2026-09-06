@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { githubRepoSearchResponseSchema, parseUnknown } from "@/core/boundary";
-import { STATUS_TONE_BADGE } from "@/core/status-tone";
+import { STATUS_TONE_BADGE } from "@/core/status-display";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   connectGitHubRepoAction,

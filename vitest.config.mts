@@ -58,7 +58,7 @@ export default defineConfig({
         "packages/db/src/schema.ts",
         "packages/db/src/workspace-load.ts",
         "packages/db/src/postgres-url.ts",
-        "packages/db/src/postgres-queries.ts",
+        "packages/db/src/queries.ts",
         "packages/db/src/repo/alerts.ts",
         "packages/db/src/repo/assessments.ts",
         "packages/db/src/repo/evidence.ts",

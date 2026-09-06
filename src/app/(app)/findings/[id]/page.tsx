@@ -13,7 +13,7 @@ import { FindingQueueNav } from "@/components/findings/finding-queue-nav";
 import { FindingUnderstandCard } from "@/components/findings/finding-understand-card";
 import { RemediationHistory } from "@/components/findings/remediation-history";
 import { findingAct } from "@/core/finding-act";
-import { evidenceKindLabel } from "@/core/labels";
+import { evidenceKindLabel } from "@/core/status-display";
 import {
   findingQueuePosition,
   findingsListHref,
@@ -27,7 +27,7 @@ import { pullRequestUrlFromEvidence } from "@/server/finding-pr-url";
 import { latestPatchState } from "@/server/ai-fix";
 import { buildDeveloperHandoff } from "@/server/handoff";
 import { getDrizzle } from "@complyloop/db/client";
-import { listEvidenceForFinding } from "@complyloop/db/postgres-queries";
+import { listEvidenceForFinding } from "@complyloop/db/queries";
 import { buildFindingFilterContext } from "@/server/finding-list-context";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { resolveVisibleFinding } from "@/server/project-visibility";

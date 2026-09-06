@@ -1,6 +1,5 @@
 import type { OrgMembership, Organization, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
-import type { EvidenceRecord, Finding } from "@complyloop/analysis-core/contract/finding-types";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError, type EvidenceRecord, type Finding } from "@complyloop/db/types";
 import { canOnProject, type Permission } from "@/core/rbac";
 
 export interface AccessContext {

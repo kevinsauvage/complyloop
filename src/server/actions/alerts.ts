@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { requiredField } from "@/core/boundary";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import { getDrizzle } from "@complyloop/db/client";
 import { getAlertById, markAlertRead } from "@complyloop/db/repo/alerts";
 import { listMembershipsForOrgs } from "@complyloop/db/repo/orgs";

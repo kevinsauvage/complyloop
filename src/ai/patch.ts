@@ -1,8 +1,7 @@
 import { z } from "zod";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
+import { PublicError, type Finding } from "@complyloop/db/types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { aiCall } from "./ai-call";
 import { AI_MODEL } from "./model";
 import type { ProposedFixEdits } from "./verified-fix";

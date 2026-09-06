@@ -7,7 +7,7 @@ import { applyFix } from "@complyloop/analysis-core/fixes";
 import { parseSource } from "@complyloop/analysis-core/parse";
 import { scanFile } from "@complyloop/analysis-core/scan";
 import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding, Remediation } from "@complyloop/db/types";
 import { testProject } from "@/test-fixtures/project";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
 import { createGit } from "./git";

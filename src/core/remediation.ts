@@ -1,5 +1,5 @@
 import type { RemediationStatus } from "@complyloop/analysis-core/contract/statuses";
-import type { Remediation } from "@complyloop/analysis-core/contract/finding-types";
+import type { Remediation } from "@complyloop/db/types";
 
 function canTransition(
   from: RemediationStatus,

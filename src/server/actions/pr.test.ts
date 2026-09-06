@@ -7,7 +7,7 @@ import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import { createPullRequestAction } from "./pr";
 
 const { getWorkspace, withProjectWrite } = actionWorkspaceMocks;
@@ -29,7 +29,7 @@ vi.mock("@complyloop/db/client", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 
-vi.mock("@complyloop/db/postgres-queries", () => ({
+vi.mock("@complyloop/db/queries", () => ({
   listEvidenceForFinding: (...args: unknown[]) =>
     listEvidenceForFinding(...args),
 }));

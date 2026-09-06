@@ -1,13 +1,12 @@
 "use server";
 
 import type { CheckId } from "@complyloop/analysis-core/types";
-import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
+import { PublicError, type Finding, type Remediation } from "@complyloop/db/types";
 import {
   runtimeViolationStillPresent,
   scanRuntime,
 } from "@complyloop/analysis-core/runtime/scan";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import { entityIdSchema, optionalNoteSchema } from "@/core/boundary";
 import { z } from "zod";
@@ -21,7 +20,6 @@ import { sameInstance } from "../assessment-findings";
 import { refreshRequirementStatusesForControls } from "../assessment-status";
 import type { ProjectWriteCollector } from "../workspace";
 import type { Db } from "../db";
-import { STILL_FAILING_VERIFY_MESSAGE } from "../verify-messages";
 import {
   findingById,
   getWorkspace,
@@ -40,6 +38,10 @@ const markImplementedInput = z.object({
 
 const SOURCE_VERIFY_MESSAGE =
   "Source findings are verified by merging the draft pull request and re-assessing.";
+
+/** Shown when automated re-check still finds the violation (role=alert). */
+const STILL_FAILING_VERIFY_MESSAGE =
+  "Still failing — the violation is still detected at this location.";
 
 interface VerifyAuditFlags {
   runtimeRan: boolean;

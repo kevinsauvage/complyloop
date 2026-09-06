@@ -58,7 +58,7 @@ export async function loadReportInput(
   const { parseReportViewParam } = await import("@/core/report-view");
   const { getDrizzle } = await import("@complyloop/db/client");
   const { listEvidenceForExport } = await import(
-    "@complyloop/db/postgres-queries"
+    "@complyloop/db/queries"
   );
   const { getWorkspace } = await import("./workspace");
 

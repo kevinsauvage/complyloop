@@ -1,10 +1,11 @@
-import type { AssessmentEngine, Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding } from "@complyloop/db/types"
+import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { formatLocationRef, locationPathOrUrl } from "@complyloop/analysis-core/contract/location";
 import { parsePageParam } from "./pagination";
 import { parseEnumParam, firstParam, buildHref } from "./query-param";
 import { prioritizeFindings } from "./prioritization";
-import { severityRank } from "./labels";
+import { severityRank } from "./status-display";
 import {
   REMEDIATION_STATUSES,
   type RemediationStatus,

@@ -1,5 +1,5 @@
 import { presetById } from "@complyloop/adapters/registry";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError, type Finding, type EvidenceRecord } from "@complyloop/db/types";
 import {
   deriveRequirementStatus,
   isStickyHumanDecision,
@@ -8,11 +8,9 @@ import {
   authorityForCheck,
   isHtmlValidateOwnedCheck,
 } from "@complyloop/analysis-core/check-authority";
-import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Control, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/project-types";
-import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
 import type { ProjectWriteCollector } from "@complyloop/db/project-write";
 import { addEvidence, type Db } from "./db";
 import { findingsForProject, requirementsForProject } from "./project-visibility";

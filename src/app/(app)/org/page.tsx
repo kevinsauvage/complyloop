@@ -22,7 +22,7 @@ import {
   inviteOrgMemberAction,
 } from "@/server/actions/org";
 import { membershipsForOrg, userRoleInOrg } from "@/server/orgs";
-import { getWorkspace } from "@/server/workspace";
+import { getWorkspaceContext } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +48,7 @@ export default async function OrgPage() {
     );
   }
 
-  const { db, activeOrgId } = await getWorkspace();
+  const { db, activeOrgId } = await getWorkspaceContext();
   const org = activeOrgId
     ? db.organizations.find((candidate) => candidate.id === activeOrgId)
     : undefined;

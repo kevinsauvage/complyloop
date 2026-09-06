@@ -1,4 +1,4 @@
-import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
+import type { EvidenceRecord } from "@complyloop/db/types";
 
 export function pullRequestUrlFromEvidence(
   evidence: ReadonlyArray<Pick<EvidenceRecord, "kind" | "detail">>,

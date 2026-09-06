@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
+import type { EvidenceRecord } from "@complyloop/db/types";
 import { evidenceRecordHref } from "./evidence-links";
 
 const base: EvidenceRecord = {

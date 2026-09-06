@@ -1,17 +1,48 @@
 import { and, asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
-import type {
-  Assessment,
-  EvidenceKind,
-  EvidenceRecord,
-} from "@complyloop/analysis-core/contract/finding-types";
+import type { Assessment, EvidenceKind, EvidenceRecord } from "./types";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "./client.ts";
-import { rowToEvidence } from "./postgres-evidence.ts";
-import { EVIDENCE_EXPORT_LIMIT } from "./postgres-scope.ts";
 import { assessmentFromRow } from "./repo/mappers.ts";
-import { assessments, evidence, memberships, projects } from "./schema.ts";
+import { alerts, assessments, evidence, findings, memberships, projects } from "./schema.ts";
 
-export { EVIDENCE_EXPORT_LIMIT } from "./postgres-scope.ts";
+/** Newest-first evidence rows kept in the workspace read snapshot. */
+export const WORKSPACE_EVIDENCE_LIMIT = 100;
+
+/**
+ * Newest rows included in JSON / report exports. Decision records stay in the
+ * DB forever (append-only); this only bounds the download, not the table.
+ */
+export const EVIDENCE_EXPORT_LIMIT = 5_000;
+
+export function evidenceToRow(record: EvidenceRecord) {
+  return {
+    id: record.id,
+    at: record.at,
+    kind: record.kind,
+    summary: record.summary,
+    projectId: record.projectId ?? null,
+    controlId: record.controlId ?? null,
+    findingId: record.findingId ?? null,
+    assessmentId: record.assessmentId ?? null,
+    detail: record.detail ?? null,
+  };
+}
+
+export function rowToEvidence(
+  row: typeof evidence.$inferSelect,
+): EvidenceRecord {
+  return {
+    id: row.id,
+    at: row.at,
+    kind: row.kind as EvidenceRecord["kind"],
+    summary: row.summary,
+    projectId: row.projectId ?? undefined,
+    controlId: row.controlId ?? undefined,
+    findingId: row.findingId ?? undefined,
+    assessmentId: row.assessmentId ?? undefined,
+    detail: row.detail ?? undefined,
+  };
+}
 
 /** How many rows an export should take, and whether the table was larger. */
 export function evidenceExportWindow(
@@ -208,4 +239,38 @@ export async function listOrgIdsForUser(
     .from(memberships)
     .where(or(...clauses));
   return [...new Set(rows.map((row) => row.orgId))];
+}
+
+export interface NavAttentionCounts {
+  openFindings: number;
+  unreadAlerts: number;
+}
+
+/** Nav badge counts without loading the full findings/alerts slice. */
+export async function countNavAttentionForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+  scopedControlIds?: readonly string[],
+): Promise<NavAttentionCounts> {
+  const openFindingFilter =
+    scopedControlIds && scopedControlIds.length > 0
+      ? and(
+          eq(findings.projectId, projectId),
+          eq(findings.status, "open"),
+          inArray(findings.controlId, [...scopedControlIds]),
+        )
+      : and(eq(findings.projectId, projectId), eq(findings.status, "open"));
+
+  const [findingsRow, alertsRow] = await Promise.all([
+    drizzle.select({ value: count() }).from(findings).where(openFindingFilter),
+    drizzle
+      .select({ value: count() })
+      .from(alerts)
+      .where(and(eq(alerts.projectId, projectId), eq(alerts.read, false))),
+  ]);
+
+  return {
+    openFindings: Number(findingsRow[0]?.value ?? 0),
+    unreadAlerts: Number(alertsRow[0]?.value ?? 0),
+  };
 }

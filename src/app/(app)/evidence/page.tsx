@@ -18,9 +18,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { evidenceRecordHref } from "@/core/evidence-links";
-import { EVIDENCE_TONE_DOT, evidenceTone } from "@/core/evidence-tone";
+import { EVIDENCE_TONE_DOT, evidenceTone } from "@/core/status-display";
 import { parseEvidenceKindParam, evidenceKindHref } from "@/core/evidence-kind-filter";
-import { evidenceKindLabel } from "@/core/labels";
+import { evidenceKindLabel } from "@/core/status-display";
 import { reportHtmlHref, reportMarkdownHref } from "@/core/report-view";
 import {
   DEFAULT_PAGE_SIZE,
@@ -33,7 +33,7 @@ import {
   countEvidenceForProject,
   countEvidenceKindsForProject,
   listEvidencePageForProject,
-} from "@complyloop/db/postgres-queries";
+} from "@complyloop/db/queries";
 import { getWorkspace } from "@/server/workspace";
 import { ChevronDownIcon } from "lucide-react";
 import Link from "next/link";

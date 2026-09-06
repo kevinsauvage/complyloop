@@ -1,5 +1,5 @@
 import { inArray, sql } from "drizzle-orm";
-import type { Finding } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding } from "../types";
 import type { DrizzleDb } from "../client.ts";
 import { findings } from "../schema.ts";
 import { findingToRow } from "./mappers.ts";

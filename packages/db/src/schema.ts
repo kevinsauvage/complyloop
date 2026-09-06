@@ -21,13 +21,7 @@ import type {
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
-import type {
-  Alert,
-  Assessment,
-  AssessmentSnapshot,
-  Finding,
-  Remediation,
-} from "@complyloop/analysis-core/contract/finding-types";
+import type { Alert, Assessment, AssessmentSnapshot, Finding, Remediation } from "./types";
 import {
   FINDING_STATUSES,
   REMEDIATION_STATUSES,

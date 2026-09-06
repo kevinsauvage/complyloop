@@ -5,7 +5,7 @@ import { requirementsStatusHref } from "@/core/requirement-status-filter";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
-import { STATUS_TONE_ACCENT, statusTone } from "@/core/status-tone";
+import { STATUS_TONE_ACCENT, statusTone } from "@/core/status-display";
 
 export function DashboardStatusCounts({
   counts,

@@ -1,11 +1,4 @@
-import type {
-  Alert,
-  Assessment,
-  AssessmentSnapshot,
-  EvidenceRecord,
-  Finding,
-  Remediation,
-} from "@complyloop/analysis-core/contract/finding-types";
+import type { Alert, Assessment, AssessmentSnapshot, EvidenceRecord, Finding, Remediation } from "../types";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../client.ts";
 import { insertAssessment } from "./assessments.ts";

@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { listSourceFiles } from "@complyloop/analysis-core/source-files";
-import type { AssessmentSnapshot, FileChange } from "@complyloop/analysis-core/contract/finding-types";
+import type { AssessmentSnapshot, FileChange } from "@complyloop/db/types";
 
 function hashFileContents(absolutePath: string): string {
   const buffer = fs.readFileSync(absolutePath);

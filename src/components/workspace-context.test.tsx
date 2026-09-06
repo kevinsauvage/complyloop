@@ -1,44 +1,54 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/server/workspace", () => ({
-  getWorkspace: vi.fn(async () => ({
-    db: {
-      organizations: [
-        { id: "org-1", name: "Acme", slug: "acme", createdAt: "" },
-      ],
-      assessments: [],
-    },
-    project: {
+const workspaceFixture = {
+  db: {
+    organizations: [
+      { id: "org-1", name: "Acme", slug: "acme", createdAt: "" },
+    ],
+    assessments: [],
+  },
+  project: {
+    id: "p1",
+    name: "Shop",
+    orgId: "org-1",
+    source: "github",
+    createdAt: "",
+  },
+  visibleProjects: [
+    {
       id: "p1",
       name: "Shop",
       orgId: "org-1",
       source: "github",
       createdAt: "",
     },
-    visibleProjects: [
-      {
-        id: "p1",
-        name: "Shop",
-        orgId: "org-1",
-        source: "github",
-        createdAt: "",
-      },
-      {
-        id: "p2",
-        name: "Docs",
-        orgId: "org-1",
-        source: "github",
-        createdAt: "",
-      },
-    ],
-    organizations: [
-      { id: "org-1", name: "Acme", slug: "acme", createdAt: "" },
-      { id: "org-2", name: "Beta", slug: "beta", createdAt: "" },
-    ],
-    activeOrgId: "org-1",
-    access: { userId: "u1", githubLogin: "u1", memberships: [] },
-  })),
+    {
+      id: "p2",
+      name: "Docs",
+      orgId: "org-1",
+      source: "github",
+      createdAt: "",
+    },
+  ],
+  organizations: [
+    { id: "org-1", name: "Acme", slug: "acme", createdAt: "" },
+    { id: "org-2", name: "Beta", slug: "beta", createdAt: "" },
+  ],
+  activeOrgId: "org-1",
+  access: { userId: "u1", githubLogin: "u1", memberships: [] },
+};
+
+vi.mock("@/server/workspace", () => ({
+  getWorkspaceContext: vi.fn(async () => workspaceFixture),
+}));
+
+vi.mock("@complyloop/db/client", () => ({
+  getDrizzle: vi.fn(),
+}));
+
+vi.mock("@complyloop/db/repo/assessments", () => ({
+  listLatestAssessmentForProject: vi.fn(async () => []),
 }));
 
 vi.mock("@/server/project-capabilities", () => ({

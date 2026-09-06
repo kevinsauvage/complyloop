@@ -4,7 +4,7 @@ import {
   maxCheckoutBytes,
   maxCheckoutFiles,
 } from "@complyloop/analysis-core/contract/assessment-limits";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 
 /** Rejects oversized clones before AST parsing or Playwright can consume capacity. */
 export function assertCheckoutWithinQuota(rootPath: string): void {

@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { FindingActView } from "@/core/finding-act";
-import type { Finding, Remediation } from "@complyloop/analysis-core/contract/finding-types";
+import type { Finding, Remediation } from "@complyloop/db/types";
 import { cn } from "@/lib/utils";
 import type { PatchCandidate } from "@/ai/verified-fix";
 import type { PatchUiState } from "@/server/ai-fix";

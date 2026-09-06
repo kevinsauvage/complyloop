@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import type { EvidenceRecord } from "@complyloop/analysis-core/contract/finding-types";
+import type { EvidenceRecord } from "./types";
 import { closeDrizzle, getDrizzle } from "./client";
 import {
   persistProjectSlice,

@@ -1,4 +1,4 @@
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { PublicError } from "@complyloop/db/types";
 import {
   isGitHubAppConfigured,
   listReposViaInstallations,
