@@ -18,11 +18,7 @@ import {
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
 import { sameInstance } from "../assessment-findings";
-import {
-  findingsWithPayloadOverrides,
-  mergeRefreshIntoPayload,
-  refreshRequirementStatuses,
-} from "../assessment-status";
+import { applyEntityWrite } from "../apply-entity-write";
 import type { Db } from "../db";
 import {
   findingById,
@@ -106,20 +102,17 @@ function markVerified(
     findingId: live.id,
     detail: { engine },
   });
-  mergeRefreshIntoPayload(
-    payload,
-    refreshRequirementStatuses({
-      project,
-      findings: findingsWithPayloadOverrides(db.findings, payload.findings),
-      requirements: db.requirements,
-      controlIds: [live.controlId],
-      options: {
-        runtimeRan: audit.runtimeRan,
-        siteLevelChecksRan: audit.siteLevelChecksRan,
-        htmlValidateRan: audit.htmlValidateRan,
-      },
-    }),
-  );
+  applyEntityWrite(payload, {
+    project,
+    findings: db.findings,
+    requirements: db.requirements,
+    controlIds: [live.controlId],
+    options: {
+      runtimeRan: audit.runtimeRan,
+      siteLevelChecksRan: audit.siteLevelChecksRan,
+      htmlValidateRan: audit.htmlValidateRan,
+    },
+  });
 }
 
 export async function verifyRemediationAction(

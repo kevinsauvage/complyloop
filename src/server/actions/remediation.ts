@@ -18,11 +18,7 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
-import {
-  findingsWithPayloadOverrides,
-  mergeRefreshIntoPayload,
-  refreshRequirementStatuses,
-} from "../assessment-status";
+import { applyEntityWrite } from "../apply-entity-write";
 import {
   findingById,
   remediationForFinding,
@@ -211,15 +207,12 @@ export async function dismissFindingAction(
           new Date().toISOString(),
           {},
         );
-        mergeRefreshIntoPayload(
-          payload,
-          refreshRequirementStatuses({
-            project,
-            findings: findingsWithPayloadOverrides(db.findings, payload.findings),
-            requirements: db.requirements,
-            controlIds: [finding.controlId],
-          }),
-        );
+        applyEntityWrite(payload, {
+          project,
+          findings: db.findings,
+          requirements: db.requirements,
+          controlIds: [finding.controlId],
+        });
         return payload;
       },
     );
@@ -268,15 +261,12 @@ export async function bulkDismissFindingsAction(
             (candidate) => candidate.id === projectId,
           );
           if (!project) continue;
-          mergeRefreshIntoPayload(
-            payload,
-            refreshRequirementStatuses({
-              project,
-              findings: findingsWithPayloadOverrides(db.findings, payload.findings),
-              requirements: db.requirements,
-              controlIds: [...controlIds],
-            }),
-          );
+          applyEntityWrite(payload, {
+            project,
+            findings: db.findings,
+            requirements: db.requirements,
+            controlIds: [...controlIds],
+          });
         }
         return payload;
       },

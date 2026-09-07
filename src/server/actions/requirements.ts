@@ -14,10 +14,7 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
-import {
-  mergeRefreshIntoPayload,
-  refreshRequirementStatuses,
-} from "../assessment-status";
+import { applyEntityWrite } from "../apply-entity-write";
 import type { Db } from "../db";
 import { controlById } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
@@ -109,19 +106,12 @@ function clearRequirementOverride(
   }
 
   payload.requirements = [...(payload.requirements ?? []), updated];
-  mergeRefreshIntoPayload(
-    payload,
-    refreshRequirementStatuses({
-      project,
-      findings: db.findings,
-      // Refresh must see the cleared override, not the sticky original.
-      requirements: [
-        ...db.requirements.filter((row) => row.id !== updated.id),
-        updated,
-      ],
-      controlIds: [requirement.controlId],
-    }),
-  );
+  applyEntityWrite(payload, {
+    project,
+    findings: db.findings,
+    requirements: db.requirements,
+    controlIds: [requirement.controlId],
+  });
 }
 
 export async function markRequirementExceptionAction(

@@ -36,27 +36,11 @@ source of incidental complexity left in the repo.
 
 ## P1 — High
 
-### P1-2 · One helper for "apply rows + refresh requirement statuses" (kills the 4× merge dance)
+### P1-2 · One helper for "apply rows + refresh requirement statuses" (kills the 4× merge dance) — **DONE**
 
-- **What is complex:** Four interactive actions repeat the same 3-step dance
-  with small variations:
-  `mergeRefreshIntoPayload(payload, refreshRequirementStatusesForControls(project, findingsWithPayloadOverrides(db.findings, payload.findings), db.requirements, [controlIds], flags))`
-  — in `remediation.ts` (dismiss, bulk dismiss), `remediation-verify.ts`
-  (markVerified), `requirements.ts` (clear override). Each also hand-merges
-  findings/remediations into the payload (`payload.findings = [...(payload.findings ?? []), updated]`).
-- **Why it's a problem:** The refresh flags and override-precedence are exactly
-  the kind of subtle thing that drifts between copies (the bulk version already
-  grew a per-project control-set accumulator the single version lacks). A new
-  action will copy one of the four and get it subtly wrong.
-- **How to simplify:** Add one action-layer helper, e.g.
-  `applyEntityWrite(payload, { findings?, remediations?, refreshControls }, context)`
-  that: merges rows, overlays payload overrides onto `db.findings`, runs the
-  targeted status refresh, and merges the result. The four call sites become
-  one line each. Optionally fold `refreshRequirementStatusesForControls` away
-  (see P3-1).
-- **Files:** `src/server/actions/shared.ts` (or new `src/server/apply-entity-write.ts`),
-  `src/server/actions/remediation.ts`, `src/server/actions/remediation-verify.ts`,
-  `src/server/actions/requirements.ts`, `src/server/assessment-status.ts`.
+`applyEntityWrite` in `src/server/apply-entity-write.ts` overlays payload
+findings/requirements, runs targeted `refreshRequirementStatuses`, and merges
+into the payload. Dismiss, bulk dismiss, verify, and clear-override call it.
 
 ### P1-3 · Compute finding clusters once per request
 
