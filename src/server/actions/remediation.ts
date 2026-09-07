@@ -135,7 +135,7 @@ export async function approveRemediationAction(
         approveRemediationInPayload(payload, finding, remediation, {
           approvalNote: "Approved by user",
         });
-        return { result: undefined, payload };
+        return payload;
       },
     );
     refresh();
@@ -169,7 +169,7 @@ export async function bulkApproveRemediationsAction(
           });
           approved += 1;
         }
-        return { result: undefined, payload };
+        return payload;
       },
     );
 
@@ -220,7 +220,7 @@ export async function dismissFindingAction(
             [finding.controlId],
           ),
         );
-        return { result: undefined, payload };
+        return payload;
       },
     );
     refresh();
@@ -278,7 +278,7 @@ export async function bulkDismissFindingsAction(
             ),
           );
         }
-        return { result: undefined, payload };
+        return payload;
       },
     );
 

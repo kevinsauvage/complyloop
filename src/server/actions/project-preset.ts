@@ -28,7 +28,7 @@ export async function setDefaultPresetAction(
       const { db, project } = workspace;
       const payload: ProjectWritePayload = {};
       changed = setDefaultPreset(db, project, presetId, payload).changed;
-      return { result: undefined, payload };
+      return payload;
     });
     refresh();
     return changed

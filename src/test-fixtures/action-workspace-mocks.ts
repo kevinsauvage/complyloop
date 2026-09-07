@@ -13,17 +13,14 @@ const capturedPayloads: ProjectWritePayload[] = [];
  * applying it back to the workspace. Actions clone onto the payload and never
  * mutate the loaded Db, so tests assert on the captured payload directly.
  */
-export async function invokeProjectWriteMock<T>(
+export async function invokeProjectWriteMock(
   workspace: Workspace,
   fn: (
     workspace: Workspace,
-  ) =>
-    | Promise<{ result: T; payload: ProjectWritePayload }>
-    | { result: T; payload: ProjectWritePayload },
-): Promise<T> {
-  const { result, payload } = await fn(workspace);
+  ) => Promise<ProjectWritePayload | void> | ProjectWritePayload | void,
+): Promise<void> {
+  const payload = (await fn(workspace)) ?? {};
   capturedPayloads.push(payload);
-  return result;
 }
 
 /** Payload captured by the most recent `invokeProjectWriteMock` call. */

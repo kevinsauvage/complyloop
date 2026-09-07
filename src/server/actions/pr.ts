@@ -135,7 +135,7 @@ export async function createPullRequestAction(
           title: result.title,
         },
       });
-      return { result: undefined, payload };
+      return payload;
     });
     refresh();
     return {

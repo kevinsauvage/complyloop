@@ -60,10 +60,7 @@ export async function generateAiExplanationAction(
         );
       }
       finding.explanations.push(explanation);
-      return {
-        result: undefined,
-        payload: { findings: [finding] },
-      };
+      return { findings: [finding] };
     });
     refresh();
     return "AI explanation added.";
@@ -168,7 +165,7 @@ export async function generateAiRemediationAction(
           description: result.suggestion.description,
         },
       });
-      return { result: undefined, payload };
+      return payload;
     });
     refresh();
     return "AI remediation suggestion saved.";

@@ -50,12 +50,12 @@ export async function updateRuntimeAuditAction(
       if (normalized == null) {
         delete project.runtimeBaseUrl;
         delete project.runtimeRoutes;
-        return { result: undefined, payload: { project } };
+        return { project };
       }
 
       project.runtimeBaseUrl = normalized;
       project.runtimeRoutes = routes;
-      return { result: undefined, payload: { project } };
+      return { project };
     });
     refresh();
     return "Runtime audit settings saved. Run assessment to audit the pages.";

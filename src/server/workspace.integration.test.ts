@@ -51,7 +51,7 @@ describe.skipIf(!enabled)("withProjectWrite postgres integration", () => {
           );
           if (!finding) throw new Error("Expected seeded finding.");
           finding.status = "dismissed";
-          return { result: undefined, payload: { findings: [finding] } };
+          return { findings: [finding] };
         },
       );
 

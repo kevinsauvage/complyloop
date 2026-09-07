@@ -64,17 +64,13 @@ describe("withProjectWrite project touch", () => {
   });
 
   it("persists the payload the handler returns", async () => {
-    const value = await withProjectWrite({ touch: "project" }, async (workspace) => {
+    await withProjectWrite({ touch: "project" }, async (workspace) => {
       const active = workspace.project!;
       active.runtimeBaseUrl = "https://preview.example";
       active.runtimeRoutes = ["/"];
-      return {
-        result: "saved",
-        payload: { project: active },
-      };
+      return { project: active };
     });
 
-    expect(value).toBe("saved");
     expect(acquireNamedPostgresAdvisoryLock).toHaveBeenCalledWith(
       tx,
       `project-write:${project.id}`,
@@ -95,7 +91,7 @@ describe("withProjectWrite project touch", () => {
   it("requires the handler to return payload.project for project changes", async () => {
     await withProjectWrite({ touch: "project" }, async (workspace) => {
       workspace.project!.runtimeBaseUrl = "https://preview.example";
-      return { result: undefined, payload: {} };
+      return {};
     });
 
     // No JSON-diff auto-persist: a handler that mutates the workspace project
@@ -104,10 +100,7 @@ describe("withProjectWrite project touch", () => {
   });
 
   it("skips project update when the payload is empty and the project is unchanged", async () => {
-    await withProjectWrite({ touch: "project" }, async () => ({
-      result: undefined,
-      payload: {},
-    }));
+    await withProjectWrite({ touch: "project" }, async () => ({}));
 
     expect(persistProjectRows).toHaveBeenCalledWith(tx, {}, {});
   });

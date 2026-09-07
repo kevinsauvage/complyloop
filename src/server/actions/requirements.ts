@@ -192,7 +192,7 @@ export async function markRequirementExceptionAction(
           });
         }
         payload.requirements = [updated];
-        return { result: undefined, payload };
+        return payload;
       },
     );
     refresh();
@@ -262,7 +262,7 @@ export async function markRequirementPassedAction(
           });
         }
         payload.requirements = [updated];
-        return { result: undefined, payload };
+        return payload;
       },
     );
     refresh();
@@ -320,7 +320,7 @@ async function clearRequirementOverrideAction(
         );
         const payload: ProjectWritePayload = {};
         clearRequirementOverride(db, project, requirement, field, payload);
-        return { result: undefined, payload };
+        return payload;
       },
     );
     refresh();

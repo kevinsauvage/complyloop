@@ -35,7 +35,7 @@ export async function runAssessmentAction(
         projectId: workspace.project.id,
         detail: { phase: "queued", jobId: job.id, trigger: "manual" },
       });
-      return { result: undefined, payload };
+      return payload;
     });
 
     if (shouldDrainAssessmentJobsInline()) {

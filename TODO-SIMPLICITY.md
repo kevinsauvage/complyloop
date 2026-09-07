@@ -36,22 +36,10 @@ source of incidental complexity left in the repo.
 
 ## P0 — Critical
 
-### P0-2 · Remove the dead `result` generic from `withProjectWrite`
+### P0-2 · Remove the dead `result` generic from `withProjectWrite` — **DONE**
 
-- **What is complex:** `withProjectWrite<T>` requires callbacks to return
-  `{ result, payload }`. **Every one of the ~17 call sites** in
-  `src/server/actions/*` returns `result: undefined`, forcing the pointless
-  `{ result: undefined, payload }` incantation at each site.
-- **Why it's a problem:** 17× boilerplate + the mental model of a "result
-  channel" that is never used; it also forces actions to smuggle values out via
-  outer `let` variables (see `pr.ts`, `ai-fix.ts`, `assessment.ts`).
-- **How to simplify:** Change the signature to
-  `fn: (workspace) => Promise<ProjectWritePayload> | Promise<void>` (void = no
-  rows). Update the 17 call sites mechanically. (Note: `withOrgWrite` _does_
-  use its generic once — `createOrgAction` returns the created org; move that
-  to a closure variable or keep the generic only there.)
-- **Files:** `src/server/workspace-write.ts`, all files in
-  `src/server/actions/`.
+- Callbacks now return `ProjectWritePayload | void` (void = nothing to persist).
+- `withOrgWrite` still keeps its generic (`createOrgAction` returns the org).
 
 ### P0-3 · Standardize server-action error handling on one idiom (throw → runActionMessage)
 

@@ -159,7 +159,7 @@ export async function verifyRemediationAction(
             if (present) {
               stillFailing = true;
               recordStillFailing(payload, remediation);
-              return { result: undefined, payload };
+              return payload;
             }
             markVerified(
               db,
@@ -170,7 +170,7 @@ export async function verifyRemediationAction(
               "runtime",
               { runtimeRan: true },
             );
-            return { result: undefined, payload };
+            return payload;
           },
         );
         refresh();
@@ -205,7 +205,7 @@ export async function verifyRemediationAction(
             if (present) {
               stillFailing = true;
               recordStillFailing(payload, remediation);
-              return { result: undefined, payload };
+              return payload;
             }
             markVerified(
               db,
@@ -220,7 +220,7 @@ export async function verifyRemediationAction(
                 htmlValidateRan: result.htmlValidateRan,
               },
             );
-            return { result: undefined, payload };
+            return payload;
           },
         );
         refresh();
@@ -275,7 +275,7 @@ export async function markRemediationImplementedAction(
         findingId: finding.id,
         detail: { manual: true, note },
       });
-      return { result: undefined, payload };
+      return payload;
     },
     );
     refresh();

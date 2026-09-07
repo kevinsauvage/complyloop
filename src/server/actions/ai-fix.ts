@@ -73,7 +73,7 @@ export async function generateAiFixAction(
       requireOnFindingProject(workspace, liveFinding, "project.remediate");
       const payload: ProjectWritePayload = {};
       persistPatchCandidate(workspace.db, liveFinding, candidate, payload);
-      return { result: undefined, payload };
+      return payload;
     });
     refresh();
     return "Patch passed ComplyLoop and is ready for review.";

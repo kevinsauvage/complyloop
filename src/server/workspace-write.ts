@@ -105,10 +105,10 @@ function captureEntityLoadedSlice(
   };
 }
 
-async function runProjectWriteTransaction<T>(
+async function runProjectWriteTransaction(
   scope: ProjectWriteScope,
-  fn: (workspace: Workspace) => Promise<{ result: T; payload: ProjectWritePayload }>,
-): Promise<T> {
+  fn: (workspace: Workspace) => Promise<ProjectWritePayload | void>,
+): Promise<void> {
   if (
     scope.touch === "entities" &&
     (scope.findingIds?.length ?? 0) === 0 &&
@@ -185,22 +185,21 @@ async function runProjectWriteTransaction<T>(
       scope.touch === "entities"
         ? captureEntityLoadedSlice(db, scope)
         : undefined;
-    const { result, payload } = await fn(workspace);
+    const payload = (await fn(workspace)) ?? {};
 
     await persistProjectRows(tx, payload, loadedSlice ? { loadedSlice } : {});
-
-    return result;
   });
 }
 
 /**
  * Serializes project mutations under a per-project advisory lock. Pass
- * {@link ProjectWriteScope} to load only the rows you touch.
+ * {@link ProjectWriteScope} to load only the rows you touch. Return a
+ * {@link ProjectWritePayload}, or void when there is nothing to persist.
  */
-export async function withProjectWrite<T>(
+export async function withProjectWrite(
   scope: ProjectWriteScope,
-  fn: (workspace: Workspace) => Promise<{ result: T; payload: ProjectWritePayload }>,
-): Promise<T> {
+  fn: (workspace: Workspace) => Promise<ProjectWritePayload | void>,
+): Promise<void> {
   return runProjectWriteTransaction(scope, fn);
 }
 
