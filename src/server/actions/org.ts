@@ -73,20 +73,14 @@ export async function switchOrgAction(formData: FormData): Promise<void> {
   const { orgId } = parseForm(switchOrgInput, formData);
   await requireSignedIn("Sign in to switch organizations.");
 
-  let projectIdToActivate: string | null = null;
-  await withOrgWrite(({ organizations, db }) => {
-    if (!organizations.some((org) => org.id === orgId)) {
-      throw new PublicError("You are not a member of that organization.");
-    }
-    const projectInOrg = db.projects.find((project) => project.orgId === orgId);
-    if (projectInOrg) {
-      projectIdToActivate = projectInOrg.id;
-    }
-    return { result: undefined };
-  });
+  const { organizations, projects } = await getWorkspace();
+  if (!organizations.some((org) => org.id === orgId)) {
+    throw new PublicError("You are not a member of that organization.");
+  }
+  const projectInOrg = projects.find((project) => project.orgId === orgId);
   await writeActiveOrgCookie(orgId);
-  if (projectIdToActivate) {
-    await writeActiveProjectCookie(projectIdToActivate);
+  if (projectInOrg) {
+    await writeActiveProjectCookie(projectInOrg.id);
   }
   refresh();
 }
@@ -223,7 +217,8 @@ export async function exportOrgDataAction(
         ...emptyDb(),
         organizations,
         memberships: [...access.memberships],
-        projects,
+        // Already org-scoped: repo lists + runtimes were loaded for these ids.
+        projects: orgProjects,
         findings: runtimes.flatMap((runtime) => runtime.findings),
         remediations: runtimes.flatMap((runtime) => runtime.remediations),
         requirements: runtimes.flatMap((runtime) => runtime.requirements),

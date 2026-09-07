@@ -1,6 +1,5 @@
 import { CreatePrForm } from "@/components/create-pr-form";
 import { DismissFindingFields } from "@/components/findings/dismiss-finding-fields";
-import { AiActionForm } from "@/components/findings/ai-action-form";
 import { CodeBlock } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
@@ -65,12 +64,14 @@ function ActControls({
   switch (act.beat) {
     case "source_generate":
       return act.canGenerate ? (
-        <AiActionForm
+        <StatefulActionForm
           action={generateAiFixAction.bind(null, finding.id)}
           submitLabel={act.generateLabel}
           retryLabel="Try again"
           pendingLabel="Generating and verifying…"
           variant="default"
+          size="sm"
+          className="flex flex-col gap-1.5"
         />
       ) : null;
     case "source_review":
@@ -86,11 +87,14 @@ function ActControls({
                 Try another patch
               </summary>
               <div className="mt-2">
-                <AiActionForm
+                <StatefulActionForm
                   action={generateAiFixAction.bind(null, finding.id)}
                   submitLabel="Try again"
                   retryLabel="Try again"
                   pendingLabel="Generating and verifying…"
+                  variant="outline"
+                  size="sm"
+                  className="flex flex-col gap-1.5"
                 />
               </div>
             </details>
@@ -110,12 +114,14 @@ function ActControls({
     case "runtime_generate":
       return (
         <>
-          <AiActionForm
+          <StatefulActionForm
             action={generateAiRemediationAction.bind(null, finding.id)}
             submitLabel="Generate guidance"
             pendingLabel="Generating…"
             disabled={!act.canGenerate}
             variant="default"
+            size="sm"
+            className="flex flex-col gap-1.5"
           />
           {act.showHandoff ? (
             <p className="text-xs text-muted-foreground">

@@ -225,12 +225,6 @@ export function DashboardActivitySections({
                   className="rounded-lg border border-border/50 bg-muted/15 px-3 py-2 font-mono text-xs text-muted-foreground"
                 >
                   {change.filePath}
-                  {change.author ? (
-                    <span className="mt-1 block font-sans text-[11px]">
-                      {change.author}
-                      {change.commitSubject ? ` — ${change.commitSubject}` : ""}
-                    </span>
-                  ) : null}
                 </li>
               ))}
             </ul>

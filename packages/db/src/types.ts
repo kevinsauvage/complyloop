@@ -14,10 +14,6 @@ import type {
 
 export interface FileChange {
   filePath: string;
-  /** Legacy fields from older assessments; new runs record gitHead on the snapshot instead. */
-  author?: string;
-  commitSha?: string;
-  commitSubject?: string;
 }
 
 export interface AssessmentSnapshot {

@@ -11,7 +11,6 @@ import {
   controlsInScope,
   findingsInScope,
   refreshRequirementStatuses,
-  refreshRequirementStatusesForControls,
   requirementsInScope,
 } from "./assessment-status";
 
@@ -32,13 +31,13 @@ function applyRefresh(
   const projectRow = db.projects.find((candidate) => candidate.id === projectId);
   if (!projectRow) throw new Error(`missing project ${projectId}`);
   const result = controlIds
-    ? refreshRequirementStatusesForControls(
-        projectRow,
-        db.findings,
-        db.requirements,
+    ? refreshRequirementStatuses({
+        project: projectRow,
+        findings: db.findings,
+        requirements: db.requirements,
         controlIds,
         options,
-      )
+      })
     : refreshRequirementStatuses({
         project: projectRow,
         findings: db.findings,
@@ -186,7 +185,7 @@ describe("assessment scope filters", () => {
   });
 });
 
-describe("refreshRequirementStatusesForControls", () => {
+describe("refreshRequirementStatuses (targeted controlIds)", () => {
   it("re-derives only the requested controls", () => {
     const db = emptyDb();
     db.projects = [project({ id: "p1" })];

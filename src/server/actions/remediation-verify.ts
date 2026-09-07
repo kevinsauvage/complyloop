@@ -21,7 +21,7 @@ import { sameInstance } from "../assessment-findings";
 import {
   findingsWithPayloadOverrides,
   mergeRefreshIntoPayload,
-  refreshRequirementStatusesForControls,
+  refreshRequirementStatuses,
 } from "../assessment-status";
 import type { Db } from "../db";
 import {
@@ -108,17 +108,17 @@ function markVerified(
   });
   mergeRefreshIntoPayload(
     payload,
-    refreshRequirementStatusesForControls(
+    refreshRequirementStatuses({
       project,
-      findingsWithPayloadOverrides(db.findings, payload.findings),
-      db.requirements,
-      [live.controlId],
-      {
+      findings: findingsWithPayloadOverrides(db.findings, payload.findings),
+      requirements: db.requirements,
+      controlIds: [live.controlId],
+      options: {
         runtimeRan: audit.runtimeRan,
         siteLevelChecksRan: audit.siteLevelChecksRan,
         htmlValidateRan: audit.htmlValidateRan,
       },
-    ),
+    }),
   );
 }
 
@@ -140,44 +140,23 @@ export async function verifyRemediationAction(
     }
 
     const location = finding.location;
+    let present: boolean;
+    let engine: "runtime" | "site";
+    let note: string;
+    let audit: VerifyAuditFlags;
+
     switch (location.kind) {
       case "source":
         throw new PublicError(SOURCE_VERIFY_MESSAGE);
       case "dom": {
-        const present = await runtimeViolationStillPresent({
+        present = await runtimeViolationStillPresent({
           checkId: finding.checkId as CheckId,
           location,
         });
-        let stillFailing = false;
-        await withProjectWrite(
-          { touch: "entities", findingIds: [findingId] },
-          async (workspace) => {
-            const { db } = workspace;
-            const live = findingById(db, findingId);
-            requireOnFindingProject(workspace, live, "project.remediate");
-            const remediation = remediationForFinding(db, findingId);
-            const payload: ProjectWritePayload = {};
-            if (present) {
-              stillFailing = true;
-              recordStillFailing(payload, remediation);
-              return payload;
-            }
-            markVerified(
-              db,
-              payload,
-              live,
-              remediation,
-              "Runtime re-audit found no remaining violation on the page",
-              "runtime",
-              { runtimeRan: true },
-            );
-            return payload;
-          },
-        );
-        refresh();
-        return stillFailing
-          ? STILL_FAILING_VERIFY_MESSAGE
-          : "Fix verified by automated re-check.";
+        engine = "runtime";
+        note = "Runtime re-audit found no remaining violation on the page";
+        audit = { runtimeRan: true };
+        break;
       }
       case "site": {
         const project = preview.projects.find(
@@ -188,51 +167,48 @@ export async function verifyRemediationAction(
           runtimeBaseUrl: project.runtimeBaseUrl,
           runtimeRoutes: project.runtimeRoutes,
         });
-        const present =
+        present =
           Boolean(result.error) ||
           result.pagesScanned === 0 ||
           result.siteLevelChecksRan !== true ||
           result.findings.some((raw) => sameInstance(finding, raw));
-        let stillFailing = false;
-        await withProjectWrite(
-          { touch: "entities", findingIds: [findingId] },
-          async (workspace) => {
-            const { db } = workspace;
-            const live = findingById(db, findingId);
-            requireOnFindingProject(workspace, live, "project.remediate");
-            const remediation = remediationForFinding(db, findingId);
-            const payload: ProjectWritePayload = {};
-            if (present) {
-              stillFailing = true;
-              recordStillFailing(payload, remediation);
-              return payload;
-            }
-            markVerified(
-              db,
-              payload,
-              live,
-              remediation,
-              "Runtime re-audit found no remaining site-level violation",
-              "site",
-              {
-                runtimeRan: true,
-                siteLevelChecksRan: result.siteLevelChecksRan,
-                htmlValidateRan: result.htmlValidateRan,
-              },
-            );
-            return payload;
-          },
-        );
-        refresh();
-        return stillFailing
-          ? STILL_FAILING_VERIFY_MESSAGE
-          : "Fix verified by automated re-check.";
+        engine = "site";
+        note = "Runtime re-audit found no remaining site-level violation";
+        audit = {
+          runtimeRan: true,
+          siteLevelChecksRan: result.siteLevelChecksRan,
+          htmlValidateRan: result.htmlValidateRan,
+        };
+        break;
       }
       default: {
         const _exhaustive: never = location;
         throw new Error(`Unhandled finding location: ${String(_exhaustive)}`);
       }
     }
+
+    let stillFailing = false;
+    await withProjectWrite(
+      { touch: "entities", findingIds: [findingId] },
+      async (workspace) => {
+        const { db } = workspace;
+        const live = findingById(db, findingId);
+        requireOnFindingProject(workspace, live, "project.remediate");
+        const remediation = remediationForFinding(db, findingId);
+        const payload: ProjectWritePayload = {};
+        if (present) {
+          stillFailing = true;
+          recordStillFailing(payload, remediation);
+          return payload;
+        }
+        markVerified(db, payload, live, remediation, note, engine, audit);
+        return payload;
+      },
+    );
+    refresh();
+    return stillFailing
+      ? STILL_FAILING_VERIFY_MESSAGE
+      : "Fix verified by automated re-check.";
   });
 }
 

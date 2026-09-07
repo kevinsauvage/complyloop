@@ -22,7 +22,7 @@ import {
 } from "./requirements";
 
 const { withProjectWrite } = actionWorkspaceMocks;
-const refreshRequirementStatusesForControls = vi.hoisted(() =>
+const refreshRequirementStatuses = vi.hoisted(() =>
   vi.fn(() => ({ requirements: [], evidence: [] })),
 );
 
@@ -37,11 +37,11 @@ vi.mock("../assessment-status", async () => {
   );
   return {
     ...actual,
-    refreshRequirementStatusesForControls: (
-      ...args: Parameters<typeof actual.refreshRequirementStatusesForControls>
+    refreshRequirementStatuses: (
+      ...args: Parameters<typeof actual.refreshRequirementStatuses>
     ) =>
       (
-        refreshRequirementStatusesForControls as unknown as typeof actual.refreshRequirementStatusesForControls
+        refreshRequirementStatuses as unknown as typeof actual.refreshRequirementStatuses
       )(...args),
   };
 });
@@ -262,12 +262,12 @@ describe("requirement decision actions", () => {
 
     expect(result.message).toBe("Human pass cleared.");
     expect(projectWritePayload()?.requirements?.[0]?.humanPass).toBeUndefined();
-    expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "p1" }),
-      expect.any(Array),
-      expect.any(Array),
-      ["ctl-outline-none"],
-    );
+    expect(refreshRequirementStatuses).toHaveBeenCalledWith({
+      project: expect.objectContaining({ id: "p1" }),
+      findings: expect.any(Array),
+      requirements: expect.any(Array),
+      controlIds: ["ctl-outline-none"],
+    });
   });
 
   it("errors when clearing a missing human pass", async () => {
@@ -315,12 +315,12 @@ describe("requirement decision actions", () => {
 
     expect(result.message).toMatch(/Exception cleared/);
     expect(projectWritePayload()?.requirements?.[0]?.exception).toBeUndefined();
-    expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "p1" }),
-      expect.any(Array),
-      expect.any(Array),
-      ["ctl-img-alt"],
-    );
+    expect(refreshRequirementStatuses).toHaveBeenCalledWith({
+      project: expect.objectContaining({ id: "p1" }),
+      findings: expect.any(Array),
+      requirements: expect.any(Array),
+      controlIds: ["ctl-img-alt"],
+    });
   });
 
   it("errors when clearing a missing exception", async () => {

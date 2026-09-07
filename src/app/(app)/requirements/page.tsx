@@ -10,7 +10,6 @@ import {
 } from "@complyloop/adapters/registry";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import {
-  effectiveRequirementsPresetId,
   parsePresetIdParam,
   requirementsPageHref,
 } from "@/core/query";
@@ -64,10 +63,7 @@ export default async function RequirementsPage({
 
   const runtime = await getProjectRuntime(project.id);
   const defaultPresetId = projectDefaultPresetId(project);
-  const selectedPresetId = effectiveRequirementsPresetId(
-    urlPresetId,
-    defaultPresetId,
-  );
+  const selectedPresetId = urlPresetId ?? defaultPresetId;
   const selectedPreset = presetById(selectedPresetId);
   const frameworkId =
     selectedPreset?.frameworkId ?? defaultConnectPreset().frameworkId;

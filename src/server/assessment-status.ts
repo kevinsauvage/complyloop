@@ -420,29 +420,6 @@ export function refreshRequirementStatuses(input: {
   return { requirements: touched, evidence };
 }
 
-/**
- * Re-derives requirement statuses for specific controls after a targeted
- * finding event (dismiss, verify, exception clear).
- */
-export function refreshRequirementStatusesForControls(
-  project: Project,
-  findings: ReadonlyArray<Finding>,
-  requirements: ReadonlyArray<Requirement>,
-  controlIds: readonly string[],
-  options: RefreshRequirementStatusesOptions = {},
-): RefreshRequirementStatusesResult {
-  if (controlIds.length === 0) {
-    return { requirements: [], evidence: [] };
-  }
-  return refreshRequirementStatuses({
-    project,
-    findings,
-    requirements,
-    controlIds,
-    options,
-  });
-}
-
 /** Apply a full-scope status refresh into working ProjectRows (assessment). */
 export function applyRequirementStatusRefresh(
   rows: ProjectRows,

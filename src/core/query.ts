@@ -107,14 +107,6 @@ export function parsePresetIdParam(
   return isValidPresetId(value) ? value : undefined;
 }
 
-/** Preset shown on Requirements: URL override, else project default. */
-export function effectiveRequirementsPresetId(
-  urlPresetId: string | undefined,
-  defaultPresetId: string,
-): string {
-  return urlPresetId ?? defaultPresetId;
-}
-
 export function requirementsPageHref(options: {
   presetId?: string;
   status?: RequirementStatus;

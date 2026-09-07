@@ -20,7 +20,7 @@ const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const drainAssessmentJobQueue = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
-const refreshRequirementStatusesForControls = vi.hoisted(() =>
+const refreshRequirementStatuses = vi.hoisted(() =>
   vi.fn(() => ({ requirements: [], evidence: [] })),
 );
 
@@ -69,11 +69,11 @@ vi.mock("../assessment-status", async () => {
   );
   return {
     ...actual,
-    refreshRequirementStatusesForControls: (
-      ...args: Parameters<typeof actual.refreshRequirementStatusesForControls>
+    refreshRequirementStatuses: (
+      ...args: Parameters<typeof actual.refreshRequirementStatuses>
     ) =>
       (
-        refreshRequirementStatusesForControls as unknown as typeof actual.refreshRequirementStatusesForControls
+        refreshRequirementStatuses as unknown as typeof actual.refreshRequirementStatuses
       )(...args),
   };
 });
@@ -306,7 +306,7 @@ describe("dismissFindingAction", () => {
 
     expect(result.message).toMatch(/dismissed/i);
     expect(projectWritePayload()?.findings?.[0]?.status).toBe("dismissed");
-    expect(refreshRequirementStatusesForControls).toHaveBeenCalled();
+    expect(refreshRequirementStatuses).toHaveBeenCalled();
   });
 
   it("requires a valid dismissal reason", async () => {
@@ -371,12 +371,12 @@ describe("bulkDismissFindingsAction", () => {
     expect(payload?.findings?.[0]?.status).toBe("dismissed");
     expect(payload?.findings?.[0]?.dismissal?.reason).toBe("not_applicable");
     expect(payload?.findings?.[1]).toBeUndefined();
-    expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "p1" }),
-      expect.any(Array),
-      expect.any(Array),
-      ["ctl-img-alt"],
-    );
+    expect(refreshRequirementStatuses).toHaveBeenCalledWith({
+      project: expect.objectContaining({ id: "p1" }),
+      findings: expect.any(Array),
+      requirements: expect.any(Array),
+      controlIds: ["ctl-img-alt"],
+    });
   });
 
   it("errors when no open findings were dismissed", async () => {

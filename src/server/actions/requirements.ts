@@ -16,7 +16,7 @@ import {
 import { parseForm, parseInput } from "../boundary";
 import {
   mergeRefreshIntoPayload,
-  refreshRequirementStatusesForControls,
+  refreshRequirementStatuses,
 } from "../assessment-status";
 import type { Db } from "../db";
 import { controlById } from "../workspace";
@@ -111,16 +111,16 @@ function clearRequirementOverride(
   payload.requirements = [...(payload.requirements ?? []), updated];
   mergeRefreshIntoPayload(
     payload,
-    refreshRequirementStatusesForControls(
+    refreshRequirementStatuses({
       project,
-      db.findings,
+      findings: db.findings,
       // Refresh must see the cleared override, not the sticky original.
-      [
+      requirements: [
         ...db.requirements.filter((row) => row.id !== updated.id),
         updated,
       ],
-      [requirement.controlId],
-    ),
+      controlIds: [requirement.controlId],
+    }),
   );
 }
 

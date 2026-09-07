@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  effectiveRequirementsPresetId,
   parsePresetIdParam,
   requirementsPageHref,
 } from "./query";
@@ -23,15 +22,6 @@ describe("requirements page preset URL", () => {
       "preset-wcag-aa",
     );
     expect(parsePresetIdParam([], isValidPresetId)).toBeUndefined();
-  });
-
-  it("uses the URL preset when present, otherwise the project default", () => {
-    expect(
-      effectiveRequirementsPresetId("preset-wcag-aa", "preset-rgaa-full"),
-    ).toBe("preset-wcag-aa");
-    expect(
-      effectiveRequirementsPresetId(undefined, "preset-rgaa-full"),
-    ).toBe("preset-rgaa-full");
   });
 
   it("omits presetId from the URL when it matches the project default", () => {

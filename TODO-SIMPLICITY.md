@@ -76,26 +76,6 @@ source of incidental complexity left in the repo.
 - **Files:** `src/core/prioritization.ts`, `src/core/root-cause.ts`,
   `src/app/(app)/findings/page.tsx`, `src/app/(app)/dashboard/page.tsx`.
 
-### P1-4 · One "append evidence" helper — delete the literal-spread copies
-
-- **What is complex:** Three functions do the same thing for two sinks:
-  `evidenceEntry(payload, …)` (`actions/shared.ts`), `appendEvidence(rows, …)`
-  (`project-rows.ts`), plus raw literals `payload.evidence = [...(payload.evidence ?? []), record]`
-  (e.g. `ai-fix.ts` `persistPatchCandidate`, `remediation-ai.ts`,
-  `remediation.ts` `dismissFindingInPayload`).
-- **Why it's a problem:** Same 3-line pattern copied across sinks; a change to
-  evidence stamping (e.g. adding a field) must find every copy.
-- **How to simplify:** Standardize on the payload helper (`evidenceEntry`) for
-  interactive writes and `appendEvidence` for `ProjectRows`, and route the raw
-  literals through them. (P0-2 makes this easier since payloads flow out of
-  callbacks uniformly.) A single `newEvidenceRecord` remains the underlying
-  constructor.
-- **Files:** `src/server/actions/shared.ts`, `src/server/project-rows.ts`,
-  `src/server/ai-fix.ts`, `src/server/actions/remediation-ai.ts`,
-  `src/server/actions/remediation.ts`.
-
----
-
 ## P2 — Medium
 
 ### P2-1 · Replace the hand-written patch-candidate (de)serializer with a zod schema
@@ -146,31 +126,6 @@ source of incidental complexity left in the repo.
   display).
 - **Files:** `src/core/status-display.ts`, `src/components/badges.tsx`,
   `src/core/prioritization.ts`.
-
-### P2-4 · Unify the `dom` / `site` branches in `verifyRemediationAction`
-
-- **What:** `src/server/actions/remediation-verify.ts` duplicates the entire
-  `withProjectWrite` body (still-failing vs. verify + refresh + response
-  mapping) across the `dom` and `site` switch branches; only the "is it still
-  failing" probe and audit flags differ.
-- **Why:** ~40 duplicated lines; a fix to one branch (e.g. response shape)
-  must be mirrored in the other.
-- **How:** Compute `present` + `audit` flags per location kind first, then run
-  **one** write block. The exhaustive switch stays for the probe selection.
-- **Files:** `src/server/actions/remediation-verify.ts`.
-
-### P2-5 · `switchOrgAction` should not take the org-write lock
-
-- **What:** Switching the active org (`src/server/actions/org.ts`) runs inside
-  `withOrgWrite` — an advisory-locked transaction with a full tenancy load —
-  although it performs no writes: it only checks membership and finds a project
-  to pre-select.
-- **Why:** A read masquerading as a write serializes with real org writes and
-  costs a load + lock for a cookie update.
-- **How:** Use `getWorkspace()` (read) + permission check + cookie writes;
-  keep `withOrgWrite` for actual mutations. Same review pass for
-  `switchProjectAction`-style flows.
-- **Files:** `src/server/actions/org.ts`, `src/server/workspace.ts`.
 
 ### P2-6 · Align `connect.ts` with the standard write protocol
 
@@ -237,60 +192,6 @@ source of incidental complexity left in the repo.
 
 ## P3 — Low
 
-### P3-1 · Delete the `refreshRequirementStatusesForControls` pass-through
-
-Pure forwarder to `refreshRequirementStatuses` with an early return for an empty
-array (which the loop already handles). Call sites pass through unchanged.
-**Files:** `src/server/assessment-status.ts` + 3 action call sites.
-
-### P3-2 · Drop legacy `FileChange.author` / `commitSubject`
-
-Depth-1 clones cannot attribute changes (documented); only the dashboard still
-renders a conditional `change.author ? … : …` branch that can never fire on new
-data. Remove the fields and the UI branch.
-**Files:** `packages/db/src/types.ts`, `src/server/monitor.ts`,
-`src/components/dashboard/dashboard-activity-sections.tsx`.
-
-### P3-3 · Move `materializeAssessmentRun` out of production code
-
-Exported from `src/server/project-rows.ts` but imported only by two test files.
-Move to `src/test-fixtures/` (it already exists for action mocks).
-**Files:** `src/server/project-rows.ts`, `src/server/assessment*.test.ts`,
-`src/test-fixtures/`.
-
-### P3-4 · Rename `org-lifecycle.test.ts`
-
-Tests the current `org.ts` actions but the module name no longer exists —
-misleading file lookup.
-**Files:** `src/server/actions/org-lifecycle.test.ts` → `org.test.ts`.
-
-### P3-5 · Verify-then-delete `assertE2EHarnessSafe` if dead
-
-Only referenced by its own test file (`e2e-harness.test.ts`); no production
-call site found. Either wire it where the harness wants the guard or remove it
-and keep `assertE2EFixtureRoot`.
-**Files:** `src/server/e2e-harness.ts`.
-
-### P3-6 · Inline single-use query wrappers
-
-`effectiveRequirementsPresetId` (a `??`), some `*Href` wrappers in
-`src/core/query.ts` used from exactly one call site. Keep the shared primitives
-(`firstParam`, `parseEnumParam`, `buildHref`); inline the one-liners at call
-sites where the wrapper adds nothing.
-**Files:** `src/core/query.ts` + single consumers.
-
-### P3-7 · Fold `AiActionForm` into `StatefulActionForm`
-
-40-line wrapper that only pins `size="sm"`, a class, and a default variant.
-Either delete it (call `StatefulActionForm` directly with those props) or keep
-— but stop it from being a second name for the same thing.
-**Files:** `src/components/findings/ai-action-form.tsx`,
-`src/components/findings/finding-next-step-panel.tsx`.
-
-### P3-8 · Trim `PullRequestResult` — **DONE** (with P0-4)
-
-`committed` and unused `body` removed from `PullRequestResult`.
-
 ### P3-9 · One zod schema for the assessment-job row (schema + type + mapper)
 
 `assessmentJobSchema` in `src/core/boundary.ts` re-declares the `AssessmentJob`
@@ -307,10 +208,3 @@ success currently surfaces twice. Choose toast-only (recommended: pages keep
 state after `revalidatePath`) or inline-only, and delete the dual path.
 **Files:** `src/components/stateful-action-form.tsx`,
 `src/hooks/use-action-toast.ts`, `src/components/action-feedback.tsx`.
-
-### P3-11 · `exportOrgDataAction` double-filters
-
-Fetches full evidence/assessments via repo (already project-filtered) and then
-`exportOrgData` re-filters by `projectIds` again. Pass the pre-filtered slices
-and trust the query, or drop the query-side filter. Cosmetic.
-**Files:** `src/server/actions/org.ts`, `src/server/orgs.ts`.

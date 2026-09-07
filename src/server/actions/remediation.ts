@@ -21,7 +21,7 @@ import { parseForm, parseInput } from "../boundary";
 import {
   findingsWithPayloadOverrides,
   mergeRefreshIntoPayload,
-  refreshRequirementStatusesForControls,
+  refreshRequirementStatuses,
 } from "../assessment-status";
 import {
   findingById,
@@ -213,12 +213,12 @@ export async function dismissFindingAction(
         );
         mergeRefreshIntoPayload(
           payload,
-          refreshRequirementStatusesForControls(
+          refreshRequirementStatuses({
             project,
-            findingsWithPayloadOverrides(db.findings, payload.findings),
-            db.requirements,
-            [finding.controlId],
-          ),
+            findings: findingsWithPayloadOverrides(db.findings, payload.findings),
+            requirements: db.requirements,
+            controlIds: [finding.controlId],
+          }),
         );
         return payload;
       },
@@ -270,12 +270,12 @@ export async function bulkDismissFindingsAction(
           if (!project) continue;
           mergeRefreshIntoPayload(
             payload,
-            refreshRequirementStatusesForControls(
+            refreshRequirementStatuses({
               project,
-              findingsWithPayloadOverrides(db.findings, payload.findings),
-              db.requirements,
-              [...controlIds],
-            ),
+              findings: findingsWithPayloadOverrides(db.findings, payload.findings),
+              requirements: db.requirements,
+              controlIds: [...controlIds],
+            }),
           );
         }
         return payload;

@@ -2,11 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  assertE2EFixtureRoot,
-  assertE2EHarnessSafe,
-  isE2EHarnessEnabled,
-} from "./e2e-harness";
+import { assertE2EFixtureRoot, isE2EHarnessEnabled } from "./e2e-harness";
 
 const previousEnabled = process.env.E2E_AUTH_ENABLED;
 const previousRoot = process.env.E2E_FIXTURE_ROOT;
@@ -26,7 +22,6 @@ describe("e2e harness", () => {
   it("is off unless E2E_AUTH_ENABLED=1", () => {
     delete process.env.E2E_AUTH_ENABLED;
     expect(isE2EHarnessEnabled()).toBe(false);
-    expect(() => assertE2EHarnessSafe()).not.toThrow();
   });
 
   it("fails loud when enabled without fixture root", () => {
@@ -34,7 +29,6 @@ describe("e2e harness", () => {
     delete process.env.E2E_FIXTURE_ROOT;
     expect(isE2EHarnessEnabled()).toBe(true);
     expect(() => assertE2EFixtureRoot()).toThrow(/E2E_FIXTURE_ROOT/);
-    expect(() => assertE2EHarnessSafe()).toThrow(/E2E_FIXTURE_ROOT/);
   });
 
   it("resolves an existing fixture directory", () => {
@@ -43,6 +37,5 @@ describe("e2e harness", () => {
     process.env.E2E_AUTH_ENABLED = "1";
     process.env.E2E_FIXTURE_ROOT = root;
     expect(assertE2EFixtureRoot()).toBe(path.resolve(root));
-    expect(() => assertE2EHarnessSafe()).not.toThrow();
   });
 });

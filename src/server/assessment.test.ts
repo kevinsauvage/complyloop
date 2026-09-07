@@ -8,7 +8,7 @@ import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { runAssessment } from "./assessment";
 import type { Db } from "./db";
-import { materializeAssessmentRun } from "./project-rows";
+import { materializeAssessmentRun } from "@/test-fixtures/materialize-assessment-run";
 
 const BROKEN = `export const Hero = () => <img src="/hero-banner.png" />;\n`;
 const FIXED = `export const Hero = () => <img src="/hero-banner.png" alt="Summer sale banner" />;\n`;

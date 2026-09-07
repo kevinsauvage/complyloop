@@ -26,9 +26,3 @@ export function assertE2EFixtureRoot(): string {
   }
   return root;
 }
-
-/** No-op when harness is off; validates fixture when on. */
-export function assertE2EHarnessSafe(): void {
-  if (!isE2EHarnessEnabled()) return;
-  assertE2EFixtureRoot();
-}

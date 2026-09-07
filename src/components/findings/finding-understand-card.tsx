@@ -2,8 +2,8 @@ import {
   ConfidenceBadge,
   ProvenanceBadge,
 } from "@/components/badges";
-import { AiActionForm } from "@/components/findings/ai-action-form";
 import { CodeBlock } from "@/components/page-primitives";
+import { StatefulActionForm } from "@/components/stateful-action-form";
 import {
   Card,
   CardContent,
@@ -129,11 +129,14 @@ export function FindingUnderstandCard({
             ))}
             {finding.status === "open" && canRemediate ? (
               <div>
-                <AiActionForm
+                <StatefulActionForm
                   action={generateAiExplanationAction.bind(null, finding.id)}
                   submitLabel="Generate AI explanation"
                   pendingLabel="Generating…"
                   disabled={!aiAvailable}
+                  variant="outline"
+                  size="sm"
+                  className="flex flex-col gap-1.5"
                 />
                 {!aiAvailable ? (
                   <p className="mt-1.5 text-xs text-muted-foreground">

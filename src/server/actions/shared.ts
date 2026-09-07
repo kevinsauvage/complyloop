@@ -2,16 +2,17 @@ import { revalidatePath } from "next/cache";
 import { auth, getGitHubAccessToken } from "@/auth";
 import { advanceRemediation } from "@/core/remediation";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { type EvidenceRecord, type Finding } from "@complyloop/db/types";
+import { type Finding } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import { locateViolationInProject } from "../assessment-findings";
 import type { Db } from "../db";
 import type { ResolveProjectGitHubTokenOptions } from "../github";
 import { assertProjectPermission } from "../project-visibility";
 import type { Workspace } from "../workspace";
+import { evidenceEntry } from "../evidence-payload";
 
+export { evidenceEntry };
 export interface SignedInUser {
   userId: string;
   githubLogin: string | null;
@@ -36,15 +37,6 @@ export function replaceRemediation(
   updated: ReturnType<typeof advanceRemediation>,
 ): void {
   payload.remediations = [...(payload.remediations ?? []), updated];
-}
-
-export function evidenceEntry(
-  payload: ProjectWritePayload,
-  entry: Omit<EvidenceRecord, "id" | "at">,
-): EvidenceRecord {
-  const record = newEvidenceRecord(entry);
-  payload.evidence = [...(payload.evidence ?? []), record];
-  return record;
 }
 
 export function requireOnActive(
