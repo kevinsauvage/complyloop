@@ -24,7 +24,6 @@ import {
   applyAssessmentPayload,
   buildAssessmentApplyPayload,
   persistProjectRows,
-  requirementUpdatedAtById,
   snapshotProjectSlice,
   updatedAtById,
 } from "./apply.ts";
@@ -140,13 +139,7 @@ describe("snapshotProjectSlice", () => {
         remediations: [liveRemediation],
         alerts: [],
       },
-      {
-        loadedRequirementUpdatedAtById: requirementUpdatedAtById(
-          loadedSlice.requirements,
-        ),
-        loadedFindingUpdatedAtById: updatedAtById(loadedSlice.findings),
-        loadedRemediationUpdatedAtById: updatedAtById(loadedSlice.remediations),
-      },
+      { loadedSlice },
     );
 
     expect(upsertRequirements).toHaveBeenCalledWith(tx, [liveRequirement], {
@@ -348,9 +341,11 @@ describe("persistProjectRows", () => {
         evidence,
       },
       {
-        loadedRequirementUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
-        loadedFindingUpdatedAtById: new Map([[finding.id, "2026-01-01"]]),
-        loadedRemediationUpdatedAtById: new Map([[remediation.id, "2026-01-01"]]),
+        loadedSlice: {
+          findings: [{ ...finding, updatedAt: "2026-01-01" }],
+          remediations: [{ ...remediation, updatedAt: "2026-01-01" }],
+          requirements: [requirement],
+        },
       },
     );
     expect(upsertFindings).toHaveBeenCalledWith(tx, [finding], {

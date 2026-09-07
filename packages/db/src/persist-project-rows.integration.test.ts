@@ -4,7 +4,6 @@ import type { EvidenceRecord } from "./types";
 import { closeDrizzle, getDrizzle } from "./client";
 import {
   persistProjectRows,
-  requirementUpdatedAtById,
   snapshotProjectSlice,
   updatedAtById,
 } from "./repo/apply";
@@ -44,13 +43,7 @@ function slicePayload(
       alerts: after.alerts,
       evidence: [...evidence],
     },
-    options: {
-      loadedRequirementUpdatedAtById: requirementUpdatedAtById(
-        loaded.requirements,
-      ),
-      loadedFindingUpdatedAtById: updatedAtById(loaded.findings),
-      loadedRemediationUpdatedAtById: updatedAtById(loaded.remediations),
-    },
+    options: { loadedSlice: loaded },
   };
 }
 

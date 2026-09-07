@@ -8,8 +8,7 @@ import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
 import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/repo/evidence";
 import {
   persistProjectRows,
-  requirementUpdatedAtById,
-  updatedAtById,
+  type ProjectSlice,
   type ProjectWritePayload,
 } from "@complyloop/db/repo/apply";
 import {
@@ -83,34 +82,26 @@ function effectiveRefreshControlIds(
   return controlIds;
 }
 
-function captureEntityStaleWriteGuards(
+/** Captures the loaded entity rows for stale-write guards on persist. */
+function captureEntityLoadedSlice(
   db: Db,
   scope: Extract<ProjectWriteScope, { touch: "entities" }>,
-): {
-  loadedRequirementUpdatedAtById: Map<string, string>;
-  loadedFindingUpdatedAtById: Map<string, string>;
-  loadedRemediationUpdatedAtById: Map<string, string>;
-} {
+): ProjectSlice {
   const findingIds = new Set(scope.findingIds ?? []);
   const requirementIds = new Set(scope.requirementIds ?? []);
   const controlIds = effectiveRefreshControlIds(db, scope);
 
-  const loadedFindings = db.findings.filter((finding) =>
-    findingIds.has(finding.id),
-  );
-  const loadedRemediations = db.remediations.filter((remediation) =>
-    findingIds.has(remediation.findingId),
-  );
-  const loadedRequirements = db.requirements.filter(
-    (requirement) =>
-      requirementIds.has(requirement.id) ||
-      controlIds.has(requirement.controlId),
-  );
-
   return {
-    loadedRequirementUpdatedAtById: requirementUpdatedAtById(loadedRequirements),
-    loadedFindingUpdatedAtById: updatedAtById(loadedFindings),
-    loadedRemediationUpdatedAtById: updatedAtById(loadedRemediations),
+    findings: db.findings.filter((finding) => findingIds.has(finding.id)),
+    remediations: db.remediations.filter((remediation) =>
+      findingIds.has(remediation.findingId),
+    ),
+    requirements: db.requirements.filter(
+      (requirement) =>
+        requirementIds.has(requirement.id) ||
+        controlIds.has(requirement.controlId),
+    ),
+    alerts: [],
   };
 }
 
@@ -190,13 +181,13 @@ async function runProjectWriteTransaction<T>(
       throw new PublicError("Select a project first.");
     }
 
-    const staleGuards =
+    const loadedSlice =
       scope.touch === "entities"
-        ? captureEntityStaleWriteGuards(db, scope)
-        : null;
+        ? captureEntityLoadedSlice(db, scope)
+        : undefined;
     const { result, payload } = await fn(workspace);
 
-    await persistProjectRows(tx, payload, staleGuards ?? {});
+    await persistProjectRows(tx, payload, loadedSlice ? { loadedSlice } : {});
 
     return result;
   });

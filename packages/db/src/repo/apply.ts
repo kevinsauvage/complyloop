@@ -6,20 +6,37 @@ import { insertAlerts } from "./alerts.ts";
 import { insertEvidenceRecords } from "./evidence.ts";
 import { upsertFindings } from "./findings.ts";
 import { upsertRemediations } from "./remediations.ts";
-import {
-  upsertRequirements,
-  type UpsertRequirementsOptions,
-} from "./requirements.ts";
+import { upsertRequirements } from "./requirements.ts";
 import { updateProject } from "./projects.ts";
 
-export interface AssessmentApplyPayload {
-  assessment: Assessment;
-  snapshot: AssessmentSnapshot;
-  evidence: EvidenceRecord[];
+/**
+ * Project-scoped runtime rows. One shape for stale-write snapshots, assessment
+ * apply bodies, and (with empty alerts) assessment scratch copies.
+ */
+export interface ProjectSlice {
   findings: Finding[];
   remediations: Remediation[];
   requirements: Requirement[];
   alerts: Alert[];
+}
+
+/**
+ * Rows an interactive or assessment write may persist. Assessment apply adds
+ * {@link AssessmentApplyPayload.assessment} + snapshot on top of this.
+ */
+export interface ProjectWritePayload {
+  findings?: Finding[];
+  remediations?: Remediation[];
+  requirements?: Requirement[];
+  evidence?: EvidenceRecord[];
+  alerts?: Alert[];
+  project?: Project;
+}
+
+/** Assessment apply = insert assessment metadata, then persist a write payload. */
+export interface AssessmentApplyPayload extends ProjectWritePayload {
+  assessment: Assessment;
+  snapshot: AssessmentSnapshot;
 }
 
 export interface ApplyAssessmentPayloadOptions {
@@ -27,38 +44,41 @@ export interface ApplyAssessmentPayloadOptions {
   loadedSlice: ProjectSlice;
 }
 
-export async function applyAssessmentPayload(
-  tx: DrizzleDb,
-  payload: AssessmentApplyPayload,
-  options: ApplyAssessmentPayloadOptions,
-): Promise<void> {
-  await insertAssessment(tx, payload.assessment, payload.snapshot);
-  await persistProjectRows(
-    tx,
-    {
-      requirements: payload.requirements,
-      findings: payload.findings,
-      remediations: payload.remediations,
-      alerts: payload.alerts,
-      evidence: payload.evidence,
-    },
-    {
-      loadedRequirementUpdatedAtById: requirementUpdatedAtById(
-        options.loadedSlice.requirements,
-      ),
-      loadedFindingUpdatedAtById: updatedAtById(options.loadedSlice.findings),
-      loadedRemediationUpdatedAtById: updatedAtById(
-        options.loadedSlice.remediations,
-      ),
-    },
-  );
+export interface PersistProjectRowsOptions {
+  /**
+   * Slice loaded at the start of the write. `persistProjectRows` derives the
+   * per-entity `updatedAt` maps for stale-write guards from this.
+   */
+  loadedSlice?: Pick<ProjectSlice, "findings" | "remediations" | "requirements">;
 }
 
-export interface ProjectSlice {
-  requirements: Requirement[];
-  findings: Finding[];
-  remediations: Remediation[];
-  alerts: Alert[];
+/**
+ * Filters findings / remediations / requirements / alerts to one project.
+ * Remediations are kept when their finding is in the project-scoped finding set.
+ */
+export function projectScopedSlice(
+  input: {
+    findings: ReadonlyArray<Finding>;
+    remediations: ReadonlyArray<Remediation>;
+    requirements: ReadonlyArray<Requirement>;
+    alerts?: ReadonlyArray<Alert>;
+  },
+  projectId: string,
+): ProjectSlice {
+  const findings = input.findings.filter(
+    (item) => item.projectId === projectId,
+  );
+  const findingIds = new Set(findings.map((item) => item.id));
+  return {
+    findings,
+    remediations: input.remediations.filter((item) =>
+      findingIds.has(item.findingId),
+    ),
+    requirements: input.requirements.filter(
+      (item) => item.projectId === projectId,
+    ),
+    alerts: (input.alerts ?? []).filter((item) => item.projectId === projectId),
+  };
 }
 
 /**
@@ -72,16 +92,12 @@ export function snapshotProjectSlice(
   alerts: ReadonlyArray<Alert>,
   projectId: string,
 ): ProjectSlice {
-  const projectFindings = findings.filter(
-    (item) => item.projectId === projectId,
+  return structuredClone(
+    projectScopedSlice(
+      { findings, remediations, requirements, alerts },
+      projectId,
+    ),
   );
-  const findingIds = new Set(projectFindings.map((item) => item.id));
-  return structuredClone({
-    requirements: requirements.filter((item) => item.projectId === projectId),
-    findings: projectFindings,
-    remediations: remediations.filter((item) => findingIds.has(item.findingId)),
-    alerts: alerts.filter((item) => item.projectId === projectId),
-  });
 }
 
 export function requirementUpdatedAtById(
@@ -103,47 +119,47 @@ export function updatedAtById(
   return new Map(entries);
 }
 
-export interface ProjectWritePayload {
-  findings?: Finding[];
-  remediations?: Remediation[];
-  requirements?: Requirement[];
-  evidence?: EvidenceRecord[];
-  alerts?: Alert[];
-  project?: Project;
-}
-
-export interface PersistProjectRowsOptions {
-  loadedRequirementUpdatedAtById?: ReadonlyMap<string, string>;
-  loadedFindingUpdatedAtById?: ReadonlyMap<string, string>;
-  loadedRemediationUpdatedAtById?: ReadonlyMap<string, string>;
-}
-
 export async function persistProjectRows(
   tx: DrizzleDb,
   payload: ProjectWritePayload,
   options: PersistProjectRowsOptions = {},
 ): Promise<void> {
-  const requirementOptions: UpsertRequirementsOptions | undefined =
-    options.loadedRequirementUpdatedAtById
-      ? { loadedUpdatedAtById: options.loadedRequirementUpdatedAtById }
-      : undefined;
-
+  const slice = options.loadedSlice;
   await upsertFindings(tx, payload.findings ?? [], {
-    loadedUpdatedAtById: options.loadedFindingUpdatedAtById,
+    loadedUpdatedAtById: slice ? updatedAtById(slice.findings) : undefined,
   });
   await upsertRemediations(tx, payload.remediations ?? [], {
-    loadedUpdatedAtById: options.loadedRemediationUpdatedAtById,
+    loadedUpdatedAtById: slice ? updatedAtById(slice.remediations) : undefined,
   });
-  await upsertRequirements(
-    tx,
-    payload.requirements ?? [],
-    requirementOptions ?? {},
-  );
+  await upsertRequirements(tx, payload.requirements ?? [], {
+    loadedUpdatedAtById: slice
+      ? requirementUpdatedAtById(slice.requirements)
+      : undefined,
+  });
   await insertAlerts(tx, payload.alerts ?? []);
   await insertEvidenceRecords(tx, payload.evidence ?? []);
   if (payload.project) {
     await updateProject(tx, payload.project);
   }
+}
+
+export async function applyAssessmentPayload(
+  tx: DrizzleDb,
+  payload: AssessmentApplyPayload,
+  options: ApplyAssessmentPayloadOptions,
+): Promise<void> {
+  await insertAssessment(tx, payload.assessment, payload.snapshot);
+  await persistProjectRows(
+    tx,
+    {
+      requirements: payload.requirements,
+      findings: payload.findings,
+      remediations: payload.remediations,
+      alerts: payload.alerts,
+      evidence: payload.evidence,
+    },
+    { loadedSlice: options.loadedSlice },
+  );
 }
 
 export function buildAssessmentApplyPayload(input: {
@@ -155,21 +171,19 @@ export function buildAssessmentApplyPayload(input: {
   requirements: Requirement[];
   alerts: Alert[];
 }): AssessmentApplyPayload {
+  const slice = projectScopedSlice(
+    {
+      findings: input.findings,
+      remediations: input.remediations,
+      requirements: input.requirements,
+      alerts: input.alerts,
+    },
+    input.assessment.projectId,
+  );
   return {
     assessment: input.assessment,
     snapshot: input.snapshot,
     evidence: input.evidence,
-    findings: input.findings.filter(
-      (finding) => finding.projectId === input.assessment.projectId,
-    ),
-    remediations: input.remediations.filter((remediation) =>
-      input.findings.some((finding) => finding.id === remediation.findingId),
-    ),
-    requirements: input.requirements.filter(
-      (requirement) => requirement.projectId === input.assessment.projectId,
-    ),
-    alerts: input.alerts.filter(
-      (alert) => alert.projectId === input.assessment.projectId,
-    ),
+    ...slice,
   };
 }

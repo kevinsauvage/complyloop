@@ -4,15 +4,20 @@ import type {
   Remediation,
 } from "@complyloop/db/types";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+import {
+  projectScopedSlice,
+  type ProjectSlice,
+} from "@complyloop/db/repo/apply";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 
-/** Working copy of project-scoped rows for one assessment or write. */
-export interface ProjectRows {
-  findings: Finding[];
-  remediations: Remediation[];
-  requirements: Requirement[];
+/**
+ * Working copy of project-scoped rows for one assessment run.
+ * Same filter as {@link ProjectSlice}; evidence starts empty and is appended
+ * during the run. Alerts are collected separately by the worker.
+ */
+export type ProjectRows = Omit<ProjectSlice, "alerts"> & {
   evidence: EvidenceRecord[];
-}
+};
 
 /** Clone project-scoped findings/remediations/requirements; evidence starts empty. */
 export function cloneProjectRows(
@@ -21,18 +26,16 @@ export function cloneProjectRows(
   requirements: ReadonlyArray<Requirement>,
   projectId: string,
 ): ProjectRows {
-  const projectFindings = structuredClone(
-    findings.filter((finding) => finding.projectId === projectId),
+  const slice = structuredClone(
+    projectScopedSlice(
+      { findings, remediations, requirements, alerts: [] },
+      projectId,
+    ),
   );
-  const findingIds = new Set(projectFindings.map((finding) => finding.id));
   return {
-    findings: projectFindings,
-    remediations: structuredClone(
-      remediations.filter((remediation) => findingIds.has(remediation.findingId)),
-    ),
-    requirements: structuredClone(
-      requirements.filter((requirement) => requirement.projectId === projectId),
-    ),
+    findings: slice.findings,
+    remediations: slice.remediations,
+    requirements: slice.requirements,
     evidence: [],
   };
 }

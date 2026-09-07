@@ -127,8 +127,10 @@ describe("reconcileControlFindings", () => {
       control: {
         id: "ctl-contrast",
         frameworkId: "rgaa",
-        ref: "3.2",
+        code: "RGAA 3.2",
+        secondaryCode: "WCAG 1.4.3",
         title: "Contrast",
+        description: "Contrast of text",
         checkId: "color-contrast",
       },
       assessmentId: "a1",
