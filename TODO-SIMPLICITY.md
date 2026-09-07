@@ -42,23 +42,11 @@ source of incidental complexity left in the repo.
 findings/requirements, runs targeted `refreshRequirementStatuses`, and merges
 into the payload. Dismiss, bulk dismiss, verify, and clear-override call it.
 
-### P1-3 · Compute finding clusters once per request
+### P1-3 · Compute finding clusters once per request — **DONE**
 
-- **What is complex:** `clusterFindings` is re-run on every render:
-  `findings/page.tsx` calls `prioritizeClusters(...)` (full clustering) _and_
-  `orderFindingsForList(...)` → `prioritizeFindings(...)` → `clusterFindings(...)`
-  again (per status tab); `dashboard/page.tsx` likewise calls both
-  `prioritizeFindings` and `prioritizeClusters`.
-- **Why it's a problem:** O(n) repeated work per request and two APIs that both
-  internally re-cluster — a future change to clustering semantics must be
-  verified in both orderings.
-- **How to simplify:** Compute clusters once (e.g. `clusterFindings` result
-  passed into `prioritizeFindings` and `prioritizeClusters` as an argument, or a
-  memoized request-scoped `buildFindingIndex(project)` returning
-  `{ clusters, prioritizedOpen }` consumed by both pages). Keep scoring logic as
-  is (it is spec'd §16–17).
-- **Files:** `src/core/prioritization.ts`, `src/core/root-cause.ts`,
-  `src/app/(app)/findings/page.tsx`, `src/app/(app)/dashboard/page.tsx`.
+`prioritizeFindings` / `prioritizeClusters` take optional precomputed clusters.
+Findings list, finding detail queue, and dashboard call `clusterFindings` once
+and reuse the result.
 
 ## P2 — Medium
 

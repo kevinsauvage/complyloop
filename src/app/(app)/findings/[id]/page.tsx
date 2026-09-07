@@ -43,6 +43,7 @@ import { frameworkForProject } from "@/server/report";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { controlForDisplay } from "@complyloop/adapters/control-theme";
 import { prioritizeClusters } from "@/core/prioritization";
+import { clusterFindings } from "@/core/root-cause";
 import { cn } from "@/lib/utils";
 import { isProjectVisible } from "@/server/project-visibility";
 
@@ -100,9 +101,11 @@ export default async function FindingPage({
     : null;
 
   const scopedFindings = findingsInScope(runtime.findings, project);
-  const clusters = prioritizeClusters(scopedFindings, shippedCatalog().controls);
+  const controls = shippedCatalog().controls;
+  const rawClusters = clusterFindings(scopedFindings, controls);
+  const clusters = prioritizeClusters(scopedFindings, controls, rawClusters);
   const queueFilterContext: FilterFindingsContext = {
-    controls: shippedCatalog().controls,
+    controls,
     remediationStatusFor: (findingId) =>
       remediationByFindingId.get(findingId)?.status,
     clusterFindingIds: listParams.cluster
@@ -111,6 +114,7 @@ export default async function FindingPage({
             ?.findingIds ?? [],
         )
       : undefined,
+    clusters: rawClusters,
   };
 
   const queueIds = orderedFindingIdsForQueue(

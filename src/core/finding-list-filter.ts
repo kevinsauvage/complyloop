@@ -1,4 +1,4 @@
-import type { Finding } from "@complyloop/db/types"
+import type { Finding, FindingCluster } from "@complyloop/db/types";
 import {
   engineFor,
   type AssessmentEngine,
@@ -7,8 +7,7 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { formatLocationRef, locationPathOrUrl } from "@complyloop/analysis-core/contract/location";
 import { parsePageParam } from "./pagination";
 import { parseEnumParam, firstParam, buildHref } from "./query";
-import { prioritizeFindings } from "./prioritization";
-import { severityRank } from "./prioritization";
+import { prioritizeFindings, severityRank } from "./prioritization";
 import {
   REMEDIATION_STATUSES,
   type RemediationStatus,
@@ -116,6 +115,8 @@ export interface FilterFindingsContext {
   controls: ReadonlyArray<Control>;
   remediationStatusFor: (findingId: string) => RemediationStatus | undefined;
   clusterFindingIds?: ReadonlySet<string>;
+  /** Precomputed open-finding clusters; avoids re-clustering when ordering. */
+  clusters?: ReadonlyArray<FindingCluster>;
 }
 
 export function filterFindings(
@@ -188,7 +189,7 @@ export function orderFindingsForList(
     context,
   );
   if (status === "open") {
-    return prioritizeFindings(filtered, context.controls);
+    return prioritizeFindings(filtered, context.controls, context.clusters);
   }
   return [...filtered].sort(
     (a, b) => severityRank(a.severity) - severityRank(b.severity),

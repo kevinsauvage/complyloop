@@ -22,6 +22,7 @@ import {
   prioritizeClusters,
   prioritizeFindings,
 } from "@/core/prioritization";
+import { clusterFindings } from "@/core/root-cause";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { controlForDisplay } from "@complyloop/adapters/control-theme";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
@@ -98,7 +99,12 @@ export default async function DashboardPage() {
   const requirements = requirementsInScope(runtime.requirements, project);
   const projectFindings = findingsInScope(runtime.findings, project);
   const controls = shippedCatalog().controls;
-  const openFindings = prioritizeFindings(projectFindings, controls);
+  const rawClusters = clusterFindings(projectFindings, controls);
+  const openFindings = prioritizeFindings(
+    projectFindings,
+    controls,
+    rawClusters,
+  );
   const unreadAlerts = runtime.alerts
     .filter((alert) => alert.projectId === project.id && !alert.read)
     .slice()
@@ -127,7 +133,11 @@ export default async function DashboardPage() {
     .filter((record) => record.projectId === project.id || !record.projectId)
     .slice(-6)
     .reverse();
-  const clusters = prioritizeClusters(projectFindings, controls).slice(0, 5);
+  const clusters = prioritizeClusters(
+    projectFindings,
+    controls,
+    rawClusters,
+  ).slice(0, 5);
   const recentChanges = latestAssessment?.changesSincePrevious ?? [];
   const recentJobs = await recentAssessmentJobsForProject(project.id);
 

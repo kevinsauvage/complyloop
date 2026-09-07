@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { prioritizeClusters, prioritizeFindings } from "./prioritization";
+import { clusterFindings } from "./root-cause";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/db/types";
 
@@ -104,5 +105,19 @@ describe("prioritization", () => {
     expect(first?.priorityScore).toBeGreaterThanOrEqual(
       clusters[1]?.priorityScore ?? 0,
     );
+  });
+
+  it("reuses precomputed clusters without re-deriving membership", () => {
+    const list = [
+      finding("1", "img-alt", "components/Card.tsx", "serious"),
+      finding("2", "img-alt", "components/Card.tsx", "serious"),
+      finding("3", "img-alt", "solo.tsx", "moderate"),
+    ];
+    const raw = clusterFindings(list, controls);
+    const ordered = prioritizeFindings([list[2]!, list[0]!], controls, raw);
+    // Full-set cluster size still boosts finding 1 over the solo moderate.
+    expect(ordered[0]?.id).toBe("1");
+    const ranked = prioritizeClusters(list, controls, raw);
+    expect(ranked[0]?.findingIds).toEqual(raw[0]?.findingIds);
   });
 });

@@ -21,6 +21,7 @@ import {
 import { reportMarkdownHref } from "@/core/query";
 import { paginateSlice } from "@/core/pagination";
 import { prioritizeClusters } from "@/core/prioritization";
+import { clusterFindings } from "@/core/root-cause";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Finding } from "@complyloop/db/types";
 import { projectCapabilities } from "@/server/project-capabilities";
@@ -72,7 +73,8 @@ export default async function FindingsPage({
     runtime.remediations.map((remediation) => [remediation.findingId, remediation]),
   );
   const controls = shippedCatalog().controls;
-  const clusters = prioritizeClusters(findings, controls);
+  const rawClusters = clusterFindings(findings, controls);
+  const clusters = prioritizeClusters(findings, controls, rawClusters);
   const filterContext: FilterFindingsContext = {
     controls,
     remediationStatusFor: (findingId) =>
@@ -83,6 +85,7 @@ export default async function FindingsPage({
             ?.findingIds ?? [],
         )
       : undefined,
+    clusters: rawClusters,
   };
 
   const byStatus = (status: FindingStatus): Finding[] =>

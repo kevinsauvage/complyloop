@@ -50,8 +50,8 @@ function findingPriorityScore(
 export function prioritizeFindings(
   findings: ReadonlyArray<Finding>,
   controls: ReadonlyArray<Control>,
+  clusters: ReadonlyArray<FindingCluster> = clusterFindings(findings, controls),
 ): Finding[] {
-  const clusters = clusterFindings(findings, controls);
   const sizeByFinding = new Map<string, number>();
   for (const cluster of clusters) {
     for (const id of cluster.findingIds) {
@@ -82,8 +82,8 @@ export function prioritizeFindings(
 export function prioritizeClusters(
   findings: ReadonlyArray<Finding>,
   controls: ReadonlyArray<Control>,
+  clusters: ReadonlyArray<FindingCluster> = clusterFindings(findings, controls),
 ): FindingCluster[] {
-  const clusters = clusterFindings(findings, controls);
   const byId = new Map(findings.map((finding) => [finding.id, finding]));
 
   return clusters
