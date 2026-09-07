@@ -1,4 +1,3 @@
-import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { type Finding, type EvidenceRecord } from "@complyloop/db/types";
 import {
   deriveRequirementStatus,
@@ -17,7 +16,7 @@ import type {
 import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/project-types";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { controlsInScope } from "./project-scope";
+import { controlsInScope, catalogControls } from "./project-scope";
 import type { ProjectRows } from "./project-rows";
 
 /** Human exceptions and human passes block automated status overwrite. */
