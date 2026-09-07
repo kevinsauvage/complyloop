@@ -21,7 +21,7 @@ import {
   findConnectedGitHubProject,
 } from "../connect-github";
 import { getDrizzle } from "@complyloop/db/client";
-import { insertEvidence } from "@complyloop/db/repo/evidence";
+import { insertEvidenceRecords } from "@complyloop/db/repo/evidence";
 import { deleteProject, insertProject } from "@complyloop/db/repo/projects";
 import { loadWorkspaceDb } from "@complyloop/db/workspace-load";
 import { fetchGitHubRepo } from "../github";
@@ -140,8 +140,7 @@ export async function connectGitHubRepoAction(
           "connect",
         );
       }
-      const evidenceStart = db.evidence.length;
-      const project = await connectGitHubRepo(db, {
+      const { project, evidence } = await connectGitHubRepo(db, {
         fullName: repo.fullName,
         defaultBranch: repo.defaultBranch,
         private: repo.private,
@@ -152,9 +151,7 @@ export async function connectGitHubRepoAction(
       });
       connectedProjectId = project.id;
       await insertProject(tx, project);
-      for (const record of db.evidence.slice(evidenceStart)) {
-        await insertEvidence(tx, record);
-      }
+      await insertEvidenceRecords(tx, evidence);
     });
 
     if (connectedProjectId) {
@@ -197,12 +194,14 @@ export async function disconnectGitHubRepoAction(
         (candidate: (typeof db.projects)[number]) => candidate.id === projectId,
       );
       disconnectedName = project?.github?.fullName ?? project?.name ?? "repository";
-      const evidenceStart = db.evidence.length;
-      nextProjectId = disconnectGitHubRepo(db, projectId, userId);
-      await deleteProject(tx, projectId);
-      for (const record of db.evidence.slice(evidenceStart)) {
-        await insertEvidence(tx, record);
-      }
+      const { deleteProjectId, evidence, nextProjectId: next } = disconnectGitHubRepo(
+        db,
+        projectId,
+        userId,
+      );
+      nextProjectId = next;
+      await deleteProject(tx, deleteProjectId);
+      await insertEvidenceRecords(tx, [evidence]);
     });
     if (nextProjectId) {
       await writeActiveProjectCookie(nextProjectId);

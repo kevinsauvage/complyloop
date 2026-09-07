@@ -2,13 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { hasSourceFiles } from "@complyloop/analysis-core/source-files";
 import type { Project, ProjectGitHubMeta } from "@complyloop/analysis-core/contract/project-types";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError, type EvidenceRecord } from "@complyloop/db/types";
 import { canOnProject } from "@/core/rbac";
 import { defaultConnectPreset } from "@complyloop/adapters/registry";
-import { addEvidence, type Db } from "./db";
+import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
+import type { Db } from "./db";
 import { createGit } from "./git";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
-import { removeProjectScopedRecords } from "./project-cascade";
 import { withRepoCheckout } from "./repo-checkout";
 
 /** Builds an authenticated HTTPS clone URL for GitHub (token never stored). */
@@ -51,22 +51,24 @@ export function uniqueProjectName(db: Db, desired: string): string {
 }
 
 export function addConnectedProject(
-  db: Db,
   project: Project,
   summary: string,
-): Project {
-  db.projects.push(project);
-  addEvidence(db, {
-    kind: "project_connected",
-    summary,
-    projectId: project.id,
-    detail: {
-      source: project.source,
-      sourceRef: project.sourceRef,
-      fullName: project.github?.fullName,
-    },
-  });
-  return project;
+): { project: Project; evidence: EvidenceRecord[] } {
+  return {
+    project,
+    evidence: [
+      newEvidenceRecord({
+        kind: "project_connected",
+        summary,
+        projectId: project.id,
+        detail: {
+          source: project.source,
+          sourceRef: project.sourceRef,
+          fullName: project.github?.fullName,
+        },
+      }),
+    ],
+  };
 }
 
 /** Shallow-clones into `rootPath`; removes the directory on clone failure. */
@@ -148,7 +150,7 @@ interface ConnectGitHubRepoInput {
 export async function connectGitHubRepo(
   db: Db,
   input: ConnectGitHubRepoInput,
-): Promise<Project> {
+): Promise<{ project: Project; evidence: EvidenceRecord[] }> {
   const fullName = input.fullName.trim();
   if (!/^[\w.-]+\/[\w.-]+$/.test(fullName)) {
     throw new PublicError(`Invalid GitHub repository name: ${fullName}`, "connect");
@@ -168,7 +170,8 @@ export async function connectGitHubRepo(
       (project.github?.fullName === fullName || project.sourceRef === sourceRef),
   );
   if (existing) {
-    return existing;
+    // Already connected: no-op, no duplicate evidence.
+    return { project: existing, evidence: [] };
   }
 
   await withRepoCheckout(
@@ -193,7 +196,6 @@ export async function connectGitHubRepo(
   const connectPreset = defaultConnectPreset();
 
   return addConnectedProject(
-    db,
     {
       id: crypto.randomUUID(),
       name,
@@ -210,15 +212,15 @@ export async function connectGitHubRepo(
 }
 
 /**
- * Disconnects a GitHub project when the actor has `project.connect`:
- * drops project-scoped records and records evidence.
- * Returns the next visible project id for the cookie (or null).
+ * Disconnects a GitHub project when the actor has `project.connect`.
+ * Returns what to persist (scoped rows drop via the project FK cascade) plus
+ * the next visible project id for the cookie. Does not mutate `db`.
  */
 export function disconnectGitHubRepo(
   db: Db,
   projectId: string,
   userId: string,
-): string | null {
+): { deleteProjectId: string; evidence: EvidenceRecord; nextProjectId: string | null } {
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) {
     throw new PublicError("Unknown project.", "connect");
@@ -234,10 +236,7 @@ export function disconnectGitHubRepo(
   }
 
   const fullName = project.github?.fullName ?? project.name;
-  removeProjectScopedRecords(db, projectId);
-  db.projects = db.projects.filter((candidate) => candidate.id !== projectId);
-
-  addEvidence(db, {
+  const evidence = newEvidenceRecord({
     kind: "project_disconnected",
     summary: `Disconnected GitHub repository ${fullName}`,
     projectId: project.id,
@@ -247,11 +246,11 @@ export function disconnectGitHubRepo(
     },
   });
 
-  return (
-    resolveActiveProject(
-      db.projects,
-      null,
-      accessFromStore(db, userId),
-    )?.id ?? null
+  const remaining = db.projects.filter(
+    (candidate) => candidate.id !== projectId,
   );
+  const nextProjectId =
+    resolveActiveProject(remaining, null, accessFromStore(db, userId))?.id ?? null;
+
+  return { deleteProjectId: projectId, evidence, nextProjectId };
 }

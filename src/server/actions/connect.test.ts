@@ -89,7 +89,7 @@ vi.mock("@complyloop/db/repo/projects", () => ({
 }));
 
 vi.mock("@complyloop/db/repo/evidence", () => ({
-  insertEvidence: vi.fn(),
+  insertEvidenceRecords: vi.fn(),
 }));
 
 vi.mock("@complyloop/db/queries", () => ({
@@ -267,7 +267,7 @@ describe("connectGitHubRepoAction", () => {
       private: false,
     });
     findConnectedGitHubProject.mockReturnValue(undefined);
-    connectGitHubRepo.mockResolvedValue({ ...project, id: "p-new" });
+    connectGitHubRepo.mockResolvedValue({ project: { ...project, id: "p-new" }, evidence: { kind: "project_connected" } });
     loadWorkspaceDb.mockResolvedValue(workspaceFor(ownerMembership).db);
     const form = new FormData();
     form.set("fullName", "  acme/shop  ");
@@ -299,7 +299,7 @@ describe("connectGitHubRepoAction", () => {
       private: true,
     });
     findConnectedGitHubProject.mockReturnValue(undefined);
-    connectGitHubRepo.mockResolvedValue({ ...project, id: "p-app" });
+    connectGitHubRepo.mockResolvedValue({ project: { ...project, id: "p-app" }, evidence: { kind: "project_connected" } });
     loadWorkspaceDb.mockResolvedValue(workspaceFor(ownerMembership).db);
     const form = new FormData();
     form.set("fullName", "acme/shop");
@@ -349,7 +349,11 @@ describe("disconnectGitHubRepoAction", () => {
 
   it("disconnects and updates the active project cookie", async () => {
     actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
-    disconnectGitHubRepo.mockReturnValue("p-next");
+    disconnectGitHubRepo.mockReturnValue({
+      deleteProjectId: "p1",
+      evidence: { kind: "project_disconnected" },
+      nextProjectId: "p-next",
+    });
     loadWorkspaceDb.mockResolvedValue(workspaceFor(ownerMembership).db);
     const form = new FormData();
     form.set("projectId", "p1");

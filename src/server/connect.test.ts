@@ -154,7 +154,7 @@ describe("setActiveProject", () => {
 });
 
 describe("disconnectGitHubRepo", () => {
-  it("removes the project and related DB records without durable clone cleanup", () => {
+  it("returns delete/evidence/next ids without mutating the loaded Db", () => {
     const db = seededDb();
     db.memberships.push({
       id: "m1",
@@ -202,12 +202,17 @@ describe("disconnectGitHubRepo", () => {
       detectedAt: new Date().toISOString(),
     });
 
-    const nextId = disconnectGitHubRepo(db, "gh-1", "user-a");
-    expect(nextId).toBeNull();
-    expect(db.projects).toHaveLength(0);
-    expect(db.findings).toHaveLength(0);
-    expect(db.evidence.some((entry) => entry.kind === "project_disconnected")).toBe(
-      true,
+    const { deleteProjectId, evidence, nextProjectId } = disconnectGitHubRepo(
+      db,
+      "gh-1",
+      "user-a",
     );
+    expect(deleteProjectId).toBe("gh-1");
+    expect(nextProjectId).toBeNull();
+    // No in-memory mutation for persistence: the loaded list stays intact
+    // (SQL cascade drops scoped rows on deleteProject).
+    expect(db.projects).toHaveLength(1);
+    expect(db.findings).toHaveLength(1);
+    expect(evidence.kind).toBe("project_disconnected");
   });
 });

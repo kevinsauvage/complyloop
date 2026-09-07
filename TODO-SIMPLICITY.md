@@ -110,24 +110,6 @@ One builder: `newEvidenceRecord` → put on payload / pass to `insertEvidenceRec
 
 ---
 
-### 4. Connect/disconnect is a third write style — **~40–70**
-
-**What**
-`connect-github.ts`: `db.projects.push` + `addEvidence`.
-`project-cascade.ts`: filters in-memory `db.*` arrays (only useful for the mutate-Db protocol).
-`actions/connect.ts`: load workspace → mutate → `insertProject` / `deleteProject` + loop `insertEvidence` on `db.evidence.slice(evidenceStart)`. Bypasses `withProjectWrite` / `persistProjectRows`.
-
-**Why**
-Same tables, third protocol. Easy to miss evidence or project fields when the payload path evolves. Cascade helpers become dead once writes stop mutating `Db`.
-
-**How**
-Connect returns `{ project, evidence }`; disconnect returns `{ deleteProjectId, evidence, nextProjectId }` (SQL deletes for scoped rows, not in-memory filter). One TX helper (lock + insert/delete + `insertEvidenceRecords`). No in-memory project list mutation for persistence. Delete or shrink `removeProjectScopedRecords` once unused.
-
-**Files**
-`src/server/connect-github.ts`, `src/server/actions/connect.ts`, `src/server/project-cascade.ts`
-
----
-
 ### 5. `withProjectWrite` ceremony beyond locks — **~80–120**
 
 **What** (`workspace-write.ts` ~288)

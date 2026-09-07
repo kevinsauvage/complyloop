@@ -103,16 +103,19 @@ describe("assertAssessableRoot", () => {
 });
 
 describe("addConnectedProject", () => {
-  it("pushes the project and records evidence", () => {
-    const db = emptyDb();
+  it("returns the project with its connect evidence", () => {
     const project = testProject({
       github: { fullName: "acme/shop", defaultBranch: "main", private: false },
       sourceRef: "https://github.com/acme/shop",
     });
 
-    expect(addConnectedProject(db, project, 'Connected "Shop"')).toBe(project);
-    expect(db.projects).toHaveLength(1);
-    expect(db.evidence.at(-1)).toMatchObject({
+    const { project: outProject, evidence } = addConnectedProject(
+      project,
+      'Connected "Shop"',
+    );
+    expect(outProject).toBe(project);
+    expect(evidence).toHaveLength(1);
+    expect(evidence[0]).toMatchObject({
       kind: "project_connected",
       projectId: "p1",
       summary: 'Connected "Shop"',
