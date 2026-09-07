@@ -63,6 +63,28 @@ export type FindingLocation = SourceLocation | DomLocation | SiteLocation;
 /** Which analysis engine produced a finding (`analyzerId` is finer-grained). */
 export type AssessmentEngine = "ast" | "runtime";
 
+/** Coarse engine bucket derived from the analyzer that produced the finding. */
+export function engineFromAnalyzer(
+  analyzerId: AnalyzerId | undefined,
+): AssessmentEngine {
+  switch (analyzerId) {
+    case "axe":
+    case "html-validate":
+    case "playwright-custom":
+    case "site-level":
+    case "linkinator":
+      return "runtime";
+    case "ast":
+    case "jsx-a11y":
+    case undefined:
+      return "ast";
+    default: {
+      const _exhaustive: never = analyzerId;
+      throw new Error(`Unhandled analyzer: ${_exhaustive}`);
+    }
+  }
+}
+
 /** Which analysis engines contributed to an assessment run (derived from runtime scan). */
 export interface AssessmentEngines {
   /** AST scan always runs. */

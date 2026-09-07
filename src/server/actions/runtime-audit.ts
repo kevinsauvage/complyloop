@@ -7,7 +7,7 @@ import {
 } from "../action-state";
 import { parseForm } from "../boundary";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
-import { withProjectWrite } from "../workspace";
+import { withProjectWrite } from "../workspace-write";
 import { refresh, requireOnActive } from "./shared";
 
 const updateRuntimeAuditInput = z.object({
@@ -43,20 +43,19 @@ export async function updateRuntimeAuditAction(
       normalized = new URL(resolved).origin;
     }
 
-    await withProjectWrite({ touch: "project" }, async (workspace, writes) => {
+    await withProjectWrite({ touch: "project" }, async (workspace) => {
       requireOnActive(workspace, "project.connect");
       const { project } = workspace;
 
       if (normalized == null) {
         delete project.runtimeBaseUrl;
         delete project.runtimeRoutes;
-        writes.setProject(project);
-        return;
+        return { result: undefined, payload: { project } };
       }
 
       project.runtimeBaseUrl = normalized;
       project.runtimeRoutes = routes;
-      writes.setProject(project);
+      return { result: undefined, payload: { project } };
     });
     refresh();
     return "Runtime audit settings saved. Run assessment to audit the pages.";

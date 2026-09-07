@@ -13,7 +13,7 @@ import {
 } from "../action-state";
 import { parseForm } from "../boundary";
 import { assertProjectPermission } from "../project-visibility";
-import { withProjectLock } from "../workspace";
+import { withProjectLock } from "../workspace-write";
 import { refresh, requireSignedIn } from "./shared";
 
 const markAlertReadInput = z.object({

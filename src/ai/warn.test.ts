@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { aiWarn, setAiWarn } from "./warn";
+import { aiWarn, setAiWarn } from "./ai-call";
 
 describe("aiWarn", () => {
   it("forwards the message and context to the configured sink", () => {

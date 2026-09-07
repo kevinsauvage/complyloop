@@ -1,4 +1,4 @@
-import { firstParam } from "./query-param";
+import { firstParam } from "./query";
 
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 

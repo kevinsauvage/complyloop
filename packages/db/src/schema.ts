@@ -31,6 +31,8 @@ import {
 /**
  * Domain rows store the typed payload as JSONB so nested Finding/Remediation
  * shapes stay framework-agnostic without a brittle column explosion.
+ * Indexed columns are projections of that payload; repo mappers are the
+ * only writers.
  * Evidence is a dedicated table: insert-only from the app (never updated/deleted).
  *
  * Foreign keys use ON DELETE CASCADE on mutable tables. Evidence has no FKs —

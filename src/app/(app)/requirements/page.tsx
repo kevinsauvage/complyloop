@@ -8,14 +8,15 @@ import {
   presetById,
   projectDefaultPresetId,
 } from "@complyloop/adapters/registry";
+import { shippedCatalog } from "@complyloop/adapters/catalog";
 import {
   effectiveRequirementsPresetId,
   parsePresetIdParam,
   requirementsPageHref,
-} from "@/core/requirements-page";
+} from "@/core/query";
 import {
   parseRequirementStatusParam,
-} from "@/core/requirement-status-filter";
+} from "@/core/query";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { projectCapabilities } from "@/server/project-capabilities";
@@ -72,7 +73,10 @@ export default async function RequirementsPage({
   const requirements = db.requirements.filter(
     (requirement) => requirement.projectId === project.id,
   );
-  const presetControls = controlsForPreset(db.controls, selectedPresetId);
+  const presetControls = controlsForPreset(
+    shippedCatalog().controls,
+    selectedPresetId,
+  );
   const inScopeIds = new Set(presetControls.map((control) => control.id));
   const assessed = requirements.filter((requirement) =>
     inScopeIds.has(requirement.controlId),

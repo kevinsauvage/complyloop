@@ -36,7 +36,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { latestAssessmentFor } from "@/core/assessment-latest";
+import { latestAssessmentFor } from "@/core/assessment";
 import { evidenceKindLabel } from "@/core/status-display";
 import {
   prioritizeClusters,
@@ -60,6 +60,7 @@ import {
 import { projectCapabilities } from "@/server/project-capabilities";
 import { controlById, getWorkspace } from "@/server/workspace";
 import { frameworkForProject } from "@/server/report";
+import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { controlForDisplay } from "@complyloop/adapters/control-theme";
 
 export const dynamic = "force-dynamic";
@@ -695,7 +696,8 @@ export default async function DashboardPage() {
   const latestAssessment = latestAssessmentFor(db.assessments, project.id);
   const requirements = requirementsInScope(db.requirements, project);
   const projectFindings = findingsInScope(db.findings, project);
-  const openFindings = prioritizeFindings(projectFindings, db.controls);
+  const controls = shippedCatalog().controls;
+  const openFindings = prioritizeFindings(projectFindings, controls);
   const unreadAlerts = db.alerts
     .filter((alert) => alert.projectId === project.id && !alert.read)
     .slice()
@@ -724,7 +726,7 @@ export default async function DashboardPage() {
     .filter((record) => record.projectId === project.id || !record.projectId)
     .slice(-6)
     .reverse();
-  const clusters = prioritizeClusters(projectFindings, db.controls).slice(0, 5);
+  const clusters = prioritizeClusters(projectFindings, controls).slice(0, 5);
   const recentChanges = latestAssessment?.changesSincePrevious ?? [];
   const recentJobs = await recentAssessmentJobsForProject(project.id);
 

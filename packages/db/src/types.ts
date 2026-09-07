@@ -1,4 +1,4 @@
-import type { Control, Framework, OrgMembership, Organization, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { OrgMembership, Organization, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type {
   AnalyzerContribution,
   AnalyzerId,
@@ -178,8 +178,6 @@ export interface Alert {
  * Persist changes via row-level repo functions — never bulk-sync this object.
  */
 export interface Db {
-  frameworks: Framework[];
-  controls: Control[];
   organizations: Organization[];
   memberships: OrgMembership[];
   projects: Project[];
@@ -194,8 +192,6 @@ export interface Db {
 
 export function emptyDb(): Db {
   return {
-    frameworks: [],
-    controls: [],
     organizations: [],
     memberships: [],
     projects: [],

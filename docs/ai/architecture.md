@@ -43,16 +43,19 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
   `owner|admin|member|viewer`. Workspace load is membership-org + active
   project.
 - **Reads** — `getWorkspace()` loads orgs, project switcher, and runtime for
-  the **active project only**. The compliance catalog (frameworks/controls) is
-  attached from `@complyloop/adapters/catalog` at the server boundary — not
-  stored in Postgres. File hashes live in `assessment_snapshots` and load
-  only for `runAssessment`. Evidence pages query Postgres directly
-  (`queries.ts`).
-- **Writes** — `withProjectWrite` / `withOrgWrite` / `withProjectLock`.
-  Slice persists `findings | remediations | requirements | alerts` as
-  upserts + evidence inserts. Structural entities go through `repo/*`.
-  Assessment apply diffs against a job-start snapshot
-  (`applyAssessmentPayload`).
+  the **active project only**. The compliance catalog is compile-time data
+  (`shippedCatalog()` from `@complyloop/adapters/catalog`) — not a field on
+  the workspace `Db` and not stored in Postgres. File hashes live in
+  `assessment_snapshots` and load only for `runAssessment`. Evidence pages
+  query Postgres directly (`queries.ts`).
+- **Writes** — `withProjectWrite` / `withOrgWrite` / `withProjectLock` in
+  `src/server/workspace-write.ts`. A project write returns
+  `{ result, payload }`; `persistProjectRows` upserts the explicit
+  `ProjectWritePayload`. Org writes return `{ insertOrgs, upsertMemberships,
+  deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory
+  slice. Structural entities go through `repo/*`. `runAssessment` returns
+  `{ assessment, evidence, findings, remediations, requirements }`; the
+  worker persists via `applyAssessmentPayload`.
 - **Locks** — job claim `FOR UPDATE SKIP LOCKED`; interactive writes and
   apply take `project-write:{projectId}`. Requirement, finding and remediation
   upserts skip rows whose DB `updatedAt` is newer than the loaded slice

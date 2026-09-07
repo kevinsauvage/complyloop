@@ -7,7 +7,7 @@ import {
   deterministicExplanation,
   generateAiExplanation,
 } from "./explainer";
-import { setAiWarn } from "./warn";
+import { setAiWarn } from "./ai-call";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),

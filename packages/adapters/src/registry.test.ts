@@ -21,8 +21,8 @@ function testProject(
 }
 import { shippedCatalog } from "./catalog";
 
-describe("framework adapter registry", () => {
-  it("registers the RGAA and WCAG adapters against one unique control catalog", () => {
+describe("framework presets and catalog", () => {
+  it("registers RGAA and WCAG presets against one unique control catalog", () => {
     const { frameworks, controls } = shippedCatalog();
     const frameworkIds = frameworks.map((f) => f.id);
     expect(frameworkIds).toContain("fw-rgaa-4");

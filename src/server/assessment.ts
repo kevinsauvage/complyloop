@@ -1,4 +1,4 @@
-import { latestAssessmentFor } from "@/core/assessment-latest";
+import { latestAssessmentFor } from "@/core/assessment";
 import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
 import {
   scanRuntime,
@@ -7,7 +7,17 @@ import {
 import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
 import { formatLocationRef, isSourceLocation } from "@complyloop/analysis-core/contract/location";
-import { PublicError, type Assessment, type Finding } from "@complyloop/db/types";
+import {
+  PublicError,
+  type Assessment,
+  type EvidenceRecord,
+  type Finding,
+  type Remediation,
+} from "@complyloop/db/types";
+import type {
+  Control,
+  Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
 import { advanceRemediation } from "@/core/remediation";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
@@ -71,6 +81,16 @@ export interface RunAssessmentOptions {
    * skipped, and the worker does not persist the diff. Defaults to true.
    */
   authoritative?: boolean;
+  /** Test override; production uses the shipped catalog. */
+  controls?: readonly Control[];
+}
+
+export interface AssessmentRunResult {
+  assessment: Assessment;
+  evidence: EvidenceRecord[];
+  findings: Finding[];
+  remediations: Remediation[];
+  requirements: Requirement[];
 }
 
 function verifyDraftPrRemediation(
@@ -125,12 +145,13 @@ export async function runAssessment(
   db: Db,
   projectId: string,
   options: RunAssessmentOptions,
-): Promise<Assessment> {
+): Promise<AssessmentRunResult> {
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) throw new PublicError("Unknown project.");
   const { rootPath } = options;
 
   const startedAt = new Date().toISOString();
+  const evidenceStart = db.evidence.length;
   clearExpiredExceptions(db, projectId);
 
   const previous = latestAssessmentFor(db.assessments, projectId);
@@ -191,7 +212,7 @@ export async function runAssessment(
   );
 
   const assessmentId = crypto.randomUUID();
-  const scoped = assertAssessableCatalog(db, project);
+  const scoped = assertAssessableCatalog(project, options.controls);
 
   for (const control of scoped) {
     if (control.checkId === null) continue;
@@ -223,6 +244,7 @@ export async function runAssessment(
     siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
     htmlValidateRan: runtimeResult.htmlValidateRan,
     applicabilityFacts: runtimeResult.applicabilityFacts,
+    controls: options.controls,
   });
 
   const summary: Record<RequirementStatus, number> = {
@@ -273,5 +295,11 @@ export async function runAssessment(
     },
   });
 
-  return assessment;
+  return {
+    assessment,
+    evidence: db.evidence.slice(evidenceStart),
+    findings: db.findings,
+    remediations: db.remediations,
+    requirements: db.requirements,
+  };
 }

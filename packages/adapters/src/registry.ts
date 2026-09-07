@@ -1,35 +1,19 @@
-import { rgaaControls, rgaaFramework } from "./rgaa/controls.ts";
-import { guidanceFor as rgaaGuidanceFor } from "./rgaa/guidance.ts";
 import { rgaaPresets } from "./rgaa/presets.ts";
-import { wcagFramework } from "./wcag/controls.ts";
+import { guidanceFor as rgaaGuidanceFor } from "./rgaa/guidance.ts";
 import { wcagPresets } from "./wcag/presets.ts";
 import type { CheckId } from "@complyloop/analysis-core/types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import type { CheckGuidance, FrameworkAdapter, FrameworkPreset } from "./types";
+import type { CheckGuidance, FrameworkPreset } from "./types";
 
 const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";
 
-/**
- * Registered framework adapters. RGAA and WCAG share one unique control
- * catalog (RGAA codes primary, WCAG on `secondaryCode`). Presets own the
- * assessment-target framework; WCAG does not re-register the same ids.
- */
-const frameworkAdapters: readonly FrameworkAdapter[] = [
-  {
-    framework: rgaaFramework,
-    controls: rgaaControls,
-    presets: rgaaPresets,
-    guidanceFor: rgaaGuidanceFor,
-  },
-  {
-    framework: wcagFramework,
-    controls: [],
-    presets: wcagPresets,
-  },
+const FRAMEWORK_PRESETS: readonly FrameworkPreset[] = [
+  ...rgaaPresets,
+  ...wcagPresets,
 ];
 
 export function allFrameworkPresets(): FrameworkPreset[] {
-  return frameworkAdapters.flatMap((adapter) => [...(adapter.presets ?? [])]);
+  return [...FRAMEWORK_PRESETS];
 }
 
 export function presetById(id: string): FrameworkPreset | undefined {
@@ -58,10 +42,5 @@ export function projectDefaultPresetId(project: Project): string {
 export { isPertinenceTwinControl } from "./rgaa/pertinence-twins.ts";
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {
-  for (const adapter of frameworkAdapters) {
-    if (adapter.guidanceFor) {
-      return adapter.guidanceFor(checkId);
-    }
-  }
-  throw new Error(`No guidance registered for check: ${checkId}`);
+  return rgaaGuidanceFor(checkId);
 }

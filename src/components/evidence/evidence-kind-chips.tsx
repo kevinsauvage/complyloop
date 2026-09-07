@@ -3,7 +3,7 @@ import { EvidenceKindBadge } from "@/components/badges";
 import {
   EVIDENCE_KIND_FILTER_ORDER,
   evidenceKindHref,
-} from "@/core/evidence-kind-filter";
+} from "@/core/query";
 import type { EvidenceKind } from "@complyloop/db/types";
 import { cn } from "@/lib/utils";
 

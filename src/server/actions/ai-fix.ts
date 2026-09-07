@@ -6,6 +6,7 @@ import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { entityIdSchema } from "@/core/boundary";
 import { PublicError } from "@complyloop/db/types";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import {
   runActionMessage,
   type ActionMessageState,
@@ -18,8 +19,8 @@ import {
   controlById,
   findingById,
   getWorkspace,
-  withProjectWrite,
 } from "../workspace";
+import { withProjectWrite } from "../workspace-write";
 import {
   refresh,
   requireOnFindingProject,
@@ -67,10 +68,12 @@ export async function generateAiFixAction(
       tokenOptions,
     );
 
-    await withProjectWrite({ touch: "entities", findingIds: [finding.id] }, (workspace, writes) => {
+    await withProjectWrite({ touch: "entities", findingIds: [finding.id] }, async (workspace) => {
       const liveFinding = findingById(workspace.db, finding.id);
       requireOnFindingProject(workspace, liveFinding, "project.remediate");
-      persistPatchCandidate(workspace.db, liveFinding, candidate, writes);
+      const payload: ProjectWritePayload = {};
+      persistPatchCandidate(workspace.db, liveFinding, candidate, payload);
+      return { result: undefined, payload };
     });
     refresh();
     return "Patch passed ComplyLoop and is ready for review.";

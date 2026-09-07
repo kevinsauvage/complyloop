@@ -12,7 +12,7 @@ import { createGit } from "./git";
 import {
   resolveProjectGitHubToken,
   type ResolveProjectGitHubTokenOptions,
-} from "./github-access";
+} from "./github";
 import { assertCheckoutWithinQuota } from "./resource-limits";
 
 export interface RepoCheckoutOptions {

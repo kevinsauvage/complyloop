@@ -28,8 +28,6 @@ beforeEach(() => {
     createdAt: new Date().toISOString(),
   };
   db = {
-    frameworks: [rgaaFramework],
-    controls: rgaaControls,
     organizations: [],
     memberships: [],
     projects: [project],
@@ -54,7 +52,7 @@ function requirementStatus(controlId: string) {
 
 describe("runAssessment", () => {
   it("creates findings, remediations with suggestions, and requirement statuses", async () => {
-    const assessment = await runAssessment(db, project.id, { rootPath });
+    const { assessment } = await runAssessment(db, project.id, { rootPath });
 
     expect(assessment.filesScanned).toBe(1);
     expect(db.findings).toHaveLength(1);
@@ -220,11 +218,11 @@ describe("runAssessment", () => {
   });
 
   it("records a snapshot and attributes file changes on re-assessment", async () => {
-    const first = await runAssessment(db, project.id, { rootPath });
+    const { assessment: first } = await runAssessment(db, project.id, { rootPath });
     expect(first.snapshot?.fileHashes["Hero.tsx"]).toBeDefined();
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    const second = await runAssessment(db, project.id, { rootPath });
+    const { assessment: second } = await runAssessment(db, project.id, { rootPath });
     expect(second.changesSincePrevious?.some((c) => c.filePath === "Hero.tsx")).toBe(
       true,
     );
@@ -278,7 +276,7 @@ describe("runAssessment", () => {
   });
 
   it("keeps a human pass on a manual control across re-assessment", async () => {
-    db.controls.push({
+    const manualControl = {
       id: "ctl-manual",
       frameworkId: rgaaFramework.id,
       code: "CUST-1",
@@ -286,7 +284,7 @@ describe("runAssessment", () => {
       title: "Privacy link present",
       description: "Marketing pages link to the privacy notice",
       checkId: null,
-    });
+    };
     vi.spyOn(registry, "presetById").mockReturnValue({
       id: "preset-test-manual",
       name: "Manual control only",
@@ -296,7 +294,10 @@ describe("runAssessment", () => {
     });
     project.defaultPresetId = "preset-test-manual";
 
-    await runAssessment(db, project.id, { rootPath });
+    await runAssessment(db, project.id, {
+      rootPath,
+      controls: [...rgaaControls, manualControl],
+    });
     expect(requirementStatus("ctl-manual")).toBe("unable_to_verify");
 
     const requirement = db.requirements.find(
@@ -310,7 +311,10 @@ describe("runAssessment", () => {
       at: new Date().toISOString(),
     };
 
-    await runAssessment(db, project.id, { rootPath });
+    await runAssessment(db, project.id, {
+      rootPath,
+      controls: [...rgaaControls, manualControl],
+    });
     expect(requirementStatus("ctl-manual")).toBe("passed");
     expect(
       db.requirements.find((candidate) => candidate.controlId === "ctl-manual")
@@ -331,7 +335,7 @@ describe("runAssessment", () => {
 
     // Only Hero.tsx changes; Other.tsx must stay open under scoped scan.
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    const second = await runAssessment(db, project.id, { rootPath });
+    const { assessment: second } = await runAssessment(db, project.id, { rootPath });
     expect(second.scanMode).toBe("scoped");
     expect(
       db.findings.find(

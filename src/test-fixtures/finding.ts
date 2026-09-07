@@ -5,7 +5,7 @@ export function testFinding(partial: Partial<Finding> = {}): Finding {
   return {
     id: "f1",
     projectId: "p1",
-    controlId: "c1",
+    controlId: "ctl-img-alt",
     assessmentId: "a1",
     checkId: "img-alt",
     kind: "violation",

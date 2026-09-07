@@ -8,7 +8,7 @@ const readActiveOrgCookie = vi.hoisted(() => vi.fn());
 const readActiveProjectCookie = vi.hoisted(() => vi.fn());
 const getDrizzle = vi.hoisted(() => vi.fn());
 const loadWorkspaceDb = vi.hoisted(() => vi.fn());
-const persistProjectWrite = vi.hoisted(() => vi.fn());
+const persistProjectRows = vi.hoisted(() => vi.fn());
 const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/auth", () => ({ auth }));
@@ -18,13 +18,13 @@ vi.mock("./active-cookies", () => ({
 }));
 vi.mock("@complyloop/db/client", () => ({ getDrizzle }));
 vi.mock("@complyloop/db/workspace-load", () => ({ loadWorkspaceDb }));
-vi.mock("@complyloop/db/project-write", async () => {
-  const actual = await vi.importActual<typeof import("@complyloop/db/project-write")>(
-    "@complyloop/db/project-write",
+vi.mock("@complyloop/db/repo/apply", async () => {
+  const actual = await vi.importActual<typeof import("@complyloop/db/repo/apply")>(
+    "@complyloop/db/repo/apply",
   );
   return {
     ...actual,
-    persistProjectWrite: (...args: unknown[]) => persistProjectWrite(...args),
+    persistProjectRows: (...args: unknown[]) => persistProjectRows(...args),
   };
 });
 vi.mock("@complyloop/db/write-lock", () => ({
@@ -34,7 +34,7 @@ vi.mock("@complyloop/db/write-lock", () => ({
   projectWriteLockKey: (projectId: string) => `project-write:${projectId}`,
 }));
 
-import { withProjectWrite } from "./workspace";
+import { withProjectWrite } from "./workspace-write";
 
 describe("withProjectWrite project touch", () => {
   const orgId = "org-1";
@@ -59,22 +59,27 @@ describe("withProjectWrite project touch", () => {
       memberships: [testMembership("owner", { userId, orgId })],
       projects: [structuredClone(project)],
     });
-    persistProjectWrite.mockResolvedValue(undefined);
+    persistProjectRows.mockResolvedValue(undefined);
     acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
   });
 
-  it("persists active project row changes", async () => {
-    await withProjectWrite({ touch: "project" }, async (workspace, writes) => {
-      workspace.project!.runtimeBaseUrl = "https://preview.example";
-      workspace.project!.runtimeRoutes = ["/"];
-      writes.setProject(workspace.project!);
+  it("persists the payload the handler returns", async () => {
+    const value = await withProjectWrite({ touch: "project" }, async (workspace) => {
+      const active = workspace.project!;
+      active.runtimeBaseUrl = "https://preview.example";
+      active.runtimeRoutes = ["/"];
+      return {
+        result: "saved",
+        payload: { project: active },
+      };
     });
 
+    expect(value).toBe("saved");
     expect(acquireNamedPostgresAdvisoryLock).toHaveBeenCalledWith(
       tx,
       `project-write:${project.id}`,
     );
-    expect(persistProjectWrite).toHaveBeenCalledWith(
+    expect(persistProjectRows).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         project: expect.objectContaining({
@@ -87,11 +92,29 @@ describe("withProjectWrite project touch", () => {
     );
   });
 
-  it("skips project update when only runtime slice rows change", async () => {
-    await withProjectWrite({ touch: "project" }, async () => {
-      /* no project mutation */
+  it("sets payload.project when the handler mutates the project but omits it", async () => {
+    await withProjectWrite({ touch: "project" }, async (workspace) => {
+      workspace.project!.runtimeBaseUrl = "https://preview.example";
+      return { result: undefined, payload: {} };
     });
 
-    expect(persistProjectWrite).toHaveBeenCalledWith(tx, {}, {});
+    expect(persistProjectRows).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        project: expect.objectContaining({
+          runtimeBaseUrl: "https://preview.example",
+        }),
+      }),
+      {},
+    );
+  });
+
+  it("skips project update when the payload is empty and the project is unchanged", async () => {
+    await withProjectWrite({ touch: "project" }, async () => ({
+      result: undefined,
+      payload: {},
+    }));
+
+    expect(persistProjectRows).toHaveBeenCalledWith(tx, {}, {});
   });
 });

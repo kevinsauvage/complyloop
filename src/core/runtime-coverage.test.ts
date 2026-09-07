@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runtimeCoverageSummary } from "./runtime-coverage";
+import { runtimeCoverageSummary } from "./assessment";
 
 describe("runtimeCoverageSummary", () => {
   it("returns source only when no preview URL is configured", () => {

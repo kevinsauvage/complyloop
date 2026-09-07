@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { testControl } from "@/test-fixtures/control";
 import { testFinding } from "@/test-fixtures/finding";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { emptyDb } from "./db";
@@ -25,19 +24,17 @@ vi.mock("./workspace", () => ({
 describe("buildFindingFilterContext", () => {
   it("exposes remediations and leaves cluster ids unset without a cluster filter", () => {
     const db = emptyDb();
-    db.controls.push(testControl());
     db.findings.push(testFinding());
     db.remediations.push(testRemediation({ status: "approved" }));
 
     const context = buildFindingFilterContext(db, {}, []);
-    expect(context.controls).toEqual(db.controls);
+    expect(context.controls.length).toBeGreaterThan(0);
     expect(context.remediationStatusFor("f1")).toBe("approved");
     expect(context.clusterFindingIds).toBeUndefined();
   });
 
   it("returns undefined when a finding has no remediation row", () => {
     const db = emptyDb();
-    db.controls.push(testControl());
     db.findings.push(testFinding());
 
     const context = buildFindingFilterContext(db, {}, []);

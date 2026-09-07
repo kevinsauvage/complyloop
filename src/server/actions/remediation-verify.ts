@@ -7,6 +7,7 @@ import {
   scanRuntime,
 } from "@complyloop/analysis-core/runtime/scan";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { advanceRemediation } from "@/core/remediation";
 import { entityIdSchema, optionalNoteSchema } from "@/core/boundary";
 import { z } from "zod";
@@ -18,15 +19,15 @@ import {
 import { parseForm, parseInput } from "../boundary";
 import { sameInstance } from "../assessment-findings";
 import { refreshRequirementStatusesForControls } from "../assessment-status";
-import type { ProjectWriteCollector } from "../workspace";
 import type { Db } from "../db";
 import {
   findingById,
   getWorkspace,
   remediationForFinding,
-  withProjectWrite,
 } from "../workspace";
+import { withProjectWrite } from "../workspace-write";
 import {
+  evidenceEntry,
   refresh,
   replaceRemediation,
   requireOnFindingProject,
@@ -50,20 +51,20 @@ interface VerifyAuditFlags {
 }
 
 function recordStillFailing(
+  payload: ProjectWritePayload,
   remediation: Remediation,
-  writes: ProjectWriteCollector,
 ): void {
   remediation.history.push({
     status: remediation.status,
     at: new Date().toISOString(),
     note: "Verification failed: the violation is still detected on the page.",
   });
-  writes.upsertRemediation(remediation);
+  payload.remediations = [...(payload.remediations ?? []), remediation];
 }
 
 function markVerified(
   db: Db,
-  writes: ProjectWriteCollector,
+  payload: ProjectWritePayload,
   live: Finding,
   remediation: Remediation,
   note: string,
@@ -71,14 +72,13 @@ function markVerified(
   audit: VerifyAuditFlags,
 ): void {
   replaceRemediation(
-    db,
+    payload,
     advanceRemediation(remediation, "verified", note),
-    writes,
   );
   live.status = "resolved";
   live.resolvedNote = "Fix verified by re-running the runtime audit.";
-  writes.upsertFinding(live);
-  writes.addEvidence({
+  payload.findings = [...(payload.findings ?? []), live];
+  evidenceEntry(payload, {
     kind: "remediation_verified",
     summary: `Verified: ${live.checkId} no longer fails at ${formatLocationRef(live.location)}`,
     projectId: live.projectId,
@@ -90,7 +90,7 @@ function markVerified(
     runtimeRan: audit.runtimeRan,
     siteLevelChecksRan: audit.siteLevelChecksRan,
     htmlValidateRan: audit.htmlValidateRan,
-    writes,
+    payload,
   });
 }
 
@@ -123,25 +123,27 @@ export async function verifyRemediationAction(
         let stillFailing = false;
         await withProjectWrite(
           { touch: "entities", findingIds: [findingId] },
-          async (workspace, writes) => {
+          async (workspace) => {
             const { db } = workspace;
             const live = findingById(db, findingId);
             requireOnFindingProject(workspace, live, "project.remediate");
             const remediation = remediationForFinding(db, findingId);
+            const payload: ProjectWritePayload = {};
             if (present) {
               stillFailing = true;
-              recordStillFailing(remediation, writes);
-              return;
+              recordStillFailing(payload, remediation);
+              return { result: undefined, payload };
             }
             markVerified(
               db,
-              writes,
+              payload,
               live,
               remediation,
               "Runtime re-audit found no remaining violation on the page",
               "runtime",
               { runtimeRan: true },
             );
+            return { result: undefined, payload };
           },
         );
         refresh();
@@ -167,19 +169,20 @@ export async function verifyRemediationAction(
         let stillFailing = false;
         await withProjectWrite(
           { touch: "entities", findingIds: [findingId] },
-          async (workspace, writes) => {
+          async (workspace) => {
             const { db } = workspace;
             const live = findingById(db, findingId);
             requireOnFindingProject(workspace, live, "project.remediate");
             const remediation = remediationForFinding(db, findingId);
+            const payload: ProjectWritePayload = {};
             if (present) {
               stillFailing = true;
-              recordStillFailing(remediation, writes);
-              return;
+              recordStillFailing(payload, remediation);
+              return { result: undefined, payload };
             }
             markVerified(
               db,
-              writes,
+              payload,
               live,
               remediation,
               "Runtime re-audit found no remaining site-level violation",
@@ -190,6 +193,7 @@ export async function verifyRemediationAction(
                 htmlValidateRan: result.htmlValidateRan,
               },
             );
+            return { result: undefined, payload };
           },
         );
         refresh();
@@ -222,7 +226,7 @@ export async function markRemediationImplementedAction(
     const { note: parsedNote } = parseForm(markImplementedInput, formData);
     await withProjectWrite(
       { touch: "entities", findingIds: [findingId] },
-      async (workspace, writes) => {
+      async (workspace) => {
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
@@ -230,13 +234,13 @@ export async function markRemediationImplementedAction(
       const note =
         parsedNote ??
         "Marked implemented by user (applied outside the platform)";
+      const payload: ProjectWritePayload = {};
 
       replaceRemediation(
-        db,
+        payload,
         advanceRemediation(remediation, "implemented", note),
-        writes,
       );
-      writes.addEvidence({
+      evidenceEntry(payload, {
         kind: "remediation_implemented",
         summary: `Remediation marked implemented for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,
@@ -244,6 +248,7 @@ export async function markRemediationImplementedAction(
         findingId: finding.id,
         detail: { manual: true, note },
       });
+      return { result: undefined, payload };
     },
     );
     refresh();

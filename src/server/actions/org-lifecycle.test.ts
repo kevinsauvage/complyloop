@@ -82,10 +82,26 @@ const ownerMembership = testMembership("owner", {
   githubLogin: "alice",
 });
 
+async function invokeOrgWrite(
+  ctx: {
+    db: Db;
+    userId: string;
+    githubLogin: string | null;
+    organizations: typeof org[];
+  },
+  fn: (ctx: {
+    db: Db;
+    userId: string;
+    githubLogin: string | null;
+    organizations: typeof org[];
+  }) => Promise<{ result: unknown }> | { result: unknown },
+): Promise<unknown> {
+  const out = await fn(ctx);
+  return out.result;
+}
+
 function emptyDb(memberships = [ownerMembership]): Db {
   return {
-    frameworks: [],
-    controls: [],
     organizations: [org],
     memberships: [...memberships],
     projects: [project],
@@ -125,12 +141,15 @@ beforeEach(() => {
   refresh.mockReset();
   actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1", login: "alice" } });
   withOrgWrite.mockImplementation(async (fn) =>
-    fn({
-      db: fixtureWorkspace().db,
-      userId: "user-1",
-      githubLogin: "alice",
-      organizations: [org],
-    }),
+    invokeOrgWrite(
+      {
+        db: fixtureWorkspace().db,
+        userId: "user-1",
+        githubLogin: "alice",
+        organizations: [org],
+      },
+      fn,
+    ),
   );
   getWorkspace.mockResolvedValue(fixtureWorkspace());
 });
@@ -297,12 +316,15 @@ describe("org member management actions", () => {
     });
     const db = emptyDb([ownerMembership, member]);
     withOrgWrite.mockImplementation(async (fn) =>
-      fn({
-        db,
-        userId: "user-1",
-        githubLogin: "alice",
-        organizations: [org],
-      }),
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-1",
+          githubLogin: "alice",
+          organizations: [org],
+        },
+        fn,
+      ),
     );
 
     const form = new FormData();
@@ -323,12 +345,15 @@ describe("org member management actions", () => {
     };
     const db = emptyDb([ownerMembership, invite]);
     withOrgWrite.mockImplementation(async (fn) =>
-      fn({
-        db,
-        userId: "user-1",
-        githubLogin: "alice",
-        organizations: [org],
-      }),
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-1",
+          githubLogin: "alice",
+          organizations: [org],
+        },
+        fn,
+      ),
     );
 
     const form = new FormData();
@@ -346,12 +371,15 @@ describe("org member management actions", () => {
     });
     const db = emptyDb([ownerMembership, member]);
     withOrgWrite.mockImplementation(async (fn) =>
-      fn({
-        db,
-        userId: "user-1",
-        githubLogin: "alice",
-        organizations: [org],
-      }),
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-1",
+          githubLogin: "alice",
+          organizations: [org],
+        },
+        fn,
+      ),
     );
 
     const form = new FormData();

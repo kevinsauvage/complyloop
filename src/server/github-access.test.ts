@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { resolveProjectGitHubToken } from "./github-access";
+import { resolveProjectGitHubToken } from "./github";
 
 const createInstallationAccessToken = vi.hoisted(() => vi.fn());
 const getStoredGitHubToken = vi.hoisted(() => vi.fn());

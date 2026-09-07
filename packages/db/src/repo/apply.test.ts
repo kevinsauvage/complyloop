@@ -28,7 +28,6 @@ import {
   snapshotProjectSlice,
   updatedAtById,
 } from "./apply.ts";
-import { persistProjectWrite } from "../project-write.ts";
 
 const projectId = "p1";
 const requirement: Requirement = {
@@ -307,72 +306,6 @@ describe("applyAssessmentPayload", () => {
       loadedUpdatedAtById: new Map(),
     });
     expect(insertAlerts).toHaveBeenCalledWith(tx, []);
-  });
-});
-
-describe("persistProjectWrite", () => {
-  const tx = { kind: "tx" } as unknown as DrizzleDb;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    upsertRequirements.mockResolvedValue(undefined);
-    upsertFindings.mockResolvedValue(undefined);
-    upsertRemediations.mockResolvedValue(undefined);
-    insertAlerts.mockResolvedValue(undefined);
-    insertEvidenceRecords.mockResolvedValue(undefined);
-    updateProject.mockResolvedValue(undefined);
-  });
-
-  it("upserts only the provided rows", async () => {
-    const evidence: EvidenceRecord[] = [
-      {
-        id: "ev-1",
-        at: "2026-01-02T00:00:00.000Z",
-        kind: "finding",
-        summary: "dismissed",
-        projectId,
-        findingId: finding.id,
-      },
-    ];
-    await persistProjectWrite(
-      tx,
-      {
-        findings: [finding],
-        remediations: [remediation],
-        requirements: [requirement],
-        alerts: [alert],
-        evidence,
-      },
-      {
-        loadedRequirementUpdatedAtById: new Map([
-          [requirement.id, requirement.updatedAt],
-        ]),
-        loadedFindingUpdatedAtById: new Map([[finding.id, "2026-01-01"]]),
-        loadedRemediationUpdatedAtById: new Map([[remediation.id, "2026-01-01"]]),
-      },
-    );
-
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [finding], {
-      loadedUpdatedAtById: new Map([[finding.id, "2026-01-01"]]),
-    });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [remediation], {
-      loadedUpdatedAtById: new Map([[remediation.id, "2026-01-01"]]),
-    });
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [requirement], {
-      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
-    });
-    expect(insertAlerts).toHaveBeenCalledWith(tx, [alert]);
-    expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, evidence);
-  });
-
-  it("no-ops when the payload is empty", async () => {
-    await persistProjectWrite(tx, {});
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
-      loadedUpdatedAtById: undefined,
-    });
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {});
-    expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, []);
-    expect(updateProject).not.toHaveBeenCalled();
   });
 });
 

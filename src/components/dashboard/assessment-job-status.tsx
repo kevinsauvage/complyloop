@@ -94,7 +94,6 @@ export function AssessmentJobStatus({
                   pendingLabel="Queuing…"
                   variant="outline"
                   size="sm"
-                  refreshOnSuccess
                 />
               </div>
             ) : null}

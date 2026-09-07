@@ -15,14 +15,16 @@ import {
   findingById,
   getWorkspace,
   remediationForFinding,
-  withProjectWrite,
 } from "../workspace";
+import { withProjectWrite } from "../workspace-write";
 import {
+  evidenceEntry,
   refresh,
   replaceRemediation,
   requireOnFindingProject,
   sessionCheckoutTokenOptions,
 } from "./shared";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 export type CreatePrFormState = {
   error: string | null;
@@ -97,19 +99,20 @@ export async function createPullRequestAction(
     if (!result.prUrl) {
       throw new PublicError(result.message);
     }
-    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, ({ db }, writes) => {
+    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async ({ db }) => {
       const liveFinding = findingById(db, findingId);
       const liveRemediation = remediationForFinding(db, findingId);
+      const payload: ProjectWritePayload = {};
       if (liveRemediation.status === "suggested") {
-        replaceRemediation(db, {
+        replaceRemediation(payload, {
           ...advanceRemediation(
             liveRemediation,
             "approved",
             "Approved by creating a draft pull request",
           ),
           approvalAction: "create_draft_pull_request",
-        }, writes);
-        writes.addEvidence({
+        });
+        evidenceEntry(payload, {
           kind: "remediation_approved",
           summary: `Remediation approved for ${liveFinding.checkId} at ${formatLocationRef(liveFinding.location)}`,
           projectId: project.id,
@@ -118,7 +121,7 @@ export async function createPullRequestAction(
           detail: { approvalAction: "create_draft_pull_request" },
         });
       }
-      writes.addEvidence({
+      evidenceEntry(payload, {
         kind: "pull_request_prepared",
         summary: result.prUrl
           ? `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`
@@ -132,6 +135,7 @@ export async function createPullRequestAction(
           title: result.title,
         },
       });
+      return { result: undefined, payload };
     });
     refresh();
     return {

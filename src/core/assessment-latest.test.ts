@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Assessment } from "@complyloop/db/types";
-import { latestAssessmentFor } from "./assessment-latest";
+import { latestAssessmentFor } from "./assessment";
 
 function assessment(
   partial: Pick<Assessment, "id" | "projectId" | "completedAt"> &

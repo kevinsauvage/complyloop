@@ -1,3 +1,4 @@
+import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { presetById } from "@complyloop/adapters/registry";
 import { PublicError, type Finding, type EvidenceRecord } from "@complyloop/db/types";
 import {
@@ -11,7 +12,8 @@ import {
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Control, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/project-types";
-import type { ProjectWriteCollector } from "@complyloop/db/project-write";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import { addEvidence, type Db } from "./db";
 import { findingsForProject, requirementsForProject } from "./project-visibility";
 
@@ -44,22 +46,31 @@ function requirementIsSticky(
 
 /**
  * Controls assessed for a project. `undefined` scope means the full catalog.
+ * Pass `catalog` in tests that inject a subset; production uses the shipped set.
  */
-export function controlsInScope(db: Db, project: Project): Control[] {
+function catalogControls(catalog?: readonly Control[]): Control[] {
+  return catalog === undefined ? shippedCatalog().controls : [...catalog];
+}
+
+export function controlsInScope(
+  project: Project,
+  catalog?: readonly Control[],
+): Control[] {
+  const controls = catalogControls(catalog);
   const controlIds = scopedControlIds(project);
-  if (!controlIds) return db.controls;
-  return db.controls.filter((control) => controlIds.has(control.id));
+  if (!controlIds) return [...controls];
+  return controls.filter((control) => controlIds.has(control.id));
 }
 
 /** Fails loud when the catalog or preset scope would produce a no-op assessment. */
 export function assertAssessableCatalog(
-  db: Db,
   project: Project,
+  catalog?: readonly Control[],
 ): Control[] {
-  const scoped = controlsInScope(db, project);
+  const scoped = controlsInScope(project, catalog);
   if (scoped.length > 0) return scoped;
   throw new PublicError(
-    db.controls.length === 0
+    catalogControls(catalog).length === 0
       ? "Compliance catalog is unavailable."
       : "No controls are in scope for this project. Check the assessment preset in Settings.",
   );
@@ -110,7 +121,7 @@ export function clearExpiredExceptions(
     }
     if (new Date(exception.expiresAt).getTime() > now.getTime()) continue;
 
-    const control = db.controls.find(
+    const control = catalogControls().find(
       (candidate) => candidate.id === requirement.controlId,
     );
     delete requirement.exception;
@@ -138,26 +149,29 @@ export interface RefreshRequirementStatusesOptions {
   /** Check ids confirmed not applicable on every audited page (checkId → fact). */
   applicabilityFacts?: ReadonlyMap<string, string>;
   /** When set, status refreshes queue explicit upserts instead of relying on diff. */
-  writes?: ProjectWriteCollector;
+  payload?: ProjectWritePayload;
+  /** Test override; production uses the shipped catalog. */
+  controls?: readonly Control[];
 }
 
 function recordRequirementEvidence(
   db: Db,
-  writes: ProjectWriteCollector | undefined,
+  payload: ProjectWritePayload | undefined,
   entry: Omit<EvidenceRecord, "id" | "at">,
 ): void {
-  if (writes) {
-    writes.addEvidence(entry);
+  if (payload) {
+    payload.evidence = [...(payload.evidence ?? []), newEvidenceRecord(entry)];
     return;
   }
   addEvidence(db, entry);
 }
 
 function trackRequirement(
-  writes: ProjectWriteCollector | undefined,
+  payload: ProjectWritePayload | undefined,
   requirement: Requirement,
 ): void {
-  writes?.upsertRequirement(requirement);
+  if (!payload) return;
+  payload.requirements = [...(payload.requirements ?? []), requirement];
 }
 
 /**
@@ -213,7 +227,7 @@ function refreshRequirementForControl(
     htmlValidateRan,
     applicabilityFacts,
     now,
-    writes,
+    payload,
   } = options;
 
   if (control.checkId === null) {
@@ -233,12 +247,12 @@ function refreshRequirementForControl(
         updatedAt: now,
       };
       db.requirements.push(requirement);
-      trackRequirement(writes, requirement);
+      trackRequirement(payload, requirement);
     } else if (requirement.status !== "unable_to_verify") {
       requirement.status = "unable_to_verify";
       requirement.determination = "automated";
       requirement.updatedAt = now;
-      trackRequirement(writes, requirement);
+      trackRequirement(payload, requirement);
     }
     return;
   }
@@ -273,7 +287,7 @@ function refreshRequirementForControl(
       updatedAt: now,
     };
     db.requirements.push(requirement);
-    trackRequirement(writes, requirement);
+    trackRequirement(payload, requirement);
     return;
   }
 
@@ -281,7 +295,7 @@ function refreshRequirementForControl(
     const regression = requirement.status === "passed" && status === "failed";
     const attribution =
       regression && changeContext ? ` — ${changeContext}` : "";
-    recordRequirementEvidence(db, writes, {
+    recordRequirementEvidence(db, payload, {
       kind: "requirement_status_changed",
       summary: `${control.code} (${control.title}): ${requirement.status} → ${status}${regression ? " — compliance regression" : ""}${attribution}`,
       projectId,
@@ -304,7 +318,7 @@ function refreshRequirementForControl(
     requirement.status = status;
     requirement.determination = "automated";
     requirement.updatedAt = now;
-    trackRequirement(writes, requirement);
+    trackRequirement(payload, requirement);
   }
 }
 
@@ -322,7 +336,11 @@ export function refreshRequirementStatusesForControls(
   const now = new Date().toISOString();
   const project = db.projects.find((candidate) => candidate.id === projectId);
   const controlIdSet = new Set(controlIds);
-  const scoped = (project ? controlsInScope(db, project) : db.controls).filter(
+  const scoped = (
+    project
+      ? controlsInScope(project, options.controls)
+      : catalogControls(options.controls)
+  ).filter(
     (control) => controlIdSet.has(control.id),
   );
   for (const control of scoped) {
@@ -343,7 +361,9 @@ export function refreshRequirementStatuses(
 ): void {
   const now = new Date().toISOString();
   const project = db.projects.find((candidate) => candidate.id === projectId);
-  const scoped = project ? controlsInScope(db, project) : db.controls;
+  const scoped = project
+    ? controlsInScope(project, options.controls)
+    : catalogControls(options.controls);
 
   for (const control of scoped) {
     refreshRequirementForControl(db, projectId, control, { ...options, now });

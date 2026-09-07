@@ -1,7 +1,6 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
-import { testControl } from "@/test-fixtures/control";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
@@ -51,12 +50,6 @@ const project = testProject({
   },
 });
 
-const control = testControl({
-  code: "WCAG 1.1.1",
-  secondaryCode: "RGAA 1.1",
-  description: "Alt",
-});
-
 const finding = testFinding({
   location: {
     kind: "source",
@@ -76,7 +69,7 @@ function workspace() {
     remediations: [
       testRemediation({ status: "detected", suggestion: null, history: [] }),
     ],
-    db: { controls: [control] },
+    db: {},
   });
 }
 
@@ -119,7 +112,7 @@ describe("generateAiFixAction", () => {
     expect(runAiFixOnCheckout).toHaveBeenCalledWith(
       "/tmp/checkout",
       finding,
-      control,
+      expect.objectContaining({ id: "ctl-img-alt" }),
       expect.objectContaining({ aiAvailable: expect.any(Boolean) }),
     );
     expect(persistPatchCandidate).toHaveBeenCalledWith(

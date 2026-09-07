@@ -2,8 +2,9 @@
 
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
-import { setAiWarn } from "@/ai/warn";
+import { setAiWarn } from "@/ai/ai-call";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { entityIdSchema } from "@/core/boundary";
 import { PublicError } from "@complyloop/db/types";
 import { advanceRemediation } from "@/core/remediation";
@@ -18,9 +19,10 @@ import {
   controlById,
   findingById,
   remediationForFinding,
-  withProjectWrite,
 } from "../workspace";
+import { withProjectWrite } from "../workspace-write";
 import {
+  evidenceEntry,
   refresh,
   replaceRemediation,
   requireOnFindingProject,
@@ -39,7 +41,7 @@ export async function generateAiExplanationAction(
   void _formData;
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
-    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace, writes) => {
+    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const { db } = workspace;
       const finding = findingById(db, findingId);
@@ -58,7 +60,10 @@ export async function generateAiExplanationAction(
         );
       }
       finding.explanations.push(explanation);
-      writes.upsertFinding(finding);
+      return {
+        result: undefined,
+        payload: { findings: [finding] },
+      };
     });
     refresh();
     return "AI explanation added.";
@@ -74,7 +79,7 @@ export async function generateAiRemediationAction(
   void _formData;
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
-    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace, writes) => {
+    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const { db } = workspace;
       const finding = findingById(db, findingId);
@@ -106,6 +111,7 @@ export async function generateAiRemediationAction(
         );
       }
 
+      const payload: ProjectWritePayload = {};
       remediation.suggestion = result.suggestion;
       if (
         result.attributeValue &&
@@ -113,18 +119,17 @@ export async function generateAiRemediationAction(
         finding.fix.editable
       ) {
         finding.fix = { ...finding.fix, value: result.attributeValue };
-        writes.upsertFinding(finding);
+        payload.findings = [finding];
       }
 
       if (remediation.status === "detected") {
         replaceRemediation(
-          db,
+          payload,
           advanceRemediation(
             remediation,
             "suggested",
             `AI suggestion: ${result.suggestion.description}`,
           ),
-          writes,
         );
       } else {
         remediation.history.push({
@@ -132,10 +137,10 @@ export async function generateAiRemediationAction(
           at: new Date().toISOString(),
           note: `AI suggestion refreshed: ${result.suggestion.description}`,
         });
-        writes.upsertRemediation(remediation);
+        payload.remediations = [...(payload.remediations ?? []), remediation];
       }
 
-      writes.addEvidence({
+      evidenceEntry(payload, {
         kind: "ai_remediation_suggested",
         summary: `AI remediation suggested for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,
@@ -148,6 +153,7 @@ export async function generateAiRemediationAction(
           description: result.suggestion.description,
         },
       });
+      return { result: undefined, payload };
     });
     refresh();
     return "AI remediation suggestion saved.";

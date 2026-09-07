@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import { wcagFramework } from "@complyloop/adapters/wcag/controls";
 import type { Finding } from "@complyloop/db/types";
 import { sampleReportInput, reportSampleProject } from "@/test-fixtures/report-input";
@@ -78,8 +77,6 @@ describe("buildEngineeringReportMarkdown", () => {
 describe("reportInputForProject", () => {
   it("uses the project's assessment target framework, not frameworks[0]", () => {
     const db = emptyDb();
-    db.frameworks.push(rgaaFramework, wcagFramework);
-    db.controls.push(...rgaaControls);
     db.projects.push({
       ...reportSampleProject,
       defaultPresetId: "preset-wcag-aa",

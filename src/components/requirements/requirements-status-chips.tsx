@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { RequirementStatusBadge } from "@/components/badges";
-import { requirementsPageHref } from "@/core/requirements-page";
+import { requirementsPageHref } from "@/core/query";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";

@@ -17,7 +17,7 @@ vi.mock("./active-cookies", () => ({
   readActiveProjectCookie,
 }));
 
-import { withProjectWrite } from "./workspace";
+import { withProjectWrite } from "./workspace-write";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Run via `npm run test:db`. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());
@@ -45,13 +45,13 @@ describe.skipIf(!enabled)("withProjectWrite postgres integration", () => {
     try {
       await withProjectWrite(
         { touch: "entities", findingIds: [fixture.findingOneId] },
-        async (workspace, writes) => {
+        async (workspace) => {
           const finding = workspace.db.findings.find(
             (item) => item.id === fixture.findingOneId,
           );
           if (!finding) throw new Error("Expected seeded finding.");
           finding.status = "dismissed";
-          writes.upsertFinding(finding);
+          return { result: undefined, payload: { findings: [finding] } };
         },
       );
 

@@ -2,6 +2,7 @@ import type {
   FilterFindingsContext,
   FindingListParams,
 } from "@/core/finding-list-filter";
+import { shippedCatalog } from "@complyloop/adapters/catalog";
 import type { FindingCluster } from "@complyloop/db/types";
 import type { Db } from "./db";
 import { findRemediationForFinding } from "./workspace";
@@ -19,7 +20,7 @@ export function buildFindingFilterContext(
     : undefined;
 
   return {
-    controls: db.controls,
+    controls: shippedCatalog().controls,
     remediationStatusFor: (findingId) =>
       findRemediationForFinding(db, findingId)?.status,
     clusterFindingIds,

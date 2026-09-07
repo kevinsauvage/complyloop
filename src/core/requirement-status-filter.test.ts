@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseRequirementStatusParam,
   requirementsStatusHref,
-} from "./requirement-status-filter";
+} from "./query";
 
 describe("parseRequirementStatusParam", () => {
   it("returns a known requirement status", () => {

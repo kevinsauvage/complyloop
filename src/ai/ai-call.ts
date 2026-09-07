@@ -1,8 +1,27 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { AI_MODEL } from "./model";
-import { aiWarn } from "./warn";
+
+type AiWarnFn = (
+  message: string,
+  context?: Record<string, unknown>,
+) => void;
+
+let warnFn: AiWarnFn = () => {
+  /* default: no-op until the server wires observability */
+};
+
+export function setAiWarn(fn: AiWarnFn): void {
+  warnFn = fn;
+}
+
+export function aiWarn(
+  message: string,
+  context?: Record<string, unknown>,
+): void {
+  warnFn(message, context);
+}
 
 interface AiCallInput<TSchema extends z.ZodType> {
   schema: TSchema;

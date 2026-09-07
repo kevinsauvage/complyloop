@@ -1,9 +1,12 @@
 import type { Finding } from "@complyloop/db/types"
-import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
+import {
+  engineFromAnalyzer,
+  type AssessmentEngine,
+} from "@complyloop/analysis-core/contract/finding-types";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { formatLocationRef, locationPathOrUrl } from "@complyloop/analysis-core/contract/location";
 import { parsePageParam } from "./pagination";
-import { parseEnumParam, firstParam, buildHref } from "./query-param";
+import { parseEnumParam, firstParam, buildHref } from "./query";
 import { prioritizeFindings } from "./prioritization";
 import { severityRank } from "./status-display";
 import {
@@ -138,7 +141,9 @@ export function filterFindings(
 
   if (params.engine) {
     result = result.filter(
-      (finding) => (finding.engine ?? "ast") === params.engine,
+      (finding) =>
+        (finding.engine ?? engineFromAnalyzer(finding.analyzerId)) ===
+        params.engine,
     );
   }
 

@@ -86,7 +86,7 @@ vi.mock("./rate-limit", () => ({
   pruneRateLimitBuckets: (...args: unknown[]) => pruneRateLimitBuckets(...args),
 }));
 
-vi.mock("./github-access", () => ({
+vi.mock("./github", () => ({
   resolveProjectGitHubToken: (...args: unknown[]) =>
     resolveProjectGitHubToken(...args),
 }));
@@ -136,6 +136,25 @@ function emptyDb(): Db {
   };
 }
 
+function assessmentRun(
+  assessment: {
+    id: string;
+    projectId: string;
+    snapshot: { fileHashes: Record<string, string> };
+  },
+  slice: Partial<
+    Pick<Db, "evidence" | "findings" | "remediations" | "requirements">
+  > = {},
+) {
+  return {
+    assessment,
+    evidence: slice.evidence ?? [],
+    findings: slice.findings ?? [],
+    remediations: slice.remediations ?? [],
+    requirements: slice.requirements ?? [],
+  };
+}
+
 beforeEach(() => {
   transaction.mockImplementation(async (fn: (tx: object) => unknown) => fn({}));
   acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
@@ -174,11 +193,13 @@ describe("processNextAssessmentJob", () => {
         fn: (rootPath: string) => Promise<unknown>,
       ) => fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue({
-      id: "a1",
-      projectId: "p1",
-      snapshot: { fileHashes: {} },
-    });
+    runAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
     completeAssessmentJob.mockResolvedValue(undefined);
 
     await expect(processNextAssessmentJob()).resolves.toEqual({
@@ -224,11 +245,19 @@ describe("processNextAssessmentJob", () => {
         ...liveDb.remediations[0]!,
         status: "verified",
       };
-      return {
-        id: "a1",
-        projectId: "p1",
-        snapshot: { fileHashes: {} },
-      };
+      return assessmentRun(
+        {
+          id: "a1",
+          projectId: "p1",
+          snapshot: { fileHashes: {} },
+        },
+        {
+          findings: liveDb.findings,
+          remediations: liveDb.remediations,
+          requirements: liveDb.requirements,
+          evidence: [],
+        },
+      );
     });
     completeAssessmentJob.mockResolvedValue(undefined);
 
@@ -313,11 +342,13 @@ describe("processNextAssessmentJob", () => {
         fn: (rootPath: string) => Promise<unknown>,
       ) => fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue({
-      id: "a1",
-      projectId: "p1",
-      snapshot: { fileHashes: {} },
-    });
+    runAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
     completeAssessmentJob.mockResolvedValue(undefined);
 
     await expect(processNextAssessmentJob()).resolves.toEqual({
@@ -391,11 +422,13 @@ describe("processNextAssessmentJob", () => {
         fn: (rootPath: string) => Promise<unknown>,
       ) => fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue({
-      id: "a1",
-      projectId: "p1",
-      snapshot: { fileHashes: {} },
-    });
+    runAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
     completeAssessmentJob.mockResolvedValue(undefined);
     resolveProjectGitHubToken.mockResolvedValue("ghs_token");
     postPullRequestCheckRun.mockResolvedValue({ ok: true });
@@ -436,11 +469,13 @@ describe("processNextAssessmentJob", () => {
         fn: (rootPath: string) => Promise<unknown>,
       ) => fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue({
-      id: "a1",
-      projectId: "p1",
-      snapshot: { fileHashes: {} },
-    });
+    runAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
     completeAssessmentJob.mockResolvedValue(undefined);
 
     await expect(processNextAssessmentJob()).resolves.toEqual({
@@ -470,11 +505,13 @@ describe("processNextAssessmentJob", () => {
         fn: (rootPath: string) => Promise<unknown>,
       ) => fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue({
-      id: "a1",
-      projectId: "p1",
-      snapshot: { fileHashes: {} },
-    });
+    runAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
     completeAssessmentJob.mockResolvedValue(undefined);
     resolveProjectGitHubToken.mockResolvedValue(null);
 

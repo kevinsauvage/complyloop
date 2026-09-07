@@ -17,7 +17,7 @@ import {
   type FindingsTab,
   type FindingListParams,
 } from "@/core/finding-list-filter";
-import { reportMarkdownHref } from "@/core/report-view";
+import { reportMarkdownHref } from "@/core/query";
 import { paginateSlice } from "@/core/pagination";
 import { prioritizeClusters } from "@/core/prioritization";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
@@ -31,6 +31,7 @@ import {
   remediationForFinding,
 } from "@/server/workspace";
 import { frameworkForProject } from "@/server/report";
+import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { controlForDisplay } from "@complyloop/adapters/control-theme";
 
 export const dynamic = "force-dynamic";
@@ -66,7 +67,8 @@ export default async function FindingsPage({
 
   const caps = projectCapabilities(project, access, activeOrgId);
   const findings = findingsInScope(db.findings, project);
-  const clusters = prioritizeClusters(findings, db.controls);
+  const controls = shippedCatalog().controls;
+  const clusters = prioritizeClusters(findings, controls);
   const filterContext = buildFindingFilterContext(db, listParams, clusters);
 
   const byStatus = (status: FindingStatus): Finding[] =>

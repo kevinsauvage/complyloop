@@ -17,11 +17,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { evidenceRecordHref } from "@/core/evidence-links";
+import { evidenceRecordHref } from "@/core/query";
 import { EVIDENCE_TONE_DOT, evidenceTone } from "@/core/status-display";
-import { parseEvidenceKindParam, evidenceKindHref } from "@/core/evidence-kind-filter";
+import { parseEvidenceKindParam, evidenceKindHref } from "@/core/query";
 import { evidenceKindLabel } from "@/core/status-display";
-import { reportHtmlHref, reportMarkdownHref } from "@/core/report-view";
+import { reportHtmlHref, reportMarkdownHref } from "@/core/query";
 import {
   DEFAULT_PAGE_SIZE,
   pageSliceFromQuery,

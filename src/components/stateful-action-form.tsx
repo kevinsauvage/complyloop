@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState, useId, type ReactNode } from "react";
 import type { VariantProps } from "class-variance-authority";
 import { ActionFeedback } from "@/components/action-feedback";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -13,27 +12,6 @@ const initialState: ActionMessageState = { error: null, message: null };
 
 type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
 type ButtonSize = VariantProps<typeof buttonVariants>["size"];
-
-/** Mounted only when `refreshOnSuccess` is set — keeps useRouter out of other forms. */
-function RefreshAfterSuccess({
-  message,
-  error,
-}: {
-  message: string | null;
-  error: string | null;
-}) {
-  const router = useRouter();
-  const lastRefreshKey = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!message || error) return;
-    if (lastRefreshKey.current === message) return;
-    lastRefreshKey.current = message;
-    router.refresh();
-  }, [error, message, router]);
-
-  return null;
-}
 
 export function StatefulActionForm({
   action,
@@ -49,8 +27,6 @@ export function StatefulActionForm({
   disabled = false,
   /** When false, success copy is toast-only (errors stay inline). */
   inlineSuccess = true,
-  /** Call `router.refresh()` after a successful action (instead of server `refresh()`). */
-  refreshOnSuccess = false,
 }: {
   action: (
     previous: ActionMessageState,
@@ -70,7 +46,6 @@ export function StatefulActionForm({
   /** Disables the submit button (state already satisfied). */
   disabled?: boolean;
   inlineSuccess?: boolean;
-  refreshOnSuccess?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formId = useId();
@@ -89,9 +64,6 @@ export function StatefulActionForm({
 
   return (
     <form id={formId} action={formAction} className={className}>
-      {refreshOnSuccess ? (
-        <RefreshAfterSuccess message={state.message} error={state.error} />
-      ) : null}
       {children}
       <div className="flex flex-col gap-2">
         {confirmMessage ? (

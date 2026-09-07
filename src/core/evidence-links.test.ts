@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvidenceRecord } from "@complyloop/db/types";
-import { evidenceRecordHref } from "./evidence-links";
+import { evidenceRecordHref } from "./query";
 
 const base: EvidenceRecord = {
   id: "e1",

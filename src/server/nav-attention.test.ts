@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import { testProject } from "@/test-fixtures/project";
 import type { Db } from "./db";
 import { emptyDb as baseEmptyDb } from "@complyloop/db/types";
@@ -14,8 +13,6 @@ const project = testProject({
 function emptyDb(): Db {
   return {
     ...baseEmptyDb(),
-    frameworks: [rgaaFramework],
-    controls: rgaaControls,
     projects: [project],
   };
 }

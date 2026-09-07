@@ -3,7 +3,7 @@ import {
   parseReportViewParam,
   reportHtmlHref,
   reportMarkdownHref,
-} from "./report-view";
+} from "./query";
 
 describe("parseReportViewParam", () => {
   it("accepts the engineering view", () => {

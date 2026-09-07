@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
+import { rgaaControls } from "@complyloop/adapters/rgaa/controls";
 import { isDomLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { runAssessment } from "./assessment";
@@ -28,8 +28,6 @@ describe("runAssessment with runtime engine", () => {
       runtimeRoutes: ["/"],
     };
     db = {
-      frameworks: [rgaaFramework],
-      controls: rgaaControls,
       organizations: [],
       memberships: [],
       projects: [project],
@@ -58,7 +56,7 @@ describe("runAssessment with runtime engine", () => {
   ];
 
   it("creates DOM findings from the injected scanner and skips AST input-label", async () => {
-    const assessment = await runAssessment(db, project.id, {
+    const { assessment } = await runAssessment(db, project.id, {
       rootPath,
       runtimeLookup: publicLookup,
       runtimeScanner: async (urls) => [
@@ -99,7 +97,7 @@ describe("runAssessment with runtime engine", () => {
   });
 
   it("records default theme conditions on the assessment engines", async () => {
-    const assessment = await runAssessment(db, project.id, {
+    const { assessment } = await runAssessment(db, project.id, {
       rootPath,
       runtimeLookup: publicLookup,
       runtimeScanner: async (urls) => [
@@ -116,7 +114,7 @@ describe("runAssessment with runtime engine", () => {
   });
 
   it("records runtimeError without failing the whole assessment", async () => {
-    const assessment = await runAssessment(db, project.id, {
+    const { assessment } = await runAssessment(db, project.id, {
       rootPath,
       runtimeLookup: publicLookup,
       runtimeScanner: async () => {
@@ -132,7 +130,7 @@ describe("runAssessment with runtime engine", () => {
   });
 
   it("records a user-safe error when the preview URL resolves privately", async () => {
-    const assessment = await runAssessment(db, project.id, {
+    const { assessment } = await runAssessment(db, project.id, {
       rootPath,
       runtimeLookup: async () => [{ address: "10.0.0.5", family: 4 }],
       runtimeScanner: async () => {

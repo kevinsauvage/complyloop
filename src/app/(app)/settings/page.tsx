@@ -11,7 +11,7 @@ import {
   presetById,
   projectDefaultPresetId,
 } from "@complyloop/adapters/registry";
-import { latestAssessmentFor } from "@/core/assessment-latest";
+import { latestAssessmentFor } from "@/core/assessment";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 

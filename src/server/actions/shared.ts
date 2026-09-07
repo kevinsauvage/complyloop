@@ -2,11 +2,12 @@ import { revalidatePath } from "next/cache";
 import { auth, getGitHubAccessToken } from "@/auth";
 import { advanceRemediation } from "@/core/remediation";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { PublicError, type Finding } from "@complyloop/db/types";
+import { PublicError, type EvidenceRecord, type Finding } from "@complyloop/db/types";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import { locateViolationInProject } from "../assessment-findings";
-import type { ProjectWriteCollector } from "@complyloop/db/project-write";
 import type { Db } from "../db";
-import type { ResolveProjectGitHubTokenOptions } from "../github-access";
+import type { ResolveProjectGitHubTokenOptions } from "../github";
 import { assertProjectPermission } from "../project-visibility";
 import type { Workspace } from "../workspace";
 
@@ -30,13 +31,19 @@ export function refresh(): void {
 }
 
 export function replaceRemediation(
-  db: Db,
+  payload: ProjectWritePayload,
   updated: ReturnType<typeof advanceRemediation>,
-  writes?: ProjectWriteCollector,
 ): void {
-  const index = db.remediations.findIndex((candidate) => candidate.id === updated.id);
-  db.remediations[index] = updated;
-  writes?.upsertRemediation(updated);
+  payload.remediations = [...(payload.remediations ?? []), updated];
+}
+
+export function evidenceEntry(
+  payload: ProjectWritePayload,
+  entry: Omit<EvidenceRecord, "id" | "at">,
+): EvidenceRecord {
+  const record = newEvidenceRecord(entry);
+  payload.evidence = [...(payload.evidence ?? []), record];
+  return record;
 }
 
 export function requireOnActive(

@@ -19,7 +19,8 @@ import { PublicError, type EvidenceRecord, type Finding } from "@complyloop/db/t
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { advanceRemediation } from "@/core/remediation";
-import type { ProjectWriteCollector } from "@complyloop/db/project-write";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import { addEvidence, type Db } from "./db";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
 
@@ -217,10 +218,10 @@ export function persistPatchCandidate(
   db: Db,
   finding: Finding,
   candidate: PatchCandidate,
-  writes?: ProjectWriteCollector,
+  payload?: ProjectWritePayload,
 ): void {
   const location = formatLocationRef(finding.location);
-  const evidenceEntry = {
+  const entry = {
     kind: "ai_patch_ready" as const,
     summary: `Patch ready for ${finding.checkId} at ${location} (ComplyLoop passed).`,
     projectId: finding.projectId,
@@ -228,10 +229,10 @@ export function persistPatchCandidate(
     findingId: finding.id,
     detail: patchCandidateDetail(candidate),
   };
-  if (writes) {
-    writes.addEvidence(evidenceEntry);
+  if (payload) {
+    payload.evidence = [...(payload.evidence ?? []), newEvidenceRecord(entry)];
   } else {
-    addEvidence(db, evidenceEntry);
+    addEvidence(db, entry);
   }
   const remediation = db.remediations.find(
     (row) => row.findingId === finding.id,
@@ -260,13 +261,17 @@ export function persistPatchCandidate(
     const index = db.remediations.findIndex((row) => row.id === remediation.id);
     if (index < 0) return;
     db.remediations[index] = updated;
-    writes?.upsertRemediation(updated);
+    if (payload) {
+      payload.remediations = [...(payload.remediations ?? []), updated];
+    }
   } else if (remediation.status === "suggested") {
     remediation.history.push({
       status: "suggested",
       at: new Date().toISOString(),
       note: `Patch refreshed: ${candidate.description}`,
     });
-    writes?.upsertRemediation(remediation);
+    if (payload) {
+      payload.remediations = [...(payload.remediations ?? []), remediation];
+    }
   }
 }

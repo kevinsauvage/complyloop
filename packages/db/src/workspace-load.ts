@@ -23,8 +23,6 @@ import {
   listLatestAssessmentForProject,
 } from "./repo/assessments.ts";
 
-const emptyCatalog = { frameworks: [], controls: [] } as const;
-
 async function loadEvidenceWindow(
   drizzle: DrizzleDb,
   projectId: string,
@@ -125,7 +123,7 @@ async function loadWorkspaceTenancy(
 export async function loadWorkspaceDb(
   drizzle: DrizzleDb,
   input: WorkspaceLoadInput,
-): Promise<Omit<Db, "frameworks" | "controls">> {
+): Promise<Db> {
   const { organizations, memberships, projects, activeProjectId } =
     await loadWorkspaceTenancy(drizzle, input);
 
@@ -150,7 +148,6 @@ export async function loadWorkspaceDb(
       : [];
 
   return {
-    ...emptyCatalog,
     organizations,
     memberships,
     projects,
@@ -253,7 +250,7 @@ async function loadTargetedProjectRuntime(
 export async function loadTargetedProjectWriteDb(
   drizzle: DrizzleDb,
   input: TargetedProjectWriteLoadInput,
-): Promise<Omit<Db, "frameworks" | "controls">> {
+): Promise<Db> {
   const { organizations, memberships, projects, activeProjectId } =
     await loadWorkspaceTenancy(drizzle, input);
 
@@ -280,7 +277,6 @@ export async function loadTargetedProjectWriteDb(
       : [];
 
   return {
-    ...emptyCatalog,
     organizations,
     memberships,
     projects,
@@ -293,11 +289,10 @@ export async function loadTargetedProjectWriteDb(
 export async function loadProjectAssessmentDb(
   drizzle: DrizzleDb,
   projectId: string,
-): Promise<Omit<Db, "frameworks" | "controls">> {
+): Promise<Db> {
   const project = await getProjectById(drizzle, projectId);
   if (!project) {
     return {
-      ...emptyCatalog,
       organizations: [],
       memberships: [],
       projects: [],
@@ -327,7 +322,6 @@ export async function loadProjectAssessmentDb(
   ]);
 
   return {
-    ...emptyCatalog,
     organizations,
     memberships,
     projects: [project],

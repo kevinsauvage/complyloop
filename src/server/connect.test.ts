@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import {
   connectedGitHubProjectsByFullName,
@@ -29,10 +28,7 @@ function githubProject(
 }
 
 function seededDb(): Db {
-  const db = emptyDb();
-  db.frameworks = [rgaaFramework];
-  db.controls = rgaaControls;
-  return db;
+  return emptyDb();
 }
 
 describe("deriveProjectName", () => {

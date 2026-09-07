@@ -19,7 +19,7 @@ export async function GET(): Promise<Response> {
     exportedAt: new Date().toISOString(),
     project: { name: project.name, connectedAt: project.createdAt },
     framework: frameworkForProject(db, project),
-    controls: controlsInScope(db, project),
+    controls: controlsInScope(project),
     requirements: requirementsInScope(db.requirements, project),
     evidence: exported.records,
     evidenceTotal: exported.total,

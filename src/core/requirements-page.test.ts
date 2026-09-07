@@ -3,7 +3,7 @@ import {
   effectiveRequirementsPresetId,
   parsePresetIdParam,
   requirementsPageHref,
-} from "./requirements-page";
+} from "./query";
 
 const isValidPresetId = (id: string) =>
   ["preset-rgaa-full", "preset-wcag-aa", "preset-wcag-full"].includes(id);

@@ -2,7 +2,6 @@ import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../db";
 import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
-import { testControl } from "@/test-fixtures/control";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
@@ -51,7 +50,6 @@ const project = testProject({
   },
 });
 
-const control = testControl();
 const finding = testFinding();
 const remediation = testRemediation({ status: "approved" });
 
@@ -65,7 +63,6 @@ function workspaceFor(
     findings: [finding],
     remediations: [remediation],
     db: {
-      controls: [control],
       ...overrides,
     },
   });

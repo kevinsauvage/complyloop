@@ -8,8 +8,9 @@ import {
 } from "../action-state";
 import { parseForm } from "../boundary";
 import { setDefaultPreset } from "../project-preset";
-import { withProjectWrite } from "../workspace";
+import { withProjectWrite } from "../workspace-write";
 import { refresh, requireOnActive } from "./shared";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 const setDefaultPresetInput = z.object({
   presetId: requiredField("A framework preset is required."),
@@ -22,10 +23,12 @@ export async function setDefaultPresetAction(
   return runActionMessage(async () => {
     const { presetId } = parseForm(setDefaultPresetInput, formData);
     let changed = false;
-    await withProjectWrite({ touch: "project" }, async (workspace, writes) => {
+    await withProjectWrite({ touch: "project" }, async (workspace) => {
       requireOnActive(workspace, "project.connect");
       const { db, project } = workspace;
-      changed = setDefaultPreset(db, project, presetId, writes).changed;
+      const payload: ProjectWritePayload = {};
+      changed = setDefaultPreset(db, project, presetId, payload).changed;
+      return { result: undefined, payload };
     });
     refresh();
     return changed

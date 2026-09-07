@@ -6,7 +6,6 @@ import { StatefulActionForm } from "./stateful-action-form";
 
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
-const routerRefresh = vi.fn();
 
 vi.mock("sonner", () => ({
   toast: {
@@ -15,15 +14,10 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: routerRefresh }),
-}));
-
 afterEach(() => {
   cleanup();
   toastSuccess.mockClear();
   toastError.mockClear();
-  routerRefresh.mockClear();
 });
 
 describe("StatefulActionForm", () => {
@@ -69,7 +63,6 @@ describe("StatefulActionForm", () => {
         action={action}
         submitLabel="Set assessment target"
         inlineSuccess={false}
-        refreshOnSuccess
       />,
     );
 
@@ -82,7 +75,6 @@ describe("StatefulActionForm", () => {
       });
     });
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(routerRefresh).toHaveBeenCalled();
   });
 
   it("toasts errors", async () => {

@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Remediation } from "@complyloop/db/types";
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
-import { testControl } from "@/test-fixtures/control";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
@@ -30,7 +29,7 @@ vi.mock("@/ai/remediation", () => ({
   generateAiRemediation: (...args: unknown[]) => generateAiRemediation(...args),
 }));
 
-vi.mock("@/ai/warn", () => ({
+vi.mock("@/ai/ai-call", () => ({
   setAiWarn: vi.fn(),
 }));
 
@@ -52,7 +51,6 @@ vi.mock("./shared", async () => {
 });
 
 const project = testProject({ orgId: "org-1" });
-const control = testControl();
 const finding = testFinding();
 
 function workspaceFor(
@@ -70,7 +68,7 @@ function workspaceFor(
         history: [],
       }),
     ],
-    db: { controls: [control] },
+    db: {},
   });
 }
 

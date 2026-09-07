@@ -24,7 +24,6 @@ export function DefaultPresetForm({
       pendingLabel="Saving…"
       variant="default"
       className="flex flex-col gap-4"
-      refreshOnSuccess
     >
       <fieldset className="flex flex-col gap-2">
         <legend className="text-sm font-medium">Default assessment preset</legend>

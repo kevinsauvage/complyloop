@@ -32,7 +32,8 @@ import {
   listAllEvidenceForProjects,
   listAssessmentsForProjects,
 } from "@complyloop/db/queries";
-import { getWorkspace, withOrgWrite } from "../workspace";
+import { getWorkspace } from "../workspace";
+import { withOrgWrite } from "../workspace-write";
 import { refresh, requireSignedIn } from "./shared";
 
 export type OrgMemberFormState = ActionMessageState;
@@ -85,6 +86,7 @@ export async function switchOrgAction(formData: FormData): Promise<void> {
     if (projectInOrg) {
       projectIdToActivate = projectInOrg.id;
     }
+    return { result: undefined };
   });
   await writeActiveOrgCookie(orgId);
   if (projectIdToActivate) {
@@ -108,13 +110,24 @@ export async function createOrgAction(
   if (!parsed.ok) return parsed.state;
 
   try {
-    const org = await withOrgWrite((workspace) =>
-      createOrganization(workspace.db, {
+    const org = await withOrgWrite((workspace) => {
+      const created = createOrganization(workspace.db, {
         name: parsed.data.name,
         creatorUserId: userId,
         githubLogin,
-      }),
-    );
+      });
+      const membership = workspace.db.memberships.find(
+        (row) => row.orgId === created.id && row.userId === userId,
+      );
+      if (!membership) {
+        throw new PublicError("Owner membership missing after create.");
+      }
+      return {
+        result: created,
+        insertOrgs: [created],
+        upsertMemberships: [membership],
+      };
+    });
     await writeActiveOrgCookie(org.id);
     refresh();
     return formSuccess(`Created organization "${org.name}".`);
@@ -140,7 +153,8 @@ export async function inviteOrgMemberAction(
       if (!canManageOrgMembers(db, orgId, userId)) {
         throw new PublicError("Only org owners and admins can invite members.");
       }
-      inviteOrgMember(db, orgId, userId, githubLogin, role);
+      const membership = inviteOrgMember(db, orgId, userId, githubLogin, role);
+      return { result: undefined, upsertMemberships: [membership] };
     });
     refresh();
     return formSuccess(`Invited @${githubLogin} as ${role}.`);
@@ -169,6 +183,7 @@ export async function removeOrgMemberAction(
       );
       revokedInvite = Boolean(target && !target.userId);
       removeOrgMember(db, orgId, userId, membershipId);
+      return { result: undefined, deleteMembershipIds: [membershipId] };
     });
     refresh();
     return revokedInvite ? "Invite revoked." : "Member removed.";
@@ -191,7 +206,8 @@ export async function changeOrgMemberRoleAction(
       if (!canManageOrgMembers(db, orgId, userId)) {
         throw new PublicError("Only org owners and admins can change member roles.");
       }
-      changeOrgMemberRole(db, orgId, userId, membershipId, role);
+      const membership = changeOrgMemberRole(db, orgId, userId, membershipId, role);
+      return { result: undefined, upsertMemberships: [membership] };
     });
     refresh();
     return `Role updated to ${role}.`;
@@ -240,8 +256,16 @@ export async function deleteOrgAction(
 
     let nextOrgId: string | undefined;
     await withOrgWrite(({ db }) => {
+      const membershipIds = db.memberships
+        .filter((membership) => membership.orgId === orgId)
+        .map((membership) => membership.id);
       deleteOrganization(db, orgId, userId);
       nextOrgId = resolveActiveOrgId(db, userId, null);
+      return {
+        result: undefined,
+        deleteOrgIds: [orgId],
+        deleteMembershipIds: membershipIds,
+      };
     });
     if (nextOrgId) {
       await writeActiveOrgCookie(nextOrgId);

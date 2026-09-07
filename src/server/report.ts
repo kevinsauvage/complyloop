@@ -1,6 +1,7 @@
 import type { Framework, Project } from "@complyloop/analysis-core/contract/project-types";
+import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { presetById, projectDefaultPresetId } from "@complyloop/adapters/registry";
-import type { ReportView } from "@/core/report-view";
+import type { ReportView } from "@/core/query";
 import type { Db } from "./db";
 import {
   controlsInScope,
@@ -17,15 +18,16 @@ export type ReportLoadResult =
   | { ok: true; project: Project; view: ReportView; input: ReportInput };
 
 /** Resolves the framework named by the project's assessment preset. */
-export function frameworkForProject(db: Db, project: Project): Framework {
+export function frameworkForProject(_db: Db, project: Project): Framework {
+  const frameworks = shippedCatalog().frameworks;
   const preset = presetById(projectDefaultPresetId(project));
   if (preset) {
-    const fromPreset = db.frameworks.find(
+    const fromPreset = frameworks.find(
       (framework) => framework.id === preset.frameworkId,
     );
     if (fromPreset) return fromPreset;
   }
-  const fallback = db.frameworks[0];
+  const fallback = frameworks[0];
   if (!fallback) {
     throw new Error("No compliance framework is configured.");
   }
@@ -40,7 +42,7 @@ export function reportInputForProject(db: Db, project: Project): ReportInput {
   return {
     project,
     framework,
-    controls: controlsInScope(db, project),
+    controls: controlsInScope(project),
     findings,
     remediations: db.remediations.filter((remediation) =>
       findingIds.has(remediation.findingId),
@@ -55,7 +57,7 @@ export function reportInputForProject(db: Db, project: Project): ReportInput {
 export async function loadReportInput(
   request: Request,
 ): Promise<ReportLoadResult> {
-  const { parseReportViewParam } = await import("@/core/report-view");
+  const { parseReportViewParam } = await import("@/core/query");
   const { getDrizzle } = await import("@complyloop/db/client");
   const { listEvidenceForExport } = await import(
     "@complyloop/db/queries"

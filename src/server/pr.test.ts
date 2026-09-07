@@ -49,7 +49,7 @@ vi.mock("./repo-checkout", () => ({
   withRepoCheckout: vi.fn(),
 }));
 
-vi.mock("./github-access", () => ({
+vi.mock("./github", () => ({
   resolveProjectGitHubToken,
 }));
 

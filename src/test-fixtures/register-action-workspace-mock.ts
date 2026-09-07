@@ -23,6 +23,18 @@ vi.mock("@/server/workspace", async () => {
   return {
     ...actual,
     getWorkspace: () => actionWorkspaceMocks.getWorkspace(),
+  };
+});
+
+vi.mock("@/server/workspace-write", async () => {
+  const actual = await vi.importActual<typeof import("@/server/workspace-write")>(
+    "@/server/workspace-write",
+  );
+  const { actionWorkspaceMocks } = await import(
+    "@/test-fixtures/action-workspace-mocks"
+  );
+  return {
+    ...actual,
     withProjectWrite: (
       scope: Parameters<typeof actual.withProjectWrite>[0],
       fn: Parameters<typeof actual.withProjectWrite>[1],

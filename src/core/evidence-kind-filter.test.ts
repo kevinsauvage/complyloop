@@ -3,7 +3,7 @@ import {
   EVIDENCE_KIND_FILTER_ORDER,
   evidenceKindHref,
   parseEvidenceKindParam,
-} from "./evidence-kind-filter";
+} from "./query";
 
 describe("EVIDENCE_KIND_FILTER_ORDER", () => {
   it("lists consolidated kinds for the evidence page chips", () => {

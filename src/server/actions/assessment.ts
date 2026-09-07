@@ -7,8 +7,9 @@ import {
 import { drainAssessmentJobQueue, shouldDrainAssessmentJobsInline } from "../assessment-job-drain";
 import { enqueueAssessmentJob, type AssessmentJob } from "../assessment-jobs";
 import { assertAssessRateLimit } from "../rate-limit";
-import { withProjectWrite } from "../workspace";
-import { refresh, requireOnActive } from "./shared";
+import { withProjectWrite } from "../workspace-write";
+import { evidenceEntry, refresh, requireOnActive } from "./shared";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 export async function runAssessmentAction(
   _previous: ActionMessageState,
@@ -19,7 +20,7 @@ export async function runAssessmentAction(
     // One workspace load for the whole action: enqueue + evidence in the same
     // project write (rate limit + permission checks included).
     let job: AssessmentJob;
-    await withProjectWrite({ touch: "project" }, async (workspace, writes) => {
+    await withProjectWrite({ touch: "project" }, async (workspace) => {
       requireOnActive(workspace, "project.assess");
       if (workspace.userId) await assertAssessRateLimit(workspace.userId);
       job = await enqueueAssessmentJob({
@@ -27,12 +28,14 @@ export async function runAssessmentAction(
         trigger: "manual",
         requestedByUserId: workspace.userId,
       });
-      writes.addEvidence({
+      const payload: ProjectWritePayload = {};
+      evidenceEntry(payload, {
         kind: "assessment_job",
         summary: `Assessment job ${job.id} queued for "${workspace.project.name}"`,
         projectId: workspace.project.id,
         detail: { phase: "queued", jobId: job.id, trigger: "manual" },
       });
+      return { result: undefined, payload };
     });
 
     if (shouldDrainAssessmentJobsInline()) {

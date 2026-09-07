@@ -1,12 +1,11 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Control, Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,
   invokeProjectWriteMock,
 } from "@/test-fixtures/action-workspace-mocks";
-import { testControl } from "@/test-fixtures/control";
 import { testFinding } from "@/test-fixtures/finding";
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
@@ -99,14 +98,6 @@ vi.mock("@complyloop/analysis-core/runtime/scan", () => ({
 
 const project = testProject({ orgId: "org-1" });
 
-const control = testControl();
-
-const manualControl = testControl({
-  id: "c-manual",
-  code: "CUST-1",
-  checkId: null,
-});
-
 const finding = testFinding();
 
 function baseWorkspace(overrides: Partial<Db> = {}): Workspace {
@@ -122,7 +113,6 @@ function baseWorkspace(overrides: Partial<Db> = {}): Workspace {
         testRemediation({ status: "implemented", suggestion: null, history: [] }),
       ],
     db: {
-      controls: [control, manualControl],
       requirements: [],
       alerts: [],
       ...rest,
@@ -200,8 +190,8 @@ describe("verifyRemediationAction", () => {
     expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
       workspace.db,
       "p1",
-      ["c1"],
-      expect.objectContaining({ runtimeRan: true, writes: expect.any(Object) }),
+      ["ctl-img-alt"],
+      expect.objectContaining({ runtimeRan: true, payload: expect.any(Object) }),
     );
   });
 
@@ -241,11 +231,11 @@ describe("verifyRemediationAction", () => {
     expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
       workspace.db,
       "p1",
-      ["c1"],
+      ["ctl-img-alt"],
       expect.objectContaining({
         runtimeRan: true,
         siteLevelChecksRan: true,
-        writes: expect.any(Object),
+        payload: expect.any(Object),
       }),
     );
   });
@@ -431,8 +421,8 @@ describe("bulkDismissFindingsAction", () => {
     expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
       workspace.db,
       "p1",
-      ["c1"],
-      expect.objectContaining({ writes: expect.any(Object) }),
+      ["ctl-img-alt"],
+      expect.objectContaining({ payload: expect.any(Object) }),
     );
   });
 
@@ -524,10 +514,8 @@ describe("markAlertReadAction", () => {
 describe("requirement decision actions", () => {
   function requirementWorkspace(
     requirement: Requirement,
-    controls: Control[] = [control, manualControl],
   ): Workspace {
     return baseWorkspace({
-      controls,
       requirements: [requirement],
       findings: [],
       remediations: [],
@@ -538,7 +526,7 @@ describe("requirement decision actions", () => {
     const requirement: Requirement = {
       id: "req-1",
       projectId: "p1",
-      controlId: "c1",
+      controlId: "ctl-img-alt",
       status: "failed",
       determination: "automated",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -567,7 +555,7 @@ describe("requirement decision actions", () => {
     const requirement: Requirement = {
       id: "req-temp",
       projectId: "p1",
-      controlId: "c1",
+      controlId: "ctl-img-alt",
       status: "failed",
       determination: "automated",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -597,7 +585,7 @@ describe("requirement decision actions", () => {
     const requirement: Requirement = {
       id: "req-temp-2",
       projectId: "p1",
-      controlId: "c1",
+      controlId: "ctl-img-alt",
       status: "failed",
       determination: "automated",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -621,7 +609,7 @@ describe("requirement decision actions", () => {
     const requirement: Requirement = {
       id: "req-note",
       projectId: "p1",
-      controlId: "c1",
+      controlId: "ctl-img-alt",
       status: "failed",
       determination: "automated",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -644,7 +632,7 @@ describe("requirement decision actions", () => {
     const requirement: Requirement = {
       id: "req-2",
       projectId: "p1",
-      controlId: "c-manual",
+      controlId: "ctl-outline-none",
       status: "unable_to_verify",
       determination: "automated",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -670,7 +658,7 @@ describe("requirement decision actions", () => {
     const requirement: Requirement = {
       id: "req-auto",
       projectId: "p1",
-      controlId: "c1",
+      controlId: "ctl-img-alt",
       status: "failed",
       determination: "automated",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -693,7 +681,7 @@ describe("requirement decision actions", () => {
     const requirement: Requirement = {
       id: "req-pass",
       projectId: "p1",
-      controlId: "c-manual",
+      controlId: "ctl-outline-none",
       status: "passed",
       determination: "human_review",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -716,8 +704,8 @@ describe("requirement decision actions", () => {
     expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
       workspace.db,
       "p1",
-      ["c-manual"],
-      expect.objectContaining({ writes: expect.any(Object) }),
+      ["ctl-outline-none"],
+      expect.objectContaining({ payload: expect.any(Object) }),
     );
   });
 
@@ -725,7 +713,7 @@ describe("requirement decision actions", () => {
     const requirement: Requirement = {
       id: "req-no-pass",
       projectId: "p1",
-      controlId: "c-manual",
+      controlId: "ctl-outline-none",
       status: "unable_to_verify",
       determination: "automated",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -745,7 +733,7 @@ describe("requirement decision actions", () => {
     const requirement: Requirement = {
       id: "req-3",
       projectId: "p1",
-      controlId: "c1",
+      controlId: "ctl-img-alt",
       status: "not_applicable",
       determination: "human_review",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -769,8 +757,8 @@ describe("requirement decision actions", () => {
     expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
       workspace.db,
       "p1",
-      ["c1"],
-      expect.objectContaining({ writes: expect.any(Object) }),
+      ["ctl-img-alt"],
+      expect.objectContaining({ payload: expect.any(Object) }),
     );
   });
 
@@ -778,7 +766,7 @@ describe("requirement decision actions", () => {
     const requirement: Requirement = {
       id: "req-no-ex",
       projectId: "p1",
-      controlId: "c1",
+      controlId: "ctl-img-alt",
       status: "failed",
       determination: "automated",
       updatedAt: "2026-01-01T00:00:00.000Z",

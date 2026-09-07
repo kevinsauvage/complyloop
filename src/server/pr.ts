@@ -7,7 +7,7 @@ import { createGit } from "./git";
 import {
   resolveProjectGitHubToken,
   type ResolveProjectGitHubTokenOptions,
-} from "./github-access";
+} from "./github";
 import { parseOwnerRepo } from "./github-repo";
 import { buildDeveloperHandoff } from "./handoff";
 import { createOctokit, octokitErrorMessage } from "./octokit";

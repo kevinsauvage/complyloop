@@ -38,6 +38,7 @@ import {
   remediationForFinding,
 } from "@/server/workspace";
 import { frameworkForProject } from "@/server/report";
+import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { controlForDisplay } from "@complyloop/adapters/control-theme";
 import { prioritizeClusters } from "@/core/prioritization";
 import { cn } from "@/lib/utils";
@@ -92,7 +93,7 @@ export default async function FindingPage({
   const queueFilterContext = buildFindingFilterContext(
     db,
     listParams,
-    prioritizeClusters(scopedFindings, db.controls),
+    prioritizeClusters(scopedFindings, shippedCatalog().controls),
   );
 
   const queueIds = orderedFindingIdsForQueue(

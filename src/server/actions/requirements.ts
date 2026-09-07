@@ -8,6 +8,7 @@ import {
 } from "@complyloop/analysis-core/contract/project-types";
 import { entityIdSchema, requiredField } from "@/core/boundary";
 import { PublicError } from "@complyloop/db/types";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import {
   runActionMessage,
   type ActionMessageState,
@@ -15,9 +16,9 @@ import {
 import { parseForm, parseInput } from "../boundary";
 import { refreshRequirementStatusesForControls } from "../assessment-status";
 import type { Db } from "../db";
-import type { ProjectWriteCollector } from "../workspace";
-import { controlById, withProjectWrite } from "../workspace";
-import { refresh, requireOnActive } from "./shared";
+import { controlById } from "../workspace";
+import { withProjectWrite } from "../workspace-write";
+import { evidenceEntry, refresh, requireOnActive } from "./shared";
 
 const markExceptionInput = z
   .object({
@@ -67,7 +68,7 @@ function clearRequirementOverride(
   project: Project,
   requirement: Requirement,
   field: "humanPass" | "exception",
-  writes: ProjectWriteCollector,
+  payload: ProjectWritePayload,
 ): void {
   const control = controlById(db, requirement.controlId);
 
@@ -79,7 +80,7 @@ function clearRequirementOverride(
     delete requirement.humanPass;
     requirement.determination = "automated";
     requirement.updatedAt = new Date().toISOString();
-    writes.addEvidence({
+    evidenceEntry(payload, {
       kind: "requirement_human_pass_cleared",
       summary: `${control.code} human pass cleared`,
       projectId: project.id,
@@ -94,7 +95,7 @@ function clearRequirementOverride(
     delete requirement.exception;
     requirement.determination = "automated";
     requirement.updatedAt = new Date().toISOString();
-    writes.addEvidence({
+    evidenceEntry(payload, {
       kind: "requirement_exception_cleared",
       summary: `${control.code} exception cleared (was ${previousException.reason})`,
       projectId: project.id,
@@ -104,9 +105,9 @@ function clearRequirementOverride(
   }
 
   refreshRequirementStatusesForControls(db, project.id, [requirement.controlId], {
-    writes,
+    payload,
   });
-  writes.upsertRequirement(requirement);
+  payload.requirements = [...(payload.requirements ?? []), requirement];
 }
 
 export async function markRequirementExceptionAction(
@@ -119,7 +120,7 @@ export async function markRequirementExceptionAction(
     const parsed = parseForm(markExceptionInput, formData);
     await withProjectWrite(
       { touch: "entities", requirementIds: [requirementId] },
-      async (workspace, writes) => {
+      async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
       const requirement = requireRequirement(
@@ -149,8 +150,9 @@ export async function markRequirementExceptionAction(
       }
       requirement.updatedAt = new Date().toISOString();
 
+      const payload: ProjectWritePayload = {};
       const control = controlById(db, requirement.controlId);
-      writes.addEvidence({
+      evidenceEntry(payload, {
         kind: "requirement_exception_set",
         summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
         projectId: project.id,
@@ -164,7 +166,7 @@ export async function markRequirementExceptionAction(
         },
       });
       if (previous !== requirement.status) {
-        writes.addEvidence({
+        evidenceEntry(payload, {
           kind: "requirement_status_changed",
           summary: `${control.code} (${control.title}): ${previous} → ${requirement.status} — human exception`,
           projectId: project.id,
@@ -172,7 +174,8 @@ export async function markRequirementExceptionAction(
           detail: { from: previous, to: requirement.status, regression: false },
         });
       }
-      writes.upsertRequirement(requirement);
+      payload.requirements = [requirement];
+      return { result: undefined, payload };
     },
     );
     refresh();
@@ -190,7 +193,7 @@ export async function markRequirementPassedAction(
     const { note } = parseForm(markPassedInput, formData);
     await withProjectWrite(
       { touch: "entities", requirementIds: [requirementId] },
-      async (workspace, writes) => {
+      async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
       const requirement = requireRequirement(
@@ -217,7 +220,8 @@ export async function markRequirementPassedAction(
       requirement.determination = "human_review";
       requirement.updatedAt = new Date().toISOString();
 
-      writes.addEvidence({
+      const payload: ProjectWritePayload = {};
+      evidenceEntry(payload, {
         kind: "requirement_human_passed",
         summary: `${control.code} marked passed (human review): ${note}`,
         projectId: project.id,
@@ -225,7 +229,7 @@ export async function markRequirementPassedAction(
         detail: { note, from: previous, to: "passed" },
       });
       if (previous !== "passed") {
-        writes.addEvidence({
+        evidenceEntry(payload, {
           kind: "requirement_status_changed",
           summary: `${control.code} (${control.title}): ${previous} → passed — human review`,
           projectId: project.id,
@@ -238,7 +242,8 @@ export async function markRequirementPassedAction(
           },
         });
       }
-      writes.upsertRequirement(requirement);
+      payload.requirements = [requirement];
+      return { result: undefined, payload };
     },
     );
     refresh();
@@ -286,7 +291,7 @@ async function clearRequirementOverrideAction(
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     await withProjectWrite(
       { touch: "entities", requirementIds: [requirementId] },
-      async (workspace, writes) => {
+      async (workspace) => {
       requireOnActive(workspace, "project.remediate");
       const { db, project } = workspace;
       const requirement = requireRequirement(
@@ -294,7 +299,9 @@ async function clearRequirementOverrideAction(
         project.id,
         requirementId,
       );
-      clearRequirementOverride(db, project, requirement, field, writes);
+      const payload: ProjectWritePayload = {};
+      clearRequirementOverride(db, project, requirement, field, payload);
+      return { result: undefined, payload };
     },
     );
     refresh();

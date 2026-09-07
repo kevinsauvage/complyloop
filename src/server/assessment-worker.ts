@@ -22,7 +22,7 @@ import {
   postPullRequestCheckRun,
   summarizeAssessmentForCheckRun,
 } from "./github-checks";
-import { resolveProjectGitHubToken } from "./github-access";
+import { resolveProjectGitHubToken } from "./github";
 import { reportError, reportWarning } from "./observability";
 import { pruneRateLimitBuckets } from "./rate-limit";
 import { withProjectCheckout } from "./repo-checkout";
@@ -112,11 +112,11 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
   const result = await withProjectCheckout(
     project,
     async (rootPath) => {
-      const evidenceStart = db.evidence.length;
-      const assessment = await runAssessment(db, project.id, {
+      const run = await runAssessment(db, project.id, {
         rootPath,
         authoritative,
       });
+      const { assessment } = run;
       const trigger = job.payload.eventName ?? "manual assessment";
       const alerts =
         authoritative && job.trigger === "webhook"
@@ -140,10 +140,10 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
             buildAssessmentApplyPayload({
               assessment,
               snapshot,
-              evidence: db.evidence.slice(evidenceStart),
-              findings: db.findings,
-              remediations: db.remediations,
-              requirements: db.requirements,
+              evidence: run.evidence,
+              findings: run.findings,
+              remediations: run.remediations,
+              requirements: run.requirements,
               alerts,
             }),
             { loadedSlice },
