@@ -7,6 +7,7 @@ import { isDomLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { runAssessment } from "./assessment";
 import type { Db } from "./db";
+import { materializeAssessmentRun } from "./project-rows";
 
 const CLEAN_SOURCE = `export const Page = () => <img src="/x.png" alt="ok" />;\n`;
 
@@ -55,9 +56,21 @@ describe("runAssessment with runtime engine", () => {
     { address: "93.184.216.34", family: 4 },
   ];
 
-  it("creates DOM findings from the injected scanner and skips AST input-label", async () => {
-    const { assessment } = await runAssessment(db, project.id, {
+  async function assess(
+    options: Omit<Parameters<typeof runAssessment>[2], "rootPath"> & {
+      rootPath?: string;
+    },
+  ) {
+    const run = await runAssessment(db, project.id, {
       rootPath,
+      ...options,
+    });
+    materializeAssessmentRun(db, run);
+    return run;
+  }
+
+  it("creates DOM findings from the injected scanner and skips AST input-label", async () => {
+    const { assessment } = await assess({
       runtimeLookup: publicLookup,
       runtimeScanner: async (urls) => [
         {
@@ -97,8 +110,7 @@ describe("runAssessment with runtime engine", () => {
   });
 
   it("records default theme conditions on the assessment engines", async () => {
-    const { assessment } = await runAssessment(db, project.id, {
-      rootPath,
+    const { assessment } = await assess({
       runtimeLookup: publicLookup,
       runtimeScanner: async (urls) => [
         {
@@ -114,8 +126,7 @@ describe("runAssessment with runtime engine", () => {
   });
 
   it("records runtimeError without failing the whole assessment", async () => {
-    const { assessment } = await runAssessment(db, project.id, {
-      rootPath,
+    const { assessment } = await assess({
       runtimeLookup: publicLookup,
       runtimeScanner: async () => {
         throw new Error("net::ERR_CONNECTION_REFUSED");
@@ -130,8 +141,7 @@ describe("runAssessment with runtime engine", () => {
   });
 
   it("records a user-safe error when the preview URL resolves privately", async () => {
-    const { assessment } = await runAssessment(db, project.id, {
-      rootPath,
+    const { assessment } = await assess({
       runtimeLookup: async () => [{ address: "10.0.0.5", family: 4 }],
       runtimeScanner: async () => {
         throw new Error("scanner should not run");

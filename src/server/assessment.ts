@@ -21,7 +21,7 @@ import type {
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
 import { advanceRemediation } from "@/core/remediation";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import { addEvidence, type Db } from "./db";
+import type { Db } from "./db";
 import { detectChanges, summarizeChanges } from "./monitor";
 import {
   mergeRawFindings,
@@ -29,10 +29,15 @@ import {
 } from "./assessment-findings";
 import {
   assertAssessableCatalog,
-  clearExpiredExceptions,
-  refreshRequirementStatuses,
+  applyExpiredExceptionClearance,
+  applyRequirementStatusRefresh,
   scopedControlIds,
 } from "./assessment-status";
+import {
+  appendEvidence,
+  cloneProjectRows,
+  type ProjectRows,
+} from "./project-rows";
 
 interface RuntimeScanEngineInput {
   pagesScanned: number;
@@ -94,15 +99,15 @@ export interface AssessmentRunResult {
 }
 
 function verifyDraftPrRemediation(
-  db: Db,
+  rows: ProjectRows,
   finding: Finding,
   assessmentId: string,
 ): void {
   if (!isSourceLocation(finding.location)) return;
-  const remediationIndex = db.remediations.findIndex(
+  const remediationIndex = rows.remediations.findIndex(
     (candidate) => candidate.findingId === finding.id,
   );
-  const remediation = db.remediations[remediationIndex];
+  const remediation = rows.remediations[remediationIndex];
   if (!remediation || remediation.status !== "approved") return;
   if (remediation.approvalAction !== "create_draft_pull_request") return;
 
@@ -116,12 +121,12 @@ function verifyDraftPrRemediation(
     "verified",
     "Verified by deterministic reassessment",
   );
-  db.remediations[remediationIndex] = verified;
+  rows.remediations[remediationIndex] = verified;
   const detail = {
     determination: "automated",
     method: "deterministic_reassessment",
   };
-  addEvidence(db, {
+  appendEvidence(rows, {
     kind: "remediation_implemented",
     summary: `Remediation implemented for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
     projectId: finding.projectId,
@@ -130,7 +135,7 @@ function verifyDraftPrRemediation(
     assessmentId,
     detail,
   });
-  addEvidence(db, {
+  appendEvidence(rows, {
     kind: "remediation_verified",
     summary: `Remediation verified for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
     projectId: finding.projectId,
@@ -141,6 +146,11 @@ function verifyDraftPrRemediation(
   });
 }
 
+/**
+ * Runs assessment against a checkout. Reads the loaded `db` but never mutates
+ * it — all writes live on a cloned project-row scratch and are returned for
+ * `applyAssessmentPayload` (or test materialization).
+ */
 export async function runAssessment(
   db: Db,
   projectId: string,
@@ -150,16 +160,22 @@ export async function runAssessment(
   if (!project) throw new PublicError("Unknown project.");
   const { rootPath } = options;
 
+  const rows = cloneProjectRows(
+    db.findings,
+    db.remediations,
+    db.requirements,
+    projectId,
+  );
+  applyExpiredExceptionClearance(rows, projectId);
+
   const startedAt = new Date().toISOString();
-  const evidenceStart = db.evidence.length;
-  clearExpiredExceptions(db, projectId);
 
   const previous = latestAssessmentFor(db.assessments, projectId);
   const { snapshot, changes } = detectChanges(rootPath, previous?.snapshot);
   const changeContext = changes.length > 0 ? summarizeChanges(changes) : undefined;
 
   if (changes.length > 0) {
-    addEvidence(db, {
+    appendEvidence(rows, {
       kind: "monitoring_changes_detected",
       summary: changeContext ?? summarizeChanges(changes),
       projectId,
@@ -180,19 +196,19 @@ export async function runAssessment(
     filesScanned,
     scanMode,
   } = useScoped
-      ? scanChangedFiles(rootPath, changedJsx)
-      : scanProject(rootPath);
+    ? scanChangedFiles(rootPath, changedJsx)
+    : scanProject(rootPath);
   const scopedFileSet = useScoped ? new Set(changedJsx) : null;
 
   const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
   const runtimeResult = runtimeConfigured
     ? await scanRuntime({
-      runtimeBaseUrl: project.runtimeBaseUrl,
-      runtimeRoutes: project.runtimeRoutes,
-      browserConditions: DEFAULT_THEME_CONDITIONS,
-      scanner: options.runtimeScanner,
-      lookup: options.runtimeLookup,
-    })
+        runtimeBaseUrl: project.runtimeBaseUrl,
+        runtimeRoutes: project.runtimeRoutes,
+        browserConditions: DEFAULT_THEME_CONDITIONS,
+        scanner: options.runtimeScanner,
+        lookup: options.runtimeLookup,
+      })
     : { findings: [], pagesScanned: 0 };
   const runtimeRan =
     runtimeConfigured &&
@@ -217,7 +233,7 @@ export async function runAssessment(
   for (const control of scoped) {
     if (control.checkId === null) continue;
     reconcileControlFindings({
-      db,
+      rows,
       project,
       control,
       assessmentId,
@@ -233,11 +249,11 @@ export async function runAssessment(
       onFindingResolved:
         options.authoritative === false
           ? () => {}
-          : (finding) => verifyDraftPrRemediation(db, finding, assessmentId),
+          : (finding) => verifyDraftPrRemediation(rows, finding, assessmentId),
     });
   }
 
-  refreshRequirementStatuses(db, projectId, {
+  applyRequirementStatusRefresh(rows, project, {
     assessmentId,
     changeContext,
     runtimeRan,
@@ -255,8 +271,7 @@ export async function runAssessment(
     unable_to_verify: 0,
   };
   const inScope = scopedControlIds(project);
-  for (const requirement of db.requirements) {
-    if (requirement.projectId !== projectId) continue;
+  for (const requirement of rows.requirements) {
     if (inScope && !inScope.has(requirement.controlId)) continue;
     summary[requirement.status] += 1;
   }
@@ -273,7 +288,6 @@ export async function runAssessment(
     snapshot,
     changesSincePrevious: changes,
   };
-  db.assessments.push(assessment);
 
   const engineSummary = runtimeConfigured
     ? runtimeRan
@@ -281,7 +295,7 @@ export async function runAssessment(
       : `; runtime skipped (${runtimeResult.error ?? "no pages"})`
     : "";
 
-  addEvidence(db, {
+  appendEvidence(rows, {
     kind: "assessment_completed",
     summary: `Assessment of "${project.name}": ${filesScanned} files scanned (${scanMode})${engineSummary} — ${summary.passed} passed, ${summary.failed} failed, ${summary.needs_review} need review, ${summary.unable_to_verify} unable to verify${changes.length > 0 ? `; ${changes.length} file(s) changed since previous` : ""}`,
     projectId,
@@ -297,9 +311,9 @@ export async function runAssessment(
 
   return {
     assessment,
-    evidence: db.evidence.slice(evidenceStart),
-    findings: db.findings,
-    remediations: db.remediations,
-    requirements: db.requirements,
+    evidence: rows.evidence,
+    findings: rows.findings,
+    remediations: rows.remediations,
+    requirements: rows.requirements,
   };
 }

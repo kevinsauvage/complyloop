@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PatchCandidate } from "@/ai/verified-fix";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding, Remediation } from "@complyloop/db/types";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { emptyDb } from "./db";
 import {
   latestPatchState,
@@ -287,19 +288,23 @@ describe("persistPatchCandidate", () => {
     const db = emptyDb();
     db.findings.push(patchFinding);
     db.remediations.push(remediation);
+    const payload: ProjectWritePayload = {};
 
-    persistPatchCandidate(db, patchFinding, candidate);
+    persistPatchCandidate(db, patchFinding, candidate, payload);
 
-    expect(db.evidence[0]?.kind).toBe("ai_patch_ready");
-    expect(db.evidence[0]?.detail).toMatchObject({
+    expect(payload.evidence?.[0]?.kind).toBe("ai_patch_ready");
+    expect(payload.evidence?.[0]?.detail).toMatchObject({
       provenance: "ai",
       model: "minimax/minimax-m3",
       complyLoopPassed: true,
     });
-    expect(db.remediations[0]?.status).toBe("suggested");
-    expect(db.remediations[0]?.suggestion).toMatchObject({
+    expect(payload.remediations?.[0]?.status).toBe("suggested");
+    expect(payload.remediations?.[0]?.suggestion).toMatchObject({
       provenance: "ai",
       proposedSnippet: '<img alt="Hero" />',
     });
+    // Loaded db is not mutated.
+    expect(db.remediations[0]?.status).toBe("detected");
+    expect(db.evidence).toHaveLength(0);
   });
 });

@@ -4,7 +4,6 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ProposedFix, SourceLocation } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { emptyDb } from "@complyloop/db/types";
 import { testFinding } from "@/test-fixtures/finding";
 import {
   buildSuggestion,
@@ -13,6 +12,16 @@ import {
   sameInstance,
   shouldResolveOpenFinding,
 } from "./assessment-findings";
+import type { ProjectRows } from "./project-rows";
+
+function emptyRows(): ProjectRows {
+  return {
+    findings: [],
+    remediations: [],
+    requirements: [],
+    evidence: [],
+  };
+}
 
 const project: Project = {
   id: "proj-1",
@@ -48,10 +57,9 @@ function sourceLoc(
 
 describe("createFinding analyzer evidence", () => {
   it("persists analyzer fields on the finding and evidence detail", () => {
-    const db = emptyDb();
-    db.projects.push(project);
+    const rows = emptyRows();
 
-    createFinding(db, project, "/tmp", "ctl-markup-validity", "assessment-1", {
+    createFinding(rows, project, "/tmp", "ctl-markup-validity", "assessment-1", {
       checkId: "markup-nesting",
       kind: "violation",
       severity: "moderate",
@@ -75,13 +83,13 @@ describe("createFinding analyzer evidence", () => {
       contributingAnalyzers: [{ analyzerId: "axe", analyzerRuleId: "list" }],
     });
 
-    expect(db.findings[0]).toMatchObject({
+    expect(rows.findings[0]).toMatchObject({
       analyzerId: "html-validate",
       analyzerRuleId: "element-permitted-order",
       analyzerVersion: "11.12.0",
       contributingAnalyzers: [{ analyzerId: "axe", analyzerRuleId: "list" }],
     });
-    expect(db.evidence[0]?.detail).toMatchObject({
+    expect(rows.evidence[0]?.detail).toMatchObject({
       engine: "runtime",
       analyzerId: "html-validate",
       analyzerRuleId: "element-permitted-order",

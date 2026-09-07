@@ -1,16 +1,15 @@
-import type { Alert } from "@complyloop/db/types";
+import type { Alert, Finding } from "@complyloop/db/types";
 import {
   claimNextAssessmentJob,
   completeAssessmentJob,
   failAssessmentJob,
   type AssessmentJob,
 } from "./assessment-jobs";
-import { runAssessment } from "./assessment";
+import { runAssessment, type AssessmentRunResult } from "./assessment";
 import { loadProjectDb, type Db } from "./db";
 import { getDrizzle } from "@complyloop/db/client";
 import {
   applyAssessmentPayload,
-  buildAssessmentApplyPayload,
   snapshotProjectSlice,
 } from "@complyloop/db/repo/apply";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
@@ -27,27 +26,27 @@ import { reportError, reportWarning } from "./observability";
 import { pruneRateLimitBuckets } from "./rate-limit";
 import { withProjectCheckout } from "./repo-checkout";
 
-function collectRegressionAlerts(
-  db: Db,
-  projectId: string,
-  assessmentId: string,
-  trigger: string,
-): Alert[] {
-  const assessment = db.assessments.find((candidate) => candidate.id === assessmentId);
-  const primaryChange = assessment?.changesSincePrevious?.[0];
+function collectRegressionAlerts(input: {
+  db: Db;
+  run: AssessmentRunResult;
+  projectId: string;
+  trigger: string;
+}): Alert[] {
+  const { db, run, projectId, trigger } = input;
+  const assessment = run.assessment;
+  const primaryChange = assessment.changesSincePrevious?.[0];
 
-  return db.evidence
+  return run.evidence
     .filter(
       (record) =>
-        record.assessmentId === assessmentId &&
+        record.assessmentId === assessment.id &&
         record.kind === "requirement_status_changed" &&
         record.detail?.regression === true,
     )
     .map((record) => {
       const openFinding = record.controlId
-        ? db.findings.find(
+        ? run.findings.find(
             (finding) =>
-              finding.projectId === projectId &&
               finding.controlId === record.controlId &&
               finding.status === "open",
           )
@@ -73,17 +72,31 @@ function collectRegressionAlerts(
         summary: `${record.summary} (triggered by ${trigger})`,
         at: new Date().toISOString(),
         read: false,
-        assessmentId,
+        assessmentId: assessment.id,
         detail: {
           ...record.detail,
           trigger,
           controlId: record.controlId,
           findingId: openFinding?.id,
-          commitSha: assessment?.snapshot?.gitHead,
+          commitSha: assessment.snapshot?.gitHead,
           changeFilePath: primaryChange?.filePath,
         },
       };
     });
+}
+
+function openViolationCount(findings: ReadonlyArray<Finding>): number {
+  return findings.filter(
+    (finding) => finding.status === "open" && finding.kind === "violation",
+  ).length;
+}
+
+function failedRequirementCount(
+  requirements: AssessmentRunResult["requirements"],
+): number {
+  return requirements.filter(
+    (requirement) => requirement.status === "failed",
+  ).length;
 }
 
 async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
@@ -120,7 +133,12 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
       const trigger = job.payload.eventName ?? "manual assessment";
       const alerts =
         authoritative && job.trigger === "webhook"
-          ? collectRegressionAlerts(db, project.id, assessment.id, trigger)
+          ? collectRegressionAlerts({
+              db,
+              run,
+              projectId: project.id,
+              trigger,
+            })
           : [];
 
       const snapshot = assessment.snapshot;
@@ -137,7 +155,7 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
           );
           await applyAssessmentPayload(
             tx,
-            buildAssessmentApplyPayload({
+            {
               assessment,
               snapshot,
               evidence: run.evidence,
@@ -145,7 +163,7 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
               remediations: run.remediations,
               requirements: run.requirements,
               alerts,
-            }),
+            },
             { loadedSlice },
           );
           await insertEvidence(tx, {
@@ -163,22 +181,11 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
         });
       }
 
-      const openViolations = db.findings.filter(
-        (finding) =>
-          finding.projectId === project.id &&
-          finding.status === "open" &&
-          finding.kind === "violation",
-      ).length;
-      const failedRequirements = db.requirements.filter(
-        (requirement) =>
-          requirement.projectId === project.id &&
-          requirement.status === "failed",
-      ).length;
       return {
         project,
         assessment,
-        openViolations,
-        failedRequirements,
+        openViolations: openViolationCount(run.findings),
+        failedRequirements: failedRequirementCount(run.requirements),
       };
     },
     job.payload.ref,

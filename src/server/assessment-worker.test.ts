@@ -343,11 +343,17 @@ describe("processNextAssessmentJob", () => {
       ) => fn("/tmp/checkout"),
     );
     runAssessment.mockResolvedValue(
-      assessmentRun({
-        id: "a1",
-        projectId: "p1",
-        snapshot: { fileHashes: {} },
-      }),
+      assessmentRun(
+        {
+          id: "a1",
+          projectId: "p1",
+          snapshot: { fileHashes: {} },
+        },
+        {
+          evidence: db.evidence,
+          findings: db.findings,
+        },
+      ),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
 

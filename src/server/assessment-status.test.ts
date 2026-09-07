@@ -23,6 +23,37 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function applyRefresh(
+  db: ReturnType<typeof emptyDb>,
+  projectId: string,
+  options: Parameters<typeof refreshRequirementStatuses>[0]["options"] = {},
+  controlIds?: readonly string[],
+) {
+  const projectRow = db.projects.find((candidate) => candidate.id === projectId);
+  if (!projectRow) throw new Error(`missing project ${projectId}`);
+  const result = controlIds
+    ? refreshRequirementStatusesForControls(
+        projectRow,
+        db.findings,
+        db.requirements,
+        controlIds,
+        options,
+      )
+    : refreshRequirementStatuses({
+        project: projectRow,
+        findings: db.findings,
+        requirements: db.requirements,
+        options,
+      });
+  for (const requirement of result.requirements) {
+    const index = db.requirements.findIndex((row) => row.id === requirement.id);
+    if (index >= 0) db.requirements[index] = requirement;
+    else db.requirements.push(requirement);
+  }
+  db.evidence.push(...result.evidence);
+  return result;
+}
+
 describe("assessment scope filters", () => {
   it("keeps only in-scope requirements and findings for a preset", () => {
     vi.spyOn(registry, "presetById").mockReturnValue({
@@ -182,10 +213,10 @@ describe("refreshRequirementStatusesForControls", () => {
       },
     ];
 
-    refreshRequirementStatusesForControls(db, "p1", ["c1"], {
+    applyRefresh(db, "p1", {
       runtimeRan: false,
       controls,
-    });
+    }, ["c1"]);
 
     expect(db.requirements.find((item) => item.controlId === "c1")?.status).toBe(
       "passed",
@@ -207,7 +238,7 @@ describe("refreshRequirementStatuses runtime-only", () => {
       createdAt: new Date().toISOString(),
     });
 
-    refreshRequirementStatuses(db, "p1", { runtimeRan: false });
+    applyRefresh(db, "p1", { runtimeRan: false });
 
     expect(
       db.requirements.find((requirement) => requirement.controlId === "ctl-color-contrast")
@@ -225,7 +256,7 @@ describe("refreshRequirementStatuses runtime-only", () => {
       createdAt: new Date().toISOString(),
     });
 
-    refreshRequirementStatuses(db, "p1", { runtimeRan: true });
+    applyRefresh(db, "p1", { runtimeRan: true });
 
     expect(
       db.requirements.find((requirement) => requirement.controlId === "ctl-color-contrast")
@@ -243,7 +274,7 @@ describe("refreshRequirementStatuses runtime-only", () => {
       createdAt: new Date().toISOString(),
     });
 
-    refreshRequirementStatuses(db, "p1", { runtimeRan: false });
+    applyRefresh(db, "p1", { runtimeRan: false });
 
     expect(
       db.requirements.find((requirement) => requirement.controlId === "ctl-table-headers")
@@ -261,7 +292,7 @@ describe("refreshRequirementStatuses runtime-only", () => {
       createdAt: new Date().toISOString(),
     });
 
-    refreshRequirementStatuses(db, "p1", { runtimeRan: true });
+    applyRefresh(db, "p1", { runtimeRan: true });
 
     expect(
       db.requirements.find((requirement) => requirement.controlId === "ctl-table-headers")
@@ -281,7 +312,7 @@ describe("refreshRequirementStatuses site-level", () => {
       createdAt: new Date().toISOString(),
     });
 
-    refreshRequirementStatuses(db, "p1", {
+    applyRefresh(db, "p1", {
       runtimeRan: true,
       siteLevelChecksRan: false,
     });
@@ -302,7 +333,7 @@ describe("refreshRequirementStatuses site-level", () => {
       createdAt: new Date().toISOString(),
     });
 
-    refreshRequirementStatuses(db, "p1", {
+    applyRefresh(db, "p1", {
       runtimeRan: true,
       siteLevelChecksRan: true,
     });
@@ -325,7 +356,7 @@ describe("refreshRequirementStatuses heuristic", () => {
       createdAt: new Date().toISOString(),
     });
 
-    refreshRequirementStatuses(db, "p1", { runtimeRan: false });
+    applyRefresh(db, "p1", { runtimeRan: false });
 
     expect(
       db.requirements.find((requirement) => requirement.controlId === "ctl-image-of-text")
@@ -366,7 +397,7 @@ describe("refreshRequirementStatuses heuristic", () => {
       detectedAt: "2026-01-01T00:00:00.000Z",
     });
 
-    refreshRequirementStatuses(db, "p1", { runtimeRan: false });
+    applyRefresh(db, "p1", { runtimeRan: false });
 
     expect(
       db.requirements.find((requirement) => requirement.controlId === "ctl-image-of-text")
@@ -386,7 +417,7 @@ describe("refreshRequirementStatuses html-validate-owned", () => {
       createdAt: new Date().toISOString(),
     });
 
-    refreshRequirementStatuses(db, "p1", {
+    applyRefresh(db, "p1", {
       runtimeRan: true,
       htmlValidateRan: false,
     });
@@ -408,7 +439,7 @@ describe("refreshRequirementStatuses applicability-gated", () => {
       createdAt: new Date().toISOString(),
     });
 
-    refreshRequirementStatuses(db, "p1", {
+    applyRefresh(db, "p1", {
       runtimeRan: true,
       applicabilityFacts: new Map([
         [
@@ -434,7 +465,7 @@ describe("refreshRequirementStatuses applicability-gated", () => {
       createdAt: new Date().toISOString(),
     });
 
-    refreshRequirementStatuses(db, "p1", { runtimeRan: true });
+    applyRefresh(db, "p1", { runtimeRan: true });
 
     expect(
       db.requirements.find((r) => r.controlId === "ctl-captcha-alternative")
@@ -474,7 +505,7 @@ describe("refreshRequirementStatuses applicability-gated", () => {
       detectedAt: new Date().toISOString(),
     });
 
-    refreshRequirementStatuses(db, "p1", {
+    applyRefresh(db, "p1", {
       runtimeRan: true,
       applicabilityFacts: new Map([
         ["video-caption", "No video, audio, or track elements in audited DOM."],

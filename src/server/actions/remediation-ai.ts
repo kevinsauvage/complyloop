@@ -112,32 +112,47 @@ export async function generateAiRemediationAction(
       }
 
       const payload: ProjectWritePayload = {};
-      remediation.suggestion = result.suggestion;
+      const remediationBase = {
+        ...remediation,
+        suggestion: result.suggestion,
+      };
       if (
         result.attributeValue &&
         finding.fix?.kind === "insert_attribute" &&
         finding.fix.editable
       ) {
-        finding.fix = { ...finding.fix, value: result.attributeValue };
-        payload.findings = [finding];
+        payload.findings = [
+          {
+            ...finding,
+            fix: { ...finding.fix, value: result.attributeValue },
+          },
+        ];
       }
 
       if (remediation.status === "detected") {
         replaceRemediation(
           payload,
           advanceRemediation(
-            remediation,
+            remediationBase,
             "suggested",
             `AI suggestion: ${result.suggestion.description}`,
           ),
         );
       } else {
-        remediation.history.push({
-          status: "suggested",
-          at: new Date().toISOString(),
-          note: `AI suggestion refreshed: ${result.suggestion.description}`,
-        });
-        payload.remediations = [...(payload.remediations ?? []), remediation];
+        payload.remediations = [
+          ...(payload.remediations ?? []),
+          {
+            ...remediationBase,
+            history: [
+              ...remediation.history,
+              {
+                status: "suggested" as const,
+                at: new Date().toISOString(),
+                note: `AI suggestion refreshed: ${result.suggestion.description}`,
+              },
+            ],
+          },
+        ];
       }
 
       evidenceEntry(payload, {

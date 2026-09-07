@@ -1,7 +1,7 @@
 "use server";
 
 import { canBulkApproveRemediation } from "@/core/finding-act";
-import { PublicError, type Finding, type Remediation } from "@complyloop/db/types"
+import { PublicError, type Finding, type Remediation } from "@complyloop/db/types";
 import { type Dismissal } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
@@ -17,7 +17,11 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
-import { refreshRequirementStatusesForControls } from "../assessment-status";
+import {
+  findingsWithPayloadOverrides,
+  mergeRefreshIntoPayload,
+  refreshRequirementStatusesForControls,
+} from "../assessment-status";
 import {
   findingById,
   remediationForFinding,
@@ -55,7 +59,7 @@ const bulkDismissInput = z.object({
   note: optionalNoteSchema,
 });
 
-function approveRemediationInDb(
+function approveRemediationInPayload(
   payload: ProjectWritePayload,
   finding: Finding,
   remediation: Remediation,
@@ -73,26 +77,29 @@ function approveRemediationInDb(
     findingId: finding.id,
     detail: options.bulk
       ? {
-        bulk: true,
-        ...(finding.fix ? { fix: { ...finding.fix } } : {}),
-      }
+          bulk: true,
+          ...(finding.fix ? { fix: { ...finding.fix } } : {}),
+        }
       : finding.fix
         ? { fix: { ...finding.fix } }
         : undefined,
   });
 }
 
-function dismissFindingInDb(
+function dismissFindingInPayload(
   payload: ProjectWritePayload,
   finding: Finding,
   reason: Dismissal["reason"],
   note: string,
   at: string,
   options: { bulk?: boolean },
-): void {
-  finding.status = "dismissed";
-  finding.dismissal = { reason, note, at };
-  payload.findings = [...(payload.findings ?? []), finding];
+): Finding {
+  const updated: Finding = {
+    ...finding,
+    status: "dismissed",
+    dismissal: { reason, note, at },
+  };
+  payload.findings = [...(payload.findings ?? []), updated];
   evidenceEntry(payload, {
     kind: "finding",
     summary: `Finding dismissed (${reason}): ${finding.checkId} at ${formatLocationRef(finding.location)}`,
@@ -103,6 +110,7 @@ function dismissFindingInDb(
       ? { event: "dismissed", reason, note, bulk: true }
       : { event: "dismissed", reason, note },
   });
+  return updated;
 }
 
 export async function approveRemediationAction(
@@ -117,17 +125,17 @@ export async function approveRemediationAction(
     await withProjectWrite(
       { touch: "entities", findingIds: [findingId] },
       async (workspace) => {
-      const { db } = workspace;
-      const finding = findingById(db, findingId);
-      requireOnFindingProject(workspace, finding, "project.remediate");
-      const remediation = remediationForFinding(db, findingId);
-      const payload: ProjectWritePayload = {};
+        const { db } = workspace;
+        const finding = findingById(db, findingId);
+        requireOnFindingProject(workspace, finding, "project.remediate");
+        const remediation = remediationForFinding(db, findingId);
+        const payload: ProjectWritePayload = {};
 
-      approveRemediationInDb(payload, finding, remediation, {
-        approvalNote: "Approved by user",
-      });
-      return { result: undefined, payload };
-    },
+        approveRemediationInPayload(payload, finding, remediation, {
+          approvalNote: "Approved by user",
+        });
+        return { result: undefined, payload };
+      },
     );
     refresh();
     return "Remediation approved.";
@@ -146,22 +154,22 @@ export async function bulkApproveRemediationsAction(
     await withProjectWrite(
       { touch: "entities", findingIds },
       async (workspace) => {
-      const { db } = workspace;
-      const payload: ProjectWritePayload = {};
-      for (const findingId of findingIds) {
-        const finding = findingById(db, findingId);
-        requireOnFindingProject(workspace, finding, "project.remediate");
-        const remediation = remediationForFinding(db, findingId);
-        if (!canBulkApproveRemediation(finding, remediation.status)) continue;
+        const { db } = workspace;
+        const payload: ProjectWritePayload = {};
+        for (const findingId of findingIds) {
+          const finding = findingById(db, findingId);
+          requireOnFindingProject(workspace, finding, "project.remediate");
+          const remediation = remediationForFinding(db, findingId);
+          if (!canBulkApproveRemediation(finding, remediation.status)) continue;
 
-        approveRemediationInDb(payload, finding, remediation, {
-          bulk: true,
-          approvalNote: "Approved in bulk",
-        });
-        approved += 1;
-      }
-      return { result: undefined, payload };
-    },
+          approveRemediationInPayload(payload, finding, remediation, {
+            bulk: true,
+            approvalNote: "Approved in bulk",
+          });
+          approved += 1;
+        }
+        return { result: undefined, payload };
+      },
     );
 
     if (approved === 0) {
@@ -185,24 +193,34 @@ export async function dismissFindingAction(
     await withProjectWrite(
       { touch: "entities", findingIds: [findingId] },
       async (workspace) => {
-      const { db } = workspace;
-      const finding = findingById(db, findingId);
-      requireOnFindingProject(workspace, finding, "project.remediate");
-      const payload: ProjectWritePayload = {};
+        const { db } = workspace;
+        const finding = findingById(db, findingId);
+        requireOnFindingProject(workspace, finding, "project.remediate");
+        const project = db.projects.find(
+          (candidate) => candidate.id === finding.projectId,
+        );
+        if (!project) throw new PublicError("Unknown project.");
+        const payload: ProjectWritePayload = {};
 
-      dismissFindingInDb(
-        payload,
-        finding,
-        reason,
-        note ?? "",
-        new Date().toISOString(),
-        {},
-      );
-      refreshRequirementStatusesForControls(db, finding.projectId, [
-        finding.controlId,
-      ], { payload });
-      return { result: undefined, payload };
-    },
+        dismissFindingInPayload(
+          payload,
+          finding,
+          reason,
+          note ?? "",
+          new Date().toISOString(),
+          {},
+        );
+        mergeRefreshIntoPayload(
+          payload,
+          refreshRequirementStatusesForControls(
+            project,
+            findingsWithPayloadOverrides(db.findings, payload.findings),
+            db.requirements,
+            [finding.controlId],
+          ),
+        );
+        return { result: undefined, payload };
+      },
     );
     refresh();
     return "Finding dismissed.";
@@ -218,36 +236,49 @@ export async function bulkDismissFindingsAction(
     const dismissalNote = note ?? "";
     const at = new Date().toISOString();
     let dismissed = 0;
-    const projectIds = new Set<string>();
 
     await withProjectWrite(
       { touch: "entities", findingIds },
       async (workspace) => {
-      const { db } = workspace;
-      const payload: ProjectWritePayload = {};
-      const refreshedControlIds = new Set<string>();
-      for (const findingId of findingIds) {
-        const finding = findingById(db, findingId);
-        requireOnFindingProject(workspace, finding, "project.remediate");
-        if (finding.status !== "open") continue;
+        const { db } = workspace;
+        const payload: ProjectWritePayload = {};
+        const refreshedByProject = new Map<
+          string,
+          { projectId: string; controlIds: Set<string> }
+        >();
+        for (const findingId of findingIds) {
+          const finding = findingById(db, findingId);
+          requireOnFindingProject(workspace, finding, "project.remediate");
+          if (finding.status !== "open") continue;
 
-        dismissFindingInDb(payload, finding, reason, dismissalNote, at, {
-          bulk: true,
-        });
-        projectIds.add(finding.projectId);
-        refreshedControlIds.add(finding.controlId);
-        dismissed += 1;
-      }
-      for (const projectId of projectIds) {
-        refreshRequirementStatusesForControls(
-          db,
-          projectId,
-          [...refreshedControlIds],
-          { payload },
-        );
-      }
-      return { result: undefined, payload };
-    },
+          dismissFindingInPayload(payload, finding, reason, dismissalNote, at, {
+            bulk: true,
+          });
+          const entry = refreshedByProject.get(finding.projectId) ?? {
+            projectId: finding.projectId,
+            controlIds: new Set<string>(),
+          };
+          entry.controlIds.add(finding.controlId);
+          refreshedByProject.set(finding.projectId, entry);
+          dismissed += 1;
+        }
+        for (const { projectId, controlIds } of refreshedByProject.values()) {
+          const project = db.projects.find(
+            (candidate) => candidate.id === projectId,
+          );
+          if (!project) continue;
+          mergeRefreshIntoPayload(
+            payload,
+            refreshRequirementStatusesForControls(
+              project,
+              findingsWithPayloadOverrides(db.findings, payload.findings),
+              db.requirements,
+              [...controlIds],
+            ),
+          );
+        }
+        return { result: undefined, payload };
+      },
     );
 
     if (dismissed === 0) {

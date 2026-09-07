@@ -62,8 +62,8 @@ export interface ProjectSlice {
 }
 
 /**
- * Captures project-scoped rows for stale-write guards when an assessment job
- * loads a slice and mutates those same object references in place.
+ * Captures project-scoped rows (and their `updatedAt` values) when an
+ * assessment job loads the project, for stale-write guards on apply.
  */
 export function snapshotProjectSlice(
   requirements: ReadonlyArray<Requirement>,

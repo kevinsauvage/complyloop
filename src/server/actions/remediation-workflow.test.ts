@@ -35,7 +35,9 @@ const { withProjectWrite, getWorkspace, withProjectLock } =
 const locateViolationInProject = vi.hoisted(() => vi.fn());
 const runtimeViolationStillPresent = vi.hoisted(() => vi.fn());
 const scanRuntime = vi.hoisted(() => vi.fn());
-const refreshRequirementStatusesForControls = vi.hoisted(() => vi.fn());
+const refreshRequirementStatusesForControls = vi.hoisted(() =>
+  vi.fn(() => ({ requirements: [], evidence: [] })),
+);
 const markAlertRead = vi.hoisted(() => vi.fn());
 const getAlertById = vi.hoisted(() => vi.fn());
 const getProjectById = vi.hoisted(() => vi.fn());
@@ -85,10 +87,20 @@ vi.mock("../assessment-findings", async () => {
   };
 });
 
-vi.mock("../assessment-status", () => ({
-  refreshRequirementStatusesForControls: (...args: unknown[]) =>
-    refreshRequirementStatusesForControls(...args),
-}));
+vi.mock("../assessment-status", async () => {
+  const actual = await vi.importActual<typeof import("../assessment-status")>(
+    "../assessment-status",
+  );
+  return {
+    ...actual,
+    refreshRequirementStatusesForControls: (
+      ...args: Parameters<typeof actual.refreshRequirementStatusesForControls>
+    ) =>
+      (
+        refreshRequirementStatusesForControls as unknown as typeof actual.refreshRequirementStatusesForControls
+      )(...args),
+  };
+});
 
 vi.mock("@complyloop/analysis-core/runtime/scan", () => ({
   runtimeViolationStillPresent: (...args: unknown[]) =>
@@ -188,10 +200,11 @@ describe("verifyRemediationAction", () => {
     expect(workspace.db.remediations[0]?.status).toBe("verified");
     expect(workspace.db.findings[0]?.status).toBe("resolved");
     expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
-      workspace.db,
-      "p1",
+      expect.objectContaining({ id: "p1" }),
+      expect.any(Array),
+      expect.any(Array),
       ["ctl-img-alt"],
-      expect.objectContaining({ runtimeRan: true, payload: expect.any(Object) }),
+      expect.objectContaining({ runtimeRan: true }),
     );
   });
 
@@ -229,13 +242,13 @@ describe("verifyRemediationAction", () => {
     expect(locateViolationInProject).not.toHaveBeenCalled();
     expect(workspace.db.remediations[0]?.status).toBe("verified");
     expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
-      workspace.db,
-      "p1",
+      expect.objectContaining({ id: "p1" }),
+      expect.any(Array),
+      expect.any(Array),
       ["ctl-img-alt"],
       expect.objectContaining({
         runtimeRan: true,
         siteLevelChecksRan: true,
-        payload: expect.any(Object),
       }),
     );
   });
@@ -419,10 +432,10 @@ describe("bulkDismissFindingsAction", () => {
     expect(workspace.db.findings[0]?.dismissal?.reason).toBe("not_applicable");
     expect(workspace.db.findings[1]?.status).toBe("resolved");
     expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
-      workspace.db,
-      "p1",
+      expect.objectContaining({ id: "p1" }),
+      expect.any(Array),
+      expect.any(Array),
       ["ctl-img-alt"],
-      expect.objectContaining({ payload: expect.any(Object) }),
     );
   });
 
@@ -702,10 +715,10 @@ describe("requirement decision actions", () => {
     expect(result.message).toBe("Human pass cleared.");
     expect(workspace.db.requirements[0]?.humanPass).toBeUndefined();
     expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
-      workspace.db,
-      "p1",
+      expect.objectContaining({ id: "p1" }),
+      expect.any(Array),
+      expect.any(Array),
       ["ctl-outline-none"],
-      expect.objectContaining({ payload: expect.any(Object) }),
     );
   });
 
@@ -755,10 +768,10 @@ describe("requirement decision actions", () => {
     expect(result.message).toMatch(/Exception cleared/);
     expect(workspace.db.requirements[0]?.exception).toBeUndefined();
     expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
-      workspace.db,
-      "p1",
+      expect.objectContaining({ id: "p1" }),
+      expect.any(Array),
+      expect.any(Array),
       ["ctl-img-alt"],
-      expect.objectContaining({ payload: expect.any(Object) }),
     );
   });
 

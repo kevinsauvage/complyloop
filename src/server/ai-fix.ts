@@ -21,7 +21,7 @@ import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { advanceRemediation } from "@/core/remediation";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
-import { addEvidence, type Db } from "./db";
+import type { Db } from "./db";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
 
 export type PatchUiState =
@@ -218,29 +218,24 @@ export function persistPatchCandidate(
   db: Db,
   finding: Finding,
   candidate: PatchCandidate,
-  payload?: ProjectWritePayload,
+  payload: ProjectWritePayload,
 ): void {
   const location = formatLocationRef(finding.location);
-  const entry = {
-    kind: "ai_patch_ready" as const,
+  evidenceEntryOnPayload(payload, {
+    kind: "ai_patch_ready",
     summary: `Patch ready for ${finding.checkId} at ${location} (ComplyLoop passed).`,
     projectId: finding.projectId,
     controlId: finding.controlId,
     findingId: finding.id,
     detail: patchCandidateDetail(candidate),
-  };
-  if (payload) {
-    payload.evidence = [...(payload.evidence ?? []), newEvidenceRecord(entry)];
-  } else {
-    addEvidence(db, entry);
-  }
+  });
   const remediation = db.remediations.find(
     (row) => row.findingId === finding.id,
   );
   if (!remediation) {
     throw new PublicError("No remediation for that finding.");
   }
-  remediation.suggestion = {
+  const suggestion = {
     description: candidate.description,
     proposedSnippet: snippetFromCandidate(candidate),
     provenance: candidate.provenance,
@@ -253,25 +248,36 @@ export function persistPatchCandidate(
       : {}),
   };
   if (remediation.status === "detected") {
+    const withSuggestion = { ...remediation, suggestion };
     const updated = advanceRemediation(
-      remediation,
+      withSuggestion,
       "suggested",
       `Patch ready: ${candidate.description}`,
     );
-    const index = db.remediations.findIndex((row) => row.id === remediation.id);
-    if (index < 0) return;
-    db.remediations[index] = updated;
-    if (payload) {
-      payload.remediations = [...(payload.remediations ?? []), updated];
-    }
+    payload.remediations = [...(payload.remediations ?? []), updated];
   } else if (remediation.status === "suggested") {
-    remediation.history.push({
-      status: "suggested",
-      at: new Date().toISOString(),
-      note: `Patch refreshed: ${candidate.description}`,
-    });
-    if (payload) {
-      payload.remediations = [...(payload.remediations ?? []), remediation];
-    }
+    const updated: typeof remediation = {
+      ...remediation,
+      suggestion,
+      history: [
+        ...remediation.history,
+        {
+          status: "suggested",
+          at: new Date().toISOString(),
+          note: `Patch refreshed: ${candidate.description}`,
+        },
+      ],
+    };
+    payload.remediations = [...(payload.remediations ?? []), updated];
   }
+}
+
+function evidenceEntryOnPayload(
+  payload: ProjectWritePayload,
+  entry: Omit<EvidenceRecord, "id" | "at">,
+): void {
+  payload.evidence = [
+    ...(payload.evidence ?? []),
+    newEvidenceRecord(entry),
+  ];
 }

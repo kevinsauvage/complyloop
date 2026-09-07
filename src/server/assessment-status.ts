@@ -10,12 +10,15 @@ import {
   isHtmlValidateOwnedCheck,
 } from "@complyloop/analysis-core/check-authority";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import type { Control, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Control,
+  Project,
+  Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
 import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/project-types";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
-import { addEvidence, type Db } from "./db";
 import { findingsForProject, requirementsForProject } from "./project-visibility";
+import type { ProjectRows } from "./project-rows";
 
 /**
  * Control IDs this project assesses. Uses live preset membership so new rules
@@ -100,18 +103,26 @@ export function findingsInScope(
   return forProject.filter((finding) => controlIds.has(finding.controlId));
 }
 
+export interface ClearExpiredExceptionsResult {
+  requirements: Requirement[];
+  evidence: EvidenceRecord[];
+}
+
 /**
- * Clears temporary exceptions whose expiresAt is in the past, recording
- * evidence so the sticky human decision is historized rather than deleted.
+ * Clears temporary exceptions whose expiresAt is in the past. Returns new
+ * requirement values and evidence — does not mutate the input array.
  */
 export function clearExpiredExceptions(
-  db: Db,
+  requirements: ReadonlyArray<Requirement>,
   projectId: string,
   now = new Date(),
-): void {
-  for (const requirement of db.requirements) {
-    if (requirement.projectId !== projectId) continue;
-    const exception = requirement.exception;
+): ClearExpiredExceptionsResult {
+  const evidence: EvidenceRecord[] = [];
+  const updated: Requirement[] = [];
+
+  for (const original of requirements) {
+    if (original.projectId !== projectId) continue;
+    const exception = original.exception;
     if (
       !exception ||
       exception.reason !== TEMPORARY_EXCEPTION_REASON ||
@@ -122,19 +133,45 @@ export function clearExpiredExceptions(
     if (new Date(exception.expiresAt).getTime() > now.getTime()) continue;
 
     const control = catalogControls().find(
-      (candidate) => candidate.id === requirement.controlId,
+      (candidate) => candidate.id === original.controlId,
     );
+    const requirement: Requirement = {
+      ...original,
+      determination: "automated",
+      updatedAt: now.toISOString(),
+    };
     delete requirement.exception;
-    requirement.determination = "automated";
-    requirement.updatedAt = now.toISOString();
-    addEvidence(db, {
-      kind: "requirement_exception_cleared",
-      summary: `${control?.code ?? requirement.controlId} temporary exception expired`,
-      projectId,
-      controlId: requirement.controlId,
-      detail: { previousException: exception, expired: true },
-    });
+    updated.push(requirement);
+    evidence.push(
+      newEvidenceRecord({
+        kind: "requirement_exception_cleared",
+        summary: `${control?.code ?? requirement.controlId} temporary exception expired`,
+        projectId,
+        controlId: requirement.controlId,
+        detail: { previousException: exception, expired: true },
+      }),
+    );
   }
+
+  return { requirements: updated, evidence };
+}
+
+/** Apply clearExpiredExceptions into a working ProjectRows. */
+export function applyExpiredExceptionClearance(
+  rows: ProjectRows,
+  projectId: string,
+  now = new Date(),
+): void {
+  const cleared = clearExpiredExceptions(rows.requirements, projectId, now);
+  for (const requirement of cleared.requirements) {
+    const index = rows.requirements.findIndex(
+      (candidate) => candidate.id === requirement.id,
+    );
+    if (index >= 0) {
+      rows.requirements[index] = requirement;
+    }
+  }
+  rows.evidence.push(...cleared.evidence);
 }
 
 export interface RefreshRequirementStatusesOptions {
@@ -148,30 +185,14 @@ export interface RefreshRequirementStatusesOptions {
   htmlValidateRan?: boolean;
   /** Check ids confirmed not applicable on every audited page (checkId → fact). */
   applicabilityFacts?: ReadonlyMap<string, string>;
-  /** When set, status refreshes queue explicit upserts instead of relying on diff. */
-  payload?: ProjectWritePayload;
   /** Test override; production uses the shipped catalog. */
   controls?: readonly Control[];
 }
 
-function recordRequirementEvidence(
-  db: Db,
-  payload: ProjectWritePayload | undefined,
-  entry: Omit<EvidenceRecord, "id" | "at">,
-): void {
-  if (payload) {
-    payload.evidence = [...(payload.evidence ?? []), newEvidenceRecord(entry)];
-    return;
-  }
-  addEvidence(db, entry);
-}
-
-function trackRequirement(
-  payload: ProjectWritePayload | undefined,
-  requirement: Requirement,
-): void {
-  if (!payload) return;
-  payload.requirements = [...(payload.requirements ?? []), requirement];
+export interface RefreshRequirementStatusesResult {
+  /** Created or updated requirements (for payload upsert). */
+  requirements: Requirement[];
+  evidence: EvidenceRecord[];
 }
 
 /**
@@ -203,21 +224,24 @@ function statusFromFindings(
 }
 
 function requirementForControl(
-  db: Db,
+  requirements: ReadonlyArray<Requirement>,
   projectId: string,
   controlId: string,
 ): Requirement | undefined {
-  return db.requirements.find(
+  return requirements.find(
     (candidate) =>
       candidate.projectId === projectId && candidate.controlId === controlId,
   );
 }
 
 function refreshRequirementForControl(
-  db: Db,
+  working: Requirement[],
+  findings: ReadonlyArray<Finding>,
   projectId: string,
   control: Control,
   options: RefreshRequirementStatusesOptions & { now: string },
+  touched: Requirement[],
+  evidence: EvidenceRecord[],
 ): void {
   const {
     assessmentId,
@@ -227,44 +251,60 @@ function refreshRequirementForControl(
     htmlValidateRan,
     applicabilityFacts,
     now,
-    payload,
   } = options;
+
+  const track = (requirement: Requirement) => {
+    const index = working.findIndex((candidate) => candidate.id === requirement.id);
+    if (index >= 0) {
+      working[index] = requirement;
+    } else {
+      working.push(requirement);
+    }
+    const touchedIndex = touched.findIndex(
+      (candidate) => candidate.id === requirement.id,
+    );
+    if (touchedIndex >= 0) {
+      touched[touchedIndex] = requirement;
+    } else {
+      touched.push(requirement);
+    }
+  };
 
   if (control.checkId === null) {
     // Manual / custom controls without a check stay unable_to_verify unless
     // a human pass or exception already sets a different status.
-    let requirement = requirementForControl(db, projectId, control.id);
-    if (requirementIsSticky(requirement)) {
+    const existing = requirementForControl(working, projectId, control.id);
+    if (requirementIsSticky(existing)) {
       return;
     }
-    if (!requirement) {
-      requirement = {
+    if (!existing) {
+      track({
         id: crypto.randomUUID(),
         projectId,
         controlId: control.id,
         status: "unable_to_verify",
         determination: "automated",
         updatedAt: now,
-      };
-      db.requirements.push(requirement);
-      trackRequirement(payload, requirement);
-    } else if (requirement.status !== "unable_to_verify") {
-      requirement.status = "unable_to_verify";
-      requirement.determination = "automated";
-      requirement.updatedAt = now;
-      trackRequirement(payload, requirement);
+      });
+    } else if (existing.status !== "unable_to_verify") {
+      track({
+        ...existing,
+        status: "unable_to_verify",
+        determination: "automated",
+        updatedAt: now,
+      });
     }
     return;
   }
 
-  let requirement = requirementForControl(db, projectId, control.id);
+  const existing = requirementForControl(working, projectId, control.id);
   // Human exceptions / human passes are sticky until explicitly cleared
   // (temporary exceptions may expire earlier — see clearExpiredExceptions).
-  if (requirementIsSticky(requirement)) {
+  if (requirementIsSticky(existing)) {
     return;
   }
 
-  const openFindings = db.findings.filter(
+  const openFindings = findings.filter(
     (finding) =>
       finding.projectId === projectId &&
       finding.controlId === control.id &&
@@ -277,49 +317,106 @@ function refreshRequirementForControl(
     applicabilityFacts,
   });
 
-  if (!requirement) {
-    requirement = {
+  if (!existing) {
+    track({
       id: crypto.randomUUID(),
       projectId,
       controlId: control.id,
       status,
       determination: "automated",
       updatedAt: now,
-    };
-    db.requirements.push(requirement);
-    trackRequirement(payload, requirement);
+    });
     return;
   }
 
-  if (requirement.status !== status) {
-    const regression = requirement.status === "passed" && status === "failed";
+  if (existing.status !== status) {
+    const regression = existing.status === "passed" && status === "failed";
     const attribution =
       regression && changeContext ? ` — ${changeContext}` : "";
-    recordRequirementEvidence(db, payload, {
-      kind: "requirement_status_changed",
-      summary: `${control.code} (${control.title}): ${requirement.status} → ${status}${regression ? " — compliance regression" : ""}${attribution}`,
-      projectId,
-      controlId: control.id,
-      assessmentId,
-      detail: {
-        from: requirement.status,
-        to: status,
-        regression,
-        changeContext: regression ? changeContext : undefined,
-        ...(status === "not_applicable" && control.checkId
-          ? {
-            applicabilityFact:
-              applicabilityFacts?.get(control.checkId) ??
-              "Criterion does not apply on audited pages.",
-          }
-          : {}),
-      },
+    evidence.push(
+      newEvidenceRecord({
+        kind: "requirement_status_changed",
+        summary: `${control.code} (${control.title}): ${existing.status} → ${status}${regression ? " — compliance regression" : ""}${attribution}`,
+        projectId,
+        controlId: control.id,
+        assessmentId,
+        detail: {
+          from: existing.status,
+          to: status,
+          regression,
+          changeContext: regression ? changeContext : undefined,
+          ...(status === "not_applicable" && control.checkId
+            ? {
+                applicabilityFact:
+                  applicabilityFacts?.get(control.checkId) ??
+                  "Criterion does not apply on audited pages.",
+              }
+            : {}),
+        },
+      }),
+    );
+    track({
+      ...existing,
+      status,
+      determination: "automated",
+      updatedAt: now,
     });
-    requirement.status = status;
-    requirement.determination = "automated";
-    requirement.updatedAt = now;
-    trackRequirement(payload, requirement);
   }
+}
+
+function scopedControlsForRefresh(
+  project: Project | undefined,
+  controlIds: readonly string[] | undefined,
+  catalog: readonly Control[] | undefined,
+): Control[] {
+  const base = project
+    ? controlsInScope(project, catalog)
+    : catalogControls(catalog);
+  if (!controlIds) return base;
+  const controlIdSet = new Set(controlIds);
+  return base.filter((control) => controlIdSet.has(control.id));
+}
+
+/**
+ * Re-derives requirement statuses from findings. Returns new requirement
+ * values and evidence only — does not mutate inputs.
+ */
+export function refreshRequirementStatuses(input: {
+  project: Project;
+  findings: ReadonlyArray<Finding>;
+  requirements: ReadonlyArray<Requirement>;
+  controlIds?: readonly string[];
+  options?: RefreshRequirementStatusesOptions;
+}): RefreshRequirementStatusesResult {
+  const { project, findings, controlIds } = input;
+  const options = input.options ?? {};
+  const now = new Date().toISOString();
+  const working = structuredClone(
+    input.requirements.filter(
+      (requirement) => requirement.projectId === project.id,
+    ),
+  );
+  const touched: Requirement[] = [];
+  const evidence: EvidenceRecord[] = [];
+  const scoped = scopedControlsForRefresh(
+    project,
+    controlIds,
+    options.controls,
+  );
+
+  for (const control of scoped) {
+    refreshRequirementForControl(
+      working,
+      findings,
+      project.id,
+      control,
+      { ...options, now },
+      touched,
+      evidence,
+    );
+  }
+
+  return { requirements: touched, evidence };
 }
 
 /**
@@ -327,45 +424,80 @@ function refreshRequirementForControl(
  * finding event (dismiss, verify, exception clear).
  */
 export function refreshRequirementStatusesForControls(
-  db: Db,
-  projectId: string,
+  project: Project,
+  findings: ReadonlyArray<Finding>,
+  requirements: ReadonlyArray<Requirement>,
   controlIds: readonly string[],
   options: RefreshRequirementStatusesOptions = {},
+): RefreshRequirementStatusesResult {
+  if (controlIds.length === 0) {
+    return { requirements: [], evidence: [] };
+  }
+  return refreshRequirementStatuses({
+    project,
+    findings,
+    requirements,
+    controlIds,
+    options,
+  });
+}
+
+/** Apply a full-scope status refresh into working ProjectRows (assessment). */
+export function applyRequirementStatusRefresh(
+  rows: ProjectRows,
+  project: Project,
+  options: RefreshRequirementStatusesOptions = {},
 ): void {
-  if (controlIds.length === 0) return;
-  const now = new Date().toISOString();
-  const project = db.projects.find((candidate) => candidate.id === projectId);
-  const controlIdSet = new Set(controlIds);
-  const scoped = (
-    project
-      ? controlsInScope(project, options.controls)
-      : catalogControls(options.controls)
-  ).filter(
-    (control) => controlIdSet.has(control.id),
-  );
-  for (const control of scoped) {
-    refreshRequirementForControl(db, projectId, control, { ...options, now });
+  const result = refreshRequirementStatuses({
+    project,
+    findings: rows.findings,
+    requirements: rows.requirements,
+    options,
+  });
+  for (const requirement of result.requirements) {
+    const index = rows.requirements.findIndex(
+      (candidate) => candidate.id === requirement.id,
+    );
+    if (index >= 0) {
+      rows.requirements[index] = requirement;
+    } else {
+      rows.requirements.push(requirement);
+    }
+  }
+  rows.evidence.push(...result.evidence);
+}
+
+/** Merge refresh results onto a ProjectWritePayload (later id wins). */
+export function mergeRefreshIntoPayload(
+  payload: {
+    requirements?: Requirement[];
+    evidence?: EvidenceRecord[];
+  },
+  result: RefreshRequirementStatusesResult,
+): void {
+  if (result.requirements.length > 0) {
+    const byId = new Map(
+      (payload.requirements ?? []).map((requirement) => [
+        requirement.id,
+        requirement,
+      ]),
+    );
+    for (const requirement of result.requirements) {
+      byId.set(requirement.id, requirement);
+    }
+    payload.requirements = [...byId.values()];
+  }
+  if (result.evidence.length > 0) {
+    payload.evidence = [...(payload.evidence ?? []), ...result.evidence];
   }
 }
 
-/**
- * Re-derives requirement statuses from the findings currently open in the db,
- * recording status changes (and regressions) as evidence. Used after a
- * full assessment; hot-path actions should prefer
- * {@link refreshRequirementStatusesForControls}.
- */
-export function refreshRequirementStatuses(
-  db: Db,
-  projectId: string,
-  options: RefreshRequirementStatusesOptions = {},
-): void {
-  const now = new Date().toISOString();
-  const project = db.projects.find((candidate) => candidate.id === projectId);
-  const scoped = project
-    ? controlsInScope(project, options.controls)
-    : catalogControls(options.controls);
-
-  for (const control of scoped) {
-    refreshRequirementForControl(db, projectId, control, { ...options, now });
-  }
+/** Findings list with payload overrides applied (for status refresh after dismiss). */
+export function findingsWithPayloadOverrides(
+  findings: ReadonlyArray<Finding>,
+  overrides: ReadonlyArray<Finding> | undefined,
+): Finding[] {
+  if (!overrides || overrides.length === 0) return [...findings];
+  const byId = new Map(overrides.map((finding) => [finding.id, finding]));
+  return findings.map((finding) => byId.get(finding.id) ?? finding);
 }

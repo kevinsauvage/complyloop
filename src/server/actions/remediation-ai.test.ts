@@ -194,7 +194,7 @@ describe("generateAiRemediationAction", () => {
 
     expect(result.message).toBe("AI remediation suggestion saved.");
     expect(workspace.db.remediations[0]?.status).toBe("suggested");
-    expect(openFinding.fix).toMatchObject({ value: "Cart icon" });
+    expect(workspace.db.findings[0]?.fix).toMatchObject({ value: "Cart icon" });
     expect(
       workspace.db.evidence.some((row) => row.kind === "ai_remediation_suggested"),
     ).toBe(true);

@@ -18,7 +18,11 @@ import {
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
 import { sameInstance } from "../assessment-findings";
-import { refreshRequirementStatusesForControls } from "../assessment-status";
+import {
+  findingsWithPayloadOverrides,
+  mergeRefreshIntoPayload,
+  refreshRequirementStatusesForControls,
+} from "../assessment-status";
 import type { Db } from "../db";
 import {
   findingById,
@@ -54,12 +58,18 @@ function recordStillFailing(
   payload: ProjectWritePayload,
   remediation: Remediation,
 ): void {
-  remediation.history.push({
-    status: remediation.status,
-    at: new Date().toISOString(),
-    note: "Verification failed: the violation is still detected on the page.",
-  });
-  payload.remediations = [...(payload.remediations ?? []), remediation];
+  const updated: Remediation = {
+    ...remediation,
+    history: [
+      ...remediation.history,
+      {
+        status: remediation.status,
+        at: new Date().toISOString(),
+        note: "Verification failed: the violation is still detected on the page.",
+      },
+    ],
+  };
+  payload.remediations = [...(payload.remediations ?? []), updated];
 }
 
 function markVerified(
@@ -71,13 +81,21 @@ function markVerified(
   engine: "runtime" | "site",
   audit: VerifyAuditFlags,
 ): void {
+  const project = db.projects.find(
+    (candidate) => candidate.id === live.projectId,
+  );
+  if (!project) throw new PublicError("Unknown project.");
+
   replaceRemediation(
     payload,
     advanceRemediation(remediation, "verified", note),
   );
-  live.status = "resolved";
-  live.resolvedNote = "Fix verified by re-running the runtime audit.";
-  payload.findings = [...(payload.findings ?? []), live];
+  const updatedFinding: Finding = {
+    ...live,
+    status: "resolved",
+    resolvedNote: "Fix verified by re-running the runtime audit.",
+  };
+  payload.findings = [...(payload.findings ?? []), updatedFinding];
   evidenceEntry(payload, {
     kind: "remediation_verified",
     summary: `Verified: ${live.checkId} no longer fails at ${formatLocationRef(live.location)}`,
@@ -86,12 +104,20 @@ function markVerified(
     findingId: live.id,
     detail: { engine },
   });
-  refreshRequirementStatusesForControls(db, live.projectId, [live.controlId], {
-    runtimeRan: audit.runtimeRan,
-    siteLevelChecksRan: audit.siteLevelChecksRan,
-    htmlValidateRan: audit.htmlValidateRan,
+  mergeRefreshIntoPayload(
     payload,
-  });
+    refreshRequirementStatusesForControls(
+      project,
+      findingsWithPayloadOverrides(db.findings, payload.findings),
+      db.requirements,
+      [live.controlId],
+      {
+        runtimeRan: audit.runtimeRan,
+        siteLevelChecksRan: audit.siteLevelChecksRan,
+        htmlValidateRan: audit.htmlValidateRan,
+      },
+    ),
+  );
 }
 
 export async function verifyRemediationAction(

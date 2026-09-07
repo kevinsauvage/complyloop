@@ -13,9 +13,13 @@ import {
   isSourceLocation,
 } from "@complyloop/analysis-core/contract/location";
 import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding, Remediation } from "@complyloop/db/types"
-import type { FindingLocation, ProposedFix, RemediationSuggestion } from "@complyloop/analysis-core/contract/finding-types";
-import { addEvidence, type Db } from "./db";
+import type { Finding, Remediation } from "@complyloop/db/types";
+import type {
+  FindingLocation,
+  ProposedFix,
+  RemediationSuggestion,
+} from "@complyloop/analysis-core/contract/finding-types";
+import { appendEvidence, type ProjectRows } from "./project-rows";
 
 /**
  * Findings are matched across assessments by location identity so remediation
@@ -118,7 +122,7 @@ function findingLocationMatchesScope(
 }
 
 export interface ReconcileControlFindingsInput {
-  db: Db;
+  rows: ProjectRows;
   project: Project;
   control: Control;
   assessmentId: string;
@@ -156,12 +160,13 @@ export function shouldResolveOpenFinding(input: {
 /**
  * Matches raw scan hits to open findings, creates new ones, and resolves
  * opens that no longer appear — for one control in one assessment run.
+ * Mutates `rows` only (never the loaded workspace Db).
  */
 export function reconcileControlFindings(
   input: ReconcileControlFindingsInput,
 ): void {
   const {
-    db,
+    rows,
     project,
     control,
     assessmentId,
@@ -173,13 +178,13 @@ export function reconcileControlFindings(
   } = input;
   const projectId = project.id;
 
-  const openFindings = db.findings.filter(
+  const openFindings = rows.findings.filter(
     (finding) =>
       finding.projectId === projectId &&
       finding.controlId === control.id &&
       finding.status === "open",
   );
-  const dismissedFindings = db.findings.filter(
+  const dismissedFindings = rows.findings.filter(
     (finding) =>
       finding.projectId === projectId &&
       finding.controlId === control.id &&
@@ -201,7 +206,7 @@ export function reconcileControlFindings(
       existing.location = raw.location;
       existing.engine = raw.engine ?? existing.engine ?? "ast";
     } else {
-      createFinding(db, project, rootPath, control.id, assessmentId, raw);
+      createFinding(rows, project, rootPath, control.id, assessmentId, raw);
     }
   }
 
@@ -218,7 +223,7 @@ export function reconcileControlFindings(
     }
     finding.status = "resolved";
     finding.resolvedNote = "No longer detected by the latest assessment.";
-    addEvidence(db, {
+    appendEvidence(rows, {
       kind: "finding",
       summary: `${finding.checkId}: ${formatLocationRef(finding.location)} no longer detected`,
       projectId,
@@ -232,7 +237,7 @@ export function reconcileControlFindings(
 }
 
 export function createFinding(
-  db: Db,
+  rows: ProjectRows,
   project: Project,
   rootPath: string,
   controlId: string,
@@ -262,7 +267,7 @@ export function createFinding(
     explanations: [deterministicExplanation(raw.reason, guidance)],
     detectedAt: now,
   };
-  db.findings.push(finding);
+  rows.findings.push(finding);
 
   const suggestion = buildSuggestion(rootPath, raw);
   const remediation: Remediation = {
@@ -272,14 +277,14 @@ export function createFinding(
     suggestion,
     history: suggestion
       ? [
-        { status: "detected", at: now },
-        { status: "suggested", at: now, note: suggestion.description },
-      ]
+          { status: "detected", at: now },
+          { status: "suggested", at: now, note: suggestion.description },
+        ]
       : [{ status: "detected", at: now }],
   };
-  db.remediations.push(remediation);
+  rows.remediations.push(remediation);
 
-  addEvidence(db, {
+  appendEvidence(rows, {
     kind: "finding",
     summary: `${raw.checkId}: ${formatLocationRef(raw.location)} — ${raw.reason}`,
     projectId: project.id,

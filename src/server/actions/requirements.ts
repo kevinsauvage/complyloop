@@ -14,7 +14,10 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
-import { refreshRequirementStatusesForControls } from "../assessment-status";
+import {
+  mergeRefreshIntoPayload,
+  refreshRequirementStatusesForControls,
+} from "../assessment-status";
 import type { Db } from "../db";
 import { controlById } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
@@ -71,15 +74,18 @@ function clearRequirementOverride(
   payload: ProjectWritePayload,
 ): void {
   const control = controlById(db, requirement.controlId);
+  const updated: Requirement = {
+    ...requirement,
+    determination: "automated",
+    updatedAt: new Date().toISOString(),
+  };
 
   if (field === "humanPass") {
     if (!requirement.humanPass) {
       throw new PublicError("This requirement has no human pass to clear.");
     }
     const previousPass = requirement.humanPass;
-    delete requirement.humanPass;
-    requirement.determination = "automated";
-    requirement.updatedAt = new Date().toISOString();
+    delete updated.humanPass;
     evidenceEntry(payload, {
       kind: "requirement_human_pass_cleared",
       summary: `${control.code} human pass cleared`,
@@ -92,9 +98,7 @@ function clearRequirementOverride(
       throw new PublicError("This requirement has no exception to clear.");
     }
     const previousException = requirement.exception;
-    delete requirement.exception;
-    requirement.determination = "automated";
-    requirement.updatedAt = new Date().toISOString();
+    delete updated.exception;
     evidenceEntry(payload, {
       kind: "requirement_exception_cleared",
       summary: `${control.code} exception cleared (was ${previousException.reason})`,
@@ -104,10 +108,20 @@ function clearRequirementOverride(
     });
   }
 
-  refreshRequirementStatusesForControls(db, project.id, [requirement.controlId], {
+  payload.requirements = [...(payload.requirements ?? []), updated];
+  mergeRefreshIntoPayload(
     payload,
-  });
-  payload.requirements = [...(payload.requirements ?? []), requirement];
+    refreshRequirementStatusesForControls(
+      project,
+      db.findings,
+      // Refresh must see the cleared override, not the sticky original.
+      [
+        ...db.requirements.filter((row) => row.id !== updated.id),
+        updated,
+      ],
+      [requirement.controlId],
+    ),
+  );
 }
 
 export async function markRequirementExceptionAction(
@@ -121,62 +135,65 @@ export async function markRequirementExceptionAction(
     await withProjectWrite(
       { touch: "entities", requirementIds: [requirementId] },
       async (workspace) => {
-      requireOnActive(workspace, "project.remediate");
-      const { db, project } = workspace;
-      const requirement = requireRequirement(
-        db,
-        project.id,
-        requirementId,
-      );
+        requireOnActive(workspace, "project.remediate");
+        const { db, project } = workspace;
+        const requirement = requireRequirement(
+          db,
+          project.id,
+          requirementId,
+        );
 
-      const { reason, note } = parsed;
-      const expiresRaw = parsed.expiresAt;
-      const previous = requirement.status;
-      const expiresAt =
-        reason === TEMPORARY_EXCEPTION_REASON && typeof expiresRaw === "string"
-          ? new Date(expiresRaw).toISOString()
-          : undefined;
+        const { reason, note } = parsed;
+        const expiresRaw = parsed.expiresAt;
+        const previous = requirement.status;
+        const expiresAt =
+          reason === TEMPORARY_EXCEPTION_REASON && typeof expiresRaw === "string"
+            ? new Date(expiresRaw).toISOString()
+            : undefined;
 
-      requirement.exception = {
-        reason,
-        note,
-        at: new Date().toISOString(),
-        expiresAt,
-      };
-      delete requirement.humanPass;
-      requirement.determination = "human_review";
-      if (reason === "not_applicable") {
-        requirement.status = "not_applicable";
-      }
-      requirement.updatedAt = new Date().toISOString();
+        const updated: Requirement = {
+          ...requirement,
+          exception: {
+            reason,
+            note,
+            at: new Date().toISOString(),
+            expiresAt,
+          },
+          determination: "human_review",
+          updatedAt: new Date().toISOString(),
+        };
+        delete updated.humanPass;
+        if (reason === "not_applicable") {
+          updated.status = "not_applicable";
+        }
 
-      const payload: ProjectWritePayload = {};
-      const control = controlById(db, requirement.controlId);
-      evidenceEntry(payload, {
-        kind: "requirement_exception_set",
-        summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
-        projectId: project.id,
-        controlId: requirement.controlId,
-        detail: {
-          reason,
-          note,
-          expiresAt,
-          from: previous,
-          to: requirement.status,
-        },
-      });
-      if (previous !== requirement.status) {
+        const payload: ProjectWritePayload = {};
+        const control = controlById(db, requirement.controlId);
         evidenceEntry(payload, {
-          kind: "requirement_status_changed",
-          summary: `${control.code} (${control.title}): ${previous} → ${requirement.status} — human exception`,
+          kind: "requirement_exception_set",
+          summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
           projectId: project.id,
           controlId: requirement.controlId,
-          detail: { from: previous, to: requirement.status, regression: false },
+          detail: {
+            reason,
+            note,
+            expiresAt,
+            from: previous,
+            to: updated.status,
+          },
         });
-      }
-      payload.requirements = [requirement];
-      return { result: undefined, payload };
-    },
+        if (previous !== updated.status) {
+          evidenceEntry(payload, {
+            kind: "requirement_status_changed",
+            summary: `${control.code} (${control.title}): ${previous} → ${updated.status} — human exception`,
+            projectId: project.id,
+            controlId: requirement.controlId,
+            detail: { from: previous, to: updated.status, regression: false },
+          });
+        }
+        payload.requirements = [updated];
+        return { result: undefined, payload };
+      },
     );
     refresh();
     return "Exception recorded.";
@@ -194,57 +211,59 @@ export async function markRequirementPassedAction(
     await withProjectWrite(
       { touch: "entities", requirementIds: [requirementId] },
       async (workspace) => {
-      requireOnActive(workspace, "project.remediate");
-      const { db, project } = workspace;
-      const requirement = requireRequirement(
-        db,
-        project.id,
-        requirementId,
-      );
-
-      const control = controlById(db, requirement.controlId);
-      if (control.checkId !== null) {
-        throw new PublicError(
-          "Only manual controls (no automated check) can be marked passed by human review.",
+        requireOnActive(workspace, "project.remediate");
+        const { db, project } = workspace;
+        const requirement = requireRequirement(
+          db,
+          project.id,
+          requirementId,
         );
-      }
 
-      const previous = requirement.status;
+        const control = controlById(db, requirement.controlId);
+        if (control.checkId !== null) {
+          throw new PublicError(
+            "Only manual controls (no automated check) can be marked passed by human review.",
+          );
+        }
 
-      delete requirement.exception;
-      requirement.humanPass = {
-        note,
-        at: new Date().toISOString(),
-      };
-      requirement.status = "passed";
-      requirement.determination = "human_review";
-      requirement.updatedAt = new Date().toISOString();
+        const previous = requirement.status;
+        const updated: Requirement = {
+          ...requirement,
+          humanPass: {
+            note,
+            at: new Date().toISOString(),
+          },
+          status: "passed",
+          determination: "human_review",
+          updatedAt: new Date().toISOString(),
+        };
+        delete updated.exception;
 
-      const payload: ProjectWritePayload = {};
-      evidenceEntry(payload, {
-        kind: "requirement_human_passed",
-        summary: `${control.code} marked passed (human review): ${note}`,
-        projectId: project.id,
-        controlId: requirement.controlId,
-        detail: { note, from: previous, to: "passed" },
-      });
-      if (previous !== "passed") {
+        const payload: ProjectWritePayload = {};
         evidenceEntry(payload, {
-          kind: "requirement_status_changed",
-          summary: `${control.code} (${control.title}): ${previous} → passed — human review`,
+          kind: "requirement_human_passed",
+          summary: `${control.code} marked passed (human review): ${note}`,
           projectId: project.id,
           controlId: requirement.controlId,
-          detail: {
-            from: previous,
-            to: "passed",
-            regression: false,
-            humanPass: true,
-          },
+          detail: { note, from: previous, to: "passed" },
         });
-      }
-      payload.requirements = [requirement];
-      return { result: undefined, payload };
-    },
+        if (previous !== "passed") {
+          evidenceEntry(payload, {
+            kind: "requirement_status_changed",
+            summary: `${control.code} (${control.title}): ${previous} → passed — human review`,
+            projectId: project.id,
+            controlId: requirement.controlId,
+            detail: {
+              from: previous,
+              to: "passed",
+              regression: false,
+              humanPass: true,
+            },
+          });
+        }
+        payload.requirements = [updated];
+        return { result: undefined, payload };
+      },
     );
     refresh();
     return "Human pass recorded.";
@@ -292,17 +311,17 @@ async function clearRequirementOverrideAction(
     await withProjectWrite(
       { touch: "entities", requirementIds: [requirementId] },
       async (workspace) => {
-      requireOnActive(workspace, "project.remediate");
-      const { db, project } = workspace;
-      const requirement = requireRequirement(
-        db,
-        project.id,
-        requirementId,
-      );
-      const payload: ProjectWritePayload = {};
-      clearRequirementOverride(db, project, requirement, field, payload);
-      return { result: undefined, payload };
-    },
+        requireOnActive(workspace, "project.remediate");
+        const { db, project } = workspace;
+        const requirement = requireRequirement(
+          db,
+          project.id,
+          requirementId,
+        );
+        const payload: ProjectWritePayload = {};
+        clearRequirementOverride(db, project, requirement, field, payload);
+        return { result: undefined, payload };
+      },
     );
     refresh();
     return message;

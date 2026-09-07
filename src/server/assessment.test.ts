@@ -8,6 +8,7 @@ import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { runAssessment } from "./assessment";
 import type { Db } from "./db";
+import { materializeAssessmentRun } from "./project-rows";
 
 const BROKEN = `export const Hero = () => <img src="/hero-banner.png" />;\n`;
 const FIXED = `export const Hero = () => <img src="/hero-banner.png" alt="Summer sale banner" />;\n`;
@@ -50,9 +51,15 @@ function requirementStatus(controlId: string) {
     ?.status;
 }
 
+async function assess(options: Parameters<typeof runAssessment>[2] = { rootPath }) {
+  const run = await runAssessment(db, project.id, options);
+  materializeAssessmentRun(db, run);
+  return run;
+}
+
 describe("runAssessment", () => {
   it("creates findings, remediations with suggestions, and requirement statuses", async () => {
-    const { assessment } = await runAssessment(db, project.id, { rootPath });
+    const { assessment } = await assess();
 
     expect(assessment.filesScanned).toBe(1);
     expect(db.findings).toHaveLength(1);
@@ -75,7 +82,7 @@ describe("runAssessment", () => {
   it("assesses the live Full RGAA preset membership", async () => {
     project.defaultPresetId = "preset-rgaa-full";
 
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
 
     expect(requirementStatus("ctl-video-caption")).toBe("unable_to_verify");
     expect(requirementStatus("ctl-img-alt-relevant")).toBe("unable_to_verify");
@@ -86,25 +93,25 @@ describe("runAssessment", () => {
   });
 
   it("carries the same finding across re-assessments instead of duplicating it", async () => {
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     const originalId = db.findings[0].id;
 
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     expect(db.findings).toHaveLength(1);
     expect(db.findings[0].id).toBe(originalId);
     expect(db.findings[0].status).toBe("open");
   });
 
   it("resolves findings that disappear and detects regressions when they return", async () => {
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     expect(db.findings[0].status).toBe("resolved");
     expect(requirementStatus("ctl-img-alt")).toBe("passed");
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), BROKEN);
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     expect(requirementStatus("ctl-img-alt")).toBe("failed");
 
     const regression = db.evidence.find(
@@ -116,7 +123,7 @@ describe("runAssessment", () => {
   });
 
   it("verifies a draft-PR remediation from the remediation payload when evidence is empty", async () => {
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     const finding = db.findings[0]!;
     const remediation = db.remediations[0]!;
     remediation.status = "approved";
@@ -129,7 +136,7 @@ describe("runAssessment", () => {
     db.evidence = [];
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
 
     expect(db.remediations[0]?.status).toBe("verified");
     expect(db.remediations[0]?.history.map((entry) => entry.status)).toEqual(
@@ -145,19 +152,19 @@ describe("runAssessment", () => {
   });
 
   it("does not verify an approved remediation without a draft-PR approval action", async () => {
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     const remediation = db.remediations[0]!;
     remediation.status = "approved";
     db.evidence = [];
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
 
     expect(remediation.status).toBe("approved");
   });
 
   it("does not auto-verify a draft-PR remediation on a preview (non-authoritative) scan", async () => {
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     const finding = db.findings[0]!;
     const remediation = db.remediations[0]!;
     remediation.status = "approved";
@@ -172,9 +179,11 @@ describe("runAssessment", () => {
     // because this is a preview scan (non-authoritative), the approved
     // remediation must NOT be auto-verified.
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    await runAssessment(db, project.id, { rootPath, authoritative: false });
+    await assess({ rootPath, authoritative: false });
 
-    expect(finding.status).toBe("resolved");
+    expect(db.findings.find((row) => row.id === finding.id)?.status).toBe(
+      "resolved",
+    );
     expect(db.remediations[0]?.status).toBe("approved");
     expect(
       db.remediations[0]?.history.some((entry) => entry.status === "verified"),
@@ -182,7 +191,7 @@ describe("runAssessment", () => {
   });
 
   it("keeps dismissed findings dismissed on re-assessment", async () => {
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     db.findings[0].status = "dismissed";
     db.findings[0].dismissal = {
       reason: "accepted_risk",
@@ -190,13 +199,13 @@ describe("runAssessment", () => {
       at: new Date().toISOString(),
     };
 
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     expect(db.findings).toHaveLength(1);
     expect(db.findings[0].status).toBe("dismissed");
   });
 
   it("does not overwrite a human requirement exception on re-assessment", async () => {
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     const requirement = db.requirements.find(
       (candidate) => candidate.controlId === "ctl-img-alt",
     );
@@ -209,7 +218,7 @@ describe("runAssessment", () => {
       at: new Date().toISOString(),
     };
 
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     expect(requirementStatus("ctl-img-alt")).toBe("not_applicable");
     expect(
       db.requirements.find((candidate) => candidate.controlId === "ctl-img-alt")
@@ -218,11 +227,11 @@ describe("runAssessment", () => {
   });
 
   it("records a snapshot and attributes file changes on re-assessment", async () => {
-    const { assessment: first } = await runAssessment(db, project.id, { rootPath });
+    const { assessment: first } = await assess();
     expect(first.snapshot?.fileHashes["Hero.tsx"]).toBeDefined();
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    const { assessment: second } = await runAssessment(db, project.id, { rootPath });
+    const { assessment: second } = await assess();
     expect(second.changesSincePrevious?.some((c) => c.filePath === "Hero.tsx")).toBe(
       true,
     );
@@ -232,7 +241,7 @@ describe("runAssessment", () => {
   });
 
   it("clears expired temporary exceptions and re-derives status", async () => {
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     const requirement = db.requirements.find(
       (candidate) => candidate.controlId === "ctl-img-alt",
     );
@@ -245,7 +254,7 @@ describe("runAssessment", () => {
       expiresAt: "2026-01-02T00:00:00.000Z",
     };
 
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     const refreshed = db.requirements.find(
       (candidate) => candidate.controlId === "ctl-img-alt",
     );
@@ -269,7 +278,7 @@ describe("runAssessment", () => {
       controlIds: ["ctl-button-name"],
     });
     project.defaultPresetId = "preset-test-button-name";
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     expect(db.findings).toHaveLength(0);
     expect(requirementStatus("ctl-button-name")).toBe("passed");
     expect(requirementStatus("ctl-img-alt")).toBeUndefined();
@@ -294,7 +303,7 @@ describe("runAssessment", () => {
     });
     project.defaultPresetId = "preset-test-manual";
 
-    await runAssessment(db, project.id, {
+    await assess({
       rootPath,
       controls: [...rgaaControls, manualControl],
     });
@@ -311,7 +320,7 @@ describe("runAssessment", () => {
       at: new Date().toISOString(),
     };
 
-    await runAssessment(db, project.id, {
+    await assess({
       rootPath,
       controls: [...rgaaControls, manualControl],
     });
@@ -324,7 +333,7 @@ describe("runAssessment", () => {
 
   it("scoped re-scan does not resolve findings outside changed files", async () => {
     fs.writeFileSync(path.join(rootPath, "Other.tsx"), BROKEN);
-    await runAssessment(db, project.id, { rootPath });
+    await assess();
     const otherFinding = db.findings.find(
       (finding) =>
         isSourceLocation(finding.location) &&
@@ -335,7 +344,7 @@ describe("runAssessment", () => {
 
     // Only Hero.tsx changes; Other.tsx must stay open under scoped scan.
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    const { assessment: second } = await runAssessment(db, project.id, { rootPath });
+    const { assessment: second } = await assess();
     expect(second.scanMode).toBe("scoped");
     expect(
       db.findings.find(
