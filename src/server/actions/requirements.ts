@@ -7,7 +7,7 @@ import {
   TEMPORARY_EXCEPTION_REASON,
 } from "@complyloop/analysis-core/contract/project-types";
 import { entityIdSchema, requiredField } from "@/core/boundary";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import {
   runActionMessage,
@@ -73,7 +73,7 @@ function clearRequirementOverride(
   field: "humanPass" | "exception",
   payload: ProjectWritePayload,
 ): void {
-  const control = controlById(db, requirement.controlId);
+  const control = controlById(requirement.controlId);
   const updated: Requirement = {
     ...requirement,
     determination: "automated",
@@ -168,7 +168,7 @@ export async function markRequirementExceptionAction(
         }
 
         const payload: ProjectWritePayload = {};
-        const control = controlById(db, requirement.controlId);
+        const control = controlById(requirement.controlId);
         evidenceEntry(payload, {
           kind: "requirement_exception_set",
           summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
@@ -219,7 +219,7 @@ export async function markRequirementPassedAction(
           requirementId,
         );
 
-        const control = controlById(db, requirement.controlId);
+        const control = controlById(requirement.controlId);
         if (control.checkId !== null) {
           throw new PublicError(
             "Only manual controls (no automated check) can be marked passed by human review.",

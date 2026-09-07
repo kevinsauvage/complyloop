@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { auth } from "@/auth";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { entityIdSchema, requiredField } from "@/core/boundary";
 import {
   actionErrorState,

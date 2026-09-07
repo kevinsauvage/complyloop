@@ -5,7 +5,7 @@ import type { Finding } from "@complyloop/db/types";
 import type { Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import { testProject } from "@/test-fixtures/project";
 import { testControl } from "@/test-fixtures/control";
-import { emptyDb } from "./db";
+import { emptyDb } from "@complyloop/db/types";
 import {
   assertAssessableCatalog,
   controlsInScope,

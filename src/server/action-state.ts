@@ -1,4 +1,4 @@
-import { isPublicError } from "@complyloop/db/types";
+import { isPublicError } from "@complyloop/analysis-core/contract/public-error";
 import { reportError } from "./observability";
 
 export type ActionMessageState = {

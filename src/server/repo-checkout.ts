@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { cloneShallow, githubCloneUrl } from "./connect-github";
 import {
   assertE2EFixtureRoot,

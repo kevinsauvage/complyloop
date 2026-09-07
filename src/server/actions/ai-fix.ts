@@ -5,7 +5,7 @@ import { aiExplanationAvailable } from "@/ai/explainer";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { entityIdSchema } from "@/core/boundary";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import {
   runActionMessage,
@@ -56,7 +56,7 @@ export async function generateAiFixAction(
     if (!hasSafeDeterministicFix(finding) && preview.userId) {
       await assertAiRateLimit(preview.userId);
     }
-    const control = controlById(preview.db, finding.controlId);
+    const control = controlById(finding.controlId);
     const tokenOptions = await sessionCheckoutTokenOptions();
     const candidate = await withProjectCheckout(
       project,

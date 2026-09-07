@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import type { RawFinding } from "@complyloop/analysis-core/types";
-import { PublicError, type Finding } from "@complyloop/db/types";
+import { type Finding } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ExplanationProvenance } from "@complyloop/analysis-core/contract/statuses";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 

@@ -15,7 +15,8 @@ import {
   formatLocationRef,
   isSourceLocation,
 } from "@complyloop/analysis-core/contract/location";
-import { PublicError, type EvidenceRecord, type Finding } from "@complyloop/db/types";
+import { type EvidenceRecord, type Finding } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { advanceRemediation } from "@/core/remediation";

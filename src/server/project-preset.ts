@@ -1,9 +1,10 @@
 import { presetById } from "@complyloop/adapters/registry";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
-import { addEvidence, type Db } from "./db";
+import { addEvidence } from "@complyloop/db/repo/evidence";
+import type { Db } from "./db";
 
 /** Sets the project's default assessment preset (Settings). */
 export function setDefaultPreset(

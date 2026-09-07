@@ -7,8 +7,6 @@ import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/queries";
 import type { Db } from "@complyloop/db/types";
 
 export type { Db } from "@complyloop/db/types";
-export { emptyDb } from "@complyloop/db/types";
-export { addEvidence } from "@complyloop/db/repo/evidence";
 
 /** Loads a single project's assessment slice (no snapshots in assessment list). */
 export async function loadProjectDb(projectId: string): Promise<Db> {

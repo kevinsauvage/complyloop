@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { entityIdSchema } from "@/core/boundary";
 import { parseForm, parseFormState, parseInput } from "./boundary";
 

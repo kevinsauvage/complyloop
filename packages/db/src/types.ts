@@ -19,12 +19,6 @@ import type {
   Severity,
 } from "@complyloop/analysis-core/contract/statuses";
 
-// PublicError is a cross-cutting HTTP/UI concern whose implementation is
-// shared with the analysis-core scan layer (runtime audits throw it). To keep
-// analysis-core free of a dependency on db (no cycle), the class stays there
-// and db re-exports it as the canonical app-facing location.
-export { PublicError, isPublicError, publicMessage } from "@complyloop/analysis-core/contract/public-error";
-
 export interface FileChange {
   filePath: string;
   /** Legacy fields from older assessments; new runs record gitHead on the snapshot instead. */

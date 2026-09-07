@@ -1,6 +1,7 @@
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { presetById } from "@complyloop/adapters/registry";
-import { PublicError, type Finding, type EvidenceRecord } from "@complyloop/db/types";
+import { type Finding, type EvidenceRecord } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   deriveRequirementStatus,
   isStickyHumanDecision,

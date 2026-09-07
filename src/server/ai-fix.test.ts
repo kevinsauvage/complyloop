@@ -6,7 +6,7 @@ import type { PatchCandidate } from "@/ai/verified-fix";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding, Remediation } from "@complyloop/db/types";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { emptyDb } from "./db";
+import { emptyDb } from "@complyloop/db/types";
 import {
   latestPatchState,
   patchCandidateFromEvidence,

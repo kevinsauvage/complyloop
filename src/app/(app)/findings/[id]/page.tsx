@@ -19,6 +19,7 @@ import {
   findingsListHref,
   orderedFindingIdsForQueue,
   parseFindingListParams,
+  type FilterFindingsContext,
 } from "@/core/finding-list-filter";
 import { PageContent, PageHeader, PageSection, formatDateTime } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,6 @@ import { latestPatchState } from "@/server/ai-fix";
 import { buildDeveloperHandoff } from "@/server/handoff";
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForFinding } from "@complyloop/db/queries";
-import { buildFindingFilterContext } from "@/server/finding-list-context";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { resolveVisibleFinding } from "@/server/project-visibility";
 import { findingsInScope } from "@/server/assessment-status";
@@ -66,7 +66,7 @@ export default async function FindingPage({
   const caps = projectCapabilities(project, access, project.orgId);
 
   const control = controlForDisplay(
-    controlById(db, finding.controlId),
+    controlById(finding.controlId),
     frameworkForProject(db, project).id,
   );
   const remediation = remediationForFinding(db, finding.id);
@@ -90,11 +90,18 @@ export default async function FindingPage({
     : null;
 
   const scopedFindings = findingsInScope(db.findings, project);
-  const queueFilterContext = buildFindingFilterContext(
-    db,
-    listParams,
-    prioritizeClusters(scopedFindings, shippedCatalog().controls),
-  );
+  const clusters = prioritizeClusters(scopedFindings, shippedCatalog().controls);
+  const queueFilterContext: FilterFindingsContext = {
+    controls: shippedCatalog().controls,
+    remediationStatusFor: (findingId) =>
+      remediationForFinding(db, findingId)?.status,
+    clusterFindingIds: listParams.cluster
+      ? new Set(
+          clusters.find((cluster) => cluster.id === listParams.cluster)
+            ?.findingIds ?? [],
+        )
+      : undefined,
+  };
 
   const queueIds = orderedFindingIdsForQueue(
     scopedFindings,

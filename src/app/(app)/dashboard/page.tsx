@@ -850,7 +850,7 @@ export default async function DashboardPage() {
               recentEvidence={recentEvidence}
               controlById={(controlId) =>
                 controlForDisplay(
-                  controlById(db, controlId),
+                  controlById(controlId),
                   frameworkForProject(db, project).id,
                 )
               }

@@ -5,7 +5,7 @@ import type { OrgMembership } from "@complyloop/analysis-core/contract/project-t
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { emptyActionMessageState } from "../action-state";
 import {
   connectGitHubRepoAction,

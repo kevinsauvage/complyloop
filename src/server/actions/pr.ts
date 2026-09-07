@@ -2,7 +2,7 @@
 
 import { entityIdSchema } from "@/core/boundary";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import { publicErrorMessage } from "../action-state";
 import { parseInput } from "../boundary";
@@ -60,7 +60,7 @@ export async function createPullRequestAction(
       prUrl: null,
     };
   }
-  const control = controlById(preview.db, finding.controlId);
+  const control = controlById(finding.controlId);
   const remediation = remediationForFinding(preview.db, findingId);
   const project = preview.db.projects.find(
     (candidate) => candidate.id === finding.projectId,

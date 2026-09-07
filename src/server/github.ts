@@ -1,5 +1,5 @@
 import { Octokit } from "@octokit/rest";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import {
   createInstallationAccessToken,

@@ -7,8 +7,8 @@ import {
 import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
 import { formatLocationRef, isSourceLocation } from "@complyloop/analysis-core/contract/location";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
-  PublicError,
   type Assessment,
   type EvidenceRecord,
   type Finding,

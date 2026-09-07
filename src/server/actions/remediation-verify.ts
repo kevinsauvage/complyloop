@@ -1,7 +1,8 @@
 "use server";
 
 import type { CheckId } from "@complyloop/analysis-core/types";
-import { PublicError, type Finding, type Remediation } from "@complyloop/db/types";
+import { type Finding, type Remediation } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   runtimeViolationStillPresent,
   scanRuntime,

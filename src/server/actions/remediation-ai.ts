@@ -6,7 +6,7 @@ import { setAiWarn } from "@/ai/ai-call";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { entityIdSchema } from "@/core/boundary";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
   runActionMessage,
@@ -46,7 +46,7 @@ export async function generateAiExplanationAction(
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.view");
-      const control = controlById(db, finding.controlId);
+      const control = controlById(finding.controlId);
 
       const explanation = await generateAiExplanation(finding, control);
       if (!explanation) {
@@ -84,7 +84,7 @@ export async function generateAiRemediationAction(
       const { db } = workspace;
       const finding = findingById(db, findingId);
       requireOnFindingProject(workspace, finding, "project.remediate");
-      const control = controlById(db, finding.controlId);
+      const control = controlById(finding.controlId);
       const remediation = remediationForFinding(db, findingId);
 
       if (finding.status !== "open") {

@@ -289,22 +289,6 @@ Move evidence mappers into `repo/mappers.ts` (or `repo/evidence.ts`). Keep list 
 
 ## P3 — Low
 
-### 19. Leftover catalog fiction: `controlById(_db, id)` — **~15–25**
-
-**What**
-`workspace.ts`: `_db` unused; always `shippedCatalog()`. Call sites still pass `db`.
-
-**Why**
-Suggests controls live on the workspace store (the old lie).
-
-**How**
-`controlById(controlId)` from adapters/catalog; drop the `Db` arg.
-
-**Files**
-`src/server/workspace.ts`, call sites in actions / findings / dashboard
-
----
-
 ### 20. `projectCapabilities` vs `canOnProject` — **~70–90** (prefer keep one)
 
 **What**
@@ -321,22 +305,6 @@ Two APIs for the same RBAC. New screens invent a fifth boolean.
 
 ---
 
-### 21. `PublicError` re-exported from db as “canonical” — **~10**
-
-**What**
-Class lives in analysis-core (runtime throws it). `packages/db/src/types.ts` re-exports it so the app imports from `@complyloop/db/types`.
-
-**Why**
-Two import paths. A UI/HTTP error type is framed as a db concern.
-
-**How**
-One import: `@complyloop/analysis-core/contract/public-error`. Stop re-exporting from db (grep + update imports).
-
-**Files**
-`packages/db/src/types.ts`, app imports of `PublicError`
-
----
-
 ### 22. Entire `badges.tsx` forced client — **~0–20**
 
 **What**
@@ -350,43 +318,6 @@ Server-render plain badges; wrap only `BadgeWithDescription` as client, or use n
 
 **Files**
 `src/components/badges.tsx`, `src/components/badge-with-description.tsx`
-
----
-
-### 23. Orphaned test filenames after merges — **~0** (rename)
-
-**What**
-
-- `evidence-kind-filter.test.ts`, `report-view.test.ts`, `requirement-status-filter.test.ts`, `requirements-page.test.ts` all import `./query` but keep old module names.
-- `src/ai/warn.test.ts` imports `./ai-call` but implies a deleted `warn.ts`.
-- `github-access.test.ts` tests `github.ts` (see #14).
-
-**Why**
-Misleading file map; looks like dead modules still exist.
-
-**How**
-Rename to match the module under test (`query.*.test.ts`, `ai-call.test.ts`, fold github-access into `github.test.ts`). No logic change.
-
-**Files**
-`src/core/*-filter.test.ts`, `src/core/report-view.test.ts`, `src/core/requirements-page.test.ts`, `src/ai/warn.test.ts`, `src/server/github-access.test.ts`
-
----
-
-### 24. Thin server facades that only wire imports — **~20–40**
-
-**What**
-
-- `finding-list-context.ts` (~28): builds `FilterFindingsContext` from catalog + `findRemediationForFinding`.
-- `src/server/db.ts` re-exports `emptyDb` / `addEvidence` and wraps three loaders that mostly forward to `@complyloop/db/workspace-load`.
-
-**Why**
-Extra hops without domain logic. `addEvidence` re-export keeps the old write style visible at the app boundary.
-
-**How**
-Inline `buildFindingFilterContext` into findings pages or `finding-list-filter.ts`. Keep real loaders (`loadWorkspaceDbForViewer`) if they encode evidence-limit defaults; drop pure re-exports. Delete `addEvidence` export as part of #3.
-
-**Files**
-`src/server/finding-list-context.ts`, `src/server/db.ts`, findings pages
 
 ---
 
@@ -419,57 +350,3 @@ Keep docs as pointers; do not add another overview. Architecture stays the syste
 
 **Files**
 `src/ai/warn.test.ts`, `src/ai/ai-call.ts`, `AGENTS.md`, `CLAUDE.md`, `docs/superpowers/plans/2026-09-07-simplicity.md`
-
----
-
-## Totals (unique, suggested order)
-
-Do not add overlapping items (#2/#16 into #1; #3 assessment sites into #1; #8 tests partly independent; #24 `addEvidence` into #3).
-
-| Priority         |     Unique net | What that is                                                                                                                            |
-| ---------------- | -------------: | --------------------------------------------------------------------------------------------------------------------------------------- |
-| P0               |       ~400–500 | Assessment immutable payload + interactive mutate/payload hybrid                                                                        |
-| P1               |       ~300–350 | Evidence one API, connect path, write ceremony, check registry, adapters ceremony                                                       |
-| P2               |       ~250–300 | Slice dead API, provenance/`RawFinding`, status-display, evidence kinds, GitHub merge, `queries.ts` tidy, dashboard extract (~0), mocks |
-| P3               |       ~120–180 | `controlById`, capabilities, PublicError import, badges boundary, thin facades, test renames, provision-off-GET, docs/plan              |
-| **Unique total** | **~900–1,100** | Application + test + docs. Catalog **data** (~2,900) is a move, not a cut.                                                              |
-
-Dashboard (#13) and JSONB (#17) are ~0. File renames (#23) are ~0.
-
-## Suggested order
-
-1. **P0 #1 + #2** — one write shape: compute rows → upsert. Biggest drop in concepts. Delete the half-migrated “return mutated arrays” shape.
-2. **P1 #3 + #4** — one evidence path; connect joins it; cascade helpers go away.
-3. **P1 #5** — explicit `payload.project`; less write ceremony.
-4. **P1 #6–#7** — check registry; adapters ceremony.
-5. **P2** — dead slice API, provenance, display, file merges, `queries.ts` mappers. Dashboard extract anytime (~0 net).
-6. **P3** — leftover API lies, thin facades, import cleanup, plan/docs.
-
-Do not start with `src/core` test renames. Those save files, not concepts. The remaining write hybrid is the concept to remove.
-
----
-
-## Challenge checklist (used this audit)
-
-For each area: _Can we achieve the same result with less code, fewer concepts, fewer dependencies, or fewer moving parts?_
-
-| Area                                                | Answer                                                   |
-| --------------------------------------------------- | -------------------------------------------------------- |
-| Analysis engines                                    | No — coverage cost is real.                              |
-| `persistProjectRows`                                | Already the simple persist API — keep.                   |
-| Mutating `Db` to build assessment/action writes     | Yes — return payloads / new rows.                        |
-| `AssessmentRunResult` returning full mutated arrays | Yes — that is still mutation; make returns apply-shaped. |
-| `addEvidence` + `evidenceEntry` + `insertEvidence*` | Yes — one builder + insert.                              |
-| Connect’s private persist loop + `project-cascade`  | Yes — same TX/payload as other writes.                   |
-| Catalog package vs `src/catalog`                    | Yes for ceremony; data size unchanged.                   |
-| `@complyloop/db` package                            | No — real shared persistence boundary.                   |
-| Parallel check id lists                             | Yes — one registry object.                               |
-| Authority classes / deriveRequirementStatus         | No — correctness.                                        |
-| Locks + stale `updatedAt`                           | No — concurrency safety.                                 |
-| Finding-act source/runtime beats                    | No — product.                                            |
-| Assessment job queue                                | No — durable work outside requests.                      |
-| Status _types_ in one contract file                 | Already simple — leave.                                  |
-| Status _display_ parallel maps                      | Yes — one record per value.                              |
-| `queries.ts` mappers vs `repo/`                     | Yes — put mappers with mappers.                          |
-| Thin `finding-list-context` / `db` re-exports       | Yes — inline or drop hops.                               |
-| `persistProjectSlice`                               | Yes — production-dead; tests only.                       |

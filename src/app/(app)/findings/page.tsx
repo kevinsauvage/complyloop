@@ -14,6 +14,7 @@ import {
   hasActiveFindingFilters,
   orderFindingsForList,
   parseFindingListParams,
+  type FilterFindingsContext,
   type FindingsTab,
   type FindingListParams,
 } from "@/core/finding-list-filter";
@@ -22,7 +23,6 @@ import { paginateSlice } from "@/core/pagination";
 import { prioritizeClusters } from "@/core/prioritization";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Finding } from "@complyloop/db/types";
-import { buildFindingFilterContext } from "@/server/finding-list-context";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { findingsInScope } from "@/server/assessment-status";
 import {
@@ -69,7 +69,17 @@ export default async function FindingsPage({
   const findings = findingsInScope(db.findings, project);
   const controls = shippedCatalog().controls;
   const clusters = prioritizeClusters(findings, controls);
-  const filterContext = buildFindingFilterContext(db, listParams, clusters);
+  const filterContext: FilterFindingsContext = {
+    controls,
+    remediationStatusFor: (findingId) =>
+      remediationForFinding(db, findingId)?.status,
+    clusterFindingIds: listParams.cluster
+      ? new Set(
+          clusters.find((cluster) => cluster.id === listParams.cluster)
+            ?.findingIds ?? [],
+        )
+      : undefined,
+  };
 
   const byStatus = (status: FindingStatus): Finding[] =>
     orderFindingsForList(findings, status, listParams, filterContext);
@@ -84,7 +94,7 @@ export default async function FindingsPage({
     return toFindingListItems(
       sliceFindings,
       (controlId) =>
-        controlForDisplay(controlById(db, controlId), frameworkId),
+        controlForDisplay(controlById(controlId), frameworkId),
       (findingId) => remediationForFinding(db, findingId),
     );
   };

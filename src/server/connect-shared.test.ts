@@ -2,9 +2,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PublicError } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { testProject } from "@/test-fixtures/project";
-import { emptyDb } from "./db";
+import { emptyDb } from "@complyloop/db/types";
 
 const clone = vi.hoisted(() => vi.fn());
 

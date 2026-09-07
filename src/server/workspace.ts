@@ -5,7 +5,8 @@ import type {
   Organization,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
-import { PublicError, type Finding, type Remediation } from "@complyloop/db/types";
+import { type Finding, type Remediation } from "@complyloop/db/types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   readActiveOrgCookie,
   readActiveProjectCookie,
@@ -21,12 +22,12 @@ import {
 } from "@complyloop/db/repo/orgs";
 import { listOrgIdsForUser } from "@complyloop/db/queries";
 import {
-  emptyDb,
   loadWorkspaceContextDbForViewer,
   loadWorkspaceDbForViewer,
   type Db,
 } from "./db";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
+import { emptyDb } from "@complyloop/db/types";
 import { ensurePersonalOrg, orgsForUser, resolveActiveOrgId } from "./orgs";
 import {
   type AccessContext,
@@ -189,7 +190,7 @@ export async function sessionWriteContext(): Promise<{
 }
 
 
-export function controlById(_db: Db, controlId: string): Control {
+export function controlById(controlId: string): Control {
   const control = shippedCatalog().controls.find(
     (candidate) => candidate.id === controlId,
   );
