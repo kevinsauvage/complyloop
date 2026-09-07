@@ -13,7 +13,7 @@ import { githubCloneUrl, normalizeGitHubFullName } from "./github-helpers";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
 import { withRepoCheckout } from "./repo-checkout";
 
-export { githubCloneUrl, normalizeGitHubFullName } from "./github-helpers";
+export { githubCloneUrl, normalizeGitHubFullName };
 
 /** Short filesystem-safe name from a GitHub `owner/repo` full name. */
 export function deriveProjectName(fullName: string): string {

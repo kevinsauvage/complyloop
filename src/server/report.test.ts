@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { wcagFramework } from "@complyloop/adapters/wcag/controls";
 import type { Finding } from "@complyloop/db/types";
 import { sampleReportInput, reportSampleProject } from "@/test-fixtures/report-input";
@@ -7,6 +7,14 @@ import {
   buildAuditReportMarkdown,
   buildEngineeringReportMarkdown,
 } from "./report-markdown";
+
+vi.mock("./workspace", () => ({
+  getWorkspace: vi.fn(),
+}));
+vi.mock("./project-runtime", () => ({
+  getProjectRuntime: vi.fn(),
+}));
+
 import { reportInputForProject } from "./report";
 
 describe("buildAuditReportMarkdown", () => {

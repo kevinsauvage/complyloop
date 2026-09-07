@@ -28,8 +28,8 @@ export function useActionToast(
   },
 ): void {
   const wasPending = useRef(false);
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
+  const successDuration = options?.successDuration ?? 4_000;
+  const successAction = options?.successAction;
 
   useEffect(() => {
     if (pending) {
@@ -44,11 +44,10 @@ export function useActionToast(
       return;
     }
     if (state.message) {
-      const successAction = optionsRef.current?.successAction ?? null;
       toast.success(state.message, {
-        duration: optionsRef.current?.successDuration ?? 4_000,
+        duration: successDuration,
         ...(successAction ? { action: successAction } : {}),
       });
     }
-  }, [pending, state.error, state.message]);
+  }, [pending, state.error, state.message, successDuration, successAction]);
 }

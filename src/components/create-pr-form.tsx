@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
@@ -17,16 +17,21 @@ const initial: CreatePrFormState = {
 export function CreatePrForm({ findingId }: { findingId: string }) {
   const action = createPullRequestAction.bind(null, findingId);
   const [state, formAction, pending] = useActionState(action, initial);
+  const successAction = useMemo(
+    () =>
+      state.prUrl
+        ? {
+            label: "Open draft PR",
+            onClick: () => {
+              window.open(state.prUrl!, "_blank", "noopener,noreferrer");
+            },
+          }
+        : null,
+    [state.prUrl],
+  );
   useActionToast(state, pending, {
     successDuration: 6_000,
-    successAction: state.prUrl
-      ? {
-          label: "Open draft PR",
-          onClick: () => {
-            window.open(state.prUrl!, "_blank", "noopener,noreferrer");
-          },
-        }
-      : null,
+    successAction,
   });
 
   return (

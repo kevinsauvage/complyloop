@@ -35,17 +35,15 @@ afterEach(() => {
 
 describe("CreatePrForm", () => {
   it("toasts success with a PR action when a url is present", async () => {
-    useActionStateMock.mockReturnValue([
-      {
-        error: null,
-        message: "Pull request ready.",
-        prUrl: "https://github.com/acme/shop/pull/1",
-      },
-      vi.fn(),
-      false,
-    ]);
-
-    render(<CreatePrForm findingId="f1" />);
+    const successState = {
+      error: null as string | null,
+      message: "Pull request ready." as string | null,
+      prUrl: "https://github.com/acme/shop/pull/1" as string | null,
+    };
+    useActionStateMock.mockReturnValue([successState, vi.fn(), true]);
+    const { rerender } = render(<CreatePrForm findingId="f1" />);
+    useActionStateMock.mockReturnValue([successState, vi.fn(), false]);
+    rerender(<CreatePrForm findingId="f1" />);
 
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledWith(
@@ -60,13 +58,15 @@ describe("CreatePrForm", () => {
   });
 
   it("toasts failures", async () => {
-    useActionStateMock.mockReturnValue([
-      { error: "Push failed.", message: null, prUrl: null },
-      vi.fn(),
-      false,
-    ]);
-
-    render(<CreatePrForm findingId="f1" />);
+    const errorState = {
+      error: "Push failed." as string | null,
+      message: null as string | null,
+      prUrl: null as string | null,
+    };
+    useActionStateMock.mockReturnValue([errorState, vi.fn(), true]);
+    const { rerender } = render(<CreatePrForm findingId="f1" />);
+    useActionStateMock.mockReturnValue([errorState, vi.fn(), false]);
+    rerender(<CreatePrForm findingId="f1" />);
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith("Push failed.", {

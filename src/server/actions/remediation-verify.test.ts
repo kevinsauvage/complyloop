@@ -22,9 +22,7 @@ const { withProjectWrite, getWorkspace } = actionWorkspaceMocks;
 const locateViolationInProject = vi.hoisted(() => vi.fn());
 const runtimeViolationStillPresent = vi.hoisted(() => vi.fn());
 const scanRuntime = vi.hoisted(() => vi.fn());
-const refreshRequirementStatuses = vi.hoisted(() =>
-  vi.fn(() => ({ requirements: [], evidence: [] })),
-);
+const applyEntityWrite = vi.hoisted(() => vi.fn());
 
 vi.mock("../repo-checkout", () => ({
   withProjectCheckout: async (
@@ -58,12 +56,7 @@ vi.mock("../assessment-status", async () => {
   );
   return {
     ...actual,
-    refreshRequirementStatuses: (
-      ...args: Parameters<typeof actual.refreshRequirementStatuses>
-    ) =>
-      (
-        refreshRequirementStatuses as unknown as typeof actual.refreshRequirementStatuses
-      )(...args),
+    applyEntityWrite: (...args: unknown[]) => applyEntityWrite(...args),
   };
 });
 
@@ -164,13 +157,16 @@ describe("verifyRemediationAction", () => {
     });
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
     expect(projectWritePayload()?.findings?.[0]?.status).toBe("resolved");
-    expect(refreshRequirementStatuses).toHaveBeenCalledWith({
-      project: expect.objectContaining({ id: "p1" }),
-      findings: expect.any(Array),
-      requirements: expect.any(Array),
-      controlIds: ["ctl-img-alt"],
-      options: expect.objectContaining({ runtimeRan: true }),
-    });
+    expect(applyEntityWrite).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        project: expect.objectContaining({ id: "p1" }),
+        findings: expect.any(Array),
+        requirements: expect.any(Array),
+        controlIds: ["ctl-img-alt"],
+        options: expect.objectContaining({ runtimeRan: true }),
+      }),
+    );
   });
 
   it("verifies a site-level finding only after a clean site-level re-audit", async () => {
@@ -206,16 +202,19 @@ describe("verifyRemediationAction", () => {
     });
     expect(locateViolationInProject).not.toHaveBeenCalled();
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
-    expect(refreshRequirementStatuses).toHaveBeenCalledWith({
-      project: expect.objectContaining({ id: "p1" }),
-      findings: expect.any(Array),
-      requirements: expect.any(Array),
-      controlIds: ["ctl-img-alt"],
-      options: expect.objectContaining({
-        runtimeRan: true,
-        siteLevelChecksRan: true,
+    expect(applyEntityWrite).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        project: expect.objectContaining({ id: "p1" }),
+        findings: expect.any(Array),
+        requirements: expect.any(Array),
+        controlIds: ["ctl-img-alt"],
+        options: expect.objectContaining({
+          runtimeRan: true,
+          siteLevelChecksRan: true,
+        }),
       }),
-    });
+    );
   });
 
   it("does not verify a site-level finding when the site-level audit did not run", async () => {

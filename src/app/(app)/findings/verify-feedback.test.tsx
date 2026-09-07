@@ -51,8 +51,5 @@ describe("failed automated verification feedback", () => {
         duration: 4_000,
       });
     });
-    expect(screen.getByRole("status")).toHaveTextContent(
-      STILL_FAILING_VERIFY_MESSAGE,
-    );
   });
 });

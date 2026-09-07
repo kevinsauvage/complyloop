@@ -22,9 +22,7 @@ import {
 } from "./requirements";
 
 const { withProjectWrite } = actionWorkspaceMocks;
-const refreshRequirementStatuses = vi.hoisted(() =>
-  vi.fn(() => ({ requirements: [], evidence: [] })),
-);
+const applyEntityWrite = vi.hoisted(() => vi.fn());
 
 vi.mock("../observability", () => ({
   reportError: vi.fn(),
@@ -37,12 +35,7 @@ vi.mock("../assessment-status", async () => {
   );
   return {
     ...actual,
-    refreshRequirementStatuses: (
-      ...args: Parameters<typeof actual.refreshRequirementStatuses>
-    ) =>
-      (
-        refreshRequirementStatuses as unknown as typeof actual.refreshRequirementStatuses
-      )(...args),
+    applyEntityWrite: (...args: unknown[]) => applyEntityWrite(...args),
   };
 });
 
@@ -262,12 +255,15 @@ describe("requirement decision actions", () => {
 
     expect(result.message).toBe("Human pass cleared.");
     expect(projectWritePayload()?.requirements?.[0]?.humanPass).toBeUndefined();
-    expect(refreshRequirementStatuses).toHaveBeenCalledWith({
-      project: expect.objectContaining({ id: "p1" }),
-      findings: expect.any(Array),
-      requirements: expect.any(Array),
-      controlIds: ["ctl-outline-none"],
-    });
+    expect(applyEntityWrite).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        project: expect.objectContaining({ id: "p1" }),
+        findings: expect.any(Array),
+        requirements: expect.any(Array),
+        controlIds: ["ctl-outline-none"],
+      }),
+    );
   });
 
   it("errors when clearing a missing human pass", async () => {
@@ -315,12 +311,15 @@ describe("requirement decision actions", () => {
 
     expect(result.message).toMatch(/Exception cleared/);
     expect(projectWritePayload()?.requirements?.[0]?.exception).toBeUndefined();
-    expect(refreshRequirementStatuses).toHaveBeenCalledWith({
-      project: expect.objectContaining({ id: "p1" }),
-      findings: expect.any(Array),
-      requirements: expect.any(Array),
-      controlIds: ["ctl-img-alt"],
-    });
+    expect(applyEntityWrite).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        project: expect.objectContaining({ id: "p1" }),
+        findings: expect.any(Array),
+        requirements: expect.any(Array),
+        controlIds: ["ctl-img-alt"],
+      }),
+    );
   });
 
   it("errors when clearing a missing exception", async () => {
