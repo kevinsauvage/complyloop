@@ -1,4 +1,4 @@
-import { requirementStatusLabel } from "@/core/status-display";
+import { requirementStatusDisplay } from "@/core/status-display";
 import { formatDateTimeWithZone } from "@/core/format-datetime";
 import {
   REQUIREMENT_STATUSES,
@@ -137,7 +137,7 @@ ${rows}
 function renderSummaryRows(counts: Record<RequirementStatus, number>): string {
   return REQUIREMENT_STATUSES.map(
     (status) =>
-      `<tr><td><span class="badge ${statusClass(status)}">${escapeHtml(requirementStatusLabel(status))}</span></td><td class="num">${counts[status]}</td></tr>`,
+      `<tr><td><span class="badge ${statusClass(status)}">${escapeHtml(requirementStatusDisplay(status).label)}</span></td><td class="num">${counts[status]}</td></tr>`,
   ).join("\n");
 }
 

@@ -18,9 +18,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { evidenceRecordHref } from "@/core/query";
-import { EVIDENCE_TONE_DOT, evidenceTone } from "@/core/status-display";
+import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/status-display";
 import { parseEvidenceKindParam, evidenceKindHref } from "@/core/query";
-import { evidenceKindLabel } from "@/core/status-display";
 import { reportHtmlHref, reportMarkdownHref } from "@/core/query";
 import {
   DEFAULT_PAGE_SIZE,
@@ -147,7 +146,7 @@ export default async function EvidencePage({
         <PageContent>
           <EvidenceKindChips counts={kindCounts} selected={kindFilter} />
           {total === 0 && kindFilter ? (
-            <EmptyState title={`No ${evidenceKindLabel(kindFilter).toLowerCase()} evidence`}>
+            <EmptyState title={`No ${evidenceDisplay(kindFilter).label.toLowerCase()} evidence`}>
               <p>
                 Try another filter or{" "}
                 <Link href={evidenceKindHref()} className="underline">
@@ -164,7 +163,7 @@ export default async function EvidencePage({
                   aria-label="Evidence records"
                 >
                   {slice.items.map((record) => {
-                    const tone = evidenceTone(record.kind, record.detail);
+                    const tone = evidenceDisplay(record.kind, record.detail).tone;
                     const href = evidenceRecordHref(record, requirements);
                     const rowClassName = cn(
                       "flex gap-3 px-4 py-3.5 transition-colors",

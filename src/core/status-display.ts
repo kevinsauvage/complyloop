@@ -1,4 +1,4 @@
-import type { EvidenceKind } from "@complyloop/db/types"
+import type { EvidenceKind } from "@complyloop/db/types";
 import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
 import type { OrgRole } from "@complyloop/analysis-core/contract/project-types";
 import type {
@@ -14,14 +14,9 @@ import { lookupExhaustive } from "./assert-exhaustive";
 
 /**
  * Display data lives as one record per enum value: `{ label, description,
- * tone? }`. Adding a status edits a single table, and `lookupExhaustive`
- * still fails loud on unhandled values. Thin getters select one field for
- * call sites that only need a label or tone.
+ * tone? }`. Adding a status edits a single table; badges read tone via
+ * `STATUS_TONE_BADGE` — no parallel color maps.
  */
-
-// ---------------------------------------------------------------------------
-// Requirement status
-// ---------------------------------------------------------------------------
 
 export type StatusTone =
   | "passed"
@@ -30,6 +25,12 @@ export type StatusTone =
   | "na"
   | "unverifiable"
   | "signal";
+
+export type BadgeVariant = "secondary" | "outline" | undefined;
+
+// ---------------------------------------------------------------------------
+// Requirement status
+// ---------------------------------------------------------------------------
 
 export interface RequirementStatusDisplay {
   label: string;
@@ -83,16 +84,6 @@ const REQUIREMENT_STATUS_DISPLAY: Record<
   },
 };
 
-export function requirementStatusLabel(status: RequirementStatus): string {
-  return requirementStatusDisplay(status).label;
-}
-
-export function requirementStatusTone(
-  status: RequirementStatus,
-): RequirementStatusDisplay["tone"] {
-  return requirementStatusDisplay(status).tone;
-}
-
 // ---------------------------------------------------------------------------
 // Remediation status
 // ---------------------------------------------------------------------------
@@ -100,6 +91,8 @@ export function requirementStatusTone(
 export interface RemediationStatusDisplay {
   label: string;
   description: string;
+  tone: StatusTone | null;
+  badgeVariant: BadgeVariant;
 }
 
 export function remediationStatusDisplay(
@@ -119,162 +112,210 @@ const REMEDIATION_STATUS_DISPLAY: Record<
   detected: {
     label: "Detected",
     description: "Finding recorded — no fix workflow started yet.",
+    tone: null,
+    badgeVariant: "secondary",
   },
   suggested: {
     label: "Suggested",
     description:
       "A fix is proposed (deterministic or AI) — review and approve before implementing.",
+    tone: "signal",
+    badgeVariant: undefined,
   },
   approved: {
     label: "Approved",
     description: "Fix approved — implement in code, then mark implemented.",
+    tone: "signal",
+    badgeVariant: undefined,
   },
   implemented: {
     label: "Implemented",
     description:
       "Code change applied — re-assess or verify before closing the loop.",
+    tone: "unverifiable",
+    badgeVariant: undefined,
   },
   verified: {
     label: "Verified",
     description:
       "Fix confirmed by automated re-check or human verification — remediation complete.",
+    tone: "passed",
+    badgeVariant: undefined,
   },
 };
-
-export function remediationStatusLabel(status: RemediationStatus): string {
-  return remediationStatusDisplay(status).label;
-}
 
 // ---------------------------------------------------------------------------
 // Finding status
 // ---------------------------------------------------------------------------
 
-export function findingStatusLabel(status: FindingStatus): string {
-  return lookupExhaustive(FINDING_STATUS_LABEL, status, "finding status");
+export interface FindingStatusDisplay {
+  label: string;
 }
 
-const FINDING_STATUS_LABEL: Record<FindingStatus, string> = {
-  open: "Open",
-  resolved: "Resolved",
-  dismissed: "Dismissed",
+export function findingStatusDisplay(
+  status: FindingStatus,
+): FindingStatusDisplay {
+  return lookupExhaustive(FINDING_STATUS_DISPLAY, status, "finding status");
+}
+
+const FINDING_STATUS_DISPLAY: Record<FindingStatus, FindingStatusDisplay> = {
+  open: { label: "Open" },
+  resolved: { label: "Resolved" },
+  dismissed: { label: "Dismissed" },
 };
 
 // ---------------------------------------------------------------------------
 // Severity
 // ---------------------------------------------------------------------------
 
-/** Lower rank sorts first. Used to order findings by urgency. */
-export function severityRank(severity: Severity): number {
-  return lookupExhaustive(SEVERITY_RANK, severity, "severity");
-}
-
-const SEVERITY_RANK: Record<Severity, number> = {
-  critical: 0,
-  serious: 1,
-  moderate: 2,
-  minor: 3,
-};
-
-export function severityLabel(severity: Severity): string {
-  return severityDisplay(severity).label;
-}
-
-export function severityDescription(severity: Severity): string {
-  return severityDisplay(severity).description;
-}
-
-const SEVERITY_DISPLAY: Record<Severity, { label: string; description: string }> =
-  {
-    critical: {
-      label: "Critical",
-      description: "Blocks core tasks for many users — prioritize immediately.",
-    },
-    serious: {
-      label: "Serious",
-      description:
-        "Major barrier for some users — fix in the current sprint if possible.",
-    },
-    moderate: {
-      label: "Moderate",
-      description: "Noticeable friction — schedule with other accessibility work.",
-    },
-    minor: {
-      label: "Minor",
-      description: "Low impact — fix when touching nearby code.",
-    },
-  };
-
-function severityDisplay(severity: Severity): {
+export interface SeverityDisplay {
   label: string;
   description: string;
-} {
+  tone: StatusTone | null;
+  badgeVariant: BadgeVariant;
+}
+
+export function severityDisplay(severity: Severity): SeverityDisplay {
   return lookupExhaustive(SEVERITY_DISPLAY, severity, "severity");
 }
+
+const SEVERITY_DISPLAY: Record<Severity, SeverityDisplay> = {
+  critical: {
+    label: "Critical",
+    description: "Blocks core tasks for many users — prioritize immediately.",
+    tone: "failed",
+    badgeVariant: undefined,
+  },
+  serious: {
+    label: "Serious",
+    description:
+      "Major barrier for some users — fix in the current sprint if possible.",
+    tone: "review",
+    badgeVariant: undefined,
+  },
+  moderate: {
+    label: "Moderate",
+    description: "Noticeable friction — schedule with other accessibility work.",
+    tone: "review",
+    badgeVariant: undefined,
+  },
+  minor: {
+    label: "Minor",
+    description: "Low impact — fix when touching nearby code.",
+    tone: null,
+    badgeVariant: "secondary",
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Determination
 // ---------------------------------------------------------------------------
 
-export function determinationLabel(method: DeterminationMethod): string {
-  return determinationDisplay(method).label;
-}
-
-export function determinationDescription(method: DeterminationMethod): string {
-  return determinationDisplay(method).description;
-}
-
-const DETERMINATION_DISPLAY: Record<
-  DeterminationMethod,
-  { label: string; description: string }
-> = {
-  automated: {
-    label: "Automated",
-    description: "Status set by deterministic analysis — not an AI guess.",
-  },
-  human_review: {
-    label: "Human review",
-    description:
-      "A reviewer explicitly set this status — overrides automated results.",
-  },
-};
-
-function determinationDisplay(method: DeterminationMethod): {
+export interface DeterminationDisplay {
   label: string;
   description: string;
-} {
+  tone: StatusTone;
+}
+
+export function determinationDisplay(
+  method: DeterminationMethod,
+): DeterminationDisplay {
   return lookupExhaustive(DETERMINATION_DISPLAY, method, "determination");
 }
+
+const DETERMINATION_DISPLAY: Record<DeterminationMethod, DeterminationDisplay> =
+  {
+    automated: {
+      label: "Automated",
+      description: "Status set by deterministic analysis — not an AI guess.",
+      tone: "signal",
+    },
+    human_review: {
+      label: "Human review",
+      description:
+        "A reviewer explicitly set this status — overrides automated results.",
+      tone: "signal",
+    },
+  };
 
 // ---------------------------------------------------------------------------
 // Confidence / provenance / engine
 // ---------------------------------------------------------------------------
 
-export function confidenceDescription(confidence: Confidence): string {
-  return lookupExhaustive(CONFIDENCE_DESCRIPTION, confidence, "confidence");
+export interface ConfidenceDisplay {
+  description: string;
 }
 
-const CONFIDENCE_DESCRIPTION: Record<Confidence, string> = {
-  high: "Strong signal from the check — not a compliance status, but safe to act on.",
-  medium: "Likely correct — skim the snippet before changing code.",
-  low: "Weak or partial match — verify manually before treating as confirmed.",
+export function confidenceDisplay(confidence: Confidence): ConfidenceDisplay {
+  return lookupExhaustive(CONFIDENCE_DISPLAY, confidence, "confidence");
+}
+
+const CONFIDENCE_DISPLAY: Record<Confidence, ConfidenceDisplay> = {
+  high: {
+    description:
+      "Strong signal from the check — not a compliance status, but safe to act on.",
+  },
+  medium: {
+    description: "Likely correct — skim the snippet before changing code.",
+  },
+  low: {
+    description:
+      "Weak or partial match — verify manually before treating as confirmed.",
+  },
 };
 
-export function provenanceDescription(provenance: ExplanationProvenance): string {
-  return lookupExhaustive(PROVENANCE_DESCRIPTION, provenance, "provenance");
+export interface ProvenanceDisplay {
+  label: string;
+  description: string;
+  tone: StatusTone;
 }
 
-const PROVENANCE_DESCRIPTION: Record<ExplanationProvenance, string> = {
-  deterministic: "Rule-based explanation from the check — baseline for compliance, not AI output.",
-  ai: "Optional AI enrichment — never sets requirement status; review before trusting.",
+export function provenanceDisplay(
+  provenance: ExplanationProvenance,
+): ProvenanceDisplay {
+  return lookupExhaustive(PROVENANCE_DISPLAY, provenance, "provenance");
+}
+
+const PROVENANCE_DISPLAY: Record<ExplanationProvenance, ProvenanceDisplay> = {
+  deterministic: {
+    label: "Deterministic",
+    description:
+      "Rule-based explanation from the check — baseline for compliance, not AI output.",
+    tone: "signal",
+  },
+  ai: {
+    label: "AI-generated",
+    description:
+      "Optional AI enrichment — never sets requirement status; review before trusting.",
+    tone: "signal",
+  },
 };
 
-export function engineDescription(engine: AssessmentEngine): string {
-  return lookupExhaustive(ENGINE_DESCRIPTION, engine, "assessment engine");
+export interface EngineDisplay {
+  label: string;
+  description: string;
+  tone: StatusTone | null;
+  badgeVariant: BadgeVariant;
 }
 
-const ENGINE_DESCRIPTION: Record<AssessmentEngine, string> = {
-  ast: "Found in source code (AST) — fix the file and line shown.",
-  runtime: "Found on the rendered page (DOM audit) — trace to the component that renders it.",
+export function engineDisplay(engine: AssessmentEngine): EngineDisplay {
+  return lookupExhaustive(ENGINE_DISPLAY, engine, "assessment engine");
+}
+
+const ENGINE_DISPLAY: Record<AssessmentEngine, EngineDisplay> = {
+  ast: {
+    label: "Source (AST)",
+    description: "Found in source code (AST) — fix the file and line shown.",
+    tone: null,
+    badgeVariant: "outline",
+  },
+  runtime: {
+    label: "Runtime (DOM)",
+    description:
+      "Found on the rendered page (DOM audit) — trace to the component that renders it.",
+    tone: "signal",
+    badgeVariant: undefined,
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -317,6 +358,11 @@ export const STATUS_TONE_ACCENT: Record<
   unverifiable: "bg-status-unverifiable",
 };
 
+/** Class for a badge tint; empty when tone is null (plain secondary/outline). */
+export function statusToneBadgeClass(tone: StatusTone | null): string {
+  return tone ? STATUS_TONE_BADGE[tone] : "";
+}
+
 // ---------------------------------------------------------------------------
 // Evidence — one record per kind; `finding` and `assessment_job` refine
 // label + tone together from `detail`, so the two stay in sync.
@@ -324,7 +370,7 @@ export const STATUS_TONE_ACCENT: Record<
 
 export type EvidenceTone = "default" | "pass" | "fail" | "review" | "signal";
 
-interface EvidenceDisplay {
+export interface EvidenceDisplay {
   label: string;
   tone: EvidenceTone;
 }
@@ -388,20 +434,6 @@ export function evidenceDisplay(
     );
   }
   return lookupExhaustive(EVIDENCE_DISPLAY, kind, "evidence kind");
-}
-
-export function evidenceKindLabel(
-  kind: EvidenceKind,
-  detail?: Record<string, unknown>,
-): string {
-  return evidenceDisplay(kind, detail).label;
-}
-
-export function evidenceTone(
-  kind: EvidenceKind,
-  detail?: Record<string, unknown>,
-): EvidenceTone {
-  return evidenceDisplay(kind, detail).tone;
 }
 
 export const EVIDENCE_TONE_DOT: Record<EvidenceTone, string> = {

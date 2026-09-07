@@ -8,7 +8,7 @@ import { formatLocationRef, locationPathOrUrl } from "@complyloop/analysis-core/
 import { parsePageParam } from "./pagination";
 import { parseEnumParam, firstParam, buildHref } from "./query";
 import { prioritizeFindings } from "./prioritization";
-import { severityRank } from "./status-display";
+import { severityRank } from "./prioritization";
 import {
   REMEDIATION_STATUSES,
   type RemediationStatus,

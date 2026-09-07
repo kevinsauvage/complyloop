@@ -11,11 +11,11 @@ import {
   secondaryReferenceLabel,
 } from "@complyloop/adapters/control-theme";
 import {
-  determinationLabel,
-  evidenceKindLabel,
-  remediationStatusLabel,
-  requirementStatusLabel,
-  severityLabel,
+  determinationDisplay,
+  evidenceDisplay,
+  remediationStatusDisplay,
+  requirementStatusDisplay,
+  severityDisplay,
 } from "@/core/status-display";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { prioritizeClusters } from "@/core/prioritization";
@@ -145,7 +145,7 @@ function evidenceRowsForProject(
     .reverse()
     .map((record) => ({
       at: record.at,
-      kindLabel: evidenceKindLabel(record.kind, record.detail),
+      kindLabel: evidenceDisplay(record.kind, record.detail).label,
       summary: record.summary,
     }));
 }
@@ -175,9 +175,9 @@ function toEngineeringFindingCard(
     code: display?.code ?? control?.code ?? finding.controlId,
     locationRef: formatLocationRef(finding.location),
     requirementLine: requirement
-      ? `${requirementStatusLabel(requirement.status)} (${determinationLabel(requirement.determination)})`
+      ? `${requirementStatusDisplay(requirement.status).label} (${determinationDisplay(requirement.determination).label})`
       : undefined,
-    severity: severityLabel(finding.severity),
+    severity: severityDisplay(finding.severity).label,
     severityClass: finding.severity,
     confidence: finding.confidence,
     checkId: finding.checkId,
@@ -185,7 +185,7 @@ function toEngineeringFindingCard(
     reason: finding.reason,
     snippet: locationSnippet(finding.location),
     remediationStatus: remediation
-      ? remediationStatusLabel(remediation.status)
+      ? remediationStatusDisplay(remediation.status).label
       : undefined,
     suggestion: remediation?.suggestion
       ? {
@@ -208,8 +208,8 @@ function toAuditRequirementRow(
     secondaryLabel: secondaryReferenceLabel(display.secondaryCode),
     secondaryCode: display.secondaryCode,
     status: requirement.status,
-    statusLabel: requirementStatusLabel(requirement.status),
-    determinationLabel: determinationLabel(requirement.determination),
+    statusLabel: requirementStatusDisplay(requirement.status).label,
+    determinationLabel: determinationDisplay(requirement.determination).label,
     description: control.description,
     updatedAt: requirement.updatedAt,
     exception: requirement.exception

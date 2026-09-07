@@ -1,7 +1,20 @@
-import { severityRank } from "./status-display";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
+import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 import type { Finding, FindingCluster } from "@complyloop/db/types";
+import { lookupExhaustive } from "./assert-exhaustive";
 import { clusterFindings } from "./root-cause";
+
+/** Lower rank sorts first. Used to order findings by urgency. */
+export function severityRank(severity: Severity): number {
+  return lookupExhaustive(SEVERITY_RANK, severity, "severity");
+}
+
+const SEVERITY_RANK: Record<Severity, number> = {
+  critical: 0,
+  serious: 1,
+  moderate: 2,
+  minor: 3,
+};
 
 const CONFIDENCE_BONUS: Record<Finding["confidence"], number> = {
   high: 3,

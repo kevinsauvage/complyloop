@@ -18,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { evidenceKindLabel } from "@/core/status-display";
+import { evidenceDisplay } from "@/core/status-display";
 import { cn } from "@/lib/utils";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
@@ -166,7 +166,7 @@ export function DashboardActivitySections({
                       className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground"
                     >
                       <span className="font-medium text-foreground">
-                        {evidenceKindLabel(record.kind, record.detail)}
+                        {evidenceDisplay(record.kind, record.detail).label}
                       </span>
                       {" — "}
                       {record.summary}

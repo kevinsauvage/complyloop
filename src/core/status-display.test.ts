@@ -1,24 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
-  confidenceDescription,
-  determinationDescription,
-  determinationLabel,
+  confidenceDisplay,
+  determinationDisplay,
   EVIDENCE_TONE_BADGE,
   EVIDENCE_TONE_DOT,
-  evidenceKindLabel,
-  evidenceTone,
-  engineDescription,
-  findingStatusLabel,
-  provenanceDescription,
+  evidenceDisplay,
+  engineDisplay,
+  findingStatusDisplay,
+  provenanceDisplay,
   remediationStatusDisplay,
-  remediationStatusLabel,
   requirementStatusDisplay,
-  requirementStatusLabel,
   roleTone,
-  severityDescription,
-  severityLabel,
-  severityRank,
+  severityDisplay,
 } from "./status-display";
+import { severityRank } from "./prioritization";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
 import type { EvidenceKind } from "@complyloop/db/types";
 import {
@@ -32,12 +27,12 @@ import {
 
 const SEVERITIES: Severity[] = ["critical", "serious", "moderate", "minor"];
 
-describe("requirementStatusLabel", () => {
+describe("requirementStatusDisplay", () => {
   it("labels every requirement status", () => {
     expect(
       REQUIREMENT_STATUSES.map((status) => [
         status,
-        requirementStatusLabel(status),
+        requirementStatusDisplay(status).label,
       ]),
     ).toEqual([
       ["passed", "Passed"],
@@ -48,19 +43,35 @@ describe("requirementStatusLabel", () => {
     ]);
   });
 
+  it("describes every requirement status", () => {
+    for (const status of REQUIREMENT_STATUSES) {
+      expect(requirementStatusDisplay(status).description.length).toBeGreaterThan(
+        10,
+      );
+    }
+  });
+
+  it("maps every requirement status tone", () => {
+    expect(
+      REQUIREMENT_STATUS_DISPLAY_ORDER.map(
+        (status) => requirementStatusDisplay(status).tone,
+      ),
+    ).toEqual(["failed", "review", "passed", "na", "unverifiable"]);
+  });
+
   it("throws on an unhandled status", () => {
     expect(() =>
-      requirementStatusLabel("bogus" as RequirementStatus),
+      requirementStatusDisplay("bogus" as RequirementStatus),
     ).toThrow(/Unhandled requirement status/);
   });
 });
 
-describe("remediationStatusLabel", () => {
+describe("remediationStatusDisplay", () => {
   it("labels every remediation status", () => {
     expect(
       REMEDIATION_STATUSES.map((status) => [
         status,
-        remediationStatusLabel(status),
+        remediationStatusDisplay(status).label,
       ]),
     ).toEqual([
       ["detected", "Detected"],
@@ -71,22 +82,34 @@ describe("remediationStatusLabel", () => {
     ]);
   });
 
+  it("describes every remediation status with a tone-token badge", () => {
+    for (const status of REMEDIATION_STATUSES) {
+      const display = remediationStatusDisplay(status);
+      expect(display.description.length).toBeGreaterThan(10);
+      if (display.tone) {
+        expect(display.tone).toMatch(
+          /^(passed|failed|review|na|unverifiable|signal)$/,
+        );
+      }
+    }
+  });
+
   it("throws on an unhandled status", () => {
     expect(() =>
-      remediationStatusLabel("bogus" as RemediationStatus),
+      remediationStatusDisplay("bogus" as RemediationStatus),
     ).toThrow(/Unhandled remediation status/);
   });
 });
 
-describe("evidenceKindLabel", () => {
+describe("evidenceDisplay", () => {
   it("uses engineer-facing copy instead of snake_case ids", () => {
-    expect(evidenceKindLabel("assessment_completed")).toBe(
+    expect(evidenceDisplay("assessment_completed").label).toBe(
       "Assessment completed",
     );
-    expect(evidenceKindLabel("requirements_imported")).toBe("Scope updated");
-    expect(
-      evidenceKindLabel("finding", { event: "detected" }),
-    ).toBe("Finding detected");
+    expect(evidenceDisplay("requirements_imported").label).toBe("Scope updated");
+    expect(evidenceDisplay("finding", { event: "detected" }).label).toBe(
+      "Finding detected",
+    );
   });
 
   it("provides a human label for every evidence kind", () => {
@@ -114,181 +137,29 @@ describe("evidenceKindLabel", () => {
       "webhook_reassessment",
     ];
     for (const kind of kinds) {
-      expect(evidenceKindLabel(kind).length).toBeGreaterThan(0);
-      expect(evidenceKindLabel(kind)).not.toContain("_");
+      expect(evidenceDisplay(kind).label.length).toBeGreaterThan(0);
+      expect(evidenceDisplay(kind).label).not.toContain("_");
     }
   });
 
-  it("throws on an unhandled kind", () => {
-    expect(() =>
-      evidenceKindLabel("bogus" as EvidenceKind),
-    ).toThrow(/Unhandled evidence kind/);
-  });
-});
-
-describe("findingStatusLabel", () => {
-  it("labels every finding status", () => {
-    expect(
-      FINDING_STATUSES.map((status) => [status, findingStatusLabel(status)]),
-    ).toEqual([
-      ["open", "Open"],
-      ["resolved", "Resolved"],
-      ["dismissed", "Dismissed"],
-    ]);
-  });
-});
-
-describe("determinationLabel", () => {
-  it("labels both determination methods", () => {
-    expect(determinationLabel("automated")).toBe("Automated");
-    expect(determinationLabel("human_review")).toBe("Human review");
-  });
-});
-
-describe("severity helpers", () => {
-  it("ranks severities with critical first", () => {
-    expect(SEVERITIES.map(severityRank)).toEqual([0, 1, 2, 3]);
-  });
-
-  it("labels every severity", () => {
-    expect(SEVERITIES.map(severityLabel)).toEqual([
-      "Critical",
-      "Serious",
-      "Moderate",
-      "Minor",
-    ]);
-  });
-
-  it("throws on an unhandled severity", () => {
-    expect(() => severityRank("bogus" as Severity)).toThrow(
-      /Unhandled severity/,
-    );
-    expect(() => severityLabel("bogus" as Severity)).toThrow(
-      /Unhandled severity/,
-    );
-  });
-});
-
-describe("requirementStatusDisplay", () => {
-  it("describes every requirement status without throwing", () => {
-    for (const status of [
-      "passed",
-      "failed",
-      "needs_review",
-      "not_applicable",
-      "unable_to_verify",
-    ] as const) {
-      expect(requirementStatusDisplay(status).description.length).toBeGreaterThan(
-        10,
-      );
-    }
-  });
-
-  it("throws on an unrecognized status", () => {
-    expect(() => requirementStatusDisplay("nope" as never)).toThrow(
-      /Unhandled requirement status/,
-    );
-  });
-});
-
-describe("remediationStatusDisplay", () => {
-  it("describes every remediation status", () => {
-    for (const status of [
-      "detected",
-      "suggested",
-      "approved",
-      "implemented",
-      "verified",
-    ] as const) {
-      expect(remediationStatusDisplay(status).description.length).toBeGreaterThan(
-        10,
-      );
-    }
-  });
-});
-
-describe("severityDescription", () => {
-  it("describes every severity", () => {
-    for (const severity of ["critical", "serious", "moderate", "minor"] as const) {
-      expect(severityDescription(severity).length).toBeGreaterThan(10);
-    }
-  });
-});
-
-describe("confidenceDescription", () => {
-  it("describes every confidence level", () => {
-    for (const confidence of ["high", "medium", "low"] as const) {
-      expect(confidenceDescription(confidence).length).toBeGreaterThan(10);
-    }
-  });
-
-  it("throws on an unrecognized confidence", () => {
-    expect(() => confidenceDescription("certain" as never)).toThrow(
-      /Unhandled confidence/,
-    );
-  });
-});
-
-describe("determinationDescription", () => {
-  it("describes both determination methods", () => {
-    expect(determinationDescription("automated")).toContain("deterministic");
-    expect(determinationDescription("human_review")).toContain("reviewer");
-  });
-});
-
-describe("provenanceDescription", () => {
-  it("describes both provenance values", () => {
-    expect(provenanceDescription("deterministic")).toContain("Rule-based");
-    expect(provenanceDescription("ai")).toContain("never sets");
-  });
-});
-
-describe("engineDescription", () => {
-  it("describes both assessment engines", () => {
-    expect(engineDescription("ast")).toContain("source code");
-    expect(engineDescription("runtime")).toContain("rendered page");
-  });
-});
-
-describe("requirementStatusDisplay tone", () => {
-  it("maps every requirement status", () => {
-    expect(
-      REQUIREMENT_STATUS_DISPLAY_ORDER.map(
-        (status) => requirementStatusDisplay(status).tone,
-      ),
-    ).toEqual([
-      "failed",
+  it("maps finding events and assessment job phases to tones", () => {
+    expect(evidenceDisplay("finding", { event: "detected" }).tone).toBe("fail");
+    expect(evidenceDisplay("finding", { event: "resolved" }).tone).toBe("pass");
+    expect(evidenceDisplay("finding", { event: "dismissed" }).tone).toBe(
       "review",
-      "passed",
-      "na",
-      "unverifiable",
-    ]);
-  });
-});
-
-describe("roleTone", () => {
-  it("maps every org role", () => {
-    expect(roleTone("owner")).toBe("signal");
-    expect(roleTone("admin")).toBe("review");
-    expect(roleTone("member")).toBe("passed");
-    expect(roleTone("viewer")).toBe("na");
-  });
-});
-
-describe("evidenceTone", () => {
-  it("maps finding events to tones", () => {
-    expect(evidenceTone("finding", { event: "detected" })).toBe("fail");
-    expect(evidenceTone("finding", { event: "resolved" })).toBe("pass");
-    expect(evidenceTone("finding", { event: "dismissed" })).toBe("review");
+    );
+    expect(evidenceDisplay("assessment_job", { phase: "completed" }).tone).toBe(
+      "pass",
+    );
+    expect(evidenceDisplay("assessment_job", { phase: "failed" }).tone).toBe(
+      "fail",
+    );
+    expect(evidenceDisplay("assessment_job", { phase: "queued" }).tone).toBe(
+      "signal",
+    );
   });
 
-  it("maps assessment job phases to tones", () => {
-    expect(evidenceTone("assessment_job", { phase: "completed" })).toBe("pass");
-    expect(evidenceTone("assessment_job", { phase: "failed" })).toBe("fail");
-    expect(evidenceTone("assessment_job", { phase: "queued" })).toBe("signal");
-  });
-
-  it("covers every evidence kind with a dot and badge class", () => {
+  it("covers every evidence tone with a dot and badge class", () => {
     const kinds: EvidenceKind[] = [
       "project_connected",
       "assessment_completed",
@@ -299,8 +170,8 @@ describe("evidenceTone", () => {
     ];
     const tones = new Set(
       kinds.flatMap((kind) => [
-        evidenceTone(kind),
-        evidenceTone("finding", { event: "resolved" }),
+        evidenceDisplay(kind).tone,
+        evidenceDisplay("finding", { event: "resolved" }).tone,
       ]),
     );
     for (const tone of tones) {
@@ -310,8 +181,118 @@ describe("evidenceTone", () => {
   });
 
   it("throws on an unhandled kind", () => {
-    expect(() => evidenceTone("bogus" as EvidenceKind)).toThrow(
+    expect(() => evidenceDisplay("bogus" as EvidenceKind)).toThrow(
       /Unhandled evidence kind/,
     );
+  });
+});
+
+describe("findingStatusDisplay", () => {
+  it("labels every finding status", () => {
+    expect(
+      FINDING_STATUSES.map((status) => [
+        status,
+        findingStatusDisplay(status).label,
+      ]),
+    ).toEqual([
+      ["open", "Open"],
+      ["resolved", "Resolved"],
+      ["dismissed", "Dismissed"],
+    ]);
+  });
+});
+
+describe("determinationDisplay", () => {
+  it("labels and describes both determination methods", () => {
+    expect(determinationDisplay("automated").label).toBe("Automated");
+    expect(determinationDisplay("human_review").label).toBe("Human review");
+    expect(determinationDisplay("automated").description).toContain(
+      "deterministic",
+    );
+    expect(determinationDisplay("human_review").description).toContain(
+      "reviewer",
+    );
+    expect(determinationDisplay("automated").tone).toBe("signal");
+    expect(determinationDisplay("human_review").tone).toBe("signal");
+  });
+});
+
+describe("severityDisplay", () => {
+  it("labels every severity", () => {
+    expect(SEVERITIES.map((severity) => severityDisplay(severity).label)).toEqual([
+      "Critical",
+      "Serious",
+      "Moderate",
+      "Minor",
+    ]);
+  });
+
+  it("describes every severity", () => {
+    for (const severity of SEVERITIES) {
+      expect(severityDisplay(severity).description.length).toBeGreaterThan(10);
+    }
+  });
+
+  it("throws on an unhandled severity", () => {
+    expect(() => severityDisplay("bogus" as Severity)).toThrow(
+      /Unhandled severity/,
+    );
+  });
+});
+
+describe("severityRank", () => {
+  it("ranks severities with critical first", () => {
+    expect(SEVERITIES.map(severityRank)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("throws on an unhandled severity", () => {
+    expect(() => severityRank("bogus" as Severity)).toThrow(
+      /Unhandled severity/,
+    );
+  });
+});
+
+describe("confidenceDisplay", () => {
+  it("describes every confidence level", () => {
+    for (const confidence of ["high", "medium", "low"] as const) {
+      expect(confidenceDisplay(confidence).description.length).toBeGreaterThan(
+        10,
+      );
+    }
+  });
+
+  it("throws on an unrecognized confidence", () => {
+    expect(() => confidenceDisplay("certain" as never)).toThrow(
+      /Unhandled confidence/,
+    );
+  });
+});
+
+describe("provenanceDisplay", () => {
+  it("describes both provenance values with labels", () => {
+    expect(provenanceDisplay("deterministic").label).toBe("Deterministic");
+    expect(provenanceDisplay("ai").label).toBe("AI-generated");
+    expect(provenanceDisplay("deterministic").description).toContain(
+      "Rule-based",
+    );
+    expect(provenanceDisplay("ai").description).toContain("never sets");
+  });
+});
+
+describe("engineDisplay", () => {
+  it("describes both assessment engines with labels", () => {
+    expect(engineDisplay("ast").label).toBe("Source (AST)");
+    expect(engineDisplay("runtime").label).toBe("Runtime (DOM)");
+    expect(engineDisplay("ast").description).toContain("source code");
+    expect(engineDisplay("runtime").description).toContain("rendered page");
+  });
+});
+
+describe("roleTone", () => {
+  it("maps every org role", () => {
+    expect(roleTone("owner")).toBe("signal");
+    expect(roleTone("admin")).toBe("review");
+    expect(roleTone("member")).toBe("passed");
+    expect(roleTone("viewer")).toBe("na");
   });
 });

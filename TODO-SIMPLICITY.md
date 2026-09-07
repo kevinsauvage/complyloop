@@ -92,29 +92,11 @@ source of incidental complexity left in the repo.
   source of truth.
 - **Files:** `src/server/ai-fix.ts`, `src/ai/verified-fix.ts`.
 
-### P2-2 · Unify "refresh a remediation suggestion" (3rd copy exists) — **DONE**
+### P2-3 · Fold `status-display.ts` thin getters + `badges.tsx` parallel maps — **DONE**
 
-`refreshSuggestion` in `src/core/remediation.ts` handles detected→suggested
-and suggested→suggested; `remediation-ai.ts` and `persistPatchCandidate` call it.
-
-### P2-3 · Fold `status-display.ts` thin getters + `badges.tsx` parallel maps
-
-- **What:** `status-display.ts` (421 lines) exposes 1-line getters
-  (`requirementStatusLabel`, `requirementStatusTone`, …) over display records,
-  and `badges.tsx` keeps 7 parallel `Record<Enum, …>` maps
-  (`REMEDIATION_BADGE`/`_VARIANT`, `SEVERITY_BADGE`/`_VARIANT`, …), several
-  hard-coding tailwind colors outside the tone-token system (`approved`,
-  `serious`, `human_review`, AI provenance).
-- **Why:** Three places to touch when adding a status (display record, badge
-  map, variant map); colors outside the token system drift from dark-mode
-  contrast rules.
-- **How:** Keep the documented "one record per enum" design but drop the thin
-  getters (call sites read `.label`/`.tone` directly) and move badge
-  className/variant into the display records (one table per enum, tone-token
-  only). Move `severityRank` to `src/core/prioritization.ts` (ordering is not
-  display).
-- **Files:** `src/core/status-display.ts`, `src/components/badges.tsx`,
-  `src/core/prioritization.ts`.
+One display record per enum owns label/description/tone (tone-token only);
+badges read those records. Thin getters removed; `severityRank` lives in
+`prioritization.ts`.
 
 ### P2-6 · Align `connect.ts` with the standard write protocol
 

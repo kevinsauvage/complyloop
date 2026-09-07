@@ -13,7 +13,7 @@ import { FindingQueueNav } from "@/components/findings/finding-queue-nav";
 import { FindingUnderstandCard } from "@/components/findings/finding-understand-card";
 import { RemediationHistory } from "@/components/findings/remediation-history";
 import { findingAct } from "@/core/finding-act";
-import { evidenceKindLabel } from "@/core/status-display";
+import { evidenceDisplay } from "@/core/status-display";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   findingQueuePosition,
@@ -193,7 +193,7 @@ export default async function FindingPage({
                     />
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                       <Badge variant="secondary" className="text-[10px]">
-                        {evidenceKindLabel(record.kind, record.detail)}
+                        {evidenceDisplay(record.kind, record.detail).label}
                       </Badge>
                       <time
                         dateTime={record.at}

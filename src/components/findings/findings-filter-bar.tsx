@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { FindingListParams } from "@/core/finding-list-filter";
 import { findingsListHref } from "@/core/finding-list-filter";
 import {
-  remediationStatusLabel,
-  severityLabel,
+  remediationStatusDisplay,
+  severityDisplay,
 } from "@/core/status-display";
 import type { RemediationStatus, Severity } from "@complyloop/analysis-core/contract/statuses";
 import { Button } from "@/components/ui/button";
@@ -67,7 +67,7 @@ export function FindingsFilterBar({
             <option value="">Any severity</option>
             {SEVERITIES.map((severity) => (
               <option key={severity} value={severity}>
-                {severityLabel(severity)}
+                {severityDisplay(severity).label}
               </option>
             ))}
           </select>
@@ -98,7 +98,7 @@ export function FindingsFilterBar({
             <option value="">Any remediation</option>
             {REMEDIATION_FILTER_STATUSES.map((status) => (
               <option key={status} value={status}>
-                {remediationStatusLabel(status)}
+                {remediationStatusDisplay(status).label}
               </option>
             ))}
           </select>

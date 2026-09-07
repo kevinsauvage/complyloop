@@ -1,16 +1,17 @@
 import { BadgeWithDescription } from "@/components/badge-with-description";
 import { Badge } from "@/components/ui/badge";
 import {
-  confidenceDescription,
-  determinationDescription,
-  determinationLabel,
-  engineDescription,
-  evidenceKindLabel,
-  provenanceDescription,
+  confidenceDisplay,
+  determinationDisplay,
+  engineDisplay,
+  evidenceDisplay,
+  EVIDENCE_TONE_BADGE,
+  provenanceDisplay,
   remediationStatusDisplay,
   requirementStatusDisplay,
-  severityDescription,
-  severityLabel,
+  severityDisplay,
+  STATUS_TONE_BADGE,
+  statusToneBadgeClass,
 } from "@/core/status-display";
 import type {
   Confidence,
@@ -22,11 +23,6 @@ import type {
 } from "@complyloop/analysis-core/contract/statuses";
 import type { EvidenceKind } from "@complyloop/db/types";
 import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
-import {
-  EVIDENCE_TONE_BADGE,
-  evidenceTone,
-  STATUS_TONE_BADGE,
-} from "@/core/status-display";
 import { cn } from "@/lib/utils";
 
 export function RequirementStatusBadge({
@@ -43,36 +39,17 @@ export function RequirementStatusBadge({
 }
 
 export function EvidenceKindBadge({ kind }: { kind: EvidenceKind }) {
-  const tone = evidenceTone(kind);
-  const label = evidenceKindLabel(kind);
-  const tintClass = EVIDENCE_TONE_BADGE[tone];
+  const display = evidenceDisplay(kind);
+  const tintClass = EVIDENCE_TONE_BADGE[display.tone];
   return (
     <Badge
-      variant={tone === "default" ? "secondary" : undefined}
+      variant={display.tone === "default" ? "secondary" : undefined}
       className={cn(tintClass)}
     >
-      {label}
+      {display.label}
     </Badge>
   );
 }
-
-const REMEDIATION_BADGE: Record<RemediationStatus, string> = {
-  detected: "",
-  suggested: STATUS_TONE_BADGE.signal,
-  approved:
-    "border-transparent bg-indigo-500/15 text-indigo-700 dark:bg-indigo-400/25 dark:text-indigo-300",
-  implemented: STATUS_TONE_BADGE.unverifiable,
-  verified: STATUS_TONE_BADGE.passed,
-};
-
-const REMEDIATION_VARIANT: Record<RemediationStatus, "secondary" | undefined> =
-  {
-    detected: "secondary",
-    suggested: undefined,
-    approved: undefined,
-    implemented: undefined,
-    verified: undefined,
-  };
 
 export function RemediationStatusBadge({
   status,
@@ -83,8 +60,8 @@ export function RemediationStatusBadge({
   return (
     <BadgeWithDescription description={display.description}>
       <Badge
-        variant={REMEDIATION_VARIANT[status]}
-        className={cn(REMEDIATION_BADGE[status])}
+        variant={display.badgeVariant}
+        className={cn(statusToneBadgeClass(display.tone))}
       >
         {display.label}
       </Badge>
@@ -92,29 +69,15 @@ export function RemediationStatusBadge({
   );
 }
 
-const SEVERITY_BADGE: Record<Severity, string> = {
-  critical: STATUS_TONE_BADGE.failed,
-  serious:
-    "border-transparent bg-orange-500/15 text-orange-700 dark:bg-orange-400/25 dark:text-orange-300",
-  moderate: STATUS_TONE_BADGE.review,
-  minor: "",
-};
-
-const SEVERITY_VARIANT: Record<Severity, "secondary" | undefined> = {
-  critical: undefined,
-  serious: undefined,
-  moderate: undefined,
-  minor: "secondary",
-};
-
 export function SeverityBadge({ severity }: { severity: Severity }) {
+  const display = severityDisplay(severity);
   return (
-    <BadgeWithDescription description={severityDescription(severity)}>
+    <BadgeWithDescription description={display.description}>
       <Badge
-        variant={SEVERITY_VARIANT[severity]}
-        className={cn(SEVERITY_BADGE[severity])}
+        variant={display.badgeVariant}
+        className={cn(statusToneBadgeClass(display.tone))}
       >
-        {severityLabel(severity)}
+        {display.label}
       </Badge>
     </BadgeWithDescription>
   );
@@ -122,7 +85,7 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
 
 export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
   return (
-    <BadgeWithDescription description={confidenceDescription(confidence)}>
+    <BadgeWithDescription description={confidenceDisplay(confidence).description}>
       <Badge variant="outline" className="text-muted-foreground">
         Confidence: {confidence}
       </Badge>
@@ -130,78 +93,45 @@ export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
   );
 }
 
-const DETERMINATION_BADGE: Record<DeterminationMethod, string> = {
-  automated: STATUS_TONE_BADGE.signal,
-  human_review:
-    "border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300",
-};
-
 export function DeterminationBadge({
   method,
 }: {
   method: DeterminationMethod;
 }) {
+  const display = determinationDisplay(method);
   return (
-    <BadgeWithDescription description={determinationDescription(method)}>
-      <Badge className={DETERMINATION_BADGE[method]}>
-        {determinationLabel(method)}
-      </Badge>
+    <BadgeWithDescription description={display.description}>
+      <Badge className={STATUS_TONE_BADGE[display.tone]}>{display.label}</Badge>
     </BadgeWithDescription>
   );
 }
-
-const PROVENANCE_BADGE: Record<
-  ExplanationProvenance,
-  { className: string; label: string }
-> = {
-  deterministic: {
-    className: STATUS_TONE_BADGE.signal,
-    label: "Deterministic",
-  },
-  ai: {
-    className:
-      "border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:bg-fuchsia-400/25 dark:text-fuchsia-300",
-    label: "AI-generated",
-  },
-};
 
 export function ProvenanceBadge({
   provenance,
 }: {
   provenance: ExplanationProvenance;
 }) {
-  const { className, label } = PROVENANCE_BADGE[provenance];
+  const display = provenanceDisplay(provenance);
   return (
-    <BadgeWithDescription description={provenanceDescription(provenance)}>
-      <Badge className={className}>{label}</Badge>
+    <BadgeWithDescription description={display.description}>
+      <Badge className={STATUS_TONE_BADGE[display.tone]}>{display.label}</Badge>
     </BadgeWithDescription>
   );
 }
 
-const ENGINE_BADGE: Record<
-  AssessmentEngine,
-  { variant: "outline" | undefined; className: string; label: string }
-> = {
-  ast: {
-    variant: "outline",
-    className: "text-muted-foreground",
-    label: "Source (AST)",
-  },
-  runtime: {
-    variant: undefined,
-    className:
-      "border-transparent bg-teal-500/15 text-teal-700 dark:bg-teal-400/25 dark:text-teal-300",
-    label: "Runtime (DOM)",
-  },
-};
-
 /** Which analysis engine produced a finding (AST source vs rendered DOM). */
 export function EngineBadge({ engine }: { engine: AssessmentEngine }) {
-  const { variant, className, label } = ENGINE_BADGE[engine];
+  const display = engineDisplay(engine);
   return (
-    <BadgeWithDescription description={engineDescription(engine)}>
-      <Badge variant={variant} className={className}>
-        {label}
+    <BadgeWithDescription description={display.description}>
+      <Badge
+        variant={display.badgeVariant}
+        className={cn(
+          statusToneBadgeClass(display.tone),
+          display.badgeVariant === "outline" && "text-muted-foreground",
+        )}
+      >
+        {display.label}
       </Badge>
     </BadgeWithDescription>
   );

@@ -5,7 +5,7 @@ import {
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
 import { formatDateTimeWithZone } from "@/core/format-datetime";
-import { findingStatusLabel, requirementStatusLabel } from "@/core/status-display";
+import { findingStatusDisplay, requirementStatusDisplay } from "@/core/status-display";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   composeAuditReport,
@@ -52,13 +52,13 @@ function statusCountRows(
   counts: Record<RequirementStatus, number>,
 ): string[] {
   return REQUIREMENT_STATUSES.map(
-    (status) => `| ${requirementStatusLabel(status)} | ${counts[status]} |`,
+    (status) => `| ${requirementStatusDisplay(status).label} | ${counts[status]} |`,
   );
 }
 
 function findingCountRows(counts: Record<FindingStatus, number>): string[] {
   return FINDING_STATUSES.map(
-    (status) => `| ${findingStatusLabel(status)} | ${counts[status]} |`,
+    (status) => `| ${findingStatusDisplay(status).label} | ${counts[status]} |`,
   );
 }
 
