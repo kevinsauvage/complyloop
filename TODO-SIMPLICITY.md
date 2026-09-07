@@ -318,19 +318,3 @@ Move remaining provision/claim to auth/sign-in (or first write). Keep the indexe
 
 **Files**
 `src/server/workspace.ts`, `src/server/orgs.ts`, `src/auth.ts`, `packages/db/src/repo/orgs.ts`
-
----
-
-### 26. AI / docs — do not add layers — **~10–20**
-
-**What**
-AI stack is already small. Agent docs (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `docs/ai/architecture.md`) still risk repeating stack/loop maps. The simplicity implementation plan uses obsolete TODO numbering.
-
-**Why**
-Docs overlap adds a second mental map. Stale plans send implementers after deleted APIs.
-
-**How**
-Keep docs as pointers; do not add another overview. Architecture stays the system map. Rewrite or delete `docs/superpowers/plans/2026-09-07-simplicity.md` to match this file before starting P0 work. Rename `warn.test.ts` (see #23).
-
-**Files**
-`src/ai/warn.test.ts`, `src/ai/ai-call.ts`, `AGENTS.md`, `CLAUDE.md`, `docs/superpowers/plans/2026-09-07-simplicity.md`
