@@ -197,7 +197,7 @@ describe("locateViolationInProject + PR apply", () => {
         complyLoop: { passed: true, remaining: [] },
       },
     );
-    expect(result.committed).toBe(true);
+    expect(result.branch).toContain("complyloop/fix-");
     const onDisk = fs.readFileSync(path.join(root, relative), "utf8");
     expect(onDisk).toContain("aria-label=");
     expect(onDisk.startsWith("/* banner */")).toBe(true);
@@ -229,11 +229,32 @@ describe("locateViolationInProject + PR apply", () => {
       },
     );
 
-    expect(result.committed).toBe(true);
+    expect(result.branch).toContain("complyloop/fix-");
     expect(fs.readFileSync(path.join(root, relative), "utf8")).toContain(
       'aria-label="Save"',
     );
     expect(scanFile(root, relative)).toHaveLength(0);
+  });
+
+  it("fails loud when the patch does not change the working tree", async () => {
+    const initial = `export const Hero = () => <button></button>;\n`;
+    const { relative, project, control, finding, remediation } =
+      await initRepo(initial);
+
+    await expect(
+      preparePullRequest(project, control, finding, remediation, {
+        description: "No-op",
+        provenance: "ai",
+        edits: [
+          {
+            path: relative,
+            oldText: "<button></button>",
+            newText: "<button></button>",
+          },
+        ],
+        complyLoop: { passed: true, remaining: [] },
+      }),
+    ).rejects.toThrow(/No changes to commit/);
   });
 
   it("opens AI-generated changes as a draft pull request", async () => {

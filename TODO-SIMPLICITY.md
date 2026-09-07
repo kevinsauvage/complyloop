@@ -36,11 +36,6 @@ source of incidental complexity left in the repo.
 
 ## P0 — Critical
 
-### P0-2 · Remove the dead `result` generic from `withProjectWrite` — **DONE**
-
-- Callbacks now return `ProjectWritePayload | void` (void = nothing to persist).
-- `withOrgWrite` still keeps its generic (`createOrgAction` returns the org).
-
 ### P0-3 · Standardize server-action error handling on one idiom (throw → runActionMessage)
 
 - **What is complex:** Three coexisting idioms for the same concern:
@@ -65,27 +60,6 @@ source of incidental complexity left in the repo.
 - **Files:** `src/server/action-state.ts`, `src/server/boundary.ts`,
   `src/server/actions/connect.ts`, `src/server/actions/org.ts`,
   `src/server/actions/pr.ts`, `src/server/actions/remediation-verify.ts`.
-
-### P0-4 · Make the draft-PR path fail loud (silent catches can ship an empty "fix" PR)
-
-- **What is complex:** In `preparePullRequest` (`src/server/pr.ts`), the commit
-  step is wrapped in a bare `catch {}` ("idempotent retry") and the rollback
-  `git.checkout` in another silent catch. `PullRequestResult.committed` is
-  hardcoded `true`, and `body` is returned but never consumed by callers.
-- **Why it's a problem:** If the commit fails for any reason _other_ than
-  "nothing to commit" (e.g. git error), the branch is pushed anyway and a PR is
-  opened that claims the fix but contains **no diff** — a correctness hazard
-  born of silent-failure complexity. Two parallel error paths (throw vs.
-  degrade-to-message) obscure what actually happened.
-- **How to simplify:** After `applyFileEdits`, verify the tree actually differs
-  from HEAD (`git status --porcelain` non-empty or `git diff --quiet` failed)
-  before committing; fail loud otherwise. Drop the `committed` field (or make it
-  honest) and the unused `body` field. One error path: throw `PublicError` with
-  the branch state included.
-- **Files:** `src/server/pr.ts`, `src/components/create-pr-form.tsx` (consumers),
-  `src/server/actions/pr.ts`.
-
----
 
 ## P1 — High
 
@@ -385,11 +359,9 @@ Either delete it (call `StatefulActionForm` directly with those props) or keep
 **Files:** `src/components/findings/ai-action-form.tsx`,
 `src/components/findings/finding-next-step-panel.tsx`.
 
-### P3-8 · Trim `PullRequestResult`
+### P3-8 · Trim `PullRequestResult` — **DONE** (with P0-4)
 
-`committed` is a constant `true` and `body` is never consumed (evidence records
-`branch`/`prUrl`/`title`). Remove both fields.
-**Files:** `src/server/pr.ts`, `src/server/actions/pr.ts`.
+`committed` and unused `body` removed from `PullRequestResult`.
 
 ### P3-9 · One zod schema for the assessment-job row (schema + type + mapper)
 
