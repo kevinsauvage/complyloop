@@ -1,6 +1,5 @@
 import { isPublicError } from "@complyloop/db/types";
-import { parseOwnerRepo } from "./github-repo";
-import { createOctokit, octokitErrorMessage } from "./octokit";
+import { createOctokit, octokitErrorMessage, parseOwnerRepo } from "./github";
 
 export interface CheckRunInput {
   fullName: string;

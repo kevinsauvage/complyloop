@@ -5,12 +5,13 @@ import { PublicError, type Finding, type Remediation } from "@complyloop/db/type
 import { githubCloneUrl } from "./connect-github";
 import { createGit } from "./git";
 import {
+  createOctokit,
+  octokitErrorMessage,
+  parseOwnerRepo,
   resolveProjectGitHubToken,
   type ResolveProjectGitHubTokenOptions,
 } from "./github";
-import { parseOwnerRepo } from "./github-repo";
 import { buildDeveloperHandoff } from "./handoff";
-import { createOctokit, octokitErrorMessage } from "./octokit";
 import { withProjectCheckout } from "./repo-checkout";
 
 export interface PullRequestResult {

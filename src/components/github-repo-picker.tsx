@@ -24,9 +24,31 @@ import {
   type ConnectGitHubFormState,
   type DisconnectGitHubFormState,
 } from "@/server/actions/connect";
-import type { GitHubRepoSummary } from "@/server/github-repo";
-import { groupReposByOwner } from "@/server/github-repo";
+import type { GitHubRepoSummary } from "@/server/github";
 import { z } from "zod";
+
+function repoOwner(fullName: string): string {
+  return fullName.split("/")[0] ?? fullName;
+}
+
+type RepoOwnerGroup = {
+  owner: string;
+  repos: GitHubRepoSummary[];
+};
+
+/** Groups repos by GitHub owner/org, sorted alphabetically. */
+function groupReposByOwner(repos: GitHubRepoSummary[]): RepoOwnerGroup[] {
+  const byOwner = new Map<string, GitHubRepoSummary[]>();
+  for (const repo of repos) {
+    const owner = repoOwner(repo.fullName);
+    const list = byOwner.get(owner) ?? [];
+    list.push(repo);
+    byOwner.set(owner, list);
+  }
+  return [...byOwner.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([owner, ownerRepos]) => ({ owner, repos: ownerRepos }));
+}
 
 const connectInitial: ConnectGitHubFormState = { error: null, message: null };
 const disconnectInitial: DisconnectGitHubFormState = {

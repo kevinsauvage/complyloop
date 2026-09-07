@@ -51,17 +51,19 @@ vi.mock("./repo-checkout", () => ({
 
 vi.mock("./github", () => ({
   resolveProjectGitHubToken,
-}));
-
-vi.mock("./connect-github", () => ({
-  githubCloneUrl,
-}));
-
-vi.mock("./octokit", () => ({
+  parseOwnerRepo: (fullName: string) => {
+    const [owner, repo] = fullName.split("/");
+    if (!owner || !repo) throw new Error("invalid full name");
+    return { owner, repo };
+  },
   createOctokit: () => ({
     rest: { pulls: { create: createPullRequest } },
   }),
   octokitErrorMessage: (error: unknown) => String(error),
+}));
+
+vi.mock("./connect-github", () => ({
+  githubCloneUrl,
 }));
 
 const tempDirs: string[] = [];

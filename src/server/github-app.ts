@@ -4,12 +4,13 @@ import { isProductionRuntime } from "@/auth-secret";
 import { normalizeGitHubFullName } from "./connect-github";
 import { PublicError } from "@complyloop/db/types";
 import {
+  createOctokit,
   filterReposByQuery,
   mapGitHubRepo,
+  octokitErrorMessage,
   type GitHubRepoSummary,
-} from "./github-repo";
+} from "./github";
 import { isE2EHarnessEnabled } from "./e2e-harness";
-import { createOctokit, octokitErrorMessage } from "./octokit";
 
 /** True when a GitHub App can mint per-installation tokens. */
 export function isGitHubAppConfigured(): boolean {
