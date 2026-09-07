@@ -245,7 +245,8 @@ describe("verifyRemediationAction", () => {
       new FormData(),
     );
 
-    expect(result.error).toMatch(/still failing|still detected/i);
+    expect(result.message).toMatch(/still failing|still detected/i);
+    expect(result.error).toBeNull();
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("implemented");
   });
 
@@ -272,7 +273,8 @@ describe("verifyRemediationAction", () => {
       new FormData(),
     );
 
-    expect(result.error).toMatch(/still failing|still detected/i);
+    expect(result.message).toMatch(/still failing|still detected/i);
+    expect(result.error).toBeNull();
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("implemented");
   });
 });

@@ -13,7 +13,6 @@ import { advanceRemediation } from "@/core/remediation";
 import { entityIdSchema, optionalNoteSchema } from "@/core/boundary";
 import { z } from "zod";
 import {
-  actionErrorState,
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
@@ -128,7 +127,7 @@ export async function verifyRemediationAction(
 ): Promise<ActionMessageState> {
   void previous;
   void formData;
-  try {
+  return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const preview = await getWorkspace();
     const finding = findingById(preview.db, findingId);
@@ -174,10 +173,9 @@ export async function verifyRemediationAction(
           },
         );
         refresh();
-        if (stillFailing) {
-          return { error: STILL_FAILING_VERIFY_MESSAGE, message: null };
-        }
-        return { error: null, message: "Fix verified by automated re-check." };
+        return stillFailing
+          ? STILL_FAILING_VERIFY_MESSAGE
+          : "Fix verified by automated re-check.";
       }
       case "site": {
         const project = preview.db.projects.find(
@@ -224,19 +222,16 @@ export async function verifyRemediationAction(
           },
         );
         refresh();
-        if (stillFailing) {
-          return { error: STILL_FAILING_VERIFY_MESSAGE, message: null };
-        }
-        return { error: null, message: "Fix verified by automated re-check." };
+        return stillFailing
+          ? STILL_FAILING_VERIFY_MESSAGE
+          : "Fix verified by automated re-check.";
       }
       default: {
         const _exhaustive: never = location;
         throw new Error(`Unhandled finding location: ${String(_exhaustive)}`);
       }
     }
-  } catch (error) {
-    return actionErrorState(error);
-  }
+  });
 }
 
 /**

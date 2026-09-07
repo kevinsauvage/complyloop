@@ -4,7 +4,10 @@ import { entityIdSchema } from "@/core/boundary";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
-import { publicErrorMessage } from "../action-state";
+import {
+  runActionMessage,
+  type ActionMessageState,
+} from "../action-state";
 import { parseInput } from "../boundary";
 import { patchCandidateFromEvidence } from "../ai-fix";
 import { getDrizzle } from "@complyloop/db/client";
@@ -26,9 +29,7 @@ import {
 } from "./shared";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
-export type CreatePrFormState = {
-  error: string | null;
-  message: string | null;
+export type CreatePrFormState = ActionMessageState & {
   prUrl: string | null;
 };
 
@@ -39,44 +40,26 @@ export async function createPullRequestAction(
 ): Promise<CreatePrFormState> {
   void previous;
   void formData;
-  let findingId: string;
-  try {
-    findingId = parseInput(entityIdSchema, findingIdRaw);
-  } catch (error) {
-    return {
-      error: publicErrorMessage(error),
-      message: null,
-      prUrl: null,
-    };
-  }
-  const preview = await getWorkspace();
-  const finding = findingById(preview.db, findingId);
-  try {
+  let prUrl: string | null = null;
+  const state = await runActionMessage(async () => {
+    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const preview = await getWorkspace();
+    const finding = findingById(preview.db, findingId);
     requireOnFindingProject(preview, finding, "project.remediate");
-  } catch (error) {
-    return {
-      error: publicErrorMessage(error),
-      message: null,
-      prUrl: null,
-    };
-  }
-  const control = controlById(finding.controlId);
-  const remediation = remediationForFinding(preview.db, findingId);
-  const project = preview.db.projects.find(
-    (candidate) => candidate.id === finding.projectId,
-  );
-  if (!project) {
-    return { error: "Unknown project.", message: null, prUrl: null };
-  }
-  if (!project.github?.fullName) {
-    return {
-      error: "Connect a GitHub repository before creating a draft pull request.",
-      message: null,
-      prUrl: null,
-    };
-  }
+    const control = controlById(finding.controlId);
+    const remediation = remediationForFinding(preview.db, findingId);
+    const project = preview.db.projects.find(
+      (candidate) => candidate.id === finding.projectId,
+    );
+    if (!project) {
+      throw new PublicError("Unknown project.");
+    }
+    if (!project.github?.fullName) {
+      throw new PublicError(
+        "Connect a GitHub repository before creating a draft pull request.",
+      );
+    }
 
-  try {
     const tokenOptions = await sessionCheckoutTokenOptions();
     const evidence = await listEvidenceForFinding(
       await getDrizzle(),
@@ -99,6 +82,7 @@ export async function createPullRequestAction(
     if (!result.prUrl) {
       throw new PublicError(result.message);
     }
+    prUrl = result.prUrl;
     await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async ({ db }) => {
       const liveFinding = findingById(db, findingId);
       const liveRemediation = remediationForFinding(db, findingId);
@@ -123,9 +107,7 @@ export async function createPullRequestAction(
       }
       evidenceEntry(payload, {
         kind: "pull_request_prepared",
-        summary: result.prUrl
-          ? `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`
-          : `Branch ${result.branch} prepared for ${liveFinding.checkId}`,
+        summary: `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`,
         projectId: project.id,
         controlId: liveFinding.controlId,
         findingId: liveFinding.id,
@@ -138,16 +120,7 @@ export async function createPullRequestAction(
       return payload;
     });
     refresh();
-    return {
-      error: null,
-      message: result.message,
-      prUrl: result.prUrl,
-    };
-  } catch (error) {
-    return {
-      error: publicErrorMessage(error),
-      message: null,
-      prUrl: null,
-    };
-  }
+    return result.message;
+  });
+  return { ...state, prUrl: state.error ? null : prUrl };
 }

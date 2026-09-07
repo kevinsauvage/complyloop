@@ -7,12 +7,12 @@ import { StatefulActionForm } from "@/components/stateful-action-form";
 const STILL_FAILING_VERIFY_MESSAGE =
   "Still failing — the violation is still detected at this location.";
 
-const toastError = vi.fn();
+const toastSuccess = vi.fn();
 
 vi.mock("sonner", () => ({
   toast: {
-    success: vi.fn(),
-    error: (...args: unknown[]) => toastError(...args),
+    success: (...args: unknown[]) => toastSuccess(...args),
+    error: vi.fn(),
   },
 }));
 
@@ -22,15 +22,15 @@ vi.mock("next/navigation", () => ({
 
 afterEach(() => {
   cleanup();
-  toastError.mockClear();
+  toastSuccess.mockClear();
 });
 
 describe("failed automated verification feedback", () => {
-  it("toasts the still-failing message", async () => {
+  it("surfaces the still-failing outcome as a success-channel message", async () => {
     const user = userEvent.setup();
     const action = vi.fn(async () => ({
-      error: STILL_FAILING_VERIFY_MESSAGE,
-      message: null,
+      error: null,
+      message: STILL_FAILING_VERIFY_MESSAGE,
     }));
 
     render(
@@ -47,11 +47,11 @@ describe("failed automated verification feedback", () => {
     );
 
     await waitFor(() => {
-      expect(toastError).toHaveBeenCalledWith(STILL_FAILING_VERIFY_MESSAGE, {
-        duration: 8_000,
+      expect(toastSuccess).toHaveBeenCalledWith(STILL_FAILING_VERIFY_MESSAGE, {
+        duration: 4_000,
       });
     });
-    expect(screen.getByRole("alert")).toHaveTextContent(
+    expect(screen.getByRole("status")).toHaveTextContent(
       STILL_FAILING_VERIFY_MESSAGE,
     );
   });

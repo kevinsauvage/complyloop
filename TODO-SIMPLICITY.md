@@ -34,33 +34,6 @@ source of incidental complexity left in the repo.
 
 ---
 
-## P0 — Critical
-
-### P0-3 · Standardize server-action error handling on one idiom (throw → runActionMessage)
-
-- **What is complex:** Three coexisting idioms for the same concern:
-  1. Throw `PublicError` inside `runActionMessage` (remediation\*, requirements,
-     assessment, project-preset, alerts) — clean.
-  2. Manual `try/catch` + `actionErrorState` / `publicErrorMessage`
-     (`remediation-verify.ts`, `pr.ts`) — duplicates idiom 1 but with hand-rolled
-     catch blocks (and returns ad-hoc error states).
-  3. `parseFormState` + `formError`/`formSuccess` returning result objects
-     (`connect.ts`, `org.ts`) — a third shape, plus manual session checks that
-     duplicate `requireSignedIn`.
-- **Why it's a problem:** Three ways to do one thing = every new action forces a
-  choice, reviewers must re-learn per file, and the result-object idiom
-  bifurcates validation (throw-based `parseForm` vs result-based
-  `parseFormState`) for no behavioral gain.
-- **How to simplify:** Keep idiom 1 only. Delete `parseFormState`,
-  `formError`, `formSuccess` (`src/server/boundary.ts`,
-  `src/server/action-state.ts`); migrate `connect.ts` and `org.ts` to
-  `parseForm` + `requireSignedIn` + `runActionMessage`. Keep
-  `remediation-verify.ts`'s special `STILL_FAILING` return, expressed as a
-  normal success message.
-- **Files:** `src/server/action-state.ts`, `src/server/boundary.ts`,
-  `src/server/actions/connect.ts`, `src/server/actions/org.ts`,
-  `src/server/actions/pr.ts`, `src/server/actions/remediation-verify.ts`.
-
 ## P1 — High
 
 ### P1-1 · Retire the in-memory `Db` read-model god-object (incrementally)

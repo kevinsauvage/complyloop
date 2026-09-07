@@ -21,14 +21,6 @@ function createErrorRef(): string {
   return crypto.randomUUID().replaceAll("-", "").slice(0, 12);
 }
 
-export function formError(error: string): ActionMessageState {
-  return { error, message: null };
-}
-
-export function formSuccess(message: string): ActionMessageState {
-  return { error: null, message };
-}
-
 /** Public copy, or a generic message plus a short reference after logging. */
 export function publicErrorMessage(error: unknown): string {
   if (isPublicError(error)) return error.message;
@@ -42,6 +34,7 @@ export function actionErrorState(error: unknown): ActionMessageState {
   return { error: publicErrorMessage(error), message: null };
 }
 
+/** Canonical server-action idiom: throw `PublicError`, catch here. */
 export async function runActionMessage(
   run: () => Promise<string | void>,
 ): Promise<ActionMessageState> {

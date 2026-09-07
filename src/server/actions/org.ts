@@ -1,18 +1,14 @@
 "use server";
 
 import { z } from "zod";
-import { auth } from "@/auth";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { entityIdSchema, requiredField } from "@/core/boundary";
 import {
-  actionErrorState,
-  formError,
-  formSuccess,
   publicErrorMessage,
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { parseForm, parseFormState, parseInput } from "../boundary";
+import { parseForm, parseInput } from "../boundary";
 import {
   writeActiveOrgCookie,
   writeActiveProjectCookie,
@@ -97,20 +93,18 @@ export async function createOrgAction(
   _previous: CreateOrgFormState,
   formData: FormData,
 ): Promise<CreateOrgFormState> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  const githubLogin = session?.user?.login;
-  if (!userId || !githubLogin) {
-    return formError("Sign in with GitHub to create an organization.");
-  }
+  return runActionMessage(async () => {
+    const { userId, githubLogin } = await requireSignedIn(
+      "Sign in with GitHub to create an organization.",
+    );
+    if (!githubLogin) {
+      throw new PublicError("Sign in with GitHub to create an organization.");
+    }
+    const { name } = parseForm(createOrgInput, formData);
 
-  const parsed = parseFormState(createOrgInput, formData);
-  if (!parsed.ok) return parsed.state;
-
-  try {
     const org = await withOrgWrite((workspace) => {
       const created = createOrganization(workspace.db, {
-        name: parsed.data.name,
+        name,
         creatorUserId: userId,
         githubLogin,
       });
@@ -128,25 +122,20 @@ export async function createOrgAction(
     });
     await writeActiveOrgCookie(org.id);
     refresh();
-    return formSuccess(`Created organization "${org.name}".`);
-  } catch (error) {
-    return actionErrorState(error);
-  }
+    return `Created organization "${org.name}".`;
+  });
 }
 
 export async function inviteOrgMemberAction(
   _previous: OrgMemberFormState,
   formData: FormData,
 ): Promise<OrgMemberFormState> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return formError("Sign in to manage organization members.");
+  return runActionMessage(async () => {
+    const { userId } = await requireSignedIn(
+      "Sign in to manage organization members.",
+    );
+    const { orgId, githubLogin, role } = parseForm(inviteOrgMemberInput, formData);
 
-  const parsed = parseFormState(inviteOrgMemberInput, formData);
-  if (!parsed.ok) return parsed.state;
-  const { orgId, githubLogin, role } = parsed.data;
-
-  try {
     await withOrgWrite(({ db }) => {
       if (!canManageOrgMembers(db, orgId, userId)) {
         throw new PublicError("Only org owners and admins can invite members.");
@@ -155,10 +144,8 @@ export async function inviteOrgMemberAction(
       return { result: undefined, upsertMemberships: [membership] };
     });
     refresh();
-    return formSuccess(`Invited @${githubLogin} as ${role}.`);
-  } catch (error) {
-    return actionErrorState(error);
-  }
+    return `Invited @${githubLogin} as ${role}.`;
+  });
 }
 
 export async function removeOrgMemberAction(
@@ -215,12 +202,8 @@ export async function changeOrgMemberRoleAction(
 export async function exportOrgDataAction(
   orgIdRaw: string,
 ): Promise<{ error: string | null; json: string | null }> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) {
-    return { error: "Sign in to export organization data.", json: null };
-  }
   try {
+    const { userId } = await requireSignedIn("Sign in to export organization data.");
     const orgId = parseInput(entityIdSchema, orgIdRaw);
     const { db } = await getWorkspace();
     const projectIds = db.projects

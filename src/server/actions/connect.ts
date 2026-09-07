@@ -1,15 +1,13 @@
 "use server";
 
 import { z } from "zod";
-import { auth, getGitHubAccessToken } from "@/auth";
+import { getGitHubAccessToken } from "@/auth";
 import { requiredField } from "@/core/boundary";
 import {
-  actionErrorState,
-  formError,
-  formSuccess,
+  runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { parseForm, parseFormState } from "../boundary";
+import { parseForm } from "../boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   readActiveOrgCookie,
@@ -36,7 +34,7 @@ import { assertConnectRateLimit } from "../rate-limit";
 import { resolveActiveOrgId } from "../orgs";
 import { ensurePersonalOrgProvisioned } from "../personal-org";
 import { getWorkspace } from "../workspace";
-import { refresh } from "./shared";
+import { refresh, requireSignedIn } from "./shared";
 
 export type ConnectGitHubFormState = ActionMessageState;
 export type DisconnectGitHubFormState = ActionMessageState;
@@ -73,23 +71,19 @@ export async function connectGitHubRepoAction(
   _previous: ConnectGitHubFormState,
   formData: FormData,
 ): Promise<ConnectGitHubFormState> {
-  const parsed = parseFormState(connectGitHubRepoInput, formData);
-  if (!parsed.ok) return parsed.state;
-  const fullName = parsed.data.fullName;
-  const claimedInstallationId = parsed.data.installationId;
+  return runActionMessage(async () => {
+    const { fullName, installationId: claimedInstallationId } = parseForm(
+      connectGitHubRepoInput,
+      formData,
+    );
+    const { userId, githubLogin } = await requireSignedIn(
+      "Sign in with GitHub to connect a repository.",
+    );
 
-  const session = await auth();
-  const userId = session?.user?.id;
-  const githubLogin = session?.user?.login ?? null;
-  if (!userId) {
-    return formError("Sign in with GitHub to connect a repository.");
-  }
-
-  try {
     await assertConnectRateLimit(userId);
     const userAccessToken = await getGitHubAccessToken();
     if (!userAccessToken) {
-      return formError(
+      throw new PublicError(
         "GitHub access token missing. Sign out and sign in again to grant repo access.",
       );
     }
@@ -159,28 +153,20 @@ export async function connectGitHubRepoAction(
       await writeActiveProjectCookie(connectedProjectId);
     }
     refresh();
-    return formSuccess(`Connected ${repo.fullName}.`);
-  } catch (error) {
-    return actionErrorState(error);
-  }
+    return `Connected ${repo.fullName}.`;
+  });
 }
 
 export async function disconnectGitHubRepoAction(
   _previous: DisconnectGitHubFormState,
   formData: FormData,
 ): Promise<DisconnectGitHubFormState> {
-  const parsed = parseFormState(disconnectGitHubRepoInput, formData);
-  if (!parsed.ok) return parsed.state;
-  const { projectId } = parsed.data;
+  return runActionMessage(async () => {
+    const { projectId } = parseForm(disconnectGitHubRepoInput, formData);
+    const { userId, githubLogin } = await requireSignedIn(
+      "Sign in with GitHub to disconnect a repository.",
+    );
 
-  const session = await auth();
-  const userId = session?.user?.id;
-  const githubLogin = session?.user?.login ?? null;
-  if (!userId) {
-    return formError("Sign in with GitHub to disconnect a repository.");
-  }
-
-  try {
     let nextProjectId: string | null = null;
     let disconnectedName = "repository";
     const drizzle = await getDrizzle();
@@ -208,8 +194,6 @@ export async function disconnectGitHubRepoAction(
       await writeActiveProjectCookie(nextProjectId);
     }
     refresh();
-    return formSuccess(`Disconnected ${disconnectedName}.`);
-  } catch (error) {
-    return actionErrorState(error);
-  }
+    return `Disconnected ${disconnectedName}.`;
+  });
 }

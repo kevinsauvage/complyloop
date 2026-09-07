@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { entityIdSchema } from "@/core/boundary";
-import { parseForm, parseFormState, parseInput } from "./boundary";
+import { parseForm, parseInput } from "./boundary";
 
 describe("parseForm", () => {
   it("parses matching form fields", () => {
@@ -25,27 +25,6 @@ describe("parseForm", () => {
     expect(() => parseForm(schema, form)).toThrow(
       "An organization id is required.",
     );
-  });
-});
-
-describe("parseFormState", () => {
-  it("returns form state when fields are invalid", () => {
-    const form = new FormData();
-    const parsed = parseFormState(
-      z.object({
-        orgId: z
-          .string({ error: "An organization id is required." })
-          .trim()
-          .min(1, { error: "An organization id is required." }),
-      }),
-      form,
-    );
-    expect(parsed.ok).toBe(false);
-    if (parsed.ok) return;
-    expect(parsed.state).toEqual({
-      error: "An organization id is required.",
-      message: null,
-    });
   });
 });
 

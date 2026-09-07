@@ -71,9 +71,19 @@ vi.mock("../rate-limit", () => ({
     assertConnectRateLimit(...args),
 }));
 
-vi.mock("./shared", () => ({
-  refresh: () => refresh(),
-}));
+vi.mock("./shared", async () => {
+  const { actionAuthMocks } = await import("@/test-fixtures/action-workspace-mocks");
+  const { PublicError } = await import("@complyloop/analysis-core/contract/public-error");
+  return {
+    refresh: () => refresh(),
+    requireSignedIn: async (message: string) => {
+      const session = await actionAuthMocks.auth();
+      const userId = session?.user?.id;
+      if (!userId) throw new PublicError(message);
+      return { userId, githubLogin: session?.user?.login ?? null };
+    },
+  };
+});
 
 vi.mock("@complyloop/db/client", () => ({
   getDrizzle: async () => ({ transaction }),

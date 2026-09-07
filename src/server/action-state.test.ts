@@ -3,8 +3,6 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   actionErrorState,
   emptyActionMessageState,
-  formError,
-  formSuccess,
   publicErrorMessage,
   runActionMessage,
   unexpectedActionMessage,
@@ -21,14 +19,6 @@ const ERROR_REF = "aaaaaaaabbbb";
 function stubErrorRef(): void {
   vi.spyOn(crypto, "randomUUID").mockReturnValue(ERROR_REF_UUID);
 }
-
-describe("formError / formSuccess", () => {
-  it("builds toastable form states", () => {
-    expect(formError("Nope.")).toEqual({ error: "Nope.", message: null });
-    expect(formSuccess("Saved.")).toEqual({ error: null, message: "Saved." });
-    expect(emptyActionMessageState).toEqual({ error: null, message: null });
-  });
-});
 
 describe("runActionMessage", () => {
   it("returns a success message from the runner", async () => {
@@ -81,6 +71,7 @@ describe("actionErrorState / publicErrorMessage", () => {
       error: "Not allowed.",
       message: null,
     });
+    expect(emptyActionMessageState).toEqual({ error: null, message: null });
     expect(spy).not.toHaveBeenCalled();
   });
 
