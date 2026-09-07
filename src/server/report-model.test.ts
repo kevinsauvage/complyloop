@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sampleReportInput } from "@/test-fixtures/report-input";
-import { buildAuditReportHtml } from "./report-html/audit";
-import { buildEngineeringReportHtml } from "./report-html/engineering";
+import { buildAuditReportHtml, buildEngineeringReportHtml } from "./report-html/report";
 import { buildAuditReportMarkdown } from "./report-markdown";
 import { composeAuditReport, composeEngineeringReport } from "./report-model";
 

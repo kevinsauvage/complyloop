@@ -10,9 +10,9 @@ The analysis engines (AST, jsx-a11y, axe, html-validate, Playwright probes, link
 
 Accidental complexity that **remains** is mostly P1+: evidence still has three creation styles (`addEvidence` / `evidenceEntry` / `insertEvidence*`), connect bypasses `withProjectWrite`, check registration is parallel id lists, adapters package ceremony.
 
-**P0 write path is done:** Assessment and interactive actions compute rows → upsert. `runAssessment` does not mutate the loaded `Db`. Status refresh has one return shape.
+**P0 write path is done:** Assessment and interactive actions compute rows → upsert. `runAssessment` does not mutate the loaded `Db`. Status refresh has one return shape. **P2 report HTML merge is done** — `report-html/` is two files (`report.ts` + `shared.ts`).
 
-**How reductions are counted.** Each heading shows **net lines** after the change (deleted minus smaller replacement). Moves that only relocate code are **~0**. Overlapping items say “included in #N” — do not sum those twice. Unique total if done in the suggested order: **~950–1,150 lines** of application/test/docs (plus ~100 package ceremony), not counting catalog/guidance **data** (~2,900 lines: `controls.ts` 1,803 + `guidance.ts` 836 + presets/themes/registry ≈ 290) — a move, not a cut.
+**How reductions are counted.** Each heading shows **net lines** after the change (deleted minus smaller replacement). Moves that only relocate code are **~0**. Overlapping items say “included in #N” — do not sum those twice. Unique total if done in the suggested order: **~900–1,100 lines** of application/test/docs (plus ~100 package ceremony), not counting catalog/guidance **data** (~2,900 lines: `controls.ts` 1,803 + `guidance.ts` 836 + presets/themes/registry ≈ 290) — a move, not a cut.
 
 **Stale plan note.** `docs/superpowers/plans/2026-09-07-simplicity.md` still maps an older TODO numbering (#1–#25 with collector/FrameworkAdapter items). Treat this file as the spec; rewrite or delete that plan before implementing.
 
@@ -36,6 +36,7 @@ Verified in code; prior TODO / plan items that are obsolete:
 | `refreshOnSuccess` / `RefreshAfterSuccess` on forms                            | Gone from `stateful-action-form.tsx`.                                                                               |
 | Assessment mutates live `Db` then returns arrays (P0 #1)                       | `runAssessment` clones into `ProjectRows`; returns apply-shaped result; worker applies directly.                    |
 | Interactive mutate + payload hybrid (P0 #2)                                    | Actions clone onto payload; refresh returns `{ requirements, evidence }`; `persistPatchCandidate` requires payload. |
+| Report HTML thin section files (P2 #15)                                        | `report-html/` is now `report.ts` + `shared.ts`; the two renderers and four section files collapsed into one module. |
 
 ---
 
@@ -288,19 +289,9 @@ Route: load workspace → pass props. Move sections into `components/dashboard/`
 
 ---
 
-### 15. Report HTML thin section files — **~50–60**
+### ~~15. Report HTML thin section files~~ — **DONE**
 
-**What**
-`report.ts` + `report-model.ts` + `report-markdown.ts` + `report-html/{shared, audit, engineering, requirements-section, evidence-section}`. View helpers already live in `src/core/query.ts`.
-
-**Why**
-Two outputs × two views do not need tiny section wrappers (`evidence-section` ~27 LOC, `requirements-section` ~46, `audit` ~32).
-
-**How**
-Collapse `requirements-section` / `evidence-section` (and possibly thin `audit`/`engineering` entrypoints) into `shared` or one `report-html.ts`. Keep markdown/HTML renderers (~1,200 lines of real markup).
-
-**Files**
-`src/server/report.ts`, `src/server/report-model.ts`, `src/server/report-markdown.ts`, `src/server/report-html/*`
+Landed: `report-html/{audit, engineering, requirements-section, evidence-section}` collapsed into one `report-html/report.ts` (~170 lines) with the renderers as private helpers (evidence/requirements/summary-rows/findings/clusters). Imports updated in `report-model.test.ts` and `evidence/report/html/route.ts`; tests moved to `report-html/report.test.ts` with unchanged assertions; six files deleted.
 
 ---
 
@@ -495,9 +486,9 @@ Do not add overlapping items (#2/#16 into #1; #3 assessment sites into #1; #8 te
 | ---------------- | -------------: | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | P0               |       ~400–500 | Assessment immutable payload + interactive mutate/payload hybrid                                                                                    |
 | P1               |       ~300–350 | Evidence one API, connect path, write ceremony, check registry, adapters ceremony                                                                   |
-| P2               |       ~300–350 | Slice dead API, provenance/`RawFinding`, status-display, evidence kinds, GitHub/report file merge, `queries.ts` tidy, dashboard extract (~0), mocks |
+| P2               |       ~250–300 | Slice dead API, provenance/`RawFinding`, status-display, evidence kinds, GitHub merge, `queries.ts` tidy, dashboard extract (~0), mocks |
 | P3               |       ~120–180 | `controlById`, capabilities, PublicError import, badges boundary, thin facades, test renames, provision-off-GET, docs/plan                          |
-| **Unique total** | **~950–1,150** | Application + test + docs. Catalog **data** (~2,900) is a move, not a cut.                                                                          |
+| **Unique total** | **~900–1,100** | Application + test + docs. Catalog **data** (~2,900) is a move, not a cut.                                                                          |
 
 Dashboard (#13) and JSONB (#17) are ~0. File renames (#23) are ~0.
 
@@ -510,7 +501,7 @@ Dashboard (#13) and JSONB (#17) are ~0. File renames (#23) are ~0.
 5. **P2** — dead slice API, provenance, display, file merges, `queries.ts` mappers. Dashboard extract anytime (~0 net).
 6. **P3** — leftover API lies, thin facades, import cleanup, plan/docs.
 
-Do not start with report HTML merges or `src/core` test renames. Those save files, not concepts. The remaining write hybrid is the concept to remove.
+Do not start with `src/core` test renames. Those save files, not concepts. The remaining write hybrid is the concept to remove.
 
 ---
 

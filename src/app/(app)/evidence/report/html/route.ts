@@ -1,5 +1,4 @@
-import { buildAuditReportHtml } from "@/server/report-html/audit";
-import { buildEngineeringReportHtml } from "@/server/report-html/engineering";
+import { buildAuditReportHtml, buildEngineeringReportHtml } from "@/server/report-html/report";
 import { loadReportInput } from "@/server/report";
 
 export const dynamic = "force-dynamic";

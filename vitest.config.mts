@@ -80,7 +80,7 @@ export default defineConfig({
         "src/server/octokit.ts",
         "src/server/connect-github.ts",
         "src/server/github-repo.ts",
-        // Markdown report assembly — HTML covered by report-html.ts tests.
+        // Markdown report assembly — HTML covered by report-html/report.test.ts.
         "src/server/report.ts",
       ],
       thresholds: {
