@@ -8,13 +8,9 @@ Constraint: do not drop stale-write protection, evidence append-only, fail-close
 
 The analysis engines (AST, jsx-a11y, axe, html-validate, Playwright probes, linkinator) are large because RGAA coverage is large. That size is mostly **necessary**.
 
-Accidental complexity is in the **write path**. Persist itself is already one function (`persistProjectRows`). What remains is how callers *build* what to persist:
+Accidental complexity that **remains** is mostly P1+: evidence still has three creation styles (`addEvidence` / `evidenceEntry` / `insertEvidence*`), connect bypasses `withProjectWrite`, check registration is parallel id lists, adapters package ceremony.
 
-1. **Assessment** still treats `Db` as a live document store: mutate arrays → return those same array references → `buildAssessmentApplyPayload` filters them → `applyAssessmentPayload`. The return type looks payload-shaped (`AssessmentRunResult`) but is still mutation-backed.
-2. **Interactive actions** are a hybrid: mutate the loaded object *and* remember it on `ProjectWritePayload`. Forgetting either side silently drops work.
-3. **Connect / evidence / AI patch** still use older in-memory push styles beside the payload path (`addEvidence`, `evidenceStart` slices, optional `payload?` branches).
-
-Org writes already return an explicit payload (no JSON-diff). Catalog is no longer glued onto `Db`. The collector / `persistProjectWrite` / `withShippedCatalog` protocol from earlier drafts is **gone**.
+**P0 write path is done:** Assessment and interactive actions compute rows → upsert. `runAssessment` does not mutate the loaded `Db`. Status refresh has one return shape.
 
 **How reductions are counted.** Each heading shows **net lines** after the change (deleted minus smaller replacement). Moves that only relocate code are **~0**. Overlapping items say “included in #N” — do not sum those twice. Unique total if done in the suggested order: **~950–1,150 lines** of application/test/docs (plus ~100 package ceremony), not counting catalog/guidance **data** (~2,900 lines: `controls.ts` 1,803 + `guidance.ts` 836 + presets/themes/registry ≈ 290) — a move, not a cut.
 
@@ -38,6 +34,8 @@ Verified in code; prior TODO / plan items that are obsolete:
 | Status enum duplication across packages | Single source: `packages/analysis-core/src/contract/statuses.ts`. |
 | `src/ai/warn.ts` module | Folded into `ai-call.ts`. Only `warn.test.ts` name remains. |
 | `refreshOnSuccess` / `RefreshAfterSuccess` on forms | Gone from `stateful-action-form.tsx`. |
+| Assessment mutates live `Db` then returns arrays (P0 #1) | `runAssessment` clones into `ProjectRows`; returns apply-shaped result; worker applies directly. |
+| Interactive mutate + payload hybrid (P0 #2) | Actions clone onto payload; refresh returns `{ requirements, evidence }`; `persistPatchCandidate` requires payload. |
 
 ---
 

@@ -1,215 +1,75 @@
-import type { CheckId } from "./types.ts";
+import type { CheckId } from "./check-ids.ts";
 import type { CheckAuthority } from "./contract/requirement-status.ts";
+import { CHECK_REGISTRY, type CheckRegistration } from "./check-registry.ts";
 
 /**
- * Rules where composition across components makes source AST unreliable.
- * When a project has `runtimeBaseUrl`, runtime DOM results own status for these.
- * AST still runs in CI (`complyloop-check`) with primitive suppressions.
+ * All check-id lists are derived from the single `CHECK_REGISTRY` — adding a
+ * check is one entry there, not six parallel lists. The classifiers below keep
+ * their exact public behavior (verified by `check-authority.test.ts`).
  */
-const COMPOSITION_SENSITIVE_CHECK_IDS = [
-  "input-label",
-  "button-name",
-  "anchor-name",
-  "form-error-association",
-  "heading-order",
-  "empty-heading",
-  "aria-hidden-focusable",
-  "duplicate-id",
-  "text-spacing",
-] as const satisfies readonly CheckId[];
+
+const REGISTRY_BY_ID = new Map<string, CheckRegistration>(
+  CHECK_REGISTRY.map((entry) => [entry.id, entry] as const),
+);
+
+const entryFor = (checkId: string): CheckRegistration | undefined =>
+  REGISTRY_BY_ID.get(checkId);
+
+/** Runtime-only list membership, projected for callers that iterate it. */
+export const RUNTIME_ONLY_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY
+  .filter((entry: CheckRegistration) => entry.runtimeOnly)
+  .map((entry: CheckRegistration) => entry.id as CheckId);
+
+/** Heuristic authority membership, projected for callers that iterate it. */
+export const HEURISTIC_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY
+  .filter((entry: CheckRegistration) => entry.authority === "heuristic")
+  .map((entry: CheckRegistration) => entry.id as CheckId);
+
+export const isHtmlValidateOwnedCheck = (checkId: string): boolean =>
+  Boolean(entryFor(checkId)?.htmlValidateOwned);
+
+export const isCompositionSensitiveCheck = (checkId: string): boolean =>
+  Boolean(entryFor(checkId)?.compositionSensitive);
+
+export const isRuntimeOnlyCheck = (checkId: string): boolean =>
+  Boolean(entryFor(checkId)?.runtimeOnly);
+
+export const isSiteLevelCheck = (checkId: string): boolean =>
+  entryFor(checkId)?.authority === "site_level";
+
+export const isHeuristicCheck = (checkId: string): boolean =>
+  entryFor(checkId)?.authority === "heuristic";
+
+export const isPackageTwinSourceCheck = (checkId: string): boolean =>
+  Boolean(entryFor(checkId)?.packageTwinSource);
 
 /**
- * RGAA 8.2 markup validity and 10.1 presentation — only html-validate emits
- * these at runtime. Status requires html-validate to have run, not just axe.
- */
-const HTML_VALIDATE_OWNED_CHECK_IDS = [
-  "markup-nesting",
-  "css-for-presentation",
-] as const satisfies readonly CheckId[];
-
-/**
- * Checks the AST engine cannot pass. Without a successful runtime audit they
- * stay `unable_to_verify` — never `passed` from an empty source scan.
- * Includes axe-mapped rules with no AST implementation.
+ * The single authority classifier. `authority` on each registry entry is
+ * already precedence-resolved (site_level → runtime_only → heuristic →
+ * standard), so this is a lookup with a `standard` fallback for unknown ids.
  *
- * Note: `error-prevention` and `accessible-auth-enhanced` are heuristic-only
- * for status derivation — runtime probes may still emit violations.
- */
-export const RUNTIME_ONLY_CHECK_IDS = [
-  "color-contrast",
-  "document-title",
-  "bypass",
-  "landmark-one-main",
-  "nested-interactive",
-  "target-size",
-  "target-size-enhanced",
-  "table-headers",
-  "page-heading",
-  "content-region",
-  "label-in-name",
-  "lang-parts",
-  "aria-roledescription",
-  "presentation-role",
-  "no-auto-refresh",
-  "no-orientation-lock",
-  "landmark-unique",
-  "use-of-color",
-  "frame-keyboard",
-  "doctype",
-  "focus-visible",
-  "keyboard-trap",
-  "focus-not-obscured",
-  "non-text-contrast",
-  "forced-colors",
-  "reflow",
-  "text-spacing-runtime",
-  "label-adjacent",
-  "video-caption",
-  "audio-caption",
-  "html-lang-valid",
-  "css-disabled-content",
-  "resize-text",
-  "css-hover-keyboard",
-  "multiple-ways",
-  "consistent-nav",
-  "consistent-labels",
-  "consistent-help",
-  "consistent-sitemap",
-  "consistent-search",
-  "consistent-landmarks",
-  "duplicate-page-title",
-  "focus-order-logical",
-  "focus-not-obscured-enhanced",
-  "focus-appearance",
-  "identical-links-purpose",
-  "hidden-content",
-  "css-for-presentation",
-  "css-off-understandable",
-  "supplementary-content-keyboard",
-  "dialog-keyboard",
-  "tabs-keyboard",
-  "disclosure-keyboard",
-  "menu-keyboard",
-  "color-contrast-enhanced",
-  "markup-nesting",
-  "broken-link",
-] as const satisfies readonly CheckId[];
-
-export const SITE_LEVEL_CHECK_IDS = [
-  "multiple-ways",
-  "consistent-nav",
-  "consistent-labels",
-  "consistent-help",
-  "consistent-sitemap",
-  "consistent-search",
-  "consistent-landmarks",
-  "duplicate-page-title",
-  "consistent-lang",
-  "consistent-page-heading",
-] as const satisfies readonly CheckId[];
-
-/**
- * AST heuristics that only prove “no suspicious pattern”. An empty scan must
- * not pass the criterion — that still needs a human.
- */
-export const HEURISTIC_CHECK_IDS = [
-  "image-detailed-description",
-  "image-of-text",
-  "table-summary",
-  "sensory-characteristics",
-  "error-suggestion",
-  "pointer-gesture",
-  "pointer-cancellation",
-  "motion-actuation",
-  "focus-context-change",
-  "input-context-change",
-  "audio-description-track",
-  "audio-description-or-alt",
-  "link-explicit-heuristic",
-  "lang-change",
-  "cryptic-content-alt",
-  "captions-live",
-  "error-prevention",
-  "reduced-motion",
-  "accessible-auth-enhanced",
-  "hover-content",
-  "captcha-alternative",
-  "media-controls-present",
-  "media-identification",
-  "media-keyboard",
-  "layout-table-linearization",
-  "live-region-updates",
-] as const satisfies readonly CheckId[];
-
-const createChecker = (ids: readonly string[]) => {
-  const set = new Set(ids);
-  return (checkId: string): boolean => set.has(checkId);
-};
-
-export const isHtmlValidateOwnedCheck = createChecker(HTML_VALIDATE_OWNED_CHECK_IDS);
-export const isCompositionSensitiveCheck = createChecker(COMPOSITION_SENSITIVE_CHECK_IDS);
-export const isRuntimeOnlyCheck = createChecker(RUNTIME_ONLY_CHECK_IDS);
-export const isSiteLevelCheck = createChecker(SITE_LEVEL_CHECK_IDS);
-export const isHeuristicCheck = createChecker(HEURISTIC_CHECK_IDS);
-
-/**
- * Source findings for these ids duplicate axe / html-validate / jsx-a11y on
- * the rendered page. CI still emits them; when a runtime audit ran they drop.
- */
-const PACKAGE_TWIN_SOURCE_CHECK_IDS = [
-  "img-alt",
-  "list-structure",
-  "audio-caption",
-  "video-caption",
-  "no-blink-marquee",
-  "meta-viewport",
-  "aria-props",
-  "aria-role",
-  "aria-required-attr",
-  "aria-activedescendant",
-  "keyboard-interaction",
-  "html-lang",
-  "iframe-title",
-  "autocomplete-valid",
-  "no-accesskey",
-  "no-autofocus",
-  "noninteractive-tabindex",
-  "redundant-role",
-  "th-scope",
-  "positive-tabindex",
-] as const satisfies readonly CheckId[];
-
-export const isPackageTwinSourceCheck = createChecker(PACKAGE_TWIN_SOURCE_CHECK_IDS);
-
-/**
- * The single authority classifier. Precedence matters — a check id may appear
- * in more than one list (site-level ids are also in RUNTIME_ONLY). Heuristic
- * and runtime-only must not overlap: runtime hits for heuristic ids are
- * downgraded to warnings when those hits become findings.
+ * Precedence is the contract:
  *
- * This order is the contract:
- *
- * 1. `site_level` (subset of runtime-only, needs ≥2 routes)
+ * 1. `site_level` (needs ≥2 routes; subset of runtime-only except
+ *    `consistent-lang` / `consistent-page-heading`)
  * 2. `runtime_only` (runtime audit owns the verdict)
  * 3. `heuristic` (empty AST scan must not pass)
- * 4. `standard` (plain AST check; composition-sensitive ids use standard authority
- *    but runtime overrides AST when it ran — see `isCompositionSensitiveCheck`)
- * 5. `standard` (default)
+ * 4. `standard` (plain AST check; composition-sensitive ids use standard
+ *    authority but runtime overrides AST when it ran — see
+ *    `isCompositionSensitiveCheck`)
  *
  * Consumers: `deriveRequirementStatus` (`contract/requirement-status.ts`) via
  * the adapter in `src/server/assessment-status.ts`.
  */
 export function authorityForCheck(checkId: string): CheckAuthority {
-  if (isSiteLevelCheck(checkId)) return "site_level";
-  if (isRuntimeOnlyCheck(checkId)) return "runtime_only";
-  if (isHeuristicCheck(checkId)) return "heuristic";
-  return "standard";
+  return entryFor(checkId)?.authority ?? "standard";
 }
 
 /** Runtime findings for these ids must not be resolved when axe did not run. */
 export function keepOpenWhenRuntimeScanSkipped(checkId: string): boolean {
-  return (
-    isCompositionSensitiveCheck(checkId) || isRuntimeOnlyCheck(checkId)
+  const entry = entryFor(checkId);
+  return Boolean(
+    entry && (entry.compositionSensitive || entry.runtimeOnly),
   );
 }
 

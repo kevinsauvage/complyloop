@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CHECK_IDS } from "@complyloop/analysis-core/check-ids";
+import { CHECK_REGISTRY } from "@complyloop/analysis-core/check-registry";
 import { allChecks } from "@complyloop/analysis-core/checks/registry";
 import { isSiteLevelCheck } from "@complyloop/analysis-core/check-authority";
 import { jsxA11yMappedCheckIds } from "@complyloop/analysis-core/jsx-a11y-map";
@@ -110,5 +111,18 @@ describe("RGAA 4.1.2 catalog coverage", () => {
     );
     const unreachable = CHECK_IDS.filter((id) => !catalogCheckIds.has(id));
     expect(unreachable).toEqual([]);
+  });
+
+  it("keeps the registry and the catalog wired 1:1", () => {
+    const controlByCheck = new Map(
+      rgaaControls
+        .filter((control) => control.checkId !== null)
+        .map((control) => [control.checkId as string, control.id] as const),
+    );
+    for (const entry of CHECK_REGISTRY) {
+      const controlId = controlByCheck.get(entry.id);
+      expect(controlId, entry.id).toBe(entry.catalogControlId);
+    }
+    expect(controlByCheck.size).toBe(CHECK_REGISTRY.length);
   });
 });
