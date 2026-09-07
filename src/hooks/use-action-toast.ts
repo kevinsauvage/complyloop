@@ -13,7 +13,6 @@ export type ToastableActionState = {
  * Surfaces `useActionState` results via the global Sonner toaster.
  * Toasts when `pending` flips true → false so the same success copy still
  * fires on every submit (message text alone is not a unique key).
- * Pair with `ActionFeedback` for persistent inline copy next to the form.
  */
 export function useActionToast(
   state: ToastableActionState,

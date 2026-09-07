@@ -1,5 +1,9 @@
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import { lookupExhaustive } from "@/core/assert-exhaustive";
+import {
+  REPORT_SEVERITY_COLORS,
+  REPORT_TONE_COLORS,
+  reportStatusClass,
+} from "@/core/status-display";
 import { formatDateTimeWithZone } from "@/core/format-datetime";
 import type { ReportHeaderModel } from "../report-model";
 
@@ -28,16 +32,32 @@ export function reportSection(id: string, title: string, body: string): string {
 }
 
 export function statusClass(status: RequirementStatus): string {
-  return lookupExhaustive(STATUS_CLASS, status, "requirement status");
+  return reportStatusClass(status);
 }
 
-const STATUS_CLASS: Record<RequirementStatus, string> = {
-  passed: "status-passed",
-  failed: "status-failed",
-  needs_review: "status-needs-review",
-  not_applicable: "status-not-applicable",
-  unable_to_verify: "status-unable",
-};
+function reportCssVariables(): string {
+  const tone = REPORT_TONE_COLORS;
+  const severity = REPORT_SEVERITY_COLORS;
+  return `
+  --passed: ${tone.passed.fg};
+  --passed-bg: ${tone.passed.bg};
+  --failed: ${tone.failed.fg};
+  --failed-bg: ${tone.failed.bg};
+  --review: ${tone.review.fg};
+  --review-bg: ${tone.review.bg};
+  --na: ${tone.na.fg};
+  --na-bg: ${tone.na.bg};
+  --unable: ${tone.unverifiable.fg};
+  --unable-bg: ${tone.unverifiable.bg};
+  --critical: ${severity.critical.fg};
+  --critical-bg: ${severity.critical.bg};
+  --serious: ${severity.serious.fg};
+  --serious-bg: ${severity.serious.bg};
+  --moderate: ${severity.moderate.fg};
+  --moderate-bg: ${severity.moderate.bg};
+  --minor: ${severity.minor.fg};
+  --minor-bg: ${severity.minor.bg};`;
+}
 
 const REPORT_STYLES = `
 :root {
@@ -46,24 +66,7 @@ const REPORT_STYLES = `
   --border: #e2e8f0;
   --surface: #f8fafc;
   --accent: #0891b2;
-  --passed: #15803d;
-  --passed-bg: #dcfce7;
-  --failed: #b91c1c;
-  --failed-bg: #fee2e2;
-  --review: #b45309;
-  --review-bg: #fef3c7;
-  --na: #475569;
-  --na-bg: #f1f5f9;
-  --unable: #6d28d9;
-  --unable-bg: #ede9fe;
-  --critical: #991b1b;
-  --critical-bg: #fecaca;
-  --serious: #c2410c;
-  --serious-bg: #ffedd5;
-  --moderate: #a16207;
-  --moderate-bg: #fef9c3;
-  --minor: #0369a1;
-  --minor-bg: #e0f2fe;
+  ${reportCssVariables()}
 }
 
 * { box-sizing: border-box; }

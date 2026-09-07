@@ -60,9 +60,7 @@ describe("OrgDataLifecycle", () => {
       expect(exportOrgDataAction).toHaveBeenCalledWith("org-1");
       expect(toastSuccess).toHaveBeenCalledWith("Exported Acme data as JSON.");
     });
-    expect(screen.getByRole("status")).toHaveTextContent(
-      /exported acme data as json/i,
-    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
     clickSpy.mockRestore();
   });
 
@@ -85,7 +83,7 @@ describe("OrgDataLifecycle", () => {
     expect(submit).toBeEnabled();
   });
 
-  it("surfaces export failures accessibly", async () => {
+  it("toasts export failures", async () => {
     const user = userEvent.setup();
     exportOrgDataAction.mockResolvedValue({
       error: "Only the organization owner can export data.",
@@ -99,10 +97,10 @@ describe("OrgDataLifecycle", () => {
     await user.click(screen.getByRole("button", { name: /download json/i }));
 
     await waitFor(() => {
-      expect(toastError).toHaveBeenCalled();
+      expect(toastError).toHaveBeenCalledWith(
+        "Only the organization owner can export data.",
+      );
     });
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      /only the organization owner/i,
-    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

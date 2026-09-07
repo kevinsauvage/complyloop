@@ -8,33 +8,14 @@ import {
   type AssessmentJobStatus,
   type AssessmentJobTrigger,
 } from "@complyloop/analysis-core/contract/assessment-jobs";
+import {
+  assessmentJobPayloadSchema,
+  type AssessmentJob,
+  type AssessmentJobPayload,
+} from "@/core/assessment-job";
 
 export type { AssessmentJobStatus, AssessmentJobTrigger } from "@complyloop/analysis-core/contract/assessment-jobs";
-
-export interface AssessmentJobPayload {
-  ref?: string;
-  eventName?: "push" | "pull_request";
-  pullRequestHeadSha?: string;
-}
-
-export interface AssessmentJob {
-  id: string;
-  projectId: string;
-  status: AssessmentJobStatus;
-  trigger: AssessmentJobTrigger;
-  requestedByUserId?: string;
-  idempotencyKey?: string;
-  payload: AssessmentJobPayload;
-  attempts: number;
-  maxAttempts: number;
-  availableAt: string;
-  startedAt?: string;
-  leaseExpiresAt?: string;
-  completedAt?: string;
-  error?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export type { AssessmentJob, AssessmentJobPayload };
 
 type AssessmentJobRow = typeof assessmentJobs.$inferSelect;
 
@@ -77,18 +58,10 @@ function parseJobTrigger(value: string): AssessmentJobTrigger {
 }
 
 function parseJobPayload(value: unknown): AssessmentJobPayload {
-  if (!isPlainObject(value)) {
-    return {};
-  }
-  const payload: AssessmentJobPayload = {};
-  if (typeof value.ref === "string") payload.ref = value.ref;
-  if (value.eventName === "push" || value.eventName === "pull_request") {
-    payload.eventName = value.eventName;
-  }
-  if (typeof value.pullRequestHeadSha === "string") {
-    payload.pullRequestHeadSha = value.pullRequestHeadSha;
-  }
-  return payload;
+  const parsed = assessmentJobPayloadSchema.safeParse(
+    isPlainObject(value) ? value : {},
+  );
+  return parsed.success ? parsed.data : {};
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

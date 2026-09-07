@@ -1,8 +1,4 @@
 import { z } from "zod";
-import {
-  ASSESSMENT_JOB_STATUSES,
-  ASSESSMENT_JOB_TRIGGERS,
-} from "@complyloop/analysis-core/contract/assessment-jobs";
 
 export const entityIdSchema = z.string().trim().min(1).max(128);
 
@@ -57,32 +53,10 @@ export const githubRepoSearchResponseSchema = z.object({
   error: z.string().optional(),
 });
 
-const assessmentJobSchema = z.object({
-  id: z.string().min(1),
-  projectId: z.string().min(1),
-  status: z.enum(ASSESSMENT_JOB_STATUSES),
-  trigger: z.enum(ASSESSMENT_JOB_TRIGGERS),
-  requestedByUserId: z.string().optional(),
-  idempotencyKey: z.string().optional(),
-  payload: z.object({
-    ref: z.string().optional(),
-    eventName: z.enum(["push", "pull_request"]).optional(),
-    pullRequestHeadSha: z.string().optional(),
-  }),
-  attempts: z.number().int(),
-  maxAttempts: z.number().int(),
-  availableAt: z.string(),
-  startedAt: z.string().optional(),
-  leaseExpiresAt: z.string().optional(),
-  completedAt: z.string().optional(),
-  error: z.string().optional(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export const assessmentJobsResponseSchema = z.object({
-  jobs: z.array(assessmentJobSchema),
-});
+export {
+  assessmentJobSchema,
+  assessmentJobsResponseSchema,
+} from "./assessment-job";
 
 export function formRecord(
   formData: FormData,

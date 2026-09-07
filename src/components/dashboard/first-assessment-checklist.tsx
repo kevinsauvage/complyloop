@@ -63,7 +63,6 @@ export function FirstAssessmentChecklist({
       action={runAssessmentAction}
       submitLabel="Run assessment"
       pendingLabel="Assessing…"
-      inlineSuccess={false}
     />
   ) : (
     <PermissionNotice>

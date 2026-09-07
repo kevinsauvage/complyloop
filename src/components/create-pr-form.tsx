@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { ActionFeedback } from "@/components/action-feedback";
 import { Button } from "@/components/ui/button";
 import {
   createPullRequestAction,
@@ -59,26 +58,6 @@ export function CreatePrForm({ findingId }: { findingId: string }) {
           {pending ? "Creating draft…" : "Create draft pull request"}
         </Button>
       </div>
-      {state.error ? (
-        <ActionFeedback state={{ error: state.error, message: null }} />
-      ) : state.message ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          {state.message}
-          {state.prUrl ? (
-            <>
-              {" "}
-              <a
-                href={state.prUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline underline-offset-2"
-              >
-                Open pull request
-              </a>
-            </>
-          ) : null}
-        </p>
-      ) : null}
     </form>
   );
 }

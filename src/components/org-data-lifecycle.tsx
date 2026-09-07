@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 import { toast } from "sonner";
-import { ActionFeedback } from "@/components/action-feedback";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -43,8 +42,6 @@ export function OrgDataLifecycle({
 }) {
   const deleteFormId = useId();
   const confirmFieldId = useId();
-  const [exportError, setExportError] = useState<string | null>(null);
-  const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportConfirmOpen, setExportConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -57,15 +54,11 @@ export function OrgDataLifecycle({
 
   async function runExport(): Promise<void> {
     setExporting(true);
-    setExportError(null);
-    setExportMessage(null);
     const result = await exportOrgDataAction(orgId);
     setExporting(false);
     setExportConfirmOpen(false);
     if (result.error || !result.json) {
-      const message = result.error ?? "Export failed.";
-      setExportError(message);
-      toast.error(message);
+      toast.error(result.error ?? "Export failed.");
       return;
     }
     const blob = new Blob([result.json], { type: "application/json" });
@@ -75,9 +68,7 @@ export function OrgDataLifecycle({
     anchor.download = `complyloop-org-${orgId}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
-    const success = `Exported ${orgName} data as JSON.`;
-    setExportMessage(success);
-    toast.success(success);
+    toast.success(`Exported ${orgName} data as JSON.`);
   }
 
   const deleteReady = confirmText === "DELETE";
@@ -152,16 +143,6 @@ export function OrgDataLifecycle({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          {exportError ? (
-            <ActionFeedback
-              state={{ error: exportError, message: null }}
-            />
-          ) : null}
-          {exportMessage ? (
-            <ActionFeedback
-              state={{ error: null, message: exportMessage }}
-            />
-          ) : null}
         </section>
 
         <section
@@ -244,10 +225,6 @@ export function OrgDataLifecycle({
               </AlertDialogContent>
             </AlertDialog>
           </form>
-
-          {deleteState.error || deleteState.message ? (
-            <ActionFeedback state={deleteState} />
-          ) : null}
         </section>
       </CardContent>
     </Card>

@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type {
+  OrgMembership,
+  Organization,
+} from "@complyloop/analysis-core/contract/project-types";
 import { emptyDb } from "@complyloop/db/types";
 import {
   claimMembershipsForLogin,
@@ -13,6 +17,26 @@ import {
   resolveActiveOrgId,
   userRoleInOrg,
 } from "./orgs";
+import type { Db } from "./db";
+
+function applyMembership(db: Db, membership: OrgMembership): OrgMembership {
+  const index = db.memberships.findIndex((row) => row.id === membership.id);
+  if (index >= 0) {
+    db.memberships[index] = membership;
+  } else {
+    db.memberships.push(membership);
+  }
+  return membership;
+}
+
+function applyOrg(
+  db: Db,
+  created: { org: Organization; membership: OrgMembership },
+): Organization {
+  db.organizations.push(created.org);
+  db.memberships.push(created.membership);
+  return created.org;
+}
 
 describe("orgs", () => {
   it("creates a personal org for a new user", () => {
@@ -32,7 +56,7 @@ describe("orgs", () => {
     const db = emptyDb();
     ensurePersonalOrg(db, "user-a", "alice");
     const orgId = db.organizations[0]!.id;
-    inviteOrgMember(db, orgId, "user-a", "bob", "member");
+    applyMembership(db, inviteOrgMember(db, orgId, "user-a", "bob", "member"));
 
     expect(db.memberships.some((m) => m.githubLogin === "bob" && !m.userId)).toBe(
       true,
@@ -56,12 +80,15 @@ describe("orgs", () => {
   it("lets an invited admin manage a shared team org (not only personal)", () => {
     const db = emptyDb();
     ensurePersonalOrg(db, "user-a", "alice");
-    const team = createOrganization(db, {
-      name: "Shared Team",
-      creatorUserId: "user-a",
-      githubLogin: "alice",
-    });
-    inviteOrgMember(db, team.id, "user-a", "bob", "admin");
+    const team = applyOrg(
+      db,
+      createOrganization(db, {
+        name: "Shared Team",
+        creatorUserId: "user-a",
+        githubLogin: "alice",
+      }),
+    );
+    applyMembership(db, inviteOrgMember(db, team.id, "user-a", "bob", "admin"));
     claimMembershipsForLogin(db, "user-b", "bob");
 
     expect(userRoleInOrg(db, team.id, "user-b")).toBe("admin");
@@ -71,7 +98,10 @@ describe("orgs", () => {
     ensurePersonalOrg(db, "user-b", "bob");
     expect(resolveActiveOrgId(db, "user-b", team.id)).toBe(team.id);
 
-    inviteOrgMember(db, team.id, "user-b", "carol", "member");
+    applyMembership(
+      db,
+      inviteOrgMember(db, team.id, "user-b", "carol", "member"),
+    );
     expect(
       db.memberships.some(
         (membership) =>
@@ -87,21 +117,25 @@ describe("orgs", () => {
       creatorUserId: "user-a",
       githubLogin: "alice",
     });
+    applyOrg(db, first);
     const second = createOrganization(db, {
       name: "Acme",
       creatorUserId: "user-a",
       githubLogin: "alice",
     });
-    expect(first.slug).toBe("acme");
-    expect(second.slug).toBe("acme-2");
-    expect(db.memberships.filter((m) => m.role === "owner")).toHaveLength(2);
+    expect(first.org.slug).toBe("acme");
+    expect(second.org.slug).toBe("acme-2");
+    expect([first.membership, second.membership].filter((m) => m.role === "owner")).toHaveLength(2);
   });
 
   it("changes a member role and rejects owner / invalid promotions", () => {
     const db = emptyDb();
     ensurePersonalOrg(db, "user-a", "alice");
     const orgId = db.organizations[0]!.id;
-    const invite = inviteOrgMember(db, orgId, "user-a", "bob", "viewer");
+    const invite = applyMembership(
+      db,
+      inviteOrgMember(db, orgId, "user-a", "bob", "viewer"),
+    );
 
     const updated = changeOrgMemberRole(
       db,
@@ -111,6 +145,7 @@ describe("orgs", () => {
       "admin",
     );
     expect(updated.role).toBe("admin");
+    expect(invite.role).toBe("viewer");
 
     expect(() =>
       changeOrgMemberRole(db, orgId, "user-a", invite.id, "owner"),
@@ -126,13 +161,20 @@ describe("orgs", () => {
     const db = emptyDb();
     ensurePersonalOrg(db, "user-a", "alice");
     const orgId = db.organizations[0]!.id;
-    inviteOrgMember(db, orgId, "user-a", "bob", "admin");
+    applyMembership(db, inviteOrgMember(db, orgId, "user-a", "bob", "admin"));
     claimMembershipsForLogin(db, "user-b", "bob");
 
-    const pending = inviteOrgMember(db, orgId, "user-b", "carol", "member");
+    const pending = applyMembership(
+      db,
+      inviteOrgMember(db, orgId, "user-b", "carol", "member"),
+    );
     expect(pending.userId).toBeUndefined();
 
     removeOrgMember(db, orgId, "user-b", pending.id);
+    // validate-only; caller would persist deleteMembershipIds
+    db.memberships = db.memberships.filter(
+      (membership) => membership.id !== pending.id,
+    );
     expect(
       db.memberships.some((membership) => membership.githubLogin === "carol"),
     ).toBe(false);
@@ -157,7 +199,7 @@ describe("orgs", () => {
       summary: "ran",
       projectId: "p1",
     });
-    inviteOrgMember(db, orgId, "user-a", "bob", "admin");
+    applyMembership(db, inviteOrgMember(db, orgId, "user-a", "bob", "admin"));
     claimMembershipsForLogin(db, "user-b", "bob");
 
     expect(() => exportOrgData(db, orgId, "user-b")).toThrow(/owner/);
@@ -166,10 +208,12 @@ describe("orgs", () => {
     expect(exported.evidence).toHaveLength(1);
 
     expect(() => deleteOrganization(db, orgId, "user-b")).toThrow(/owner/);
-    deleteOrganization(db, orgId, "user-a");
-    expect(db.organizations.find((org) => org.id === orgId)).toBeUndefined();
-    expect(db.projects.find((project) => project.id === "p1")).toBeUndefined();
-    // Evidence retained for audit history.
+    const { deleteMembershipIds } = deleteOrganization(db, orgId, "user-a");
+    expect(deleteMembershipIds.length).toBeGreaterThan(0);
+    // Pure validate: in-memory db is unchanged; FK cascade + evidence append-only
+    // are persistence concerns.
+    expect(db.organizations.find((org) => org.id === orgId)).toBeDefined();
+    expect(db.projects.find((project) => project.id === "p1")).toBeDefined();
     expect(db.evidence.find((entry) => entry.id === "e1")).toBeDefined();
   });
 
@@ -177,7 +221,10 @@ describe("orgs", () => {
     const db = emptyDb();
     ensurePersonalOrg(db, "user-a", "alice");
     const orgId = db.organizations[0]!.id;
-    const adminInvite = inviteOrgMember(db, orgId, "user-a", "bob", "admin");
+    const adminInvite = applyMembership(
+      db,
+      inviteOrgMember(db, orgId, "user-a", "bob", "admin"),
+    );
     claimMembershipsForLogin(db, "user-b", "bob");
 
     expect(() =>
@@ -188,14 +235,21 @@ describe("orgs", () => {
       changeOrgMemberRole(db, orgId, "user-b", adminInvite.id, "member"),
     ).toThrow(/owners can change or remove admins/);
 
-    const peer = inviteOrgMember(db, orgId, "user-a", "dana", "admin");
+    const peer = applyMembership(
+      db,
+      inviteOrgMember(db, orgId, "user-a", "dana", "admin"),
+    );
     expect(() => removeOrgMember(db, orgId, "user-b", peer.id)).toThrow(
       /owners can change or remove admins/,
     );
 
     // Admins may still manage members/viewers.
-    const member = inviteOrgMember(db, orgId, "user-b", "erin", "member");
-    changeOrgMemberRole(db, orgId, "user-b", member.id, "viewer");
-    expect(member.role).toBe("viewer");
+    const member = applyMembership(
+      db,
+      inviteOrgMember(db, orgId, "user-b", "erin", "member"),
+    );
+    const updated = changeOrgMemberRole(db, orgId, "user-b", member.id, "viewer");
+    expect(updated.role).toBe("viewer");
+    expect(member.role).toBe("member");
   });
 });

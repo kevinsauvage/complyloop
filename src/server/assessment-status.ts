@@ -224,24 +224,27 @@ function statusFromFindings(
   });
 }
 
-function requirementForControl(
-  requirements: ReadonlyArray<Requirement>,
-  projectId: string,
-  controlId: string,
-): Requirement | undefined {
-  return requirements.find(
-    (candidate) =>
-      candidate.projectId === projectId && candidate.controlId === controlId,
+/** Later id wins — shared by payload merge and ProjectRows apply. */
+function upsertRequirementsById(
+  existing: ReadonlyArray<Requirement>,
+  updates: ReadonlyArray<Requirement>,
+): Requirement[] {
+  const byId = new Map(
+    existing.map((requirement) => [requirement.id, requirement]),
   );
+  for (const requirement of updates) {
+    byId.set(requirement.id, requirement);
+  }
+  return [...byId.values()];
 }
 
 function refreshRequirementForControl(
-  working: Requirement[],
+  workingByControlId: Map<string, Requirement>,
   findings: ReadonlyArray<Finding>,
   projectId: string,
   control: Control,
   options: RefreshRequirementStatusesOptions & { now: string },
-  touched: Requirement[],
+  touchedById: Map<string, Requirement>,
   evidence: EvidenceRecord[],
 ): void {
   const {
@@ -255,26 +258,14 @@ function refreshRequirementForControl(
   } = options;
 
   const track = (requirement: Requirement) => {
-    const index = working.findIndex((candidate) => candidate.id === requirement.id);
-    if (index >= 0) {
-      working[index] = requirement;
-    } else {
-      working.push(requirement);
-    }
-    const touchedIndex = touched.findIndex(
-      (candidate) => candidate.id === requirement.id,
-    );
-    if (touchedIndex >= 0) {
-      touched[touchedIndex] = requirement;
-    } else {
-      touched.push(requirement);
-    }
+    workingByControlId.set(requirement.controlId, requirement);
+    touchedById.set(requirement.id, requirement);
   };
 
   if (control.checkId === null) {
     // Manual / custom controls without a check stay unable_to_verify unless
     // a human pass or exception already sets a different status.
-    const existing = requirementForControl(working, projectId, control.id);
+    const existing = workingByControlId.get(control.id);
     if (requirementIsSticky(existing)) {
       return;
     }
@@ -298,7 +289,7 @@ function refreshRequirementForControl(
     return;
   }
 
-  const existing = requirementForControl(working, projectId, control.id);
+  const existing = workingByControlId.get(control.id);
   // Human exceptions / human passes are sticky until explicitly cleared
   // (temporary exceptions may expire earlier — see clearExpiredExceptions).
   if (requirementIsSticky(existing)) {
@@ -392,12 +383,15 @@ export function refreshRequirementStatuses(input: {
   const { project, findings, controlIds } = input;
   const options = input.options ?? {};
   const now = new Date().toISOString();
-  const working = structuredClone(
-    input.requirements.filter(
-      (requirement) => requirement.projectId === project.id,
-    ),
+  const workingByControlId = new Map(
+    input.requirements
+      .filter((requirement) => requirement.projectId === project.id)
+      .map((requirement) => [
+        requirement.controlId,
+        structuredClone(requirement),
+      ]),
   );
-  const touched: Requirement[] = [];
+  const touchedById = new Map<string, Requirement>();
   const evidence: EvidenceRecord[] = [];
   const scoped = scopedControlsForRefresh(
     project,
@@ -407,17 +401,17 @@ export function refreshRequirementStatuses(input: {
 
   for (const control of scoped) {
     refreshRequirementForControl(
-      working,
+      workingByControlId,
       findings,
       project.id,
       control,
       { ...options, now },
-      touched,
+      touchedById,
       evidence,
     );
   }
 
-  return { requirements: touched, evidence };
+  return { requirements: [...touchedById.values()], evidence };
 }
 
 /** Apply a full-scope status refresh into working ProjectRows (assessment). */
@@ -432,16 +426,10 @@ export function applyRequirementStatusRefresh(
     requirements: rows.requirements,
     options,
   });
-  for (const requirement of result.requirements) {
-    const index = rows.requirements.findIndex(
-      (candidate) => candidate.id === requirement.id,
-    );
-    if (index >= 0) {
-      rows.requirements[index] = requirement;
-    } else {
-      rows.requirements.push(requirement);
-    }
-  }
+  rows.requirements = upsertRequirementsById(
+    rows.requirements,
+    result.requirements,
+  );
   rows.evidence.push(...result.evidence);
 }
 
@@ -454,16 +442,10 @@ export function mergeRefreshIntoPayload(
   result: RefreshRequirementStatusesResult,
 ): void {
   if (result.requirements.length > 0) {
-    const byId = new Map(
-      (payload.requirements ?? []).map((requirement) => [
-        requirement.id,
-        requirement,
-      ]),
+    payload.requirements = upsertRequirementsById(
+      payload.requirements ?? [],
+      result.requirements,
     );
-    for (const requirement of result.requirements) {
-      byId.set(requirement.id, requirement);
-    }
-    payload.requirements = [...byId.values()];
   }
   if (result.evidence.length > 0) {
     payload.evidence = [...(payload.evidence ?? []), ...result.evidence];

@@ -48,36 +48,10 @@ describe("StatefulActionForm", () => {
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledWith("Saved.", { duration: 4_000 });
     });
-    expect(screen.getByRole("status")).toHaveTextContent("Saved.");
-  });
-
-  it("toasts success without inline copy when inlineSuccess is false", async () => {
-    const user = userEvent.setup();
-    const action = vi.fn(async () => ({
-      error: null,
-      message: "Assessment target updated",
-    }));
-
-    render(
-      <StatefulActionForm
-        action={action}
-        submitLabel="Set assessment target"
-        inlineSuccess={false}
-      />,
-    );
-
-    await user.click(
-      screen.getByRole("button", { name: "Set assessment target" }),
-    );
-    await waitFor(() => {
-      expect(toastSuccess).toHaveBeenCalledWith("Assessment target updated", {
-        duration: 4_000,
-      });
-    });
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("toasts errors", async () => {
+  it("toasts errors without inline copy", async () => {
     const user = userEvent.setup();
     const action = vi.fn(async () => ({
       error: "Not allowed.",
@@ -98,6 +72,6 @@ describe("StatefulActionForm", () => {
         duration: 8_000,
       });
     });
-    expect(screen.getByRole("alert")).toHaveTextContent("Not allowed.");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

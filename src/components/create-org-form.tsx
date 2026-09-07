@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import { ActionFeedback } from "@/components/action-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +36,6 @@ export function CreateOrgForm({
       <Button type="submit" disabled={pending}>
         {pending ? "Creating…" : "Create organization"}
       </Button>
-      <ActionFeedback state={state} />
     </form>
   );
 }

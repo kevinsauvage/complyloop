@@ -1,8 +1,18 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/server/actions/pr", () => ({
   createPullRequestAction: vi.fn(),
+}));
+
+const toastSuccess = vi.fn();
+const toastError = vi.fn();
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: (...args: unknown[]) => toastSuccess(...args),
+    error: (...args: unknown[]) => toastError(...args),
+  },
 }));
 
 const useActionStateMock = vi.fn();
@@ -17,8 +27,14 @@ vi.mock("react", async () => {
 
 import { CreatePrForm } from "./create-pr-form";
 
+afterEach(() => {
+  cleanup();
+  toastSuccess.mockClear();
+  toastError.mockClear();
+});
+
 describe("CreatePrForm", () => {
-  it("exposes success with role=status", () => {
+  it("toasts success with a PR action when a url is present", async () => {
     useActionStateMock.mockReturnValue([
       {
         error: null,
@@ -31,11 +47,19 @@ describe("CreatePrForm", () => {
 
     render(<CreatePrForm findingId="f1" />);
 
-    expect(screen.getByRole("status")).toHaveTextContent("Pull request ready.");
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(toastSuccess).toHaveBeenCalledWith(
+        "Pull request ready.",
+        expect.objectContaining({
+          duration: 6_000,
+          action: expect.objectContaining({ label: "Open draft PR" }),
+        }),
+      );
+    });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("exposes failures with role=alert", () => {
+  it("toasts failures", async () => {
     useActionStateMock.mockReturnValue([
       { error: "Push failed.", message: null, prUrl: null },
       vi.fn(),
@@ -44,6 +68,11 @@ describe("CreatePrForm", () => {
 
     render(<CreatePrForm findingId="f1" />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Push failed.");
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("Push failed.", {
+        duration: 8_000,
+      });
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

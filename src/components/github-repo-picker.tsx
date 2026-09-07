@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { ActionFeedback } from "@/components/action-feedback";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -254,9 +253,6 @@ export function GitHubRepoPicker({
           {fetchError}
         </p>
       ) : null}
-
-      <ActionFeedback state={connectState} />
-      <ActionFeedback state={disconnectState} />
 
       {loading && repos.length === 0 ? (
         <p className="text-sm text-muted-foreground">Loading repositories…</p>

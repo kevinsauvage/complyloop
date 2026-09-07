@@ -2,7 +2,6 @@
 
 import { useActionState, useId, type ReactNode } from "react";
 import type { VariantProps } from "class-variance-authority";
-import { ActionFeedback } from "@/components/action-feedback";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -25,8 +24,6 @@ export function StatefulActionForm({
   confirmTitle,
   retryLabel,
   disabled = false,
-  /** When false, success copy is toast-only (errors stay inline). */
-  inlineSuccess = true,
 }: {
   action: (
     previous: ActionMessageState,
@@ -45,16 +42,10 @@ export function StatefulActionForm({
   retryLabel?: string;
   /** Disables the submit button (state already satisfied). */
   disabled?: boolean;
-  inlineSuccess?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formId = useId();
   useActionToast(state, pending);
-
-  const feedbackState =
-    inlineSuccess || state.error
-      ? state
-      : { error: state.error, message: null };
 
   const buttonLabel = pending
     ? (pendingLabel ?? "Working…")
@@ -86,7 +77,6 @@ export function StatefulActionForm({
             {buttonLabel}
           </Button>
         )}
-        <ActionFeedback state={feedbackState} />
       </div>
     </form>
   );

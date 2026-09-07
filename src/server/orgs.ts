@@ -3,7 +3,6 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { isOrgRole } from "@/core/rbac";
 import type { Db } from "./db";
 import { slugifyOrgName, uniqueOrgSlug } from "./org-slug";
-import { removeProjectScopedRecords } from "./project-cascade";
 
 /** Claims invite rows that match this GitHub login by attaching userId. */
 export function claimMembershipsForLogin(
@@ -107,6 +106,7 @@ function assertCanManageTarget(
   }
 }
 
+/** Returns a new or updated membership; does not mutate `db`. */
 export function inviteOrgMember(
   db: Db,
   orgId: string,
@@ -132,21 +132,19 @@ export function inviteOrgMember(
   );
   if (existing) {
     assertCanManageTarget(actorRole, existing.role, "change");
-    existing.role = role;
-    return existing;
+    return { ...existing, role };
   }
 
-  const membership: OrgMembership = {
+  return {
     id: crypto.randomUUID(),
     orgId,
     role,
     githubLogin: login,
     createdAt: new Date().toISOString(),
   };
-  db.memberships.push(membership);
-  return membership;
 }
 
+/** Validates removal; caller persists via `deleteMembershipIds`. */
 export function removeOrgMember(
   db: Db,
   orgId: string,
@@ -163,15 +161,12 @@ export function removeOrgMember(
   );
   if (!target) throw new PublicError("Membership not found.");
   assertCanManageTarget(actorRole, target.role, "remove");
-  db.memberships = db.memberships.filter(
-    (membership) => membership.id !== membershipId,
-  );
 }
 
 /**
  * Updates a non-owner member's role. Cannot promote to owner (transfer is
  * unsupported). Pending invites (no userId yet) can have their role adjusted
- * before they sign in.
+ * before they sign in. Returns a copy; does not mutate `db`.
  */
 export function changeOrgMemberRole(
   db: Db,
@@ -194,8 +189,7 @@ export function changeOrgMemberRole(
   );
   if (!target) throw new PublicError("Membership not found.");
   assertCanManageTarget(actorRole, target.role, "change");
-  target.role = role;
-  return target;
+  return { ...target, role };
 }
 
 /** Personal owner org — fallback when no active org is selected. */
@@ -245,16 +239,22 @@ export function resolveActiveOrgId(
   return defaultOrgIdForUser(db, userId) ?? membershipOrgs[0]?.id;
 }
 
+export interface CreateOrganizationResult {
+  org: Organization;
+  membership: OrgMembership;
+}
+
+/** Builds org + owner membership without mutating `db`. */
 export function createOrganization(
-  db: Db,
+  db: Pick<Db, "organizations">,
   input: { name: string; creatorUserId: string; githubLogin: string },
-): Organization {
+): CreateOrganizationResult {
   const name = input.name.trim();
   if (!name) throw new PublicError("Organization name is required.");
   const login = input.githubLogin.trim();
   if (!login) throw new PublicError("GitHub login is required.");
 
-  return pushOrgWithOwner(db, {
+  return buildOrgWithOwner(db, {
     name,
     slugBase: name,
     ownerUserId: input.creatorUserId,
@@ -262,15 +262,15 @@ export function createOrganization(
   });
 }
 
-function pushOrgWithOwner(
-  db: Db,
+function buildOrgWithOwner(
+  db: Pick<Db, "organizations">,
   input: {
     name: string;
     slugBase: string;
     ownerUserId: string;
     githubLogin: string;
   },
-): Organization {
+): CreateOrganizationResult {
   const org: Organization = {
     id: crypto.randomUUID(),
     name: input.name,
@@ -285,6 +285,20 @@ function pushOrgWithOwner(
     githubLogin: input.githubLogin,
     createdAt: new Date().toISOString(),
   };
+  return { org, membership };
+}
+
+/** Mutating helper for `ensurePersonalOrg` scratch persistence. */
+function pushOrgWithOwner(
+  db: Db,
+  input: {
+    name: string;
+    slugBase: string;
+    ownerUserId: string;
+    githubLogin: string;
+  },
+): Organization {
+  const { org, membership } = buildOrgWithOwner(db, input);
   db.organizations.push(org);
   db.memberships.push(membership);
   return org;
@@ -348,32 +362,28 @@ export function exportOrgData(
   };
 }
 
+export interface DeleteOrganizationResult {
+  deleteMembershipIds: string[];
+}
+
 /**
- * Deletes an organization owned by the actor: projects + mutable scoped
- * records + memberships. Evidence rows are retained (append-only).
+ * Validates owner delete and returns membership ids to remove. Does not mutate
+ * `db` — DB FK cascade handles projects; evidence remains append-only.
  */
 export function deleteOrganization(
   db: Db,
   orgId: string,
   actorUserId: string,
-): void {
+): DeleteOrganizationResult {
   if (userRoleInOrg(db, orgId, actorUserId) !== "owner") {
     throw new PublicError("Only the organization owner can delete the organization.");
   }
   const org = db.organizations.find((candidate) => candidate.id === orgId);
   if (!org) throw new PublicError("Organization not found.");
 
-  const projectIds = db.projects
-    .filter((project) => project.orgId === orgId)
-    .map((project) => project.id);
-  for (const projectId of projectIds) {
-    removeProjectScopedRecords(db, projectId);
-  }
-  db.projects = db.projects.filter((project) => project.orgId !== orgId);
-  db.memberships = db.memberships.filter(
-    (membership) => membership.orgId !== orgId,
-  );
-  db.organizations = db.organizations.filter(
-    (candidate) => candidate.id !== orgId,
-  );
+  return {
+    deleteMembershipIds: db.memberships
+      .filter((membership) => membership.orgId === orgId)
+      .map((membership) => membership.id),
+  };
 }

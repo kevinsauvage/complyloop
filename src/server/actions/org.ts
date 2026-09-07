@@ -99,17 +99,11 @@ export async function createOrgAction(
     const { name } = parseForm(createOrgInput, formData);
 
     const org = await withOrgWrite((workspace) => {
-      const created = createOrganization(workspace.db, {
+      const { org: created, membership } = createOrganization(workspace.db, {
         name,
         creatorUserId: userId,
         githubLogin,
       });
-      const membership = workspace.db.memberships.find(
-        (row) => row.orgId === created.id && row.userId === userId,
-      );
-      if (!membership) {
-        throw new PublicError("Owner membership missing after create.");
-      }
       return {
         result: created,
         insertOrgs: [created],
@@ -249,15 +243,21 @@ export async function deleteOrgAction(
 
     let nextOrgId: string | undefined;
     await withOrgWrite(({ db }) => {
-      const membershipIds = db.memberships
-        .filter((membership) => membership.orgId === orgId)
-        .map((membership) => membership.id);
-      deleteOrganization(db, orgId, userId);
-      nextOrgId = resolveActiveOrgId(db, userId, null);
+      const { deleteMembershipIds } = deleteOrganization(db, orgId, userId);
+      nextOrgId = resolveActiveOrgId(
+        {
+          organizations: db.organizations.filter((org) => org.id !== orgId),
+          memberships: db.memberships.filter(
+            (membership) => membership.orgId !== orgId,
+          ),
+        },
+        userId,
+        null,
+      );
       return {
         result: undefined,
         deleteOrgIds: [orgId],
-        deleteMembershipIds: membershipIds,
+        deleteMembershipIds,
       };
     });
     if (nextOrgId) {
