@@ -60,5 +60,9 @@ vi.mock("@/server/workspace-write", async () => {
       projectId: Parameters<typeof actual.withProjectLock>[0],
       fn: Parameters<typeof actual.withProjectLock>[1],
     ) => actionWorkspaceMocks.withProjectLock(projectId, fn),
+    withConnectWrite: (
+      options: Parameters<typeof actual.withConnectWrite>[0],
+      fn: Parameters<typeof actual.withConnectWrite>[1],
+    ) => actionWorkspaceMocks.withConnectWrite(options, fn),
   };
 });

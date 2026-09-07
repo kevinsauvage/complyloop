@@ -2,10 +2,14 @@ import { auth } from "@/auth";
 import type {
   OrgMembership,
   Organization,
+  Project,
 } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
-import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/repo/evidence";
+import {
+  insertEvidenceRecords,
+  WORKSPACE_EVIDENCE_LIMIT,
+} from "@complyloop/db/repo/evidence";
 import {
   persistProjectRows,
   type ProjectSlice,
@@ -17,6 +21,7 @@ import {
   insertOrganization,
   upsertMembership,
 } from "@complyloop/db/repo/orgs";
+import { deleteProject, insertProject } from "@complyloop/db/repo/projects";
 import {
   loadTargetedProjectWriteDb,
   loadWorkspaceDb,
@@ -26,6 +31,7 @@ import {
   orgWriteLockKey,
   projectWriteLockKey,
 } from "@complyloop/db/write-lock";
+import type { EvidenceRecord } from "@complyloop/db/types";
 import { orgsForUser } from "./orgs";
 import {
   prepareWorkspaceState,
@@ -258,6 +264,63 @@ export async function withOrgWrite<T>(
     for (const id of deleteOrgIds ?? []) {
       await deleteOrganizationRow(tx, id);
     }
+
+    return result;
+  });
+}
+
+export interface ConnectWritePayload {
+  insertProjects?: Project[];
+  deleteProjectIds?: string[];
+  evidence?: EvidenceRecord[];
+}
+
+export interface ConnectWriteContext {
+  db: Db;
+  userId: string;
+  githubLogin: string | null;
+}
+
+/**
+ * Connect/disconnect writes: tenancy load (no active-project requirement),
+ * user-scoped org lock (not project lock — there may be no project cookie yet),
+ * persist insert/delete project + evidence.
+ */
+export async function withConnectWrite<T>(
+  options: { activeProjectId: string | null },
+  fn: (
+    ctx: ConnectWriteContext,
+  ) =>
+    | Promise<ConnectWritePayload & { result: T }>
+    | (ConnectWritePayload & { result: T }),
+): Promise<T> {
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  const githubLogin = session?.user?.login ?? null;
+  if (!userId) throw new PublicError("Sign in to continue.");
+
+  const drizzle = await getDrizzle();
+  return drizzle.transaction(async (tx) => {
+    await acquireNamedPostgresAdvisoryLock(tx, orgWriteLockKey(userId));
+    const db = await loadWorkspaceDb(tx, {
+      userId,
+      githubLogin,
+      activeProjectId: options.activeProjectId,
+      evidenceLimit: 0,
+    });
+    const { result, insertProjects, deleteProjectIds, evidence } = await fn({
+      db,
+      userId,
+      githubLogin,
+    });
+
+    for (const id of deleteProjectIds ?? []) {
+      await deleteProject(tx, id);
+    }
+    for (const project of insertProjects ?? []) {
+      await insertProject(tx, project);
+    }
+    await insertEvidenceRecords(tx, evidence ?? []);
 
     return result;
   });

@@ -48,20 +48,24 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
   catalog is compile-time data (`shippedCatalog()`). File hashes live in
   `assessment_snapshots` and load only for `runAssessment`. Evidence pages
   query Postgres directly.
-- **Writes** — `withProjectWrite` / `withOrgWrite` / `withProjectLock` in
-  `src/server/workspace-write.ts`. A project write callback returns a
-  `ProjectWritePayload` (or void); `persistProjectRows` upserts it. Org
-  writes return `{ result, insertOrgs, upsertMemberships, deleteMembershipIds,
-  deleteOrgIds }` — no JSON-diff of the in-memory slice. Structural entities
-  go through `repo/*`. `runAssessment` returns `{ assessment, evidence,
-  findings, remediations, requirements }`; the worker persists via
+- **Writes** — `withProjectWrite` / `withOrgWrite` / `withConnectWrite` /
+  `withProjectLock` in `src/server/workspace-write.ts`. A project write
+  callback returns a `ProjectWritePayload` (or void); `persistProjectRows`
+  upserts it. Org writes return `{ result, insertOrgs, upsertMemberships,
+  deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory slice.
+  Connect/disconnect uses `withConnectWrite` (tenancy load, org lock, no
+  project lock — there may be no active project yet) and returns
+  `{ result, insertProjects, deleteProjectIds, evidence }`. Structural
+  entities go through `repo/*`. `runAssessment` returns `{ assessment,
+  evidence, findings, remediations, requirements }`; the worker persists via
   `applyAssessmentPayload`. Stale-write guards take a single `loadedSlice`
   (`ProjectSlice`); `persistProjectRows` derives the per-entity `updatedAt`
   maps. Project-scoped filtering is shared via `projectScopedSlice` (used by
   `snapshotProjectSlice`, assessment scratch clones, and
   `buildAssessmentApplyPayload`).
-- **Locks** — job claim `FOR UPDATE SKIP LOCKED`; interactive writes and
-  apply take `project-write:{projectId}`. Requirement, finding and remediation
+- **Locks** — job claim `FOR UPDATE SKIP LOCKED`; interactive project writes
+  and apply take `project-write:{projectId}`; org and connect writes take the
+  user-scoped org lock. Requirement, finding and remediation
   upserts skip rows whose DB `updatedAt` is newer than the loaded slice
   (`repo/upsert-guard.ts`), so a stale apply cannot revert a concurrent human
   decision.

@@ -18,10 +18,6 @@ import {
   disconnectGitHubRepo,
   findConnectedGitHubProject,
 } from "../connect-github";
-import { getDrizzle } from "@complyloop/db/client";
-import { insertEvidenceRecords } from "@complyloop/db/repo/evidence";
-import { deleteProject, insertProject } from "@complyloop/db/repo/projects";
-import { loadWorkspaceDb } from "@complyloop/db/workspace-load";
 import { fetchGitHubRepo } from "../github";
 import {
   createInstallationAccessToken,
@@ -34,6 +30,7 @@ import { assertConnectRateLimit } from "../rate-limit";
 import { resolveActiveOrgId } from "../orgs";
 import { ensurePersonalOrgProvisioned } from "../personal-org";
 import { getWorkspace } from "../workspace";
+import { withConnectWrite } from "../workspace-write";
 import { refresh, requireSignedIn } from "./shared";
 
 export type ConnectGitHubFormState = ActionMessageState;
@@ -111,55 +108,50 @@ export async function connectGitHubRepoAction(
     const repo = await fetchGitHubRepo(accessToken, fullName);
     await ensurePersonalOrgProvisioned(userId, githubLogin ?? "");
     const preferredOrgId = await readActiveOrgCookie();
-    let connectedProjectId: string | null = null;
 
-    const drizzle = await getDrizzle();
-    await drizzle.transaction(async (tx) => {
-      const db = await loadWorkspaceDb(tx, {
-        userId,
-        githubLogin,
-        activeProjectId: null,
-        evidenceLimit: 0,
-      });
-      const orgId =
-        resolveActiveOrgId(db, userId, preferredOrgId) ??
-        db.organizations[0]?.id ??
-        null;
-      const access = accessFromStore(db, userId, githubLogin);
-      if (!orgId || !projectCapabilities(null, access, orgId).canConnect) {
-        throw new PublicError(
-          "You need admin or owner access in the active organization to connect a project.",
-          "connect",
+    const connectedProjectId = await withConnectWrite(
+      { activeProjectId: null },
+      async ({ db }) => {
+        const orgId =
+          resolveActiveOrgId(db, userId, preferredOrgId) ??
+          db.organizations[0]?.id ??
+          null;
+        const access = accessFromStore(db, userId, githubLogin);
+        if (!orgId || !projectCapabilities(null, access, orgId).canConnect) {
+          throw new PublicError(
+            "You need admin or owner access in the active organization to connect a project.",
+            "connect",
+          );
+        }
+        const alreadyConnected = findConnectedGitHubProject(
+          db.projects,
+          fullName,
+          orgId,
         );
-      }
-      const alreadyConnected = findConnectedGitHubProject(
-        db.projects,
-        fullName,
-        orgId,
-      );
-      if (alreadyConnected) {
-        throw new PublicError(
-          `${fullName} is already connected. Disconnect it first.`,
-          "connect",
-        );
-      }
-      const { project, evidence } = await connectGitHubRepo(db, {
-        fullName: repo.fullName,
-        defaultBranch: repo.defaultBranch,
-        private: repo.private,
-        ownerUserId: userId,
-        orgId,
-        accessToken,
-        installationId,
-      });
-      connectedProjectId = project.id;
-      await insertProject(tx, project);
-      await insertEvidenceRecords(tx, evidence);
-    });
+        if (alreadyConnected) {
+          throw new PublicError(
+            `${fullName} is already connected. Disconnect it first.`,
+            "connect",
+          );
+        }
+        const { project, evidence } = await connectGitHubRepo(db, {
+          fullName: repo.fullName,
+          defaultBranch: repo.defaultBranch,
+          private: repo.private,
+          ownerUserId: userId,
+          orgId,
+          accessToken,
+          installationId,
+        });
+        return {
+          result: project.id,
+          insertProjects: [project],
+          evidence,
+        };
+      },
+    );
 
-    if (connectedProjectId) {
-      await writeActiveProjectCookie(connectedProjectId);
-    }
+    await writeActiveProjectCookie(connectedProjectId);
     refresh();
     return `Connected ${repo.fullName}.`;
   });
@@ -171,33 +163,31 @@ export async function disconnectGitHubRepoAction(
 ): Promise<DisconnectGitHubFormState> {
   return runActionMessage(async () => {
     const { projectId } = parseForm(disconnectGitHubRepoInput, formData);
-    const { userId, githubLogin } = await requireSignedIn(
+    await requireSignedIn(
       "Sign in with GitHub to disconnect a repository.",
     );
 
-    let nextProjectId: string | null = null;
-    let disconnectedName = "repository";
-    const drizzle = await getDrizzle();
-    await drizzle.transaction(async (tx) => {
-      const db = await loadWorkspaceDb(tx, {
-        userId,
-        githubLogin,
-        activeProjectId: projectId,
-        evidenceLimit: 0,
-      });
-      const project = db.projects.find(
-        (candidate: (typeof db.projects)[number]) => candidate.id === projectId,
-      );
-      disconnectedName = project?.github?.fullName ?? project?.name ?? "repository";
-      const { deleteProjectId, evidence, nextProjectId: next } = disconnectGitHubRepo(
-        db,
-        projectId,
-        userId,
-      );
-      nextProjectId = next;
-      await deleteProject(tx, deleteProjectId);
-      await insertEvidenceRecords(tx, [evidence]);
-    });
+    const { nextProjectId, disconnectedName } = await withConnectWrite(
+      { activeProjectId: projectId },
+      async ({ db, userId }) => {
+        const project = db.projects.find(
+          (candidate) => candidate.id === projectId,
+        );
+        const disconnectedName =
+          project?.github?.fullName ?? project?.name ?? "repository";
+        const {
+          deleteProjectId,
+          evidence,
+          nextProjectId,
+        } = disconnectGitHubRepo(db, projectId, userId);
+        return {
+          result: { nextProjectId, disconnectedName },
+          deleteProjectIds: [deleteProjectId],
+          evidence: [evidence],
+        };
+      },
+    );
+
     if (nextProjectId) {
       await writeActiveProjectCookie(nextProjectId);
     }

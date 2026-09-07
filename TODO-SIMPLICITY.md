@@ -34,54 +34,11 @@ source of incidental complexity left in the repo.
 
 ---
 
-## P1 — High
+### P2-6 · Align `connect.ts` with the standard write protocol — **DONE**
 
-### P1-2 · One helper for "apply rows + refresh requirement statuses" (kills the 4× merge dance) — **DONE**
-
-`applyEntityWrite` in `src/server/apply-entity-write.ts` overlays payload
-findings/requirements, runs targeted `refreshRequirementStatuses`, and merges
-into the payload. Dismiss, bulk dismiss, verify, and clear-override call it.
-
-### P1-3 · Compute finding clusters once per request — **DONE**
-
-`prioritizeFindings` / `prioritizeClusters` take optional precomputed clusters.
-Findings list, finding detail queue, and dashboard call `clusterFindings` once
-and reuse the result.
-
-## P2 — Medium
-
-### P2-1 · Replace the hand-written patch-candidate (de)serializer with a zod schema
-
-- **What:** `ai-fix.ts` round-trips `PatchCandidate` through evidence
-  `detail` JSON via hand-rolled `asRecord` / `parseEdits` /
-  `parsePatchCandidateDetail` (~50 lines of manual validation) and
-  `patchCandidateDetail` for the write side.
-- **Why:** Hand-rolled parsing duplicates the zod boundary conventions used
-  everywhere else (`src/core/boundary.ts`); a schema change silently breaks the
-  reader.
-- **How:** One `patchCandidateDetailSchema` (zod) + `schema.parse` on read;
-  write side stays `schema.parse(candidate)`-shaped. ~40 lines deleted, one
-  source of truth.
-- **Files:** `src/server/ai-fix.ts`, `src/ai/verified-fix.ts`.
-
-### P2-3 · Fold `status-display.ts` thin getters + `badges.tsx` parallel maps — **DONE**
-
-One display record per enum owns label/description/tone (tone-token only);
-badges read those records. Thin getters removed; `severityRank` lives in
-`prioritization.ts`.
-
-### P2-6 · Align `connect.ts` with the standard write protocol
-
-- **What:** `connectGitHubRepoAction` / `disconnectGitHubRepoAction` bypass
-  `withProjectWrite`/`withOrgWrite` and hand-roll `drizzle.transaction` +
-  `loadWorkspaceDb` + repo calls.
-- **Why:** Two write protocols to learn and audit; connect path misses the
-  shared lock/guard machinery by construction (its justification — no active
-  project cookie yet — is not encoded anywhere).
-- **How:** Add a `touch: "connect"` scope to `withProjectWrite` (loads tenancy
-  - target project, no project lock, persists project + evidence), or extract
-    one `withConnectWrite` helper in `workspace-write.ts`; both actions use it.
-- **Files:** `src/server/actions/connect.ts`, `src/server/workspace-write.ts`.
+`withConnectWrite` in `workspace-write.ts`: tenancy load, user-scoped org
+lock (no project lock), persist insert/delete project + evidence. Connect and
+disconnect actions use it instead of hand-rolled transactions.
 
 ### P2-7 · Simplify status-refresh bookkeeping in `assessment-status.ts`
 

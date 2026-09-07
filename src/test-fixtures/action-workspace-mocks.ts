@@ -5,6 +5,7 @@ import { vi } from "vitest";
 const withProjectWrite = vi.fn();
 const withOrgWrite = vi.fn();
 const withProjectLock = vi.fn();
+const withConnectWrite = vi.fn();
 
 const capturedPayloads: ProjectWritePayload[] = [];
 
@@ -41,6 +42,7 @@ export const actionWorkspaceMocks = {
   withProjectWrite,
   withOrgWrite,
   withProjectLock,
+  withConnectWrite,
   getWorkspace: vi.fn(),
 };
 

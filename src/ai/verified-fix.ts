@@ -5,6 +5,7 @@ import { type Finding } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ExplanationProvenance } from "@complyloop/analysis-core/contract/statuses";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
+import { z } from "zod";
 
 export const PATCH_PR_SOURCE_ONLY_MESSAGE =
   "Patch PRs are only available for source findings. Use the developer handoff for runtime DOM findings.";
@@ -33,6 +34,54 @@ export interface PatchCandidate {
   model?: string;
   edits: FileEdit[];
   complyLoop: ComplyLoopGateResult;
+}
+
+/** Evidence `detail` shape for a ready patch (flattened complyLoop fields). */
+export const patchCandidateDetailSchema = z.object({
+  description: z.string(),
+  provenance: z.enum(["ai", "deterministic"]),
+  model: z.string().optional(),
+  edits: z
+    .array(
+      z.object({
+        path: z.string(),
+        oldText: z.string(),
+        newText: z.string(),
+      }),
+    )
+    .min(1),
+  complyLoopPassed: z.literal(true),
+  remaining: z.array(z.string()).optional().default([]),
+});
+
+export type PatchCandidateDetail = z.infer<typeof patchCandidateDetailSchema>;
+
+export function patchCandidateFromDetail(
+  detail: unknown,
+): PatchCandidate | null {
+  const parsed = patchCandidateDetailSchema.safeParse(detail);
+  if (!parsed.success) return null;
+  const value = parsed.data;
+  return {
+    description: value.description,
+    provenance: value.provenance,
+    ...(value.model ? { model: value.model } : {}),
+    edits: value.edits,
+    complyLoop: { passed: true, remaining: value.remaining },
+  };
+}
+
+export function patchCandidateToDetail(
+  candidate: PatchCandidate,
+): PatchCandidateDetail {
+  return patchCandidateDetailSchema.parse({
+    description: candidate.description,
+    provenance: candidate.provenance,
+    ...(candidate.model ? { model: candidate.model } : {}),
+    edits: candidate.edits,
+    complyLoopPassed: true,
+    remaining: candidate.complyLoop.remaining,
+  });
 }
 
 export interface GeneratePatchCandidateOptions {
