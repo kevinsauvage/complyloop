@@ -6,6 +6,7 @@ import {
 } from "@complyloop/analysis-core/contract/statuses";
 import { formatDateTimeWithZone } from "@/core/format-datetime";
 import { findingStatusLabel, requirementStatusLabel } from "@/core/status-display";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   composeAuditReport,
   composeEngineeringReport,
@@ -101,7 +102,7 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
         `- **Severity / confidence:** ${finding.severity} / ${finding.confidence}`,
       );
       lines.push(
-        `- **Check:** \`${finding.checkId}\`${finding.engine ? ` · **Engine:** \`${finding.engine}\`` : ""}`,
+        `- **Check:** \`${finding.checkId}\` · **Engine:** \`${engineFor(finding)}\``,
       );
       lines.push(`- **Reason:** ${inline(finding.reason)}`);
       if (finding.remediationStatus) {

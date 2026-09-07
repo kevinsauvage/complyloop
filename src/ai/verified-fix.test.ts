@@ -47,7 +47,6 @@ function sourceFinding(overrides: Partial<Finding> = {}): Finding {
     fix: null,
     explanations: [],
     detectedAt: "2026-01-01T00:00:00.000Z",
-    engine: "ast",
     ...overrides,
   };
 }
@@ -72,7 +71,6 @@ function rawOnFile(
       span: { start: 0, end: 1 },
     },
     fix: null,
-    engine: "ast",
   };
 }
 

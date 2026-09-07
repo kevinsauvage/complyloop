@@ -3,7 +3,8 @@ import { eq, sql } from "drizzle-orm";
 import type { EvidenceRecord } from "./types";
 import { closeDrizzle, getDrizzle } from "./client";
 import {
-  persistProjectSlice,
+  persistProjectRows,
+  requirementUpdatedAtById,
   snapshotProjectSlice,
   updatedAtById,
 } from "./repo/apply";
@@ -26,7 +27,34 @@ import {
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Run via `npm run test:db`. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());
 
-describe.skipIf(!enabled)("persistProjectSlice integration", () => {
+/** Builds the persistProjectRows payload + stale guards from a loaded slice. */
+function slicePayload(
+  loaded: Awaited<ReturnType<typeof loadProjectSlice>>,
+  after: Awaited<ReturnType<typeof loadProjectSlice>>,
+  evidence: ReadonlyArray<EvidenceRecord> = [],
+): {
+  payload: Parameters<typeof persistProjectRows>[1];
+  options: Parameters<typeof persistProjectRows>[2];
+} {
+  return {
+    payload: {
+      requirements: after.requirements,
+      findings: after.findings,
+      remediations: after.remediations,
+      alerts: after.alerts,
+      evidence: [...evidence],
+    },
+    options: {
+      loadedRequirementUpdatedAtById: requirementUpdatedAtById(
+        loaded.requirements,
+      ),
+      loadedFindingUpdatedAtById: updatedAtById(loaded.findings),
+      loadedRemediationUpdatedAtById: updatedAtById(loaded.remediations),
+    },
+  };
+}
+
+describe.skipIf(!enabled)("persistProjectRows integration", () => {
   afterAll(async () => {
     await closeDrizzle();
   });
@@ -73,8 +101,9 @@ describe.skipIf(!enabled)("persistProjectSlice integration", () => {
         },
       ];
 
+      const { payload, options } = slicePayload(before, after, evidenceRows);
       await drizzle.transaction(async (tx) => {
-        await persistProjectSlice(tx, before, after, evidenceRows);
+        await persistProjectRows(tx, payload, options);
       });
 
       const persisted = await loadProjectSlice(drizzle, fixture.projectId);
@@ -108,8 +137,9 @@ describe.skipIf(!enabled)("persistProjectSlice integration", () => {
       const before = await loadProjectSlice(drizzle, fixture.projectId);
       const fingerprintBefore = sliceFingerprint(before);
 
+      const { payload, options } = slicePayload(before, structuredClone(before));
       await drizzle.transaction(async (tx) => {
-        await persistProjectSlice(tx, before, structuredClone(before), []);
+        await persistProjectRows(tx, payload, options);
       });
 
       const after = await loadProjectSlice(drizzle, fixture.projectId);
@@ -126,14 +156,14 @@ describe.skipIf(!enabled)("persistProjectSlice integration", () => {
 
     try {
       await Promise.all([
-        runLockedProjectSliceWrite(drizzle, fixture, (slice, ids) =>
+        runLockedSliceWrite(drizzle, fixture, (slice, ids) =>
           dismissFinding(
             slice,
             ids.findingOneId,
             ids.remediationOneId,
           ),
         ),
-        runLockedProjectSliceWrite(drizzle, fixture, (slice, ids) =>
+        runLockedSliceWrite(drizzle, fixture, (slice, ids) =>
           dismissFinding(
             slice,
             ids.findingTwoId,
@@ -241,8 +271,9 @@ describe.skipIf(!enabled)("persistProjectSlice integration", () => {
       )!;
       finding.status = "resolved";
 
+      const { payload, options } = slicePayload(loadedSlice, live);
       await drizzle.transaction(async (tx) => {
-        await persistProjectSlice(tx, loadedSlice, live, []);
+        await persistProjectRows(tx, payload, options);
       });
 
       const persisted = await loadProjectSlice(drizzle, fixture.projectId);
@@ -328,7 +359,7 @@ describe.skipIf(!enabled)("persistProjectSlice integration", () => {
 
       // The worker's assessment re-detects the violation at a shifted location and
       // applies its stale slice. The location change makes it a real diff entry —
-      // persistProjectSlice must still skip it because the human dismissed the
+      // the stale guard must still skip it because the human dismissed the
       // finding (newer updatedAt) after the worker loaded its slice.
       const workerAfter = structuredClone(loadedSlice);
       const reappeared = workerAfter.findings.find(
@@ -344,8 +375,9 @@ describe.skipIf(!enabled)("persistProjectSlice integration", () => {
         span: { start: 100, end: 120 },
       };
 
+      const { payload, options } = slicePayload(loadedSlice, workerAfter);
       await drizzle.transaction(async (tx) => {
-        await persistProjectSlice(tx, loadedSlice, workerAfter, []);
+        await persistProjectRows(tx, payload, options);
       });
 
       const persisted = await loadProjectSlice(drizzle, fixture.projectId);
@@ -390,8 +422,9 @@ describe.skipIf(!enabled)("persistProjectSlice integration", () => {
         (item) => item.id === fixture.remediationTwoId,
       )!.status = "detected";
 
+      const { payload, options } = slicePayload(loadedSlice, workerAfter);
       await drizzle.transaction(async (tx) => {
-        await persistProjectSlice(tx, loadedSlice, workerAfter, []);
+        await persistProjectRows(tx, payload, options);
       });
 
       const persisted = await loadProjectSlice(drizzle, fixture.projectId);
@@ -406,7 +439,7 @@ describe.skipIf(!enabled)("persistProjectSlice integration", () => {
   });
 });
 
-async function runLockedProjectSliceWrite(
+async function runLockedSliceWrite(
   drizzle: Awaited<ReturnType<typeof getDrizzle>>,
   fixture: ProjectSliceFixture,
   mutate: (
@@ -418,7 +451,8 @@ async function runLockedProjectSliceWrite(
     await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(fixture.projectId));
     const before = await loadProjectSlice(tx, fixture.projectId);
     const after = mutate(structuredClone(before), fixture);
-    await persistProjectSlice(tx, before, after, []);
+    const { payload, options } = slicePayload(before, after);
+    await persistProjectRows(tx, payload, options);
   });
 }
 

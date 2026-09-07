@@ -3,7 +3,6 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
-import { addEvidence } from "@complyloop/db/repo/evidence";
 import type { Db } from "./db";
 
 /** Sets the project's default assessment preset (Settings). */
@@ -27,11 +26,12 @@ export function setDefaultPreset(
     projectId: project.id,
     detail: { presetId: preset.id, controlIds: preset.controlIds },
   };
+  const record = newEvidenceRecord(entry);
   if (payload) {
-    payload.evidence = [...(payload.evidence ?? []), newEvidenceRecord(entry)];
+    payload.evidence = [...(payload.evidence ?? []), record];
     payload.project = project;
   } else {
-    addEvidence(db, entry);
+    db.evidence.push(record);
   }
   return { changed: true };
 }

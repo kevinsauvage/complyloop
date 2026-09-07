@@ -18,7 +18,7 @@ describe("filterAstFindingsForAuthority", () => {
       span: { start: 0, end: 1 },
     },
     fix: null,
-    engine: "ast",
+    analyzerId: "ast",
   };
   const astImg: RawFinding = {
     ...astInput,

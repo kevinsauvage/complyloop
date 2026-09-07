@@ -34,7 +34,8 @@ import { accessFromStore, setActiveProject } from "../project-visibility";
 import { projectCapabilities } from "../project-capabilities";
 import { assertConnectRateLimit } from "../rate-limit";
 import { resolveActiveOrgId } from "../orgs";
-import { getWorkspace, ensurePersonalOrgProvisioned } from "../workspace";
+import { ensurePersonalOrgProvisioned } from "../personal-org";
+import { getWorkspace } from "../workspace";
 import { refresh } from "./shared";
 
 export type ConnectGitHubFormState = ActionMessageState;

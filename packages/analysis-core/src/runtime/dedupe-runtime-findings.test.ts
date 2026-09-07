@@ -22,7 +22,6 @@ function domFinding(
       snippet,
     },
     fix: null,
-    engine: "runtime",
     analyzerId,
     analyzerRuleId,
   };
@@ -101,7 +100,6 @@ describe("dedupeRuntimeFindings", () => {
           detail: "Nav signatures differ",
         },
         fix: null,
-        engine: "runtime",
         analyzerId: "site-level",
       },
     ]);

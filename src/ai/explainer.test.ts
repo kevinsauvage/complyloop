@@ -33,12 +33,11 @@ const finding = {
     column: 1,
     snippet: "<img />",
   },
-  engine: "ast",
 } as Finding;
 
 const runtimeFinding = {
   ...finding,
-  engine: "runtime",
+  analyzerId: "axe",
   location: {
     kind: "dom",
     url: "https://preview.example.com/",

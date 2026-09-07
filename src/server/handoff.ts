@@ -6,6 +6,7 @@ import { formatLocationRef, isSourceLocation, locationSnippet } from "@complyloo
 import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding, Remediation } from "@complyloop/db/types"
 import type { ProposedFix } from "@complyloop/analysis-core/contract/finding-types";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 
 export interface DeveloperHandoff {
   title: string;
@@ -71,7 +72,7 @@ export function buildDeveloperHandoff(
     finding.reason,
     ``,
     `**Location:** \`${locationRef}\``,
-    finding.engine ? `**Engine:** \`${finding.engine}\`` : "",
+    `**Engine:** \`${engineFor(finding)}\``,
     ``,
     "```",
     locationSnippet(finding.location),

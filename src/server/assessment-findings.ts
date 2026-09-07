@@ -19,6 +19,7 @@ import type {
   ProposedFix,
   RemediationSuggestion,
 } from "@complyloop/analysis-core/contract/finding-types";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { appendEvidence, type ProjectRows } from "./project-rows";
 
 /**
@@ -134,10 +135,10 @@ export interface ReconcileControlFindingsInput {
 }
 
 function isRuntimeOwnedFinding(finding: Finding): boolean {
-  if (finding.engine === "runtime") return true;
-  return (
-    isDomLocation(finding.location) || isSiteLocation(finding.location)
-  );
+  if (isDomLocation(finding.location) || isSiteLocation(finding.location)) {
+    return true;
+  }
+  return engineFor(finding) === "runtime";
 }
 
 /** Pure decision: should an unmatched open finding be resolved this run? */
@@ -204,7 +205,12 @@ export function reconcileControlFindings(
       existing.assessmentId = assessmentId;
       existing.fix = mergeFix(existing.fix, raw.fix);
       existing.location = raw.location;
-      existing.engine = raw.engine ?? existing.engine ?? "ast";
+      if (raw.analyzerId) existing.analyzerId = raw.analyzerId;
+      if (raw.analyzerRuleId) existing.analyzerRuleId = raw.analyzerRuleId;
+      if (raw.analyzerVersion) existing.analyzerVersion = raw.analyzerVersion;
+      if (raw.contributingAnalyzers?.length) {
+        existing.contributingAnalyzers = raw.contributingAnalyzers;
+      }
     } else {
       createFinding(rows, project, rootPath, control.id, assessmentId, raw);
     }
@@ -258,7 +264,6 @@ export function createFinding(
     confidence: raw.confidence,
     reason: raw.reason,
     location: raw.location,
-    engine: raw.engine ?? "ast",
     analyzerId: raw.analyzerId,
     analyzerRuleId: raw.analyzerRuleId,
     analyzerVersion: raw.analyzerVersion,
@@ -293,7 +298,6 @@ export function createFinding(
     assessmentId,
     detail: {
       event: "detected",
-      engine: raw.engine ?? "ast",
       ...(raw.analyzerId ? { analyzerId: raw.analyzerId } : {}),
       ...(raw.analyzerRuleId ? { analyzerRuleId: raw.analyzerRuleId } : {}),
       ...(raw.analyzerVersion ? { analyzerVersion: raw.analyzerVersion } : {}),
@@ -319,6 +323,9 @@ export function mergeRawFindings(
   const filteredAst = filterAstFindingsForAuthority(
     astFindings,
     runtimeRan,
-  ).map((finding) => ({ ...finding, engine: finding.engine ?? ("ast" as const) }));
+  ).map((finding) => ({
+    ...finding,
+    analyzerId: finding.analyzerId ?? ("ast" as const),
+  }));
   return [...filteredAst, ...runtimeFindings];
 }

@@ -155,7 +155,7 @@ async function main(): Promise<void> {
         snippet: '<img src="/x.png" />',
         span: { start: 0, end: 20 },
       },
-      engine: "ast",
+      analyzerId: "ast",
       fix: {
         kind: "insert_attribute",
         attribute: "alt",

@@ -45,7 +45,6 @@ describe("report model composers", () => {
     input.findings[0] = {
       ...input.findings[0],
       controlId: "ctl-unknown",
-      engine: "ast",
     };
     input.controls = [];
     input.requirements = [];

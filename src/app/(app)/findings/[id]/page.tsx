@@ -14,6 +14,7 @@ import { FindingUnderstandCard } from "@/components/findings/finding-understand-
 import { RemediationHistory } from "@/components/findings/remediation-history";
 import { findingAct } from "@/core/finding-act";
 import { evidenceKindLabel } from "@/core/status-display";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   findingQueuePosition,
   findingsListHref,
@@ -134,7 +135,7 @@ export default async function FindingPage({
           <SeverityBadge severity={finding.severity} />
           <ConfidenceBadge confidence={finding.confidence} />
           <RemediationStatusBadge status={remediation.status} />
-          <EngineBadge engine={finding.engine ?? "ast"} />
+          <EngineBadge engine={engineFor(finding)} />
           <span className="w-full font-mono text-xs text-muted-foreground sm:w-auto sm:text-right">
             {finding.checkId}
           </span>

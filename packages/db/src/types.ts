@@ -1,22 +1,15 @@
 import type { OrgMembership, Organization, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { RawFinding } from "@complyloop/analysis-core/types";
 import type {
-  AnalyzerContribution,
-  AnalyzerId,
-  AssessmentEngine,
   AssessmentEngines,
   Dismissal,
   Explanation,
-  FindingLocation,
-  ProposedFix,
   RemediationSuggestion,
 } from "@complyloop/analysis-core/contract/finding-types";
 import type {
-  Confidence,
-  FindingKind,
   FindingStatus,
   RemediationStatus,
   RequirementStatus,
-  Severity,
 } from "@complyloop/analysis-core/contract/statuses";
 
 export interface FileChange {
@@ -49,26 +42,21 @@ export interface Assessment {
   changesSincePrevious?: FileChange[];
 }
 
-export interface Finding {
+/**
+ * A persisted finding: `RawFinding` observation fields + persistence envelope
+ * (id, project, control, assessment, status, lifecycle). `engine` is not
+ * stored — it is derived from `analyzerId` via `engineFor` at the UI/filter
+ * boundaries. `checkId` is kept loose because persisted rows may predate the
+ * check registry (which `RawFinding` keys strictly).
+ */
+export interface Finding extends Omit<RawFinding, "checkId"> {
   id: string;
   projectId: string;
   controlId: string;
   assessmentId: string;
+  /** Persisted rows may predate the registry — keep the loose string here. */
   checkId: string;
   status: FindingStatus;
-  kind: FindingKind;
-  severity: Severity;
-  confidence: Confidence;
-  reason: string;
-  location: FindingLocation;
-  /** Detection engine that produced this finding. */
-  engine?: AssessmentEngine;
-  /** Finer-grained analyzer id; `engine` is derived when absent (`analyzerId` starting with axe/html-validate → runtime). */
-  analyzerId?: AnalyzerId;
-  analyzerRuleId?: string;
-  analyzerVersion?: string;
-  contributingAnalyzers?: AnalyzerContribution[];
-  fix: ProposedFix | null;
   explanations: Explanation[];
   detectedAt: string;
   /**
@@ -103,6 +91,16 @@ export interface Remediation {
   updatedAt?: string;
 }
 
+/**
+ * Frozen, append-only vocabulary for evidence rows. Do NOT add members: the
+ * set below is historical and never rewritten. Record a new product event by
+ * reusing a general kind — `finding`, `assessment_job`, or
+ * `requirement_status_changed` — with a `detail` discriminant (e.g.
+ * `detail.event`, `detail.phase`), and add its label/tone alongside in
+ * `src/core/status-display.ts`'s `evidenceDisplay`. Evidence-page filter
+ * chips are a separate short allow-list (`EVIDENCE_KIND_FILTER_ORDER`), not
+ * this type.
+ */
 export type EvidenceKind =
   | "project_connected"
   | "project_disconnected"

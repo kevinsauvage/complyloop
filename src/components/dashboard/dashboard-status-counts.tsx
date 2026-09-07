@@ -5,7 +5,7 @@ import { requirementsStatusHref } from "@/core/query";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
-import { STATUS_TONE_ACCENT, statusTone } from "@/core/status-display";
+import { STATUS_TONE_ACCENT, requirementStatusDisplay } from "@/core/status-display";
 
 export function DashboardStatusCounts({
   counts,
@@ -28,7 +28,7 @@ export function DashboardStatusCounts({
             <span
               className={cn(
                 "absolute inset-y-3 left-0 w-1 rounded-full",
-                STATUS_TONE_ACCENT[statusTone(status)],
+                STATUS_TONE_ACCENT[requirementStatusDisplay(status).tone],
               )}
               aria-hidden
             />

@@ -24,8 +24,8 @@ export async function listOrgIdsForUser(
 /**
  * One indexed read answering "is there anything left to provision for this
  * viewer?": the user owns an org (personal org exists) and no membership row
- * for their login is still unclaimed. Lets the signed-in GET path skip the
- * heavier provisioning load + claim writes entirely (P1-2).
+ * for their login is still unclaimed. Callers (auth sign-in / first write)
+ * use this to skip the heavier load + claim writes in steady state.
  */
 export async function isPersonalOrgProvisioned(
   drizzle: DrizzleDb,

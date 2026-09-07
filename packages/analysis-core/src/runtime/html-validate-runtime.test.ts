@@ -83,7 +83,7 @@ describe("html-validate rendered pass", () => {
     expect(f.some((x) => x.checkId === "nested-interactive")).toBe(false);
     const dep = f.find((x) => x.checkId === "css-for-presentation");
     expect(dep?.severity).toBe("moderate");
-    expect(dep?.engine).toBe("runtime");
+    expect(dep?.analyzerId).toBe("html-validate");
     const nesting = f.find((x) => x.checkId === "markup-nesting");
     expect(nesting?.confidence).toBe("medium");
     expect(nesting?.validationInput).toBe(HTML_VALIDATE_INPUT_KIND);
@@ -119,7 +119,7 @@ describe("html-validate rendered pass", () => {
       `);
       try {
         const f = await htmlValidateFindingsForPage(page, "https://app.example/page");
-        expect(f.every((x) => x.engine === "runtime")).toBe(true);
+        expect(f.every((x) => x.analyzerId === "html-validate")).toBe(true);
         expect(f.every((x) => x.location.kind === "dom")).toBe(true);
         expect(f.some((x) => x.checkId === "landmark-one-main")).toBe(false);
         expect(f.some((x) => x.checkId === "css-for-presentation")).toBe(true);

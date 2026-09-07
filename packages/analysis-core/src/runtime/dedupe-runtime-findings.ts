@@ -13,8 +13,9 @@ const ANALYZER_PRIORITY: Record<AnalyzerId, number> = {
 
 function effectiveAnalyzerId(finding: RawFinding): AnalyzerId {
   if (finding.analyzerId) return finding.analyzerId;
-  if (finding.engine === "ast") return "ast";
-  return "axe";
+  // Runtime-dedupe only sees runtime findings, which always name an analyzer;
+  // default to ast for hand-built fixtures.
+  return "ast";
 }
 
 function normalizeSnippet(snippet: string): string {

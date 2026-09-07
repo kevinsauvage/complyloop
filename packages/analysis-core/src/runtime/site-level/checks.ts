@@ -16,7 +16,6 @@ function siteFinding(
     reason,
     location: { kind: "site", pages, detail },
     fix: null,
-    engine: "runtime",
     analyzerId: "site-level",
   };
 }
@@ -280,7 +279,6 @@ export function runSiteLevelChecks(
         detail: `Repeated title: ${title}`,
       },
       fix: null,
-      engine: "runtime",
       analyzerId: "site-level",
     });
   }
@@ -302,7 +300,6 @@ export function runSiteLevelChecks(
         detail: `Languages: ${[...uniqueLangs].join(", ")}`,
       },
       fix: null,
-      engine: "runtime",
       analyzerId: "site-level",
     });
   }

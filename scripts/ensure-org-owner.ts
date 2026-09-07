@@ -7,7 +7,7 @@
  */
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
-import { ensurePersonalOrgProvisioned } from "../src/server/workspace";
+import { ensurePersonalOrgProvisioned } from "../src/server/personal-org";
 
 function loadLocalEnv(): void {
   if (process.env.DATABASE_URL?.trim()) return;

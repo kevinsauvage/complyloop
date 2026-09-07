@@ -9,7 +9,7 @@ const enabled = Boolean(process.env.DATABASE_URL?.trim());
 
 /**
  * Regression test for P0-1: alert rows must be updatable through the
- * upsert path (`persistProjectSlice` / `markAlertRead`) without a
+ * upsert path (`persistProjectRows` / `markAlertRead`) without a
  * primary-key violation, and `read`/payload must follow the latest write.
  */
 describe.skipIf(!enabled)("alert upserts", () => {

@@ -56,7 +56,6 @@ function sourceFinding(overrides: Partial<Finding> = {}): Finding {
     },
     explanations: [],
     detectedAt: "2026-01-01T00:00:00.000Z",
-    engine: "ast",
     ...overrides,
   };
 }
@@ -105,7 +104,7 @@ describe("generateAiRemediation", () => {
     } as never);
 
     const finding = sourceFinding({
-      engine: "runtime",
+      analyzerId: "axe",
       fix: null,
       location: {
         kind: "dom",

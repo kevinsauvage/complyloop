@@ -48,6 +48,13 @@ export function requirementsStatusHref(
   return buildHref("/requirements", status ? { status } : {});
 }
 
+/**
+ * Evidence-page filter chips — a deliberately short allow-list of general
+ * kinds. Do not grow it with every `EvidenceKind`: new events reuse a general
+ * kind with a `detail` discriminant, so the chips stay few. Kinds that share
+ * a general parent (e.g. the requirement exception / human-pass noun-pairs)
+ * intentionally have no chip of their own.
+ */
 export const EVIDENCE_KIND_FILTER_ORDER: readonly EvidenceKind[] = [
   "finding",
   "remediation_verified",

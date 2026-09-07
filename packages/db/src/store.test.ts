@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { emptyDb } from "./types";
-import { addEvidence } from "./repo/evidence";
+import { newEvidenceRecord } from "./repo/mappers";
 import {
   evidenceToRow,
   rowToEvidence,
 } from "./repo/mappers";
 
-describe("emptyDb + addEvidence", () => {
+describe("emptyDb evidence append", () => {
   it("starts empty and appends evidence records", () => {
     const db = emptyDb();
     expect(db.projects).toEqual([]);
@@ -19,22 +19,22 @@ describe("emptyDb + addEvidence", () => {
       orgId: "org-test",
       createdAt: "2026-01-01T00:00:00.000Z",
     });
-    const first = addEvidence(db, {
+    db.evidence.push(newEvidenceRecord({
       kind: "project_connected",
       summary: "connected",
       projectId: "p1",
-    });
-    const second = addEvidence(db, {
+    }));
+    db.evidence.push(newEvidenceRecord({
       kind: "assessment_completed",
       summary: "done",
       projectId: "p1",
-    });
+    }));
 
     expect(db.projects).toHaveLength(1);
     expect(db.evidence).toHaveLength(2);
-    expect(first.id).toBeTruthy();
-    expect(first.at).toBeTruthy();
-    expect(second.kind).toBe("assessment_completed");
+    expect(db.evidence[0]!.id).toBeTruthy();
+    expect(db.evidence[0]!.at).toBeTruthy();
+    expect(db.evidence[1]!.kind).toBe("assessment_completed");
     expect(db.evidence.map((record) => record.summary)).toEqual([
       "connected",
       "done",

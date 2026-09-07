@@ -10,6 +10,12 @@ describe("EVIDENCE_KIND_FILTER_ORDER", () => {
     expect(EVIDENCE_KIND_FILTER_ORDER).toContain("finding");
     expect(EVIDENCE_KIND_FILTER_ORDER).toContain("assessment_job");
   });
+
+  it("keeps the chip allow-list short (no noun-pair kinds)", () => {
+    for (const kind of EVIDENCE_KIND_FILTER_ORDER) {
+      expect(kind).not.toMatch(/_set$|_cleared$|human_pass/);
+    }
+  });
 });
 
 describe("parseEvidenceKindParam", () => {

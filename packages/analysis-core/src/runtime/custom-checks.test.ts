@@ -20,7 +20,6 @@ describe("custom runtime findings", () => {
       },
     ]);
     expect(findings[0]?.checkId).toBe("reflow");
-    expect(findings[0]?.engine).toBe("runtime");
     expect(findings[0]?.analyzerId).toBe("playwright-custom");
   });
 });

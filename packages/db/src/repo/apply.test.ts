@@ -24,7 +24,7 @@ import {
   applyAssessmentPayload,
   buildAssessmentApplyPayload,
   persistProjectRows,
-  persistProjectSlice,
+  requirementUpdatedAtById,
   snapshotProjectSlice,
   updatedAtById,
 } from "./apply.ts";
@@ -132,16 +132,21 @@ describe("snapshotProjectSlice", () => {
     insertAlerts.mockResolvedValue(undefined);
     insertEvidenceRecords.mockResolvedValue(undefined);
 
-    await persistProjectSlice(
+    await persistProjectRows(
       tx,
-      loadedSlice,
       {
         requirements: [liveRequirement],
         findings: [liveFinding],
         remediations: [liveRemediation],
         alerts: [],
       },
-      [],
+      {
+        loadedRequirementUpdatedAtById: requirementUpdatedAtById(
+          loadedSlice.requirements,
+        ),
+        loadedFindingUpdatedAtById: updatedAtById(loadedSlice.findings),
+        loadedRemediationUpdatedAtById: updatedAtById(loadedSlice.remediations),
+      },
     );
 
     expect(upsertRequirements).toHaveBeenCalledWith(tx, [liveRequirement], {
@@ -360,92 +365,5 @@ describe("persistProjectRows", () => {
       loadedUpdatedAtById: undefined,
     });
     expect(updateProject).not.toHaveBeenCalled();
-  });
-});
-
-describe("persistProjectSlice", () => {
-  const tx = { kind: "tx" } as unknown as DrizzleDb;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    upsertRequirements.mockResolvedValue(undefined);
-    upsertFindings.mockResolvedValue(undefined);
-    upsertRemediations.mockResolvedValue(undefined);
-    insertAlerts.mockResolvedValue(undefined);
-    insertEvidenceRecords.mockResolvedValue(undefined);
-  });
-
-  it("upserts the full after slice with stale guards from the loaded slice", async () => {
-    const slice = {
-      requirements: [requirement],
-      findings: [finding],
-      remediations: [remediation],
-      alerts: [alert],
-    };
-
-    await persistProjectSlice(tx, slice, slice, []);
-
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, slice.requirements, {
-      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
-    });
-    expect(upsertFindings).toHaveBeenCalledWith(tx, slice.findings, {
-      loadedUpdatedAtById: new Map(),
-    });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, slice.remediations, {
-      loadedUpdatedAtById: new Map(),
-    });
-    expect(insertAlerts).toHaveBeenCalledWith(tx, slice.alerts);
-    expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, []);
-  });
-
-  it("persists updated entities and new evidence", async () => {
-    const before = {
-      requirements: [requirement],
-      findings: [finding],
-      remediations: [remediation],
-      alerts: [alert],
-    };
-    const updatedFinding = { ...finding, status: "dismissed" as const };
-    const updatedRemediation = { ...remediation, status: "approved" as const };
-    const readAlert = { ...alert, read: true };
-    const updatedRequirement = {
-      ...requirement,
-      status: "passed" as const,
-      updatedAt: "2026-01-02T00:00:00.000Z",
-    };
-    const after = {
-      requirements: [updatedRequirement],
-      findings: [updatedFinding],
-      remediations: [updatedRemediation],
-      alerts: [readAlert],
-    };
-    const evidence: EvidenceRecord[] = [
-      {
-        id: "ev-1",
-        at: "2026-01-02T00:00:00.000Z",
-        kind: "finding",
-        summary: "dismissed",
-        projectId,
-        findingId: finding.id,
-      },
-    ];
-
-    await persistProjectSlice(tx, before, after, evidence);
-
-    expect(upsertRequirements).toHaveBeenCalledWith(
-      tx,
-      [updatedRequirement],
-      {
-        loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
-      },
-    );
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [updatedFinding], {
-      loadedUpdatedAtById: new Map(),
-    });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [updatedRemediation], {
-      loadedUpdatedAtById: new Map(),
-    });
-    expect(insertAlerts).toHaveBeenCalledWith(tx, [readAlert]);
-    expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, evidence);
   });
 });

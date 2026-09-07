@@ -12,6 +12,7 @@ import {
   getStoredGitHubToken,
   storeUserGitHubToken,
 } from "@/server/github-tokens";
+import { ensurePersonalOrgProvisioned } from "@/server/personal-org";
 
 /** True when GitHub OAuth env vars are present — otherwise sign-in is hidden. */
 export function isGitHubAuthConfigured(): boolean {
@@ -57,6 +58,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: authSecret,
   trustHost: true,
   events: {
+    async signIn(message) {
+      // Without a DB adapter, Auth.js mints a random UUID as `user.id`. Identity
+      // in this app is GitHub's stable account id (same as jwt.sub).
+      const account = message.account;
+      if (account?.provider !== "github" || !account.providerAccountId) return;
+      const userId = String(account.providerAccountId);
+      const profile = message.profile;
+      const githubLogin =
+        profile &&
+        typeof profile === "object" &&
+        "login" in profile &&
+        typeof profile.login === "string"
+          ? profile.login
+          : undefined;
+      if (!githubLogin) return;
+      await ensurePersonalOrgProvisioned(userId, githubLogin);
+    },
     async signOut(message) {
       const token = "token" in message ? message.token : undefined;
       const sub =

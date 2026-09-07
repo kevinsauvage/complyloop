@@ -146,29 +146,6 @@ export async function persistProjectRows(
   }
 }
 
-export async function persistProjectSlice(
-  tx: DrizzleDb,
-  loadedSlice: ProjectSlice,
-  after: ProjectSlice,
-  evidence: ReadonlyArray<EvidenceRecord>,
-): Promise<void> {
-  await persistProjectRows(
-    tx,
-    {
-      requirements: after.requirements,
-      findings: after.findings,
-      remediations: after.remediations,
-      alerts: after.alerts,
-      evidence: [...evidence],
-    },
-    {
-      loadedRequirementUpdatedAtById: requirementUpdatedAtById(loadedSlice.requirements),
-      loadedFindingUpdatedAtById: updatedAtById(loadedSlice.findings),
-      loadedRemediationUpdatedAtById: updatedAtById(loadedSlice.remediations),
-    },
-  );
-}
-
 export function buildAssessmentApplyPayload(input: {
   assessment: Assessment;
   snapshot: AssessmentSnapshot;

@@ -28,7 +28,7 @@ vi.mock("@complyloop/db/repo/orgs", () => ({
   upsertMembership: vi.fn(),
 }));
 
-import { ensurePersonalOrgProvisioned } from "./workspace";
+import { ensurePersonalOrgProvisioned } from "./personal-org";
 
 describe("ensurePersonalOrgProvisioned", () => {
   const tx = { kind: "tx" };

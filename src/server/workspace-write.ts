@@ -190,24 +190,11 @@ async function runProjectWriteTransaction<T>(
       throw new PublicError("Select a project first.");
     }
 
-    const projectBefore =
-      scope.touch === "project" ? structuredClone(project) : null;
     const staleGuards =
       scope.touch === "entities"
         ? captureEntityStaleWriteGuards(db, scope)
         : null;
     const { result, payload } = await fn(workspace);
-
-    if (scope.touch === "project") {
-      const projectAfter = workspace.project ?? project;
-      if (
-        !payload.project &&
-        projectBefore &&
-        JSON.stringify(projectBefore) !== JSON.stringify(projectAfter)
-      ) {
-        payload.project = projectAfter;
-      }
-    }
 
     await persistProjectRows(tx, payload, staleGuards ?? {});
 

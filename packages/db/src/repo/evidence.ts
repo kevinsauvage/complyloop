@@ -2,7 +2,6 @@ import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import type { EvidenceKind, EvidenceRecord } from "../types";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../client.ts";
-import type { Db } from "../types.ts";
 import { evidence } from "../schema.ts";
 import {
   evidenceExportWindow,
@@ -20,16 +19,6 @@ export const WORKSPACE_EVIDENCE_LIMIT = 100;
  * DB forever (append-only); this only bounds the download, not the table.
  */
 export const EVIDENCE_EXPORT_LIMIT = 5_000;
-
-/** Evidence is append-only: queue a record in memory for a later repo insert. */
-export function addEvidence(
-  db: Db,
-  entry: Omit<EvidenceRecord, "id" | "at">,
-): EvidenceRecord {
-  const record = newEvidenceRecord(entry);
-  db.evidence.push(record);
-  return record;
-}
 
 export async function insertEvidence(
   tx: DrizzleDb,

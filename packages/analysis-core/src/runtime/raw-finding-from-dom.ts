@@ -38,7 +38,6 @@ export function rawFindingFromDom(input: RawFindingFromDomInput): RawFinding {
       context: input.context,
     },
     fix: null,
-    engine: "runtime",
     analyzerId: input.analyzerId,
     analyzerRuleId: input.analyzerRuleId,
     analyzerVersion: input.analyzerVersion,

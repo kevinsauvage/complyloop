@@ -7,10 +7,8 @@ import {
   engineDescription,
   evidenceKindLabel,
   provenanceDescription,
-  remediationStatusDescription,
-  remediationStatusLabel,
-  requirementStatusDescription,
-  requirementStatusLabel,
+  remediationStatusDisplay,
+  requirementStatusDisplay,
   severityDescription,
   severityLabel,
 } from "@/core/status-display";
@@ -28,7 +26,6 @@ import {
   EVIDENCE_TONE_BADGE,
   evidenceTone,
   STATUS_TONE_BADGE,
-  statusTone,
 } from "@/core/status-display";
 import { cn } from "@/lib/utils";
 
@@ -37,10 +34,10 @@ export function RequirementStatusBadge({
 }: {
   status: RequirementStatus;
 }) {
-  const label = requirementStatusLabel(status);
+  const display = requirementStatusDisplay(status);
   return (
-    <BadgeWithDescription description={requirementStatusDescription(status)}>
-      <Badge className={STATUS_TONE_BADGE[statusTone(status)]}>{label}</Badge>
+    <BadgeWithDescription description={display.description}>
+      <Badge className={STATUS_TONE_BADGE[display.tone]}>{display.label}</Badge>
     </BadgeWithDescription>
   );
 }
@@ -82,13 +79,14 @@ export function RemediationStatusBadge({
 }: {
   status: RemediationStatus;
 }) {
+  const display = remediationStatusDisplay(status);
   return (
-    <BadgeWithDescription description={remediationStatusDescription(status)}>
+    <BadgeWithDescription description={display.description}>
       <Badge
         variant={REMEDIATION_VARIANT[status]}
         className={cn(REMEDIATION_BADGE[status])}
       >
-        {remediationStatusLabel(status)}
+        {display.label}
       </Badge>
     </BadgeWithDescription>
   );

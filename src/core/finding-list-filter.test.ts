@@ -56,7 +56,7 @@ function finding(
       snippet: "<img />",
       span: { start: 0, end: 1 },
     },
-    engine: "ast",
+    analyzerId: "jsx-a11y",
     fix: null,
     explanations: [],
     detectedAt: "2026-01-01T00:00:00.000Z",
@@ -181,7 +181,7 @@ describe("filterFindings", () => {
       checkId: "target-size",
       reason: "Target too small",
       severity: "moderate",
-      engine: "runtime",
+      analyzerId: "axe",
       location: {
         kind: "dom",
         url: "https://preview.example.com/",

@@ -73,7 +73,6 @@ describe("createFinding analyzer evidence", () => {
         snippet: "<table><td>x</td></table>",
       },
       fix: null,
-      engine: "runtime",
       analyzerId: "html-validate",
       analyzerRuleId: "element-permitted-order",
       analyzerVersion: "11.12.0",
@@ -90,7 +89,6 @@ describe("createFinding analyzer evidence", () => {
       contributingAnalyzers: [{ analyzerId: "axe", analyzerRuleId: "list" }],
     });
     expect(rows.evidence[0]?.detail).toMatchObject({
-      engine: "runtime",
       analyzerId: "html-validate",
       analyzerRuleId: "element-permitted-order",
       analyzerVersion: "11.12.0",
@@ -104,7 +102,6 @@ describe("createFinding analyzer evidence", () => {
 
 describe("shouldResolveOpenFinding", () => {
   const domFinding = testFinding({
-    engine: "runtime",
     location: {
       kind: "dom",
       url: "https://preview.example/",
@@ -114,7 +111,6 @@ describe("shouldResolveOpenFinding", () => {
   });
 
   const sourceFinding = testFinding({
-    engine: "ast",
     location: {
       kind: "source",
       filePath: "Hero.tsx",

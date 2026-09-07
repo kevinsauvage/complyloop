@@ -48,7 +48,6 @@ describe("findingsFromAxePages", () => {
     ]);
     expect(findings).toHaveLength(1);
     expect(findings[0]?.checkId).toBe("input-label");
-    expect(findings[0]?.engine).toBe("runtime");
     expect(findings[0]?.analyzerId).toBe("axe");
     expect(findings[0]?.analyzerRuleId).toBe("label");
     expect(findings[0]?.location).toEqual({
@@ -84,7 +83,6 @@ describe("findingsFromAxePages", () => {
                 "Covered by `header.sticky` at the top-left of the focus ring",
             },
             fix: null,
-            engine: "runtime",
             analyzerId: "playwright-custom",
             analyzerRuleId: "focus-not-obscured-enhanced",
           },
@@ -115,7 +113,7 @@ describe("findingsFromAxePages", () => {
       },
     ]);
     expect(findings[0]?.checkId).toBe("doctype");
-    expect(findings[0]?.engine).toBe("runtime");
+    expect(findings[0]?.analyzerId).toBe("axe");
   });
 
   it("emits axe incomplete results as warnings for needs_review", () => {
@@ -138,7 +136,7 @@ describe("findingsFromAxePages", () => {
     expect(findings[0]?.checkId).toBe("color-contrast");
     expect(findings[0]?.kind).toBe("warning");
     expect(findings[0]?.confidence).toBe("medium");
-    expect(findings[0]?.engine).toBe("runtime");
+    expect(findings[0]?.analyzerId).toBe("axe");
   });
 
   it("emits heuristic runtime checks as warnings for needs_review", () => {
@@ -160,7 +158,6 @@ describe("findingsFromAxePages", () => {
               snippet: '<div class="g-recaptcha">',
             },
             fix: null,
-            engine: "runtime",
             analyzerId: "playwright-custom",
             analyzerRuleId: "captcha-alternative",
           },
@@ -223,7 +220,6 @@ describe("rawFindingFromDom", () => {
         context: undefined,
       },
       fix: null,
-      engine: "runtime",
       analyzerId: "axe",
       analyzerRuleId: "label",
       analyzerVersion: undefined,

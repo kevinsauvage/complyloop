@@ -19,9 +19,7 @@ export interface RawFinding {
   reason: string;
   location: FindingLocation;
   fix: ProposedFix | null;
-  /** Defaults to `ast` when omitted. */
-  engine?: "ast" | "runtime";
-  /** Specific analyzer within the coarse `engine` bucket. */
+  /** Analyzer that produced this observation (AST checks default to `ast`). */
   analyzerId?: AnalyzerId;
   /** axe / html-validate / jsx-a11y rule id, or custom probe check id. */
   analyzerRuleId?: string;

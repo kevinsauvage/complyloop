@@ -499,7 +499,7 @@ describe("refreshRequirementStatuses applicability-gated", () => {
         selector: "video",
         snippet: "<video>",
       },
-      engine: "runtime",
+      analyzerId: "axe",
       fix: null,
       explanations: [],
       detectedAt: new Date().toISOString(),

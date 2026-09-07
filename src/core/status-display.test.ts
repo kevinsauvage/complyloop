@@ -10,15 +10,14 @@ import {
   engineDescription,
   findingStatusLabel,
   provenanceDescription,
-  remediationStatusDescription,
+  remediationStatusDisplay,
   remediationStatusLabel,
-  requirementStatusDescription,
+  requirementStatusDisplay,
   requirementStatusLabel,
   roleTone,
   severityDescription,
   severityLabel,
   severityRank,
-  statusTone,
 } from "./status-display";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
 import type { EvidenceKind } from "@complyloop/db/types";
@@ -170,7 +169,7 @@ describe("severity helpers", () => {
   });
 });
 
-describe("requirementStatusDescription", () => {
+describe("requirementStatusDisplay", () => {
   it("describes every requirement status without throwing", () => {
     for (const status of [
       "passed",
@@ -179,18 +178,20 @@ describe("requirementStatusDescription", () => {
       "not_applicable",
       "unable_to_verify",
     ] as const) {
-      expect(requirementStatusDescription(status).length).toBeGreaterThan(10);
+      expect(requirementStatusDisplay(status).description.length).toBeGreaterThan(
+        10,
+      );
     }
   });
 
   it("throws on an unrecognized status", () => {
-    expect(() => requirementStatusDescription("nope" as never)).toThrow(
+    expect(() => requirementStatusDisplay("nope" as never)).toThrow(
       /Unhandled requirement status/,
     );
   });
 });
 
-describe("remediationStatusDescription", () => {
+describe("remediationStatusDisplay", () => {
   it("describes every remediation status", () => {
     for (const status of [
       "detected",
@@ -199,7 +200,9 @@ describe("remediationStatusDescription", () => {
       "implemented",
       "verified",
     ] as const) {
-      expect(remediationStatusDescription(status).length).toBeGreaterThan(10);
+      expect(remediationStatusDisplay(status).description.length).toBeGreaterThan(
+        10,
+      );
     }
   });
 });
@@ -247,9 +250,13 @@ describe("engineDescription", () => {
   });
 });
 
-describe("statusTone", () => {
+describe("requirementStatusDisplay tone", () => {
   it("maps every requirement status", () => {
-    expect(REQUIREMENT_STATUS_DISPLAY_ORDER.map(statusTone)).toEqual([
+    expect(
+      REQUIREMENT_STATUS_DISPLAY_ORDER.map(
+        (status) => requirementStatusDisplay(status).tone,
+      ),
+    ).toEqual([
       "failed",
       "review",
       "passed",

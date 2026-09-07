@@ -11,24 +11,13 @@ import {
   readActiveOrgCookie,
   readActiveProjectCookie,
 } from "./active-cookies";
-import { getDrizzle } from "@complyloop/db/client";
-import {
-  claimMembershipsForLogin,
-  insertMembership,
-  insertOrganization,
-  isPersonalOrgProvisioned,
-  listMembershipsForOrgs,
-  listOrganizationsForUser,
-} from "@complyloop/db/repo/orgs";
-import { listOrgIdsForUser } from "@complyloop/db/repo/orgs";
 import {
   loadWorkspaceContextDbForViewer,
   loadWorkspaceDbForViewer,
   type Db,
 } from "./db";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
-import { emptyDb } from "@complyloop/db/types";
-import { ensurePersonalOrg, orgsForUser, resolveActiveOrgId } from "./orgs";
+import { orgsForUser, resolveActiveOrgId } from "./orgs";
 import {
   type AccessContext,
   accessFromStore,
@@ -97,38 +86,6 @@ export function prepareWorkspaceState(
   };
 }
 
-async function ensurePersonalOrgProvisioned(
-  userId: string,
-  githubLogin: string,
-): Promise<void> {
-  const drizzle = await getDrizzle();
-  // Steady state (personal org exists, all login rows claimed) is one indexed
-  // read and no writes — GET renders must stay side-effect free (P1-2).
-  if (await isPersonalOrgProvisioned(drizzle, userId, githubLogin)) return;
-  // Provisioning only inspects orgs + memberships — no need for a full workspace
-  // load (catalog, project runtime, evidence) on every signed-in render.
-  const orgIds = await listOrgIdsForUser(drizzle, userId, githubLogin);
-  const [organizations, memberships] = await Promise.all([
-    listOrganizationsForUser(drizzle, orgIds),
-    listMembershipsForOrgs(drizzle, orgIds),
-  ]);
-  const orgIdsBefore = new Set(organizations.map((org) => org.id));
-  const db = { ...emptyDb(), organizations, memberships };
-  await claimMembershipsForLogin(drizzle, userId, githubLogin);
-  const result = ensurePersonalOrg(db, userId, githubLogin);
-  if (!result.changed) return;
-  // Skip when the org already existed in Postgres — only persist newly created orgs.
-  if (orgIdsBefore.has(result.org.id)) return;
-
-  const membership = db.memberships.find(
-    (item) => item.orgId === result.org.id && item.userId === userId,
-  );
-  await drizzle.transaction(async (tx) => {
-    await insertOrganization(tx, result.org);
-    if (membership) await insertMembership(tx, membership);
-  });
-}
-
 async function loadViewerWorkspaceState(
   loadDb: typeof loadWorkspaceDbForViewer,
 ): Promise<Workspace> {
@@ -137,10 +94,6 @@ async function loadViewerWorkspaceState(
   const githubLogin = session?.user?.login ?? null;
   const preferredOrgId = userId ? await readActiveOrgCookie() : null;
   const preferredProjectId = await readActiveProjectCookie();
-
-  if (userId && githubLogin) {
-    await ensurePersonalOrgProvisioned(userId, githubLogin);
-  }
 
   const db = await loadDb({
     userId,
@@ -189,7 +142,6 @@ export async function sessionWriteContext(): Promise<{
   };
 }
 
-
 export function controlById(controlId: string): Control {
   const control = shippedCatalog().controls.find(
     (candidate) => candidate.id === controlId,
@@ -218,5 +170,3 @@ export function remediationForFinding(db: Db, findingId: string): Remediation {
   if (!remediation) throw new PublicError("No remediation for that finding.");
   return remediation;
 }
-
-export { ensurePersonalOrgProvisioned };

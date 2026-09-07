@@ -25,7 +25,6 @@ describe("Finding is constructible from RawFinding + persistence fields", () => 
         span: { start: 10, end: 20 },
       },
       fix: null,
-      engine: "ast",
       analyzerId: "jsx-a11y",
       analyzerRuleId: "button-has-type",
       analyzerVersion: "1.0.0",
@@ -63,7 +62,6 @@ describe("Finding is constructible from RawFinding + persistence fields", () => 
         elementLabel: "nav",
       },
       fix: null,
-      engine: "runtime",
       analyzerId: "axe",
       analyzerRuleId: "color-contrast",
       contributingAnalyzers: [
@@ -82,7 +80,7 @@ describe("Finding is constructible from RawFinding + persistence fields", () => 
       explanations: [],
     };
 
-    expect(finding.engine).toBe("runtime");
+    expect(finding.analyzerId).toBe("axe");
     expect(finding.contributingAnalyzers).toHaveLength(1);
   });
 });

@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { rgaaControls } from "@complyloop/adapters/rgaa/controls";
 import { isDomLocation } from "@complyloop/analysis-core/contract/location";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { runAssessment } from "./assessment";
 import type { Db } from "./db";
@@ -100,7 +101,7 @@ describe("runAssessment with runtime engine", () => {
       (finding) => finding.checkId === "input-label" && finding.status === "open",
     );
     expect(labelFindings).toHaveLength(1);
-    expect(labelFindings[0]?.engine).toBe("runtime");
+    expect(engineFor(labelFindings[0]!)).toBe("runtime");
     expect(isDomLocation(labelFindings[0]!.location)).toBe(true);
     expect(labelFindings[0]?.fix).toBeNull();
     expect(

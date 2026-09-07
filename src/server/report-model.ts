@@ -17,6 +17,7 @@ import {
   requirementStatusLabel,
   severityLabel,
 } from "@/core/status-display";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { prioritizeClusters } from "@/core/prioritization";
 import {
   formatLocationRef,
@@ -180,7 +181,7 @@ function toEngineeringFindingCard(
     severityClass: finding.severity,
     confidence: finding.confidence,
     checkId: finding.checkId,
-    engine: finding.engine,
+    engine: engineFor(finding),
     reason: finding.reason,
     snippet: locationSnippet(finding.location),
     remediationStatus: remediation

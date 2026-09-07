@@ -1,6 +1,6 @@
 import type { Finding } from "@complyloop/db/types"
 import {
-  engineFromAnalyzer,
+  engineFor,
   type AssessmentEngine,
 } from "@complyloop/analysis-core/contract/finding-types";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
@@ -141,9 +141,7 @@ export function filterFindings(
 
   if (params.engine) {
     result = result.filter(
-      (finding) =>
-        (finding.engine ?? engineFromAnalyzer(finding.analyzerId)) ===
-        params.engine,
+      (finding) => engineFor(finding) === params.engine,
     );
   }
 

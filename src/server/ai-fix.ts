@@ -21,8 +21,8 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { advanceRemediation } from "@/core/remediation";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import type { Db } from "./db";
+import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
 
 export type PatchUiState =
@@ -222,7 +222,7 @@ export function persistPatchCandidate(
   payload: ProjectWritePayload,
 ): void {
   const location = formatLocationRef(finding.location);
-  evidenceEntryOnPayload(payload, {
+  const record = newEvidenceRecord({
     kind: "ai_patch_ready",
     summary: `Patch ready for ${finding.checkId} at ${location} (ComplyLoop passed).`,
     projectId: finding.projectId,
@@ -230,6 +230,7 @@ export function persistPatchCandidate(
     findingId: finding.id,
     detail: patchCandidateDetail(candidate),
   });
+  payload.evidence = [...(payload.evidence ?? []), record];
   const remediation = db.remediations.find(
     (row) => row.findingId === finding.id,
   );
@@ -271,14 +272,4 @@ export function persistPatchCandidate(
     };
     payload.remediations = [...(payload.remediations ?? []), updated];
   }
-}
-
-function evidenceEntryOnPayload(
-  payload: ProjectWritePayload,
-  entry: Omit<EvidenceRecord, "id" | "at">,
-): void {
-  payload.evidence = [
-    ...(payload.evidence ?? []),
-    newEvidenceRecord(entry),
-  ];
 }

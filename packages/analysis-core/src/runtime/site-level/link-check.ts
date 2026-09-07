@@ -53,7 +53,6 @@ function brokenLinkFinding(
       context: statusLabel,
     },
     fix: null,
-    engine: "runtime",
     analyzerId: "linkinator",
   };
 }

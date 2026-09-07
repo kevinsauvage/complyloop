@@ -3,6 +3,7 @@ import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/db/types"
 import type { Explanation } from "@complyloop/analysis-core/contract/finding-types";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef, locationSnippet } from "@complyloop/analysis-core/contract/location";
 import { AI_MODEL } from "./model";
 import { confidenceSchema } from "./schemas";
@@ -55,7 +56,7 @@ export async function generateAiExplanation(
       `Automated check result: ${finding.reason}`,
       `Location: ${formatLocationRef(finding.location)}`,
       `Code: ${locationSnippet(finding.location)}`,
-      finding.engine === "runtime"
+      engineFor(finding) === "runtime"
         ? "This finding came from a rendered-page audit — guide the developer to the call site that renders this control, not a shared UI primitive."
         : "",
       "Write whyItFailed, impact (who is affected and how), and howToFix (concrete code-level guidance for this exact snippet).",

@@ -12,33 +12,156 @@ import type {
 } from "@complyloop/analysis-core/contract/statuses";
 import { lookupExhaustive } from "./assert-exhaustive";
 
+/**
+ * Display data lives as one record per enum value: `{ label, description,
+ * tone? }`. Adding a status edits a single table, and `lookupExhaustive`
+ * still fails loud on unhandled values. Thin getters select one field for
+ * call sites that only need a label or tone.
+ */
+
 // ---------------------------------------------------------------------------
-// Labels
+// Requirement status
 // ---------------------------------------------------------------------------
 
-export function requirementStatusLabel(status: RequirementStatus): string {
-  return lookupExhaustive(REQUIREMENT_STATUS_LABEL, status, "requirement status");
+export type StatusTone =
+  | "passed"
+  | "failed"
+  | "review"
+  | "na"
+  | "unverifiable"
+  | "signal";
+
+export interface RequirementStatusDisplay {
+  label: string;
+  description: string;
+  tone: Exclude<StatusTone, "signal">;
 }
 
-const REQUIREMENT_STATUS_LABEL: Record<RequirementStatus, string> = {
-  passed: "Passed",
-  failed: "Failed",
-  needs_review: "Needs review",
-  not_applicable: "Not applicable",
-  unable_to_verify: "Unable to verify",
+export function requirementStatusDisplay(
+  status: RequirementStatus,
+): RequirementStatusDisplay {
+  return lookupExhaustive(
+    REQUIREMENT_STATUS_DISPLAY,
+    status,
+    "requirement status",
+  );
+}
+
+const REQUIREMENT_STATUS_DISPLAY: Record<
+  RequirementStatus,
+  RequirementStatusDisplay
+> = {
+  passed: {
+    label: "Passed",
+    description:
+      "This requirement is satisfied — deterministic checks or a human reviewer confirmed compliance.",
+    tone: "passed",
+  },
+  failed: {
+    label: "Failed",
+    description:
+      "At least one finding failed this requirement — fix or dismiss findings before it can pass.",
+    tone: "failed",
+  },
+  needs_review: {
+    label: "Needs review",
+    description:
+      "Automated checks flagged ambiguity — a human should confirm pass or fail.",
+    tone: "review",
+  },
+  not_applicable: {
+    label: "Not applicable",
+    description:
+      "Marked out of scope for this project with a documented reason.",
+    tone: "na",
+  },
+  unable_to_verify: {
+    label: "Unable to verify",
+    description:
+      "The check could not run or conclude — see the recorded reason, not a pass or fail.",
+    tone: "unverifiable",
+  },
+};
+
+export function requirementStatusLabel(status: RequirementStatus): string {
+  return requirementStatusDisplay(status).label;
+}
+
+export function requirementStatusTone(
+  status: RequirementStatus,
+): RequirementStatusDisplay["tone"] {
+  return requirementStatusDisplay(status).tone;
+}
+
+// ---------------------------------------------------------------------------
+// Remediation status
+// ---------------------------------------------------------------------------
+
+export interface RemediationStatusDisplay {
+  label: string;
+  description: string;
+}
+
+export function remediationStatusDisplay(
+  status: RemediationStatus,
+): RemediationStatusDisplay {
+  return lookupExhaustive(
+    REMEDIATION_STATUS_DISPLAY,
+    status,
+    "remediation status",
+  );
+}
+
+const REMEDIATION_STATUS_DISPLAY: Record<
+  RemediationStatus,
+  RemediationStatusDisplay
+> = {
+  detected: {
+    label: "Detected",
+    description: "Finding recorded — no fix workflow started yet.",
+  },
+  suggested: {
+    label: "Suggested",
+    description:
+      "A fix is proposed (deterministic or AI) — review and approve before implementing.",
+  },
+  approved: {
+    label: "Approved",
+    description: "Fix approved — implement in code, then mark implemented.",
+  },
+  implemented: {
+    label: "Implemented",
+    description:
+      "Code change applied — re-assess or verify before closing the loop.",
+  },
+  verified: {
+    label: "Verified",
+    description:
+      "Fix confirmed by automated re-check or human verification — remediation complete.",
+  },
 };
 
 export function remediationStatusLabel(status: RemediationStatus): string {
-  return lookupExhaustive(REMEDIATION_STATUS_LABEL, status, "remediation status");
+  return remediationStatusDisplay(status).label;
 }
 
-const REMEDIATION_STATUS_LABEL: Record<RemediationStatus, string> = {
-  detected: "Detected",
-  suggested: "Suggested",
-  approved: "Approved",
-  implemented: "Implemented",
-  verified: "Verified",
+// ---------------------------------------------------------------------------
+// Finding status
+// ---------------------------------------------------------------------------
+
+export function findingStatusLabel(status: FindingStatus): string {
+  return lookupExhaustive(FINDING_STATUS_LABEL, status, "finding status");
+}
+
+const FINDING_STATUS_LABEL: Record<FindingStatus, string> = {
+  open: "Open",
+  resolved: "Resolved",
+  dismissed: "Dismissed",
 };
+
+// ---------------------------------------------------------------------------
+// Severity
+// ---------------------------------------------------------------------------
 
 /** Lower rank sorts first. Used to order findings by urgency. */
 export function severityRank(severity: Severity): number {
@@ -53,137 +176,78 @@ const SEVERITY_RANK: Record<Severity, number> = {
 };
 
 export function severityLabel(severity: Severity): string {
-  return lookupExhaustive(SEVERITY_LABEL, severity, "severity");
+  return severityDisplay(severity).label;
 }
-
-const SEVERITY_LABEL: Record<Severity, string> = {
-  critical: "Critical",
-  serious: "Serious",
-  moderate: "Moderate",
-  minor: "Minor",
-};
-
-export function findingStatusLabel(status: FindingStatus): string {
-  return lookupExhaustive(FINDING_STATUS_LABEL, status, "finding status");
-}
-
-const FINDING_STATUS_LABEL: Record<FindingStatus, string> = {
-  open: "Open",
-  resolved: "Resolved",
-  dismissed: "Dismissed",
-};
-
-export function determinationLabel(method: DeterminationMethod): string {
-  return lookupExhaustive(DETERMINATION_LABEL, method, "determination");
-}
-
-const DETERMINATION_LABEL: Record<DeterminationMethod, string> = {
-  automated: "Automated",
-  human_review: "Human review",
-};
-
-export function evidenceKindLabel(
-  kind: EvidenceKind,
-  detail?: Record<string, unknown>,
-): string {
-  if (kind === "finding") {
-    switch (detail?.event) {
-      case "detected":
-        return "Finding detected";
-      case "resolved":
-        return "Finding resolved";
-      case "dismissed":
-        return "Finding dismissed";
-      default:
-        return "Finding";
-    }
-  }
-  if (kind === "assessment_job") {
-    switch (detail?.phase) {
-      case "queued":
-        return "Assessment queued";
-      case "completed":
-        return "Assessment job completed";
-      case "failed":
-        return "Assessment job failed";
-      default:
-        return "Assessment job";
-    }
-  }
-  return lookupExhaustive(EVIDENCE_KIND_LABEL, kind, "evidence kind");
-}
-
-const EVIDENCE_KIND_LABEL: Record<
-  Exclude<EvidenceKind, "finding" | "assessment_job">,
-  string
-> = {
-  project_connected: "Project connected",
-  project_disconnected: "Project disconnected",
-  project_reset: "Project reset",
-  assessment_completed: "Assessment completed",
-  remediation_approved: "Remediation approved",
-  remediation_implemented: "Remediation implemented",
-  remediation_verified: "Remediation verified",
-  remediation_manually_verified: "Manually verified",
-  ai_remediation_suggested: "AI suggestion",
-  ai_patch_ready: "Patch ready",
-  requirement_status_changed: "Requirement status",
-  requirement_exception_set: "Exception recorded",
-  requirement_exception_cleared: "Exception cleared",
-  requirement_human_passed: "Human pass",
-  requirement_human_pass_cleared: "Human pass cleared",
-  requirements_imported: "Scope updated",
-  pull_request_prepared: "Pull request prepared",
-  monitoring_changes_detected: "Repo changes detected",
-  webhook_reassessment: "Webhook reassessment",
-};
-
-// ---------------------------------------------------------------------------
-// Descriptions
-// ---------------------------------------------------------------------------
-
-export function requirementStatusDescription(status: RequirementStatus): string {
-  return lookupExhaustive(
-    REQUIREMENT_STATUS_DESCRIPTION,
-    status,
-    "requirement status",
-  );
-}
-
-const REQUIREMENT_STATUS_DESCRIPTION: Record<RequirementStatus, string> = {
-  passed: "This requirement is satisfied — deterministic checks or a human reviewer confirmed compliance.",
-  failed: "At least one finding failed this requirement — fix or dismiss findings before it can pass.",
-  needs_review: "Automated checks flagged ambiguity — a human should confirm pass or fail.",
-  not_applicable: "Marked out of scope for this project with a documented reason.",
-  unable_to_verify: "The check could not run or conclude — see the recorded reason, not a pass or fail.",
-};
-
-export function remediationStatusDescription(status: RemediationStatus): string {
-  return lookupExhaustive(
-    REMEDIATION_STATUS_DESCRIPTION,
-    status,
-    "remediation status",
-  );
-}
-
-const REMEDIATION_STATUS_DESCRIPTION: Record<RemediationStatus, string> = {
-  detected: "Finding recorded — no fix workflow started yet.",
-  suggested: "A fix is proposed (deterministic or AI) — review and approve before implementing.",
-  approved: "Fix approved — implement in code, then mark implemented.",
-  implemented: "Code change applied — re-assess or verify before closing the loop.",
-  verified: "Fix confirmed by automated re-check or human verification — remediation complete.",
-};
 
 export function severityDescription(severity: Severity): string {
-  return lookupExhaustive(SEVERITY_DESCRIPTION, severity, "severity");
+  return severityDisplay(severity).description;
 }
 
-const SEVERITY_DESCRIPTION: Record<Severity, string> = {
-  critical: "Blocks core tasks for many users — prioritize immediately.",
-  serious: "Major barrier for some users — fix in the current sprint if possible.",
-  moderate: "Noticeable friction — schedule with other accessibility work.",
-  minor: "Low impact — fix when touching nearby code.",
+const SEVERITY_DISPLAY: Record<Severity, { label: string; description: string }> =
+  {
+    critical: {
+      label: "Critical",
+      description: "Blocks core tasks for many users — prioritize immediately.",
+    },
+    serious: {
+      label: "Serious",
+      description:
+        "Major barrier for some users — fix in the current sprint if possible.",
+    },
+    moderate: {
+      label: "Moderate",
+      description: "Noticeable friction — schedule with other accessibility work.",
+    },
+    minor: {
+      label: "Minor",
+      description: "Low impact — fix when touching nearby code.",
+    },
+  };
+
+function severityDisplay(severity: Severity): {
+  label: string;
+  description: string;
+} {
+  return lookupExhaustive(SEVERITY_DISPLAY, severity, "severity");
+}
+
+// ---------------------------------------------------------------------------
+// Determination
+// ---------------------------------------------------------------------------
+
+export function determinationLabel(method: DeterminationMethod): string {
+  return determinationDisplay(method).label;
+}
+
+export function determinationDescription(method: DeterminationMethod): string {
+  return determinationDisplay(method).description;
+}
+
+const DETERMINATION_DISPLAY: Record<
+  DeterminationMethod,
+  { label: string; description: string }
+> = {
+  automated: {
+    label: "Automated",
+    description: "Status set by deterministic analysis — not an AI guess.",
+  },
+  human_review: {
+    label: "Human review",
+    description:
+      "A reviewer explicitly set this status — overrides automated results.",
+  },
 };
+
+function determinationDisplay(method: DeterminationMethod): {
+  label: string;
+  description: string;
+} {
+  return lookupExhaustive(DETERMINATION_DISPLAY, method, "determination");
+}
+
+// ---------------------------------------------------------------------------
+// Confidence / provenance / engine
+// ---------------------------------------------------------------------------
 
 export function confidenceDescription(confidence: Confidence): string {
   return lookupExhaustive(CONFIDENCE_DESCRIPTION, confidence, "confidence");
@@ -193,19 +257,6 @@ const CONFIDENCE_DESCRIPTION: Record<Confidence, string> = {
   high: "Strong signal from the check — not a compliance status, but safe to act on.",
   medium: "Likely correct — skim the snippet before changing code.",
   low: "Weak or partial match — verify manually before treating as confirmed.",
-};
-
-export function determinationDescription(method: DeterminationMethod): string {
-  return lookupExhaustive(
-    DETERMINATION_DESCRIPTION,
-    method,
-    "determination",
-  );
-}
-
-const DETERMINATION_DESCRIPTION: Record<DeterminationMethod, string> = {
-  automated: "Status set by deterministic analysis — not an AI guess.",
-  human_review: "A reviewer explicitly set this status — overrides automated results.",
 };
 
 export function provenanceDescription(provenance: ExplanationProvenance): string {
@@ -227,32 +278,8 @@ const ENGINE_DESCRIPTION: Record<AssessmentEngine, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Status tones
+// Org role tone
 // ---------------------------------------------------------------------------
-
-export type StatusTone =
-  | "passed"
-  | "failed"
-  | "review"
-  | "na"
-  | "unverifiable"
-  | "signal";
-
-export function statusTone(status: RequirementStatus): Exclude<StatusTone, "signal"> {
-  return lookupExhaustive(
-    STATUS_TONE,
-    status,
-    "requirement status",
-  );
-}
-
-const STATUS_TONE: Record<RequirementStatus, Exclude<StatusTone, "signal">> = {
-  passed: "passed",
-  failed: "failed",
-  needs_review: "review",
-  not_applicable: "na",
-  unable_to_verify: "unverifiable",
-};
 
 export function roleTone(role: OrgRole): StatusTone {
   return lookupExhaustive(ROLE_TONE, role, "org role");
@@ -279,7 +306,10 @@ export const STATUS_TONE_BADGE: Record<StatusTone, string> = {
   signal: "border-transparent bg-signal/15 text-signal dark:bg-signal/25",
 };
 
-export const STATUS_TONE_ACCENT: Record<Exclude<StatusTone, "signal">, string> = {
+export const STATUS_TONE_ACCENT: Record<
+  Exclude<StatusTone, "signal">,
+  string
+> = {
   passed: "bg-status-passed",
   failed: "bg-status-failed",
   review: "bg-status-review",
@@ -288,60 +318,90 @@ export const STATUS_TONE_ACCENT: Record<Exclude<StatusTone, "signal">, string> =
 };
 
 // ---------------------------------------------------------------------------
-// Evidence tones
+// Evidence — one record per kind; `finding` and `assessment_job` refine
+// label + tone together from `detail`, so the two stay in sync.
 // ---------------------------------------------------------------------------
 
 export type EvidenceTone = "default" | "pass" | "fail" | "review" | "signal";
 
-const EVIDENCE_TONE: Record<EvidenceKind, EvidenceTone> = {
-  project_connected: "default",
-  project_disconnected: "default",
-  project_reset: "default",
-  assessment_completed: "pass",
-  assessment_job: "signal",
-  finding: "fail",
-  remediation_approved: "signal",
-  remediation_implemented: "signal",
-  remediation_verified: "pass",
-  remediation_manually_verified: "pass",
-  ai_remediation_suggested: "signal",
-  ai_patch_ready: "pass",
-  requirement_status_changed: "review",
-  requirement_exception_set: "review",
-  requirement_exception_cleared: "default",
-  requirement_human_passed: "pass",
-  requirement_human_pass_cleared: "default",
-  requirements_imported: "default",
-  pull_request_prepared: "signal",
-  monitoring_changes_detected: "fail",
-  webhook_reassessment: "signal",
+interface EvidenceDisplay {
+  label: string;
+  tone: EvidenceTone;
+}
+
+const EVIDENCE_DISPLAY: Record<EvidenceKind, EvidenceDisplay> = {
+  project_connected: { label: "Project connected", tone: "default" },
+  project_disconnected: { label: "Project disconnected", tone: "default" },
+  project_reset: { label: "Project reset", tone: "default" },
+  assessment_completed: { label: "Assessment completed", tone: "pass" },
+  assessment_job: { label: "Assessment job", tone: "signal" },
+  finding: { label: "Finding", tone: "fail" },
+  remediation_approved: { label: "Remediation approved", tone: "signal" },
+  remediation_implemented: { label: "Remediation implemented", tone: "signal" },
+  remediation_verified: { label: "Remediation verified", tone: "pass" },
+  remediation_manually_verified: { label: "Manually verified", tone: "pass" },
+  ai_remediation_suggested: { label: "AI suggestion", tone: "signal" },
+  ai_patch_ready: { label: "Patch ready", tone: "pass" },
+  requirement_status_changed: { label: "Requirement status", tone: "review" },
+  requirement_exception_set: { label: "Exception recorded", tone: "review" },
+  requirement_exception_cleared: { label: "Exception cleared", tone: "default" },
+  requirement_human_passed: { label: "Human pass", tone: "pass" },
+  requirement_human_pass_cleared: { label: "Human pass cleared", tone: "default" },
+  requirements_imported: { label: "Scope updated", tone: "default" },
+  pull_request_prepared: { label: "Pull request prepared", tone: "signal" },
+  monitoring_changes_detected: { label: "Repo changes detected", tone: "fail" },
+  webhook_reassessment: { label: "Webhook reassessment", tone: "signal" },
 };
+
+/** `finding` evidence refines label + tone together from `detail.event`. */
+const FINDING_EVENT_DISPLAY: Record<string, EvidenceDisplay> = {
+  detected: { label: "Finding detected", tone: "fail" },
+  resolved: { label: "Finding resolved", tone: "pass" },
+  dismissed: { label: "Finding dismissed", tone: "review" },
+};
+
+/** `assessment_job` evidence refines label + tone together from `detail.phase`. */
+const ASSESSMENT_JOB_PHASE_DISPLAY: Record<string, EvidenceDisplay> = {
+  queued: { label: "Assessment queued", tone: "signal" },
+  completed: { label: "Assessment job completed", tone: "pass" },
+  failed: { label: "Assessment job failed", tone: "fail" },
+};
+
+/** Label + tone for an evidence record — one lookup, no parallel branches. */
+export function evidenceDisplay(
+  kind: EvidenceKind,
+  detail?: Record<string, unknown>,
+): EvidenceDisplay {
+  if (kind === "finding") {
+    const event = detail?.event;
+    return (
+      (typeof event === "string" ? FINDING_EVENT_DISPLAY[event] : undefined) ??
+      EVIDENCE_DISPLAY.finding
+    );
+  }
+  if (kind === "assessment_job") {
+    const phase = detail?.phase;
+    return (
+      (typeof phase === "string"
+        ? ASSESSMENT_JOB_PHASE_DISPLAY[phase]
+        : undefined) ?? EVIDENCE_DISPLAY.assessment_job
+    );
+  }
+  return lookupExhaustive(EVIDENCE_DISPLAY, kind, "evidence kind");
+}
+
+export function evidenceKindLabel(
+  kind: EvidenceKind,
+  detail?: Record<string, unknown>,
+): string {
+  return evidenceDisplay(kind, detail).label;
+}
 
 export function evidenceTone(
   kind: EvidenceKind,
   detail?: Record<string, unknown>,
 ): EvidenceTone {
-  if (kind === "finding") {
-    switch (detail?.event) {
-      case "resolved":
-        return "pass";
-      case "dismissed":
-        return "review";
-      default:
-        return "fail";
-    }
-  }
-  if (kind === "assessment_job") {
-    switch (detail?.phase) {
-      case "completed":
-        return "pass";
-      case "failed":
-        return "fail";
-      default:
-        return "signal";
-    }
-  }
-  return lookupExhaustive(EVIDENCE_TONE, kind, "evidence kind");
+  return evidenceDisplay(kind, detail).tone;
 }
 
 export const EVIDENCE_TONE_DOT: Record<EvidenceTone, string> = {

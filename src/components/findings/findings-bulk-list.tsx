@@ -17,6 +17,7 @@ import {
   type FindingListParams,
 } from "@/core/finding-list-filter";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { cn } from "@/lib/utils";
 import {
   bulkApproveRemediationsAction,
@@ -73,7 +74,7 @@ const FindingsBulkRow = memo(function FindingsBulkRow({
           <span className="flex flex-wrap items-center gap-2">
             <SeverityBadge severity={finding.severity} />
             <RemediationStatusBadge status={remediationStatus} />
-            <EngineBadge engine={finding.engine ?? "ast"} />
+            <EngineBadge engine={engineFor(finding)} />
             <span className="text-sm font-medium group-hover:underline">
               {control.code} — {control.title}
             </span>
@@ -252,7 +253,7 @@ export function FindingsCardList({
             <span className="flex flex-wrap items-center gap-2">
               <SeverityBadge severity={finding.severity} />
               <RemediationStatusBadge status={remediationStatus} />
-              <EngineBadge engine={finding.engine ?? "ast"} />
+              <EngineBadge engine={engineFor(finding)} />
               <span className="text-sm font-medium group-hover:underline">
                 {control.code} — {control.title}
               </span>

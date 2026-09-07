@@ -92,21 +92,15 @@ describe("withProjectWrite project touch", () => {
     );
   });
 
-  it("sets payload.project when the handler mutates the project but omits it", async () => {
+  it("requires the handler to return payload.project for project changes", async () => {
     await withProjectWrite({ touch: "project" }, async (workspace) => {
       workspace.project!.runtimeBaseUrl = "https://preview.example";
       return { result: undefined, payload: {} };
     });
 
-    expect(persistProjectRows).toHaveBeenCalledWith(
-      tx,
-      expect.objectContaining({
-        project: expect.objectContaining({
-          runtimeBaseUrl: "https://preview.example",
-        }),
-      }),
-      {},
-    );
+    // No JSON-diff auto-persist: a handler that mutates the workspace project
+    // without putting it back on the payload discards the mutation.
+    expect(persistProjectRows).toHaveBeenCalledWith(tx, {}, {});
   });
 
   it("skips project update when the payload is empty and the project is unchanged", async () => {

@@ -87,7 +87,6 @@ export function lintJsxA11y(parsed: ParsedSource): RawFinding[] {
         span: { start, end: Math.max(end, start + 1) },
       },
       fix: proposedFixForJsxA11y(parsed, checkId, start),
-      engine: "ast",
       analyzerId: "jsx-a11y",
       analyzerRuleId: message.ruleId,
     });

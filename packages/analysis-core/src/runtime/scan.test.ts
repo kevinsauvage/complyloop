@@ -212,7 +212,7 @@ describe("runtimeViolationStillPresent", () => {
     reason: "Low contrast on the total button",
     location: domFinding.location,
     fix: null,
-    engine: "runtime",
+    analyzerId: "playwright-custom",
   };
 
   function pageWith(
