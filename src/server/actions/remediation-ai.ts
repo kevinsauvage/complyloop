@@ -7,7 +7,7 @@ import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { entityIdSchema } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { advanceRemediation } from "@/core/remediation";
+import { refreshSuggestion } from "@/core/remediation";
 import {
   runActionMessage,
   type ActionMessageState,
@@ -109,10 +109,6 @@ export async function generateAiRemediationAction(
       }
 
       const payload: ProjectWritePayload = {};
-      const remediationBase = {
-        ...remediation,
-        suggestion: result.suggestion,
-      };
       if (
         result.attributeValue &&
         finding.fix?.kind === "insert_attribute" &&
@@ -126,31 +122,16 @@ export async function generateAiRemediationAction(
         ];
       }
 
-      if (remediation.status === "detected") {
-        replaceRemediation(
-          payload,
-          advanceRemediation(
-            remediationBase,
-            "suggested",
-            `AI suggestion: ${result.suggestion.description}`,
-          ),
-        );
-      } else {
-        payload.remediations = [
-          ...(payload.remediations ?? []),
-          {
-            ...remediationBase,
-            history: [
-              ...remediation.history,
-              {
-                status: "suggested" as const,
-                at: new Date().toISOString(),
-                note: `AI suggestion refreshed: ${result.suggestion.description}`,
-              },
-            ],
-          },
-        ];
-      }
+      replaceRemediation(
+        payload,
+        refreshSuggestion(
+          remediation,
+          result.suggestion,
+          remediation.status === "detected"
+            ? `AI suggestion: ${result.suggestion.description}`
+            : `AI suggestion refreshed: ${result.suggestion.description}`,
+        ),
+      );
 
       evidenceEntry(payload, {
         kind: "ai_remediation_suggested",

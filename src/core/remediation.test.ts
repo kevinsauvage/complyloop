@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { advanceRemediation } from "./remediation";
+import { advanceRemediation, refreshSuggestion } from "./remediation";
 import type { Remediation } from "@complyloop/db/types";
+import type { RemediationSuggestion } from "@complyloop/analysis-core/contract/finding-types";
 
 function remediation(status: Remediation["status"]): Remediation {
   return {
@@ -11,6 +12,14 @@ function remediation(status: Remediation["status"]): Remediation {
     history: [{ status: "detected", at: "2026-01-01T00:00:00.000Z" }],
   };
 }
+
+const suggestion: RemediationSuggestion = {
+  description: "Add an alt attribute",
+  proposedSnippet: '<img alt="…" />',
+  provenance: "ai",
+  confidence: "medium",
+  model: "test-model",
+};
 
 describe("advanceRemediation", () => {
   it("follows the remediation lifecycle in order", () => {
@@ -48,5 +57,56 @@ describe("advanceRemediation", () => {
     expect(() => advanceRemediation(remediation("verified"), "detected")).toThrow(
       /Invalid remediation transition/,
     );
+  });
+});
+
+describe("refreshSuggestion", () => {
+  it("advances detected → suggested with the new suggestion", () => {
+    const updated = refreshSuggestion(
+      remediation("detected"),
+      suggestion,
+      "Patch ready: Add an alt attribute",
+    );
+    expect(updated.status).toBe("suggested");
+    expect(updated.suggestion).toEqual(suggestion);
+    expect(updated.history.at(-1)).toMatchObject({
+      status: "suggested",
+      note: "Patch ready: Add an alt attribute",
+    });
+  });
+
+  it("keeps suggested status and appends history when refreshing", () => {
+    const base = {
+      ...remediation("suggested"),
+      suggestion: {
+        description: "old",
+        proposedSnippet: "old",
+        provenance: "deterministic" as const,
+      },
+    };
+    const updated = refreshSuggestion(
+      base,
+      suggestion,
+      "AI suggestion refreshed: Add an alt attribute",
+    );
+    expect(updated.status).toBe("suggested");
+    expect(updated.suggestion).toEqual(suggestion);
+    expect(updated.history).toHaveLength(2);
+    expect(updated.history[1]).toMatchObject({
+      status: "suggested",
+      note: "AI suggestion refreshed: Add an alt attribute",
+    });
+  });
+
+  it("rejects refresh after approval", () => {
+    expect(() =>
+      refreshSuggestion(remediation("approved"), suggestion, "too late"),
+    ).toThrow(/before approval/);
+    expect(() =>
+      refreshSuggestion(remediation("implemented"), suggestion, "too late"),
+    ).toThrow(/before approval/);
+    expect(() =>
+      refreshSuggestion(remediation("verified"), suggestion, "too late"),
+    ).toThrow(/before approval/);
   });
 });

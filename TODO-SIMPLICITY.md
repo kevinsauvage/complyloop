@@ -92,21 +92,10 @@ source of incidental complexity left in the repo.
   source of truth.
 - **Files:** `src/server/ai-fix.ts`, `src/ai/verified-fix.ts`.
 
-### P2-2 · Unify "refresh a remediation suggestion" (3rd copy exists)
+### P2-2 · Unify "refresh a remediation suggestion" (3rd copy exists) — **DONE**
 
-- **What:** Setting/updating a `suggested` remediation with a suggestion has
-  three implementations: `advanceRemediation` (detected→suggested), and two
-  hand-rolled "already suggested → push history + replace" blocks in
-  `remediation-ai.ts` and `ai-fix.ts` `persistPatchCandidate` (with different
-  note strings and slightly different shapes).
-- **Why:** The suggested-refresh invariants (history append, no status change)
-  live in copy-paste; the hand-built blocks bypass the transition guard.
-- **How:** Add `refreshSuggestion(remediation, suggestion, note)` to
-  `src/core/remediation.ts` that handles detected→suggested (via
-  `advanceRemediation`) and suggested→suggested (history append) exhaustively.
-  All three sites call it.
-- **Files:** `src/core/remediation.ts`, `src/server/actions/remediation-ai.ts`,
-  `src/server/ai-fix.ts`.
+`refreshSuggestion` in `src/core/remediation.ts` handles detected→suggested
+and suggested→suggested; `remediation-ai.ts` and `persistPatchCandidate` call it.
 
 ### P2-3 · Fold `status-display.ts` thin getters + `badges.tsx` parallel maps
 

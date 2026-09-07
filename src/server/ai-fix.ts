@@ -19,7 +19,7 @@ import { type EvidenceRecord, type Finding } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
-import { advanceRemediation } from "@/core/remediation";
+import { refreshSuggestion } from "@/core/remediation";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { Db } from "./db";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
@@ -248,27 +248,17 @@ export function persistPatchCandidate(
         }
       : {}),
   };
-  if (remediation.status === "detected") {
-    const withSuggestion = { ...remediation, suggestion };
-    const updated = advanceRemediation(
-      withSuggestion,
-      "suggested",
-      `Patch ready: ${candidate.description}`,
-    );
-    payload.remediations = [...(payload.remediations ?? []), updated];
-  } else if (remediation.status === "suggested") {
-    const updated: typeof remediation = {
-      ...remediation,
-      suggestion,
-      history: [
-        ...remediation.history,
-        {
-          status: "suggested",
-          at: new Date().toISOString(),
-          note: `Patch refreshed: ${candidate.description}`,
-        },
-      ],
-    };
-    payload.remediations = [...(payload.remediations ?? []), updated];
+  if (remediation.status !== "detected" && remediation.status !== "suggested") {
+    return;
   }
+  payload.remediations = [
+    ...(payload.remediations ?? []),
+    refreshSuggestion(
+      remediation,
+      suggestion,
+      remediation.status === "detected"
+        ? `Patch ready: ${candidate.description}`
+        : `Patch refreshed: ${candidate.description}`,
+    ),
+  ];
 }
