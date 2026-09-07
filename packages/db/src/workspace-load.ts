@@ -2,11 +2,10 @@ import { and, desc, eq, inArray, or } from "drizzle-orm";
 import type { Db } from "./types.ts";
 import type { DrizzleDb } from "./client.ts";
 import {
-  listOrgIdsForUser,
   rowToEvidence,
-  WORKSPACE_EVIDENCE_LIMIT,
-} from "./queries.ts";
-import { listMembershipsForOrgs, listOrganizationsForUser } from "./repo/orgs.ts";
+} from "./repo/mappers.ts";
+import { WORKSPACE_EVIDENCE_LIMIT } from "./repo/evidence.ts";
+import { listMembershipsForOrgs, listOrganizationsForUser, listOrgIdsForUser } from "./repo/orgs.ts";
 import {
   getProjectById,
   listProjectsForOrgs,

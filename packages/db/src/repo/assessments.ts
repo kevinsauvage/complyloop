@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import type { Assessment, AssessmentSnapshot } from "../types";
 import type { DrizzleDb } from "../client.ts";
 import { assessmentSnapshots, assessments } from "../schema.ts";
@@ -14,6 +14,20 @@ export async function insertAssessment(
     assessmentId: assessment.id,
     snapshot,
   });
+}
+
+/** Full assessment history for many projects (org export only). */
+export async function listAssessmentsForProjects(
+  drizzle: DrizzleDb,
+  projectIds: readonly string[],
+): Promise<Assessment[]> {
+  if (projectIds.length === 0) return [];
+  const rows = await drizzle
+    .select()
+    .from(assessments)
+    .where(inArray(assessments.projectId, [...projectIds]))
+    .orderBy(desc(sql`${assessments.payload}->>'completedAt'`));
+  return rows.map((row) => assessmentFromRow(row));
 }
 
 /** Full history — reserve for surfaces that render it (org export). */

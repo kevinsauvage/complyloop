@@ -5,7 +5,7 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
-import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/queries";
+import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/repo/evidence";
 import {
   persistProjectRows,
   requirementUpdatedAtById,

@@ -3,7 +3,7 @@ import {
   loadProjectAssessmentDb,
   loadWorkspaceDb,
 } from "@complyloop/db/workspace-load";
-import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/queries";
+import { WORKSPACE_EVIDENCE_LIMIT } from "@complyloop/db/repo/evidence";
 import type { Db } from "@complyloop/db/types";
 
 export type { Db } from "@complyloop/db/types";

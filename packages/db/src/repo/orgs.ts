@@ -4,6 +4,23 @@ import type { DrizzleDb } from "../client.ts";
 import { memberships, organizations } from "../schema.ts";
 import { membershipToRow, organizationToRow } from "./mappers.ts";
 
+/** Org ids the user belongs to (membership lookup before a scoped load). */
+export async function listOrgIdsForUser(
+  drizzle: DrizzleDb,
+  userId: string | null,
+  githubLogin: string | null,
+): Promise<string[]> {
+  if (!userId && !githubLogin) return [];
+  const clauses = [];
+  if (userId) clauses.push(eq(memberships.userId, userId));
+  if (githubLogin) clauses.push(eq(memberships.githubLogin, githubLogin));
+  const rows = await drizzle
+    .select({ orgId: memberships.orgId })
+    .from(memberships)
+    .where(or(...clauses));
+  return [...new Set(rows.map((row) => row.orgId))];
+}
+
 /**
  * One indexed read answering "is there anything left to provision for this
  * viewer?": the user owns an org (personal org exists) and no membership row

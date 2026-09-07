@@ -28,10 +28,8 @@ import {
   resolveActiveOrgId,
 } from "../orgs";
 import { getDrizzle } from "@complyloop/db/client";
-import {
-  listAllEvidenceForProjects,
-  listAssessmentsForProjects,
-} from "@complyloop/db/queries";
+import { listAssessmentsForProjects } from "@complyloop/db/repo/assessments";
+import { listAllEvidenceForProjects } from "@complyloop/db/repo/evidence";
 import { getWorkspace } from "../workspace";
 import { withOrgWrite } from "../workspace-write";
 import { refresh, requireSignedIn } from "./shared";

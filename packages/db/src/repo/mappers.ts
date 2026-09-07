@@ -6,6 +6,7 @@ import type {
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 import type { AssessmentPayload } from "../schema.ts";
+import { evidence } from "../schema.ts";
 
 /**
  * Source of truth is the typed `payload` (JSONB column); the sibling indexed
@@ -108,4 +109,48 @@ export function newEvidenceRecord(
     at: new Date().toISOString(),
     ...entry,
   };
+}
+
+export function evidenceToRow(record: EvidenceRecord) {
+  return {
+    id: record.id,
+    at: record.at,
+    kind: record.kind,
+    summary: record.summary,
+    projectId: record.projectId ?? null,
+    controlId: record.controlId ?? null,
+    findingId: record.findingId ?? null,
+    assessmentId: record.assessmentId ?? null,
+    detail: record.detail ?? null,
+  };
+}
+
+export function rowToEvidence(
+  row: typeof evidence.$inferSelect,
+): EvidenceRecord {
+  return {
+    id: row.id,
+    at: row.at,
+    kind: row.kind as EvidenceRecord["kind"],
+    summary: row.summary,
+    projectId: row.projectId ?? undefined,
+    controlId: row.controlId ?? undefined,
+    findingId: row.findingId ?? undefined,
+    assessmentId: row.assessmentId ?? undefined,
+    detail: row.detail ?? undefined,
+  };
+}
+
+/** How many rows an export should take, and whether the table was larger. */
+export function evidenceExportWindow(
+  total: number,
+  limit: number,
+): { take: number; truncated: boolean } {
+  return { take: Math.min(total, limit), truncated: total > limit };
+}
+
+/** Zero-based OFFSET for a 1-based UI page. */
+export function sqlPageOffset(page: number, pageSize: number): number {
+  const safePage = Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1;
+  return (safePage - 1) * pageSize;
 }

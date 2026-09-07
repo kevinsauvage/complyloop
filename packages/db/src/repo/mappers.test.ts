@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 import type { Alert, Assessment, EvidenceRecord, Finding, Remediation } from "../types";
 import type {
   OrgMembership,
@@ -9,12 +10,16 @@ import type {
 import {
   alertToRow,
   assessmentToRow,
+  evidenceExportWindow,
+  evidenceToRow,
   findingToRow,
   membershipToRow,
   organizationToRow,
   projectToRow,
   remediationToRow,
   requirementToRow,
+  rowToEvidence,
+  sqlPageOffset,
 } from "./mappers";
 
 /**
@@ -108,8 +113,74 @@ describe("repo mappers emit stable row shapes", () => {
       projectId: "p1",
       detail: { files: 3 },
     } satisfies Pick<EvidenceRecord, "id" | "at" | "kind" | "summary" | "projectId" | "detail">;
-    // rowToEvidence is exercised in queries.ts; here we only pin the
+    // rowToEvidence is exercised below; here we only pin the
     // insert shape via the repo insert path contract (nullable columns).
     expect(record.kind).toBe("assessment_completed");
+  });
+});
+
+describe("evidence row mapping", () => {
+  it("round-trips optional ids and detail", () => {
+    const record = {
+      id: "e3",
+      at: "2026-01-03T00:00:00.000Z",
+      kind: "finding" as const,
+      summary: "mapped",
+      projectId: "p1",
+      controlId: "c1",
+      findingId: "f1",
+      assessmentId: "a1",
+      detail: { engine: "ast" },
+    };
+    const row = evidenceToRow(record);
+    expect(row.projectId).toBe("p1");
+    expect(row.detail).toEqual({ engine: "ast" });
+    expect(rowToEvidence(row)).toEqual(record);
+  });
+
+  it("maps missing optional columns to undefined / null", () => {
+    const record = {
+      id: "e4",
+      at: "2026-01-04T00:00:00.000Z",
+      kind: "assessment_completed" as const,
+      summary: "bare",
+    };
+    expect(evidenceToRow(record)).toMatchObject({
+      projectId: null,
+      controlId: null,
+      findingId: null,
+      assessmentId: null,
+      detail: null,
+    });
+    expect(rowToEvidence(evidenceToRow(record))).toEqual(record);
+  });
+});
+
+describe("evidence window helpers", () => {
+  it("is not truncated when the table is within the limit", () => {
+    expect(evidenceExportWindow(12, 5_000)).toEqual({
+      take: 12,
+      truncated: false,
+    });
+  });
+
+  it("caps at the limit and marks the export truncated", () => {
+    expect(evidenceExportWindow(12_001, 5_000)).toEqual({
+      take: 5_000,
+      truncated: true,
+    });
+  });
+});
+
+describe("sqlPageOffset", () => {
+  it("maps 1-based pages to zero-based offsets", () => {
+    expect(sqlPageOffset(1, DEFAULT_PAGE_SIZE)).toBe(0);
+    expect(sqlPageOffset(2, DEFAULT_PAGE_SIZE)).toBe(DEFAULT_PAGE_SIZE);
+    expect(sqlPageOffset(3, 10)).toBe(20);
+  });
+
+  it("clamps invalid pages to the first page", () => {
+    expect(sqlPageOffset(0, 25)).toBe(0);
+    expect(sqlPageOffset(-2, 25)).toBe(0);
   });
 });

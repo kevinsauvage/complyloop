@@ -63,8 +63,10 @@ vi.mock("@complyloop/db/client", () => ({
   getDrizzle: async () => ({}),
 }));
 
-vi.mock("@complyloop/db/queries", () => ({
+vi.mock("@complyloop/db/repo/evidence", () => ({
   listAllEvidenceForProjects: async () => [],
+}));
+vi.mock("@complyloop/db/repo/assessments", () => ({
   listAssessmentsForProjects: async () => [],
 }));
 

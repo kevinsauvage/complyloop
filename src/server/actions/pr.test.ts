@@ -28,7 +28,7 @@ vi.mock("@complyloop/db/client", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 
-vi.mock("@complyloop/db/queries", () => ({
+vi.mock("@complyloop/db/repo/evidence", () => ({
   listEvidenceForFinding: (...args: unknown[]) =>
     listEvidenceForFinding(...args),
 }));

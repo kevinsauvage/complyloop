@@ -33,7 +33,7 @@ import {
   countEvidenceForProject,
   countEvidenceKindsForProject,
   listEvidencePageForProject,
-} from "@complyloop/db/queries";
+} from "@complyloop/db/repo/evidence";
 import { getWorkspace } from "@/server/workspace";
 import { ChevronDownIcon } from "lucide-react";
 import Link from "next/link";

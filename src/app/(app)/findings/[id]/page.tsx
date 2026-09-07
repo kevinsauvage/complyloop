@@ -28,7 +28,7 @@ import { pullRequestUrlFromEvidence } from "@/server/finding-pr-url";
 import { latestPatchState } from "@/server/ai-fix";
 import { buildDeveloperHandoff } from "@/server/handoff";
 import { getDrizzle } from "@complyloop/db/client";
-import { listEvidenceForFinding } from "@complyloop/db/queries";
+import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { resolveVisibleFinding } from "@/server/project-visibility";
 import { findingsInScope } from "@/server/assessment-status";

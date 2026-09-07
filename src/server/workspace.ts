@@ -20,7 +20,7 @@ import {
   listMembershipsForOrgs,
   listOrganizationsForUser,
 } from "@complyloop/db/repo/orgs";
-import { listOrgIdsForUser } from "@complyloop/db/queries";
+import { listOrgIdsForUser } from "@complyloop/db/repo/orgs";
 import {
   loadWorkspaceContextDbForViewer,
   loadWorkspaceDbForViewer,

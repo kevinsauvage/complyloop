@@ -11,11 +11,9 @@ const assertRateLimit = vi.hoisted(() => vi.fn());
 vi.mock("@complyloop/db/client", () => ({
   getDrizzle: async () => ({}),
 }));
-vi.mock("@complyloop/db/queries", () => ({
+vi.mock("@complyloop/db/repo/projects", () => ({
   findProjectByGithubFullName: (...args: unknown[]) =>
     findProjectByGithubFullName(...args),
-}));
-vi.mock("@complyloop/db/repo/projects", () => ({
   getProjectById: (...args: unknown[]) => getProjectById(...args),
   updateProject: (...args: unknown[]) => updateProject(...args),
 }));

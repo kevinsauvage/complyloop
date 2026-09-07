@@ -3,7 +3,7 @@ import { getDrizzle } from "@complyloop/db/client";
 import {
   countNavAttentionForProject,
   type NavAttentionCounts,
-} from "@complyloop/db/queries";
+} from "@complyloop/db/repo/nav-attention";
 import { findingsInScope, scopedControlIds } from "./assessment-status";
 import type { Db } from "./db";
 

@@ -92,18 +92,13 @@ vi.mock("@complyloop/db/repo/evidence", () => ({
   insertEvidenceRecords: vi.fn(),
 }));
 
-vi.mock("@complyloop/db/queries", () => ({
-  listOrgIdsForUser: (...args: unknown[]) => listOrgIdsForUser(...args),
-}));
-
-// ensurePersonalOrgProvisioned (read path) inspects orgs/memberships alone; the
-// connect action's own full workspace load is mocked separately via loadWorkspaceDb.
 vi.mock("@complyloop/db/repo/orgs", async () => {
   const actual = await vi.importActual<typeof import("@complyloop/db/repo/orgs")>(
     "@complyloop/db/repo/orgs",
   );
   return {
     ...actual,
+    listOrgIdsForUser: (...args: unknown[]) => listOrgIdsForUser(...args),
     listOrganizationsForUser: (...args: unknown[]) =>
       listOrganizationsForUser(...args),
     listMembershipsForOrgs: (...args: unknown[]) =>

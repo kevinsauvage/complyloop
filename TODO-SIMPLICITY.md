@@ -1,92 +1,5 @@
 # TODO — Simplicity
 
-Audit date: 2026-09-07 (re-audited against live code; completed end-to-end) · Code is the source of truth — do not trust docs over `src/` / `packages/`.
-Scope: whole repo, judged by “same result with fewer concepts / files / moving parts.”
-Constraint: do not drop stale-write protection, evidence append-only, fail-closed verify, RBAC, advisory locks, or analysis correctness.
-
-## Verdict
-
-The analysis engines (AST, jsx-a11y, axe, html-validate, Playwright probes, linkinator) are large because RGAA coverage is large. That size is mostly **necessary**.
-
-Accidental complexity that **remains** is mostly P1+: evidence still has three creation styles (`addEvidence` / `evidenceEntry` / `insertEvidence*`), connect bypasses `withProjectWrite`, check registration is parallel id lists, adapters package ceremony.
-
-**P0 write path is done:** Assessment and interactive actions compute rows → upsert. `runAssessment` does not mutate the loaded `Db`. Status refresh has one return shape. **P2 report HTML merge is done** — `report-html/` is two files (`report.ts` + `shared.ts`).
-
-**How reductions are counted.** Each heading shows **net lines** after the change (deleted minus smaller replacement). Moves that only relocate code are **~0**. Overlapping items say “included in #N” — do not sum those twice. Unique total if done in the suggested order: **~900–1,100 lines** of application/test/docs (plus ~100 package ceremony), not counting catalog/guidance **data** (~2,900 lines: `controls.ts` 1,803 + `guidance.ts` 836 + presets/themes/registry ≈ 290) — a move, not a cut.
-
-**Stale plan note.** `docs/superpowers/plans/2026-09-07-simplicity.md` still maps an older TODO numbering (#1–#25 with collector/FrameworkAdapter items). Treat this file as the spec; rewrite or delete that plan before implementing.
-
----
-
-## Already done (do not re-open)
-
-Verified in code; prior TODO / plan items that are obsolete:
-
-| Former claim                                                                   | Current state                                                                                                        |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| Collector / `writes.snapshot()` / `persistProjectWrite`                        | Deleted. Interactive path returns `ProjectWritePayload` → `persistProjectRows`.                                      |
-| Catalog glued onto every `Db` / `withShippedCatalog` / `src/server/catalog.ts` | Gone. `Db` has no `frameworks`/`controls`. Catalog is `shippedCatalog()` from adapters.                              |
-| Org writes via `JSON.stringify` diff                                           | Gone. `withOrgWrite` returns `OrgWritePayload`.                                                                      |
-| `workspace.ts` as one 500+ line load+write module                              | Split: `workspace.ts` (~221 read/provision) + `workspace-write.ts` (~288).                                           |
-| Tiny `src/core/*-filter.ts` / `report-view.ts` modules                         | Merged into `src/core/query.ts`. Orphan _test file names_ remain (they import `./query`).                            |
-| `packages/db/src/project-write.ts`                                             | Does not exist.                                                                                                      |
-| Frameworks/controls Postgres tables                                            | Init migration comment: catalog lives in adapters, not schema.                                                       |
-| Status enum duplication across packages                                        | Single source: `packages/analysis-core/src/contract/statuses.ts`.                                                    |
-| `src/ai/warn.ts` module                                                        | Folded into `ai-call.ts`. Only `warn.test.ts` name remains.                                                          |
-| `refreshOnSuccess` / `RefreshAfterSuccess` on forms                            | Gone from `stateful-action-form.tsx`.                                                                                |
-| Assessment mutates live `Db` then returns arrays (P0 #1)                       | `runAssessment` clones into `ProjectRows`; returns apply-shaped result; worker applies directly.                     |
-| Interactive mutate + payload hybrid (P0 #2)                                    | Actions clone onto payload; refresh returns `{ requirements, evidence }`; `persistPatchCandidate` requires payload.  |
-| Report HTML thin section files (P2 #15)                                        | `report-html/` is now `report.ts` + `shared.ts`; the two renderers and four section files collapsed into one module. |
-
----
-
-## Leave alone
-
-These look heavy and are not worth flattening:
-
-| Mechanism                                                                    | Why it stays                                                                                                                                      |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@complyloop/analysis-core` + `@complyloop/check`                            | Real publish/CI boundary. CLI must not pull Next/Drizzle.                                                                                         |
-| `@complyloop/db` as a workspace package                                      | Shared by Next app, worker, scripts, and tests. Unlike adapters, this is a real persistence boundary — keep the package; do not fold into `src/`. |
-| Check authority classes + `deriveRequirementStatus`                          | Correctness. Empty AST must not pass runtime-only controls.                                                                                       |
-| Advisory locks + `updatedAt` stale-write guards                              | Prevents webhook apply from reverting a human decision.                                                                                           |
-| Evidence as a real insert-only table                                         | Product invariant.                                                                                                                                |
-| `getWorkspace` vs lighter context loads                                      | Layout must not load findings/evidence. Rename if unclear; do not merge.                                                                          |
-| Dual GitHub auth (user OAuth + App installation)                             | Product: selected-repo tokens in prod, `repo` scope in laptop demo.                                                                               |
-| Custom Playwright probes + linkinator                                        | Cover RGAA gaps axe does not. Review overlap before _adding_ more.                                                                                |
-| jsx-a11y + custom AST                                                        | Engine rule: do not reimplement jsx-a11y.                                                                                                         |
-| Finding-act beats (`source_*` / `runtime_*`)                                 | The two remediation paths are the product.                                                                                                        |
-| Inline job drain in dev/e2e                                                  | Local DX. Worker stays required in prod.                                                                                                          |
-| Assessment job queue (enqueue/claim/retry/idempotency)                       | Needed for durable webhook + manual assess outside request timeouts.                                                                              |
-| JSONB payloads + indexed column projections                                  | Nested shapes would explode columns. Keep JSONB; treat indexed columns as projections.                                                            |
-| `controls.ts` / `guidance.ts` size                                           | Catalog data, not abstraction.                                                                                                                    |
-| Marketing `(marketing)` vs app `(app)`                                       | Correct Next route-group split.                                                                                                                   |
-| shadcn `components/ui/*`                                                     | Real consumers; not decorative wrappers.                                                                                                          |
-| AI stack (`ai-call` + typed schemas + verified-fix)                          | Thin and status-safe. Do not add an “AI gateway” layer.                                                                                           |
-| Server actions split by domain                                               | Matches “one domain file, no barrels”; fine once writes are pure.                                                                                 |
-| `finding-list-filter.ts` (~236)                                              | Real list UX (tabs, filters, queue prev/next). Do not split for aesthetics.                                                                       |
-| Dual `navAttentionCounts` (in-memory) + `navAttentionForProject` (SQL)       | Matches hydrated workspace vs layout-without-findings.                                                                                            |
-| Zod: `src/core/boundary.ts` schemas + `src/server/boundary.ts` parse helpers | Correct core/server split.                                                                                                                        |
-| Clustering / prioritization (`root-cause`, `prioritization`)                 | Used by findings list, dashboard, reports.                                                                                                        |
-
----
-
-## P0 — Critical
-
-### ~~1. Assessment still mutates a live `Db`, then returns those arrays~~ — **DONE**
-
-Landed: `runAssessment` clones project rows into `ProjectRows`, mutates only the scratch, returns apply-shaped `{ assessment, findings, remediations, requirements, evidence }`. Worker applies that payload directly (no `buildAssessmentApplyPayload` filter). Tests use `materializeAssessmentRun` for in-memory continuity.
-
-### ~~2. Interactive writes are hybrid: mutate object + remember on payload~~ — **DONE**
-
-Landed: actions clone findings/requirements/remediations onto the payload; `refreshRequirementStatuses*` returns `{ requirements, evidence }` with no `Db` mutation and no optional `payload` branch; `persistPatchCandidate` requires an explicit payload. Helpers: `mergeRefreshIntoPayload`, `findingsWithPayloadOverrides`.
-
----
-
-## P0 (historical detail — kept for context)
-
-## P1 — High
-
 ### 3. Three evidence creation styles — **~40–60**
 
 **What**
@@ -252,22 +165,6 @@ Do not migrate old rows (append-only). Stop adding kinds: reuse `requirement_sta
 
 **Files**
 `packages/db/src/types.ts`, `src/core/status-display.ts`, `src/core/query.ts`
-
----
-
-### 13. Dashboard is an 862-line page — **~0** (extract, not delete)
-
-**What**
-`src/app/(app)/dashboard/page.tsx` inlines stats, alerts, evidence, changes, connect empty states, job status. `src/components/dashboard/` already has chips/checklist/counts.
-
-**Why**
-The first screen is the hardest file to change. Logic and presentation sit in the route.
-
-**How**
-Route: load workspace → pass props. Move sections into `components/dashboard/`. No new “dashboard manager.”
-
-**Files**
-`src/app/(app)/dashboard/page.tsx`, `src/components/dashboard/*`
 
 ---
 
