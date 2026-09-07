@@ -18,6 +18,8 @@ import {
   findingById,
   getWorkspace,
   remediationForFinding,
+  requireFinding,
+  requireRemediationForFinding,
 } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
 import {
@@ -44,11 +46,11 @@ export async function createPullRequestAction(
   const state = await runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const preview = await getWorkspace();
-    const finding = findingById(preview.db, findingId);
+    const finding = await requireFinding(findingId);
     requireOnFindingProject(preview, finding, "project.remediate");
     const control = controlById(finding.controlId);
-    const remediation = remediationForFinding(preview.db, findingId);
-    const project = preview.db.projects.find(
+    const remediation = await requireRemediationForFinding(findingId);
+    const project = preview.projects.find(
       (candidate) => candidate.id === finding.projectId,
     );
     if (!project) {

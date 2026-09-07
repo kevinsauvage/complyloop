@@ -1,12 +1,17 @@
 import type { OrgMembership, Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Db } from "@/server/db";
 import { emptyDb, type Finding, type Remediation } from "@complyloop/db/types";
-import type { Workspace } from "@/server/workspace";
+import type { ProjectWriteWorkspace } from "@/server/workspace";
 import { testFinding } from "./finding";
 import { testMembership } from "./membership";
 import { testProject } from "./project";
 import { testRemediation } from "./remediation";
 
+/**
+ * Full write-capable workspace fixture. Production `getWorkspace()` returns
+ * tenancy only (no `db`); action tests that invoke `withProjectWrite` need the
+ * slice, so fixtures keep `db`.
+ */
 export function testWorkspace(options: {
   role?: OrgMembership["role"];
   userId?: string;
@@ -15,7 +20,7 @@ export function testWorkspace(options: {
   findings?: Finding[];
   remediations?: Remediation[];
   db?: Partial<Db>;
-} = {}): Workspace {
+} = {}): ProjectWriteWorkspace {
   const userId = options.userId ?? "user-1";
   const orgId = options.orgId ?? "org-1";
   const role = options.role ?? "member";
@@ -40,7 +45,6 @@ export function testWorkspace(options: {
   } as Db;
 
   return {
-    db,
     project,
     userId,
     githubLogin: userId,
@@ -50,8 +54,13 @@ export function testWorkspace(options: {
       organizations: db.organizations,
       memberships: db.memberships,
     },
+    projects: db.projects,
     visibleProjects: [project],
     organizations: db.organizations,
     activeOrgId: orgId,
+    db,
   };
 }
+
+/** @deprecated Prefer {@link testWorkspace} (already includes `db`). */
+export const testWriteWorkspace = testWorkspace;

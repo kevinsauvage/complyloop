@@ -48,10 +48,10 @@ export async function ConnectProjectPanel({
   const connectedByFullName: Record<string, string> = {};
 
   if (configured && signedIn && userId && caps.canConnect) {
-    const { db, activeOrgId } = workspace;
+    const { projects, activeOrgId } = workspace;
     Object.assign(
       connectedByFullName,
-      connectedGitHubProjectsByFullName(db.projects, activeOrgId),
+      connectedGitHubProjectsByFullName(projects, activeOrgId),
     );
 
     // Compact dialog mode: skip the eager fetch — the picker loads page 1

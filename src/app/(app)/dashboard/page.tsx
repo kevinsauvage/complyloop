@@ -34,12 +34,12 @@ import {
 import { projectCapabilities } from "@/server/project-capabilities";
 import { frameworkForProject } from "@/server/report";
 import { controlById, getWorkspace } from "@/server/workspace";
+import { getProjectRuntime } from "@/server/project-runtime";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const {
-    db,
     project,
     access,
     visibleProjects,
@@ -93,16 +93,17 @@ export default async function DashboardPage() {
     );
   }
 
-  const latestAssessment = latestAssessmentFor(db.assessments, project.id);
-  const requirements = requirementsInScope(db.requirements, project);
-  const projectFindings = findingsInScope(db.findings, project);
+  const runtime = await getProjectRuntime(project.id);
+  const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
+  const requirements = requirementsInScope(runtime.requirements, project);
+  const projectFindings = findingsInScope(runtime.findings, project);
   const controls = shippedCatalog().controls;
   const openFindings = prioritizeFindings(projectFindings, controls);
-  const unreadAlerts = db.alerts
+  const unreadAlerts = runtime.alerts
     .filter((alert) => alert.projectId === project.id && !alert.read)
     .slice()
     .reverse();
-  const regressions = db.evidence
+  const regressions = runtime.evidence
     .filter(
       (record) =>
         record.projectId === project.id &&
@@ -111,7 +112,7 @@ export default async function DashboardPage() {
     )
     .slice(-3)
     .reverse();
-  const recentVerified = db.evidence
+  const recentVerified = runtime.evidence
     .filter(
       (record) =>
         (record.projectId === project.id || !record.projectId) &&
@@ -122,7 +123,7 @@ export default async function DashboardPage() {
     )
     .slice(-5)
     .reverse();
-  const recentEvidence = db.evidence
+  const recentEvidence = runtime.evidence
     .filter((record) => record.projectId === project.id || !record.projectId)
     .slice(-6)
     .reverse();
@@ -263,7 +264,7 @@ export default async function DashboardPage() {
               controlById={(controlId) =>
                 controlForDisplay(
                   controlById(controlId),
-                  frameworkForProject(db, project).id,
+                  frameworkForProject(project).id,
                 )
               }
             />

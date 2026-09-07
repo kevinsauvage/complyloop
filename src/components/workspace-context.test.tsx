@@ -2,12 +2,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const workspaceFixture = {
-  db: {
-    organizations: [
-      { id: "org-1", name: "Acme", slug: "acme", createdAt: "" },
-    ],
-    assessments: [],
-  },
   project: {
     id: "p1",
     name: "Shop",
@@ -15,6 +9,15 @@ const workspaceFixture = {
     source: "github",
     createdAt: "",
   },
+  projects: [
+    {
+      id: "p1",
+      name: "Shop",
+      orgId: "org-1",
+      source: "github",
+      createdAt: "",
+    },
+  ],
   visibleProjects: [
     {
       id: "p1",
@@ -36,7 +39,7 @@ const workspaceFixture = {
     { id: "org-2", name: "Beta", slug: "beta", createdAt: "" },
   ],
   activeOrgId: "org-1",
-  access: { userId: "u1", githubLogin: "u1", memberships: [] },
+  access: { userId: "u1", githubLogin: "u1", memberships: [], organizations: [] },
 };
 
 vi.mock("@/server/workspace", () => ({

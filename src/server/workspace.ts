@@ -7,6 +7,9 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { type Finding, type Remediation } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { getDrizzle } from "@complyloop/db/client";
+import { getFindingById } from "@complyloop/db/repo/findings";
+import { getRemediationByFindingId } from "@complyloop/db/repo/remediations";
 import {
   readActiveOrgCookie,
   readActiveProjectCookie,
@@ -25,14 +28,19 @@ import {
   visibleProjects,
 } from "./project-visibility";
 
+/**
+ * Request-scoped tenancy + active project. Compliance rows (findings, etc.)
+ * load via {@link getProjectRuntime} or write-time slices — not here.
+ */
 export interface Workspace {
-  db: Db;
   /** Null when the viewer has no connected project yet. */
   project: Project | null;
   /** Auth.js user id when signed in; null when unsigned. */
   userId: string | null;
   githubLogin: string | null;
   access: AccessContext;
+  /** All projects in the viewer's orgs (permission / lookup). */
+  projects: Project[];
   /** Projects the current viewer may switch between (scoped to active org). */
   visibleProjects: Project[];
   /** Orgs the signed-in user belongs to. */
@@ -40,6 +48,9 @@ export interface Workspace {
   /** Selected org for management + new connects; null when unsigned. */
   activeOrgId: string | null;
 }
+
+/** Workspace plus the in-transaction project slice for {@link withProjectWrite}. */
+export type ProjectWriteWorkspace = Workspace & { db: Db };
 
 function projectsForActiveOrg(
   projects: ReadonlyArray<Project>,
@@ -52,7 +63,7 @@ function projectsForActiveOrg(
 }
 
 export function prepareWorkspaceState(
-  db: Db,
+  db: Pick<Db, "organizations" | "memberships" | "projects">,
   userId: string | null,
   githubLogin: string | null,
   preferredOrgId: string | null,
@@ -74,11 +85,11 @@ export function prepareWorkspaceState(
     ) ?? null;
 
   return {
-    db,
     project,
     userId,
     githubLogin,
     access,
+    projects: db.projects,
     visibleProjects:
       scoped.length > 0 ? scoped : visibleProjects(db.projects, access),
     organizations,
@@ -118,11 +129,12 @@ export const getWorkspaceContext = cache(async (): Promise<Workspace> =>
 );
 
 /**
- * Loads the store scoped to the active project + org list.
- * Memoized per React request so layout + page share one load/auth.
+ * Tenancy + active project for app pages. Memoized per React request.
+ * Load findings/requirements/etc. with {@link getProjectRuntime}.
  */
 export const getWorkspace = cache(async (): Promise<Workspace> =>
-  loadViewerWorkspaceState(loadWorkspaceDbForViewer),
+  // Same tenancy load as context — runtime is no longer bundled into Workspace.
+  loadViewerWorkspaceState(loadWorkspaceContextDbForViewer),
 );
 
 export async function sessionWriteContext(): Promise<{
@@ -150,6 +162,7 @@ export function controlById(controlId: string): Control {
   return control;
 }
 
+/** Slice lookup used inside {@link withProjectWrite} callbacks. */
 export function findingById(db: Db, findingId: string): Finding {
   const finding = db.findings.find((candidate) => candidate.id === findingId);
   if (!finding) throw new PublicError("Unknown finding.");
@@ -167,6 +180,25 @@ export function findRemediationForFinding(
 
 export function remediationForFinding(db: Db, findingId: string): Remediation {
   const remediation = findRemediationForFinding(db, findingId);
+  if (!remediation) throw new PublicError("No remediation for that finding.");
+  return remediation;
+}
+
+/** Request-path finding load (pages / action previews). */
+export async function requireFinding(findingId: string): Promise<Finding> {
+  const finding = await getFindingById(await getDrizzle(), findingId);
+  if (!finding) throw new PublicError("Unknown finding.");
+  return finding;
+}
+
+/** Request-path remediation load (pages / action previews). */
+export async function requireRemediationForFinding(
+  findingId: string,
+): Promise<Remediation> {
+  const remediation = await getRemediationByFindingId(
+    await getDrizzle(),
+    findingId,
+  );
   if (!remediation) throw new PublicError("No remediation for that finding.");
   return remediation;
 }

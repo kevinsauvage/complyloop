@@ -62,7 +62,15 @@ const disconnectGitHubRepoInput = z.object({
 export async function switchProjectAction(formData: FormData): Promise<void> {
   const { projectId } = parseForm(switchProjectInput, formData);
   const workspace = await getWorkspace();
-  setActiveProject(workspace.db, projectId, workspace.userId);
+  setActiveProject(
+    {
+      projects: workspace.projects,
+      organizations: workspace.organizations,
+      memberships: workspace.access.memberships,
+    },
+    projectId,
+    workspace.userId,
+  );
   await writeActiveProjectCookie(projectId);
   refresh();
 }

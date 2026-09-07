@@ -1,9 +1,32 @@
-import { inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../client.ts";
 import { requirements } from "../schema.ts";
 import { requirementToRow } from "./mappers.ts";
 import { filterNotStale } from "./upsert-guard.ts";
+
+export async function getRequirementById(
+  drizzle: DrizzleDb,
+  requirementId: string,
+): Promise<Requirement | undefined> {
+  const rows = await drizzle
+    .select({ payload: requirements.payload })
+    .from(requirements)
+    .where(eq(requirements.id, requirementId))
+    .limit(1);
+  return rows[0]?.payload;
+}
+
+export async function listRequirementsForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+): Promise<Requirement[]> {
+  const rows = await drizzle
+    .select({ payload: requirements.payload })
+    .from(requirements)
+    .where(eq(requirements.projectId, projectId));
+  return rows.map((row) => row.payload);
+}
 
 export interface UpsertRequirementsOptions {
   /**

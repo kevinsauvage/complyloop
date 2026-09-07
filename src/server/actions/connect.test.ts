@@ -175,7 +175,11 @@ describe("switchProjectAction", () => {
     await switchProjectAction(form);
 
     expect(setActiveProject).toHaveBeenCalledWith(
-      workspace.db,
+      {
+        projects: workspace.projects,
+        organizations: workspace.organizations,
+        memberships: workspace.access.memberships,
+      },
       "p1",
       "user-1",
     );

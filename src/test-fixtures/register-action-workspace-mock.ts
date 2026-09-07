@@ -1,5 +1,7 @@
 import { vi } from "vitest";
-import { actionAuthMocks } from "./action-workspace-mocks";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { actionAuthMocks, actionWorkspaceMocks } from "./action-workspace-mocks";
+import type { Finding, Remediation } from "@complyloop/db/types";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -17,21 +19,34 @@ vi.mock("@/server/workspace", async () => {
   const actual = await vi.importActual<typeof import("@/server/workspace")>(
     "@/server/workspace",
   );
-  const { actionWorkspaceMocks } = await import(
-    "@/test-fixtures/action-workspace-mocks"
-  );
+
+  type WriteSlice = {
+    db?: { findings: Finding[]; remediations: Remediation[] };
+  };
+
   return {
     ...actual,
     getWorkspace: () => actionWorkspaceMocks.getWorkspace(),
+    requireFinding: async (findingId: string) => {
+      const workspace = (await actionWorkspaceMocks.getWorkspace()) as WriteSlice;
+      const finding = workspace.db?.findings.find((row) => row.id === findingId);
+      if (!finding) throw new PublicError("Unknown finding.");
+      return finding;
+    },
+    requireRemediationForFinding: async (findingId: string) => {
+      const workspace = (await actionWorkspaceMocks.getWorkspace()) as WriteSlice;
+      const remediation = workspace.db?.remediations.find(
+        (row) => row.findingId === findingId,
+      );
+      if (!remediation) throw new PublicError("No remediation for that finding.");
+      return remediation;
+    },
   };
 });
 
 vi.mock("@/server/workspace-write", async () => {
   const actual = await vi.importActual<typeof import("@/server/workspace-write")>(
     "@/server/workspace-write",
-  );
-  const { actionWorkspaceMocks } = await import(
-    "@/test-fixtures/action-workspace-mocks"
   );
   return {
     ...actual,

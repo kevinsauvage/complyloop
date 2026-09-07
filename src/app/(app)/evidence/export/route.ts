@@ -1,5 +1,6 @@
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
+import { listRequirementsForProject } from "@complyloop/db/repo/requirements";
 import {
   controlsInScope,
   requirementsInScope,
@@ -10,17 +11,21 @@ import { getWorkspace } from "@/server/workspace";
 export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<Response> {
-  const { db, project } = await getWorkspace();
+  const { project } = await getWorkspace();
   if (!project) {
     return new Response("No project connected.", { status: 404 });
   }
-  const exported = await listEvidenceForExport(await getDrizzle(), project.id);
+  const drizzle = await getDrizzle();
+  const [exported, requirements] = await Promise.all([
+    listEvidenceForExport(drizzle, project.id),
+    listRequirementsForProject(drizzle, project.id),
+  ]);
   const payload = {
     exportedAt: new Date().toISOString(),
     project: { name: project.name, connectedAt: project.createdAt },
-    framework: frameworkForProject(db, project),
+    framework: frameworkForProject(project),
     controls: controlsInScope(project),
-    requirements: requirementsInScope(db.requirements, project),
+    requirements: requirementsInScope(requirements, project),
     evidence: exported.records,
     evidenceTotal: exported.total,
     evidenceLimit: exported.limit,

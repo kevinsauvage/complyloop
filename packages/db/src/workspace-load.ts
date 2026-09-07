@@ -37,7 +37,7 @@ async function loadEvidenceWindow(
   return rows.reverse().map(rowToEvidence);
 }
 
-async function loadProjectRuntime(
+export async function loadProjectRuntime(
   drizzle: DrizzleDb,
   projectId: string,
 ): Promise<

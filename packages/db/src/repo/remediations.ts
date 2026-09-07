@@ -1,9 +1,38 @@
-import { inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { Remediation } from "../types";
 import type { DrizzleDb } from "../client.ts";
-import { remediations } from "../schema.ts";
+import { findings, remediations } from "../schema.ts";
 import { remediationToRow } from "./mappers.ts";
 import { filterNotStale, stampedNow } from "./upsert-guard.ts";
+
+export async function getRemediationByFindingId(
+  drizzle: DrizzleDb,
+  findingId: string,
+): Promise<Remediation | undefined> {
+  const rows = await drizzle
+    .select({ payload: remediations.payload })
+    .from(remediations)
+    .where(eq(remediations.findingId, findingId))
+    .limit(1);
+  return rows[0]?.payload;
+}
+
+export async function listRemediationsForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+): Promise<Remediation[]> {
+  const findingRows = await drizzle
+    .select({ id: findings.id })
+    .from(findings)
+    .where(eq(findings.projectId, projectId));
+  const findingIds = findingRows.map((row) => row.id);
+  if (findingIds.length === 0) return [];
+  const rows = await drizzle
+    .select({ payload: remediations.payload })
+    .from(remediations)
+    .where(inArray(remediations.findingId, findingIds));
+  return rows.map((row) => row.payload);
+}
 
 export interface UpsertRemediationsOptions {
   /**

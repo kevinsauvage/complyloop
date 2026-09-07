@@ -36,42 +36,6 @@ source of incidental complexity left in the repo.
 
 ## P1 — High
 
-### P1-1 · Retire the in-memory `Db` read-model god-object (incrementally)
-
-- **What is complex:** `Db` (`packages/db/src/types.ts`) is a bundle of 9 arrays
-  loaded per request and passed by parameter through dozens of pure helpers
-  (`findingById(db, …)`, `orgsForUser(db, …)`, `accessFromStore(db, …)`). To
-  keep loads bounded there are **3 loaders** (`loadWorkspaceDb`,
-  `loadTargetedProjectWriteDb`, `loadProjectAssessmentDb`), **2 app wrappers**
-  (`loadWorkspaceDbForViewer`, `loadWorkspaceContextDbForViewer`), **2 memoized
-  getters** (`getWorkspace`, `getWorkspaceContext`), plus flags
-  (`evidenceLimit`, `includeRuntime`), plus partial-Db workarounds like
-  `{ ...emptyDb(), organizations, memberships }` (`personal-org.ts`).
-- **Why it's a problem:** It is the repo's biggest remaining piece of accidental
-  complexity: every helper signature carries a god-parameter whose contents
-  depend on _which loader_ produced it (a subtle class of "why is this field
-  empty" bug). Project-scoped filtering is re-implemented in ≥6 places
-  (`cloneProjectRows`, `snapshotProjectSlice`, `findingsForProject`,
-  `requirementsForProject`, `evidenceForProject`, `removeProjectScopedRecords`,
-  `exportOrgData`, `deleteOrganization`).
-- **How to simplify (incremental, low risk per step):**
-  1. Replace the `Db`-threading lookup helpers with direct repo queries where
-     the caller needs one row (`findingById`, `controlById`,
-     `remediationForFinding`, `requireRequirement`) — each becomes a
-     `getXById(drizzle, id)` repo call. This deletes most `Db` parameter
-     threading in `workspace.ts`, `actions/*`, `assessment-status.ts`.
-  2. Collapse loaders to **one** `loadWorkspace(drizzle, { parts })` where
-     `parts` selects tenancy / active-project-runtime / evidence-window; keep
-     the two React memoized getters as thin presets over it.
-  3. Delete `emptyDb()` workarounds as partial loads become explicit `parts`.
-  - Keep: per-request `cache()` memoization, the targeted-write loader
-    (`loadTargetedProjectWriteDb`) — it is a real hot-path optimization — and
-    RBAC evaluation shape.
-- **Files:** `packages/db/src/types.ts`, `packages/db/src/workspace-load.ts`,
-  `src/server/db.ts`, `src/server/workspace.ts`, `src/server/orgs.ts`,
-  `src/server/project-visibility.ts`, `src/server/personal-org.ts`,
-  `src/server/actions/*`.
-
 ### P1-2 · One helper for "apply rows + refresh requirement statuses" (kills the 4× merge dance)
 
 - **What is complex:** Four interactive actions repeat the same 3-step dance

@@ -28,8 +28,8 @@ import { findingsInScope } from "@/server/assessment-status";
 import {
   controlById,
   getWorkspace,
-  remediationForFinding,
 } from "@/server/workspace";
+import { getProjectRuntime } from "@/server/project-runtime";
 import { frameworkForProject } from "@/server/report";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { controlForDisplay } from "@complyloop/adapters/control-theme";
@@ -47,7 +47,7 @@ export default async function FindingsPage({
 }) {
   const rawParams = await searchParams;
   const listParams = parseFindingListParams(rawParams);
-  const { db, project, access, activeOrgId } = await getWorkspace();
+  const { project, access, activeOrgId } = await getWorkspace();
   if (!project) {
     return (
       <>
@@ -65,14 +65,18 @@ export default async function FindingsPage({
     );
   }
 
+  const runtime = await getProjectRuntime(project.id);
   const caps = projectCapabilities(project, access, activeOrgId);
-  const findings = findingsInScope(db.findings, project);
+  const findings = findingsInScope(runtime.findings, project);
+  const remediationByFindingId = new Map(
+    runtime.remediations.map((remediation) => [remediation.findingId, remediation]),
+  );
   const controls = shippedCatalog().controls;
   const clusters = prioritizeClusters(findings, controls);
   const filterContext: FilterFindingsContext = {
     controls,
     remediationStatusFor: (findingId) =>
-      remediationForFinding(db, findingId)?.status,
+      remediationByFindingId.get(findingId)?.status,
     clusterFindingIds: listParams.cluster
       ? new Set(
           clusters.find((cluster) => cluster.id === listParams.cluster)
@@ -90,12 +94,18 @@ export default async function FindingsPage({
   const paginationQuery = findingListPaginationQuery(listParams);
 
   const listFor = (sliceFindings: Finding[]) => {
-    const frameworkId = frameworkForProject(db, project).id;
+    const frameworkId = frameworkForProject(project).id;
     return toFindingListItems(
       sliceFindings,
       (controlId) =>
         controlForDisplay(controlById(controlId), frameworkId),
-      (findingId) => remediationForFinding(db, findingId),
+      (findingId) => {
+        const remediation = remediationByFindingId.get(findingId);
+        if (!remediation) {
+          throw new Error(`No remediation for finding ${findingId}`);
+        }
+        return remediation;
+      },
     );
   };
 
@@ -114,7 +124,7 @@ export default async function FindingsPage({
                 ? "by_cause"
                 : "open";
 
-  const hasAssessment = db.assessments.some(
+  const hasAssessment = runtime.assessments.some(
     (assessment) => assessment.projectId === project.id,
   );
 

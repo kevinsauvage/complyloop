@@ -62,7 +62,7 @@ export function requireOnFindingProject(
   finding: Finding,
   permission: Parameters<typeof assertProjectPermission>[2],
 ): void {
-  const project = workspace.db.projects.find(
+  const project = workspace.projects.find(
     (candidate) => candidate.id === finding.projectId,
   );
   if (!project) throw new PublicError("Unknown project.");

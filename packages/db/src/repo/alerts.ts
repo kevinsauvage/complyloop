@@ -16,6 +16,17 @@ export async function getAlertById(
   return rows[0]?.payload;
 }
 
+export async function listAlertsForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+): Promise<Alert[]> {
+  const rows = await drizzle
+    .select({ payload: alerts.payload })
+    .from(alerts)
+    .where(eq(alerts.projectId, projectId));
+  return rows.map((row) => row.payload);
+}
+
 export async function markAlertRead(tx: DrizzleDb, alert: Alert): Promise<void> {
   const updated = { ...alert, read: true };
   await upsertAlerts(tx, [updated]);

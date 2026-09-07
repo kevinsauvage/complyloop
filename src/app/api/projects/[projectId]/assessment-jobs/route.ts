@@ -24,7 +24,7 @@ export async function GET(
     return Response.json({ error: "Not found." }, { status: 404 });
   }
   const workspace = await getWorkspace();
-  const project = workspace.db.projects.find((candidate) => candidate.id === projectId);
+  const project = workspace.projects.find((candidate) => candidate.id === projectId);
   if (!project || !isProjectVisible(project, workspace.access)) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }

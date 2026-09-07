@@ -31,7 +31,7 @@ function ContextStrip({
 
 /** Active org/project context + switchers for every workflow page. */
 export async function WorkspaceContext() {
-  const { db, project, visibleProjects, organizations, activeOrgId, access } =
+  const { project, visibleProjects, organizations, activeOrgId, access } =
     await getWorkspaceContext();
   const caps = projectCapabilities(project, access, activeOrgId);
   const latestAssessment = project
@@ -46,7 +46,7 @@ export async function WorkspaceContext() {
     />
   ) : null;
   const orgName = project?.orgId
-    ? db.organizations.find((org) => org.id === project.orgId)?.name
+    ? organizations.find((org) => org.id === project.orgId)?.name
     : activeOrgId
       ? organizations.find((org) => org.id === activeOrgId)?.name
       : undefined;

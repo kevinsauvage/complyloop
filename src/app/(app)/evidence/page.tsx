@@ -35,6 +35,7 @@ import {
   listEvidencePageForProject,
 } from "@complyloop/db/repo/evidence";
 import { getWorkspace } from "@/server/workspace";
+import { listRequirementsForProject } from "@complyloop/db/repo/requirements";
 import { ChevronDownIcon } from "lucide-react";
 import Link from "next/link";
 
@@ -46,7 +47,7 @@ export default async function EvidencePage({
   searchParams: Promise<{ page?: string; kind?: string | string[] }>;
 }) {
   const { page: pageRaw, kind: kindRaw } = await searchParams;
-  const { db, project } = await getWorkspace();
+  const { project } = await getWorkspace();
   if (!project) {
     return (
       <>
@@ -66,10 +67,8 @@ export default async function EvidencePage({
   const kindFilter = parseEvidenceKindParam(kindRaw);
   const page = parsePageParam(pageRaw);
   const drizzle = await getDrizzle();
-  const requirements = db.requirements.filter(
-    (requirement) => requirement.projectId === project.id,
-  );
-  const [totalUnfiltered, total, kindCounts, items] = await Promise.all([
+  const [requirements, totalUnfiltered, total, kindCounts, items] = await Promise.all([
+    listRequirementsForProject(drizzle, project.id),
     countEvidenceForProject(drizzle, project.id),
     countEvidenceForProject(drizzle, project.id, kindFilter),
     countEvidenceKindsForProject(drizzle, project.id),

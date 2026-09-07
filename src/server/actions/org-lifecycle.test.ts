@@ -17,7 +17,7 @@ import {
   switchOrgAction,
 } from "./org";
 import type { Db } from "../db";
-import type { Workspace } from "../workspace";
+import type { ProjectWriteWorkspace } from "../workspace";
 
 const { getWorkspace, withOrgWrite } = actionWorkspaceMocks;
 const exportOrgData = vi.hoisted(() => vi.fn());
@@ -61,6 +61,16 @@ vi.mock("./shared", async () => {
 
 vi.mock("@complyloop/db/client", () => ({
   getDrizzle: async () => ({}),
+}));
+
+vi.mock("@complyloop/db/workspace-load", () => ({
+  loadProjectRuntime: async () => ({
+    requirements: [],
+    findings: [],
+    remediations: [],
+    alerts: [],
+    assessments: [],
+  }),
 }));
 
 vi.mock("@complyloop/db/repo/evidence", () => ({
@@ -116,19 +126,15 @@ function emptyDb(memberships = [ownerMembership]): Db {
   };
 }
 
-function fixtureWorkspace(db: Db = emptyDb()): Workspace {
-  const workspace = testWorkspace({
+function fixtureWorkspace(db: Db = emptyDb()): ProjectWriteWorkspace {
+  return testWorkspace({
     role: "owner",
     userId: "user-1",
     project,
     findings: [],
     remediations: [],
-    db: {
-      organizations: [org],
-      memberships: db.memberships,
-    },
+    db,
   });
-  return { ...workspace, db };
 }
 
 beforeEach(() => {

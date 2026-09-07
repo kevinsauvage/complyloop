@@ -29,6 +29,8 @@ import { listAllEvidenceForProjects } from "@complyloop/db/repo/evidence";
 import { getWorkspace } from "../workspace";
 import { withOrgWrite } from "../workspace-write";
 import { refresh, requireSignedIn } from "./shared";
+import { loadProjectRuntime } from "@complyloop/db/workspace-load";
+import { emptyDb } from "@complyloop/db/types";
 
 export type OrgMemberFormState = ActionMessageState;
 export type CreateOrgFormState = ActionMessageState;
@@ -205,18 +207,33 @@ export async function exportOrgDataAction(
   try {
     const { userId } = await requireSignedIn("Sign in to export organization data.");
     const orgId = parseInput(entityIdSchema, orgIdRaw);
-    const { db } = await getWorkspace();
-    const projectIds = db.projects
-      .filter((project) => project.orgId === orgId)
-      .map((project) => project.id);
+    const { organizations, projects, access } = await getWorkspace();
+    const orgProjects = projects.filter((project) => project.orgId === orgId);
+    const projectIds = orgProjects.map((project) => project.id);
     // The workspace slice is bounded (latest assessment, evidence window);
     // the export is the audit artifact, so fetch full history directly.
     const drizzle = await getDrizzle();
-    const [evidence, assessments] = await Promise.all([
+    const [evidence, assessments, ...runtimes] = await Promise.all([
       listAllEvidenceForProjects(drizzle, projectIds),
       listAssessmentsForProjects(drizzle, projectIds),
+      ...projectIds.map((projectId) => loadProjectRuntime(drizzle, projectId)),
     ]);
-    const payload = exportOrgData({ ...db, evidence, assessments }, orgId, userId);
+    const payload = exportOrgData(
+      {
+        ...emptyDb(),
+        organizations,
+        memberships: [...access.memberships],
+        projects,
+        findings: runtimes.flatMap((runtime) => runtime.findings),
+        remediations: runtimes.flatMap((runtime) => runtime.remediations),
+        requirements: runtimes.flatMap((runtime) => runtime.requirements),
+        alerts: runtimes.flatMap((runtime) => runtime.alerts),
+        assessments,
+        evidence,
+      },
+      orgId,
+      userId,
+    );
     return { error: null, json: JSON.stringify(payload, null, 2) };
   } catch (error) {
     return {

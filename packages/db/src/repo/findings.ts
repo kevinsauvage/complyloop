@@ -1,9 +1,32 @@
-import { inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { Finding } from "../types";
 import type { DrizzleDb } from "../client.ts";
 import { findings } from "../schema.ts";
 import { findingToRow } from "./mappers.ts";
 import { filterNotStale, stampedNow } from "./upsert-guard.ts";
+
+export async function getFindingById(
+  drizzle: DrizzleDb,
+  findingId: string,
+): Promise<Finding | undefined> {
+  const rows = await drizzle
+    .select({ payload: findings.payload })
+    .from(findings)
+    .where(eq(findings.id, findingId))
+    .limit(1);
+  return rows[0]?.payload;
+}
+
+export async function listFindingsForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+): Promise<Finding[]> {
+  const rows = await drizzle
+    .select({ payload: findings.payload })
+    .from(findings)
+    .where(eq(findings.projectId, projectId));
+  return rows.map((row) => row.payload);
+}
 
 export interface UpsertFindingsOptions {
   /**

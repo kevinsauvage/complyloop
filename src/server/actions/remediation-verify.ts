@@ -28,6 +28,8 @@ import {
   findingById,
   getWorkspace,
   remediationForFinding,
+  requireFinding,
+  requireRemediationForFinding,
 } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
 import {
@@ -130,9 +132,9 @@ export async function verifyRemediationAction(
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const preview = await getWorkspace();
-    const finding = findingById(preview.db, findingId);
+    const finding = await requireFinding(findingId);
     requireOnFindingProject(preview, finding, "project.remediate");
-    const previewRemediation = remediationForFinding(preview.db, findingId);
+    const previewRemediation = await requireRemediationForFinding(findingId);
     if (previewRemediation.status !== "implemented") {
       throw new PublicError("Verification requires status implemented.");
     }
@@ -178,7 +180,7 @@ export async function verifyRemediationAction(
           : "Fix verified by automated re-check.";
       }
       case "site": {
-        const project = preview.db.projects.find(
+        const project = preview.projects.find(
           (candidate) => candidate.id === finding.projectId,
         );
         if (!project) throw new PublicError("Unknown project.");

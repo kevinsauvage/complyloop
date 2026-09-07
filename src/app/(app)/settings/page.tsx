@@ -14,11 +14,12 @@ import {
 import { latestAssessmentFor } from "@/core/assessment";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
+import { getProjectRuntime } from "@/server/project-runtime";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const { db, project, access, activeOrgId } = await getWorkspace();
+  const { project, access, activeOrgId } = await getWorkspace();
   const caps = projectCapabilities(project, access, activeOrgId);
 
   if (!project) {
@@ -38,7 +39,8 @@ export default async function SettingsPage() {
     );
   }
 
-  const latestAssessment = latestAssessmentFor(db.assessments, project.id);
+  const runtime = await getProjectRuntime(project.id);
+  const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
   const runtimeStatus = latestAssessment?.engines?.runtime
     ? `Last assessment audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s).`
     : latestAssessment?.engines?.runtimeError

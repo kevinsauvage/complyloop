@@ -31,18 +31,20 @@ import { buildDeveloperHandoff } from "@/server/handoff";
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
 import { projectCapabilities } from "@/server/project-capabilities";
-import { resolveVisibleFinding } from "@/server/project-visibility";
 import { findingsInScope } from "@/server/assessment-status";
 import {
   controlById,
   getWorkspace,
-  remediationForFinding,
+  requireFinding,
+  requireRemediationForFinding,
 } from "@/server/workspace";
+import { getProjectRuntime } from "@/server/project-runtime";
 import { frameworkForProject } from "@/server/report";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { controlForDisplay } from "@complyloop/adapters/control-theme";
 import { prioritizeClusters } from "@/core/prioritization";
 import { cn } from "@/lib/utils";
+import { isProjectVisible } from "@/server/project-visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -55,22 +57,29 @@ export default async function FindingPage({
 }) {
   const { id } = await params;
   const listParams = parseFindingListParams(await searchParams);
-  const { db, access } = await getWorkspace();
-  const resolved = resolveVisibleFinding(
-    id,
-    db.findings,
-    db.projects,
-    access,
+  const { access, projects } = await getWorkspace();
+  let finding;
+  try {
+    finding = await requireFinding(id);
+  } catch {
+    notFound();
+  }
+  const project = projects.find((candidate) => candidate.id === finding.projectId);
+  if (!project || !isProjectVisible(project, access)) notFound();
+
+  const [runtime, remediation] = await Promise.all([
+    getProjectRuntime(project.id),
+    requireRemediationForFinding(finding.id),
+  ]);
+  const remediationByFindingId = new Map(
+    runtime.remediations.map((row) => [row.findingId, row]),
   );
-  if (!resolved) notFound();
-  const { finding, project } = resolved;
   const caps = projectCapabilities(project, access, project.orgId);
 
   const control = controlForDisplay(
     controlById(finding.controlId),
-    frameworkForProject(db, project).id,
+    frameworkForProject(project).id,
   );
-  const remediation = remediationForFinding(db, finding.id);
   const evidence = await listEvidenceForFinding(await getDrizzle(), finding.id);
   const chronologicalEvidence = [...evidence].reverse();
   const aiAvailable = aiExplanationAvailable();
@@ -90,12 +99,12 @@ export default async function FindingPage({
     ? buildDeveloperHandoff(project, control, finding, remediation)
     : null;
 
-  const scopedFindings = findingsInScope(db.findings, project);
+  const scopedFindings = findingsInScope(runtime.findings, project);
   const clusters = prioritizeClusters(scopedFindings, shippedCatalog().controls);
   const queueFilterContext: FilterFindingsContext = {
     controls: shippedCatalog().controls,
     remediationStatusFor: (findingId) =>
-      remediationForFinding(db, findingId)?.status,
+      remediationByFindingId.get(findingId)?.status,
     clusterFindingIds: listParams.cluster
       ? new Set(
           clusters.find((cluster) => cluster.id === listParams.cluster)

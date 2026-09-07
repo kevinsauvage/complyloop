@@ -30,7 +30,7 @@ import { orgsForUser } from "./orgs";
 import {
   prepareWorkspaceState,
   sessionWriteContext,
-  type Workspace,
+  type ProjectWriteWorkspace,
 } from "./workspace";
 import type { Db } from "./db";
 
@@ -107,7 +107,7 @@ function captureEntityLoadedSlice(
 
 async function runProjectWriteTransaction(
   scope: ProjectWriteScope,
-  fn: (workspace: Workspace) => Promise<ProjectWritePayload | void>,
+  fn: (workspace: ProjectWriteWorkspace) => Promise<ProjectWritePayload | void>,
 ): Promise<void> {
   if (
     scope.touch === "entities" &&
@@ -122,7 +122,7 @@ async function runProjectWriteTransaction(
 
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
-    const loadWorkspace = async (): Promise<{ db: Db; workspace: Workspace }> => {
+    const loadWorkspace = async (): Promise<ProjectWriteWorkspace> => {
       const db =
         scope.touch === "project"
           ? await loadWorkspaceDb(tx, {
@@ -141,14 +141,14 @@ async function runProjectWriteTransaction(
               controlIds: scope.refreshControlIds,
             });
       return {
-        db,
-        workspace: prepareWorkspaceState(
+        ...prepareWorkspaceState(
           db,
           userId,
           githubLogin,
           preferredOrgId,
           preferredProjectId,
         ),
+        db,
       };
     };
 
@@ -163,19 +163,18 @@ async function runProjectWriteTransaction(
       );
     }
 
-    let loaded = await loadWorkspace();
-    if (!loaded.workspace.project) {
+    let workspace = await loadWorkspace();
+    if (!workspace.project) {
       throw new PublicError("Select a project first.");
     }
-    const projectId = loaded.workspace.project.id;
+    const projectId = workspace.project.id;
     if (projectId !== preferredProjectId) {
       await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
-      loaded = await loadWorkspace();
-      if (!loaded.workspace.project || loaded.workspace.project.id !== projectId) {
+      workspace = await loadWorkspace();
+      if (!workspace.project || workspace.project.id !== projectId) {
         throw new PublicError("Select a project first.");
       }
     }
-    const { db, workspace } = loaded;
     const project = workspace.project;
     if (!project) {
       throw new PublicError("Select a project first.");
@@ -183,7 +182,7 @@ async function runProjectWriteTransaction(
 
     const loadedSlice =
       scope.touch === "entities"
-        ? captureEntityLoadedSlice(db, scope)
+        ? captureEntityLoadedSlice(workspace.db, scope)
         : undefined;
     const payload = (await fn(workspace)) ?? {};
 
@@ -198,7 +197,7 @@ async function runProjectWriteTransaction(
  */
 export async function withProjectWrite(
   scope: ProjectWriteScope,
-  fn: (workspace: Workspace) => Promise<ProjectWritePayload | void>,
+  fn: (workspace: ProjectWriteWorkspace) => Promise<ProjectWritePayload | void>,
 ): Promise<void> {
   return runProjectWriteTransaction(scope, fn);
 }

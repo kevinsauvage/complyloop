@@ -199,7 +199,10 @@ export function changeOrgMemberRole(
 }
 
 /** Personal owner org — fallback when no active org is selected. */
-function defaultOrgIdForUser(db: Db, userId: string): string | undefined {
+function defaultOrgIdForUser(
+  db: Pick<Db, "memberships">,
+  userId: string,
+): string | undefined {
   const owned = db.memberships.find(
     (membership) =>
       membership.userId === userId && membership.role === "owner",
@@ -208,7 +211,10 @@ function defaultOrgIdForUser(db: Db, userId: string): string | undefined {
 }
 
 /** Organizations the user belongs to (claimed memberships only). */
-export function orgsForUser(db: Db, userId: string): Organization[] {
+export function orgsForUser(
+  db: Pick<Db, "organizations" | "memberships">,
+  userId: string,
+): Organization[] {
   const orgIds = new Set(
     db.memberships
       .filter((membership) => membership.userId === userId)
@@ -222,7 +228,7 @@ export function orgsForUser(db: Db, userId: string): Organization[] {
  * member, otherwise personal owner org, otherwise first membership.
  */
 export function resolveActiveOrgId(
-  db: Db,
+  db: Pick<Db, "organizations" | "memberships">,
   userId: string,
   preferredOrgId: string | null | undefined,
 ): string | undefined {

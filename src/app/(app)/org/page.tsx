@@ -21,7 +21,6 @@ import {
   createOrgAction,
   inviteOrgMemberAction,
 } from "@/server/actions/org";
-import { membershipsForOrg, userRoleInOrg } from "@/server/orgs";
 import { getWorkspaceContext } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
@@ -48,9 +47,9 @@ export default async function OrgPage() {
     );
   }
 
-  const { db, activeOrgId } = await getWorkspaceContext();
+  const { organizations, projects, access, activeOrgId } = await getWorkspaceContext();
   const org = activeOrgId
-    ? db.organizations.find((candidate) => candidate.id === activeOrgId)
+    ? organizations.find((candidate) => candidate.id === activeOrgId)
     : undefined;
 
   if (!org || !activeOrgId) {
@@ -68,11 +67,16 @@ export default async function OrgPage() {
     );
   }
 
-  const members = membershipsForOrg(db, org.id);
-  const role = userRoleInOrg(db, org.id, userId);
+  const members = access.memberships.filter(
+    (membership) => membership.orgId === org.id,
+  );
+  const role = access.memberships.find(
+    (membership) =>
+      membership.orgId === org.id && membership.userId === userId,
+  )?.role;
   const canManage = role === "owner" || role === "admin";
   const owner = members.find((membership) => membership.role === "owner");
-  const projectCount = db.projects.filter(
+  const projectCount = projects.filter(
     (project) => project.orgId === org.id,
   ).length;
   let memberCount = 0;

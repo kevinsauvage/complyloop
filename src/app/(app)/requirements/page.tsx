@@ -21,6 +21,7 @@ import type { RequirementStatus } from "@complyloop/analysis-core/contract/statu
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
+import { getProjectRuntime } from "@/server/project-runtime";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export default async function RequirementsPage({
   const params = await searchParams;
   const statusFilter = parseRequirementStatusParam(params.status);
   const urlPresetId = parsePresetIdParam(params.presetId, isValidPresetId);
-  const { db, project, access, activeOrgId } = await getWorkspace();
+  const { project, access, activeOrgId } = await getWorkspace();
   const caps = projectCapabilities(project, access, activeOrgId);
   if (!project) {
     return (
@@ -61,6 +62,7 @@ export default async function RequirementsPage({
     );
   }
 
+  const runtime = await getProjectRuntime(project.id);
   const defaultPresetId = projectDefaultPresetId(project);
   const selectedPresetId = effectiveRequirementsPresetId(
     urlPresetId,
@@ -70,7 +72,7 @@ export default async function RequirementsPage({
   const frameworkId =
     selectedPreset?.frameworkId ?? defaultConnectPreset().frameworkId;
 
-  const requirements = db.requirements.filter(
+  const requirements = runtime.requirements.filter(
     (requirement) => requirement.projectId === project.id,
   );
   const presetControls = controlsForPreset(
@@ -83,7 +85,7 @@ export default async function RequirementsPage({
   );
 
   const openFindingCounts = new Map<string, number>();
-  for (const finding of db.findings) {
+  for (const finding of runtime.findings) {
     if (finding.projectId !== project.id || finding.status !== "open") continue;
     openFindingCounts.set(
       finding.controlId,

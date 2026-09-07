@@ -42,12 +42,12 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`). Roles
   `owner|admin|member|viewer`. Workspace load is membership-org + active
   project.
-- **Reads** — `getWorkspace()` loads orgs, project switcher, and runtime for
-  the **active project only**. The compliance catalog is compile-time data
-  (`shippedCatalog()` from `@complyloop/adapters/catalog`) — not a field on
-  the workspace `Db` and not stored in Postgres. File hashes live in
+- **Reads** — `getWorkspace()` / `getWorkspaceContext()` load **tenancy only**
+  (orgs, memberships, projects, active project). Compliance rows load via
+  `getProjectRuntime(projectId)` or repo `list*`/`get*` helpers. The compliance
+  catalog is compile-time data (`shippedCatalog()`). File hashes live in
   `assessment_snapshots` and load only for `runAssessment`. Evidence pages
-  query Postgres directly (`queries.ts`).
+  query Postgres directly.
 - **Writes** — `withProjectWrite` / `withOrgWrite` / `withProjectLock` in
   `src/server/workspace-write.ts`. A project write callback returns a
   `ProjectWritePayload` (or void); `persistProjectRows` upserts it. Org

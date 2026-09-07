@@ -2,7 +2,14 @@ import type { Framework, Project } from "@complyloop/analysis-core/contract/proj
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { presetById, projectDefaultPresetId } from "@complyloop/adapters/registry";
 import type { ReportView } from "@/core/query";
-import type { Db } from "./db";
+import type {
+  Alert,
+  Assessment,
+  EvidenceRecord,
+  Finding,
+  Remediation,
+} from "@complyloop/db/types";
+import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import {
   controlsInScope,
   findingsInScope,
@@ -18,7 +25,7 @@ export type ReportLoadResult =
   | { ok: true; project: Project; view: ReportView; input: ReportInput };
 
 /** Resolves the framework named by the project's assessment preset. */
-export function frameworkForProject(_db: Db, project: Project): Framework {
+export function frameworkForProject(project: Project): Framework {
   const frameworks = shippedCatalog().frameworks;
   const preset = presetById(projectDefaultPresetId(project));
   if (preset) {
@@ -34,21 +41,33 @@ export function frameworkForProject(_db: Db, project: Project): Framework {
   return fallback;
 }
 
+export type ReportRuntimeSlice = {
+  findings: ReadonlyArray<Finding>;
+  remediations: ReadonlyArray<Remediation>;
+  requirements: ReadonlyArray<Requirement>;
+  evidence: ReadonlyArray<EvidenceRecord>;
+  assessments?: ReadonlyArray<Assessment>;
+  alerts?: ReadonlyArray<Alert>;
+};
+
 /** Builds report input for a project's current store snapshot. */
-export function reportInputForProject(db: Db, project: Project): ReportInput {
-  const findings = findingsInScope(db.findings, project);
+export function reportInputForProject(
+  runtime: ReportRuntimeSlice,
+  project: Project,
+): ReportInput {
+  const findings = findingsInScope(runtime.findings, project);
   const findingIds = new Set(findings.map((finding) => finding.id));
-  const framework = frameworkForProject(db, project);
+  const framework = frameworkForProject(project);
   return {
     project,
     framework,
     controls: controlsInScope(project),
     findings,
-    remediations: db.remediations.filter((remediation) =>
+    remediations: runtime.remediations.filter((remediation) =>
       findingIds.has(remediation.findingId),
     ),
-    requirements: requirementsInScope(db.requirements, project),
-    evidence: evidenceForProject(db.evidence, project.id),
+    requirements: requirementsInScope(runtime.requirements, project),
+    evidence: evidenceForProject(runtime.evidence, project.id),
     exportedAt: new Date().toISOString(),
   };
 }
@@ -63,8 +82,9 @@ export async function loadReportInput(
     "@complyloop/db/repo/evidence"
   );
   const { getWorkspace } = await import("./workspace");
+  const { getProjectRuntime } = await import("./project-runtime");
 
-  const { db, project } = await getWorkspace();
+  const { project } = await getWorkspace();
   if (!project) {
     return {
       ok: false,
@@ -75,12 +95,18 @@ export async function loadReportInput(
   const view = parseReportViewParam(
     new URL(request.url).searchParams.get("view"),
   );
-  const exported = await listEvidenceForExport(await getDrizzle(), project.id);
+  const [runtime, exported] = await Promise.all([
+    getProjectRuntime(project.id),
+    listEvidenceForExport(await getDrizzle(), project.id),
+  ]);
 
   return {
     ok: true,
     project,
     view,
-    input: reportInputForProject({ ...db, evidence: exported.records }, project),
+    input: reportInputForProject(
+      { ...runtime, evidence: exported.records },
+      project,
+    ),
   };
 }

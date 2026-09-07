@@ -166,7 +166,8 @@ export interface Alert {
 }
 
 /**
- * In-memory read model for workspace pages and domain helpers during mutations.
+ * In-memory slice for **writes and assessment** only.
+ * Request pages use tenancy Workspace + repo / getProjectRuntime reads.
  * Persist changes via row-level repo functions — never bulk-sync this object.
  */
 export interface Db {
