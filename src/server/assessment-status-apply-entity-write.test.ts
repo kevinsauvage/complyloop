@@ -3,7 +3,7 @@ import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
-import { applyEntityWrite } from "./apply-entity-write";
+import { applyEntityWrite } from "./assessment-status";
 
 describe("applyEntityWrite", () => {
   const project = testProject({ id: "p1", orgId: "org-1" });

@@ -4,7 +4,7 @@ import {
   countNavAttentionForProject,
   type NavAttentionCounts,
 } from "@complyloop/db/repo/nav-attention";
-import { findingsInScope, scopedControlIds } from "./assessment-status";
+import { findingsInScope, scopedControlIds } from "./project-scope";
 import type { Db } from "./db";
 
 export type { NavAttentionCounts };

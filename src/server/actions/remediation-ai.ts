@@ -21,8 +21,8 @@ import {
   remediationForFinding,
 } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
+import { evidenceEntry } from "../evidence-payload";
 import {
-  evidenceEntry,
   refresh,
   replaceRemediation,
   requireOnFindingProject,

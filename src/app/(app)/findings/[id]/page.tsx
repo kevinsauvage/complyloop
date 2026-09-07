@@ -31,7 +31,7 @@ import { buildDeveloperHandoff } from "@/server/handoff";
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
 import { projectCapabilities } from "@/server/project-capabilities";
-import { findingsInScope } from "@/server/assessment-status";
+import { findingsInScope } from "@/server/project-scope";
 import {
   controlById,
   getWorkspace,

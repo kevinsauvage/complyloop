@@ -10,9 +10,7 @@ import type { Db } from "../db";
 import type { ResolveProjectGitHubTokenOptions } from "../github";
 import { assertProjectPermission } from "../project-visibility";
 import type { Workspace } from "../workspace";
-import { evidenceEntry } from "../evidence-payload";
 
-export { evidenceEntry };
 export interface SignedInUser {
   userId: string;
   githubLogin: string | null;

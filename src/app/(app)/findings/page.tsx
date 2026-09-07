@@ -25,7 +25,7 @@ import { clusterFindings } from "@/core/root-cause";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Finding } from "@complyloop/db/types";
 import { projectCapabilities } from "@/server/project-capabilities";
-import { findingsInScope } from "@/server/assessment-status";
+import { findingsInScope } from "@/server/project-scope";
 import {
   controlById,
   getWorkspace,

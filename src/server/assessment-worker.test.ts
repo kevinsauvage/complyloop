@@ -129,7 +129,7 @@ function job(partial: Partial<AssessmentJob> = {}): AssessmentJob {
   };
 }
 
-function emptyDb(): Db {
+function projectDb(): Db {
   return {
     ...baseEmptyDb(),
     projects: [{ ...project }],
@@ -184,7 +184,7 @@ describe("processNextAssessmentJob", () => {
   });
 
   it("runs assessment and completes on success", async () => {
-    const db = emptyDb();
+    const db = projectDb();
     claimNextAssessmentJob.mockResolvedValue(job());
     loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
@@ -223,7 +223,7 @@ describe("processNextAssessmentJob", () => {
   });
 
   it("persists remediations after a run whose evidence snapshot is empty", async () => {
-    const db = emptyDb();
+    const db = projectDb();
     db.evidence = [];
     db.findings = [testFinding()];
     db.remediations = [
@@ -289,7 +289,7 @@ describe("processNextAssessmentJob", () => {
   });
 
   it("reuses the unread regression alert id per control instead of minting a new row (P2-1)", async () => {
-    const db = emptyDb();
+    const db = projectDb();
     db.alerts = [
       {
         id: "alert-existing",
@@ -378,7 +378,7 @@ describe("processNextAssessmentJob", () => {
 
   it("retries when failAssessmentJob returns queued", async () => {
     claimNextAssessmentJob.mockResolvedValue(job({ attempts: 1 }));
-    loadProjectDb.mockResolvedValue(emptyDb());
+    loadProjectDb.mockResolvedValue(projectDb());
     withProjectCheckout.mockRejectedValue(new Error("clone failed"));
     failAssessmentJob.mockResolvedValue("queued");
 
@@ -391,7 +391,7 @@ describe("processNextAssessmentJob", () => {
   });
 
   it("records failure evidence when the job is terminal", async () => {
-    const db = emptyDb();
+    const db = projectDb();
     claimNextAssessmentJob.mockResolvedValue(job({ attempts: 3 }));
     loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockRejectedValue(new Error("clone failed"));
@@ -411,7 +411,7 @@ describe("processNextAssessmentJob", () => {
   });
 
   it("posts a PR check run for webhook jobs with a head sha", async () => {
-    const db = emptyDb();
+    const db = projectDb();
     claimNextAssessmentJob.mockResolvedValue(
       job({
         trigger: "webhook",
@@ -461,7 +461,7 @@ describe("processNextAssessmentJob", () => {
   });
 
   it("treats a default-branch webhook push as authoritative and persists", async () => {
-    const db = emptyDb();
+    const db = projectDb();
     claimNextAssessmentJob.mockResolvedValue(
       job({
         trigger: "webhook",
@@ -497,7 +497,7 @@ describe("processNextAssessmentJob", () => {
   });
 
   it("warns when a PR check cannot be posted", async () => {
-    const db = emptyDb();
+    const db = projectDb();
     claimNextAssessmentJob.mockResolvedValue(
       job({
         trigger: "webhook",

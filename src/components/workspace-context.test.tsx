@@ -43,7 +43,7 @@ const workspaceFixture = {
 };
 
 vi.mock("@/server/workspace", () => ({
-  getWorkspaceContext: vi.fn(async () => workspaceFixture),
+  getWorkspace: vi.fn(async () => workspaceFixture),
 }));
 
 vi.mock("@complyloop/db/client", () => ({

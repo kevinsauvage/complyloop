@@ -1,11 +1,11 @@
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import { formatDateTimeWithZone } from "@/core/format-datetime";
+import type { ReportHeaderModel } from "../report-model";
 import {
   REPORT_SEVERITY_COLORS,
   REPORT_TONE_COLORS,
   reportStatusClass,
-} from "@/core/status-display";
-import { formatDateTimeWithZone } from "@/core/format-datetime";
-import type { ReportHeaderModel } from "../report-model";
+} from "./report-colors";
 
 export function escapeHtml(text: string): string {
   return text

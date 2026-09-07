@@ -18,14 +18,14 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
-import { applyEntityWrite } from "../apply-entity-write";
+import { applyEntityWrite } from "../assessment-status";
 import {
   findingById,
   remediationForFinding,
 } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
+import { evidenceEntry } from "../evidence-payload";
 import {
-  evidenceEntry,
   refresh,
   replaceRemediation,
   requireOnFindingProject,

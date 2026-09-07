@@ -5,7 +5,7 @@ import { ProjectSwitcher } from "@/components/project-switcher";
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
 import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { projectCapabilities } from "@/server/project-capabilities";
-import { getWorkspaceContext } from "@/server/workspace";
+import { getWorkspace } from "@/server/workspace";
 import { getDrizzle } from "@complyloop/db/client";
 import { listLatestAssessmentForProject } from "@complyloop/db/repo/assessments";
 import { cn } from "@/lib/utils";
@@ -32,7 +32,7 @@ function ContextStrip({
 /** Active org/project context + switchers for every workflow page. */
 export async function WorkspaceContext() {
   const { project, visibleProjects, organizations, activeOrgId, access } =
-    await getWorkspaceContext();
+    await getWorkspace();
   const caps = projectCapabilities(project, access, activeOrgId);
   const latestAssessment = project
     ? (await listLatestAssessmentForProject(await getDrizzle(), project.id))[0]

@@ -28,11 +28,13 @@ import {
   reconcileControlFindings,
 } from "./assessment-findings";
 import {
-  assertAssessableCatalog,
   applyExpiredExceptionClearance,
   applyRequirementStatusRefresh,
-  scopedControlIds,
 } from "./assessment-status";
+import {
+  assertAssessableCatalog,
+  scopedControlIds,
+} from "./project-scope";
 import {
   appendEvidence,
   cloneProjectRows,

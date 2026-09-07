@@ -14,11 +14,7 @@ import {
   readActiveOrgCookie,
   readActiveProjectCookie,
 } from "./active-cookies";
-import {
-  loadWorkspaceContextDbForViewer,
-  loadWorkspaceDbForViewer,
-  type Db,
-} from "./db";
+import { loadWorkspaceTenancyDbForViewer, type Db } from "./db";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { orgsForUser, resolveActiveOrgId } from "./orgs";
 import {
@@ -97,16 +93,14 @@ export function prepareWorkspaceState(
   };
 }
 
-async function loadViewerWorkspaceState(
-  loadDb: typeof loadWorkspaceDbForViewer,
-): Promise<Workspace> {
+async function loadViewerWorkspaceState(): Promise<Workspace> {
   const session = await auth();
   const userId = session?.user?.id ?? null;
   const githubLogin = session?.user?.login ?? null;
   const preferredOrgId = userId ? await readActiveOrgCookie() : null;
   const preferredProjectId = await readActiveProjectCookie();
 
-  const db = await loadDb({
+  const db = await loadWorkspaceTenancyDbForViewer({
     userId,
     githubLogin,
     preferredProjectId,
@@ -121,20 +115,11 @@ async function loadViewerWorkspaceState(
 }
 
 /**
- * Tenancy + active project only — for layout shell and org management pages.
- * Memoized per React request separately from {@link getWorkspace}.
- */
-export const getWorkspaceContext = cache(async (): Promise<Workspace> =>
-  loadViewerWorkspaceState(loadWorkspaceContextDbForViewer),
-);
-
-/**
- * Tenancy + active project for app pages. Memoized per React request.
+ * Tenancy + active project for app pages and layout. Memoized per React request.
  * Load findings/requirements/etc. with {@link getProjectRuntime}.
  */
 export const getWorkspace = cache(async (): Promise<Workspace> =>
-  // Same tenancy load as context — runtime is no longer bundled into Workspace.
-  loadViewerWorkspaceState(loadWorkspaceContextDbForViewer),
+  loadViewerWorkspaceState(),
 );
 
 export async function sessionWriteContext(): Promise<{

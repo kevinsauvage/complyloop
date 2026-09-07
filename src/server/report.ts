@@ -1,7 +1,12 @@
 import type { Framework, Project } from "@complyloop/analysis-core/contract/project-types";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { presetById, projectDefaultPresetId } from "@complyloop/adapters/registry";
-import type { ReportView } from "@/core/query";
+import { getDrizzle } from "@complyloop/db/client";
+import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
+import {
+  parseReportViewParam,
+  type ReportView,
+} from "@/core/query";
 import type {
   Alert,
   Assessment,
@@ -14,9 +19,11 @@ import {
   controlsInScope,
   findingsInScope,
   requirementsInScope,
-} from "./assessment-status";
+} from "./project-scope";
+import { getProjectRuntime } from "./project-runtime";
 import { evidenceForProject } from "./project-visibility";
 import type { ReportInput } from "./report-model";
+import { getWorkspace } from "./workspace";
 
 export type { ReportInput } from "./report-model";
 
@@ -76,14 +83,6 @@ export function reportInputForProject(
 export async function loadReportInput(
   request: Request,
 ): Promise<ReportLoadResult> {
-  const { parseReportViewParam } = await import("@/core/query");
-  const { getDrizzle } = await import("@complyloop/db/client");
-  const { listEvidenceForExport } = await import(
-    "@complyloop/db/repo/evidence"
-  );
-  const { getWorkspace } = await import("./workspace");
-  const { getProjectRuntime } = await import("./project-runtime");
-
   const { project } = await getWorkspace();
   if (!project) {
     return {

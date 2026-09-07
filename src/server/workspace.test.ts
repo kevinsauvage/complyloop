@@ -71,6 +71,13 @@ describe("withProjectWrite project touch", () => {
       return { project: active };
     });
 
+    expect(loadWorkspaceDb).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        includeRuntime: false,
+        evidenceLimit: 0,
+      }),
+    );
     expect(acquireNamedPostgresAdvisoryLock).toHaveBeenCalledWith(
       tx,
       `project-write:${project.id}`,

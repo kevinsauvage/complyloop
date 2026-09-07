@@ -6,13 +6,13 @@ import type { Project, Requirement } from "@complyloop/analysis-core/contract/pr
 import { testProject } from "@/test-fixtures/project";
 import { testControl } from "@/test-fixtures/control";
 import { emptyDb } from "@complyloop/db/types";
+import { refreshRequirementStatuses } from "./assessment-status";
 import {
   assertAssessableCatalog,
   controlsInScope,
   findingsInScope,
-  refreshRequirementStatuses,
   requirementsInScope,
-} from "./assessment-status";
+} from "./project-scope";
 
 function project(partial: Partial<Project> & Pick<Project, "id">): Project {
   return testProject(partial);

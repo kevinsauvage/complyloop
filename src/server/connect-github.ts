@@ -9,14 +9,11 @@ import { defaultConnectPreset } from "@complyloop/adapters/registry";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import type { Db } from "./db";
 import { createGit } from "./git";
+import { githubCloneUrl, normalizeGitHubFullName } from "./github-helpers";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
 import { withRepoCheckout } from "./repo-checkout";
 
-/** Builds an authenticated HTTPS clone URL for GitHub (token never stored). */
-export function githubCloneUrl(fullName: string, accessToken: string): string {
-  const encoded = encodeURIComponent(accessToken);
-  return `https://x-access-token:${encoded}@github.com/${fullName}.git`;
-}
+export { githubCloneUrl, normalizeGitHubFullName } from "./github-helpers";
 
 /** Short filesystem-safe name from a GitHub `owner/repo` full name. */
 export function deriveProjectName(fullName: string): string {
@@ -88,11 +85,6 @@ export async function cloneShallow(
       "connect",
     );
   }
-}
-
-/** GitHub full names are case-insensitive; normalize for map keys and equality. */
-export function normalizeGitHubFullName(fullName: string): string {
-  return fullName.trim().toLowerCase();
 }
 
 /**

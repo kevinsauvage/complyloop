@@ -42,8 +42,8 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`). Roles
   `owner|admin|member|viewer`. Workspace load is membership-org + active
   project.
-- **Reads** — `getWorkspace()` / `getWorkspaceContext()` load **tenancy only**
-  (orgs, memberships, projects, active project). Compliance rows load via
+- **Reads** — `getWorkspace()` loads **tenancy only** (orgs, memberships,
+  projects, active project). Compliance rows load via
   `getProjectRuntime(projectId)` or repo `list*`/`get*` helpers. The compliance
   catalog is compile-time data (`shippedCatalog()`). File hashes live in
   `assessment_snapshots` and load only for `runAssessment`. Evidence pages

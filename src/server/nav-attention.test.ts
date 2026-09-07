@@ -10,7 +10,7 @@ const project = testProject({
   createdAt: new Date().toISOString(),
 });
 
-function emptyDb(): Db {
+function projectDb(): Db {
   return {
     ...baseEmptyDb(),
     projects: [project],
@@ -19,7 +19,7 @@ function emptyDb(): Db {
 
 describe("navAttentionCounts", () => {
   it("counts open findings and unread alerts for the project", () => {
-    const db = emptyDb();
+    const db = projectDb();
     db.findings.push({
       id: "f1",
       projectId: "p1",
@@ -92,7 +92,7 @@ describe("navAttentionCounts", () => {
   });
 
   it("returns zero counts for an unknown project", () => {
-    expect(navAttentionCounts(emptyDb(), "missing")).toEqual({
+    expect(navAttentionCounts(projectDb(), "missing")).toEqual({
       openFindings: 0,
       unreadAlerts: 0,
     });

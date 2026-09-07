@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
-  assessmentJobsResponseSchema,
   entityIdSchema,
   findingIdsField,
   firstIssueMessage,
@@ -101,30 +100,5 @@ describe("githubRepoSearchResponseSchema", () => {
     expect(
       githubRepoSearchResponseSchema.safeParse({ error: "nope" }).success,
     ).toBe(false);
-  });
-});
-
-describe("assessmentJobsResponseSchema", () => {
-  it("accepts a job list and rejects a missing jobs array", () => {
-    const ok = {
-      jobs: [
-        {
-          id: "job-1",
-          projectId: "p1",
-          status: "queued",
-          trigger: "manual",
-          payload: {},
-          attempts: 0,
-          maxAttempts: 3,
-          availableAt: "2026-01-01T00:00:00.000Z",
-          createdAt: "2026-01-01T00:00:00.000Z",
-          updatedAt: "2026-01-01T00:00:00.000Z",
-        },
-      ],
-    };
-    expect(assessmentJobsResponseSchema.parse(ok).jobs).toHaveLength(1);
-    expect(assessmentJobsResponseSchema.safeParse({ jobs: null }).success).toBe(
-      false,
-    );
   });
 });

@@ -4,7 +4,7 @@ import { listRequirementsForProject } from "@complyloop/db/repo/requirements";
 import {
   controlsInScope,
   requirementsInScope,
-} from "@/server/assessment-status";
+} from "@/server/project-scope";
 import { frameworkForProject } from "@/server/report";
 import { getWorkspace } from "@/server/workspace";
 

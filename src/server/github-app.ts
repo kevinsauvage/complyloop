@@ -1,15 +1,15 @@
 import { createAppAuth } from "@octokit/auth-app";
 import type { Octokit } from "@octokit/rest";
 import { isProductionRuntime } from "@/auth-secret";
-import { normalizeGitHubFullName } from "./connect-github";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   createOctokit,
   filterReposByQuery,
   mapGitHubRepo,
+  normalizeGitHubFullName,
   octokitErrorMessage,
   type GitHubRepoSummary,
-} from "./github";
+} from "./github-helpers";
 import { isE2EHarnessEnabled } from "./e2e-harness";
 
 /** True when a GitHub App can mint per-installation tokens. */

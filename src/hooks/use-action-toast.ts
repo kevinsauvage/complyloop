@@ -9,6 +9,11 @@ export type ToastableActionState = {
   message?: string | null;
 };
 
+export type ActionToastSuccessAction = {
+  label: string;
+  onClick: () => void;
+};
+
 /**
  * Surfaces `useActionState` results via the global Sonner toaster.
  * Toasts when `pending` flips true → false so the same success copy still
@@ -17,8 +22,14 @@ export type ToastableActionState = {
 export function useActionToast(
   state: ToastableActionState,
   pending = false,
+  options?: {
+    successDuration?: number;
+    successAction?: ActionToastSuccessAction | null;
+  },
 ): void {
   const wasPending = useRef(false);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   useEffect(() => {
     if (pending) {
@@ -33,7 +44,11 @@ export function useActionToast(
       return;
     }
     if (state.message) {
-      toast.success(state.message, { duration: 4_000 });
+      const successAction = optionsRef.current?.successAction ?? null;
+      toast.success(state.message, {
+        duration: optionsRef.current?.successDuration ?? 4_000,
+        ...(successAction ? { action: successAction } : {}),
+      });
     }
   }, [pending, state.error, state.message]);
 }

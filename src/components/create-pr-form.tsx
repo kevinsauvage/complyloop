@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
-import { toast } from "sonner";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { useActionToast } from "@/hooks/use-action-toast";
 import {
   createPullRequestAction,
   type CreatePrFormState,
@@ -17,35 +17,17 @@ const initial: CreatePrFormState = {
 export function CreatePrForm({ findingId }: { findingId: string }) {
   const action = createPullRequestAction.bind(null, findingId);
   const [state, formAction, pending] = useActionState(action, initial);
-  const lastKey = useRef<string | null>(null);
-
-  useEffect(() => {
-    const key = state.error
-      ? `error:${state.error}`
-      : state.message
-        ? `message:${state.message}:${state.prUrl ?? ""}`
-        : null;
-    if (key == null || key === lastKey.current) return;
-    lastKey.current = key;
-
-    if (state.error) {
-      toast.error(state.error, { duration: 8_000 });
-      return;
-    }
-    if (state.message) {
-      toast.success(state.message, {
-        duration: 6_000,
-        action: state.prUrl
-          ? {
-              label: "Open draft PR",
-              onClick: () => {
-                window.open(state.prUrl!, "_blank", "noopener,noreferrer");
-              },
-            }
-          : undefined,
-      });
-    }
-  }, [state.error, state.message, state.prUrl]);
+  useActionToast(state, pending, {
+    successDuration: 6_000,
+    successAction: state.prUrl
+      ? {
+          label: "Open draft PR",
+          onClick: () => {
+            window.open(state.prUrl!, "_blank", "noopener,noreferrer");
+          },
+        }
+      : null,
+  });
 
   return (
     <form action={formAction} className="flex flex-col gap-2">

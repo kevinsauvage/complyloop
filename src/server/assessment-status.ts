@@ -1,7 +1,5 @@
 import { shippedCatalog } from "@complyloop/adapters/catalog";
-import { presetById } from "@complyloop/adapters/registry";
 import { type Finding, type EvidenceRecord } from "@complyloop/db/types";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   deriveRequirementStatus,
   isStickyHumanDecision,
@@ -18,23 +16,9 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/project-types";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
-import { findingsForProject, requirementsForProject } from "./project-visibility";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { controlsInScope } from "./project-scope";
 import type { ProjectRows } from "./project-rows";
-
-/**
- * Control IDs this project assesses. Uses live preset membership so new rules
- * apply without rewriting stored project fields. `undefined` means the whole
- * catalog.
- */
-export function scopedControlIds(
-  project: Project,
-): ReadonlySet<string> | undefined {
-  const presetId = project.defaultPresetId;
-  if (!presetId) return undefined;
-  const preset = presetById(presetId);
-  if (!preset) return undefined;
-  return new Set(preset.controlIds);
-}
 
 /** Human exceptions and human passes block automated status overwrite. */
 function requirementIsSticky(
@@ -46,62 +30,6 @@ function requirementIsSticky(
     hasException: Boolean(requirement.exception),
     hasHumanPass: Boolean(requirement.humanPass),
   });
-}
-
-/**
- * Controls assessed for a project. `undefined` scope means the full catalog.
- * Pass `catalog` in tests that inject a subset; production uses the shipped set.
- */
-function catalogControls(catalog?: readonly Control[]): Control[] {
-  return catalog === undefined ? shippedCatalog().controls : [...catalog];
-}
-
-export function controlsInScope(
-  project: Project,
-  catalog?: readonly Control[],
-): Control[] {
-  const controls = catalogControls(catalog);
-  const controlIds = scopedControlIds(project);
-  if (!controlIds) return [...controls];
-  return controls.filter((control) => controlIds.has(control.id));
-}
-
-/** Fails loud when the catalog or preset scope would produce a no-op assessment. */
-export function assertAssessableCatalog(
-  project: Project,
-  catalog?: readonly Control[],
-): Control[] {
-  const scoped = controlsInScope(project, catalog);
-  if (scoped.length > 0) return scoped;
-  throw new PublicError(
-    catalogControls(catalog).length === 0
-      ? "Compliance catalog is unavailable."
-      : "No controls are in scope for this project. Check the assessment preset in Settings.",
-  );
-}
-
-/** Requirements for a project that fall inside its assessment target. */
-export function requirementsInScope(
-  requirements: ReadonlyArray<Requirement>,
-  project: Project,
-): Requirement[] {
-  const forProject = requirementsForProject(requirements, project.id);
-  const controlIds = scopedControlIds(project);
-  if (!controlIds) return forProject;
-  return forProject.filter((requirement) =>
-    controlIds.has(requirement.controlId),
-  );
-}
-
-/** Findings for a project that fall inside its assessment target. */
-export function findingsInScope(
-  findings: ReadonlyArray<Finding>,
-  project: Project,
-): Finding[] {
-  const forProject = findingsForProject(findings, project.id);
-  const controlIds = scopedControlIds(project);
-  if (!controlIds) return forProject;
-  return forProject.filter((finding) => controlIds.has(finding.controlId));
 }
 
 export interface ClearExpiredExceptionsResult {
@@ -460,4 +388,46 @@ export function findingsWithPayloadOverrides(
   if (!overrides || overrides.length === 0) return [...findings];
   const byId = new Map(overrides.map((finding) => [finding.id, finding]));
   return findings.map((finding) => byId.get(finding.id) ?? finding);
+}
+
+function requirementsWithPayloadOverrides(
+  requirements: ReadonlyArray<Requirement>,
+  overrides: ReadonlyArray<Requirement> | undefined,
+): Requirement[] {
+  if (!overrides || overrides.length === 0) return [...requirements];
+  const byId = new Map(overrides.map((requirement) => [requirement.id, requirement]));
+  return requirements.map(
+    (requirement) => byId.get(requirement.id) ?? requirement,
+  );
+}
+
+/**
+ * After findings/remediations/requirements are staged on `payload`, re-derive
+ * requirement statuses for `controlIds` (seeing payload overrides) and merge
+ * the result onto the payload.
+ */
+export function applyEntityWrite(
+  payload: ProjectWritePayload,
+  input: {
+    project: Project;
+    findings: ReadonlyArray<Finding>;
+    requirements: ReadonlyArray<Requirement>;
+    controlIds: readonly string[];
+    options?: RefreshRequirementStatusesOptions;
+  },
+): void {
+  if (input.controlIds.length === 0) return;
+  mergeRefreshIntoPayload(
+    payload,
+    refreshRequirementStatuses({
+      project: input.project,
+      findings: findingsWithPayloadOverrides(input.findings, payload.findings),
+      requirements: requirementsWithPayloadOverrides(
+        input.requirements,
+        payload.requirements,
+      ),
+      controlIds: input.controlIds,
+      options: input.options,
+    }),
+  );
 }

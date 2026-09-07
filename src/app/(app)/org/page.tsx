@@ -21,7 +21,7 @@ import {
   createOrgAction,
   inviteOrgMemberAction,
 } from "@/server/actions/org";
-import { getWorkspaceContext } from "@/server/workspace";
+import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,7 @@ export default async function OrgPage() {
     );
   }
 
-  const { organizations, projects, access, activeOrgId } = await getWorkspaceContext();
+  const { organizations, projects, access, activeOrgId } = await getWorkspace();
   const org = activeOrgId
     ? organizations.find((candidate) => candidate.id === activeOrgId)
     : undefined;

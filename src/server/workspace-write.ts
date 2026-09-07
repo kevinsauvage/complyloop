@@ -136,6 +136,7 @@ async function runProjectWriteTransaction(
               githubLogin,
               activeProjectId: preferredProjectId,
               evidenceLimit: 0,
+              includeRuntime: false,
             })
           : await loadTargetedProjectWriteDb(tx, {
               userId,
@@ -242,6 +243,7 @@ export async function withOrgWrite<T>(
       githubLogin,
       activeProjectId: null,
       evidenceLimit: 0,
+      includeRuntime: false,
     });
     const organizations = orgsForUser(db, userId);
     const {
@@ -307,6 +309,7 @@ export async function withConnectWrite<T>(
       githubLogin,
       activeProjectId: options.activeProjectId,
       evidenceLimit: 0,
+      includeRuntime: false,
     });
     const { result, insertProjects, deleteProjectIds, evidence } = await fn({
       db,

@@ -31,7 +31,7 @@ import { recentAssessmentJobsForProject } from "@/server/assessment-jobs";
 import {
   findingsInScope,
   requirementsInScope,
-} from "@/server/assessment-status";
+} from "@/server/project-scope";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { frameworkForProject } from "@/server/report";
 import { controlById, getWorkspace } from "@/server/workspace";

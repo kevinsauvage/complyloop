@@ -18,6 +18,7 @@ import {
 } from "./org";
 import type { Db } from "../db";
 import type { ProjectWriteWorkspace } from "../workspace";
+import { emptyDb as emptyDbBase } from "@complyloop/db/types";
 
 const { getWorkspace, withOrgWrite } = actionWorkspaceMocks;
 const exportOrgData = vi.hoisted(() => vi.fn());
@@ -114,15 +115,10 @@ async function invokeOrgWrite(
 
 function emptyDb(memberships = [ownerMembership]): Db {
   return {
+    ...emptyDbBase(),
     organizations: [org],
     memberships: [...memberships],
     projects: [project],
-    requirements: [],
-    assessments: [],
-    findings: [],
-    remediations: [],
-    evidence: [],
-    alerts: [],
   };
 }
 

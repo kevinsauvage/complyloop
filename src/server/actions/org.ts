@@ -32,9 +32,6 @@ import { refresh, requireSignedIn } from "./shared";
 import { loadProjectRuntime } from "@complyloop/db/workspace-load";
 import { emptyDb } from "@complyloop/db/types";
 
-export type OrgMemberFormState = ActionMessageState;
-export type CreateOrgFormState = ActionMessageState;
-
 const switchOrgInput = z.object({
   orgId: requiredField("An organization id is required."),
 });
@@ -86,9 +83,9 @@ export async function switchOrgAction(formData: FormData): Promise<void> {
 }
 
 export async function createOrgAction(
-  _previous: CreateOrgFormState,
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<CreateOrgFormState> {
+): Promise<ActionMessageState> {
   return runActionMessage(async () => {
     const { userId, githubLogin } = await requireSignedIn(
       "Sign in with GitHub to create an organization.",
@@ -117,9 +114,9 @@ export async function createOrgAction(
 }
 
 export async function inviteOrgMemberAction(
-  _previous: OrgMemberFormState,
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<OrgMemberFormState> {
+): Promise<ActionMessageState> {
   return runActionMessage(async () => {
     const { userId } = await requireSignedIn(
       "Sign in to manage organization members.",

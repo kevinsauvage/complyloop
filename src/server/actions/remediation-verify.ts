@@ -18,7 +18,7 @@ import {
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
 import { sameInstance } from "../assessment-findings";
-import { applyEntityWrite } from "../apply-entity-write";
+import { applyEntityWrite } from "../assessment-status";
 import type { Db } from "../db";
 import {
   findingById,
@@ -28,8 +28,8 @@ import {
   requireRemediationForFinding,
 } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
+import { evidenceEntry } from "../evidence-payload";
 import {
-  evidenceEntry,
   refresh,
   replaceRemediation,
   requireOnFindingProject,

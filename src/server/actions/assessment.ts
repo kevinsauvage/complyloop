@@ -8,7 +8,8 @@ import { drainAssessmentJobQueue, shouldDrainAssessmentJobsInline } from "../ass
 import { enqueueAssessmentJob, type AssessmentJob } from "../assessment-jobs";
 import { assertAssessRateLimit } from "../rate-limit";
 import { withProjectWrite } from "../workspace-write";
-import { evidenceEntry, refresh, requireOnActive } from "./shared";
+import { evidenceEntry } from "../evidence-payload";
+import { refresh, requireOnActive } from "./shared";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 export async function runAssessmentAction(

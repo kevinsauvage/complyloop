@@ -33,9 +33,6 @@ import { getWorkspace } from "../workspace";
 import { withConnectWrite } from "../workspace-write";
 import { refresh, requireSignedIn } from "./shared";
 
-export type ConnectGitHubFormState = ActionMessageState;
-export type DisconnectGitHubFormState = ActionMessageState;
-
 const switchProjectInput = z.object({
   projectId: requiredField("A project id is required."),
 });
@@ -73,9 +70,9 @@ export async function switchProjectAction(formData: FormData): Promise<void> {
 }
 
 export async function connectGitHubRepoAction(
-  _previous: ConnectGitHubFormState,
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<ConnectGitHubFormState> {
+): Promise<ActionMessageState> {
   return runActionMessage(async () => {
     const { fullName, installationId: claimedInstallationId } = parseForm(
       connectGitHubRepoInput,
@@ -158,9 +155,9 @@ export async function connectGitHubRepoAction(
 }
 
 export async function disconnectGitHubRepoAction(
-  _previous: DisconnectGitHubFormState,
+  _previous: ActionMessageState,
   formData: FormData,
-): Promise<DisconnectGitHubFormState> {
+): Promise<ActionMessageState> {
   return runActionMessage(async () => {
     const { projectId } = parseForm(disconnectGitHubRepoInput, formData);
     await requireSignedIn(

@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
-import type { OrgMemberFormState } from "@/server/actions/org";
+import type { ActionMessageState } from "@/server/action-state";
 
-const initial: OrgMemberFormState = { error: null, message: null };
+const initial: ActionMessageState = { error: null, message: null };
 
 export function InviteMemberForm({
   action,
@@ -15,9 +15,9 @@ export function InviteMemberForm({
   canAssignAdmin = false,
 }: {
   action: (
-    previous: OrgMemberFormState,
+    previous: ActionMessageState,
     formData: FormData,
-  ) => Promise<OrgMemberFormState>;
+  ) => Promise<ActionMessageState>;
   orgId: string;
   /** Owners may invite admins; admins may only invite member/viewer. */
   canAssignAdmin?: boolean;

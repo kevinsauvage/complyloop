@@ -4,12 +4,16 @@ import type { DrizzleDb } from "./client.ts";
 import {
   rowToEvidence,
 } from "./repo/mappers.ts";
+import { listAlertsForProject } from "./repo/alerts.ts";
 import { WORKSPACE_EVIDENCE_LIMIT } from "./repo/evidence.ts";
+import { listFindingsForProject } from "./repo/findings.ts";
 import { listMembershipsForOrgs, listOrganizationsForUser, listOrgIdsForUser } from "./repo/orgs.ts";
 import {
   getProjectById,
   listProjectsForOrgs,
 } from "./repo/projects.ts";
+import { listRemediationsForProject } from "./repo/remediations.ts";
+import { listRequirementsForProject } from "./repo/requirements.ts";
 import {
   alerts,
   evidence,
@@ -37,6 +41,7 @@ async function loadEvidenceWindow(
   return rows.reverse().map(rowToEvidence);
 }
 
+/** Compliance rows for one project — single query path shared by writes and reads. */
 export async function loadProjectRuntime(
   drizzle: DrizzleDb,
   projectId: string,
@@ -46,33 +51,22 @@ export async function loadProjectRuntime(
     "requirements" | "assessments" | "findings" | "remediations" | "alerts"
   >
 > {
-  const [requirementRows, findingRows, alertRows, assessmentsList] =
+  const [requirementsList, findingsList, remediationsList, alertsList, assessmentsList] =
     await Promise.all([
-      drizzle
-        .select()
-        .from(requirements)
-        .where(eq(requirements.projectId, projectId)),
-      drizzle.select().from(findings).where(eq(findings.projectId, projectId)),
-      drizzle.select().from(alerts).where(eq(alerts.projectId, projectId)),
-      // Latest only — the app consumes latestAssessmentFor + "has any" (P2-3).
+      listRequirementsForProject(drizzle, projectId),
+      listFindingsForProject(drizzle, projectId),
+      listRemediationsForProject(drizzle, projectId),
+      listAlertsForProject(drizzle, projectId),
+      // Latest only — the app consumes latestAssessmentFor + "has any".
       listLatestAssessmentForProject(drizzle, projectId),
     ]);
 
-  const findingIds = findingRows.map((row) => row.id);
-  const remediationRows =
-    findingIds.length === 0
-      ? []
-      : await drizzle
-          .select()
-          .from(remediations)
-          .where(inArray(remediations.findingId, findingIds));
-
   return {
-    requirements: requirementRows.map((row) => row.payload),
+    requirements: requirementsList,
     assessments: assessmentsList,
-    findings: findingRows.map((row) => row.payload),
-    remediations: remediationRows.map((row) => row.payload),
-    alerts: alertRows.map((row) => row.payload),
+    findings: findingsList,
+    remediations: remediationsList,
+    alerts: alertsList,
   };
 }
 

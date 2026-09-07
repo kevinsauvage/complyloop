@@ -17,11 +17,10 @@ import { Label } from "@/components/ui/label";
 import { githubRepoSearchResponseSchema, parseUnknown } from "@/core/boundary";
 import { STATUS_TONE_BADGE } from "@/core/status-display";
 import { useActionToast } from "@/hooks/use-action-toast";
+import type { ActionMessageState } from "@/server/action-state";
 import {
   connectGitHubRepoAction,
   disconnectGitHubRepoAction,
-  type ConnectGitHubFormState,
-  type DisconnectGitHubFormState,
 } from "@/server/actions/connect";
 import type { GitHubRepoSummary } from "@/server/github";
 import { z } from "zod";
@@ -49,8 +48,8 @@ function groupReposByOwner(repos: GitHubRepoSummary[]): RepoOwnerGroup[] {
     .map(([owner, ownerRepos]) => ({ owner, repos: ownerRepos }));
 }
 
-const connectInitial: ConnectGitHubFormState = { error: null, message: null };
-const disconnectInitial: DisconnectGitHubFormState = {
+const connectInitial: ActionMessageState = { error: null, message: null };
+const disconnectInitial: ActionMessageState = {
   error: null,
   message: null,
 };
