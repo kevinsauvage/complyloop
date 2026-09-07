@@ -53,7 +53,7 @@ export function OrgDataLifecycle({
     deleteOrgAction,
     initialState,
   );
-  useActionToast(deleteState);
+  useActionToast(deleteState, deletePending);
 
   async function runExport(): Promise<void> {
     setExporting(true);

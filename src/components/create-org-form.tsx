@@ -19,7 +19,7 @@ export function CreateOrgForm({
   ) => Promise<CreateOrgFormState>;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
-  useActionToast(state);
+  useActionToast(state, pending);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">

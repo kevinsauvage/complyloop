@@ -59,8 +59,15 @@ export const RUNTIME_GOTO_TIMEOUT_MS = 30_000;
 /**
  * Brief settle after DOMContentLoaded so client-mounted widgets can attach.
  * Do not use `networkidle` — SPAs with analytics or HMR often never reach it.
+ * Animations are frozen in {@link gotoForRuntimeAudit} so a short settle is enough.
  */
 export const RUNTIME_POST_DOM_SETTLE_MS = 250;
+
+/** CSS injected before axe so fade-ins / transitions do not change the tree between runs. */
+export const RUNTIME_AUDIT_MOTION_FREEZE_CSS = `*, *::before, *::after {
+  animation: none !important;
+  transition: none !important;
+}`;
 
 function normalizePathname(pathname: string): string {
   if (pathname === "/") return "/";
@@ -91,6 +98,12 @@ export async function gotoForRuntimeAudit(
   const response = await page.goto(url, {
     waitUntil: "domcontentloaded",
     timeout: RUNTIME_GOTO_TIMEOUT_MS,
+  });
+  // Portfolio/marketing pages often mount with opacity-0 + CSS fade-ins. Without
+  // freezing motion, axe sees a different set of contrast nodes every run.
+  await page.addStyleTag({ content: RUNTIME_AUDIT_MOTION_FREEZE_CSS });
+  await page.evaluate(async () => {
+    if (document.fonts?.ready) await document.fonts.ready;
   });
   await page.waitForTimeout(RUNTIME_POST_DOM_SETTLE_MS);
   const status = response?.status() ?? 0;

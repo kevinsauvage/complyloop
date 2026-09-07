@@ -25,6 +25,10 @@ import { appendEvidence, type ProjectRows } from "./project-rows";
 /**
  * Findings are matched across assessments by location identity so remediation
  * state survives re-assessment and dismissals stick.
+ *
+ * DOM identity is the node selector (same as runtime dedupe): many contrast /
+ * name failures share identical markup snippets, so snippet-only matching
+ * keeps stale opens alive while new nodes accumulate every run.
  */
 export function sameInstance(
   finding: { location: FindingLocation },
@@ -40,10 +44,14 @@ export function sameInstance(
     );
   }
   if (isDomLocation(left) && isDomLocation(right)) {
-    return (
-      left.url === right.url &&
-      (left.selector === right.selector || left.snippet === right.snippet)
-    );
+    if (left.url !== right.url) return false;
+    const leftSelector = usableDomSelector(left.selector);
+    const rightSelector = usableDomSelector(right.selector);
+    if (leftSelector && rightSelector) {
+      return leftSelector === rightSelector;
+    }
+    // Selector missing on either side — fall back to snippet identity.
+    return left.snippet === right.snippet;
   }
   if (isSiteLocation(left) && isSiteLocation(right)) {
     return (
@@ -53,6 +61,11 @@ export function sameInstance(
     );
   }
   return false;
+}
+
+function usableDomSelector(selector: string): string {
+  const trimmed = selector.trim();
+  return trimmed && trimmed !== "(unknown)" ? trimmed : "";
 }
 
 /** Carries a human-edited fix value over to the freshly scanned fix. */
@@ -193,13 +206,14 @@ export function reconcileControlFindings(
   );
 
   const matchedIds = new Set<string>();
+  // Include findings created in this pass so duplicate raw hits update the
+  // same open row instead of minting siblings (axe can emit overlapping nodes).
+  const matchPool = [...openFindings];
   for (const raw of rawForControl) {
     if (dismissedFindings.some((finding) => sameInstance(finding, raw))) {
       continue;
     }
-    const existing = openFindings.find(
-      (finding) => !matchedIds.has(finding.id) && sameInstance(finding, raw),
-    );
+    const existing = matchPool.find((finding) => sameInstance(finding, raw));
     if (existing) {
       matchedIds.add(existing.id);
       existing.assessmentId = assessmentId;
@@ -213,6 +227,11 @@ export function reconcileControlFindings(
       }
     } else {
       createFinding(rows, project, rootPath, control.id, assessmentId, raw);
+      const created = rows.findings[rows.findings.length - 1];
+      if (created) {
+        matchPool.push(created);
+        matchedIds.add(created.id);
+      }
     }
   }
 

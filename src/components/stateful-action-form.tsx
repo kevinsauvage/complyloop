@@ -49,7 +49,7 @@ export function StatefulActionForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formId = useId();
-  useActionToast(state);
+  useActionToast(state, pending);
 
   const feedbackState =
     inlineSuccess || state.error

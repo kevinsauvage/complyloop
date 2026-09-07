@@ -124,8 +124,8 @@ export function GitHubRepoPicker({
     disconnectGitHubRepoAction,
     disconnectInitial,
   );
-  useActionToast(connectState);
-  useActionToast(disconnectState);
+  useActionToast(connectState, connectPending);
+  useActionToast(disconnectState, disconnectPending);
 
   const loadRepos = useCallback(
     async (nextPage: number, q: string, append: boolean) => {

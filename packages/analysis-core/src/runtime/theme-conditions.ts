@@ -76,15 +76,23 @@ export const THEME_SENSITIVE_AXE_RULES: ReadonlySet<string> = new Set([
   "link-in-text-block",
 ]);
 
-/** Identity of a violation: rule id + first target selector. */
+/** Identity of one axe node: rule id + primary target selector. */
+export function violationNodeKey(
+  ruleId: string,
+  target: ReadonlyArray<string> | undefined,
+): string {
+  return `${ruleId}::${target?.[0] || ""}`;
+}
+
 export function violationKey(violation: AxeViolationLike): string {
-  const target = violation.nodes[0]?.target[0] || "";
-  return `${violation.id}::${target}`;
+  return violationNodeKey(violation.id, violation.nodes[0]?.target);
 }
 
 /**
  * Returns the violations observed under a browser condition that were NOT seen
  * in the baseline (default) pass — the findings that only fail in one state.
+ * Compared per node so a multi-node baseline rule does not hide (or re-add)
+ * overlapping nodes when axe reorders targets under the condition.
  * Each returned violation's description is prefixed so the evidence says which
  * condition produced it.
  */
@@ -93,17 +101,27 @@ export function conditionSpecificViolations(
   condition: ReadonlyArray<AxeViolationLike>,
   conditionLabel: string,
 ): AxeViolationLike[] {
-  const baselineKeys = new Set(baseline.map(violationKey));
+  const baselineKeys = new Set(
+    baseline.flatMap((violation) =>
+      violation.nodes.map((node) =>
+        violationNodeKey(violation.id, node.target),
+      ),
+    ),
+  );
   const seen = new Set<string>();
   const specific: AxeViolationLike[] = [];
 
   for (const violation of condition) {
-    const key = violationKey(violation);
-    if (baselineKeys.has(key)) continue;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const nodes = violation.nodes.filter((node) => {
+      const key = violationNodeKey(violation.id, node.target);
+      if (baselineKeys.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (nodes.length === 0) continue;
     specific.push({
       ...violation,
+      nodes,
       description: `[${conditionLabel} only] ${violation.description}`,
     });
   }

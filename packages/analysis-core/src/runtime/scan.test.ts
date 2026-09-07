@@ -84,6 +84,12 @@ describe("gotoForRuntimeAudit", () => {
       await gotoForRuntimeAudit(page, "https://repeat.example/");
       expect(Date.now() - started).toBeLessThan(10_000);
       expect(await page.locator("h1").textContent()).toBe("Ready");
+      const freeze = await page.evaluate(() =>
+        [...document.querySelectorAll("style")].some((el) =>
+          (el.textContent ?? "").includes("animation: none"),
+        ),
+      );
+      expect(freeze).toBe(true);
     },
     30_000,
   );

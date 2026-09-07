@@ -32,13 +32,42 @@ describe("conditionSpecificViolations", () => {
     const condition = [
       violation("color-contrast", "#a"), // also in baseline -> dropped
       violation("color-contrast", "#dark-only"), // new -> kept
-      violation("color-contrast", "#dark-only"), // duplicate -> kept once
+      violation("color-contrast", "#dark-only"), // duplicate node -> kept once via filter
       violation("focus-visible", "#shared"), // in baseline -> dropped
     ];
     const result = conditionSpecificViolations(baseline, condition, "dark");
     expect(result).toHaveLength(1);
+    expect(result[0]?.nodes).toHaveLength(1);
     expect(result[0]?.nodes[0]?.target[0]).toBe("#dark-only");
     expect(result[0]?.description).toContain("[dark only]");
+  });
+
+  it("keeps only the nodes absent from the baseline when axe groups many targets", () => {
+    const baseline: AxeViolationLike = {
+      id: "color-contrast",
+      impact: "serious",
+      description: "baseline",
+      help: "help",
+      nodes: [
+        { html: "<a>", target: ["#shared"] },
+        { html: "<b>", target: ["#light"] },
+      ],
+    };
+    const condition: AxeViolationLike = {
+      id: "color-contrast",
+      impact: "serious",
+      description: "dark",
+      help: "help",
+      nodes: [
+        { html: "<a>", target: ["#shared"] },
+        { html: "<c>", target: ["#dark-only"] },
+      ],
+    };
+    const result = conditionSpecificViolations([baseline], [condition], "dark");
+    expect(result).toHaveLength(1);
+    expect(result[0]?.nodes.map((node) => node.target[0])).toEqual([
+      "#dark-only",
+    ]);
   });
 
   it("returns nothing when the condition adds no findings", () => {

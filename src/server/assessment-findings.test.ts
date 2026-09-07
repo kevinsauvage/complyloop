@@ -9,6 +9,7 @@ import {
   buildSuggestion,
   createFinding,
   mergeFix,
+  reconcileControlFindings,
   sameInstance,
   shouldResolveOpenFinding,
 } from "./assessment-findings";
@@ -97,6 +98,50 @@ describe("createFinding analyzer evidence", () => {
       doctypeIncludedInInput: false,
       contributingAnalyzers: [{ analyzerId: "axe", analyzerRuleId: "list" }],
     });
+  });
+});
+
+describe("reconcileControlFindings", () => {
+  it("collapses duplicate DOM raw hits onto one open finding in a single pass", () => {
+    const rows = emptyRows();
+    const raw = {
+      checkId: "color-contrast" as const,
+      kind: "violation" as const,
+      severity: "serious" as const,
+      confidence: "high" as const,
+      reason: "Low contrast",
+      location: {
+        kind: "dom" as const,
+        url: "https://app.example/",
+        selector: ".badge:nth-child(2)",
+        snippet: '<span class="badge">JS</span>',
+      },
+      fix: null,
+      analyzerId: "axe" as const,
+      analyzerRuleId: "color-contrast",
+    };
+
+    reconcileControlFindings({
+      rows,
+      project,
+      control: {
+        id: "ctl-contrast",
+        frameworkId: "rgaa",
+        ref: "3.2",
+        title: "Contrast",
+        checkId: "color-contrast",
+      },
+      assessmentId: "a1",
+      rootPath: "/tmp",
+      rawForControl: [raw, { ...raw }, { ...raw }],
+      scopedFileSet: null,
+      runtimeRan: true,
+      onFindingResolved: () => {},
+    });
+
+    expect(
+      rows.findings.filter((finding) => finding.status === "open"),
+    ).toHaveLength(1);
   });
 });
 
@@ -207,6 +252,52 @@ describe("sameInstance", () => {
             url: "https://x.test/",
             selector: "#email",
             snippet: "<input id=email>",
+          },
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it("does not match distinct DOM nodes that share a snippet", () => {
+    expect(
+      sameInstance(
+        {
+          location: {
+            kind: "dom",
+            url: "https://x.test/",
+            selector: "#a",
+            snippet: "<span class=\"muted\">Ok</span>",
+          },
+        },
+        {
+          location: {
+            kind: "dom",
+            url: "https://x.test/",
+            selector: "#b",
+            snippet: "<span class=\"muted\">Ok</span>",
+          },
+        },
+      ),
+    ).toBe(false);
+  });
+
+  it("falls back to snippet when a DOM selector is unknown", () => {
+    expect(
+      sameInstance(
+        {
+          location: {
+            kind: "dom",
+            url: "https://x.test/",
+            selector: "(unknown)",
+            snippet: "<button>Save</button>",
+          },
+        },
+        {
+          location: {
+            kind: "dom",
+            url: "https://x.test/",
+            selector: "(unknown)",
+            snippet: "<button>Save</button>",
           },
         },
       ),
