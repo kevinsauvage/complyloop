@@ -233,15 +233,6 @@ source of incidental complexity left in the repo.
 - **Files:** `src/server/report-html/shared.ts`, `src/core/status-display.ts`,
   `src/server/report-markdown.ts`.
 
-### P2-10 · Pass the loaded slice instead of three parallel guard maps — **DONE** (with P0-1)
-
-- **What:** `PersistProjectRowsOptions` carried three parallel `updatedAt` maps;
-  `captureEntityStaleWriteGuards` built them from scope ids;
-  `applyAssessmentPayload` rebuilt them from `ProjectSlice`.
-- **What changed:** Options are now `{ loadedSlice? }`; maps are derived inside
-  `persistProjectRows`. Workspace writes capture a `ProjectSlice` via
-  `captureEntityLoadedSlice`.
-
 ---
 
 ## P3 — Low
