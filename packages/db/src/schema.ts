@@ -29,10 +29,10 @@ import {
 } from "@complyloop/analysis-core/contract/statuses";
 
 /**
- * Domain rows store the typed payload as JSONB so nested Finding/Remediation
- * shapes stay framework-agnostic without a brittle column explosion.
- * Indexed columns are projections of that payload; repo mappers are the
- * only writers.
+ * Source of truth is the typed `payload` (JSONB); the sibling indexed columns
+ * are projections of that payload. Indexes need columns, so we keep a few
+ * (projectId, status, …) in sync via the repo mappers — the only writers. No
+ * full normalization: a column never holds anything the payload does not.
  * Evidence is a dedicated table: insert-only from the app (never updated/deleted).
  *
  * Foreign keys use ON DELETE CASCADE on mutable tables. Evidence has no FKs —

@@ -7,6 +7,14 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import type { AssessmentPayload } from "../schema.ts";
 
+/**
+ * Source of truth is the typed `payload` (JSONB column); the sibling indexed
+ * columns (id, projectId, status, …) are projections kept in sync here so the
+ * DB can index/filter without a column explosion. Repo functions are the only
+ * writers; a domain object always maps to a row with these helpers — never
+ * set a projected column independently of its payload.
+ */
+
 export function organizationToRow(org: Organization) {
   return { id: org.id, slug: org.slug, payload: org };
 }

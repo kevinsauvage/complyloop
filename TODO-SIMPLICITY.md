@@ -289,28 +289,6 @@ Route: load workspace → pass props. Move sections into `components/dashboard/`
 
 ---
 
-### ~~15. Report HTML thin section files~~ — **DONE**
-
-Landed: `report-html/{audit, engineering, requirements-section, evidence-section}` collapsed into one `report-html/report.ts` (~170 lines) with the renderers as private helpers (evidence/requirements/summary-rows/findings/clusters). Imports updated in `report-model.test.ts` and `evidence/report/html/route.ts`; tests moved to `report-html/report.test.ts` with unchanged assertions; six files deleted.
-
----
-
-### 17. Indexed columns + JSONB — **~0** (document only)
-
-**What**
-Domain tables store `payload jsonb` and project key fields into columns. Mappers keep them in sync.
-
-**Why**
-Mental model: “which is source of truth?”
-
-**How**
-Keep the pattern (indexes need columns). Repo functions are the only writers; columns always derive from the domain object. Comment in `schema.ts` if unclear. No full normalization.
-
-**Files**
-`packages/db/src/schema.ts`, `packages/db/src/repo/mappers.ts`
-
----
-
 ### 18. `packages/db/src/queries.ts` is a grab-bag — **~40–60** (move, not delete)
 
 **What**
