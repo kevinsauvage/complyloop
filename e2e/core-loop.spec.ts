@@ -6,9 +6,10 @@ test.describe("compliance core loop", () => {
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 
     await page.getByRole("button", { name: "Run assessment" }).click();
-    await expect(page.getByText(/Assessment complete/i).first()).toBeVisible({
-      timeout: 60_000,
-    });
+    // Success is toast-only (not inline under the form).
+    await expect(
+      page.locator("[data-sonner-toast]").filter({ hasText: /Assessment complete/i }),
+    ).toBeVisible({ timeout: 60_000 });
 
     await page
       .getByRole("navigation", { name: "Main" })

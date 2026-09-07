@@ -54,6 +54,7 @@ export default async function DashboardPage() {
       action={runAssessmentAction}
       submitLabel="Run assessment"
       pendingLabel="Assessing…"
+      inlineSuccess={false}
     />
   ) : (
     <PermissionNotice>
