@@ -305,22 +305,6 @@ Two APIs for the same RBAC. New screens invent a fifth boolean.
 
 ---
 
-### 22. Entire `badges.tsx` forced client — **~0–20**
-
-**What**
-`badges.tsx` (~169) is `"use client"` because of tooltip wrappers, so label maps enter the client bundle.
-
-**Why**
-Server Components cannot use plain status badges without a client boundary.
-
-**How**
-Server-render plain badges; wrap only `BadgeWithDescription` as client, or use native `title` / `aria-description`.
-
-**Files**
-`src/components/badges.tsx`, `src/components/badge-with-description.tsx`
-
----
-
 ### 25. Personal-org provision still on GET (fast-path exists) — **~20–40** (move, not delete)
 
 **What**
