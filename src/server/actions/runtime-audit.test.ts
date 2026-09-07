@@ -1,6 +1,6 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
+import { actionWorkspaceMocks, clearProjectWritePayloads, invokeProjectWriteMock, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 import { PublicError } from "@complyloop/db/types";
@@ -34,6 +34,7 @@ function workspaceFor(role: "viewer" | "member" | "admin" | "owner") {
 }
 
 afterEach(() => {
+  clearProjectWritePayloads();
   vi.clearAllMocks();
 });
 
@@ -63,8 +64,8 @@ describe("updateRuntimeAuditAction", () => {
     );
 
     expect(result.message).toMatch(/Runtime audit settings saved/);
-    expect(workspace.project?.runtimeBaseUrl).toBeUndefined();
-    expect(workspace.project?.runtimeRoutes).toBeUndefined();
+    expect(projectWritePayload()?.project?.runtimeBaseUrl).toBeUndefined();
+    expect(projectWritePayload()?.project?.runtimeRoutes).toBeUndefined();
     expect(assertSafeRuntimeUrl).not.toHaveBeenCalled();
   });
 
@@ -82,8 +83,8 @@ describe("updateRuntimeAuditAction", () => {
     );
 
     expect(result.message).toMatch(/Runtime audit settings saved/);
-    expect(workspace.project?.runtimeBaseUrl).toBe("https://app.example");
-    expect(workspace.project?.runtimeRoutes).toEqual([
+    expect(projectWritePayload()?.project?.runtimeBaseUrl).toBe("https://app.example");
+    expect(projectWritePayload()?.project?.runtimeRoutes).toEqual([
       "/home",
       "/about",
       "/contact",

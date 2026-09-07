@@ -6,15 +6,13 @@ const withProjectWrite = vi.fn();
 const withOrgWrite = vi.fn();
 const withProjectLock = vi.fn();
 
-function replaceInArray<T extends { id: string }>(items: T[], updated: T): void {
-  const index = items.findIndex((candidate) => candidate.id === updated.id);
-  if (index >= 0) {
-    items[index] = updated;
-    return;
-  }
-  items.push(updated);
-}
+const capturedPayloads: ProjectWritePayload[] = [];
 
+/**
+ * Runs the write callback and captures the payload it produces, WITHOUT
+ * applying it back to the workspace. Actions clone onto the payload and never
+ * mutate the loaded Db, so tests assert on the captured payload directly.
+ */
 export async function invokeProjectWriteMock<T>(
   workspace: Workspace,
   fn: (
@@ -24,21 +22,22 @@ export async function invokeProjectWriteMock<T>(
     | { result: T; payload: ProjectWritePayload },
 ): Promise<T> {
   const { result, payload } = await fn(workspace);
-  for (const finding of payload.findings ?? []) {
-    replaceInArray(workspace.db.findings, finding);
-  }
-  for (const remediation of payload.remediations ?? []) {
-    replaceInArray(workspace.db.remediations, remediation);
-  }
-  for (const requirement of payload.requirements ?? []) {
-    replaceInArray(workspace.db.requirements, requirement);
-  }
-  workspace.db.evidence.push(...(payload.evidence ?? []));
-  if (payload.project) {
-    replaceInArray(workspace.db.projects, payload.project);
-    workspace.project = payload.project;
-  }
+  capturedPayloads.push(payload);
   return result;
+}
+
+/** Payload captured by the most recent `invokeProjectWriteMock` call. */
+export function projectWritePayload(): ProjectWritePayload | undefined {
+  return capturedPayloads.at(-1);
+}
+
+/** Payloads captured across `invokeProjectWriteMock` calls (cleared per test). */
+export function projectWritePayloads(): ProjectWritePayload[] {
+  return capturedPayloads;
+}
+
+export function clearProjectWritePayloads(): void {
+  capturedPayloads.length = 0;
 }
 
 export const actionWorkspaceMocks = {

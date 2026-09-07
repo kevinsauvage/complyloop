@@ -1,0 +1,345 @@
+import "@/test-fixtures/register-action-workspace-mock";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+import {
+  actionWorkspaceMocks,
+  clearProjectWritePayloads,
+  invokeProjectWriteMock,
+  projectWritePayload,
+} from "@/test-fixtures/action-workspace-mocks";
+import { testFinding } from "@/test-fixtures/finding";
+import { testProject } from "@/test-fixtures/project";
+import { testRemediation } from "@/test-fixtures/remediation";
+import { testWorkspace } from "@/test-fixtures/workspace";
+import { emptyActionMessageState } from "../action-state";
+import type { Db } from "../db";
+import type { Workspace } from "../workspace";
+import {
+  clearRequirementExceptionAction,
+  clearRequirementHumanPassAction,
+  markRequirementExceptionAction,
+  markRequirementPassedAction,
+} from "./requirements";
+
+const { withProjectWrite } = actionWorkspaceMocks;
+const refreshRequirementStatusesForControls = vi.hoisted(() =>
+  vi.fn(() => ({ requirements: [], evidence: [] })),
+);
+
+vi.mock("../observability", () => ({
+  reportError: vi.fn(),
+  reportWarning: vi.fn(),
+}));
+
+vi.mock("../assessment-status", async () => {
+  const actual = await vi.importActual<typeof import("../assessment-status")>(
+    "../assessment-status",
+  );
+  return {
+    ...actual,
+    refreshRequirementStatusesForControls: (
+      ...args: Parameters<typeof actual.refreshRequirementStatusesForControls>
+    ) =>
+      (
+        refreshRequirementStatusesForControls as unknown as typeof actual.refreshRequirementStatusesForControls
+      )(...args),
+  };
+});
+
+const project = testProject({ orgId: "org-1" });
+const finding = testFinding();
+
+function baseWorkspace(overrides: Partial<Db> = {}): Workspace {
+  const { findings, remediations, ...rest } = overrides;
+  return testWorkspace({
+    role: "member",
+    userId: "user-1",
+    project,
+    findings: findings ?? [finding],
+    remediations:
+      remediations ??
+      [
+        testRemediation({ status: "implemented", suggestion: null, history: [] }),
+      ],
+    db: {
+      requirements: [],
+      alerts: [],
+      ...rest,
+    },
+  });
+}
+
+function requirementWorkspace(requirement: Requirement): Workspace {
+  return baseWorkspace({
+    requirements: [requirement],
+    findings: [],
+    remediations: [],
+  });
+}
+
+afterEach(() => {
+  clearProjectWritePayloads();
+  vi.clearAllMocks();
+});
+
+describe("requirement decision actions", () => {
+  it("records a not-applicable exception", async () => {
+    const requirement: Requirement = {
+      id: "req-1",
+      projectId: "p1",
+      controlId: "ctl-img-alt",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+
+    const form = new FormData();
+    form.set("reason", "not_applicable");
+    form.set("note", "Out of scope for this surface");
+
+    const result = await markRequirementExceptionAction(
+      "req-1",
+      emptyActionMessageState,
+      form,
+    );
+
+    expect(result.message).toMatch(/Exception recorded/);
+    expect(projectWritePayload()?.requirements?.[0]?.status).toBe("not_applicable");
+    expect(projectWritePayload()?.requirements?.[0]?.exception?.reason).toBe(
+      "not_applicable",
+    );
+  });
+
+  it("records a temporary exception with expiry", async () => {
+    const requirement: Requirement = {
+      id: "req-temp",
+      projectId: "p1",
+      controlId: "ctl-img-alt",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+
+    const form = new FormData();
+    form.set("reason", "temporary");
+    form.set("note", "Fix landing next sprint");
+    form.set("expiresAt", "2026-12-31");
+
+    const result = await markRequirementExceptionAction(
+      "req-temp",
+      emptyActionMessageState,
+      form,
+    );
+
+    expect(result.message).toBe("Exception recorded.");
+    expect(projectWritePayload()?.requirements?.[0]?.status).toBe("failed");
+    expect(projectWritePayload()?.requirements?.[0]?.exception?.expiresAt).toMatch(
+      /^2026-12-31/,
+    );
+  });
+
+  it("requires expiry for temporary exceptions", async () => {
+    const requirement: Requirement = {
+      id: "req-temp-2",
+      projectId: "p1",
+      controlId: "ctl-img-alt",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+
+    const form = new FormData();
+    form.set("reason", "temporary");
+    form.set("note", "needs date");
+
+    const result = await markRequirementExceptionAction(
+      "req-temp-2",
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/expiry date/i);
+  });
+
+  it("requires a note for exceptions", async () => {
+    const requirement: Requirement = {
+      id: "req-note",
+      projectId: "p1",
+      controlId: "ctl-img-alt",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+
+    const form = new FormData();
+    form.set("reason", "accepted_risk");
+
+    const result = await markRequirementExceptionAction(
+      "req-note",
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/note is required/i);
+  });
+
+  it("marks a manual control as human-passed", async () => {
+    const requirement: Requirement = {
+      id: "req-2",
+      projectId: "p1",
+      controlId: "ctl-outline-none",
+      status: "unable_to_verify",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+
+    const form = new FormData();
+    form.set("note", "Reviewed in staging");
+
+    const result = await markRequirementPassedAction(
+      "req-2",
+      emptyActionMessageState,
+      form,
+    );
+
+    expect(result.message).toMatch(/Human pass/);
+    expect(projectWritePayload()?.requirements?.[0]?.status).toBe("passed");
+    expect(projectWritePayload()?.requirements?.[0]?.humanPass?.note).toMatch(/staging/);
+  });
+
+  it("rejects human pass on automated controls", async () => {
+    const requirement: Requirement = {
+      id: "req-auto",
+      projectId: "p1",
+      controlId: "ctl-img-alt",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+
+    const form = new FormData();
+    form.set("note", "should not work");
+
+    const result = await markRequirementPassedAction(
+      "req-auto",
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/Only manual controls/);
+  });
+
+  it("clears a human pass and refreshes status", async () => {
+    const requirement: Requirement = {
+      id: "req-pass",
+      projectId: "p1",
+      controlId: "ctl-outline-none",
+      status: "passed",
+      determination: "human_review",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      humanPass: {
+        note: "ok",
+        at: "2026-01-01T00:00:00.000Z",
+      },
+    };
+    const workspace = requirementWorkspace(requirement);
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+
+    const result = await clearRequirementHumanPassAction(
+      "req-pass",
+      emptyActionMessageState,
+      new FormData(),
+    );
+
+    expect(result.message).toBe("Human pass cleared.");
+    expect(projectWritePayload()?.requirements?.[0]?.humanPass).toBeUndefined();
+    expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "p1" }),
+      expect.any(Array),
+      expect.any(Array),
+      ["ctl-outline-none"],
+    );
+  });
+
+  it("errors when clearing a missing human pass", async () => {
+    const requirement: Requirement = {
+      id: "req-no-pass",
+      projectId: "p1",
+      controlId: "ctl-outline-none",
+      status: "unable_to_verify",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+
+    const result = await clearRequirementHumanPassAction(
+      "req-no-pass",
+      emptyActionMessageState,
+      new FormData(),
+    );
+    expect(result.error).toMatch(/no human pass/i);
+  });
+
+  it("clears an exception and refreshes status", async () => {
+    const requirement: Requirement = {
+      id: "req-3",
+      projectId: "p1",
+      controlId: "ctl-img-alt",
+      status: "not_applicable",
+      determination: "human_review",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      exception: {
+        reason: "not_applicable",
+        note: "temp",
+        at: "2026-01-01T00:00:00.000Z",
+      },
+    };
+    const workspace = requirementWorkspace(requirement);
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+
+    const result = await clearRequirementExceptionAction(
+      "req-3",
+      emptyActionMessageState,
+      new FormData(),
+    );
+
+    expect(result.message).toMatch(/Exception cleared/);
+    expect(projectWritePayload()?.requirements?.[0]?.exception).toBeUndefined();
+    expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "p1" }),
+      expect.any(Array),
+      expect.any(Array),
+      ["ctl-img-alt"],
+    );
+  });
+
+  it("errors when clearing a missing exception", async () => {
+    const requirement: Requirement = {
+      id: "req-no-ex",
+      projectId: "p1",
+      controlId: "ctl-img-alt",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const workspace = requirementWorkspace(requirement);
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+
+    const result = await clearRequirementExceptionAction(
+      "req-no-ex",
+      emptyActionMessageState,
+      new FormData(),
+    );
+    expect(result.error).toMatch(/no exception/i);
+  });
+});

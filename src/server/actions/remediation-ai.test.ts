@@ -2,7 +2,7 @@ import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Remediation } from "@complyloop/db/types";
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
-import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
+import { actionWorkspaceMocks, clearProjectWritePayloads, invokeProjectWriteMock, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
@@ -73,6 +73,7 @@ function workspaceFor(
 }
 
 afterEach(() => {
+  clearProjectWritePayloads();
   vi.clearAllMocks();
 });
 
@@ -112,7 +113,7 @@ describe("generateAiExplanationAction", () => {
     );
 
     expect(result.message).toBe("AI explanation added.");
-    expect(workspace.db.findings[0]?.explanations).toHaveLength(1);
+    expect(projectWritePayload()?.findings?.[0]?.explanations).toHaveLength(1);
   });
 
   it("errors when AI explanation is unavailable", async () => {
@@ -193,10 +194,14 @@ describe("generateAiRemediationAction", () => {
     );
 
     expect(result.message).toBe("AI remediation suggestion saved.");
-    expect(workspace.db.remediations[0]?.status).toBe("suggested");
-    expect(workspace.db.findings[0]?.fix).toMatchObject({ value: "Cart icon" });
+    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("suggested");
+    expect(projectWritePayload()?.findings?.[0]?.fix).toMatchObject({
+      value: "Cart icon",
+    });
     expect(
-      workspace.db.evidence.some((row) => row.kind === "ai_remediation_suggested"),
+      projectWritePayload()?.evidence?.some(
+        (row) => row.kind === "ai_remediation_suggested",
+      ),
     ).toBe(true);
   });
 
@@ -221,8 +226,8 @@ describe("generateAiRemediationAction", () => {
     );
 
     expect(result.message).toBe("AI remediation suggestion saved.");
-    expect(workspace.db.remediations[0]?.status).toBe("suggested");
-    expect(workspace.db.remediations[0]?.history.at(-1)?.note).toMatch(
+    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("suggested");
+    expect(projectWritePayload()?.remediations?.[0]?.history.at(-1)?.note).toMatch(
       /AI suggestion refreshed/,
     );
   });

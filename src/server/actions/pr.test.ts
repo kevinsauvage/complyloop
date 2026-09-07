@@ -1,7 +1,7 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../db";
-import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
+import { actionWorkspaceMocks, clearProjectWritePayloads, invokeProjectWriteMock, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
@@ -69,6 +69,7 @@ function workspaceFor(
 }
 
 afterEach(() => {
+  clearProjectWritePayloads();
   vi.clearAllMocks();
 });
 
@@ -143,7 +144,7 @@ describe("createPullRequestAction", () => {
       message: "Opened pull request.",
       prUrl: "https://github.com/acme/shop/pull/1",
     });
-    expect(workspace.db.evidence.some((row) => row.kind === "pull_request_prepared")).toBe(
+    expect(projectWritePayload()?.evidence?.some((row) => row.kind === "pull_request_prepared")).toBe(
       true,
     );
     expect(refresh).toHaveBeenCalled();
@@ -171,12 +172,12 @@ describe("createPullRequestAction", () => {
       prUrl: null,
     }, new FormData());
 
-    expect(workspace.db.remediations[0]?.status).toBe("approved");
-    expect(workspace.db.remediations[0]?.approvalAction).toBe(
+    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("approved");
+    expect(projectWritePayload()?.remediations?.[0]?.approvalAction).toBe(
       "create_draft_pull_request",
     );
     expect(
-      workspace.db.evidence.some(
+      projectWritePayload()?.evidence?.some(
         (row) => row.kind === "remediation_approved",
       ),
     ).toBe(true);

@@ -1,6 +1,6 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
+import { actionWorkspaceMocks, clearProjectWritePayloads, invokeProjectWriteMock, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
@@ -11,6 +11,7 @@ import { runAssessmentAction } from "./assessment";
 import {
   approveRemediationAction,
   bulkApproveRemediationsAction,
+  bulkDismissFindingsAction,
   dismissFindingAction,
 } from "./remediation";
 
@@ -19,6 +20,9 @@ const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const drainAssessmentJobQueue = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
+const refreshRequirementStatusesForControls = vi.hoisted(() =>
+  vi.fn(() => ({ requirements: [], evidence: [] })),
+);
 
 vi.mock("@/ai/explainer", () => ({
   generateAiExplanation: vi.fn(),
@@ -59,9 +63,20 @@ vi.mock("../rate-limit", async () => {
   };
 });
 
-vi.mock("../assessment-status", () => ({
-  refreshRequirementStatusesForControls: vi.fn(),
-}));
+vi.mock("../assessment-status", async () => {
+  const actual = await vi.importActual<typeof import("../assessment-status")>(
+    "../assessment-status",
+  );
+  return {
+    ...actual,
+    refreshRequirementStatusesForControls: (
+      ...args: Parameters<typeof actual.refreshRequirementStatusesForControls>
+    ) =>
+      (
+        refreshRequirementStatusesForControls as unknown as typeof actual.refreshRequirementStatusesForControls
+      )(...args),
+  };
+});
 
 const project = testProject({ orgId: "org-1" });
 const finding = testFinding();
@@ -77,6 +92,7 @@ function workspaceFor(role: "viewer" | "member" | "admin" | "owner") {
 }
 
 afterEach(() => {
+  clearProjectWritePayloads();
   vi.clearAllMocks();
 });
 
@@ -104,7 +120,7 @@ describe("remediation action authz", () => {
       error: null,
       message: "Remediation approved.",
     });
-    expect(workspace.db.remediations[0]?.status).toBe("approved");
+    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("approved");
   });
 
   it("denies dismiss for viewers", async () => {
@@ -189,8 +205,9 @@ describe("bulkApproveRemediationsAction", () => {
       error: null,
       message: "Approved 1 remediation.",
     });
-    expect(workspace.db.remediations[0]?.status).toBe("suggested");
-    expect(workspace.db.remediations[1]?.status).toBe("approved");
+    const payload = projectWritePayload();
+    expect(payload?.remediations).toHaveLength(1);
+    expect(payload?.remediations?.[0]?.status).toBe("approved");
   });
 
   it("errors when nothing was eligible to approve", async () => {
@@ -235,9 +252,11 @@ describe("runAssessmentAction", () => {
       requestedByUserId: "user-1",
     });
     expect(drainAssessmentJobQueue).toHaveBeenCalled();
-    expect(workspace.db.evidence.some((row) => row.kind === "assessment_job")).toBe(
-      true,
-    );
+    expect(
+      projectWritePayload()?.evidence?.some(
+        (row) => row.kind === "assessment_job",
+      ),
+    ).toBe(true);
   });
 
   it("returns queued message when inline drain is disabled", async () => {
@@ -268,5 +287,110 @@ describe("runAssessmentAction", () => {
 
     expect(result.error).toMatch(/Too many requests/);
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+});
+
+describe("dismissFindingAction", () => {
+  it("dismisses with a documented reason", async () => {
+    const workspace = workspaceFor("member");
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    const form = new FormData();
+    form.set("reason", "false_positive");
+    form.set("note", "decorative");
+
+    const result = await dismissFindingAction(
+      "f1",
+      emptyActionMessageState,
+      form,
+    );
+
+    expect(result.message).toMatch(/dismissed/i);
+    expect(projectWritePayload()?.findings?.[0]?.status).toBe("dismissed");
+    expect(refreshRequirementStatusesForControls).toHaveBeenCalled();
+  });
+
+  it("requires a valid dismissal reason", async () => {
+    const workspace = workspaceFor("member");
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    const result = await dismissFindingAction(
+      "f1",
+      emptyActionMessageState,
+      new FormData(),
+    );
+    expect(result.error).toMatch(/dismissal reason/i);
+  });
+});
+
+describe("bulkDismissFindingsAction", () => {
+  it("requires at least one finding id", async () => {
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspaceFor("member"), fn));
+    const form = new FormData();
+    form.set("reason", "accepted_risk");
+    const result = await bulkDismissFindingsAction(
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/Select at least one finding/);
+  });
+
+  it("requires a valid dismissal reason", async () => {
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspaceFor("member"), fn));
+    const form = new FormData();
+    form.append("findingIds", "f1");
+    const result = await bulkDismissFindingsAction(
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/dismissal reason/i);
+  });
+
+  it("dismisses open findings and skips closed ones", async () => {
+    const workspace = workspaceFor("member");
+    workspace.db.findings = [
+      { ...finding, id: "f1", status: "open" },
+      { ...finding, id: "f2", status: "resolved" },
+    ];
+    workspace.db.remediations = [];
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    const form = new FormData();
+    form.append("findingIds", "f1");
+    form.append("findingIds", "f2");
+    form.set("reason", "not_applicable");
+    form.set("note", "out of scope");
+
+    const result = await bulkDismissFindingsAction(
+      emptyActionMessageState,
+      form,
+    );
+
+    expect(result).toEqual({
+      error: null,
+      message: "Dismissed 1 finding.",
+    });
+    const payload = projectWritePayload();
+    expect(payload?.findings?.[0]?.status).toBe("dismissed");
+    expect(payload?.findings?.[0]?.dismissal?.reason).toBe("not_applicable");
+    expect(payload?.findings?.[1]).toBeUndefined();
+    expect(refreshRequirementStatusesForControls).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "p1" }),
+      expect.any(Array),
+      expect.any(Array),
+      ["ctl-img-alt"],
+    );
+  });
+
+  it("errors when no open findings were dismissed", async () => {
+    const workspace = workspaceFor("member");
+    workspace.db.findings = [{ ...finding, status: "dismissed" }];
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    const form = new FormData();
+    form.append("findingIds", "f1");
+    form.set("reason", "false_positive");
+
+    const result = await bulkDismissFindingsAction(
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/No open findings were dismissed/);
   });
 });

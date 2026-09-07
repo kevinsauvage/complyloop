@@ -22,20 +22,20 @@ Accidental complexity that **remains** is mostly P1+: evidence still has three c
 
 Verified in code; prior TODO / plan items that are obsolete:
 
-| Former claim                                                                   | Current state                                                                                                       |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| Collector / `writes.snapshot()` / `persistProjectWrite`                        | Deleted. Interactive path returns `ProjectWritePayload` → `persistProjectRows`.                                     |
-| Catalog glued onto every `Db` / `withShippedCatalog` / `src/server/catalog.ts` | Gone. `Db` has no `frameworks`/`controls`. Catalog is `shippedCatalog()` from adapters.                             |
-| Org writes via `JSON.stringify` diff                                           | Gone. `withOrgWrite` returns `OrgWritePayload`.                                                                     |
-| `workspace.ts` as one 500+ line load+write module                              | Split: `workspace.ts` (~221 read/provision) + `workspace-write.ts` (~288).                                          |
-| Tiny `src/core/*-filter.ts` / `report-view.ts` modules                         | Merged into `src/core/query.ts`. Orphan _test file names_ remain (they import `./query`).                           |
-| `packages/db/src/project-write.ts`                                             | Does not exist.                                                                                                     |
-| Frameworks/controls Postgres tables                                            | Init migration comment: catalog lives in adapters, not schema.                                                      |
-| Status enum duplication across packages                                        | Single source: `packages/analysis-core/src/contract/statuses.ts`.                                                   |
-| `src/ai/warn.ts` module                                                        | Folded into `ai-call.ts`. Only `warn.test.ts` name remains.                                                         |
-| `refreshOnSuccess` / `RefreshAfterSuccess` on forms                            | Gone from `stateful-action-form.tsx`.                                                                               |
-| Assessment mutates live `Db` then returns arrays (P0 #1)                       | `runAssessment` clones into `ProjectRows`; returns apply-shaped result; worker applies directly.                    |
-| Interactive mutate + payload hybrid (P0 #2)                                    | Actions clone onto payload; refresh returns `{ requirements, evidence }`; `persistPatchCandidate` requires payload. |
+| Former claim                                                                   | Current state                                                                                                        |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Collector / `writes.snapshot()` / `persistProjectWrite`                        | Deleted. Interactive path returns `ProjectWritePayload` → `persistProjectRows`.                                      |
+| Catalog glued onto every `Db` / `withShippedCatalog` / `src/server/catalog.ts` | Gone. `Db` has no `frameworks`/`controls`. Catalog is `shippedCatalog()` from adapters.                              |
+| Org writes via `JSON.stringify` diff                                           | Gone. `withOrgWrite` returns `OrgWritePayload`.                                                                      |
+| `workspace.ts` as one 500+ line load+write module                              | Split: `workspace.ts` (~221 read/provision) + `workspace-write.ts` (~288).                                           |
+| Tiny `src/core/*-filter.ts` / `report-view.ts` modules                         | Merged into `src/core/query.ts`. Orphan _test file names_ remain (they import `./query`).                            |
+| `packages/db/src/project-write.ts`                                             | Does not exist.                                                                                                      |
+| Frameworks/controls Postgres tables                                            | Init migration comment: catalog lives in adapters, not schema.                                                       |
+| Status enum duplication across packages                                        | Single source: `packages/analysis-core/src/contract/statuses.ts`.                                                    |
+| `src/ai/warn.ts` module                                                        | Folded into `ai-call.ts`. Only `warn.test.ts` name remains.                                                          |
+| `refreshOnSuccess` / `RefreshAfterSuccess` on forms                            | Gone from `stateful-action-form.tsx`.                                                                                |
+| Assessment mutates live `Db` then returns arrays (P0 #1)                       | `runAssessment` clones into `ProjectRows`; returns apply-shaped result; worker applies directly.                     |
+| Interactive mutate + payload hybrid (P0 #2)                                    | Actions clone onto payload; refresh returns `{ requirements, evidence }`; `persistPatchCandidate` requires payload.  |
 | Report HTML thin section files (P2 #15)                                        | `report-html/` is now `report.ts` + `shared.ts`; the two renderers and four section files collapsed into one module. |
 
 ---
@@ -295,22 +295,6 @@ Landed: `report-html/{audit, engineering, requirements-section, evidence-section
 
 ---
 
-### 16. Action test mocks encode the hybrid write protocol — **~80–100** (included in #1–2 if sequenced)
-
-**What**
-`register-action-workspace-mock.ts` + `action-workspace-mocks.ts`: `invokeProjectWriteMock` applies payload back onto `workspace.db`. Dozens of action tests wire this. `remediation-workflow.test.ts` alone is large.
-
-**Why**
-Mocks exist because of P0. Refactors require updating the simulator.
-
-**How**
-After pure payloads: assert returned/persisted payload, or thin repo mocks. Delete apply-back-to-`db` helpers. Prefer splitting mega workflow tests by action file.
-
-**Files**
-`src/test-fixtures/*`, `src/server/actions/*.test.ts`
-
----
-
 ### 17. Indexed columns + JSONB — **~0** (document only)
 
 **What**
@@ -482,13 +466,13 @@ Keep docs as pointers; do not add another overview. Architecture stays the syste
 
 Do not add overlapping items (#2/#16 into #1; #3 assessment sites into #1; #8 tests partly independent; #24 `addEvidence` into #3).
 
-| Priority         |     Unique net | What that is                                                                                                                                        |
-| ---------------- | -------------: | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P0               |       ~400–500 | Assessment immutable payload + interactive mutate/payload hybrid                                                                                    |
-| P1               |       ~300–350 | Evidence one API, connect path, write ceremony, check registry, adapters ceremony                                                                   |
+| Priority         |     Unique net | What that is                                                                                                                            |
+| ---------------- | -------------: | --------------------------------------------------------------------------------------------------------------------------------------- |
+| P0               |       ~400–500 | Assessment immutable payload + interactive mutate/payload hybrid                                                                        |
+| P1               |       ~300–350 | Evidence one API, connect path, write ceremony, check registry, adapters ceremony                                                       |
 | P2               |       ~250–300 | Slice dead API, provenance/`RawFinding`, status-display, evidence kinds, GitHub merge, `queries.ts` tidy, dashboard extract (~0), mocks |
-| P3               |       ~120–180 | `controlById`, capabilities, PublicError import, badges boundary, thin facades, test renames, provision-off-GET, docs/plan                          |
-| **Unique total** | **~900–1,100** | Application + test + docs. Catalog **data** (~2,900) is a move, not a cut.                                                                          |
+| P3               |       ~120–180 | `controlById`, capabilities, PublicError import, badges boundary, thin facades, test renames, provision-off-GET, docs/plan              |
+| **Unique total** | **~900–1,100** | Application + test + docs. Catalog **data** (~2,900) is a move, not a cut.                                                              |
 
 Dashboard (#13) and JSONB (#17) are ~0. File renames (#23) are ~0.
 
