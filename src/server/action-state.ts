@@ -1,5 +1,5 @@
 import { isPublicError } from "@complyloop/analysis-core/contract/public-error";
-import { reportError } from "./observability";
+import { reportDebug, reportError } from "./observability";
 
 export type ActionMessageState = {
   error: string | null;
@@ -37,14 +37,18 @@ export function actionErrorState(error: unknown): ActionMessageState {
 /** Canonical server-action idiom: throw `PublicError`, catch here. */
 export async function runActionMessage(
   run: () => Promise<string | void>,
+  actionName?: string,
 ): Promise<ActionMessageState> {
+  reportDebug(`action:start ${actionName ?? ""}`.trim());
   try {
     const message = await run();
+    reportDebug(`action:end ${actionName ?? ""}`.trim());
     return {
       error: null,
       message: typeof message === "string" ? message : "Done.",
     };
   } catch (error) {
+    reportDebug(`action:error ${actionName ?? ""}`.trim());
     return actionErrorState(error);
   }
 }

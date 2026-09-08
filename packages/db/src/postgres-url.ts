@@ -16,7 +16,7 @@ import {
  */
 export async function createPostgresClient(
   connectionString: string,
-  options: { max?: number } = {},
+  options: { max?: number; debug?: boolean } = {},
 ): Promise<ReturnType<typeof postgres>> {
   const parsed = new URL(connectionString);
   const hostname = parsed.hostname;
@@ -29,6 +29,7 @@ export async function createPostgresClient(
     allowInsecureSsl,
   });
 
+  const debug = options.debug ?? process.env.NODE_ENV !== "production";
   const client = postgres({
     host,
     port: Number(parsed.port || 5432),
@@ -42,6 +43,23 @@ export async function createPostgresClient(
     max_lifetime: 60 * 30,
     connect_timeout: 15,
     prepare: false,
+    ...(debug
+      ? {
+          debug: (_connection: number, query: string, parameters: unknown[]) => {
+            // Skip postgres.js internal type/bootstrap queries (pg_type arrays).
+            if (/select .*pg_catalog|posix|--|\bselect 1\b/i.test(query)) return;
+            console.log(
+              JSON.stringify({
+                severity: "debug",
+                message: "db query",
+                query: compactSql(query),
+                args: compactArgs(parameters),
+                at: new Date().toISOString(),
+              }),
+            );
+          },
+        }
+      : {}),
   });
 
   // Fail early with a actionable TLS / capacity hint (Aiven private CA is common).
@@ -109,4 +127,21 @@ async function resolveHostname(hostname: string): Promise<string> {
     }
     return ip;
   }
+}
+
+const MAX_SQL = 300;
+const MAX_ARGS = 8;
+
+/** Collapse whitespace and cap length so dev logs stay one-readable-line. */
+function compactSql(query: string): string {
+  const oneLine = query.replace(/\s+/g, " ").trim();
+  return oneLine.length > MAX_SQL ? `${oneLine.slice(0, MAX_SQL)}…` : oneLine;
+}
+
+/** Cap parameter list; cardinality is the interesting part, not each value. */
+function compactArgs(args: unknown[]): unknown[] {
+  const shown = args.slice(0, MAX_ARGS);
+  return args.length > MAX_ARGS
+    ? [...shown, `… ${args.length - MAX_ARGS} more`]
+    : shown;
 }

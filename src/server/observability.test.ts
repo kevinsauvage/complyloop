@@ -1,6 +1,12 @@
 import * as Sentry from "@sentry/nextjs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { reportError, reportWarning } from "./observability";
+import {
+  reportAppError,
+  reportDebug,
+  reportError,
+  reportInfo,
+  reportWarning,
+} from "./observability";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -44,5 +50,36 @@ describe("observability", () => {
       "token decrypt failed",
       "warning",
     );
+  });
+
+  it("logs info/debug in development", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const infoSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    reportInfo("assessment started", { code: "assessment_started" });
+    reportDebug("page evaluate", { url: "/" });
+    expect(infoSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("silences info/debug in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    reportInfo("should not appear", {});
+    reportDebug("should not appear", {});
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it("reportAppError forwards digest and code", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const error = Object.assign(new Error("boom"), { digest: "d-1" });
+    reportAppError(error, "app_error_boundary");
+    expect(errorSpy).toHaveBeenCalledOnce();
+    const payload = JSON.parse(String(errorSpy.mock.calls[0]?.[0])) as {
+      code: string;
+      digest: string;
+      message: string;
+    };
+    expect(payload.code).toBe("app_error_boundary");
+    expect(payload.digest).toBe("d-1");
+    expect(payload.message).toBe("boom");
   });
 });

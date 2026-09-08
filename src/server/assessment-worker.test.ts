@@ -14,6 +14,7 @@ const runAssessment = vi.hoisted(() => vi.fn());
 const withProjectCheckout = vi.hoisted(() => vi.fn());
 const reportError = vi.hoisted(() => vi.fn());
 const reportWarning = vi.hoisted(() => vi.fn());
+const reportInfo = vi.hoisted(() => vi.fn());
 const pruneRateLimitBuckets = vi.hoisted(() => vi.fn());
 const resolveProjectGitHubToken = vi.hoisted(() => vi.fn());
 const postPullRequestCheckRun = vi.hoisted(() => vi.fn());
@@ -80,6 +81,7 @@ vi.mock("./repo-checkout", () => ({
 vi.mock("./observability", () => ({
   reportError: (...args: unknown[]) => reportError(...args),
   reportWarning: (...args: unknown[]) => reportWarning(...args),
+  reportInfo: (...args: unknown[]) => reportInfo(...args),
 }));
 
 vi.mock("./rate-limit", () => ({

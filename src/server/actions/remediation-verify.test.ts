@@ -35,6 +35,9 @@ vi.mock("../repo-checkout", () => ({
 vi.mock("../observability", () => ({
   reportError: vi.fn(),
   reportWarning: vi.fn(),
+  reportDebug: vi.fn(),
+  reportInfo: vi.fn(),
+  reportAppError: vi.fn(),
 }));
 
 vi.mock("../assessment-findings", async () => {

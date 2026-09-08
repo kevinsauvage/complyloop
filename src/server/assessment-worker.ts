@@ -22,7 +22,7 @@ import {
   summarizeAssessmentForCheckRun,
 } from "./github-checks";
 import { resolveProjectGitHubToken } from "./github-access";
-import { reportError, reportWarning } from "./observability";
+import { reportError, reportInfo, reportWarning } from "./observability";
 import { pruneRateLimitBuckets } from "./rate-limit";
 import { withProjectCheckout } from "./repo-checkout";
 
@@ -241,9 +241,21 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
     }
     return { kind: "idle" };
   }
+  reportInfo("assessment job claimed", {
+    code: "assessment_job_claimed",
+    jobId: job.id,
+    projectId: job.projectId,
+    trigger: job.trigger,
+    attempts: job.attempts,
+  });
   try {
     await runClaimedAssessmentJob(job);
     await completeAssessmentJob(job.id);
+    reportInfo("assessment job completed", {
+      code: "assessment_job_succeeded",
+      jobId: job.id,
+      projectId: job.projectId,
+    });
     return { kind: "succeeded", jobId: job.id };
   } catch (error) {
     const status = await failAssessmentJob(job, error);

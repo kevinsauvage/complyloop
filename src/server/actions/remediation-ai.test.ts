@@ -40,6 +40,9 @@ vi.mock("../rate-limit", () => ({
 vi.mock("../observability", () => ({
   reportError: vi.fn(),
   reportWarning: (...args: unknown[]) => reportWarning(...args),
+  reportDebug: vi.fn(),
+  reportInfo: vi.fn(),
+  reportAppError: vi.fn(),
 }));
 
 vi.mock("./shared", async () => {

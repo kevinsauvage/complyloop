@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { reportAppError } from "@/app/report-app-error";
+import { reportAppError } from "@/server/observability";
 import { AppErrorCard } from "@/components/app-error-card";
 import "./globals.css";
 
