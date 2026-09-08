@@ -1,12 +1,20 @@
 import type { OrgMembership, Organization } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Db } from "@complyloop/db/types";
-import { slugifyOrgName, uniqueOrgSlug } from "./org-slug";
+import { nextUniqueSlug, slugifyOrgName } from "@complyloop/db/org-slug";
 import {
   buildOrgMembershipIndex,
   membershipsForOrg,
   roleInOrg,
 } from "./org-queries";
+
+/** Picks an unused slug from a read-only org list (does not mutate). */
+function uniqueOrgSlug(
+  db: Pick<Db, "organizations">,
+  base: string,
+): string {
+  return nextUniqueSlug(base, new Set(db.organizations.map((o) => o.slug)));
+}
 
 export interface CreateOrganizationResult {
   org: Organization;
