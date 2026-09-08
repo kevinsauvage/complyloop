@@ -32,12 +32,8 @@ Deleted `src/server/project-cascade.ts`.
 - **Simplification:** make `ProjectRows` the single scratch container; persist from it in one place; drop `mergeRefreshIntoPayload`/payload-override plumbing. Delete `applyExpiredExceptionClearance` in favor of `clearExpiredExceptions` + `upsertRequirementsById` at the one call site (`src/server/assessment.ts:172`). Estimated −80–120 lines and one concept ("two write targets") removed.
 - **Verification:** `npm run test -- src/server/assessment-status.test.ts src/server/assessment.test.ts` passes (pure signatures unchanged); `npm run test:db` passes; smoke: dismiss a finding → status refreshes.
 
-### 5. Duplicated org-membership claim logic: in-memory `orgs.ts` vs DB `repo/orgs.ts`
-
-- **Problem:** `claimMembershipsForLogin` exists twice with the same semantics: `src/server/orgs.ts:8` (in-memory) and `packages/db/src/repo/orgs.ts:124` (SQL). `personal-org.ts` bridges both: claim in SQL, claim again in-memory on a slice loaded from the already-claimed rows (the second pass can only no-op), then diff id sets to decide what to persist (`src/server/personal-org.ts:27–48`).
-- **Evidence:** both share the exact match predicate; the double-claim exists only so the pure `ensurePersonalOrg` can compute `changed`.
-- **Simplification:** one `provisionPersonalOrg(drizzle, userId, githubLogin)` in the DB repo (early-return on `isPersonalOrgProvisioned`, SQL claim, find-or-create personal org + owner membership, return `{ created }`). `ensurePersonalOrg` survives as the pure org/membership builder. `src/server/orgs.ts` keeps invite/remove/role logic. Estimated −40 lines.
-- **Verification:** `npm run test -- src/server/workspace-provision.test.ts src/server/orgs.test.ts`; `npm run test:db`; fresh sign-in → org created once, second sign-in no-op.
+~~### 5. Duplicated org-membership claim logic: in-memory `orgs.ts` vs DB `repo/orgs.ts`~~ **DONE**
+`provisionPersonalOrg` in `packages/db/src/repo/orgs.ts` owns claim + create; `personal-org.ts` is a thin wrapper; in-memory `claimMembershipsForLogin` removed from `src/server/orgs.ts`.
 
 ### 6. `formatDateTime` re-exported from a UI file
 

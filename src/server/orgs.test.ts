@@ -5,7 +5,6 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { emptyDb } from "@complyloop/db/types";
 import {
-  claimMembershipsForLogin,
   changeOrgMemberRole,
   createOrganization,
   deleteOrganization,
@@ -38,6 +37,19 @@ function applyOrg(
   return created.org;
 }
 
+/** Test fixture: attach userId to invite rows (mirrors DB claimMembershipsForLogin). */
+function claimInvite(db: Db, userId: string, githubLogin: string): void {
+  const login = githubLogin.trim().toLowerCase();
+  for (const membership of db.memberships) {
+    if (
+      membership.githubLogin.toLowerCase() === login &&
+      membership.userId !== userId
+    ) {
+      membership.userId = userId;
+    }
+  }
+}
+
 describe("orgs", () => {
   it("creates a personal org for a new user", () => {
     const db = emptyDb();
@@ -52,7 +64,7 @@ describe("orgs", () => {
     expect(again.org.id).toBe(org.id);
   });
 
-  it("claims invites by GitHub login on sign-in", () => {
+  it("leaves pending invites unclaimed until DB provision attaches userId", () => {
     const db = emptyDb();
     ensurePersonalOrg(db, "user-a", "alice");
     const orgId = db.organizations[0]!.id;
@@ -61,7 +73,7 @@ describe("orgs", () => {
     expect(db.memberships.some((m) => m.githubLogin === "bob" && !m.userId)).toBe(
       true,
     );
-    expect(claimMembershipsForLogin(db, "user-b", "bob")).toBe(true);
+    claimInvite(db, "user-b", "bob");
     expect(
       db.memberships.find((m) => m.githubLogin === "bob")?.userId,
     ).toBe("user-b");
@@ -89,7 +101,7 @@ describe("orgs", () => {
       }),
     );
     applyMembership(db, inviteOrgMember(db, team.id, "user-a", "bob", "admin"));
-    claimMembershipsForLogin(db, "user-b", "bob");
+    claimInvite(db, "user-b", "bob");
 
     expect(userRoleInOrg(db, team.id, "user-b")).toBe("admin");
     expect(orgsForUser(db, "user-b").map((org) => org.id)).toContain(team.id);
@@ -162,7 +174,7 @@ describe("orgs", () => {
     ensurePersonalOrg(db, "user-a", "alice");
     const orgId = db.organizations[0]!.id;
     applyMembership(db, inviteOrgMember(db, orgId, "user-a", "bob", "admin"));
-    claimMembershipsForLogin(db, "user-b", "bob");
+    claimInvite(db, "user-b", "bob");
 
     const pending = applyMembership(
       db,
@@ -200,7 +212,7 @@ describe("orgs", () => {
       projectId: "p1",
     });
     applyMembership(db, inviteOrgMember(db, orgId, "user-a", "bob", "admin"));
-    claimMembershipsForLogin(db, "user-b", "bob");
+    claimInvite(db, "user-b", "bob");
 
     expect(() => exportOrgData(db, orgId, "user-b")).toThrow(/owner/);
     const exported = exportOrgData(db, orgId, "user-a");
@@ -225,7 +237,7 @@ describe("orgs", () => {
       db,
       inviteOrgMember(db, orgId, "user-a", "bob", "admin"),
     );
-    claimMembershipsForLogin(db, "user-b", "bob");
+    claimInvite(db, "user-b", "bob");
 
     expect(() =>
       inviteOrgMember(db, orgId, "user-b", "carol", "admin"),

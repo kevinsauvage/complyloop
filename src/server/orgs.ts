@@ -4,41 +4,22 @@ import { isOrgRole } from "@/core/rbac";
 import type { Db } from "./db";
 import { slugifyOrgName, uniqueOrgSlug } from "./org-slug";
 
-/** Claims invite rows that match this GitHub login by attaching userId. */
-export function claimMembershipsForLogin(
-  db: Db,
-  userId: string,
-  githubLogin: string,
-): boolean {
-  const login = githubLogin.trim().toLowerCase();
-  if (!login) return false;
-  let changed = false;
-  for (const membership of db.memberships) {
-    if (
-      membership.githubLogin.toLowerCase() === login &&
-      membership.userId !== userId
-    ) {
-      membership.userId = userId;
-      changed = true;
-    }
-  }
-  return changed;
-}
-
 export interface EnsurePersonalOrgResult {
   org: Organization;
   /** True when the store was mutated and should be persisted. */
   changed: boolean;
 }
 
-/** Ensures the signed-in user has a personal org (as owner). */
+/**
+ * Ensures the signed-in user has a personal org (as owner) on an in-memory
+ * slice. Invite claiming is a Postgres concern (`claimMembershipsForLogin` /
+ * `provisionPersonalOrg` in `@complyloop/db/repo/orgs`).
+ */
 export function ensurePersonalOrg(
   db: Db,
   userId: string,
   githubLogin: string,
 ): EnsurePersonalOrgResult {
-  const changed = claimMembershipsForLogin(db, userId, githubLogin);
-
   const owned = db.memberships.find(
     (membership) =>
       membership.userId === userId && membership.role === "owner",
@@ -48,7 +29,7 @@ export function ensurePersonalOrg(
       (candidate) => candidate.id === owned.orgId,
     );
     if (org) {
-      return { org, changed };
+      return { org, changed: false };
     }
   }
 
