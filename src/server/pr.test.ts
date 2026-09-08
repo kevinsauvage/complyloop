@@ -62,9 +62,13 @@ vi.mock("./github", () => ({
   octokitErrorMessage: (error: unknown) => String(error),
 }));
 
-vi.mock("./connect-github", () => ({
-  githubCloneUrl,
-}));
+vi.mock("./github-helpers", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./github-helpers")>();
+  return {
+    ...original,
+    githubCloneUrl,
+  };
+});
 
 const tempDirs: string[] = [];
 

@@ -3,7 +3,6 @@ import os from "node:os";
 import path from "node:path";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { cloneShallow, githubCloneUrl } from "./connect-github";
 import {
   assertE2EFixtureRoot,
   isE2EHarnessEnabled,
@@ -13,6 +12,7 @@ import {
   resolveProjectGitHubToken,
   type ResolveProjectGitHubTokenOptions,
 } from "./github";
+import { githubCloneUrl } from "./github-helpers";
 import { assertCheckoutWithinQuota } from "./resource-limits";
 
 export interface RepoCheckoutOptions {
@@ -20,6 +20,24 @@ export interface RepoCheckoutOptions {
   accessToken: string;
   /** Optional git ref (branch, tag, or commit SHA) to check out after clone. */
   ref?: string;
+}
+
+/** Shallow-clones into `rootPath`; removes the directory on clone failure. */
+export async function cloneShallow(
+  cloneUrl: string,
+  rootPath: string,
+): Promise<void> {
+  fs.mkdirSync(path.dirname(rootPath), { recursive: true });
+  try {
+    await createGit().clone(cloneUrl, rootPath, ["--depth", "1"]);
+  } catch (error) {
+    fs.rmSync(rootPath, { recursive: true, force: true });
+    const detail = error instanceof Error ? error.message : "unknown error";
+    throw new PublicError(
+      `git clone failed: ${detail.trim().slice(0, 400)}`,
+      "connect",
+    );
+  }
 }
 
 /**

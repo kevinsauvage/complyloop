@@ -5,9 +5,9 @@ import {
   disconnectGitHubRepo,
   findConnectedGitHubProject,
   deriveProjectName,
-  githubCloneUrl,
   uniqueProjectName,
 } from "./connect-github";
+import { githubCloneUrl } from "./github-helpers";
 import { setActiveProject } from "./project-visibility";
 import { emptyDb } from "@complyloop/db/types";
 import type { Db } from "./db";

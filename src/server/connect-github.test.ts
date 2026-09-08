@@ -1,25 +1,16 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { afterEach, describe, expect, it } from "vitest";
 import { testProject } from "@/test-fixtures/project";
 import { emptyDb } from "@complyloop/db/types";
-
-const clone = vi.hoisted(() => vi.fn());
-
-vi.mock("./git", () => ({
-  createGit: () => ({ clone }),
-}));
-
 import {
   addConnectedProject,
   assertAssessableRoot,
-  cloneShallow,
   deriveProjectName,
-  githubCloneUrl,
   uniqueProjectName,
 } from "./connect-github";
+import { githubCloneUrl } from "./github-helpers";
 
 const tempDirs: string[] = [];
 
@@ -27,7 +18,6 @@ afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
-  clone.mockReset();
 });
 
 describe("githubCloneUrl", () => {
@@ -120,28 +110,5 @@ describe("addConnectedProject", () => {
       projectId: "p1",
       summary: 'Connected "Shop"',
     });
-  });
-});
-
-describe("cloneShallow", () => {
-  it("delegates to git clone", async () => {
-    clone.mockResolvedValue(undefined);
-    const root = path.join(os.tmpdir(), `complyloop-clone-${Date.now()}`, "repo");
-    tempDirs.push(path.dirname(root));
-    await cloneShallow("https://example.com/r.git", root);
-    expect(clone).toHaveBeenCalledWith("https://example.com/r.git", root, [
-      "--depth",
-      "1",
-    ]);
-  });
-
-  it("removes the directory and wraps failures", async () => {
-    clone.mockRejectedValue(new Error("auth failed"));
-    const root = path.join(os.tmpdir(), `complyloop-clone-fail-${Date.now()}`, "repo");
-    tempDirs.push(path.dirname(root));
-    await expect(cloneShallow("https://example.com/r.git", root)).rejects.toBeInstanceOf(
-      PublicError,
-    );
-    expect(fs.existsSync(root)).toBe(false);
   });
 });

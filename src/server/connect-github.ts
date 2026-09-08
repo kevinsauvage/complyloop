@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import path from "node:path";
 import { hasSourceFiles } from "@complyloop/analysis-core/source-files";
 import type { Project, ProjectGitHubMeta } from "@complyloop/analysis-core/contract/project-types";
 import { type EvidenceRecord } from "@complyloop/db/types";
@@ -8,12 +7,9 @@ import { canOnProject } from "@/core/rbac";
 import { defaultConnectPreset } from "@complyloop/adapters/registry";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import type { Db } from "./db";
-import { createGit } from "./git";
-import { githubCloneUrl, normalizeGitHubFullName } from "./github-helpers";
+import { normalizeGitHubFullName } from "./github-helpers";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
 import { withRepoCheckout } from "./repo-checkout";
-
-export { githubCloneUrl, normalizeGitHubFullName };
 
 /** Short filesystem-safe name from a GitHub `owner/repo` full name. */
 export function deriveProjectName(fullName: string): string {
@@ -67,24 +63,6 @@ export function addConnectedProject(
       }),
     ],
   };
-}
-
-/** Shallow-clones into `rootPath`; removes the directory on clone failure. */
-export async function cloneShallow(
-  cloneUrl: string,
-  rootPath: string,
-): Promise<void> {
-  fs.mkdirSync(path.dirname(rootPath), { recursive: true });
-  try {
-    await createGit().clone(cloneUrl, rootPath, ["--depth", "1"]);
-  } catch (error) {
-    fs.rmSync(rootPath, { recursive: true, force: true });
-    const detail = error instanceof Error ? error.message : "unknown error";
-    throw new PublicError(
-      `git clone failed: ${detail.trim().slice(0, 400)}`,
-      "connect",
-    );
-  }
 }
 
 /**

@@ -3,7 +3,6 @@ import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
 import { type Finding, type Remediation } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { githubCloneUrl } from "./connect-github";
 import { createGit } from "./git";
 import {
   createOctokit,
@@ -12,6 +11,7 @@ import {
   resolveProjectGitHubToken,
   type ResolveProjectGitHubTokenOptions,
 } from "./github";
+import { githubCloneUrl } from "./github-helpers";
 import { buildDeveloperHandoff } from "./handoff";
 import { withProjectCheckout } from "./repo-checkout";
 

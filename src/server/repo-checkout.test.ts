@@ -1,8 +1,16 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import { withFixtureCheckout, withProjectCheckout } from "./repo-checkout";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
+const clone = vi.hoisted(() => vi.fn());
+
+vi.mock("./git", () => ({
+  createGit: () => ({ clone }),
+}));
+
+import { cloneShallow, withFixtureCheckout, withProjectCheckout } from "./repo-checkout";
 
 const previousEnabled = process.env.E2E_AUTH_ENABLED;
 const previousRoot = process.env.E2E_FIXTURE_ROOT;
@@ -16,6 +24,30 @@ afterEach(() => {
   else process.env.E2E_AUTH_ENABLED = previousEnabled;
   if (previousRoot === undefined) delete process.env.E2E_FIXTURE_ROOT;
   else process.env.E2E_FIXTURE_ROOT = previousRoot;
+  clone.mockReset();
+});
+
+describe("cloneShallow", () => {
+  it("delegates to git clone", async () => {
+    clone.mockResolvedValue(undefined);
+    const root = path.join(os.tmpdir(), `complyloop-clone-${Date.now()}`, "repo");
+    tempDirs.push(path.dirname(root));
+    await cloneShallow("https://example.com/r.git", root);
+    expect(clone).toHaveBeenCalledWith("https://example.com/r.git", root, [
+      "--depth",
+      "1",
+    ]);
+  });
+
+  it("removes the directory and wraps failures", async () => {
+    clone.mockRejectedValue(new Error("auth failed"));
+    const root = path.join(os.tmpdir(), `complyloop-clone-fail-${Date.now()}`, "repo");
+    tempDirs.push(path.dirname(root));
+    await expect(cloneShallow("https://example.com/r.git", root)).rejects.toBeInstanceOf(
+      PublicError,
+    );
+    expect(fs.existsSync(root)).toBe(false);
+  });
 });
 
 describe("withFixtureCheckout", () => {
