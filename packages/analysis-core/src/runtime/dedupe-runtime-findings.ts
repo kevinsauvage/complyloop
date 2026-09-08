@@ -23,7 +23,7 @@ function normalizeSnippet(snippet: string): string {
 }
 
 /** Stable key for collapsing dom/runtime findings on the same node. */
-export function runtimeFindingLocationKey(finding: RawFinding): string | null {
+function runtimeFindingLocationKey(finding: RawFinding): string | null {
   const location = finding.location;
   if (location.kind === "site") return null;
   if (location.kind === "dom") {

@@ -1,7 +1,8 @@
 import { vi } from "vitest";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { actionAuthMocks, actionWorkspaceMocks } from "./action-workspace-mocks";
-import type { Finding, Remediation } from "@complyloop/db/types";
+import type { Db, Finding, Remediation } from "@complyloop/db/types";
+import { requireOnFindingProject } from "@/server/actions/shared";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -54,6 +55,25 @@ vi.mock("@/server/workspace-write", async () => {
       scope: Parameters<typeof actual.withProjectWrite>[0],
       fn: Parameters<typeof actual.withProjectWrite>[1],
     ) => actionWorkspaceMocks.withProjectWrite(scope, fn),
+    withFindingWrite: (
+      findingId: string,
+      permission: Parameters<typeof actual.withFindingWrite>[1],
+      fn: Parameters<typeof actual.withFindingWrite>[2],
+    ) =>
+      actionWorkspaceMocks.withProjectWrite(
+        { touch: "entities", findingIds: [findingId] },
+        (workspace: Parameters<typeof actual.withProjectWrite>[1] extends (
+          w: infer W,
+        ) => unknown
+          ? W
+          : never) => {
+          const db = (workspace as unknown as { db: Db }).db;
+          const finding = db.findings.find((row) => row.id === findingId);
+          if (!finding) throw new PublicError("Unknown finding.");
+          requireOnFindingProject(workspace, finding, permission);
+          return fn({ db, finding, workspace });
+        },
+      ),
     withOrgWrite: (fn: Parameters<typeof actual.withOrgWrite>[0]) =>
       actionWorkspaceMocks.withOrgWrite(fn),
     withProjectLock: (

@@ -5,19 +5,11 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { AI_PATCH_UNAVAILABLE_MESSAGE, aiCall } from "./ai-call";
 import { AI_MODEL } from "./model";
-import type { ProposedFixEdits } from "./verified-fix";
+import { fileEditSchema, type ProposedFixEdits } from "./verified-fix";
 
 const editsSchema = z.object({
   description: z.string(),
-  edits: z
-    .array(
-      z.object({
-        path: z.string(),
-        oldText: z.string(),
-        newText: z.string(),
-      }),
-    )
-    .min(1),
+  edits: z.array(fileEditSchema).min(1),
 });
 
 const MAX_FILE_CHARS = 80_000;

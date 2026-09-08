@@ -16,11 +16,10 @@ import { assertAiRateLimit } from "../rate-limit";
 import { withProjectCheckout } from "../repo-checkout";
 import {
   controlById,
-  findingById,
   getWorkspace,
   requireFinding,
 } from "../workspace";
-import { withProjectWrite } from "../workspace-write";
+import { withFindingWrite } from "../workspace-write";
 import {
   refresh,
   requireOnFindingProject,
@@ -66,11 +65,9 @@ export async function generateAiFixAction(
       tokenOptions,
     );
 
-    await withProjectWrite({ touch: "entities", findingIds: [finding.id] }, async (workspace) => {
-      const liveFinding = findingById(workspace.db, finding.id);
-      requireOnFindingProject(workspace, liveFinding, "project.remediate");
+    await withFindingWrite(finding.id, "project.remediate", async ({ finding: liveFinding, db }) => {
       const payload: ProjectWritePayload = {};
-      persistPatchCandidate(workspace.db, liveFinding, candidate, payload);
+      persistPatchCandidate(db, liveFinding, candidate, payload);
       return payload;
     });
     refresh();

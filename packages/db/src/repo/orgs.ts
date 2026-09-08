@@ -31,7 +31,7 @@ export async function listOrgIdsForUser(
  * for their login is still unclaimed. Callers (auth sign-in / first write)
  * use this to skip the heavier load + claim writes in steady state.
  */
-export async function isPersonalOrgProvisioned(
+async function isPersonalOrgProvisioned(
   drizzle: DrizzleDb,
   userId: string,
   githubLogin: string,

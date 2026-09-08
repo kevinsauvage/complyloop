@@ -7,6 +7,7 @@ import {
 import {
   BROWSER_CAPTCHA_MATCH_SRC,
   BROWSER_COLLECT_CAPTCHA_SRC,
+  captchaProbeBootstrap,
 } from "./captcha-candidates.ts";
 import { type CapturedHit } from "./hit-capture.ts";
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
@@ -26,29 +27,21 @@ export async function captchaAlternativeViolation(
         matchesSrc,
         collectSrc,
         matchSrc,
+        probeSrc,
       },
     ) => {
       const captcha = new RegExp(captchaSource, "i");
       const alternative = new RegExp(alternativeSource, "i");
 
-      const matchesPattern = new Function("pattern", "text", matchesSrc) as (
-        pattern: RegExp,
-        text: string,
-      ) => boolean;
-
-      const collectCandidates = new Function(
-        `return (${collectSrc})`,
-      )() as (doc?: Document) => Element[];
-
-      const { elementLooksLikeCaptcha } = new Function(
-        `return (${matchSrc})`,
-      )() as {
-        elementLooksLikeCaptcha: (
-          el: Element,
-          matches: (pattern: RegExp, text: string) => boolean,
-          pattern: RegExp,
-        ) => boolean;
-      };
+      const {
+        matchesPattern,
+        collectCandidates,
+        elementLooksLikeCaptcha,
+      } = new Function(`return (${probeSrc})`)()(
+        matchesSrc,
+        collectSrc,
+        matchSrc,
+      );
 
       function hasAlternative(container: Element): boolean {
         for (const el of container.querySelectorAll("a, button, audio")) {
@@ -80,6 +73,7 @@ export async function captchaAlternativeViolation(
       matchesSrc: RUNTIME_MATCHES_SRC,
       collectSrc: BROWSER_COLLECT_CAPTCHA_SRC,
       matchSrc: BROWSER_CAPTCHA_MATCH_SRC,
+      probeSrc: captchaProbeBootstrap.toString(),
     },
   );
 

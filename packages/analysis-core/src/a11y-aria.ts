@@ -59,7 +59,7 @@ export function isPresentationRole(node: JsxTagNode): boolean {
 }
 
 /** True when aria-hidden is statically true. Unknown expressions are not hidden. */
-export function isAriaHidden(node: JsxTagNode): boolean {
+function isAriaHidden(node: JsxTagNode): boolean {
   return booleanAttributeValue(getAttribute(node, "aria-hidden")) === true;
 }
 

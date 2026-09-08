@@ -81,7 +81,7 @@ export async function loadProjectRuntime(
   };
 }
 
-export interface WorkspaceLoadInput {
+interface WorkspaceLoadInput {
   userId: string | null;
   githubLogin: string | null;
   activeProjectId: string | null;
@@ -138,38 +138,7 @@ export async function loadTenancyDb(
   };
 }
 
-/** Tenancy plus active-project runtime and evidence window. */
-export async function loadWorkspaceDb(
-  drizzle: DrizzleDb,
-  input: WorkspaceLoadInput,
-): Promise<Db> {
-  const { organizations, memberships, projects, activeProjectId } =
-    await loadWorkspaceTenancy(drizzle, input);
-
-  const runtime =
-    activeProjectId == null
-      ? EMPTY_RUNTIME
-      : await loadProjectRuntime(drizzle, activeProjectId);
-
-  const evidenceRows =
-    activeProjectId != null
-      ? await loadEvidenceWindow(
-          drizzle,
-          activeProjectId,
-          input.evidenceLimit ?? WORKSPACE_EVIDENCE_LIMIT,
-        )
-      : [];
-
-  return {
-    organizations,
-    memberships,
-    projects,
-    ...runtime,
-    evidence: evidenceRows,
-  };
-}
-
-export interface TargetedProjectWriteLoadInput extends WorkspaceLoadInput {
+interface TargetedProjectWriteLoadInput extends WorkspaceLoadInput {
   findingIds?: readonly string[];
   requirementIds?: readonly string[];
   /** Preload requirement rows for these controls (used before targeted refresh). */

@@ -16,17 +16,35 @@ const PAGE_HERO_GLOW =
 export function PageHeader({
   title,
   description,
+  eyebrow,
   children,
+  className,
+  variant = "panel",
 }: {
   title: string;
   description?: string;
+  /** Optional meta row rendered above the title (e.g. repo label, badges). */
+  eyebrow?: ReactNode;
   children?: ReactNode;
+  className?: string;
+  /** `plain` renders no panel chrome (for embedding inside another panel). */
+  variant?: "panel" | "plain";
 }) {
   return (
-    <header className="surface-panel card-sheen relative mb-6 overflow-hidden rounded-2xl">
-      <div aria-hidden className={PAGE_HERO_GLOW} />
+    <header
+      className={cn(
+        variant === "panel" &&
+          "surface-panel card-sheen relative mb-6 overflow-hidden rounded-2xl",
+        variant === "plain" && "relative",
+        className,
+      )}
+    >
+      {variant === "panel" ? <div aria-hidden className={PAGE_HERO_GLOW} /> : null}
       <div className="relative z-[1] flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
         <div className="min-w-0 space-y-1">
+          {eyebrow ? (
+            <div className="flex flex-wrap items-center gap-2">{eyebrow}</div>
+          ) : null}
           <h1
             tabIndex={-1}
             className="text-2xl font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:text-3xl"

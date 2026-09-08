@@ -26,7 +26,7 @@ export function collectCaptchaCandidates(doc: Document = document): Element[] {
 }
 
 /** Text blob matched against {@link CAPTCHA_TOKEN} for applicability + alternative checks. */
-export function captchaCandidateMatchText(el: Element): string {
+function captchaCandidateMatchText(el: Element): string {
   return `${el.outerHTML} ${el.getAttribute("src") ?? ""} ${el.getAttribute("class") ?? ""} ${el.getAttribute("id") ?? ""}`;
 }
 
@@ -36,6 +36,49 @@ export function elementLooksLikeCaptcha(
   captchaPattern: RegExp,
 ): boolean {
   return matchesPattern(captchaPattern, captchaCandidateMatchText(el));
+}
+
+export type CaptchaProbe = {
+  matchesPattern: (pattern: RegExp, text: string) => boolean;
+  collectCandidates: (doc?: Document) => Element[];
+  elementLooksLikeCaptcha: (
+    el: Element,
+    matches: (pattern: RegExp, text: string) => boolean,
+    pattern: RegExp,
+  ) => boolean;
+};
+
+/**
+ * Browser-side bootstrap shared by the applicability probe and the
+ * captcha-alternative check. Rebuilt inside Playwright by injecting this
+ * function's source; the caller supplies the serialized `matches` impl and
+ * the collect/match sources as string args.
+ */
+export function captchaProbeBootstrap(
+  matchesSrc: string,
+  collectSrc: string,
+  matchSrc: string,
+): CaptchaProbe {
+  const matchesPattern = new Function("pattern", "text", matchesSrc) as (
+    pattern: RegExp,
+    text: string,
+  ) => boolean;
+
+  const collectCandidates = new Function(`return (${collectSrc})`)() as (
+    doc?: Document,
+  ) => Element[];
+
+  const { elementLooksLikeCaptcha: looksLike } = new Function(
+    `return (${matchSrc})`,
+  )() as {
+    elementLooksLikeCaptcha: CaptchaProbe["elementLooksLikeCaptcha"];
+  };
+
+  return {
+    matchesPattern,
+    collectCandidates,
+    elementLooksLikeCaptcha: looksLike,
+  };
 }
 
 /**

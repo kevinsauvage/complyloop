@@ -179,7 +179,7 @@ export function serializeDocument(voidTags: string[]): SerializeDocumentResult {
 }
 
 /** Captures the serialized document (with node→offset map) from a live page. */
-export async function captureSerializedDom(
+async function captureSerializedDom(
   page: Page,
 ): Promise<SerializeDocumentResult> {
   // `serializeDocument` is defined in Node scope; the page cannot reference it.

@@ -102,19 +102,6 @@ export async function listEvidencePageForProject(
   return rows.map(rowToEvidence);
 }
 
-/** All evidence for a project, oldest-first (unbounded — prefer {@link listEvidenceForExport}). */
-export async function listAllEvidenceForProject(
-  drizzle: DrizzleDb,
-  projectId: string,
-): Promise<EvidenceRecord[]> {
-  const rows = await drizzle
-    .select()
-    .from(evidence)
-    .where(eq(evidence.projectId, projectId))
-    .orderBy(asc(evidence.at));
-  return rows.map(rowToEvidence);
-}
-
 export interface EvidenceExportPage {
   records: EvidenceRecord[];
   total: number;

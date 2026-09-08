@@ -3,7 +3,7 @@ import type { Finding } from "../types";
 import type { DrizzleDb } from "../client.ts";
 import { findings } from "../schema.ts";
 import { findingToRow } from "./mappers.ts";
-import { filterStalePayloadWrites, stampedNow } from "./upsert-guard.ts";
+import { upsertPayloadRows } from "./upsert-guard.ts";
 
 export async function getFindingById(
   drizzle: DrizzleDb,
@@ -42,10 +42,8 @@ export async function upsertFindings(
   items: ReadonlyArray<Finding>,
   options: UpsertFindingsOptions = {},
 ): Promise<void> {
-  if (items.length === 0) return;
-
-  const toWrite = await filterStalePayloadWrites(
-    items.map(stampedNow),
+  await upsertPayloadRows(
+    items,
     options.loadedUpdatedAtById,
     async (ids) => {
       const rows = await tx
@@ -54,22 +52,23 @@ export async function upsertFindings(
         .where(inArray(findings.id, [...ids]));
       return new Map(rows.map((row) => [row.id, row.payload.updatedAt]));
     },
+    findingToRow,
+    async (rows) => {
+      await tx
+        .insert(findings)
+        .values(rows)
+        .onConflictDoUpdate({
+          target: findings.id,
+          set: {
+            projectId: sql`excluded.project_id`,
+            controlId: sql`excluded.control_id`,
+            assessmentId: sql`excluded.assessment_id`,
+            status: sql`excluded.status`,
+            payload: sql`excluded.payload`,
+          },
+        });
+    },
   );
-
-  if (toWrite.length === 0) return;
-  await tx
-    .insert(findings)
-    .values(toWrite.map(findingToRow))
-    .onConflictDoUpdate({
-      target: findings.id,
-      set: {
-        projectId: sql`excluded.project_id`,
-        controlId: sql`excluded.control_id`,
-        assessmentId: sql`excluded.assessment_id`,
-        status: sql`excluded.status`,
-        payload: sql`excluded.payload`,
-      },
-    });
 }
 
 export async function upsertFinding(

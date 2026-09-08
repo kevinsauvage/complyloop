@@ -138,7 +138,7 @@ function isDisabled(node: JsxTagNode): boolean {
   return booleanAttributeValue(getAttribute(node, "aria-disabled")) === true;
 }
 
-export function tabIndexValue(node: JsxTagNode): number | undefined {
+function tabIndexValue(node: JsxTagNode): number | undefined {
   const attr =
     getAttribute(node, "tabIndex") ?? getAttribute(node, "tabindex");
   if (!attr) return undefined;

@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { STATUS_TONE_BADGE } from "@/core/status-display";
 import { requirementsPageHref } from "@/core/query";
 import type { FrameworkPreset } from "@complyloop/adapters/types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import { PresetItemBody } from "./preset-item-body";
 import { cn } from "@/lib/utils";
 
 export function PresetNavigator({
@@ -49,22 +48,10 @@ export function PresetNavigator({
                   )}
                   aria-hidden
                 />
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">{preset.name}</span>
-                    {isDefault ? (
-                      <Badge className={STATUS_TONE_BADGE.passed}>
-                        Default
-                      </Badge>
-                    ) : null}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {preset.description}
-                  </span>
-                  <span className="mt-1 block font-mono text-xs text-muted-foreground">
-                    {preset.controlIds.length} controls
-                  </span>
-                </span>
+                <PresetItemBody
+                  preset={preset}
+                  badgeLabel={isDefault ? "Default" : undefined}
+                />
               </Link>
             </li>
           );

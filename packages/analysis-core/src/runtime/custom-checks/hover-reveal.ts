@@ -1,10 +1,10 @@
 import type { Locator, Page } from "playwright";
 
-export async function bodyTextLength(page: Page): Promise<number> {
+async function bodyTextLength(page: Page): Promise<number> {
   return page.evaluate(() => document.body.innerText.length);
 }
 
-export type HoverRevealMeasure = {
+type HoverRevealMeasure = {
   beforeLen: number;
   hoverLen: number;
   focusLen: number;

@@ -21,13 +21,12 @@ import { applyRequirementStatusRefresh } from "../assessment-status";
 import type { Db } from "@complyloop/db/types";
 import { remediationEvidenceSummary } from "../remediation-evidence";
 import {
-  findingById,
   getWorkspace,
   remediationForFinding,
   requireFinding,
   requireRemediationForFinding,
 } from "../workspace";
-import { withProjectWrite } from "../workspace-write";
+import { withFindingWrite } from "../workspace-write";
 import { appendEvidence, cloneProjectRows } from "../project-rows";
 import {
   refresh,
@@ -191,22 +190,16 @@ export async function verifyRemediationAction(
     }
 
     let stillFailing = false;
-    await withProjectWrite(
-      { touch: "entities", findingIds: [findingId] },
-      async (workspace) => {
-        const { db } = workspace;
-        const live = findingById(db, findingId);
-        requireOnFindingProject(workspace, live, "project.remediate");
-        const remediation = remediationForFinding(db, findingId);
-        const payload: ProjectWritePayload = {};
-        if (present) {
-          stillFailing = true;
-          recordStillFailing(payload, remediation);
-          return payload;
-        }
-        return markVerified(db, live, remediation, note, engine, audit);
-      },
-    );
+    await withFindingWrite(findingId, "project.remediate", async ({ db, finding: live }) => {
+      const remediation = remediationForFinding(db, findingId);
+      const payload: ProjectWritePayload = {};
+      if (present) {
+        stillFailing = true;
+        recordStillFailing(payload, remediation);
+        return payload;
+      }
+      return markVerified(db, live, remediation, note, engine, audit);
+    });
     refresh();
     return stillFailing
       ? STILL_FAILING_VERIFY_MESSAGE
@@ -226,32 +219,30 @@ export async function markRemediationImplementedAction(
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const { note: parsedNote } = parseForm(markImplementedInput, formData);
-    await withProjectWrite(
-      { touch: "entities", findingIds: [findingId] },
-      async (workspace) => {
-      const { db } = workspace;
-      const finding = findingById(db, findingId);
-      requireOnFindingProject(workspace, finding, "project.remediate");
-      const remediation = remediationForFinding(db, findingId);
-      const note =
-        parsedNote ??
-        "Marked implemented by user (applied outside the platform)";
-      const payload: ProjectWritePayload = {};
+    await withFindingWrite(
+      findingId,
+      "project.remediate",
+      async ({ db, finding }) => {
+        const remediation = remediationForFinding(db, findingId);
+        const note =
+          parsedNote ??
+          "Marked implemented by user (applied outside the platform)";
+        const payload: ProjectWritePayload = {};
 
-      replaceRemediation(
-        payload,
-        advanceRemediation(remediation, "implemented", note),
-      );
-      appendEvidence(payload, {
-        kind: "remediation_implemented",
-        summary: remediationEvidenceSummary("implemented", finding),
-        projectId: finding.projectId,
-        controlId: finding.controlId,
-        findingId: finding.id,
-        detail: { manual: true, note },
-      });
-      return payload;
-    },
+        replaceRemediation(
+          payload,
+          advanceRemediation(remediation, "implemented", note),
+        );
+        appendEvidence(payload, {
+          kind: "remediation_implemented",
+          summary: remediationEvidenceSummary("implemented", finding),
+          projectId: finding.projectId,
+          controlId: finding.controlId,
+          findingId: finding.id,
+          detail: { manual: true, note },
+        });
+        return payload;
+      },
     );
     refresh();
     return "Marked as implemented.";

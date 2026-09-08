@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { StatefulActionForm } from "@/components/stateful-action-form";
-import { Badge } from "@/components/ui/badge";
-import { STATUS_TONE_BADGE } from "@/core/status-display";
 import { Label } from "@/components/ui/label";
 import type { FrameworkPreset } from "@complyloop/adapters/types";
 import { setDefaultPresetAction } from "@/server/actions/project-preset";
+import { PresetItemBody } from "@/components/requirements/preset-item-body";
 
 export function DefaultPresetForm({
   presets,
@@ -48,22 +47,12 @@ export function DefaultPresetForm({
                   required
                   className="mt-1 size-4 shrink-0 accent-signal"
                 />
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">{preset.name}</span>
-                    {preset.id === defaultPresetId ? (
-                      <Badge className={STATUS_TONE_BADGE.passed}>
-                        Current
-                      </Badge>
-                    ) : null}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {preset.description}
-                  </span>
-                  <span className="mt-1 block font-mono text-xs text-muted-foreground">
-                    {preset.controlIds.length} controls
-                  </span>
-                </span>
+                <PresetItemBody
+                  preset={preset}
+                  badgeLabel={
+                    preset.id === defaultPresetId ? "Current" : undefined
+                  }
+                />
               </Label>
             </li>
           ))}

@@ -7,6 +7,7 @@ import {
 import {
   BROWSER_CAPTCHA_MATCH_SRC,
   BROWSER_COLLECT_CAPTCHA_SRC,
+  captchaProbeBootstrap,
 } from "./custom-checks/captcha-candidates.ts";
 import { IS_LAYOUT_TABLE_SRC } from "./custom-checks/is-layout-table.ts";
 
@@ -65,25 +66,23 @@ export async function applicabilityObservationsForPage(
   url: string,
 ): Promise<ApplicabilityObservation[]> {
   const absent = await page.evaluate(
-    ({ captchaSource, matchesSrc, collectSrc, matchSrc, isLayoutTableSrc }) => {
-      const matchesPattern = new Function("pattern", "text", matchesSrc) as (
-        pattern: RegExp,
-        text: string,
-      ) => boolean;
-
-      const collectCandidates = new Function(
-        `return (${collectSrc})`,
-      )() as (doc?: Document) => Element[];
-
-      const { elementLooksLikeCaptcha } = new Function(
-        `return (${matchSrc})`,
-      )() as {
-        elementLooksLikeCaptcha: (
-          el: Element,
-          matches: (pattern: RegExp, text: string) => boolean,
-          pattern: RegExp,
-        ) => boolean;
-      };
+    ({
+      captchaSource,
+      matchesSrc,
+      collectSrc,
+      matchSrc,
+      isLayoutTableSrc,
+      probeSrc,
+    }) => {
+      const {
+        matchesPattern,
+        collectCandidates,
+        elementLooksLikeCaptcha,
+      } = new Function(`return (${probeSrc})`)()(
+        matchesSrc,
+        collectSrc,
+        matchSrc,
+      );
 
       const isLayoutTable = new Function(`return (${isLayoutTableSrc})`)() as (
         table: HTMLTableElement,
@@ -129,6 +128,7 @@ export async function applicabilityObservationsForPage(
       collectSrc: BROWSER_COLLECT_CAPTCHA_SRC,
       matchSrc: BROWSER_CAPTCHA_MATCH_SRC,
       isLayoutTableSrc: IS_LAYOUT_TABLE_SRC,
+      probeSrc: captchaProbeBootstrap.toString(),
     },
   );
 

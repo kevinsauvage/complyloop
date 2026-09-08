@@ -31,13 +31,16 @@ import {
   orgWriteLockKey,
   projectWriteLockKey,
 } from "@complyloop/db/write-lock";
-import type { EvidenceRecord } from "@complyloop/db/types";
+import type { EvidenceRecord, Finding } from "@complyloop/db/types";
+import type { Permission } from "@/core/rbac";
 import { orgsForUser } from "./org-queries";
 import {
   prepareWorkspaceState,
   readViewerSession,
   type ProjectWriteWorkspace,
 } from "./workspace";
+import { findingById } from "./workspace";
+import { requireOnFindingProject } from "./actions/shared";
 import type { Db } from "@complyloop/db/types";
 
 /** What rows a project write may load and persist. */
@@ -198,6 +201,27 @@ export async function withProjectWrite(
 
     await persistProjectRows(tx, payload, loadedSlice ? { loadedSlice } : {});
   });
+}
+
+/** Finding-scoped project write: loads the finding + asserts permission. */
+export async function withFindingWrite(
+  findingId: string,
+  permission: Permission,
+  fn: (ctx: {
+    db: Db;
+    finding: Finding;
+    workspace: ProjectWriteWorkspace;
+  }) => Promise<ProjectWritePayload | void>,
+): Promise<void> {
+  await withProjectWrite(
+    { touch: "entities", findingIds: [findingId] },
+    async (workspace) => {
+      const { db } = workspace;
+      const finding = findingById(db, findingId);
+      requireOnFindingProject(workspace, finding, permission);
+      return fn({ db, finding, workspace });
+    },
+  );
 }
 
 /** Serializes a single-row project mutation (e.g. mark alert read). */

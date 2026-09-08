@@ -15,13 +15,12 @@ import { preparePullRequest } from "../pr";
 import { remediationEvidenceSummary } from "../remediation-evidence";
 import {
   controlById,
-  findingById,
   getWorkspace,
   remediationForFinding,
   requireFinding,
   requireRemediationForFinding,
 } from "../workspace";
-import { withProjectWrite } from "../workspace-write";
+import { withFindingWrite } from "../workspace-write";
 import { appendEvidence } from "../project-rows";
 import {
   refresh,
@@ -85,42 +84,45 @@ export async function createPullRequestAction(
       throw new PublicError(result.message);
     }
     prUrl = result.prUrl;
-    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async ({ db }) => {
-      const liveFinding = findingById(db, findingId);
-      const liveRemediation = remediationForFinding(db, findingId);
-      const payload: ProjectWritePayload = {};
-      if (liveRemediation.status === "suggested") {
-        replaceRemediation(payload, {
-          ...advanceRemediation(
-            liveRemediation,
-            "approved",
-            "Approved by creating a draft pull request",
-          ),
-          approvalAction: "create_draft_pull_request",
-        });
+    await withFindingWrite(
+      findingId,
+      "project.remediate",
+      async ({ db, finding: liveFinding }) => {
+        const liveRemediation = remediationForFinding(db, findingId);
+        const payload: ProjectWritePayload = {};
+        if (liveRemediation.status === "suggested") {
+          replaceRemediation(payload, {
+            ...advanceRemediation(
+              liveRemediation,
+              "approved",
+              "Approved by creating a draft pull request",
+            ),
+            approvalAction: "create_draft_pull_request",
+          });
+          appendEvidence(payload, {
+            kind: "remediation_approved",
+            summary: remediationEvidenceSummary("approved", liveFinding),
+            projectId: project.id,
+            controlId: liveFinding.controlId,
+            findingId: liveFinding.id,
+            detail: { approvalAction: "create_draft_pull_request" },
+          });
+        }
         appendEvidence(payload, {
-          kind: "remediation_approved",
-          summary: remediationEvidenceSummary("approved", liveFinding),
+          kind: "pull_request_prepared",
+          summary: `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`,
           projectId: project.id,
           controlId: liveFinding.controlId,
           findingId: liveFinding.id,
-          detail: { approvalAction: "create_draft_pull_request" },
+          detail: {
+            branch: result.branch,
+            prUrl: result.prUrl,
+            title: result.title,
+          },
         });
-      }
-      appendEvidence(payload, {
-        kind: "pull_request_prepared",
-        summary: `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`,
-        projectId: project.id,
-        controlId: liveFinding.controlId,
-        findingId: liveFinding.id,
-        detail: {
-          branch: result.branch,
-          prUrl: result.prUrl,
-          title: result.title,
-        },
-      });
-      return payload;
-    });
+        return payload;
+      },
+    );
     refresh();
     return result.message;
   });

@@ -17,15 +17,13 @@ import { reportWarning } from "../observability";
 import { assertAiRateLimit } from "../rate-limit";
 import {
   controlById,
-  findingById,
   remediationForFinding,
 } from "../workspace";
-import { withProjectWrite } from "../workspace-write";
+import { withFindingWrite } from "../workspace-write";
 import { appendEvidence } from "../project-rows";
 import {
   refresh,
   replaceRemediation,
-  requireOnFindingProject,
 } from "./shared";
 
 setAiWarn((message, context) => {
@@ -41,11 +39,8 @@ export async function generateAiExplanationAction(
   void _formData;
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
-    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace) => {
+    await withFindingWrite(findingId, "project.view", async ({ workspace, finding }) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
-      const { db } = workspace;
-      const finding = findingById(db, findingId);
-      requireOnFindingProject(workspace, finding, "project.view");
       const control = controlById(finding.controlId);
 
       const explanation = await generateAiExplanation(finding, control);
@@ -71,11 +66,8 @@ export async function generateAiRemediationAction(
   void _formData;
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
-    await withProjectWrite({ touch: "entities", findingIds: [findingId] }, async (workspace) => {
+    await withFindingWrite(findingId, "project.remediate", async ({ db, finding, workspace }) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
-      const { db } = workspace;
-      const finding = findingById(db, findingId);
-      requireOnFindingProject(workspace, finding, "project.remediate");
       const control = controlById(finding.controlId);
       const remediation = remediationForFinding(db, findingId);
 

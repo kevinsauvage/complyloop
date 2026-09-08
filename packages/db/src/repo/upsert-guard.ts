@@ -40,3 +40,26 @@ export async function filterStalePayloadWrites<
 export function stampedNow<T extends object>(item: T): T & { updatedAt: string } {
   return { ...item, updatedAt: new Date().toISOString() };
 }
+
+/**
+ * Shared JSONB upsert skeleton for entity tables (requirements, findings,
+ * remediations): stamp, drop stale writes, map to rows, then hand the
+ * surviving rows to `write` for the table-specific insert + conflict clause.
+ * No-op when there is nothing to write.
+ */
+export async function upsertPayloadRows<T extends { id: string; updatedAt?: string }, Row>(
+  items: readonly T[],
+  loadedUpdatedAtById: ReadonlyMap<string, string> | undefined,
+  fetchDbUpdatedAtById: (ids: readonly string[]) => Promise<ReadonlyMap<string, string | undefined>>,
+  toRow: (item: T) => Row,
+  write: (rows: Row[]) => Promise<void>,
+): Promise<void> {
+  if (items.length === 0) return;
+  const toWrite = await filterStalePayloadWrites(
+    items.map(stampedNow),
+    loadedUpdatedAtById,
+    fetchDbUpdatedAtById,
+  );
+  if (toWrite.length === 0) return;
+  await write(toWrite.map(toRow));
+}

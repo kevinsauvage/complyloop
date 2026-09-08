@@ -77,7 +77,7 @@ export const THEME_SENSITIVE_AXE_RULES: ReadonlySet<string> = new Set([
 ]);
 
 /** Identity of one axe node: rule id + primary target selector. */
-export function violationNodeKey(
+function violationNodeKey(
   ruleId: string,
   target: ReadonlyArray<string> | undefined,
 ): string {

@@ -17,6 +17,13 @@ export interface FileEdit {
   newText: string;
 }
 
+/** Source-edit shape shared by proposed patches and stored patch details. */
+export const fileEditSchema = z.object({
+  path: z.string(),
+  oldText: z.string(),
+  newText: z.string(),
+});
+
 export interface ProposedFixEdits {
   description: string;
   provenance: ExplanationProvenance;
@@ -42,15 +49,7 @@ export const patchCandidateDetailSchema = z.object({
   description: z.string(),
   provenance: z.enum(["ai", "deterministic"]),
   model: z.string().optional(),
-  edits: z
-    .array(
-      z.object({
-        path: z.string(),
-        oldText: z.string(),
-        newText: z.string(),
-      }),
-    )
-    .min(1),
+  edits: z.array(fileEditSchema).min(1),
   complyLoopPassed: z.literal(true),
   remaining: z.array(z.string()).optional().default([]),
 });

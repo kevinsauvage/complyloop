@@ -26,7 +26,7 @@ import {
   findingById,
   remediationForFinding,
 } from "../workspace";
-import { withProjectWrite } from "../workspace-write";
+import { withFindingWrite, withProjectWrite } from "../workspace-write";
 import {
   appendEvidence,
   cloneProjectRows,
@@ -126,12 +126,10 @@ export async function approveRemediationAction(
   void _formData;
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
-    await withProjectWrite(
-      { touch: "entities", findingIds: [findingId] },
-      async (workspace) => {
-        const { db } = workspace;
-        const finding = findingById(db, findingId);
-        requireOnFindingProject(workspace, finding, "project.remediate");
+    await withFindingWrite(
+      findingId,
+      "project.remediate",
+      async ({ db, finding }) => {
         const remediation = remediationForFinding(db, findingId);
         const payload: ProjectWritePayload = {};
 
@@ -194,41 +192,35 @@ export async function dismissFindingAction(
   return runActionMessage(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const { reason, note } = parseForm(dismissFindingInput, formData);
-    await withProjectWrite(
-      { touch: "entities", findingIds: [findingId] },
-      async (workspace) => {
-        const { db } = workspace;
-        const finding = findingById(db, findingId);
-        requireOnFindingProject(workspace, finding, "project.remediate");
-        const project = db.projects.find(
-          (candidate) => candidate.id === finding.projectId,
-        );
-        if (!project) throw new PublicError("Unknown project.");
+    await withFindingWrite(findingId, "project.remediate", async ({ db, finding }) => {
+      const project = db.projects.find(
+        (candidate) => candidate.id === finding.projectId,
+      );
+      if (!project) throw new PublicError("Unknown project.");
 
-        const rows = cloneProjectRows(
-          db.findings,
-          db.remediations,
-          db.requirements,
-          project.id,
-        );
-        const updated = dismissFindingInRows(
-          rows,
-          finding,
-          reason,
-          note ?? "",
-          new Date().toISOString(),
-          {},
-        );
-        applyRequirementStatusRefresh(rows, project, {
-          controlIds: [finding.controlId],
-        });
-        return {
-          findings: [updated],
-          requirements: rows.requirements,
-          evidence: rows.evidence,
-        };
-      },
-    );
+      const rows = cloneProjectRows(
+        db.findings,
+        db.remediations,
+        db.requirements,
+        project.id,
+      );
+      const updated = dismissFindingInRows(
+        rows,
+        finding,
+        reason,
+        note ?? "",
+        new Date().toISOString(),
+        {},
+      );
+      applyRequirementStatusRefresh(rows, project, {
+        controlIds: [finding.controlId],
+      });
+      return {
+        findings: [updated],
+        requirements: rows.requirements,
+        evidence: rows.evidence,
+      };
+    });
     refresh();
     return "Finding dismissed.";
   });
