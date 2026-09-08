@@ -7,7 +7,6 @@ import { DashboardActivitySections } from "@/components/dashboard/dashboard-acti
 import { AssessmentJobStatusLive } from "@/components/dashboard/assessment-job-status-live";
 import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
 import { DashboardStatusCounts } from "@/components/dashboard/dashboard-status-counts";
-import { DashboardWorkspaceToolbar } from "@/components/dashboard/dashboard-workspace-toolbar";
 import {
   FirstAssessmentChecklist,
   UnableToVerifyRuntimeHint,
@@ -44,7 +43,6 @@ export default async function DashboardPage() {
     project,
     access,
     visibleProjects,
-    organizations,
     activeOrgId,
   } = await getWorkspace();
   const caps = projectCapabilities(project, access, activeOrgId);
@@ -69,15 +67,6 @@ export default async function DashboardPage() {
           title="Welcome to ComplyLoop"
           description="Connect a GitHub repository to start the compliance loop — from requirement to verified evidence."
           stats={[]}
-          toolbar={
-            <DashboardWorkspaceToolbar
-              project={project}
-              visibleProjects={visibleProjects}
-              organizations={organizations}
-              activeOrgId={activeOrgId}
-              canConnect={caps.canConnect}
-            />
-          }
           actions={assessAction}
         />
         <ConnectProjectCard>
@@ -191,15 +180,6 @@ export default async function DashboardPage() {
         repoLabel={project.github?.fullName ?? project.sourceRef ?? undefined}
         description={projectDescription(project, latestAssessment)}
         stats={quickStats}
-        toolbar={
-          <DashboardWorkspaceToolbar
-            project={project}
-            visibleProjects={visibleProjects}
-            organizations={organizations}
-            activeOrgId={activeOrgId}
-            canConnect={caps.canConnect}
-          />
-        }
         meta={
           latestAssessment ? (
             <RuntimeCoverageChip

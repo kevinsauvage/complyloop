@@ -69,7 +69,6 @@ export function DashboardOverview({
   repoLabel,
   stats,
   meta,
-  toolbar,
   actions,
 }: {
   title: string;
@@ -77,7 +76,6 @@ export function DashboardOverview({
   repoLabel?: string;
   stats: DashboardQuickStat[];
   meta?: ReactNode;
-  toolbar?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
@@ -88,8 +86,6 @@ export function DashboardOverview({
       />
 
       <div className="relative z-[1] flex flex-col gap-5 p-5 sm:p-6">
-        {toolbar}
-
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">

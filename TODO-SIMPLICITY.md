@@ -14,11 +14,8 @@ Unnecessary-complexity audit of the whole repo (src/, packages/, scripts/, confi
 - **Simplification:** inline each single-function module into its only consumer (`pullRequestUrlFromEvidence` → `ai-fix.ts` next to `patchCandidateFromEvidence`, which does the same reverse-scan; move the env-var defaults with `assertCheckoutWithinQuota`). Move the two checkout-limit functions into `repo-checkout.ts`/`resource-limits.ts` and delete them from the contract. Keep `maxRuntimePages` in `assessment-limits.ts`.
 - **Verification:** DoD passes; export route still sets `Content-Disposition` (one manual download); `npm run test -- packages/analysis-core` passes.
 
-### 17. Dashboard workspace toolbar duplicates the global strip, with a client "gate" patching the overlap
-
-- **Problem:** four identical visibility predicates are computed in both `workspace-context.tsx:54–57` and `dashboard-workspace-toolbar.tsx:20–23`, with the same conditional rendering of `OrgSwitcher`/`ProjectSwitcher`/`ConnectProjectPanel`. `WorkspaceContextRouteGate` (`src/components/workspace-context-route-gate.tsx`, 13-line client component + test) exists solely to unmount the global strip on `/dashboard` because the toolbar re-implements it; the dashboard page prop-drills 5 workspace values (:195–202) that `WorkspaceContext` re-derives from `getWorkspace()` anyway.
-- **Simplification:** extract one `WorkspaceSwitchers` server component consumed by both the global strip and the dashboard hero; delete `DashboardWorkspaceToolbar` and `WorkspaceContextRouteGate` (+ test). Alternatively drop the hero toolbar and let the gated global strip serve the dashboard. −60–80 LOC, −2 components, −1 `usePathname` client boundary.
-- **Verification:** `npm run test -- src/components` passes; visual smoke: dashboard hero still shows switchers, other pages still show the strip, org/project switching works from both.
+~~### 17. Dashboard workspace toolbar duplicates the global strip, with a client "gate" patching the overlap~~ **DONE**
+Dropped hero toolbar + `WorkspaceContextRouteGate`; dashboard uses the same global `WorkspaceContext` strip as every other page.
 
 ### 20. `controlForDisplay(controlById(id))` composed by hand in 3 pages, each paying an O(n) catalog scan
 
