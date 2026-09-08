@@ -20,8 +20,12 @@ export const isHtmlValidateOwnedCheck = (checkId: string): boolean =>
 export const isCompositionSensitiveCheck = (checkId: string): boolean =>
   Boolean(entryFor(checkId)?.compositionSensitive);
 
-export const isRuntimeOnlyCheck = (checkId: string): boolean =>
-  Boolean(entryFor(checkId)?.runtimeOnly);
+export const isRuntimeOnlyCheck = (checkId: string): boolean => {
+  const entry = entryFor(checkId);
+  return Boolean(
+    entry && (entry.authority === "runtime_only" || entry.runtimeOnly),
+  );
+};
 
 export const isSiteLevelCheck = (checkId: string): boolean =>
   entryFor(checkId)?.authority === "site_level";
@@ -56,10 +60,7 @@ export function authorityForCheck(checkId: string): CheckAuthority {
 
 /** Runtime findings for these ids must not be resolved when axe did not run. */
 export function keepOpenWhenRuntimeScanSkipped(checkId: string): boolean {
-  const entry = entryFor(checkId);
-  return Boolean(
-    entry && (entry.compositionSensitive || entry.runtimeOnly),
-  );
+  return isCompositionSensitiveCheck(checkId) || isRuntimeOnlyCheck(checkId);
 }
 
 /**

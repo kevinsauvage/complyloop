@@ -31,7 +31,12 @@ export interface CheckRegistration {
   htmlValidateOwned?: boolean;
   /** Source findings duplicate axe / html-validate / jsx-a11y on the rendered page. */
   packageTwinSource?: boolean;
-  /** In the legacy RUNTIME_ONLY list (independent of authority; e.g. `consistent-lang` is site_level without this). */
+  /**
+   * Site-level checks that also behave as runtime-only for merge / keep-open.
+   * Prefer `authority: "runtime_only"` — only set this on the eight site_level
+   * exceptions that need both (`consistent-lang` / `consistent-page-heading`
+   * are site_level without this flag).
+   */
   runtimeOnly?: boolean;
   /** Analyzers that can emit findings for this check. */
   analyzers?: readonly AnalyzerId[];
@@ -169,28 +174,24 @@ export const CHECK_REGISTRY = [
   {
     id: "dialog-keyboard",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-dialog-keyboard",
   },
   {
     id: "tabs-keyboard",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-tabs-keyboard",
   },
   {
     id: "disclosure-keyboard",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-disclosure-keyboard",
   },
   {
     id: "menu-keyboard",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-menu-keyboard",
   },
@@ -211,49 +212,42 @@ export const CHECK_REGISTRY = [
   {
     id: "color-contrast",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-color-contrast",
   },
   {
     id: "document-title",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-document-title",
   },
   {
     id: "bypass",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-bypass",
   },
   {
     id: "landmark-one-main",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-landmark-one-main",
   },
   {
     id: "nested-interactive",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-nested-interactive",
   },
   {
     id: "target-size",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-target-size",
   },
   {
     id: "target-size-enhanced",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-target-size-enhanced",
   },
@@ -267,70 +261,60 @@ export const CHECK_REGISTRY = [
   {
     id: "table-headers",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-table-headers",
   },
   {
     id: "page-heading",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-page-heading",
   },
   {
     id: "content-region",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-content-region",
   },
   {
     id: "label-in-name",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-label-in-name",
   },
   {
     id: "lang-parts",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-lang-parts",
   },
   {
     id: "aria-roledescription",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-aria-roledescription",
   },
   {
     id: "presentation-role",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-presentation-role",
   },
   {
     id: "no-auto-refresh",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["ast", "axe"],
     catalogControlId: "ctl-no-auto-refresh",
   },
   {
     id: "no-orientation-lock",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-no-orientation-lock",
   },
   {
     id: "landmark-unique",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-landmark-unique",
   },
@@ -386,7 +370,6 @@ export const CHECK_REGISTRY = [
     id: "video-caption",
     authority: "runtime_only",
     packageTwinSource: true,
-    runtimeOnly: true,
     analyzers: ["ast", "axe"],
     catalogControlId: "ctl-video-caption",
   },
@@ -394,7 +377,6 @@ export const CHECK_REGISTRY = [
     id: "audio-caption",
     authority: "runtime_only",
     packageTwinSource: true,
-    runtimeOnly: true,
     analyzers: ["ast", "axe"],
     catalogControlId: "ctl-audio-caption",
   },
@@ -415,7 +397,6 @@ export const CHECK_REGISTRY = [
   {
     id: "use-of-color",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-use-of-color",
   },
@@ -446,7 +427,6 @@ export const CHECK_REGISTRY = [
   {
     id: "frame-keyboard",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-frame-keyboard",
   },
@@ -459,7 +439,6 @@ export const CHECK_REGISTRY = [
   {
     id: "doctype",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-doctype",
   },
@@ -543,21 +522,18 @@ export const CHECK_REGISTRY = [
   {
     id: "focus-visible",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-focus-visible",
   },
   {
     id: "keyboard-trap",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-keyboard-trap",
   },
   {
     id: "focus-not-obscured",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-focus-not-obscured",
   },
@@ -612,35 +588,30 @@ export const CHECK_REGISTRY = [
   {
     id: "non-text-contrast",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-non-text-contrast",
   },
   {
     id: "forced-colors",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-forced-colors",
   },
   {
     id: "reflow",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-reflow",
   },
   {
     id: "text-spacing-runtime",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-text-spacing-runtime",
   },
   {
     id: "label-adjacent",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-label-adjacent",
   },
@@ -659,7 +630,6 @@ export const CHECK_REGISTRY = [
   {
     id: "html-lang-valid",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["jsx-a11y", "axe"],
     catalogControlId: "ctl-html-lang-valid",
   },
@@ -684,7 +654,6 @@ export const CHECK_REGISTRY = [
   {
     id: "css-disabled-content",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-css-disabled-content",
   },
@@ -697,6 +666,7 @@ export const CHECK_REGISTRY = [
   {
     id: "multiple-ways",
     authority: "site_level",
+    // site_level ∩ runtime-only exception — see CheckRegistration.runtimeOnly
     runtimeOnly: true,
     analyzers: ["site-level"],
     catalogControlId: "ctl-multiple-ways",
@@ -737,7 +707,6 @@ export const CHECK_REGISTRY = [
   {
     id: "resize-text",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-resize-text",
   },
@@ -768,7 +737,6 @@ export const CHECK_REGISTRY = [
   {
     id: "css-hover-keyboard",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-css-hover-keyboard",
   },
@@ -845,35 +813,30 @@ export const CHECK_REGISTRY = [
   {
     id: "focus-order-logical",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-focus-order-logical",
   },
   {
     id: "focus-not-obscured-enhanced",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-focus-not-obscured-enhanced",
   },
   {
     id: "focus-appearance",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-focus-appearance",
   },
   {
     id: "identical-links-purpose",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-identical-links-purpose",
   },
   {
     id: "hidden-content",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-hidden-content-ignored",
   },
@@ -881,14 +844,12 @@ export const CHECK_REGISTRY = [
     id: "css-for-presentation",
     authority: "runtime_only",
     htmlValidateOwned: true,
-    runtimeOnly: true,
     analyzers: ["html-validate"],
     catalogControlId: "ctl-css-for-presentation",
   },
   {
     id: "css-off-understandable",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-css-off-understandable",
   },
@@ -919,7 +880,6 @@ export const CHECK_REGISTRY = [
   {
     id: "supplementary-content-keyboard",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-supplementary-content-keyboard",
   },
@@ -938,7 +898,6 @@ export const CHECK_REGISTRY = [
   {
     id: "color-contrast-enhanced",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["axe"],
     catalogControlId: "ctl-color-contrast-enhanced",
   },
@@ -946,14 +905,12 @@ export const CHECK_REGISTRY = [
     id: "markup-nesting",
     authority: "runtime_only",
     htmlValidateOwned: true,
-    runtimeOnly: true,
     analyzers: ["html-validate"],
     catalogControlId: "ctl-markup-validity",
   },
   {
     id: "broken-link",
     authority: "runtime_only",
-    runtimeOnly: true,
     analyzers: ["linkinator"],
     catalogControlId: "ctl-link-destination",
   },

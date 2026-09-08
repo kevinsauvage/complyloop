@@ -14,11 +14,7 @@ Unnecessary-complexity audit of the whole repo (src/, packages/, scripts/, confi
 - **Simplification (judgment call):** give the panel `basePath`, `query`, and a `renderEmpty(status)` callback; derive `{...listParams, tab}` and the pagination label internally. 9→5 props. Do it when next touching this component, not as churn.
 - **Verification:** findings tabs (open/resolved/dismissed/by_cause) render + paginate identically.
 
-### 32. `check-registry.ts` — `runtimeOnly` flag is 86% derivable
-
-- **Evidence:** 57 `runtimeOnly: true` entries; 49 already have `authority: "runtime_only"`; the only real signal is the 8 `site_level` exceptions (vs 2 unflagged `site_level` ids: `consistent-lang:806`, `consistent-page-heading:812`).
-- **Simplification:** `isRuntimeOnlyCheck` returns `entry.authority === "runtime_only" || Boolean(entry.runtimeOnly)`; keep the flag only on the 8 site-level exceptions with a comment. −49 lines of table noise.
-- **Verification:** `npm run test -- packages/analysis-core/src/check-authority.test.ts` passes (it asserts the counts).
+~~### 32. `runtimeOnly` flag~~ **DONE** — `isRuntimeOnlyCheck` derives from `authority === "runtime_only" || runtimeOnly`; flag kept only on 8 site_level exceptions.
 
 ### 36. `mergeRawFindings` third parameter is derivable — verify or skip
 

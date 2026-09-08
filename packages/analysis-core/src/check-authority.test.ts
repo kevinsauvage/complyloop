@@ -12,7 +12,10 @@ import {
 import { CHECK_REGISTRY, type CheckId, type CheckRegistration } from "./check-registry";
 
 const RUNTIME_ONLY_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY
-  .filter((entry: CheckRegistration) => entry.runtimeOnly)
+  .filter(
+    (entry: CheckRegistration) =>
+      entry.authority === "runtime_only" || entry.runtimeOnly,
+  )
   .map((entry: CheckRegistration) => entry.id as CheckId);
 
 const HEURISTIC_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY
