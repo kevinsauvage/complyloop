@@ -91,7 +91,7 @@ function effectiveRefreshControlIds(
   return controlIds;
 }
 
-/** Captures the loaded entity rows for stale-write guards on persist. */
+/** Snapshots the loaded entity rows at load time for stale-write guards on persist. */
 function captureEntityLoadedSlice(
   db: Db,
   scope: Extract<ProjectWriteScope, { touch: "entities" }>,
@@ -100,7 +100,10 @@ function captureEntityLoadedSlice(
   const requirementIds = new Set(scope.requirementIds ?? []);
   const controlIds = effectiveRefreshControlIds(db, scope);
 
-  return {
+  // Clone at load time: the callback mutates the live rows in place. The
+  // stale/unchanged diff must compare against what was actually loaded, not
+  // against the post-mutation state.
+  return structuredClone({
     findings: db.findings.filter((finding) => findingIds.has(finding.id)),
     remediations: db.remediations.filter((remediation) =>
       findingIds.has(remediation.findingId),
@@ -111,7 +114,7 @@ function captureEntityLoadedSlice(
         controlIds.has(requirement.controlId),
     ),
     alerts: [],
-  };
+  });
 }
 
 /**

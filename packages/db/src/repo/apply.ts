@@ -119,23 +119,69 @@ export function updatedAtById(
   return new Map(entries);
 }
 
+/** True when two JSON values match, ignoring top-level `updatedAt`. */
+function equalIgnoringUpdatedAt(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) {
+    return false;
+  }
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((value, index) => equalIgnoringUpdatedAt(value, b[index]));
+  }
+  const aEntries = Object.entries(a).filter(([key]) => key !== "updatedAt");
+  const bEntries = Object.entries(b).filter(([key]) => key !== "updatedAt");
+  if (aEntries.length !== bEntries.length) return false;
+  for (const [key, value] of aEntries) {
+    const other = bEntries.find(([otherKey]) => otherKey === key);
+    if (!other || !equalIgnoringUpdatedAt(value, other[1])) return false;
+  }
+  return true;
+}
+
+/**
+ * Drops items whose content matches the loaded slice (ignoring `updatedAt`),
+ * so re-persisting an unchanged slice is a true no-op and does not churn
+ * `updatedAt` stamps. New ids and real changes are kept.
+ */
+function changedSinceLoaded<T extends { id: string }>(
+  loaded: ReadonlyArray<T> | undefined,
+  next: ReadonlyArray<T> | undefined,
+): T[] {
+  if (!next || next.length === 0) return [];
+  if (!loaded || loaded.length === 0) return [...next];
+  const loadedById = new Map(loaded.map((item) => [item.id, item]));
+  return next.filter((item) => {
+    const prior = loadedById.get(item.id);
+    return !prior || !equalIgnoringUpdatedAt(prior, item);
+  });
+}
+
 export async function persistProjectRows(
   tx: DrizzleDb,
   payload: ProjectWritePayload,
   options: PersistProjectRowsOptions = {},
 ): Promise<void> {
   const slice = options.loadedSlice;
-  await upsertFindings(tx, payload.findings ?? [], {
+  await upsertFindings(tx, changedSinceLoaded(slice?.findings, payload.findings), {
     loadedUpdatedAtById: slice ? updatedAtById(slice.findings) : undefined,
   });
-  await upsertRemediations(tx, payload.remediations ?? [], {
-    loadedUpdatedAtById: slice ? updatedAtById(slice.remediations) : undefined,
-  });
-  await upsertRequirements(tx, payload.requirements ?? [], {
-    loadedUpdatedAtById: slice
-      ? requirementUpdatedAtById(slice.requirements)
-      : undefined,
-  });
+  await upsertRemediations(
+    tx,
+    changedSinceLoaded(slice?.remediations, payload.remediations),
+    {
+      loadedUpdatedAtById: slice ? updatedAtById(slice.remediations) : undefined,
+    },
+  );
+  await upsertRequirements(
+    tx,
+    changedSinceLoaded(slice?.requirements, payload.requirements),
+    {
+      loadedUpdatedAtById: slice
+        ? requirementUpdatedAtById(slice.requirements)
+        : undefined,
+    },
+  );
   await insertAlerts(tx, payload.alerts ?? []);
   await insertEvidenceRecords(tx, payload.evidence ?? []);
   if (payload.project) {

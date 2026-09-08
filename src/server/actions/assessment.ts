@@ -43,8 +43,17 @@ export async function runAssessmentAction(
     });
 
     if (shouldDrainAssessmentJobsInline()) {
-      await drainAssessmentJobQueue();
+      const outcome = await drainAssessmentJobQueue();
       refresh();
+      if (outcome.failed > 0) {
+        return `${outcome.failed} assessment job${outcome.failed === 1 ? "" : "s"} failed. Check the server logs for details.`;
+      }
+      if (outcome.retrying > 0) {
+        return "Assessment hit an error and will retry automatically.";
+      }
+      if (outcome.ran > 0) {
+        return "Assessment complete.";
+      }
       return "Assessment complete.";
     }
 

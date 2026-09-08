@@ -15,7 +15,6 @@ import { alerts, findings, remediations, requirements } from "../schema.ts";
 
 export interface ProjectSliceFixture {
   orgId: string;
-  frameworkId: string;
   controlId: string;
   projectId: string;
   requirementId: string;
@@ -33,7 +32,6 @@ export async function insertProjectSliceFixture(
   suffix: string,
 ): Promise<ProjectSliceFixture> {
   const orgId = `org-slice-${suffix}`;
-  const frameworkId = `fw-slice-${suffix}`;
   const controlId = `ctrl-slice-${suffix}`;
   const projectId = `proj-slice-${suffix}`;
   const findingOneId = `finding-one-${suffix}`;
@@ -45,13 +43,6 @@ export async function insertProjectSliceFixture(
   const userId = `user-slice-${suffix}`;
   const githubLogin = `login-slice-${suffix}`;
 
-  await drizzle.execute(sql`
-    INSERT INTO frameworks (id, payload) VALUES (${frameworkId}, '{}'::jsonb)
-  `);
-  await drizzle.execute(sql`
-    INSERT INTO controls (id, framework_id, payload)
-    VALUES (${controlId}, ${frameworkId}, '{}'::jsonb)
-  `);
   await drizzle.execute(sql`
     INSERT INTO organizations (id, slug, payload)
     VALUES (${orgId}, ${`slug-slice-${suffix}`}, '{}'::jsonb)
@@ -176,7 +167,6 @@ export async function insertProjectSliceFixture(
 
   return {
     orgId,
-    frameworkId,
     controlId,
     projectId,
     requirementId,
@@ -197,10 +187,6 @@ export async function cleanupProjectSliceFixture(
   await drizzle.execute(sql`DELETE FROM projects WHERE id = ${fixture.projectId}`);
   await drizzle.execute(sql`DELETE FROM memberships WHERE org_id = ${fixture.orgId}`);
   await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${fixture.orgId}`);
-  await drizzle.execute(sql`DELETE FROM controls WHERE id = ${fixture.controlId}`);
-  await drizzle.execute(sql`
-    DELETE FROM frameworks WHERE id = ${fixture.frameworkId}
-  `);
 }
 
 export async function loadProjectSlice(

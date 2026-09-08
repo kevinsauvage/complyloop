@@ -49,13 +49,7 @@ export async function createPostgresClient(
             // Skip postgres.js internal type/bootstrap queries (pg_type arrays).
             if (/select .*pg_catalog|posix|--|\bselect 1\b/i.test(query)) return;
             console.log(
-              JSON.stringify({
-                severity: "debug",
-                message: "db query",
-                query: compactSql(query),
-                args: compactArgs(parameters),
-                at: new Date().toISOString(),
-              }),
+              `\x1b[90m${new Date().toISOString()}\x1b[0m \x1b[90mDBG\x1b[0m db query\x1b[90m query\x1b[0m=${compactSql(query)} \x1b[90margs\x1b[0m=${compactArgs(parameters).length}`,
             );
           },
         }

@@ -36,7 +36,7 @@ describe("runActionMessage", () => {
   });
 
   it("keeps PublicError messages without reporting them", async () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const spy = vi.spyOn(process.stderr, "write");
     await expect(
       runActionMessage(async () => {
         throw new PublicError(
@@ -52,7 +52,7 @@ describe("runActionMessage", () => {
 
   it("sanitizes unexpected throwables with a reference", async () => {
     stubErrorRef();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(process.stderr, "write");
     await expect(
       runActionMessage(async () => {
         throw "unexpected";
@@ -66,7 +66,7 @@ describe("runActionMessage", () => {
 
 describe("actionErrorState / publicErrorMessage", () => {
   it("maps PublicError instances to form-state errors without reporting", () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const spy = vi.spyOn(process.stderr, "write");
     expect(actionErrorState(new PublicError("Not allowed."))).toEqual({
       error: "Not allowed.",
       message: null,
@@ -86,7 +86,7 @@ describe("actionErrorState / publicErrorMessage", () => {
 
   it("sanitizes unexpected Error messages and reports them", () => {
     stubErrorRef();
-    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const spy = vi.spyOn(process.stderr, "write");
     expect(actionErrorState(new Error("ENOENT /tmp/clone"))).toEqual({
       error: unexpectedActionMessage(ERROR_REF),
       message: null,

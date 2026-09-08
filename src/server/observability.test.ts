@@ -13,73 +13,86 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("observability", () => {
-  it("emits structured JSON errors to console.error", async () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    reportError(new Error("workspace missing"), {
-      code: "workspace_missing",
-      projectId: "p1",
+/** Returns the raw (uncolored) lines written to a stream during `callback`. */
+function captureOutput(
+  stream: NodeJS.WriteStream,
+  callback: () => void,
+): string {
+  const chunks: string[] = [];
+  const spy = vi
+    .spyOn(stream, "write")
+    .mockImplementation((chunk: unknown) => {
+      chunks.push(String(chunk));
+      return true;
     });
-    expect(spy).toHaveBeenCalledOnce();
-    const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
-      severity: string;
-      message: string;
-      code: string;
-      projectId: string;
-    };
-    expect(payload.severity).toBe("error");
-    expect(payload.message).toBe("workspace missing");
-    expect(payload.code).toBe("workspace_missing");
-    expect(payload.projectId).toBe("p1");
+  callback();
+  spy.mockRestore();
+  return chunks.join("").replace(/\x1b\[[0-9;]*m/g, "");
+}
+
+describe("observability", () => {
+  it("emits a readable error line with context to stderr", () => {
+    const out = captureOutput(process.stderr, () =>
+      reportError(new Error("workspace missing"), {
+        code: "workspace_missing",
+        projectId: "p1",
+      }),
+    );
+    expect(out).toContain("ERR");
+    expect(out).toContain("workspace missing");
+    expect(out).toContain(`code="workspace_missing"`);
+    expect(out).toContain(`projectId="p1"`);
     expect(Sentry.captureException).toHaveBeenCalledWith(
       expect.objectContaining({ message: "workspace missing" }),
     );
   });
 
-  it("emits structured warnings to console.warn", async () => {
-    const spy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    reportWarning("token decrypt failed", { code: "token_decrypt" });
-    expect(spy).toHaveBeenCalledOnce();
-    const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
-      severity: string;
-      message: string;
-    };
-    expect(payload.severity).toBe("warning");
-    expect(payload.message).toBe("token decrypt failed");
+  it("emits a readable warning line to stderr", () => {
+    const out = captureOutput(process.stderr, () =>
+      reportWarning("token decrypt failed", { code: "token_decrypt" }),
+    );
+    expect(out).toContain("WRN");
+    expect(out).toContain("token decrypt failed");
+    expect(out).toContain(`code="token_decrypt"`);
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       "token decrypt failed",
       "warning",
     );
   });
 
-  it("logs info/debug in development", () => {
+  it("logs info/debug in development to stdout", () => {
     vi.stubEnv("NODE_ENV", "development");
-    const infoSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    reportInfo("assessment started", { code: "assessment_started" });
-    reportDebug("page evaluate", { url: "/" });
-    expect(infoSpy).toHaveBeenCalledTimes(2);
+    const out = captureOutput(process.stdout, () => {
+      reportInfo("assessment started", { code: "assessment_started" });
+      reportDebug("page evaluate", { url: "/" });
+    });
+    expect(out).toContain("INF");
+    expect(out).toContain("assessment started");
+    expect(out).toContain("DBG");
+    expect(out).toContain("page evaluate");
   });
 
   it("silences info/debug in production", () => {
     vi.stubEnv("NODE_ENV", "production");
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    let written = false;
+    const spy = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => {
+        written = true;
+        return true;
+      });
     reportInfo("should not appear", {});
     reportDebug("should not appear", {});
-    expect(logSpy).not.toHaveBeenCalled();
+    expect(written).toBe(false);
+    spy.mockRestore();
   });
 
   it("reportAppError forwards digest and code", () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const error = Object.assign(new Error("boom"), { digest: "d-1" });
-    reportAppError(error, "app_error_boundary");
-    expect(errorSpy).toHaveBeenCalledOnce();
-    const payload = JSON.parse(String(errorSpy.mock.calls[0]?.[0])) as {
-      code: string;
-      digest: string;
-      message: string;
-    };
-    expect(payload.code).toBe("app_error_boundary");
-    expect(payload.digest).toBe("d-1");
-    expect(payload.message).toBe("boom");
+    const out = captureOutput(process.stderr, () =>
+      reportAppError(Object.assign(new Error("boom"), { digest: "d-1" }), "app_error_boundary"),
+    );
+    expect(out).toContain(`code="app_error_boundary"`);
+    expect(out).toContain(`digest="d-1"`);
+    expect(out).toContain("boom");
   });
 });

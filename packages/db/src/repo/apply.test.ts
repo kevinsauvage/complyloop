@@ -230,6 +230,8 @@ describe("applyAssessmentPayload", () => {
       },
     ];
     const updatedFinding = { ...finding, status: "dismissed" as const };
+    const updatedRemediation = { ...remediation, status: "approved" as const };
+    const updatedRequirement = { ...requirement, status: "passed" as const };
 
     await applyAssessmentPayload(
       tx,
@@ -238,8 +240,8 @@ describe("applyAssessmentPayload", () => {
         snapshot: assessment.snapshot!,
         evidence,
         findings: [updatedFinding],
-        remediations: [remediation],
-        requirements: [requirement],
+        remediations: [updatedRemediation],
+        requirements: [updatedRequirement],
         alerts: [],
       },
       { loadedSlice },
@@ -253,17 +255,17 @@ describe("applyAssessmentPayload", () => {
     expect(upsertFindings).toHaveBeenCalledWith(tx, [updatedFinding], {
       loadedUpdatedAtById: new Map(),
     });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [remediation], {
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, [updatedRemediation], {
       loadedUpdatedAtById: new Map(),
     });
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [requirement], {
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, [updatedRequirement], {
       loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
     expect(insertAlerts).toHaveBeenCalledWith(tx, []);
     expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, evidence);
   });
 
-  it("upserts the full loaded slice even when values are unchanged", async () => {
+  it("skips unchanged rows when re-persisting the loaded slice", async () => {
     const assessment: Assessment = {
       id: "a2",
       projectId,
@@ -294,13 +296,13 @@ describe("applyAssessmentPayload", () => {
       { loadedSlice },
     );
 
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, loadedSlice.requirements, {
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {
       loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
-    expect(upsertFindings).toHaveBeenCalledWith(tx, loadedSlice.findings, {
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
       loadedUpdatedAtById: new Map(),
     });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, loadedSlice.remediations, {
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, [], {
       loadedUpdatedAtById: new Map(),
     });
     expect(insertAlerts).toHaveBeenCalledWith(tx, []);
@@ -331,12 +333,15 @@ describe("persistProjectRows", () => {
   });
 
   it("upserts only provided rows and forwards stale guards", async () => {
+    const changedFinding = { ...finding, status: "resolved" as const };
+    const changedRemediation = { ...remediation, status: "approved" as const };
+    const changedRequirement = { ...requirement, status: "passed" as const };
     await persistProjectRows(
       tx,
       {
-        findings: [finding],
-        remediations: [remediation],
-        requirements: [requirement],
+        findings: [changedFinding],
+        remediations: [changedRemediation],
+        requirements: [changedRequirement],
         alerts: [alert],
         evidence,
       },
@@ -348,8 +353,14 @@ describe("persistProjectRows", () => {
         },
       },
     );
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [finding], {
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [changedFinding], {
       loadedUpdatedAtById: new Map([[finding.id, "2026-01-01"]]),
+    });
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, [changedRemediation], {
+      loadedUpdatedAtById: new Map([["r1", "2026-01-01"]]),
+    });
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, [changedRequirement], {
+      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
     expect(updateProject).not.toHaveBeenCalled();
   });

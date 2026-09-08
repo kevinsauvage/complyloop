@@ -1,16 +1,19 @@
+import * as Sentry from "@sentry/nextjs";
+import { stdout } from "node:process";
+import { inspect } from "node:util";
+
 /**
- * Leveled observability. Emits structured JSON lines to the console and, when
- * Sentry is configured (`SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` via
+ * Leveled observability. Emits pretty, human-readable log lines to the console
+ * and, when Sentry is configured (`SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` via
  * `@sentry/nextjs`), captures errors/warnings to Sentry.
  *
  * Levels: `debug` → `info` → `warning` → `error`. `debug` is emitted only in
- * development (KISS gating: check once at module load); `warning`+ are always
- * emitted, `info` follows the same gate as `debug` so no auth data leaks in
- * prod logs. Call sites keep using the stable `reportError` / `reportWarning`
- * names; add `reportInfo` / `reportDebug` for dev-mode visibility.
+ * development; `warning`+ are always emitted, `info` follows the same gate as
+ * `debug` so no auth data leaks in prod logs (both sizes compare the current
+ * `NODE_ENV` per call so tests can flip the gate). Call sites keep using the
+ * stable `reportError` / `reportWarning` names; add `reportInfo` /
+ * `reportDebug` for dev-mode visibility.
  */
-import * as Sentry from "@sentry/nextjs";
-
 type Severity = "debug" | "info" | "warning" | "error";
 
 const SEVERITY_ORDER: Record<Severity, number> = {
@@ -31,6 +34,31 @@ export interface ReportContext {
   [key: string]: unknown;
 }
 
+/** Compact, colorized console style per severity. */
+const STYLES: Record<Severity, { badge: string; key: string }> = {
+  debug: { badge: "\x1b[90mDBG\x1b[0m", key: "\x1b[90m" },
+  info: { badge: "\x1b[36mINF\x1b[0m", key: "\x1b[36m" },
+  warning: { badge: "\x1b[33mWRN\x1b[0m", key: "\x1b[33m" },
+  error: { badge: "\x1b[31mERR\x1b[0m", key: "\x1b[31m" },
+};
+
+function prettyValue(value: unknown): string {
+  if (typeof value === "string") return JSON.stringify(value);
+  if (value instanceof Error) {
+    return `${value.name}: ${value.message}`;
+  }
+  try {
+    return inspect(value, { colors: false, depth: 3, breakLength: 120 });
+  } catch {
+    return String(value);
+  }
+}
+
+function formatTsMillis(millis: number): string {
+  // 2026-09-08T22:10:00.000Z — seconds + millisecond precision.
+  return new Date(millis).toISOString();
+}
+
 function emitLog(
   severity: Severity,
   message: string,
@@ -40,19 +68,22 @@ function emitLog(
   if (SEVERITY_ORDER[severity] < SEVERITY_ORDER.warning && process.env.NODE_ENV === "production")
     return;
 
-  const line = JSON.stringify({
-    severity,
-    message,
-    ...context,
-    at: new Date().toISOString(),
-  });
-  if (severity === "error") {
-    console.error(line);
-  } else if (severity === "warning") {
-    console.warn(line);
-  } else {
-    console.log(line);
-  }
+  const { badge, key } = STYLES[severity];
+  const entries = Object.entries(context ?? {}).filter(
+    ([, value]) => value !== undefined,
+  );
+  const meta = entries
+    .map(
+      ([k, v]) =>
+        `${key}${k}\x1b[0m=${prettyValue(v)}`,
+    )
+    .join(" ") || "";
+
+  // Prefix with a millisecond timestamp so lines sort deterministically.
+  const line = `${formatTsMillis(Date.now())} ${badge} ${message}${meta ? ` ${meta}` : ""}`;
+
+  const out = severity === "error" || severity === "warning" ? process.stderr : stdout;
+  out.write(`${line}\n`);
 }
 
 function applyReportContext(

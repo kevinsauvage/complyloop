@@ -40,16 +40,30 @@ describe("drainAssessmentJobQueue", () => {
       .mockResolvedValueOnce({ kind: "succeeded", jobId: "j1" })
       .mockResolvedValueOnce({ kind: "idle" });
 
-    await drainAssessmentJobQueue();
+    const outcome = await drainAssessmentJobQueue();
 
     expect(processNext).toHaveBeenCalledTimes(2);
+    expect(outcome).toEqual({ ran: 1, failed: 0, retrying: 0 });
   });
 
   it("respects maxJobs", async () => {
     processNext.mockResolvedValue({ kind: "succeeded", jobId: "j1" });
 
-    await drainAssessmentJobQueue(3);
+    const outcome = await drainAssessmentJobQueue(3);
 
     expect(processNext).toHaveBeenCalledTimes(3);
+    expect(outcome).toEqual({ ran: 3, failed: 0, retrying: 0 });
+  });
+
+  it("counts failed and retrying jobs so callers can surface honest messages", async () => {
+    processNext
+      .mockResolvedValueOnce({ kind: "failed", jobId: "j1" })
+      .mockResolvedValueOnce({ kind: "retrying", jobId: "j2" })
+      .mockResolvedValueOnce({ kind: "succeeded", jobId: "j3" })
+      .mockResolvedValueOnce({ kind: "idle" });
+
+    const outcome = await drainAssessmentJobQueue();
+
+    expect(outcome).toEqual({ ran: 1, failed: 1, retrying: 1 });
   });
 });

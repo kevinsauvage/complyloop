@@ -53,7 +53,6 @@ describe.skipIf(!enabled)("alert upserts", () => {
     } finally {
       await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
       await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
-      await drizzle.execute(sql`DELETE FROM controls WHERE id = ${controlId}`);
     }
   });
 });
@@ -65,15 +64,7 @@ async function insertAlertFixture(
   const orgId = `org-alert-${suffix}`;
   const controlId = `ctrl-alert-${suffix}`;
   const projectId = `proj-alert-${suffix}`;
-  const frameworkId = `fw-alert-${suffix}`;
 
-  await drizzle.execute(sql`
-    INSERT INTO frameworks (id, payload) VALUES (${frameworkId}, '{}'::jsonb)
-  `);
-  await drizzle.execute(sql`
-    INSERT INTO controls (id, framework_id, payload)
-    VALUES (${controlId}, ${frameworkId}, '{}'::jsonb)
-  `);
   await drizzle.execute(sql`
     INSERT INTO organizations (id, slug, payload)
     VALUES (${orgId}, ${`slug-alert-${suffix}`}, '{}'::jsonb)
