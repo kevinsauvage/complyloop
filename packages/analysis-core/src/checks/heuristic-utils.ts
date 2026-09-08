@@ -150,17 +150,6 @@ export function styleHasBackgroundImage(node: JsxTagNode): boolean {
   );
 }
 
-export function visitJsxElements(
-  sourceFile: ts.SourceFile,
-  visit: (element: ts.JsxElement) => void,
-): void {
-  const walk = (node: ts.Node): void => {
-    if (ts.isJsxElement(node)) visit(node);
-    ts.forEachChild(node, walk);
-  };
-  walk(sourceFile);
-}
-
 export function textContentOf(element: ts.JsxElement): string {
   let text = "";
   const walk = (node: ts.Node): void => {

@@ -84,6 +84,41 @@ export function violationNodeKey(
   return `${ruleId}::${target?.[0] || ""}`;
 }
 
+function findingKey(finding: RawFinding): string {
+  const selector =
+    finding.location.kind === "dom" ? finding.location.selector : "";
+  return `${finding.checkId}::${selector}`;
+}
+
+/**
+ * Items under a browser condition that were not present in the baseline pass.
+ * `keys` may yield several identities per item (e.g. one per axe node);
+ * `project` builds the labeled result from the novel keys only.
+ */
+function conditionSpecific<T>(
+  baseline: ReadonlyArray<T>,
+  condition: ReadonlyArray<T>,
+  keys: (item: T) => ReadonlyArray<string>,
+  project: (item: T, novelKeys: ReadonlySet<string>) => T | null,
+): T[] {
+  const baselineKeys = new Set(baseline.flatMap((item) => [...keys(item)]));
+  const seen = new Set<string>();
+  const specific: T[] = [];
+
+  for (const item of condition) {
+    const novel = new Set<string>();
+    for (const key of keys(item)) {
+      if (baselineKeys.has(key) || seen.has(key)) continue;
+      seen.add(key);
+      novel.add(key);
+    }
+    if (novel.size === 0) continue;
+    const projected = project(item, novel);
+    if (projected) specific.push(projected);
+  }
+  return specific;
+}
+
 /**
  * Returns the violations observed under a browser condition that were NOT seen
  * in the baseline (default) pass — the findings that only fail in one state.
@@ -97,37 +132,25 @@ export function conditionSpecificViolations(
   condition: ReadonlyArray<AxeViolationLike>,
   conditionLabel: string,
 ): AxeViolationLike[] {
-  const baselineKeys = new Set(
-    baseline.flatMap((violation) =>
+  return conditionSpecific(
+    baseline,
+    condition,
+    (violation) =>
       violation.nodes.map((node) =>
         violationNodeKey(violation.id, node.target),
       ),
-    ),
+    (violation, novelKeys) => {
+      const nodes = violation.nodes.filter((node) =>
+        novelKeys.has(violationNodeKey(violation.id, node.target)),
+      );
+      if (nodes.length === 0) return null;
+      return {
+        ...violation,
+        nodes,
+        description: `[${conditionLabel} only] ${violation.description}`,
+      };
+    },
   );
-  const seen = new Set<string>();
-  const specific: AxeViolationLike[] = [];
-
-  for (const violation of condition) {
-    const nodes = violation.nodes.filter((node) => {
-      const key = violationNodeKey(violation.id, node.target);
-      if (baselineKeys.has(key) || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    if (nodes.length === 0) continue;
-    specific.push({
-      ...violation,
-      nodes,
-      description: `[${conditionLabel} only] ${violation.description}`,
-    });
-  }
-  return specific;
-}
-
-function findingKey(finding: RawFinding): string {
-  const selector =
-    finding.location.kind === "dom" ? finding.location.selector : "";
-  return `${finding.checkId}::${selector}`;
 }
 
 /** Same as `conditionSpecificViolations` for Playwright custom findings. */
@@ -136,19 +159,13 @@ export function conditionSpecificFindings(
   condition: ReadonlyArray<RawFinding>,
   conditionLabel: string,
 ): RawFinding[] {
-  const baselineKeys = new Set(baseline.map(findingKey));
-  const seen = new Set<string>();
-  const specific: RawFinding[] = [];
-
-  for (const finding of condition) {
-    const key = findingKey(finding);
-    if (baselineKeys.has(key)) continue;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    specific.push({
+  return conditionSpecific(
+    baseline,
+    condition,
+    (finding) => [findingKey(finding)],
+    (finding) => ({
       ...finding,
       reason: `[${conditionLabel} only] ${finding.reason}`,
-    });
-  }
-  return specific;
+    }),
+  );
 }

@@ -143,47 +143,6 @@ export function resolveAxeMinJsPath(): string {
   return require.resolve("axe-core/axe.min.js");
 }
 
-interface AxeRunResult {
-  violations: Array<{
-    id: string;
-    impact?: string | null;
-    description: string;
-    help: string;
-    nodes: Array<{
-      html: string;
-      target: Array<string | string[]>;
-      failureSummary?: string;
-    }>;
-  }>;
-  incomplete: Array<{
-    id: string;
-    impact?: string | null;
-    description: string;
-    help: string;
-    nodes: Array<{
-      html: string;
-      target: Array<string | string[]>;
-      failureSummary?: string;
-    }>;
-  }>;
-}
-
-function toAxeViolationLike(
-  violation: AxeRunResult["violations"][number],
-): AxeViolationLike {
-  return {
-    id: violation.id,
-    impact: violation.impact,
-    description: violation.description,
-    help: violation.help,
-    nodes: violation.nodes.map((node) => ({
-      html: node.html,
-      target: node.target.map(String),
-      failureSummary: node.failureSummary,
-    })),
-  };
-}
-
 async function axeTargetSizeViolations(page: Page): Promise<AxeViolationLike[]> {
   const axe = await runAxeOnPage(page, { runOnly: [TARGET_SIZE_AXE_RULE] });
   return axe.violations.filter((v) => v.id === TARGET_SIZE_AXE_RULE);
@@ -213,31 +172,42 @@ export async function runAxeOnPage(
 }> {
   await ensureAxeOnPage(page);
   const runOnly = options?.runOnly;
-  const results = await page.evaluate(async (rules) => {
-    const axe = (
-      window as unknown as {
-        axe: {
-          run: (
-            context: Document,
-            options: {
-              iframes: boolean;
-              runOnly?: { type: "rule"; values: string[] };
-            },
-          ) => Promise<AxeRunResult>;
-        };
-      }
-    ).axe;
-    return axe.run(document, {
-      iframes: true,
-      ...(rules && rules.length > 0
-        ? { runOnly: { type: "rule", values: [...rules] } }
-        : {}),
-    });
-  }, runOnly ? [...runOnly] : undefined);
+  const results = await page.evaluate(
+    async (
+      rules,
+    ): Promise<{
+      violations: AxeViolationLike[];
+      incomplete?: AxeViolationLike[];
+    }> => {
+      const axe = (
+        window as unknown as {
+          axe: {
+            run: (
+              context: Document,
+              options: {
+                iframes: boolean;
+                runOnly?: { type: "rule"; values: string[] };
+              },
+            ) => Promise<{
+              violations: AxeViolationLike[];
+              incomplete?: AxeViolationLike[];
+            }>;
+          };
+        }
+      ).axe;
+      return axe.run(document, {
+        iframes: true,
+        ...(rules && rules.length > 0
+          ? { runOnly: { type: "rule", values: [...rules] } }
+          : {}),
+      });
+    },
+    runOnly ? [...runOnly] : undefined,
+  );
 
   return {
-    violations: results.violations.map(toAxeViolationLike),
-    incomplete: (results.incomplete ?? []).map(toAxeViolationLike),
+    violations: results.violations,
+    incomplete: results.incomplete ?? [],
   };
 }
 

@@ -3,10 +3,11 @@ import {
   hasTextContent,
   locationOf,
   stringValueOf,
+  visitJsxElements,
   visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";
-import { styleHasBackgroundImage, visitJsxElements } from "./heuristic-utils.ts";
+import { styleHasBackgroundImage } from "./heuristic-utils.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 export const imageOfTextCheck: AccessibilityCheck = {

@@ -8,7 +8,6 @@ import {
 import {
   descendantTags,
   textContentOf,
-  visitJsxElements,
 } from "./heuristic-utils.ts";
 import {
   getAttribute,
@@ -16,6 +15,7 @@ import {
   locationOf,
   stringValueOf,
   tagNameOf,
+  visitJsxElements,
   visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";

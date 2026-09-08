@@ -1,10 +1,11 @@
 import ts from "typescript";
 import { hasAriaName } from "../jsx-primitives.ts";
-import { textContentOf, visitJsxElements } from "./heuristic-utils.ts";
+import { textContentOf } from "./heuristic-utils.ts";
 import {
   getAttribute,
   locationOf,
   tagNameOf,
+  visitJsxElements,
   visitJsxTags,
   type JsxTagNode,
 } from "../parse.ts";

@@ -21,17 +21,36 @@ export function parseSource(filePath: string, text: string): ParsedSource {
   return { filePath, text, sourceFile };
 }
 
+function walkSourceFile(
+  sourceFile: ts.SourceFile,
+  visit: (node: ts.Node) => void,
+): void {
+  const walk = (node: ts.Node): void => {
+    visit(node);
+    ts.forEachChild(node, walk);
+  };
+  walk(sourceFile);
+}
+
 export function visitJsxTags(
   sourceFile: ts.SourceFile,
   visit: (node: JsxTagNode) => void,
 ): void {
-  const walk = (node: ts.Node): void => {
+  walkSourceFile(sourceFile, (node) => {
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
       visit(node);
     }
-    ts.forEachChild(node, walk);
-  };
-  walk(sourceFile);
+  });
+}
+
+/** Full JSX elements (`<Foo>…</Foo>`), not opening/self-closing tags alone. */
+export function visitJsxElements(
+  sourceFile: ts.SourceFile,
+  visit: (element: ts.JsxElement) => void,
+): void {
+  walkSourceFile(sourceFile, (node) => {
+    if (ts.isJsxElement(node)) visit(node);
+  });
 }
 
 export function tagNameOf(node: JsxTagNode): string {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   jsxElementOf,
   parseSource,
+  visitJsxElements,
   visitJsxTags,
   type JsxTagNode,
 } from "../parse";
@@ -17,7 +18,6 @@ import {
   styleHasBackgroundImage,
   styleLocksTextSpacing,
   textContentOf,
-  visitJsxElements,
   walkMotionActuationCalls,
 } from "./heuristic-utils";
 import { hasAnyAttr } from "../parse";

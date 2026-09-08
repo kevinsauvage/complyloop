@@ -1,5 +1,6 @@
 import { getAttribute, locationOf, stringValueOf } from "../parse.ts";
-import { textContentOf, visitJsxElements } from "./heuristic-utils.ts";
+import { textContentOf } from "./heuristic-utils.ts";
+import { visitJsxElements } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
 const ERROR_RE = /(error|invalid|required|missing)/i;
