@@ -51,3 +51,28 @@ export function reportStatusClass(status: RequirementStatus): string {
     }
   }
 }
+
+/** CSS custom properties for the standalone report stylesheet. */
+export function reportCssVariables(): string {
+  const tone = REPORT_TONE_COLORS;
+  const severity = REPORT_SEVERITY_COLORS;
+  return `
+  --passed: ${tone.passed.fg};
+  --passed-bg: ${tone.passed.bg};
+  --failed: ${tone.failed.fg};
+  --failed-bg: ${tone.failed.bg};
+  --review: ${tone.review.fg};
+  --review-bg: ${tone.review.bg};
+  --na: ${tone.na.fg};
+  --na-bg: ${tone.na.bg};
+  --unable: ${tone.unverifiable.fg};
+  --unable-bg: ${tone.unverifiable.bg};
+  --critical: ${severity.critical.fg};
+  --critical-bg: ${severity.critical.bg};
+  --serious: ${severity.serious.fg};
+  --serious-bg: ${severity.serious.bg};
+  --moderate: ${severity.moderate.fg};
+  --moderate-bg: ${severity.moderate.bg};
+  --minor: ${severity.minor.fg};
+  --minor-bg: ${severity.minor.bg};`;
+}
