@@ -18,7 +18,7 @@ import {
 import type { ReactNode } from "react";
 import { publicErrorMessage } from "@/server/action-state";
 import { connectedGitHubProjectsByFullName } from "@/server/connect-github";
-import { listGitHubRepos } from "@/server/github";
+import { listGitHubRepos } from "@/server/github-access";
 import { githubAppInstallUrl, isGitHubAppConfigured } from "@/server/github-app";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";

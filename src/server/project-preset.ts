@@ -4,7 +4,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import type { Db } from "./db";
-import { evidenceEntry } from "./evidence-payload";
+import { appendEvidence } from "./project-rows";
 
 /** Sets the project's default assessment preset (Settings). */
 export function setDefaultPreset(
@@ -28,7 +28,7 @@ export function setDefaultPreset(
     detail: { presetId: preset.id, controlIds: preset.controlIds },
   };
   if (payload) {
-    evidenceEntry(payload, entry);
+    appendEvidence(payload, entry);
     payload.project = project;
   } else {
     db.evidence.push(newEvidenceRecord(entry));

@@ -14,11 +14,11 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
-import { applyEntityWrite } from "../assessment-status";
+import { applyRequirementStatusRefresh } from "../assessment-status";
 import type { Db } from "../db";
 import { controlById } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
-import { evidenceEntry } from "../evidence-payload";
+import { appendEvidence, cloneProjectRows } from "../project-rows";
 import { refresh, requireOnActive } from "./shared";
 
 const markExceptionInput = z
@@ -69,8 +69,7 @@ function clearRequirementOverride(
   project: Project,
   requirement: Requirement,
   field: "humanPass" | "exception",
-  payload: ProjectWritePayload,
-): void {
+): ProjectWritePayload {
   const control = controlById(requirement.controlId);
   const updated: Requirement = {
     ...requirement,
@@ -78,13 +77,20 @@ function clearRequirementOverride(
     updatedAt: new Date().toISOString(),
   };
 
+  const rows = cloneProjectRows(
+    db.findings,
+    db.remediations,
+    db.requirements,
+    project.id,
+  );
+
   if (field === "humanPass") {
     if (!requirement.humanPass) {
       throw new PublicError("This requirement has no human pass to clear.");
     }
     const previousPass = requirement.humanPass;
     delete updated.humanPass;
-    evidenceEntry(payload, {
+    appendEvidence(rows, {
       kind: "requirement_human_pass_cleared",
       summary: `${control.code} human pass cleared`,
       projectId: project.id,
@@ -97,7 +103,7 @@ function clearRequirementOverride(
     }
     const previousException = requirement.exception;
     delete updated.exception;
-    evidenceEntry(payload, {
+    appendEvidence(rows, {
       kind: "requirement_exception_cleared",
       summary: `${control.code} exception cleared (was ${previousException.reason})`,
       projectId: project.id,
@@ -106,13 +112,21 @@ function clearRequirementOverride(
     });
   }
 
-  payload.requirements = [...(payload.requirements ?? []), updated];
-  applyEntityWrite(payload, {
-    project,
-    findings: db.findings,
-    requirements: db.requirements,
+  const index = rows.requirements.findIndex(
+    (candidate) => candidate.id === requirement.id,
+  );
+  if (index >= 0) {
+    rows.requirements[index] = updated;
+  } else {
+    rows.requirements.push(updated);
+  }
+  applyRequirementStatusRefresh(rows, project, {
     controlIds: [requirement.controlId],
   });
+  return {
+    requirements: rows.requirements,
+    evidence: rows.evidence,
+  };
 }
 
 export async function markRequirementExceptionAction(
@@ -160,7 +174,7 @@ export async function markRequirementExceptionAction(
 
         const payload: ProjectWritePayload = {};
         const control = controlById(requirement.controlId);
-        evidenceEntry(payload, {
+        appendEvidence(payload, {
           kind: "requirement_exception_set",
           summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
           projectId: project.id,
@@ -174,7 +188,7 @@ export async function markRequirementExceptionAction(
           },
         });
         if (previous !== updated.status) {
-          evidenceEntry(payload, {
+          appendEvidence(payload, {
             kind: "requirement_status_changed",
             summary: `${control.code} (${control.title}): ${previous} → ${updated.status} — human exception`,
             projectId: project.id,
@@ -231,7 +245,7 @@ export async function markRequirementPassedAction(
         delete updated.exception;
 
         const payload: ProjectWritePayload = {};
-        evidenceEntry(payload, {
+        appendEvidence(payload, {
           kind: "requirement_human_passed",
           summary: `${control.code} marked passed (human review): ${note}`,
           projectId: project.id,
@@ -239,7 +253,7 @@ export async function markRequirementPassedAction(
           detail: { note, from: previous, to: "passed" },
         });
         if (previous !== "passed") {
-          evidenceEntry(payload, {
+          appendEvidence(payload, {
             kind: "requirement_status_changed",
             summary: `${control.code} (${control.title}): ${previous} → passed — human review`,
             projectId: project.id,
@@ -309,9 +323,7 @@ async function clearRequirementOverrideAction(
           project.id,
           requirementId,
         );
-        const payload: ProjectWritePayload = {};
-        clearRequirementOverride(db, project, requirement, field, payload);
-        return payload;
+        return clearRequirementOverride(db, project, requirement, field);
       },
     );
     refresh();

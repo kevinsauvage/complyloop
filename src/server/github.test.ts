@@ -4,7 +4,7 @@ import {
   fetchGitHubRepo,
   listGitHubRepos,
   resolveProjectGitHubToken,
-} from "./github";
+} from "./github-access";
 
 const createInstallationAccessToken = vi.hoisted(() => vi.fn());
 const getStoredGitHubToken = vi.hoisted(() => vi.fn());

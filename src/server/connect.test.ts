@@ -7,7 +7,7 @@ import {
   deriveProjectName,
   uniqueProjectName,
 } from "./connect-github";
-import { githubCloneUrl } from "./github-helpers";
+import { githubCloneUrl } from "./github";
 import { setActiveProject } from "./project-visibility";
 import { emptyDb } from "@complyloop/db/types";
 import type { Db } from "./db";

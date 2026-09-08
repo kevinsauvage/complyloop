@@ -7,7 +7,7 @@ const auth = vi.hoisted(() => vi.fn());
 const readActiveOrgCookie = vi.hoisted(() => vi.fn());
 const readActiveProjectCookie = vi.hoisted(() => vi.fn());
 const getDrizzle = vi.hoisted(() => vi.fn());
-const loadWorkspaceDb = vi.hoisted(() => vi.fn());
+const loadTenancyDb = vi.hoisted(() => vi.fn());
 const persistProjectRows = vi.hoisted(() => vi.fn());
 const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 
@@ -17,7 +17,7 @@ vi.mock("./active-cookies", () => ({
   readActiveProjectCookie,
 }));
 vi.mock("@complyloop/db/client", () => ({ getDrizzle }));
-vi.mock("@complyloop/db/workspace-load", () => ({ loadWorkspaceDb }));
+vi.mock("@complyloop/db/workspace-load", () => ({ loadTenancyDb }));
 vi.mock("@complyloop/db/repo/apply", async () => {
   const actual = await vi.importActual<typeof import("@complyloop/db/repo/apply")>(
     "@complyloop/db/repo/apply",
@@ -51,7 +51,7 @@ describe("withProjectWrite project touch", () => {
     auth.mockResolvedValue({ user: { id: userId, login: "dev" } });
     readActiveOrgCookie.mockResolvedValue(orgId);
     readActiveProjectCookie.mockResolvedValue(project.id);
-    loadWorkspaceDb.mockResolvedValue({
+    loadTenancyDb.mockResolvedValue({
       ...emptyDb(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
@@ -71,11 +71,11 @@ describe("withProjectWrite project touch", () => {
       return { project: active };
     });
 
-    expect(loadWorkspaceDb).toHaveBeenCalledWith(
+    expect(loadTenancyDb).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
-        includeRuntime: false,
-        evidenceLimit: 0,
+        userId,
+        activeProjectId: project.id,
       }),
     );
     expect(acquireNamedPostgresAdvisoryLock).toHaveBeenCalledWith(

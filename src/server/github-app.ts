@@ -9,7 +9,7 @@ import {
   normalizeGitHubFullName,
   octokitErrorMessage,
   type GitHubRepoSummary,
-} from "./github-helpers";
+} from "./github";
 import { isE2EHarnessEnabled } from "./e2e-harness";
 
 /** True when a GitHub App can mint per-installation tokens. */

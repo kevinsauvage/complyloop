@@ -18,13 +18,17 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
-import { applyEntityWrite } from "../assessment-status";
+import { applyRequirementStatusRefresh } from "../assessment-status";
 import {
   findingById,
   remediationForFinding,
 } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
-import { evidenceEntry } from "../evidence-payload";
+import {
+  appendEvidence,
+  cloneProjectRows,
+  type ProjectRows,
+} from "../project-rows";
 import {
   refresh,
   replaceRemediation,
@@ -66,7 +70,7 @@ function approveRemediationInPayload(
     payload,
     advanceRemediation(remediation, "approved", options.approvalNote),
   );
-  evidenceEntry(payload, {
+  appendEvidence(payload, {
     kind: "remediation_approved",
     summary: `Remediation approved for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
     projectId: finding.projectId,
@@ -83,8 +87,8 @@ function approveRemediationInPayload(
   });
 }
 
-function dismissFindingInPayload(
-  payload: ProjectWritePayload,
+function dismissFindingInRows(
+  rows: ProjectRows,
   finding: Finding,
   reason: Dismissal["reason"],
   note: string,
@@ -96,8 +100,13 @@ function dismissFindingInPayload(
     status: "dismissed",
     dismissal: { reason, note, at },
   };
-  payload.findings = [...(payload.findings ?? []), updated];
-  evidenceEntry(payload, {
+  const index = rows.findings.findIndex((candidate) => candidate.id === finding.id);
+  if (index >= 0) {
+    rows.findings[index] = updated;
+  } else {
+    rows.findings.push(updated);
+  }
+  appendEvidence(rows, {
     kind: "finding",
     summary: `Finding dismissed (${reason}): ${finding.checkId} at ${formatLocationRef(finding.location)}`,
     projectId: finding.projectId,
@@ -197,23 +206,29 @@ export async function dismissFindingAction(
           (candidate) => candidate.id === finding.projectId,
         );
         if (!project) throw new PublicError("Unknown project.");
-        const payload: ProjectWritePayload = {};
 
-        dismissFindingInPayload(
-          payload,
+        const rows = cloneProjectRows(
+          db.findings,
+          db.remediations,
+          db.requirements,
+          project.id,
+        );
+        const updated = dismissFindingInRows(
+          rows,
           finding,
           reason,
           note ?? "",
           new Date().toISOString(),
           {},
         );
-        applyEntityWrite(payload, {
-          project,
-          findings: db.findings,
-          requirements: db.requirements,
+        applyRequirementStatusRefresh(rows, project, {
           controlIds: [finding.controlId],
         });
-        return payload;
+        return {
+          findings: [updated],
+          requirements: rows.requirements,
+          evidence: rows.evidence,
+        };
       },
     );
     refresh();
@@ -235,40 +250,37 @@ export async function bulkDismissFindingsAction(
       { touch: "entities", findingIds },
       async (workspace) => {
         const { db } = workspace;
-        const payload: ProjectWritePayload = {};
-        const refreshedByProject = new Map<
-          string,
-          { projectId: string; controlIds: Set<string> }
-        >();
+        const project = workspace.project;
+        if (!project) throw new PublicError("Select a project first.");
+        const rows = cloneProjectRows(
+          db.findings,
+          db.remediations,
+          db.requirements,
+          project.id,
+        );
+        const dismissedFindings: Finding[] = [];
+        const controlIds = new Set<string>();
         for (const findingId of findingIds) {
           const finding = findingById(db, findingId);
           requireOnFindingProject(workspace, finding, "project.remediate");
           if (finding.status !== "open") continue;
 
-          dismissFindingInPayload(payload, finding, reason, dismissalNote, at, {
-            bulk: true,
-          });
-          const entry = refreshedByProject.get(finding.projectId) ?? {
-            projectId: finding.projectId,
-            controlIds: new Set<string>(),
-          };
-          entry.controlIds.add(finding.controlId);
-          refreshedByProject.set(finding.projectId, entry);
+          dismissedFindings.push(
+            dismissFindingInRows(rows, finding, reason, dismissalNote, at, {
+              bulk: true,
+            }),
+          );
+          controlIds.add(finding.controlId);
           dismissed += 1;
         }
-        for (const { projectId, controlIds } of refreshedByProject.values()) {
-          const project = db.projects.find(
-            (candidate) => candidate.id === projectId,
-          );
-          if (!project) continue;
-          applyEntityWrite(payload, {
-            project,
-            findings: db.findings,
-            requirements: db.requirements,
-            controlIds: [...controlIds],
-          });
-        }
-        return payload;
+        applyRequirementStatusRefresh(rows, project, {
+          controlIds: [...controlIds],
+        });
+        return {
+          findings: dismissedFindings,
+          requirements: rows.requirements,
+          evidence: rows.evidence,
+        };
       },
     );
 

@@ -40,11 +40,16 @@ export function cloneProjectRows(
   };
 }
 
+/** Append one evidence row onto a scratch container or write payload. */
 export function appendEvidence(
-  rows: ProjectRows,
+  target: { evidence?: EvidenceRecord[] },
   entry: Omit<EvidenceRecord, "id" | "at">,
 ): EvidenceRecord {
   const record = newEvidenceRecord(entry);
-  rows.evidence.push(record);
+  if (target.evidence) {
+    target.evidence.push(record);
+  } else {
+    target.evidence = [record];
+  }
   return record;
 }

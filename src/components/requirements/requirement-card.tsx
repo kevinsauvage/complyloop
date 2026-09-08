@@ -5,7 +5,7 @@ import {
 } from "@complyloop/analysis-core/check-authority";
 import { isPertinenceTwinControl } from "@complyloop/adapters/registry";
 import { DeterminationBadge, RequirementStatusBadge } from "@/components/badges";
-import { formatDateTime } from "@/components/page-primitives";
+import { formatDateTime } from "@/core/format-datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";

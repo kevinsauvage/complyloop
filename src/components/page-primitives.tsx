@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { formatDateTime } from "@/core/format-datetime";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -182,5 +181,3 @@ export function MetaTile({
     </div>
   );
 }
-
-export { formatDateTime };

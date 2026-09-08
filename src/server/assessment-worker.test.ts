@@ -86,7 +86,7 @@ vi.mock("./rate-limit", () => ({
   pruneRateLimitBuckets: (...args: unknown[]) => pruneRateLimitBuckets(...args),
 }));
 
-vi.mock("./github", () => ({
+vi.mock("./github-access", () => ({
   resolveProjectGitHubToken: (...args: unknown[]) =>
     resolveProjectGitHubToken(...args),
 }));

@@ -15,7 +15,6 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/project-types";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { controlsInScope, catalogControls } from "./project-scope";
 import type { ProjectRows } from "./project-rows";
 
@@ -84,24 +83,6 @@ export function clearExpiredExceptions(
   return { requirements: updated, evidence };
 }
 
-/** Apply clearExpiredExceptions into a working ProjectRows. */
-export function applyExpiredExceptionClearance(
-  rows: ProjectRows,
-  projectId: string,
-  now = new Date(),
-): void {
-  const cleared = clearExpiredExceptions(rows.requirements, projectId, now);
-  for (const requirement of cleared.requirements) {
-    const index = rows.requirements.findIndex(
-      (candidate) => candidate.id === requirement.id,
-    );
-    if (index >= 0) {
-      rows.requirements[index] = requirement;
-    }
-  }
-  rows.evidence.push(...cleared.evidence);
-}
-
 export interface RefreshRequirementStatusesOptions {
   assessmentId?: string;
   changeContext?: string;
@@ -151,8 +132,8 @@ function statusFromFindings(
   });
 }
 
-/** Later id wins — shared by payload merge and ProjectRows apply. */
-function upsertRequirementsById(
+/** Later id wins — used when merging refresh/clearance results into scratch rows. */
+export function upsertRequirementsById(
   existing: ReadonlyArray<Requirement>,
   updates: ReadonlyArray<Requirement>,
 ): Requirement[] {
@@ -341,92 +322,30 @@ export function refreshRequirementStatuses(input: {
   return { requirements: [...touchedById.values()], evidence };
 }
 
-/** Apply a full-scope status refresh into working ProjectRows (assessment). */
+/**
+ * Apply status refresh into working ProjectRows. Omit `controlIds` for a
+ * full-scope refresh (assessment); pass a list to refresh only those controls
+ * (entity writes after dismiss / clear exception / verify).
+ */
 export function applyRequirementStatusRefresh(
   rows: ProjectRows,
   project: Project,
-  options: RefreshRequirementStatusesOptions = {},
+  options: RefreshRequirementStatusesOptions & {
+    controlIds?: readonly string[];
+  } = {},
 ): void {
+  const { controlIds, ...refreshOptions } = options;
+  if (controlIds !== undefined && controlIds.length === 0) return;
   const result = refreshRequirementStatuses({
     project,
     findings: rows.findings,
     requirements: rows.requirements,
-    options,
+    controlIds,
+    options: refreshOptions,
   });
   rows.requirements = upsertRequirementsById(
     rows.requirements,
     result.requirements,
   );
   rows.evidence.push(...result.evidence);
-}
-
-/** Merge refresh results onto a ProjectWritePayload (later id wins). */
-export function mergeRefreshIntoPayload(
-  payload: {
-    requirements?: Requirement[];
-    evidence?: EvidenceRecord[];
-  },
-  result: RefreshRequirementStatusesResult,
-): void {
-  if (result.requirements.length > 0) {
-    payload.requirements = upsertRequirementsById(
-      payload.requirements ?? [],
-      result.requirements,
-    );
-  }
-  if (result.evidence.length > 0) {
-    payload.evidence = [...(payload.evidence ?? []), ...result.evidence];
-  }
-}
-
-/** Findings list with payload overrides applied (for status refresh after dismiss). */
-export function findingsWithPayloadOverrides(
-  findings: ReadonlyArray<Finding>,
-  overrides: ReadonlyArray<Finding> | undefined,
-): Finding[] {
-  if (!overrides || overrides.length === 0) return [...findings];
-  const byId = new Map(overrides.map((finding) => [finding.id, finding]));
-  return findings.map((finding) => byId.get(finding.id) ?? finding);
-}
-
-function requirementsWithPayloadOverrides(
-  requirements: ReadonlyArray<Requirement>,
-  overrides: ReadonlyArray<Requirement> | undefined,
-): Requirement[] {
-  if (!overrides || overrides.length === 0) return [...requirements];
-  const byId = new Map(overrides.map((requirement) => [requirement.id, requirement]));
-  return requirements.map(
-    (requirement) => byId.get(requirement.id) ?? requirement,
-  );
-}
-
-/**
- * After findings/remediations/requirements are staged on `payload`, re-derive
- * requirement statuses for `controlIds` (seeing payload overrides) and merge
- * the result onto the payload.
- */
-export function applyEntityWrite(
-  payload: ProjectWritePayload,
-  input: {
-    project: Project;
-    findings: ReadonlyArray<Finding>;
-    requirements: ReadonlyArray<Requirement>;
-    controlIds: readonly string[];
-    options?: RefreshRequirementStatusesOptions;
-  },
-): void {
-  if (input.controlIds.length === 0) return;
-  mergeRefreshIntoPayload(
-    payload,
-    refreshRequirementStatuses({
-      project: input.project,
-      findings: findingsWithPayloadOverrides(input.findings, payload.findings),
-      requirements: requirementsWithPayloadOverrides(
-        input.requirements,
-        payload.requirements,
-      ),
-      controlIds: input.controlIds,
-      options: input.options,
-    }),
-  );
 }

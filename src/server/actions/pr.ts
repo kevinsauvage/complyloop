@@ -22,7 +22,7 @@ import {
   requireRemediationForFinding,
 } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
-import { evidenceEntry } from "../evidence-payload";
+import { appendEvidence } from "../project-rows";
 import {
   refresh,
   replaceRemediation,
@@ -98,7 +98,7 @@ export async function createPullRequestAction(
           ),
           approvalAction: "create_draft_pull_request",
         });
-        evidenceEntry(payload, {
+        appendEvidence(payload, {
           kind: "remediation_approved",
           summary: `Remediation approved for ${liveFinding.checkId} at ${formatLocationRef(liveFinding.location)}`,
           projectId: project.id,
@@ -107,7 +107,7 @@ export async function createPullRequestAction(
           detail: { approvalAction: "create_draft_pull_request" },
         });
       }
-      evidenceEntry(payload, {
+      appendEvidence(payload, {
         kind: "pull_request_prepared",
         summary: `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`,
         projectId: project.id,

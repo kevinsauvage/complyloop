@@ -8,7 +8,7 @@ import { drainAssessmentJobQueue, shouldDrainAssessmentJobsInline } from "../ass
 import { enqueueAssessmentJob, type AssessmentJob } from "../assessment-jobs";
 import { assertAssessRateLimit } from "../rate-limit";
 import { withProjectWrite } from "../workspace-write";
-import { evidenceEntry } from "../evidence-payload";
+import { appendEvidence } from "../project-rows";
 import { refresh, requireOnActive } from "./shared";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
@@ -30,7 +30,7 @@ export async function runAssessmentAction(
         requestedByUserId: workspace.userId,
       });
       const payload: ProjectWritePayload = {};
-      evidenceEntry(payload, {
+      appendEvidence(payload, {
         kind: "assessment_job",
         summary: `Assessment job ${job.id} queued for "${workspace.project.name}"`,
         projectId: workspace.project.id,

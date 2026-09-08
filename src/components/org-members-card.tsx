@@ -1,5 +1,5 @@
 import { StatefulActionForm } from "@/components/stateful-action-form";
-import { formatDateTime } from "@/components/page-primitives";
+import { formatDateTime } from "@/core/format-datetime";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,

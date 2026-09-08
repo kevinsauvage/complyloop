@@ -24,7 +24,7 @@ import {
 import { deleteProject, insertProject } from "@complyloop/db/repo/projects";
 import {
   loadTargetedProjectWriteDb,
-  loadWorkspaceDb,
+  loadTenancyDb,
 } from "@complyloop/db/workspace-load";
 import {
   acquireNamedPostgresAdvisoryLock,
@@ -131,12 +131,10 @@ async function runProjectWriteTransaction(
     const loadWorkspace = async (): Promise<ProjectWriteWorkspace> => {
       const db =
         scope.touch === "project"
-          ? await loadWorkspaceDb(tx, {
+          ? await loadTenancyDb(tx, {
               userId,
               githubLogin,
               activeProjectId: preferredProjectId,
-              evidenceLimit: 0,
-              includeRuntime: false,
             })
           : await loadTargetedProjectWriteDb(tx, {
               userId,
@@ -238,12 +236,10 @@ export async function withOrgWrite<T>(
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
     await acquireNamedPostgresAdvisoryLock(tx, orgWriteLockKey(userId));
-    const db = await loadWorkspaceDb(tx, {
+    const db = await loadTenancyDb(tx, {
       userId,
       githubLogin,
       activeProjectId: null,
-      evidenceLimit: 0,
-      includeRuntime: false,
     });
     const organizations = orgsForUser(db, userId);
     const {
@@ -304,12 +300,10 @@ export async function withConnectWrite<T>(
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
     await acquireNamedPostgresAdvisoryLock(tx, orgWriteLockKey(userId));
-    const db = await loadWorkspaceDb(tx, {
+    const db = await loadTenancyDb(tx, {
       userId,
       githubLogin,
       activeProjectId: options.activeProjectId,
-      evidenceLimit: 0,
-      includeRuntime: false,
     });
     const { result, insertProjects, deleteProjectIds, evidence } = await fn({
       db,

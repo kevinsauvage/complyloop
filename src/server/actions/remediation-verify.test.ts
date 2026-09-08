@@ -22,7 +22,7 @@ const { withProjectWrite, getWorkspace } = actionWorkspaceMocks;
 const locateViolationInProject = vi.hoisted(() => vi.fn());
 const runtimeViolationStillPresent = vi.hoisted(() => vi.fn());
 const scanRuntime = vi.hoisted(() => vi.fn());
-const applyEntityWrite = vi.hoisted(() => vi.fn());
+const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
 
 vi.mock("../repo-checkout", () => ({
   withProjectCheckout: async (
@@ -56,7 +56,7 @@ vi.mock("../assessment-status", async () => {
   );
   return {
     ...actual,
-    applyEntityWrite: (...args: unknown[]) => applyEntityWrite(...args),
+    applyRequirementStatusRefresh: (...args: unknown[]) => applyRequirementStatusRefresh(...args),
   };
 });
 
@@ -157,14 +157,12 @@ describe("verifyRemediationAction", () => {
     });
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
     expect(projectWritePayload()?.findings?.[0]?.status).toBe("resolved");
-    expect(applyEntityWrite).toHaveBeenCalledWith(
+    expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
       expect.any(Object),
+      expect.objectContaining({ id: "p1" }),
       expect.objectContaining({
-        project: expect.objectContaining({ id: "p1" }),
-        findings: expect.any(Array),
-        requirements: expect.any(Array),
         controlIds: ["ctl-img-alt"],
-        options: expect.objectContaining({ runtimeRan: true }),
+        runtimeRan: true,
       }),
     );
   });
@@ -202,17 +200,13 @@ describe("verifyRemediationAction", () => {
     });
     expect(locateViolationInProject).not.toHaveBeenCalled();
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
-    expect(applyEntityWrite).toHaveBeenCalledWith(
+    expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
       expect.any(Object),
+      expect.objectContaining({ id: "p1" }),
       expect.objectContaining({
-        project: expect.objectContaining({ id: "p1" }),
-        findings: expect.any(Array),
-        requirements: expect.any(Array),
         controlIds: ["ctl-img-alt"],
-        options: expect.objectContaining({
-          runtimeRan: true,
-          siteLevelChecksRan: true,
-        }),
+        runtimeRan: true,
+        siteLevelChecksRan: true,
       }),
     );
   });

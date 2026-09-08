@@ -7,7 +7,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { locateViolationInProject } from "../assessment-findings";
 import type { Db } from "../db";
-import type { ResolveProjectGitHubTokenOptions } from "../github";
+import type { ResolveProjectGitHubTokenOptions } from "../github-access";
 import { assertProjectPermission } from "../project-visibility";
 import type { Workspace } from "../workspace";
 

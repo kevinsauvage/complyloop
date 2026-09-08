@@ -50,7 +50,7 @@ vi.mock("../connect-github", () => ({
     findConnectedGitHubProject(...args),
 }));
 
-vi.mock("../github", () => ({
+vi.mock("../github-access", () => ({
   fetchGitHubRepo: (...args: unknown[]) => fetchGitHubRepo(...args),
 }));
 

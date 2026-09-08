@@ -18,7 +18,7 @@ import {
   disconnectGitHubRepo,
   findConnectedGitHubProject,
 } from "../connect-github";
-import { fetchGitHubRepo } from "../github";
+import { fetchGitHubRepo } from "../github-access";
 import {
   createInstallationAccessToken,
   isGitHubAppConfigured,

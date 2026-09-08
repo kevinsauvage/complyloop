@@ -7,10 +7,8 @@ import {
   Layers,
 } from "lucide-react";
 import { SeverityBadge } from "@/components/badges";
-import {
-  PageActionLink,
-  formatDateTime,
-} from "@/components/page-primitives";
+import { PageActionLink } from "@/components/page-primitives";
+import { formatDateTime } from "@/core/format-datetime";
 import {
   Card,
   CardContent,

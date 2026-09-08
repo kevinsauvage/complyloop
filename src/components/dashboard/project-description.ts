@@ -1,4 +1,4 @@
-import { formatDateTime } from "@/components/page-primitives";
+import { formatDateTime } from "@/core/format-datetime";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 export function projectDescription(

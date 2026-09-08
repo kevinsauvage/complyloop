@@ -20,7 +20,7 @@ const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const drainAssessmentJobQueue = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
-const applyEntityWrite = vi.hoisted(() => vi.fn());
+const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
 
 vi.mock("@/ai/explainer", () => ({
   generateAiExplanation: vi.fn(),
@@ -67,7 +67,7 @@ vi.mock("../assessment-status", async () => {
   );
   return {
     ...actual,
-    applyEntityWrite: (...args: unknown[]) => applyEntityWrite(...args),
+    applyRequirementStatusRefresh: (...args: unknown[]) => applyRequirementStatusRefresh(...args),
   };
 });
 
@@ -299,7 +299,7 @@ describe("dismissFindingAction", () => {
 
     expect(result.message).toMatch(/dismissed/i);
     expect(projectWritePayload()?.findings?.[0]?.status).toBe("dismissed");
-    expect(applyEntityWrite).toHaveBeenCalled();
+    expect(applyRequirementStatusRefresh).toHaveBeenCalled();
   });
 
   it("requires a valid dismissal reason", async () => {
@@ -364,14 +364,10 @@ describe("bulkDismissFindingsAction", () => {
     expect(payload?.findings?.[0]?.status).toBe("dismissed");
     expect(payload?.findings?.[0]?.dismissal?.reason).toBe("not_applicable");
     expect(payload?.findings?.[1]).toBeUndefined();
-    expect(applyEntityWrite).toHaveBeenCalledWith(
+    expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
       expect.any(Object),
-      expect.objectContaining({
-        project: expect.objectContaining({ id: "p1" }),
-        findings: expect.any(Array),
-        requirements: expect.any(Array),
-        controlIds: ["ctl-img-alt"],
-      }),
+      expect.objectContaining({ id: "p1" }),
+      expect.objectContaining({ controlIds: ["ctl-img-alt"] }),
     );
   });
 

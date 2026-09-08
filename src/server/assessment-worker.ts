@@ -21,7 +21,7 @@ import {
   postPullRequestCheckRun,
   summarizeAssessmentForCheckRun,
 } from "./github-checks";
-import { resolveProjectGitHubToken } from "./github";
+import { resolveProjectGitHubToken } from "./github-access";
 import { reportError, reportWarning } from "./observability";
 import { pruneRateLimitBuckets } from "./rate-limit";
 import { withProjectCheckout } from "./repo-checkout";

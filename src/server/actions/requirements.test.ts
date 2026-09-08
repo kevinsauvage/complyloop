@@ -22,7 +22,7 @@ import {
 } from "./requirements";
 
 const { withProjectWrite } = actionWorkspaceMocks;
-const applyEntityWrite = vi.hoisted(() => vi.fn());
+const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
 
 vi.mock("../observability", () => ({
   reportError: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock("../assessment-status", async () => {
   );
   return {
     ...actual,
-    applyEntityWrite: (...args: unknown[]) => applyEntityWrite(...args),
+    applyRequirementStatusRefresh: (...args: unknown[]) => applyRequirementStatusRefresh(...args),
   };
 });
 
@@ -255,14 +255,10 @@ describe("requirement decision actions", () => {
 
     expect(result.message).toBe("Human pass cleared.");
     expect(projectWritePayload()?.requirements?.[0]?.humanPass).toBeUndefined();
-    expect(applyEntityWrite).toHaveBeenCalledWith(
+    expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
       expect.any(Object),
-      expect.objectContaining({
-        project: expect.objectContaining({ id: "p1" }),
-        findings: expect.any(Array),
-        requirements: expect.any(Array),
-        controlIds: ["ctl-outline-none"],
-      }),
+      expect.objectContaining({ id: "p1" }),
+      expect.objectContaining({ controlIds: ["ctl-outline-none"] }),
     );
   });
 
@@ -311,14 +307,10 @@ describe("requirement decision actions", () => {
 
     expect(result.message).toMatch(/Exception cleared/);
     expect(projectWritePayload()?.requirements?.[0]?.exception).toBeUndefined();
-    expect(applyEntityWrite).toHaveBeenCalledWith(
+    expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
       expect.any(Object),
-      expect.objectContaining({
-        project: expect.objectContaining({ id: "p1" }),
-        findings: expect.any(Array),
-        requirements: expect.any(Array),
-        controlIds: ["ctl-img-alt"],
-      }),
+      expect.objectContaining({ id: "p1" }),
+      expect.objectContaining({ controlIds: ["ctl-img-alt"] }),
     );
   });
 

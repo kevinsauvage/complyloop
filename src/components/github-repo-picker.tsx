@@ -22,7 +22,7 @@ import {
   connectGitHubRepoAction,
   disconnectGitHubRepoAction,
 } from "@/server/actions/connect";
-import type { GitHubRepoSummary } from "@/server/github";
+import type { GitHubRepoSummary } from "@/server/github-access";
 import { z } from "zod";
 
 function repoOwner(fullName: string): string {

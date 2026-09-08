@@ -6,12 +6,14 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { createGit } from "./git";
 import {
   createOctokit,
+  githubCloneUrl,
   octokitErrorMessage,
   parseOwnerRepo,
+} from "./github";
+import {
   resolveProjectGitHubToken,
   type ResolveProjectGitHubTokenOptions,
-} from "./github";
-import { githubCloneUrl } from "./github-helpers";
+} from "./github-access";
 import { buildDeveloperHandoff } from "./handoff";
 import { withProjectCheckout } from "./repo-checkout";
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { formatDateTime, MetaTile } from "@/components/page-primitives";
+import { MetaTile } from "@/components/page-primitives";
+import { formatDateTime } from "@/core/format-datetime";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,

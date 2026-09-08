@@ -1,7 +1,7 @@
 import { auth, getGitHubAccessToken } from "@/auth";
 import { parsePageParam } from "@/core/pagination";
 import { z } from "zod";
-import { listGitHubRepos } from "@/server/github";
+import { listGitHubRepos } from "@/server/github-access";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { publicErrorMessage } from "@/server/action-state";
 import { parseInput } from "@/server/boundary";

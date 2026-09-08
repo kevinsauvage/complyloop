@@ -6,8 +6,8 @@ import {
   PageActionLink,
   PageContent,
   PageHeader,
-  formatDateTime,
 } from "@/components/page-primitives";
+import { formatDateTime } from "@/core/format-datetime";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {

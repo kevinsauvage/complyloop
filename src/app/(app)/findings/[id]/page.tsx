@@ -22,7 +22,8 @@ import {
   parseFindingListParams,
   type FilterFindingsContext,
 } from "@/core/finding-list-filter";
-import { PageContent, PageHeader, PageSection, formatDateTime } from "@/components/page-primitives";
+import { PageContent, PageHeader, PageSection } from "@/components/page-primitives";
+import { formatDateTime } from "@/core/format-datetime";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { pullRequestUrlFromEvidence } from "@/server/finding-pr-url";

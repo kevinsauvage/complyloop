@@ -11,8 +11,8 @@ import { createGit } from "./git";
 import {
   resolveProjectGitHubToken,
   type ResolveProjectGitHubTokenOptions,
-} from "./github";
-import { githubCloneUrl } from "./github-helpers";
+} from "./github-access";
+import { githubCloneUrl } from "./github";
 import { assertCheckoutWithinQuota } from "./resource-limits";
 
 export interface RepoCheckoutOptions {

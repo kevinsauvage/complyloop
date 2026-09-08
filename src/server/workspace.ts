@@ -10,11 +10,12 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/client";
 import { getFindingById } from "@complyloop/db/repo/findings";
 import { getRemediationByFindingId } from "@complyloop/db/repo/remediations";
+import { loadTenancyDb } from "@complyloop/db/workspace-load";
 import {
   readActiveOrgCookie,
   readActiveProjectCookie,
 } from "./active-cookies";
-import { loadWorkspaceTenancyDbForViewer, type Db } from "./db";
+import type { Db } from "./db";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { orgsForUser, resolveActiveOrgId } from "./orgs";
 import {
@@ -100,10 +101,10 @@ async function loadViewerWorkspaceState(): Promise<Workspace> {
   const preferredOrgId = userId ? await readActiveOrgCookie() : null;
   const preferredProjectId = await readActiveProjectCookie();
 
-  const db = await loadWorkspaceTenancyDbForViewer({
+  const db = await loadTenancyDb(await getDrizzle(), {
     userId,
     githubLogin,
-    preferredProjectId,
+    activeProjectId: preferredProjectId,
   });
   return prepareWorkspaceState(
     db,

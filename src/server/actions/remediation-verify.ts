@@ -18,7 +18,7 @@ import {
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
 import { sameInstance } from "../assessment-findings";
-import { applyEntityWrite } from "../assessment-status";
+import { applyRequirementStatusRefresh } from "../assessment-status";
 import type { Db } from "../db";
 import {
   findingById,
@@ -28,7 +28,7 @@ import {
   requireRemediationForFinding,
 } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
-import { evidenceEntry } from "../evidence-payload";
+import { appendEvidence, cloneProjectRows } from "../project-rows";
 import {
   refresh,
   replaceRemediation,
@@ -72,29 +72,38 @@ function recordStillFailing(
 
 function markVerified(
   db: Db,
-  payload: ProjectWritePayload,
   live: Finding,
   remediation: Remediation,
   note: string,
   engine: "runtime" | "site",
   audit: VerifyAuditFlags,
-): void {
+): ProjectWritePayload {
   const project = db.projects.find(
     (candidate) => candidate.id === live.projectId,
   );
   if (!project) throw new PublicError("Unknown project.");
 
-  replaceRemediation(
-    payload,
-    advanceRemediation(remediation, "verified", note),
+  const rows = cloneProjectRows(
+    db.findings,
+    db.remediations,
+    db.requirements,
+    project.id,
   );
+  const verifiedRemediation = advanceRemediation(remediation, "verified", note);
   const updatedFinding: Finding = {
     ...live,
     status: "resolved",
     resolvedNote: "Fix verified by re-running the runtime audit.",
   };
-  payload.findings = [...(payload.findings ?? []), updatedFinding];
-  evidenceEntry(payload, {
+  const findingIndex = rows.findings.findIndex(
+    (candidate) => candidate.id === live.id,
+  );
+  if (findingIndex >= 0) {
+    rows.findings[findingIndex] = updatedFinding;
+  } else {
+    rows.findings.push(updatedFinding);
+  }
+  appendEvidence(rows, {
     kind: "remediation_verified",
     summary: `Verified: ${live.checkId} no longer fails at ${formatLocationRef(live.location)}`,
     projectId: live.projectId,
@@ -102,17 +111,18 @@ function markVerified(
     findingId: live.id,
     detail: { engine },
   });
-  applyEntityWrite(payload, {
-    project,
-    findings: db.findings,
-    requirements: db.requirements,
+  applyRequirementStatusRefresh(rows, project, {
     controlIds: [live.controlId],
-    options: {
-      runtimeRan: audit.runtimeRan,
-      siteLevelChecksRan: audit.siteLevelChecksRan,
-      htmlValidateRan: audit.htmlValidateRan,
-    },
+    runtimeRan: audit.runtimeRan,
+    siteLevelChecksRan: audit.siteLevelChecksRan,
+    htmlValidateRan: audit.htmlValidateRan,
   });
+  return {
+    remediations: [verifiedRemediation],
+    findings: [updatedFinding],
+    requirements: rows.requirements,
+    evidence: rows.evidence,
+  };
 }
 
 export async function verifyRemediationAction(
@@ -194,8 +204,7 @@ export async function verifyRemediationAction(
           recordStillFailing(payload, remediation);
           return payload;
         }
-        markVerified(db, payload, live, remediation, note, engine, audit);
-        return payload;
+        return markVerified(db, live, remediation, note, engine, audit);
       },
     );
     refresh();
@@ -233,7 +242,7 @@ export async function markRemediationImplementedAction(
         payload,
         advanceRemediation(remediation, "implemented", note),
       );
-      evidenceEntry(payload, {
+      appendEvidence(payload, {
         kind: "remediation_implemented",
         summary: `Remediation marked implemented for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,

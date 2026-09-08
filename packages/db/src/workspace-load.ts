@@ -26,6 +26,17 @@ import {
   listLatestAssessmentForProject,
 } from "./repo/assessments.ts";
 
+const EMPTY_RUNTIME: Pick<
+  Db,
+  "requirements" | "assessments" | "findings" | "remediations" | "alerts"
+> = {
+  requirements: [],
+  assessments: [],
+  findings: [],
+  remediations: [],
+  alerts: [],
+};
+
 async function loadEvidenceWindow(
   drizzle: DrizzleDb,
   projectId: string,
@@ -75,8 +86,6 @@ export interface WorkspaceLoadInput {
   githubLogin: string | null;
   activeProjectId: string | null;
   evidenceLimit?: number;
-  /** When false, loads tenancy only — pages query project runtime directly. */
-  includeRuntime?: boolean;
 }
 
 async function loadWorkspaceTenancy(
@@ -113,6 +122,23 @@ async function loadWorkspaceTenancy(
   };
 }
 
+/** Orgs, memberships, and projects only — no runtime rows or evidence window. */
+export async function loadTenancyDb(
+  drizzle: DrizzleDb,
+  input: Pick<WorkspaceLoadInput, "userId" | "githubLogin" | "activeProjectId">,
+): Promise<Db> {
+  const { organizations, memberships, projects } =
+    await loadWorkspaceTenancy(drizzle, input);
+  return {
+    organizations,
+    memberships,
+    projects,
+    ...EMPTY_RUNTIME,
+    evidence: [],
+  };
+}
+
+/** Tenancy plus active-project runtime and evidence window. */
 export async function loadWorkspaceDb(
   drizzle: DrizzleDb,
   input: WorkspaceLoadInput,
@@ -121,18 +147,12 @@ export async function loadWorkspaceDb(
     await loadWorkspaceTenancy(drizzle, input);
 
   const runtime =
-    input.includeRuntime === false || activeProjectId == null
-      ? {
-          requirements: [],
-          assessments: [],
-          findings: [],
-          remediations: [],
-          alerts: [],
-        }
+    activeProjectId == null
+      ? EMPTY_RUNTIME
       : await loadProjectRuntime(drizzle, activeProjectId);
 
   const evidenceRows =
-    activeProjectId != null && input.includeRuntime !== false
+    activeProjectId != null
       ? await loadEvidenceWindow(
           drizzle,
           activeProjectId,
@@ -250,13 +270,7 @@ export async function loadTargetedProjectWriteDb(
   const runtime =
     activeProjectId != null
       ? await loadTargetedProjectRuntime(drizzle, activeProjectId, input)
-      : {
-          requirements: [],
-          assessments: [],
-          findings: [],
-          remediations: [],
-          alerts: [],
-        };
+      : EMPTY_RUNTIME;
 
   // Evidence window is bounded and append-accessible; give handlers a truthful
   // snapshot so a read of db.evidence reflects what is already persisted.
@@ -289,12 +303,8 @@ export async function loadProjectAssessmentDb(
       organizations: [],
       memberships: [],
       projects: [],
-      requirements: [],
-      assessments: [],
-      findings: [],
-      remediations: [],
+      ...EMPTY_RUNTIME,
       evidence: [],
-      alerts: [],
     };
   }
 

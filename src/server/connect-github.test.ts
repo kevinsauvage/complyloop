@@ -10,7 +10,7 @@ import {
   deriveProjectName,
   uniqueProjectName,
 } from "./connect-github";
-import { githubCloneUrl } from "./github-helpers";
+import { githubCloneUrl } from "./github";
 
 const tempDirs: string[] = [];
 

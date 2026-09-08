@@ -21,7 +21,7 @@ import {
   remediationForFinding,
 } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
-import { evidenceEntry } from "../evidence-payload";
+import { appendEvidence } from "../project-rows";
 import {
   refresh,
   replaceRemediation,
@@ -133,7 +133,7 @@ export async function generateAiRemediationAction(
         ),
       );
 
-      evidenceEntry(payload, {
+      appendEvidence(payload, {
         kind: "ai_remediation_suggested",
         summary: `AI remediation suggested for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
         projectId: finding.projectId,

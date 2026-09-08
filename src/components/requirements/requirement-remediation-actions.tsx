@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, ChevronDown, ShieldCheck } from "lucide-react";
-import { formatDateTime } from "@/components/page-primitives";
+import { formatDateTime } from "@/core/format-datetime";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";

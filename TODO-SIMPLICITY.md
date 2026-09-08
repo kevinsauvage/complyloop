@@ -6,61 +6,25 @@ Unnecessary-complexity audit of the whole repo (src/, packages/, scripts/, confi
 
 ---
 
-## P0 — complexity actively causing problems
-
-~~### 1. Import cycle `repo-checkout ⇄ connect-github`~~ **DONE**
-Moved `cloneShallow` into `repo-checkout.ts`; `githubCloneUrl` imported from `github-helpers` (not via `connect-github` re-export). Cycle gone.
-
-~~### 2. `project-cascade.ts` is dead code from the pre-Postgres era~~ **DONE**
-Deleted `src/server/project-cascade.ts`.
-
----
-
 ## P1 — significant unnecessary complexity
 
-### 3. GitHub module fragmentation with two re-export barrels (5 files for ~1 feature)
+~~### 3. GitHub module fragmentation~~ **DONE**
+Helpers in `github.ts` (leaf); App-dependent APIs in `github-access.ts`; `github-helpers.ts` deleted.
 
-- **Problem:** GitHub integration split across `github.ts` (117), `github-helpers.ts` (111), `github-app.ts` (225), `github-checks.ts` (101), `github-tokens.ts` (126) — two of them exist mostly to re-export each other. `github.ts:18–22` re-exports 5 symbols from `github-helpers.ts`; `connect-github.ts:16` re-exports 2 more.
-- **Evidence:** the only consumer of the `github.ts` barrel is `github-checks.ts:2`; other callers (`github-app.ts:9`, `connect-github.ts:12`) import `./github-helpers` directly — two import paths for the same functions.
-- **Simplification:** merge `github-helpers.ts` into `github.ts` (single entry), delete both re-export blocks, update the three callers. `github-app.ts` and `github-tokens.ts` stay separate (distinct concerns, own tests). 4 files → 3.
-- **Verification:** `rg -n 'from "\./github-helpers"' src` → nothing; GitHub test suites pass; `npm run build` clean.
+~~### 4. Pure/apply duplication in `assessment-status.ts`~~ **DONE**
+Single scratch path via `ProjectRows` + `applyRequirementStatusRefresh` (with optional `controlIds`); `applyEntityWrite` / payload-override twins removed. Assessment clears expired exceptions via `clearExpiredExceptions` + `upsertRequirementsById`.
 
-### 4. Pure/apply duplication in `assessment-status.ts` (every function ×2, targets ×2)
+~~### 6. `formatDateTime` re-export from UI~~ **DONE**
+All consumers import `@/core/format-datetime`.
 
-- **Problem:** each status operation exists as a pure function plus a hand-written apply-adapter, duplicated for two write containers: `applyExpiredExceptionClearance` (rows), `applyRequirementStatusRefresh` (rows), `applyEntityWrite`→`mergeRefreshIntoPayload` (payload). `ProjectRows` (`src/server/project-rows.ts`) and `ProjectWritePayload` (`packages/db/src/repo/apply.ts`) are near-identical shapes maintained in parallel.
-- **Evidence:** `src/server/assessment-status.ts:88–105` (splice re-implementing `upsertRequirementsById` at :150), `:340–380` (row vs payload variants), `:396–404` (`requirementsWithPayloadOverrides` = `findingsWithPayloadOverrides` with the type renamed).
-- **Simplification:** make `ProjectRows` the single scratch container; persist from it in one place; drop `mergeRefreshIntoPayload`/payload-override plumbing. Delete `applyExpiredExceptionClearance` in favor of `clearExpiredExceptions` + `upsertRequirementsById` at the one call site (`src/server/assessment.ts:172`). Estimated −80–120 lines and one concept ("two write targets") removed.
-- **Verification:** `npm run test -- src/server/assessment-status.test.ts src/server/assessment.test.ts` passes (pure signatures unchanged); `npm run test:db` passes; smoke: dismiss a finding → status refreshes.
+~~### 7. Dual evidence wrappers~~ **DONE**
+`evidence-payload.ts` deleted; all callers use `appendEvidence` from `project-rows.ts`.
 
-~~### 5. Duplicated org-membership claim logic: in-memory `orgs.ts` vs DB `repo/orgs.ts`~~ **DONE**
-`provisionPersonalOrg` in `packages/db/src/repo/orgs.ts` owns claim + create; `personal-org.ts` is a thin wrapper; in-memory `claimMembershipsForLogin` removed from `src/server/orgs.ts`.
+~~### 8. `navAttentionCounts` dead duplicate~~ **DONE**
+In-memory counter + test deleted; production uses SQL `countNavAttentionForProject`.
 
-### 6. `formatDateTime` re-exported from a UI file
-
-- **Problem:** `page-primitives.tsx:186` re-exports `formatDateTime` from `@/core/format-datetime`, so 7 component files import a date formatter from a React-chrome module while 6 others import the core module directly — two live spellings of one import, and exactly the "barrel that just re-exports" the code-quality rule bans.
-- **Evidence:** `src/components/page-primitives.tsx:186`; re-export importers: `project-description.ts`, `requirement-card.tsx`, `requirement-remediation-actions.tsx`, `assessment-job-status.tsx`, `org-account-overview.tsx`, `org-members-card.tsx`, `findings/[id]/page.tsx`.
-- **Simplification:** delete the re-export; repoint the 7 imports to `@/core/format-datetime`.
-- **Verification:** `rg -n "formatDateTime.*page-primitives" src` → nothing; typecheck + tests pass.
-
-### 7. `evidence-payload.ts` + `project-rows.ts` are two one-function wrappers around the same idea
-
-- **Problem:** appending evidence is implemented twice: `evidenceEntry(payload, …)` (mutates `ProjectWritePayload.evidence`; file exists solely for this) and `appendEvidence(rows, …)` (mutates `ProjectRows.evidence`). Both call `newEvidenceRecord`.
-- **Evidence:** `src/server/evidence-payload.ts` (19 lines, single export, 9 importer files) and `src/server/project-rows.ts:44–50`. Duplication exists only because of the two-write-targets split (item 4).
-- **Simplification:** collapse along with item 4 — one `appendEvidence` on the single scratch container. If item 4 is deferred, inline `evidenceEntry` at call sites.
-- **Verification:** `rg -c "evidenceEntry"` → 0; create a PR / dismiss a finding — evidence still renders.
-
-### 8. `navAttentionCounts` — production-dead duplicate of the SQL counting rule
-
-- **Problem:** `src/server/nav-attention.ts:12–26` recomputes open-findings/unread-alerts counts against the in-memory `Db` slice; its only importer is its own test. Production nav badges use `navAttentionForProject` (:29) → `countNavAttentionForProject` in `packages/db/src/repo/nav-attention.ts` (same rule in SQL). Two implementations of one business rule that can drift silently.
-- **Simplification:** delete `navAttentionCounts` and its ~100-LOC test suite; keep `navAttentionForProject`; add DB-level coverage for `countNavAttentionForProject` if missing.
-- **Verification:** `rg -n "navAttentionCounts" src` → nothing; `npm run test && npm run test:db` pass; dashboard badges render.
-
-### 9. `workspace-load.ts` — three loaders with triplicated boilerplate and a mode flag
-
-- **Problem:** `loadWorkspaceDb` (:116–150), `loadTargetedProjectWriteDb` (:243–278), `loadProjectAssessmentDb` (:282–325) each re-assemble the same `{tenancy, runtime, evidence}` shape: the 6-key "empty runtime" literal appears 3× (:128–132, :249–254, :288–299), the evidence-window call 2× (:133–139, :263–269). The `includeRuntime` boolean (:79) gives `loadWorkspaceDb` two modes, and the tenancy-only mode has exactly one consumer — itself a single-caller wrapper (`loadWorkspaceTenancyDbForViewer`, `src/server/db.ts:16–22`, called only from `workspace.ts:103`).
-- **Evidence:** call sites verified: `workspace-write.ts` ×3, `db.ts`, `org.ts`, `project-runtime.ts`.
-- **Simplification:** extract an `EMPTY_RUNTIME` constant; make `loadWorkspaceDb` = tenancy + runtime unconditionally; drop `includeRuntime` and the `db.ts` wrapper (inline its fixed options at the one call site, see item 15). Estimated −55–60 LOC, −1 mode flag, −1 wrapper.
-- **Verification:** `npm run test -- packages/db && npm run test:db` pass; `rg -n "includeRuntime" packages src` → nothing.
+~~### 9. `workspace-load.ts` triplicated loaders~~ **DONE**
+`EMPTY_RUNTIME` extracted; `loadTenancyDb` for viewer/org paths; `includeRuntime` and `loadWorkspaceTenancyDbForViewer` removed.
 
 ---
 
@@ -108,7 +72,7 @@ Deleted `src/server/project-cascade.ts`.
 
 ### 16. Root `package.json` declares 5 dependencies only `@complyloop/analysis-core` uses
 
-- **Problem:** `aria-query`, `axobject-query`, `fast-glob`, `playwright`, `ssrf-guard` are declared in root `package.json` (:48, :50, :56, :61, :68) but imported *only* inside `packages/analysis-core/src/` (grep-verified across `src/`, `scripts/`, `e2e/` — nothing imports `"playwright"`; e2e uses `@playwright/test`, declared separately at :76). `packages/analysis-core/package.json` already declares every one of them itself (:23, :24, :27, :30, :31).
+- **Problem:** `aria-query`, `axobject-query`, `fast-glob`, `playwright`, `ssrf-guard` are declared in root `package.json` (:48, :50, :56, :61, :68) but imported _only_ inside `packages/analysis-core/src/` (grep-verified across `src/`, `scripts/`, `e2e/` — nothing imports `"playwright"`; e2e uses `@playwright/test`, declared separately at :76). `packages/analysis-core/package.json` already declares every one of them itself (:23, :24, :27, :30, :31).
 - **Simplification:** remove the 5 entries from root `dependencies`. **Keep `axe-core` at root** (:49) — required for analysis-core's peerDep and the runtime `require.resolve("axe-core/axe.min.js")` in `runtime/scan.ts:143`; keep `@types/aria-query` (devDep).
 - **Verification:** `npm install` succeeds; `npm run build && npm run test` pass; `npx complyloop-check` still resolves axe-core at runtime (run `npm run check`).
 
@@ -194,7 +158,7 @@ Deleted `src/server/project-cascade.ts`.
 
 - **Evidence (all verified):**
   - `src/server/assessment-jobs.ts:17–18` — re-exports `AssessmentJobStatus`/`AssessmentJobTrigger`/`AssessmentJobPayload`; no file imports any of the three from this module. Delete both lines.
-  - Same-file-only exports (remove `export` keyword): `membershipsForOrg` (`orgs.ts:65`, sole caller :339), `findRemediationForFinding` (`workspace.ts:157`, sole caller :167), `clearExpiredExceptions` (:44) / `mergeRefreshIntoPayload` (:366) / `findingsWithPayloadOverrides` (:384) / `requirementsWithPayloadOverrides` (:396) in `assessment-status.ts`, `normalizeGitHubAppPrivateKey` (`github-app.ts:65`, sole caller :74).
+  - Same-file-only exports (remove `export` keyword): `membershipsForOrg` (`orgs.ts:65`, sole caller :339), `findRemediationForFinding` (`workspace.ts:157`, sole caller :167), `clearExpiredExceptions` / `upsertRequirementsById` in `assessment-status.ts` (callers: assessment + tests), `normalizeGitHubAppPrivateKey` (`github-app.ts:65`, sole caller :74).
   - `packages/analysis-core`: `RUNTIME_ONLY_CHECK_IDS` + `HEURISTIC_CHECK_IDS` (`check-authority.ts:19–27`) and `violationKey` (`theme-conditions.ts:87–89`) are consumed only by their own tests — build the sets in-test from `CHECK_REGISTRY`; un-export `violationKey`. `RUNTIME_GOTO_TIMEOUT_MS` / `RUNTIME_POST_DOM_SETTLE_MS` / `RUNTIME_AUDIT_MOTION_FREEZE_CSS` (`runtime/scan.ts:57–70`) have zero external importers — un-export.
   - `guidanceFor` (`packages/adapters/src/registry.ts:44–46`) is an identity pass-through over `rgaaGuidanceFor`, and `guidance.test.ts:17–19` asserts the pass-through equals its delegate — a tautological test. Delete the assertion (or inline the facade if WCAG guidance never lands).
 - **Simplification:** apply the above; for `customProbeCheckIds()` keep the export (load-bearing for `catalog-coverage.test.ts`).
@@ -279,7 +243,7 @@ Verified clean so a future agent doesn't re-litigate them:
 - **`foldAccents` copies in custom-checks:** documented-deliberate (`multilingual.ts:9–15`, CSP rationale) — do not consolidate.
 - **`scan.ts` injected `scanner`/`lookup` options:** used by 4 test files — acceptable test seams.
 - **`src/server/boundary.ts` vs `src/core/boundary.ts`:** justified (client-safe core, server adds `PublicError` throwing; 14 + 30 importers).
-- **In-memory `Db` write-batch + `ProjectWritePayload`:** load-slice + payload is the stale-write-protection mechanism (`upsert-guard.ts`); keep. Only the duplicated adapters around it are flagged (items 4/7/13-analog).
+- **In-memory `Db` write-batch + `ProjectWritePayload`:** load-slice + payload is the stale-write-protection mechanism (`upsert-guard.ts`); keep. Status scratch is `ProjectRows` (items 4/7 done).
 - **`status-display.ts` (453 LOC):** the documented single source for status UI; keep.
 - **`rate-limit.ts` advisory-lock + reset-on-conflict:** documented correctness argument; do not simplify without the atomicity analysis.
 - **Advisory-lock + reload loop in `workspace-write.ts`:** each branch documented and load-bearing; only the naming/wrapper layer is flagged (item 30).
@@ -289,7 +253,6 @@ Verified clean so a future agent doesn't re-litigate them:
 - **`use-action-toast.ts`:** 50 lines, correct pending-flip edge case, tested, `successAction` option has a real consumer — not over-engineered.
 - **API routes vs server actions:** no duplication — each route (`/assessment-jobs` polling, `/github/repos` picker fetch, `/internal/jobs/run` worker trigger, `/health`) has a consumer server actions can't serve.
 - **`upsertFinding` (single-row):** thin delegate over `upsertFindings` used by `e2e-seed.ts` — acceptable seeding convenience.
-- **`evidence-payload.ts` / `appendEvidence` consumers:** 8+ and 6+ — flagged only via the two-write-targets consolidation (items 4/7), not as dead code.
 - **`e2e-harness.ts`, `worker-auth.ts` (timing-safe compare), `github-tokens.ts` (AES-GCM), webhook signature/idempotency, `resource-limits.ts` SSRF/quota checks:** security/test-infrastructure requirements.
 - **`vitest.smoke.config.mts`, route groups, `tsconfig.json`, `.env.example`, `eslint.config.mjs`, `playwright.config.ts`:** lean; no redundancy found.
 - **`project-capabilities.ts`, `action-state.ts`, `monitor.ts`, `handoff.ts`, `report-model.ts`, `emptyDb()`:** multiple real callers; fine.
@@ -302,7 +265,7 @@ Verified clean so a future agent doesn't re-litigate them:
 4. **Item 16:** root `package.json` trim — one edit + `npm install` + build.
 5. **Item 9 + 14 + 15:** loader/session consolidation (workspace-load, db wrappers, scripts env) — related persistence-path cleanups.
 6. **Item 5:** personal-org provisioning consolidation — needs `test:db` + fresh sign-in smoke.
-7. **Items 4 + 7 (P1):** the `ProjectRows`/payload consolidation — highest value; full suite + `test:db` + manual smoke; one focused change.
+7. ~~**Items 4 + 7 (P1):**~~ **DONE** — `ProjectRows` scratch + single `appendEvidence`.
 8. **Items 10–12, 17–22 (P2):** file/component consolidations, each independently verifiable.
 9. **Items 23–40 (P3):** opportunistic, only while touching those files.
 

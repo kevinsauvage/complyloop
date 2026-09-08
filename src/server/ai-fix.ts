@@ -24,7 +24,7 @@ import { refreshSuggestion } from "@/core/remediation";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { Db } from "./db";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
-import { evidenceEntry } from "./evidence-payload";
+import { appendEvidence } from "./project-rows";
 
 export type PatchUiState =
   | { status: "idle" }
@@ -161,7 +161,7 @@ export function persistPatchCandidate(
   payload: ProjectWritePayload,
 ): void {
   const location = formatLocationRef(finding.location);
-  evidenceEntry(payload, {
+  appendEvidence(payload, {
     kind: "ai_patch_ready",
     summary: `Patch ready for ${finding.checkId} at ${location} (ComplyLoop passed).`,
     projectId: finding.projectId,

@@ -49,24 +49,24 @@ vi.mock("./repo-checkout", () => ({
   withRepoCheckout: vi.fn(),
 }));
 
-vi.mock("./github", () => ({
+vi.mock("./github-access", () => ({
   resolveProjectGitHubToken,
-  parseOwnerRepo: (fullName: string) => {
-    const [owner, repo] = fullName.split("/");
-    if (!owner || !repo) throw new Error("invalid full name");
-    return { owner, repo };
-  },
-  createOctokit: () => ({
-    rest: { pulls: { create: createPullRequest } },
-  }),
-  octokitErrorMessage: (error: unknown) => String(error),
 }));
 
-vi.mock("./github-helpers", async (importOriginal) => {
-  const original = await importOriginal<typeof import("./github-helpers")>();
+vi.mock("./github", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./github")>();
   return {
     ...original,
     githubCloneUrl,
+    parseOwnerRepo: (fullName: string) => {
+      const [owner, repo] = fullName.split("/");
+      if (!owner || !repo) throw new Error("invalid full name");
+      return { owner, repo };
+    },
+    createOctokit: () => ({
+      rest: { pulls: { create: createPullRequest } },
+    }),
+    octokitErrorMessage: (error: unknown) => String(error),
   };
 });
 

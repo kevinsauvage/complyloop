@@ -28,8 +28,9 @@ import {
   reconcileControlFindings,
 } from "./assessment-findings";
 import {
-  applyExpiredExceptionClearance,
   applyRequirementStatusRefresh,
+  clearExpiredExceptions,
+  upsertRequirementsById,
 } from "./assessment-status";
 import {
   assertAssessableCatalog,
@@ -168,7 +169,12 @@ export async function runAssessment(
     db.requirements,
     projectId,
   );
-  applyExpiredExceptionClearance(rows, projectId);
+  const cleared = clearExpiredExceptions(rows.requirements, projectId);
+  rows.requirements = upsertRequirementsById(
+    rows.requirements,
+    cleared.requirements,
+  );
+  rows.evidence.push(...cleared.evidence);
 
   const startedAt = new Date().toISOString();
 
