@@ -105,4 +105,18 @@ describe("updateRuntimeAuditAction", () => {
     expect(result.error).toMatch(/not allowed for runtime audit/);
     expect(withProjectWrite).not.toHaveBeenCalled();
   });
+
+  it("rejects absolute http(s) routes", async () => {
+    assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
+    const form = new FormData();
+    form.set("runtimeBaseUrl", "https://app.example");
+    form.set("runtimeRoutes", "/ok\nhttp://127.0.0.1/admin");
+
+    const result = await updateRuntimeAuditAction(
+      emptyActionMessageState,
+      form,
+    );
+    expect(result.error).toMatch(/must be paths under the Preview/);
+    expect(withProjectWrite).not.toHaveBeenCalled();
+  });
 });

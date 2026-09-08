@@ -17,13 +17,14 @@ import { EmptyState, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { latestAssessmentFor } from "@/core/assessment";
+import { countByStatusMap } from "@/core/count-by-status";
 import {
   prioritizeClusters,
   prioritizeFindings,
 } from "@/core/prioritization";
 import { clusterFindings } from "@/core/root-cause";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
-import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import { runAssessmentAction } from "@/server/actions/assessment";
 import { recentAssessmentJobsForProject } from "@/server/assessment-jobs";
 import {
@@ -128,10 +129,7 @@ export default async function DashboardPage() {
   const recentChanges = latestAssessment?.changesSincePrevious ?? [];
   const recentJobs = await recentAssessmentJobsForProject(project.id);
 
-  const counts = new Map<RequirementStatus, number>();
-  for (const requirement of requirements) {
-    counts.set(requirement.status, (counts.get(requirement.status) ?? 0) + 1);
-  }
+  const counts = countByStatusMap(requirements, REQUIREMENT_STATUSES);
 
   const failedCount = counts.get("failed") ?? 0;
   const passedCount = counts.get("passed") ?? 0;

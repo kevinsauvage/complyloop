@@ -5,6 +5,7 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { emptyDb } from "@complyloop/db/types";
 import {
+  buildOrgMembershipIndex,
   changeOrgMemberRole,
   createOrganization,
   deleteOrganization,
@@ -256,5 +257,39 @@ describe("orgs", () => {
     const updated = changeOrgMemberRole(db, org.id, "user-b", member.id, "viewer");
     expect(updated.role).toBe("viewer");
     expect(member.role).toBe("member");
+  });
+});
+
+describe("buildOrgMembershipIndex", () => {
+  it("returns the same membership sets as filter scans", () => {
+    const db = emptyDb();
+    const orgA = seedOwnerOrg(db, "user-a", "alice");
+    const orgB = applyOrg(
+      db,
+      createOrganization(db, {
+        name: "Team",
+        creatorUserId: "user-b",
+        githubLogin: "bob",
+      }),
+    );
+    applyMembership(
+      db,
+      inviteOrgMember(db, orgA.id, "user-a", "bob", "member"),
+    );
+    const bobOnA = db.memberships.find(
+      (m) => m.orgId === orgA.id && m.githubLogin === "bob",
+    );
+    if (bobOnA) bobOnA.userId = "user-b";
+
+    const index = buildOrgMembershipIndex(db.memberships);
+    const filterByOrg = (orgId: string) =>
+      db.memberships.filter((m) => m.orgId === orgId);
+    const filterByUser = (userId: string) =>
+      db.memberships.filter((m) => m.userId === userId);
+
+    expect(index.byOrgId.get(orgA.id)).toEqual(filterByOrg(orgA.id));
+    expect(index.byOrgId.get(orgB.id)).toEqual(filterByOrg(orgB.id));
+    expect(index.byUserId.get("user-a")).toEqual(filterByUser("user-a"));
+    expect(index.byUserId.get("user-b")).toEqual(filterByUser("user-b"));
   });
 });

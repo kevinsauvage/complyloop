@@ -118,6 +118,19 @@ describe("handleGitHubWebhookEvent", () => {
     );
   });
 
+  it("ignores pull_request events with a non-SHA head.sha", async () => {
+    findProjectByGithubFullName.mockResolvedValue({ id: "p1", orgId: "org-1" });
+
+    const result = await handleGitHubWebhookEvent("pull_request", {
+      action: "opened",
+      repository: { full_name: "acme/app" },
+      pull_request: { head: { sha: "not-a-sha" } },
+    });
+
+    expect(result.handled).toBe(false);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+
   it("enqueues a push to the live default branch and persists a rename", async () => {
     findProjectByGithubFullName.mockResolvedValue({
       id: "p1",

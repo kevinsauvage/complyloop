@@ -358,7 +358,7 @@ describe("refreshRequirementStatuses heuristic", () => {
     applyRefresh(db, "p1", { runtimeRan: false });
 
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-image-of-text")
+      db.requirements.find((requirement) => requirement.controlId === "ctl-pointer-gesture")
         ?.status,
     ).toBe("unable_to_verify");
   });
@@ -375,14 +375,14 @@ describe("refreshRequirementStatuses heuristic", () => {
     db.findings.push({
       id: "f1",
       projectId: "p1",
-      controlId: "ctl-image-of-text",
+      controlId: "ctl-pointer-gesture",
       assessmentId: "a1",
-      checkId: "image-of-text",
+      checkId: "pointer-gesture",
       status: "open",
       kind: "warning",
       severity: "moderate",
       confidence: "medium",
-      reason: "background image may be text",
+      reason: "pointer gesture without keyboard equivalent",
       location: {
         kind: "source",
         filePath: "A.tsx",
@@ -399,7 +399,7 @@ describe("refreshRequirementStatuses heuristic", () => {
     applyRefresh(db, "p1", { runtimeRan: false });
 
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-image-of-text")
+      db.requirements.find((requirement) => requirement.controlId === "ctl-pointer-gesture")
         ?.status,
     ).toBe("needs_review");
   });

@@ -9,7 +9,8 @@ type BucketRow = {
 
 type Clause =
   | { kind: "eq"; value: unknown }
-  | { kind: "lt"; value: unknown };
+  | { kind: "lt"; value: unknown }
+  | { kind: "and"; clauses: Clause[] };
 
 const buckets = vi.hoisted(() => new Map<string, BucketRow>());
 const getDrizzle = vi.hoisted(() => vi.fn());
@@ -35,6 +36,7 @@ vi.mock("drizzle-orm", async () => {
     ...actual,
     eq: (_column: unknown, value: unknown): Clause => ({ kind: "eq", value }),
     lt: (_column: unknown, value: unknown): Clause => ({ kind: "lt", value }),
+    and: (...clauses: Clause[]): Clause => ({ kind: "and", clauses }),
   };
 });
 
@@ -68,11 +70,24 @@ function createDrizzle() {
     }),
     update: () => ({
       set: (patch: Partial<BucketRow>) => ({
-        where: async (clause: Clause) => {
-          if (clause.kind !== "eq") return;
-          const row = buckets.get(String(clause.value));
-          if (row) Object.assign(row, patch);
-        },
+        where: (clause: Clause) => ({
+          returning: async () => {
+            if (clause.kind !== "and") return [];
+            const eqClause = clause.clauses.find((c) => c.kind === "eq");
+            const ltClause = clause.clauses.find((c) => c.kind === "lt");
+            if (!eqClause || !ltClause || eqClause.kind !== "eq" || ltClause.kind !== "lt") {
+              return [];
+            }
+            const row = buckets.get(String(eqClause.value));
+            const limit = Number(ltClause.value);
+            if (!row || row.count >= limit) return [];
+            row.count += 1;
+            if (typeof patch.updatedAt === "string") {
+              row.updatedAt = patch.updatedAt;
+            }
+            return [{ key: row.key }];
+          },
+        }),
       }),
     }),
     delete: () => ({
@@ -107,12 +122,21 @@ beforeEach(() => {
   buckets.clear();
   const drizzle = createDrizzle();
   getDrizzle.mockResolvedValue(drizzle);
+  // Serialize lock holders so concurrent asserts behave like Postgres advisory locks.
+  let chain: Promise<unknown> = Promise.resolve();
   withNamedPostgresAdvisoryLock.mockImplementation(
     async (
       _drizzle: unknown,
       _key: string,
       fn: (tx: unknown) => unknown,
-    ) => fn(drizzle),
+    ) => {
+      const run = chain.then(() => fn(drizzle));
+      chain = run.then(
+        () => undefined,
+        () => undefined,
+      );
+      return run;
+    },
   );
 });
 
@@ -154,6 +178,21 @@ describe("assertRateLimit", () => {
     row.windowStartedAt = new Date(Date.now() - 1_000).toISOString();
     await expect(assertRateLimit("k1", 1, 1)).resolves.toBeUndefined();
     expect(buckets.get("k1")?.count).toBe(1);
+  });
+
+  it("allows exactly one of two concurrent writers when limit is 1", async () => {
+    const results = await Promise.allSettled([
+      assertRateLimit("concurrent", 1, 60_000),
+      assertRateLimit("concurrent", 1, 60_000),
+    ]);
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]?.status === "rejected" && rejected[0].reason).toBeInstanceOf(
+      RateLimitError,
+    );
+    expect(buckets.get("concurrent")?.count).toBe(1);
   });
 });
 

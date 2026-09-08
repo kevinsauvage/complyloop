@@ -390,6 +390,17 @@ export async function scanRuntime(
   }
 
   const urls = routes.map((route) => joinRuntimeUrl(base, route));
+  for (const url of urls) {
+    try {
+      await assertSafeRuntimeUrl(url, lookup);
+    } catch (error) {
+      return {
+        findings: [],
+        pagesScanned: 0,
+        error: publicMessage(error, UNSAFE_RUNTIME_URL_MESSAGE),
+      };
+    }
+  }
   if (urls.length > maxRuntimePages()) {
     return {
       findings: [],

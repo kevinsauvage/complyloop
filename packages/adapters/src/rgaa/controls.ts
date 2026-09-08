@@ -554,7 +554,7 @@ export const rgaaControls: Control[] = [
     title: "Focus does not change context",
     description:
       "Receiving focus does not unexpectedly change context (navigate, submit, open a dialog) without warning.",
-    checkId: "focus-context-change",
+    checkId: null,
     complianceWeight: 1.1,
   },
   {
@@ -565,7 +565,7 @@ export const rgaaControls: Control[] = [
     title: "Input does not change context",
     description:
       "Changing or entering input does not unexpectedly change context (navigate, submit) without warning or a confirmation step.",
-    checkId: "input-context-change",
+    checkId: null,
     complianceWeight: 1.1,
   },
   {
@@ -576,7 +576,7 @@ export const rgaaControls: Control[] = [
     title: "Instructions do not rely on sensory characteristics",
     description:
       "Instructions are not conveyed by color, shape, size, sound, or position alone; they are also available as text.",
-    checkId: "sensory-characteristics",
+    checkId: null,
     complianceWeight: 1.0,
   },
   {
@@ -587,7 +587,7 @@ export const rgaaControls: Control[] = [
     title: "Text is not presented as an image",
     description:
       "Information conveyed as an image of text (CSS background text, role='img' with text) is also available as real text.",
-    checkId: "image-of-text",
+    checkId: null,
     complianceWeight: 1.0,
   },
   {
@@ -598,7 +598,7 @@ export const rgaaControls: Control[] = [
     title: "Errors suggest a correction",
     description:
       "When input is invalid, the error identifies the problem and suggests how to fix it (not just that it is wrong).",
-    checkId: "error-suggestion",
+    checkId: null,
     complianceWeight: 1.0,
   },
   {

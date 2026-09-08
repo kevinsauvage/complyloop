@@ -30,4 +30,25 @@ describe("errorPreventionViolation", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "does not flag a high-risk form with data-review-step",
+    async () => {
+      const { page, close } = await withPlaywrightPage(`
+        <!doctype html><html lang="en"><body>
+          <form action="/checkout" data-review-step="1">
+            <input name="card" />
+            <button type="submit">Pay</button>
+          </form>
+        </body></html>
+      `);
+      try {
+        const violation = await errorPreventionViolation(page);
+        expect(violation).toBeNull();
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 });

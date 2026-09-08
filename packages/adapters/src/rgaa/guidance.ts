@@ -284,36 +284,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Provide a button or keyboard control that triggers the same function, and do not require shaking or tilting the device.",
   },
-  "focus-context-change": {
-    impact:
-      "Unexpected context changes on focus disorient screen reader and keyboard users, who may lose their place (WCAG 3.2.1).",
-    howToFix:
-      "Do not navigate or submit from onFocus. Move navigation to an explicit action (click/Enter) or warn the user first.",
-  },
-  "input-context-change": {
-    impact:
-      "Unexpected context changes on input can interrupt the user mid-task and is especially harmful for assistive-technology users (WCAG 3.2.2).",
-    howToFix:
-      "Defer navigation/submission until an explicit submit, or confirm with the user before changing context on input.",
-  },
-  "sensory-characteristics": {
-    impact:
-      "Instructions that say \"click the red button\" or \"use the box on the left\" fail anyone who cannot perceive color or position (WCAG 1.3.3).",
-    howToFix:
-      "Repeat the instruction in text that does not depend on color, shape, size, location, or sound (e.g. name the control explicitly).",
-  },
-  "image-of-text": {
-    impact:
-      "Text rendered as an image cannot be resized, recolored, or read by assistive technology, and is lost when zoomed (WCAG 1.4.5).",
-    howToFix:
-      "Replace background-image or role='img' text with real HTML text styled with CSS, so users can adapt it.",
-  },
-  "error-suggestion": {
-    impact:
-      "An error that only says \"invalid\" leaves the user guessing how to fix it, increasing failed submissions (WCAG 3.3.3).",
-    howToFix:
-      "Include a corrective hint, e.g. \"Email is required and must look like name@example.com.\"",
-  },
   "video-caption": {
     impact:
       "Deaf and hard-of-hearing users cannot follow speech, sound effects, or speaker changes in the video (WCAG 1.2.2 / RGAA 4.3).",

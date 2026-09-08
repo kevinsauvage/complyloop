@@ -9,11 +9,6 @@ import { metaViewportCheck } from "./meta-viewport.ts";
 import { pointerGestureCheck } from "./pointer-gesture.ts";
 import { pointerCancellationCheck } from "./pointer-cancellation.ts";
 import { motionActuationCheck } from "./motion-actuation.ts";
-import { focusContextChangeCheck } from "./focus-context-change.ts";
-import { inputContextChangeCheck } from "./input-context-change.ts";
-import { sensoryCharacteristicsCheck } from "./sensory-characteristics.ts";
-import { imageOfTextCheck } from "./image-of-text.ts";
-import { errorSuggestionCheck } from "./error-suggestion.ts";
 import { videoCaptionCheck } from "./video-caption.ts";
 import { audioCaptionCheck } from "./audio-caption.ts";
 import { noBlinkMarqueeCheck } from "./no-blink-marquee.ts";
@@ -71,11 +66,6 @@ export const allChecks: AccessibilityCheck[] = [
   pointerGestureCheck,
   pointerCancellationCheck,
   motionActuationCheck,
-  focusContextChangeCheck,
-  inputContextChangeCheck,
-  sensoryCharacteristicsCheck,
-  imageOfTextCheck,
-  errorSuggestionCheck,
   videoCaptionCheck,
   audioCaptionCheck,
   textSpacingCheck,

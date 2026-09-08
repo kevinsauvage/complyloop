@@ -12,3 +12,15 @@ export function countByStatus<T extends string>(
   }
   return counts;
 }
+
+/** Same as {@link countByStatus}, returning a `Map` for UI chip/count consumers. */
+export function countByStatusMap<T extends string>(
+  items: readonly { status: T }[],
+  statuses: readonly T[],
+): Map<T, number> {
+  const counts = new Map<T, number>(statuses.map((status) => [status, 0]));
+  for (const item of items) {
+    counts.set(item.status, (counts.get(item.status) ?? 0) + 1);
+  }
+  return counts;
+}

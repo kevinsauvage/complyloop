@@ -337,36 +337,6 @@ export const CHECK_REGISTRY = [
     catalogControlId: "ctl-motion-actuation",
   },
   {
-    id: "focus-context-change",
-    authority: "heuristic",
-    analyzers: ["ast"],
-    catalogControlId: "ctl-focus-context-change",
-  },
-  {
-    id: "input-context-change",
-    authority: "heuristic",
-    analyzers: ["ast"],
-    catalogControlId: "ctl-input-context-change",
-  },
-  {
-    id: "sensory-characteristics",
-    authority: "heuristic",
-    analyzers: ["ast"],
-    catalogControlId: "ctl-sensory-characteristics",
-  },
-  {
-    id: "image-of-text",
-    authority: "heuristic",
-    analyzers: ["ast"],
-    catalogControlId: "ctl-image-of-text",
-  },
-  {
-    id: "error-suggestion",
-    authority: "heuristic",
-    analyzers: ["ast"],
-    catalogControlId: "ctl-error-suggestion",
-  },
-  {
     id: "video-caption",
     authority: "runtime_only",
     packageTwinSource: true,

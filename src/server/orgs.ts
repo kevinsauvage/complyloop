@@ -4,11 +4,45 @@ import { isOrgRole } from "@/core/rbac";
 import type { Db } from "./db";
 import { slugifyOrgName, uniqueOrgSlug } from "./org-slug";
 
+/** In-memory indexes over memberships — build once when a call path looks up more than once. */
+export type OrgMembershipIndex = {
+  byUserId: Map<string, OrgMembership[]>;
+  byOrgId: Map<string, OrgMembership[]>;
+};
+
+export function buildOrgMembershipIndex(
+  memberships: readonly OrgMembership[],
+): OrgMembershipIndex {
+  const byUserId = new Map<string, OrgMembership[]>();
+  const byOrgId = new Map<string, OrgMembership[]>();
+  for (const membership of memberships) {
+    const orgList = byOrgId.get(membership.orgId);
+    if (orgList) orgList.push(membership);
+    else byOrgId.set(membership.orgId, [membership]);
+    if (membership.userId) {
+      const userList = byUserId.get(membership.userId);
+      if (userList) userList.push(membership);
+      else byUserId.set(membership.userId, [membership]);
+    }
+  }
+  return { byUserId, byOrgId };
+}
+
 function membershipsForOrg(
-  db: Db,
+  index: OrgMembershipIndex,
   orgId: string,
 ): OrgMembership[] {
-  return db.memberships.filter((membership) => membership.orgId === orgId);
+  return index.byOrgId.get(orgId) ?? [];
+}
+
+function roleInOrg(
+  index: OrgMembershipIndex,
+  orgId: string,
+  userId: string,
+): OrgRole | undefined {
+  return membershipsForOrg(index, orgId).find(
+    (membership) => membership.userId === userId,
+  )?.role;
 }
 
 export function userRoleInOrg(
@@ -16,10 +50,7 @@ export function userRoleInOrg(
   orgId: string,
   userId: string,
 ): OrgRole | undefined {
-  return db.memberships.find(
-    (membership) =>
-      membership.orgId === orgId && membership.userId === userId,
-  )?.role;
+  return roleInOrg(buildOrgMembershipIndex(db.memberships), orgId, userId);
 }
 
 function assertCanAssignRole(actorRole: OrgRole, role: OrgRole): void {
@@ -56,7 +87,8 @@ export function inviteOrgMember(
   githubLogin: string,
   role: OrgRole,
 ): OrgMembership {
-  const actorRole = userRoleInOrg(db, orgId, actorUserId);
+  const index = buildOrgMembershipIndex(db.memberships);
+  const actorRole = roleInOrg(index, orgId, actorUserId);
   if (actorRole !== "owner" && actorRole !== "admin") {
     throw new PublicError("Only org owners and admins can invite members.");
   }
@@ -67,9 +99,8 @@ export function inviteOrgMember(
     throw new PublicError("Invalid role.");
   }
 
-  const existing = db.memberships.find(
+  const existing = membershipsForOrg(index, orgId).find(
     (membership) =>
-      membership.orgId === orgId &&
       membership.githubLogin.toLowerCase() === login.toLowerCase(),
   );
   if (existing) {
@@ -93,13 +124,13 @@ export function removeOrgMember(
   actorUserId: string,
   membershipId: string,
 ): void {
-  const actorRole = userRoleInOrg(db, orgId, actorUserId);
+  const index = buildOrgMembershipIndex(db.memberships);
+  const actorRole = roleInOrg(index, orgId, actorUserId);
   if (actorRole !== "owner" && actorRole !== "admin") {
     throw new PublicError("Only org owners and admins can remove members.");
   }
-  const target = db.memberships.find(
-    (membership) =>
-      membership.id === membershipId && membership.orgId === orgId,
+  const target = membershipsForOrg(index, orgId).find(
+    (membership) => membership.id === membershipId,
   );
   if (!target) throw new PublicError("Membership not found.");
   assertCanManageTarget(actorRole, target.role, "remove");
@@ -120,14 +151,14 @@ export function changeOrgMemberRole(
   if (!isOrgRole(role)) {
     throw new PublicError("Invalid role.");
   }
-  const actorRole = userRoleInOrg(db, orgId, actorUserId);
+  const index = buildOrgMembershipIndex(db.memberships);
+  const actorRole = roleInOrg(index, orgId, actorUserId);
   if (actorRole !== "owner" && actorRole !== "admin") {
     throw new PublicError("Only org owners and admins can change member roles.");
   }
   assertCanAssignRole(actorRole, role);
-  const target = db.memberships.find(
-    (membership) =>
-      membership.id === membershipId && membership.orgId === orgId,
+  const target = membershipsForOrg(index, orgId).find(
+    (membership) => membership.id === membershipId,
   );
   if (!target) throw new PublicError("Membership not found.");
   assertCanManageTarget(actorRole, target.role, "change");
@@ -139,9 +170,8 @@ function defaultOrgIdForUser(
   db: Pick<Db, "memberships">,
   userId: string,
 ): string | undefined {
-  const owned = db.memberships.find(
-    (membership) =>
-      membership.userId === userId && membership.role === "owner",
+  const owned = (buildOrgMembershipIndex(db.memberships).byUserId.get(userId) ?? []).find(
+    (membership) => membership.role === "owner",
   );
   return owned?.orgId;
 }
@@ -151,10 +181,9 @@ export function orgsForUser(
   db: Pick<Db, "organizations" | "memberships">,
   userId: string,
 ): Organization[] {
+  const index = buildOrgMembershipIndex(db.memberships);
   const orgIds = new Set(
-    db.memberships
-      .filter((membership) => membership.userId === userId)
-      .map((membership) => membership.orgId),
+    (index.byUserId.get(userId) ?? []).map((membership) => membership.orgId),
   );
   return db.organizations.filter((org) => orgIds.has(org.id));
 }
@@ -246,7 +275,8 @@ export function exportOrgData(
   orgId: string,
   actorUserId: string,
 ): Record<string, unknown> {
-  if (userRoleInOrg(db, orgId, actorUserId) !== "owner") {
+  const index = buildOrgMembershipIndex(db.memberships);
+  if (roleInOrg(index, orgId, actorUserId) !== "owner") {
     throw new PublicError("Only the organization owner can export data.");
   }
   const org = db.organizations.find((candidate) => candidate.id === orgId);
@@ -262,7 +292,7 @@ export function exportOrgData(
   return {
     exportedAt: new Date().toISOString(),
     organization: org,
-    memberships: membershipsForOrg(db, orgId).map((membership) => ({
+    memberships: membershipsForOrg(index, orgId).map((membership) => ({
       id: membership.id,
       orgId: membership.orgId,
       role: membership.role,
@@ -301,15 +331,15 @@ export function deleteOrganization(
   orgId: string,
   actorUserId: string,
 ): DeleteOrganizationResult {
-  if (userRoleInOrg(db, orgId, actorUserId) !== "owner") {
+  const index = buildOrgMembershipIndex(db.memberships);
+  if (roleInOrg(index, orgId, actorUserId) !== "owner") {
     throw new PublicError("Only the organization owner can delete the organization.");
   }
   const org = db.organizations.find((candidate) => candidate.id === orgId);
   if (!org) throw new PublicError("Organization not found.");
-
   return {
-    deleteMembershipIds: db.memberships
-      .filter((membership) => membership.orgId === orgId)
-      .map((membership) => membership.id),
+    deleteMembershipIds: membershipsForOrg(index, orgId).map(
+      (membership) => membership.id,
+    ),
   };
 }

@@ -16,7 +16,8 @@ import {
 import {
   parseRequirementStatusParam,
 } from "@/core/query";
-import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import { countByStatusMap } from "@/core/count-by-status";
+import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
@@ -82,13 +83,7 @@ export default async function RequirementsPage({
     );
   }
 
-  const statusCounts = new Map<RequirementStatus, number>();
-  for (const requirement of assessed) {
-    statusCounts.set(
-      requirement.status,
-      (statusCounts.get(requirement.status) ?? 0) + 1,
-    );
-  }
+  const statusCounts = countByStatusMap(assessed, REQUIREMENT_STATUSES);
 
   const filtered = statusFilter
     ? assessed.filter((requirement) => requirement.status === statusFilter)

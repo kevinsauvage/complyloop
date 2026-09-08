@@ -1,6 +1,6 @@
 /** Persistent sliding-window rate limits for expensive server actions. */
 
-import { eq, lt } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/client";
 import { rateLimitBuckets } from "@complyloop/db/schema";
@@ -15,13 +15,8 @@ export class RateLimitError extends PublicError {
 
 /**
  * Atomically consumes one slot from a shared Postgres window. A keyed advisory
- * lock avoids a read/modify/write race without serializing unrelated users.
- *
- * The lock IS the correctness argument: the insert branch resets the window
- * with `count: 1` on conflict, which would silently swallow a concurrent
- * increment if two writers could reach it for the same key. They cannot —
- * the per-key lock serializes them. Do not remove the lock without replacing
- * this reset with an atomic upsert increment.
+ * lock serializes window resets; the increment itself is a conditional UPDATE
+ * so count cannot undercount if a writer ever bypasses the lock.
  */
 export async function assertRateLimit(
   key: string,
@@ -54,11 +49,18 @@ export async function assertRateLimit(
       return;
     }
 
-    if (existing.count >= limit) throw new RateLimitError();
-    await tx
+    const updated = await tx
       .update(rateLimitBuckets)
-      .set({ count: existing.count + 1, updatedAt: nowString })
-      .where(eq(rateLimitBuckets.key, key));
+      .set({
+        count: sql`${rateLimitBuckets.count} + 1`,
+        updatedAt: nowString,
+      })
+      .where(
+        and(eq(rateLimitBuckets.key, key), lt(rateLimitBuckets.count, limit)),
+      )
+      .returning({ key: rateLimitBuckets.key });
+
+    if (updated.length === 0) throw new RateLimitError();
   });
 }
 

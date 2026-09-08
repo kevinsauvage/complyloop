@@ -96,7 +96,7 @@ function checkoutRef(event: HandledWebhookEvent): string | undefined {
       : undefined;
   }
   const sha = event.payload.pull_request?.head?.sha;
-  return typeof sha === "string" && sha.length > 0 ? sha : undefined;
+  return typeof sha === "string" && /^[0-9a-f]{40}$/i.test(sha) ? sha : undefined;
 }
 
 /**
@@ -167,6 +167,12 @@ export async function handleGitHubWebhookEvent(
 
   await assertRateLimit(`webhook:${project.id}`, 60, 60_000);
   const ref = checkoutRef(parsed.event);
+  if (!ref) {
+    return {
+      handled: false,
+      message: `Ignored ${parsed.event.kind} without a valid checkout SHA for ${fullName}.`,
+    };
+  }
   const pullRequestHeadSha =
     parsed.event.kind === "pull_request" ? ref : undefined;
   const job = await enqueueAssessmentJob({

@@ -49,7 +49,7 @@ describe("unableToVerifyReason", () => {
   it("uses heuristic copy when no suspicious pattern was found", () => {
     expect(
       unableToVerifyReason(
-        { checkId: "image-of-text" },
+        { checkId: "pointer-gesture" },
         {},
         { isRuntimeOnlyCheck: false, isHeuristicCheck: true },
       ),

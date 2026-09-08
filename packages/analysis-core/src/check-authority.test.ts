@@ -75,7 +75,7 @@ describe("check authority", () => {
   });
 
   it("does not treat heuristic AST checks as a pass when they emit nothing", () => {
-    expect(isHeuristicCheck("image-of-text")).toBe(true);
+    expect(isHeuristicCheck("pointer-gesture")).toBe(true);
     expect(isHeuristicCheck("link-explicit-heuristic")).toBe(true);
     expect(isHeuristicCheck("audio-description-track")).toBe(true);
     expect(isHeuristicCheck("audio-description-or-alt")).toBe(true);
@@ -94,7 +94,7 @@ describe("check authority", () => {
     expect(isRuntimeOnlyCheck("hover-content")).toBe(false);
     expect(isHeuristicCheck("blockquote-cite")).toBe(false);
     expect(isHeuristicCheck("img-alt")).toBe(false);
-    expect(keepOpenWhenRuntimeScanSkipped("image-of-text")).toBe(false);
+    expect(keepOpenWhenRuntimeScanSkipped("pointer-gesture")).toBe(false);
     expect(isRuntimeOnlyCheck("duplicate-page-title")).toBe(true);
   });
 
@@ -115,7 +115,7 @@ describe("check authority", () => {
     expect(authorityForCheck("media-controls-present")).toBe("heuristic");
 
     expect(authorityForCheck("color-contrast")).toBe("runtime_only");
-    expect(authorityForCheck("image-of-text")).toBe("heuristic");
+    expect(authorityForCheck("pointer-gesture")).toBe("heuristic");
     expect(authorityForCheck("input-label")).toBe("standard");
     expect(isCompositionSensitiveCheck("input-label")).toBe(true);
     expect(authorityForCheck("img-alt")).toBe("standard");
