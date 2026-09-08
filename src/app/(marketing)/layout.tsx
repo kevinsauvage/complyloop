@@ -1,5 +1,29 @@
-import { MarketingShell } from "@/components/marketing/marketing-shell";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { auth, isGitHubAuthConfigured } from "@/auth";
+import { MarketingHeader } from "@/components/marketing/marketing-header";
+import { MarketingFooter } from "@/components/marketing/marketing-footer";
 
-export default function MarketingLayout({ children }: LayoutProps<"/">) {
-  return <MarketingShell>{children}</MarketingShell>;
+export default async function MarketingLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const session = isGitHubAuthConfigured() ? await auth() : null;
+  const isSignedIn = Boolean(session?.user);
+
+  return (
+    <>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+      <div className="flex min-h-screen flex-col overflow-x-clip">
+        <MarketingHeader isSignedIn={isSignedIn} />
+        <main id="main-content" className="flex-1">
+          {children}
+        </main>
+        <MarketingFooter />
+      </div>
+    </>
+  );
 }

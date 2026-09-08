@@ -8,12 +8,6 @@ Unnecessary-complexity audit of the whole repo (src/, packages/, scripts/, confi
 
 ## P2 — worthwhile simplifications
 
-~~### 11. Single-function modules + misfiled checkout limits~~ **DONE**
-Inlined `sanitizeDownloadFilename` into the report route, `pullRequestUrlFromEvidence` into `ai-fix.ts`, and checkout quota helpers into `repo-checkout.ts`. Contract keeps only `maxRuntimePages`.
-
-~~### 17. Dashboard workspace toolbar duplicates the global strip, with a client "gate" patching the overlap~~ **DONE**
-Dropped hero toolbar + `WorkspaceContextRouteGate`; dashboard uses the same global `WorkspaceContext` strip as every other page.
-
 ### 20. `controlForDisplay(controlById(id))` composed by hand in 3 pages, each paying an O(n) catalog scan
 
 - **Problem:** findings page (:103–105), finding detail (:80–83), and dashboard (:273–279) re-assemble the same "raw control → theme for framework" pipeline, while `controlById` (`src/server/workspace.ts:142–147`) does a fresh `Array.find` over the whole shipped catalog per call — O(n) per finding in list rendering.
@@ -29,12 +23,6 @@ Dropped hero toolbar + `WorkspaceContextRouteGate`; dashboard uses the same glob
 ---
 
 ## P3 — minor cleanups (do while touching the file)
-
-### 27. Marketing route group has one wrapper layer too many
-
-- **Evidence:** `page.tsx` (wraps `LandingPage`) → `layout.tsx` (wraps `MarketingShell`) → `marketing-shell.tsx`. The `(app)`/`(marketing)` split is justified; the marketing side carries one hop more than needed.
-- **Simplification:** inline `MarketingShell`'s markup into `(marketing)/layout.tsx`; render `LandingPage` inline in `page.tsx` (or fold it in). −1 component file.
-- **Verification:** landing page renders identically (visual smoke).
 
 ### 28. `FindingsTabPanel` drills 9 props including a pre-built ReactNode
 
