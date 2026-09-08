@@ -7,7 +7,6 @@ import {
   conditionSpecificViolations,
   emulationForCondition,
   THEME_SENSITIVE_AXE_RULES,
-  violationKey,
 } from "./theme-conditions";
 import type { AxeViolationLike } from "./findings";
 import { runThemeSensitiveCustomChecks } from "./custom-checks/index";
@@ -88,14 +87,6 @@ describe("theme-sensitive axe rules", () => {
     expect(THEME_SENSITIVE_AXE_RULES.has("link-in-text-block")).toBe(true);
     expect(THEME_SENSITIVE_AXE_RULES.has("use-of-color")).toBe(false);
     expect(THEME_SENSITIVE_AXE_RULES.has("image-alt")).toBe(false);
-  });
-});
-
-describe("violationKey", () => {
-  it("combines rule id and first target", () => {
-    expect(violationKey(violation("color-contrast", "#a"))).toBe(
-      "color-contrast::#a",
-    );
   });
 });
 

@@ -3,6 +3,7 @@ import { EvidenceKindChips } from "@/components/evidence/evidence-kind-chips";
 import { EvidenceKindBadge } from "@/components/badges";
 import {
   EmptyState,
+  NoProjectNotice,
   PageActionLink,
   PageContent,
   PageHeader,
@@ -49,18 +50,11 @@ export default async function EvidencePage({
   const { project } = await getWorkspace();
   if (!project) {
     return (
-      <>
-        <PageHeader
-          title="Evidence"
-          description="Append-only record of everything checked, found, changed, and verified."
-        />
-        <EmptyState
-          title="No project connected"
-          action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
-        >
-          <p>Connect a repository from the dashboard to collect evidence.</p>
-        </EmptyState>
-      </>
+      <NoProjectNotice
+        title="Evidence"
+        description="Append-only record of everything checked, found, changed, and verified."
+        hint="Connect a repository from the dashboard to collect evidence."
+      />
     );
   }
   const kindFilter = parseEvidenceKindParam(kindRaw);

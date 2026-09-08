@@ -6,17 +6,8 @@
  * Usage: npm run db:reset -- --confirm
  */
 import { spawnSync } from "node:child_process";
-import path from "node:path";
-import { config as loadEnv } from "dotenv";
 import { createPostgresClient } from "@complyloop/db/postgres-url";
-
-function loadLocalEnv(): void {
-  if (process.env.DATABASE_URL?.trim()) return;
-  loadEnv({ path: path.join(process.cwd(), ".env.local") });
-  if (!process.env.DATABASE_URL?.trim()) {
-    loadEnv({ path: path.join(process.cwd(), ".env") });
-  }
-}
+import { loadLocalEnv } from "./env";
 
 async function main(): Promise<void> {
   if (!process.argv.includes("--confirm")) {

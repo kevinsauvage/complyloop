@@ -1,19 +1,21 @@
+import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./assessment-worker", () => ({
+vi.mock("../assessment-worker", () => ({
   processNextAssessmentJob: vi.fn(),
 }));
 
-import { processNextAssessmentJob } from "./assessment-worker";
+import { processNextAssessmentJob } from "../assessment-worker";
 import {
   drainAssessmentJobQueue,
   shouldDrainAssessmentJobsInline,
-} from "./assessment-job-drain";
+} from "./assessment";
 
 const processNext = vi.mocked(processNextAssessmentJob);
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("shouldDrainAssessmentJobsInline", () => {
@@ -29,8 +31,6 @@ describe("shouldDrainAssessmentJobsInline", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("E2E_AUTH_ENABLED", "1");
     expect(shouldDrainAssessmentJobsInline()).toBe(true);
-
-    vi.unstubAllEnvs();
   });
 });
 

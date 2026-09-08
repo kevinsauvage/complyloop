@@ -94,12 +94,27 @@ export function prepareWorkspaceState(
   };
 }
 
-async function loadViewerWorkspaceState(): Promise<Workspace> {
+/** Auth + active org/project cookies — shared by read and write paths. */
+export async function readViewerSession(): Promise<{
+  userId: string | null;
+  githubLogin: string | null;
+  preferredOrgId: string | null;
+  preferredProjectId: string | null;
+}> {
   const session = await auth();
   const userId = session?.user?.id ?? null;
   const githubLogin = session?.user?.login ?? null;
-  const preferredOrgId = userId ? await readActiveOrgCookie() : null;
-  const preferredProjectId = await readActiveProjectCookie();
+  return {
+    userId,
+    githubLogin,
+    preferredOrgId: userId ? await readActiveOrgCookie() : null,
+    preferredProjectId: await readActiveProjectCookie(),
+  };
+}
+
+async function loadViewerWorkspaceState(): Promise<Workspace> {
+  const { userId, githubLogin, preferredOrgId, preferredProjectId } =
+    await readViewerSession();
 
   const db = await loadTenancyDb(await getDrizzle(), {
     userId,
@@ -123,23 +138,6 @@ export const getWorkspace = cache(async (): Promise<Workspace> =>
   loadViewerWorkspaceState(),
 );
 
-export async function sessionWriteContext(): Promise<{
-  userId: string | null;
-  githubLogin: string | null;
-  preferredOrgId: string | null;
-  preferredProjectId: string | null;
-}> {
-  const session = await auth();
-  const userId = session?.user?.id ?? null;
-  const githubLogin = session?.user?.login ?? null;
-  return {
-    userId,
-    githubLogin,
-    preferredOrgId: userId ? await readActiveOrgCookie() : null,
-    preferredProjectId: await readActiveProjectCookie(),
-  };
-}
-
 export function controlById(controlId: string): Control {
   const control = shippedCatalog().controls.find(
     (candidate) => candidate.id === controlId,
@@ -155,7 +153,7 @@ export function findingById(db: Db, findingId: string): Finding {
   return finding;
 }
 
-export function findRemediationForFinding(
+function findRemediationForFinding(
   db: Db,
   findingId: string,
 ): Remediation | undefined {

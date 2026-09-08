@@ -43,7 +43,7 @@ export function ensurePersonalOrg(
   return { org, changed: true };
 }
 
-export function membershipsForOrg(
+function membershipsForOrg(
   db: Db,
   orgId: string,
 ): OrgMembership[] {

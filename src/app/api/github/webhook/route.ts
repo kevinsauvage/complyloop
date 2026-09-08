@@ -6,7 +6,7 @@ import {
 import {
   drainAssessmentJobQueue,
   shouldDrainAssessmentJobsInline,
-} from "@/server/assessment-job-drain";
+} from "@/server/actions/assessment";
 import { claimWebhookDelivery } from "@/server/webhook-deliveries";
 import { after } from "next/server";
 import { z } from "zod";

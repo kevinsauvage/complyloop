@@ -4,7 +4,6 @@ import {
   githubAppInstallUrl,
   githubAuthorizationScopes,
   isGitHubAppConfigured,
-  normalizeGitHubAppPrivateKey,
   resolveUserInstallationForRepo,
 } from "./github-app";
 
@@ -63,10 +62,6 @@ describe("GitHub App configuration", () => {
   it("has no install URL when the slug is unset", () => {
     vi.stubEnv("GITHUB_APP_SLUG", "");
     expect(githubAppInstallUrl()).toBeUndefined();
-  });
-
-  it("normalizes escaped newlines in private keys", () => {
-    expect(normalizeGitHubAppPrivateKey("line1\\nline2")).toBe("line1\nline2");
   });
 
   it("requires App credentials in production when GitHub auth is configured", () => {

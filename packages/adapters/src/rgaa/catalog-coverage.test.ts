@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHECK_IDS } from "@complyloop/analysis-core/check-ids";
+import { CHECK_IDS } from "@complyloop/analysis-core/check-registry";
 import { CHECK_REGISTRY } from "@complyloop/analysis-core/check-registry";
 import { allChecks } from "@complyloop/analysis-core/checks/registry";
 import { isSiteLevelCheck } from "@complyloop/analysis-core/check-authority";

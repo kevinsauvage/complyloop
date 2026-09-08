@@ -141,6 +141,28 @@ export function EmptyState({
   );
 }
 
+export function NoProjectNotice({
+  title,
+  description,
+  hint,
+}: {
+  title: string;
+  description: string;
+  hint?: string;
+}) {
+  return (
+    <>
+      <PageHeader title={title} description={description} />
+      <EmptyState
+        title="No project connected"
+        action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
+      >
+        {hint ? <p>{hint}</p> : null}
+      </EmptyState>
+    </>
+  );
+}
+
 export function PageActionLink({
   href,
   children,

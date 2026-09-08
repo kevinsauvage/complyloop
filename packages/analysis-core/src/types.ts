@@ -6,10 +6,10 @@ import type {
   ProposedFix,
 } from "./contract/finding-types.ts";
 import type { ParsedSource } from "./parse.ts";
-import type { CheckId } from "./check-ids.ts";
+import type { CheckId } from "./check-registry.ts";
 
-export type { CheckId } from "./check-ids.ts";
-export { CHECK_IDS } from "./check-ids.ts";
+export type { CheckId } from "./check-registry.ts";
+export { CHECK_IDS } from "./check-registry.ts";
 
 export interface RawFinding {
   checkId: CheckId;

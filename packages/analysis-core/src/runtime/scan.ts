@@ -54,17 +54,17 @@ export type RuntimePageScanner = (
 let sharedBrowser: Browser | null = null;
 
 /** Max time to wait for DOMContentLoaded on a preview route. */
-export const RUNTIME_GOTO_TIMEOUT_MS = 30_000;
+const RUNTIME_GOTO_TIMEOUT_MS = 30_000;
 
 /**
  * Brief settle after DOMContentLoaded so client-mounted widgets can attach.
  * Do not use `networkidle` — SPAs with analytics or HMR often never reach it.
  * Animations are frozen in {@link gotoForRuntimeAudit} so a short settle is enough.
  */
-export const RUNTIME_POST_DOM_SETTLE_MS = 250;
+const RUNTIME_POST_DOM_SETTLE_MS = 250;
 
 /** CSS injected before axe so fade-ins / transitions do not change the tree between runs. */
-export const RUNTIME_AUDIT_MOTION_FREEZE_CSS = `*, *::before, *::after {
+const RUNTIME_AUDIT_MOTION_FREEZE_CSS = `*, *::before, *::after {
   animation: none !important;
   transition: none !important;
 }`;

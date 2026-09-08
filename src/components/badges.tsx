@@ -1,5 +1,12 @@
-import { BadgeWithDescription } from "@/components/badge-with-description";
+"use client";
+
+import type { ReactElement } from "react";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   confidenceDisplay,
   determinationDisplay,
@@ -24,6 +31,25 @@ import type {
 import type { EvidenceKind } from "@complyloop/db/types";
 import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
 import { cn } from "@/lib/utils";
+
+function BadgeWithDescription({
+  description,
+  children,
+}: {
+  description: string;
+  children: ReactElement;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex cursor-help">{children}</span>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-xs text-pretty">
+        {description}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function RequirementStatusBadge({
   status,

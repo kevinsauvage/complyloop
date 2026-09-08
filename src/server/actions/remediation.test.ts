@@ -17,8 +17,7 @@ import {
 
 const { withProjectWrite } = actionWorkspaceMocks;
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
-const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
-const drainAssessmentJobQueue = vi.hoisted(() => vi.fn());
+const processNextAssessmentJob = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
 const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
 
@@ -44,10 +43,9 @@ vi.mock("../assessment-jobs", () => ({
   enqueueAssessmentJob: (...args: unknown[]) => enqueueAssessmentJob(...args),
 }));
 
-vi.mock("../assessment-job-drain", () => ({
-  shouldDrainAssessmentJobsInline: () => shouldDrainAssessmentJobsInline(),
-  drainAssessmentJobQueue: (...args: unknown[]) =>
-    drainAssessmentJobQueue(...args),
+vi.mock("../assessment-worker", () => ({
+  processNextAssessmentJob: (...args: unknown[]) =>
+    processNextAssessmentJob(...args),
 }));
 
 vi.mock("../rate-limit", async () => {
@@ -87,6 +85,7 @@ function workspaceFor(role: "viewer" | "member" | "admin" | "owner") {
 afterEach(() => {
   clearProjectWritePayloads();
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("remediation action authz", () => {
@@ -226,9 +225,10 @@ describe("runAssessmentAction", () => {
     const workspace = workspaceFor("member");
     actionWorkspaceMocks.withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     enqueueAssessmentJob.mockResolvedValue({ id: "job-1" });
-    shouldDrainAssessmentJobsInline.mockReturnValue(true);
-    drainAssessmentJobQueue.mockResolvedValue(undefined);
+    processNextAssessmentJob.mockResolvedValue({ kind: "idle" });
     assertAssessRateLimit.mockResolvedValue(undefined);
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
 
     const result = await runAssessmentAction(
       emptyActionMessageState,
@@ -244,7 +244,7 @@ describe("runAssessmentAction", () => {
       trigger: "manual",
       requestedByUserId: "user-1",
     });
-    expect(drainAssessmentJobQueue).toHaveBeenCalled();
+    expect(processNextAssessmentJob).toHaveBeenCalled();
     expect(
       projectWritePayload()?.evidence?.some(
         (row) => row.kind === "assessment_job",
@@ -256,8 +256,9 @@ describe("runAssessmentAction", () => {
     const workspace = workspaceFor("member");
     actionWorkspaceMocks.withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
-    shouldDrainAssessmentJobsInline.mockReturnValue(false);
     assertAssessRateLimit.mockResolvedValue(undefined);
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
 
     const result = await runAssessmentAction(
       emptyActionMessageState,
@@ -265,7 +266,7 @@ describe("runAssessmentAction", () => {
     );
 
     expect(result.message).toMatch(/Assessment queued/);
-    expect(drainAssessmentJobQueue).not.toHaveBeenCalled();
+    expect(processNextAssessmentJob).not.toHaveBeenCalled();
   });
 
   it("surfaces rate limit errors", async () => {

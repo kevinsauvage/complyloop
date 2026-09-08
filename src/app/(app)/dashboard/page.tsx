@@ -225,7 +225,6 @@ export default async function DashboardPage() {
           project={project}
           canAssess={caps.canAssess}
           canConnect={caps.canConnect}
-          hasAssessment={false}
         />
       ) : null}
 

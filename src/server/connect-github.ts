@@ -44,27 +44,6 @@ export function uniqueProjectName(db: Db, desired: string): string {
   return `${desired}-${index}`;
 }
 
-export function addConnectedProject(
-  project: Project,
-  summary: string,
-): { project: Project; evidence: EvidenceRecord[] } {
-  return {
-    project,
-    evidence: [
-      newEvidenceRecord({
-        kind: "project_connected",
-        summary,
-        projectId: project.id,
-        detail: {
-          source: project.source,
-          sourceRef: project.sourceRef,
-          fullName: project.github?.fullName,
-        },
-      }),
-    ],
-  };
-}
-
 /**
  * A GitHub repo is already connected for this org when it belongs to the
  * active org. Matches connect-action duplicate detection.
@@ -166,20 +145,32 @@ export async function connectGitHubRepo(
 
   const connectPreset = defaultConnectPreset();
 
-  return addConnectedProject(
-    {
-      id: crypto.randomUUID(),
-      name,
-      source: "github",
-      sourceRef,
-      ownerUserId: input.ownerUserId,
-      orgId,
-      github,
-      defaultPresetId: connectPreset.id,
-      createdAt: new Date().toISOString(),
-    },
-    `Connected GitHub repository ${fullName}`,
-  );
+  const project: Project = {
+    id: crypto.randomUUID(),
+    name,
+    source: "github",
+    sourceRef,
+    ownerUserId: input.ownerUserId,
+    orgId,
+    github,
+    defaultPresetId: connectPreset.id,
+    createdAt: new Date().toISOString(),
+  };
+  return {
+    project,
+    evidence: [
+      newEvidenceRecord({
+        kind: "project_connected",
+        summary: `Connected GitHub repository ${fullName}`,
+        projectId: project.id,
+        detail: {
+          source: project.source,
+          sourceRef: project.sourceRef,
+          fullName: project.github?.fullName,
+        },
+      }),
+    ],
+  };
 }
 
 /**

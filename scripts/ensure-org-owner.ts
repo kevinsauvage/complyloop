@@ -5,17 +5,8 @@
  *
  * Example: npm run db:ensure-owner -- 64160579 kevinsauvage
  */
-import path from "node:path";
-import { config as loadEnv } from "dotenv";
 import { ensurePersonalOrgProvisioned } from "../src/server/personal-org";
-
-function loadLocalEnv(): void {
-  if (process.env.DATABASE_URL?.trim()) return;
-  loadEnv({ path: path.join(process.cwd(), ".env.local") });
-  if (!process.env.DATABASE_URL?.trim()) {
-    loadEnv({ path: path.join(process.cwd(), ".env") });
-  }
-}
+import { loadLocalEnv } from "./env";
 
 async function main(): Promise<void> {
   loadLocalEnv();

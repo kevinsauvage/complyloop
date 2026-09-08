@@ -10,8 +10,7 @@
  * and the catalog (`packages/adapters/src/rgaa/controls.ts`), so a check can
  * never ship without an engine, a catalog row, or guidance.
  *
- * `CheckId` and `CHECK_IDS` are derived from this array — `check-ids.ts`
- * re-exports them to keep the public API stable.
+ * `CheckId` and `CHECK_IDS` are derived from this array.
  */
 
 import type { AnalyzerId } from "./contract/finding-types.ts";

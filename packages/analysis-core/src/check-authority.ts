@@ -1,4 +1,3 @@
-import type { CheckId } from "./check-ids.ts";
 import type { CheckAuthority } from "./contract/requirement-status.ts";
 import { CHECK_REGISTRY, type CheckRegistration } from "./check-registry.ts";
 
@@ -14,16 +13,6 @@ const REGISTRY_BY_ID = new Map<string, CheckRegistration>(
 
 const entryFor = (checkId: string): CheckRegistration | undefined =>
   REGISTRY_BY_ID.get(checkId);
-
-/** Runtime-only list membership, projected for callers that iterate it. */
-export const RUNTIME_ONLY_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY
-  .filter((entry: CheckRegistration) => entry.runtimeOnly)
-  .map((entry: CheckRegistration) => entry.id as CheckId);
-
-/** Heuristic authority membership, projected for callers that iterate it. */
-export const HEURISTIC_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY
-  .filter((entry: CheckRegistration) => entry.authority === "heuristic")
-  .map((entry: CheckRegistration) => entry.id as CheckId);
 
 export const isHtmlValidateOwnedCheck = (checkId: string): boolean =>
   Boolean(entryFor(checkId)?.htmlValidateOwned);

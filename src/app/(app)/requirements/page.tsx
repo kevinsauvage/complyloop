@@ -1,7 +1,7 @@
 import { AssessedRequirementList } from "@/components/requirements/assessed-requirement-list";
 import { RequirementsPresetPanel } from "@/components/requirements/requirements-preset-panel";
 import { RequirementsStatusChips } from "@/components/requirements/requirements-status-chips";
-import { EmptyState, PageActionLink, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
+import { EmptyState, NoProjectNotice, PageActionLink, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
 import {
   defaultConnectPreset,
   isValidPresetId,
@@ -46,18 +46,11 @@ export default async function RequirementsPage({
   const caps = projectCapabilities(project, access, activeOrgId);
   if (!project) {
     return (
-      <>
-        <PageHeader
-          title="Requirements"
-          description="Connect a repository to browse requirements by preset."
-        />
-        <EmptyState
-          title="No project connected"
-          action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
-        >
-          <p>Connect a repository from the dashboard to manage requirements.</p>
-        </EmptyState>
-      </>
+      <NoProjectNotice
+        title="Requirements"
+        description="Connect a repository to browse requirements by preset."
+        hint="Connect a repository from the dashboard to manage requirements."
+      />
     );
   }
 

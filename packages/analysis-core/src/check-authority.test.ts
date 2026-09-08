@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   authorityForCheck,
-  HEURISTIC_CHECK_IDS,
   isCompositionSensitiveCheck,
   isHeuristicCheck,
   isHtmlValidateOwnedCheck,
@@ -9,8 +8,16 @@ import {
   isRuntimeOnlyCheck,
   isSiteLevelCheck,
   keepOpenWhenRuntimeScanSkipped,
-  RUNTIME_ONLY_CHECK_IDS,
 } from "./check-authority";
+import { CHECK_REGISTRY, type CheckId, type CheckRegistration } from "./check-registry";
+
+const RUNTIME_ONLY_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY
+  .filter((entry: CheckRegistration) => entry.runtimeOnly)
+  .map((entry: CheckRegistration) => entry.id as CheckId);
+
+const HEURISTIC_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY
+  .filter((entry: CheckRegistration) => entry.authority === "heuristic")
+  .map((entry: CheckRegistration) => entry.id as CheckId);
 
 const COMPOSITION_SENSITIVE = [
   "input-label",

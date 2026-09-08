@@ -1,13 +1,11 @@
 #!/usr/bin/env tsx
 /** Fails a deployment/cron check when production operational prerequisites drift. */
-import path from "node:path";
-import { config as loadEnv } from "dotenv";
 import { sql } from "drizzle-orm";
 import { getDrizzle } from "@complyloop/db/client";
 import { queuedAssessmentJobCount } from "../src/server/assessment-jobs";
+import { loadLocalEnv } from "./env";
 
-loadEnv({ path: path.join(process.cwd(), ".env.local") });
-loadEnv({ path: path.join(process.cwd(), ".env") });
+loadLocalEnv();
 
 function required(name: string): string | null {
   return process.env[name]?.trim() ? null : `${name} is required.`;

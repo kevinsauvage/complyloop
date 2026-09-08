@@ -5,7 +5,7 @@
  */
 import * as Sentry from "@sentry/nextjs";
 
-type Severity = "error" | "warning" | "info";
+type Severity = "error" | "warning";
 
 export interface ReportContext {
   /** Stable machine-readable code for dashboards/alerts. */
@@ -29,10 +29,8 @@ function emitLog(
   });
   if (severity === "error") {
     console.error(line);
-  } else if (severity === "warning") {
-    console.warn(line);
   } else {
-    console.info(line);
+    console.warn(line);
   }
 }
 

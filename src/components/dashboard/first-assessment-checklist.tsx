@@ -45,18 +45,15 @@ export function FirstAssessmentChecklist({
   project,
   canAssess,
   canConnect,
-  hasAssessment,
 }: {
   project: Project;
   canAssess: boolean;
   canConnect: boolean;
-  hasAssessment: boolean;
 }) {
   const defaultPresetId = projectDefaultPresetId(project);
   const preset = presetById(defaultPresetId);
   const targetDone = Boolean(preset);
   const previewDone = Boolean(project.runtimeBaseUrl?.trim());
-  const assessmentDone = hasAssessment;
 
   const assessAction = canAssess ? (
     <StatefulActionForm
@@ -154,7 +151,7 @@ export function FirstAssessmentChecklist({
           </li>
 
           <li className="flex gap-3">
-            <StepIndicator done={assessmentDone} stepNumber={3} />
+            <StepIndicator done={false} stepNumber={3} />
             <div className="min-w-0 flex-1 space-y-2">
               <p className="text-sm font-medium">Run assessment</p>
               <p className="text-sm text-muted-foreground">
@@ -163,7 +160,7 @@ export function FirstAssessmentChecklist({
                   ? " AST and rendered-page checks will both run."
                   : " AST checks run now; add a preview URL later to unlock runtime checks."}
               </p>
-              {!assessmentDone ? assessAction : null}
+              {assessAction}
             </div>
           </li>
         </ol>

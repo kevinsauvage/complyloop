@@ -5,7 +5,7 @@ import { FindingsTabPanel } from "@/components/findings/findings-tab-panel";
 import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
 import { toFindingListItems } from "@/components/findings/finding-list-items";
 import { PaginationNav } from "@/components/pagination-nav";
-import { EmptyState, PageActionLink, PageContent, PageHeader } from "@/components/page-primitives";
+import { EmptyState, NoProjectNotice, PageActionLink, PageContent, PageHeader } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -51,18 +51,11 @@ export default async function FindingsPage({
   const { project, access, activeOrgId } = await getWorkspace();
   if (!project) {
     return (
-      <>
-        <PageHeader
-          title="Findings"
-          description="Every failure with its reason, location, remediation state, and evidence."
-        />
-        <EmptyState
-          title="No project connected"
-          action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
-        >
-          <p>Connect a repository from the dashboard to see findings.</p>
-        </EmptyState>
-      </>
+      <NoProjectNotice
+        title="Findings"
+        description="Every failure with its reason, location, remediation state, and evidence."
+        hint="Connect a repository from the dashboard to see findings."
+      />
     );
   }
 
@@ -112,20 +105,17 @@ export default async function FindingsPage({
     );
   };
 
-  const defaultTab: FindingsTab =
-    listParams.tab === "by_cause"
-      ? "by_cause"
-      : listParams.tab !== "open"
-        ? listParams.tab
-        : openSlice.total > 0
-          ? "open"
-          : resolvedSlice.total > 0
-            ? "resolved"
-            : dismissedSlice.total > 0
-              ? "dismissed"
-              : clusters.length > 0
-                ? "by_cause"
-                : "open";
+  let defaultTab: FindingsTab = listParams.tab;
+  if (listParams.tab === "open") {
+    const statusTabs = [
+      { tab: "open" as const, total: openSlice.total },
+      { tab: "resolved" as const, total: resolvedSlice.total },
+      { tab: "dismissed" as const, total: dismissedSlice.total },
+    ];
+    defaultTab =
+      statusTabs.find((entry) => entry.total > 0)?.tab ??
+      (clusters.length > 0 ? "by_cause" : "open");
+  }
 
   const hasAssessment = runtime.assessments.some(
     (assessment) => assessment.projectId === project.id,

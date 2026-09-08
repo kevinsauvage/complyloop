@@ -35,7 +35,7 @@ import type { EvidenceRecord } from "@complyloop/db/types";
 import { orgsForUser } from "./orgs";
 import {
   prepareWorkspaceState,
-  sessionWriteContext,
+  readViewerSession,
   type ProjectWriteWorkspace,
 } from "./workspace";
 import type { Db } from "./db";
@@ -111,7 +111,12 @@ function captureEntityLoadedSlice(
   };
 }
 
-async function runProjectWriteTransaction(
+/**
+ * Serializes project mutations under a per-project advisory lock. Pass
+ * {@link ProjectWriteScope} to load only the rows you touch. Return a
+ * {@link ProjectWritePayload}, or void when there is nothing to persist.
+ */
+export async function withProjectWrite(
   scope: ProjectWriteScope,
   fn: (workspace: ProjectWriteWorkspace) => Promise<ProjectWritePayload | void>,
 ): Promise<void> {
@@ -124,7 +129,7 @@ async function runProjectWriteTransaction(
   }
 
   const { userId, githubLogin, preferredOrgId, preferredProjectId } =
-    await sessionWriteContext();
+    await readViewerSession();
 
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
@@ -193,18 +198,6 @@ async function runProjectWriteTransaction(
 
     await persistProjectRows(tx, payload, loadedSlice ? { loadedSlice } : {});
   });
-}
-
-/**
- * Serializes project mutations under a per-project advisory lock. Pass
- * {@link ProjectWriteScope} to load only the rows you touch. Return a
- * {@link ProjectWritePayload}, or void when there is nothing to persist.
- */
-export async function withProjectWrite(
-  scope: ProjectWriteScope,
-  fn: (workspace: ProjectWriteWorkspace) => Promise<ProjectWritePayload | void>,
-): Promise<void> {
-  return runProjectWriteTransaction(scope, fn);
 }
 
 /** Serializes a single-row project mutation (e.g. mark alert read). */

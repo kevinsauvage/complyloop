@@ -84,10 +84,6 @@ export function violationNodeKey(
   return `${ruleId}::${target?.[0] || ""}`;
 }
 
-export function violationKey(violation: AxeViolationLike): string {
-  return violationNodeKey(violation.id, violation.nodes[0]?.target);
-}
-
 /**
  * Returns the violations observed under a browser condition that were NOT seen
  * in the baseline (default) pass — the findings that only fail in one state.

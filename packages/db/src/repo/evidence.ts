@@ -4,11 +4,9 @@ import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-ty
 import type { DrizzleDb } from "../client.ts";
 import { evidence } from "../schema.ts";
 import {
-  evidenceExportWindow,
   evidenceToRow,
   newEvidenceRecord,
   rowToEvidence,
-  sqlPageOffset,
 } from "./mappers.ts";
 
 /** Newest-first evidence rows kept in the workspace read snapshot. */
@@ -19,6 +17,20 @@ export const WORKSPACE_EVIDENCE_LIMIT = 100;
  * DB forever (append-only); this only bounds the download, not the table.
  */
 export const EVIDENCE_EXPORT_LIMIT = 5_000;
+
+/** How many rows an export should take, and whether the table was larger. */
+export function evidenceExportWindow(
+  total: number,
+  limit: number,
+): { take: number; truncated: boolean } {
+  return { take: Math.min(total, limit), truncated: total > limit };
+}
+
+/** Zero-based OFFSET for a 1-based UI page. */
+export function sqlPageOffset(page: number, pageSize: number): number {
+  const safePage = Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1;
+  return (safePage - 1) * pageSize;
+}
 
 export async function insertEvidence(
   tx: DrizzleDb,

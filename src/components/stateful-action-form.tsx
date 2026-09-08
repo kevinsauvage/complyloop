@@ -5,9 +5,12 @@ import type { VariantProps } from "class-variance-authority";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
-import type { ActionMessageState } from "@/server/action-state";
+import {
+  emptyActionMessageState,
+  type ActionMessageState,
+} from "@/server/action-state";
 
-const initialState: ActionMessageState = { error: null, message: null };
+const initialState: ActionMessageState = emptyActionMessageState;
 
 type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
 type ButtonSize = VariantProps<typeof buttonVariants>["size"];

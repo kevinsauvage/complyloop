@@ -17,7 +17,10 @@ import { Label } from "@/components/ui/label";
 import { githubRepoSearchResponseSchema, parseUnknown } from "@/core/boundary";
 import { STATUS_TONE_BADGE } from "@/core/status-display";
 import { useActionToast } from "@/hooks/use-action-toast";
-import type { ActionMessageState } from "@/server/action-state";
+import {
+  emptyActionMessageState,
+  type ActionMessageState,
+} from "@/server/action-state";
 import {
   connectGitHubRepoAction,
   disconnectGitHubRepoAction,
@@ -48,11 +51,8 @@ function groupReposByOwner(repos: GitHubRepoSummary[]): RepoOwnerGroup[] {
     .map(([owner, ownerRepos]) => ({ owner, repos: ownerRepos }));
 }
 
-const connectInitial: ActionMessageState = { error: null, message: null };
-const disconnectInitial: ActionMessageState = {
-  error: null,
-  message: null,
-};
+const connectInitial: ActionMessageState = emptyActionMessageState;
+const disconnectInitial: ActionMessageState = emptyActionMessageState;
 
 const repoSearchErrorSchema = z.object({
   error: z.string().optional(),

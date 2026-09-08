@@ -6,35 +6,7 @@ Unnecessary-complexity audit of the whole repo (src/, packages/, scripts/, confi
 
 ---
 
-## P1 — significant unnecessary complexity
-
-~~### 3. GitHub module fragmentation~~ **DONE**
-Helpers in `github.ts` (leaf); App-dependent APIs in `github-access.ts`; `github-helpers.ts` deleted.
-
-~~### 4. Pure/apply duplication in `assessment-status.ts`~~ **DONE**
-Single scratch path via `ProjectRows` + `applyRequirementStatusRefresh` (with optional `controlIds`); `applyEntityWrite` / payload-override twins removed. Assessment clears expired exceptions via `clearExpiredExceptions` + `upsertRequirementsById`.
-
-~~### 6. `formatDateTime` re-export from UI~~ **DONE**
-All consumers import `@/core/format-datetime`.
-
-~~### 7. Dual evidence wrappers~~ **DONE**
-`evidence-payload.ts` deleted; all callers use `appendEvidence` from `project-rows.ts`.
-
-~~### 8. `navAttentionCounts` dead duplicate~~ **DONE**
-In-memory counter + test deleted; production uses SQL `countNavAttentionForProject`.
-
-~~### 9. `workspace-load.ts` triplicated loaders~~ **DONE**
-`EMPTY_RUNTIME` extracted; `loadTenancyDb` for viewer/org paths; `includeRuntime` and `loadWorkspaceTenancyDbForViewer` removed.
-
----
-
 ## P2 — worthwhile simplifications
-
-### 10. `assessment-job-drain.ts` — 13-line module with exactly one caller
-
-- **Evidence:** `rg -l "assessment-job-drain"` → `src/server/actions/assessment.ts` only (+ own test).
-- **Simplification:** inline `shouldDrainAssessmentJobsInline` + `drainAssessmentJobQueue` into `actions/assessment.ts`; move the test assertions there.
-- **Verification:** `rg -n "assessment-job-drain" src` → nothing; `npm run test -- src/server/actions/assessment*` passes; dev-mode assessment still runs synchronously.
 
 ### 11. Single-function modules + misfiled checkout limits
 
@@ -42,69 +14,17 @@ In-memory counter + test deleted; production uses SQL `countNavAttentionForProje
 - **Simplification:** inline each single-function module into its only consumer (`pullRequestUrlFromEvidence` → `ai-fix.ts` next to `patchCandidateFromEvidence`, which does the same reverse-scan; move the env-var defaults with `assertCheckoutWithinQuota`). Move the two checkout-limit functions into `repo-checkout.ts`/`resource-limits.ts` and delete them from the contract. Keep `maxRuntimePages` in `assessment-limits.ts`.
 - **Verification:** DoD passes; export route still sets `Content-Disposition` (one manual download); `npm run test -- packages/analysis-core` passes.
 
-### 12. `patchCandidateDetail()` wrapper in `ai-fix.ts`
-
-- **Evidence:** `src/server/ai-fix.ts:129` is a rename-only forward to `patchCandidateToDetail`; one internal caller (:170); nothing imports it.
-- **Simplification:** call `patchCandidateToDetail(candidate)` directly at :170; delete the wrapper.
-- **Verification:** `rg -n "patchCandidateDetail" src` → nothing; `npm run test -- src/server/ai-fix.test.ts` passes.
-
-### 13. Dead exports across `src/server` and `packages/db`
-
-- **Problem:** five zero-caller exports and two test-only exports left behind by refactors. Verified with exhaustive `rg` over `src/`, `packages/`, `scripts/`:
-  - `locateViolation` — `src/server/actions/shared.ts:62–71`, zero callers (the similar `locateViolationInProject` in `assessment-findings.ts` is a different function); the import at `shared.ts:8` exists only for it.
-  - `getRequirementById` — `packages/db/src/repo/requirements.ts:8–18`, zero callers.
-  - `listAssessmentsForProject` — `packages/db/src/repo/assessments.ts:34–45`, zero callers (production uses the plural `listAssessmentsForProjects` at `actions/org.ts:203` and `listLatestAssessmentForProject`).
-  - `visibleProjectIds` (`src/server/project-visibility.ts:51–56`) and `resolveVisibleFinding` (:86–99) — only importer is `project-visibility.test.ts`; production uses `visibleProjects`/`isProjectVisible`/`resolveActiveProject` + the DB-path `requireFinding`/`requireOnFindingProject`.
-- **Simplification:** delete the dead exports (+ the orphan import) and the two test-only exports with their test blocks.
-- **Verification:** `rg -n "locateViolation\b|getRequirementById|listAssessmentsForProject\b|visibleProjectIds|resolveVisibleFinding" src packages` → only unrelated matches; DoD passes.
-
-### 14. Single-caller session wrappers: `loadWorkspaceTenancyDbForViewer` + `sessionWriteContext`
-
-- **Problem:** `src/server/db.ts:16–22` exists only to pin `{ evidenceLimit: 0, includeRuntime: false }` for its single caller (`workspace.ts:103`). `src/server/workspace.ts:125–139` (`sessionWriteContext`) has one caller (`workspace-write.ts:127`) and re-implements the same `auth()` + cookie reading `loadViewerWorkspaceState` already does (:96–100).
-- **Simplification:** inline the fixed options at the single call site (also required by item 9); extract one shared `readViewerSession()` used by both the read path and `runProjectWriteTransaction`. ~15 LOC and one duplicated session-read path removed.
-- **Verification:** `npm run test -- src/server` passes; read path renders project pages; write path (any action) still resolves the same session.
-
-### 15. `loadLocalEnv()` copy-pasted in 4 scripts (+1 inline variant)
-
-- **Evidence:** identical 7-line function in `scripts/db-migrate.ts:21–27`, `scripts/db-reset.ts:13–19`, `scripts/ensure-org-owner.ts:12–18`, `scripts/e2e-seed.ts:25–31`; 5th inline dotenv variant in `scripts/operations-check.ts:9–10`.
-- **Simplification:** one shared `scripts/env.ts`, imported by the five scripts.
-- **Verification:** `rg -n "function loadLocalEnv" scripts` → nothing; `npm run db:migrate` still picks up `.env.local`.
-
-### 16. Root `package.json` declares 5 dependencies only `@complyloop/analysis-core` uses
-
-- **Problem:** `aria-query`, `axobject-query`, `fast-glob`, `playwright`, `ssrf-guard` are declared in root `package.json` (:48, :50, :56, :61, :68) but imported _only_ inside `packages/analysis-core/src/` (grep-verified across `src/`, `scripts/`, `e2e/` — nothing imports `"playwright"`; e2e uses `@playwright/test`, declared separately at :76). `packages/analysis-core/package.json` already declares every one of them itself (:23, :24, :27, :30, :31).
-- **Simplification:** remove the 5 entries from root `dependencies`. **Keep `axe-core` at root** (:49) — required for analysis-core's peerDep and the runtime `require.resolve("axe-core/axe.min.js")` in `runtime/scan.ts:143`; keep `@types/aria-query` (devDep).
-- **Verification:** `npm install` succeeds; `npm run build && npm run test` pass; `npx complyloop-check` still resolves axe-core at runtime (run `npm run check`).
-
 ### 17. Dashboard workspace toolbar duplicates the global strip, with a client "gate" patching the overlap
 
 - **Problem:** four identical visibility predicates are computed in both `workspace-context.tsx:54–57` and `dashboard-workspace-toolbar.tsx:20–23`, with the same conditional rendering of `OrgSwitcher`/`ProjectSwitcher`/`ConnectProjectPanel`. `WorkspaceContextRouteGate` (`src/components/workspace-context-route-gate.tsx`, 13-line client component + test) exists solely to unmount the global strip on `/dashboard` because the toolbar re-implements it; the dashboard page prop-drills 5 workspace values (:195–202) that `WorkspaceContext` re-derives from `getWorkspace()` anyway.
 - **Simplification:** extract one `WorkspaceSwitchers` server component consumed by both the global strip and the dashboard hero; delete `DashboardWorkspaceToolbar` and `WorkspaceContextRouteGate` (+ test). Alternatively drop the hero toolbar and let the gated global strip serve the dashboard. −60–80 LOC, −2 components, −1 `usePathname` client boundary.
 - **Verification:** `npm run test -- src/components` passes; visual smoke: dashboard hero still shows switchers, other pages still show the strip, org/project switching works from both.
 
-### 18. `FindingsCardList` re-implements the card markup `FindingsBulkRow` already renders
-
-- **Problem:** the card inner markup — badge row, reason line, mono location line, identical hover classes — is written twice in `src/components/findings/findings-bulk-list.tsx`: `FindingsBulkRow` (:69–89) and `FindingsCardList` (:244–270). Only the outer `div` vs `li > Link` and the checkbox differ, and the checkbox is already conditional via `canRemediate`.
-- **Simplification:** delete `FindingsCardList`; render `FindingsBulkRow` (or a shared `FindingCardBody`) with `canRemediate=false` from `findings-tab-panel.tsx:37–48` and the findings page. −35–45 LOC, −1 exported component.
-- **Verification:** findings list renders identically in list and card modes (visual smoke + `npm run test -- src/components/findings`).
-
-### 19. "No project connected" guard block copy-pasted across 4 pages
-
-- **Problem:** identical structure (PageHeader + EmptyState("No project connected", CTA → /dashboard) + hint) in `findings/page.tsx:52–66`, `evidence/page.tsx:44–62`, `requirements/page.tsx:48–63`, `settings/page.tsx:22–39` — copy differs only.
-- **Simplification:** one `NoProjectNotice({ title, description, hint })` in `page-primitives.tsx`; collapse each block to a single call. −30–40 LOC.
-- **Verification:** each of the 4 pages still shows its empty state when no project is connected.
-
 ### 20. `controlForDisplay(controlById(id))` composed by hand in 3 pages, each paying an O(n) catalog scan
 
 - **Problem:** findings page (:103–105), finding detail (:80–83), and dashboard (:273–279) re-assemble the same "raw control → theme for framework" pipeline, while `controlById` (`src/server/workspace.ts:142–147`) does a fresh `Array.find` over the whole shipped catalog per call — O(n) per finding in list rendering.
 - **Simplification:** one `displayControl(controlId, project)` helper in `src/server/report.ts`, backed by a `Map` built once from `shippedCatalog()`.
 - **Verification:** `npm run test -- src/server` passes; finding pages render identical control titles/themes.
-
-### 21. `check-ids.ts` — 9-line re-export shim creating a third public path
-
-- **Problem:** `packages/analysis-core/src/check-ids.ts` re-exports `CHECK_IDS`/`CheckId` from `check-registry.ts`, and `types.ts:9–12` re-re-exports them — three import paths for the same symbols (`check-authority.ts:1` imports via the shim; `adapters/src/rgaa/catalog-coverage.test.ts:2` via the package path). The package uses wildcard `exports: {"./*": "./src/*.ts"}`, so no path is a stabilized API.
-- **Simplification:** delete `check-ids.ts`; point `types.ts`, `check-authority.ts`, and the coverage test at `check-registry.ts` directly.
-- **Verification:** `rg -n "check-ids" packages src` → nothing; `npm run test -- packages` passes.
 
 ### 22. `selectorOf` inlined in ~21 Playwright probes despite an injectable-helper precedent
 
@@ -115,32 +35,6 @@ In-memory counter + test deleted; production uses SQL `countNavAttentionForProje
 ---
 
 ## P3 — minor cleanups (do while touching the file)
-
-### 23. `FirstAssessmentChecklist` takes `hasAssessment` that is hard-coded `false`
-
-- **Evidence:** only call site `dashboard/page.tsx:228` passes `hasAssessment={false}`; the component only renders inside the `!latestAssessment` branch, so `assessmentDone` and the step-3 done-state are dead branches.
-- **Simplification:** remove the prop; always render step 3 as pending with the action.
-- **Verification:** `npm run test -- src/components/dashboard` passes; new-project dashboard unchanged.
-
-### 24. `error.tsx` and `global-error.tsx` duplicate the reporting effect byte-for-byte
-
-- **Evidence:** both `src/app/error.tsx:22–32` and `src/app/global-error.tsx:22–32` contain an identical `useEffect` (structured JSON `console.error` + `Sentry.captureException`), differing only in the `code` string.
-- **Simplification:** extract `reportAppError(error, code)` into a tiny shared module; both boundaries call it.
-- **Verification:** `npm run build` passes; throw in dev → both boundaries log + report identically.
-
-### 25. `defaultTab` fallback is a 5-level nested ternary
-
-- **Evidence:** `src/app/(app)/findings/page.tsx:114–129` — a "first non-empty list" chain that is really a loop.
-- **Simplification:** iterate `["open","resolved","dismissed"]` slices and take the first with `total > 0` (keep the explicit `by_cause` cluster fallback).
-- **Verification:** `npm run test -- src/app` (findings page tests) passes; tab fallback behavior unchanged with empty/non-empty lists.
-
-### 26. UI micro-cleanups: unused avatar exports, single-importer `BadgeWithDescription`, triplicated initial-state literal
-
-- **Evidence:**
-  - `src/components/ui/avatar.tsx:88–112` — `AvatarGroup`, `AvatarGroupCount`, `AvatarBadge` have zero importers (file used once, by `auth-controls.tsx:3`). Delete the 3 dead exports.
-  - `src/components/badge-with-description.tsx` — 21-line file whose only importer is the adjacent `badges.tsx:1`. Move it into `badges.tsx` as a local helper; delete the file.
-  - `{ error: null, message: null }` hand-rolled in `stateful-action-form.tsx:10` and `github-repo-picker.tsx:51` while the canonical `emptyActionMessageState` (`src/server/action-state.ts:9`) is exported but used only by tests. Import the canonical constant in both client components (plain typed object, safe client-side).
-- **Verification:** `rg -n "AvatarGroup|AvatarBadge" src` (outside avatar.tsx) → nothing; typecheck + component tests pass.
 
 ### 27. Marketing route group has one wrapper layer too many
 
@@ -153,22 +47,6 @@ In-memory counter + test deleted; production uses SQL `countNavAttentionForProje
 - **Evidence:** `findings-tab-panel.tsx:27–52`; call site `findings/page.tsx:265–288` threads `tab, slice, listParams, filtersActive, items, emptyMessage, filteredEmptyState, paginationQuery, paginationLabel` twice; the open tab re-implements the panel inline (:204–258).
 - **Simplification (judgment call):** give the panel `basePath`, `query`, and a `renderEmpty(status)` callback; derive `{...listParams, tab}` and the pagination label internally. 9→5 props. Do it when next touching this component, not as churn.
 - **Verification:** findings tabs (open/resolved/dismissed/by_cause) render + paginate identically.
-
-### 29. Export-surface sweep: same-file-only exports, dead re-exports, test-only exports in packages
-
-- **Evidence (all verified):**
-  - `src/server/assessment-jobs.ts:17–18` — re-exports `AssessmentJobStatus`/`AssessmentJobTrigger`/`AssessmentJobPayload`; no file imports any of the three from this module. Delete both lines.
-  - Same-file-only exports (remove `export` keyword): `membershipsForOrg` (`orgs.ts:65`, sole caller :339), `findRemediationForFinding` (`workspace.ts:157`, sole caller :167), `clearExpiredExceptions` / `upsertRequirementsById` in `assessment-status.ts` (callers: assessment + tests), `normalizeGitHubAppPrivateKey` (`github-app.ts:65`, sole caller :74).
-  - `packages/analysis-core`: `RUNTIME_ONLY_CHECK_IDS` + `HEURISTIC_CHECK_IDS` (`check-authority.ts:19–27`) and `violationKey` (`theme-conditions.ts:87–89`) are consumed only by their own tests — build the sets in-test from `CHECK_REGISTRY`; un-export `violationKey`. `RUNTIME_GOTO_TIMEOUT_MS` / `RUNTIME_POST_DOM_SETTLE_MS` / `RUNTIME_AUDIT_MOTION_FREEZE_CSS` (`runtime/scan.ts:57–70`) have zero external importers — un-export.
-  - `guidanceFor` (`packages/adapters/src/registry.ts:44–46`) is an identity pass-through over `rgaaGuidanceFor`, and `guidance.test.ts:17–19` asserts the pass-through equals its delegate — a tautological test. Delete the assertion (or inline the facade if WCAG guidance never lands).
-- **Simplification:** apply the above; for `customProbeCheckIds()` keep the export (load-bearing for `catalog-coverage.test.ts`).
-- **Verification:** `npm run typecheck && npm run lint && npm run test` pass.
-
-### 30. Same-file single-caller wrappers: `addConnectedProject`, `withProjectWrite`/`runProjectWriteTransaction`
-
-- **Evidence:** `addConnectedProject` (`connect-github.ts:51–70`) wraps one `newEvidenceRecord` call; sole production caller :191 (test targets it directly). `withProjectWrite` (`workspace-write.ts:205–210`) is a 3-line forward to private `runProjectWriteTransaction` (:114), whose only caller is the wrapper; `withProjectWrite` itself has 13 consumer files — keep the name, drop the two-layer split.
-- **Simplification:** inline `addConnectedProject` into `connectGitHubRepo`; rename `runProjectWriteTransaction` → `withProjectWrite` (doc comment moves up) and delete the forwarder.
-- **Verification:** `npm run test -- src/server/connect-github.test.ts src/server/workspace-write.test.ts` passes; `rg -n "addConnectedProject|runProjectWriteTransaction" src` → nothing.
 
 ### 31. `runtime/scan.ts` — triple SSRF assertion per URL
 
@@ -190,33 +68,10 @@ In-memory counter + test deleted; production uses SQL `countNavAttentionForProje
   - `scan.ts:148–169` — `AxeRunResult` hand-replicates `AxeViolationLike` (`findings.ts:26–36`) only so `toAxeViolationLike` (:176–184) can convert; type the evaluate result structurally and delete the converter (−22 LOC).
 - **Verification:** `npm run test -- packages/analysis-core` passes.
 
-### 34. `packages/check/bin.js` — tsx fallback for a dev-only scenario
-
-- **Evidence:** `bin.js:15–38` resolves `tsx/cli` and spawns it so `npx complyloop-check` works before `npm run build:check` in this repo; the published package always ships `dist/`.
-- **Simplification:** drop the fallback; keep the clear "run build:check" error.
-- **Verification:** `npm run build:check && npm run check` passes; `npm run test -- packages/check` (pack smoke) passes.
-
-### 35. `emitLog` "info" branch is dead
-
-- **Evidence:** `observability.ts` supports severity `"info"` but only `reportError`/`reportWarning` are exported and called; `rg -n "reportInfo|emitLog\(\"info\"" src` → nothing.
-- **Simplification:** drop `"info"` from the `Severity` union and else-branch.
-- **Verification:** `npm run typecheck` compiles; health route still logs warnings.
-
 ### 36. `mergeRawFindings` third parameter is derivable — verify or skip
 
 - **Evidence:** `assessment-findings.ts:339` passes `runtimeRan` from a value derivable at the caller (`assessment.ts:229`); but `runtimeFindings.length > 0` is **not** equivalent (runtime can legitimately produce zero findings). Documented judgment call — **agent should verify equivalence or skip**.
 - **Verification:** if changed: `npm run test -- src/server/assessment-findings.test.ts src/server/assessment.test.ts`.
-
-### 37. `evidenceExportWindow` / `sqlPageOffset` live in `mappers.ts`
-
-- **Simplification:** move both into `repo/evidence.ts` (their only consumer). Zero behavior change.
-- **Verification:** `npm run test -- packages/db` passes.
-
-### 38. Unused `void` params in internal action helpers
-
-- **Evidence:** public actions carry the `useActionState` signature tax (acceptable), but internal `clearRequirementOverrideAction` (`requirements.ts:299`) also takes and voids `_formData`.
-- **Simplification:** shrink that helper's signature to the params it uses; leave public action signatures untouched.
-- **Verification:** `npm run typecheck && npm run lint` pass.
 
 ### 39. Test-only DI params threaded through production signatures (`controls`, `propose`, `scan`)
 

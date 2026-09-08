@@ -62,7 +62,7 @@ export function assertProductionGitHubApp(): void {
   }
 }
 
-export function normalizeGitHubAppPrivateKey(raw: string): string {
+function normalizeGitHubAppPrivateKey(raw: string): string {
   return raw.replace(/\\n/g, "\n");
 }
 

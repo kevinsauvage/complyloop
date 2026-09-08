@@ -3,8 +3,6 @@
  * Resets Postgres and seeds the Playwright e2e fixture project.
  * Usage: npm run e2e:seed
  */
-import path from "node:path";
-import { config as loadEnv } from "dotenv";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import {
   E2E_ORG_ID,
@@ -21,14 +19,7 @@ import { upsertRemediation } from "@complyloop/db/repo/remediations";
 import { insertAssessment } from "@complyloop/db/repo/assessments";
 import { createPostgresClient } from "@complyloop/db/postgres-url";
 import { storeUserGitHubToken } from "../src/server/github-tokens";
-
-function loadLocalEnv(): void {
-  if (process.env.DATABASE_URL?.trim()) return;
-  loadEnv({ path: path.join(process.cwd(), ".env.local") });
-  if (!process.env.DATABASE_URL?.trim()) {
-    loadEnv({ path: path.join(process.cwd(), ".env") });
-  }
-}
+import { loadLocalEnv } from "./env";
 
 async function truncateAll(connectionString: string): Promise<void> {
   const sql = await createPostgresClient(connectionString, { max: 1 });

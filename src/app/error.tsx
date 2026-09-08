@@ -1,8 +1,8 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { useEffect } from "react";
+import { reportAppError } from "@/app/report-app-error";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,15 +19,7 @@ export default function AppError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(
-      JSON.stringify({
-        severity: "error",
-        code: "app_error_boundary",
-        digest: error.digest,
-        at: new Date().toISOString(),
-      }),
-    );
-    Sentry.captureException(error);
+    reportAppError(error, "app_error_boundary");
   }, [error]);
 
   return (

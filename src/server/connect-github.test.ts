@@ -2,10 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { testProject } from "@/test-fixtures/project";
 import { emptyDb } from "@complyloop/db/types";
 import {
-  addConnectedProject,
   assertAssessableRoot,
   deriveProjectName,
   uniqueProjectName,
@@ -89,26 +87,5 @@ describe("assertAssessableRoot", () => {
     tempDirs.push(dir);
     fs.writeFileSync(path.join(dir, "App.tsx"), "export const A = 1;\n");
     expect(() => assertAssessableRoot(dir)).not.toThrow();
-  });
-});
-
-describe("addConnectedProject", () => {
-  it("returns the project with its connect evidence", () => {
-    const project = testProject({
-      github: { fullName: "acme/shop", defaultBranch: "main", private: false },
-      sourceRef: "https://github.com/acme/shop",
-    });
-
-    const { project: outProject, evidence } = addConnectedProject(
-      project,
-      'Connected "Shop"',
-    );
-    expect(outProject).toBe(project);
-    expect(evidence).toHaveLength(1);
-    expect(evidence[0]).toMatchObject({
-      kind: "project_connected",
-      projectId: "p1",
-      summary: 'Connected "Shop"',
-    });
   });
 });

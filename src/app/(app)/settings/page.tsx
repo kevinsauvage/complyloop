@@ -1,4 +1,4 @@
-import { EmptyState, MetaTile, PageActionLink, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
+import { MetaTile, NoProjectNotice, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { DefaultPresetForm } from "@/components/settings/default-preset-form";
 import { RuntimeAuditForm } from "@/components/runtime-audit-form";
@@ -24,18 +24,11 @@ export default async function SettingsPage() {
 
   if (!project) {
     return (
-      <>
-        <PageHeader
-          title="Settings"
-          description="Configure the active project once a repository is connected."
-        />
-        <EmptyState
-          title="No project connected"
-          action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
-        >
-          <p>Connect a GitHub repository from the dashboard to manage settings.</p>
-        </EmptyState>
-      </>
+      <NoProjectNotice
+        title="Settings"
+        description="Configure the active project once a repository is connected."
+        hint="Connect a GitHub repository from the dashboard to manage settings."
+      />
     );
   }
 

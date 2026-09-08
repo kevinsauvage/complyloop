@@ -126,10 +126,6 @@ export async function runAiFixOnCheckout(
   });
 }
 
-export function patchCandidateDetail(candidate: PatchCandidate) {
-  return patchCandidateToDetail(candidate);
-}
-
 export function patchCandidateFromEvidence(
   evidence: ReadonlyArray<Pick<EvidenceRecord, "kind" | "summary" | "detail">>,
 ): PatchCandidate | null {
@@ -167,7 +163,7 @@ export function persistPatchCandidate(
     projectId: finding.projectId,
     controlId: finding.controlId,
     findingId: finding.id,
-    detail: patchCandidateDetail(candidate),
+    detail: patchCandidateToDetail(candidate),
   });
   const remediation = db.remediations.find(
     (row) => row.findingId === finding.id,

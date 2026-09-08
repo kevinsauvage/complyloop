@@ -14,8 +14,7 @@ import {
   type AssessmentJobPayload,
 } from "@/core/assessment-job";
 
-export type { AssessmentJobStatus, AssessmentJobTrigger } from "@complyloop/analysis-core/contract/assessment-jobs";
-export type { AssessmentJob, AssessmentJobPayload };
+export type { AssessmentJob };
 
 type AssessmentJobRow = typeof assessmentJobs.$inferSelect;
 

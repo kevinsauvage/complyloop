@@ -277,13 +277,12 @@ export async function markRequirementPassedAction(
 
 export async function clearRequirementHumanPassAction(
   requirementIdRaw: string,
-  previous: ActionMessageState,
-  formData: FormData,
+  _previous: ActionMessageState,
+  _formData: FormData,
 ): Promise<ActionMessageState> {
+  void _formData;
   return clearRequirementOverrideAction(
     requirementIdRaw,
-    previous,
-    formData,
     "humanPass",
     "Human pass cleared.",
   );
@@ -291,13 +290,12 @@ export async function clearRequirementHumanPassAction(
 
 export async function clearRequirementExceptionAction(
   requirementIdRaw: string,
-  previous: ActionMessageState,
-  formData: FormData,
+  _previous: ActionMessageState,
+  _formData: FormData,
 ): Promise<ActionMessageState> {
+  void _formData;
   return clearRequirementOverrideAction(
     requirementIdRaw,
-    previous,
-    formData,
     "exception",
     "Exception cleared.",
   );
@@ -305,12 +303,9 @@ export async function clearRequirementExceptionAction(
 
 async function clearRequirementOverrideAction(
   requirementIdRaw: string,
-  _previous: ActionMessageState,
-  _formData: FormData,
   field: "humanPass" | "exception",
   message: string,
 ): Promise<ActionMessageState> {
-  void _formData;
   return runActionMessage(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     await withProjectWrite(

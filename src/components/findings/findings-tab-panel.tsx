@@ -1,5 +1,5 @@
 import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
-import { FindingsCardList } from "@/components/findings/findings-bulk-list";
+import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
 import type { FindingListItem } from "@/components/findings/finding-list-items";
 import { PaginationNav } from "@/components/pagination-nav";
 import { TabsContent } from "@/components/ui/tabs";
@@ -41,8 +41,9 @@ export function FindingsTabPanel({
         )
       ) : (
         <>
-          <FindingsCardList
+          <FindingsBulkList
             items={items}
+            canRemediate={false}
             listParams={{ ...listParams, tab }}
           />
           <PaginationNav

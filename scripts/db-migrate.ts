@@ -11,20 +11,12 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { config as loadEnv } from "dotenv";
 import { createPostgresClient } from "@complyloop/db/postgres-url";
+import { loadLocalEnv } from "./env";
 
 // Deterministic per-database lock key for serializing migrations across
 // processes. hashtext makes it stable without hand-picking a magic number.
 const MIGRATION_LOCK = "hashtext('_complyloop_migrations')::bigint";
-
-function loadLocalEnv(): void {
-  if (process.env.DATABASE_URL?.trim()) return;
-  loadEnv({ path: path.join(process.cwd(), ".env.local") });
-  if (!process.env.DATABASE_URL?.trim()) {
-    loadEnv({ path: path.join(process.cwd(), ".env") });
-  }
-}
 
 async function applyMigrations(
   url: string,

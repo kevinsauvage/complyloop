@@ -10,8 +10,6 @@ import {
   isProjectVisible,
   requirementsForProject,
   resolveActiveProject,
-  resolveVisibleFinding,
-  visibleProjectIds,
   visibleProjects,
 } from "./project-visibility";
 
@@ -230,50 +228,12 @@ describe("tenant-scoped read helpers", () => {
     ).toEqual(["f-a"]);
   });
 
-  it("does not resolve another tenant's finding by id", () => {
-    const aliceCtx = ctx("user-a", [aliceMembership]);
-    expect(
-      resolveVisibleFinding(
-        "f-b",
-        [aliceFinding, bobFinding],
-        [aliceProject, bobProject],
-        aliceCtx,
-      ),
-    ).toBeNull();
-    expect(
-      resolveVisibleFinding(
-        "f-a",
-        [aliceFinding, bobFinding],
-        [aliceProject, bobProject],
-        aliceCtx,
-      )?.finding.id,
-    ).toBe("f-a");
-  });
-
-  it("does not resolve a finding when the project is missing", () => {
-    expect(
-      resolveVisibleFinding(
-        "f-a",
-        [aliceFinding],
-        [],
-        ctx("user-a", [aliceMembership]),
-      ),
-    ).toBeNull();
-  });
-
-  it("lists only visible project ids for export scoping", () => {
-    const ids = visibleProjectIds(
-      [aliceProject, bobProject],
-      ctx("user-a", [aliceMembership]),
-    );
-    expect([...ids]).toEqual(["proj-a"]);
-    expect(ids.has("proj-b")).toBe(false);
-  });
-
   it("keeps bob from reading alice evidence via project filter", () => {
-    const bobVisible = visibleProjectIds(
-      [aliceProject, bobProject],
-      ctx("user-b", [bobMembership]),
+    const bobVisible = new Set(
+      visibleProjects(
+        [aliceProject, bobProject],
+        ctx("user-b", [bobMembership]),
+      ).map((project) => project.id),
     );
     const leaked = evidenceForProject(
       [aliceEvidence, bobEvidence],
