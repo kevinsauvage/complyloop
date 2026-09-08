@@ -1,5 +1,8 @@
 import { eq, inArray, or, sql } from "drizzle-orm";
-import type { OrgMembership, Organization } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  OrgMembership,
+  Organization,
+} from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../client.ts";
 import { memberships, organizations } from "../schema.ts";
 import { membershipToRow, organizationToRow } from "./mappers.ts";
@@ -36,8 +39,12 @@ export async function isPersonalOrgProvisioned(
   if (!login) return false;
   const rows = await drizzle
     .select({
-      owned: sql<boolean | null>`bool_or(${memberships.userId} = ${userId} AND ${memberships.role} = 'owner')`,
-      unclaimed: sql<boolean | null>`bool_or(lower(${memberships.githubLogin}) = ${login} AND (${memberships.userId} IS NULL OR ${memberships.userId} <> ${userId}))`,
+      owned: sql<
+        boolean | null
+      >`bool_or(${memberships.userId} = ${userId} AND ${memberships.role} = 'owner')`,
+      unclaimed: sql<
+        boolean | null
+      >`bool_or(lower(${memberships.githubLogin}) = ${login} AND (${memberships.userId} IS NULL OR ${memberships.userId} <> ${userId}))`,
     })
     .from(memberships)
     .where(
@@ -134,7 +141,10 @@ export async function claimMembershipsForLogin(
     .where(sql`lower(${memberships.githubLogin}) = ${login}`);
   let changed = false;
   for (const row of rows) {
-    if (row.payload.githubLogin.toLowerCase() === login && row.userId !== userId) {
+    if (
+      row.payload.githubLogin.toLowerCase() === login &&
+      row.userId !== userId
+    ) {
       const updated: OrgMembership = { ...row.payload, userId };
       await upsertMembership(tx, updated);
       changed = true;
