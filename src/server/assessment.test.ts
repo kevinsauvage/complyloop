@@ -7,7 +7,7 @@ import * as registry from "@complyloop/adapters/registry";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { runAssessment } from "./assessment";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 import { materializeAssessmentRun } from "@/test-fixtures/materialize-assessment-run";
 
 const BROKEN = `export const Hero = () => <img src="/hero-banner.png" />;\n`;

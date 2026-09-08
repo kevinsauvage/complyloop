@@ -11,7 +11,7 @@ import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
 import { emptyActionMessageState } from "../action-state";
-import type { Db } from "../db";
+import type { Db } from "@complyloop/db/types";
 import type { Workspace } from "../workspace";
 import {
   markRemediationImplementedAction,

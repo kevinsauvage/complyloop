@@ -27,7 +27,7 @@ import {
 import { accessFromStore, setActiveProject } from "../project-visibility";
 import { projectCapabilities } from "../project-capabilities";
 import { assertConnectRateLimit } from "../rate-limit";
-import { resolveActiveOrgId } from "../orgs";
+import { resolveActiveOrgId } from "../org-queries";
 import { ensurePersonalOrgProvisioned } from "../personal-org";
 import { getWorkspace } from "../workspace";
 import { withConnectWrite } from "../workspace-write";

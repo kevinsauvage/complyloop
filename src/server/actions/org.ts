@@ -14,15 +14,19 @@ import {
   writeActiveProjectCookie,
 } from "../active-cookies";
 import {
-  canManageOrgMembers,
-  changeOrgMemberRole,
   createOrganization,
   deleteOrganization,
   exportOrgData,
+} from "../orgs";
+import {
+  canManageOrgMembers,
+  resolveActiveOrgId,
+} from "../org-queries";
+import {
+  changeOrgMemberRole,
   inviteOrgMember,
   removeOrgMember,
-  resolveActiveOrgId,
-} from "../orgs";
+} from "../org-membership";
 import { getDrizzle } from "@complyloop/db/client";
 import { listAssessmentsForProjects } from "@complyloop/db/repo/assessments";
 import { listAllEvidenceForProjects } from "@complyloop/db/repo/evidence";

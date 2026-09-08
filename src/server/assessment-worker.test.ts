@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 import { emptyDb as baseEmptyDb } from "@complyloop/db/types";
 import type { AssessmentJob } from "./assessment-jobs";
 

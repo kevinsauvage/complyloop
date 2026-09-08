@@ -1,26 +1,12 @@
 import type { OrgMembership, Organization } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 import { slugifyOrgName, uniqueOrgSlug } from "./org-slug";
 import {
   buildOrgMembershipIndex,
   membershipsForOrg,
   roleInOrg,
 } from "./org-queries";
-
-export {
-  buildOrgMembershipIndex,
-  canManageOrgMembers,
-  orgsForUser,
-  resolveActiveOrgId,
-  userRoleInOrg,
-  type OrgMembershipIndex,
-} from "./org-queries";
-export {
-  changeOrgMemberRole,
-  inviteOrgMember,
-  removeOrgMember,
-} from "./org-membership";
 
 export interface CreateOrganizationResult {
   org: Organization;

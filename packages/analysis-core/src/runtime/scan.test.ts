@@ -1,13 +1,15 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { chromium, type Browser } from "playwright";
 import {
-  gotoForRuntimeAudit,
   resolveAxeMinJsPath,
   runAxeOnPage,
-  runtimePageMatchesAuditedUrl,
   runtimeViolationStillPresent,
   type RuntimePageScanner,
 } from "./scan";
+import {
+  gotoForRuntimeAudit,
+  runtimePageMatchesAuditedUrl,
+} from "./runtime-navigation";
 import { emulateCoarsePointer } from "./viewport-conditions";
 import * as htmlValidateRuntime from "./html-validate-runtime";
 import type { RawFinding } from "../types";

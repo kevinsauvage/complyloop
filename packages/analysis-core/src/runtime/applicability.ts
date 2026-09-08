@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import type { CheckId } from "../types.ts";
+import type { CheckId } from "../check-registry.ts";
 import {
   CAPTCHA_TOKEN,
   RUNTIME_MATCHES_SRC,

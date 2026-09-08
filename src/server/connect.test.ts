@@ -10,7 +10,7 @@ import {
 import { githubCloneUrl } from "./github";
 import { setActiveProject } from "./project-visibility";
 import { emptyDb } from "@complyloop/db/types";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 
 function githubProject(
   partial: Pick<Project, "id" | "name" | "orgId"> &

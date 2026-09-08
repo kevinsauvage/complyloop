@@ -1,5 +1,5 @@
 import type { OrgMembership, Project } from "@complyloop/analysis-core/contract/project-types";
-import type { Db } from "@/server/db";
+import type { Db } from "@complyloop/db/types";
 import { emptyDb, type Finding, type Remediation } from "@complyloop/db/types";
 import type { ProjectWriteWorkspace } from "@/server/workspace";
 import { testFinding } from "./finding";

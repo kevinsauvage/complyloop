@@ -48,11 +48,6 @@ import {
 } from "./viewport-conditions.ts";
 import { gotoForRuntimeAudit, runtimePageMatchesAuditedUrl } from "./runtime-navigation.ts";
 
-export {
-  gotoForRuntimeAudit,
-  runtimePageMatchesAuditedUrl,
-} from "./runtime-navigation.ts";
-
 export type RuntimePageScanner = (
   urls: ReadonlyArray<string>,
 ) => Promise<RuntimeScanPageResult[]>;

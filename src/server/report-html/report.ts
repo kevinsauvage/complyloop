@@ -12,7 +12,7 @@ import {
   type EngineeringReportModel,
   type ReportInput,
 } from "../report-model";
-import { emptyParagraph, escapeHtml, reportSection, reportShell, statusClass, summaryStat } from "./shared";
+import { emptyParagraph, escapeHtml, reportSection, reportShell, statusClass, summaryStat } from "./primitives";
 
 export function buildAuditReportHtml(input: ReportInput): string {
   const model = composeAuditReport(input);

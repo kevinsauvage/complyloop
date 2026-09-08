@@ -7,7 +7,7 @@ import { isDomLocation } from "@complyloop/analysis-core/contract/location";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { runAssessment } from "./assessment";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 import { materializeAssessmentRun } from "@/test-fixtures/materialize-assessment-run";
 
 const CLEAN_SOURCE = `export const Page = () => <img src="/x.png" alt="ok" />;\n`;

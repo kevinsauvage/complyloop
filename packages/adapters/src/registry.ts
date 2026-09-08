@@ -1,7 +1,7 @@
 import { rgaaPresets } from "./rgaa/presets.ts";
 import { guidanceFor as rgaaGuidanceFor } from "./rgaa/guidance.ts";
 import { wcagPresets } from "./wcag/presets.ts";
-import type { CheckId } from "@complyloop/analysis-core/types";
+import type { CheckId } from "@complyloop/analysis-core/check-registry";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { CheckGuidance, FrameworkPreset } from "./types";
 
@@ -38,8 +38,6 @@ export function projectDefaultPresetId(project: Project): string {
   if (stored && presetById(stored)) return stored;
   return defaultConnectPreset().id;
 }
-
-export { isPertinenceTwinControl } from "./rgaa/pertinence-twins.ts";
 
 export function guidanceFor(checkId: CheckId): CheckGuidance {
   return rgaaGuidanceFor(checkId);

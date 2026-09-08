@@ -16,7 +16,7 @@ import {
   removeOrgMemberAction,
   switchOrgAction,
 } from "./org";
-import type { Db } from "../db";
+import type { Db } from "@complyloop/db/types";
 import type { ProjectWriteWorkspace } from "../workspace";
 import { emptyDb as emptyDbBase } from "@complyloop/db/types";
 
@@ -34,6 +34,15 @@ vi.mock("../orgs", async () => {
     ...actual,
     exportOrgData: (...args: unknown[]) => exportOrgData(...args),
     deleteOrganization: (...args: unknown[]) => deleteOrganization(...args),
+  };
+});
+
+vi.mock("../org-queries", async () => {
+  const actual = await vi.importActual<typeof import("../org-queries")>(
+    "../org-queries",
+  );
+  return {
+    ...actual,
     resolveActiveOrgId: (...args: unknown[]) => resolveActiveOrgId(...args),
   };
 });

@@ -1,6 +1,6 @@
 "use server";
 
-import type { CheckId } from "@complyloop/analysis-core/types";
+import type { CheckId } from "@complyloop/analysis-core/check-registry";
 import { type Finding, type Remediation } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
@@ -18,7 +18,7 @@ import {
 import { parseForm, parseInput } from "../boundary";
 import { sameInstance } from "../assessment-findings";
 import { applyRequirementStatusRefresh } from "../assessment-status";
-import type { Db } from "../db";
+import type { Db } from "@complyloop/db/types";
 import { remediationEvidenceSummary } from "../remediation-evidence";
 import {
   findingById,

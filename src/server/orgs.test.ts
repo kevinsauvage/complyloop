@@ -5,18 +5,22 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { emptyDb } from "@complyloop/db/types";
 import {
-  buildOrgMembershipIndex,
-  changeOrgMemberRole,
   createOrganization,
   deleteOrganization,
   exportOrgData,
-  inviteOrgMember,
+} from "./orgs";
+import {
+  buildOrgMembershipIndex,
   orgsForUser,
-  removeOrgMember,
   resolveActiveOrgId,
   userRoleInOrg,
-} from "./orgs";
-import type { Db } from "./db";
+} from "./org-queries";
+import {
+  changeOrgMemberRole,
+  inviteOrgMember,
+  removeOrgMember,
+} from "./org-membership";
+import type { Db } from "@complyloop/db/types";
 
 function applyMembership(db: Db, membership: OrgMembership): OrgMembership {
   const index = db.memberships.findIndex((row) => row.id === membership.id);

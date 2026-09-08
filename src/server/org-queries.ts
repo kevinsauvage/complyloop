@@ -1,5 +1,5 @@
 import type { OrgMembership, OrgRole, Organization } from "@complyloop/analysis-core/contract/project-types";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 
 /** In-memory indexes over memberships — build once when a call path looks up more than once. */
 export type OrgMembershipIndex = {

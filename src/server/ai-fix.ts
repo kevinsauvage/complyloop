@@ -20,7 +20,7 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
 import { refreshSuggestion } from "@/core/remediation";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
 import { appendEvidence } from "./project-rows";
 

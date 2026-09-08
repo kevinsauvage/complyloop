@@ -32,13 +32,13 @@ import {
   projectWriteLockKey,
 } from "@complyloop/db/write-lock";
 import type { EvidenceRecord } from "@complyloop/db/types";
-import { orgsForUser } from "./orgs";
+import { orgsForUser } from "./org-queries";
 import {
   prepareWorkspaceState,
   readViewerSession,
   type ProjectWriteWorkspace,
 } from "./workspace";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 
 /** What rows a project write may load and persist. */
 export type ProjectWriteScope =

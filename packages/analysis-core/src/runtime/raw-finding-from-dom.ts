@@ -1,6 +1,7 @@
 import type { AnalyzerId } from "../contract/finding-types.ts";
 import type { Confidence, Severity } from "../contract/statuses.ts";
-import type { CheckId, RawFinding } from "../types.ts";
+import type { CheckId } from "../check-registry.ts";
+import type { RawFinding } from "../types.ts";
 
 export interface RawFindingFromDomInput {
   checkId: CheckId;

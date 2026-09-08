@@ -8,7 +8,7 @@ import {
   type JsxTagNode,
   type ParsedSource,
 } from "./parse.ts";
-import type { CheckId } from "./types.ts";
+import type { CheckId } from "./check-registry.ts";
 
 function innermostTagAt(parsed: ParsedSource, offset: number): JsxTagNode | undefined {
   let match: JsxTagNode | undefined;

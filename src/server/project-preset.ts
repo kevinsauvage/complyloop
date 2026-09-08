@@ -3,7 +3,7 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 import { appendEvidence } from "./project-rows";
 
 /** Sets the project's default assessment preset (Settings). */

@@ -1,4 +1,4 @@
-import type { CheckId } from "../types.ts";
+import type { CheckId } from "../check-registry.ts";
 
 /**
  * Maps axe-core rule ids to ComplyLoop check ids.

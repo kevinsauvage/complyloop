@@ -7,7 +7,7 @@ import { canOnProject } from "@/core/rbac";
 import { defaultConnectPreset } from "@complyloop/adapters/registry";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import { nextUniqueSlug } from "@complyloop/db/org-slug";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 import { normalizeGitHubFullName } from "./github";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
 import { withRepoCheckout } from "./repo-checkout";

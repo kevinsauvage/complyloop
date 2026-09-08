@@ -1,4 +1,4 @@
-import type { Alert, Finding } from "@complyloop/db/types";
+import type { Alert, Finding, Db } from "@complyloop/db/types";
 import {
   claimNextAssessmentJob,
   completeAssessmentJob,
@@ -6,7 +6,7 @@ import {
   type AssessmentJob,
 } from "./assessment-jobs";
 import { runAssessment, type AssessmentRunResult } from "./assessment";
-import { loadProjectDb, type Db } from "./db";
+import { loadProjectDb } from "./db";
 import { getDrizzle } from "@complyloop/db/client";
 import {
   applyAssessmentPayload,

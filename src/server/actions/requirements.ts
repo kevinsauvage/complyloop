@@ -15,7 +15,7 @@ import {
 } from "../action-state";
 import { parseForm, parseInput } from "../boundary";
 import { applyRequirementStatusRefresh } from "../assessment-status";
-import type { Db } from "../db";
+import type { Db } from "@complyloop/db/types";
 import {
   clearRequirementHumanDetermination,
   setRequirementHumanDetermination,

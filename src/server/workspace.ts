@@ -15,9 +15,9 @@ import {
   readActiveOrgCookie,
   readActiveProjectCookie,
 } from "./active-cookies";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
-import { orgsForUser, resolveActiveOrgId } from "./orgs";
+import { orgsForUser, resolveActiveOrgId } from "./org-queries";
 import {
   type AccessContext,
   accessFromStore,

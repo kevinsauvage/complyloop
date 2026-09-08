@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyParagraph, escapeHtml, reportSection, reportShell, statusClass, summaryStat } from "./shared";
+import { emptyParagraph, escapeHtml, reportSection, reportShell, statusClass, summaryStat } from "./primitives";
 
 describe("escapeHtml", () => {
   it("escapes the five HTML-significant characters", () => {

@@ -24,7 +24,7 @@ import { advanceRemediation } from "@/core/remediation";
 import {
   REQUIREMENT_STATUSES,
 } from "@complyloop/analysis-core/contract/statuses";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 import { detectChanges, summarizeChanges } from "./monitor";
 import {
   mergeRawFindings,

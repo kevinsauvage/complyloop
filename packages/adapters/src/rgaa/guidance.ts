@@ -1,4 +1,4 @@
-import type { CheckId } from "@complyloop/analysis-core/types";
+import type { CheckId } from "@complyloop/analysis-core/check-registry";
 import type { CheckGuidance } from "../types.ts";
 
 const guidance: Record<CheckId, CheckGuidance> = {

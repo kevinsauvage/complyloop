@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CheckId } from "@complyloop/analysis-core/types";
+import type { CheckId } from "@complyloop/analysis-core/check-registry";
 import { allChecks } from "@complyloop/analysis-core/checks/registry";
 import { jsxA11yMappedCheckIds } from "@complyloop/analysis-core/jsx-a11y-map";
 import { guidanceFor } from "./guidance";

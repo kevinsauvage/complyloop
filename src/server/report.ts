@@ -31,8 +31,6 @@ import { evidenceForProject } from "./project-visibility";
 import type { ReportInput } from "./report-model";
 import { getWorkspace } from "./workspace";
 
-export type { ReportInput } from "./report-model";
-
 export type ReportLoadResult =
   | { ok: false; response: Response }
   | { ok: true; project: Project; view: ReportView; input: ReportInput };

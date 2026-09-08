@@ -30,8 +30,6 @@ import { resizeTextViolation } from "./resize-text.ts";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime.ts";
 import type { CustomViolation } from "./types.ts";
 
-export { customProbeCheckIds } from "./types.ts";
-
 export function findingsFromCustomViolations(
   pageUrl: string,
   violations: ReadonlyArray<CustomViolation>,

@@ -1,7 +1,7 @@
 import type { OrgMembership, OrgRole } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { isOrgRole } from "@/core/rbac";
-import type { Db } from "./db";
+import type { Db } from "@complyloop/db/types";
 import {
   buildOrgMembershipIndex,
   membershipsForOrg,

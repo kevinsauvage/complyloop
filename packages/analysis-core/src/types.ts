@@ -8,9 +8,6 @@ import type {
 import type { ParsedSource } from "./parse.ts";
 import type { CheckId } from "./check-registry.ts";
 
-export type { CheckId } from "./check-registry.ts";
-export { CHECK_IDS } from "./check-registry.ts";
-
 export interface RawFinding {
   checkId: CheckId;
   kind: FindingKind;
