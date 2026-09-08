@@ -2,17 +2,9 @@ import type { Page } from "playwright";
 import { TARGET_SIZE_ENHANCED_MIN_PX } from "../viewport-conditions.ts";
 import { type CapturedHit } from "./hit-capture.ts";
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { ENHANCED_TARGET_CONTROL_SELECTOR } from "./interactive-control-selectors.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
-
-const CONTROL_SELECTOR = [
-  "button:not([disabled])",
-  'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([disabled])',
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  "a[href]",
-  '[role="button"]:not([aria-disabled="true"])',
-].join(", ");
 
 type TargetHit = CapturedHit & {
   failureSummary: string;
@@ -57,7 +49,7 @@ export async function targetSizeEnhancedViolation(
       return found;
     },
     {
-      selector: CONTROL_SELECTOR,
+      selector: ENHANCED_TARGET_CONTROL_SELECTOR,
       minPx: minSize,
     },
   );

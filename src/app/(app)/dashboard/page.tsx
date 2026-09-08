@@ -17,7 +17,7 @@ import { EmptyState, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { latestAssessmentFor } from "@/core/assessment";
-import { countByStatusMap } from "@/core/count-by-status";
+import { countByStatus } from "@/core/count-by-status";
 import {
   prioritizeClusters,
   prioritizeFindings,
@@ -129,10 +129,10 @@ export default async function DashboardPage() {
   const recentChanges = latestAssessment?.changesSincePrevious ?? [];
   const recentJobs = await recentAssessmentJobsForProject(project.id);
 
-  const counts = countByStatusMap(requirements, REQUIREMENT_STATUSES);
+  const counts = countByStatus(requirements, REQUIREMENT_STATUSES);
 
-  const failedCount = counts.get("failed") ?? 0;
-  const passedCount = counts.get("passed") ?? 0;
+  const failedCount = counts.failed;
+  const passedCount = counts.passed;
   const totalRequirements = requirements.length;
   const passRate =
     totalRequirements > 0
@@ -216,7 +216,7 @@ export default async function DashboardPage() {
             description="Requirement statuses from your latest assessment."
           >
             <UnableToVerifyRuntimeHint
-              count={counts.get("unable_to_verify") ?? 0}
+              count={counts.unable_to_verify}
               hasPreviewUrl={Boolean(project.runtimeBaseUrl?.trim())}
               runtimeError={latestAssessment.engines?.runtimeError}
             />

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   findingDetailHref,
@@ -36,6 +36,7 @@ export function FindingQueueNav({
 }) {
   const router = useRouter();
   const inQueue = index >= 0 && total > 0;
+  const [liveMessage, setLiveMessage] = useState("");
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -43,21 +44,30 @@ export function FindingQueueNav({
       if (isEditableTarget(event.target)) return;
       if (event.key === "j" && nextId) {
         event.preventDefault();
+        setLiveMessage(`Moving to finding ${index + 2} of ${total}`);
         router.push(findingDetailHref(nextId, listParams));
       } else if (event.key === "k" && prevId) {
         event.preventDefault();
+        setLiveMessage(`Moving to finding ${index} of ${total}`);
         router.push(findingDetailHref(prevId, listParams));
       }
     }
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [listParams, nextId, prevId, router]);
+  }, [index, listParams, nextId, prevId, router, total]);
 
   if (!inQueue) return null;
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
+      <p
+        className="sr-only"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {liveMessage}
+      </p>
       <p className="text-xs text-muted-foreground">
         {index + 1} of {total} in queue
         <span className="hidden sm:inline">

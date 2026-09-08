@@ -119,4 +119,21 @@ describe("updateRuntimeAuditAction", () => {
     expect(result.error).toMatch(/must be paths under the Preview/);
     expect(withProjectWrite).not.toHaveBeenCalled();
   });
+
+  it("stores an empty routes list when the field is blank (scan defaults to /)", async () => {
+    const workspace = workspaceFor("owner");
+    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
+    const form = new FormData();
+    form.set("runtimeBaseUrl", "https://app.example");
+    form.set("runtimeRoutes", "   ");
+
+    const result = await updateRuntimeAuditAction(
+      emptyActionMessageState,
+      form,
+    );
+
+    expect(result.message).toMatch(/Runtime audit settings saved/);
+    expect(projectWritePayload()?.project?.runtimeRoutes).toEqual([]);
+  });
 });

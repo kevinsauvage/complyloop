@@ -1,5 +1,6 @@
 import { CreatePrForm } from "@/components/create-pr-form";
 import { DismissFindingFields } from "@/components/findings/dismiss-finding-fields";
+import { OpenDetailsOnHash } from "@/components/open-details-on-hash";
 import { CodeBlock } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
@@ -250,7 +251,7 @@ export function FindingNextStepPanel({
                 Dismiss with a documented reason
               </a>
             </p>
-            <details id="dismiss-finding">
+            <OpenDetailsOnHash id="dismiss-finding">
               <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
                 Dismiss this finding
               </summary>
@@ -269,7 +270,7 @@ export function FindingNextStepPanel({
                   />
                 </StatefulActionForm>
               </div>
-            </details>
+            </OpenDetailsOnHash>
           </>
         ) : null}
       </CardContent>

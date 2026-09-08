@@ -10,7 +10,7 @@ export function RequirementsStatusChips({
   presetId,
   defaultPresetId,
 }: {
-  counts: Map<RequirementStatus, number>;
+  counts: Record<RequirementStatus, number>;
   selected: RequirementStatus | undefined;
   presetId: string;
   defaultPresetId: string;
@@ -19,7 +19,7 @@ export function RequirementsStatusChips({
     requirementsPageHref({ presetId, status, defaultPresetId });
 
   const items = REQUIREMENT_STATUS_DISPLAY_ORDER.flatMap((status) => {
-    const count = counts.get(status) ?? 0;
+    const count = counts[status];
     if (count === 0) return [];
     const isSelected = selected === status;
     return [

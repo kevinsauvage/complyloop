@@ -34,9 +34,11 @@ function StepIndicator({
             ? "border border-dashed border-border bg-muted/40 text-muted-foreground"
             : "bg-signal/15 text-signal",
       )}
-      aria-hidden
     >
-      {done ? <Check className="size-4" /> : stepNumber}
+      {done ? <Check className="size-4" aria-hidden /> : stepNumber}
+      <span className="sr-only">
+        {done ? "Completed" : optional ? `Optional step ${stepNumber}` : `Step ${stepNumber}`}
+      </span>
     </span>
   );
 }

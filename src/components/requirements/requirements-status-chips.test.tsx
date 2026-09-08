@@ -1,6 +1,9 @@
 import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import {
+  REQUIREMENT_STATUSES,
+  type RequirementStatus,
+} from "@complyloop/analysis-core/contract/statuses";
 import { renderWithUiProviders } from "@/test/render-ui";
 import { RequirementsStatusChips } from "./requirements-status-chips";
 
@@ -12,15 +15,15 @@ afterEach(() => {
 
 function countsOf(
   entries: Partial<Record<RequirementStatus, number>>,
-): Map<RequirementStatus, number> {
-  return new Map(
-    Object.entries(entries) as [RequirementStatus, number][],
-  );
+): Record<RequirementStatus, number> {
+  return Object.fromEntries(
+    REQUIREMENT_STATUSES.map((status) => [status, entries[status] ?? 0]),
+  ) as Record<RequirementStatus, number>;
 }
 
 function renderChips(
   props: Partial<{
-    counts: Map<RequirementStatus, number>;
+    counts: Record<RequirementStatus, number>;
     selected: RequirementStatus | undefined;
     presetId: string;
     defaultPresetId: string;

@@ -23,11 +23,24 @@ npx complyloop-check path/to/app
 npx complyloop-check --help
 ```
 
+## Output
+
+Plain text on stdout (not JSON):
+
+```
+ComplyLoop check: scanned N file(s) in <path>
+  V violation(s), W warning(s)
+  FAIL <checkId> <location> — <reason>
+  WARN <checkId> <location> — <reason>
+```
+
+Only `FAIL` lines (violations) cause exit code `1`. Warnings are reported but do not fail CI.
+
 | Exit code | Meaning |
 | --- | --- |
-| `0` | No violations |
-| `1` | Violations found |
-| `2` | Usage or I/O error |
+| `0` | No violations (warnings may still be printed) |
+| `1` | At least one violation finding |
+| `2` | Usage or I/O error (path is not a directory) |
 
 ## GitHub Actions
 

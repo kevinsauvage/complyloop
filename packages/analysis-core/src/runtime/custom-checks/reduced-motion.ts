@@ -1,6 +1,8 @@
 import type { Page } from "playwright";
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { HIT_IDENTITY_KEY_SRC } from "./hit-identity.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
+import { withEmulatedMedia } from "./with-emulated-media.ts";
 
 interface AnimatedEffect {
   target?: Element | null;
@@ -23,77 +25,86 @@ interface AnimationLike {
 export async function reducedMotionViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  try {
-    const nodes = await pageEvaluateWithHitCapture(page, (captureHit) => {
-      const minDurationMs = 250;
-      const maxNodes = 10;
+  return withEmulatedMedia(
+    page,
+    { reducedMotion: "reduce" },
+    { reducedMotion: null },
+    async () => {
+      const nodes = await pageEvaluateWithHitCapture(
+        page,
+        (captureHit, { hitIdentityKeySrc }) => {
+          const hitIdentityKey = new Function(
+            `return (${hitIdentityKeySrc})`,
+          )() as (el: HTMLElement) => string;
+          const minDurationMs = 250;
+          const maxNodes = 10;
 
-      function toMs(duration: number | string): number {
-        if (typeof duration === "number") return duration;
-        const num = parseFloat(duration);
-        return /ms$/i.test(duration) ? num : num * 1000;
-      }
+          function toMs(duration: number | string): number {
+            if (typeof duration === "number") return duration;
+            const num = parseFloat(duration);
+            return /ms$/i.test(duration) ? num : num * 1000;
+          }
 
-      const found: CustomViolationNode[] = [];
-      const seen = new Set<string>();
+          const found: CustomViolationNode[] = [];
+          const seen = new Set<string>();
 
-      const getAnimations = (
-        document as unknown as {
-          getAnimations?: () => AnimationLike[];
-        }
-      ).getAnimations;
+          const getAnimations = (
+            document as unknown as {
+              getAnimations?: () => AnimationLike[];
+            }
+          ).getAnimations;
 
-      const animations = getAnimations ? getAnimations.call(document) : [];
-      for (const animation of animations) {
-        if (animation.playState !== "running") continue;
-        const effect = animation.effect;
-        const el = effect?.target;
-        if (!(el instanceof HTMLElement)) continue;
-        if (!el.isConnected) continue;
+          const animations = getAnimations ? getAnimations.call(document) : [];
+          for (const animation of animations) {
+            if (animation.playState !== "running") continue;
+            const effect = animation.effect;
+            const el = effect?.target;
+            if (!(el instanceof HTMLElement)) continue;
+            if (!el.isConnected) continue;
 
-        let duration = 0;
-        let iterations = 1;
-        if (effect && typeof effect.getTiming === "function") {
-          const timing = effect.getTiming();
-          duration = toMs(timing.duration);
-          iterations =
-            typeof timing.iterations === "number" ? timing.iterations : 1;
-        }
-        const infinite = iterations === Infinity;
-        if (!infinite && duration < minDurationMs) continue;
+            let duration = 0;
+            let iterations = 1;
+            if (effect && typeof effect.getTiming === "function") {
+              const timing = effect.getTiming();
+              duration = toMs(timing.duration);
+              iterations =
+                typeof timing.iterations === "number" ? timing.iterations : 1;
+            }
+            const infinite = iterations === Infinity;
+            if (!infinite && duration < minDurationMs) continue;
 
-        const key = `${el.id}\0${el.getAttribute("role") ?? ""}\0${el.tagName}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
+            const key = hitIdentityKey(el);
+            if (seen.has(key)) continue;
+            seen.add(key);
 
-        found.push({
-          html: captureHit(el).html,
-          target: [key],
-          elementLabel:
-            el.getAttribute("aria-label") ??
-            el.getAttribute("title") ??
-            undefined,
-          failureSummary: infinite
-            ? "Infinite animation keeps running under prefers-reduced-motion."
-            : `Animation of ${Math.round(duration)}ms keeps running under prefers-reduced-motion.`,
-        });
-        if (found.length >= maxNodes) break;
-      }
+            found.push({
+              html: captureHit(el).html,
+              target: [key],
+              elementLabel:
+                el.getAttribute("aria-label") ??
+                el.getAttribute("title") ??
+                undefined,
+              failureSummary: infinite
+                ? "Infinite animation keeps running under prefers-reduced-motion."
+                : `Animation of ${Math.round(duration)}ms keeps running under prefers-reduced-motion.`,
+            });
+            if (found.length >= maxNodes) break;
+          }
 
-      return found;
-    });
+          return found;
+        },
+        { hitIdentityKeySrc: HIT_IDENTITY_KEY_SRC },
+      );
 
-    if (nodes.length === 0) return null;
-    return {
-      id: "reduced-motion",
-      impact: "moderate",
-      description:
-        "A CSS or JavaScript animation keeps running when the user prefers reduced motion.",
-      help: "Interaction/ambient motion must be disabled via prefers-reduced-motion or an equivalent mechanism (WCAG 2.3.3).",
-      nodes,
-    };
-  } finally {
-    await page.emulateMedia({ reducedMotion: null });
-  }
+      if (nodes.length === 0) return null;
+      return {
+        id: "reduced-motion",
+        impact: "moderate",
+        description:
+          "A CSS or JavaScript animation keeps running when the user prefers reduced motion.",
+        help: "Interaction/ambient motion must be disabled via prefers-reduced-motion or an equivalent mechanism (WCAG 2.3.3).",
+        nodes,
+      };
+    },
+  );
 }

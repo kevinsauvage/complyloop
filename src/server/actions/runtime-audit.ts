@@ -20,8 +20,8 @@ const ABSOLUTE_ROUTE_MESSAGE =
   "Routes must be paths under the Preview / staging URL (e.g. `/` or `/pricing`), not absolute http(s) URLs.";
 
 function parseRoutes(raw: string | undefined): string[] {
-  if (raw == null) return ["/"];
-  const routes = raw
+  if (raw == null) return [];
+  return raw
     .split(/[\n,]+/)
     .map((route) => route.trim())
     .filter((route) => route.length > 0)
@@ -31,7 +31,6 @@ function parseRoutes(raw: string | undefined): string[] {
       }
       return route.startsWith("/") ? route : `/${route}`;
     });
-  return routes.length > 0 ? routes : ["/"];
 }
 
 export async function updateRuntimeAuditAction(

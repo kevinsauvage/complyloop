@@ -10,17 +10,18 @@ import { STATUS_TONE_ACCENT, requirementStatusDisplay } from "@/core/status-disp
 export function DashboardStatusCounts({
   counts,
 }: {
-  counts: Map<RequirementStatus, number>;
+  counts: Record<RequirementStatus, number>;
 }) {
   const total = REQUIREMENT_STATUS_DISPLAY_ORDER.reduce(
-    (sum, status) => sum + (counts.get(status) ?? 0),
+    (sum, status) => sum + counts[status],
     0,
   );
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
       {REQUIREMENT_STATUS_DISPLAY_ORDER.map((status) => {
-        const count = counts.get(status) ?? 0;
+        const count = counts[status];
+
         const href = count > 0 ? requirementsStatusHref(status) : undefined;
         const share = total > 0 ? Math.round((count / total) * 100) : 0;
         const inner = (

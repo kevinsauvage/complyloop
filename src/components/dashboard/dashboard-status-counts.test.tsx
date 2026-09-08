@@ -1,6 +1,9 @@
 import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import {
+  REQUIREMENT_STATUSES,
+  type RequirementStatus,
+} from "@complyloop/analysis-core/contract/statuses";
 import { renderWithUiProviders } from "@/test/render-ui";
 import { DashboardStatusCounts } from "./dashboard-status-counts";
 
@@ -10,10 +13,10 @@ afterEach(() => {
 
 function countsOf(
   entries: Partial<Record<RequirementStatus, number>>,
-): Map<RequirementStatus, number> {
-  return new Map(
-    Object.entries(entries) as [RequirementStatus, number][],
-  );
+): Record<RequirementStatus, number> {
+  return Object.fromEntries(
+    REQUIREMENT_STATUSES.map((status) => [status, entries[status] ?? 0]),
+  ) as Record<RequirementStatus, number>;
 }
 
 describe("DashboardStatusCounts", () => {

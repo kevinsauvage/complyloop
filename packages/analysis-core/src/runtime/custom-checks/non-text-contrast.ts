@@ -5,11 +5,9 @@ import {
   locatorEvaluateWithHitCapture,
   pageEvaluateWithHitCapture,
 } from "./hit-capture-evaluate.ts";
+import { NON_TEXT_CONTRAST_CONTROL_SELECTOR } from "./interactive-control-selectors.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
-
-const CONTROL_SELECTOR =
-  'button, input:not([type="hidden"]), select, textarea, a[href], [role="button"], [role="checkbox"], [role="radio"]';
 
 const MAX_HOVER = 12;
 const MAX_NODES = 5;
@@ -30,7 +28,7 @@ export async function nonTextContrastViolation(
 ): Promise<CustomViolation | null> {
   const hits: ContrastHit[] = await collectCurrentHits(page);
 
-  const locators = page.locator(CONTROL_SELECTOR);
+  const locators = page.locator(NON_TEXT_CONTRAST_CONTROL_SELECTOR);
   const hoverCount = Math.min(await locators.count(), MAX_HOVER);
   for (let index = 0; index < hoverCount && hits.length < MAX_NODES; index += 1) {
     const locator = locators.nth(index);
@@ -147,7 +145,7 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
       }
       return violations;
     },
-    { ...MATH_PAYLOAD, controlSelector: CONTROL_SELECTOR },
+    { ...MATH_PAYLOAD, controlSelector: NON_TEXT_CONTRAST_CONTROL_SELECTOR },
   );
 }
 

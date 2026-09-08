@@ -38,3 +38,9 @@ Rules:
 - Model these as typed unions/enums; every `switch` over them is exhaustive with a `never` default check.
 - A fix is never "complete" at `implemented` — only `verified` closes the loop.
 - Every status-bearing record also tracks *how* the status was determined: `automated` vs `human_review`.
+
+## Naming exception: `FindingKind`
+
+In **user-facing copy and domain prose**, never call a Finding a "violation" or "issue".
+
+In **machine contracts**, `FindingKind = "violation" | "warning"` is retained deliberately: `"violation"` means a hard fail that fails CI / requirement status; `"warning"` means a review signal. Do not rename without a coordinated migration of the analysis-core contract, adapters, and stored findings.

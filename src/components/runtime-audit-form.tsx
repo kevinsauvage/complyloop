@@ -42,9 +42,16 @@ export function RuntimeAuditForm({
           id="runtimeRoutes"
           name="runtimeRoutes"
           rows={3}
-          placeholder={"/\n/login"}
+          placeholder={"/\n/pricing"}
           defaultValue={(runtimeRoutes ?? ["/"]).join("\n")}
+          aria-describedby="runtimeRoutes-hint"
         />
+        <p id="runtimeRoutes-hint" className="text-xs text-muted-foreground">
+          One path per line (e.g. <code className="font-mono">/</code>,{" "}
+          <code className="font-mono">/pricing</code>); relative to the Preview
+          / staging URL. Empty list defaults to auditing <code className="font-mono">/</code>{" "}
+          only. Absolute http(s) URLs are not allowed.
+        </p>
       </div>
     </StatefulActionForm>
   );
