@@ -23,6 +23,9 @@ export function selectorRef(el: Element): SelectorRef {
 }
 
 export function isKeyboardFocusable(el: Element): boolean {
+  const tabindex = el.getAttribute("tabindex");
+  // tabindex="-1" removes keyboard focus even on native interactive elements.
+  if (tabindex !== null && parseInt(tabindex, 10) < 0) return false;
   const tag = el.tagName;
   const native =
     tag === "BUTTON" ||
@@ -32,6 +35,5 @@ export function isKeyboardFocusable(el: Element): boolean {
     (tag === "INPUT" && el.getAttribute("type") !== "hidden") ||
     (tag === "A" && Boolean(el.getAttribute("href")));
   if (native) return true;
-  const tabindex = el.getAttribute("tabindex");
   return tabindex !== null && parseInt(tabindex, 10) >= 0;
 }

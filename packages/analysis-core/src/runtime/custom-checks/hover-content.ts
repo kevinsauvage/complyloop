@@ -1,6 +1,8 @@
 import type { Page } from "playwright";
-import { bodyTextLength } from "./hover-reveal.ts";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { measureHoverVsFocusReveal } from "./hover-reveal.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 const MAX_TRIGGERS = 8;
 const CONTENT_DELTA = 8;
@@ -22,26 +24,16 @@ export async function hoverContentViolation(
     const trigger = triggers.nth(index);
     if (!(await trigger.isVisible())) continue;
 
-    const beforeLen = await bodyTextLength(page);
-    await trigger.hover();
-    await page.waitForTimeout(120);
-    const hoverLen = await bodyTextLength(page);
-    if (hoverLen <= beforeLen + CONTENT_DELTA) {
-      await page.mouse.move(0, 0);
-      continue;
-    }
+    const { beforeLen, hoverLen, focusLen, afterEscapeLen } =
+      await measureHoverVsFocusReveal(page, trigger, {
+        waitMs: 120,
+        checkEscape: true,
+      });
+    if (hoverLen <= beforeLen + CONTENT_DELTA) continue;
 
-    await page.keyboard.press("Escape");
-    await page.waitForTimeout(80);
-    const afterEscapeLen = await bodyTextLength(page);
-    const escapeDismisses = afterEscapeLen <= beforeLen + CONTENT_DELTA;
-
-    await trigger.focus();
-    await page.waitForTimeout(120);
-    const focusLen = await bodyTextLength(page);
+    const escapeDismisses =
+      (afterEscapeLen ?? hoverLen) <= beforeLen + CONTENT_DELTA;
     const focusReveals = focusLen > beforeLen + CONTENT_DELTA;
-
-    await page.mouse.move(0, 0);
 
     const failures: string[] = [];
     if (!escapeDismisses) {
@@ -52,13 +44,15 @@ export async function hoverContentViolation(
     }
     if (failures.length === 0) continue;
 
-    const html = (await trigger.evaluate((el) => el.outerHTML)).replace(/\s+/g, " ");
-    const selector = await trigger.evaluate((el) =>
-      el.id ? `#${el.id}` : el.tagName.toLowerCase(),
-    );
+    const hit = await trigger.evaluate((el, hitCaptureSrc) => {
+      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+        captureHit: (el: Element) => CapturedHit;
+      };
+      return captureHit(el);
+    }, BROWSER_HIT_CAPTURE_SRC);
     nodes.push({
-      html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-      target: [selector],
+      html: hit.html,
+      target: [selectorOf(hit)],
       failureSummary: failures.join(" "),
     });
     if (nodes.length >= 5) break;

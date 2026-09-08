@@ -1,8 +1,7 @@
 import { Label } from "@/components/ui/label";
+import { nativeSelectClass } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-
-const selectClassName =
-  "h-8 w-full max-w-md rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30";
+import { cn } from "@/lib/utils";
 
 export function ReasonNoteFields({
   reasonId,
@@ -31,7 +30,7 @@ export function ReasonNoteFields({
           id={reasonId}
           name="reason"
           defaultValue={defaultReason ?? options[0]?.value}
-          className={selectClassName}
+          className={cn(nativeSelectClass, "max-w-md")}
         >
           {options.map((option) => (
             <option key={option.value} value={option.value}>

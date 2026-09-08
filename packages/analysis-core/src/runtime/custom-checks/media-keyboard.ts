@@ -1,11 +1,16 @@
 import type { Page } from "playwright";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function mediaKeyboardViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const hit = await page.evaluate(() => {
+  const hit = await page.evaluate((hitCaptureSrc) => {
+    const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+      captureHit: (el: Element) => CapturedHit;
+    };
+
     const media = document.querySelector("video[controls], audio[controls]");
     if (!(media instanceof HTMLMediaElement)) return null;
     if (media.readyState < 1) return null;
@@ -13,11 +18,13 @@ export async function mediaKeyboardViolation(
     media.focus();
     const focused = document.activeElement === media;
     if (!focused) {
-      const html = media.outerHTML.replace(/\s+/g, " ").trim();
+      const captured = captureHit(media);
       return {
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: media.id, role: media.getAttribute("role"), tagName: media.tagName,
-        reason: "not_focusable",
+        html: captured.html,
+        id: captured.id,
+        role: captured.role,
+        tagName: captured.tagName,
+        reason: "not_focusable" as const,
       };
     }
 
@@ -30,11 +37,13 @@ export async function mediaKeyboardViolation(
     );
 
     if (media.paused === wasPaused) {
-      const html = media.outerHTML.replace(/\s+/g, " ").trim();
+      const captured = captureHit(media);
       return {
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: media.id, role: media.getAttribute("role"), tagName: media.tagName,
-        reason: "space_ignored",
+        html: captured.html,
+        id: captured.id,
+        role: captured.role,
+        tagName: captured.tagName,
+        reason: "space_ignored" as const,
       };
     }
 
@@ -43,7 +52,7 @@ export async function mediaKeyboardViolation(
     if (wasPaused) media.pause();
     else void media.play();
     return null;
-  });
+  }, BROWSER_HIT_CAPTURE_SRC);
 
   if (!hit) return null;
 

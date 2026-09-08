@@ -14,19 +14,15 @@ import {
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
 import { isAuthField } from "./auth-field.ts";
+import { attributeContextOf } from "./heuristic-utils.ts";
 
 function isObjectRecognitionCaptcha(node: Parameters<typeof getAttribute>[0]): boolean {
   const tag = tagNameOf(node);
   if (PUZZLE_HOSTS.has(tag)) return true;
 
-  const className =
-    getAttribute(node, "className") ?? getAttribute(node, "class");
-  const classText = className ? (stringValueOf(className) ?? "") : "";
-  const id = getAttribute(node, "id");
-  const idText = id ? (stringValueOf(id) ?? "") : "";
   const ariaLabel = getAttribute(node, "aria-label");
   const labelText = ariaLabel ? (stringValueOf(ariaLabel) ?? "") : "";
-  const context = `${tag} ${classText} ${idText} ${labelText}`;
+  const context = `${attributeContextOf(node)} ${labelText}`;
 
   if (matchesMultilingual(PUZZLE_CAPTCHA, context)) return true;
 

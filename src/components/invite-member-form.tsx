@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { nativeSelectClass } from "@/components/ui/native-select";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   emptyActionMessageState,
@@ -50,7 +51,7 @@ export function InviteMemberForm({
           id="role"
           name="role"
           defaultValue="member"
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+          className={nativeSelectClass}
         >
           {canAssignAdmin ? <option value="admin">Admin</option> : null}
           <option value="member">Member</option>

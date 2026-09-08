@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
@@ -7,13 +8,18 @@ const SPACING_STYLE_ID = "complyloop-text-spacing-test";
 export async function textSpacingRuntimeViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const nodes = await page.evaluate((styleId) => {
-    const existing = document.getElementById(styleId);
-    existing?.remove();
+  const nodes = await page.evaluate(
+    ({ styleId, hitCaptureSrc }) => {
+      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+        captureHit: (el: Element) => CapturedHit;
+      };
 
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.textContent = `
+      const existing = document.getElementById(styleId);
+      existing?.remove();
+
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
       * {
         line-height: 1.5 !important;
         letter-spacing: 0.12em !important;
@@ -23,34 +29,38 @@ export async function textSpacingRuntimeViolation(
         margin-bottom: 2em !important;
       }
     `;
-    document.head.appendChild(style);
+      document.head.appendChild(style);
 
-    const violations: Array<{ html: string; id: string; role: string | null; tagName: string }> = [];
-    const candidates = document.querySelectorAll("p, li, label, button, a, input, textarea");
+      const violations: CapturedHit[] = [];
+      const candidates = document.querySelectorAll(
+        "p, li, label, button, a, input, textarea",
+      );
 
-    for (const el of candidates) {
-      if (!(el instanceof HTMLElement)) continue;
-      const style = getComputedStyle(el);
-      if (style.display === "none" || style.visibility === "hidden") continue;
-      const rect = el.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) continue;
+      for (const el of candidates) {
+        if (!(el instanceof HTMLElement)) continue;
+        const computed = getComputedStyle(el);
+        if (computed.display === "none" || computed.visibility === "hidden")
+          continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) continue;
 
-      const clipped =
-        (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) &&
-        (style.overflow === "hidden" || style.overflowY === "hidden" || style.textOverflow === "ellipsis");
-      if (!clipped) continue;
+        const clipped =
+          (el.scrollHeight > el.clientHeight + 2 ||
+            el.scrollWidth > el.clientWidth + 2) &&
+          (computed.overflow === "hidden" ||
+            computed.overflowY === "hidden" ||
+            computed.textOverflow === "ellipsis");
+        if (!clipped) continue;
 
-      const html = el.outerHTML.replace(/\s+/g, " ").trim();
-      violations.push({
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
-      });
-      if (violations.length >= 5) break;
-    }
+        violations.push(captureHit(el));
+        if (violations.length >= 5) break;
+      }
 
-    document.getElementById(styleId)?.remove();
-    return violations;
-  }, SPACING_STYLE_ID);
+      document.getElementById(styleId)?.remove();
+      return violations;
+    },
+    { styleId: SPACING_STYLE_ID, hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC },
+  );
 
   if (nodes.length === 0) return null;
   return {

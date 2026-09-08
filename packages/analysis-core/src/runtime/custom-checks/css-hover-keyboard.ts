@@ -1,19 +1,20 @@
 import type { Page } from "playwright";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import { measureHoverVsFocusReveal } from "./hover-reveal.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
-
-interface HoverKeyboardHit extends SelectorRef {
-  html: string;
-}
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 const MAX_TRIGGERS = 12;
 
 export async function cssHoverKeyboardViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const stylesheetHits = await page.evaluate((): HoverKeyboardHit[] => {
-    const hits: HoverKeyboardHit[] = [];
+  const stylesheetHits = await page.evaluate((hitCaptureSrc) => {
+    const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+      captureHit: (el: Element) => CapturedHit;
+    };
+
+    const hits: CapturedHit[] = [];
     const visibilityProps = ["display", "visibility", "opacity", "height", "max-height"];
 
     for (const sheet of Array.from(document.styleSheets)) {
@@ -43,18 +44,14 @@ export async function cssHoverKeyboardViolation(
           continue;
         }
         if (!match) continue;
-        const html = match.outerHTML.replace(/\s+/g, " ").trim();
-        hits.push({
-          html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          id: match.id, role: match.getAttribute("role"), tagName: match.tagName,
-        });
+        hits.push(captureHit(match));
         if (hits.length >= 5) return hits;
       }
     }
     return hits;
-  });
+  }, BROWSER_HIT_CAPTURE_SRC);
 
-  const interactionHits: HoverKeyboardHit[] = [];
+  const interactionHits: CapturedHit[] = [];
   const triggers = page.locator(
     "nav li:has(ul) > a, nav li:has(ul) > button, [aria-haspopup='true']",
   );
@@ -68,18 +65,13 @@ export async function cssHoverKeyboardViolation(
     );
 
     if (hoverLen > beforeLen + 8 && focusLen < hoverLen - 4) {
-      const ref = await trigger.evaluate((el) => ({
-        html: el.outerHTML.replace(/\s+/g, " ").trim(),
-        id: el.id,
-        role: el.getAttribute("role"),
-        tagName: el.tagName,
-      }));
-      interactionHits.push({
-        html: ref.html.length > 200 ? `${ref.html.slice(0, 197)}…` : ref.html,
-        id: ref.id,
-        role: ref.role,
-        tagName: ref.tagName,
-      });
+      const hit = await trigger.evaluate((el, hitCaptureSrc) => {
+        const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+          captureHit: (el: Element) => CapturedHit;
+        };
+        return captureHit(el);
+      }, BROWSER_HIT_CAPTURE_SRC);
+      interactionHits.push(hit);
       if (interactionHits.length >= 3) break;
     }
   }

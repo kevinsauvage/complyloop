@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 /**
  * Windows High Contrast / forced-colors mode strips decorative boundaries.
@@ -12,7 +12,11 @@ export async function forcedColorsViolation(
 ): Promise<CustomViolation | null> {
   await page.emulateMedia({ forcedColors: "active" });
   try {
-    const nodes = await page.evaluate(() => {
+    const nodes = await page.evaluate((hitCaptureSrc) => {
+      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+        captureHit: (el: Element) => CapturedHit;
+      };
+
       const interactiveSelector = [
         "button",
         "[role='button']",
@@ -77,9 +81,8 @@ export async function forcedColorsViolation(
         if (seen.has(key)) continue;
         seen.add(key);
 
-        const html = el.outerHTML.replace(/\s+/g, " ").trim();
         found.push({
-          html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
+          html: captureHit(el).html,
           target: [key],
           elementLabel:
             el.getAttribute("aria-label") ??
@@ -92,7 +95,7 @@ export async function forcedColorsViolation(
       }
 
       return found;
-    });
+    }, BROWSER_HIT_CAPTURE_SRC);
 
     if (nodes.length === 0) return null;
     return {

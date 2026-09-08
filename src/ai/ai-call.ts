@@ -3,6 +3,10 @@ import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { AI_MODEL } from "./model";
 
+/** User-facing copy when patch generation needs AI and none is configured. */
+export const AI_PATCH_UNAVAILABLE_MESSAGE =
+  "Generating a patch requires AI (set AI_GATEWAY_API_KEY) or a deterministic fix template for this Finding. Use the developer handoff to fix it manually.";
+
 type AiWarnFn = (
   message: string,
   context?: Record<string, unknown>,
@@ -23,7 +27,7 @@ export function aiWarn(
   warnFn(message, context);
 }
 
-interface AiCallInput<TSchema extends z.ZodType> {
+interface AiCallInputBase<TSchema extends z.ZodType> {
   schema: TSchema;
   /** Set when AI credentials are configured; null short-circuits. */
   available: boolean;
@@ -31,11 +35,18 @@ interface AiCallInput<TSchema extends z.ZodType> {
   warnMessage: string;
   warnCode: string;
   warnDetail?: Record<string, unknown>;
-  /** When `"throw"`, failures surface as PublicError instead of returning null. */
-  onFailure?: "null" | "throw";
   /** User-facing copy when `onFailure` is `"throw"`. */
   failureMessage?: string;
 }
+
+type AiCallInputThrow<TSchema extends z.ZodType> = AiCallInputBase<TSchema> & {
+  onFailure: "throw";
+};
+
+type AiCallInputNull<TSchema extends z.ZodType> = AiCallInputBase<TSchema> & {
+  /** When `"throw"`, failures surface as PublicError instead of returning null. */
+  onFailure?: "null";
+};
 
 /**
  * Shared AI gateway shell: availability check + structured `generateObject` +
@@ -44,7 +55,13 @@ interface AiCallInput<TSchema extends z.ZodType> {
  * never sets status).
  */
 export async function aiCall<TSchema extends z.ZodType>(
-  input: AiCallInput<TSchema>,
+  input: AiCallInputThrow<TSchema>,
+): Promise<z.infer<TSchema>>;
+export async function aiCall<TSchema extends z.ZodType>(
+  input: AiCallInputNull<TSchema>,
+): Promise<z.infer<TSchema> | null>;
+export async function aiCall<TSchema extends z.ZodType>(
+  input: AiCallInputThrow<TSchema> | AiCallInputNull<TSchema>,
 ): Promise<z.infer<TSchema> | null> {
   const onFailure = input.onFailure ?? "null";
   if (!input.available) {

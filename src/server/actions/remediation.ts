@@ -3,7 +3,10 @@
 import { canBulkApproveRemediation } from "@/core/finding-act";
 import { type Finding, type Remediation } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { type Dismissal } from "@complyloop/analysis-core/contract/finding-types";
+import {
+  DISMISSAL_REASONS,
+  type Dismissal,
+} from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { advanceRemediation } from "@/core/remediation";
@@ -29,17 +32,12 @@ import {
   cloneProjectRows,
   type ProjectRows,
 } from "../project-rows";
+import { remediationEvidenceSummary } from "../remediation-evidence";
 import {
   refresh,
   replaceRemediation,
   requireOnFindingProject,
 } from "./shared";
-
-const DISMISSAL_REASONS = [
-  "false_positive",
-  "not_applicable",
-  "accepted_risk",
-] as const;
 
 const bulkApproveInput = z.object({
   findingIds: findingIdsField("Select at least one finding to approve."),
@@ -72,7 +70,7 @@ function approveRemediationInPayload(
   );
   appendEvidence(payload, {
     kind: "remediation_approved",
-    summary: `Remediation approved for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+    summary: remediationEvidenceSummary("approved", finding),
     projectId: finding.projectId,
     controlId: finding.controlId,
     findingId: finding.id,

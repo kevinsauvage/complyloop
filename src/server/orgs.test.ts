@@ -8,7 +8,6 @@ import {
   changeOrgMemberRole,
   createOrganization,
   deleteOrganization,
-  ensurePersonalOrg,
   exportOrgData,
   inviteOrgMember,
   orgsForUser,
@@ -37,6 +36,19 @@ function applyOrg(
   return created.org;
 }
 
+/** Seed an owner org for fixtures (production uses `provisionPersonalOrg`). */
+function seedOwnerOrg(
+  db: Db,
+  userId: string,
+  githubLogin: string,
+  name = `${githubLogin}'s workspace`,
+): Organization {
+  return applyOrg(
+    db,
+    createOrganization(db, { name, creatorUserId: userId, githubLogin }),
+  );
+}
+
 /** Test fixture: attach userId to invite rows (mirrors DB claimMembershipsForLogin). */
 function claimInvite(db: Db, userId: string, githubLogin: string): void {
   const login = githubLogin.trim().toLowerCase();
@@ -51,24 +63,10 @@ function claimInvite(db: Db, userId: string, githubLogin: string): void {
 }
 
 describe("orgs", () => {
-  it("creates a personal org for a new user", () => {
-    const db = emptyDb();
-
-    const { org, changed } = ensurePersonalOrg(db, "user-a", "alice");
-    expect(changed).toBe(true);
-    expect(org.slug).toBe("alice");
-    expect(db.memberships[0]?.role).toBe("owner");
-
-    const again = ensurePersonalOrg(db, "user-a", "alice");
-    expect(again.changed).toBe(false);
-    expect(again.org.id).toBe(org.id);
-  });
-
   it("leaves pending invites unclaimed until DB provision attaches userId", () => {
     const db = emptyDb();
-    ensurePersonalOrg(db, "user-a", "alice");
-    const orgId = db.organizations[0]!.id;
-    applyMembership(db, inviteOrgMember(db, orgId, "user-a", "bob", "member"));
+    const org = seedOwnerOrg(db, "user-a", "alice");
+    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "member"));
 
     expect(db.memberships.some((m) => m.githubLogin === "bob" && !m.userId)).toBe(
       true,
@@ -81,17 +79,16 @@ describe("orgs", () => {
 
   it("prevents removing the owner", () => {
     const db = emptyDb();
-    ensurePersonalOrg(db, "user-a", "alice");
-    const orgId = db.organizations[0]!.id;
+    const org = seedOwnerOrg(db, "user-a", "alice");
     const ownerId = db.memberships[0]!.id;
-    expect(() => removeOrgMember(db, orgId, "user-a", ownerId)).toThrow(
+    expect(() => removeOrgMember(db, org.id, "user-a", ownerId)).toThrow(
       /owner/,
     );
   });
 
   it("lets an invited admin manage a shared team org (not only personal)", () => {
     const db = emptyDb();
-    ensurePersonalOrg(db, "user-a", "alice");
+    seedOwnerOrg(db, "user-a", "alice");
     const team = applyOrg(
       db,
       createOrganization(db, {
@@ -107,7 +104,7 @@ describe("orgs", () => {
     expect(orgsForUser(db, "user-b").map((org) => org.id)).toContain(team.id);
 
     // Active org can be the shared team even though bob also has a personal org.
-    ensurePersonalOrg(db, "user-b", "bob");
+    seedOwnerOrg(db, "user-b", "bob");
     expect(resolveActiveOrgId(db, "user-b", team.id)).toBe(team.id);
 
     applyMembership(
@@ -142,16 +139,15 @@ describe("orgs", () => {
 
   it("changes a member role and rejects owner / invalid promotions", () => {
     const db = emptyDb();
-    ensurePersonalOrg(db, "user-a", "alice");
-    const orgId = db.organizations[0]!.id;
+    const org = seedOwnerOrg(db, "user-a", "alice");
     const invite = applyMembership(
       db,
-      inviteOrgMember(db, orgId, "user-a", "bob", "viewer"),
+      inviteOrgMember(db, org.id, "user-a", "bob", "viewer"),
     );
 
     const updated = changeOrgMemberRole(
       db,
-      orgId,
+      org.id,
       "user-a",
       invite.id,
       "admin",
@@ -160,29 +156,28 @@ describe("orgs", () => {
     expect(invite.role).toBe("viewer");
 
     expect(() =>
-      changeOrgMemberRole(db, orgId, "user-a", invite.id, "owner"),
+      changeOrgMemberRole(db, org.id, "user-a", invite.id, "owner"),
     ).toThrow(/owner/);
 
     const ownerId = db.memberships.find((m) => m.role === "owner")!.id;
     expect(() =>
-      changeOrgMemberRole(db, orgId, "user-a", ownerId, "member"),
+      changeOrgMemberRole(db, org.id, "user-a", ownerId, "member"),
     ).toThrow(/owner's role/);
   });
 
   it("lets admins revoke pending invites via remove", () => {
     const db = emptyDb();
-    ensurePersonalOrg(db, "user-a", "alice");
-    const orgId = db.organizations[0]!.id;
-    applyMembership(db, inviteOrgMember(db, orgId, "user-a", "bob", "admin"));
+    const org = seedOwnerOrg(db, "user-a", "alice");
+    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "admin"));
     claimInvite(db, "user-b", "bob");
 
     const pending = applyMembership(
       db,
-      inviteOrgMember(db, orgId, "user-b", "carol", "member"),
+      inviteOrgMember(db, org.id, "user-b", "carol", "member"),
     );
     expect(pending.userId).toBeUndefined();
 
-    removeOrgMember(db, orgId, "user-b", pending.id);
+    removeOrgMember(db, org.id, "user-b", pending.id);
     // validate-only; caller would persist deleteMembershipIds
     db.memberships = db.memberships.filter(
       (membership) => membership.id !== pending.id,
@@ -194,13 +189,12 @@ describe("orgs", () => {
 
   it("exports and deletes org data as owner only", () => {
     const db = emptyDb();
-    ensurePersonalOrg(db, "user-a", "alice");
-    const orgId = db.organizations[0]!.id;
+    const org = seedOwnerOrg(db, "user-a", "alice");
     db.projects.push({
       id: "p1",
       name: "shop",
       source: "github",
-      orgId,
+      orgId: org.id,
       ownerUserId: "user-a",
       createdAt: "2026-01-01T00:00:00.000Z",
     });
@@ -211,56 +205,55 @@ describe("orgs", () => {
       summary: "ran",
       projectId: "p1",
     });
-    applyMembership(db, inviteOrgMember(db, orgId, "user-a", "bob", "admin"));
+    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "admin"));
     claimInvite(db, "user-b", "bob");
 
-    expect(() => exportOrgData(db, orgId, "user-b")).toThrow(/owner/);
-    const exported = exportOrgData(db, orgId, "user-a");
+    expect(() => exportOrgData(db, org.id, "user-b")).toThrow(/owner/);
+    const exported = exportOrgData(db, org.id, "user-a");
     expect(exported.projects).toHaveLength(1);
     expect(exported.evidence).toHaveLength(1);
 
-    expect(() => deleteOrganization(db, orgId, "user-b")).toThrow(/owner/);
-    const { deleteMembershipIds } = deleteOrganization(db, orgId, "user-a");
+    expect(() => deleteOrganization(db, org.id, "user-b")).toThrow(/owner/);
+    const { deleteMembershipIds } = deleteOrganization(db, org.id, "user-a");
     expect(deleteMembershipIds.length).toBeGreaterThan(0);
     // Pure validate: in-memory db is unchanged; FK cascade + evidence append-only
     // are persistence concerns.
-    expect(db.organizations.find((org) => org.id === orgId)).toBeDefined();
+    expect(db.organizations.find((row) => row.id === org.id)).toBeDefined();
     expect(db.projects.find((project) => project.id === "p1")).toBeDefined();
     expect(db.evidence.find((entry) => entry.id === "e1")).toBeDefined();
   });
 
   it("denies admins inviting, changing, or removing other admins", () => {
     const db = emptyDb();
-    ensurePersonalOrg(db, "user-a", "alice");
-    const orgId = db.organizations[0]!.id;
+    const org = seedOwnerOrg(db, "user-a", "alice");
     const adminInvite = applyMembership(
       db,
-      inviteOrgMember(db, orgId, "user-a", "bob", "admin"),
+      inviteOrgMember(db, org.id, "user-a", "bob", "admin"),
     );
     claimInvite(db, "user-b", "bob");
 
     expect(() =>
-      inviteOrgMember(db, orgId, "user-b", "carol", "admin"),
+      inviteOrgMember(db, org.id, "user-b", "carol", "admin"),
     ).toThrow(/owners can invite or assign admins/);
 
     expect(() =>
-      changeOrgMemberRole(db, orgId, "user-b", adminInvite.id, "member"),
+      changeOrgMemberRole(db, org.id, "user-b", adminInvite.id, "member"),
     ).toThrow(/owners can change or remove admins/);
 
     const peer = applyMembership(
       db,
-      inviteOrgMember(db, orgId, "user-a", "dana", "admin"),
+      inviteOrgMember(db, org.id, "user-a", "dana", "admin"),
     );
-    expect(() => removeOrgMember(db, orgId, "user-b", peer.id)).toThrow(
+    expect(() => removeOrgMember(db, org.id, "user-b", peer.id)).toThrow(
       /owners can change or remove admins/,
     );
 
     // Admins may still manage members/viewers.
     const member = applyMembership(
       db,
-      inviteOrgMember(db, orgId, "user-b", "erin", "member"),
+      inviteOrgMember(db, org.id, "user-b", "erin", "member"),
     );
-    const updated = changeOrgMemberRole(db, orgId, "user-b", member.id, "viewer");
+    const updated = changeOrgMemberRole(db, org.id, "user-b", member.id, "viewer");
     expect(updated.role).toBe("viewer");
     expect(member.role).toBe("member");
   });

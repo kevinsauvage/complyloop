@@ -16,6 +16,10 @@ import {
 import { parseForm, parseInput } from "../boundary";
 import { applyRequirementStatusRefresh } from "../assessment-status";
 import type { Db } from "../db";
+import {
+  clearRequirementHumanDetermination,
+  setRequirementHumanDetermination,
+} from "../requirement-human-determination";
 import { controlById } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
 import { appendEvidence, cloneProjectRows } from "../project-rows";
@@ -71,12 +75,6 @@ function clearRequirementOverride(
   field: "humanPass" | "exception",
 ): ProjectWritePayload {
   const control = controlById(requirement.controlId);
-  const updated: Requirement = {
-    ...requirement,
-    determination: "automated",
-    updatedAt: new Date().toISOString(),
-  };
-
   const rows = cloneProjectRows(
     db.findings,
     db.remediations,
@@ -89,7 +87,6 @@ function clearRequirementOverride(
       throw new PublicError("This requirement has no human pass to clear.");
     }
     const previousPass = requirement.humanPass;
-    delete updated.humanPass;
     appendEvidence(rows, {
       kind: "requirement_human_pass_cleared",
       summary: `${control.code} human pass cleared`,
@@ -102,7 +99,6 @@ function clearRequirementOverride(
       throw new PublicError("This requirement has no exception to clear.");
     }
     const previousException = requirement.exception;
-    delete updated.exception;
     appendEvidence(rows, {
       kind: "requirement_exception_cleared",
       summary: `${control.code} exception cleared (was ${previousException.reason})`,
@@ -112,6 +108,7 @@ function clearRequirementOverride(
     });
   }
 
+  const updated = clearRequirementHumanDetermination(requirement, field);
   const index = rows.requirements.findIndex(
     (candidate) => candidate.id === requirement.id,
   );
@@ -150,27 +147,25 @@ export async function markRequirementExceptionAction(
 
         const { reason, note } = parsed;
         const expiresRaw = parsed.expiresAt;
-        const previous = requirement.status;
         const expiresAt =
           reason === TEMPORARY_EXCEPTION_REASON && typeof expiresRaw === "string"
             ? new Date(expiresRaw).toISOString()
             : undefined;
 
-        const updated: Requirement = {
-          ...requirement,
-          exception: {
-            reason,
-            note,
-            at: new Date().toISOString(),
-            expiresAt,
+        const { updated, previous } = setRequirementHumanDetermination(
+          requirement,
+          {
+            kind: "exception",
+            exception: {
+              reason,
+              note,
+              at: new Date().toISOString(),
+              expiresAt,
+            },
+            nextStatus:
+              reason === "not_applicable" ? "not_applicable" : undefined,
           },
-          determination: "human_review",
-          updatedAt: new Date().toISOString(),
-        };
-        delete updated.humanPass;
-        if (reason === "not_applicable") {
-          updated.status = "not_applicable";
-        }
+        );
 
         const payload: ProjectWritePayload = {};
         const control = controlById(requirement.controlId);
@@ -231,18 +226,16 @@ export async function markRequirementPassedAction(
           );
         }
 
-        const previous = requirement.status;
-        const updated: Requirement = {
-          ...requirement,
-          humanPass: {
-            note,
-            at: new Date().toISOString(),
+        const { updated, previous } = setRequirementHumanDetermination(
+          requirement,
+          {
+            kind: "humanPass",
+            humanPass: {
+              note,
+              at: new Date().toISOString(),
+            },
           },
-          status: "passed",
-          determination: "human_review",
-          updatedAt: new Date().toISOString(),
-        };
-        delete updated.exception;
+        );
 
         const payload: ProjectWritePayload = {};
         appendEvidence(payload, {

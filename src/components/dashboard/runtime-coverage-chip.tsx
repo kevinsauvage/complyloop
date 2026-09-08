@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { runtimeCoverageSummary } from "@/core/assessment";
+import { STATUS_TONE_BADGE } from "@/core/status-display";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { cn } from "@/lib/utils";
@@ -19,10 +20,10 @@ export function RuntimeCoverageChip({
   const summary = runtimeCoverageSummary(project, engines);
   const tint =
     summary.mode === "source_only"
-      ? "border-transparent bg-status-unverifiable/15 text-status-unverifiable dark:bg-status-unverifiable/25"
+      ? STATUS_TONE_BADGE.unverifiable
       : summary.runtimeError
-        ? "border-transparent bg-status-failed/15 text-status-failed dark:bg-status-failed/25"
-        : "border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25";
+        ? STATUS_TONE_BADGE.failed
+        : STATUS_TONE_BADGE.passed;
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>

@@ -129,7 +129,6 @@ describe("generateAiExplanationAction", () => {
     );
 
     expect(result.error).toMatch(/AI explanation unavailable/);
-    expect(reportWarning).toHaveBeenCalled();
   });
 });
 

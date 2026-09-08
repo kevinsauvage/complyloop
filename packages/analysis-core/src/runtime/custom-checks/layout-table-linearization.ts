@@ -1,11 +1,16 @@
 import type { Page } from "playwright";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function layoutTableLinearizationViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const hit = await page.evaluate(() => {
+  const hit = await page.evaluate((hitCaptureSrc) => {
+    const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+      captureHit: (el: Element) => CapturedHit;
+    };
+
     function isLayoutTable(table: HTMLTableElement): boolean {
       if (table.getAttribute("role") === "presentation") return true;
       if (
@@ -48,16 +53,18 @@ export async function layoutTableLinearizationViolation(
       }
       if (mismatches < Math.ceil(cells.length / 3)) continue;
 
-      const html = table.outerHTML.replace(/\s+/g, " ").trim();
+      const captured = captureHit(table);
       return {
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: table.id, role: table.getAttribute("role"), tagName: table.tagName,
+        html: captured.html,
+        id: captured.id,
+        role: captured.role,
+        tagName: captured.tagName,
         mismatches,
       };
     }
 
     return null;
-  });
+  }, BROWSER_HIT_CAPTURE_SRC);
 
   if (!hit) return null;
 

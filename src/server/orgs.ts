@@ -4,45 +4,6 @@ import { isOrgRole } from "@/core/rbac";
 import type { Db } from "./db";
 import { slugifyOrgName, uniqueOrgSlug } from "./org-slug";
 
-export interface EnsurePersonalOrgResult {
-  org: Organization;
-  /** True when the store was mutated and should be persisted. */
-  changed: boolean;
-}
-
-/**
- * Ensures the signed-in user has a personal org (as owner) on an in-memory
- * slice. Invite claiming is a Postgres concern (`claimMembershipsForLogin` /
- * `provisionPersonalOrg` in `@complyloop/db/repo/orgs`).
- */
-export function ensurePersonalOrg(
-  db: Db,
-  userId: string,
-  githubLogin: string,
-): EnsurePersonalOrgResult {
-  const owned = db.memberships.find(
-    (membership) =>
-      membership.userId === userId && membership.role === "owner",
-  );
-  if (owned) {
-    const org = db.organizations.find(
-      (candidate) => candidate.id === owned.orgId,
-    );
-    if (org) {
-      return { org, changed: false };
-    }
-  }
-
-  const label = githubLogin.trim() || userId.slice(0, 8);
-  const org = pushOrgWithOwner(db, {
-    name: `${label}'s workspace`,
-    slugBase: label,
-    ownerUserId: userId,
-    githubLogin: label,
-  });
-  return { org, changed: true };
-}
-
 function membershipsForOrg(
   db: Db,
   orgId: string,
@@ -267,22 +228,6 @@ function buildOrgWithOwner(
     createdAt: new Date().toISOString(),
   };
   return { org, membership };
-}
-
-/** Mutating helper for `ensurePersonalOrg` scratch persistence. */
-function pushOrgWithOwner(
-  db: Db,
-  input: {
-    name: string;
-    slugBase: string;
-    ownerUserId: string;
-    githubLogin: string;
-  },
-): Organization {
-  const { org, membership } = buildOrgWithOwner(db, input);
-  db.organizations.push(org);
-  db.memberships.push(membership);
-  return org;
 }
 
 /** True when the user may invite/remove members for this org. */

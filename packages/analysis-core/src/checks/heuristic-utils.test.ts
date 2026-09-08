@@ -1,26 +1,32 @@
 import { describe, expect, it } from "vitest";
+import ts from "typescript";
 import {
+  hasAnyAttr,
   jsxElementOf,
   parseSource,
+  tagNameOf,
   visitJsxElements,
   visitJsxTags,
   type JsxTagNode,
 } from "../parse";
 import {
   ariaDescribedByPointsToTranscript,
+  attributeContextOf,
   classNameTextOf,
   descendantTags,
   handlerTriggersContextChange,
+  hasAdjacentTagMatching,
   hasAdjacentTranscriptLink,
   hasChildTrackKind,
   isComplexDataTable,
   isInsideNamingHost,
+  nextMeaningfulSibling,
   styleHasBackgroundImage,
   styleLocksTextSpacing,
+  tagNodeOfJsxChild,
   textContentOf,
   walkMotionActuationCalls,
 } from "./heuristic-utils";
-import { hasAnyAttr } from "../parse";
 
 function firstTag(source: string): JsxTagNode {
   const parsed = parseSource("test.tsx", source);
@@ -192,6 +198,89 @@ describe("heuristic-utils", () => {
     expect(
       ariaDescribedByPointsToTranscript(describedVideo, described.sourceFile),
     ).toBe(true);
+  });
+
+  it("resolves adjacent siblings across fragments, whitespace, and self-closing tags", () => {
+    const fragmentSource = parseSource(
+      "test.tsx",
+      `const A = () => (<><canvas />
+        <a href="/alt">Text alternative</a></>);`,
+    );
+    let canvas: JsxTagNode | undefined;
+    visitJsxTags(fragmentSource.sourceFile, (node) => {
+      if (node.tagName.getText() === "canvas") canvas = node;
+    });
+    if (!canvas) throw new Error("expected canvas");
+
+    const next = nextMeaningfulSibling(canvas);
+    expect(next).toBeDefined();
+    expect(tagNameOf(next!.tag)).toBe("a");
+    expect(next!.element).toBeDefined();
+    expect(
+      hasAdjacentTagMatching(canvas, (tag) => tagNameOf(tag) === "a"),
+    ).toBe(true);
+
+    const whitespaceSource = parseSource(
+      "test.tsx",
+      `const A = () => (<div><object data="/x" />
+        <button aria-label="Open description" /></div>);`,
+    );
+    let objectTag: JsxTagNode | undefined;
+    visitJsxTags(whitespaceSource.sourceFile, (node) => {
+      if (node.tagName.getText() === "object") objectTag = node;
+    });
+    if (!objectTag) throw new Error("expected object");
+    const selfClosingNext = nextMeaningfulSibling(objectTag);
+    expect(selfClosingNext).toBeDefined();
+    expect(tagNameOf(selfClosingNext!.tag)).toBe("button");
+    expect(selfClosingNext!.element).toBeUndefined();
+
+    const loneChildSource = parseSource(
+      "test.tsx",
+      `const A = () => <div><img /></div>;`,
+    );
+    let loneImg: JsxTagNode | undefined;
+    visitJsxTags(loneChildSource.sourceFile, (node) => {
+      if (node.tagName.getText() === "img") loneImg = node;
+    });
+    if (!loneImg) throw new Error("expected img");
+    expect(nextMeaningfulSibling(loneImg)).toBeUndefined();
+    expect(hasAdjacentTagMatching(loneImg, () => true)).toBe(false);
+
+    const expressionSibling = parseSource(
+      "test.tsx",
+      `const A = () => (<div><embed />{alt}</div>);`,
+    );
+    let embed: JsxTagNode | undefined;
+    visitJsxTags(expressionSibling.sourceFile, (node) => {
+      if (node.tagName.getText() === "embed") embed = node;
+    });
+    if (!embed) throw new Error("expected embed");
+    expect(nextMeaningfulSibling(embed)).toBeUndefined();
+
+    const video = firstTag(
+      `const A = () => (<video><track kind="captions" src="/c.vtt" /></video>);`,
+    );
+    const element = jsxElementOf(video);
+    if (!element) throw new Error("expected video element");
+    const trackChild = element.children.find((child) => tagNodeOfJsxChild(child));
+    expect(trackChild).toBeDefined();
+    expect(tagNameOf(tagNodeOfJsxChild(trackChild!)!)).toBe("track");
+    expect(tagNodeOfJsxChild(ts.factory.createJsxText("   "))).toBeUndefined();
+  });
+
+  it("assembles attribute context from tag, class, and id", () => {
+    expect(
+      attributeContextOf(
+        firstTag(`const A = () => <div className="g-recaptcha" id="bot-check" />;`),
+      ),
+    ).toBe("div g-recaptcha bot-check");
+    expect(attributeContextOf(firstTag(`const A = () => <span class="plain" />;`))).toBe(
+      "span plain ",
+    );
+    expect(attributeContextOf(firstTag(`const A = () => <ReCAPTCHA />;`))).toBe(
+      "ReCAPTCHA  ",
+    );
   });
 });
 

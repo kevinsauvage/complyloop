@@ -9,6 +9,7 @@ import type { RemediationStatus, Severity } from "@complyloop/analysis-core/cont
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { nativeSelectClass } from "@/components/ui/native-select";
 
 const SEVERITIES: Severity[] = ["critical", "serious", "moderate", "minor"];
 
@@ -19,9 +20,6 @@ const REMEDIATION_FILTER_STATUSES: RemediationStatus[] = [
   "implemented",
   "verified",
 ];
-
-const selectClassName =
-  "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30";
 
 export function FindingsFilterBar({
   params,
@@ -62,7 +60,7 @@ export function FindingsFilterBar({
             id="findings-severity"
             name="severity"
             defaultValue={params.severity ?? ""}
-            className={selectClassName}
+            className={nativeSelectClass}
           >
             <option value="">Any severity</option>
             {SEVERITIES.map((severity) => (
@@ -79,7 +77,7 @@ export function FindingsFilterBar({
             id="findings-engine"
             name="engine"
             defaultValue={params.engine ?? ""}
-            className={selectClassName}
+            className={nativeSelectClass}
           >
             <option value="">Any engine</option>
             <option value="ast">AST (source)</option>
@@ -93,7 +91,7 @@ export function FindingsFilterBar({
             id="findings-remediation"
             name="remediation"
             defaultValue={params.remediation ?? ""}
-            className={selectClassName}
+            className={nativeSelectClass}
           >
             <option value="">Any remediation</option>
             {REMEDIATION_FILTER_STATUSES.map((status) => (

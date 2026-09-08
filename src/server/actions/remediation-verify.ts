@@ -7,7 +7,6 @@ import {
   runtimeViolationStillPresent,
   scanRuntime,
 } from "@complyloop/analysis-core/runtime/scan";
-import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { advanceRemediation } from "@/core/remediation";
 import { entityIdSchema, optionalNoteSchema } from "@/core/boundary";
@@ -20,6 +19,7 @@ import { parseForm, parseInput } from "../boundary";
 import { sameInstance } from "../assessment-findings";
 import { applyRequirementStatusRefresh } from "../assessment-status";
 import type { Db } from "../db";
+import { remediationEvidenceSummary } from "../remediation-evidence";
 import {
   findingById,
   getWorkspace,
@@ -105,7 +105,7 @@ function markVerified(
   }
   appendEvidence(rows, {
     kind: "remediation_verified",
-    summary: `Verified: ${live.checkId} no longer fails at ${formatLocationRef(live.location)}`,
+    summary: remediationEvidenceSummary("verified", live),
     projectId: live.projectId,
     controlId: live.controlId,
     findingId: live.id,
@@ -244,7 +244,7 @@ export async function markRemediationImplementedAction(
       );
       appendEvidence(payload, {
         kind: "remediation_implemented",
-        summary: `Remediation marked implemented for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+        summary: remediationEvidenceSummary("implemented", finding),
         projectId: finding.projectId,
         controlId: finding.controlId,
         findingId: finding.id,

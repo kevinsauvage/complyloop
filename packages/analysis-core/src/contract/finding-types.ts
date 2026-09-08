@@ -152,8 +152,14 @@ export interface Explanation {
   generatedAt: string;
 }
 
+export const DISMISSAL_REASONS = [
+  "false_positive",
+  "not_applicable",
+  "accepted_risk",
+] as const;
+
 export interface Dismissal {
-  reason: "false_positive" | "not_applicable" | "accepted_risk";
+  reason: (typeof DISMISSAL_REASONS)[number];
   note: string;
   at: string;
 }
@@ -162,9 +168,8 @@ export function isDismissalReason(
   value: unknown,
 ): value is Dismissal["reason"] {
   return (
-    value === "false_positive" ||
-    value === "not_applicable" ||
-    value === "accepted_risk"
+    typeof value === "string" &&
+    (DISMISSAL_REASONS as readonly string[]).includes(value)
   );
 }
 

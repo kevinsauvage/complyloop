@@ -1,10 +1,9 @@
 import type { Page } from "playwright";
-import { htmlSnippet } from "../dom-location.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import {
   isKeyboardFocusable,
   selectorOf,
-  type SelectorRef,
 } from "./widget-keyboard-utils.ts";
 
 /**
@@ -15,18 +14,19 @@ import {
  */
 
 const BROWSER_HELPERS = `(function helperSource() {
+  const hit = (${BROWSER_HIT_CAPTURE_SRC});
   ${isKeyboardFocusable.toString()}
-  ${htmlSnippet.toString()}
-  function snippetOf(el) {
-    return htmlSnippet(el.outerHTML || "");
-  }
-  return { snippetOf, isKeyboardFocusable };
+  return { captureHit: hit.captureHit, isKeyboardFocusable };
 })()`;
 
-type WidgetHit = SelectorRef & {
-  html: string;
+type WidgetHit = CapturedHit & {
   elementLabel: string;
   failureSummary: string;
+};
+
+type WidgetHelpers = {
+  captureHit: (el: Element) => CapturedHit;
+  isKeyboardFocusable: (el: Element) => boolean;
 };
 
 function toNodes(hits: WidgetHit[]): CustomViolationNode[] {
@@ -43,7 +43,15 @@ export async function widgetKeyboardViolations(
 ): Promise<CustomViolation[]> {
   const violations: CustomViolation[] = [];
 
-  const tabNodes = toNodes(await collectTablistHits(page));
+  const tabNodes = toNodes(
+    await collectWidgetHits(
+      page,
+      '[role="tablist"]',
+      tablistIsViolation.toString(),
+      "tablist",
+      "None of the tabs participate in the tab order, so the widget cannot be reached or operated with a keyboard.",
+    ),
+  );
   if (tabNodes.length > 0) {
     violations.push({
       id: "tabs-keyboard",
@@ -55,7 +63,15 @@ export async function widgetKeyboardViolations(
     });
   }
 
-  const disclosureNodes = toNodes(await collectDisclosureHits(page));
+  const disclosureNodes = toNodes(
+    await collectWidgetHits(
+      page,
+      "[aria-expanded]",
+      disclosureIsViolation.toString(),
+      "aria-expanded toggle",
+      "The element manages an expanded/contracted relationship but is not focusable and has no button/combobox/link role, so a keyboard user cannot toggle it.",
+    ),
+  );
   if (disclosureNodes.length > 0) {
     violations.push({
       id: "disclosure-keyboard",
@@ -67,7 +83,15 @@ export async function widgetKeyboardViolations(
     });
   }
 
-  const menuNodes = toNodes(await collectMenuHits(page));
+  const menuNodes = toNodes(
+    await collectWidgetHits(
+      page,
+      '[role="menu"] [role="menuitem"], [role="menu"] [role="menuitemcheckbox"], [role="menu"] [role="menuitemradio"], [role="menubar"] [role="menuitem"]',
+      menuIsViolation.toString(),
+      "menu item",
+      "This menu item is not keyboard-focusable, so a keyboard user cannot reach it with Tab.",
+    ),
+  );
   if (menuNodes.length > 0) {
     violations.push({
       id: "menu-keyboard",
@@ -82,114 +106,74 @@ export async function widgetKeyboardViolations(
   return violations;
 }
 
-async function collectTablistHits(page: Page): Promise<WidgetHit[]> {
-  return page.evaluate((helperSrc) => {
-    const { snippetOf, isKeyboardFocusable } = new Function(
-      `return (${helperSrc})`,
-    )() as {
-      snippetOf: (el: Element) => string;
-      isKeyboardFocusable: (el: Element) => boolean;
-    };
-
-    const found: WidgetHit[] = [];
-    const seen = new Set<string>();
-
-    document.querySelectorAll('[role="tablist"]').forEach((list) => {
-      const tabs = Array.from(
-        list.querySelectorAll(':scope [role="tab"]'),
-      );
-      if (tabs.length === 0) return;
-
-      const focusable = tabs.filter((tab) => isKeyboardFocusable(tab));
-      if (focusable.length > 0) return;
-
-      const key = `${list.id}\0${list.getAttribute("role") ?? ""}\0${list.tagName}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      found.push({
-        html: snippetOf(list),
-        id: list.id,
-        role: list.getAttribute("role"),
-        tagName: list.tagName,
-        elementLabel: "tablist",
-        failureSummary:
-          "None of the tabs participate in the tab order, so the widget cannot be reached or operated with a keyboard.",
-      });
-    });
-
-    return found;
-  }, BROWSER_HELPERS);
+function tablistIsViolation(
+  el: Element,
+  { isKeyboardFocusable }: WidgetHelpers,
+): boolean {
+  const tabs = Array.from(el.querySelectorAll(':scope [role="tab"]'));
+  if (tabs.length === 0) return false;
+  return tabs.every((tab) => !isKeyboardFocusable(tab));
 }
 
-async function collectDisclosureHits(page: Page): Promise<WidgetHit[]> {
-  return page.evaluate((helperSrc) => {
-    const { snippetOf, isKeyboardFocusable } = new Function(
-      `return (${helperSrc})`,
-    )() as {
-      snippetOf: (el: Element) => string;
-      isKeyboardFocusable: (el: Element) => boolean;
-    };
-
-    const found: WidgetHit[] = [];
-    const seen = new Set<string>();
-
-    document.querySelectorAll("[aria-expanded]").forEach((el) => {
-      if (isKeyboardFocusable(el)) return;
-      const hasControls = Boolean(el.getAttribute("aria-controls"));
-      if (!hasControls) return;
-
-      const key = `${el.id}\0${el.getAttribute("role") ?? ""}\0${el.tagName}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      found.push({
-        html: snippetOf(el),
-        id: el.id,
-        role: el.getAttribute("role"),
-        tagName: el.tagName,
-        elementLabel: "aria-expanded toggle",
-        failureSummary:
-          "The element manages an expanded/contracted relationship but is not focusable and has no button/combobox/link role, so a keyboard user cannot toggle it.",
-      });
-    });
-
-    return found;
-  }, BROWSER_HELPERS);
+function disclosureIsViolation(
+  el: Element,
+  { isKeyboardFocusable }: WidgetHelpers,
+): boolean {
+  if (isKeyboardFocusable(el)) return false;
+  return Boolean(el.getAttribute("aria-controls"));
 }
 
-async function collectMenuHits(page: Page): Promise<WidgetHit[]> {
-  return page.evaluate((helperSrc) => {
-    const { snippetOf, isKeyboardFocusable } = new Function(
-      `return (${helperSrc})`,
-    )() as {
-      snippetOf: (el: Element) => string;
-      isKeyboardFocusable: (el: Element) => boolean;
-    };
+function menuIsViolation(
+  el: Element,
+  { isKeyboardFocusable }: WidgetHelpers,
+): boolean {
+  if (isKeyboardFocusable(el)) return false;
+  return !el.closest('[aria-hidden="true"]');
+}
 
-    const found: WidgetHit[] = [];
-    const seen = new Set<string>();
+async function collectWidgetHits(
+  page: Page,
+  selector: string,
+  isViolationSrc: string,
+  elementLabel: string,
+  failureSummary: string,
+): Promise<WidgetHit[]> {
+  return page.evaluate(
+    ({ helperSrc, selector, isViolationSrc, elementLabel, failureSummary }) => {
+      const helpers = new Function(`return (${helperSrc})`)() as WidgetHelpers;
+      const isViolation = new Function(`return (${isViolationSrc})`)() as (
+        el: Element,
+        helpers: WidgetHelpers,
+      ) => boolean;
 
-    document
-      .querySelectorAll(
-        '[role="menu"] [role="menuitem"], [role="menu"] [role="menuitemcheckbox"], [role="menu"] [role="menuitemradio"], [role="menubar"] [role="menuitem"]',
-      )
-      .forEach((el) => {
-        if (isKeyboardFocusable(el)) return;
-        if (el.closest('[aria-hidden="true"]')) return;
+      const found: WidgetHit[] = [];
+      const seen = new Set<string>();
+
+      document.querySelectorAll(selector).forEach((el) => {
+        if (!isViolation(el, helpers)) return;
 
         const key = `${el.id}\0${el.getAttribute("role") ?? ""}\0${el.tagName}`;
         if (seen.has(key)) return;
         seen.add(key);
+        const hit = helpers.captureHit(el);
         found.push({
-          html: snippetOf(el),
-          id: el.id,
-          role: el.getAttribute("role"),
-          tagName: el.tagName,
-          elementLabel: "menu item",
-          failureSummary:
-            "This menu item is not keyboard-focusable, so a keyboard user cannot reach it with Tab.",
+          html: hit.html,
+          id: hit.id,
+          role: hit.role,
+          tagName: hit.tagName,
+          elementLabel,
+          failureSummary,
         });
       });
 
-    return found;
-  }, BROWSER_HELPERS);
+      return found;
+    },
+    {
+      helperSrc: BROWSER_HELPERS,
+      selector,
+      isViolationSrc,
+      elementLabel,
+      failureSummary,
+    },
+  );
 }

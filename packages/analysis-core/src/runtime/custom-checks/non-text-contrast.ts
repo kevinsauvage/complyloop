@@ -1,7 +1,8 @@
 import type { Locator, Page } from "playwright";
 import { contrastRatio, parseRgb, relativeLuminance } from "./non-text-contrast-math.ts";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
-import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 const CONTROL_SELECTOR =
   'button, input:not([type="hidden"]), select, textarea, a[href], [role="button"], [role="checkbox"], [role="radio"]';
@@ -9,8 +10,7 @@ const CONTROL_SELECTOR =
 const MAX_HOVER = 12;
 const MAX_NODES = 5;
 
-interface ContrastHit extends SelectorRef {
-  html: string;
+interface ContrastHit extends CapturedHit {
   state: "default" | "hover" | "selected";
   ratio: number;
 }
@@ -19,6 +19,7 @@ const MATH_PAYLOAD = {
   parseRgbSrc: parseRgb.toString(),
   luminanceSrc: relativeLuminance.toString(),
   contrastSrc: contrastRatio.toString(),
+  hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
 };
 
 export async function nonTextContrastViolation(
@@ -72,7 +73,7 @@ export async function nonTextContrastViolation(
 
 async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
   return page.evaluate(
-    ({ parseRgbSrc, luminanceSrc, contrastSrc, controlSelector }) => {
+    ({ parseRgbSrc, luminanceSrc, contrastSrc, controlSelector, hitCaptureSrc }) => {
       const parseColor = new Function(
         "value",
         `${parseRgbSrc}; return parseRgb(value);`,
@@ -85,6 +86,9 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
         a: [number, number, number],
         b: [number, number, number],
       ) => number;
+      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+        captureHit: (el: Element) => CapturedHit;
+      };
 
       function backgroundRgb(el: Element): [number, number, number] | null {
         let current: Element | null = el;
@@ -132,10 +136,12 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
         const ratio = contrast(border, bg);
         if (ratio >= 3) continue;
 
-        const html = el.outerHTML.replace(/\s+/g, " ").trim();
+        const captured = captureHit(el);
         violations.push({
-          html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
+          html: captured.html,
+          id: captured.id,
+          role: captured.role,
+          tagName: captured.tagName,
           state: chromeState(el),
           ratio,
         });
@@ -148,46 +154,54 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
 }
 
 async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
-  return locator.evaluate((el, { parseRgbSrc, luminanceSrc, contrastSrc }) => {
-    const parseColor = new Function(
-      "value",
-      `${parseRgbSrc}; return parseRgb(value);`,
-    ) as (value: string) => [number, number, number] | null;
-    const contrast = new Function(
-      "a",
-      "b",
-      `${luminanceSrc}; ${contrastSrc}; return contrastRatio(a, b);`,
-    ) as (
-      a: [number, number, number],
-      b: [number, number, number],
-    ) => number;
+  return locator.evaluate(
+    (el, { parseRgbSrc, luminanceSrc, contrastSrc, hitCaptureSrc }) => {
+      const parseColor = new Function(
+        "value",
+        `${parseRgbSrc}; return parseRgb(value);`,
+      ) as (value: string) => [number, number, number] | null;
+      const contrast = new Function(
+        "a",
+        "b",
+        `${luminanceSrc}; ${contrastSrc}; return contrastRatio(a, b);`,
+      ) as (
+        a: [number, number, number],
+        b: [number, number, number],
+      ) => number;
+      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+        captureHit: (el: Element) => CapturedHit;
+      };
 
-    function backgroundRgb(node: Element): [number, number, number] | null {
-      let current: Element | null = node;
-      while (current) {
-        const bg = parseColor(getComputedStyle(current).backgroundColor);
-        if (bg && getComputedStyle(current).backgroundColor !== "rgba(0, 0, 0, 0)") {
-          return bg;
+      function backgroundRgb(node: Element): [number, number, number] | null {
+        let current: Element | null = node;
+        while (current) {
+          const bg = parseColor(getComputedStyle(current).backgroundColor);
+          if (bg && getComputedStyle(current).backgroundColor !== "rgba(0, 0, 0, 0)") {
+            return bg;
+          }
+          current = current.parentElement;
         }
-        current = current.parentElement;
+        return parseColor(getComputedStyle(document.body).backgroundColor);
       }
-      return parseColor(getComputedStyle(document.body).backgroundColor);
-    }
 
-    const style = getComputedStyle(el);
-    const borderWidth = parseFloat(style.borderTopWidth);
-    if (borderWidth <= 0) return null;
-    const border = parseColor(style.borderTopColor);
-    const bg = backgroundRgb(el);
-    if (!border || !bg) return null;
-    const ratio = contrast(border, bg);
-    if (ratio >= 3) return null;
-    const html = el.outerHTML.replace(/\s+/g, " ").trim();
-    return {
-      html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-      id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
-      state: "hover" as const,
-      ratio,
-    };
-  }, MATH_PAYLOAD);
+      const style = getComputedStyle(el);
+      const borderWidth = parseFloat(style.borderTopWidth);
+      if (borderWidth <= 0) return null;
+      const border = parseColor(style.borderTopColor);
+      const bg = backgroundRgb(el);
+      if (!border || !bg) return null;
+      const ratio = contrast(border, bg);
+      if (ratio >= 3) return null;
+      const captured = captureHit(el);
+      return {
+        html: captured.html,
+        id: captured.id,
+        role: captured.role,
+        tagName: captured.tagName,
+        state: "hover" as const,
+        ratio,
+      };
+    },
+    MATH_PAYLOAD,
+  );
 }

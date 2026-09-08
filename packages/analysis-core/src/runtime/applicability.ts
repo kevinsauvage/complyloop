@@ -2,8 +2,7 @@ import type { Page } from "playwright";
 import type { CheckId } from "../types.ts";
 import {
   CAPTCHA_TOKEN,
-  foldAccents,
-  matchesMultilingual,
+  RUNTIME_MATCHES_SRC,
 } from "../patterns/multilingual.ts";
 import { collectCaptchaCandidates } from "./custom-checks/captcha-candidates.ts";
 
@@ -53,8 +52,6 @@ interface PageApplicabilityAbsent {
   layoutTable: boolean;
 }
 
-const FOLD_ACCENTS_SOURCE = foldAccents.toString();
-const MATCHES_MULTILINGUAL_SOURCE = matchesMultilingual.toString();
 const COLLECT_CAPTCHA_SOURCE = collectCaptchaCandidates.toString();
 
 /**
@@ -66,12 +63,11 @@ export async function applicabilityObservationsForPage(
   url: string,
 ): Promise<ApplicabilityObservation[]> {
   const absent = await page.evaluate(
-    ({ captchaSource, foldSrc, matchesSrc, collectSrc }) => {
-      const matchesPattern = new Function(
-        "pattern",
-        "text",
-        `${foldSrc}; ${matchesSrc}; return matchesMultilingual(pattern, text);`,
-      ) as (pattern: RegExp, text: string) => boolean;
+    ({ captchaSource, matchesSrc, collectSrc }) => {
+      const matchesPattern = new Function("pattern", "text", matchesSrc) as (
+        pattern: RegExp,
+        text: string,
+      ) => boolean;
 
       const collectCandidates = new Function(
         `return (${collectSrc})`,
@@ -127,8 +123,7 @@ export async function applicabilityObservationsForPage(
     },
     {
       captchaSource: CAPTCHA_TOKEN.source,
-      foldSrc: FOLD_ACCENTS_SOURCE,
-      matchesSrc: MATCHES_MULTILINGUAL_SOURCE,
+      matchesSrc: RUNTIME_MATCHES_SRC,
       collectSrc: COLLECT_CAPTCHA_SOURCE,
     },
   );

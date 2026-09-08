@@ -1,7 +1,6 @@
 "use server";
 
 import { entityIdSchema } from "@/core/boundary";
-import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
@@ -13,6 +12,7 @@ import { patchCandidateFromEvidence } from "../ai-fix";
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
 import { preparePullRequest } from "../pr";
+import { remediationEvidenceSummary } from "../remediation-evidence";
 import {
   controlById,
   findingById,
@@ -100,7 +100,7 @@ export async function createPullRequestAction(
         });
         appendEvidence(payload, {
           kind: "remediation_approved",
-          summary: `Remediation approved for ${liveFinding.checkId} at ${formatLocationRef(liveFinding.location)}`,
+          summary: remediationEvidenceSummary("approved", liveFinding),
           projectId: project.id,
           controlId: liveFinding.controlId,
           findingId: liveFinding.id,

@@ -6,7 +6,7 @@
  * Use {@link matchesMultilingual} instead of `pattern.test(text)` — JS `\b` does not
  * treat accented letters (e.g. É) as word characters.
  *
- * Runtime evaluate callbacks inject these via `.toString()` (see
+ * Runtime evaluate callbacks inject {@link RUNTIME_MATCHES_SRC} (see
  * `runtime/applicability.ts`, `runtime/custom-checks/error-prevention.ts`,
  * `captcha-alternative.ts`, `accessible-auth-enhanced.ts`) — same pattern as
  * `focus.ts` / `non-text-contrast.ts`. Strict CSP on an audited page can block
@@ -20,6 +20,13 @@ export function foldAccents(value: string): string {
 export function matchesMultilingual(pattern: RegExp, text: string): boolean {
   return pattern.test(text) || pattern.test(foldAccents(text));
 }
+
+/**
+ * Body for `new Function("pattern", "text", RUNTIME_MATCHES_SRC)` inside
+ * `page.evaluate`. Assembles foldAccents + matchesMultilingual once so runtime
+ * checks do not each re-stringify the pair.
+ */
+export const RUNTIME_MATCHES_SRC = `${foldAccents.toString()}; ${matchesMultilingual.toString()}; return matchesMultilingual(pattern, text);`;
 
 export const HIGH_RISK =
   /\b(checkout|payment|pay|purchase|order|donat|transfer|withdraw|subscribe|contract|legal|terms|financial|invoice|billing|exam|quiz|test submission|submit application|delete account|cancel subscription|paiement|payer|achat|commande|don\b|virement|retrait|abonnement|souscri|contrat|juridique|l[eéEÉ]gal|conditions|financier|facture|facturation|examen|concours|candidature|supprimer|r[eéEÉ]silier|pago|pagar|compra|pedido|contrato|factura|zahlung|bezahlen|kauf|bestellung|vertrag|rechnung)\b/i;

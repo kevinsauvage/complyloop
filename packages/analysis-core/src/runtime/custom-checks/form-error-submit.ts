@@ -4,10 +4,10 @@ import {
   isInvalidField,
   submitFirstValidatableForm,
 } from "./form-submit-probe.ts";
-import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
-type FormErrorHit = SelectorRef & {
-  html: string;
+type FormErrorHit = CapturedHit & {
   failureSummary: string;
 };
 
@@ -26,72 +26,91 @@ export async function formErrorSubmitViolation(
 
   await page.waitForTimeout(150);
 
-  const hits = await page.evaluate((isInvalidSrc) => {
-    const maxNodes = 5;
+  const hits = await page.evaluate(
+    ({ isInvalidSrc, hitCaptureSrc }) => {
+      const maxNodes = 5;
 
-    const isInvalid = new Function(`return (${isInvalidSrc})`)() as (
-      el: Element,
-    ) => boolean;
+      const isInvalid = new Function(`return (${isInvalidSrc})`)() as (
+        el: Element,
+      ) => boolean;
+      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+        captureHit: (el: Element) => CapturedHit;
+      };
 
-    function isAssociated(field: Element): boolean {
-      const ids = new Set<string>();
-      for (const id of (field.getAttribute("aria-describedby") ?? "").split(/\s+/)) {
-        if (id) ids.add(id);
+      function isAssociated(field: Element): boolean {
+        const ids = new Set<string>();
+        for (const id of (field.getAttribute("aria-describedby") ?? "").split(
+          /\s+/,
+        )) {
+          if (id) ids.add(id);
+        }
+        const errMsg = field.getAttribute("aria-errormessage");
+        if (errMsg) ids.add(errMsg);
+        for (const id of ids) {
+          const target = document.getElementById(id);
+          if (target && (target.textContent ?? "").trim().length > 0) return true;
+        }
+        return false;
       }
-      const errMsg = field.getAttribute("aria-errormessage");
-      if (errMsg) ids.add(errMsg);
-      for (const id of ids) {
-        const target = document.getElementById(id);
-        if (target && (target.textContent ?? "").trim().length > 0) return true;
+
+      const invalidFields = Array.from(
+        document.querySelectorAll(
+          "input, select, textarea, [aria-invalid='true']",
+        ),
+      ).filter(isInvalid);
+
+      if (invalidFields.length === 0) return [] as FormErrorHit[];
+
+      const active = document.activeElement;
+      const focusOk =
+        active instanceof Element &&
+        (isInvalid(active) ||
+          invalidFields.some(
+            (field) => field.contains(active) || active.contains(field),
+          ));
+
+      const found: FormErrorHit[] = [];
+
+      for (const field of invalidFields) {
+        if (!(field instanceof HTMLElement)) continue;
+        if (isAssociated(field)) continue;
+
+        const captured = captureHit(field);
+        found.push({
+          html: captured.html,
+          id: captured.id,
+          role: captured.role,
+          tagName: captured.tagName,
+          failureSummary:
+            "After submit, this invalid field has no programmatic association to visible error text (aria-describedby / aria-errormessage).",
+        });
+        if (found.length >= maxNodes) break;
       }
-      return false;
-    }
 
-    const invalidFields = Array.from(
-      document.querySelectorAll("input, select, textarea, [aria-invalid='true']"),
-    ).filter(isInvalid);
+      if (
+        found.length === 0 &&
+        !focusOk &&
+        invalidFields[0] instanceof HTMLElement
+      ) {
+        const field = invalidFields[0];
+        const captured = captureHit(field);
+        found.push({
+          html: captured.html,
+          id: captured.id,
+          role: captured.role,
+          tagName: captured.tagName,
+          failureSummary:
+            "After submit, focus did not move to the invalid field or its associated error.",
+        });
+      }
 
-    if (invalidFields.length === 0) return [] as FormErrorHit[];
-
-    const active = document.activeElement;
-    const focusOk =
-      active instanceof Element &&
-      (isInvalid(active) ||
-        invalidFields.some((field) => field.contains(active) || active.contains(field)));
-
-    const found: FormErrorHit[] = [];
-
-    for (const field of invalidFields) {
-      if (!(field instanceof HTMLElement)) continue;
-      if (isAssociated(field)) continue;
-
-      const html = field.outerHTML.replace(/\s+/g, " ").trim();
-      found.push({
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: field.id,
-        role: field.getAttribute("role"),
-        tagName: field.tagName,
-        failureSummary:
-          "After submit, this invalid field has no programmatic association to visible error text (aria-describedby / aria-errormessage).",
-      });
-      if (found.length >= maxNodes) break;
-    }
-
-    if (found.length === 0 && !focusOk && invalidFields[0] instanceof HTMLElement) {
-      const field = invalidFields[0];
-      const html = field.outerHTML.replace(/\s+/g, " ").trim();
-      found.push({
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: field.id,
-        role: field.getAttribute("role"),
-        tagName: field.tagName,
-        failureSummary:
-          "After submit, focus did not move to the invalid field or its associated error.",
-      });
-    }
-
-    return found;
-  }, IS_INVALID_SOURCE);
+      return found;
+    },
+    {
+      isInvalidSrc: IS_INVALID_SOURCE,
+      hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
+    },
+  );
 
   if (hits.length === 0) return null;
 

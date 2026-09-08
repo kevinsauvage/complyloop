@@ -4,37 +4,33 @@ import {
   AGREE_LABEL,
   CONFIRM_LABEL,
   HIGH_RISK,
-  foldAccents,
-  matchesMultilingual,
+  RUNTIME_MATCHES_SRC,
 } from "../../patterns/multilingual.ts";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
-
-interface FormHit extends SelectorRef {
-  html: string;
-}
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 const RUNTIME_CONFIRM_LABEL = new RegExp(
   `${CONFIRM_LABEL.source}|${AGREE_LABEL.source}`,
   "i",
 );
 
-const FOLD_ACCENTS_SOURCE = foldAccents.toString();
-const MATCHES_MULTILINGUAL_SOURCE = matchesMultilingual.toString();
-
 export async function errorPreventionViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const hits = await page.evaluate(
-    ({ highRiskSource, confirmSource, foldSrc, matchesSrc, datasetKeys }) => {
+    ({ highRiskSource, confirmSource, matchesSrc, datasetKeys, hitCaptureSrc }) => {
       const highRisk = new RegExp(highRiskSource, "i");
       const confirmLabel = new RegExp(confirmSource, "i");
 
-      const matchesPattern = new Function(
-        "pattern",
-        "text",
-        `${foldSrc}; ${matchesSrc}; return matchesMultilingual(pattern, text);`,
-      ) as (pattern: RegExp, text: string) => boolean;
+      const matchesPattern = new Function("pattern", "text", matchesSrc) as (
+        pattern: RegExp,
+        text: string,
+      ) => boolean;
+
+      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+        captureHit: (el: Element) => CapturedHit;
+      };
 
       function formContext(form: HTMLFormElement): string {
         return [
@@ -58,15 +54,11 @@ export async function errorPreventionViolation(
         return false;
       }
 
-      const violations: FormHit[] = [];
+      const violations: CapturedHit[] = [];
       for (const form of document.querySelectorAll("form")) {
         if (!matchesPattern(highRisk, formContext(form))) continue;
         if (hasSafeguard(form)) continue;
-        const html = form.outerHTML.replace(/\s+/g, " ").trim();
-        violations.push({
-          html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          id: form.id, role: form.getAttribute("role"), tagName: form.tagName,
-        });
+        violations.push(captureHit(form));
         if (violations.length >= 5) break;
       }
       return violations;
@@ -74,9 +66,9 @@ export async function errorPreventionViolation(
     {
       highRiskSource: HIGH_RISK.source,
       confirmSource: RUNTIME_CONFIRM_LABEL.source,
-      foldSrc: FOLD_ACCENTS_SOURCE,
-      matchesSrc: MATCHES_MULTILINGUAL_SOURCE,
+      matchesSrc: RUNTIME_MATCHES_SRC,
       datasetKeys: [...ERROR_PREVENTION_CONFIRM_DATASET_KEYS],
+      hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
     },
   );
 

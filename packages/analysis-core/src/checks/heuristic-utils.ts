@@ -85,6 +85,13 @@ export const DESCRIPTION_KINDS = new Set(["descriptions"]);
 /** Track `kind` values for audio alternative text. */
 export const AUDIO_ALT_KINDS = new Set(["captions", "subtitles", "descriptions"]);
 
+/** Opening or self-closing tag for a JSX child node, if any. */
+export function tagNodeOfJsxChild(child: ts.Node): JsxTagNode | undefined {
+  if (ts.isJsxElement(child)) return child.openingElement;
+  if (ts.isJsxSelfClosingElement(child)) return child;
+  return undefined;
+}
+
 export function hasChildTrackKind(
   node: JsxTagNode,
   kinds: ReadonlySet<string>,
@@ -92,11 +99,7 @@ export function hasChildTrackKind(
   const element = jsxElementOf(node);
   if (!element) return false;
   for (const child of element.children) {
-    const tag: JsxTagNode | undefined = ts.isJsxSelfClosingElement(child)
-      ? child
-      : ts.isJsxElement(child)
-        ? child.openingElement
-        : undefined;
+    const tag = tagNodeOfJsxChild(child);
     if (!tag || !MEDIA_TRACK_TAGS.has(tagNameOf(tag))) continue;
     const kind = getAttribute(tag, "kind");
     const value = kind ? stringValueOf(kind)?.toLowerCase() : undefined;
@@ -135,6 +138,16 @@ export function classNameTextOf(node: JsxTagNode): string {
   const literal = stringValueOf(attr);
   if (literal !== undefined) return literal;
   return attr.initializer?.getText() ?? "";
+}
+
+/**
+ * Tag name plus className/class and id attribute text — shared captcha-family
+ * AST context. Callers append extra fields (e.g. aria-label) when needed.
+ */
+export function attributeContextOf(node: JsxTagNode): string {
+  const id = getAttribute(node, "id");
+  const idText = id ? (stringValueOf(id) ?? "") : "";
+  return `${tagNameOf(node)} ${classNameTextOf(node)} ${idText}`;
 }
 
 export function styleHasBackgroundImage(node: JsxTagNode): boolean {
@@ -264,38 +277,63 @@ export function isInsideNamingHost(node: ts.Node): boolean {
 const TRANSCRIPT_PATTERN = /transcript|transcription|texte/i;
 const TRANSCRIPT_LINK_HOSTS = new Set(["a", "button"]);
 
-export function hasAdjacentTranscriptLink(node: JsxTagNode): boolean {
+export type AdjacentSibling = {
+  tag: JsxTagNode;
+  /** Present when the sibling is a full element (`<a>…</a>`), not self-closing. */
+  element: ts.JsxElement | undefined;
+};
+
+/**
+ * Next non-whitespace sibling tag under the same parent element or fragment.
+ * Skips empty JsxText; returns undefined when the next meaningful sibling is
+ * not a JSX element/self-closing tag (e.g. an expression).
+ */
+export function nextMeaningfulSibling(
+  node: JsxTagNode,
+): AdjacentSibling | undefined {
   const self = ts.isJsxOpeningElement(node) ? node.parent : node;
   const parent = self.parent;
-  if (!ts.isJsxElement(parent) && !ts.isJsxFragment(parent)) return false;
+  if (!ts.isJsxElement(parent) && !ts.isJsxFragment(parent)) return undefined;
   const siblings = parent.children;
   const index = siblings.indexOf(self);
-  if (index < 0) return false;
+  if (index < 0) return undefined;
 
   for (let current = index + 1; current < siblings.length; current += 1) {
     const sibling = siblings[current];
     if (!sibling) continue;
     if (ts.isJsxText(sibling) && sibling.text.trim().length === 0) continue;
-    const siblingTag = ts.isJsxElement(sibling)
-      ? sibling.openingElement
-      : ts.isJsxSelfClosingElement(sibling)
-        ? sibling
-        : undefined;
-    if (!siblingTag) return false;
+    const tag = tagNodeOfJsxChild(sibling);
+    if (!tag) return undefined;
+    return {
+      tag,
+      element: ts.isJsxElement(sibling) ? sibling : undefined,
+    };
+  }
+  return undefined;
+}
+
+export function hasAdjacentTagMatching(
+  node: JsxTagNode,
+  predicate: (tag: JsxTagNode, element: ts.JsxElement | undefined) => boolean,
+): boolean {
+  const next = nextMeaningfulSibling(node);
+  if (!next) return false;
+  return predicate(next.tag, next.element);
+}
+
+export function hasAdjacentTranscriptLink(node: JsxTagNode): boolean {
+  return hasAdjacentTagMatching(node, (siblingTag, siblingElement) => {
     if (!TRANSCRIPT_LINK_HOSTS.has(tagNameOf(siblingTag))) return false;
-    if (!ts.isJsxElement(sibling)) {
+    if (!siblingElement) {
       const href = getAttribute(siblingTag, "href");
       const hrefValue = href ? stringValueOf(href) : undefined;
-      if (hrefValue && TRANSCRIPT_PATTERN.test(hrefValue)) return true;
-      return false;
+      return Boolean(hrefValue && TRANSCRIPT_PATTERN.test(hrefValue));
     }
-    if (TRANSCRIPT_PATTERN.test(textContentOf(sibling))) return true;
+    if (TRANSCRIPT_PATTERN.test(textContentOf(siblingElement))) return true;
     const href = getAttribute(siblingTag, "href");
     const hrefValue = href ? stringValueOf(href) : undefined;
-    if (hrefValue && TRANSCRIPT_PATTERN.test(hrefValue)) return true;
-    return false;
-  }
-  return false;
+    return Boolean(hrefValue && TRANSCRIPT_PATTERN.test(hrefValue));
+  });
 }
 
 export function ariaDescribedByPointsToTranscript(

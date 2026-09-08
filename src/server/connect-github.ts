@@ -6,6 +6,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { canOnProject } from "@/core/rbac";
 import { defaultConnectPreset } from "@complyloop/adapters/registry";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
+import { nextUniqueSlug } from "@complyloop/db/org-slug";
 import type { Db } from "./db";
 import { normalizeGitHubFullName } from "./github";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
@@ -37,11 +38,10 @@ export function assertAssessableRoot(rootPath: string): void {
 }
 
 export function uniqueProjectName(db: Db, desired: string): string {
-  const taken = new Set(db.projects.map((project) => project.name));
-  if (!taken.has(desired)) return desired;
-  let index = 2;
-  while (taken.has(`${desired}-${index}`)) index += 1;
-  return `${desired}-${index}`;
+  return nextUniqueSlug(
+    desired,
+    new Set(db.projects.map((project) => project.name)),
+  );
 }
 
 /**

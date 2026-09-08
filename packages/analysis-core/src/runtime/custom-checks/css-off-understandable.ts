@@ -1,16 +1,16 @@
 import type { Page } from "playwright";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
-
-interface CssOffHit extends SelectorRef {
-  html: string;
-  reason: "text_loss" | "flex_order";
-}
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function cssOffUnderstandableViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const hit = await page.evaluate((): CssOffHit | null => {
+  const hit = await page.evaluate((hitCaptureSrc) => {
+    const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+      captureHit: (el: Element) => CapturedHit;
+    };
+
     function visibleTextLength(): number {
       return document.body.innerText.replace(/\s+/g, " ").trim().length;
     }
@@ -72,11 +72,13 @@ export async function cssOffUnderstandableViolation(
           document.querySelector("main") ??
           document.querySelector('[role="main"]') ??
           document.body;
-        const html = main.outerHTML.replace(/\s+/g, " ").trim();
+        const captured = captureHit(main);
         return {
-          html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          id: main.id, role: main.getAttribute("role"), tagName: main.tagName,
-          reason: "text_loss",
+          html: captured.html,
+          id: captured.id,
+          role: captured.role,
+          tagName: captured.tagName,
+          reason: "text_loss" as const,
         };
       }
     } finally {
@@ -85,16 +87,18 @@ export async function cssOffUnderstandableViolation(
 
     if (orderDependents.length > 0) {
       const el = orderDependents[0]!;
-      const html = el.outerHTML.replace(/\s+/g, " ").trim();
+      const captured = captureHit(el);
       return {
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
-        reason: "flex_order",
+        html: captured.html,
+        id: captured.id,
+        role: captured.role,
+        tagName: captured.tagName,
+        reason: "flex_order" as const,
       };
     }
 
     return null;
-  });
+  }, BROWSER_HIT_CAPTURE_SRC);
 
   if (!hit) return null;
 

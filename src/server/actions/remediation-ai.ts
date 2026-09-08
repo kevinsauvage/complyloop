@@ -50,11 +50,6 @@ export async function generateAiExplanationAction(
 
       const explanation = await generateAiExplanation(finding, control);
       if (!explanation) {
-        reportWarning("AI explanation unavailable or failed", {
-          code: "ai_explanation_failed",
-          findingId,
-          projectId: finding.projectId,
-        });
         throw new PublicError(
           "AI explanation unavailable. Check AI credentials or try again.",
         );
@@ -98,11 +93,6 @@ export async function generateAiRemediationAction(
 
       const result = await generateAiRemediation(finding, control);
       if (!result) {
-        reportWarning("AI remediation unavailable or failed", {
-          code: "ai_remediation_failed",
-          findingId,
-          projectId: finding.projectId,
-        });
         throw new PublicError(
           "AI remediation unavailable. Check AI credentials or try again.",
         );

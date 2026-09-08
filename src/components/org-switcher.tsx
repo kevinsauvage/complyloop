@@ -3,6 +3,8 @@
 import type { Organization } from "@complyloop/analysis-core/contract/project-types";
 import { switchOrgAction } from "@/server/actions/org";
 import { Label } from "@/components/ui/label";
+import { nativeSelectClass } from "@/components/ui/native-select";
+import { cn } from "@/lib/utils";
 
 export function OrgSwitcher({
   organizations,
@@ -22,7 +24,7 @@ export function OrgSwitcher({
         id="org-switcher"
         name="orgId"
         defaultValue={activeOrgId}
-        className="h-8 max-w-48 truncate rounded-lg border border-input bg-background px-2.5 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
+        className={cn(nativeSelectClass, "max-w-48 truncate")}
         onChange={(event) => event.currentTarget.form?.requestSubmit()}
       >
         {organizations.map((org) => (

@@ -1,11 +1,16 @@
 import type { Page } from "playwright";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function mediaIdentificationViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const nodes = await page.evaluate(() => {
+  const nodes = await page.evaluate((hitCaptureSrc) => {
+    const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+      captureHit: (el: Element) => CapturedHit;
+    };
+
     function hasAccessibleName(el: Element): boolean {
       const ariaLabel = el.getAttribute("aria-label");
       if (ariaLabel && ariaLabel.trim().length > 0) return true;
@@ -32,22 +37,18 @@ export async function mediaIdentificationViolation(
       return false;
     }
 
-    const violations: Array<{ html: string; id: string; role: string | null; tagName: string }> = [];
+    const violations: CapturedHit[] = [];
     for (const el of document.querySelectorAll("embed, canvas")) {
       if (el.getAttribute("role") === "presentation") continue;
       if (el.getAttribute("aria-hidden") === "true") continue;
       if (hasAccessibleName(el) || hasAdjacentAlternative(el)) continue;
 
-      const html = el.outerHTML.replace(/\s+/g, " ").trim();
-      violations.push({
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
-      });
+      violations.push(captureHit(el));
       if (violations.length >= 5) break;
     }
 
     return violations;
-  });
+  }, BROWSER_HIT_CAPTURE_SRC);
 
   if (nodes.length === 0) return null;
 

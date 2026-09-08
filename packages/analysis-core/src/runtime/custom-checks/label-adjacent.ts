@@ -3,6 +3,7 @@ import {
   gapBetweenRects,
   MAX_LABEL_GAP_PX,
 } from "./label-adjacent-math.ts";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
@@ -11,12 +12,15 @@ export async function labelAdjacentViolation(
 ): Promise<CustomViolation | null> {
   const gapSource = gapBetweenRects.toString();
   const nodes = await page.evaluate(
-    ({ maxGap, gapFnSource }) => {
+    ({ maxGap, gapFnSource, hitCaptureSrc }) => {
       const gapBetween = new Function(
         "a",
         "b",
         `${gapFnSource}; return gapBetweenRects(a, b);`,
       ) as (a: DOMRect, b: DOMRect) => number;
+      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+        captureHit: (el: Element) => CapturedHit;
+      };
 
       function skipLayout(label: Element, field: Element): boolean {
         let ancestor = label.parentElement;
@@ -47,7 +51,7 @@ export async function labelAdjacentViolation(
         return false;
       }
 
-      const violations: Array<{ html: string; id: string; role: string | null; tagName: string }> = [];
+      const violations: CapturedHit[] = [];
       const fields = document.querySelectorAll(
         'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea',
       );
@@ -65,17 +69,17 @@ export async function labelAdjacentViolation(
         if (fieldRect.width === 0 || labelRect.width === 0) continue;
         if (gapBetween(labelRect, fieldRect) <= maxGap) continue;
 
-        const html = field.outerHTML.replace(/\s+/g, " ").trim();
-        violations.push({
-          html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          id: field.id, role: field.getAttribute("role"), tagName: field.tagName,
-        });
+        violations.push(captureHit(field));
         if (violations.length >= 5) break;
       }
 
       return violations;
     },
-    { maxGap: MAX_LABEL_GAP_PX, gapFnSource: gapSource },
+    {
+      maxGap: MAX_LABEL_GAP_PX,
+      gapFnSource: gapSource,
+      hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
+    },
   );
 
   if (nodes.length === 0) return null;

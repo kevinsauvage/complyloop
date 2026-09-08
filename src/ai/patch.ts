@@ -3,7 +3,7 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { type Finding } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import { aiCall } from "./ai-call";
+import { AI_PATCH_UNAVAILABLE_MESSAGE, aiCall } from "./ai-call";
 import { AI_MODEL } from "./model";
 import type { ProposedFixEdits } from "./verified-fix";
 
@@ -43,9 +43,7 @@ export async function proposeFixEdits(
   input: ProposeFixEditsInput,
 ): Promise<ProposedFixEdits> {
   if (input.aiAvailable === false) {
-    throw new PublicError(
-      "Generating a patch requires AI (set AI_GATEWAY_API_KEY) or a deterministic fix template for this Finding. Use the developer handoff to fix it manually.",
-    );
+    throw new PublicError(AI_PATCH_UNAVAILABLE_MESSAGE);
   }
   if (input.finding.location.kind !== "source") {
     throw new PublicError("AI patch generation requires a source Finding.");
@@ -76,11 +74,6 @@ export async function proposeFixEdits(
     ],
   });
 
-  if (!object) {
-    throw new PublicError(
-      "AI patch generation failed. Re-run the assessment and try again, or use the developer handoff to fix it manually.",
-    );
-  }
   if (object.edits.length === 0) {
     throw new PublicError("AI patch must contain at least one edit.");
   }

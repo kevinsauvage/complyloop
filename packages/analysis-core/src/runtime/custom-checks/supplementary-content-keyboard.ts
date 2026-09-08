@@ -1,42 +1,43 @@
 import type { Page } from "playwright";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
+import {
+  isKeyboardFocusable,
+  selectorOf,
+} from "./widget-keyboard-utils.ts";
 
-interface SupplementaryHit extends SelectorRef {
-  html: string;
-}
+const BROWSER_HELPERS = `(function helperSource() {
+  const hit = (${BROWSER_HIT_CAPTURE_SRC});
+  ${isKeyboardFocusable.toString()}
+  return { captureHit: hit.captureHit, isKeyboardFocusable };
+})()`;
 
 export async function supplementaryContentKeyboardViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const nodes = await page.evaluate((): SupplementaryHit[] => {
-    function isFocusable(el: Element): boolean {
-      if (!(el instanceof HTMLElement)) return false;
-      if (el.matches('[tabindex="-1"]')) return false;
-      if (el.matches("a[href], button, input, select, textarea")) return true;
-      const tabIndex = el.getAttribute("tabindex");
-      return tabIndex !== null && tabIndex !== "-1";
-    }
+  const nodes = await page.evaluate((helperSrc) => {
+    const { captureHit, isKeyboardFocusable } = new Function(
+      `return (${helperSrc})`,
+    )() as {
+      captureHit: (el: Element) => CapturedHit;
+      isKeyboardFocusable: (el: Element) => boolean;
+    };
 
-    const violations: SupplementaryHit[] = [];
+    const violations: CapturedHit[] = [];
 
     for (const el of document.querySelectorAll("[title]")) {
-      if (!isFocusable(el)) continue;
+      if (!isKeyboardFocusable(el)) continue;
       const title = (el.getAttribute("title") ?? "").trim();
       if (title.length < 4) continue;
       if (el.getAttribute("aria-describedby")) continue;
       if (el.hasAttribute("aria-expanded")) continue;
 
-      const html = el.outerHTML.replace(/\s+/g, " ").trim();
-      violations.push({
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
-      });
+      violations.push(captureHit(el));
       if (violations.length >= 5) return violations;
     }
 
     for (const el of document.querySelectorAll("[aria-haspopup='true']")) {
-      if (!isFocusable(el)) continue;
+      if (!isKeyboardFocusable(el)) continue;
       if (el.getAttribute("aria-expanded") === "true") continue;
       const controls = el.getAttribute("aria-controls");
       if (!controls) continue;
@@ -49,16 +50,12 @@ export async function supplementaryContentKeyboardViolation(
         style.opacity === "0";
       if (!hidden) continue;
 
-      const html = el.outerHTML.replace(/\s+/g, " ").trim();
-      violations.push({
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
-      });
+      violations.push(captureHit(el));
       if (violations.length >= 5) return violations;
     }
 
     return violations;
-  });
+  }, BROWSER_HELPERS);
 
   if (nodes.length === 0) return null;
 

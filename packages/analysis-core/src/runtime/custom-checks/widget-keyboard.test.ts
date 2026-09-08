@@ -30,6 +30,10 @@ describe("isKeyboardFocusable", () => {
     div.setAttribute("tabindex", "-1");
     expect(isKeyboardFocusable(div)).toBe(false);
 
+    const button = document.createElement("button");
+    button.setAttribute("tabindex", "-1");
+    expect(isKeyboardFocusable(button)).toBe(false);
+
     const hidden = document.createElement("input");
     hidden.type = "hidden";
     expect(isKeyboardFocusable(hidden)).toBe(false);

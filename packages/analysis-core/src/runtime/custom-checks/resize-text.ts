@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
@@ -8,36 +9,41 @@ export async function resizeTextViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   try {
-    const hit = await page.evaluate((fontScale) => {
-      document.documentElement.style.fontSize = fontScale;
+    const hit = await page.evaluate(
+      ({ fontScale, hitCaptureSrc }) => {
+        const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+          captureHit: (el: Element) => CapturedHit;
+        };
 
-      const clipped = Array.from(document.querySelectorAll("body *")).find((el) => {
-        if (!(el instanceof HTMLElement)) return false;
-        const style = getComputedStyle(el);
-        if (style.overflowX === "auto" || style.overflowX === "scroll") {
-          return false;
-        }
-        if (el.closest("table, [role='grid'], [role='treegrid']")) {
-          return false;
-        }
-        const overflows =
-          el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
-        const hidden =
-          style.overflow === "hidden" ||
-          style.overflowX === "hidden" ||
-          style.overflowY === "hidden" ||
-          style.textOverflow === "ellipsis";
-        return overflows && hidden;
-      });
+        document.documentElement.style.fontSize = fontScale;
 
-      if (!clipped) return null;
+        const clipped = Array.from(document.querySelectorAll("body *")).find(
+          (el) => {
+            if (!(el instanceof HTMLElement)) return false;
+            const style = getComputedStyle(el);
+            if (style.overflowX === "auto" || style.overflowX === "scroll") {
+              return false;
+            }
+            if (el.closest("table, [role='grid'], [role='treegrid']")) {
+              return false;
+            }
+            const overflows =
+              el.scrollWidth > el.clientWidth + 1 ||
+              el.scrollHeight > el.clientHeight + 1;
+            const hidden =
+              style.overflow === "hidden" ||
+              style.overflowX === "hidden" ||
+              style.overflowY === "hidden" ||
+              style.textOverflow === "ellipsis";
+            return overflows && hidden;
+          },
+        );
 
-      const html = clipped.outerHTML.replace(/\s+/g, " ").trim();
-      return {
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: clipped.id, role: clipped.getAttribute("role"), tagName: clipped.tagName,
-      };
-    }, FONT_SCALE);
+        if (!clipped) return null;
+        return captureHit(clipped);
+      },
+      { fontScale: FONT_SCALE, hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC },
+    );
 
     if (!hit) return null;
     return {

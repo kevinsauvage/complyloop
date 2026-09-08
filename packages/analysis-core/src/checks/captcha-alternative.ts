@@ -5,7 +5,12 @@ import {
   CAPTCHA_TOKEN,
   matchesMultilingual,
 } from "../patterns/multilingual.ts";
-import { descendantTags, textContentOf } from "./heuristic-utils.ts";
+import {
+  attributeContextOf,
+  descendantTags,
+  tagNodeOfJsxChild,
+  textContentOf,
+} from "./heuristic-utils.ts";
 import {
   getAttribute,
   jsxElementOf,
@@ -22,12 +27,7 @@ const CAPTCHA_HOSTS = new Set<string>(CAPTCHA_COMPONENT_HOSTS);
 function isCaptchaHost(node: JsxTagNode): boolean {
   const tag = tagNameOf(node);
   if (CAPTCHA_HOSTS.has(tag)) return true;
-  const className =
-    getAttribute(node, "className") ?? getAttribute(node, "class");
-  const classText = className ? (stringValueOf(className) ?? "") : "";
-  const id = getAttribute(node, "id");
-  const idText = id ? (stringValueOf(id) ?? "") : "";
-  return matchesMultilingual(CAPTCHA_TOKEN, `${tag} ${classText} ${idText}`);
+  return matchesMultilingual(CAPTCHA_TOKEN, attributeContextOf(node));
 }
 
 function controlLabel(tag: JsxTagNode): string {
@@ -69,11 +69,7 @@ function containerHasAlternative(node: JsxTagNode): boolean {
 
   for (const child of parent.children) {
     if (child === self) continue;
-    const tag = ts.isJsxElement(child)
-      ? child.openingElement
-      : ts.isJsxSelfClosingElement(child)
-        ? child
-        : undefined;
+    const tag = tagNodeOfJsxChild(child);
     if (!tag) continue;
     if (subtreeHasAlternative(tag)) return true;
     const tagName = tagNameOf(tag);

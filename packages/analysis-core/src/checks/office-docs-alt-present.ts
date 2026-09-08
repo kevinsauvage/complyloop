@@ -1,4 +1,3 @@
-import ts from "typescript";
 import { isPropSpreadingHost } from "../jsx-primitives.ts";
 import {
   getAttribute,
@@ -9,7 +8,7 @@ import {
   type JsxTagNode,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
-import { textContentOf } from "./heuristic-utils.ts";
+import { hasAdjacentTagMatching, textContentOf } from "./heuristic-utils.ts";
 
 const OFFICE_DOC_HREF = /\.(pdf|docx?|odt|pptx?|xlsx?)(\?|#|$)/i;
 const HTML_ALTERNATIVE_HREF = /\.(html?|txt)(\?|#|$)/i;
@@ -20,30 +19,13 @@ function hrefOf(node: JsxTagNode): string | undefined {
 }
 
 function hasAdjacentHtmlAlternative(node: JsxTagNode): boolean {
-  const self = ts.isJsxOpeningElement(node) ? node.parent : node;
-  const parent = self.parent;
-  if (!ts.isJsxElement(parent) && !ts.isJsxFragment(parent)) return false;
-  const siblings = parent.children;
-  const index = siblings.indexOf(self);
-  if (index < 0) return false;
-
-  for (let current = index + 1; current < siblings.length; current += 1) {
-    const sibling = siblings[current];
-    if (!sibling) continue;
-    if (ts.isJsxText(sibling) && sibling.text.trim().length === 0) continue;
-    const siblingTag = ts.isJsxElement(sibling)
-      ? sibling.openingElement
-      : ts.isJsxSelfClosingElement(sibling)
-        ? sibling
-        : undefined;
-    if (!siblingTag) return false;
+  return hasAdjacentTagMatching(node, (siblingTag, siblingElement) => {
     if (tagNameOf(siblingTag) !== "a") return false;
     const href = hrefOf(siblingTag);
     if (href && HTML_ALTERNATIVE_HREF.test(href)) return true;
-    if (!ts.isJsxElement(sibling)) return false;
-    return textContentOf(sibling).trim().length > 20;
-  }
-  return false;
+    if (!siblingElement) return false;
+    return textContentOf(siblingElement).trim().length > 20;
+  });
 }
 
 export const officeDocsAltPresentCheck: AccessibilityCheck = {

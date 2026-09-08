@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { applyFix, describeFix } from "@complyloop/analysis-core/fixes";
 import { scanChangedFiles } from "@complyloop/analysis-core/scan";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
+import { AI_PATCH_UNAVAILABLE_MESSAGE } from "@/ai/ai-call";
 import { proposeFixEdits } from "@/ai/patch";
 import {
   assertSourceLocatedFinding,
@@ -106,9 +107,7 @@ export async function runAiFixOnCheckout(
           }));
 
   if (deterministic === null && options.aiAvailable === false) {
-    throw new PublicError(
-      "Generating a patch requires AI (set AI_GATEWAY_API_KEY) or a deterministic fix template for this Finding. Use the developer handoff to fix it manually.",
-    );
+    throw new PublicError(AI_PATCH_UNAVAILABLE_MESSAGE);
   }
 
   return generatePatchCandidate({

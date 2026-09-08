@@ -2,34 +2,35 @@ import type { Page } from "playwright";
 import {
   CAPTCHA_ALTERNATIVE,
   CAPTCHA_TOKEN,
-  foldAccents,
-  matchesMultilingual,
+  RUNTIME_MATCHES_SRC,
 } from "../../patterns/multilingual.ts";
 import { collectCaptchaCandidates } from "./captcha-candidates.ts";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
-const FOLD_ACCENTS_SOURCE = foldAccents.toString();
-const MATCHES_MULTILINGUAL_SOURCE = matchesMultilingual.toString();
 const COLLECT_CAPTCHA_SOURCE = collectCaptchaCandidates.toString();
 
 export async function captchaAlternativeViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const nodes = await page.evaluate(
-    ({ captchaSource, alternativeSource, foldSrc, matchesSrc, collectSrc }) => {
+    ({ captchaSource, alternativeSource, matchesSrc, collectSrc, hitCaptureSrc }) => {
       const captcha = new RegExp(captchaSource, "i");
       const alternative = new RegExp(alternativeSource, "i");
 
-      const matchesPattern = new Function(
-        "pattern",
-        "text",
-        `${foldSrc}; ${matchesSrc}; return matchesMultilingual(pattern, text);`,
-      ) as (pattern: RegExp, text: string) => boolean;
+      const matchesPattern = new Function("pattern", "text", matchesSrc) as (
+        pattern: RegExp,
+        text: string,
+      ) => boolean;
 
       const collectCandidates = new Function(
         `return (${collectSrc})`,
       )() as (doc?: Document) => Element[];
+
+      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+        captureHit: (el: Element) => CapturedHit;
+      };
 
       function hasAlternative(container: Element): boolean {
         for (const el of container.querySelectorAll("a, button, audio")) {
@@ -41,10 +42,10 @@ export async function captchaAlternativeViolation(
         return container.querySelector("audio") !== null;
       }
 
-      const violations: Array<{ html: string; id: string; role: string | null; tagName: string }> = [];
+      const violations: CapturedHit[] = [];
 
       for (const el of collectCandidates(document)) {
-        const html = el.outerHTML.replace(/\s+/g, " ").trim();
+        const html = el.outerHTML;
         const src = el.getAttribute("src") ?? "";
         const cls = el.getAttribute("class") ?? "";
         const id = el.getAttribute("id") ?? "";
@@ -53,10 +54,7 @@ export async function captchaAlternativeViolation(
         const container = el.closest("form, section, div") ?? el.parentElement ?? el;
         if (hasAlternative(container)) continue;
 
-        violations.push({
-          html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
-        });
+        violations.push(captureHit(el));
         if (violations.length >= 5) break;
       }
 
@@ -65,9 +63,9 @@ export async function captchaAlternativeViolation(
     {
       captchaSource: CAPTCHA_TOKEN.source,
       alternativeSource: CAPTCHA_ALTERNATIVE.source,
-      foldSrc: FOLD_ACCENTS_SOURCE,
-      matchesSrc: MATCHES_MULTILINGUAL_SOURCE,
+      matchesSrc: RUNTIME_MATCHES_SRC,
       collectSrc: COLLECT_CAPTCHA_SOURCE,
+      hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
     },
   );
 

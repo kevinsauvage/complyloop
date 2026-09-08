@@ -1,15 +1,16 @@
 import type { Page } from "playwright";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
-
-interface CssContentHit extends SelectorRef {
-  html: string;
-}
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function cssDisabledContentViolations(
   page: Page,
 ): Promise<CustomViolation[]> {
-  const hits = await page.evaluate((): CssContentHit[] => {
+  const hits = await page.evaluate((hitCaptureSrc) => {
+    const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+      captureHit: (el: Element) => CapturedHit;
+    };
+
     function hasVisibleDomText(el: Element): boolean {
       return (el.textContent ?? "").trim().length > 0;
     }
@@ -36,7 +37,7 @@ export async function cssDisabledContentViolations(
       return /\p{L}{2,}/u.test(text);
     }
 
-    const results: CssContentHit[] = [];
+    const results: CapturedHit[] = [];
 
     for (const el of document.querySelectorAll("body *")) {
       if (!(el instanceof HTMLElement)) continue;
@@ -56,15 +57,11 @@ export async function cssDisabledContentViolations(
       const hasBgImage = bg && bg !== "none";
       if (!looksLikeWords(pseudoText) && !hasBgImage) continue;
 
-      const html = el.outerHTML.replace(/\s+/g, " ").trim();
-      results.push({
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
-      });
+      results.push(captureHit(el));
     }
 
     return results;
-  });
+  }, BROWSER_HIT_CAPTURE_SRC);
 
   if (hits.length === 0) return [];
 

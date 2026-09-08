@@ -17,6 +17,7 @@ import {
   requirementStatusDisplay,
   severityDisplay,
 } from "@/core/status-display";
+import { countByStatus } from "@/core/count-by-status";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { prioritizeClusters } from "@/core/prioritization";
 import {
@@ -33,20 +34,6 @@ export interface ReportInput {
   remediations: Remediation[];
   evidence: EvidenceRecord[];
   exportedAt: string;
-}
-
-function countByStatus<T extends string>(
-  items: readonly { status: T }[],
-  statuses: readonly T[],
-): Record<T, number> {
-  const counts = Object.fromEntries(statuses.map((status) => [status, 0])) as Record<
-    T,
-    number
-  >;
-  for (const item of items) {
-    counts[item.status] += 1;
-  }
-  return counts;
 }
 
 function countRequirementsByStatus(

@@ -1,7 +1,8 @@
 import type { Page } from "playwright";
 import { TARGET_SIZE_ENHANCED_MIN_PX } from "../viewport-conditions.ts";
+import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 const CONTROL_SELECTOR = [
   "button:not([disabled])",
@@ -12,8 +13,7 @@ const CONTROL_SELECTOR = [
   '[role="button"]:not([aria-disabled="true"])',
 ].join(", ");
 
-type TargetHit = SelectorRef & {
-  html: string;
+type TargetHit = CapturedHit & {
   failureSummary: string;
 };
 
@@ -26,7 +26,11 @@ export async function targetSizeEnhancedViolation(
 ): Promise<CustomViolation | null> {
   const minSize = TARGET_SIZE_ENHANCED_MIN_PX;
   const hits = await page.evaluate(
-    ({ selector, minPx }) => {
+    ({ selector, minPx, hitCaptureSrc }) => {
+      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
+        captureHit: (el: Element) => CapturedHit;
+      };
+
       function isInlineInText(el: HTMLElement): boolean {
         const display = getComputedStyle(el).display;
         if (display !== "inline") return false;
@@ -45,19 +49,23 @@ export async function targetSizeEnhancedViolation(
         if (isInlineInText(el)) continue;
         if (rect.width >= minPx && rect.height >= minPx) continue;
 
-        const html = el.outerHTML.replace(/\s+/g, " ").trim();
+        const captured = captureHit(el);
         found.push({
-          html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          id: el.id,
-          role: el.getAttribute("role"),
-          tagName: el.tagName,
+          html: captured.html,
+          id: captured.id,
+          role: captured.role,
+          tagName: captured.tagName,
           failureSummary: `Target is ${Math.round(rect.width)}×${Math.round(rect.height)} CSS pixels (needs ${minPx}×${minPx}).`,
         });
         if (found.length >= 5) break;
       }
       return found;
     },
-    { selector: CONTROL_SELECTOR, minPx: minSize },
+    {
+      selector: CONTROL_SELECTOR,
+      minPx: minSize,
+      hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
+    },
   );
 
   if (hits.length === 0) return null;

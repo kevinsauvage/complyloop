@@ -212,14 +212,21 @@ export async function withProjectLock<T>(
   });
 }
 
+interface LockedTenancyContext {
+  tx: DrizzleDb;
+  db: Db;
+  userId: string;
+  githubLogin: string | null;
+}
+
 /**
- * Org-scoped mutation. The callback returns the rows to persist — no
- * JSON-diff of the in-memory slice.
+ * Shared auth → user-scoped org advisory lock → tenancy load. Used by
+ * {@link withOrgWrite} and {@link withConnectWrite}; row-persist loops stay
+ * in those callers.
  */
-export async function withOrgWrite<T>(
-  fn: (
-    ctx: OrgWriteContext,
-  ) => Promise<(OrgWritePayload & { result: T })> | (OrgWritePayload & { result: T }),
+async function withLockedTenancy<T>(
+  options: { activeProjectId: string | null },
+  fn: (ctx: LockedTenancyContext) => Promise<T>,
 ): Promise<T> {
   const session = await auth();
   const userId = session?.user?.id ?? null;
@@ -232,8 +239,22 @@ export async function withOrgWrite<T>(
     const db = await loadTenancyDb(tx, {
       userId,
       githubLogin,
-      activeProjectId: null,
+      activeProjectId: options.activeProjectId,
     });
+    return fn({ tx, db, userId, githubLogin });
+  });
+}
+
+/**
+ * Org-scoped mutation. The callback returns the rows to persist — no
+ * JSON-diff of the in-memory slice.
+ */
+export async function withOrgWrite<T>(
+  fn: (
+    ctx: OrgWriteContext,
+  ) => Promise<(OrgWritePayload & { result: T })> | (OrgWritePayload & { result: T }),
+): Promise<T> {
+  return withLockedTenancy({ activeProjectId: null }, async ({ tx, db, userId, githubLogin }) => {
     const organizations = orgsForUser(db, userId);
     const {
       result,
@@ -285,19 +306,7 @@ export async function withConnectWrite<T>(
     | Promise<ConnectWritePayload & { result: T }>
     | (ConnectWritePayload & { result: T }),
 ): Promise<T> {
-  const session = await auth();
-  const userId = session?.user?.id ?? null;
-  const githubLogin = session?.user?.login ?? null;
-  if (!userId) throw new PublicError("Sign in to continue.");
-
-  const drizzle = await getDrizzle();
-  return drizzle.transaction(async (tx) => {
-    await acquireNamedPostgresAdvisoryLock(tx, orgWriteLockKey(userId));
-    const db = await loadTenancyDb(tx, {
-      userId,
-      githubLogin,
-      activeProjectId: options.activeProjectId,
-    });
+  return withLockedTenancy(options, async ({ tx, db, userId, githubLogin }) => {
     const { result, insertProjects, deleteProjectIds, evidence } = await fn({
       db,
       userId,

@@ -1,4 +1,5 @@
 import { latestAssessmentFor } from "@/core/assessment";
+import { countByStatus } from "@/core/count-by-status";
 import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
 import {
   scanRuntime,
@@ -6,7 +7,7 @@ import {
 } from "@complyloop/analysis-core/runtime/scan";
 import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
-import { formatLocationRef, isSourceLocation } from "@complyloop/analysis-core/contract/location";
+import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   type Assessment,
@@ -20,7 +21,9 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
 import { advanceRemediation } from "@/core/remediation";
-import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import {
+  REQUIREMENT_STATUSES,
+} from "@complyloop/analysis-core/contract/statuses";
 import type { Db } from "./db";
 import { detectChanges, summarizeChanges } from "./monitor";
 import {
@@ -41,6 +44,7 @@ import {
   cloneProjectRows,
   type ProjectRows,
 } from "./project-rows";
+import { remediationEvidenceSummary } from "./remediation-evidence";
 
 interface RuntimeScanEngineInput {
   pagesScanned: number;
@@ -131,7 +135,7 @@ function verifyDraftPrRemediation(
   };
   appendEvidence(rows, {
     kind: "remediation_implemented",
-    summary: `Remediation implemented for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+    summary: remediationEvidenceSummary("implemented", finding),
     projectId: finding.projectId,
     controlId: finding.controlId,
     findingId: finding.id,
@@ -140,7 +144,7 @@ function verifyDraftPrRemediation(
   });
   appendEvidence(rows, {
     kind: "remediation_verified",
-    summary: `Remediation verified for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+    summary: remediationEvidenceSummary("verified", finding),
     projectId: finding.projectId,
     controlId: finding.controlId,
     findingId: finding.id,
@@ -271,18 +275,11 @@ export async function runAssessment(
     controls: options.controls,
   });
 
-  const summary: Record<RequirementStatus, number> = {
-    passed: 0,
-    failed: 0,
-    needs_review: 0,
-    not_applicable: 0,
-    unable_to_verify: 0,
-  };
   const inScope = scopedControlIds(project);
-  for (const requirement of rows.requirements) {
-    if (inScope && !inScope.has(requirement.controlId)) continue;
-    summary[requirement.status] += 1;
-  }
+  const scopedRequirements = rows.requirements.filter(
+    (requirement) => !inScope || inScope.has(requirement.controlId),
+  );
+  const summary = countByStatus(scopedRequirements, REQUIREMENT_STATUSES);
 
   const assessment: Assessment = {
     id: assessmentId,
