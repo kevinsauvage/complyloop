@@ -8,11 +8,8 @@ Unnecessary-complexity audit of the whole repo (src/, packages/, scripts/, confi
 
 ## P2 — worthwhile simplifications
 
-### 11. Single-function modules + misfiled checkout limits
-
-- **Problem:** one-export, one-importer modules: `sanitizeDownloadFilename` (importer: report route), `pullRequestUrlFromEvidence` (importer: findings page), `assertCheckoutWithinQuota` (importer: `repo-checkout.ts`). Additionally `packages/analysis-core/src/contract/assessment-limits.ts` hosts `maxCheckoutBytes`/`maxCheckoutFiles` (:8–14) whose only consumer is `src/server/resource-limits.ts` — checkout size is a platform concern, not an analysis-engine concern (`maxRuntimePages` genuinely belongs in the contract).
-- **Simplification:** inline each single-function module into its only consumer (`pullRequestUrlFromEvidence` → `ai-fix.ts` next to `patchCandidateFromEvidence`, which does the same reverse-scan; move the env-var defaults with `assertCheckoutWithinQuota`). Move the two checkout-limit functions into `repo-checkout.ts`/`resource-limits.ts` and delete them from the contract. Keep `maxRuntimePages` in `assessment-limits.ts`.
-- **Verification:** DoD passes; export route still sets `Content-Disposition` (one manual download); `npm run test -- packages/analysis-core` passes.
+~~### 11. Single-function modules + misfiled checkout limits~~ **DONE**
+Inlined `sanitizeDownloadFilename` into the report route, `pullRequestUrlFromEvidence` into `ai-fix.ts`, and checkout quota helpers into `repo-checkout.ts`. Contract keeps only `maxRuntimePages`.
 
 ~~### 17. Dashboard workspace toolbar duplicates the global strip, with a client "gate" patching the overlap~~ **DONE**
 Dropped hero toolbar + `WorkspaceContextRouteGate`; dashboard uses the same global `WorkspaceContext` strip as every other page.

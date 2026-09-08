@@ -1,4 +1,3 @@
-import { sanitizeDownloadFilename } from "@/server/download-filename";
 import {
   buildAuditReportMarkdown,
   buildEngineeringReportMarkdown,
@@ -6,6 +5,20 @@ import {
 import { loadReportInput } from "@/server/report";
 
 export const dynamic = "force-dynamic";
+
+function sanitizeDownloadFilename(
+  raw: string,
+  fallback = "download",
+): string {
+  const cleaned = raw
+    .normalize("NFKD")
+    .replace(/\.\.+/g, "")
+    .replace(/[^\w.\-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+  return cleaned.length > 0 ? cleaned : fallback;
+}
 
 export async function GET(request: Request): Promise<Response> {
   const context = await loadReportInput(request);

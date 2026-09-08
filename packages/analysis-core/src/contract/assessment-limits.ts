@@ -5,14 +5,7 @@ function positiveEnv(name: string, fallback: number): number {
   return Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
-export function maxCheckoutBytes(): number {
-  return positiveEnv("ASSESSMENT_MAX_CHECKOUT_BYTES", 500 * 1024 * 1024);
-}
-
-export function maxCheckoutFiles(): number {
-  return positiveEnv("ASSESSMENT_MAX_CHECKOUT_FILES", 50_000);
-}
-
+/** Cap on pages visited during a runtime assessment pass. */
 export function maxRuntimePages(): number {
   return positiveEnv("ASSESSMENT_MAX_RUNTIME_PAGES", 25);
 }
