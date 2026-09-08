@@ -9,6 +9,7 @@ const domIncludes = [
   "packages/analysis-core/src/runtime/custom-checks/hit-capture.test.ts",
   "packages/analysis-core/src/runtime/custom-checks/widget-keyboard.test.ts",
   "packages/analysis-core/src/runtime/custom-checks/captcha-candidates.test.ts",
+  "packages/analysis-core/src/runtime/custom-checks/is-layout-table.test.ts",
 ];
 
 const unitIncludes = [

@@ -2,16 +2,12 @@
 
 ## P0 — Correctness / consistency
 
-### D2. Layout-table “is layout table?” predicate copied in applicability + probe
+### D2. Layout-table “is layout table?” predicate copied in applicability + probe — DONE
 
 - **Priority:** P0
-- **Duplication:** Identical `isLayoutTable` logic in two evaluate callbacks.
-- **Evidence:**
-  - `packages/analysis-core/src/runtime/custom-checks/layout-table-linearization.ts` (`isLayoutTable`)
-  - `packages/analysis-core/src/runtime/applicability.ts` (`isLayoutTable` inside `applicabilityObservationsForPage`)
-- **Impact:** Applicability marks `layout-table-linearization` N/A when “no layout table”; if predicates drift, requirements can be `not_applicable` while the probe still finds (or misses) violations.
-- **Fix:** Move `isLayoutTable` to a leaf module (no imports), export `IS_LAYOUT_TABLE_SRC = isLayoutTable.toString()`, inject in both evaluate payloads (same pattern as `hit-capture.ts` / `captcha-candidates.ts`).
-- **Verification:** Unit-test the pure function; applicability + linearization tests share the same HTML fixtures for presentation vs data tables.
+- **Resolution:** Leaf `is-layout-table.ts` + `IS_LAYOUT_TABLE_SRC`; injected in
+  applicability and layout-table-linearization. Shared fixtures in
+  `layout-table-fixtures.ts` for presentation / implicit / data tables.
 
 ---
 

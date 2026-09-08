@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import {
+  documentWithBody,
+  LAYOUT_TABLE_DATA_BODY,
+  LAYOUT_TABLE_IMPLICIT_BODY,
+} from "./layout-table-fixtures";
 import { layoutTableLinearizationViolation } from "./layout-table-linearization";
 import {
   chromiumExecutableAvailable,
@@ -22,16 +27,7 @@ describe("layoutTableLinearizationViolation", () => {
           td:nth-child(3) { left: 120px; top: 40px; }
           td:nth-child(4) { left: 0; top: 40px; }
         </style></head><body>
-          <table>
-            <tr>
-              <td>Alpha one</td>
-              <td>Bravo two</td>
-            </tr>
-            <tr>
-              <td>Charlie three</td>
-              <td>Delta four</td>
-            </tr>
-          </table>
+          ${LAYOUT_TABLE_IMPLICIT_BODY}
         </body></html>
       `);
       try {
@@ -47,18 +43,9 @@ describe("layoutTableLinearizationViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes real data tables with headers",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
-        <!doctype html><html lang="fr"><body>
-          <table>
-            <caption>Scores</caption>
-            <thead><tr><th scope="col">Nom</th><th scope="col">Points</th></tr></thead>
-            <tbody>
-              <tr><td>Alice</td><td>10</td></tr>
-              <tr><td>Bob</td><td>8</td></tr>
-            </tbody>
-          </table>
-        </body></html>
-      `);
+      const { page, close } = await withPlaywrightPage(
+        documentWithBody(LAYOUT_TABLE_DATA_BODY),
+      );
       try {
         const violation = await layoutTableLinearizationViolation(page);
         expect(violation).toBeNull();

@@ -10,6 +10,12 @@ import {
   registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./custom-checks/playwright-page";
+import {
+  documentWithBody,
+  LAYOUT_TABLE_DATA_BODY,
+  LAYOUT_TABLE_IMPLICIT_BODY,
+  LAYOUT_TABLE_PRESENTATION_BODY,
+} from "./custom-checks/layout-table-fixtures";
 
 registerPlaywrightBrowserTeardown();
 
@@ -161,7 +167,7 @@ describe("applicabilityObservationsForPage", () => {
     "does not emit a layout-table fact for role=presentation tables",
     async () => {
       const { page, close } = await withPlaywrightPage(
-        `<!doctype html><html lang="en"><body><table role="presentation"><tr><td>a</td><td>b</td></tr></table></body></html>`,
+        documentWithBody(LAYOUT_TABLE_PRESENTATION_BODY),
       );
       try {
         const observations = await applicabilityObservationsForPage(
@@ -173,6 +179,52 @@ describe("applicabilityObservationsForPage", () => {
             (obs) => obs.checkId === "layout-table-linearization",
           ),
         ).toBe(false);
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "does not emit a layout-table fact for implicit multi-cell layout tables",
+    async () => {
+      const { page, close } = await withPlaywrightPage(
+        documentWithBody(LAYOUT_TABLE_IMPLICIT_BODY),
+      );
+      try {
+        const observations = await applicabilityObservationsForPage(
+          page,
+          "https://app.example/",
+        );
+        expect(
+          observations.some(
+            (obs) => obs.checkId === "layout-table-linearization",
+          ),
+        ).toBe(false);
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "emits a layout-table fact for data tables (not layout)",
+    async () => {
+      const { page, close } = await withPlaywrightPage(
+        documentWithBody(LAYOUT_TABLE_DATA_BODY),
+      );
+      try {
+        const observations = await applicabilityObservationsForPage(
+          page,
+          "https://app.example/",
+        );
+        expect(
+          observations.some(
+            (obs) => obs.checkId === "layout-table-linearization",
+          ),
+        ).toBe(true);
       } finally {
         await close();
       }

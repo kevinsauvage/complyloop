@@ -8,6 +8,7 @@ import {
   BROWSER_CAPTCHA_MATCH_SRC,
   BROWSER_COLLECT_CAPTCHA_SRC,
 } from "./custom-checks/captcha-candidates.ts";
+import { IS_LAYOUT_TABLE_SRC } from "./custom-checks/is-layout-table.ts";
 
 export interface ApplicabilityObservation {
   checkId: CheckId;
@@ -64,7 +65,7 @@ export async function applicabilityObservationsForPage(
   url: string,
 ): Promise<ApplicabilityObservation[]> {
   const absent = await page.evaluate(
-    ({ captchaSource, matchesSrc, collectSrc, matchSrc }) => {
+    ({ captchaSource, matchesSrc, collectSrc, matchSrc, isLayoutTableSrc }) => {
       const matchesPattern = new Function("pattern", "text", matchesSrc) as (
         pattern: RegExp,
         text: string,
@@ -84,6 +85,10 @@ export async function applicabilityObservationsForPage(
         ) => boolean;
       };
 
+      const isLayoutTable = new Function(`return (${isLayoutTableSrc})`)() as (
+        table: HTMLTableElement,
+      ) => boolean;
+
       const captcha = new RegExp(captchaSource, "i");
 
       function hasCaptcha(): boolean {
@@ -91,16 +96,6 @@ export async function applicabilityObservationsForPage(
           if (elementLooksLikeCaptcha(el, matchesPattern, captcha)) return true;
         }
         return false;
-      }
-
-      function isLayoutTable(table: HTMLTableElement): boolean {
-        // role="presentation" declares a layout table (matches
-        // layout-table-linearization.ts). Header markup makes it a data table.
-        if (table.getAttribute("role") === "presentation") return true;
-        if (table.querySelector("th, caption, [headers], [scope], thead")) {
-          return false;
-        }
-        return table.querySelectorAll("td").length > 1;
       }
 
       function hasLayoutTable(): boolean {
@@ -133,6 +128,7 @@ export async function applicabilityObservationsForPage(
       matchesSrc: RUNTIME_MATCHES_SRC,
       collectSrc: BROWSER_COLLECT_CAPTCHA_SRC,
       matchSrc: BROWSER_CAPTCHA_MATCH_SRC,
+      isLayoutTableSrc: IS_LAYOUT_TABLE_SRC,
     },
   );
 
