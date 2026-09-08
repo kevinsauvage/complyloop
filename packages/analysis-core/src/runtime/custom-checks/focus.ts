@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
-import { captureDomTarget } from "../dom-target.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import {
   hasVisibleFocusIndicator,
   snapshotFocusStyles,
@@ -8,7 +9,6 @@ import { isSuspectedKeyboardTrap } from "./focus-trap.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 
 const MAX_TAB_STEPS = 80;
-const CAPTURE_DOM_TARGET_SOURCE = captureDomTarget.toString();
 const SNAPSHOT_FOCUS_STYLES_SOURCE = snapshotFocusStyles.toString();
 const HAS_VISIBLE_FOCUS_INDICATOR_SOURCE = hasVisibleFocusIndicator.toString();
 const FOCUSABLE_SELECTOR =
@@ -82,7 +82,7 @@ export async function focusCustomViolations(
   return violations;
 }
 
-function toViolationNode(capture: ReturnType<typeof captureDomTarget>): CustomViolationNode {
+function toViolationNode(capture: CapturedHit): CustomViolationNode {
   return {
     html: capture.html,
     target: [capture.selector],
@@ -117,17 +117,17 @@ async function collectFocusVisibleViolations(
 
   for (let step = 0; step < MAX_TAB_STEPS; step++) {
     await page.keyboard.press("Tab");
-    const hit = await page.evaluate(
-      ({
-        captureSrc,
-        snapshotSrc,
-        indicatorSrc,
-        selector,
-        unfocused,
-      }) => {
-        const captureElement = new Function(`return (${captureSrc})`)() as (
-          ...args: Parameters<typeof captureDomTarget>
-        ) => ReturnType<typeof captureDomTarget>;
+    const hit = await pageEvaluateWithHitCapture(
+      page,
+      (
+        captureHit,
+        {
+          snapshotSrc,
+          indicatorSrc,
+          selector,
+          unfocused,
+        },
+      ) => {
         const snapshot = new Function(`return (${snapshotSrc})`)() as typeof snapshotFocusStyles;
         const indicatorVisible = new Function(
           `return (${indicatorSrc})`,
@@ -151,11 +151,10 @@ async function collectFocusVisibleViolations(
         const focused = snapshot(getComputedStyle(el));
         if (indicatorVisible(focused, rest)) return null;
 
-        const capture = captureElement(el);
+        const capture = captureHit(el);
         return { key: capture.selector, capture };
       },
       {
-        captureSrc: CAPTURE_DOM_TARGET_SOURCE,
         snapshotSrc: SNAPSHOT_FOCUS_STYLES_SOURCE,
         indicatorSrc: HAS_VISIBLE_FOCUS_INDICATOR_SOURCE,
         selector: FOCUSABLE_SELECTOR,
@@ -206,11 +205,7 @@ async function detectKeyboardTrap(
 
   if (!isSuspectedKeyboardTrap(sequence)) return null;
 
-  const trap = await page.evaluate((captureSrc) => {
-    const captureElement = new Function(`return (${captureSrc})`)() as (
-      ...args: Parameters<typeof captureDomTarget>
-    ) => ReturnType<typeof captureDomTarget>;
-
+  const trap = await pageEvaluateWithHitCapture(page, (captureHit) => {
     function isIntentionalModalTrap(el: Element | null): boolean {
       if (!el) return false;
       return (
@@ -222,8 +217,8 @@ async function detectKeyboardTrap(
     const el = document.activeElement;
     if (!el || el === document.body || isIntentionalModalTrap(el)) return null;
     if (!(el instanceof HTMLElement)) return null;
-    return captureElement(el);
-  }, CAPTURE_DOM_TARGET_SOURCE);
+    return captureHit(el);
+  });
 
   return trap ? toViolationNode(trap) : null;
 }
@@ -237,12 +232,9 @@ async function collectFocusObscuredViolations(
 
   for (let step = 0; step < MAX_TAB_STEPS; step++) {
     await page.keyboard.press("Tab");
-    const hit = await page.evaluate(
-      ({ captureSrc, enhancedMode }) => {
-        const captureElement = new Function(`return (${captureSrc})`)() as (
-          ...args: Parameters<typeof captureDomTarget>
-        ) => ReturnType<typeof captureDomTarget>;
-
+    const hit = await pageEvaluateWithHitCapture(
+      page,
+      (captureHit, { enhancedMode }) => {
         function pointObscured(el: Element, x: number, y: number): boolean {
           const top = document.elementFromPoint(x, y);
           if (!top) return false;
@@ -291,10 +283,10 @@ async function collectFocusObscuredViolations(
         if (!el.matches(":focus-visible")) return null;
         const obscuredAt = firstObscuredCorner(el, enhancedMode);
         if (!obscuredAt) return null;
-        const capture = captureElement(el, { obscuredAt });
+        const capture = captureHit(el, { obscuredAt });
         return { key: capture.selector, capture };
       },
-      { captureSrc: CAPTURE_DOM_TARGET_SOURCE, enhancedMode: enhanced },
+      { enhancedMode: enhanced },
     );
     if (!hit || seen.has(hit.key)) {
       if (step > 5 && seen.size > 0) break;
@@ -315,11 +307,7 @@ async function collectFocusAppearanceViolations(
 
   for (let step = 0; step < MAX_TAB_STEPS; step++) {
     await page.keyboard.press("Tab");
-    const hit = await page.evaluate((captureSrc) => {
-      const captureElement = new Function(`return (${captureSrc})`)() as (
-        ...args: Parameters<typeof captureDomTarget>
-      ) => ReturnType<typeof captureDomTarget>;
-
+    const hit = await pageEvaluateWithHitCapture(page, (captureHit) => {
       function focusIndicatorTooSmall(el: Element): boolean {
         const style = getComputedStyle(el);
         const outlineWidth = parseFloat(style.outlineWidth) || 0;
@@ -342,9 +330,9 @@ async function collectFocusAppearanceViolations(
       }
       if (!el.matches(":focus-visible")) return null;
       if (!focusIndicatorTooSmall(el)) return null;
-      const capture = captureElement(el);
+      const capture = captureHit(el);
       return { key: capture.selector, capture };
-    }, CAPTURE_DOM_TARGET_SOURCE);
+    });
     if (!hit || seen.has(hit.key)) {
       if (step > 5 && seen.size > 0) break;
       continue;

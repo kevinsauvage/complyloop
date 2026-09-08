@@ -28,6 +28,9 @@ describe("mediaKeyboardViolation", () => {
         });
         const violation = await mediaKeyboardViolation(page);
         expect(violation?.id).toBe("media-keyboard");
+        const node = violation!.nodes[0]!;
+        expect(node.target).toEqual(["audio"]);
+        expect(node.html).toMatch(/^<audio /);
       } finally {
         await close();
       }

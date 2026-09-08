@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
@@ -9,12 +9,9 @@ export async function resizeTextViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   try {
-    const hit = await page.evaluate(
-      ({ fontScale, hitCaptureSrc }) => {
-        const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-          captureHit: (el: Element) => CapturedHit;
-        };
-
+    const hit = await pageEvaluateWithHitCapture(
+      page,
+      (captureHit, { fontScale }) => {
         document.documentElement.style.fontSize = fontScale;
 
         const clipped = Array.from(document.querySelectorAll("body *")).find(
@@ -42,7 +39,7 @@ export async function resizeTextViolation(
         if (!clipped) return null;
         return captureHit(clipped);
       },
-      { fontScale: FONT_SCALE, hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC },
+      { fontScale: FONT_SCALE },
     );
 
     if (!hit) return null;

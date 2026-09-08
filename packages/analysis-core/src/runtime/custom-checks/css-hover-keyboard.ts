@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture, locatorEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import { measureHoverVsFocusReveal } from "./hover-reveal.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
@@ -9,11 +10,7 @@ const MAX_TRIGGERS = 12;
 export async function cssHoverKeyboardViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const stylesheetHits = await page.evaluate((hitCaptureSrc) => {
-    const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-      captureHit: (el: Element) => CapturedHit;
-    };
-
+  const stylesheetHits = await pageEvaluateWithHitCapture(page, (captureHit) => {
     const hits: CapturedHit[] = [];
     const visibilityProps = ["display", "visibility", "opacity", "height", "max-height"];
 
@@ -49,7 +46,7 @@ export async function cssHoverKeyboardViolation(
       }
     }
     return hits;
-  }, BROWSER_HIT_CAPTURE_SRC);
+  });
 
   const interactionHits: CapturedHit[] = [];
   const triggers = page.locator(
@@ -65,12 +62,9 @@ export async function cssHoverKeyboardViolation(
     );
 
     if (hoverLen > beforeLen + 8 && focusLen < hoverLen - 4) {
-      const hit = await trigger.evaluate((el, hitCaptureSrc) => {
-        const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-          captureHit: (el: Element) => CapturedHit;
-        };
-        return captureHit(el);
-      }, BROWSER_HIT_CAPTURE_SRC);
+      const hit = await locatorEvaluateWithHitCapture(trigger, (captureHit, el) =>
+        captureHit(el),
+      );
       interactionHits.push(hit);
       if (interactionHits.length >= 3) break;
     }

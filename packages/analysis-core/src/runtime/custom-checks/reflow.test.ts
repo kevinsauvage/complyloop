@@ -55,6 +55,14 @@ describe("reflowViolation", () => {
       try {
         const violation = await reflowViolation(page);
         expect(violation?.id).toBe("reflow");
+        const node = violation!.nodes[0]!;
+        expect({
+          target: node.target,
+          html: node.html,
+        }).toEqual({
+          target: ["#wide"],
+          html: '<div id="wide" style="width:800px">Wide content that cannot wrap.</div>',
+        });
       } finally {
         await close();
       }

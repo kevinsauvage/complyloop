@@ -1,7 +1,7 @@
 import type { Page } from "playwright";
 import { isTwoDimensionalLayout } from "./reflow-exceptions.ts";
 import { REFLOW_VIEWPORT } from "./reflow-math.ts";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
@@ -11,12 +11,10 @@ export async function reflowViolation(page: Page): Promise<CustomViolation | nul
   const original = page.viewportSize();
   try {
     await page.setViewportSize(REFLOW_VIEWPORT);
-    const hit = await page.evaluate(
-      ({ twoDSrc, hitCaptureSrc }) => {
+    const hit = await pageEvaluateWithHitCapture(
+      page,
+      (captureHit, { twoDSrc }) => {
         const isTwoD = new Function(`return (${twoDSrc})`)() as typeof isTwoDimensionalLayout;
-        const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-          captureHit: (el: Element) => CapturedHit;
-        };
 
         function isExempt(el: Element): boolean {
           let current: Element | null = el;
@@ -51,7 +49,6 @@ export async function reflowViolation(page: Page): Promise<CustomViolation | nul
       },
       {
         twoDSrc: TWO_D_LAYOUT_SOURCE,
-        hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
       },
     );
 

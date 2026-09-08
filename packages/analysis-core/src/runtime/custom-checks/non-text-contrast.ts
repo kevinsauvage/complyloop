@@ -1,6 +1,10 @@
 import type { Locator, Page } from "playwright";
 import { contrastRatio, parseRgb, relativeLuminance } from "./non-text-contrast-math.ts";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import {
+  locatorEvaluateWithHitCapture,
+  pageEvaluateWithHitCapture,
+} from "./hit-capture-evaluate.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
@@ -19,7 +23,6 @@ const MATH_PAYLOAD = {
   parseRgbSrc: parseRgb.toString(),
   luminanceSrc: relativeLuminance.toString(),
   contrastSrc: contrastRatio.toString(),
-  hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
 };
 
 export async function nonTextContrastViolation(
@@ -72,8 +75,9 @@ export async function nonTextContrastViolation(
 }
 
 async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
-  return page.evaluate(
-    ({ parseRgbSrc, luminanceSrc, contrastSrc, controlSelector, hitCaptureSrc }) => {
+  return pageEvaluateWithHitCapture(
+    page,
+    (captureHit, { parseRgbSrc, luminanceSrc, contrastSrc, controlSelector }) => {
       const parseColor = new Function(
         "value",
         `${parseRgbSrc}; return parseRgb(value);`,
@@ -86,9 +90,6 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
         a: [number, number, number],
         b: [number, number, number],
       ) => number;
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
-      };
 
       function backgroundRgb(el: Element): [number, number, number] | null {
         let current: Element | null = el;
@@ -138,10 +139,7 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
 
         const captured = captureHit(el);
         violations.push({
-          html: captured.html,
-          id: captured.id,
-          role: captured.role,
-          tagName: captured.tagName,
+          ...captured,
           state: chromeState(el),
           ratio,
         });
@@ -154,8 +152,9 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
 }
 
 async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
-  return locator.evaluate(
-    (el, { parseRgbSrc, luminanceSrc, contrastSrc, hitCaptureSrc }) => {
+  return locatorEvaluateWithHitCapture(
+    locator,
+    (captureHit, el, { parseRgbSrc, luminanceSrc, contrastSrc }) => {
       const parseColor = new Function(
         "value",
         `${parseRgbSrc}; return parseRgb(value);`,
@@ -168,9 +167,6 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
         a: [number, number, number],
         b: [number, number, number],
       ) => number;
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
-      };
 
       function backgroundRgb(node: Element): [number, number, number] | null {
         let current: Element | null = node;
@@ -194,10 +190,7 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
       if (ratio >= 3) return null;
       const captured = captureHit(el);
       return {
-        html: captured.html,
-        id: captured.id,
-        role: captured.role,
-        tagName: captured.tagName,
+        ...captured,
         state: "hover" as const,
         ratio,
       };

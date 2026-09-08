@@ -9,8 +9,9 @@
  * Runtime evaluate callbacks inject {@link RUNTIME_MATCHES_SRC} (see
  * `runtime/applicability.ts`, `runtime/custom-checks/error-prevention.ts`,
  * `captcha-alternative.ts`, `accessible-auth-enhanced.ts`) — same pattern as
- * `focus.ts` / `non-text-contrast.ts`. Strict CSP on an audited page can block
- * `new Function`; if that surfaces in the wild, fall back to inlined copies.
+ * hit-capture (`loadHitCapture` / `pageEvaluateWithHitCapture`). Strict CSP on
+ * an audited page can block `new Function`; if that surfaces in the wild, fall
+ * back to inlined copies.
  */
 
 export function foldAccents(value: string): string {

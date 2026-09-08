@@ -10,24 +10,28 @@ import {
   BROWSER_COLLECT_CAPTCHA_SRC,
   BROWSER_OBJECT_RECOGNITION_CAPTCHA_SRC,
 } from "./captcha-candidates.ts";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function accessibleAuthEnhancedViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const nodes = await page.evaluate(
-    ({
-      authSource,
-      puzzleSource,
-      challengeSource,
-      puzzleHosts,
-      matchesSrc,
-      collectSrc,
-      objectRecognitionSrc,
-      hitCaptureSrc,
-    }) => {
+  const nodes = await pageEvaluateWithHitCapture(
+    page,
+    (
+      captureHit,
+      {
+        authSource,
+        puzzleSource,
+        challengeSource,
+        puzzleHosts,
+        matchesSrc,
+        collectSrc,
+        objectRecognitionSrc,
+      },
+    ) => {
       const authPattern = new RegExp(authSource, "i");
       const puzzlePattern = new RegExp(puzzleSource, "i");
       const challengePattern = new RegExp(challengeSource, "i");
@@ -51,10 +55,6 @@ export async function accessibleAuthEnhancedViolation(
           challenge: RegExp,
           hosts: readonly string[],
         ) => boolean;
-      };
-
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
       };
 
       const authContext = [
@@ -93,7 +93,6 @@ export async function accessibleAuthEnhancedViolation(
       matchesSrc: RUNTIME_MATCHES_SRC,
       collectSrc: BROWSER_COLLECT_CAPTCHA_SRC,
       objectRecognitionSrc: BROWSER_OBJECT_RECOGNITION_CAPTCHA_SRC,
-      hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
     },
   );
 

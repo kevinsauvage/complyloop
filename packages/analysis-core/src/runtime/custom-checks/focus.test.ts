@@ -25,9 +25,18 @@ describe("focusCustomViolations", () => {
       `);
       try {
         const violations = await focusCustomViolations(page);
-        expect(violations.some((v) => v.id === "focus-visible")).toBe(
-          true,
-        );
+        const focusVisible = violations.find((v) => v.id === "focus-visible");
+        expect(focusVisible).toBeDefined();
+        const node = focusVisible!.nodes[0]!;
+        expect({
+          target: node.target,
+          elementLabel: node.elementLabel,
+          html: node.html,
+        }).toEqual({
+          target: ["#go"],
+          elementLabel: 'button “Go”',
+          html: '<button id="go">Go</button>',
+        });
       } finally {
         await close();
       }

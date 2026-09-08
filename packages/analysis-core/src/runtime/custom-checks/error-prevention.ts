@@ -6,7 +6,8 @@ import {
   HIGH_RISK,
   RUNTIME_MATCHES_SRC,
 } from "../../patterns/multilingual.ts";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
@@ -18,8 +19,9 @@ const RUNTIME_CONFIRM_LABEL = new RegExp(
 export async function errorPreventionViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const hits = await page.evaluate(
-    ({ highRiskSource, confirmSource, matchesSrc, datasetKeys, hitCaptureSrc }) => {
+  const hits = await pageEvaluateWithHitCapture(
+    page,
+    (captureHit, { highRiskSource, confirmSource, matchesSrc, datasetKeys }) => {
       const highRisk = new RegExp(highRiskSource, "i");
       const confirmLabel = new RegExp(confirmSource, "i");
 
@@ -27,10 +29,6 @@ export async function errorPreventionViolation(
         pattern: RegExp,
         text: string,
       ) => boolean;
-
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
-      };
 
       function formContext(form: HTMLFormElement): string {
         return [
@@ -68,7 +66,6 @@ export async function errorPreventionViolation(
       confirmSource: RUNTIME_CONFIRM_LABEL.source,
       matchesSrc: RUNTIME_MATCHES_SRC,
       datasetKeys: [...ERROR_PREVENTION_CONFIRM_DATASET_KEYS],
-      hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
     },
   );
 

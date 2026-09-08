@@ -4,7 +4,8 @@ import {
   isInvalidField,
   submitFirstValidatableForm,
 } from "./form-submit-probe.ts";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 type FormErrorHit = CapturedHit & {
@@ -26,16 +27,14 @@ export async function formErrorSubmitViolation(
 
   await page.waitForTimeout(150);
 
-  const hits = await page.evaluate(
-    ({ isInvalidSrc, hitCaptureSrc }) => {
+  const hits = await pageEvaluateWithHitCapture(
+    page,
+    (captureHit, { isInvalidSrc }) => {
       const maxNodes = 5;
 
       const isInvalid = new Function(`return (${isInvalidSrc})`)() as (
         el: Element,
       ) => boolean;
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
-      };
 
       function isAssociated(field: Element): boolean {
         const ids = new Set<string>();
@@ -77,10 +76,7 @@ export async function formErrorSubmitViolation(
 
         const captured = captureHit(field);
         found.push({
-          html: captured.html,
-          id: captured.id,
-          role: captured.role,
-          tagName: captured.tagName,
+          ...captured,
           failureSummary:
             "After submit, this invalid field has no programmatic association to visible error text (aria-describedby / aria-errormessage).",
         });
@@ -95,10 +91,7 @@ export async function formErrorSubmitViolation(
         const field = invalidFields[0];
         const captured = captureHit(field);
         found.push({
-          html: captured.html,
-          id: captured.id,
-          role: captured.role,
-          tagName: captured.tagName,
+          ...captured,
           failureSummary:
             "After submit, focus did not move to the invalid field or its associated error.",
         });
@@ -108,7 +101,6 @@ export async function formErrorSubmitViolation(
     },
     {
       isInvalidSrc: IS_INVALID_SOURCE,
-      hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
     },
   );
 

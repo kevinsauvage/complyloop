@@ -1,16 +1,13 @@
 import type { Page } from "playwright";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function cssDisabledContentViolations(
   page: Page,
 ): Promise<CustomViolation[]> {
-  const hits = await page.evaluate((hitCaptureSrc) => {
-    const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-      captureHit: (el: Element) => CapturedHit;
-    };
-
+  const hits = await pageEvaluateWithHitCapture(page, (captureHit) => {
     function hasVisibleDomText(el: Element): boolean {
       return (el.textContent ?? "").trim().length > 0;
     }
@@ -61,7 +58,7 @@ export async function cssDisabledContentViolations(
     }
 
     return results;
-  }, BROWSER_HIT_CAPTURE_SRC);
+  });
 
   if (hits.length === 0) return [];
 

@@ -8,22 +8,26 @@ import {
   BROWSER_CAPTCHA_MATCH_SRC,
   BROWSER_COLLECT_CAPTCHA_SRC,
 } from "./captcha-candidates.ts";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function captchaAlternativeViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const nodes = await page.evaluate(
-    ({
-      captchaSource,
-      alternativeSource,
-      matchesSrc,
-      collectSrc,
-      matchSrc,
-      hitCaptureSrc,
-    }) => {
+  const nodes = await pageEvaluateWithHitCapture(
+    page,
+    (
+      captureHit,
+      {
+        captchaSource,
+        alternativeSource,
+        matchesSrc,
+        collectSrc,
+        matchSrc,
+      },
+    ) => {
       const captcha = new RegExp(captchaSource, "i");
       const alternative = new RegExp(alternativeSource, "i");
 
@@ -44,10 +48,6 @@ export async function captchaAlternativeViolation(
           matches: (pattern: RegExp, text: string) => boolean,
           pattern: RegExp,
         ) => boolean;
-      };
-
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
       };
 
       function hasAlternative(container: Element): boolean {
@@ -80,7 +80,6 @@ export async function captchaAlternativeViolation(
       matchesSrc: RUNTIME_MATCHES_SRC,
       collectSrc: BROWSER_COLLECT_CAPTCHA_SRC,
       matchSrc: BROWSER_CAPTCHA_MATCH_SRC,
-      hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
     },
   );
 

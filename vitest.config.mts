@@ -5,8 +5,8 @@ const domIncludes = [
   "src/components/**/*.test.{ts,tsx}",
   "src/hooks/**/*.test.ts",
   "src/app/**/*.test.tsx",
-  "packages/analysis-core/src/runtime/dom-target.test.ts",
   "packages/analysis-core/src/runtime/site-level/snapshot.test.ts",
+  "packages/analysis-core/src/runtime/custom-checks/hit-capture.test.ts",
   "packages/analysis-core/src/runtime/custom-checks/widget-keyboard.test.ts",
   "packages/analysis-core/src/runtime/custom-checks/captcha-candidates.test.ts",
 ];
@@ -52,7 +52,6 @@ export default defineConfig({
         "packages/analysis-core/src/runtime/custom-checks/**",
         "packages/analysis-core/src/runtime/html-validate-runtime.ts",
         "packages/analysis-core/src/runtime/applicability.ts",
-        "packages/analysis-core/src/runtime/dom-target.ts",
         "packages/analysis-core/src/runtime/site-level/link-check.ts",
         // Live Postgres wiring without a default-suite unit driver.
         "packages/db/src/client.ts",

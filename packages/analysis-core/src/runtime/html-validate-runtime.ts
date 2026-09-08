@@ -155,6 +155,9 @@ export function serializeDocument(voidTags: string[]): SerializeDocumentResult {
     out.html += open;
 
     const snippet = (el.outerHTML || "").replace(/\s+/g, " ").trim();
+    // Truncation literals must match HTML_SNIPPET_TRUNCATE_LENGTH (197) and
+    // HTML_SNIPPET_MAX_LENGTH (200) in dom-location.ts — this function is
+    // stringified into the page and cannot import those constants.
     const elIndex = out.elements.length;
     out.elements.push({
       offset,

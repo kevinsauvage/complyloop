@@ -157,10 +157,7 @@ async function collectWidgetHits(
         seen.add(key);
         const hit = helpers.captureHit(el);
         found.push({
-          html: hit.html,
-          id: hit.id,
-          role: hit.role,
-          tagName: hit.tagName,
+          ...hit,
           elementLabel,
           failureSummary,
         });

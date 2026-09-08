@@ -3,7 +3,8 @@ import {
   gapBetweenRects,
   MAX_LABEL_GAP_PX,
 } from "./label-adjacent-math.ts";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
@@ -11,16 +12,14 @@ export async function labelAdjacentViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const gapSource = gapBetweenRects.toString();
-  const nodes = await page.evaluate(
-    ({ maxGap, gapFnSource, hitCaptureSrc }) => {
+  const nodes = await pageEvaluateWithHitCapture(
+    page,
+    (captureHit, { maxGap, gapFnSource }) => {
       const gapBetween = new Function(
         "a",
         "b",
         `${gapFnSource}; return gapBetweenRects(a, b);`,
       ) as (a: DOMRect, b: DOMRect) => number;
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
-      };
 
       function skipLayout(label: Element, field: Element): boolean {
         let ancestor = label.parentElement;
@@ -78,7 +77,6 @@ export async function labelAdjacentViolation(
     {
       maxGap: MAX_LABEL_GAP_PX,
       gapFnSource: gapSource,
-      hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
     },
   );
 

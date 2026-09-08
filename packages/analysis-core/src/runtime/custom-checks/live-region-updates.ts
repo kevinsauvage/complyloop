@@ -50,11 +50,8 @@ function collectFormStatusHits(
 
     const hit = captureHit(el);
     hits.push({
+      ...hit,
       text,
-      html: hit.html,
-      id: hit.id,
-      role: hit.role,
-      tagName: hit.tagName,
     });
     if (limit !== undefined && hits.length >= limit) break;
   }

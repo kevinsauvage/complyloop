@@ -5,12 +5,23 @@
  * same snippet shape regardless of source.
  *
  * DELIBERATE COPY: `serializeDocument` in `html-validate-runtime.ts` re-inlines
- * the 197-char truncation and a selector builder because it is injected into
- * the page as serialized source and cannot import. Keep its truncation
- * identical to {@link htmlSnippet}.
+ * the same 197/200 truncation (see {@link HTML_SNIPPET_TRUNCATE_LENGTH}) because
+ * it is injected into the page as serialized source and cannot import. Keep
+ * those literals identical to {@link htmlSnippet}.
  */
 
-/** Collapses whitespace and truncates an element's HTML to ≤200 chars. */
+/** Chars kept before appending `…` when a snippet exceeds {@link HTML_SNIPPET_MAX_LENGTH}. */
+export const HTML_SNIPPET_TRUNCATE_LENGTH = 197;
+
+/** Max snippet length including the ellipsis character. */
+export const HTML_SNIPPET_MAX_LENGTH = 200;
+
+/**
+ * Collapses whitespace and truncates an element's HTML to ≤200 chars.
+ * Uses numeric literals (not the exported consts) so `.toString()` stays
+ * self-contained for Playwright injection — keep literals in sync with
+ * {@link HTML_SNIPPET_TRUNCATE_LENGTH} / {@link HTML_SNIPPET_MAX_LENGTH}.
+ */
 export function htmlSnippet(html: string): string {
   const trimmed = html.replace(/\s+/g, " ").trim();
   return trimmed.length > 200 ? `${trimmed.slice(0, 197)}…` : trimmed;

@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 
 interface AnimatedEffect {
@@ -25,11 +25,7 @@ export async function reducedMotionViolation(
 ): Promise<CustomViolation | null> {
   await page.emulateMedia({ reducedMotion: "reduce" });
   try {
-    const nodes = await page.evaluate((hitCaptureSrc) => {
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
-      };
-
+    const nodes = await pageEvaluateWithHitCapture(page, (captureHit) => {
       const minDurationMs = 250;
       const maxNodes = 10;
 
@@ -86,7 +82,7 @@ export async function reducedMotionViolation(
       }
 
       return found;
-    }, BROWSER_HIT_CAPTURE_SRC);
+    });
 
     if (nodes.length === 0) return null;
     return {

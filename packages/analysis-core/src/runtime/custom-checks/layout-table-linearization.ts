@@ -1,16 +1,12 @@
 import type { Page } from "playwright";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function layoutTableLinearizationViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const hit = await page.evaluate((hitCaptureSrc) => {
-    const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-      captureHit: (el: Element) => CapturedHit;
-    };
-
+  const hit = await pageEvaluateWithHitCapture(page, (captureHit) => {
     function isLayoutTable(table: HTMLTableElement): boolean {
       if (table.getAttribute("role") === "presentation") return true;
       if (
@@ -64,7 +60,7 @@ export async function layoutTableLinearizationViolation(
     }
 
     return null;
-  }, BROWSER_HIT_CAPTURE_SRC);
+  });
 
   if (!hit) return null;
 

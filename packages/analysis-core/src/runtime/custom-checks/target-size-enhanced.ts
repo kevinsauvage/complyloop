@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
 import { TARGET_SIZE_ENHANCED_MIN_PX } from "../viewport-conditions.ts";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
@@ -25,12 +26,9 @@ export async function targetSizeEnhancedViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const minSize = TARGET_SIZE_ENHANCED_MIN_PX;
-  const hits = await page.evaluate(
-    ({ selector, minPx, hitCaptureSrc }) => {
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
-      };
-
+  const hits = await pageEvaluateWithHitCapture(
+    page,
+    (captureHit, { selector, minPx }) => {
       function isInlineInText(el: HTMLElement): boolean {
         const display = getComputedStyle(el).display;
         if (display !== "inline") return false;
@@ -51,10 +49,7 @@ export async function targetSizeEnhancedViolation(
 
         const captured = captureHit(el);
         found.push({
-          html: captured.html,
-          id: captured.id,
-          role: captured.role,
-          tagName: captured.tagName,
+          ...captured,
           failureSummary: `Target is ${Math.round(rect.width)}×${Math.round(rect.height)} CSS pixels (needs ${minPx}×${minPx}).`,
         });
         if (found.length >= 5) break;
@@ -64,7 +59,6 @@ export async function targetSizeEnhancedViolation(
     {
       selector: CONTROL_SELECTOR,
       minPx: minSize,
-      hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
     },
   );
 

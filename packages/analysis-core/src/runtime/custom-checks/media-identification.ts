@@ -1,16 +1,13 @@
 import type { Page } from "playwright";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function mediaIdentificationViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const nodes = await page.evaluate((hitCaptureSrc) => {
-    const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-      captureHit: (el: Element) => CapturedHit;
-    };
-
+  const nodes = await pageEvaluateWithHitCapture(page, (captureHit) => {
     function hasAccessibleName(el: Element): boolean {
       const ariaLabel = el.getAttribute("aria-label");
       if (ariaLabel && ariaLabel.trim().length > 0) return true;
@@ -48,7 +45,7 @@ export async function mediaIdentificationViolation(
     }
 
     return violations;
-  }, BROWSER_HIT_CAPTURE_SRC);
+  });
 
   if (nodes.length === 0) return null;
 

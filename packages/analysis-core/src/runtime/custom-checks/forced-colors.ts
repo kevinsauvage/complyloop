@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 
 /**
@@ -12,11 +12,7 @@ export async function forcedColorsViolation(
 ): Promise<CustomViolation | null> {
   await page.emulateMedia({ forcedColors: "active" });
   try {
-    const nodes = await page.evaluate((hitCaptureSrc) => {
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
-      };
-
+    const nodes = await pageEvaluateWithHitCapture(page, (captureHit) => {
       const interactiveSelector = [
         "button",
         "[role='button']",
@@ -95,7 +91,7 @@ export async function forcedColorsViolation(
       }
 
       return found;
-    }, BROWSER_HIT_CAPTURE_SRC);
+    });
 
     if (nodes.length === 0) return null;
     return {

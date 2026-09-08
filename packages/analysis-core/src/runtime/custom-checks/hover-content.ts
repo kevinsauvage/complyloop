@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { locatorEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import { measureHoverVsFocusReveal } from "./hover-reveal.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
@@ -44,12 +44,9 @@ export async function hoverContentViolation(
     }
     if (failures.length === 0) continue;
 
-    const hit = await trigger.evaluate((el, hitCaptureSrc) => {
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
-      };
-      return captureHit(el);
-    }, BROWSER_HIT_CAPTURE_SRC);
+    const hit = await locatorEvaluateWithHitCapture(trigger, (captureHit, el) =>
+      captureHit(el),
+    );
     nodes.push({
       html: hit.html,
       target: [selectorOf(hit)],

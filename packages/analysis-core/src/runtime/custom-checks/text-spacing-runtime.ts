@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
@@ -8,12 +9,9 @@ const SPACING_STYLE_ID = "complyloop-text-spacing-test";
 export async function textSpacingRuntimeViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const nodes = await page.evaluate(
-    ({ styleId, hitCaptureSrc }) => {
-      const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-        captureHit: (el: Element) => CapturedHit;
-      };
-
+  const nodes = await pageEvaluateWithHitCapture(
+    page,
+    (captureHit, { styleId }) => {
       const existing = document.getElementById(styleId);
       existing?.remove();
 
@@ -59,7 +57,7 @@ export async function textSpacingRuntimeViolation(
       document.getElementById(styleId)?.remove();
       return violations;
     },
-    { styleId: SPACING_STYLE_ID, hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC },
+    { styleId: SPACING_STYLE_ID },
   );
 
   if (nodes.length === 0) return null;

@@ -1,16 +1,12 @@
 import type { Page } from "playwright";
-import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function mediaKeyboardViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const hit = await page.evaluate((hitCaptureSrc) => {
-    const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
-      captureHit: (el: Element) => CapturedHit;
-    };
-
+  const hit = await pageEvaluateWithHitCapture(page, (captureHit) => {
     const media = document.querySelector("video[controls], audio[controls]");
     if (!(media instanceof HTMLMediaElement)) return null;
     if (media.readyState < 1) return null;
@@ -52,7 +48,7 @@ export async function mediaKeyboardViolation(
     if (wasPaused) media.pause();
     else void media.play();
     return null;
-  }, BROWSER_HIT_CAPTURE_SRC);
+  });
 
   if (!hit) return null;
 
