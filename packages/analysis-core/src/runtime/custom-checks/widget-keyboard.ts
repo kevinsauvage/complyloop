@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+import { htmlSnippet } from "../dom-location.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 import {
   isKeyboardFocusable,
@@ -15,10 +16,11 @@ import {
 
 const BROWSER_HELPERS = `(function helperSource() {
   ${isKeyboardFocusable.toString()}
+  ${htmlSnippet.toString()}
   function snippetOf(el) {
-    return (el.outerHTML || "").replace(/\\s+/g, " ").trim().slice(0, 160);
+    return htmlSnippet(el.outerHTML || "");
   }
-  return { snippetOf: snippetOf, isKeyboardFocusable: isKeyboardFocusable };
+  return { snippetOf, isKeyboardFocusable };
 })()`;
 
 type WidgetHit = SelectorRef & {

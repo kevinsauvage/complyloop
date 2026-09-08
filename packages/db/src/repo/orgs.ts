@@ -4,6 +4,7 @@ import type {
   Organization,
 } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../client.ts";
+import { nextUniqueSlug, slugifyOrgName } from "../org-slug.ts";
 import { memberships, organizations } from "../schema.ts";
 import { membershipToRow, organizationToRow } from "./mappers.ts";
 
@@ -153,15 +154,6 @@ export async function claimMembershipsForLogin(
   return changed;
 }
 
-function slugifyOrgName(input: string): string {
-  const cleaned = input
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-  return cleaned.length > 0 ? cleaned : "org";
-}
-
 async function allocateOrgSlug(
   drizzle: DrizzleDb,
   base: string,
@@ -175,11 +167,7 @@ async function allocateOrgSlug(
         sql`${organizations.slug} LIKE ${`${base}-%`}`,
       ),
     );
-  const taken = new Set(rows.map((row) => row.slug));
-  if (!taken.has(base)) return base;
-  let index = 2;
-  while (taken.has(`${base}-${index}`)) index += 1;
-  return `${base}-${index}`;
+  return nextUniqueSlug(base, new Set(rows.map((row) => row.slug)));
 }
 
 async function userOwnsOrg(

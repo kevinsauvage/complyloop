@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
-import type { ActionMessageState } from "@/server/action-state";
-
-const initial: ActionMessageState = { error: null, message: null };
+import {
+  emptyActionMessageState,
+  type ActionMessageState,
+} from "@/server/action-state";
 
 export function InviteMemberForm({
   action,
@@ -22,7 +23,10 @@ export function InviteMemberForm({
   /** Owners may invite admins; admins may only invite member/viewer. */
   canAssignAdmin?: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(action, initial);
+  const [state, formAction, pending] = useActionState(
+    action,
+    emptyActionMessageState,
+  );
   useActionToast(state, pending);
 
   return (

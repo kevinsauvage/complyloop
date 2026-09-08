@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { CAPTCHA_COMPONENT_HOSTS } from "../patterns/error-prevention-criteria.ts";
 import {
   CAPTCHA_ALTERNATIVE,
   CAPTCHA_TOKEN,
@@ -16,13 +17,7 @@ import {
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
-const CAPTCHA_HOSTS = new Set([
-  "ReCAPTCHA",
-  "HCaptcha",
-  "Captcha",
-  "Turnstile",
-  "FriendlyCaptcha",
-]);
+const CAPTCHA_HOSTS = new Set<string>(CAPTCHA_COMPONENT_HOSTS);
 
 function isCaptchaHost(node: JsxTagNode): boolean {
   const tag = tagNameOf(node);

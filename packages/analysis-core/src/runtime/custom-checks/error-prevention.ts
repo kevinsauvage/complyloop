@@ -1,8 +1,11 @@
 import type { Page } from "playwright";
+import { ERROR_PREVENTION_CONFIRM_DATASET_KEYS } from "../../patterns/error-prevention-criteria.ts";
 import {
   AGREE_LABEL,
   CONFIRM_LABEL,
   HIGH_RISK,
+  foldAccents,
+  matchesMultilingual,
 } from "../../patterns/multilingual.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
@@ -16,21 +19,22 @@ const RUNTIME_CONFIRM_LABEL = new RegExp(
   "i",
 );
 
+const FOLD_ACCENTS_SOURCE = foldAccents.toString();
+const MATCHES_MULTILINGUAL_SOURCE = matchesMultilingual.toString();
+
 export async function errorPreventionViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const hits = await page.evaluate(
-    ({ highRiskSource, confirmSource }) => {
+    ({ highRiskSource, confirmSource, foldSrc, matchesSrc, datasetKeys }) => {
       const highRisk = new RegExp(highRiskSource, "i");
       const confirmLabel = new RegExp(confirmSource, "i");
 
-      function foldAccents(value: string): string {
-        return value.normalize("NFD").replace(/\p{M}/gu, "");
-      }
-
-      function matchesPattern(pattern: RegExp, text: string): boolean {
-        return pattern.test(text) || pattern.test(foldAccents(text));
-      }
+      const matchesPattern = new Function(
+        "pattern",
+        "text",
+        `${foldSrc}; ${matchesSrc}; return matchesMultilingual(pattern, text);`,
+      ) as (pattern: RegExp, text: string) => boolean;
 
       function formContext(form: HTMLFormElement): string {
         return [
@@ -48,12 +52,8 @@ export async function errorPreventionViolation(
           const aria = el.getAttribute("aria-label") ?? "";
           if (matchesPattern(confirmLabel, `${text} ${aria}`)) return true;
         }
-        if (
-          form.dataset.confirm !== undefined ||
-          form.dataset.reviewStep !== undefined ||
-          form.dataset.confirmSubmit !== undefined
-        ) {
-          return true;
+        for (const key of datasetKeys) {
+          if (form.dataset[key] !== undefined) return true;
         }
         return false;
       }
@@ -74,6 +74,9 @@ export async function errorPreventionViolation(
     {
       highRiskSource: HIGH_RISK.source,
       confirmSource: RUNTIME_CONFIRM_LABEL.source,
+      foldSrc: FOLD_ACCENTS_SOURCE,
+      matchesSrc: MATCHES_MULTILINGUAL_SOURCE,
+      datasetKeys: [...ERROR_PREVENTION_CONFIRM_DATASET_KEYS],
     },
   );
 

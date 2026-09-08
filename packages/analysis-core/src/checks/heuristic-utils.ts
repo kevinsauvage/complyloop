@@ -30,7 +30,7 @@ const CONTEXT_CHANGE_KEYWORDS = [
 
 export function handlerTriggersContextChange(
   node: JsxTagNode,
-  handlerNames: string[],
+  handlerNames: ReadonlyArray<string>,
 ): boolean {
   for (const name of handlerNames) {
     const attr = getAttribute(node, name);

@@ -7,6 +7,7 @@ import {
   type JsxTagNode,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
+import { collectJsxTexts, hasAttrOnAncestors } from "./jsx-text-walk.ts";
 
 const RTL_CHAR = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F]/;
 const LTR_CHAR = /[A-Za-z]/;
@@ -19,54 +20,23 @@ function textHasLtr(text: string): boolean {
   return LTR_CHAR.test(text);
 }
 
-function hasDirOnAncestors(node: ts.Node): boolean {
-  let current: ts.Node | undefined = node.parent;
-  while (current) {
-    if (ts.isJsxOpeningElement(current) || ts.isJsxSelfClosingElement(current)) {
-      if (getAttribute(current, "dir") !== undefined) return true;
-    } else if (ts.isJsxElement(current)) {
-      if (getAttribute(current.openingElement, "dir") !== undefined) return true;
-    }
-    current = current.parent;
-  }
-  return false;
-}
-
-function collectJsxText(sourceFile: ts.SourceFile): Array<{
-  node: ts.JsxText;
-  hasRtl: boolean;
-  hasLtr: boolean;
-}> {
-  const texts: Array<{ node: ts.JsxText; hasRtl: boolean; hasLtr: boolean }> =
-    [];
-  const visit = (node: ts.Node): void => {
-    if (ts.isJsxText(node)) {
-      const trimmed = node.text.trim();
-      if (trimmed.length > 0) {
-        texts.push({
-          node,
-          hasRtl: textHasRtl(trimmed),
-          hasLtr: textHasLtr(trimmed),
-        });
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
-  return texts;
-}
-
 export const dirChangeCheck: AccessibilityCheck = {
   id: "dir-change",
   run(source) {
-    const texts = collectJsxText(source.sourceFile);
+    const texts = collectJsxTexts(source.sourceFile, { minLength: 1 }).map(
+      (entry) => ({
+        node: entry.node,
+        hasRtl: textHasRtl(entry.text),
+        hasLtr: textHasLtr(entry.text),
+      }),
+    );
     const fileHasRtl = texts.some((entry) => entry.hasRtl);
     const fileHasLtr = texts.some((entry) => entry.hasLtr);
     if (!fileHasRtl || !fileHasLtr) return [];
 
     const findings: RawFinding[] = [];
     for (const entry of texts) {
-      if (!entry.hasRtl || hasDirOnAncestors(entry.node)) continue;
+      if (!entry.hasRtl || hasAttrOnAncestors(entry.node, "dir")) continue;
       findings.push({
         checkId: "dir-change",
         kind: "warning",
@@ -91,7 +61,7 @@ export const dirChangeCheck: AccessibilityCheck = {
         siblings.some((s) => textHasRtl(s.text)) &&
         siblings.some((s) => textHasLtr(s.text));
       if (!siblingMix) return;
-      if (hasDirOnAncestors(node)) return;
+      if (hasAttrOnAncestors(node, "dir")) return;
       findings.push({
         checkId: "dir-change",
         kind: "warning",

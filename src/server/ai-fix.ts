@@ -4,18 +4,15 @@ import { scanChangedFiles } from "@complyloop/analysis-core/scan";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import { proposeFixEdits } from "@/ai/patch";
 import {
+  assertSourceLocatedFinding,
   generatePatchCandidate,
-  PATCH_PR_SOURCE_ONLY_MESSAGE,
   patchCandidateFromDetail,
   patchCandidateToDetail,
   type GeneratePatchCandidateOptions,
   type PatchCandidate,
   type ProposedFixEdits,
 } from "@/ai/verified-fix";
-import {
-  formatLocationRef,
-  isSourceLocation,
-} from "@complyloop/analysis-core/contract/location";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { type EvidenceRecord, type Finding } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
@@ -84,9 +81,7 @@ export async function runAiFixOnCheckout(
   control: Control,
   options: RunAiFixOnCheckoutOptions = {},
 ): Promise<PatchCandidate> {
-  if (!isSourceLocation(finding.location)) {
-    throw new PublicError(PATCH_PR_SOURCE_ONLY_MESSAGE);
-  }
+  assertSourceLocatedFinding(finding);
   const filePath = finding.location.filePath;
   const deterministic = deterministicProposal(rootPath, finding);
   if (hasSafeDeterministicFix(finding) && deterministic === null) {

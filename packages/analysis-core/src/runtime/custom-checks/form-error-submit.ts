@@ -1,11 +1,17 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import {
+  isInvalidField,
+  submitFirstValidatableForm,
+} from "./form-submit-probe.ts";
 import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
 
 type FormErrorHit = SelectorRef & {
   html: string;
   failureSummary: string;
 };
+
+const IS_INVALID_SOURCE = isInvalidField.toString();
 
 /**
  * Submits the first HTML5-validated form empty/invalid and checks that surfaced
@@ -14,41 +20,18 @@ type FormErrorHit = SelectorRef & {
 export async function formErrorSubmitViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const submitted = await page.evaluate(() => {
-    for (const form of document.querySelectorAll("form")) {
-      if (form.hasAttribute("novalidate")) continue;
-      const submit = form.querySelector(
-        'button[type="submit"], input[type="submit"], button:not([type])',
-      );
-      if (!submit) continue;
-      const field = form.querySelector(
-        "input[required], select[required], textarea[required], input[type=email]:not([readonly]), input[type=url]:not([readonly])",
-      );
-      if (!field) continue;
-      if (submit instanceof HTMLElement) submit.click();
-      else form.requestSubmit();
-      return true;
-    }
-    return false;
-  });
+  const submitted = await page.evaluate(submitFirstValidatableForm);
 
   if (!submitted) return null;
 
   await page.waitForTimeout(150);
 
-  const hits = await page.evaluate(() => {
+  const hits = await page.evaluate((isInvalidSrc) => {
     const maxNodes = 5;
 
-    function isInvalid(el: Element): boolean {
-      if (
-        el instanceof HTMLInputElement ||
-        el instanceof HTMLSelectElement ||
-        el instanceof HTMLTextAreaElement
-      ) {
-        return !el.checkValidity();
-      }
-      return el.getAttribute("aria-invalid") === "true";
-    }
+    const isInvalid = new Function(`return (${isInvalidSrc})`)() as (
+      el: Element,
+    ) => boolean;
 
     function isAssociated(field: Element): boolean {
       const ids = new Set<string>();
@@ -108,7 +91,7 @@ export async function formErrorSubmitViolation(
     }
 
     return found;
-  });
+  }, IS_INVALID_SOURCE);
 
   if (hits.length === 0) return null;
 

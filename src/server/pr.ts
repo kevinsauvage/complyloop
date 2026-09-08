@@ -15,6 +15,7 @@ import {
   type ResolveProjectGitHubTokenOptions,
 } from "./github-access";
 import { buildDeveloperHandoff } from "./handoff";
+import { reportError } from "./observability";
 import { withProjectCheckout } from "./repo-checkout";
 
 export interface PullRequestResult {
@@ -49,10 +50,6 @@ async function createPullRequestViaApi(options: {
   } catch (error) {
     throw new Error(octokitErrorMessage(error, "GitHub PR API failed"));
   }
-}
-
-function publicErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 /**
@@ -131,18 +128,18 @@ export async function preparePullRequest(
         } catch {
           restored = false;
         }
-        const detail = publicErrorMessage(error);
         if (error instanceof PublicError) {
           throw restored
             ? error
             : new PublicError(
-                `${detail} (also failed to restore branch \`${currentBranch}\`)`,
+                `${error.message} (also failed to restore branch \`${currentBranch}\`)`,
               );
         }
+        reportError(error, { code: "prepare_pull_request" });
         throw new PublicError(
           restored
-            ? `Failed to prepare pull request on branch \`${branch}\`: ${detail}`
-            : `Failed to prepare pull request on branch \`${branch}\`: ${detail} (also failed to restore branch \`${currentBranch}\`)`,
+            ? `Failed to prepare pull request on branch \`${branch}\`.`
+            : `Failed to prepare pull request on branch \`${branch}\`. (also failed to restore branch \`${currentBranch}\`)`,
         );
       }
 
@@ -167,8 +164,9 @@ export async function preparePullRequest(
           });
           message = `Draft pull request created via GitHub API: ${prUrl}`;
         } catch (error) {
+          reportError(error, { code: "prepare_pull_request" });
           throw new PublicError(
-            `Branch \`${branch}\` was committed locally but push/PR failed: ${publicErrorMessage(error)}`,
+            `Branch \`${branch}\` was committed locally but push or opening the draft PR failed.`,
           );
         }
       }

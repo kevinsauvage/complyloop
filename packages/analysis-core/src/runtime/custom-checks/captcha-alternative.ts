@@ -1,23 +1,35 @@
 import type { Page } from "playwright";
-import { CAPTCHA_ALTERNATIVE, CAPTCHA_TOKEN } from "../../patterns/multilingual.ts";
+import {
+  CAPTCHA_ALTERNATIVE,
+  CAPTCHA_TOKEN,
+  foldAccents,
+  matchesMultilingual,
+} from "../../patterns/multilingual.ts";
+import { collectCaptchaCandidates } from "./captcha-candidates.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
+
+const FOLD_ACCENTS_SOURCE = foldAccents.toString();
+const MATCHES_MULTILINGUAL_SOURCE = matchesMultilingual.toString();
+const COLLECT_CAPTCHA_SOURCE = collectCaptchaCandidates.toString();
 
 export async function captchaAlternativeViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const nodes = await page.evaluate(
-    ({ captchaSource, alternativeSource }) => {
+    ({ captchaSource, alternativeSource, foldSrc, matchesSrc, collectSrc }) => {
       const captcha = new RegExp(captchaSource, "i");
       const alternative = new RegExp(alternativeSource, "i");
 
-      function foldAccents(value: string): string {
-        return value.normalize("NFD").replace(/\p{M}/gu, "");
-      }
+      const matchesPattern = new Function(
+        "pattern",
+        "text",
+        `${foldSrc}; ${matchesSrc}; return matchesMultilingual(pattern, text);`,
+      ) as (pattern: RegExp, text: string) => boolean;
 
-      function matchesPattern(pattern: RegExp, text: string): boolean {
-        return pattern.test(text) || pattern.test(foldAccents(text));
-      }
+      const collectCandidates = new Function(
+        `return (${collectSrc})`,
+      )() as (doc?: Document) => Element[];
 
       function hasAlternative(container: Element): boolean {
         for (const el of container.querySelectorAll("a, button, audio")) {
@@ -30,13 +42,8 @@ export async function captchaAlternativeViolation(
       }
 
       const violations: Array<{ html: string; id: string; role: string | null; tagName: string }> = [];
-      const candidates = [
-        ...document.querySelectorAll("iframe"),
-        ...document.querySelectorAll("[class*='captcha' i], [id*='captcha' i], [data-sitekey]"),
-        ...document.querySelectorAll("img[alt*='captcha' i], img[src*='captcha' i]"),
-      ];
 
-      for (const el of candidates) {
+      for (const el of collectCandidates(document)) {
         const html = el.outerHTML.replace(/\s+/g, " ").trim();
         const src = el.getAttribute("src") ?? "";
         const cls = el.getAttribute("class") ?? "";
@@ -58,6 +65,9 @@ export async function captchaAlternativeViolation(
     {
       captchaSource: CAPTCHA_TOKEN.source,
       alternativeSource: CAPTCHA_ALTERNATIVE.source,
+      foldSrc: FOLD_ACCENTS_SOURCE,
+      matchesSrc: MATCHES_MULTILINGUAL_SOURCE,
+      collectSrc: COLLECT_CAPTCHA_SOURCE,
     },
   );
 

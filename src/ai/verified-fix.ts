@@ -5,6 +5,7 @@ import { type Finding } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ExplanationProvenance } from "@complyloop/analysis-core/contract/statuses";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
+import type { SourceLocation } from "@complyloop/analysis-core/contract/finding-types";
 import { z } from "zod";
 
 export const PATCH_PR_SOURCE_ONLY_MESSAGE =
@@ -92,10 +93,17 @@ export interface GeneratePatchCandidateOptions {
 }
 
 function sourceFilePath(finding: Finding): string {
+  assertSourceLocatedFinding(finding);
+  return finding.location.filePath;
+}
+
+/** Rejects runtime DOM findings before patch / PR work. */
+export function assertSourceLocatedFinding(
+  finding: Finding,
+): asserts finding is Finding & { location: SourceLocation } {
   if (!isSourceLocation(finding.location)) {
     throw new PublicError(PATCH_PR_SOURCE_ONLY_MESSAGE);
   }
-  return finding.location.filePath;
 }
 
 function findingIdentity(finding: {

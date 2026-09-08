@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { ERROR_PREVENTION_CONFIRM_DATA_ATTRS } from "../patterns/error-prevention-criteria.ts";
 import {
   AGREE_LABEL,
   CONFIRM_LABEL,
@@ -72,7 +73,7 @@ function subtreeHasSafeguard(formNode: JsxTagNode): boolean {
     }
   }
 
-  for (const name of ["data-confirm", "data-review-step", "data-confirm-submit"]) {
+  for (const name of ERROR_PREVENTION_CONFIRM_DATA_ATTRS) {
     if (getAttribute(formNode, name)) return true;
   }
 

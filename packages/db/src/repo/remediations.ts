@@ -3,7 +3,7 @@ import type { Remediation } from "../types";
 import type { DrizzleDb } from "../client.ts";
 import { findings, remediations } from "../schema.ts";
 import { remediationToRow } from "./mappers.ts";
-import { filterNotStale, stampedNow } from "./upsert-guard.ts";
+import { filterStalePayloadWrites, stampedNow } from "./upsert-guard.ts";
 
 export async function getRemediationByFindingId(
   drizzle: DrizzleDb,
@@ -50,23 +50,17 @@ export async function upsertRemediations(
 ): Promise<void> {
   if (items.length === 0) return;
 
-  let toWrite = items.map(stampedNow);
-  const { loadedUpdatedAtById } = options;
-  if (loadedUpdatedAtById && loadedUpdatedAtById.size > 0) {
-    const ids = toWrite.map((item) => item.id);
-    const rows = await tx
-      .select({ id: remediations.id, payload: remediations.payload })
-      .from(remediations)
-      .where(inArray(remediations.id, ids));
-    const dbUpdatedAtById = new Map(
-      rows.map((row) => [row.id, row.payload.updatedAt]),
-    );
-    toWrite = filterNotStale(
-      toWrite,
-      loadedUpdatedAtById,
-      dbUpdatedAtById,
-    );
-  }
+  const toWrite = await filterStalePayloadWrites(
+    items.map(stampedNow),
+    options.loadedUpdatedAtById,
+    async (ids) => {
+      const rows = await tx
+        .select({ id: remediations.id, payload: remediations.payload })
+        .from(remediations)
+        .where(inArray(remediations.id, [...ids]));
+      return new Map(rows.map((row) => [row.id, row.payload.updatedAt]));
+    },
+  );
 
   if (toWrite.length === 0) return;
   await tx

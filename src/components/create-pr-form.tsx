@@ -7,10 +7,10 @@ import {
   createPullRequestAction,
   type CreatePrFormState,
 } from "@/server/actions/pr";
+import { emptyActionMessageState } from "@/server/action-state";
 
 const initial: CreatePrFormState = {
-  error: null,
-  message: null,
+  ...emptyActionMessageState,
   prUrl: null,
 };
 

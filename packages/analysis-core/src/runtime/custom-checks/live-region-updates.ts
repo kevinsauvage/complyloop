@@ -1,10 +1,16 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import {
+  isInvalidField,
+  submitFirstValidatableForm,
+} from "./form-submit-probe.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 /** Form-validation feedback — not marketing copy with incidental substrings. */
 const FORM_STATUS_PATTERN_SOURCE =
   String.raw`\b(error|invalid|incorrect|required|must|missing|failed|warning|alert)\b`;
+
+const IS_INVALID_SOURCE = isInvalidField.toString();
 
 export async function liveRegionUpdatesViolation(
   page: Page,
@@ -44,40 +50,17 @@ export async function liveRegionUpdatesViolation(
     };
   }, { patternSource: FORM_STATUS_PATTERN_SOURCE });
 
-  const submitted = await page.evaluate(() => {
-    for (const form of document.querySelectorAll("form")) {
-      if (form.hasAttribute("novalidate")) continue;
-      const submit = form.querySelector(
-        'button[type="submit"], input[type="submit"], button:not([type])',
-      );
-      if (!submit) continue;
-      const field = form.querySelector(
-        "input[required], select[required], textarea[required], input[type=email]:not([readonly]), input[type=url]:not([readonly])",
-      );
-      if (!field) continue;
-      if (submit instanceof HTMLElement) submit.click();
-      else form.requestSubmit();
-      return true;
-    }
-    return false;
-  });
+  const submitted = await page.evaluate(submitFirstValidatableForm);
 
   if (!submitted) return null;
 
   await page.waitForTimeout(300);
 
-  const after = await page.evaluate(({ beforeKeys, beforeLiveText, patternSource }) => {
+  const after = await page.evaluate(({ beforeKeys, beforeLiveText, patternSource, isInvalidSrc }) => {
     const statusPattern = new RegExp(patternSource, "i");
-    function isInvalid(el: Element): boolean {
-      if (
-        el instanceof HTMLInputElement ||
-        el instanceof HTMLSelectElement ||
-        el instanceof HTMLTextAreaElement
-      ) {
-        return !el.checkValidity();
-      }
-      return el.getAttribute("aria-invalid") === "true";
-    }
+    const isInvalid = new Function(`return (${isInvalidSrc})`)() as (
+      el: Element,
+    ) => boolean;
 
     const invalidFields = Array.from(
       document.querySelectorAll("input, select, textarea, [aria-invalid='true']"),
@@ -121,6 +104,7 @@ export async function liveRegionUpdatesViolation(
     beforeKeys: before.statusKeys,
     beforeLiveText: before.liveText,
     patternSource: FORM_STATUS_PATTERN_SOURCE,
+    isInvalidSrc: IS_INVALID_SOURCE,
   });
 
   if (!after.hasInvalidFields || after.newHits.length === 0) return null;

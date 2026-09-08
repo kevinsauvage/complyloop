@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { filterNotStale, stampedNow } from "./upsert-guard.ts";
+import { describe, expect, it, vi } from "vitest";
+import {
+  filterNotStale,
+  filterStalePayloadWrites,
+  stampedNow,
+} from "./upsert-guard.ts";
 
 describe("filterNotStale", () => {
   it("keeps items when DB updatedAt matches loaded snapshot", () => {
@@ -35,6 +39,40 @@ describe("filterNotStale", () => {
         new Map(),
       ),
     ).toHaveLength(1);
+  });
+});
+
+describe("filterStalePayloadWrites", () => {
+  it("returns a copy without fetching when there is no loaded snapshot", async () => {
+    const items = [{ id: "a", updatedAt: "2020-01-01T00:00:00.000Z" }];
+    const fetchDb = vi.fn();
+    const kept = await filterStalePayloadWrites(items, undefined, fetchDb);
+    expect(kept).toEqual(items);
+    expect(kept).not.toBe(items);
+    expect(fetchDb).not.toHaveBeenCalled();
+  });
+
+  it("fetches DB timestamps and drops stale rows", async () => {
+    const items = [
+      { id: "a", updatedAt: "2020-01-01T00:00:00.000Z" },
+      { id: "b", updatedAt: "2020-01-01T00:00:00.000Z" },
+    ];
+    const fetchDb = vi.fn(async () =>
+      new Map<string, string | undefined>([
+        ["a", "2020-01-02T00:00:00.000Z"],
+        ["b", "2020-01-01T00:00:00.000Z"],
+      ]),
+    );
+    const kept = await filterStalePayloadWrites(
+      items,
+      new Map([
+        ["a", "2020-01-01T00:00:00.000Z"],
+        ["b", "2020-01-01T00:00:00.000Z"],
+      ]),
+      fetchDb,
+    );
+    expect(fetchDb).toHaveBeenCalledWith(["a", "b"]);
+    expect(kept).toEqual([{ id: "b", updatedAt: "2020-01-01T00:00:00.000Z" }]);
   });
 });
 

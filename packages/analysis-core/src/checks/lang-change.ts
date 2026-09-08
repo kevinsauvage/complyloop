@@ -7,6 +7,7 @@ import {
   visitJsxTags,
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
+import { collectJsxTexts, hasAttrOnAncestors } from "./jsx-text-walk.ts";
 
 const LATIN_EXTENDED = /[À-ÿ]/;
 const CYRILLIC = /[\u0400-\u04FF]/;
@@ -23,37 +24,6 @@ function pageLang(sourceFile: ts.SourceFile): string | undefined {
     lang = stringValueOf(attribute)?.toLowerCase();
   });
   return lang;
-}
-
-function hasLangOnAncestors(node: ts.Node): boolean {
-  let current: ts.Node | undefined = node.parent;
-  while (current) {
-    if (ts.isJsxOpeningElement(current) || ts.isJsxSelfClosingElement(current)) {
-      if (tagNameOf(current) === "html") return false;
-      if (getAttribute(current, "lang") !== undefined) return true;
-    } else if (ts.isJsxElement(current)) {
-      if (tagNameOf(current.openingElement) === "html") return false;
-      if (getAttribute(current.openingElement, "lang") !== undefined) return true;
-    }
-    current = current.parent;
-  }
-  return false;
-}
-
-function collectJsxText(sourceFile: ts.SourceFile): Array<{
-  node: ts.JsxText;
-  text: string;
-}> {
-  const texts: Array<{ node: ts.JsxText; text: string }> = [];
-  const visit = (node: ts.Node): void => {
-    if (ts.isJsxText(node)) {
-      const trimmed = node.text.trim();
-      if (trimmed.length > 3) texts.push({ node, text: trimmed });
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
-  return texts;
 }
 
 function needsLangForScript(text: string, pageDefault: string | undefined): boolean {
@@ -74,9 +44,9 @@ export const langChangeCheck: AccessibilityCheck = {
     const defaultLang = pageLang(source.sourceFile);
     const findings: RawFinding[] = [];
 
-    for (const entry of collectJsxText(source.sourceFile)) {
+    for (const entry of collectJsxTexts(source.sourceFile, { minLength: 4 })) {
       if (!needsLangForScript(entry.text, defaultLang)) continue;
-      if (hasLangOnAncestors(entry.node)) continue;
+      if (hasAttrOnAncestors(entry.node, "lang", { stopAtHtml: true })) continue;
       findings.push({
         checkId: "lang-change",
         kind: "warning",

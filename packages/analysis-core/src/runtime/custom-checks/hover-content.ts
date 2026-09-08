@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+import { bodyTextLength } from "./hover-reveal.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 
 const MAX_TRIGGERS = 8;
@@ -21,10 +22,10 @@ export async function hoverContentViolation(
     const trigger = triggers.nth(index);
     if (!(await trigger.isVisible())) continue;
 
-    const beforeLen = await page.evaluate(() => document.body.innerText.length);
+    const beforeLen = await bodyTextLength(page);
     await trigger.hover();
     await page.waitForTimeout(120);
-    const hoverLen = await page.evaluate(() => document.body.innerText.length);
+    const hoverLen = await bodyTextLength(page);
     if (hoverLen <= beforeLen + CONTENT_DELTA) {
       await page.mouse.move(0, 0);
       continue;
@@ -32,12 +33,12 @@ export async function hoverContentViolation(
 
     await page.keyboard.press("Escape");
     await page.waitForTimeout(80);
-    const afterEscapeLen = await page.evaluate(() => document.body.innerText.length);
+    const afterEscapeLen = await bodyTextLength(page);
     const escapeDismisses = afterEscapeLen <= beforeLen + CONTENT_DELTA;
 
     await trigger.focus();
     await page.waitForTimeout(120);
-    const focusLen = await page.evaluate(() => document.body.innerText.length);
+    const focusLen = await bodyTextLength(page);
     const focusReveals = focusLen > beforeLen + CONTENT_DELTA;
 
     await page.mouse.move(0, 0);

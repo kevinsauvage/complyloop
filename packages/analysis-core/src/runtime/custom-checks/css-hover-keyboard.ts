@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+import { measureHoverVsFocusReveal } from "./hover-reveal.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
 
@@ -61,12 +62,10 @@ export async function cssHoverKeyboardViolation(
 
   for (let index = 0; index < count; index += 1) {
     const trigger = triggers.nth(index);
-    const beforeLen = await page.evaluate(() => document.body.innerText.length);
-    await trigger.hover();
-    const hoverLen = await page.evaluate(() => document.body.innerText.length);
-    await trigger.focus();
-    const focusLen = await page.evaluate(() => document.body.innerText.length);
-    await page.mouse.move(0, 0);
+    const { beforeLen, hoverLen, focusLen } = await measureHoverVsFocusReveal(
+      page,
+      trigger,
+    );
 
     if (hoverLen > beforeLen + 8 && focusLen < hoverLen - 4) {
       const ref = await trigger.evaluate((el) => ({

@@ -3,7 +3,7 @@ import type { Requirement } from "@complyloop/analysis-core/contract/project-typ
 import type { DrizzleDb } from "../client.ts";
 import { requirements } from "../schema.ts";
 import { requirementToRow } from "./mappers.ts";
-import { filterNotStale } from "./upsert-guard.ts";
+import { filterStalePayloadWrites } from "./upsert-guard.ts";
 
 export async function listRequirementsForProject(
   drizzle: DrizzleDb,
@@ -32,23 +32,17 @@ export async function upsertRequirements(
 ): Promise<void> {
   if (items.length === 0) return;
 
-  let toWrite = [...items];
-  const { loadedUpdatedAtById } = options;
-  if (loadedUpdatedAtById && loadedUpdatedAtById.size > 0) {
-    const ids = items.map((item) => item.id);
-    const rows = await tx
-      .select({ id: requirements.id, payload: requirements.payload })
-      .from(requirements)
-      .where(inArray(requirements.id, ids));
-    const dbUpdatedAtById = new Map(
-      rows.map((row) => [row.id, row.payload.updatedAt]),
-    );
-    toWrite = filterNotStale(
-      toWrite,
-      loadedUpdatedAtById,
-      dbUpdatedAtById,
-    );
-  }
+  const toWrite = await filterStalePayloadWrites(
+    items,
+    options.loadedUpdatedAtById,
+    async (ids) => {
+      const rows = await tx
+        .select({ id: requirements.id, payload: requirements.payload })
+        .from(requirements)
+        .where(inArray(requirements.id, [...ids]));
+      return new Map(rows.map((row) => [row.id, row.payload.updatedAt]));
+    },
+  );
 
   if (toWrite.length === 0) return;
   // Conflict target is the composite unique index, not the id: two writers

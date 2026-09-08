@@ -1,9 +1,8 @@
 "use server";
 
-import { PATCH_PR_SOURCE_ONLY_MESSAGE } from "@/ai/verified-fix";
+import { assertSourceLocatedFinding } from "@/ai/verified-fix";
 import { aiExplanationAvailable } from "@/ai/explainer";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
-import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { entityIdSchema } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
@@ -40,9 +39,7 @@ export async function generateAiFixAction(
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);
     requireOnFindingProject(preview, finding, "project.remediate");
-    if (!isSourceLocation(finding.location)) {
-      throw new PublicError(PATCH_PR_SOURCE_ONLY_MESSAGE);
-    }
+    assertSourceLocatedFinding(finding);
     if (finding.status !== "open") {
       throw new PublicError("Patch generation is only available for open findings.");
     }

@@ -1,6 +1,11 @@
 import type { Page } from "playwright";
 import type { CheckId } from "../types.ts";
-import { CAPTCHA_TOKEN } from "../patterns/multilingual.ts";
+import {
+  CAPTCHA_TOKEN,
+  foldAccents,
+  matchesMultilingual,
+} from "../patterns/multilingual.ts";
+import { collectCaptchaCandidates } from "./custom-checks/captcha-candidates.ts";
 
 export interface ApplicabilityObservation {
   checkId: CheckId;
@@ -48,6 +53,10 @@ interface PageApplicabilityAbsent {
   layoutTable: boolean;
 }
 
+const FOLD_ACCENTS_SOURCE = foldAccents.toString();
+const MATCHES_MULTILINGUAL_SOURCE = matchesMultilingual.toString();
+const COLLECT_CAPTCHA_SOURCE = collectCaptchaCandidates.toString();
+
 /**
  * Deterministic DOM probes: when content is absent on a page, emit observations
  * that status derivation can map to `not_applicable` (after site-wide aggregation).
@@ -56,72 +65,73 @@ export async function applicabilityObservationsForPage(
   page: Page,
   url: string,
 ): Promise<ApplicabilityObservation[]> {
-  const absent = await page.evaluate((captchaSource) => {
-    function foldAccents(value: string): string {
-      return value.normalize("NFD").replace(/\p{M}/gu, "");
-    }
+  const absent = await page.evaluate(
+    ({ captchaSource, foldSrc, matchesSrc, collectSrc }) => {
+      const matchesPattern = new Function(
+        "pattern",
+        "text",
+        `${foldSrc}; ${matchesSrc}; return matchesMultilingual(pattern, text);`,
+      ) as (pattern: RegExp, text: string) => boolean;
 
-    function matchesPattern(pattern: RegExp, text: string): boolean {
-      return pattern.test(text) || pattern.test(foldAccents(text));
-    }
+      const collectCandidates = new Function(
+        `return (${collectSrc})`,
+      )() as (doc?: Document) => Element[];
 
-    const captcha = new RegExp(captchaSource, "i");
+      const captcha = new RegExp(captchaSource, "i");
 
-    function hasCaptcha(): boolean {
-      const candidates = [
-        ...document.querySelectorAll("iframe"),
-        ...document.querySelectorAll(
-          "[class*='captcha' i], [id*='captcha' i], [data-sitekey]",
-        ),
-        ...document.querySelectorAll(
-          "img[alt*='captcha' i], img[src*='captcha' i]",
-        ),
-      ];
-      for (const el of candidates) {
-        const html = el.outerHTML;
-        const src = el.getAttribute("src") ?? "";
-        const cls = el.getAttribute("class") ?? "";
-        const id = el.getAttribute("id") ?? "";
-        if (matchesPattern(captcha, `${html} ${src} ${cls} ${id}`)) return true;
-      }
-      return false;
-    }
-
-    function isLayoutTable(table: HTMLTableElement): boolean {
-      // role="presentation" declares a layout table (matches
-      // layout-table-linearization.ts). Header markup makes it a data table.
-      if (table.getAttribute("role") === "presentation") return true;
-      if (table.querySelector("th, caption, [headers], [scope], thead")) {
+      function hasCaptcha(): boolean {
+        for (const el of collectCandidates(document)) {
+          const html = el.outerHTML;
+          const src = el.getAttribute("src") ?? "";
+          const cls = el.getAttribute("class") ?? "";
+          const id = el.getAttribute("id") ?? "";
+          if (matchesPattern(captcha, `${html} ${src} ${cls} ${id}`)) return true;
+        }
         return false;
       }
-      return table.querySelectorAll("td").length > 1;
-    }
 
-    function hasLayoutTable(): boolean {
-      for (const table of document.querySelectorAll("table")) {
-        if (table instanceof HTMLTableElement && isLayoutTable(table)) {
+      function isLayoutTable(table: HTMLTableElement): boolean {
+        // role="presentation" declares a layout table (matches
+        // layout-table-linearization.ts). Header markup makes it a data table.
+        if (table.getAttribute("role") === "presentation") return true;
+        if (table.querySelector("th, caption, [headers], [scope], thead")) {
+          return false;
+        }
+        return table.querySelectorAll("td").length > 1;
+      }
+
+      function hasLayoutTable(): boolean {
+        for (const table of document.querySelectorAll("table")) {
+          if (table instanceof HTMLTableElement && isLayoutTable(table)) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function hasNontemporalMedia(): boolean {
+        for (const el of document.querySelectorAll("embed, canvas")) {
+          if (el.getAttribute("role") === "presentation") continue;
+          if (el.getAttribute("aria-hidden") === "true") continue;
           return true;
         }
+        return false;
       }
-      return false;
-    }
 
-    function hasNontemporalMedia(): boolean {
-      for (const el of document.querySelectorAll("embed, canvas")) {
-        if (el.getAttribute("role") === "presentation") continue;
-        if (el.getAttribute("aria-hidden") === "true") continue;
-        return true;
-      }
-      return false;
-    }
-
-    return {
-      temporalMedia: document.querySelector("video, audio, track") === null,
-      nontemporalMedia: !hasNontemporalMedia(),
-      captcha: !hasCaptcha(),
-      layoutTable: !hasLayoutTable(),
-    } satisfies PageApplicabilityAbsent;
-  }, CAPTCHA_TOKEN.source);
+      return {
+        temporalMedia: document.querySelector("video, audio, track") === null,
+        nontemporalMedia: !hasNontemporalMedia(),
+        captcha: !hasCaptcha(),
+        layoutTable: !hasLayoutTable(),
+      } satisfies PageApplicabilityAbsent;
+    },
+    {
+      captchaSource: CAPTCHA_TOKEN.source,
+      foldSrc: FOLD_ACCENTS_SOURCE,
+      matchesSrc: MATCHES_MULTILINGUAL_SOURCE,
+      collectSrc: COLLECT_CAPTCHA_SOURCE,
+    },
+  );
 
   const observations: ApplicabilityObservation[] = [];
 

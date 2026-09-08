@@ -1,14 +1,4 @@
-import { isDecorativeOrHidden, isDomHost } from "../a11y-aria.ts";
-import { isPropSpreadingHost } from "../jsx-primitives.ts";
-import {
-  hasAnyAttr,
-  locationOf,
-  tagNameOf,
-  visitJsxTags,
-  type JsxTagNode,
-} from "../parse.ts";
-import { handlerTriggersContextChange } from "./heuristic-utils.ts";
-import type { AccessibilityCheck, RawFinding } from "../types.ts";
+import { makeContextChangeCheck } from "./make-context-change-check.ts";
 
 const INPUT_HANDLERS = [
   "onChange",
@@ -17,28 +7,11 @@ const INPUT_HANDLERS = [
   "onchange",
   "oninput",
   "onblur",
-];
+] as const;
 
-export const inputContextChangeCheck: AccessibilityCheck = {
+export const inputContextChangeCheck = makeContextChangeCheck({
   id: "input-context-change",
-  run(source) {
-    const findings: RawFinding[] = [];
-    visitJsxTags(source.sourceFile, (node: JsxTagNode) => {
-      if (!isDomHost(tagNameOf(node))) return;
-      if (isPropSpreadingHost(node)) return;
-      if (isDecorativeOrHidden(node)) return;
-      if (!hasAnyAttr(node, INPUT_HANDLERS)) return;
-      if (!handlerTriggersContextChange(node, INPUT_HANDLERS)) return;
-      findings.push({
-        checkId: "input-context-change",
-        kind: "warning",
-        severity: "moderate",
-        confidence: "low",
-        reason: `<${tagNameOf(node)}> input handler appears to change context (navigate or submit) without warning. WCAG 3.2.2 requires input not to trigger unexpected context changes.`,
-        location: locationOf(source, node),
-        fix: null,
-      });
-    });
-    return findings;
-  },
-};
+  handlers: INPUT_HANDLERS,
+  reasonForTag: (tag) =>
+    `<${tag}> input handler appears to change context (navigate or submit) without warning. WCAG 3.2.2 requires input not to trigger unexpected context changes.`,
+});
