@@ -434,9 +434,6 @@ export async function scanRuntime(
       browserConditions: options.browserConditions,
     });
   try {
-    for (const url of urls) {
-      await assertSafeRuntimeUrl(url, lookup);
-    }
     const pages = await scanner(urls);
     const siteLevelChecksRan = pages.length >= 2;
     const htmlValidateRan = pages.some((page) => page.htmlValidateRan === true);

@@ -14,12 +14,6 @@ Unnecessary-complexity audit of the whole repo (src/, packages/, scripts/, confi
 - **Simplification (judgment call):** give the panel `basePath`, `query`, and a `renderEmpty(status)` callback; derive `{...listParams, tab}` and the pagination label internally. 9→5 props. Do it when next touching this component, not as churn.
 - **Verification:** findings tabs (open/resolved/dismissed/by_cause) render + paginate identically.
 
-### 31. `runtime/scan.ts` — triple SSRF assertion per URL
-
-- **Evidence:** outer loop `scan.ts:436–440` asserts every URL before launch; the in-scanner precheck (:295–299) re-asserts with the same function and error; the route interceptor (:262–285) covers subresources. The in-scanner precheck has a documented TOCTOU rationale; the outer loop adds only an earlier failure.
-- **Simplification (judgment call):** delete `scan.ts:437–440`; keep precheck + interceptor. If defense-in-depth before browser launch is deliberate, keep and say so in a comment.
-- **Verification:** `npm run test -- packages/analysis-core/src/runtime/scan.test.ts` passes; malicious-URL e2e still blocked.
-
 ### 32. `check-registry.ts` — `runtimeOnly` flag is 86% derivable
 
 - **Evidence:** 57 `runtimeOnly: true` entries; 49 already have `authority: "runtime_only"`; the only real signal is the 8 `site_level` exceptions (vs 2 unflagged `site_level` ids: `consistent-lang:806`, `consistent-page-heading:812`).
