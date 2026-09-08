@@ -1,5 +1,11 @@
 import type { Page } from "playwright";
-import type { CustomViolation, CustomViolationNode } from "./types.ts";
+import type { CustomViolation } from "./types.ts";
+import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
+
+type FormErrorHit = SelectorRef & {
+  html: string;
+  failureSummary: string;
+};
 
 /**
  * Submits the first HTML5-validated form empty/invalid and checks that surfaced
@@ -30,13 +36,8 @@ export async function formErrorSubmitViolation(
 
   await page.waitForTimeout(150);
 
-  const nodes = await page.evaluate(() => {
+  const hits = await page.evaluate(() => {
     const maxNodes = 5;
-
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      return el.tagName.toLowerCase();
-    }
 
     function isInvalid(el: Element): boolean {
       if (
@@ -67,7 +68,7 @@ export async function formErrorSubmitViolation(
       document.querySelectorAll("input, select, textarea, [aria-invalid='true']"),
     ).filter(isInvalid);
 
-    if (invalidFields.length === 0) return [];
+    if (invalidFields.length === 0) return [] as FormErrorHit[];
 
     const active = document.activeElement;
     const focusOk =
@@ -75,7 +76,7 @@ export async function formErrorSubmitViolation(
       (isInvalid(active) ||
         invalidFields.some((field) => field.contains(active) || active.contains(field)));
 
-    const found: CustomViolationNode[] = [];
+    const found: FormErrorHit[] = [];
 
     for (const field of invalidFields) {
       if (!(field instanceof HTMLElement)) continue;
@@ -84,7 +85,9 @@ export async function formErrorSubmitViolation(
       const html = field.outerHTML.replace(/\s+/g, " ").trim();
       found.push({
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        target: [selectorOf(field)],
+        id: field.id,
+        role: field.getAttribute("role"),
+        tagName: field.tagName,
         failureSummary:
           "After submit, this invalid field has no programmatic association to visible error text (aria-describedby / aria-errormessage).",
       });
@@ -96,7 +99,9 @@ export async function formErrorSubmitViolation(
       const html = field.outerHTML.replace(/\s+/g, " ").trim();
       found.push({
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        target: [selectorOf(field)],
+        id: field.id,
+        role: field.getAttribute("role"),
+        tagName: field.tagName,
         failureSummary:
           "After submit, focus did not move to the invalid field or its associated error.",
       });
@@ -105,7 +110,7 @@ export async function formErrorSubmitViolation(
     return found;
   });
 
-  if (nodes.length === 0) return null;
+  if (hits.length === 0) return null;
 
   return {
     id: "form-error-association",
@@ -113,6 +118,10 @@ export async function formErrorSubmitViolation(
     description:
       "Form validation errors after submit are not programmatically associated with their fields, or focus did not move predictably.",
     help: "Associate error text with aria-describedby or aria-errormessage and move focus to the first invalid field (WCAG 3.3.1 / RGAA 11.10).",
-    nodes,
+    nodes: hits.map((hit) => ({
+      html: hit.html,
+      target: [selectorOf(hit)],
+      failureSummary: hit.failureSummary,
+    })),
   };
 }

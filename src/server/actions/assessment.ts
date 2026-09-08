@@ -4,30 +4,16 @@ import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { processNextAssessmentJob } from "../assessment-worker";
+import {
+  drainAssessmentJobQueue,
+  shouldDrainAssessmentJobsInline,
+} from "../assessment-job-inline";
 import { enqueueAssessmentJob, type AssessmentJob } from "../assessment-jobs";
-import { isE2EHarnessEnabled } from "../e2e-harness";
 import { assertAssessRateLimit } from "../rate-limit";
 import { withProjectWrite } from "../workspace-write";
 import { appendEvidence } from "../project-rows";
 import { refresh, requireOnActive } from "./shared";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-
-/**
- * Process jobs in-process when a dedicated worker is not expected —
- * local `next dev`, and Playwright (`E2E_AUTH_ENABLED=1` + `next start`).
- */
-export function shouldDrainAssessmentJobsInline(): boolean {
-  return process.env.NODE_ENV === "development" || isE2EHarnessEnabled();
-}
-
-/** Claims and runs ready jobs until the queue is idle or `maxJobs` is reached. */
-export async function drainAssessmentJobQueue(maxJobs = 20): Promise<void> {
-  for (let index = 0; index < maxJobs; index += 1) {
-    const result = await processNextAssessmentJob();
-    if (result.kind === "idle") return;
-  }
-}
 
 export async function runAssessmentAction(
   _previous: ActionMessageState,

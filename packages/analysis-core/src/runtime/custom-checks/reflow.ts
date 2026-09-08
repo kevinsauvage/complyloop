@@ -2,6 +2,7 @@ import type { Page } from "playwright";
 import { isTwoDimensionalLayout } from "./reflow-exceptions.ts";
 import { REFLOW_VIEWPORT } from "./reflow-math.ts";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 const TWO_D_LAYOUT_SOURCE = isTwoDimensionalLayout.toString();
 
 export async function reflowViolation(page: Page): Promise<CustomViolation | null> {
@@ -10,11 +11,6 @@ export async function reflowViolation(page: Page): Promise<CustomViolation | nul
     await page.setViewportSize(REFLOW_VIEWPORT);
     const hit = await page.evaluate((twoDSrc) => {
       const isTwoD = new Function(`return (${twoDSrc})`)() as typeof isTwoDimensionalLayout;
-
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        return el.tagName.toLowerCase();
-      }
 
       function isExempt(el: Element): boolean {
         let current: Element | null = el;
@@ -49,7 +45,7 @@ export async function reflowViolation(page: Page): Promise<CustomViolation | nul
       const html = wide.outerHTML.replace(/\s+/g, " ").trim();
       return {
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(wide),
+        id: wide.id, role: wide.getAttribute("role"), tagName: wide.tagName,
       };
     }, TWO_D_LAYOUT_SOURCE);
 
@@ -60,7 +56,7 @@ export async function reflowViolation(page: Page): Promise<CustomViolation | nul
       description:
         "Page content requires horizontal scrolling at 320 CSS pixels without a qualifying exception.",
       help: "Content must reflow without two-dimensional scrolling except for data tables, maps, and similar 2D content (WCAG 1.4.10).",
-      nodes: [{ html: hit.html, target: [hit.selector] }],
+      nodes: [{ html: hit.html, target: [selectorOf(hit)] }],
     };
   } finally {
     if (original) {

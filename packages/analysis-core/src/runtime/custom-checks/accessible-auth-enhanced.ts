@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
 import { AUTH_CONTEXT, PUZZLE_CAPTCHA } from "../../patterns/multilingual.ts";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function accessibleAuthEnhancedViolation(
   page: Page,
@@ -18,11 +19,6 @@ export async function accessibleAuthEnhancedViolation(
         return pattern.test(text) || pattern.test(foldAccents(text));
       }
 
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        return el.tagName.toLowerCase();
-      }
-
       const authContext = [
         document.title,
         ...[...document.querySelectorAll("form, main, [role='main']")].map(
@@ -31,7 +27,7 @@ export async function accessibleAuthEnhancedViolation(
       ].join(" ");
       if (!matchesPattern(authPattern, authContext)) return [];
 
-      const violations: Array<{ html: string; selector: string }> = [];
+      const violations: Array<{ html: string; id: string; role: string | null; tagName: string }> = [];
       const candidates = [
         ...document.querySelectorAll("iframe"),
         ...document.querySelectorAll("[class*='captcha' i], [id*='captcha' i], [data-sitekey]"),
@@ -44,7 +40,7 @@ export async function accessibleAuthEnhancedViolation(
         if (!matchesPattern(puzzlePattern, `${html} ${src} ${title}`)) continue;
         violations.push({
           html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          selector: selectorOf(el),
+          id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
         });
         if (violations.length >= 5) break;
       }
@@ -65,6 +61,6 @@ export async function accessibleAuthEnhancedViolation(
     description:
       "Authentication uses object-recognition or image-selection CAPTCHA.",
     help: "Do not require image or object puzzles to authenticate (WCAG 3.3.9).",
-    nodes: nodes.map((node) => ({ html: node.html, target: [node.selector] })),
+    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
   };
 }

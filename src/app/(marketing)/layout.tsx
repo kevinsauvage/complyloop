@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { auth, isGitHubAuthConfigured } from "@/auth";
 import { MarketingHeader } from "@/components/marketing/marketing-header";

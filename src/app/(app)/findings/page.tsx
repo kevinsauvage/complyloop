@@ -26,14 +26,10 @@ import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses"
 import type { Finding } from "@complyloop/db/types";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { findingsInScope } from "@/server/project-scope";
-import {
-  controlById,
-  getWorkspace,
-} from "@/server/workspace";
+import { getWorkspace } from "@/server/workspace";
 import { getProjectRuntime } from "@/server/project-runtime";
-import { frameworkForProject } from "@/server/report";
+import { displayControl } from "@/server/report";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
-import { controlForDisplay } from "@complyloop/adapters/control-theme";
 
 export const dynamic = "force-dynamic";
 
@@ -90,11 +86,9 @@ export default async function FindingsPage({
   const paginationQuery = findingListPaginationQuery(listParams);
 
   const listFor = (sliceFindings: Finding[]) => {
-    const frameworkId = frameworkForProject(project).id;
     return toFindingListItems(
       sliceFindings,
-      (controlId) =>
-        controlForDisplay(controlById(controlId), frameworkId),
+      (controlId) => displayControl(controlId, project),
       (findingId) => {
         const remediation = remediationByFindingId.get(findingId);
         if (!remediation) {

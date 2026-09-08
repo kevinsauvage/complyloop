@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
 import { TARGET_SIZE_ENHANCED_MIN_PX } from "../viewport-conditions.ts";
-import type { CustomViolation, CustomViolationNode } from "./types.ts";
+import type { CustomViolation } from "./types.ts";
+import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
 
 const CONTROL_SELECTOR = [
   "button:not([disabled])",
@@ -11,6 +12,11 @@ const CONTROL_SELECTOR = [
   '[role="button"]:not([aria-disabled="true"])',
 ].join(", ");
 
+type TargetHit = SelectorRef & {
+  html: string;
+  failureSummary: string;
+};
+
 /**
  * WCAG 2.5.5 Target Size (Enhanced) — 44×44 CSS pixels.
  * Does not replace axe `target-size` (24×24 / 2.5.8 AA).
@@ -19,17 +25,8 @@ export async function targetSizeEnhancedViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const minSize = TARGET_SIZE_ENHANCED_MIN_PX;
-  const nodes = await page.evaluate(
+  const hits = await page.evaluate(
     ({ selector, minPx }) => {
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        const tag = el.tagName.toLowerCase();
-        const cls = el.className && typeof el.className === "string"
-          ? `.${el.className.trim().split(/\s+/)[0]}`
-          : "";
-        return `${tag}${cls}`;
-      }
-
       function isInlineInText(el: HTMLElement): boolean {
         const display = getComputedStyle(el).display;
         if (display !== "inline") return false;
@@ -38,7 +35,7 @@ export async function targetSizeEnhancedViolation(
         return (parent.textContent ?? "").trim().length > (el.textContent ?? "").trim().length;
       }
 
-      const found: CustomViolationNode[] = [];
+      const found: TargetHit[] = [];
       for (const el of Array.from(
         document.querySelectorAll<HTMLElement>(selector),
       )) {
@@ -51,7 +48,9 @@ export async function targetSizeEnhancedViolation(
         const html = el.outerHTML.replace(/\s+/g, " ").trim();
         found.push({
           html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          target: [selectorOf(el)],
+          id: el.id,
+          role: el.getAttribute("role"),
+          tagName: el.tagName,
           failureSummary: `Target is ${Math.round(rect.width)}×${Math.round(rect.height)} CSS pixels (needs ${minPx}×${minPx}).`,
         });
         if (found.length >= 5) break;
@@ -61,13 +60,17 @@ export async function targetSizeEnhancedViolation(
     { selector: CONTROL_SELECTOR, minPx: minSize },
   );
 
-  if (nodes.length === 0) return null;
+  if (hits.length === 0) return null;
   return {
     id: "target-size-enhanced",
     impact: "moderate",
     description:
       "An interactive target is smaller than 44×44 CSS pixels (WCAG 2.5.5 Target Size Enhanced).",
     help: "Enlarge the clickable area to at least 44×44 CSS pixels. This is AAA and does not replace the 24×24 AA minimum.",
-    nodes,
+    nodes: hits.map((hit) => ({
+      html: hit.html,
+      target: [selectorOf(hit)],
+      failureSummary: hit.failureSummary,
+    })),
   };
 }

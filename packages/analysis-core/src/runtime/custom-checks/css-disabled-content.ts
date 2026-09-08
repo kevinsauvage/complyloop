@@ -1,20 +1,15 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
 
-interface CssContentHit {
+interface CssContentHit extends SelectorRef {
   html: string;
-  selector: string;
 }
 
 export async function cssDisabledContentViolations(
   page: Page,
 ): Promise<CustomViolation[]> {
   const hits = await page.evaluate((): CssContentHit[] => {
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      return el.tagName.toLowerCase();
-    }
-
     function hasVisibleDomText(el: Element): boolean {
       return (el.textContent ?? "").trim().length > 0;
     }
@@ -64,7 +59,7 @@ export async function cssDisabledContentViolations(
       const html = el.outerHTML.replace(/\s+/g, " ").trim();
       results.push({
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(el),
+        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
       });
     }
 
@@ -80,7 +75,7 @@ export async function cssDisabledContentViolations(
       description:
         "Visible text may depend on CSS pseudo-elements or background images instead of HTML.",
       help: "Put essential text in the document, not only in ::before/::after content or image backgrounds (WCAG 1.3.1 / RGAA 10.2).",
-      nodes: hits.map((hit) => ({ html: hit.html, target: [hit.selector] })),
+      nodes: hits.map((hit) => ({ html: hit.html, target: [selectorOf(hit)] })),
     },
   ];
 }

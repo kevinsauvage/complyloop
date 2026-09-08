@@ -1,15 +1,11 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function layoutTableLinearizationViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const hit = await page.evaluate(() => {
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      return el.tagName.toLowerCase();
-    }
-
     function isLayoutTable(table: HTMLTableElement): boolean {
       if (table.getAttribute("role") === "presentation") return true;
       if (
@@ -55,7 +51,7 @@ export async function layoutTableLinearizationViolation(
       const html = table.outerHTML.replace(/\s+/g, " ").trim();
       return {
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(table),
+        id: table.id, role: table.getAttribute("role"), tagName: table.tagName,
         mismatches,
       };
     }
@@ -71,6 +67,6 @@ export async function layoutTableLinearizationViolation(
     description:
       "Layout table cells appear in a different visual order than DOM order, so disabling CSS will scramble reading order.",
     help: "Use CSS layout instead of reordering table cells, or mark up a real data table with headers (WCAG 1.3.2 / RGAA 5.3).",
-    nodes: [{ html: hit.html, target: [hit.selector] }],
+    nodes: [{ html: hit.html, target: [selectorOf(hit)] }],
   };
 }

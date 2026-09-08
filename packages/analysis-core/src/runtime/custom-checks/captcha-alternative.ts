@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
 import { CAPTCHA_ALTERNATIVE, CAPTCHA_TOKEN } from "../../patterns/multilingual.ts";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function captchaAlternativeViolation(
   page: Page,
@@ -18,11 +19,6 @@ export async function captchaAlternativeViolation(
         return pattern.test(text) || pattern.test(foldAccents(text));
       }
 
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        return el.tagName.toLowerCase();
-      }
-
       function hasAlternative(container: Element): boolean {
         for (const el of container.querySelectorAll("a, button, audio")) {
           const text = (el.textContent ?? "").trim();
@@ -33,7 +29,7 @@ export async function captchaAlternativeViolation(
         return container.querySelector("audio") !== null;
       }
 
-      const violations: Array<{ html: string; selector: string }> = [];
+      const violations: Array<{ html: string; id: string; role: string | null; tagName: string }> = [];
       const candidates = [
         ...document.querySelectorAll("iframe"),
         ...document.querySelectorAll("[class*='captcha' i], [id*='captcha' i], [data-sitekey]"),
@@ -52,7 +48,7 @@ export async function captchaAlternativeViolation(
 
         violations.push({
           html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          selector: selectorOf(el),
+          id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
         });
         if (violations.length >= 5) break;
       }
@@ -72,6 +68,6 @@ export async function captchaAlternativeViolation(
     impact: "serious",
     description: "CAPTCHA does not expose a non-visual alternative modality.",
     help: "Provide audio, logic, or human-contact alternatives for image CAPTCHA (RGAA 1.5).",
-    nodes: nodes.map((node) => ({ html: node.html, target: [node.selector] })),
+    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
   };
 }

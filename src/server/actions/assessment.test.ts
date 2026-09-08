@@ -9,7 +9,7 @@ import { processNextAssessmentJob } from "../assessment-worker";
 import {
   drainAssessmentJobQueue,
   shouldDrainAssessmentJobsInline,
-} from "./assessment";
+} from "../assessment-job-inline";
 
 const processNext = vi.mocked(processNextAssessmentJob);
 

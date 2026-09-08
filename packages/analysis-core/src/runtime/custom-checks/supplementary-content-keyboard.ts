@@ -1,20 +1,15 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
 
-interface SupplementaryHit {
+interface SupplementaryHit extends SelectorRef {
   html: string;
-  selector: string;
 }
 
 export async function supplementaryContentKeyboardViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const nodes = await page.evaluate((): SupplementaryHit[] => {
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      return el.tagName.toLowerCase();
-    }
-
     function isFocusable(el: Element): boolean {
       if (!(el instanceof HTMLElement)) return false;
       if (el.matches('[tabindex="-1"]')) return false;
@@ -35,7 +30,7 @@ export async function supplementaryContentKeyboardViolation(
       const html = el.outerHTML.replace(/\s+/g, " ").trim();
       violations.push({
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(el),
+        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
       });
       if (violations.length >= 5) return violations;
     }
@@ -57,7 +52,7 @@ export async function supplementaryContentKeyboardViolation(
       const html = el.outerHTML.replace(/\s+/g, " ").trim();
       violations.push({
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(el),
+        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
       });
       if (violations.length >= 5) return violations;
     }
@@ -73,6 +68,6 @@ export async function supplementaryContentKeyboardViolation(
     description:
       "Supplementary content appears available only through pointer hover or hidden popups.",
     help: "Supplementary content on hover or focus must be keyboard reachable and operable (RGAA 12.11 / WCAG 2.1.1).",
-    nodes: nodes.map((node) => ({ html: node.html, target: [node.selector] })),
+    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
   };
 }

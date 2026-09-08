@@ -5,10 +5,10 @@ import {
   HIGH_RISK,
 } from "../../patterns/multilingual.ts";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
 
-interface FormHit {
+interface FormHit extends SelectorRef {
   html: string;
-  selector: string;
 }
 
 const RUNTIME_CONFIRM_LABEL = new RegExp(
@@ -30,11 +30,6 @@ export async function errorPreventionViolation(
 
       function matchesPattern(pattern: RegExp, text: string): boolean {
         return pattern.test(text) || pattern.test(foldAccents(text));
-      }
-
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        return el.tagName.toLowerCase();
       }
 
       function formContext(form: HTMLFormElement): string {
@@ -70,7 +65,7 @@ export async function errorPreventionViolation(
         const html = form.outerHTML.replace(/\s+/g, " ").trim();
         violations.push({
           html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          selector: selectorOf(form),
+          id: form.id, role: form.getAttribute("role"), tagName: form.tagName,
         });
         if (violations.length >= 5) break;
       }
@@ -90,6 +85,6 @@ export async function errorPreventionViolation(
     description:
       "High-impact form can submit without a review, confirm, or agreement step.",
     help: "Legal, financial, and test submissions must be reversible, checked, or confirmed (WCAG 3.3.4).",
-    nodes: hits.map((hit) => ({ html: hit.html, target: [hit.selector] })),
+    nodes: hits.map((hit) => ({ html: hit.html, target: [selectorOf(hit)] })),
   };
 }

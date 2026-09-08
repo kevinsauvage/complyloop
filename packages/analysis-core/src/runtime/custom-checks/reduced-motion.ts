@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 interface AnimatedEffect {
   target?: Element | null;
@@ -34,11 +35,6 @@ export async function reducedMotionViolation(
         return /ms$/i.test(duration) ? num : num * 1000;
       }
 
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        return el.tagName.toLowerCase();
-      }
-
       const found: CustomViolationNode[] = [];
       const seen = new Set<string>();
 
@@ -67,7 +63,7 @@ export async function reducedMotionViolation(
         const infinite = iterations === Infinity;
         if (!infinite && duration < minDurationMs) continue;
 
-        const key = selectorOf(el);
+        const key = `${el.id}\0${el.getAttribute("role") ?? ""}\0${el.tagName}`;
         if (seen.has(key)) continue;
         seen.add(key);
 

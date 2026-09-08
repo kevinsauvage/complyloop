@@ -1,9 +1,9 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
 
-interface HoverKeyboardHit {
+interface HoverKeyboardHit extends SelectorRef {
   html: string;
-  selector: string;
 }
 
 const MAX_TRIGGERS = 12;
@@ -12,11 +12,6 @@ export async function cssHoverKeyboardViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const stylesheetHits = await page.evaluate((): HoverKeyboardHit[] => {
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      return el.tagName.toLowerCase();
-    }
-
     const hits: HoverKeyboardHit[] = [];
     const visibilityProps = ["display", "visibility", "opacity", "height", "max-height"];
 
@@ -50,7 +45,7 @@ export async function cssHoverKeyboardViolation(
         const html = match.outerHTML.replace(/\s+/g, " ").trim();
         hits.push({
           html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          selector: selectorOf(match),
+          id: match.id, role: match.getAttribute("role"), tagName: match.tagName,
         });
         if (hits.length >= 5) return hits;
       }
@@ -74,16 +69,17 @@ export async function cssHoverKeyboardViolation(
     await page.mouse.move(0, 0);
 
     if (hoverLen > beforeLen + 8 && focusLen < hoverLen - 4) {
-      const html = (await trigger.evaluate((el) => el.outerHTML)).replace(
-        /\s+/g,
-        " ",
-      );
-      const selector = await trigger.evaluate((el) =>
-        el.id ? `#${el.id}` : el.tagName.toLowerCase(),
-      );
+      const ref = await trigger.evaluate((el) => ({
+        html: el.outerHTML.replace(/\s+/g, " ").trim(),
+        id: el.id,
+        role: el.getAttribute("role"),
+        tagName: el.tagName,
+      }));
       interactionHits.push({
-        html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector,
+        html: ref.html.length > 200 ? `${ref.html.slice(0, 197)}…` : ref.html,
+        id: ref.id,
+        role: ref.role,
+        tagName: ref.tagName,
       });
       if (interactionHits.length >= 3) break;
     }
@@ -98,6 +94,6 @@ export async function cssHoverKeyboardViolation(
     description:
       "Extra content may appear on pointer hover without an equivalent reveal on keyboard focus.",
     help: "Ensure :hover-only menus and tooltips can also be opened with keyboard focus (WCAG 2.1.1 / RGAA 10.14).",
-    nodes: nodes.map((hit) => ({ html: hit.html, target: [hit.selector] })),
+    nodes: nodes.map((hit) => ({ html: hit.html, target: [selectorOf(hit)] })),
   };
 }

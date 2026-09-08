@@ -4,6 +4,7 @@ import {
   MAX_LABEL_GAP_PX,
 } from "./label-adjacent-math.ts";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function labelAdjacentViolation(
   page: Page,
@@ -16,11 +17,6 @@ export async function labelAdjacentViolation(
         "b",
         `${gapFnSource}; return gapBetweenRects(a, b);`,
       ) as (a: DOMRect, b: DOMRect) => number;
-
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        return el.tagName.toLowerCase();
-      }
 
       function skipLayout(label: Element, field: Element): boolean {
         let ancestor = label.parentElement;
@@ -51,7 +47,7 @@ export async function labelAdjacentViolation(
         return false;
       }
 
-      const violations: Array<{ html: string; selector: string }> = [];
+      const violations: Array<{ html: string; id: string; role: string | null; tagName: string }> = [];
       const fields = document.querySelectorAll(
         'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea',
       );
@@ -72,7 +68,7 @@ export async function labelAdjacentViolation(
         const html = field.outerHTML.replace(/\s+/g, " ").trim();
         violations.push({
           html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          selector: selectorOf(field),
+          id: field.id, role: field.getAttribute("role"), tagName: field.tagName,
         });
         if (violations.length >= 5) break;
       }
@@ -89,6 +85,6 @@ export async function labelAdjacentViolation(
     description:
       "Visible label is programmatically associated but may not be visually adjacent to its field.",
     help: "Place the label next to the control it names so sighted users can match them (WCAG 3.3.2 / RGAA 11.4).",
-    nodes: nodes.map((node) => ({ html: node.html, target: [node.selector] })),
+    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
   };
 }

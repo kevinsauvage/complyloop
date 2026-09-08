@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 const SPACING_STYLE_ID = "complyloop-text-spacing-test";
 
@@ -7,11 +8,6 @@ export async function textSpacingRuntimeViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const nodes = await page.evaluate((styleId) => {
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      return el.tagName.toLowerCase();
-    }
-
     const existing = document.getElementById(styleId);
     existing?.remove();
 
@@ -29,7 +25,7 @@ export async function textSpacingRuntimeViolation(
     `;
     document.head.appendChild(style);
 
-    const violations: Array<{ html: string; selector: string }> = [];
+    const violations: Array<{ html: string; id: string; role: string | null; tagName: string }> = [];
     const candidates = document.querySelectorAll("p, li, label, button, a, input, textarea");
 
     for (const el of candidates) {
@@ -47,7 +43,7 @@ export async function textSpacingRuntimeViolation(
       const html = el.outerHTML.replace(/\s+/g, " ").trim();
       violations.push({
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(el),
+        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
       });
       if (violations.length >= 5) break;
     }
@@ -63,6 +59,6 @@ export async function textSpacingRuntimeViolation(
     description:
       "Text is clipped or hidden when WCAG 1.4.12 text-spacing overrides are applied.",
     help: "Do not lock spacing with overflow:hidden or fixed heights that clip content when users increase spacing.",
-    nodes: nodes.map((node) => ({ html: node.html, target: [node.selector] })),
+    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
   };
 }

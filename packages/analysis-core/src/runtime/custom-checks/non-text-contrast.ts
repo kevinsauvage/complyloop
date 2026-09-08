@@ -1,6 +1,7 @@
 import type { Locator, Page } from "playwright";
 import { contrastRatio, parseRgb, relativeLuminance } from "./non-text-contrast-math.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
+import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
 
 const CONTROL_SELECTOR =
   'button, input:not([type="hidden"]), select, textarea, a[href], [role="button"], [role="checkbox"], [role="radio"]';
@@ -8,9 +9,8 @@ const CONTROL_SELECTOR =
 const MAX_HOVER = 12;
 const MAX_NODES = 5;
 
-interface ContrastHit {
+interface ContrastHit extends SelectorRef {
   html: string;
-  selector: string;
   state: "default" | "hover" | "selected";
   ratio: number;
 }
@@ -40,7 +40,13 @@ export async function nonTextContrastViolation(
     const hoverHit = await collectHoverHit(locator);
     await page.mouse.move(0, 0);
     if (!hoverHit) continue;
-    if (hits.some((existing) => existing.selector === hoverHit.selector && existing.state === "hover")) {
+    if (hits.some(
+      (existing) =>
+        existing.id === hoverHit.id &&
+        existing.role === hoverHit.role &&
+        existing.tagName === hoverHit.tagName &&
+        existing.state === "hover",
+    )) {
       continue;
     }
     hits.push(hoverHit);
@@ -50,7 +56,7 @@ export async function nonTextContrastViolation(
 
   const nodes: CustomViolationNode[] = hits.slice(0, MAX_NODES).map((hit) => ({
     html: hit.html,
-    target: [hit.selector],
+    target: [selectorOf(hit)],
     failureSummary: `${hit.state} chrome contrast is ${hit.ratio.toFixed(2)}:1 (needs 3:1).`,
   }));
 
@@ -79,13 +85,6 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
         a: [number, number, number],
         b: [number, number, number],
       ) => number;
-
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        const tag = el.tagName.toLowerCase();
-        const role = el.getAttribute("role");
-        return role ? `${tag}[role="${role}"]` : tag;
-      }
 
       function backgroundRgb(el: Element): [number, number, number] | null {
         let current: Element | null = el;
@@ -136,7 +135,7 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
         const html = el.outerHTML.replace(/\s+/g, " ").trim();
         violations.push({
           html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          selector: selectorOf(el),
+          id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
           state: chromeState(el),
           ratio,
         });
@@ -163,13 +162,6 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
       b: [number, number, number],
     ) => number;
 
-    function selectorOf(node: Element): string {
-      if (node.id) return `#${node.id}`;
-      const tag = node.tagName.toLowerCase();
-      const role = node.getAttribute("role");
-      return role ? `${tag}[role="${role}"]` : tag;
-    }
-
     function backgroundRgb(node: Element): [number, number, number] | null {
       let current: Element | null = node;
       while (current) {
@@ -193,7 +185,7 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
     const html = el.outerHTML.replace(/\s+/g, " ").trim();
     return {
       html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-      selector: selectorOf(el),
+      id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
       state: "hover" as const,
       ratio,
     };

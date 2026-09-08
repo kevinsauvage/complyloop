@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 /** Form-validation feedback — not marketing copy with incidental substrings. */
 const FORM_STATUS_PATTERN_SOURCE =
@@ -10,14 +11,9 @@ export async function liveRegionUpdatesViolation(
 ): Promise<CustomViolation | null> {
   const before = await page.evaluate(({ patternSource }) => {
     const statusPattern = new RegExp(patternSource, "i");
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      return el.tagName.toLowerCase();
-    }
-
-    function collectStatusHits(): Array<{ html: string; selector: string; text: string }> {
+    function collectStatusHits(): Array<{ html: string; id: string; role: string | null; tagName: string; text: string }> {
       const liveSelector = '[aria-live], [role="status"], [role="alert"]';
-      const hits: Array<{ html: string; selector: string; text: string }> = [];
+      const hits: Array<{ html: string; id: string; role: string | null; tagName: string; text: string }> = [];
       for (const el of document.querySelectorAll("p, div, span, li, output")) {
         const text = (el.textContent ?? "").trim();
         if (text.length < 4 || text.length > 240) continue;
@@ -30,7 +26,7 @@ export async function liveRegionUpdatesViolation(
         hits.push({
           text,
           html: el.outerHTML.replace(/\s+/g, " ").trim(),
-          selector: selectorOf(el),
+          id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
         });
       }
       return hits;
@@ -42,7 +38,9 @@ export async function liveRegionUpdatesViolation(
       )
         .map((el) => (el.textContent ?? "").trim())
         .join("|"),
-      statusKeys: collectStatusHits().map((hit) => `${hit.selector}::${hit.text}`),
+      statusKeys: collectStatusHits().map(
+        (hit) => `${hit.id}\0${hit.role ?? ""}\0${hit.tagName}::${hit.text}`,
+      ),
     };
   }, { patternSource: FORM_STATUS_PATTERN_SOURCE });
 
@@ -70,11 +68,6 @@ export async function liveRegionUpdatesViolation(
 
   const after = await page.evaluate(({ beforeKeys, beforeLiveText, patternSource }) => {
     const statusPattern = new RegExp(patternSource, "i");
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      return el.tagName.toLowerCase();
-    }
-
     function isInvalid(el: Element): boolean {
       if (
         el instanceof HTMLInputElement ||
@@ -100,7 +93,7 @@ export async function liveRegionUpdatesViolation(
       .map((el) => (el.textContent ?? "").trim())
       .join("|");
 
-    const newHits: Array<{ html: string; selector: string; text: string }> = [];
+    const newHits: Array<{ html: string; id: string; role: string | null; tagName: string; text: string }> = [];
     for (const el of document.querySelectorAll("p, div, span, li, output")) {
       const text = (el.textContent ?? "").trim();
       if (text.length < 4 || text.length > 240) continue;
@@ -111,14 +104,14 @@ export async function liveRegionUpdatesViolation(
       if (el.closest(liveSelector)) continue;
       if (el.closest('[aria-hidden="true"]')) continue;
 
-      const key = `${selectorOf(el)}::${text}`;
+      const key = `${el.id}\0${el.getAttribute("role") ?? ""}\0${el.tagName}::${text}`;
       if (beforeKeys.includes(key)) continue;
 
       const html = el.outerHTML.replace(/\s+/g, " ").trim();
       newHits.push({
         text,
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(el),
+        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
       });
       if (newHits.length >= 5) break;
     }
@@ -141,7 +134,7 @@ export async function liveRegionUpdatesViolation(
     help: 'Wrap dynamic status text in role="status", role="alert", or aria-live (WCAG 4.1.3 / RGAA 7.5).',
     nodes: after.newHits.map((hit) => ({
       html: hit.html,
-      target: [hit.selector],
+      target: [selectorOf(hit)],
       failureSummary:
         "This status message is visible but not inside aria-live, role=status, or role=alert.",
     })),

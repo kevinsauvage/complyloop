@@ -6,22 +6,6 @@ Unnecessary-complexity audit of the whole repo (src/, packages/, scripts/, confi
 
 ---
 
-## P2 — worthwhile simplifications
-
-### 20. `controlForDisplay(controlById(id))` composed by hand in 3 pages, each paying an O(n) catalog scan
-
-- **Problem:** findings page (:103–105), finding detail (:80–83), and dashboard (:273–279) re-assemble the same "raw control → theme for framework" pipeline, while `controlById` (`src/server/workspace.ts:142–147`) does a fresh `Array.find` over the whole shipped catalog per call — O(n) per finding in list rendering.
-- **Simplification:** one `displayControl(controlId, project)` helper in `src/server/report.ts`, backed by a `Map` built once from `shippedCatalog()`.
-- **Verification:** `npm run test -- src/server` passes; finding pages render identical control titles/themes.
-
-### 22. `selectorOf` inlined in ~21 Playwright probes despite an injectable-helper precedent
-
-- **Problem:** 21 copies of a 3–5 line selector builder across `packages/analysis-core/src/runtime/custom-checks/*.ts` (e.g. `text-spacing-runtime.ts:10–13`, `forced-colors.ts:30–33`, `live-region-updates.ts:13–16` **and** :73–76 — two variants in one file), with divergent behavior (some add `[role]`). The codebase already solved helper-sharing with evaluate callbacks twice (`focus.ts:12–15`, `widget-keyboard.ts:6–19` via source-string injection).
-- **Simplification:** one injectable `selectorOf` source constant (the `focus.ts` pattern) used by all probes. **Caveat:** `multilingual.ts:9–15` documents a CSP rationale for inlining `foldAccents`; if strict CSP is the rule, document it for these copies instead and accept them.
-- **Verification:** `npm run test -- packages/analysis-core` (incl. custom-checks tests) passes; run one runtime assessment (`runtimeBaseUrl` set) and confirm identical findings.
-
----
-
 ## P3 — minor cleanups (do while touching the file)
 
 ### 28. `FindingsTabPanel` drills 9 props including a pre-built ReactNode
@@ -77,7 +61,7 @@ Verified clean so a future agent doesn't re-litigate them:
 - **`contract/` layer in analysis-core (~540 LOC):** deliberately self-contained (`self-contained.test.ts` enforces no upward imports) so db/adapters/core/UI can share statuses/locations without dragging the parser in. Keep; only the `check-ids` hop and checkout-knob misfiling are flagged.
 - **`adapters` package:** no fragmentation — `catalog-ids.ts` is a fail-loud validator, not a re-export; `control-theme.ts` has real logic. One micro-trim available: `presetById` rebuilds the presets array per lookup (`registry.ts:20`) — cache the module-level array when next touching the file.
 - **`heuristic-utils.ts`:** every export has ≥2 real check consumers; keep (only the `visitJsxElements` overlap is flagged, item 33).
-- **`foldAccents` copies in custom-checks:** documented-deliberate (`multilingual.ts:9–15`, CSP rationale) — do not consolidate.
+- **`foldAccents` copies in custom-checks:** documented-deliberate (`multilingual.ts`, CSP) — do not consolidate. **`selectorOf`:** single Node helper; evaluate returns plain refs, then formats outside.
 - **`scan.ts` injected `scanner`/`lookup` options:** used by 4 test files — acceptable test seams.
 - **`src/server/boundary.ts` vs `src/core/boundary.ts`:** justified (client-safe core, server adds `PublicError` throwing; 14 + 30 importers).
 - **In-memory `Db` write-batch + `ProjectWritePayload`:** load-slice + payload is the stale-write-protection mechanism (`upsert-guard.ts`); keep. Status scratch is `ProjectRows` (items 4/7 done).

@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 const FONT_SCALE = "200%";
 
@@ -8,11 +9,6 @@ export async function resizeTextViolation(
 ): Promise<CustomViolation | null> {
   try {
     const hit = await page.evaluate((fontScale) => {
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        return el.tagName.toLowerCase();
-      }
-
       document.documentElement.style.fontSize = fontScale;
 
       const clipped = Array.from(document.querySelectorAll("body *")).find((el) => {
@@ -39,7 +35,7 @@ export async function resizeTextViolation(
       const html = clipped.outerHTML.replace(/\s+/g, " ").trim();
       return {
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(clipped),
+        id: clipped.id, role: clipped.getAttribute("role"), tagName: clipped.tagName,
       };
     }, FONT_SCALE);
 
@@ -50,7 +46,7 @@ export async function resizeTextViolation(
       description:
         "Text is clipped after 200% text resize at the default viewport.",
       help: "Content must remain readable when text is resized to 200% without loss (WCAG 1.4.4 / RGAA 10.4). Narrow-viewport reflow is checked separately (WCAG 1.4.10).",
-      nodes: [{ html: hit.html, target: [hit.selector] }],
+      nodes: [{ html: hit.html, target: [selectorOf(hit)] }],
     };
   } finally {
     await page.evaluate(() => {

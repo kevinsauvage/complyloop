@@ -1,6 +1,10 @@
 import type { Page } from "playwright";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
-import { isKeyboardFocusable, selectorOf } from "./widget-keyboard-utils.ts";
+import {
+  isKeyboardFocusable,
+  selectorOf,
+  type SelectorRef,
+} from "./widget-keyboard-utils.ts";
 
 /**
  * ARIA widget keyboard reachability (§7 Interaction: tabs, disclosure, menu).
@@ -10,20 +14,34 @@ import { isKeyboardFocusable, selectorOf } from "./widget-keyboard-utils.ts";
  */
 
 const BROWSER_HELPERS = `(function helperSource() {
-  ${selectorOf.toString()}
   ${isKeyboardFocusable.toString()}
   function snippetOf(el) {
     return (el.outerHTML || "").replace(/\\s+/g, " ").trim().slice(0, 160);
   }
-  return { selectorOf: selectorOf, snippetOf: snippetOf, isKeyboardFocusable: isKeyboardFocusable };
+  return { snippetOf: snippetOf, isKeyboardFocusable: isKeyboardFocusable };
 })()`;
+
+type WidgetHit = SelectorRef & {
+  html: string;
+  elementLabel: string;
+  failureSummary: string;
+};
+
+function toNodes(hits: WidgetHit[]): CustomViolationNode[] {
+  return hits.map((hit) => ({
+    html: hit.html,
+    target: [selectorOf(hit)],
+    elementLabel: hit.elementLabel,
+    failureSummary: hit.failureSummary,
+  }));
+}
 
 export async function widgetKeyboardViolations(
   page: Page,
 ): Promise<CustomViolation[]> {
   const violations: CustomViolation[] = [];
 
-  const tabNodes = await collectTablistNodes(page);
+  const tabNodes = toNodes(await collectTablistHits(page));
   if (tabNodes.length > 0) {
     violations.push({
       id: "tabs-keyboard",
@@ -35,7 +53,7 @@ export async function widgetKeyboardViolations(
     });
   }
 
-  const disclosureNodes = await collectDisclosureNodes(page);
+  const disclosureNodes = toNodes(await collectDisclosureHits(page));
   if (disclosureNodes.length > 0) {
     violations.push({
       id: "disclosure-keyboard",
@@ -47,7 +65,7 @@ export async function widgetKeyboardViolations(
     });
   }
 
-  const menuNodes = await collectMenuNodes(page);
+  const menuNodes = toNodes(await collectMenuHits(page));
   if (menuNodes.length > 0) {
     violations.push({
       id: "menu-keyboard",
@@ -62,17 +80,16 @@ export async function widgetKeyboardViolations(
   return violations;
 }
 
-async function collectTablistNodes(page: Page): Promise<CustomViolationNode[]> {
+async function collectTablistHits(page: Page): Promise<WidgetHit[]> {
   return page.evaluate((helperSrc) => {
-    const { selectorOf, snippetOf, isKeyboardFocusable } = new Function(
+    const { snippetOf, isKeyboardFocusable } = new Function(
       `return (${helperSrc})`,
     )() as {
-      selectorOf: (el: Element) => string;
       snippetOf: (el: Element) => string;
       isKeyboardFocusable: (el: Element) => boolean;
     };
 
-    const found: CustomViolationNode[] = [];
+    const found: WidgetHit[] = [];
     const seen = new Set<string>();
 
     document.querySelectorAll('[role="tablist"]').forEach((list) => {
@@ -84,12 +101,14 @@ async function collectTablistNodes(page: Page): Promise<CustomViolationNode[]> {
       const focusable = tabs.filter((tab) => isKeyboardFocusable(tab));
       if (focusable.length > 0) return;
 
-      const sel = selectorOf(list);
-      if (seen.has(sel)) return;
-      seen.add(sel);
+      const key = `${list.id}\0${list.getAttribute("role") ?? ""}\0${list.tagName}`;
+      if (seen.has(key)) return;
+      seen.add(key);
       found.push({
         html: snippetOf(list),
-        target: [sel],
+        id: list.id,
+        role: list.getAttribute("role"),
+        tagName: list.tagName,
         elementLabel: "tablist",
         failureSummary:
           "None of the tabs participate in the tab order, so the widget cannot be reached or operated with a keyboard.",
@@ -100,35 +119,31 @@ async function collectTablistNodes(page: Page): Promise<CustomViolationNode[]> {
   }, BROWSER_HELPERS);
 }
 
-async function collectDisclosureNodes(
-  page: Page,
-): Promise<CustomViolationNode[]> {
+async function collectDisclosureHits(page: Page): Promise<WidgetHit[]> {
   return page.evaluate((helperSrc) => {
-    const { selectorOf, snippetOf, isKeyboardFocusable } = new Function(
+    const { snippetOf, isKeyboardFocusable } = new Function(
       `return (${helperSrc})`,
     )() as {
-      selectorOf: (el: Element) => string;
       snippetOf: (el: Element) => string;
       isKeyboardFocusable: (el: Element) => boolean;
     };
 
-    const found: CustomViolationNode[] = [];
+    const found: WidgetHit[] = [];
     const seen = new Set<string>();
 
-    document.querySelectorAll('[aria-expanded]').forEach((el) => {
+    document.querySelectorAll("[aria-expanded]").forEach((el) => {
       if (isKeyboardFocusable(el)) return;
-      // aria-expanded on a container that is not itself the control (e.g. a
-      // listbox group) is legitimate; only flag obvious widget-shaped toggles
-      // a user has no keyboard path to.
       const hasControls = Boolean(el.getAttribute("aria-controls"));
       if (!hasControls) return;
 
-      const sel = selectorOf(el);
-      if (seen.has(sel)) return;
-      seen.add(sel);
+      const key = `${el.id}\0${el.getAttribute("role") ?? ""}\0${el.tagName}`;
+      if (seen.has(key)) return;
+      seen.add(key);
       found.push({
         html: snippetOf(el),
-        target: [sel],
+        id: el.id,
+        role: el.getAttribute("role"),
+        tagName: el.tagName,
         elementLabel: "aria-expanded toggle",
         failureSummary:
           "The element manages an expanded/contracted relationship but is not focusable and has no button/combobox/link role, so a keyboard user cannot toggle it.",
@@ -139,17 +154,16 @@ async function collectDisclosureNodes(
   }, BROWSER_HELPERS);
 }
 
-async function collectMenuNodes(page: Page): Promise<CustomViolationNode[]> {
+async function collectMenuHits(page: Page): Promise<WidgetHit[]> {
   return page.evaluate((helperSrc) => {
-    const { selectorOf, snippetOf, isKeyboardFocusable } = new Function(
+    const { snippetOf, isKeyboardFocusable } = new Function(
       `return (${helperSrc})`,
     )() as {
-      selectorOf: (el: Element) => string;
       snippetOf: (el: Element) => string;
       isKeyboardFocusable: (el: Element) => boolean;
     };
 
-    const found: CustomViolationNode[] = [];
+    const found: WidgetHit[] = [];
     const seen = new Set<string>();
 
     document
@@ -158,15 +172,16 @@ async function collectMenuNodes(page: Page): Promise<CustomViolationNode[]> {
       )
       .forEach((el) => {
         if (isKeyboardFocusable(el)) return;
-        // Items guarded by aria-hidden (e.g. disabled submenus) are expected.
         if (el.closest('[aria-hidden="true"]')) return;
 
-        const sel = selectorOf(el);
-        if (seen.has(sel)) return;
-        seen.add(sel);
+        const key = `${el.id}\0${el.getAttribute("role") ?? ""}\0${el.tagName}`;
+        if (seen.has(key)) return;
+        seen.add(key);
         found.push({
           html: snippetOf(el),
-          target: [sel],
+          id: el.id,
+          role: el.getAttribute("role"),
+          tagName: el.tagName,
           elementLabel: "menu item",
           failureSummary:
             "This menu item is not keyboard-focusable, so a keyboard user cannot reach it with Tab.",

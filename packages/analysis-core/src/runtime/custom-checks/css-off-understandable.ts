@@ -1,9 +1,9 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
 
-interface CssOffHit {
+interface CssOffHit extends SelectorRef {
   html: string;
-  selector: string;
   reason: "text_loss" | "flex_order";
 }
 
@@ -11,11 +11,6 @@ export async function cssOffUnderstandableViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const hit = await page.evaluate((): CssOffHit | null => {
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      return el.tagName.toLowerCase();
-    }
-
     function visibleTextLength(): number {
       return document.body.innerText.replace(/\s+/g, " ").trim().length;
     }
@@ -80,7 +75,7 @@ export async function cssOffUnderstandableViolation(
         const html = main.outerHTML.replace(/\s+/g, " ").trim();
         return {
           html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-          selector: selectorOf(main),
+          id: main.id, role: main.getAttribute("role"), tagName: main.tagName,
           reason: "text_loss",
         };
       }
@@ -93,7 +88,7 @@ export async function cssOffUnderstandableViolation(
       const html = el.outerHTML.replace(/\s+/g, " ").trim();
       return {
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(el),
+        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
         reason: "flex_order",
       };
     }
@@ -113,6 +108,6 @@ export async function cssOffUnderstandableViolation(
     impact: "moderate",
     description,
     help: "Keep reading order and essential content in the DOM so it remains understandable without CSS (WCAG 1.3.2 / RGAA 10.3).",
-    nodes: [{ html: hit.html, target: [hit.selector] }],
+    nodes: [{ html: hit.html, target: [selectorOf(hit)] }],
   };
 }

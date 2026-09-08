@@ -15,7 +15,22 @@ vi.mock("./project-runtime", () => ({
   getProjectRuntime: vi.fn(),
 }));
 
-import { reportInputForProject } from "./report";
+import { displayControl, frameworkForProject, reportInputForProject } from "./report";
+
+describe("displayControl", () => {
+  it("returns a themed control for a known catalog id", () => {
+    const control = displayControl("ctl-img-alt", reportSampleProject);
+    expect(control.id).toBe("ctl-img-alt");
+    expect(control.code.length).toBeGreaterThan(0);
+    expect(frameworkForProject(reportSampleProject).id).toBeTruthy();
+  });
+
+  it("throws for an unknown control id", () => {
+    expect(() => displayControl("ctl-does-not-exist", reportSampleProject)).toThrow(
+      /Unknown control/,
+    );
+  });
+});
 
 describe("buildAuditReportMarkdown", () => {
   it("includes summary, requirements, and human evidence labels for auditors", () => {

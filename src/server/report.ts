@@ -1,6 +1,13 @@
-import type { Framework, Project } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Control,
+  Framework,
+  Project,
+  Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
+import { controlForDisplay } from "@complyloop/adapters/control-theme";
 import { presetById, projectDefaultPresetId } from "@complyloop/adapters/registry";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
 import {
@@ -14,7 +21,6 @@ import type {
   Finding,
   Remediation,
 } from "@complyloop/db/types";
-import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import {
   controlsInScope,
   findingsInScope,
@@ -31,6 +37,10 @@ export type ReportLoadResult =
   | { ok: false; response: Response }
   | { ok: true; project: Project; view: ReportView; input: ReportInput };
 
+const CONTROLS_BY_ID: ReadonlyMap<string, Control> = new Map(
+  shippedCatalog().controls.map((control) => [control.id, control]),
+);
+
 /** Resolves the framework named by the project's assessment preset. */
 export function frameworkForProject(project: Project): Framework {
   const frameworks = shippedCatalog().frameworks;
@@ -46,6 +56,16 @@ export function frameworkForProject(project: Project): Framework {
     throw new Error("No compliance framework is configured.");
   }
   return fallback;
+}
+
+/**
+ * Catalog control themed for the project's framework. Uses a once-built Map
+ * so list rendering is O(1) per finding instead of scanning the catalog.
+ */
+export function displayControl(controlId: string, project: Project): Control {
+  const control = CONTROLS_BY_ID.get(controlId);
+  if (!control) throw new PublicError("Unknown control.");
+  return controlForDisplay(control, frameworkForProject(project).id);
 }
 
 export type ReportRuntimeSlice = {

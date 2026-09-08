@@ -1,15 +1,11 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function mediaIdentificationViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const nodes = await page.evaluate(() => {
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      return el.tagName.toLowerCase();
-    }
-
     function hasAccessibleName(el: Element): boolean {
       const ariaLabel = el.getAttribute("aria-label");
       if (ariaLabel && ariaLabel.trim().length > 0) return true;
@@ -36,7 +32,7 @@ export async function mediaIdentificationViolation(
       return false;
     }
 
-    const violations: Array<{ html: string; selector: string }> = [];
+    const violations: Array<{ html: string; id: string; role: string | null; tagName: string }> = [];
     for (const el of document.querySelectorAll("embed, canvas")) {
       if (el.getAttribute("role") === "presentation") continue;
       if (el.getAttribute("aria-hidden") === "true") continue;
@@ -45,7 +41,7 @@ export async function mediaIdentificationViolation(
       const html = el.outerHTML.replace(/\s+/g, " ").trim();
       violations.push({
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(el),
+        id: el.id, role: el.getAttribute("role"), tagName: el.tagName,
       });
       if (violations.length >= 5) break;
     }
@@ -61,6 +57,6 @@ export async function mediaIdentificationViolation(
     description:
       "Non-temporal media is not clearly identified and lacks an accessible alternative.",
     help: "Identify embed and canvas media and provide a text alternative (RGAA 4.7).",
-    nodes: nodes.map((node) => ({ html: node.html, target: [node.selector] })),
+    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
   };
 }

@@ -1,15 +1,11 @@
 import type { Page } from "playwright";
 import type { CustomViolation } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function mediaKeyboardViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const hit = await page.evaluate(() => {
-    function selectorOf(el: Element): string {
-      if (el.id) return `#${el.id}`;
-      return el.tagName.toLowerCase();
-    }
-
     const media = document.querySelector("video[controls], audio[controls]");
     if (!(media instanceof HTMLMediaElement)) return null;
     if (media.readyState < 1) return null;
@@ -20,7 +16,7 @@ export async function mediaKeyboardViolation(
       const html = media.outerHTML.replace(/\s+/g, " ").trim();
       return {
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(media),
+        id: media.id, role: media.getAttribute("role"), tagName: media.tagName,
         reason: "not_focusable",
       };
     }
@@ -37,7 +33,7 @@ export async function mediaKeyboardViolation(
       const html = media.outerHTML.replace(/\s+/g, " ").trim();
       return {
         html: html.length > 200 ? `${html.slice(0, 197)}…` : html,
-        selector: selectorOf(media),
+        id: media.id, role: media.getAttribute("role"), tagName: media.tagName,
         reason: "space_ignored",
       };
     }
@@ -61,6 +57,6 @@ export async function mediaKeyboardViolation(
     impact: "serious",
     description: detail,
     help: "Ensure <video controls> and <audio controls> can be focused and operated with the keyboard (WCAG 2.1.1 / RGAA 4.11).",
-    nodes: [{ html: hit.html, target: [hit.selector] }],
+    nodes: [{ html: hit.html, target: [selectorOf(hit)] }],
   };
 }

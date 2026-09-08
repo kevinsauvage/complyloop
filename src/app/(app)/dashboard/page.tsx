@@ -23,7 +23,6 @@ import {
 } from "@/core/prioritization";
 import { clusterFindings } from "@/core/root-cause";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
-import { controlForDisplay } from "@complyloop/adapters/control-theme";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { runAssessmentAction } from "@/server/actions/assessment";
 import { recentAssessmentJobsForProject } from "@/server/assessment-jobs";
@@ -32,8 +31,8 @@ import {
   requirementsInScope,
 } from "@/server/project-scope";
 import { projectCapabilities } from "@/server/project-capabilities";
-import { frameworkForProject } from "@/server/report";
-import { controlById, getWorkspace } from "@/server/workspace";
+import { displayControl } from "@/server/report";
+import { getWorkspace } from "@/server/workspace";
 import { getProjectRuntime } from "@/server/project-runtime";
 
 export const dynamic = "force-dynamic";
@@ -249,12 +248,7 @@ export default async function DashboardPage() {
               openFindings={openFindings}
               recentVerified={recentVerified}
               recentEvidence={recentEvidence}
-              controlById={(controlId) =>
-                controlForDisplay(
-                  controlById(controlId),
-                  frameworkForProject(project).id,
-                )
-              }
+              controlById={(controlId) => displayControl(controlId, project)}
             />
           </PageSection>
         </>

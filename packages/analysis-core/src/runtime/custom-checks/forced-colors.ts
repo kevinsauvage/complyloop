@@ -1,5 +1,6 @@
 import type { Page } from "playwright";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
+import { selectorOf } from "./widget-keyboard-utils.ts";
 
 /**
  * Windows High Contrast / forced-colors mode strips decorative boundaries.
@@ -26,11 +27,6 @@ export async function forcedColorsViolation(
         "a[href]",
       ].join(",");
       const maxNodes = 10;
-
-      function selectorOf(el: Element): string {
-        if (el.id) return `#${el.id}`;
-        return el.tagName.toLowerCase();
-      }
 
       function isVisible(el: HTMLElement): boolean {
         const rect = el.getBoundingClientRect();
@@ -77,7 +73,7 @@ export async function forcedColorsViolation(
         if (hasVisibleText) continue;
         if (!isTransparent(style.backgroundColor)) continue;
 
-        const key = selectorOf(el);
+        const key = `${el.id}\0${el.getAttribute("role") ?? ""}\0${el.tagName}`;
         if (seen.has(key)) continue;
         seen.add(key);
 

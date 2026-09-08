@@ -33,15 +33,13 @@ import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { findingsInScope } from "@/server/project-scope";
 import {
-  controlById,
   getWorkspace,
   requireFinding,
   requireRemediationForFinding,
 } from "@/server/workspace";
 import { getProjectRuntime } from "@/server/project-runtime";
-import { frameworkForProject } from "@/server/report";
+import { displayControl } from "@/server/report";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
-import { controlForDisplay } from "@complyloop/adapters/control-theme";
 import { prioritizeClusters } from "@/core/prioritization";
 import { clusterFindings } from "@/core/root-cause";
 import { cn } from "@/lib/utils";
@@ -77,10 +75,7 @@ export default async function FindingPage({
   );
   const caps = projectCapabilities(project, access, project.orgId);
 
-  const control = controlForDisplay(
-    controlById(finding.controlId),
-    frameworkForProject(project).id,
-  );
+  const control = displayControl(finding.controlId, project);
   const evidence = await listEvidenceForFinding(await getDrizzle(), finding.id);
   const chronologicalEvidence = [...evidence].reverse();
   const aiAvailable = aiExplanationAvailable();
