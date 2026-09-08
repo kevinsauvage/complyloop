@@ -4,7 +4,10 @@ import {
   CAPTCHA_TOKEN,
   RUNTIME_MATCHES_SRC,
 } from "../patterns/multilingual.ts";
-import { collectCaptchaCandidates } from "./custom-checks/captcha-candidates.ts";
+import {
+  BROWSER_CAPTCHA_MATCH_SRC,
+  BROWSER_COLLECT_CAPTCHA_SRC,
+} from "./custom-checks/captcha-candidates.ts";
 
 export interface ApplicabilityObservation {
   checkId: CheckId;
@@ -52,8 +55,6 @@ interface PageApplicabilityAbsent {
   layoutTable: boolean;
 }
 
-const COLLECT_CAPTCHA_SOURCE = collectCaptchaCandidates.toString();
-
 /**
  * Deterministic DOM probes: when content is absent on a page, emit observations
  * that status derivation can map to `not_applicable` (after site-wide aggregation).
@@ -63,7 +64,7 @@ export async function applicabilityObservationsForPage(
   url: string,
 ): Promise<ApplicabilityObservation[]> {
   const absent = await page.evaluate(
-    ({ captchaSource, matchesSrc, collectSrc }) => {
+    ({ captchaSource, matchesSrc, collectSrc, matchSrc }) => {
       const matchesPattern = new Function("pattern", "text", matchesSrc) as (
         pattern: RegExp,
         text: string,
@@ -73,15 +74,21 @@ export async function applicabilityObservationsForPage(
         `return (${collectSrc})`,
       )() as (doc?: Document) => Element[];
 
+      const { elementLooksLikeCaptcha } = new Function(
+        `return (${matchSrc})`,
+      )() as {
+        elementLooksLikeCaptcha: (
+          el: Element,
+          matches: (pattern: RegExp, text: string) => boolean,
+          pattern: RegExp,
+        ) => boolean;
+      };
+
       const captcha = new RegExp(captchaSource, "i");
 
       function hasCaptcha(): boolean {
         for (const el of collectCandidates(document)) {
-          const html = el.outerHTML;
-          const src = el.getAttribute("src") ?? "";
-          const cls = el.getAttribute("class") ?? "";
-          const id = el.getAttribute("id") ?? "";
-          if (matchesPattern(captcha, `${html} ${src} ${cls} ${id}`)) return true;
+          if (elementLooksLikeCaptcha(el, matchesPattern, captcha)) return true;
         }
         return false;
       }
@@ -124,7 +131,8 @@ export async function applicabilityObservationsForPage(
     {
       captchaSource: CAPTCHA_TOKEN.source,
       matchesSrc: RUNTIME_MATCHES_SRC,
-      collectSrc: COLLECT_CAPTCHA_SOURCE,
+      collectSrc: BROWSER_COLLECT_CAPTCHA_SRC,
+      matchSrc: BROWSER_CAPTCHA_MATCH_SRC,
     },
   );
 

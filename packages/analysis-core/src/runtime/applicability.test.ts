@@ -137,6 +137,27 @@ describe("applicabilityObservationsForPage", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "does not emit captcha fact when a captcha candidate is present",
+    async () => {
+      const { page, close } = await withPlaywrightPage(
+        `<!doctype html><html lang="en"><body><div class="g-recaptcha" data-sitekey="x"></div></body></html>`,
+      );
+      try {
+        const observations = await applicabilityObservationsForPage(
+          page,
+          "https://app.example/",
+        );
+        expect(
+          observations.some((obs) => obs.checkId === "captcha-alternative"),
+        ).toBe(false);
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "does not emit a layout-table fact for role=presentation tables",
     async () => {
       const { page, close } = await withPlaywrightPage(

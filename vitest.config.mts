@@ -8,6 +8,7 @@ const domIncludes = [
   "packages/analysis-core/src/runtime/dom-target.test.ts",
   "packages/analysis-core/src/runtime/site-level/snapshot.test.ts",
   "packages/analysis-core/src/runtime/custom-checks/widget-keyboard.test.ts",
+  "packages/analysis-core/src/runtime/custom-checks/captcha-candidates.test.ts",
 ];
 
 const unitIncludes = [

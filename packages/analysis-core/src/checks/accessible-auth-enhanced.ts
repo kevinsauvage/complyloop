@@ -1,10 +1,5 @@
 import ts from "typescript";
-import {
-  CAPTCHA_WITH_CHALLENGE,
-  PUZZLE_CAPTCHA,
-  PUZZLE_HOSTS,
-  matchesMultilingual,
-} from "../patterns/multilingual.ts";
+import { isObjectRecognitionCaptchaSignal } from "../patterns/object-recognition-captcha.ts";
 import {
   getAttribute,
   locationOf,
@@ -17,22 +12,16 @@ import { isAuthField } from "./auth-field.ts";
 import { attributeContextOf } from "./heuristic-utils.ts";
 
 function isObjectRecognitionCaptcha(node: Parameters<typeof getAttribute>[0]): boolean {
-  const tag = tagNameOf(node);
-  if (PUZZLE_HOSTS.has(tag)) return true;
-
   const ariaLabel = getAttribute(node, "aria-label");
   const labelText = ariaLabel ? (stringValueOf(ariaLabel) ?? "") : "";
-  const context = `${attributeContextOf(node)} ${labelText}`;
+  const size = getAttribute(node, "size");
+  const challenge = getAttribute(node, "challenge");
 
-  if (matchesMultilingual(PUZZLE_CAPTCHA, context)) return true;
-
-  if (matchesMultilingual(CAPTCHA_WITH_CHALLENGE, context)) {
-    const size = getAttribute(node, "size");
-    const challenge = getAttribute(node, "challenge");
-    if (size || challenge) return true;
-  }
-
-  return false;
+  return isObjectRecognitionCaptchaSignal({
+    tagName: tagNameOf(node),
+    contextText: `${attributeContextOf(node)} ${labelText}`,
+    hasSizeOrChallengeAttr: Boolean(size || challenge),
+  });
 }
 
 function authContextNearby(node: ts.Node, sourceFile: ts.SourceFile): boolean {

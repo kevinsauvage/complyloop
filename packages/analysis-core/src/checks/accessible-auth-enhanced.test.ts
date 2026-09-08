@@ -37,6 +37,56 @@ describe("accessible-auth-enhanced", () => {
     ).toBe(true);
   });
 
+  it("flags PuzzleCaptcha host near auth fields", () => {
+    const findings = accessibleAuthEnhancedCheck.run(
+      parseSource(
+        "login.tsx",
+        `const L = () => (
+          <form>
+            <input type="password" autoComplete="current-password" />
+            <PuzzleCaptcha />
+          </form>
+        );`,
+      ),
+    );
+    expect(
+      findings.some((f) => f.checkId === "accessible-auth-enhanced"),
+    ).toBe(true);
+  });
+
+  it("flags ReCAPTCHA with size near auth fields", () => {
+    const findings = accessibleAuthEnhancedCheck.run(
+      parseSource(
+        "login.tsx",
+        `const L = () => (
+          <form>
+            <input type="password" autoComplete="current-password" />
+            <ReCAPTCHA sitekey="x" size="normal" />
+          </form>
+        );`,
+      ),
+    );
+    expect(
+      findings.some((f) => f.checkId === "accessible-auth-enhanced"),
+    ).toBe(true);
+  });
+
+  it("does not flag ReCAPTCHA without size/challenge near auth", () => {
+    expect(
+      accessibleAuthEnhancedCheck.run(
+        parseSource(
+          "login.tsx",
+          `const L = () => (
+            <form>
+              <input type="password" autoComplete="current-password" />
+              <ReCAPTCHA sitekey="x" />
+            </form>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
   it("does not flag checkbox captcha without puzzle cues", () => {
     expect(
       accessibleAuthEnhancedCheck.run(

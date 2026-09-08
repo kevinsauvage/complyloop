@@ -1,23 +1,36 @@
 import type { Page } from "playwright";
 import {
   AUTH_CONTEXT,
+  CAPTCHA_WITH_CHALLENGE,
   PUZZLE_CAPTCHA,
   RUNTIME_MATCHES_SRC,
 } from "../../patterns/multilingual.ts";
-import { collectCaptchaCandidates } from "./captcha-candidates.ts";
+import { PUZZLE_HOST_NAMES } from "../../patterns/object-recognition-captcha.ts";
+import {
+  BROWSER_COLLECT_CAPTCHA_SRC,
+  BROWSER_OBJECT_RECOGNITION_CAPTCHA_SRC,
+} from "./captcha-candidates.ts";
 import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
-
-const COLLECT_CAPTCHA_SOURCE = collectCaptchaCandidates.toString();
 
 export async function accessibleAuthEnhancedViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const nodes = await page.evaluate(
-    ({ authSource, puzzleSource, matchesSrc, collectSrc, hitCaptureSrc }) => {
+    ({
+      authSource,
+      puzzleSource,
+      challengeSource,
+      puzzleHosts,
+      matchesSrc,
+      collectSrc,
+      objectRecognitionSrc,
+      hitCaptureSrc,
+    }) => {
       const authPattern = new RegExp(authSource, "i");
       const puzzlePattern = new RegExp(puzzleSource, "i");
+      const challengePattern = new RegExp(challengeSource, "i");
 
       const matchesPattern = new Function("pattern", "text", matchesSrc) as (
         pattern: RegExp,
@@ -27,6 +40,18 @@ export async function accessibleAuthEnhancedViolation(
       const collectCandidates = new Function(
         `return (${collectSrc})`,
       )() as (doc?: Document) => Element[];
+
+      const { isObjectRecognitionCaptchaElement } = new Function(
+        `return (${objectRecognitionSrc})`,
+      )() as {
+        isObjectRecognitionCaptchaElement: (
+          el: Element,
+          matches: (pattern: RegExp, text: string) => boolean,
+          puzzle: RegExp,
+          challenge: RegExp,
+          hosts: readonly string[],
+        ) => boolean;
+      };
 
       const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
         captureHit: (el: Element) => CapturedHit;
@@ -43,10 +68,17 @@ export async function accessibleAuthEnhancedViolation(
       const violations: CapturedHit[] = [];
 
       for (const el of collectCandidates(document)) {
-        const html = el.outerHTML;
-        const src = el.getAttribute("src") ?? "";
-        const title = el.getAttribute("title") ?? "";
-        if (!matchesPattern(puzzlePattern, `${html} ${src} ${title}`)) continue;
+        if (
+          !isObjectRecognitionCaptchaElement(
+            el,
+            matchesPattern,
+            puzzlePattern,
+            challengePattern,
+            puzzleHosts,
+          )
+        ) {
+          continue;
+        }
         violations.push(captureHit(el));
         if (violations.length >= 5) break;
       }
@@ -56,8 +88,11 @@ export async function accessibleAuthEnhancedViolation(
     {
       authSource: AUTH_CONTEXT.source,
       puzzleSource: PUZZLE_CAPTCHA.source,
+      challengeSource: CAPTCHA_WITH_CHALLENGE.source,
+      puzzleHosts: [...PUZZLE_HOST_NAMES],
       matchesSrc: RUNTIME_MATCHES_SRC,
-      collectSrc: COLLECT_CAPTCHA_SOURCE,
+      collectSrc: BROWSER_COLLECT_CAPTCHA_SRC,
+      objectRecognitionSrc: BROWSER_OBJECT_RECOGNITION_CAPTCHA_SRC,
       hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
     },
   );

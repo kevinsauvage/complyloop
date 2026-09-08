@@ -4,18 +4,26 @@ import {
   CAPTCHA_TOKEN,
   RUNTIME_MATCHES_SRC,
 } from "../../patterns/multilingual.ts";
-import { collectCaptchaCandidates } from "./captcha-candidates.ts";
+import {
+  BROWSER_CAPTCHA_MATCH_SRC,
+  BROWSER_COLLECT_CAPTCHA_SRC,
+} from "./captcha-candidates.ts";
 import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
-
-const COLLECT_CAPTCHA_SOURCE = collectCaptchaCandidates.toString();
 
 export async function captchaAlternativeViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
   const nodes = await page.evaluate(
-    ({ captchaSource, alternativeSource, matchesSrc, collectSrc, hitCaptureSrc }) => {
+    ({
+      captchaSource,
+      alternativeSource,
+      matchesSrc,
+      collectSrc,
+      matchSrc,
+      hitCaptureSrc,
+    }) => {
       const captcha = new RegExp(captchaSource, "i");
       const alternative = new RegExp(alternativeSource, "i");
 
@@ -27,6 +35,16 @@ export async function captchaAlternativeViolation(
       const collectCandidates = new Function(
         `return (${collectSrc})`,
       )() as (doc?: Document) => Element[];
+
+      const { elementLooksLikeCaptcha } = new Function(
+        `return (${matchSrc})`,
+      )() as {
+        elementLooksLikeCaptcha: (
+          el: Element,
+          matches: (pattern: RegExp, text: string) => boolean,
+          pattern: RegExp,
+        ) => boolean;
+      };
 
       const { captureHit } = new Function(`return (${hitCaptureSrc})`)() as {
         captureHit: (el: Element) => CapturedHit;
@@ -45,11 +63,7 @@ export async function captchaAlternativeViolation(
       const violations: CapturedHit[] = [];
 
       for (const el of collectCandidates(document)) {
-        const html = el.outerHTML;
-        const src = el.getAttribute("src") ?? "";
-        const cls = el.getAttribute("class") ?? "";
-        const id = el.getAttribute("id") ?? "";
-        if (!matchesPattern(captcha, `${html} ${src} ${cls} ${id}`)) continue;
+        if (!elementLooksLikeCaptcha(el, matchesPattern, captcha)) continue;
 
         const container = el.closest("form, section, div") ?? el.parentElement ?? el;
         if (hasAlternative(container)) continue;
@@ -64,7 +78,8 @@ export async function captchaAlternativeViolation(
       captchaSource: CAPTCHA_TOKEN.source,
       alternativeSource: CAPTCHA_ALTERNATIVE.source,
       matchesSrc: RUNTIME_MATCHES_SRC,
-      collectSrc: COLLECT_CAPTCHA_SOURCE,
+      collectSrc: BROWSER_COLLECT_CAPTCHA_SRC,
+      matchSrc: BROWSER_CAPTCHA_MATCH_SRC,
       hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
     },
   );
