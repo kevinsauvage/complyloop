@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 export function filterChipClass(selected: boolean): string {
   return cn(
     "surface-panel flex items-center gap-2 rounded-xl px-2.5 py-1.5 outline-none transition-[border-color,background-color] duration-200",
-    "hover:bg-card/90 focus-visible:ring-2 focus-visible:ring-ring",
+    "hover:bg-card/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     selected
-      ? "border-signal/40 bg-signal/10 ring-1 ring-signal/30"
+      ? "border-signal/40 bg-signal/10 font-semibold ring-1 ring-signal/30"
       : "hover:border-signal/25",
   );
 }
@@ -38,7 +38,7 @@ export function FilterChipList({
         <li>
           <Link
             href={allHref}
-            aria-current={allSelected ? "true" : undefined}
+            aria-pressed={allSelected}
             className={filterChipClass(allSelected)}
           >
             All
@@ -49,7 +49,7 @@ export function FilterChipList({
         <li key={item.key}>
           <Link
             href={item.href}
-            aria-current={item.selected ? "true" : undefined}
+            aria-pressed={item.selected}
             className={filterChipClass(item.selected)}
           >
             {item.label}

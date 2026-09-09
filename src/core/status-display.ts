@@ -111,9 +111,10 @@ const REMEDIATION_STATUS_DISPLAY: Record<
 > = {
   detected: {
     label: "Detected",
-    description: "Finding recorded — no fix workflow started yet.",
-    tone: null,
-    badgeVariant: "secondary",
+    description:
+      "Finding recorded — triage needed, no fix workflow started yet.",
+    tone: "signal",
+    badgeVariant: "outline",
   },
   suggested: {
     label: "Suggested",
@@ -190,8 +191,8 @@ const SEVERITY_DISPLAY: Record<Severity, SeverityDisplay> = {
     label: "Serious",
     description:
       "Major barrier for some users — fix in the current sprint if possible.",
-    tone: "review",
-    badgeVariant: undefined,
+    tone: "failed",
+    badgeVariant: "outline",
   },
   moderate: {
     label: "Moderate",
@@ -336,15 +337,15 @@ const ROLE_TONE: Record<OrgRole, StatusTone> = {
 /** Soft tint + readable text; stronger fill in dark mode for contrast. */
 export const STATUS_TONE_BADGE: Record<StatusTone, string> = {
   passed:
-    "border-transparent bg-status-passed/15 text-status-passed dark:bg-status-passed/25",
+    "border-transparent bg-status-passed/25 text-status-passed dark:bg-status-passed/25",
   failed:
-    "border-transparent bg-status-failed/15 text-status-failed dark:bg-status-failed/25",
+    "border-transparent bg-status-failed/25 text-status-failed dark:bg-status-failed/25",
   review:
-    "border-transparent bg-status-review/15 text-status-review dark:bg-status-review/25",
-  na: "border-transparent bg-status-na/15 text-status-na dark:bg-status-na/25",
+    "border-transparent bg-status-review/25 text-status-review dark:bg-status-review/25",
+  na: "border-transparent bg-status-na/25 text-status-na dark:bg-status-na/25",
   unverifiable:
-    "border-transparent bg-status-unverifiable/15 text-status-unverifiable dark:bg-status-unverifiable/25",
-  signal: "border-transparent bg-signal/15 text-signal dark:bg-signal/25",
+    "border-transparent bg-status-unverifiable/25 text-status-unverifiable dark:bg-status-unverifiable/25",
+  signal: "border-transparent bg-signal/25 text-signal dark:bg-signal/25",
 };
 
 export const STATUS_TONE_ACCENT: Record<

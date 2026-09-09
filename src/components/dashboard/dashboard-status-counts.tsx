@@ -54,7 +54,6 @@ export function DashboardStatusCounts({
             size="sm"
             className={cn(
               "py-0 shadow-none transition-[background-color] duration-200",
-              count === 0 && "opacity-50",
               href && count > 0 && "hover:bg-accent/25",
             )}
           >

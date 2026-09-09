@@ -146,7 +146,7 @@ export default async function DashboardPage() {
         ? ("success" as const)
         : passRateValue >= 70
           ? ("signal" as const)
-          : ("warning" as const);
+          : ("review" as const);
 
   const quickStats = latestAssessment
     ? [

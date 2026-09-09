@@ -18,7 +18,7 @@ describe("AutoSubmitSelectForm", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("exposes the accessible name and requestSubmits on change", async () => {
+  it("does not submit on change; reveals a Switch button to confirm", async () => {
     const user = userEvent.setup();
     render(
       <AutoSubmitSelectForm
@@ -42,7 +42,41 @@ describe("AutoSubmitSelectForm", () => {
       form.requestSubmit = requestSubmit;
     }
 
+    // Arrow-key exploration must not navigate away.
     await user.selectOptions(select, "b");
+    expect(requestSubmit).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Switch" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Switch" }));
     expect(requestSubmit).toHaveBeenCalledOnce();
+  });
+
+  it("hides the Switch button again when re-selecting the current value", async () => {
+    const user = userEvent.setup();
+    render(
+      <AutoSubmitSelectForm
+        id="switcher"
+        name="id"
+        action="/switch"
+        label="Thing"
+        defaultValue="a"
+        options={[
+          { value: "a", label: "Alpha" },
+          { value: "b", label: "Beta" },
+        ]}
+      />,
+    );
+
+    const select = screen.getByRole("combobox", { name: "Thing" });
+    await user.selectOptions(select, "b");
+    expect(
+      screen.getByRole("button", { name: "Switch" }),
+    ).toBeInTheDocument();
+    await user.selectOptions(select, "a");
+    expect(
+      screen.queryByRole("button", { name: "Switch" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -12,6 +12,7 @@ import {
   requirementStatusDisplay,
   roleTone,
   severityDisplay,
+  STATUS_TONE_BADGE,
 } from "./status-display";
 import { severityRank } from "./prioritization";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
@@ -92,6 +93,11 @@ describe("remediationStatusDisplay", () => {
         );
       }
     }
+  });
+
+  it("marks detected as needs-triage instead of inert neutral", () => {
+    expect(remediationStatusDisplay("detected").tone).toBe("signal");
+    expect(remediationStatusDisplay("detected").badgeVariant).toBe("outline");
   });
 
   it("throws on an unhandled status", () => {
@@ -230,6 +236,40 @@ describe("severityDisplay", () => {
   it("describes every severity", () => {
     for (const severity of SEVERITIES) {
       expect(severityDisplay(severity).description.length).toBeGreaterThan(10);
+    }
+  });
+
+  it("gives every severity a distinct tone+variant treatment", () => {
+    // Triage scanning must not rely on color alone — critical/serious share
+    // the failed hue but differ by fill vs outline, and detected reads as
+    // needs-triage instead of inert neutral.
+    const treatments = SEVERITIES.map((severity) => {
+      const display = severityDisplay(severity);
+      return `${display.tone ?? "none"}:${display.badgeVariant ?? "filled"}`;
+    });
+    expect(new Set(treatments).size).toBe(SEVERITIES.length);
+    expect(severityDisplay("serious").tone).toBe("failed");
+    expect(severityDisplay("moderate").tone).toBe("review");
+  });
+
+  it("pairs every badge tone fill with its matching text token", () => {
+    // Regression gate: badge text must stay readable against its own fill.
+    // Light-mode tokens backing these classes are verified at ≥4.5:1 against
+    // white (see globals.css); this test keeps fill and text from drifting
+    // apart when tones are edited.
+    const toneToken: Record<string, string> = {
+      passed: "status-passed",
+      failed: "status-failed",
+      review: "status-review",
+      na: "status-na",
+      unverifiable: "status-unverifiable",
+      signal: "signal",
+    };
+    for (const [tone, token] of Object.entries(toneToken)) {
+      const classes =
+        STATUS_TONE_BADGE[tone as keyof typeof STATUS_TONE_BADGE];
+      expect(classes).toContain(`bg-${token}/`);
+      expect(classes).toContain(`text-${token}`);
     }
   });
 

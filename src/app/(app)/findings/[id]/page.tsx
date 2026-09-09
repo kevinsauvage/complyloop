@@ -223,9 +223,14 @@ export default async function FindingPage({
                       aria-hidden
                     />
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary">
                         {evidenceDisplay(record.kind, record.detail).label}
                       </Badge>
+                      {index === 0 ? (
+                        <span className="rounded-full border border-signal/40 px-1.5 py-px text-xs font-semibold text-signal">
+                          Latest
+                        </span>
+                      ) : null}
                       <time
                         dateTime={record.at}
                         className="text-xs text-muted-foreground"

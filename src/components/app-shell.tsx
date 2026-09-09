@@ -31,8 +31,11 @@ function BrandMark({ className }: { className?: string }) {
           ComplyLoop
         </span>
       </span>
-      <span className="mt-1.5 block pl-[38px] text-[11px] leading-tight text-muted-foreground">
-        Requirement → Fix → Verified → Evidence
+      <span className="mt-1.5 block pl-[38px] text-xs leading-tight text-muted-foreground">
+        <span aria-hidden>Requirement → Fix → Verified → Evidence</span>
+        <span className="sr-only">
+          Requirement to fix to verified to evidence
+        </span>
       </span>
     </Link>
   );
@@ -61,10 +64,10 @@ function SidebarBody({
           <ThemeToggle />
         </div>
         {authControls}
-        <p className="px-3 text-[11px] leading-relaxed text-muted-foreground/80">
+        <p className="px-3 text-xs leading-relaxed text-muted-foreground">
           RGAA / WCAG for React &amp; Next.js
         </p>
-        <p className="px-3 text-[11px] text-muted-foreground/80">
+        <p className="px-3 text-xs text-muted-foreground">
           <Link
             href="/legal/terms"
             className="underline-offset-2 hover:text-foreground hover:underline"

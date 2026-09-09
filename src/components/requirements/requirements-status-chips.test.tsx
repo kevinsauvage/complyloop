@@ -44,11 +44,11 @@ describe("RequirementsStatusChips", () => {
     renderChips({ selected: "failed" });
 
     const failed = screen.getByRole("link", { name: /failed/i });
-    expect(failed).toHaveAttribute("aria-current", "true");
+    expect(failed).toHaveAttribute("aria-pressed", "true");
     expect(failed).toHaveAttribute("href", "/requirements");
 
     const passed = screen.getByRole("link", { name: /passed/i });
-    expect(passed).not.toHaveAttribute("aria-current");
+    expect(passed).toHaveAttribute("aria-pressed", "false");
     expect(passed).toHaveAttribute("href", "/requirements?status=passed");
   });
 

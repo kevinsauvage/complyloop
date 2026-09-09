@@ -28,6 +28,10 @@ export default async function LoginPage({
     !params.callbackUrl.startsWith("//")
       ? params.callbackUrl
       : "/dashboard";
+  const authError =
+    typeof params.error === "string" && params.error.length > 0
+      ? params.error
+      : null;
 
   if (isGitHubAuthConfigured()) {
     const session = await auth();
@@ -52,13 +56,21 @@ export default async function LoginPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          {authError ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Sign-in with GitHub failed. Please try again — if it keeps
+                failing, contact your administrator.
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {isGitHubAuthConfigured() ? (
             <>
               <SignInWithGitHubButton
                 label="Continue with GitHub"
                 callbackUrl={callbackUrl}
               />
-              <p className="text-center text-xs text-muted-foreground">
+              <p className="text-center text-sm text-foreground/80">
                 We request repository access only when you connect a project.
                 OAuth tokens are stored server-side and never exposed to the
                 browser.
@@ -76,7 +88,7 @@ export default async function LoginPage({
           )}
 
           <div className="text-center">
-            <Button asChild variant="link" size="sm">
+            <Button asChild variant="link" size="default">
               <Link href="/">Back to home</Link>
             </Button>
           </div>

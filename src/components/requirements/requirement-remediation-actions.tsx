@@ -45,7 +45,7 @@ export function RequirementRemediationActions({
           </AlertTitle>
           <AlertDescription className="text-muted-foreground">
             {requirement.humanPass.note}
-            <span className="mt-1 block text-xs opacity-70">
+            <span className="mt-1 block text-xs text-muted-foreground">
               Set {formatDateTime(requirement.humanPass.at)} — sticky until
               cleared (assessments will not overwrite).
             </span>
@@ -75,7 +75,7 @@ export function RequirementRemediationActions({
           </AlertTitle>
           <AlertDescription className="text-muted-foreground">
             {requirement.exception.note}
-            <span className="mt-1 block text-xs opacity-70">
+            <span className="mt-1 block text-xs text-muted-foreground">
               Set {formatDateTime(requirement.exception.at)}
               {requirement.exception.expiresAt
                 ? ` — expires ${formatDateTime(requirement.exception.expiresAt)}`

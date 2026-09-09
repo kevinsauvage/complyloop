@@ -76,11 +76,11 @@
   --border: oklch(0.88 0.015 230);
   --input: oklch(0.88 0.015 230);
   --ring: oklch(0.62 0.1 200);
-  --signal: oklch(0.55 0.12 200);
+  --signal: oklch(0.51 0.12 200);
   --signal-foreground: oklch(0.98 0.01 200);
-  --status-passed: oklch(0.55 0.14 155);
+  --status-passed: oklch(0.5 0.13 155);
   --status-failed: oklch(0.55 0.22 25);
-  --status-review: oklch(0.65 0.14 75);
+  --status-review: oklch(0.52 0.13 75);
   --status-na: oklch(0.55 0.02 240);
   --status-unverifiable: oklch(0.55 0.1 280);
   --chart-1: oklch(0.55 0.12 200);
@@ -177,7 +177,8 @@
     background: color-mix(in oklch, var(--signal) 25%, transparent);
   }
   :focus-visible {
-    outline: none;
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
   /* Subtle slim scrollbars that match the theme in both modes */
   * {

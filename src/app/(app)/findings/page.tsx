@@ -1,13 +1,15 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { FindingsClustersTab } from "@/components/findings/findings-clusters-tab";
 import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
 import { FindingsTabPanel } from "@/components/findings/findings-tab-panel";
 import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
+import { FocusFilterResults } from "@/components/findings/focus-filter-results";
 import { toFindingListItems } from "@/components/findings/finding-list-items";
 import { PaginationNav } from "@/components/pagination-nav";
 import { EmptyState, NoProjectNotice, PageActionLink, PageContent, PageHeader } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import {
   findingListPaginationQuery,
   findingsListHref,
@@ -41,6 +43,44 @@ export const metadata: Metadata = {
 
 function tabHref(tab: FindingsTab, params: FindingListParams): string {
   return findingsListHref({ ...params, tab, page: 1 });
+}
+
+function statusNavLinkClass(current: boolean): string {
+  return cn(
+    "rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+    current
+      ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+      : "text-foreground/60",
+  );
+}
+
+function StatusNavLink({
+  href,
+  current,
+  children,
+}: {
+  href: string;
+  current: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={current ? "page" : undefined}
+      className={statusNavLinkClass(current)}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function viewToggleLinkClass(current: boolean): string {
+  return cn(
+    "rounded-lg px-3 py-1 text-sm font-medium whitespace-nowrap outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+    current
+      ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+      : "text-muted-foreground",
+  );
 }
 
 export default async function FindingsPage({
@@ -105,17 +145,12 @@ export default async function FindingsPage({
     );
   };
 
-  let defaultTab: FindingsTab = listParams.tab;
-  if (listParams.tab === "open") {
-    const statusTabs = [
-      { tab: "open" as const, total: openSlice.total },
-      { tab: "resolved" as const, total: resolvedSlice.total },
-      { tab: "dismissed" as const, total: dismissedSlice.total },
-    ];
-    defaultTab =
-      statusTabs.find((entry) => entry.total > 0)?.tab ??
-      (clusters.length > 0 ? "by_cause" : "open");
-  }
+  // Never rewrite the requested tab: a shared or bookmarked ?tab=open link
+  // must render the open list (or its empty state), not silently jump to
+  // another status. "By cause" is a grouping of open findings, not a status,
+  // so it highlights the Open nav entry.
+  const activeTab: FindingsTab = listParams.tab;
+  const openNavCurrent = activeTab === "open" || activeTab === "by_cause";
 
   const hasAssessment = runtime.assessments.some(
     (assessment) => assessment.projectId === project.id,
@@ -172,35 +207,104 @@ export default async function FindingsPage({
       </PageHeader>
 
       <PageContent>
-        <Tabs key={defaultTab} defaultValue={defaultTab}>
-          <TabsList className="surface-panel w-full justify-start overflow-x-auto rounded-xl p-1">
-            <TabsTrigger value="open" asChild>
-              <Link href={tabHref("open", listParams)}>
-                Open{openSlice.total > 0 ? ` (${openSlice.total})` : ""}
+        <nav
+          aria-label="Findings"
+          className="surface-panel flex w-full items-center gap-1 overflow-x-auto rounded-xl p-1"
+        >
+          <StatusNavLink href={tabHref("open", listParams)} current={openNavCurrent}>
+            Open{openSlice.total > 0 ? ` (${openSlice.total})` : ""}
+          </StatusNavLink>
+          <StatusNavLink
+            href={tabHref("resolved", listParams)}
+            current={activeTab === "resolved"}
+          >
+            Resolved
+            {resolvedSlice.total > 0 ? ` (${resolvedSlice.total})` : ""}
+          </StatusNavLink>
+          <StatusNavLink
+            href={tabHref("dismissed", listParams)}
+            current={activeTab === "dismissed"}
+          >
+            Dismissed
+            {dismissedSlice.total > 0 ? ` (${dismissedSlice.total})` : ""}
+          </StatusNavLink>
+        </nav>
+
+        {activeTab === "resolved" ? (
+          <FindingsTabPanel
+            tab="resolved"
+            slice={resolvedSlice}
+            listParams={listParams}
+            filtersActive={filtersActive}
+            items={listFor(resolvedSlice.items)}
+            emptyMessage="No resolved findings."
+            filteredEmptyState={filteredEmptyState("resolved")}
+            paginationQuery={paginationQuery}
+            paginationLabel="Resolved findings pagination"
+            resultCount={resolvedSlice.total}
+            resultLabel="resolved"
+          />
+        ) : activeTab === "dismissed" ? (
+          <FindingsTabPanel
+            tab="dismissed"
+            slice={dismissedSlice}
+            listParams={listParams}
+            filtersActive={filtersActive}
+            items={listFor(dismissedSlice.items)}
+            emptyMessage="No dismissed findings."
+            filteredEmptyState={filteredEmptyState("dismissed")}
+            paginationQuery={paginationQuery}
+            paginationLabel="Dismissed findings pagination"
+            resultCount={dismissedSlice.total}
+            resultLabel="dismissed"
+          />
+        ) : (
+          <div className="mt-4 flex flex-col gap-4">
+            <div
+              role="group"
+              aria-label="Open findings view"
+              className="flex w-fit items-center gap-1 rounded-xl border border-border/70 bg-muted/40 p-1"
+            >
+              <Link
+                href={tabHref("open", listParams)}
+                aria-current={activeTab === "open" ? "true" : undefined}
+                className={viewToggleLinkClass(activeTab === "open")}
+              >
+                List
               </Link>
-            </TabsTrigger>
-            <TabsTrigger value="by_cause" asChild>
-              <Link href={tabHref("by_cause", listParams)}>
+              <Link
+                href={tabHref("by_cause", listParams)}
+                aria-current={activeTab === "by_cause" ? "true" : undefined}
+                className={viewToggleLinkClass(activeTab === "by_cause")}
+              >
                 By cause
                 {clusters.length > 0 ? ` (${clusters.length})` : ""}
               </Link>
-            </TabsTrigger>
-            <TabsTrigger value="resolved" asChild>
-              <Link href={tabHref("resolved", listParams)}>
-                Resolved
-                {resolvedSlice.total > 0 ? ` (${resolvedSlice.total})` : ""}
-              </Link>
-            </TabsTrigger>
-            <TabsTrigger value="dismissed" asChild>
-              <Link href={tabHref("dismissed", listParams)}>
-                Dismissed
-                {dismissedSlice.total > 0 ? ` (${dismissedSlice.total})` : ""}
-              </Link>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="open" className="mt-4 flex flex-col gap-4">
-            <FindingsFilterBar params={{ ...listParams, tab: "open" }} />
+            </div>
+            {activeTab === "by_cause" ? (
+              <FindingsClustersTab clusters={clusters} findings={findings} />
+            ) : (
+              <>
+                <FindingsFilterBar
+                  params={{ ...listParams, tab: "open" }}
+                  controlLabel={
+                    listParams.control
+                      ? controls.find(
+                          (control) => control.id === listParams.control,
+                        )?.code
+                      : undefined
+                  }
+                />
+                <h2
+                  id="findings-results"
+                  tabIndex={-1}
+                  className="text-sm font-medium text-muted-foreground outline-none"
+                >
+                  {openSlice.total === 1
+                    ? "1 open finding"
+                    : `${openSlice.total} open findings`}
+                </h2>
+                <FocusFilterResults targetId="findings-results" />
             {openSlice.total === 0 ? (
               filtersActive ? (
                 filteredEmptyState("open")
@@ -246,36 +350,10 @@ export default async function FindingsPage({
                 />
               </>
             )}
-          </TabsContent>
-
-          <TabsContent value="by_cause" className="mt-4">
-            <FindingsClustersTab clusters={clusters} findings={findings} />
-          </TabsContent>
-
-          <FindingsTabPanel
-            tab="resolved"
-            slice={resolvedSlice}
-            listParams={listParams}
-            filtersActive={filtersActive}
-            items={listFor(resolvedSlice.items)}
-            emptyMessage="No resolved findings."
-            filteredEmptyState={filteredEmptyState("resolved")}
-            paginationQuery={paginationQuery}
-            paginationLabel="Resolved findings pagination"
-          />
-
-          <FindingsTabPanel
-            tab="dismissed"
-            slice={dismissedSlice}
-            listParams={listParams}
-            filtersActive={filtersActive}
-            items={listFor(dismissedSlice.items)}
-            emptyMessage="No dismissed findings."
-            filteredEmptyState={filteredEmptyState("dismissed")}
-            paginationQuery={paginationQuery}
-            paginationLabel="Dismissed findings pagination"
-          />
-        </Tabs>
+              </>
+            )}
+          </div>
+        )}
       </PageContent>
     </>
   );

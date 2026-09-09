@@ -1,8 +1,8 @@
 import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
 import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
 import type { FindingListItem } from "@/components/findings/finding-list-items";
+import { FocusFilterResults } from "@/components/findings/focus-filter-results";
 import { PaginationNav } from "@/components/pagination-nav";
-import { TabsContent } from "@/components/ui/tabs";
 import type {
   FindingListParams,
   FindingsTab,
@@ -19,6 +19,8 @@ export function FindingsTabPanel({
   filteredEmptyState,
   paginationQuery,
   paginationLabel,
+  resultCount,
+  resultLabel,
 }: {
   tab: Extract<FindingsTab, "resolved" | "dismissed">;
   slice: { page: number; totalPages: number; total: number };
@@ -29,10 +31,22 @@ export function FindingsTabPanel({
   filteredEmptyState: ReactNode;
   paginationQuery: Record<string, string>;
   paginationLabel: string;
+  resultCount: number;
+  resultLabel: string;
 }) {
   return (
-    <TabsContent value={tab} className="mt-4 flex flex-col gap-4">
+    <div className="mt-4 flex flex-col gap-4">
       <FindingsFilterBar params={{ ...listParams, tab }} />
+      <h2
+        id="findings-results"
+        tabIndex={-1}
+        className="text-sm font-medium text-muted-foreground outline-none"
+      >
+        {resultCount === 1
+          ? `1 ${resultLabel} finding`
+          : `${resultCount} ${resultLabel} findings`}
+      </h2>
+      <FocusFilterResults targetId="findings-results" />
       {slice.total === 0 ? (
         filtersActive ? (
           filteredEmptyState
@@ -56,6 +70,6 @@ export function FindingsTabPanel({
           />
         </>
       )}
-    </TabsContent>
+    </div>
   );
 }

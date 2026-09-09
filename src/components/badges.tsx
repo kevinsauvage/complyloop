@@ -47,6 +47,12 @@ function DescribedBadge({
         variant={variant}
         className={cn(
           tone ? STATUS_TONE_BADGE[tone] : "",
+          // Outline + tone (Serious, Detected) must read as an outline, not a
+          // fill: the tone map's translucent background would otherwise make
+          // them identical to their filled counterparts.
+          variant === "outline" && tone
+            ? "border-current bg-transparent"
+            : "",
           muted && "text-muted-foreground",
         )}
       >

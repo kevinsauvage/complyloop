@@ -8,7 +8,7 @@ export type DashboardQuickStat = {
   label: string;
   value: number | string;
   href?: string;
-  tone?: "default" | "signal" | "warning" | "success" | "muted";
+  tone?: "default" | "signal" | "warning" | "review" | "success" | "muted";
 };
 
 function statToneClass(tone: DashboardQuickStat["tone"]): string {
@@ -17,6 +17,8 @@ function statToneClass(tone: DashboardQuickStat["tone"]): string {
       return "border-signal/20 bg-signal/6";
     case "warning":
       return "border-status-failed/20 bg-status-failed/6";
+    case "review":
+      return "border-status-review/25 bg-status-review/8";
     case "success":
       return "border-status-passed/20 bg-status-passed/6";
     case "muted":
@@ -35,6 +37,7 @@ function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
           "font-mono text-2xl font-semibold tabular-nums tracking-tight",
           stat.tone === "signal" && "text-signal",
           stat.tone === "warning" && "text-status-failed",
+          stat.tone === "review" && "text-status-review",
           stat.tone === "success" && "text-status-passed",
         )}
       >

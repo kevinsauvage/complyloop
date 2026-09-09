@@ -48,6 +48,11 @@ export function RemediationHistory({
                 />
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <RemediationStatusBadge status={entry.status} />
+                  {index === 0 ? (
+                    <span className="rounded-full border border-signal/40 px-1.5 py-px text-xs font-semibold text-signal">
+                      Latest
+                    </span>
+                  ) : null}
                   <time
                     dateTime={entry.at}
                     className="text-xs text-muted-foreground"
