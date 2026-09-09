@@ -21,7 +21,6 @@ const connectGitHubRepo = vi.hoisted(() => vi.fn());
 const disconnectGitHubRepo = vi.hoisted(() => vi.fn());
 const findConnectedGitHubProject = vi.hoisted(() => vi.fn());
 const fetchGitHubRepo = vi.hoisted(() => vi.fn());
-const isGitHubAppConfigured = vi.hoisted(() => vi.fn());
 const resolveUserInstallationForRepo = vi.hoisted(() => vi.fn());
 const createInstallationAccessToken = vi.hoisted(() => vi.fn());
 const assertConnectRateLimit = vi.hoisted(() => vi.fn());
@@ -55,7 +54,6 @@ vi.mock("../github-access", () => ({
 }));
 
 vi.mock("../github-app", () => ({
-  isGitHubAppConfigured: () => isGitHubAppConfigured(),
   resolveUserInstallationForRepo: (...args: unknown[]) =>
     resolveUserInstallationForRepo(...args),
   createInstallationAccessToken: (...args: unknown[]) =>
@@ -200,7 +198,8 @@ describe("connectGitHubRepoAction", () => {
     actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_token");
     assertConnectRateLimit.mockResolvedValue(undefined);
-    isGitHubAppConfigured.mockReturnValue(false);
+    resolveUserInstallationForRepo.mockResolvedValue(42);
+    createInstallationAccessToken.mockResolvedValue("ghs_install");
     fetchGitHubRepo.mockResolvedValue({
       fullName: "acme/shop",
       defaultBranch: "main",
@@ -221,7 +220,8 @@ describe("connectGitHubRepoAction", () => {
     actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_token");
     assertConnectRateLimit.mockResolvedValue(undefined);
-    isGitHubAppConfigured.mockReturnValue(false);
+    resolveUserInstallationForRepo.mockResolvedValue(42);
+    createInstallationAccessToken.mockResolvedValue("ghs_install");
     fetchGitHubRepo.mockResolvedValue({
       fullName: "acme/shop",
       defaultBranch: "main",
@@ -243,7 +243,8 @@ describe("connectGitHubRepoAction", () => {
     actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_token");
     assertConnectRateLimit.mockResolvedValue(undefined);
-    isGitHubAppConfigured.mockReturnValue(false);
+    resolveUserInstallationForRepo.mockResolvedValue(42);
+    createInstallationAccessToken.mockResolvedValue("ghs_install");
     fetchGitHubRepo.mockResolvedValue({
       fullName: "acme/shop",
       defaultBranch: "main",
@@ -267,16 +268,21 @@ describe("connectGitHubRepoAction", () => {
       error: null,
       message: "Connected acme/shop.",
     });
+    expect(resolveUserInstallationForRepo).toHaveBeenCalledWith({
+      userAccessToken: "gho_token",
+      fullName: "acme/shop",
+      claimedInstallationId: undefined,
+    });
+    expect(fetchGitHubRepo).toHaveBeenCalledWith("ghs_install", "acme/shop");
     expect(connectGitHubRepo).toHaveBeenCalled();
     expect(writeActiveProjectCookie).toHaveBeenCalledWith("p-new");
     expect(refresh).toHaveBeenCalled();
   });
 
-  it("uses an installation token when the GitHub App is configured", async () => {
+  it("uses the claimed installation id when provided", async () => {
     actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_user");
     assertConnectRateLimit.mockResolvedValue(undefined);
-    isGitHubAppConfigured.mockReturnValue(true);
     resolveUserInstallationForRepo.mockResolvedValue(42);
     createInstallationAccessToken.mockResolvedValue("ghs_install");
     fetchGitHubRepo.mockResolvedValue({

@@ -32,18 +32,9 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 ### P1-3 — Stored GitHub OAuth tokens are never refreshed and silently expire
 
-**Problem:** `storeUserGitHubToken` persists only `access_token`; no `refresh_token` / `expires_at` anywhere in `github-tokens.ts`. GitHub user tokens expire ~8h, and after that connect, AI-fix checkout, PR push, and webhook Check Runs fail permanently with a generic error. Worse, in classic-OAuth mode `resolveProjectGitHubToken` falls back to the **project owner's** stored token (`src/server/github-access.ts:44-50`), so any operator acting on the project inherits the owner's full-repo identity — including repos the acting user cannot access.
+**PARTIALLY RESOLVED 2026-09-09 (legacy OAuth removed):** `resolveProjectGitHubToken` is now App-installation-token-only — the silent owner-token fallback and the session-token shortcut are gone (`src/server/github-access.ts`). Clone, PR push, and webhook Check Runs no longer depend on any user's OAuth token. Remaining (this item's scope shrinks to dashboard-only actions): store `refresh_token` + `expires_at` with the encrypted token; on expiry, refresh via the GitHub OAuth endpoint using the App client id/secret and rotate the stored entry; when refresh fails, surface a clear "sign in again" error. Affects dashboard repo listing / connect only.
 
-**Evidence:**
-
-- `src/auth.ts:104-106` (stores only `access_token` on fresh OAuth sign-in)
-- `src/server/github-tokens.ts:62-118` (schema has no refresh fields; decrypt-only)
-- `src/server/github-access.ts:34-50` (falls back to owner token)
-- `src/server/pr.ts:150-157`, `src/server/assessment-worker.ts:195-210` (checkout/PR/check-run consumers)
-
-**Action:** Store `refresh_token` + `expires_at` with the encrypted token; on expiry, refresh via the GitHub OAuth endpoint using the App client id/secret and rotate the stored entry; when refresh fails, surface a clear "sign in again" error. Remove the silent owner-token fallback for PR/check-run paths (source identity must match the acting session), and prefer scoped installation tokens (already used when `installationId` present).
-
-**Verification:** Unit test in `src/server/github-tokens.test.ts` with an expired stored token — assert either a successful refresh or a clean public error, never a silent owner-token handoff.
+**Verification:** Unit test in `src/server/github-tokens.test.ts` with an expired stored token — assert either a successful refresh or a clean public error on dashboard connect paths.
 
 ### P1-5 — `lang-change` defaults to English when the page has no `lang`, producing false positives
 

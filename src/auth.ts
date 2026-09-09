@@ -2,11 +2,8 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
-import { isProductionRuntime, resolveAuthSecret } from "@/auth-secret";
-import {
-  assertProductionGitHubApp,
-  githubAuthorizationScopes,
-} from "@/server/github-app";
+import { isProductionRuntime, resolveAuthSecret, sessionCookieIsSecure } from "@/auth-secret";
+import { assertProductionGitHubApp } from "@/server/github-app";
 import {
   clearStoredGitHubToken,
   getStoredGitHubToken,
@@ -49,8 +46,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: githubConfigured
     ? [
         GitHub({
+          // Identity-only scopes — repo access comes from installation tokens.
           authorization: {
-            params: { scope: githubAuthorizationScopes() },
+            params: { scope: "read:user user:email" },
           },
         }),
       ]
@@ -140,7 +138,7 @@ export async function getGitHubAccessToken(): Promise<string | null> {
   const token = await getToken({
     req: { headers: { cookie: cookieHeader } },
     secret: resolveAuthSecret(),
-    secureCookie: process.env.NODE_ENV === "production",
+    secureCookie: sessionCookieIsSecure(),
   });
   if (typeof token?.sub !== "string") return null;
 

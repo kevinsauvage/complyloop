@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { resolveAuthSecret } from "@/auth-secret";
+import {
+  resolveAuthSecret,
+  sessionCookieIsSecure,
+} from "@/auth-secret";
 
 const PUBLIC_PATHS = new Set(["/", "/login"]);
 
@@ -17,7 +20,7 @@ function isPublicPath(pathname: string): boolean {
   return pathname.startsWith("/legal/");
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   if (!isGitHubAuthConfigured()) return;
 
   const { pathname, search } = req.nextUrl;
@@ -26,7 +29,9 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({
     req,
     secret: resolveAuthSecret(),
-    secureCookie: process.env.NODE_ENV === "production",
+    // Must mirror how Auth.js chose the cookie name at sign-in time (https
+    // AUTH_URL ⇒ __Secure- prefix), not NODE_ENV — see sessionCookieIsSecure.
+    secureCookie: sessionCookieIsSecure(),
   });
   const isLoggedIn = Boolean(token);
   const isPublic = isPublicPath(pathname);

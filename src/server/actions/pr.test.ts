@@ -11,14 +11,9 @@ import { createPullRequestAction } from "./pr";
 
 const { getWorkspace, withProjectWrite } = actionWorkspaceMocks;
 const preparePullRequest = vi.hoisted(() => vi.fn());
-const getGitHubAccessToken = vi.hoisted(() => vi.fn());
 const getDrizzle = vi.hoisted(() => vi.fn());
 const listEvidenceForFinding = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
-
-vi.mock("@/auth", () => ({
-  getGitHubAccessToken: () => getGitHubAccessToken(),
-}));
 
 vi.mock("../pr", () => ({
   preparePullRequest: (...args: unknown[]) => preparePullRequest(...args),
@@ -125,7 +120,6 @@ describe("createPullRequestAction", () => {
     const workspace = workspaceFor("member");
     getWorkspace.mockResolvedValue(workspace);
     withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
-    getGitHubAccessToken.mockResolvedValue("gho_token");
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
       prUrl: "https://github.com/acme/shop/pull/1",
@@ -158,7 +152,6 @@ describe("createPullRequestAction", () => {
     };
     getWorkspace.mockResolvedValue(workspace);
     withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
-    getGitHubAccessToken.mockResolvedValue("gho_token");
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
       prUrl: "https://github.com/acme/shop/pull/1",
@@ -185,7 +178,6 @@ describe("createPullRequestAction", () => {
 
   it("maps prepare failures into form state", async () => {
     getWorkspace.mockResolvedValue(workspaceFor("member"));
-    getGitHubAccessToken.mockResolvedValue(null);
     preparePullRequest.mockRejectedValue(
       new PublicError("GitHub token unavailable."),
     );

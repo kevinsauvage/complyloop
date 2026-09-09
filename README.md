@@ -37,19 +37,23 @@ Open [http://localhost:3000](http://localhost:3000), sign in with GitHub, connec
 
 ## GitHub setup
 
-1. Create a [GitHub OAuth App](https://github.com/settings/developers):
+## GitHub setup
+
+1. Create a [GitHub App](https://github.com/settings/apps):
    - Homepage: `http://localhost:3000`
    - Callback: `http://localhost:3000/api/auth/callback/github`
-2. In `.env.local`: `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`
-3. Restart dev server → **Sign in** → **Connect** a repository
+   - Webhook URL: `http://localhost:3000/api/github/webhook` (events: `push`, `pull_request`)
+   - Permissions: Contents R/W, Pull requests R/W, Checks R/W, Metadata R
+   - Request user authorization (OAuth) during installation
+2. In `.env.local`: `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (+ `GITHUB_APP_SLUG`, `GITHUB_WEBHOOK_SECRET`)
+3. Restart dev server → **Sign in** → **Install the App** → **Connect** a repository
 
 Repos are **shallow-cloned per job** into a temp directory and deleted when done.
 
-**Optional — continuous monitoring**
+**Continuous monitoring**
 
-- Set `GITHUB_WEBHOOK_SECRET`
-- Point repo webhooks (push + pull_request) at `{origin}/api/github/webhook`
-- Tokens are encrypted at rest (AES-256-GCM). PR events post a **ComplyLoop Check Run**.
+- Webhook events (`push`, `pull_request`) trigger re-assessments; PR events post a **ComplyLoop Check Run**.
+- Repo access uses short-lived App installation tokens — assessments and check runs keep working with no user signed in.
 
 ---
 

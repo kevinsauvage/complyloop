@@ -1,5 +1,4 @@
 import { auth, getGitHubAccessToken } from "@/auth";
-import { parsePageParam } from "@/core/pagination";
 import { z } from "zod";
 import { listGitHubRepos } from "@/server/github-access";
 import { projectCapabilities } from "@/server/project-capabilities";
@@ -18,7 +17,6 @@ const githubReposQuerySchema = z.object({
       const trimmed = value?.trim();
       return trimmed && trimmed.length > 0 ? trimmed : undefined;
     }),
-  page: z.string().optional(),
 });
 
 export async function GET(request: Request): Promise<Response> {
@@ -52,27 +50,22 @@ export async function GET(request: Request): Promise<Response> {
       githubReposQuerySchema,
       {
         q: url.searchParams.get("q") ?? undefined,
-        page: url.searchParams.get("page") ?? undefined,
       },
       "Invalid repository search.",
     );
   } catch (error) {
     return Response.json({ error: publicErrorMessage(error) }, { status: 400 });
   }
-  const q = query.q;
-  const page = parsePageParam(query.page);
   const perPage = 30;
 
   try {
     const repos = await listGitHubRepos({
       accessToken: token,
-      page,
       perPage,
-      q,
+      q: query.q,
     });
     return Response.json({
       repos,
-      page,
       hasMore: repos.length >= perPage,
     });
   } catch (error) {

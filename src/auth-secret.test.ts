@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveAuthSecret } from "./auth-secret";
+import { resolveAuthSecret, sessionCookieIsSecure } from "./auth-secret";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -53,5 +53,32 @@ describe("resolveAuthSecret", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PHASE", "phase-production-build");
     expect(resolveAuthSecret()).toBe("dev-only-auth-secret-not-for-production");
+  });
+});
+
+describe("sessionCookieIsSecure", () => {
+  it("is true when AUTH_URL is https (ngrok-style https dev origin)", () => {
+    vi.stubEnv("AUTH_URL", "https://example.ngrok-free.dev");
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("X_FORWARDED_PROTO", "");
+    expect(sessionCookieIsSecure()).toBe(true);
+  });
+
+  it("is false when AUTH_URL is http", () => {
+    vi.stubEnv("AUTH_URL", "http://localhost:3000");
+    vi.stubEnv("X_FORWARDED_PROTO", "");
+    expect(sessionCookieIsSecure()).toBe(false);
+  });
+
+  it("falls back to X_FORWARDED_PROTO when AUTH_URL is unset", () => {
+    vi.stubEnv("AUTH_URL", "");
+    vi.stubEnv("X_FORWARDED_PROTO", "https,http");
+    expect(sessionCookieIsSecure()).toBe(true);
+  });
+
+  it("is false without AUTH_URL or forwarded proto (plain localhost dev)", () => {
+    vi.stubEnv("AUTH_URL", "");
+    vi.stubEnv("X_FORWARDED_PROTO", "");
+    expect(sessionCookieIsSecure()).toBe(false);
   });
 });

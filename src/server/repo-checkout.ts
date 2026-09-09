@@ -8,10 +8,7 @@ import {
   isE2EHarnessEnabled,
 } from "./e2e-harness";
 import { createGit } from "./git";
-import {
-  resolveProjectGitHubToken,
-  type ResolveProjectGitHubTokenOptions,
-} from "./github-access";
+import { resolveProjectGitHubToken } from "./github-access";
 import { githubCloneUrl } from "./github";
 
 function positiveEnv(name: string, fallback: number): number {
@@ -139,14 +136,14 @@ export async function withRepoCheckout<T>(
 }
 
 /**
- * Resolves a GitHub token for the project and runs work against an ephemeral
- * checkout of `github.fullName`. Under the e2e harness, uses the local fixture.
+ * Resolves a GitHub App installation token for the project and runs work
+ * against an ephemeral checkout of `github.fullName`. Under the e2e harness,
+ * uses the local fixture.
  */
 export async function withProjectCheckout<T>(
   project: Project,
   fn: (rootPath: string) => Promise<T>,
   ref?: string,
-  tokenOptions?: ResolveProjectGitHubTokenOptions,
 ): Promise<T> {
   if (isE2EHarnessEnabled()) {
     return withFixtureCheckout(fn);
@@ -156,12 +153,12 @@ export async function withProjectCheckout<T>(
   if (!fullName) {
     throw new PublicError("Project has no GitHub repository metadata.", "connect");
   }
-  const accessToken = await resolveProjectGitHubToken(project, tokenOptions);
+  const accessToken = await resolveProjectGitHubToken(project);
   if (!accessToken) {
     throw new PublicError(
       project.github?.installationId
         ? "Could not mint a GitHub App installation token for this repository."
-        : "No stored GitHub token for this session - sign out and sign in with GitHub again.",
+        : "This project is not connected via the GitHub App. Reconnect it from Settings.",
       "connect",
     );
   }

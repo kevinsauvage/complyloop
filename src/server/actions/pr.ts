@@ -26,7 +26,6 @@ import {
   refresh,
   replaceRemediation,
   requireOnFindingProject,
-  sessionCheckoutTokenOptions,
 } from "./shared";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
@@ -61,7 +60,6 @@ export async function createPullRequestAction(
       );
     }
 
-    const tokenOptions = await sessionCheckoutTokenOptions();
     const evidence = await listEvidenceForFinding(
       await getDrizzle(),
       findingId,
@@ -78,7 +76,6 @@ export async function createPullRequestAction(
       finding,
       remediation,
       candidate,
-      tokenOptions,
     );
     if (!result.prUrl) {
       throw new PublicError(result.message);

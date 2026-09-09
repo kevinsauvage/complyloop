@@ -48,7 +48,6 @@ const githubRepoSummarySchema = z.object({
 
 export const githubRepoSearchResponseSchema = z.object({
   repos: z.array(githubRepoSummarySchema),
-  page: z.number().int().min(1),
   hasMore: z.boolean(),
   error: z.string().optional(),
 });

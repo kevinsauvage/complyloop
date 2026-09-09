@@ -19,7 +19,7 @@ import type { ReactNode } from "react";
 import { publicErrorMessage } from "@/server/action-state";
 import { connectedGitHubProjectsByFullName } from "@/server/connect-github";
 import { listGitHubRepos } from "@/server/github-access";
-import { githubAppInstallUrl, isGitHubAppConfigured } from "@/server/github-app";
+import { githubAppInstallUrl } from "@/server/github-app";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 
@@ -114,7 +114,6 @@ export async function ConnectProjectPanel({
         <GitHubRepoPicker
           initialRepos={repos}
           connectedByFullName={connectedByFullName}
-          usesGitHubApp={isGitHubAppConfigured()}
           appInstallUrl={githubAppInstallUrl()}
           fetchOnMount={!defaultOpen}
         />

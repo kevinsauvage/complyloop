@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assertProductionGitHubApp,
   githubAppInstallUrl,
-  githubAuthorizationScopes,
   isGitHubAppConfigured,
   resolveUserInstallationForRepo,
 } from "./github-app";
@@ -42,14 +41,12 @@ describe("GitHub App configuration", () => {
       "-----BEGIN RSA PRIVATE KEY-----\\nabc\\n-----END RSA PRIVATE KEY-----",
     );
     expect(isGitHubAppConfigured()).toBe(true);
-    expect(githubAuthorizationScopes()).toBe("read:user user:email");
   });
 
-  it("falls back to classic repo scope without App credentials", () => {
+  it("is not configured without App credentials", () => {
     vi.stubEnv("GITHUB_APP_ID", "");
     vi.stubEnv("GITHUB_APP_PRIVATE_KEY", "");
     expect(isGitHubAppConfigured()).toBe(false);
-    expect(githubAuthorizationScopes()).toBe("read:user user:email repo");
   });
 
   it("builds an App install URL from GITHUB_APP_SLUG", () => {

@@ -21,7 +21,6 @@ import {
 import { fetchGitHubRepo } from "../github-access";
 import {
   createInstallationAccessToken,
-  isGitHubAppConfigured,
   resolveUserInstallationForRepo,
 } from "../github-app";
 import { accessFromStore, setActiveProject } from "../project-visibility";
@@ -90,17 +89,12 @@ export async function connectGitHubRepoAction(
       );
     }
 
-    let accessToken = userAccessToken;
-    let installationId: number | undefined;
-
-    if (isGitHubAppConfigured()) {
-      installationId = await resolveUserInstallationForRepo({
-        userAccessToken,
-        fullName,
-        claimedInstallationId,
-      });
-      accessToken = await createInstallationAccessToken(installationId);
-    }
+    const installationId = await resolveUserInstallationForRepo({
+      userAccessToken,
+      fullName,
+      claimedInstallationId,
+    });
+    const accessToken = await createInstallationAccessToken(installationId);
 
     const repo = await fetchGitHubRepo(accessToken, fullName);
     await ensurePersonalOrgProvisioned(userId, githubLogin ?? "");

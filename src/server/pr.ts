@@ -10,10 +10,7 @@ import {
   octokitErrorMessage,
   parseOwnerRepo,
 } from "./github";
-import {
-  resolveProjectGitHubToken,
-  type ResolveProjectGitHubTokenOptions,
-} from "./github-access";
+import { resolveProjectGitHubToken } from "./github-access";
 import { buildDeveloperHandoff } from "./handoff";
 import { reportError } from "./observability";
 import { withProjectCheckout } from "./repo-checkout";
@@ -62,7 +59,6 @@ export async function preparePullRequest(
   finding: Finding,
   remediation: Remediation,
   candidate: PatchCandidate | null,
-  tokenOptions?: ResolveProjectGitHubTokenOptions,
 ): Promise<PullRequestResult> {
   const location = finding.location;
   if (!isSourceLocation(location)) {
@@ -147,7 +143,7 @@ export async function preparePullRequest(
       let message = `Branch \`${branch}\` created with the fix committed. Push and open a PR from the developer handoff.`;
 
       const fullName = project.github?.fullName;
-      const token = await resolveProjectGitHubToken(project, tokenOptions);
+      const token = await resolveProjectGitHubToken(project);
 
       if (fullName && token) {
         const remote = githubCloneUrl(fullName, token);
@@ -178,7 +174,5 @@ export async function preparePullRequest(
         message,
       };
     },
-    undefined,
-    tokenOptions,
   );
 }

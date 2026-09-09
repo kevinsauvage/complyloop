@@ -1,11 +1,10 @@
 import { revalidatePath } from "next/cache";
-import { auth, getGitHubAccessToken } from "@/auth";
+import { auth } from "@/auth";
 import { advanceRemediation } from "@/core/remediation";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { type Finding } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import type { ResolveProjectGitHubTokenOptions } from "../github-access";
 import { assertProjectPermission } from "../project-visibility";
 import type { Workspace } from "../workspace";
 
@@ -55,11 +54,4 @@ export function requireOnFindingProject(
   );
   if (!project) throw new PublicError("Unknown project.");
   assertProjectPermission(project, workspace.access, permission);
-}
-
-/** Session token options for ephemeral GitHub checkouts. */
-export async function sessionCheckoutTokenOptions(): Promise<ResolveProjectGitHubTokenOptions> {
-  return {
-    sessionAccessToken: await getGitHubAccessToken(),
-  };
 }

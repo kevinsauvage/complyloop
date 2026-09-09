@@ -89,7 +89,6 @@ async function fetchRepos(options: {
 export function GitHubRepoPicker({
   initialRepos = [],
   connectedByFullName,
-  usesGitHubApp = false,
   appInstallUrl,
   fetchOnMount = false,
 }: {
@@ -97,8 +96,6 @@ export function GitHubRepoPicker({
   initialRepos?: GitHubRepoSummary[];
   /** GitHub fullName (lowercase) → connected project id for this workspace. */
   connectedByFullName: Record<string, string>;
-  /** When true, empty state explains App installation instead of OAuth `repo`. */
-  usesGitHubApp?: boolean;
   /** `https://github.com/apps/<slug>/installations/new` when `GITHUB_APP_SLUG` is set. */
   appInstallUrl?: string;
   /** Fetch page 1 on mount — used when the server skipped the eager fetch
@@ -148,7 +145,7 @@ export function GitHubRepoPicker({
               ]
             : result.repos,
         );
-        setPage(result.page);
+        setPage(nextPage);
         setHasMore(result.hasMore);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") return;
@@ -200,32 +197,21 @@ export function GitHubRepoPicker({
     return (
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          {usesGitHubApp ? (
-            <>
-              No repositories from your GitHub App installations. Install the
-              App on the repos you want to assess, then refresh this page.
-            </>
-          ) : (
-            <>
-              No repositories returned from GitHub. Check that your OAuth app
-              has the <code className="font-mono text-xs">repo</code> scope
-              (laptop demo), or configure a GitHub App for production.
-            </>
-          )}
+          No repositories from your GitHub App installations. Install the App
+          on the repos you want to assess, then refresh this page.
         </p>
-        {usesGitHubApp && appInstallUrl ? (
+        {appInstallUrl ? (
           <Button asChild size="sm" className="w-fit">
             <a href={appInstallUrl} target="_blank" rel="noreferrer">
               Install the GitHub App
             </a>
           </Button>
-        ) : null}
-        {usesGitHubApp && !appInstallUrl ? (
+        ) : (
           <p className="text-xs text-muted-foreground">
             Set <code className="font-mono">GITHUB_APP_SLUG</code> to show an
             install link (see <code className="font-mono">.env.example</code>).
           </p>
-        ) : null}
+        )}
       </div>
     );
   }
@@ -271,7 +257,7 @@ export function GitHubRepoPicker({
                 const formId = `disconnect-${repo.fullName}`;
                 return (
                   <li
-                    key={`${repo.installationId ?? "oauth"}:${repo.fullName}`}
+                    key={`${repo.installationId ?? 0}:${repo.fullName}`}
                     className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 transition-colors hover:bg-accent/30"
                   >
                     <div className="min-w-0">

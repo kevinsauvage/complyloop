@@ -204,7 +204,7 @@ npm run ops:backup   # needs COMPLYLOOP_BACKUP_DIR + pg_dump on host
 
 **Production:** GitHub App (`GITHUB_APP_ID` + private key). OAuth client = App credentials. Installation tokens scope to selected repos — not account-wide `repo`.
 
-**Local demo:** OAuth can use `read:user user:email repo` without App credentials.
+**Local dev:** same GitHub App flow; sign-in scopes are identity-only (`read:user user:email`). Repo access always comes from installation tokens — set `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY` locally too (the e2e harness is the only path without an App).
 
 Sign-out clears encrypted tokens. OAuth tokens stay server-side (not in JWT).
 

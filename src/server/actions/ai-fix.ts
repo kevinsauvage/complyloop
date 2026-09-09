@@ -23,7 +23,6 @@ import { withFindingWrite } from "../workspace-write";
 import {
   refresh,
   requireOnFindingProject,
-  sessionCheckoutTokenOptions,
 } from "./shared";
 
 export async function generateAiFixAction(
@@ -54,15 +53,12 @@ export async function generateAiFixAction(
       await assertAiRateLimit(preview.userId);
     }
     const control = controlById(finding.controlId);
-    const tokenOptions = await sessionCheckoutTokenOptions();
     const candidate = await withProjectCheckout(
       project,
       (rootPath) =>
         runAiFixOnCheckout(rootPath, finding, control, {
           aiAvailable: aiExplanationAvailable(),
         }),
-      undefined,
-      tokenOptions,
     );
 
     await withFindingWrite(finding.id, "project.remediate", async ({ finding: liveFinding, db }) => {

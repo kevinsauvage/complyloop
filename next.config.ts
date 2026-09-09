@@ -23,6 +23,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Dev-only: allow the ngrok tunnel host to fetch dev assets (403 otherwise).
+  // Production ignores this setting.
+  allowedDevOrigins: ["jaida-unapplausive-antonietta.ngrok-free.dev"],
 };
 
 export default withSentryConfig(nextConfig, {

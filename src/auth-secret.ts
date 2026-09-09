@@ -39,4 +39,19 @@ export function resolveAuthSecret(): string {
   return DEV_ONLY_AUTH_SECRET;
 }
 
+/**
+ * Auth.js sets `__Secure-`-prefixed session cookies whenever the request URL
+ * is https (src/lib/init.ts: `useSecureCookies ?? url.protocol === "https:"`).
+ * `getToken()` must be told the same so it reads the matching cookie name —
+ * otherwise a valid session is invisible (seen in dev behind the https ngrok
+ * tunnel, where NODE_ENV is "development" but the browser origin is https).
+ */
+export function sessionCookieIsSecure(): boolean {
+  const authUrl = process.env.AUTH_URL;
+  if (authUrl) return authUrl.startsWith("https://");
+  const forwardedProto = process.env.X_FORWARDED_PROTO;
+  if (forwardedProto) return forwardedProto.split(",")[0]!.trim() === "https";
+  return false;
+}
+
 export { isProductionRuntime };

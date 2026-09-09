@@ -19,7 +19,7 @@ export interface CheckRunResult {
 
 /**
  * Posts a completed GitHub Check Run on the PR head commit (Checks API).
- * Requires a token with `repo` (or `checks:write`) scope.
+ * Requires a token with the Checks permission (installation token).
  */
 export async function postPullRequestCheckRun(
   input: CheckRunInput,

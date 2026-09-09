@@ -31,18 +31,8 @@ export function githubAppInstallUrl(): string | undefined {
 }
 
 /**
- * OAuth scopes for Auth.js. With a GitHub App configured, identity-only scopes
- * suffice — repo access comes from installation tokens on selected repos.
- */
-export function githubAuthorizationScopes(): string {
-  return isGitHubAppConfigured()
-    ? "read:user user:email"
-    : "read:user user:email repo";
-}
-
-/**
  * Production with GitHub sign-in must use a GitHub App so customers never grant
- * the classic `repo` scope over their entire account.
+ * broad OAuth scopes over their entire account.
  * Skipped under the Playwright e2e harness (local fixture, no App).
  */
 export function assertProductionGitHubApp(): void {
