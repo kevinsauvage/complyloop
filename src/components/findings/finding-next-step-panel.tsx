@@ -124,6 +124,11 @@ function ActControls({
             size="sm"
             className="flex flex-col gap-1.5"
           />
+          {!act.canGenerate ? (
+            <p className="text-xs text-muted-foreground">
+              AI guidance isn&apos;t enabled for this workspace.
+            </p>
+          ) : null}
           {act.showHandoff ? (
             <p className="text-xs text-muted-foreground">
               Or use{" "}

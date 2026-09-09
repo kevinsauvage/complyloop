@@ -69,6 +69,7 @@ export function StatefulActionForm({
             variant={variant}
             size={size}
             formId={formId}
+            disabled={disabled}
           />
         ) : (
           <Button

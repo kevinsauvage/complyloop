@@ -96,7 +96,7 @@ export default async function OrgPage() {
         {canManage ? (
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button size="sm">
                 Invite member
               </Button>
             </DialogTrigger>
@@ -118,7 +118,7 @@ export default async function OrgPage() {
         ) : null}
         <Dialog>
           <DialogTrigger asChild>
-            <Button size="sm">New organization</Button>
+            <Button variant="outline" size="sm">New organization</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>

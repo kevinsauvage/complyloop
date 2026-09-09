@@ -31,6 +31,7 @@ export function ConfirmSubmitButton({
   size = "default",
   className,
   formId: formIdProp,
+  disabled = false,
 }: {
   label: string;
   pendingLabel?: string;
@@ -41,11 +42,14 @@ export function ConfirmSubmitButton({
   className?: string;
   /** Required when the dialog action is portaled outside the form. */
   formId?: string;
+  /** Disables the trigger (state already satisfied). */
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
   const [open, setOpen] = useState(false);
   const generatedId = useId();
   const formId = formIdProp ?? generatedId;
+  const triggerDisabled = pending || disabled;
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -54,7 +58,7 @@ export function ConfirmSubmitButton({
           type="button"
           variant={variant}
           size={size}
-          disabled={pending}
+          disabled={triggerDisabled}
           className={className}
         >
           {pending ? (pendingLabel ?? "Working…") : label}

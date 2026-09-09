@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { presetById, projectDefaultPresetId } from "@complyloop/adapters/registry";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { cn } from "@/lib/utils";
 import { runAssessmentAction } from "@/server/actions/assessment";
@@ -52,9 +51,6 @@ export function FirstAssessmentChecklist({
   canAssess: boolean;
   canConnect: boolean;
 }) {
-  const defaultPresetId = projectDefaultPresetId(project);
-  const preset = presetById(defaultPresetId);
-  const targetDone = Boolean(preset);
   const previewDone = Boolean(project.runtimeBaseUrl?.trim());
 
   const assessAction = canAssess ? (
@@ -74,50 +70,14 @@ export function FirstAssessmentChecklist({
       <CardHeader>
         <CardTitle>First assessment checklist</CardTitle>
         <CardDescription>
-          Three steps before your dashboard reflects real compliance status for
+          Two steps before your dashboard reflects real compliance status for
           &quot;{project.name}&quot;.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <ol className="flex flex-col gap-5">
           <li className="flex gap-3">
-            <StepIndicator done={targetDone} stepNumber={1} />
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className="text-sm font-medium">Assessment target</p>
-              {targetDone ? (
-                <p className="text-sm text-muted-foreground">
-                  {preset!.name} — {preset!.controlIds.length} controls.{" "}
-                  <Link
-                    href="/settings"
-                    className="underline underline-offset-4 hover:text-foreground"
-                  >
-                    Change default
-                  </Link>
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Default preset is Full RGAA 4 on connect. Change it in{" "}
-                  <Link
-                    href="/settings"
-                    className="underline underline-offset-4 hover:text-foreground"
-                  >
-                    Settings
-                  </Link>{" "}
-                  or browse presets on{" "}
-                  <Link
-                    href="/requirements"
-                    className="underline underline-offset-4 hover:text-foreground"
-                  >
-                    Requirements
-                  </Link>
-                  .
-                </p>
-              )}
-            </div>
-          </li>
-
-          <li className="flex gap-3">
-            <StepIndicator done={previewDone} optional stepNumber={2} />
+            <StepIndicator done={previewDone} optional stepNumber={1} />
             <div className="min-w-0 flex-1 space-y-3">
               <div className="space-y-1">
                 <p className="text-sm font-medium">
@@ -153,14 +113,14 @@ export function FirstAssessmentChecklist({
           </li>
 
           <li className="flex gap-3">
-            <StepIndicator done={false} stepNumber={3} />
+            <StepIndicator done={false} stepNumber={2} />
             <div className="min-w-0 flex-1 space-y-2">
               <p className="text-sm font-medium">Run assessment</p>
               <p className="text-sm text-muted-foreground">
-                Scan the connected repository against the assessment target.
+                Scan the connected repository for compliance gaps.
                 {previewDone
-                  ? " AST and rendered-page checks will both run."
-                  : " AST checks run now; add a preview URL later to unlock runtime checks."}
+                  ? " Source and rendered-page checks will both run."
+                  : " Source checks run now; add a preview URL later to unlock rendered-page checks."}
               </p>
               {assessAction}
             </div>
