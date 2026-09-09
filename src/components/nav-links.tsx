@@ -74,7 +74,7 @@ export function NavLinks({
               aria-label={badgeLabel}
               onClick={() => onNavigate?.()}
               className={cn(
-                "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-150",
+                "relative flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-150",
                 active
                   ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_1px_0_0] shadow-foreground/[0.04]"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
@@ -97,7 +97,7 @@ export function NavLinks({
               {showBadge ? (
                 <span
                   className={cn(
-                    "ml-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[11px] font-semibold tabular-nums",
+                    "ml-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums",
                     active
                       ? "bg-signal text-signal-foreground"
                       : "bg-signal/15 text-signal",

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useId, useState } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -48,6 +48,20 @@ export function OrgDataLifecycle({
     emptyActionMessageState,
   );
   useActionToast(deleteState, deletePending);
+
+  // Keep the confirm dialog open while the delete settles: success navigates
+  // away (org gone), failure stays open with the inline error below.
+  const wasDeletePending = useRef(false);
+  useEffect(() => {
+    if (deletePending) {
+      wasDeletePending.current = true;
+      return;
+    }
+    if (wasDeletePending.current && !deleteState.error) {
+      setDeleteConfirmOpen(false);
+    }
+    wasDeletePending.current = false;
+  }, [deletePending, deleteState.error]);
 
   async function runExport(): Promise<void> {
     setExporting(true);
@@ -212,13 +226,15 @@ export function OrgDataLifecycle({
                     form={deleteFormId}
                     variant="destructive"
                     disabled={!deleteReady || deletePending}
-                    onClick={() => {
-                      if (deleteReady) setDeleteConfirmOpen(false);
-                    }}
                   >
                     {deletePending ? "Deleting…" : "Delete permanently"}
                   </Button>
                 </AlertDialogFooter>
+                {deleteState.error && !deletePending ? (
+                  <p role="alert" className="text-sm text-destructive">
+                    {deleteState.error}
+                  </p>
+                ) : null}
               </AlertDialogContent>
             </AlertDialog>
           </form>

@@ -32,6 +32,19 @@ export async function markAlertRead(tx: DrizzleDb, alert: Alert): Promise<void> 
   await upsertAlerts(tx, [updated]);
 }
 
+export async function markAllProjectAlertsRead(
+  tx: DrizzleDb,
+  projectAlerts: ReadonlyArray<Alert>,
+): Promise<number> {
+  const unread = projectAlerts.filter((alert) => !alert.read);
+  if (unread.length === 0) return 0;
+  await upsertAlerts(
+    tx,
+    unread.map((alert) => ({ ...alert, read: true })),
+  );
+  return unread.length;
+}
+
 /**
  * Upserts alerts (same pattern as findings/remediations/requirements) so the
  * slice-diff write model can update an existing alert row without a

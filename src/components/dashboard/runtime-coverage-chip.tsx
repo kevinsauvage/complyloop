@@ -10,11 +10,13 @@ export function RuntimeCoverageChip({
   project,
   engines,
   compact = false,
+  canConnect = true,
   className,
 }: {
   project: Pick<Project, "runtimeBaseUrl">;
   engines?: AssessmentEngines;
   compact?: boolean;
+  canConnect?: boolean;
   className?: string;
 }) {
   const summary = runtimeCoverageSummary(project, engines);
@@ -41,12 +43,14 @@ export function RuntimeCoverageChip({
           {summary.runtimeError}
         </span>
       ) : null}
-      <Link
-        href="/settings"
-        className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-      >
-        Edit coverage
-      </Link>
+      {canConnect ? (
+        <Link
+          href="/settings"
+          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Edit coverage
+        </Link>
+      ) : null}
     </div>
   );
 }

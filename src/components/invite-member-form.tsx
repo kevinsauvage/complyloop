@@ -42,8 +42,15 @@ export function InviteMemberForm({
           autoComplete="off"
           required
           placeholder="octocat"
+          aria-describedby={
+            state.error && !pending ? "githubLogin-error" : "githubLogin-hint"
+          }
           aria-invalid={state.error ? true : undefined}
         />
+        <p id="githubLogin-hint" className="text-xs text-muted-foreground">
+          GitHub handle without the @ — they must have signed in once with
+          GitHub.
+        </p>
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="role">Role</Label>
@@ -61,6 +68,11 @@ export function InviteMemberForm({
       <Button type="submit" disabled={pending}>
         {pending ? "Inviting…" : "Invite"}
       </Button>
+      {state.error && !pending ? (
+        <p id="githubLogin-error" role="alert" className="text-sm text-destructive">
+          {state.error}
+        </p>
+      ) : null}
     </form>
   );
 }

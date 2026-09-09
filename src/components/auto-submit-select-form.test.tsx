@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, afterEach } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AutoSubmitSelectForm } from "./auto-submit-select-form";
+
+afterEach(() => {
+  cleanup();
+});
 
 describe("AutoSubmitSelectForm", () => {
   it("hides when there is at most one option", () => {
@@ -37,20 +41,21 @@ describe("AutoSubmitSelectForm", () => {
     const select = screen.getByRole("combobox", { name: "Thing" });
     const form = select.closest("form");
     expect(form).not.toBeNull();
-    const requestSubmit = vi.fn();
-    if (form) {
-      form.requestSubmit = requestSubmit;
-    }
+    const submitted: Event[] = [];
+    form?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitted.push(event);
+    });
 
     // Arrow-key exploration must not navigate away.
     await user.selectOptions(select, "b");
-    expect(requestSubmit).not.toHaveBeenCalled();
+    expect(submitted).toHaveLength(0);
     expect(
       screen.getByRole("button", { name: "Switch" }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Switch" }));
-    expect(requestSubmit).toHaveBeenCalledOnce();
+    expect(submitted).toHaveLength(1);
   });
 
   it("hides the Switch button again when re-selecting the current value", async () => {

@@ -238,6 +238,17 @@ export function GitHubRepoPicker({
         </p>
       ) : null}
 
+      {connectState.error && !connectPending ? (
+        <p className="text-sm text-destructive" role="alert">
+          {connectState.error}
+        </p>
+      ) : null}
+      {disconnectState.error && !disconnectPending ? (
+        <p className="text-sm text-destructive" role="alert">
+          {disconnectState.error}
+        </p>
+      ) : null}
+
       {loading && repos.length === 0 ? (
         <p className="text-sm text-muted-foreground">Loading repositories…</p>
       ) : null}

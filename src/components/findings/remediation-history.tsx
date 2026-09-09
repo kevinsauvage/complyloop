@@ -19,9 +19,12 @@ export function RemediationHistory({
   return (
     <Card className="shadow-none" id="remediation-history">
       <CardHeader className="gap-1">
-        <CardTitle>
-          <h2 className="text-base font-medium">Remediation history</h2>
+        <CardTitle className="text-base font-medium">
+          Remediation history
         </CardTitle>
+        {history.length > 0 ? (
+          <p className="text-xs text-muted-foreground">Newest first</p>
+        ) : null}
       </CardHeader>
       <CardContent>
         {history.length === 0 ? (

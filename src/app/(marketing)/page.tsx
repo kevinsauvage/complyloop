@@ -169,7 +169,7 @@ export default function HomePage() {
                       <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-signal/12 text-signal">
                         <Icon className="size-4.5" aria-hidden />
                       </div>
-                      <CardTitle className="text-base">{feature.title}</CardTitle>
+                      <CardTitle level={3} className="text-base">{feature.title}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <CardDescription className="text-sm leading-relaxed">

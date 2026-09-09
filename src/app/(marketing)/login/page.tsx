@@ -49,7 +49,7 @@ export default async function LoginPage({
 
       <Card className="relative w-full max-w-md border-border/80 bg-card/90 card-sheen backdrop-blur-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Sign in to ComplyLoop</CardTitle>
+          <CardTitle level={1} className="text-2xl">Sign in to ComplyLoop</CardTitle>
           <CardDescription>
             Connect with GitHub to access your compliance dashboard, connect
             repositories, and run assessments.
@@ -70,7 +70,7 @@ export default async function LoginPage({
                 label="Continue with GitHub"
                 callbackUrl={callbackUrl}
               />
-              <p className="text-center text-sm text-foreground/80">
+              <p className="text-center text-sm text-muted-foreground">
                 We request repository access only when you connect a project.
                 OAuth tokens are stored server-side and never exposed to the
                 browser.

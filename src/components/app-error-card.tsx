@@ -81,7 +81,7 @@ export function AppErrorCard({
         </div>
         <CardDescription
           id="app-error-description"
-          className="max-w-xl text-base text-foreground/80"
+          className="max-w-xl text-base text-muted-foreground"
         >
           {description}
           {digest ? (

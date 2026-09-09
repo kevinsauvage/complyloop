@@ -16,6 +16,14 @@ export function OpenDetailsOnHash({
     function sync() {
       if (window.location.hash === `#${id}` && ref.current) {
         ref.current.open = true;
+        // Move focus into the disclosed panel so keyboard and screen-reader
+        // users land on the revealed content, not a redundant link.
+        const field = ref.current.querySelector<HTMLElement>(
+          "input, select, textarea, button",
+        );
+        (field ?? ref.current.querySelector<HTMLElement>("summary"))?.focus({
+          preventScroll: true,
+        });
       }
     }
     sync();

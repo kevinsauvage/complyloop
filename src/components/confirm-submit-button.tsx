@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import type { VariantProps } from "class-variance-authority";
 import {
@@ -60,6 +60,21 @@ export function ConfirmSubmitButton({
   const formId = formIdProp ?? generatedId;
   const triggerDisabled = pending || disabled;
 
+  // Close only after the action settles — never on click. Closing early
+  // strands failures below a dead trigger; closing on settle returns focus
+  // to the trigger while the inline `role="alert"` announces the result.
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (pending) {
+      wasPending.current = true;
+      return;
+    }
+    if (wasPending.current) {
+      wasPending.current = false;
+      setOpen(false);
+    }
+  }, [pending]);
+
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
@@ -85,7 +100,6 @@ export function ConfirmSubmitButton({
             form={formId}
             disabled={pending}
             variant={variant === "destructive" ? "destructive" : "default"}
-            onClick={() => setOpen(false)}
             className="pointer-events-auto"
           >
             {resolveSubmitLabel(pending, label, pendingLabel)}

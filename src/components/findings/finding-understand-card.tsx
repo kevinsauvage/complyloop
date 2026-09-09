@@ -41,9 +41,9 @@ export function FindingUnderstandCard({
   return (
     <Card className="shadow-none">
       <CardHeader className="gap-1">
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-base font-medium">
           <MapPin className="size-4 text-signal" aria-hidden />
-          <h2 className="text-base font-medium">What failed</h2>
+          What failed
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

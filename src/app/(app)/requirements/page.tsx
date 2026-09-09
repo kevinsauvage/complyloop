@@ -103,7 +103,7 @@ export default async function RequirementsPage({
     <>
       <PageHeader
         title="Requirements"
-        description={`"${project.name}" — ${targetLabel}`}
+        description={`"${project.name}" — ${targetLabel}. A requirement states what you must do; findings are its individual failures; evidence is the proof.`}
       />
 
       <PageContent>
@@ -164,7 +164,7 @@ export default async function RequirementsPage({
 
           <aside aria-label="Preset navigation" className="lg:col-span-1">
             <PageSection
-              title="Preset"
+              title="Framework scope"
               description="Browse requirement scope by preset."
               className="border-t-0 pt-0"
             >

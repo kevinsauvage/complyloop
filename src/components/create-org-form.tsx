@@ -34,12 +34,24 @@ export function CreateOrgForm({
           type="text"
           required
           placeholder="Acme Engineering"
+          aria-describedby={
+            state.error && !pending ? "orgName-error" : "orgName-hint"
+          }
           aria-invalid={state.error ? true : undefined}
         />
+        <p id="orgName-hint" className="text-xs text-muted-foreground">
+          Used for the URL slug (lowercase letters, numbers, dashes) — you can
+          rename it later.
+        </p>
       </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Creating…" : "Create organization"}
       </Button>
+      {state.error && !pending ? (
+        <p id="orgName-error" role="alert" className="text-sm text-destructive">
+          {state.error}
+        </p>
+      ) : null}
     </form>
   );
 }

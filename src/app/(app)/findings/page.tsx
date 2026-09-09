@@ -161,7 +161,7 @@ export default async function FindingsPage({
       <>
         <PageHeader
           title="Findings"
-          description="Every failure with its reason, location, remediation state, and evidence."
+          description="One finding = one instance of a failed requirement. Fix it to Verified — every step is kept as evidence."
         />
         <EmptyState
           title="No findings yet"
@@ -195,10 +195,10 @@ export default async function FindingsPage({
 
   return (
     <>
-      <PageHeader
-        title="Findings"
-        description="Every failure with its reason, location, remediation state, and evidence."
-      >
+        <PageHeader
+          title="Findings"
+          description="One finding = one instance of a failed requirement. Fix it to Verified — every step is kept as evidence."
+        >
         <Button variant="outline" size="sm" asChild>
           <a href={reportHref("engineering", "markdown")} download>
             Export engineering report
@@ -277,7 +277,7 @@ export default async function FindingsPage({
                 aria-current={activeTab === "by_cause" ? "true" : undefined}
                 className={viewToggleLinkClass(activeTab === "by_cause")}
               >
-                By cause
+                Root cause
                 {clusters.length > 0 ? ` (${clusters.length})` : ""}
               </Link>
             </div>

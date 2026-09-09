@@ -18,12 +18,11 @@ export function CopyButton({
       <Button
         type="button"
         variant="outline"
-        size="xs"
+        size="sm"
         onClick={async () => {
           try {
             await navigator.clipboard.writeText(text);
             setAnnouncement("Copied");
-            toast.success("Copied to clipboard");
           } catch {
             setAnnouncement("Could not copy");
             toast.error("Could not copy to clipboard");

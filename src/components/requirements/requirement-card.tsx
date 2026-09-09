@@ -6,6 +6,10 @@ import {
 import { isPertinenceTwinControl } from "@complyloop/adapters/rgaa/pertinence-twins";
 import { DeterminationBadge, RequirementStatusBadge } from "@/components/badges";
 import { formatDateTime } from "@/core/format-datetime";
+import {
+  determinationDisplay,
+  requirementStatusDisplay,
+} from "@/core/status-display";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -49,18 +53,25 @@ export function RequirementCard({
       : null;
 
   return (
-    <Card className="relative overflow-hidden shadow-none transition-[border-color] hover:border-signal/30">
+    <Card
+      id={`requirement-${control.id}`}
+      className="relative scroll-mt-24 overflow-hidden shadow-none transition-[border-color] hover:border-signal/30 focus-within:border-signal/30"
+    >
       <RequirementStatusAccent status={requirement.status} />
       <CardHeader className="pb-2 pl-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-foreground">{control.title}</p>
-            <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+            <p className="font-mono text-xs text-muted-foreground">
               {control.code}
               {control.secondaryCode ? ` · ${control.secondaryCode}` : ""}
             </p>
+            <p className="mt-0.5 font-medium text-foreground">{control.title}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div
+            className="flex flex-wrap items-center gap-2"
+            role="group"
+            aria-label={`Status: ${requirementStatusDisplay(requirement.status).label}, decided by: ${determinationDisplay(requirement.determination).label}`}
+          >
             <RequirementStatusBadge status={requirement.status} />
             <DeterminationBadge method={requirement.determination} />
           </div>
@@ -71,24 +82,30 @@ export function RequirementCard({
           </p>
         ) : null}
         <p className="text-xs text-muted-foreground">
-          {openFindingsHref ? (
-            <Link
-              href={openFindingsHref}
-              className="font-medium text-foreground underline underline-offset-4 hover:text-foreground"
-            >
-              {openCount === 1 ? "1 open finding" : `${openCount} open findings`}
-            </Link>
+          {openCount > 0 ? (
+            openFindingsHref ? (
+              <Link
+                href={openFindingsHref}
+                className="font-medium text-foreground underline underline-offset-4 hover:text-foreground"
+              >
+                {openCount === 1 ? "1 open finding" : `${openCount} open findings`}
+              </Link>
+            ) : (
+              <>
+                {openCount === 1 ? "1 open finding" : `${openCount} open findings`}
+              </>
+            )
           ) : (
-            <>
-              {openCount === 1 ? "1 open finding" : `${openCount} open findings`}
-            </>
+            <>No open findings</>
           )}{" "}
           · updated {formatDateTime(requirement.updatedAt)}
         </p>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3 pt-0 pl-5">
-        {requirement.status === "failed" && openFindingsHref ? (
+        {(requirement.status === "failed" ||
+          requirement.status === "needs_review") &&
+        openFindingsHref ? (
           <Button size="sm" asChild>
             <Link href={openFindingsHref}>See findings</Link>
           </Button>
@@ -108,7 +125,7 @@ export function RequirementCard({
                     href="/settings"
                     className="text-sm font-medium text-foreground underline underline-offset-4 hover:text-foreground"
                   >
-                    Set preview URL in Settings
+                    Set the Preview URL (runtime audit) in Settings
                   </Link>
                 </span>
               ) : null}

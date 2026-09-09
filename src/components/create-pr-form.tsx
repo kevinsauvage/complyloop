@@ -45,6 +45,23 @@ export function CreatePrForm({ findingId }: { findingId: string }) {
           {pending ? "Creating draft…" : "Create draft pull request"}
         </Button>
       </div>
+      {state.error && !pending ? (
+        <p role="alert" className="text-sm text-destructive">
+          {state.error}
+        </p>
+      ) : null}
+      {state.prUrl && !pending ? (
+        <p className="text-sm">
+          <a
+            href={state.prUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            Open draft PR
+          </a>
+        </p>
+      ) : null}
     </form>
   );
 }

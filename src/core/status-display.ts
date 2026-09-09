@@ -151,6 +151,8 @@ const REMEDIATION_STATUS_DISPLAY: Record<
 
 export interface FindingStatusDisplay {
   label: string;
+  description: string;
+  tone: StatusTone;
 }
 
 export function findingStatusDisplay(
@@ -160,9 +162,23 @@ export function findingStatusDisplay(
 }
 
 const FINDING_STATUS_DISPLAY: Record<FindingStatus, FindingStatusDisplay> = {
-  open: { label: "Open" },
-  resolved: { label: "Resolved" },
-  dismissed: { label: "Dismissed" },
+  open: {
+    label: "Open",
+    description:
+      "Still needs a fix — the finding counts until it is resolved or recorded as an exception.",
+    tone: "signal",
+  },
+  resolved: {
+    label: "Resolved",
+    description: "Fixed and confirmed — closed by verification.",
+    tone: "passed",
+  },
+  dismissed: {
+    label: "Dismissed",
+    description:
+      "Closed as a documented exception — an explicit decision, not a fix.",
+    tone: "review",
+  },
 };
 
 // ---------------------------------------------------------------------------

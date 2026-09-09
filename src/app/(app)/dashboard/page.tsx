@@ -73,7 +73,7 @@ export default async function DashboardPage() {
           title="Welcome to ComplyLoop"
           description="Connect a GitHub repository to start the compliance loop — from requirement to verified evidence."
           stats={[]}
-          actions={assessAction}
+          actions={undefined}
         />
         <ConnectProjectCard>
           <ConnectProjectPanel defaultOpen />
@@ -161,6 +161,8 @@ export default async function DashboardPage() {
         {
           label: "Unread alerts",
           value: unreadAlerts.length,
+          href:
+            unreadAlerts.length > 0 ? "#regression-alerts-heading" : undefined,
           tone: unreadAlerts.length > 0
             ? ("warning" as const)
             : ("muted" as const),
@@ -192,6 +194,7 @@ export default async function DashboardPage() {
               project={project}
               engines={latestAssessment.engines}
               compact
+              canConnect={caps.canConnect}
             />
           ) : null
         }
@@ -256,6 +259,7 @@ export default async function DashboardPage() {
               recentVerified={recentVerified}
               recentEvidence={recentEvidence}
               controlById={(controlId) => displayControl(controlId, project)}
+              hideRegressions={unreadAlerts.length > 0}
             />
           </PageSection>
         </>

@@ -77,7 +77,21 @@ export function FirstAssessmentChecklist({
       <CardContent className="flex flex-col gap-6">
         <ol className="flex flex-col gap-5">
           <li className="flex gap-3">
-            <StepIndicator done={previewDone} optional stepNumber={1} />
+            <StepIndicator done={false} stepNumber={1} />
+            <div className="min-w-0 flex-1 space-y-2">
+              <p className="text-sm font-medium">Run assessment</p>
+              <p className="text-sm text-muted-foreground">
+                Scan the connected repository for compliance gaps.
+                {previewDone
+                  ? " Source and rendered-page checks will both run."
+                  : " Source checks run now; add a preview URL later to unlock rendered-page checks."}
+              </p>
+              {assessAction}
+            </div>
+          </li>
+
+          <li className="flex gap-3">
+            <StepIndicator done={previewDone} optional stepNumber={2} />
             <div className="min-w-0 flex-1 space-y-3">
               <div className="space-y-1">
                 <p className="text-sm font-medium">
@@ -111,20 +125,6 @@ export function FirstAssessmentChecklist({
               )}
             </div>
           </li>
-
-          <li className="flex gap-3">
-            <StepIndicator done={false} stepNumber={2} />
-            <div className="min-w-0 flex-1 space-y-2">
-              <p className="text-sm font-medium">Run assessment</p>
-              <p className="text-sm text-muted-foreground">
-                Scan the connected repository for compliance gaps.
-                {previewDone
-                  ? " Source and rendered-page checks will both run."
-                  : " Source checks run now; add a preview URL later to unlock rendered-page checks."}
-              </p>
-              {assessAction}
-            </div>
-          </li>
         </ol>
       </CardContent>
     </Card>
@@ -142,18 +142,31 @@ export function UnableToVerifyRuntimeHint({
 }) {
   if (runtimeError) {
     return (
-      <p className="rounded-xl border border-status-failed/30 bg-status-failed/10 px-4 py-3 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">Preview audit failed</span>
-        {" — "}
-        {runtimeError}{" "}
-        <Link
-          href="/settings"
-          className="underline underline-offset-4 hover:text-foreground"
-        >
-          Check preview URL settings
-        </Link>
-        . Runtime-only checks stay unable to verify until the preview loads.
-      </p>
+      <div className="rounded-xl border border-status-failed/30 bg-status-failed/10 px-4 py-3 text-sm">
+        <p className="text-foreground">
+          <span className="font-medium">Preview audit failed</span>
+          {" — "}
+          <span className="text-muted-foreground">
+            the page didn&apos;t load for automated checks.{" "}
+            <Link
+              href="/settings"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Check preview URL settings
+            </Link>
+            . Runtime-only checks stay unable to verify until the preview
+            loads.
+          </span>
+        </p>
+        <details className="mt-2">
+          <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
+            Technical details
+          </summary>
+          <p className="mt-1 font-mono text-xs break-all text-muted-foreground">
+            {runtimeError}
+          </p>
+        </details>
+      </div>
     );
   }
 

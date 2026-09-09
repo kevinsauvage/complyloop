@@ -29,7 +29,7 @@ describe("evidenceRecordHref", () => {
     ];
     expect(
       evidenceRecordHref({ ...base, controlId: "ctl-button-name" }, requirements),
-    ).toBe("/requirements?status=needs_review");
+    ).toBe("/requirements?status=needs_review#requirement-ctl-button-name");
   });
 
   it("falls back to the requirements page when the control is not in scope", () => {
@@ -48,7 +48,7 @@ describe("evidenceRecordHref", () => {
         { ...base, controlId: "ctl-missing" },
         requirements,
       ),
-    ).toBe("/requirements");
+    ).toBe("/requirements#requirement-ctl-missing");
   });
 
   it("links an assessment event to the project home", () => {

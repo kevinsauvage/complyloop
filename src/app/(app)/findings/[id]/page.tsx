@@ -6,6 +6,7 @@ import { aiExplanationAvailable } from "@/ai/explainer";
 import {
   ConfidenceBadge,
   EngineBadge,
+  FindingStatusBadge,
   RemediationStatusBadge,
   SeverityBadge,
 } from "@/components/badges";
@@ -171,12 +172,20 @@ export default async function FindingPage({
         title={`${control.code} — ${control.title}`}
         description={`${control.secondaryCode} · ${control.description}`}
       >
-        <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+        <div
+          role="group"
+          aria-label={`Finding status: ${finding.status}, remediation: ${remediation.status}`}
+          className="flex max-w-full flex-wrap items-center justify-end gap-2"
+        >
+          <FindingStatusBadge status={finding.status} />
           <SeverityBadge severity={finding.severity} />
           <ConfidenceBadge confidence={finding.confidence} />
           <RemediationStatusBadge status={remediation.status} />
           <EngineBadge engine={engineFor(finding)} />
-          <span className="w-full font-mono text-xs text-muted-foreground sm:w-auto sm:text-right">
+          <span
+            title={finding.checkId}
+            className="w-full truncate font-mono text-xs text-muted-foreground sm:w-auto sm:max-w-64 sm:text-right"
+          >
             {finding.checkId}
           </span>
         </div>
@@ -212,6 +221,7 @@ export default async function FindingPage({
             </p>
           ) : (
             <div className="surface-panel rounded-2xl p-4">
+              <p className="mb-3 text-xs text-muted-foreground">Newest first</p>
               <ol className="relative flex flex-col gap-0 border-l border-border/70 pl-4">
                 {evidence.map((record, index) => (
                   <li key={record.id} className="relative pb-4 last:pb-0">

@@ -51,7 +51,9 @@ export function FindingsTabPanel({
         filtersActive ? (
           filteredEmptyState
         ) : (
-          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+          <p className="rounded-xl border border-dashed border-border/60 bg-card/40 px-4 py-6 text-center text-sm text-muted-foreground">
+            {emptyMessage} Nothing to triage here.
+          </p>
         )
       ) : (
         <>

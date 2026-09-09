@@ -7,6 +7,7 @@ import {
   engineDisplay,
   evidenceDisplay,
   EVIDENCE_TONE_BADGE,
+  findingStatusDisplay,
   provenanceDisplay,
   remediationStatusDisplay,
   requirementStatusDisplay,
@@ -19,6 +20,7 @@ import type {
   Confidence,
   DeterminationMethod,
   ExplanationProvenance,
+  FindingStatus,
   RemediationStatus,
   RequirementStatus,
   Severity,
@@ -100,6 +102,18 @@ export function RemediationStatusBadge({
       description={display.description}
       label={display.label}
       variant={display.badgeVariant}
+      tone={display.tone}
+    />
+  );
+}
+
+/** Finding lifecycle status (Open / Resolved / Dismissed) — the axis the tabs filter on. */
+export function FindingStatusBadge({ status }: { status: FindingStatus }) {
+  const display = findingStatusDisplay(status);
+  return (
+    <DescribedBadge
+      description={display.description}
+      label={display.label}
       tone={display.tone}
     />
   );

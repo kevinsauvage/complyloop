@@ -143,7 +143,11 @@ export function evidenceRecordHref(
     const requirement = requirements.find(
       (candidate) => candidate.controlId === record.controlId,
     );
-    return requirementsStatusHref(requirement?.status);
+    // Preserve the requirement anchor so the link lands on the card, not
+    // just the filtered list.
+    const anchor = `requirement-${record.controlId}`;
+    const href = requirementsStatusHref(requirement?.status);
+    return `${href}#${anchor}`;
   }
   if (record.assessmentId) {
     return "/";

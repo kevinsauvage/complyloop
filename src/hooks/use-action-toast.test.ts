@@ -42,7 +42,8 @@ describe("useActionToast", () => {
       pending: false,
     });
     await waitFor(() => {
-      expect(toastError).toHaveBeenCalledWith("Nope.", { duration: 8_000 });
+      // Errors stay inline by default — no error toast.
+      expect(toastError).not.toHaveBeenCalled();
     });
 
     rerender({
@@ -94,6 +95,34 @@ describe("useActionToast", () => {
     });
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("toasts errors only when opted in for fire-and-forget actions", async () => {
+    const { rerender } = renderHook(
+      ({ state, pending }) =>
+        useActionToast(state, pending, { toastErrors: true }),
+      {
+        initialProps: {
+          state: {
+            error: null as string | null,
+            message: null as string | null,
+          },
+          pending: false,
+        },
+      },
+    );
+
+    rerender({
+      state: { error: null, message: null },
+      pending: true,
+    });
+    rerender({
+      state: { error: "Nope.", message: null },
+      pending: false,
+    });
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("Nope.", { duration: 8_000 });
     });
   });
 

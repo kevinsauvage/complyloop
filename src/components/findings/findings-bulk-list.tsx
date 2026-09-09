@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { memo, useCallback, useId, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   EngineBadge,
   RemediationStatusBadge,
@@ -63,7 +63,7 @@ const FindingsBulkRow = memo(function FindingsBulkRow({
               checked={isSelected}
               onChange={() => onToggle(finding.id)}
               className="size-4 rounded border-input accent-signal"
-              aria-label={`Select finding ${control.code}`}
+              aria-label={`Select ${control.code} at ${formatLocationRef(finding.location)}`}
             />
           </div>
         ) : null}
@@ -101,12 +101,20 @@ export function FindingsBulkList({
   listParams: FindingListParams;
 }) {
   const selectAllId = useId();
+  const selectAllRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [showDismiss, setShowDismiss] = useState(false);
 
   const allIds = useMemo(() => items.map((item) => item.finding.id), [items]);
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
+  const someSelected = selected.size > 0 && !allSelected;
   const selectedCount = selected.size;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected;
+    }
+  }, [someSelected]);
 
   const approvableIds = useMemo(() => {
     return items
@@ -136,6 +144,11 @@ export function FindingsBulkList({
 
   return (
     <div className="flex flex-col gap-3">
+      <p aria-live="polite" className="sr-only">
+        {selectedCount === 0
+          ? "No findings selected"
+          : `${selectedCount} finding${selectedCount === 1 ? "" : "s"} selected`}
+      </p>
       {canRemediate && items.length > 0 ? (
         <p className="text-xs text-muted-foreground">
           Bulk actions apply to this page only.
@@ -145,12 +158,14 @@ export function FindingsBulkList({
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5">
           <div className="flex items-center gap-2">
             <input
+              ref={selectAllRef}
               id={selectAllId}
               type="checkbox"
               checked={allSelected}
               onChange={toggleAll}
               className="size-4 rounded border-input accent-signal"
               aria-label="Select all findings on this page"
+              aria-checked={someSelected ? "mixed" : allSelected}
             />
             <Label htmlFor={selectAllId} className="text-xs font-medium">
               {selectedCount > 0
@@ -174,7 +189,13 @@ export function FindingsBulkList({
                     <input key={id} type="hidden" name="findingIds" value={id} />
                   ))}
                 </StatefulActionForm>
-              ) : null}
+              ) : (
+                <span title="Only rendered-page findings with a generated suggestion can be approved in bulk">
+                  <Button type="button" size="sm" variant="default" disabled>
+                    Approve (runtime suggestions only)
+                  </Button>
+                </span>
+              )}
               <Button
                 type="button"
                 size="sm"

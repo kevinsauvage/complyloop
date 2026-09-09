@@ -1,5 +1,5 @@
 import { cleanup, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { renderWithUiProviders } from "@/test/render-ui";
 import { FindingsFilterBar } from "./findings-filter-bar";
@@ -28,14 +28,17 @@ describe("FindingsFilterBar", () => {
     const form = screen.getByRole("form", {
       name: /findings filter/i,
     }) as HTMLFormElement;
-    const requestSubmit = vi.fn();
-    form.requestSubmit = requestSubmit;
+    const submitted: Event[] = [];
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitted.push(event);
+    });
 
     await user.selectOptions(screen.getByLabelText(/severity/i), "serious");
-    expect(requestSubmit).not.toHaveBeenCalled();
+    expect(submitted).toHaveLength(0);
 
     await user.click(screen.getByRole("button", { name: /apply filters/i }));
-    expect(requestSubmit).toHaveBeenCalledOnce();
+    expect(submitted).toHaveLength(1);
   });
 
   it("renders an active-filter chip per applied filter with a clear link", () => {

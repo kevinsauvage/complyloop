@@ -1,6 +1,7 @@
 import { CreatePrForm } from "@/components/create-pr-form";
 import { DismissFindingFields } from "@/components/findings/dismiss-finding-fields";
 import { OpenDetailsOnHash } from "@/components/open-details-on-hash";
+import { RemediationStepper } from "@/components/findings/remediation-stepper";
 import { CodeBlock } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
@@ -37,7 +38,12 @@ function PatchPreview({ candidate }: { candidate: PatchCandidate }) {
       </p>
       {candidate.edits.map((edit, index) => (
         <div key={`${edit.path}-${index}`} className="space-y-1">
-          <p className="font-mono text-xs text-muted-foreground">{edit.path}</p>
+          <p
+            title={edit.path}
+            className="truncate font-mono text-xs text-muted-foreground"
+          >
+            {edit.path}
+          </p>
           <CodeBlock>{`- ${edit.oldText}\n+ ${edit.newText}`}</CodeBlock>
         </div>
       ))}
@@ -175,9 +181,15 @@ function ActControls({
               id="mark-implemented-note"
               type="text"
               name="note"
-              placeholder="e.g. Fixed in PR #42"
               className="max-w-md"
+              aria-describedby="mark-implemented-note-hint"
             />
+            <p
+              id="mark-implemented-note-hint"
+              className="text-xs text-muted-foreground"
+            >
+              Optional — e.g. the PR number, kept as evidence.
+            </p>
           </div>
         </StatefulActionForm>
       );
@@ -222,8 +234,8 @@ export function FindingNextStepPanel({
       )}
     >
       <CardHeader className="gap-1 pb-3">
-        <CardTitle>
-          <h2 className="text-base font-medium">{act.title}</h2>
+        <CardTitle className="text-base font-medium">
+          {act.title}
         </CardTitle>
         {act.beat === "view_only" ? (
           <PermissionNotice>{act.description}</PermissionNotice>
@@ -238,6 +250,7 @@ export function FindingNextStepPanel({
         )}
       </CardHeader>
       <CardContent className="flex flex-col gap-3 pt-0">
+        <RemediationStepper status={remediation.status} />
         <ActControls
           act={act}
           finding={finding}

@@ -92,7 +92,7 @@ export function PageSection({
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">
             {title}
           </h2>
           {description ? (
@@ -214,7 +214,7 @@ export function MetaTile({
 }) {
   return (
     <div className={cn("surface-panel rounded-xl px-3 py-2.5 text-sm", className)}>
-      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </p>
       <div className="mt-1">{children}</div>

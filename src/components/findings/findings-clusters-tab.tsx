@@ -28,9 +28,9 @@ export function FindingsClustersTab({
 
   if (clusters.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No shared root causes detected yet. Clusters appear when two or more open
-        findings share a check and location signal.
+      <p className="rounded-xl border border-dashed border-border/60 bg-card/40 px-4 py-6 text-center text-sm text-muted-foreground">
+        No shared root causes detected yet. Clusters appear when two or more
+        open findings share a check and location signal.
       </p>
     );
   }

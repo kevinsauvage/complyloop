@@ -55,7 +55,7 @@ function ActivityCard({
             </span>
           ) : null}
           <div className="min-w-0">
-            <CardTitle className="text-base">{title}</CardTitle>
+            <CardTitle level={3} className="text-base">{title}</CardTitle>
             {description ? (
               <CardDescription className="mt-1">{description}</CardDescription>
             ) : null}
@@ -75,6 +75,7 @@ export function DashboardActivitySections({
   recentVerified,
   recentEvidence,
   controlById,
+  hideRegressions = false,
 }: {
   regressions: EvidenceRecord[];
   recentChanges: FileChange[];
@@ -83,12 +84,14 @@ export function DashboardActivitySections({
   recentVerified: EvidenceRecord[];
   recentEvidence: EvidenceRecord[];
   controlById: (controlId: string) => Control;
+  /** When the unread-alerts card is shown it already covers regressions. */
+  hideRegressions?: boolean;
 }) {
   const allClear = openFindings.length === 0;
 
   return (
     <div className="grid gap-4 lg:grid-cols-12">
-      {regressions.length > 0 ? (
+      {!hideRegressions && regressions.length > 0 ? (
         <section
           className="surface-panel rounded-2xl border-destructive/30 bg-destructive/5 p-4 sm:p-5 lg:col-span-12"
           aria-labelledby="recent-regressions-heading"
@@ -98,12 +101,12 @@ export function DashboardActivitySections({
               <Layers className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <h2
+              <h3
                 id="recent-regressions-heading"
                 className="text-base font-medium text-foreground"
               >
                 Recent compliance regressions
-              </h2>
+              </h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 Requirement statuses that worsened since the last assessment.
               </p>

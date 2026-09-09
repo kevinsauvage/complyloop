@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AlertTriangle, ChevronDown, ShieldCheck } from "lucide-react";
 import { formatDateTime } from "@/core/format-datetime";
 import { StatefulActionForm } from "@/components/stateful-action-form";
@@ -31,8 +32,16 @@ export function RequirementRemediationActions({
   requirement: Requirement;
   canRemediate: boolean;
 }) {
+  // Drives the conditional `required` on the expiry date (server enforces it
+  // too — this just surfaces the requirement before submit).
+  const [exceptionReason, setExceptionReason] = useState("not_applicable");
+
   if (!canRemediate && !requirement.humanPass && !requirement.exception) {
-    return null;
+    return (
+      <p className="text-xs text-muted-foreground">
+        Only editors can record passes or exceptions.
+      </p>
+    );
   }
 
   return (
@@ -56,7 +65,7 @@ export function RequirementRemediationActions({
                     null,
                     requirement.id,
                   )}
-                  submitLabel="Clear human pass & return to unable to verify"
+                  submitLabel="Clear human pass"
                   pendingLabel="Clearing…"
                   variant="outline"
                   size="sm"
@@ -89,7 +98,7 @@ export function RequirementRemediationActions({
                     null,
                     requirement.id,
                   )}
-                  submitLabel="Clear exception & return to automated status"
+                  submitLabel="Clear exception"
                   pendingLabel="Clearing…"
                   variant="outline"
                   size="sm"
@@ -105,19 +114,22 @@ export function RequirementRemediationActions({
               <CollapsibleTrigger
                 className={cn(
                   buttonVariants({ variant: "ghost", size: "sm" }),
-                  "group h-auto justify-start gap-1.5 px-0 text-xs text-muted-foreground hover:text-foreground",
+                  "group h-auto min-h-9 justify-start gap-1.5 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground",
                 )}
               >
                 Mark passed (human review)
                 <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-180" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3">
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Visible to the whole org and kept as evidence until cleared.
+                </p>
                 <StatefulActionForm
                   action={markRequirementPassedAction.bind(
                     null,
                     requirement.id,
                   )}
-                  submitLabel="Record human pass"
+                  submitLabel="Mark passed"
                   pendingLabel="Saving…"
                   variant="outline"
                   size="sm"
@@ -145,13 +157,16 @@ export function RequirementRemediationActions({
             <CollapsibleTrigger
               className={cn(
                 buttonVariants({ variant: "ghost", size: "sm" }),
-                "group h-auto justify-start gap-1.5 px-0 text-xs text-muted-foreground hover:text-foreground",
+                "group h-auto min-h-9 justify-start gap-1.5 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground",
               )}
             >
               Record exception
               <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-3">
+              <p className="mb-3 text-xs text-muted-foreground">
+                Visible to the whole org and kept as evidence until cleared.
+              </p>
               <StatefulActionForm
                 action={markRequirementExceptionAction.bind(
                   null,
@@ -168,6 +183,7 @@ export function RequirementRemediationActions({
                   noteId={`exception-note-${requirement.id}`}
                   noteLabel="Note (required, kept as evidence)"
                   noteRequired
+                  onReasonChange={setExceptionReason}
                   options={[
                     { value: "not_applicable", label: "Not applicable" },
                     { value: "accepted_risk", label: "Accepted risk" },
@@ -180,12 +196,13 @@ export function RequirementRemediationActions({
                 />
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor={`exception-expires-${requirement.id}`}>
-                    Expires (required for temporary)
+                    Expires{exceptionReason === "temporary" ? " (required)" : " (required for temporary)"}
                   </Label>
                   <input
                     id={`exception-expires-${requirement.id}`}
                     type="date"
                     name="expiresAt"
+                    required={exceptionReason === "temporary"}
                     className="h-8 w-full max-w-md rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
                   />
                 </div>

@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   findingDetailHref,
+  findingsListHref,
+  hasActiveFindingFilters,
   type FindingListParams,
 } from "@/core/finding-list-filter";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -37,6 +39,17 @@ export function FindingQueueNav({
   const router = useRouter();
   const inQueue = index >= 0 && total > 0;
   const [liveMessage, setLiveMessage] = useState("");
+  const tabLabel =
+    listParams.tab === "by_cause"
+      ? "Root cause"
+      : listParams.tab === "resolved"
+        ? "Resolved"
+        : listParams.tab === "dismissed"
+          ? "Dismissed"
+          : "Open";
+  const filteredSuffix = hasActiveFindingFilters(listParams)
+    ? " · filtered"
+    : "";
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -57,7 +70,25 @@ export function FindingQueueNav({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [index, listParams, nextId, prevId, router, total]);
 
-  if (!inQueue) return null;
+  if (!inQueue) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          This finding isn&apos;t in the current {tabLabel} queue
+          {hasActiveFindingFilters(listParams)
+            ? " — filters may be hiding it"
+            : ""}
+          .{" "}
+          <Link
+            href={findingsListHref({ tab: "open" })}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            View all open findings
+          </Link>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -69,7 +100,8 @@ export function FindingQueueNav({
         {liveMessage}
       </p>
       <p className="text-xs text-muted-foreground">
-        {index + 1} of {total} in queue
+        {index + 1} of {total} · {tabLabel}
+        {filteredSuffix}
         <span className="hidden sm:inline">
           {" "}
           · <kbd className="rounded border border-border px-1 font-mono">j</kbd>{" "}

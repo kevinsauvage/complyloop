@@ -86,23 +86,33 @@ export default async function EvidencePage({
     <>
       <PageHeader
         title="Evidence"
-        description="Append-only record of everything checked, found, changed, and verified."
+        description="Append-only log of every requirement check, finding, fix, and verification. Nothing here can be edited — only superseded."
       >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm">
-              Export <ChevronDownIcon />
+              Export <ChevronDownIcon aria-hidden />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
               <a href={reportHref("engineering", "markdown")} download>
-                Engineering (Markdown)
+                <span className="flex flex-col gap-0.5">
+                  <span>Download engineering report</span>
+                  <span className="text-xs text-muted-foreground">
+                    Markdown for developers fixing findings
+                  </span>
+                </span>
               </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a href={reportHref("audit", "markdown")} download>
-                Audit (Markdown)
+                <span className="flex flex-col gap-0.5">
+                  <span>Download audit report</span>
+                  <span className="text-xs text-muted-foreground">
+                    Auditor-ready requirement status
+                  </span>
+                </span>
               </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -111,42 +121,68 @@ export default async function EvidencePage({
                 target="_blank"
                 rel="noreferrer"
               >
-                Engineering (HTML)
+                <span className="flex flex-col gap-0.5">
+                  <span>Open engineering report</span>
+                  <span className="text-xs text-muted-foreground">
+                    HTML in a new tab
+                  </span>
+                </span>
               </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a href={reportHref("audit", "html")} target="_blank" rel="noreferrer">
-                Audit (HTML)
+                <span className="flex flex-col gap-0.5">
+                  <span>Open audit report</span>
+                  <span className="text-xs text-muted-foreground">
+                    HTML in a new tab
+                  </span>
+                </span>
               </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <a href="/evidence/export" download="evidence.json">
-                Export JSON
+                <span className="flex flex-col gap-0.5">
+                  <span>Download raw JSON</span>
+                  <span className="text-xs text-muted-foreground">
+                    Machine-readable export
+                  </span>
+                </span>
               </a>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </PageHeader>
       {totalUnfiltered === 0 ? (
-        <EmptyState
-          title="No evidence yet"
-          action={
-            <PageActionLink href="/dashboard">Go to dashboard</PageActionLink>
-          }
-        >
-          <p>
-            Evidence accumulates as you run assessments, resolve Findings, verify
-            Remediations, and record Requirement decisions. After your first run you
-            will see entries like assessment completed, finding detected, and
-            remediation verified — each with a timestamp and link back into the loop.
-          </p>
-        </EmptyState>
+        <PageContent>
+          <EmptyState
+            title="No evidence yet"
+            action={
+              <PageActionLink href="/dashboard">Go to dashboard</PageActionLink>
+            }
+          >
+            <p>
+              Evidence accumulates as you run assessments, resolve findings,
+              verify remediations, and record requirement decisions. After your
+              first run you will see entries like assessment completed, finding
+              detected, and remediation verified — each with a timestamp and
+              link back into the loop.
+            </p>
+          </EmptyState>
+        </PageContent>
       ) : (
         <PageContent>
           <EvidenceKindChips counts={kindCounts} selected={kindFilter} />
+          <h2
+            id="evidence-results"
+            tabIndex={-1}
+            className="text-sm font-medium text-muted-foreground outline-none"
+          >
+            {total === 1 ? "1 entry" : `${total} entries`}
+            {kindFilter ? ` · ${evidenceDisplay(kindFilter).label}` : ""}
+          </h2>
           {total === 0 && kindFilter ? (
-            <EmptyState title={`No ${evidenceDisplay(kindFilter).label.toLowerCase()} evidence`}>
+            <EmptyState title={`No "${evidenceDisplay(kindFilter).label}" entries`}>
               <p>
                 Try another filter or{" "}
                 <Link href={evidenceKindHref()} className="underline">

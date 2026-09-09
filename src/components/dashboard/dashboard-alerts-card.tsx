@@ -5,7 +5,7 @@ import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Alert as AlertRecord } from "@complyloop/db/types";
-import { markAlertReadAction } from "@/server/actions/alerts";
+import { markAlertReadAction, markAllAlertsReadAction } from "@/server/actions/alerts";
 
 function alertPrimaryHref(alert: AlertRecord): string | null {
   const findingId = alert.detail?.findingId;
@@ -63,7 +63,7 @@ export function DashboardAlertsCard({
   project,
 }: {
   alerts: AlertRecord[];
-  project: Pick<Project, "github">;
+  project: Pick<Project, "github" | "id">;
 }) {
   if (alerts.length === 0) return null;
 
@@ -84,16 +84,27 @@ export function DashboardAlertsCard({
               id="regression-alerts-heading"
               className="text-sm font-semibold tracking-tight text-foreground"
             >
-              Regression alerts
+              Needs review
             </h2>
             <p className="text-xs text-muted-foreground">
               Unread status changes that need review
             </p>
           </div>
         </div>
-        <p className="rounded-full border border-destructive/25 bg-background/60 px-2.5 py-1 font-mono text-xs text-destructive tabular-nums">
-          {alerts.length} unread
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="rounded-full border border-destructive/25 bg-background/60 px-2.5 py-1 font-mono text-xs text-destructive tabular-nums">
+            {alerts.length} unread
+          </p>
+          <StatefulActionForm
+            action={markAllAlertsReadAction}
+            submitLabel="Mark all read"
+            pendingLabel="Marking…"
+            variant="outline"
+            size="sm"
+          >
+            <input type="hidden" name="projectId" value={project.id} />
+          </StatefulActionForm>
+        </div>
       </div>
       <ul className="flex flex-col gap-3">
         {alerts.map((alert) => {
@@ -118,12 +129,12 @@ export function DashboardAlertsCard({
                 </AlertTitle>
                 <AlertDescription>
                   {detailLine ? (
-                    <p className="mt-1 font-mono text-xs leading-relaxed opacity-90">
+                    <p className="mt-1 font-mono text-xs leading-relaxed text-muted-foreground">
                       {detailLine}
                     </p>
                   ) : null}
                   {changeLink ? (
-                    <p className="mt-1 font-mono text-xs leading-relaxed opacity-90">
+                    <p className="mt-1 font-mono text-xs leading-relaxed text-muted-foreground">
                       {changeLink.external ? (
                         <a
                           href={changeLink.href}
@@ -148,7 +159,7 @@ export function DashboardAlertsCard({
                     </p>
                   ) : null}
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <time className="text-xs opacity-70" dateTime={alert.at}>
+                    <time className="text-xs text-muted-foreground" dateTime={alert.at}>
                       {formatDateTime(alert.at)}
                     </time>
                     <StatefulActionForm

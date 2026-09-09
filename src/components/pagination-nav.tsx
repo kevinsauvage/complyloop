@@ -30,7 +30,7 @@ export function PaginationNav({
   return (
     <nav
       aria-label={label}
-      className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground"
+      className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground"
     >
       <p>
         Page {page} of {totalPages}

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { parseForm, requiredField } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/client";
-import { getAlertById, markAlertRead } from "@complyloop/db/repo/alerts";
+import { getAlertById, markAlertRead, markAllProjectAlertsRead } from "@complyloop/db/repo/alerts";
 import { listMembershipsForOrgs } from "@complyloop/db/repo/orgs";
 import { getProjectById } from "@complyloop/db/repo/projects";
 import {
@@ -12,6 +12,7 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { assertProjectPermission } from "../project-visibility";
+import { getProjectRuntime } from "../project-runtime";
 import { withProjectLock } from "../workspace-write";
 import { refresh, requireSignedIn } from "./shared";
 
@@ -46,5 +47,41 @@ export async function markAlertReadAction(
     });
     refresh();
     return "Alert marked as read.";
+  });
+}
+
+const markAllAlertsReadInput = z.object({
+  projectId: requiredField("Unknown project."),
+});
+
+export async function markAllAlertsReadAction(
+  _previous: ActionMessageState,
+  formData: FormData,
+): Promise<ActionMessageState> {
+  return runActionMessage(async () => {
+    const { projectId } = parseForm(markAllAlertsReadInput, formData);
+    const { userId, githubLogin } = await requireSignedIn();
+
+    const drizzle = await getDrizzle();
+    const project = await getProjectById(drizzle, projectId);
+    if (!project) throw new PublicError("Unknown project.");
+    const memberships = await listMembershipsForOrgs(drizzle, [project.orgId]);
+    assertProjectPermission(
+      project,
+      { userId, githubLogin, organizations: [], memberships },
+      "project.view",
+    );
+
+    const runtime = await getProjectRuntime(project.id);
+    const count = await withProjectLock(project.id, async (tx) => {
+      return markAllProjectAlertsRead(
+        tx,
+        runtime.alerts.filter((alert) => alert.projectId === project.id),
+      );
+    });
+    refresh();
+    return count === 0
+      ? "No unread alerts."
+      : `${count} alert${count === 1 ? "" : "s"} marked as read.`;
   });
 }

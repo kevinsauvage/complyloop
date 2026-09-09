@@ -159,12 +159,14 @@ function sourceGenerate(input: FindingActInput): FindingActView {
 export function findingAct(input: FindingActInput): FindingActView {
   if (input.finding.status === "dismissed") {
     const dismissal = input.finding.dismissal;
-    const reason = dismissal?.reason.replace(/_/g, " ") ?? "documented exception";
+    const rawReason =
+      dismissal?.reason.replace(/_/g, " ") ?? "documented exception";
+    const reason = rawReason.charAt(0).toUpperCase() + rawReason.slice(1);
     const note = dismissal?.note ? `: ${dismissal.note}` : "";
     return {
       ...chrome(input),
       beat: "dismissed",
-      title: "Dismissed",
+      title: "Dismissed — exception on record",
       description: `${reason}${note}`,
     };
   }

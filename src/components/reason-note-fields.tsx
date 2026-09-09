@@ -12,6 +12,7 @@ export function ReasonNoteFields({
   options,
   noteRows = 2,
   noteRequired = false,
+  onReasonChange,
 }: {
   reasonId: string;
   noteId: string;
@@ -21,6 +22,7 @@ export function ReasonNoteFields({
   options: ReadonlyArray<{ value: string; label: string }>;
   noteRows?: number;
   noteRequired?: boolean;
+  onReasonChange?: (value: string) => void;
 }) {
   return (
     <>
@@ -30,6 +32,11 @@ export function ReasonNoteFields({
           id={reasonId}
           name="reason"
           defaultValue={defaultReason ?? options[0]?.value}
+          onChange={
+            onReasonChange
+              ? (event) => onReasonChange(event.target.value)
+              : undefined
+          }
           className={cn(nativeSelectClass, "max-w-md")}
         >
           {options.map((option) => (
@@ -46,8 +53,14 @@ export function ReasonNoteFields({
           name="note"
           rows={noteRows}
           required={noteRequired}
+          aria-describedby={noteRequired ? undefined : `${noteId}-hint`}
           className="max-w-md"
         />
+        {noteRequired ? null : (
+          <p id={`${noteId}-hint`} className="text-xs text-muted-foreground">
+            Optional — anything you write is kept as evidence.
+          </p>
+        )}
       </div>
     </>
   );

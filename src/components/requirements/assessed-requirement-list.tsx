@@ -26,12 +26,12 @@ export function AssessedRequirementList({
     <div className="flex flex-col gap-8">
       {groups.map((group) => (
         <section key={group.id} className="flex flex-col gap-3" aria-labelledby={`theme-${group.id}`}>
-          <h2
+          <h3
             id={`theme-${group.id}`}
             className="text-sm font-medium text-muted-foreground"
           >
             {group.label}
-          </h2>
+          </h3>
           {group.controls.map((control) => {
             const requirement = requirements.find(
               (candidate) => candidate.controlId === control.id,

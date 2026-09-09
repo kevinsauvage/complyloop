@@ -12,7 +12,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
     <Button
       type="button"
       variant="outline"
-      size={compact ? "icon-sm" : "sm"}
+      size={compact ? "icon" : "sm"}
       className={cn(!compact && "w-full justify-start gap-2")}
       onClick={() => {
         const isDark = document.documentElement.classList.contains("dark");

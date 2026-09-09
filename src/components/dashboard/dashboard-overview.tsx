@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { GitBranch } from "lucide-react";
+import { ArrowUpRight, GitBranch } from "lucide-react";
 import { PageHeader } from "@/components/page-primitives";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
     <>
       <p
         className={cn(
-          "font-mono text-2xl font-semibold tabular-nums tracking-tight",
+          "flex items-center gap-1 font-mono text-2xl font-semibold tabular-nums tracking-tight",
           stat.tone === "signal" && "text-signal",
           stat.tone === "warning" && "text-status-failed",
           stat.tone === "review" && "text-status-review",
@@ -42,8 +42,16 @@ function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
         )}
       >
         {stat.value}
+        {stat.href ? (
+          <ArrowUpRight className="size-4 shrink-0 opacity-60" aria-hidden />
+        ) : null}
       </p>
-      <p className="mt-1 text-xs font-medium text-muted-foreground">
+      <p
+        className={cn(
+          "mt-1 text-xs font-medium text-muted-foreground",
+          stat.href && "underline decoration-dotted underline-offset-4",
+        )}
+      >
         {stat.label}
       </p>
     </>
