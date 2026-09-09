@@ -15,21 +15,6 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 ## P1
 
-### P1-1 — Empty / misconfigured repo auto-passes all `standard` controls (evidence-over-claims violation)
-
-**Problem:** `scanProject` with zero JSX/TSX files (empty repo, or repo with only `.js`/`.ts` since the glob is `**/*.{tsx,jsx}`) yields `filesScanned: 0` and zero findings. `statusFromFindings` then derives `standard` → `"passed"` with no evidence the controls were ever examined. Every standard control silently passes on an unconnected/empty repo while evidence says "0 files scanned".
-
-**Evidence:**
-
-- `packages/analysis-core/src/source-files.ts:6-12` (default glob only `tsx/jsx`)
-- `packages/analysis-core/src/scan.ts:40-51` (`scanProject` returns `filesScanned: 0`)
-- `packages/analysis-core/src/contract/requirement-status.ts:102-103` (`standard` → `"passed"`)
-- `src/server/assessment.ts:209-215` (empty scan feeds `runAssessment` unchanged)
-
-**Action:** When a project has source files configured but `filesScanned === 0` (or the repo has no JSX/TSX at all), derive `standard` controls to `unable_to_verify` with an evidence record `assessment_completed` noting the empty scan — never `passed`. Decide deliberately whether scanned-with-zero-findings (files existed, all checks clean) remains `passed`; empty-scan must not.
-
-**Verification:** Unit test in `packages/analysis-core/src/contract/requirement-status.test.ts` + `src/server/assessment.test.ts` — empty repo (no files) → standard requirement `unable_to_verify`, with evidence row.
-
 ### P1-2 — Webhook events are attributed to a project by `full_name` only, never by installation
 
 **Problem:** After signature verification, `handleGitHubWebhookEvent` resolves the project with `findProjectByGithubFullName(drizzle, fullName)` and ignores `payload.installation.id`. Event delivery is proven to come from _a_ GitHub org, but nothing confirms it comes from the org/installation that connected the project. A fork or a second org that owns a repo with the same `owner/repo` name can push to it and trigger a fully authoritative assessment (`no pullRequestHeadSha` ⇒ findings resolved, remediations auto-verified) on the victim's project. Push-to-non-default is filtered, but default-branch pushes from a name-colliding repo pass.
