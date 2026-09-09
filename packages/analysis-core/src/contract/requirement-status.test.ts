@@ -122,6 +122,24 @@ describe("deriveRequirementStatus", () => {
     ).toBe("passed");
   });
 
+  it("passes standard checks when files are scanned", () => {
+    expect(
+      deriveRequirementStatus({
+        authority: "standard",
+        audit: { filesScanned: 5 },
+      }),
+    ).toBe("passed");
+  });
+
+  it("returns unable_to_verify for standard checks when no files are scanned", () => {
+    expect(
+      deriveRequirementStatus({
+        authority: "standard",
+        audit: { filesScanned: 0 },
+      }),
+    ).toBe("unable_to_verify");
+  });
+
   it("passes standard checks when nothing is open", () => {
     expect(deriveRequirementStatus({ authority: "standard" })).toBe("passed");
   });

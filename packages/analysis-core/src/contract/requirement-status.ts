@@ -24,6 +24,7 @@ export interface AuditEnginesRan {
   htmlValidateRan?: boolean;
   htmlValidateRequired?: boolean;
   applicabilityConfirmed?: boolean;
+  filesScanned?: number;
 }
 
 /** Everything that can influence a requirement's status, in precedence order. */
@@ -91,7 +92,10 @@ export function deriveRequirementStatus(
     case "heuristic":
       return "unable_to_verify";
     case "runtime_only":
-      if (audit?.htmlValidateRequired === true && audit.htmlValidateRan !== true) {
+      if (
+        audit?.htmlValidateRequired === true &&
+        audit.htmlValidateRan !== true
+      ) {
         return "unable_to_verify";
       }
       return audit?.runtimeRan === true ? "passed" : "unable_to_verify";
@@ -100,7 +104,7 @@ export function deriveRequirementStatus(
         ? "passed"
         : "unable_to_verify";
     case "standard":
-      return "passed";
+      return audit?.filesScanned === 0 ? "unable_to_verify" : "passed";
     default: {
       const _exhaustive: never = input.authority;
       throw new Error(`Unhandled check authority: ${String(_exhaustive)}`);

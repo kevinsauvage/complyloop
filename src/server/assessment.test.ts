@@ -361,4 +361,29 @@ describe("runAssessment", () => {
       )?.status,
     ).toBe("resolved");
   });
+
+  it("returns unable_to_verify for standard controls when no JSX/TSX files are present", async () => {
+    // Remove the Hero.tsx file that was created in beforeEach
+    fs.unlinkSync(path.join(rootPath, "Hero.tsx"));
+    // Create a project with no JSX/TSX files (only .js or .ts files)
+    fs.writeFileSync(path.join(rootPath, "script.js"), "console.log('hello');");
+    fs.writeFileSync(path.join(rootPath, "types.ts"), "const x: number = 5;");
+
+    const { assessment } = await assess();
+
+    // Verify that zero JSX/TSX files were scanned
+    expect(assessment.filesScanned).toBe(0);
+
+    // Verify that standard controls are unable_to_verify (not passed)
+    expect(requirementStatus("ctl-button-name")).toBe("unable_to_verify");
+    expect(requirementStatus("ctl-img-alt")).toBe("unable_to_verify");
+    expect(requirementStatus("ctl-color-contrast")).toBe("unable_to_verify");
+
+    // Verify that the assessment_completed evidence mentions the empty scan
+    const completedEvidence = db.evidence.find(
+      (record) => record.kind === "assessment_completed",
+    );
+    expect(completedEvidence).toBeDefined();
+    expect(completedEvidence?.summary).toContain("0 files scanned");
+  });
 });

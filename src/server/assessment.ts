@@ -210,70 +210,71 @@ export async function runAssessment(
   } = useScoped
     ? scanChangedFiles(rootPath, changedJsx)
     : scanProject(rootPath);
-  const scopedFileSet = useScoped ? new Set(changedJsx) : null;
+const scopedFileSet = useScoped ? new Set(changedJsx) : null;
 
-  const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
-  const runtimeResult = runtimeConfigured
-    ? await scanRuntime({
-        runtimeBaseUrl: project.runtimeBaseUrl,
-        runtimeRoutes: project.runtimeRoutes,
-        browserConditions: DEFAULT_THEME_CONDITIONS,
-        scanner: options.runtimeScanner,
-        lookup: options.runtimeLookup,
-      })
-    : { findings: [], pagesScanned: 0 };
-  const runtimeRan =
-    runtimeConfigured &&
-    runtimeResult.error === undefined &&
-    runtimeResult.pagesScanned > 0;
+    const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
+    const runtimeResult = runtimeConfigured
+        ? await scanRuntime({
+            runtimeBaseUrl: project.runtimeBaseUrl,
+            runtimeRoutes: project.runtimeRoutes,
+            browserConditions: DEFAULT_THEME_CONDITIONS,
+            scanner: options.runtimeScanner,
+            lookup: options.runtimeLookup,
+        })
+        : { findings: [], pagesScanned: 0 };
+    const runtimeRan =
+        runtimeConfigured &&
+        runtimeResult.error === undefined &&
+        runtimeResult.pagesScanned > 0;
 
-  const engines = buildAssessmentEngines(
-    runtimeConfigured,
-    runtimeRan,
-    runtimeResult,
-  );
+    const engines = buildAssessmentEngines(
+        runtimeConfigured,
+        runtimeRan,
+        runtimeResult,
+    );
 
-  const rawFindings = mergeRawFindings(
-    astFindings,
-    runtimeResult.findings,
-    runtimeRan,
-  );
+    const rawFindings = mergeRawFindings(
+        astFindings,
+        runtimeResult.findings,
+        runtimeRan,
+    );
 
-  const assessmentId = crypto.randomUUID();
-  const scoped = assertAssessableCatalog(project, options.controls);
+    const assessmentId = crypto.randomUUID();
+    const scoped = assertAssessableCatalog(project, options.controls);
 
-  for (const control of scoped) {
-    if (control.checkId === null) continue;
-    reconcileControlFindings({
-      rows,
-      project,
-      control,
-      assessmentId,
-      rootPath,
-      rawForControl: rawFindings.filter(
-        (raw) => raw.checkId === control.checkId,
-      ),
-      scopedFileSet,
-      runtimeRan,
-      // A preview scan (PR head / feature branch) must not derive the
-      // persistent compliance decision: never auto-verify an approved
-      // remediation off a branch the project's state does not reflect.
-      onFindingResolved:
-        options.authoritative === false
-          ? () => {}
-          : (finding) => verifyDraftPrRemediation(rows, finding, assessmentId),
+    for (const control of scoped) {
+        if (control.checkId === null) continue;
+        reconcileControlFindings({
+            rows,
+            project,
+            control,
+            assessmentId,
+            rootPath,
+            rawForControl: rawFindings.filter(
+                (raw) => raw.checkId === control.checkId,
+            ),
+            scopedFileSet,
+            runtimeRan,
+            // A preview scan (PR head / feature branch) must not derive the
+            // persistent compliance decision: never auto-verify an approved
+            // remediation off a branch the project's state does not reflect.
+            onFindingResolved:
+                options.authoritative === false
+                    ? () => {}
+                    : (finding) => verifyDraftPrRemediation(rows, finding, assessmentId),
+        });
+    }
+
+    applyRequirementStatusRefresh(rows, project, {
+        assessmentId,
+        changeContext,
+        runtimeRan,
+        siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
+        htmlValidateRan: runtimeResult.htmlValidateRan,
+        applicabilityFacts: runtimeResult.applicabilityFacts,
+        filesScanned,
+        controls: options.controls,
     });
-  }
-
-  applyRequirementStatusRefresh(rows, project, {
-    assessmentId,
-    changeContext,
-    runtimeRan,
-    siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
-    htmlValidateRan: runtimeResult.htmlValidateRan,
-    applicabilityFacts: runtimeResult.applicabilityFacts,
-    controls: options.controls,
-  });
 
   const inScope = scopedControlIds(project);
   const scopedRequirements = rows.requirements.filter(

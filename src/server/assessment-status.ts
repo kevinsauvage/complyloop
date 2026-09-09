@@ -94,6 +94,8 @@ export interface RefreshRequirementStatusesOptions {
   htmlValidateRan?: boolean;
   /** Check ids confirmed not applicable on every audited page (checkId → fact). */
   applicabilityFacts?: ReadonlyMap<string, string>;
+  /** Number of source files scanned during AST analysis. */
+  filesScanned?: number;
   /** Test override; production uses the shipped catalog. */
   controls?: readonly Control[];
 }
@@ -114,22 +116,23 @@ function statusFromFindings(
   openFindings: ReadonlyArray<Pick<Finding, "kind">>,
   options: Pick<
     RefreshRequirementStatusesOptions,
-    "runtimeRan" | "siteLevelChecksRan" | "htmlValidateRan" | "applicabilityFacts"
+    "runtimeRan" | "siteLevelChecksRan" | "htmlValidateRan" | "applicabilityFacts" | "filesScanned"
   >,
 ): RequirementStatus {
-  return deriveRequirementStatus({
-    authority: checkId === null ? "manual" : authorityForCheck(checkId),
-    openFindings,
-    audit: {
-      runtimeRan: options.runtimeRan,
-      siteLevelChecksRan: options.siteLevelChecksRan,
-      htmlValidateRequired:
-        checkId !== null && isHtmlValidateOwnedCheck(checkId),
-      htmlValidateRan: options.htmlValidateRan,
-      applicabilityConfirmed:
-        checkId !== null && Boolean(options.applicabilityFacts?.has(checkId)),
-    },
-  });
+return deriveRequirementStatus({
+      authority: checkId === null ? "manual" : authorityForCheck(checkId),
+      openFindings,
+      audit: {
+        runtimeRan: options.runtimeRan,
+        siteLevelChecksRan: options.siteLevelChecksRan,
+        htmlValidateRequired:
+          checkId !== null && isHtmlValidateOwnedCheck(checkId),
+        htmlValidateRan: options.htmlValidateRan,
+        applicabilityConfirmed:
+          checkId !== null && Boolean(options.applicabilityFacts?.has(checkId)),
+        filesScanned: options.filesScanned,
+      },
+    });
 }
 
 /** Later id wins — used when merging refresh/clearance results into scratch rows. */
@@ -162,6 +165,7 @@ function refreshRequirementForControl(
     siteLevelChecksRan,
     htmlValidateRan,
     applicabilityFacts,
+    filesScanned,
     now,
   } = options;
 
@@ -215,6 +219,7 @@ function refreshRequirementForControl(
     siteLevelChecksRan,
     htmlValidateRan,
     applicabilityFacts,
+    filesScanned,
   });
 
   if (!existing) {
