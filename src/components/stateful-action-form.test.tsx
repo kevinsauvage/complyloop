@@ -51,7 +51,7 @@ describe("StatefulActionForm", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("toasts errors without inline copy", async () => {
+  it("toasts errors and shows inline feedback", async () => {
     const user = userEvent.setup();
     const action = vi.fn(async () => ({
       error: "Not allowed.",
@@ -72,6 +72,6 @@ describe("StatefulActionForm", () => {
         duration: 8_000,
       });
     });
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Not allowed.");
   });
 });

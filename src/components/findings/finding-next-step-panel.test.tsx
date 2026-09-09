@@ -142,7 +142,7 @@ describe("FindingNextStepPanel", () => {
     });
 
     expect(
-      screen.getByRole("heading", { name: "Fix this Finding" }),
+      screen.getByRole("heading", { name: "Fix this finding" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Generate patch" }),
@@ -335,7 +335,7 @@ describe("FindingNextStepPanel", () => {
       </>,
     );
 
-    const link = screen.getByRole("link", { name: "copy call-site notes" });
+    const link = screen.getByRole("link", { name: "copy fix notes" });
     expect(link).toHaveAttribute("href", "#copy-handoff");
     expect(document.getElementById("copy-handoff")).not.toBeNull();
   });

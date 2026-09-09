@@ -24,7 +24,7 @@ test.describe("viewer authorization", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /Save runtime audit/i }),
+      page.getByRole("button", { name: /Save preview settings/i }),
     ).toHaveCount(0);
     await expect(
       page.getByText(/requires an admin or owner role/i),

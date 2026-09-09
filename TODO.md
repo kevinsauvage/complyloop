@@ -9,7 +9,7 @@ P3 minor), Problem, Evidence (file:line), Action (exact change), Verification.
 
 ## P1 — high-impact correctness / security / reliability
 
-### 1. P1 — GitHub token can leak into user-visible error messages on clone failure
+### 1. P1 — ✅ DONE (2026-09-09) GitHub token redacted from clone errors
 
 - **Problem:** `githubCloneUrl()` embeds the access token in the HTTPS clone URL
   (`https://x-access-token:<token>@github.com/...`). `cloneShallow()` catches any
@@ -26,7 +26,7 @@ P3 minor), Problem, Evidence (file:line), Action (exact change), Verification.
   the token nor `x-access-token:`. Run `npm run test -- src/server/repo-checkout`
   (add `src/server/repo-checkout.test.ts` if absent) + `lint` + `typecheck`.
 
-### 2. P1 — Webhook 5 MB size limit is bypassable (content-length is advisory)
+### 2. P1 — ✅ DONE (2026-09-09) Webhook size limit enforced on buffered body
 
 - **Problem:** The route rejects payloads via the `content-length` header, but the
   header is missing/zero under chunked transfer encoding, so oversized bodies skip
@@ -40,7 +40,7 @@ P3 minor), Problem, Evidence (file:line), Action (exact change), Verification.
   `content-length`; expect 413. Existing webhook tests still pass
   (`npm run test -- src/app/api/github/webhook` or nearest suite).
 
-### 3. P1 — Markdown reports allow markdown injection from finding/repo content
+### 3. P1 — ✅ DONE (2026-09-09) Markdown injection neutralized via mdProse/mdCode
 
 - **Problem:** `report-markdown.ts` interpolates attacker-influenced strings
   (`finding.reason`, `code`, `locationRef`, `requirementLine`, suggestion

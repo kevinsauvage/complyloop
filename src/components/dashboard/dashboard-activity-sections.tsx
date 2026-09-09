@@ -182,31 +182,41 @@ export function DashboardActivitySections({
             </div>
           </div>
         ) : (
-          <ul className="flex flex-col gap-1">
-            {openFindings.slice(0, 6).map((finding) => {
-              const control = controlById(finding.controlId);
-              return (
-                <li key={finding.id}>
-                  <Link
-                    href={`/findings/${finding.id}`}
-                    className="group flex flex-wrap items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 outline-none transition-[background-color,border-color] duration-200 hover:border-border/60 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <SeverityBadge severity={finding.severity} />
-                    <span className="min-w-0 flex-1 text-sm font-medium group-hover:text-signal">
-                      {control.code} — {control.title}
-                    </span>
-                    <span className="font-mono text-xs text-muted-foreground w-full">
-                      {formatLocationRef(finding.location)}
-                    </span>
-                    <ArrowUpRight
-                      className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                      aria-hidden
-                    />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="flex flex-col gap-3">
+            <ul className="flex flex-col gap-1">
+              {openFindings.slice(0, 6).map((finding) => {
+                const control = controlById(finding.controlId);
+                return (
+                  <li key={finding.id}>
+                    <Link
+                      href={`/findings/${finding.id}`}
+                      className="group flex flex-wrap items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 outline-none transition-[background-color,border-color] duration-200 hover:border-border/60 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <SeverityBadge severity={finding.severity} />
+                      <span className="min-w-0 flex-1 text-sm font-medium group-hover:text-signal">
+                        {control.code} — {control.title}
+                      </span>
+                      <span className="font-mono text-xs text-muted-foreground w-full">
+                        {formatLocationRef(finding.location)}
+                      </span>
+                      <ArrowUpRight
+                        className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                        aria-hidden
+                      />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            {openFindings.length > 6 ? (
+              <Link
+                href="/findings?tab=open"
+                className="text-sm font-medium text-signal underline-offset-4 hover:underline"
+              >
+                View all {openFindings.length} open findings
+              </Link>
+            ) : null}
+          </div>
         )}
       </ActivityCard>
 
@@ -237,7 +247,7 @@ export function DashboardActivitySections({
                   key={cluster.id}
                   className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/15 px-3 py-2 text-sm"
                 >
-                  <Link href="/findings" className="font-medium hover:text-signal hover:underline">
+                  <Link href="/findings?tab=by_cause" className="font-medium hover:text-signal hover:underline">
                     {cluster.label}
                   </Link>
                   <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">

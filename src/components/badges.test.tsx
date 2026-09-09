@@ -49,14 +49,14 @@ describe("badges", () => {
     expect(screen.getByText("Critical")).toBeInTheDocument();
   });
 
-  it("labels AST vs runtime detection engines", () => {
+  it("labels source vs rendered-page detection engines", () => {
     renderWithUiProviders(
       <>
         <EngineBadge engine="ast" />
         <EngineBadge engine="runtime" />
       </>,
     );
-    expect(screen.getByText("Source (AST)")).toBeInTheDocument();
-    expect(screen.getByText("Runtime (DOM)")).toBeInTheDocument();
+    expect(screen.getByText("Source code")).toBeInTheDocument();
+    expect(screen.getByText("Rendered page")).toBeInTheDocument();
   });
 });

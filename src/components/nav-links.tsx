@@ -19,7 +19,7 @@ const LINKS = [
   { href: "/findings", label: "Findings", icon: FileSearch, badgeKey: "openFindings" as const },
   { href: "/evidence", label: "Evidence", icon: ScrollText },
   { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/org", label: "Account", icon: Building2 },
+  { href: "/org", label: "Organization", icon: Building2 },
 ];
 
 type NavBadgeKey = keyof NavAttentionCounts;

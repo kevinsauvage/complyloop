@@ -80,6 +80,11 @@ export function StatefulActionForm({
             {buttonLabel}
           </Button>
         )}
+        {state.error && !pending ? (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        ) : null}
       </div>
     </form>
   );

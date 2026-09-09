@@ -167,7 +167,7 @@ export default async function FindingsPage({
 
       <PageContent>
         <Tabs key={defaultTab} defaultValue={defaultTab}>
-          <TabsList className="surface-panel w-full justify-start rounded-xl p-1">
+          <TabsList className="surface-panel w-full justify-start overflow-x-auto rounded-xl p-1">
             <TabsTrigger value="open" asChild>
               <Link href={tabHref("open", listParams)}>
                 Open{openSlice.total > 0 ? ` (${openSlice.total})` : ""}

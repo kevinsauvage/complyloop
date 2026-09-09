@@ -43,7 +43,7 @@ export function FindingUnderstandCard({
       <CardHeader className="gap-1">
         <CardTitle className="flex items-center gap-2">
           <MapPin className="size-4 text-signal" aria-hidden />
-          <h2 className="text-base font-medium">This Finding</h2>
+          <h2 className="text-base font-medium">What failed</h2>
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -84,15 +84,20 @@ export function FindingUnderstandCard({
         ) : null}
         <CodeBlock>{locationSnippet(finding.location)}</CodeBlock>
         {baseline ? (
-          <details>
-            <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
-              Impact and how to fix
-            </summary>
-            <div className="mt-2 flex flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
-              <p>{baseline.impact}</p>
-              <p>{baseline.howToFix}</p>
+          <div className="flex flex-col gap-2 text-sm leading-relaxed">
+            <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Why this matters
+              </p>
+              <p className="mt-1 text-muted-foreground">{baseline.impact}</p>
             </div>
-          </details>
+            <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                How to fix
+              </p>
+              <p className="mt-1 text-muted-foreground">{baseline.howToFix}</p>
+            </div>
+          </div>
         ) : null}
         <details>
           <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
@@ -140,8 +145,8 @@ export function FindingUnderstandCard({
                 />
                 {!aiAvailable ? (
                   <p className="mt-1.5 text-xs text-muted-foreground">
-                    Set <code className="font-mono">AI_GATEWAY_API_KEY</code> to
-                    enrich with AI. The explanation above remains the baseline.
+                    AI explanations aren&apos;t enabled for this workspace. The
+                    guidance above is the baseline.
                   </p>
                 ) : null}
               </div>

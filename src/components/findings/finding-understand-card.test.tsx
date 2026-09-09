@@ -74,9 +74,8 @@ describe("FindingUnderstandCard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Header.tsx:13")).toBeInTheDocument();
     expect(screen.getByText('<header role="banner">')).toBeInTheDocument();
-    expect(
-      screen.getByText("Impact and how to fix"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Why this matters")).toBeInTheDocument();
+    expect(screen.getByText("How to fix")).toBeInTheDocument();
   });
 
   it("shows structured dom location details for runtime findings", () => {

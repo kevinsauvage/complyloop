@@ -168,7 +168,7 @@ describe("proposeFixEdits", () => {
         fileContents: { "Hero.tsx": "<img />\n" },
         aiAvailable: false,
       }),
-    ).rejects.toThrow(/requires AI \(set AI_GATEWAY_API_KEY\)/);
+    ).rejects.toThrow(/isn't enabled for this workspace/);
     expect(generate).not.toHaveBeenCalled();
   });
 });

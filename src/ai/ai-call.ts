@@ -6,7 +6,7 @@ export const AI_MODEL = "minimax/minimax-m3";
 
 /** User-facing copy when patch generation needs AI and none is configured. */
 export const AI_PATCH_UNAVAILABLE_MESSAGE =
-  "Generating a patch requires AI (set AI_GATEWAY_API_KEY) or a deterministic fix template for this Finding. Use the developer handoff to fix it manually.";
+  "AI patch generation isn't enabled for this workspace, and there's no built-in fix for this finding. Use the developer handoff to fix it manually.";
 
 type AiWarnFn = (
   message: string,

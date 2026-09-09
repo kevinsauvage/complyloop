@@ -14,7 +14,7 @@ export function RuntimeAuditForm({
   return (
     <StatefulActionForm
       action={updateRuntimeAuditAction}
-      submitLabel="Save runtime audit"
+      submitLabel="Save preview settings"
       pendingLabel="Saving…"
       variant="default"
       className="flex flex-col gap-4"
@@ -30,10 +30,9 @@ export function RuntimeAuditForm({
           autoComplete="off"
         />
         <p className="text-xs text-muted-foreground">
-          When set, composition-sensitive checks (labels, names, headings…) use
-          the rendered page as the source of truth, and runtime-only checks
-          (contrast, page title, skip link, landmarks, target size) can be
-          assessed. Leave empty for source-only AST assessment.
+          When set, checks that need the rendered page (contrast, page title,
+          skip link, landmarks, target size) can run, and shared checks use the
+          page as the source of truth. Leave empty for source-only assessment.
         </p>
       </div>
       <div className="flex flex-col gap-1.5">

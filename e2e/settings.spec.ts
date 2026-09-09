@@ -8,7 +8,7 @@ test.describe("project settings", () => {
     await expect(page.getByText("Runtime audit", { exact: true })).toBeVisible();
     await expect(page.getByLabel(/Preview \/ staging URL/i)).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /Save runtime audit/i }),
+      page.getByRole("button", { name: /Save preview settings/i }),
     ).toBeVisible();
   });
 
@@ -17,7 +17,7 @@ test.describe("project settings", () => {
     await page
       .getByLabel(/Preview \/ staging URL/i)
       .fill("http://localhost:3000");
-    await page.getByRole("button", { name: /Save runtime audit/i }).click();
+    await page.getByRole("button", { name: /Save preview settings/i }).click();
 
     await expect(
       page

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import type { FindingListParams } from "@/core/finding-list-filter";
 import { findingsListHref } from "@/core/finding-list-filter";
@@ -26,6 +28,10 @@ export function FindingsFilterBar({
 }: {
   params: FindingListParams;
 }) {
+  function submitOnSelectChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    event.currentTarget.form?.requestSubmit();
+  }
+
   return (
     <form
       method="get"
@@ -60,6 +66,7 @@ export function FindingsFilterBar({
             id="findings-severity"
             name="severity"
             defaultValue={params.severity ?? ""}
+            onChange={submitOnSelectChange}
             className={nativeSelectClass}
           >
             <option value="">Any severity</option>
@@ -77,11 +84,12 @@ export function FindingsFilterBar({
             id="findings-engine"
             name="engine"
             defaultValue={params.engine ?? ""}
+            onChange={submitOnSelectChange}
             className={nativeSelectClass}
           >
             <option value="">Any engine</option>
-            <option value="ast">AST (source)</option>
-            <option value="runtime">Runtime (browser)</option>
+            <option value="ast">Source code</option>
+            <option value="runtime">Rendered page</option>
           </select>
         </div>
 
@@ -91,6 +99,7 @@ export function FindingsFilterBar({
             id="findings-remediation"
             name="remediation"
             defaultValue={params.remediation ?? ""}
+            onChange={submitOnSelectChange}
             className={nativeSelectClass}
           >
             <option value="">Any remediation</option>

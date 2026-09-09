@@ -171,7 +171,7 @@ describe("runAiFixOnCheckout", () => {
         scan: () => [],
         aiAvailable: false,
       }),
-    ).rejects.toThrow(/AI_GATEWAY_API_KEY/);
+    ).rejects.toThrow(/isn't enabled for this workspace/);
     expect(propose).not.toHaveBeenCalled();
   });
 });

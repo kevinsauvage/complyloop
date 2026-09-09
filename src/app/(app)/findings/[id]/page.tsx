@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { aiExplanationAvailable } from "@/ai/explainer";
 import {
   ConfidenceBadge,
@@ -123,7 +124,10 @@ export default async function FindingPage({
     <>
       <div className="mb-4 flex flex-col gap-3">
         <Button variant="ghost" size="sm" className="-ml-2.5 w-fit" asChild>
-          <Link href={findingsListHref(listParams)}>← Back to findings</Link>
+          <Link href={findingsListHref(listParams)}>
+            <ArrowLeft className="size-4" aria-hidden />
+            Back to findings
+          </Link>
         </Button>
         <div className="surface-panel rounded-xl px-3 py-2.5">
           <FindingQueueNav

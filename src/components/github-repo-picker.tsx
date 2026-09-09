@@ -226,10 +226,9 @@ export function GitHubRepoPicker({
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="org/repo or description"
-          className="font-mono"
         />
         <p className="text-xs text-muted-foreground">
-          Search hits GitHub beyond the first page of results.
+          Search your GitHub repositories by name or description.
         </p>
       </div>
 

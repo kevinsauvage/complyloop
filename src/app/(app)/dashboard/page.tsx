@@ -13,7 +13,7 @@ import {
 } from "@/components/dashboard/first-assessment-checklist";
 import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { projectDescription } from "@/components/dashboard/project-description";
-import { EmptyState, PageSection } from "@/components/page-primitives";
+import { PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { latestAssessmentFor } from "@/core/assessment";
@@ -72,12 +72,6 @@ export default async function DashboardPage() {
         <ConnectProjectCard>
           <ConnectProjectPanel defaultOpen />
         </ConnectProjectCard>
-        <EmptyState title="Connect a repository to get started" action={undefined}>
-          <p>
-            Link a GitHub project above, then run an assessment to populate your
-            dashboard with requirements, findings, and evidence.
-          </p>
-        </EmptyState>
       </div>
     );
   }
@@ -134,10 +128,19 @@ export default async function DashboardPage() {
   const failedCount = counts.failed;
   const passedCount = counts.passed;
   const totalRequirements = requirements.length;
-  const passRate =
+  const passRateValue =
     totalRequirements > 0
-      ? `${Math.round((passedCount / totalRequirements) * 100)}%`
-      : "—";
+      ? Math.round((passedCount / totalRequirements) * 100)
+      : null;
+  const passRate = passRateValue === null ? "—" : `${passRateValue}%`;
+  const passRateTone =
+    passRateValue === null
+      ? ("muted" as const)
+      : passRateValue >= 90
+        ? ("success" as const)
+        : passRateValue >= 70
+          ? ("signal" as const)
+          : ("warning" as const);
 
   const quickStats = latestAssessment
     ? [
@@ -165,13 +168,13 @@ export default async function DashboardPage() {
         {
           label: "Pass rate",
           value: passRate,
-          tone: "signal" as const,
+          tone: passRateTone,
         },
       ]
     : [];
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-6">
       <DashboardOverview
         title={project.name}
         repoLabel={project.github?.fullName ?? project.sourceRef ?? undefined}

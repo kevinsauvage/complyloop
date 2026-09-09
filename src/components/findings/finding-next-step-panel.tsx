@@ -131,7 +131,7 @@ function ActControls({
                 href="#copy-handoff"
                 className="underline underline-offset-4 hover:text-foreground"
               >
-                copy call-site notes
+                copy fix notes
               </a>{" "}
               below.
             </p>

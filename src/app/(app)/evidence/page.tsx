@@ -126,7 +126,7 @@ export default async function EvidencePage({
         <EmptyState
           title="No evidence yet"
           action={
-            <PageActionLink href="/dashboard">Run an assessment from the dashboard</PageActionLink>
+            <PageActionLink href="/dashboard">Go to dashboard</PageActionLink>
           }
         >
           <p>
