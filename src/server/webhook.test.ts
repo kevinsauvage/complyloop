@@ -118,6 +118,54 @@ describe("handleGitHubWebhookEvent", () => {
     );
   });
 
+  it("accepts a webhook with a matching installation id", async () => {
+    findProjectByGithubFullName.mockResolvedValue({
+      id: "p1",
+      orgId: "org-1",
+      defaultBranch: "main",
+      installationId: 12345,
+    });
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-install-match" });
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        installation: { id: 12345 },
+        repository: { full_name: "acme/app" },
+        ref: "refs/heads/main",
+        after: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      "delivery-install-match",
+    );
+
+    expect(result.handled).toBe(true);
+    expect(enqueueAssessmentJob).toHaveBeenCalled();
+  });
+
+  it("rejects a webhook with a foreign installation id on a same-named project", async () => {
+    findProjectByGithubFullName.mockResolvedValue({
+      id: "p1",
+      orgId: "org-1",
+      defaultBranch: "main",
+      installationId: 12345,
+    });
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        installation: { id: 99999 },
+        repository: { full_name: "acme/app" },
+        ref: "refs/heads/main",
+        after: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      "delivery-foreign-install",
+    );
+
+    expect(result.handled).toBe(false);
+    expect(result.message).toMatch(/Installation id mismatch/);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+
   it("ignores pull_request events with a non-SHA head.sha", async () => {
     findProjectByGithubFullName.mockResolvedValue({ id: "p1", orgId: "org-1" });
 

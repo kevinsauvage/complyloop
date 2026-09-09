@@ -1,23 +1,8 @@
 # TODO.md — Audit-based implementation roadmap
 
-Audit date: 2026-09-08. Source of truth: implementation, not docs. Worked tree currently has an in-flight P0+P1 correctness pass (`docs/superpowers/specs/2026-09-08-p0-p1-correctness-design.md`) — most items landed, but P1-6 (unified status counting) is only partially landed and tracked as P3-1 below. This roadmap is additive to that pass.
-
-> Cleanup pass completed 2026-09-09: P1-5, P2-1, P2-5, P3-1, P3-2, P3-4, P3-5, P3-6 are now implemented. Remaining items below are the outstanding work.
-
-Priorities:
-
-- **P0** — critical / blocking
-- **P1** — high-impact correctness or architectural issue
-- **P2** — worthwhile improvement
-- **P3** — minor cleanup
-
-Global constraints for any agent executing these items: domain vocabulary from `.cursor/rules/domain-model.mdc`, exhaustive `switch` with `never` default, imports at top of module, and definition of done `npm run lint && npm run typecheck && npm run test && npm run build`. Verify each item with its listed test before moving on.
-
----
-
 ## P1
 
-### P1-2 — Webhook events are attributed to a project by `full_name` only, never by installation
+### P1-2 — Webhook events are attributed to a project by `full_name` only, never by installation ✅
 
 **Problem:** After signature verification, `handleGitHubWebhookEvent` resolves the project with `findProjectByGithubFullName(drizzle, fullName)` and ignores `payload.installation.id`. Event delivery is proven to come from _a_ GitHub org, but nothing confirms it comes from the org/installation that connected the project. A fork or a second org that owns a repo with the same `owner/repo` name can push to it and trigger a fully authoritative assessment (`no pullRequestHeadSha` ⇒ findings resolved, remediations auto-verified) on the victim's project. Push-to-non-default is filtered, but default-branch pushes from a name-colliding repo pass.
 
@@ -38,32 +23,7 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 **Verification:** Unit test in `src/server/github-tokens.test.ts` with an expired stored token — assert either a successful refresh or a clean public error on dashboard connect paths.
 
-### P1-5 — `lang-change` defaults to English when the page has no `lang`, producing false positives ✅
-
-**Problem:** `needsLangForScript` falls back to `"en"` when `pageLang` returns `undefined`; `LATIN_EXTENDED` (`[À-ÿ]`) then matches French/Spanish/Polish accented text, so every page without `html lang` (very common) emits `lang-change` warnings that push controls to `needs_review`. The real defect — missing `html lang` — is a different (already existing) check; this one should not fire on it.
-
-**Evidence:**
-
-- `packages/analysis-core/src/checks/lang-change.ts:28-39` (`?? "en"` and `defaultLang === undefined` branch)
-- `packages/analysis-core/src/checks/lang-change.ts:42-63` (run loop)
-
-**Action:** When the page has no `lang` at all, skip script-mismatch detection entirely (return no findings); `html-lang` absence is reported by the dedicated check. Keep detection only when a real page language is declared.
-
-**Verification:** Extend `packages/analysis-core/src/checks/lang-change.test.ts` with a fixture `<html><p>Bienvenue à Paris</p></html>` (no `lang`) → zero findings; with `<html lang="en">…Bienvenue…` → finding.
-
----
-
 ## P2
-
-### P2-1 — Runtime scanner leaks the cached Chromium browser in long-lived processes ✅
-
-**Problem:** `scan.ts` caches `sharedBrowser` (`getBrowser`, lines 54-65) and never registers teardown; `context.close()` per scan closes pages/contexts but not the browser. In a long-lived worker (or repeated manual runs) this leaks headless Chromium processes/fds. `playwright-page.ts` already has `registerPlaywrightBrowserTeardown` for tests — production scan has no equivalent.
-
-**Evidence:** `packages/analysis-core/src/runtime/scan.ts:54-65` (no close registration), `:283` (only `context.close()`); contrast `packages/analysis-core/src/runtime/custom-checks/playwright-page.ts:42-47`.
-
-**Action:** Register a `process.on('exit')`/teardown hook for `sharedBrowser.close()` in `scan.ts`, mirroring `registerPlaywrightBrowserTeardown`, applied in the worker script entry (`scripts/run-assessment-worker.ts`) or module scope. Do not close per scan (defeats reuse).
-
-**Verification:** Run `npm run worker` with a runtime-audit job, then count chromium processes — zero after the process exits (or no growth across N scans in one process).
 
 ### P2-2 — Webhook pushes are not coalesced: every push enqueues a full re-scan
 
@@ -94,16 +54,6 @@ Global constraints for any agent executing these items: domain vocabulary from `
 **Action:** On push-success + PR-failure, record `pull_request_prepared` evidence with the pushed branch/head so the handoff links the branch, and return a structured partial result instead of throwing.
 
 **Verification:** `src/server/pr.test.ts` — mock PR-create to fail after a successful push → evidence row references the branch; no crash.
-
-### P2-5 — No payload-size limit on the webhook route ✅
-
-**Problem:** `request.text()` reads the whole body into memory before signature verification; GitHub attachments aren't sent here, but a misconfigured client (or replay abuse with a compromised secret) can force large allocations on every delivery.
-
-**Evidence:** `src/app/api/github/webhook/route.ts:33-34` (unbounded `request.text()`).
-
-**Action:** Check `Content-Length` early (reject > ~5 MB with 413) before reading the body.
-
-**Verification:** `src/app/api/github/webhook/route.test.ts` — oversized `Content-Length` → 413 without body read.
 
 ### P2-6 — Custom check probe throw aborts the whole page scan
 
@@ -174,67 +124,3 @@ Global constraints for any agent executing these items: domain vocabulary from `
 **Action:** Match source instances by snippet primarily; fall back to line-equality only when snippets are absent, and restrict the line fallback to a single candidate (ambiguous line → new finding, not reuse).
 
 **Verification:** `src/server/assessment.test.ts` — two failing nodes on one source line → two open findings after re-assessment (no cross-contamination).
-
----
-
-## P3
-
-### P3-1 — Finish P1-6 from the correctness pass: unify status counting on the requirements page ✅
-
-**Problem:** The dashboard uses `countByStatus` but the requirements page still hand-rolls `new Map<string, number>()` for open-finding counts with a divergent shape; the previous plan item P1-6 was only partially landed.
-
-**Evidence:** `src/app/(app)/requirements/page.tsx:77-84` (manual Map), `src/core/count-by-status.ts` (helper available).
-
-**Action:** Extract a shared `countByStatusMap`/`toStatusCountMap` beside `countByStatus` in `src/core/count-by-status.ts` and use it on the requirements page (and any other hand-rolled count).
-
-**Verification:** `npm run test` — requirements page counts match `countByStatus(..., REQUIREMENT_STATUSES)`-style assertions in `src/core/count-by-status.test.ts`.
-
-### P3-2 — Remove redundant index on `assessment_snapshots.assessment_id` ✅
-
-**Problem:** `assessment_id` is the primary key, and Postgres auto-creates a PK index; the explicit `assessment_snapshots_assessment_id_idx` is pure write amplification.
-
-**Evidence:** `packages/db/src/schema.ts:150-158`, `drizzle/0000_init.sql:82`.
-
-**Action:** Drop the index from the schema and add a migration (`drizzle/0001_*`) dropping it.
-
-**Verification:** `npm run db:migrate` against a scratch DB; `npm run test:db`.
-
-### P3-3 — Untested UI components and app pages
-
-**Problem:** Several interactive components/pages have no colocated test: `create-org-form`, `invite-member-form`, `connect-project-panel`, `runtime-audit-form`, `project-switcher`, `org-switcher`, `filter-chip-list`, `reason-note-fields`, `nav-links`, `open-details-on-hash`, `theme-toggle`, `auth-controls`, plus app pages `dashboard`, `findings`, `evidence`, `org`, `settings`, `requirements`, `login`, marketing pages. The repo rule requires colocated tests and 94% line coverage is enforced — these gaps are reachable UI with real flows.
-
-**Evidence:** `src/components/*.tsx` minus `*.test.*` (see list above); `src/app/**/page.tsx` without `*.test.tsx`.
-
-**Action:** Add RTL tests (role/name queries — no CSS class queries) for the untested interactive components and at least smoke tests for the app pages that currently have none. Keep them small; the goal is coverage of the interaction contract, not exhaustive rendering.
-
-**Verification:** `npm run test:coverage` — new files push coverage up and no threshold regression.
-
-### P3-4 — Inline dev drain returns "Assessment complete." when no job ran ✅
-
-**Problem:** `drainAssessmentJobQueue` returns `{ ran: 0, ... }` after processing non-idle work (e.g. all retrying/failed), and `runAssessmentAction` answers "Assessment complete." even when nothing succeeded.
-
-**Evidence:** `src/server/actions/assessment.ts:44-57`, `src/server/assessment-job-inline.ts:19-31`.
-
-**Action:** Return the actual outcome ("N jobs still retrying", "M failed…") instead of the generic success string.
-
-**Verification:** `src/server/actions/assessment.test.ts` — assert copy reflects `retrying`/`failed` outcomes.
-
-### P3-5 — `repo-checkout` swallows the ref-fetch failure ✅
-
-**Problem:** `withRepoCheckout` does `try { await git.fetch(...) } catch {}` — a failed fetch of a PR-head SHA (deleted branch) is silently ignored, and the subsequent `git.checkout([options.ref])` throws a generic error. The job then retries 3× pointlessly.
-
-**Evidence:** `src/server/repo-checkout.ts:124-131` (empty catch).
-
-**Action:** Log the fetch failure (`reportWarning`) and fail fast with a clear "ref not found" `PublicError` so the job fails immediately instead of retrying.
-
-**Verification:** `src/server/repo-checkout.test.ts` — fetch rejection → clear error immediately, no retry loop.
-
-### P3-6 — `setAiWarn` is wired only in the remediation path; other AI failure modes are invisible in prod ✅
-
-**Problem:** `setAiWarn` is called only in `src/server/actions/remediation-ai.ts:29`. The patch path (`generateAiFixAction` → `runAiFixOnCheckout` → `proposeFixEdits` → `aiCall(..., onFailure: "throw")`) never wires it, so every failed gateway patch attempt vanishes (default no-op `warnFn`) and the user only sees a generic message with no Sentry log.
-
-**Evidence:** `src/ai/ai-call.ts:15-21` (default no-op), `src/server/actions/remediation-ai.ts:5,29` (only caller), `src/ai/patch.ts:68-73` + `src/server/ai-fix.ts` (patch path uses `aiCall` without `setAiWarn`).
-
-**Action:** Move the `setAiWarn` wiring to server startup (e.g. `instrumentation.ts`) so every AI consumer logs through `reportWarning`; drop the per-action wiring.
-
-**Verification:** Unit test — call `aiCall` on the patch path with a failing gateway → `reportWarning` observed with `warnCode: "ai_fix_propose"`.

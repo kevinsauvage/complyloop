@@ -8,6 +8,21 @@ import { assertRateLimit } from "./rate-limit";
 type PushPayload = EmitterWebhookEvent<"push">["payload"];
 type PullRequestPayload = EmitterWebhookEvent<"pull_request">["payload"];
 
+type WithInstallation = {
+  installation?: {
+    id: number;
+  };
+};
+
+function installationIdFromPayload(
+  payload: PushPayload | PullRequestPayload,
+): number | undefined {
+  const withInstallation = payload as WithInstallation;
+  return typeof withInstallation.installation?.id === "number"
+    ? withInstallation.installation.id
+    : undefined;
+}
+
 const HANDLED_PR_ACTIONS = ["opened", "synchronize", "reopened"] as const;
 type HandledPrAction = (typeof HANDLED_PR_ACTIONS)[number];
 
@@ -140,6 +155,14 @@ export async function handleGitHubWebhookEvent(
   const project = await findProjectByGithubFullName(drizzle, fullName);
   if (!project) {
     return { handled: false, message: `No connected project for ${fullName}` };
+  }
+
+  const payloadInstallationId = installationIdFromPayload(parsed.event.payload);
+  if (project.installationId && payloadInstallationId !== project.installationId) {
+    return {
+      handled: false,
+      message: `Installation id mismatch for ${fullName}.`,
+    };
   }
 
   const payloadDefaultBranch = repositoryDefaultBranch(parsed.event);
