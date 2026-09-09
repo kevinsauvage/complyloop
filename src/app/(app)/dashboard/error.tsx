@@ -18,8 +18,11 @@ export default function DashboardError({
   return (
     <AppErrorCard
       digest={error.digest}
-      description="The dashboard could not be loaded. Recent assessments and findings are unchanged — try again."
+      title="Dashboard couldn't load"
+      description="The dashboard could not be loaded. Recent assessments and findings are unchanged — try again, or continue working from your findings."
       onReset={retry}
+      secondaryHref="/findings"
+      secondaryLabel="View findings"
     />
   );
 }
