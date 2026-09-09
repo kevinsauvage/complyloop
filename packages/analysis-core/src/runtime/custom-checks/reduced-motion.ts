@@ -1,6 +1,5 @@
 import type { Page } from "playwright";
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
-import { HIT_IDENTITY_KEY_SRC } from "./hit-identity.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 import { withEmulatedMedia } from "./with-emulated-media.ts";
 
@@ -32,10 +31,7 @@ export async function reducedMotionViolation(
     async () => {
       const nodes = await pageEvaluateWithHitCapture(
         page,
-        (captureHit, { hitIdentityKeySrc }) => {
-          const hitIdentityKey = new Function(
-            `return (${hitIdentityKeySrc})`,
-          )() as (el: HTMLElement) => string;
+        (captureHit) => {
           const minDurationMs = 250;
           const maxNodes = 10;
 
@@ -47,7 +43,6 @@ export async function reducedMotionViolation(
 
           const found: CustomViolationNode[] = [];
           const seen = new Set<string>();
-
           const getAnimations = (
             document as unknown as {
               getAnimations?: () => AnimationLike[];
@@ -73,12 +68,13 @@ export async function reducedMotionViolation(
             const infinite = iterations === Infinity;
             if (!infinite && duration < minDurationMs) continue;
 
-            const key = hitIdentityKey(el);
+            const hit = captureHit(el);
+            const key = hit.selector;
             if (seen.has(key)) continue;
             seen.add(key);
 
             found.push({
-              html: captureHit(el).html,
+              html: hit.html,
               target: [key],
               elementLabel:
                 el.getAttribute("aria-label") ??
@@ -93,7 +89,6 @@ export async function reducedMotionViolation(
 
           return found;
         },
-        { hitIdentityKeySrc: HIT_IDENTITY_KEY_SRC },
       );
 
       if (nodes.length === 0) return null;

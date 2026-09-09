@@ -56,4 +56,27 @@ describe("forcedColorsViolation", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "reports two identical failing buttons as two distinct nodes (P1-4)",
+    async () => {
+      const { page, close } = await withPlaywrightPage(`
+        <!doctype html><html lang="fr"><head><style>
+          .icon-btn { box-shadow: 0 0 0 2px #000; border: 0; background: transparent; }
+        </style></head><body>
+          <button class="icon-btn" aria-label="Supprimer"></button>
+          <button class="icon-btn" aria-label="Supprimer"></button>
+        </body></html>
+      `);
+      try {
+        const violation = await forcedColorsViolation(page);
+        expect(violation?.nodes).toHaveLength(2);
+        const targets = violation?.nodes.map((n) => n.target[0]) ?? [];
+        expect(new Set(targets).size).toBe(2);
+      } finally {
+        await close();
+      }
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 });

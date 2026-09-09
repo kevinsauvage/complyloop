@@ -1,6 +1,5 @@
 import type { Page } from "playwright";
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
-import { HIT_IDENTITY_KEY_SRC } from "./hit-identity.ts";
 import { FORCED_COLORS_CONTROL_SELECTOR } from "./interactive-control-selectors.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 import { withEmulatedMedia } from "./with-emulated-media.ts";
@@ -20,10 +19,7 @@ export async function forcedColorsViolation(
     async () => {
       const nodes = await pageEvaluateWithHitCapture(
         page,
-        (captureHit, { interactiveSelector, hitIdentityKeySrc }) => {
-          const hitIdentityKey = new Function(
-            `return (${hitIdentityKeySrc})`,
-          )() as (el: HTMLElement) => string;
+        (captureHit, { interactiveSelector }) => {
           const maxNodes = 10;
 
           function isVisible(el: HTMLElement): boolean {
@@ -71,12 +67,13 @@ export async function forcedColorsViolation(
             if (hasVisibleText) continue;
             if (!isTransparent(style.backgroundColor)) continue;
 
-            const key = hitIdentityKey(el);
+            const hit = captureHit(el);
+            const key = hit.selector;
             if (seen.has(key)) continue;
             seen.add(key);
 
             found.push({
-              html: captureHit(el).html,
+              html: hit.html,
               target: [key],
               elementLabel:
                 el.getAttribute("aria-label") ??
@@ -90,10 +87,7 @@ export async function forcedColorsViolation(
 
           return found;
         },
-        {
-          interactiveSelector: FORCED_COLORS_CONTROL_SELECTOR,
-          hitIdentityKeySrc: HIT_IDENTITY_KEY_SRC,
-        },
+        { interactiveSelector: FORCED_COLORS_CONTROL_SELECTOR },
       );
 
       if (nodes.length === 0) return null;

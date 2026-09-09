@@ -45,20 +45,6 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 **Verification:** Unit test in `src/server/github-tokens.test.ts` with an expired stored token — assert either a successful refresh or a clean public error, never a silent owner-token handoff.
 
-### P1-4 — `hitIdentityKey` is not unique → runtime findings collapse across distinct nodes
-
-**Problem:** `hitIdentityKey` = `${id}::${role}::${tagName}` is used both as the in-page dedup key and as the persisted `location.selector` (`target: [key]`). It ignores position, accessible name, and attribute sets, so N condition-violating siblings (same tag/role with no `id`, or two identical buttons) collapse into **one** hit: per-node evidence is wrong, `runtimeViolationStillPresent` (which re-finds by selector) can only match one node, and dedupe can silently erase dissenting nodes → wrong `needs_review`/regression decisions.
-
-**Evidence:**
-
-- `packages/analysis-core/src/runtime/custom-checks/hit-identity.ts:8-14` (the key)
-- `packages/analysis-core/src/runtime/custom-checks/forced-colors.ts:60-88`, `reduced-motion.ts:50-95` (pass `target: [key]`)
-- `packages/analysis-core/src/runtime/dedupe-runtime-findings.ts:28-40` (selector used for runtime node identity)
-
-**Action:** Make the key unique per node (e.g. `buildCssSelector`-style path + index/name) and emit the finding's `location.selector` as a real CSS path via `buildCssSelector`, not the dedup key. Keep the printable-character constraint (Postgres JSONB rejects NUL).
-
-**Verification:** Extend `packages/analysis-core/src/runtime/custom-checks/hit-identity.test.ts` with two same-tag/same-role distinct nodes → two keys; add a forced-colors fixture with two identical buttons → two findings.
-
 ### P1-5 — `lang-change` defaults to English when the page has no `lang`, producing false positives
 
 **Problem:** `needsLangForScript` falls back to `"en"` when `pageLang` returns `undefined`; `LATIN_EXTENDED` (`[À-ÿ]`) then matches French/Spanish/Polish accented text, so every page without `html lang` (very common) emits `lang-change` warnings that push controls to `needs_review`. The real defect — missing `html lang` — is a different (already existing) check; this one should not fire on it.
