@@ -14,6 +14,8 @@ interface EncryptedTokenEntry {
   tag: string;
   ciphertext: string;
   updatedAt: string;
+  refreshToken?: string;
+  expiresAt?: string;
 }
 
 function deriveKey(): Buffer {
@@ -64,14 +66,21 @@ export function decryptToken(entry: EncryptedTokenEntry): string {
 export async function storeUserGitHubToken(
   userId: string,
   accessToken: string,
+  refreshToken?: string,
+  expiresAt?: string,
 ): Promise<void> {
   if (!userId || !accessToken) return;
   if (!process.env.AUTH_SECRET) {
-    // Dev without Auth.js — skip persistence rather than store plaintext.
     return;
   }
   const entry = encryptToken(accessToken);
   const drizzle = await getDrizzle();
+
+  let refreshEntry: EncryptedTokenEntry | null = null;
+  if (refreshToken) {
+    refreshEntry = encryptToken(refreshToken);
+  }
+
   await drizzle
     .insert(githubTokens)
     .values({
@@ -81,6 +90,10 @@ export async function storeUserGitHubToken(
       tag: entry.tag,
       ciphertext: entry.ciphertext,
       updatedAt: entry.updatedAt,
+      refreshToken: refreshEntry?.ciphertext ?? null,
+      refreshIv: refreshEntry?.iv ?? null,
+      refreshTag: refreshEntry?.tag ?? null,
+      expiresAt: expiresAt ?? null,
     })
     .onConflictDoUpdate({
       target: githubTokens.userId,
@@ -90,13 +103,30 @@ export async function storeUserGitHubToken(
         tag: entry.tag,
         ciphertext: entry.ciphertext,
         updatedAt: entry.updatedAt,
+        refreshToken: refreshEntry?.ciphertext ?? null,
+        refreshIv: refreshEntry?.iv ?? null,
+        refreshTag: refreshEntry?.tag ?? null,
+        expiresAt: expiresAt ?? null,
       },
     });
+}
+
+export interface StoredGitHubToken {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: string;
 }
 
 export async function getStoredGitHubToken(
   userId: string,
 ): Promise<string | null> {
+  const stored = await getStoredGitHubTokenWithExpiry(userId);
+  return stored?.accessToken ?? null;
+}
+
+export async function getStoredGitHubTokenWithExpiry(
+  userId: string,
+): Promise<StoredGitHubToken | null> {
   const drizzle = await getDrizzle();
   const rows = await drizzle
     .select()
@@ -106,13 +136,28 @@ export async function getStoredGitHubToken(
   const row = rows[0];
   if (!row) return null;
   try {
-    return decryptToken({
+    const accessToken = decryptToken({
       v: 1,
       iv: row.iv,
       tag: row.tag,
       ciphertext: row.ciphertext,
       updatedAt: row.updatedAt,
     });
+    const refreshToken =
+      row.refreshToken && row.refreshIv && row.refreshTag
+        ? decryptToken({
+            v: 1,
+            iv: row.refreshIv,
+            tag: row.refreshTag,
+            ciphertext: row.refreshToken,
+            updatedAt: row.updatedAt,
+          })
+        : undefined;
+    return {
+      accessToken,
+      ...(refreshToken ? { refreshToken } : {}),
+      ...(row.expiresAt ? { expiresAt: row.expiresAt } : {}),
+    };
   } catch {
     return null;
   }
@@ -123,4 +168,72 @@ export async function clearStoredGitHubToken(userId: string): Promise<void> {
   if (!userId) return;
   const drizzle = await getDrizzle();
   await drizzle.delete(githubTokens).where(eq(githubTokens.userId, userId));
+}
+
+export interface RefreshGitHubTokenInput {
+  userId: string;
+  refreshToken: string;
+}
+
+export interface RefreshGitHubTokenResult {
+  accessToken: string;
+  expiresAt: string;
+}
+
+export async function refreshGitHubToken({
+  userId,
+  refreshToken,
+}: RefreshGitHubTokenInput): Promise<RefreshGitHubTokenResult> {
+  const clientId = process.env.AUTH_GITHUB_ID;
+  const clientSecret = process.env.AUTH_GITHUB_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      "AUTH_GITHUB_ID and AUTH_GITHUB_SECRET are required to refresh GitHub tokens.",
+    );
+  }
+
+  const response = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`GitHub token refresh failed with status ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    access_token?: string;
+    expires_in?: number;
+    refresh_token?: string;
+  };
+
+  if (!data.access_token) {
+    throw new Error("GitHub token refresh returned no access_token.");
+  }
+
+  const now = new Date();
+  const expiresAt = data.expires_in
+    ? new Date(now.getTime() + data.expires_in * 1000).toISOString()
+    : new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString();
+
+  await storeUserGitHubToken(
+    userId,
+    data.access_token,
+    data.refresh_token ?? refreshToken,
+    expiresAt,
+  );
+
+  return {
+    accessToken: data.access_token,
+    expiresAt,
+  };
 }

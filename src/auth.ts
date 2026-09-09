@@ -6,7 +6,8 @@ import { isProductionRuntime, resolveAuthSecret, sessionCookieIsSecure } from "@
 import { assertProductionGitHubApp } from "@/server/github-app";
 import {
   clearStoredGitHubToken,
-  getStoredGitHubToken,
+  getStoredGitHubTokenWithExpiry,
+  refreshGitHubToken,
   storeUserGitHubToken,
 } from "@/server/github-tokens";
 import { ensurePersonalOrgProvisioned } from "@/server/personal-org";
@@ -100,7 +101,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       // Persist OAuth tokens server-side only — never embed in the JWT cookie.
       if (account?.access_token && typeof token.sub === "string") {
-        await storeUserGitHubToken(token.sub, account.access_token);
+        await storeUserGitHubToken(
+          token.sub,
+          account.access_token,
+          account.refresh_token,
+          account.expires_at ? new Date(account.expires_at * 1000).toISOString() : undefined,
+        );
       }
 
       if (profile && typeof profile === "object" && "login" in profile) {
@@ -142,5 +148,21 @@ export async function getGitHubAccessToken(): Promise<string | null> {
   });
   if (typeof token?.sub !== "string") return null;
 
-  return getStoredGitHubToken(token.sub);
+  const stored = await getStoredGitHubTokenWithExpiry(token.sub);
+  if (!stored) return null;
+
+  if (stored.expiresAt && new Date(stored.expiresAt) <= new Date() && stored.refreshToken) {
+    try {
+      const refreshed = await refreshGitHubToken({
+        userId: token.sub,
+        refreshToken: stored.refreshToken,
+      });
+      return refreshed.accessToken;
+    } catch {
+      await clearStoredGitHubToken(token.sub);
+      return null;
+    }
+  }
+
+  return stored.accessToken;
 }

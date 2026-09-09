@@ -244,6 +244,10 @@ export const githubTokens = pgTable("github_tokens", {
   tag: text("tag").notNull(),
   ciphertext: text("ciphertext").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  refreshToken: text("refresh_token"),
+  refreshIv: text("refresh_iv"),
+  refreshTag: text("refresh_tag"),
+  expiresAt: timestamp("expires_at", { withTimezone: true, mode: "string" }),
 });
 
 /** Idempotency keys for GitHub webhook deliveries (`x-github-delivery`). */
