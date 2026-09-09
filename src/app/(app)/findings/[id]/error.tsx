@@ -1,25 +1,25 @@
 "use client";
 
 import { useEffect } from "react";
-import { reportAppError } from "@/server/observability";
+import { reportClientError } from "@/lib/report-client-error";
 import { AppErrorCard } from "@/components/app-error-card";
 
 export default function FindingDetailError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
-    reportAppError(error, "finding_detail_error_boundary");
+    reportClientError(error, "finding_detail_error_boundary");
   }, [error]);
 
   return (
     <AppErrorCard
       digest={error.digest}
       description="This finding could not be loaded. Remediation and evidence are unchanged — try again or pick another item from the queue."
-      onReset={reset}
+      onReset={retry}
     />
   );
 }

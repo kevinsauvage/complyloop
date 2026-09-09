@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { aiExplanationAvailable } from "@/ai/explainer";
@@ -47,6 +48,33 @@ import { cn } from "@/lib/utils";
 import { isProjectVisible } from "@/server/project-visibility";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const fallback: Metadata = {
+    title: "Finding",
+    description: "Finding detail with remediation state and evidence trail.",
+  };
+  try {
+    const { id } = await params;
+    const finding = await requireFinding(id);
+    const { projects, access } = await getWorkspace();
+    const project = projects.find(
+      (candidate) => candidate.id === finding.projectId,
+    );
+    if (!project || !isProjectVisible(project, access)) return fallback;
+    const control = displayControl(finding.controlId, project);
+    return {
+      title: `${control.code} — ${control.title}`,
+      description: `${control.secondaryCode} · ${control.description}`,
+    };
+  } catch {
+    return fallback;
+  }
+}
 
 export default async function FindingPage({
   params,

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -6,6 +7,11 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
+
+export const metadata: Metadata = {
+  title: "Page not found",
+  description: "The requested page does not exist or you do not have access to it.",
+};
 
 export default function NotFound() {
   return (

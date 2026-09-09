@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import {
   ArrowRight,
   CheckCircle2,
@@ -11,6 +12,11 @@ import {
   Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+export const metadata: Metadata = {
+  description:
+    "ComplyLoop turns RGAA/WCAG accessibility obligations into engineering work — deterministic checks, human-approved remediations, and audit evidence.",
+};
 import {
   Card,
   CardContent,

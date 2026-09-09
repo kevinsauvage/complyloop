@@ -38,8 +38,14 @@ import { getWorkspace } from "@/server/workspace";
 import { listRequirementsForProject } from "@complyloop/db/repo/requirements";
 import { ChevronDownIcon } from "lucide-react";
 import Link from "next/link";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Evidence",
+  description: "Append-only record of everything checked, found, changed, and verified.",
+};
 
 export default async function EvidencePage({
   searchParams,

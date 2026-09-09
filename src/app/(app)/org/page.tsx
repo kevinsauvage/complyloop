@@ -22,8 +22,14 @@ import {
   inviteOrgMemberAction,
 } from "@/server/actions/org";
 import { getWorkspace } from "@/server/workspace";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Organization account",
+  description: "Manage workspace ownership, members, and data lifecycle.",
+};
 
 export default async function OrgPage() {
   const session = await auth();

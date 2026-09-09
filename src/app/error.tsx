@@ -1,25 +1,25 @@
 "use client";
 
 import { useEffect } from "react";
-import { reportAppError } from "@/server/observability";
+import { reportClientError } from "@/lib/report-client-error";
 import { AppErrorCard } from "@/components/app-error-card";
 
 export default function AppError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
-    reportAppError(error, "app_error_boundary");
+    reportClientError(error, "app_error_boundary");
   }, [error]);
 
   return (
     <AppErrorCard
       digest={error.digest}
       description="An unexpected error occurred while handling your request."
-      onReset={reset}
+      onReset={retry}
     />
   );
 }

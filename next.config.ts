@@ -23,6 +23,14 @@ function parseAllowedDevOrigins(value: string | undefined): string[] {
 }
 
 const nextConfig: NextConfig = {
+  // Don't leak framework fingerprinting via `X-Powered-By` (production
+  // security checklist in node_modules/next/dist/docs).
+  poweredByHeader: false,
+  // NOTE: `cacheComponents` is intentionally off. Enabling it is not a
+  // rename-only change — it requires adopting the Cache Components model
+  // (`use cache` + `<Suspense>` around every uncached/dynamic read). All
+  // authenticated routes here are `force-dynamic` today; see the Caching
+  // guide before opting in.
   // Standalone output is for the Docker image only — `next start` warns/fails
   // when standalone is always on (Playwright e2e uses `npm run start`).
   ...(process.env.DOCKER_BUILD === "1" ? { output: "standalone" as const } : {}),

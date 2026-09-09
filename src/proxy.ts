@@ -7,6 +7,10 @@ import {
 
 const PUBLIC_PATHS = new Set(["/", "/login"]);
 
+// Intentionally duplicated from `@/auth` (same env-var check) instead of
+// importing it: `auth.ts` pulls NextAuth providers, DB clients, and GitHub
+// token helpers into the proxy bundle. Keep this file on `next/server` +
+// `next-auth/jwt` + `@/auth-secret` only.
 function isGitHubAuthConfigured(): boolean {
   return Boolean(
     process.env.AUTH_SECRET &&
@@ -15,9 +19,32 @@ function isGitHubAuthConfigured(): boolean {
   );
 }
 
+function normalizePath(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
+}
+
 function isPublicPath(pathname: string): boolean {
-  if (PUBLIC_PATHS.has(pathname)) return true;
-  return pathname.startsWith("/legal/");
+  const normalized = normalizePath(pathname);
+  if (PUBLIC_PATHS.has(normalized)) return true;
+  return normalized === "/legal" || normalized.startsWith("/legal/");
+}
+
+// Mirror login page + auth action validation: internal path only,
+// no protocol-relative open redirect. Falls back to /dashboard so
+// deep links survive the /login bounce without breaking back behavior.
+function toSafeCallbackUrl(value: string | null): string {
+  if (
+    typeof value === "string" &&
+    value.startsWith("/") &&
+    !value.startsWith("//") &&
+    !value.startsWith("/\\")
+  ) {
+    return value;
+  }
+  return "/dashboard";
 }
 
 export async function proxy(req: NextRequest) {
@@ -47,9 +74,11 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isLoggedIn && pathname === "/login") {
+  if (isLoggedIn && normalizePath(pathname) === "/login") {
     const dashboardUrl = req.nextUrl.clone();
-    dashboardUrl.pathname = "/dashboard";
+    dashboardUrl.pathname = toSafeCallbackUrl(
+      req.nextUrl.searchParams.get("callbackUrl"),
+    );
     dashboardUrl.search = "";
     return NextResponse.redirect(dashboardUrl);
   }

@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import { PageContent, PageHeader } from "@/components/page-primitives";
+
+export const metadata: Metadata = {
+  title: "Terms of Service",
+  description: "Draft terms for early access to ComplyLoop.",
+};
 
 export default function TermsPage() {
   return (

@@ -1,4 +1,11 @@
+import Link from "next/link";
+import type { Metadata } from "next";
 import { PageContent, PageHeader } from "@/components/page-primitives";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description: "How ComplyLoop handles account, repository, and compliance data.",
+};
 
 export default function PrivacyPage() {
   return (
@@ -44,9 +51,9 @@ export default function PrivacyPage() {
             <p className="mt-2">
               Organization owners can download a machine-readable JSON export of
               org-scoped product data and delete the organization from{" "}
-              <a href="/org" className="text-foreground underline underline-offset-2">
+              <Link href="/org" className="text-foreground underline underline-offset-2">
                 Organization account
-              </a>
+              </Link>
               . Sign-out clears stored encrypted GitHub tokens for that user.
               Support-assisted deletion requests are handled within 30 days for
               early-access pilots (see the support contact on that page when

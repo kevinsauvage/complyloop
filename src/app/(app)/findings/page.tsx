@@ -30,8 +30,14 @@ import { getWorkspace } from "@/server/workspace";
 import { getProjectRuntime } from "@/server/project-runtime";
 import { displayControl } from "@/server/report";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Findings",
+  description: "Every failure with its reason, location, remediation state, and evidence.",
+};
 
 function tabHref(tab: FindingsTab, params: FindingListParams): string {
   return findingsListHref({ ...params, tab, page: 1 });

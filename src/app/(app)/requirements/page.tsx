@@ -22,8 +22,14 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 import { getProjectRuntime } from "@/server/project-runtime";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Requirements",
+  description: "Browse compliance requirements by framework preset and status.",
+};
 
 function controlsForPreset(
   controls: readonly Control[],

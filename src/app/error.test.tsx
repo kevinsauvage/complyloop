@@ -12,13 +12,13 @@ afterEach(() => {
 describe("app error and not-found pages", () => {
   it("renders an in-app error with retry and dashboard recovery", async () => {
     const user = userEvent.setup();
-    const reset = vi.fn();
+    const retry = vi.fn();
     render(
       <AppError
         error={Object.assign(new Error("Not allowed: missing permission."), {
           digest: "abc",
         })}
-        reset={reset}
+        retry={retry}
       />,
     );
 
@@ -36,7 +36,7 @@ describe("app error and not-found pages", () => {
     ).toHaveAttribute("href", "/dashboard");
 
     await user.click(screen.getByRole("button", { name: "Try again" }));
-    expect(reset).toHaveBeenCalledOnce();
+    expect(retry).toHaveBeenCalledOnce();
     expect(Sentry.captureException).toHaveBeenCalled();
   });
 

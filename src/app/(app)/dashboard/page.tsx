@@ -35,8 +35,14 @@ import { projectCapabilities } from "@/server/project-capabilities";
 import { displayControl } from "@/server/report";
 import { getWorkspace } from "@/server/workspace";
 import { getProjectRuntime } from "@/server/project-runtime";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "Compliance snapshot, pipeline activity, and next actions for the active project.",
+};
 
 export default async function DashboardPage() {
   const {

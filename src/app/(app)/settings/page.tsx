@@ -15,8 +15,14 @@ import { latestAssessmentFor } from "@/core/assessment";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
 import { getProjectRuntime } from "@/server/project-runtime";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Settings",
+  description: "Project configuration: connected repository, presets, and runtime audits.",
+};
 
 export default async function SettingsPage() {
   const { project, access, activeOrgId } = await getWorkspace();

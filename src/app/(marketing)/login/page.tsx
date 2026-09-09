@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { auth, isGitHubAuthConfigured } from "@/auth";
 import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -11,6 +12,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { redirect } from "next/navigation";
+
+export const metadata: Metadata = {
+  title: "Sign in",
+  description: "Sign in to ComplyLoop with GitHub to access your compliance dashboard.",
+};
 
 export default async function LoginPage({
   searchParams,
