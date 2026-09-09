@@ -127,6 +127,8 @@ function job(partial: Partial<AssessmentJob> = {}): AssessmentJob {
     availableAt: "2026-01-01T00:00:00.000Z",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+    startedAt: "2026-01-01T00:00:00.000Z",
+    leaseExpiresAt: "2026-01-01T01:00:00.000Z",
     ...partial,
   };
 }
@@ -217,10 +219,15 @@ describe("processNextAssessmentJob", () => {
       expect.anything(),
       expect.objectContaining({
         kind: "assessment_job",
-        detail: expect.objectContaining({ phase: "completed" }),
+        detail: expect.objectContaining({
+          phase: "completed",
+          leaseExpiresAt: "2026-01-01T01:00:00.000Z",
+        }),
       }),
     );
-    expect(completeAssessmentJob).toHaveBeenCalledWith("job-1");
+    expect(completeAssessmentJob).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "job-1" }),
+    );
     expect(pruneRateLimitBuckets).not.toHaveBeenCalled();
   });
 

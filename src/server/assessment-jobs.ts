@@ -13,6 +13,7 @@ import {
   type AssessmentJob,
   type AssessmentJobPayload,
 } from "@/core/assessment-job";
+import { reportWarning } from "./observability";
 
 export type { AssessmentJob };
 
@@ -221,10 +222,12 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
   });
 }
 
-export async function completeAssessmentJob(id: string): Promise<void> {
+export async function completeAssessmentJob(
+  job: AssessmentJob,
+): Promise<void> {
   const drizzle = await getDrizzle();
   const now = new Date().toISOString();
-  await drizzle
+  const result = await drizzle
     .update(assessmentJobs)
     .set({
       status: "succeeded",
@@ -233,7 +236,21 @@ export async function completeAssessmentJob(id: string): Promise<void> {
       error: null,
       updatedAt: now,
     })
-    .where(and(eq(assessmentJobs.id, id), eq(assessmentJobs.status, "running")));
+    .where(
+      and(
+        eq(assessmentJobs.id, job.id),
+        eq(assessmentJobs.status, "running"),
+        eq(assessmentJobs.leaseExpiresAt, job.leaseExpiresAt as string),
+        eq(assessmentJobs.startedAt, job.startedAt as string),
+      ),
+    )
+    .returning({ id: assessmentJobs.id });
+  if (result.length === 0) {
+    reportWarning("Stale lease write rejected for assessment job", {
+      code: "assessment_job_stale_lease",
+      jobId: job.id,
+    });
+  }
 }
 
 export async function failAssessmentJob(
@@ -246,7 +263,7 @@ export async function failAssessmentJob(
   const terminal = job.attempts >= job.maxAttempts;
   const status: AssessmentJobStatus = terminal ? "failed" : "queued";
   const delay = RETRY_BASE_MS * 2 ** Math.max(0, job.attempts - 1);
-  await drizzle
+  const result = await drizzle
     .update(assessmentJobs)
     .set({
       status,
@@ -258,7 +275,21 @@ export async function failAssessmentJob(
       error: message.slice(0, 2_000),
       updatedAt: now.toISOString(),
     })
-    .where(and(eq(assessmentJobs.id, job.id), eq(assessmentJobs.status, "running")));
+    .where(
+      and(
+        eq(assessmentJobs.id, job.id),
+        eq(assessmentJobs.status, "running"),
+        eq(assessmentJobs.leaseExpiresAt, job.leaseExpiresAt as string),
+        eq(assessmentJobs.startedAt, job.startedAt as string),
+      ),
+    )
+    .returning({ id: assessmentJobs.id });
+  if (result.length === 0) {
+    reportWarning("Stale lease write rejected for assessment job", {
+      code: "assessment_job_stale_lease",
+      jobId: job.id,
+    });
+  }
   return status;
 }
 

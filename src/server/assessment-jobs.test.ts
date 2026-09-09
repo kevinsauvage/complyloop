@@ -32,6 +32,10 @@ vi.mock("@complyloop/db/client", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 
+vi.mock("./observability", () => ({
+  reportWarning: vi.fn(),
+}));
+
 vi.mock("drizzle-orm", async () => {
   const actual = await vi.importActual<typeof import("drizzle-orm")>(
     "drizzle-orm",
@@ -162,11 +166,23 @@ function createDrizzle() {
           const updated: JobRow[] = [];
           for (const [id, row] of jobs) {
             let match = false;
-            if (eqs.includes(row.id) && eqs.includes(row.status)) {
+            const hasId = eqs.includes(row.id);
+            const hasStatus = eqs.includes(row.status);
+            const hasLease = eqs.includes(row.leaseExpiresAt);
+            const hasStarted = eqs.includes(row.startedAt);
+            if (eqs.length === 2 && hasId && hasStatus && !hasLease && !hasStarted) {
               match = true;
             } else if (
+              eqs.length === 4 &&
+              hasId &&
+              hasStatus &&
+              hasLease &&
+              hasStarted
+            ) {
+              match = true;
+            } else if (
+              hasStatus &&
               eqs.includes("running") &&
-              row.status === "running" &&
               ltes.length > 0 &&
               row.leaseExpiresAt != null &&
               row.leaseExpiresAt <= String(ltes[0])
@@ -318,10 +334,34 @@ describe("completeAssessmentJob", () => {
       projectId: "p1",
       trigger: "manual",
     });
-    await claimNextAssessmentJob();
-    await completeAssessmentJob(job.id);
+    const claimed = await claimNextAssessmentJob();
+    if (!claimed) throw new Error("expected claim");
+    await completeAssessmentJob(claimed);
     expect(jobs.get(job.id)?.status).toBe("succeeded");
     expect(jobs.get(job.id)?.completedAt).toBeTruthy();
+  });
+
+  it("rejects a stale lease complete", async () => {
+    const job = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const first = await claimNextAssessmentJob();
+    if (!first) throw new Error("expected first claim");
+    const row = jobs.get(job.id);
+    if (!row) throw new Error("expected row");
+    row.status = "queued";
+    row.leaseExpiresAt = null;
+    row.attempts = 1;
+    first.leaseExpiresAt = "2026-01-01T01:00:00.000Z";
+    first.startedAt = "2026-01-01T00:00:00.000Z";
+    const second = await claimNextAssessmentJob();
+    if (!second) throw new Error("expected second claim");
+    await completeAssessmentJob(first);
+    const updated = jobs.get(job.id);
+    expect(updated?.status).toBe("running");
+    expect(updated?.attempts).toBe(2);
+    expect(updated?.leaseExpiresAt).toBe(second.leaseExpiresAt);
   });
 });
 

@@ -176,6 +176,7 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
               jobId: job.id,
               trigger: job.trigger,
               alerts: alerts.length,
+              leaseExpiresAt: job.leaseExpiresAt,
             },
           });
         });
@@ -250,7 +251,7 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
   });
   try {
     await runClaimedAssessmentJob(job);
-    await completeAssessmentJob(job.id);
+    await completeAssessmentJob(job);
     reportInfo("assessment job completed", {
       code: "assessment_job_succeeded",
       jobId: job.id,
