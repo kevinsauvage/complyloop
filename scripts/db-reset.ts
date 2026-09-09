@@ -5,8 +5,8 @@
  *
  * Usage: npm run db:reset -- --confirm
  */
-import { spawnSync } from "node:child_process";
 import { createPostgresClient } from "@complyloop/db/postgres-url";
+import { applyPendingMigrations } from "./db-migrate";
 import { loadLocalEnv } from "./env";
 
 async function main(): Promise<void> {
@@ -48,13 +48,7 @@ async function main(): Promise<void> {
   }
 
   console.log("Schema dropped. Applying migrations…");
-  const result = spawnSync("npx", ["tsx", "scripts/db-migrate.ts"], {
-    stdio: "inherit",
-    env: process.env,
-  });
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
+  await applyPendingMigrations(url);
   console.log("Database reset complete. Sign out, clear site cookies, sign in again.");
 }
 

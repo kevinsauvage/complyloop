@@ -11,6 +11,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { createPostgresClient } from "@complyloop/db/postgres-url";
 import { loadLocalEnv } from "./env";
 
@@ -60,6 +61,15 @@ async function applyMigrations(
   }
 }
 
+export async function applyPendingMigrations(url: string): Promise<void> {
+  const dir = path.join(process.cwd(), "drizzle");
+  const files = fs
+    .readdirSync(dir)
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+  await applyMigrations(url, dir, files);
+}
+
 async function main(): Promise<void> {
   loadLocalEnv();
   const url = process.env.DATABASE_URL?.trim();
@@ -69,15 +79,17 @@ async function main(): Promise<void> {
     );
     process.exit(1);
   }
-  const dir = path.join(process.cwd(), "drizzle");
-  const files = fs
-    .readdirSync(dir)
-    .filter((name) => name.endsWith(".sql"))
-    .sort();
-  await applyMigrations(url, dir, files);
+  await applyPendingMigrations(url);
 }
 
-main().catch((error: unknown) => {
-  console.error(error);
-  process.exit(1);
-});
+// Only auto-run when invoked directly (`tsx scripts/db-migrate.ts`), not when
+// imported (e.g. `db-reset.ts` reuses `applyPendingMigrations` in-process).
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  main().catch((error: unknown) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
