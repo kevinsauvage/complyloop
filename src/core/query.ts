@@ -14,13 +14,26 @@ export function firstParam(
 }
 
 /** Extract a string that must match one of the allowed values. */
-export function parseEnumParam(
+export function parseEnumParam<T extends string>(
   raw: string | string[] | undefined,
-  allowed: readonly string[],
-): string | undefined {
+  allowed: readonly T[],
+): T | undefined {
   const value = firstParam(raw);
   if (!value) return undefined;
-  return allowed.includes(value) ? value : undefined;
+  return (allowed as readonly string[]).includes(value)
+    ? (value as T)
+    : undefined;
+}
+
+/** Build a query record from defined values only (skips undefined/empty). */
+export function pickDefined(
+  params: Record<string, string | number | undefined>,
+): Record<string, string> {
+  const query: Record<string, string> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") query[key] = String(value);
+  }
+  return query;
 }
 
 /**
@@ -38,8 +51,7 @@ export function buildHref(
 export function parseRequirementStatusParam(
   raw: string | string[] | undefined,
 ): RequirementStatus | undefined {
-  const value = parseEnumParam(raw, REQUIREMENT_STATUSES);
-  return value as RequirementStatus | undefined;
+  return parseEnumParam(raw, REQUIREMENT_STATUSES);
 }
 
 export function requirementsStatusHref(
@@ -68,7 +80,7 @@ export const EVIDENCE_KIND_FILTER_ORDER: readonly EvidenceKind[] = [
 export function parseEvidenceKindParam(
   raw: string | string[] | undefined,
 ): EvidenceKind | undefined {
-  return parseEnumParam(raw, EVIDENCE_KIND_FILTER_ORDER) as EvidenceKind | undefined;
+  return parseEnumParam(raw, EVIDENCE_KIND_FILTER_ORDER);
 }
 
 export function evidenceKindHref(

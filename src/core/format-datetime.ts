@@ -1,5 +1,9 @@
 export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", {
+  return formatDateTimeValue(new Date(iso));
+}
+
+function formatDateTimeValue(date: Date): string {
+  return date.toLocaleString("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
   });
@@ -20,5 +24,5 @@ export function formatDateTimeWithZone(iso: string): string {
   const abs = Math.abs(offsetMinutes);
   const hours = String(Math.floor(abs / 60)).padStart(2, "0");
   const minutes = String(abs % 60).padStart(2, "0");
-  return `${formatDateTime(iso)} (UTC${sign}${hours}:${minutes})`;
+  return `${formatDateTimeValue(date)} (UTC${sign}${hours}:${minutes})`;
 }

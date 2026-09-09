@@ -6,7 +6,7 @@ import {
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { formatLocationRef, locationPathOrUrl } from "@complyloop/analysis-core/contract/location";
 import { parsePageParam } from "./pagination";
-import { parseEnumParam, firstParam, buildHref } from "./query";
+import { parseEnumParam, firstParam, buildHref, pickDefined } from "./query";
 import { prioritizeFindings, severityRank } from "./prioritization";
 import {
   REMEDIATION_STATUSES,
@@ -55,12 +55,12 @@ export function parseFindingListParams(
 ): FindingListParams {
   return {
     q: firstParam(raw.q)?.trim() || undefined,
-    severity: parseEnumParam(raw.severity, SEVERITIES) as Severity | undefined,
-    engine: parseEnumParam(raw.engine, ENGINE_VALUES) as AssessmentEngine | undefined,
-    remediation: parseEnumParam(raw.remediation, REMEDIATION_STATUSES) as RemediationStatus | undefined,
+    severity: parseEnumParam(raw.severity, SEVERITIES),
+    engine: parseEnumParam(raw.engine, ENGINE_VALUES),
+    remediation: parseEnumParam(raw.remediation, REMEDIATION_STATUSES),
     control: firstParam(raw.control) || undefined,
     cluster: firstParam(raw.cluster) || undefined,
-    tab: (parseEnumParam(firstParam(raw.tab), FINDINGS_TABS) as FindingsTab | undefined) ?? "open",
+    tab: parseEnumParam(raw.tab, FINDINGS_TABS) ?? "open",
     page: parsePageParam(raw.page),
   };
 }
@@ -82,23 +82,30 @@ export function findingsListHref(
   params?: Partial<FindingListParams>,
 ): string {
   const merged: FindingListParams = { tab: "open", page: 1, ...params };
-  const query = findingListPaginationQuery(merged);
-  if (merged.page > 1) query.page = String(merged.page);
-  return buildHref("/findings", query);
+  return buildHref("/findings", findingListQueryWithPage(merged));
 }
 
 /** Query params preserved on pagination links (excludes `page`). */
 export function findingListPaginationQuery(
   params: FindingListParams,
 ): Record<string, string> {
-  const query: Record<string, string> = {};
-  if (params.q) query.q = params.q;
-  if (params.severity) query.severity = params.severity;
-  if (params.engine) query.engine = params.engine;
-  if (params.remediation) query.remediation = params.remediation;
-  if (params.control) query.control = params.control;
-  if (params.cluster) query.cluster = params.cluster;
-  if (params.tab !== "open") query.tab = params.tab;
+  return pickDefined({
+    q: params.q,
+    severity: params.severity,
+    engine: params.engine,
+    remediation: params.remediation,
+    control: params.control,
+    cluster: params.cluster,
+    tab: params.tab !== "open" ? params.tab : undefined,
+  });
+}
+
+/** Pagination query plus `page` when beyond the first page. */
+function findingListQueryWithPage(
+  params: FindingListParams,
+): Record<string, string> {
+  const query = findingListPaginationQuery(params);
+  if (params.page > 1) query.page = String(params.page);
   return query;
 }
 
@@ -106,9 +113,7 @@ export function findingDetailHref(
   findingId: string,
   params: FindingListParams,
 ): string {
-  const query = findingListPaginationQuery(params);
-  if (params.page > 1) query.page = String(params.page);
-  return buildHref(`/findings/${findingId}`, query);
+  return buildHref(`/findings/${findingId}`, findingListQueryWithPage(params));
 }
 
 export interface FilterFindingsContext {

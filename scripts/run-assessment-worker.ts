@@ -1,11 +1,9 @@
 #!/usr/bin/env tsx
 /** Runs one durable assessment worker process outside the web request path. */
-import { config as loadEnv } from "dotenv";
-import path from "node:path";
 import { processNextAssessmentJob } from "../src/server/assessment-worker";
+import { loadLocalEnv } from "./env";
 
-loadEnv({ path: path.join(process.cwd(), ".env.local") });
-loadEnv({ path: path.join(process.cwd(), ".env") });
+loadLocalEnv();
 
 const pollMs = Math.max(1_000, Number(process.env.WORKER_POLL_MS ?? 5_000));
 let stopping = false;

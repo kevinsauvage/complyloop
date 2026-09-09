@@ -2,7 +2,10 @@
 
 import { useActionState, useId, type ReactNode } from "react";
 import type { VariantProps } from "class-variance-authority";
-import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import {
+  ConfirmSubmitButton,
+  resolveSubmitLabel,
+} from "@/components/confirm-submit-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
@@ -50,11 +53,10 @@ export function StatefulActionForm({
   const formId = useId();
   useActionToast(state, pending);
 
-  const buttonLabel = pending
-    ? (pendingLabel ?? "Working…")
-    : state.error && retryLabel
+  const buttonLabel =
+    state.error && !pending && retryLabel
       ? retryLabel
-      : submitLabel;
+      : resolveSubmitLabel(pending, submitLabel, pendingLabel);
 
   return (
     <form id={formId} action={formAction} className={className}>
