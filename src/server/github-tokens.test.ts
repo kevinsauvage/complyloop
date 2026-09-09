@@ -6,6 +6,10 @@ vi.mock("@complyloop/db/client", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 
+vi.mock("./observability", () => ({
+  reportError: vi.fn(),
+}));
+
 const previousSecret = process.env.AUTH_SECRET;
 
 beforeEach(() => {
@@ -95,6 +99,66 @@ describe("getStoredGitHubTokenWithExpiry", () => {
     expect(result?.accessToken).toBe("gho_access");
     expect(result?.refreshToken).toBe("gho_refresh");
     expect(result?.expiresAt).toBe("2026-12-31T23:59:59.000Z");
+  });
+
+  it("reports and throws a reconnect error when the row cannot be decrypted", async () => {
+    const { encryptToken, getStoredGitHubTokenWithExpiry } = await import("./github-tokens");
+    const { reportError } = await import("./observability");
+    vi.mocked(reportError).mockClear();
+    const encrypted = encryptToken("gho_access");
+    getDrizzle.mockResolvedValue({
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(() => [
+              {
+                userId: "user-1",
+                iv: encrypted.iv,
+                tag: encrypted.tag,
+                ciphertext: encrypted.ciphertext,
+                refreshToken: null,
+                refreshIv: null,
+                refreshTag: null,
+                expiresAt: null,
+                updatedAt: encrypted.updatedAt,
+              },
+            ]),
+          })),
+        })),
+      })),
+    });
+
+    // Simulate an AUTH_SECRET rotation/mismatch after the row was written.
+    process.env.AUTH_SECRET = "a-different-secret";
+
+    await expect(getStoredGitHubTokenWithExpiry("user-1")).rejects.toMatchObject({
+      code: "github_token_unreadable",
+    });
+    await expect(
+      getStoredGitHubTokenWithExpiry("user-1"),
+    ).rejects.toThrow(/reconnect GitHub/);
+    expect(reportError).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        code: "github_token_unreadable",
+        userId: "user-1",
+      }),
+    );
+  });
+
+  it("returns null when no token row exists", async () => {
+    const { getStoredGitHubTokenWithExpiry } = await import("./github-tokens");
+    getDrizzle.mockResolvedValue({
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(() => []),
+          })),
+        })),
+      })),
+    });
+
+    await expect(getStoredGitHubTokenWithExpiry("user-1")).resolves.toBeNull();
   });
 });
 

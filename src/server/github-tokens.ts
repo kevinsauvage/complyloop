@@ -5,8 +5,10 @@ import {
   randomBytes,
 } from "node:crypto";
 import { eq } from "drizzle-orm";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/client";
 import { githubTokens } from "@complyloop/db/schema";
+import { reportError } from "./observability";
 
 interface EncryptedTokenEntry {
   v: 1;
@@ -158,8 +160,15 @@ export async function getStoredGitHubTokenWithExpiry(
       ...(refreshToken ? { refreshToken } : {}),
       ...(row.expiresAt ? { expiresAt: row.expiresAt } : {}),
     };
-  } catch {
-    return null;
+  } catch (error) {
+    // A stored row that cannot be decrypted (e.g. AUTH_SECRET rotated or
+    // mismatched) is a server-side problem, not "user never connected".
+    // Page the operator via the error report and tell the user to reconnect.
+    reportError(error, { code: "github_token_unreadable", userId });
+    throw new PublicError(
+      "Your saved GitHub connection can't be read. Sign out and sign in again to reconnect GitHub.",
+      "github_token_unreadable",
+    );
   }
 }
 

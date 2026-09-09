@@ -191,6 +191,14 @@ curl -X POST -H "Authorization: Bearer $WORKER_SECRET" \
 
 Leases last 30 minutes; crashed workers are retried. Alert on `assessment_job_failed` evidence and growing job queues. Idle ticks prune expired Postgres rate-limit buckets.
 
+> **Never set `E2E_*` on a real deployment.** `E2E_AUTH_ENABLED=1` swaps real
+> GitHub checkouts for a local fixture tree, skips production GitHub App
+> enforcement, and runs assessment jobs in-request. In `NODE_ENV=production`
+> the server refuses to boot such requests unless `E2E_PROD_HARNESS=1` is also
+> set — and that acknowledgement is set only by `playwright.config.ts` on its
+> dedicated e2e server. If you see the `E2E_PROD_HARNESS` error in prod logs,
+> unset `E2E_AUTH_ENABLED` (likely leaked from a dev env file).
+
 **Ops helpers:**
 
 ```bash

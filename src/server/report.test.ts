@@ -95,6 +95,57 @@ describe("buildEngineeringReportMarkdown", () => {
     expect(markdown).toContain("- **Reason:** Template literal with a fence inside");
     expect(markdown).not.toContain("Reason:** Template literal with a fence\n");
   });
+
+  it("neutralizes markdown injection from finding content", () => {
+    const input = sampleReportInput();
+    input.findings[0] = {
+      ...input.findings[0],
+      reason:
+        "### Hijacked heading\n[evil](https://evil.example) | table | `code`",
+      location: {
+        ...input.findings[0]!.location,
+        filePath: "src/weird`file.tsx",
+      },
+    } as Finding;
+
+    const markdown = buildEngineeringReportMarkdown(input);
+    const lines = markdown.split("\n");
+
+    // Newlines are collapsed, so the payload can never start a real heading
+    // or table row — and link/table/code-span syntax is escaped.
+    expect(markdown).not.toMatch(/^### Hijacked/m);
+    expect(markdown).not.toMatch(/(^|[^\\])\[evil\]\(/);
+    expect(markdown).not.toContain("`code`");
+    expect(markdown).toContain("\\[evil](https://evil.example)");
+    const tableLines = lines.filter((line) => line.includes("table"));
+    expect(tableLines.length).toBeGreaterThan(0);
+    for (const line of tableLines) {
+      expect(line).toContain("\\| table \\|");
+      expect(line).not.toMatch(/(^|[^\\])\| table \|/);
+    }
+    // Backtick in the file path cannot break out of its code span.
+    expect(markdown).toContain("weird'file.tsx");
+    expect(markdown).not.toContain("`weird`");
+  });
+
+  it("neutralizes markdown injection from evidence summaries", () => {
+    const input = sampleReportInput();
+    input.evidence = [
+      {
+        ...input.evidence[0]!,
+        summary: "Done | hacked | [evil](https://evil.example)",
+      },
+    ];
+
+    const markdown = buildAuditReportMarkdown(input);
+    const hackedLines = markdown.split("\n").filter((line) => line.includes("hacked"));
+    expect(hackedLines.length).toBeGreaterThan(0);
+    for (const line of hackedLines) {
+      expect(line).toContain("\\| hacked \\|");
+      expect(line).not.toMatch(/(^|[^\\])\| hacked \|/);
+    }
+    expect(markdown).not.toMatch(/(^|[^\\])\[evil\]\(/);
+  });
 });
 
 describe("reportInputForProject", () => {

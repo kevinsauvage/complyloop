@@ -9,7 +9,7 @@ import {
 } from "./e2e-harness";
 import { createGit } from "./git";
 import { resolveProjectGitHubToken } from "./github-access";
-import { githubCloneUrl } from "./github";
+import { githubCloneUrl, redactCloneUrl } from "./github";
 
 function positiveEnv(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -75,7 +75,7 @@ export async function cloneShallow(
     fs.rmSync(rootPath, { recursive: true, force: true });
     const detail = error instanceof Error ? error.message : "unknown error";
     throw new PublicError(
-      `git clone failed: ${detail.trim().slice(0, 400)}`,
+      `git clone failed: ${redactCloneUrl(detail).trim().slice(0, 400)}`,
       "connect",
     );
   }

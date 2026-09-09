@@ -261,27 +261,43 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
   } catch (error) {
     const status = await failAssessmentJob(job, error);
     if (status === "failed") {
-      const db = await loadProjectDb(job.projectId);
-      const project = db.projects.find(
-        (candidate) => candidate.id === job.projectId,
-      );
-      if (project) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Assessment job failed.";
-        const drizzle = await getDrizzle();
-        await drizzle.transaction(async (tx) => {
-          await insertEvidence(tx, {
-            kind: "assessment_job",
-            summary: `Assessment job ${job.id} failed after ${job.attempts} attempt(s).`,
-            projectId: project.id,
-            detail: {
-              phase: "failed",
-              jobId: job.id,
-              attempts: job.attempts,
-              error: errorMessage,
-            },
+      // Record failure evidence under the project write lock so it serializes
+      // with concurrent assessment applies. Never let evidence bookkeeping
+      // mask the original job failure.
+      try {
+        const db = await loadProjectDb(job.projectId);
+        const project = db.projects.find(
+          (candidate) => candidate.id === job.projectId,
+        );
+        if (project) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Assessment job failed.";
+          const drizzle = await getDrizzle();
+          await drizzle.transaction(async (tx) => {
+            await acquireNamedPostgresAdvisoryLock(
+              tx,
+              projectWriteLockKey(job.projectId),
+            );
+            await insertEvidence(tx, {
+              kind: "assessment_job",
+              summary: `Assessment job ${job.id} failed after ${job.attempts} attempt(s).`,
+              projectId: project.id,
+              detail: {
+                phase: "failed",
+                jobId: job.id,
+                attempts: job.attempts,
+                error: errorMessage,
+              },
+            });
           });
-        });
+        }
+      } catch (evidenceError) {
+        reportWarning(
+          evidenceError instanceof Error
+            ? evidenceError.message
+            : "Could not record assessment failure evidence.",
+          { code: "assessment_job_failure_evidence_failed", jobId: job.id },
+        );
       }
     }
     reportError(error, {

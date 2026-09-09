@@ -105,6 +105,15 @@ export function githubCloneUrl(fullName: string, accessToken: string): string {
   return `https://x-access-token:${encoded}@github.com/${fullName}.git`;
 }
 
+/**
+ * Strips embedded URL credentials (`https://user:pass@host/...`) from free
+ * text such as git error output. Git echoes the remote URL on failure, which
+ * would otherwise leak the clone token into user-visible errors.
+ */
+export function redactCloneUrl(text: string): string {
+  return text.replace(/:\/\/[^@\s/]+@/g, "://***@");
+}
+
 /** GitHub full names are case-insensitive; normalize for map keys and equality. */
 export function normalizeGitHubFullName(fullName: string): string {
   return fullName.trim().toLowerCase();

@@ -1,5 +1,7 @@
 export function slugifyOrgName(input: string): string {
   const cleaned = input
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")

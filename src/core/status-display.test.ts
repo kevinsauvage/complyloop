@@ -281,8 +281,8 @@ describe("provenanceDisplay", () => {
 
 describe("engineDisplay", () => {
   it("describes both assessment engines with labels", () => {
-    expect(engineDisplay("ast").label).toBe("Source (AST)");
-    expect(engineDisplay("runtime").label).toBe("Runtime (DOM)");
+    expect(engineDisplay("ast").label).toBe("Source code");
+    expect(engineDisplay("runtime").label).toBe("Rendered page");
     expect(engineDisplay("ast").description).toContain("source code");
     expect(engineDisplay("runtime").description).toContain("rendered page");
   });

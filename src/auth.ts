@@ -130,6 +130,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 /**
  * Reads the GitHub OAuth access token from encrypted server-side storage.
  * Server-only — never pass the result into client components.
+ *
+ * Returns null when the user has no stored token. Throws a PublicError with
+ * code `github_token_unreadable` when a stored row exists but cannot be
+ * decrypted — callers should surface that message (it tells the user to
+ * reconnect) rather than treating it as "not connected".
  */
 export async function getGitHubAccessToken(): Promise<string | null> {
   if (!isGitHubAuthConfigured()) return null;

@@ -35,7 +35,12 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: "Not allowed to connect repos." }, { status: 403 });
   }
 
-  const token = await getGitHubAccessToken();
+  let token: string | null;
+  try {
+    token = await getGitHubAccessToken();
+  } catch (error) {
+    return Response.json({ error: publicErrorMessage(error) }, { status: 401 });
+  }
   if (!token) {
     return Response.json(
       { error: "Could not read your GitHub token. Sign out and sign in again." },

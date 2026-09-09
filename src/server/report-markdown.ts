@@ -21,6 +21,28 @@ function inline(text: string): string {
   return text.replace(/\s*\n\s*/g, " ").trim();
 }
 
+/**
+ * Escapes untrusted text for prose contexts (headings, list items, table
+ * cells). `inline()` already removes newlines, so values can never start a
+ * line — only mid-line structural characters need escaping: backticks (inline
+ * code spans), `[` (links/images — escaping it alone prevents any link from
+ * forming), `|` (table cells), and the escape character itself. Everything
+ * else (`*`, `_`, `()`, `#`, …) is cosmetic mid-line and left alone so
+ * controlled vocabulary like "WCAG 2.2 (accessibility standard)" stays clean.
+ */
+function mdProse(text: string): string {
+  return inline(text).replace(/[\\`\[|]/g, (char) => `\\${char}`);
+}
+
+/**
+ * Sanitizes untrusted text for inline-code contexts (already wrapped in
+ * backticks by the caller). Backslash escapes render literally inside code
+ * spans, so instead neutralize the only structural character — the backtick.
+ */
+function mdCode(text: string): string {
+  return inline(text).replace(/`/g, "'");
+}
+
 /** Renders a snippet as an indented code block, safe against embedded fences. */
 function codeBlockLines(content: string): string[] {
   return ["", ...content.split("\n").map((line) => `    ${line}`), ""];
@@ -28,13 +50,13 @@ function codeBlockLines(content: string): string[] {
 
 function headerMarkdown(header: ReportHeaderModel): string[] {
   return [
-    `# ${header.title} — ${inline(header.projectName)}`,
+    `# ${mdProse(header.title)} — ${mdProse(header.projectName)}`,
     ``,
     `**Exported:** ${formatDateTimeWithZone(header.exportedAt)}`,
-    `**Framework:** ${header.frameworkName} (${header.frameworkVersion})`,
-    `**Project source:** ${header.sourceKind}${header.sourceRef ? ` — ${header.sourceRef}` : ""}`,
+    `**Framework:** ${mdProse(header.frameworkName)} (${mdProse(header.frameworkVersion)})`,
+    `**Project source:** ${mdProse(header.sourceKind)}${header.sourceRef ? ` — ${mdProse(header.sourceRef)}` : ""}`,
     header.githubFullName
-      ? `**GitHub repository:** \`${header.githubFullName}\``
+      ? `**GitHub repository:** \`${mdCode(header.githubFullName)}\``
       : "",
     ``,
   ].filter((line) => line !== "");
@@ -52,13 +74,13 @@ function statusCountRows(
   counts: Record<RequirementStatus, number>,
 ): string[] {
   return REQUIREMENT_STATUSES.map(
-    (status) => `| ${requirementStatusDisplay(status).label} | ${counts[status]} |`,
+    (status) => `| ${mdProse(requirementStatusDisplay(status).label)} | ${counts[status]} |`,
   );
 }
 
 function findingCountRows(counts: Record<FindingStatus, number>): string[] {
   return FINDING_STATUSES.map(
-    (status) => `| ${findingStatusDisplay(status).label} | ${counts[status]} |`,
+    (status) => `| ${mdProse(findingStatusDisplay(status).label)} | ${counts[status]} |`,
   );
 }
 
@@ -79,7 +101,7 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
     lines.push(``);
     for (const cluster of model.clusters) {
       lines.push(
-        `- **${cluster.label}** — ${cluster.findingCount} open finding(s)`,
+        `- **${mdProse(cluster.label)}** — ${cluster.findingCount} open finding(s)`,
       );
     }
     lines.push(``);
@@ -93,24 +115,24 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
     lines.push(``);
   } else {
     for (const finding of model.findings) {
-      lines.push(`### ${finding.code} @ \`${finding.locationRef}\``);
+      lines.push(`### ${mdProse(finding.code)} @ \`${mdCode(finding.locationRef)}\``);
       lines.push(``);
       if (finding.requirementLine) {
-        lines.push(`- **Requirement:** ${finding.requirementLine}`);
+        lines.push(`- **Requirement:** ${mdProse(finding.requirementLine)}`);
       }
       lines.push(
-        `- **Severity / confidence:** ${finding.severity} / ${finding.confidence}`,
+        `- **Severity / confidence:** ${mdProse(finding.severity)} / ${mdProse(finding.confidence)}`,
       );
       lines.push(
-        `- **Check:** \`${finding.checkId}\` · **Engine:** \`${engineFor(finding)}\``,
+        `- **Check:** \`${mdCode(finding.checkId)}\` · **Engine:** \`${mdCode(engineFor(finding))}\``,
       );
-      lines.push(`- **Reason:** ${inline(finding.reason)}`);
+      lines.push(`- **Reason:** ${mdProse(finding.reason)}`);
       if (finding.remediationStatus) {
-        lines.push(`- **Remediation:** ${finding.remediationStatus}`);
+        lines.push(`- **Remediation:** ${mdProse(finding.remediationStatus)}`);
       }
       if (finding.suggestion) {
         lines.push(
-          `- **Suggestion (${finding.suggestion.provenance}):** ${inline(finding.suggestion.description)}`,
+          `- **Suggestion (${mdProse(finding.suggestion.provenance)}):** ${mdProse(finding.suggestion.description)}`,
         );
       }
       lines.push(``);
@@ -142,21 +164,21 @@ function renderAuditMarkdown(model: AuditReportModel): string {
   ];
 
   for (const requirement of model.requirements) {
-    lines.push(`### ${requirement.code} — ${requirement.title}`);
+    lines.push(`### ${mdProse(requirement.code)} — ${mdProse(requirement.title)}`);
     lines.push(``);
     lines.push(
-      `- **${requirement.secondaryLabel}:** ${requirement.secondaryCode}`,
+      `- **${mdProse(requirement.secondaryLabel)}:** ${mdProse(requirement.secondaryCode)}`,
     );
     lines.push(
-      `- **Status:** ${requirement.statusLabel} (${requirement.determinationLabel})`,
+      `- **Status:** ${mdProse(requirement.statusLabel)} (${mdProse(requirement.determinationLabel)})`,
     );
     if (requirement.exception) {
       lines.push(
-        `- **Exception:** ${inline(requirement.exception.reason)} — ${inline(requirement.exception.note)} (${formatDateTimeWithZone(requirement.exception.at)})`,
+        `- **Exception:** ${mdProse(requirement.exception.reason)} — ${mdProse(requirement.exception.note)} (${formatDateTimeWithZone(requirement.exception.at)})`,
       );
     }
     lines.push(`- **Updated:** ${formatDateTimeWithZone(requirement.updatedAt)}`);
-    lines.push(`- ${inline(requirement.description)}`);
+    lines.push(`- ${mdProse(requirement.description)}`);
     lines.push(``);
   }
 
@@ -167,7 +189,7 @@ function renderAuditMarkdown(model: AuditReportModel): string {
   } else {
     for (const record of model.evidence) {
       lines.push(
-        `- ${formatDateTimeWithZone(record.at)} · **${record.kindLabel}** — ${inline(record.summary)}`,
+        `- ${formatDateTimeWithZone(record.at)} · **${mdProse(record.kindLabel)}** — ${mdProse(record.summary)}`,
       );
     }
   }

@@ -1,5 +1,4 @@
 import { and, count, desc, eq, inArray, lte, sql } from "drizzle-orm";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
 import { assessmentJobs } from "@complyloop/db/schema";
 import {
@@ -173,31 +172,32 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
     const now = new Date().toISOString();
     await recoverExpiredLeases(tx, now);
 
+    // Single-row claim: lock exactly the job we will run. The correlated
+    // NOT EXISTS keeps one assessment per project without rescanning the table
+    // (served by assessment_jobs_ready_idx + assessment_jobs_project_idx).
     const locked = await tx.execute<{ id: string }>(sql`
-      SELECT id
-      FROM assessment_jobs
-      WHERE status = 'queued'
-        AND available_at <= ${now}
-        AND project_id NOT IN (
-          SELECT project_id
-          FROM assessment_jobs
-          WHERE status = 'running'
+      SELECT job.id
+      FROM assessment_jobs AS job
+      WHERE job.status = 'queued'
+        AND job.available_at <= ${now}
+        AND NOT EXISTS (
+          SELECT 1
+          FROM assessment_jobs AS running
+          WHERE running.status = 'running'
+            AND running.project_id = job.project_id
         )
-      ORDER BY available_at ASC, created_at ASC
-      LIMIT 100
+      ORDER BY job.available_at ASC, job.created_at ASC
+      LIMIT 1
       FOR UPDATE SKIP LOCKED
     `);
-    const lockedIds = [...locked].map((row) => String(row.id));
-    if (lockedIds.length === 0) return null;
+    const [row] = [...locked];
+    if (!row) return null;
+    const candidateId = String(row.id);
 
-    const ready = await tx
+    const [candidate] = await tx
       .select()
       .from(assessmentJobs)
-      .where(inArray(assessmentJobs.id, lockedIds));
-    const byId = new Map(ready.map((job) => [job.id, job]));
-    const candidate = lockedIds
-      .map((id) => byId.get(id))
-      .find((job) => job !== undefined);
+      .where(eq(assessmentJobs.id, candidateId));
     if (!candidate) return null;
 
     const leaseExpiresAt = new Date(Date.now() + DEFAULT_LEASE_MS).toISOString();
@@ -213,7 +213,7 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
       })
       .where(
         and(
-          eq(assessmentJobs.id, candidate.id),
+          eq(assessmentJobs.id, candidateId),
           eq(assessmentJobs.status, "queued"),
         ),
       )
@@ -291,19 +291,6 @@ export async function failAssessmentJob(
     });
   }
   return status;
-}
-
-export async function cancelAssessmentJob(id: string): Promise<void> {
-  const drizzle = await getDrizzle();
-  const now = new Date().toISOString();
-  const cancelled = await drizzle
-    .update(assessmentJobs)
-    .set({ status: "cancelled", completedAt: now, updatedAt: now })
-    .where(and(eq(assessmentJobs.id, id), eq(assessmentJobs.status, "queued")))
-    .returning({ id: assessmentJobs.id });
-  if (cancelled.length === 0) {
-    throw new PublicError("Only queued assessment jobs can be cancelled.");
-  }
 }
 
 export async function recentAssessmentJobsForProject(

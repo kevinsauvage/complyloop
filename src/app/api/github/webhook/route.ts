@@ -23,6 +23,13 @@ const githubWebhookHeadersSchema = z.object({
 
 const githubWebhookPayloadSchema = z.record(z.string(), z.unknown());
 
+/**
+ * Hard cap on webhook bodies. The `content-length` fast path below is
+ * advisory (absent under chunked transfer encoding), so the buffered body is
+ * measured again after `request.text()`.
+ */
+const MAX_WEBHOOK_BODY_BYTES = 5 * 1024 * 1024;
+
 export async function POST(request: Request): Promise<Response> {
   if (!isWebhookConfigured()) {
     return Response.json(
@@ -32,7 +39,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (contentLength > 5 * 1024 * 1024) {
+  if (contentLength > MAX_WEBHOOK_BODY_BYTES) {
     return Response.json(
       { error: "Webhook payload exceeds the 5 MB size limit." },
       { status: 413 },
@@ -40,6 +47,12 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const rawBody = await request.text();
+  if (Buffer.byteLength(rawBody, "utf8") > MAX_WEBHOOK_BODY_BYTES) {
+    return Response.json(
+      { error: "Webhook payload exceeds the 5 MB size limit." },
+      { status: 413 },
+    );
+  }
   const signature = request.headers.get("x-hub-signature-256");
   if (!(await verifyGitHubSignature(rawBody, signature))) {
     return Response.json({ error: "Invalid signature." }, { status: 401 });

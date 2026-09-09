@@ -151,8 +151,7 @@ describe("POST /api/github/webhook", () => {
     );
   });
 
-  it("returns a retryable response when queueing throws", async () => {
-    handleGitHubWebhookEvent.mockRejectedValue(new Error("clone failed"));
+  it("returns a retryable response when queueing throws", async () => {    handleGitHubWebhookEvent.mockRejectedValue(new Error("clone failed"));
     const response = await POST(
       webhookRequest('{"ref":"refs/heads/main"}', {
         "x-github-delivery": "del-throw",
@@ -172,5 +171,36 @@ describe("POST /api/github/webhook", () => {
     );
     expect(retry.status).toBe(200);
     await expect(retry.json()).resolves.toMatchObject({ duplicate: true });
+  });
+
+  it("rejects oversized bodies without a content-length header", async () => {
+    // Stream bodies carry no content-length (chunked transfer), which used to
+    // bypass the size limit entirely.
+    const big = `{"data":"${"x".repeat(5 * 1024 * 1024)}"}`;
+    const request = new Request("http://localhost/api/github/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-github-delivery": "del-big",
+        "x-github-event": "push",
+      },
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(big));
+          controller.close();
+        },
+      }),
+      ...( { duplex: "half" } as Record<string, unknown> ),
+    });
+    expect(request.headers.get("content-length")).toBeNull();
+
+    const response = await POST(request);
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringMatching(/size limit/i),
+    });
+    expect(verifyGitHubSignature).not.toHaveBeenCalled();
+    expect(claimWebhookDelivery).not.toHaveBeenCalled();
+    expect(handleGitHubWebhookEvent).not.toHaveBeenCalled();
   });
 });

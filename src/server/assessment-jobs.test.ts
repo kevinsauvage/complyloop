@@ -102,7 +102,7 @@ function createDrizzle() {
             ? a.createdAt.localeCompare(b.createdAt)
             : a.availableAt.localeCompare(b.availableAt),
         )
-        .slice(0, 100)
+        .slice(0, 1)
         .map((row) => ({ id: row.id }));
     },
     select: (shape?: { projectId?: unknown; id?: unknown }) => ({
@@ -112,6 +112,7 @@ function createDrizzle() {
           const ins = inValues(clause);
           const ltes = lteValues(clause);
           const filtered = [...jobs.values()].filter((row) => {
+            if (eqs.includes(row.id)) return true;
             if (ins.length > 0) {
               return ins.includes(row.status) || ins.includes(row.id);
             }
@@ -214,7 +215,6 @@ function createDrizzle() {
 }
 
 import {
-  cancelAssessmentJob,
   claimNextAssessmentJob,
   completeAssessmentJob,
   enqueueAssessmentJob,
@@ -403,28 +403,6 @@ describe("failAssessmentJob", () => {
     const status = await failAssessmentJob(running, "hard fail");
     expect(status).toBe("failed");
     expect(jobs.get(job.id)?.status).toBe("failed");
-  });
-});
-
-describe("cancelAssessmentJob", () => {
-  it("cancels a queued job", async () => {
-    const job = await enqueueAssessmentJob({
-      projectId: "p1",
-      trigger: "manual",
-    });
-    await cancelAssessmentJob(job.id);
-    expect(jobs.get(job.id)?.status).toBe("cancelled");
-  });
-
-  it("rejects cancelling a non-queued job", async () => {
-    const job = await enqueueAssessmentJob({
-      projectId: "p1",
-      trigger: "manual",
-    });
-    await claimNextAssessmentJob();
-    await expect(cancelAssessmentJob(job.id)).rejects.toThrow(
-      /Only queued assessment jobs/,
-    );
   });
 });
 

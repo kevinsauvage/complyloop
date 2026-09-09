@@ -30,7 +30,15 @@ describe("shouldDrainAssessmentJobsInline", () => {
 
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("E2E_AUTH_ENABLED", "1");
+    vi.stubEnv("E2E_PROD_HARNESS", "1");
     expect(shouldDrainAssessmentJobsInline()).toBe(true);
+  });
+
+  it("refuses the harness in production without the Playwright acknowledgement", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_AUTH_ENABLED", "1");
+    vi.stubEnv("E2E_PROD_HARNESS", "");
+    expect(() => shouldDrainAssessmentJobsInline()).toThrow(/E2E_PROD_HARNESS/);
   });
 });
 

@@ -48,6 +48,24 @@ describe("cloneShallow", () => {
     );
     expect(fs.existsSync(root)).toBe(false);
   });
+
+  it("redacts embedded credentials from clone failure output", async () => {
+    const token = "gho_secret_token";
+    clone.mockRejectedValue(
+      new Error(
+        `fatal: unable to access 'https://x-access-token:${token}@github.com/octo/repo.git/': The requested URL returned error: 403`,
+      ),
+    );
+    const root = path.join(os.tmpdir(), `complyloop-clone-leak-${Date.now()}`, "repo");
+    tempDirs.push(path.dirname(root));
+    const error = await cloneShallow("https://example.com/r.git", root).catch(
+      (cause: unknown) => cause,
+    );
+    expect(error).toBeInstanceOf(PublicError);
+    expect((error as Error).message).not.toContain(token);
+    expect((error as Error).message).not.toContain("x-access-token:");
+    expect((error as Error).message).toContain("git clone failed:");
+  });
 });
 
 describe("withFixtureCheckout", () => {

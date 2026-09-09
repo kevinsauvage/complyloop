@@ -100,7 +100,7 @@ describe("findingAct", () => {
     const view = act();
     expect(view.beat).toBe("source_generate");
     if (view.beat !== "source_generate") return;
-    expect(view.title).toBe("Fix this Finding");
+    expect(view.title).toBe("Fix this finding");
     expect(view.generateLabel).toBe("Generate patch");
     expect(view.canGenerate).toBe(true);
     expect(view.showDismiss).toBe(true);
@@ -246,7 +246,7 @@ describe("findingAct", () => {
   it("shows view_only for users who cannot remediate", () => {
     const view = act({ canRemediate: false });
     expect(view.beat).toBe("view_only");
-    expect(view.title).toBe("Fix this Finding");
+    expect(view.title).toBe("Fix this finding");
     expect(view.description).toMatch(/view-only access/);
   });
 
@@ -261,14 +261,14 @@ describe("findingAct", () => {
     expect(view.description).toMatch(/Connect a GitHub repository/);
   });
 
-  it("explains that AI_GATEWAY_API_KEY disables generation", () => {
+  it("explains that AI generation is disabled", () => {
     const view = act({
       aiAvailable: false,
       githubConnected: true,
     });
     expect(view.beat).toBe("source_generate");
     if (view.beat !== "source_generate") return;
-    expect(view.description).toMatch(/AI_GATEWAY_API_KEY/);
+    expect(view.description).toMatch(/isn't enabled/);
   });
 
   it("never treats a runtime Finding as a patch/PR beat", () => {

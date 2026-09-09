@@ -90,7 +90,7 @@ function runtimeAct(input: FindingActInput): FindingActView {
         beat: "runtime_generate",
         title: "Fix at the call site",
         description:
-          "Propose a call-site fix — not a generic aria-label on a shared primitive.",
+          "Propose a fix where this element is rendered — not a generic change to a shared component.",
         canGenerate: input.aiAvailable,
       };
     case "suggested":
@@ -144,12 +144,12 @@ function sourceGenerate(input: FindingActInput): FindingActView {
   if (!input.githubConnected) {
     description = "Connect a GitHub repository before generating a patch.";
   } else if (!canGenerate) {
-    description = "Set AI_GATEWAY_API_KEY to generate a patch for this Finding.";
+    description = "AI patch generation isn't enabled for this workspace yet.";
   }
   return {
     ...chrome(input),
     beat: "source_generate",
-    title: "Fix this Finding",
+    title: "Fix this finding",
     description,
     generateLabel,
     canGenerate,
@@ -187,7 +187,7 @@ export function findingAct(input: FindingActInput): FindingActView {
     return {
       ...chrome(input),
       beat: "view_only",
-      title: "Fix this Finding",
+      title: "Fix this finding",
       description:
         "You have view-only access on this project. Ask a member or admin to generate patches or verify remediations.",
     };

@@ -17,6 +17,9 @@ const e2eEnv: Record<string, string> = {
   AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET ?? "e2e",
   AUTH_URL: baseURL,
   E2E_AUTH_ENABLED: "1",
+  // Acknowledge that this production-mode (`next start`) server is the
+  // Playwright harness, not a real deployment (see src/server/e2e-harness.ts).
+  E2E_PROD_HARNESS: "1",
   E2E_FIXTURE_ROOT: process.env.E2E_FIXTURE_ROOT ?? fixtureRoot,
   // GitHub webhook HMAC secret — the spec signs deliveries with the same value.
   GITHUB_WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET ?? "e2e-webhook-secret",

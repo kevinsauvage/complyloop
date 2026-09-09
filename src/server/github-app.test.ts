@@ -77,12 +77,26 @@ describe("GitHub App configuration", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PHASE", "");
     vi.stubEnv("E2E_AUTH_ENABLED", "1");
+    vi.stubEnv("E2E_PROD_HARNESS", "1");
     vi.stubEnv("AUTH_SECRET", "secret");
     vi.stubEnv("AUTH_GITHUB_ID", "client");
     vi.stubEnv("AUTH_GITHUB_SECRET", "client-secret");
     vi.stubEnv("GITHUB_APP_ID", "");
     vi.stubEnv("GITHUB_APP_PRIVATE_KEY", "");
     expect(() => assertProductionGitHubApp()).not.toThrow();
+  });
+
+  it("refuses the harness in production without the Playwright acknowledgement", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PHASE", "");
+    vi.stubEnv("E2E_AUTH_ENABLED", "1");
+    vi.stubEnv("E2E_PROD_HARNESS", "");
+    vi.stubEnv("AUTH_SECRET", "secret");
+    vi.stubEnv("AUTH_GITHUB_ID", "client");
+    vi.stubEnv("AUTH_GITHUB_SECRET", "client-secret");
+    vi.stubEnv("GITHUB_APP_ID", "");
+    vi.stubEnv("GITHUB_APP_PRIVATE_KEY", "");
+    expect(() => assertProductionGitHubApp()).toThrow(/E2E_PROD_HARNESS/);
   });
 
   it("allows production when App credentials are set", () => {
