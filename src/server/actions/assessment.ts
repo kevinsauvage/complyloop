@@ -45,16 +45,19 @@ export async function runAssessmentAction(
     if (shouldDrainAssessmentJobsInline()) {
       const outcome = await drainAssessmentJobQueue();
       refresh();
+      if (outcome.ran > 0) {
+        return "Assessment complete.";
+      }
+      if (outcome.failed > 0 && outcome.retrying > 0) {
+        return `${outcome.failed} assessment job${outcome.failed === 1 ? "" : "s"} failed and ${outcome.retrying} will retry.`;
+      }
       if (outcome.failed > 0) {
         return `${outcome.failed} assessment job${outcome.failed === 1 ? "" : "s"} failed. Check the server logs for details.`;
       }
       if (outcome.retrying > 0) {
         return "Assessment hit an error and will retry automatically.";
       }
-      if (outcome.ran > 0) {
-        return "Assessment complete.";
-      }
-      return "Assessment complete.";
+      return "No assessment jobs were ready to run.";
     }
 
     refresh();

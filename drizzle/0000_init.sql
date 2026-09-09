@@ -1,7 +1,6 @@
 -- ComplyLoop Postgres schema (pre-launch single migration).
 -- Evidence is append-only (no FKs) so history survives project/org deletion.
 -- Mutable tables use ON DELETE CASCADE for scoped persist prune.
--- Compliance catalog (frameworks/controls) lives in @complyloop/adapters — not here.
 
 -- ---------------------------------------------------------------------------
 -- Tenancy

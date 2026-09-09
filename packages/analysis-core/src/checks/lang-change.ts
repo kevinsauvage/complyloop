@@ -42,6 +42,7 @@ export const langChangeCheck: AccessibilityCheck = {
   id: "lang-change",
   run(source) {
     const defaultLang = pageLang(source.sourceFile);
+    if (!defaultLang) return [];
     const findings: RawFinding[] = [];
 
     for (const entry of collectJsxTexts(source.sourceFile, { minLength: 4 })) {

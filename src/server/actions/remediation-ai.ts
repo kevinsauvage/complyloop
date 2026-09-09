@@ -2,7 +2,6 @@
 
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
-import { setAiWarn } from "@/ai/ai-call";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { entityIdSchema } from "@/core/boundary";
@@ -13,7 +12,6 @@ import {
   type ActionMessageState,
 } from "../action-state";
 import { parseInput } from "../boundary";
-import { reportWarning } from "../observability";
 import { assertAiRateLimit } from "../rate-limit";
 import {
   controlById,
@@ -25,10 +23,6 @@ import {
   refresh,
   replaceRemediation,
 } from "./shared";
-
-setAiWarn((message, context) => {
-  reportWarning(message, context);
-});
 
 export async function generateAiExplanationAction(
   findingIdRaw: string,

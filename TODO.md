@@ -2,6 +2,8 @@
 
 Audit date: 2026-09-08. Source of truth: implementation, not docs. Worked tree currently has an in-flight P0+P1 correctness pass (`docs/superpowers/specs/2026-09-08-p0-p1-correctness-design.md`) — most items landed, but P1-6 (unified status counting) is only partially landed and tracked as P3-1 below. This roadmap is additive to that pass.
 
+> Cleanup pass completed 2026-09-09: P1-5, P2-1, P2-5, P3-1, P3-2, P3-4, P3-5, P3-6 are now implemented. Remaining items below are the outstanding work.
+
 Priorities:
 
 - **P0** — critical / blocking
@@ -36,7 +38,7 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 **Verification:** Unit test in `src/server/github-tokens.test.ts` with an expired stored token — assert either a successful refresh or a clean public error on dashboard connect paths.
 
-### P1-5 — `lang-change` defaults to English when the page has no `lang`, producing false positives
+### P1-5 — `lang-change` defaults to English when the page has no `lang`, producing false positives ✅
 
 **Problem:** `needsLangForScript` falls back to `"en"` when `pageLang` returns `undefined`; `LATIN_EXTENDED` (`[À-ÿ]`) then matches French/Spanish/Polish accented text, so every page without `html lang` (very common) emits `lang-change` warnings that push controls to `needs_review`. The real defect — missing `html lang` — is a different (already existing) check; this one should not fire on it.
 
@@ -53,7 +55,7 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 ## P2
 
-### P2-1 — Runtime scanner leaks the cached Chromium browser in long-lived processes
+### P2-1 — Runtime scanner leaks the cached Chromium browser in long-lived processes ✅
 
 **Problem:** `scan.ts` caches `sharedBrowser` (`getBrowser`, lines 54-65) and never registers teardown; `context.close()` per scan closes pages/contexts but not the browser. In a long-lived worker (or repeated manual runs) this leaks headless Chromium processes/fds. `playwright-page.ts` already has `registerPlaywrightBrowserTeardown` for tests — production scan has no equivalent.
 
@@ -93,7 +95,7 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 **Verification:** `src/server/pr.test.ts` — mock PR-create to fail after a successful push → evidence row references the branch; no crash.
 
-### P2-5 — No payload-size limit on the webhook route
+### P2-5 — No payload-size limit on the webhook route ✅
 
 **Problem:** `request.text()` reads the whole body into memory before signature verification; GitHub attachments aren't sent here, but a misconfigured client (or replay abuse with a compromised secret) can force large allocations on every delivery.
 
@@ -177,7 +179,7 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 ## P3
 
-### P3-1 — Finish P1-6 from the correctness pass: unify status counting on the requirements page
+### P3-1 — Finish P1-6 from the correctness pass: unify status counting on the requirements page ✅
 
 **Problem:** The dashboard uses `countByStatus` but the requirements page still hand-rolls `new Map<string, number>()` for open-finding counts with a divergent shape; the previous plan item P1-6 was only partially landed.
 
@@ -187,7 +189,7 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 **Verification:** `npm run test` — requirements page counts match `countByStatus(..., REQUIREMENT_STATUSES)`-style assertions in `src/core/count-by-status.test.ts`.
 
-### P3-2 — Remove redundant index on `assessment_snapshots.assessment_id`
+### P3-2 — Remove redundant index on `assessment_snapshots.assessment_id` ✅
 
 **Problem:** `assessment_id` is the primary key, and Postgres auto-creates a PK index; the explicit `assessment_snapshots_assessment_id_idx` is pure write amplification.
 
@@ -207,7 +209,7 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 **Verification:** `npm run test:coverage` — new files push coverage up and no threshold regression.
 
-### P3-4 — Inline dev drain returns "Assessment complete." when no job ran
+### P3-4 — Inline dev drain returns "Assessment complete." when no job ran ✅
 
 **Problem:** `drainAssessmentJobQueue` returns `{ ran: 0, ... }` after processing non-idle work (e.g. all retrying/failed), and `runAssessmentAction` answers "Assessment complete." even when nothing succeeded.
 
@@ -217,7 +219,7 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 **Verification:** `src/server/actions/assessment.test.ts` — assert copy reflects `retrying`/`failed` outcomes.
 
-### P3-5 — `repo-checkout` swallows the ref-fetch failure
+### P3-5 — `repo-checkout` swallows the ref-fetch failure ✅
 
 **Problem:** `withRepoCheckout` does `try { await git.fetch(...) } catch {}` — a failed fetch of a PR-head SHA (deleted branch) is silently ignored, and the subsequent `git.checkout([options.ref])` throws a generic error. The job then retries 3× pointlessly.
 
@@ -227,7 +229,7 @@ Global constraints for any agent executing these items: domain vocabulary from `
 
 **Verification:** `src/server/repo-checkout.test.ts` — fetch rejection → clear error immediately, no retry loop.
 
-### P3-6 — `setAiWarn` is wired only in the remediation path; other AI failure modes are invisible in prod
+### P3-6 — `setAiWarn` is wired only in the remediation path; other AI failure modes are invisible in prod ✅
 
 **Problem:** `setAiWarn` is called only in `src/server/actions/remediation-ai.ts:29`. The patch path (`generateAiFixAction` → `runAiFixOnCheckout` → `proposeFixEdits` → `aiCall(..., onFailure: "throw")`) never wires it, so every failed gateway patch attempt vanishes (default no-op `warnFn`) and the user only sees a generic message with no Sentry log.
 

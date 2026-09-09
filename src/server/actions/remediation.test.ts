@@ -240,7 +240,7 @@ describe("runAssessmentAction", () => {
 
     expect(result).toEqual({
       error: null,
-      message: "Assessment complete.",
+      message: "No assessment jobs were ready to run.",
     });
     expect(enqueueAssessmentJob).toHaveBeenCalledWith({
       projectId: "p1",

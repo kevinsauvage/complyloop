@@ -31,6 +31,14 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (contentLength > 5 * 1024 * 1024) {
+    return Response.json(
+      { error: "Webhook payload exceeds the 5 MB size limit." },
+      { status: 413 },
+    );
+  }
+
   const rawBody = await request.text();
   const signature = request.headers.get("x-hub-signature-256");
   if (!(await verifyGitHubSignature(rawBody, signature))) {

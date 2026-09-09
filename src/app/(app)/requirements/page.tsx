@@ -16,7 +16,7 @@ import {
 import {
   parseRequirementStatusParam,
 } from "@/core/query";
-import { countByStatus } from "@/core/count-by-status";
+import { countByStatus, toCountMap } from "@/core/count-by-status";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { projectCapabilities } from "@/server/project-capabilities";
@@ -74,14 +74,10 @@ export default async function RequirementsPage({
     inScopeIds.has(requirement.controlId),
   );
 
-  const openFindingCounts = new Map<string, number>();
-  for (const finding of runtime.findings) {
-    if (finding.projectId !== project.id || finding.status !== "open") continue;
-    openFindingCounts.set(
-      finding.controlId,
-      (openFindingCounts.get(finding.controlId) ?? 0) + 1,
-    );
-  }
+  const openFindingCounts = toCountMap(
+    runtime.findings.filter((finding) => finding.projectId === project.id && finding.status === "open"),
+    (finding) => finding.controlId,
+  );
 
   const statusCounts = countByStatus(assessed, REQUIREMENT_STATUSES);
 

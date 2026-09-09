@@ -124,7 +124,10 @@ export async function withRepoCheckout<T>(
       try {
         await git.fetch(["--depth", "1", "origin", options.ref]);
       } catch {
-        // Shallow clone of default branch may already include the ref (e.g. push).
+        throw new PublicError(
+          `Ref not found: ${options.ref}. The branch or commit may have been deleted.`,
+          "ref_not_found",
+        );
       }
       await git.checkout([options.ref]);
     }

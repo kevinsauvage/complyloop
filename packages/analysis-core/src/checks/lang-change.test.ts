@@ -34,4 +34,15 @@ describe("lang-change", () => {
     );
     expect(findings.length).toBeGreaterThan(0);
   });
+
+  it("skips script-mismatch detection when no lang is declared", () => {
+    expect(
+      langChangeCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<html><p>Bienvenue à Paris</p></html>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
 });

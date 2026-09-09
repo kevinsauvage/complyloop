@@ -56,11 +56,11 @@ let sharedBrowser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (!sharedBrowser) {
-    // Loaded lazily so any consumer that imports this module (or bundles the
-    // AST-only path) never pulls the Playwright runtime — same rationale as
-    // the dynamic `linkinator` import in site-level/link-check.ts.
     const { chromium } = await import("playwright");
     sharedBrowser = await chromium.launch({ headless: true });
+    process.on("exit", () => {
+      sharedBrowser?.close().catch(() => {});
+    });
   }
   return sharedBrowser;
 }

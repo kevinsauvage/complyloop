@@ -155,7 +155,6 @@ export const assessmentSnapshots = pgTable(
       .references(() => assessments.id, { onDelete: "cascade" }),
     snapshot: jsonb("snapshot").$type<AssessmentSnapshot>().notNull(),
   },
-  (table) => [index("assessment_snapshots_assessment_id_idx").on(table.assessmentId)],
 );
 
 export const findings = pgTable(
