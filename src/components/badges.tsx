@@ -11,7 +11,6 @@ import {
   requirementStatusDisplay,
   severityDisplay,
   STATUS_TONE_BADGE,
-  statusToneBadgeClass,
 } from "@/core/status-display";
 import type {
   Confidence,
@@ -61,7 +60,7 @@ export function RemediationStatusBadge({
     <BadgeWithDescription description={display.description}>
       <Badge
         variant={display.badgeVariant}
-        className={cn(statusToneBadgeClass(display.tone))}
+        className={cn(display.tone ? STATUS_TONE_BADGE[display.tone] : "")}
       >
         {display.label}
       </Badge>
@@ -75,7 +74,7 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
     <BadgeWithDescription description={display.description}>
       <Badge
         variant={display.badgeVariant}
-        className={cn(statusToneBadgeClass(display.tone))}
+        className={cn(display.tone ? STATUS_TONE_BADGE[display.tone] : "")}
       >
         {display.label}
       </Badge>
@@ -127,7 +126,7 @@ export function EngineBadge({ engine }: { engine: AssessmentEngine }) {
       <Badge
         variant={display.badgeVariant}
         className={cn(
-          statusToneBadgeClass(display.tone),
+          display.tone ? STATUS_TONE_BADGE[display.tone] : "",
           display.badgeVariant === "outline" && "text-muted-foreground",
         )}
       >

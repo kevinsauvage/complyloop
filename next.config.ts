@@ -24,8 +24,8 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   // Dev-only: allow the ngrok tunnel host to fetch dev assets (403 otherwise).
-  // Production ignores this setting.
-  allowedDevOrigins: ["jaida-unapplausive-antonietta.ngrok-free.dev"],
+  // Production ignores this setting. Set ALLOWED_DEV_ORIGINS="host1,host2".
+  allowedDevOrigins: process.env.ALLOWED_DEV_ORIGINS?.split(",").filter(Boolean) ?? [],
 };
 
 export default withSentryConfig(nextConfig, {

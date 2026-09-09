@@ -1,7 +1,8 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { AI_MODEL } from "./model";
+/** Vercel AI Gateway model id (`provider/model`). */
+export const AI_MODEL = "minimax/minimax-m3";
 
 /** User-facing copy when patch generation needs AI and none is configured. */
 export const AI_PATCH_UNAVAILABLE_MESSAGE =

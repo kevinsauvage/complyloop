@@ -6,10 +6,7 @@ const domIncludes = [
   "src/hooks/**/*.test.ts",
   "src/app/**/*.test.tsx",
   "packages/analysis-core/src/runtime/site-level/snapshot.test.ts",
-  "packages/analysis-core/src/runtime/custom-checks/hit-capture.test.ts",
-  "packages/analysis-core/src/runtime/custom-checks/widget-keyboard.test.ts",
-  "packages/analysis-core/src/runtime/custom-checks/captcha-candidates.test.ts",
-  "packages/analysis-core/src/runtime/custom-checks/is-layout-table.test.ts",
+  "packages/analysis-core/src/runtime/custom-checks/*.test.ts",
 ];
 
 const unitIncludes = [
@@ -59,15 +56,7 @@ export default defineConfig({
         "packages/db/src/schema.ts",
         "packages/db/src/workspace-load.ts",
         "packages/db/src/postgres-url.ts",
-        "packages/db/src/repo/alerts.ts",
-        "packages/db/src/repo/assessments.ts",
-        "packages/db/src/repo/evidence.ts",
-        "packages/db/src/repo/findings.ts",
-        "packages/db/src/repo/nav-attention.ts",
-        "packages/db/src/repo/orgs.ts",
-        "packages/db/src/repo/projects.ts",
-        "packages/db/src/repo/remediations.ts",
-        "packages/db/src/repo/requirements.ts",
+        "packages/db/src/repo/**",
         "packages/db/src/test-fixtures/**",
         // Write path covered by workspace.test.ts + workspace.integration.test.ts (test:db).
         "src/server/workspace.ts",

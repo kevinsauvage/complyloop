@@ -358,11 +358,6 @@ export const STATUS_TONE_ACCENT: Record<
   unverifiable: "bg-status-unverifiable",
 };
 
-/** Class for a badge tint; empty when tone is null (plain secondary/outline). */
-export function statusToneBadgeClass(tone: StatusTone | null): string {
-  return tone ? STATUS_TONE_BADGE[tone] : "";
-}
-
 // ---------------------------------------------------------------------------
 // Evidence — one record per kind; `finding` and `assessment_job` refine
 // label + tone together from `detail`, so the two stay in sync.

@@ -5,9 +5,8 @@ import type { Finding } from "@complyloop/db/types"
 import type { Explanation } from "@complyloop/analysis-core/contract/finding-types";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef, locationSnippet } from "@complyloop/analysis-core/contract/location";
-import { AI_MODEL } from "./model";
+import { AI_MODEL, aiCall } from "./ai-call";
 import { confidenceSchema } from "./schemas";
-import { aiCall } from "./ai-call";
 
 const explanationSchema = z.object({
   whyItFailed: z.string(),

@@ -6,9 +6,8 @@ import type { RemediationSuggestion } from "@complyloop/analysis-core/contract/f
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef, locationSnippet } from "@complyloop/analysis-core/contract/location";
 import { aiExplanationAvailable } from "./explainer";
-import { AI_MODEL } from "./model";
 import { confidenceSchema } from "./schemas";
-import { aiCall } from "./ai-call";
+import { AI_MODEL, aiCall } from "./ai-call";
 
 const remediationSchema = z.object({
   description: z.string(),
