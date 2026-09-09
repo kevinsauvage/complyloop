@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 export const entityIdSchema = z.string().trim().min(1).max(128);
 
@@ -81,5 +82,29 @@ export function parseUnknown<T>(
 ): T {
   const result = schema.safeParse(value);
   if (!result.success) throw new Error(message);
+  return result.data;
+}
+
+export function parseForm<T>(
+  schema: z.ZodType<T>,
+  formData: FormData,
+  fallback = "Invalid form input.",
+): T {
+  const result = schema.safeParse(formRecord(formData));
+  if (!result.success) {
+    throw new PublicError(firstIssueMessage(result.error, fallback), "validation");
+  }
+  return result.data;
+}
+
+export function parseInput<T>(
+  schema: z.ZodType<T>,
+  value: unknown,
+  fallback = "Invalid input.",
+): T {
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    throw new PublicError(firstIssueMessage(result.error, fallback), "validation");
+  }
   return result.data;
 }

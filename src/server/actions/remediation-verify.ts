@@ -9,13 +9,17 @@ import {
 } from "@complyloop/analysis-core/runtime/scan";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { advanceRemediation } from "@/core/remediation";
-import { entityIdSchema, optionalNoteSchema } from "@/core/boundary";
+import {
+  entityIdSchema,
+  optionalNoteSchema,
+  parseForm,
+  parseInput,
+} from "@/core/boundary";
 import { z } from "zod";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { parseForm, parseInput } from "../boundary";
 import { sameInstance } from "../assessment-findings";
 import { applyRequirementStatusRefresh } from "../assessment-status";
 import type { Db } from "@complyloop/db/types";

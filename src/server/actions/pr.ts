@@ -1,13 +1,12 @@
 "use server";
 
-import { entityIdSchema } from "@/core/boundary";
+import { entityIdSchema, parseInput } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/remediation";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { parseInput } from "../boundary";
 import { patchCandidateFromEvidence } from "../ai-fix";
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";

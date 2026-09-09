@@ -1,8 +1,7 @@
 import { z } from "zod";
-import { entityIdSchema } from "@/core/boundary";
+import { entityIdSchema, parseInput } from "@/core/boundary";
 import { isProjectVisible } from "@/server/project-visibility";
 import { recentAssessmentJobsForProject } from "@/server/assessment-jobs";
-import { parseInput } from "@/server/boundary";
 import { getWorkspace } from "@/server/workspace";
 
 export const runtime = "nodejs";

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { requiredField } from "@/core/boundary";
+import { parseForm, requiredField } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/client";
 import { getAlertById, markAlertRead } from "@complyloop/db/repo/alerts";
@@ -11,7 +11,6 @@ import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { parseForm } from "../boundary";
 import { assertProjectPermission } from "../project-visibility";
 import { withProjectLock } from "../workspace-write";
 import { refresh, requireSignedIn } from "./shared";

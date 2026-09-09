@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  parseReportViewParam,
-  reportHtmlHref,
-  reportMarkdownHref,
-} from "./query";
+import { parseReportViewParam, reportHref } from "./query";
 
 describe("parseReportViewParam", () => {
   it("accepts the engineering view", () => {
@@ -20,14 +16,14 @@ describe("parseReportViewParam", () => {
 
 describe("report href builders", () => {
   it("builds markdown and html hrefs for each view", () => {
-    expect(reportMarkdownHref("audit")).toBe("/evidence/report?view=audit");
-    expect(reportMarkdownHref("engineering")).toBe(
+    expect(reportHref("audit", "markdown")).toBe("/evidence/report?view=audit");
+    expect(reportHref("engineering", "markdown")).toBe(
       "/evidence/report?view=engineering",
     );
-    expect(reportHtmlHref("audit")).toBe(
+    expect(reportHref("audit", "html")).toBe(
       "/evidence/report/html?view=audit",
     );
-    expect(reportHtmlHref("engineering")).toBe(
+    expect(reportHref("engineering", "html")).toBe(
       "/evidence/report/html?view=engineering",
     );
   });

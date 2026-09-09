@@ -4,14 +4,13 @@ import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { entityIdSchema } from "@/core/boundary";
+import { entityIdSchema, parseInput } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { refreshSuggestion } from "@/core/remediation";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { parseInput } from "../boundary";
 import { assertAiRateLimit } from "../rate-limit";
 import {
   controlById,

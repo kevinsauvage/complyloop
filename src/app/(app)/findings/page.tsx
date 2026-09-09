@@ -18,7 +18,7 @@ import {
   type FindingsTab,
   type FindingListParams,
 } from "@/core/finding-list-filter";
-import { reportMarkdownHref } from "@/core/query";
+import { reportHref } from "@/core/query";
 import { paginateSlice } from "@/core/pagination";
 import { prioritizeClusters } from "@/core/prioritization";
 import { clusterFindings } from "@/core/root-cause";
@@ -159,7 +159,7 @@ export default async function FindingsPage({
         description="Every failure with its reason, location, remediation state, and evidence."
       >
         <Button variant="outline" size="sm" asChild>
-          <a href={reportMarkdownHref("engineering")} download>
+          <a href={reportHref("engineering", "markdown")} download>
             Export engineering report
           </a>
         </Button>
@@ -207,7 +207,7 @@ export default async function FindingsPage({
                         View requirements
                       </PageActionLink>
                       <Button variant="outline" size="sm" asChild>
-                        <a href={reportMarkdownHref("audit")} download>
+                        <a href={reportHref("audit", "markdown")} download>
                           Export audit report
                         </a>
                       </Button>

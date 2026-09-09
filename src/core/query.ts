@@ -90,12 +90,11 @@ export function parseReportViewParam(
   return "audit";
 }
 
-export function reportMarkdownHref(view: ReportView): string {
-  return buildHref("/evidence/report", { view });
-}
+export type ReportFormat = "markdown" | "html";
 
-export function reportHtmlHref(view: ReportView): string {
-  return buildHref("/evidence/report/html", { view });
+export function reportHref(view: ReportView, format: ReportFormat): string {
+  const base = format === "html" ? "/evidence/report/html" : "/evidence/report";
+  return buildHref(base, { view });
 }
 
 export function parsePresetIdParam(

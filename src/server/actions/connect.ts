@@ -2,12 +2,11 @@
 
 import { z } from "zod";
 import { getGitHubAccessToken } from "@/auth";
-import { requiredField } from "@/core/boundary";
+import { parseForm, requiredField } from "@/core/boundary";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { parseForm } from "../boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   readActiveOrgCookie,

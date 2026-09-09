@@ -3,11 +3,13 @@
 Source of truth: actual code (2026-09-09). Do not modify app code beyond what each item says.
 After each item: `npm run lint && npm run typecheck` + targeted test noted, then `npm run build` for route/package changes.
 
-## Done (2026-09-09, verified: typecheck + eslint + 48 tests pass)
+## Done (2026-09-09, verified: typecheck + eslint + targeted vitest pass)
 - Moved `AI_MODEL` from `src/ai/model.ts` into `src/ai/ai-call.ts`; deleted `model.ts` (item 8, partial — `schemas.ts` kept: shared by 2 callers, justified).
 - Deleted trivial `statusToneBadgeClass()` wrapper; call sites index `STATUS_TONE_BADGE` directly (item 11, partial — `EVIDENCE_TONE_*` kept: distinct `pass/fail` vs `passed/failed` domain).
 - `next.config.ts` `allowedDevOrigins` now reads `ALLOWED_DEV_ORIGINS` env instead of hardcoded ngrok host (item 14, partial).
 - `vitest.config.mts`: collapsed 4 `custom-checks/*.test.ts` lines to one glob + 9 `repo/*.ts` excludes to `repo/**` (item 14, partial).
+- Item 2 done: deleted `src/server/boundary.ts`; `parseForm`/`parseInput` moved verbatim into `src/core/boundary.ts` (contract `PublicError` import is allowed there); 14 call sites now import from `@/core/boundary`; `server/boundary.test.ts` merged into `core/boundary.test.ts`. `parseUnknown` unchanged (client-side plain-`Error` semantics).
+- Item 10 (partial): merged `reportMarkdownHref`/`reportHtmlHref` into `reportHref(view, format)`; updated `findings/page.tsx`, `evidence/page.tsx`, `query-report-view.test.ts`. Rest of `query.ts` kept (typed wrappers + routing rules earn their keep); `paginateSlice` vs `pageSliceFromQuery` kept (client-slice vs server-paginated semantics differ); `toCountMap` kept (generic, tested, single use is fine).
 - Deliberately NOT done (audited, keep as-is): `theme-provider.tsx` (required `"use client"` boundary — layout is server), `OrgSwitcher`/`ProjectSwitcher` (client boundaries + distinct option mapping), `personal-org.ts` (de-duplicates `getDrizzle()` across 3 callers + has dedicated test), `remediation-evidence.ts` (de-duplicates template + `formatLocationRef` import across 5 call sites).
 
 ## P1 — Significant unnecessary complexity

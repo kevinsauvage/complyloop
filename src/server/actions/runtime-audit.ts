@@ -6,7 +6,7 @@ import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { parseForm } from "../boundary";
+import { parseForm } from "@/core/boundary";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
 import { withProjectWrite } from "../workspace-write";
 import { refresh, requireOnActive } from "./shared";

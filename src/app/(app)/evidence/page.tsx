@@ -21,7 +21,7 @@ import {
 import { evidenceRecordHref } from "@/core/query";
 import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/status-display";
 import { parseEvidenceKindParam, evidenceKindHref } from "@/core/query";
-import { reportHtmlHref, reportMarkdownHref } from "@/core/query";
+import { reportHref } from "@/core/query";
 import {
   DEFAULT_PAGE_SIZE,
   pageSliceFromQuery,
@@ -90,18 +90,18 @@ export default async function EvidencePage({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <a href={reportMarkdownHref("engineering")} download>
+              <a href={reportHref("engineering", "markdown")} download>
                 Engineering (Markdown)
               </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <a href={reportMarkdownHref("audit")} download>
+              <a href={reportHref("audit", "markdown")} download>
                 Audit (Markdown)
               </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a
-                href={reportHtmlHref("engineering")}
+                href={reportHref("engineering", "html")}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -109,7 +109,7 @@ export default async function EvidencePage({
               </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <a href={reportHtmlHref("audit")} target="_blank" rel="noreferrer">
+              <a href={reportHref("audit", "html")} target="_blank" rel="noreferrer">
                 Audit (HTML)
               </a>
             </DropdownMenuItem>

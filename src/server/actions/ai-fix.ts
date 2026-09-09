@@ -3,14 +3,13 @@
 import { assertSourceLocatedFinding } from "@/ai/verified-fix";
 import { aiExplanationAvailable } from "@/ai/explainer";
 import { hasSafeDeterministicFix } from "@/core/finding-act";
-import { entityIdSchema } from "@/core/boundary";
+import { entityIdSchema, parseInput } from "@/core/boundary";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
-import { parseInput } from "../boundary";
 import { persistPatchCandidate, runAiFixOnCheckout } from "../ai-fix";
 import { assertAiRateLimit } from "../rate-limit";
 import { withProjectCheckout } from "../repo-checkout";
