@@ -18,6 +18,15 @@ import { Button, buttonVariants } from "@/components/ui/button";
 type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
 type ButtonSize = VariantProps<typeof buttonVariants>["size"];
 
+/** Single pending-label rule shared with `StatefulActionForm`. */
+export function resolveSubmitLabel(
+  pending: boolean,
+  label: string,
+  pendingLabel?: string,
+): string {
+  return pending ? (pendingLabel ?? "Working…") : label;
+}
+
 /**
  * Submit control gated by AlertDialog confirmation (replaces window.confirm).
  * Uses the HTML form= attribute so the confirm action still submits a portaled dialog.
@@ -61,7 +70,7 @@ export function ConfirmSubmitButton({
           disabled={triggerDisabled}
           className={className}
         >
-          {pending ? (pendingLabel ?? "Working…") : label}
+          {resolveSubmitLabel(pending, label, pendingLabel)}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
@@ -79,7 +88,7 @@ export function ConfirmSubmitButton({
             onClick={() => setOpen(false)}
             className="pointer-events-auto"
           >
-            {pending ? (pendingLabel ?? "Working…") : label}
+            {resolveSubmitLabel(pending, label, pendingLabel)}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,10 +1,11 @@
+import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthControls } from "@/components/auth-controls";
 import { WorkspaceContext } from "@/components/workspace-context";
 import { navAttentionForProject } from "@/server/nav-attention";
 import { getWorkspace } from "@/server/workspace";
 
-export default async function AppLayout({ children }: LayoutProps<"/">) {
+export default async function AppLayout({ children }: { children: ReactNode }) {
   const { project } = await getWorkspace();
   const navAttention = project
     ? await navAttentionForProject(project)

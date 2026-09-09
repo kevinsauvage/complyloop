@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { buildHref } from "@/core/query";
 
 export function PaginationNav({
   page,
@@ -20,11 +21,10 @@ export function PaginationNav({
   if (totalPages <= 1) return null;
 
   const hrefFor = (target: number) => {
-    const params = new URLSearchParams(query);
-    if (target > 1) params.set("page", String(target));
-    else params.delete("page");
-    const qs = params.toString();
-    return qs ? `${basePath}?${qs}` : basePath;
+    const params: Record<string, string> = { ...(query ?? {}) };
+    if (target > 1) params.page = String(target);
+    else delete params.page;
+    return buildHref(basePath, params);
   };
 
   return (
