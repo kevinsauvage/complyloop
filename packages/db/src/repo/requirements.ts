@@ -1,6 +1,6 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
-import type { DrizzleDb } from "../client.ts";
+import type { DrizzleDb } from "../postgres.ts";
 import { requirements } from "../schema.ts";
 import { requirementToRow } from "./mappers.ts";
 import { upsertPayloadRows } from "./upsert-guard.ts";

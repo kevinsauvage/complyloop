@@ -1,9 +1,49 @@
 import dns from "node:dns/promises";
+import { sql } from "drizzle-orm";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import {
-  isDatabaseSslInsecureEnabled,
-  resolvePostgresSslOptions,
-} from "./postgres-ssl.ts";
+import * as schema from "./schema.ts";
+
+/**
+ * Maps libpq-style sslmode to postgres.js TLS options.
+ * `require` / `prefer` encrypt **and** verify the server certificate by default.
+ * Opt out only with an explicit insecure flag (documented for Aiven-style CAs
+ * until `sslrootcert` is wired).
+ */
+export function resolvePostgresSslOptions(input: {
+  sslmode: string | null;
+  hostname: string;
+  allowInsecureSsl: boolean;
+}): { rejectUnauthorized: boolean; servername: string } | undefined {
+  const mode = input.sslmode?.toLowerCase() ?? null;
+  if (!mode || mode === "disable" || mode === "allow") {
+    return undefined;
+  }
+
+  if (
+    mode !== "require" &&
+    mode !== "prefer" &&
+    mode !== "verify-ca" &&
+    mode !== "verify-full"
+  ) {
+    return undefined;
+  }
+
+  const mustVerify = mode === "verify-ca" || mode === "verify-full";
+  const rejectUnauthorized = mustVerify ? true : !input.allowInsecureSsl;
+
+  return {
+    rejectUnauthorized,
+    servername: input.hostname,
+  };
+}
+
+export function isDatabaseSslInsecureEnabled(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  const raw = env.DATABASE_SSL_INSECURE?.trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
+}
 
 /**
  * Opens a postgres.js client from DATABASE_URL.
@@ -138,4 +178,88 @@ function compactArgs(args: unknown[]): unknown[] {
   return args.length > MAX_ARGS
     ? [...shown, `… ${args.length - MAX_ARGS} more`]
     : shown;
+}
+
+export type DrizzleDb = PostgresJsDatabase<typeof schema>;
+
+/**
+ * Free-tier Postgres (Neon/Aiven) often allows ~20 connections with a few
+ * reserved for superuser. Keep the pool small.
+ */
+const POOL_MAX = 3;
+
+type GlobalDb = {
+  __complyloopSql?: ReturnType<typeof postgres> | null;
+  __complyloopDb?: DrizzleDb | null;
+  __complyloopInit?: Promise<DrizzleDb> | null;
+};
+
+/** Survive Turbopack/HMR so we do not leak a new pool on every reload. */
+const globalForDb = globalThis as typeof globalThis & GlobalDb;
+
+/** Lazy singleton for the app process (and across HMR in dev). */
+export async function getDrizzle(): Promise<DrizzleDb> {
+  if (globalForDb.__complyloopDb) return globalForDb.__complyloopDb;
+  if (!globalForDb.__complyloopInit) {
+    globalForDb.__complyloopInit = (async () => {
+      const url = process.env.DATABASE_URL?.trim();
+      if (!url) {
+        throw new Error("DATABASE_URL is not set.");
+      }
+      globalForDb.__complyloopSql = await createPostgresClient(url, {
+        max: POOL_MAX,
+      });
+      globalForDb.__complyloopDb = drizzle(globalForDb.__complyloopSql, {
+        schema,
+      });
+      return globalForDb.__complyloopDb;
+    })().catch((error) => {
+      // Allow a later request to retry after a transient pool/slot failure.
+      globalForDb.__complyloopInit = null;
+      throw error;
+    });
+  }
+  return globalForDb.__complyloopInit;
+}
+
+/** Test helper — closes the pool. */
+export async function closeDrizzle(): Promise<void> {
+  if (globalForDb.__complyloopSql) {
+    await globalForDb.__complyloopSql.end({ timeout: 5 });
+  }
+  globalForDb.__complyloopSql = null;
+  globalForDb.__complyloopDb = null;
+  globalForDb.__complyloopInit = null;
+}
+
+/** Serialize interactive writes and assessment apply for one project. */
+export function projectWriteLockKey(projectId: string): string {
+  return `project-write:${projectId}`;
+}
+
+/** Serialize a user's org-scoped writes (membership/org row mutations). */
+export function orgWriteLockKey(userId: string): string {
+  return `org-write:${userId}`;
+}
+
+/** Holds until the surrounding transaction commits or rolls back. */
+export async function acquireNamedPostgresAdvisoryLock(
+  tx: DrizzleDb,
+  key: string,
+): Promise<void> {
+  await tx.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`,
+  );
+}
+
+/** Per-resource advisory lock (e.g. rate-limit buckets). */
+export async function withNamedPostgresAdvisoryLock<T>(
+  drizzle: DrizzleDb,
+  key: string,
+  fn: (tx: DrizzleDb) => Promise<T>,
+): Promise<T> {
+  return drizzle.transaction(async (tx) => {
+    await acquireNamedPostgresAdvisoryLock(tx, key);
+    return fn(tx);
+  });
 }

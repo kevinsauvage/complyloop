@@ -6,8 +6,7 @@ import type { RemediationSuggestion } from "@complyloop/analysis-core/contract/f
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef, locationSnippet } from "@complyloop/analysis-core/contract/location";
 import { aiExplanationAvailable } from "./explainer";
-import { confidenceSchema } from "./schemas";
-import { AI_MODEL, aiCall } from "./ai-call";
+import { AI_MODEL, aiCall, confidenceSchema } from "./ai-call";
 
 const remediationSchema = z.object({
   description: z.string(),
@@ -34,9 +33,8 @@ export async function generateAiRemediation(
   const object = await aiCall({
     schema: remediationSchema,
     available: aiExplanationAvailable(),
-    warnMessage: "AI remediation unavailable or failed",
-    warnCode: "ai_remediation_failed",
-    warnDetail: { findingId: finding.id, controlId: control.id },
+    code: "ai_remediation_failed",
+    detail: { findingId: finding.id, controlId: control.id },
     prompt: [
       "You propose accessibility remediations for React/TypeScript source.",
       `Requirement: ${control.code} / ${control.secondaryCode} — ${control.title}.`,

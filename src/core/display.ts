@@ -10,7 +10,18 @@ import type {
   RequirementStatus,
   Severity,
 } from "@complyloop/analysis-core/contract/statuses";
-import { lookupExhaustive } from "./assert-exhaustive";
+
+function mustGet<T extends string, V>(
+  record: Record<T, V>,
+  key: string,
+  kind: string,
+): V {
+  const value = record[key as T];
+  if (value === undefined) {
+    throw new Error(`Unhandled ${kind}: ${key}`);
+  }
+  return value;
+}
 
 /**
  * Display data lives as one record per enum value: `{ label, description,
@@ -41,7 +52,7 @@ export interface RequirementStatusDisplay {
 export function requirementStatusDisplay(
   status: RequirementStatus,
 ): RequirementStatusDisplay {
-  return lookupExhaustive(
+  return mustGet(
     REQUIREMENT_STATUS_DISPLAY,
     status,
     "requirement status",
@@ -98,7 +109,7 @@ export interface RemediationStatusDisplay {
 export function remediationStatusDisplay(
   status: RemediationStatus,
 ): RemediationStatusDisplay {
-  return lookupExhaustive(
+  return mustGet(
     REMEDIATION_STATUS_DISPLAY,
     status,
     "remediation status",
@@ -158,7 +169,7 @@ export interface FindingStatusDisplay {
 export function findingStatusDisplay(
   status: FindingStatus,
 ): FindingStatusDisplay {
-  return lookupExhaustive(FINDING_STATUS_DISPLAY, status, "finding status");
+  return mustGet(FINDING_STATUS_DISPLAY, status, "finding status");
 }
 
 const FINDING_STATUS_DISPLAY: Record<FindingStatus, FindingStatusDisplay> = {
@@ -190,10 +201,12 @@ export interface SeverityDisplay {
   description: string;
   tone: StatusTone | null;
   badgeVariant: BadgeVariant;
+  /** Print/email hex pair for the standalone report (Tailwind unavailable). */
+  report: ReportColorPair;
 }
 
 export function severityDisplay(severity: Severity): SeverityDisplay {
-  return lookupExhaustive(SEVERITY_DISPLAY, severity, "severity");
+  return mustGet(SEVERITY_DISPLAY, severity, "severity");
 }
 
 const SEVERITY_DISPLAY: Record<Severity, SeverityDisplay> = {
@@ -202,6 +215,7 @@ const SEVERITY_DISPLAY: Record<Severity, SeverityDisplay> = {
     description: "Blocks core tasks for many users — prioritize immediately.",
     tone: "failed",
     badgeVariant: undefined,
+    report: { fg: "#991b1b", bg: "#fecaca" },
   },
   serious: {
     label: "Serious",
@@ -209,18 +223,21 @@ const SEVERITY_DISPLAY: Record<Severity, SeverityDisplay> = {
       "Major barrier for some users — fix in the current sprint if possible.",
     tone: "failed",
     badgeVariant: "outline",
+    report: { fg: "#c2410c", bg: "#ffedd5" },
   },
   moderate: {
     label: "Moderate",
     description: "Noticeable friction — schedule with other accessibility work.",
     tone: "review",
     badgeVariant: undefined,
+    report: { fg: "#a16207", bg: "#fef9c3" },
   },
   minor: {
     label: "Minor",
     description: "Low impact — fix when touching nearby code.",
     tone: null,
     badgeVariant: "secondary",
+    report: { fg: "#0369a1", bg: "#e0f2fe" },
   },
 };
 
@@ -237,7 +254,7 @@ export interface DeterminationDisplay {
 export function determinationDisplay(
   method: DeterminationMethod,
 ): DeterminationDisplay {
-  return lookupExhaustive(DETERMINATION_DISPLAY, method, "determination");
+  return mustGet(DETERMINATION_DISPLAY, method, "determination");
 }
 
 const DETERMINATION_DISPLAY: Record<DeterminationMethod, DeterminationDisplay> =
@@ -264,7 +281,7 @@ export interface ConfidenceDisplay {
 }
 
 export function confidenceDisplay(confidence: Confidence): ConfidenceDisplay {
-  return lookupExhaustive(CONFIDENCE_DISPLAY, confidence, "confidence");
+  return mustGet(CONFIDENCE_DISPLAY, confidence, "confidence");
 }
 
 const CONFIDENCE_DISPLAY: Record<Confidence, ConfidenceDisplay> = {
@@ -290,7 +307,7 @@ export interface ProvenanceDisplay {
 export function provenanceDisplay(
   provenance: ExplanationProvenance,
 ): ProvenanceDisplay {
-  return lookupExhaustive(PROVENANCE_DISPLAY, provenance, "provenance");
+  return mustGet(PROVENANCE_DISPLAY, provenance, "provenance");
 }
 
 const PROVENANCE_DISPLAY: Record<ExplanationProvenance, ProvenanceDisplay> = {
@@ -316,7 +333,7 @@ export interface EngineDisplay {
 }
 
 export function engineDisplay(engine: AssessmentEngine): EngineDisplay {
-  return lookupExhaustive(ENGINE_DISPLAY, engine, "assessment engine");
+  return mustGet(ENGINE_DISPLAY, engine, "assessment engine");
 }
 
 const ENGINE_DISPLAY: Record<AssessmentEngine, EngineDisplay> = {
@@ -340,7 +357,7 @@ const ENGINE_DISPLAY: Record<AssessmentEngine, EngineDisplay> = {
 // ---------------------------------------------------------------------------
 
 export function roleTone(role: OrgRole): StatusTone {
-  return lookupExhaustive(ROLE_TONE, role, "org role");
+  return mustGet(ROLE_TONE, role, "org role");
 }
 
 const ROLE_TONE: Record<OrgRole, StatusTone> = {
@@ -350,30 +367,131 @@ const ROLE_TONE: Record<OrgRole, StatusTone> = {
   viewer: "na",
 };
 
+/** Hex pair for the standalone HTML report, which has no Tailwind tokens. */
+export interface ReportColorPair {
+  fg: string;
+  bg: string;
+}
+
+/**
+ * The one tone table: every surface that renders a status tone — in-app badge
+ * fill/text, accent bar, evidence dot, and the print/email report palette —
+ * reads from here. Retune a tone once; the exported lookups below derive.
+ */
+interface StatusToneStyle {
+  badge: string;
+  accent: string;
+  dot: string;
+  report: ReportColorPair | null;
+  reportClass: string | null;
+}
+
+const STATUS_TONE_STYLE = {
+  passed: {
+    badge:
+      "border-transparent bg-status-passed/25 text-status-passed dark:bg-status-passed/25",
+    accent: "bg-status-passed",
+    dot: "bg-status-passed",
+    report: { fg: "#15803d", bg: "#dcfce7" },
+    reportClass: "status-passed",
+  },
+  failed: {
+    badge:
+      "border-transparent bg-status-failed/25 text-status-failed dark:bg-status-failed/25",
+    accent: "bg-status-failed",
+    dot: "bg-status-failed",
+    report: { fg: "#b91c1c", bg: "#fee2e2" },
+    reportClass: "status-failed",
+  },
+  review: {
+    badge:
+      "border-transparent bg-status-review/25 text-status-review dark:bg-status-review/25",
+    accent: "bg-status-review",
+    dot: "bg-status-review",
+    report: { fg: "#b45309", bg: "#fef3c7" },
+    reportClass: "status-needs-review",
+  },
+  na: {
+    badge: "border-transparent bg-status-na/25 text-status-na dark:bg-status-na/25",
+    accent: "bg-status-na",
+    dot: "bg-status-na",
+    report: { fg: "#475569", bg: "#f1f5f9" },
+    reportClass: "status-not-applicable",
+  },
+  unverifiable: {
+    badge:
+      "border-transparent bg-status-unverifiable/25 text-status-unverifiable dark:bg-status-unverifiable/25",
+    accent: "bg-status-unverifiable",
+    dot: "bg-status-unverifiable",
+    report: { fg: "#6d28d9", bg: "#ede9fe" },
+    reportClass: "status-unable",
+  },
+  signal: {
+    badge: "border-transparent bg-signal/25 text-signal dark:bg-signal/25",
+    accent: "bg-signal",
+    dot: "bg-signal",
+    // `signal` is informational and never appears in a status report, so it
+    // carries no report palette.
+    report: null,
+    reportClass: null,
+  },
+} satisfies Record<StatusTone, StatusToneStyle>;
+
 /** Soft tint + readable text; stronger fill in dark mode for contrast. */
 export const STATUS_TONE_BADGE: Record<StatusTone, string> = {
-  passed:
-    "border-transparent bg-status-passed/25 text-status-passed dark:bg-status-passed/25",
-  failed:
-    "border-transparent bg-status-failed/25 text-status-failed dark:bg-status-failed/25",
-  review:
-    "border-transparent bg-status-review/25 text-status-review dark:bg-status-review/25",
-  na: "border-transparent bg-status-na/25 text-status-na dark:bg-status-na/25",
-  unverifiable:
-    "border-transparent bg-status-unverifiable/25 text-status-unverifiable dark:bg-status-unverifiable/25",
-  signal: "border-transparent bg-signal/25 text-signal dark:bg-signal/25",
+  passed: STATUS_TONE_STYLE.passed.badge,
+  failed: STATUS_TONE_STYLE.failed.badge,
+  review: STATUS_TONE_STYLE.review.badge,
+  na: STATUS_TONE_STYLE.na.badge,
+  unverifiable: STATUS_TONE_STYLE.unverifiable.badge,
+  signal: STATUS_TONE_STYLE.signal.badge,
 };
 
 export const STATUS_TONE_ACCENT: Record<
   Exclude<StatusTone, "signal">,
   string
 > = {
-  passed: "bg-status-passed",
-  failed: "bg-status-failed",
-  review: "bg-status-review",
-  na: "bg-status-na",
-  unverifiable: "bg-status-unverifiable",
+  passed: STATUS_TONE_STYLE.passed.accent,
+  failed: STATUS_TONE_STYLE.failed.accent,
+  review: STATUS_TONE_STYLE.review.accent,
+  na: STATUS_TONE_STYLE.na.accent,
+  unverifiable: STATUS_TONE_STYLE.unverifiable.accent,
 };
+
+/** Print/email hex palette per requirement tone (Tailwind unavailable). */
+export const STATUS_TONE_REPORT: Record<
+  Exclude<StatusTone, "signal">,
+  ReportColorPair
+> = {
+  passed: STATUS_TONE_STYLE.passed.report,
+  failed: STATUS_TONE_STYLE.failed.report,
+  review: STATUS_TONE_STYLE.review.report,
+  na: STATUS_TONE_STYLE.na.report,
+  unverifiable: STATUS_TONE_STYLE.unverifiable.report,
+};
+
+/** CSS badge class suffix per tone in the standalone report. */
+export const STATUS_TONE_REPORT_CLASS: Record<
+  Exclude<StatusTone, "signal">,
+  string
+> = {
+  passed: STATUS_TONE_STYLE.passed.reportClass,
+  failed: STATUS_TONE_STYLE.failed.reportClass,
+  review: STATUS_TONE_STYLE.review.reportClass,
+  na: STATUS_TONE_STYLE.na.reportClass,
+  unverifiable: STATUS_TONE_STYLE.unverifiable.reportClass,
+};
+
+/** Report CSS class for a requirement status, via its unified tone. */
+export function requirementStatusReportClass(
+  status: RequirementStatus,
+): string {
+  return mustGet(
+    STATUS_TONE_REPORT_CLASS,
+    requirementStatusDisplay(status).tone,
+    "requirement status tone",
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Evidence — one record per kind; `finding` and `assessment_job` refine
@@ -445,21 +563,21 @@ export function evidenceDisplay(
         : undefined) ?? EVIDENCE_DISPLAY.assessment_job
     );
   }
-  return lookupExhaustive(EVIDENCE_DISPLAY, kind, "evidence kind");
+  return mustGet(EVIDENCE_DISPLAY, kind, "evidence kind");
 }
 
 export const EVIDENCE_TONE_DOT: Record<EvidenceTone, string> = {
   default: "bg-muted-foreground/40",
-  pass: "bg-status-passed",
-  fail: "bg-status-failed",
-  review: "bg-status-review",
-  signal: "bg-signal",
+  pass: STATUS_TONE_STYLE.passed.dot,
+  fail: STATUS_TONE_STYLE.failed.dot,
+  review: STATUS_TONE_STYLE.review.dot,
+  signal: STATUS_TONE_STYLE.signal.dot,
 };
 
 export const EVIDENCE_TONE_BADGE: Record<EvidenceTone, string> = {
   default: "",
-  pass: STATUS_TONE_BADGE.passed,
-  fail: STATUS_TONE_BADGE.failed,
-  review: STATUS_TONE_BADGE.review,
-  signal: STATUS_TONE_BADGE.signal,
+  pass: STATUS_TONE_STYLE.passed.badge,
+  fail: STATUS_TONE_STYLE.failed.badge,
+  review: STATUS_TONE_STYLE.review.badge,
+  signal: STATUS_TONE_STYLE.signal.badge,
 };

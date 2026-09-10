@@ -1,6 +1,6 @@
 import { desc, eq, inArray, sql } from "drizzle-orm";
 import type { Assessment, AssessmentSnapshot } from "../types";
-import type { DrizzleDb } from "../client.ts";
+import type { DrizzleDb } from "../postgres.ts";
 import { assessmentSnapshots, assessments } from "../schema.ts";
 import { assessmentFromRow, assessmentToRow } from "./mappers.ts";
 

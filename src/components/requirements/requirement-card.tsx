@@ -5,20 +5,20 @@ import {
 } from "@complyloop/analysis-core/check-authority";
 import { isPertinenceTwinControl } from "@complyloop/adapters/rgaa/pertinence-twins";
 import { RequirementStatusBadge } from "@/components/badges";
-import { formatDateTime } from "@/core/format-datetime";
+import { formatDateTime } from "@/core/lifecycle";
 import {
   determinationDisplay,
   requirementStatusDisplay,
-} from "@/core/status-display";
+} from "@/core/display";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { findingsListHref } from "@/core/finding-list-filter";
+import { findingsListHref } from "@/core/filters";
 import type { Control, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import {
   unableToVerifyReason,
   unableToVerifyReasonLabel,
-} from "@/core/unable-to-verify-reason";
+} from "@/core/lifecycle";
 import { RequirementRemediationActions } from "./requirement-remediation-actions";
 import { RequirementStatusAccent } from "./requirement-status-accent";
 

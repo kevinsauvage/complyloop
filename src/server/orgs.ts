@@ -1,7 +1,7 @@
 import type { OrgMembership, Organization } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Db } from "@complyloop/db/types";
-import { nextUniqueSlug, slugifyOrgName } from "@complyloop/db/org-slug";
+import { nextUniqueSlug, slugifyOrgName } from "@complyloop/db/repo/orgs";
 import {
   buildOrgMembershipIndex,
   membershipsForOrg,

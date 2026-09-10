@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
-import { closeDrizzle, getDrizzle } from "./client";
+import { closeDrizzle, getDrizzle } from "./postgres";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`) and avoids stealing the pool during the default suite. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());

@@ -4,8 +4,8 @@ import {
   type FindingStatus,
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
-import { formatDateTimeWithZone } from "@/core/format-datetime";
-import { findingStatusDisplay, requirementStatusDisplay } from "@/core/status-display";
+import { formatDateTimeWithZone } from "@/core/lifecycle";
+import { findingStatusDisplay, requirementStatusDisplay } from "@/core/display";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   composeAuditReport,
@@ -41,11 +41,6 @@ function mdProse(text: string): string {
  */
 function mdCode(text: string): string {
   return inline(text).replace(/`/g, "'");
-}
-
-/** Renders a snippet as an indented code block, safe against embedded fences. */
-function codeBlockLines(content: string): string[] {
-  return ["", ...content.split("\n").map((line) => `    ${line}`), ""];
 }
 
 function headerMarkdown(header: ReportHeaderModel): string[] {
@@ -136,7 +131,9 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
         );
       }
       lines.push(``);
-      lines.push(...codeBlockLines(finding.snippet));
+      for (const snippetLine of finding.snippet.split("\n")) {
+        lines.push(`    ${snippetLine}`);
+      }
       lines.push(``);
     }
   }

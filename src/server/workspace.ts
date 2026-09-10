@@ -7,7 +7,7 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { type Finding, type Remediation } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import { getFindingById } from "@complyloop/db/repo/findings";
 import { getRemediationByFindingId } from "@complyloop/db/repo/remediations";
 import { loadTenancyDb } from "@complyloop/db/workspace-load";

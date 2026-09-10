@@ -8,7 +8,7 @@ const updateProject = vi.hoisted(() => vi.fn());
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const assertRateLimit = vi.hoisted(() => vi.fn());
 
-vi.mock("@complyloop/db/client", () => ({
+vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: async () => ({}),
 }));
 vi.mock("@complyloop/db/repo/projects", () => ({

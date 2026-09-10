@@ -1,14 +1,14 @@
 "use server";
 
-import { entityIdSchema, parseInput } from "@/core/boundary";
+import { entityIdSchema, parseInput } from "@/core/filters";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { advanceRemediation } from "@/core/remediation";
+import { advanceRemediation } from "@/core/lifecycle";
 import {
-  runActionMessage,
-  type ActionMessageState,
+  runAction,
+  type ActionState,
 } from "../action-state";
 import { patchCandidateFromEvidence } from "../ai-fix";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
 import { preparePullRequest } from "../pr";
 import { remediationEvidenceDetail, remediationEvidenceSummary } from "../remediation-evidence";
@@ -28,7 +28,7 @@ import {
 } from "./shared";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
-export type CreatePrFormState = ActionMessageState & {
+export type CreatePrFormState = ActionState & {
   prUrl: string | null;
 };
 
@@ -40,7 +40,7 @@ export async function createPullRequestAction(
   void previous;
   void formData;
   let prUrl: string | null = null;
-  const state = await runActionMessage(async () => {
+  const state = await runAction(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);
@@ -119,5 +119,5 @@ export async function createPullRequestAction(
     refresh();
     return result.message;
   });
-  return { ...state, prUrl: state.error ? null : prUrl };
+  return { ...state, prUrl: state.ok ? prUrl : null };
 }

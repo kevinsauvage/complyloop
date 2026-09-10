@@ -6,7 +6,7 @@ import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { emptyActionMessageState } from "../action-state";
+import { initialActionState } from "../action-state";
 import type { ConnectWriteContext } from "../workspace-write";
 import {
   connectGitHubRepoAction,
@@ -163,10 +163,10 @@ describe("switchProjectAction", () => {
 describe("connectGitHubRepoAction", () => {
   it("requires a repository name", async () => {
     const result = await connectGitHubRepoAction(
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/Select a GitHub repository/);
+    expect((result.ok ? null : result.message)).toMatch(/Select a GitHub repository/);
   });
 
   it("requires a signed-in session", async () => {
@@ -174,10 +174,10 @@ describe("connectGitHubRepoAction", () => {
     const form = new FormData();
     form.set("fullName", "acme/shop");
     const result = await connectGitHubRepoAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/Sign in with GitHub/);
+    expect((result.ok ? null : result.message)).toMatch(/Sign in with GitHub/);
   });
 
   it("requires a GitHub access token", async () => {
@@ -188,10 +188,10 @@ describe("connectGitHubRepoAction", () => {
     form.set("fullName", "acme/shop");
 
     const result = await connectGitHubRepoAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/GitHub access token missing/);
+    expect((result.ok ? null : result.message)).toMatch(/GitHub access token missing/);
   });
 
   it("denies viewers who cannot connect projects", async () => {
@@ -210,10 +210,10 @@ describe("connectGitHubRepoAction", () => {
     form.set("fullName", "acme/shop");
 
     const result = await connectGitHubRepoAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/admin or owner/);
+    expect((result.ok ? null : result.message)).toMatch(/admin or owner/);
   });
 
   it("surfaces already-connected errors", async () => {
@@ -233,10 +233,10 @@ describe("connectGitHubRepoAction", () => {
     form.set("fullName", "acme/shop");
 
     const result = await connectGitHubRepoAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/already connected/);
+    expect((result.ok ? null : result.message)).toMatch(/already connected/);
   });
 
   it("connects a repository for an owner", async () => {
@@ -260,12 +260,12 @@ describe("connectGitHubRepoAction", () => {
     form.set("fullName", "  acme/shop  ");
 
     const result = await connectGitHubRepoAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
 
     expect(result).toEqual({
-      error: null,
+      ok: true,
       message: "Connected acme/shop.",
     });
     expect(resolveUserInstallationForRepo).toHaveBeenCalledWith({
@@ -301,7 +301,7 @@ describe("connectGitHubRepoAction", () => {
     form.set("installationId", "42");
 
     const result = await connectGitHubRepoAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
 
@@ -325,10 +325,10 @@ describe("connectGitHubRepoAction", () => {
 describe("disconnectGitHubRepoAction", () => {
   it("requires a project id", async () => {
     const result = await disconnectGitHubRepoAction(
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/Select a connected project/);
+    expect((result.ok ? null : result.message)).toMatch(/Select a connected project/);
   });
 
   it("requires a signed-in session", async () => {
@@ -336,10 +336,10 @@ describe("disconnectGitHubRepoAction", () => {
     const form = new FormData();
     form.set("projectId", "p1");
     const result = await disconnectGitHubRepoAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/Sign in with GitHub/);
+    expect((result.ok ? null : result.message)).toMatch(/Sign in with GitHub/);
   });
 
   it("disconnects and updates the active project cookie", async () => {
@@ -354,12 +354,12 @@ describe("disconnectGitHubRepoAction", () => {
     form.set("projectId", "p1");
 
     const result = await disconnectGitHubRepoAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
 
     expect(result).toEqual({
-      error: null,
+      ok: true,
       message: "Disconnected acme/shop.",
     });
     expect(writeActiveProjectCookie).toHaveBeenCalledWith("p-next");
@@ -375,9 +375,9 @@ describe("disconnectGitHubRepoAction", () => {
     form.set("projectId", "p1");
 
     const result = await disconnectGitHubRepoAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/Not allowed to disconnect/);
+    expect((result.ok ? null : result.message)).toMatch(/Not allowed to disconnect/);
   });
 });

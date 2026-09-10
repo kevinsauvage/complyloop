@@ -2,13 +2,13 @@
 
 import { assertSourceLocatedFinding } from "@/ai/verified-fix";
 import { aiExplanationAvailable } from "@/ai/explainer";
-import { hasSafeDeterministicFix } from "@/core/finding-act";
-import { entityIdSchema, parseInput } from "@/core/boundary";
+import { hasSafeDeterministicFix } from "@/core/lifecycle";
+import { entityIdSchema, parseInput } from "@/core/filters";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import {
-  runActionMessage,
-  type ActionMessageState,
+  runAction,
+  type ActionState,
 } from "../action-state";
 import { persistPatchCandidate, runAiFixOnCheckout } from "../ai-fix";
 import { assertAiRateLimit } from "../rate-limit";
@@ -26,12 +26,12 @@ import {
 
 export async function generateAiFixAction(
   findingIdRaw: string,
-  _previous: ActionMessageState,
+  _previous: ActionState,
   _formData: FormData,
-): Promise<ActionMessageState> {
+): Promise<ActionState> {
   void _previous;
   void _formData;
-  return runActionMessage(async () => {
+  return runAction(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);

@@ -10,7 +10,7 @@ import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { emptyActionMessageState } from "../action-state";
+import { initialActionState } from "../action-state";
 import type { Db } from "@complyloop/db/types";
 import type { Workspace } from "../workspace";
 import {
@@ -104,11 +104,11 @@ describe("verifyRemediationAction", () => {
 
     const result = await verifyRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
-    expect(result.error).toMatch(/draft pull request|re-assess/i);
+    expect((result.ok ? null : result.message)).toMatch(/draft pull request|re-assess/i);
     expect(projectWritePayload()).toBeUndefined();
     expect(locateViolationInProject).not.toHaveBeenCalled();
   });
@@ -123,11 +123,11 @@ describe("verifyRemediationAction", () => {
 
     const result = await verifyRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
-    expect(result.error).toMatch(/implemented/);
+    expect((result.ok ? null : result.message)).toMatch(/implemented/);
     expect(projectWritePayload()).toBeUndefined();
   });
 
@@ -150,12 +150,12 @@ describe("verifyRemediationAction", () => {
 
     const result = await verifyRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
     expect(result).toEqual({
-      error: null,
+      ok: true,
       message: "Fix verified by automated re-check.",
     });
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
@@ -193,12 +193,12 @@ describe("verifyRemediationAction", () => {
 
     const result = await verifyRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
     expect(result).toEqual({
-      error: null,
+      ok: true,
       message: "Fix verified by automated re-check.",
     });
     expect(locateViolationInProject).not.toHaveBeenCalled();
@@ -237,12 +237,12 @@ describe("verifyRemediationAction", () => {
 
     const result = await verifyRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
     expect(result.message).toMatch(/still failing|still detected/i);
-    expect(result.error).toBeNull();
+    expect((result.ok ? null : result.message)).toBeNull();
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("implemented");
   });
 
@@ -265,12 +265,12 @@ describe("verifyRemediationAction", () => {
 
     const result = await verifyRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
     expect(result.message).toMatch(/still failing|still detected/i);
-    expect(result.error).toBeNull();
+    expect((result.ok ? null : result.message)).toBeNull();
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("implemented");
   });
 });
@@ -294,7 +294,7 @@ describe("markRemediationImplementedAction", () => {
 
     const result = await markRemediationImplementedAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
 

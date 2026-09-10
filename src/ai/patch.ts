@@ -13,6 +13,9 @@ const editsSchema = z.object({
 
 const MAX_FILE_CHARS = 80_000;
 
+const AI_PATCH_FAILED_MESSAGE =
+  "AI patch generation failed. Re-run the assessment and try again, or use the developer handoff to fix it manually.";
+
 /** Total budget (chars) for all file contents in one patch prompt. */
 export const PATCH_PROMPT_FILE_BUDGET = 60_000;
 
@@ -107,11 +110,9 @@ export async function proposeFixEdits(
   const object = await aiCall({
     schema: editsSchema,
     available: true,
-    onFailure: "throw",
-    failureMessage:
-      "AI patch generation failed. Re-run the assessment and try again, or use the developer handoff to fix it manually.",
-    warnMessage: "AI patch generation failed",
-    warnCode: "ai_fix_propose",
+    throwIfUnavailable: true,
+    failureMessage: AI_PATCH_FAILED_MESSAGE,
+    code: "ai_fix_propose",
     prompt: [
       "You fix accessibility failures in a React/TypeScript repository.",
       "Return unique search/replace edits. oldText must match exactly once in that file.",
@@ -125,6 +126,9 @@ export async function proposeFixEdits(
     ],
   });
 
+  if (!object) {
+    throw new PublicError(AI_PATCH_FAILED_MESSAGE);
+  }
   if (object.edits.length === 0) {
     throw new PublicError("AI patch must contain at least one edit.");
   }

@@ -11,7 +11,7 @@ import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { emptyActionMessageState } from "../action-state";
+import { initialActionState } from "../action-state";
 import type { Db } from "@complyloop/db/types";
 import type { Workspace } from "../workspace";
 import {
@@ -97,7 +97,7 @@ describe("requirement decision actions", () => {
 
     const result = await markRequirementExceptionAction(
       "req-1",
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
 
@@ -127,7 +127,7 @@ describe("requirement decision actions", () => {
 
     const result = await markRequirementExceptionAction(
       "req-temp",
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
 
@@ -156,10 +156,10 @@ describe("requirement decision actions", () => {
 
     const result = await markRequirementExceptionAction(
       "req-temp-2",
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/expiry date/i);
+    expect((result.ok ? null : result.message)).toMatch(/expiry date/i);
   });
 
   it("requires a note for exceptions", async () => {
@@ -179,10 +179,10 @@ describe("requirement decision actions", () => {
 
     const result = await markRequirementExceptionAction(
       "req-note",
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/note is required/i);
+    expect((result.ok ? null : result.message)).toMatch(/note is required/i);
   });
 
   it("marks a manual control as human-passed", async () => {
@@ -202,7 +202,7 @@ describe("requirement decision actions", () => {
 
     const result = await markRequirementPassedAction(
       "req-2",
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
 
@@ -228,10 +228,10 @@ describe("requirement decision actions", () => {
 
     const result = await markRequirementPassedAction(
       "req-auto",
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/Only manual controls/);
+    expect((result.ok ? null : result.message)).toMatch(/Only manual controls/);
   });
 
   it("clears a human pass and refreshes status", async () => {
@@ -252,7 +252,7 @@ describe("requirement decision actions", () => {
 
     const result = await clearRequirementHumanPassAction(
       "req-pass",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
@@ -279,10 +279,10 @@ describe("requirement decision actions", () => {
 
     const result = await clearRequirementHumanPassAction(
       "req-no-pass",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/no human pass/i);
+    expect((result.ok ? null : result.message)).toMatch(/no human pass/i);
   });
 
   it("clears an exception and refreshes status", async () => {
@@ -304,7 +304,7 @@ describe("requirement decision actions", () => {
 
     const result = await clearRequirementExceptionAction(
       "req-3",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
@@ -331,9 +331,9 @@ describe("requirement decision actions", () => {
 
     const result = await clearRequirementExceptionAction(
       "req-no-ex",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/no exception/i);
+    expect((result.ok ? null : result.message)).toMatch(/no exception/i);
   });
 });

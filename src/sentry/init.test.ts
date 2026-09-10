@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { sentryTracesSampleRate } from "./traces-sample-rate";
+import { sentryInitOptions, sentryTracesSampleRate } from "./init";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -27,5 +27,17 @@ describe("sentryTracesSampleRate", () => {
     vi.stubEnv("NODE_ENV", "test");
     vi.stubEnv("SENTRY_TRACES_SAMPLE_RATE", "1.5");
     expect(sentryTracesSampleRate()).toBe(0);
+  });
+});
+
+describe("sentryInitOptions", () => {
+  it("carries the dsn, environment, and resolved trace sample rate", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SENTRY_TRACES_SAMPLE_RATE", "0.5");
+    expect(sentryInitOptions("https://example.ingest.sentry.io/1")).toEqual({
+      dsn: "https://example.ingest.sentry.io/1",
+      environment: "production",
+      tracesSampleRate: 0.5,
+    });
   });
 });

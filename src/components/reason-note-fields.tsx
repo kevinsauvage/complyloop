@@ -1,5 +1,5 @@
 import { Label } from "@/components/ui/label";
-import { nativeSelectClass } from "@/components/ui/native-select";
+import { nativeSelectClass } from "@/components/form-classes";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 

@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { STATUS_TONE_BADGE } from "@/core/status-display";
+import { STATUS_TONE_BADGE } from "@/core/display";
 import type { FrameworkPreset } from "@complyloop/adapters/types";
 
 /**

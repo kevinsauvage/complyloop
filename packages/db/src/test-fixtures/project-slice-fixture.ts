@@ -1,7 +1,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import type { Alert, Finding, Remediation } from "../types";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
-import type { DrizzleDb } from "../client.ts";
+import type { DrizzleDb } from "../postgres.ts";
 import {
   snapshotProjectSlice,
   type ProjectSlice,

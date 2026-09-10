@@ -8,7 +8,7 @@ import {
   PageContent,
   PageHeader,
 } from "@/components/page-primitives";
-import { formatDateTime } from "@/core/format-datetime";
+import { formatDateTime } from "@/core/lifecycle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -18,17 +18,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { evidenceRecordHref } from "@/core/query";
-import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/status-display";
-import { parseEvidenceKindParam, evidenceKindHref } from "@/core/query";
-import { reportHref } from "@/core/query";
+import { evidenceRecordHref } from "@/core/filters";
+import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/display";
+import { parseEvidenceKindParam, evidenceKindHref } from "@/core/filters";
+import { reportHref } from "@/core/filters";
 import {
   DEFAULT_PAGE_SIZE,
   pageSliceFromQuery,
   parsePageParam,
-} from "@/core/pagination";
+} from "@/core/filters";
 import { cn } from "@/lib/utils";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import {
   countEvidenceForProject,
   countEvidenceKindsForProject,

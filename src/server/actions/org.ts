@@ -7,11 +7,11 @@ import {
   parseForm,
   parseInput,
   requiredField,
-} from "@/core/boundary";
+} from "@/core/filters";
 import {
   publicErrorMessage,
-  runActionMessage,
-  type ActionMessageState,
+  runAction,
+  type ActionState,
 } from "../action-state";
 import {
   writeActiveOrgCookie,
@@ -28,7 +28,7 @@ import {
   inviteOrgMember,
   removeOrgMember,
 } from "../org-membership";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import { listAssessmentsForProjects } from "@complyloop/db/repo/assessments";
 import { listAllEvidenceForProjects } from "@complyloop/db/repo/evidence";
 import { getWorkspace } from "../workspace";
@@ -99,10 +99,10 @@ export async function switchOrgAction(formData: FormData): Promise<void> {
 }
 
 export async function createOrgAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const { userId, githubLogin } = await requireSignedIn(
       "Sign in with GitHub to create an organization.",
     );
@@ -130,10 +130,10 @@ export async function createOrgAction(
 }
 
 export async function inviteOrgMemberAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const { userId } = await requireSignedIn(
       "Sign in to manage organization members.",
     );
@@ -149,10 +149,10 @@ export async function inviteOrgMemberAction(
 }
 
 export async function removeOrgMemberAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const { userId } = await requireSignedIn("Sign in to manage organization members.");
 
     const { orgId, membershipId } = parseForm(orgMembershipInput, formData);
@@ -173,10 +173,10 @@ export async function removeOrgMemberAction(
 }
 
 export async function changeOrgMemberRoleAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const { userId } = await requireSignedIn("Sign in to manage organization members.");
 
     const { orgId, membershipId, role } = parseForm(
@@ -252,10 +252,10 @@ export async function exportOrgDataAction(
 }
 
 export async function deleteOrgAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const { userId } = await requireSignedIn("Sign in to delete an organization.");
 
     const { orgId } = parseForm(deleteOrgInput, formData);

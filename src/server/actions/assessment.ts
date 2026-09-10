@@ -1,8 +1,8 @@
 "use server";
 
 import {
-  runActionMessage,
-  type ActionMessageState,
+  runAction,
+  type ActionState,
 } from "../action-state";
 import {
   drainAssessmentJobQueue,
@@ -16,11 +16,11 @@ import { refresh, requireOnActive } from "./shared";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 export async function runAssessmentAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   _formData: FormData,
-): Promise<ActionMessageState> {
+): Promise<ActionState> {
   void _formData;
-  return runActionMessage(async () => {
+  return runAction(async () => {
     // One workspace load for the whole action: enqueue + evidence in the same
     // project write (rate limit + permission checks included).
     let job: AssessmentJob;

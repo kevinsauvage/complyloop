@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { entityIdSchema, parseInput } from "@/core/boundary";
+import { entityIdSchema, parseInput } from "@/core/filters";
 import { isProjectVisible } from "@/server/project-visibility";
 import { recentAssessmentJobsForProject } from "@/server/assessment-jobs";
 import { getWorkspace } from "@/server/workspace";

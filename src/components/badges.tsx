@@ -1,6 +1,12 @@
-import type { ReactNode } from "react";
+"use client";
+
+import type { ReactElement, ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
-import { BadgeWithDescription } from "@/components/badge-with-description";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   confidenceDisplay,
   determinationDisplay,
@@ -15,7 +21,7 @@ import {
   STATUS_TONE_BADGE,
   type BadgeVariant,
   type StatusTone,
-} from "@/core/status-display";
+} from "@/core/display";
 import type {
   Confidence,
   DeterminationMethod,
@@ -29,8 +35,37 @@ import type { EvidenceKind } from "@complyloop/db/types";
 import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
 import { cn } from "@/lib/utils";
 
-/** Single badge renderer — all status badges are label + description + tone. */
-function DescribedBadge({
+/** Tooltip wrapper — tooltips require interactivity; badge markup stays in the parent. */
+export function BadgeWithDescription({
+  description,
+  children,
+}: {
+  description: string;
+  children: ReactElement;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {/* No tabindex here: badges often render inside links, where a nested
+            focusable would be invalid. The definition is always exposed to
+            assistive tech as text; the tooltip stays a hover enhancement. */}
+        <span className="inline-flex cursor-help">
+          {children}
+          <span className="sr-only">: {description}</span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-xs text-pretty">
+        {description}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * The single status badge renderer — every status surface is
+ * label + description + tone, fed from the unified `@/core/display` tables.
+ */
+export function StatusBadge({
   description,
   label,
   variant,
@@ -71,7 +106,7 @@ export function RequirementStatusBadge({
 }) {
   const display = requirementStatusDisplay(status);
   return (
-    <DescribedBadge
+    <StatusBadge
       description={display.description}
       label={display.label}
       tone={display.tone}
@@ -98,7 +133,7 @@ export function RemediationStatusBadge({
 }) {
   const display = remediationStatusDisplay(status);
   return (
-    <DescribedBadge
+    <StatusBadge
       description={display.description}
       label={display.label}
       variant={display.badgeVariant}
@@ -111,7 +146,7 @@ export function RemediationStatusBadge({
 export function FindingStatusBadge({ status }: { status: FindingStatus }) {
   const display = findingStatusDisplay(status);
   return (
-    <DescribedBadge
+    <StatusBadge
       description={display.description}
       label={display.label}
       tone={display.tone}
@@ -122,7 +157,7 @@ export function FindingStatusBadge({ status }: { status: FindingStatus }) {
 export function SeverityBadge({ severity }: { severity: Severity }) {
   const display = severityDisplay(severity);
   return (
-    <DescribedBadge
+    <StatusBadge
       description={display.description}
       label={display.label}
       variant={display.badgeVariant}
@@ -134,7 +169,7 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
 export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
   const display = confidenceDisplay(confidence);
   return (
-    <DescribedBadge
+    <StatusBadge
       description={display.description}
       label={`Confidence: ${confidence}`}
       variant="outline"
@@ -150,7 +185,7 @@ export function DeterminationBadge({
 }) {
   const display = determinationDisplay(method);
   return (
-    <DescribedBadge
+    <StatusBadge
       description={display.description}
       label={display.label}
       tone={display.tone}
@@ -165,7 +200,7 @@ export function ProvenanceBadge({
 }) {
   const display = provenanceDisplay(provenance);
   return (
-    <DescribedBadge
+    <StatusBadge
       description={display.description}
       label={display.label}
       tone={display.tone}
@@ -177,7 +212,7 @@ export function ProvenanceBadge({
 export function EngineBadge({ engine }: { engine: AssessmentEngine }) {
   const display = engineDisplay(engine);
   return (
-    <DescribedBadge
+    <StatusBadge
       description={display.description}
       label={display.label}
       variant={display.badgeVariant}

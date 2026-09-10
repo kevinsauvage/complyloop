@@ -5,9 +5,8 @@
  *
  * Usage: npm run db:reset -- --confirm
  */
-import { createPostgresClient } from "@complyloop/db/postgres-url";
+import { openScriptClient, requireDatabaseUrl } from "./db";
 import { applyPendingMigrations } from "./db-migrate";
-import { loadLocalEnv } from "./env";
 
 async function main(): Promise<void> {
   if (!process.argv.includes("--confirm")) {
@@ -17,14 +16,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  loadLocalEnv();
-  const url = process.env.DATABASE_URL?.trim();
-  if (!url) {
-    console.error(
-      "DATABASE_URL is required. Set it in .env.local or the environment.",
-    );
-    process.exit(1);
-  }
+  const url = requireDatabaseUrl(
+    "DATABASE_URL is required. Set it in .env.local or the environment.",
+  );
 
   // Hide credentials in logs.
   let hostLabel = "database";
@@ -35,7 +29,7 @@ async function main(): Promise<void> {
   }
 
   console.log(`Resetting Postgres at ${hostLabel} …`);
-  const sql = await createPostgresClient(url, { max: 1 });
+  const sql = await openScriptClient(url, 1);
   try {
     await sql.unsafe(`
       DROP SCHEMA public CASCADE;

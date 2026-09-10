@@ -9,11 +9,11 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
-  emptyActionMessageState,
-  type ActionMessageState,
+  initialActionState,
+  type ActionState,
 } from "@/server/action-state";
 
-const initialState: ActionMessageState = emptyActionMessageState;
+const initialState: ActionState = initialActionState;
 
 type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
 type ButtonSize = VariantProps<typeof buttonVariants>["size"];
@@ -32,9 +32,9 @@ export function StatefulActionForm({
   disabled = false,
 }: {
   action: (
-    previous: ActionMessageState,
+    previous: ActionState,
     formData: FormData,
-  ) => Promise<ActionMessageState>;
+  ) => Promise<ActionState>;
   submitLabel: string;
   pendingLabel?: string;
   variant?: ButtonVariant;
@@ -54,7 +54,7 @@ export function StatefulActionForm({
   useActionToast(state, pending);
 
   const buttonLabel =
-    state.error && !pending && retryLabel
+    !state.ok && state.message && !pending && retryLabel
       ? retryLabel
       : resolveSubmitLabel(pending, submitLabel, pendingLabel);
 
@@ -83,12 +83,12 @@ export function StatefulActionForm({
             {buttonLabel}
           </Button>
         )}
-        {state.error && !pending ? (
+        {!state.ok && state.message && !pending ? (
           <p role="alert" className="text-sm text-destructive">
-            {state.error}
+            {state.message}
           </p>
         ) : null}
-        {state.message && !state.error && !pending ? (
+        {state.ok && state.message && !pending ? (
           <p role="status" className="text-sm text-status-passed">
             {state.message}
           </p>

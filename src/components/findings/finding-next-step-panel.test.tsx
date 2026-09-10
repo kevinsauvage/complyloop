@@ -1,6 +1,6 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { findingAct } from "@/core/finding-act";
+import { findingAct } from "@/core/lifecycle";
 import type { Finding, Remediation } from "@complyloop/db/types";
 import type { PatchUiState } from "@/server/ai-fix";
 import { FindingNextStepPanel } from "./finding-next-step-panel";

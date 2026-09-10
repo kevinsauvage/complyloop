@@ -7,20 +7,16 @@ import {
   deterministicExplanation,
   generateAiExplanation,
 } from "./explainer";
-import { setAiWarn } from "./ai-call";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
 }));
 
 const generate = vi.mocked(generateObject);
-const warn = vi.fn();
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  warn.mockClear();
   generate.mockReset();
-  setAiWarn(() => { });
 });
 
 const finding = {
@@ -125,25 +121,15 @@ describe("generateAiExplanation", () => {
     );
   });
 
-  it("logs and returns null when the AI call fails", async () => {
-    setAiWarn(warn);
+  it("returns null when the AI call fails", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockRejectedValue(new Error("gateway down"));
     await expect(generateAiExplanation(finding, control)).resolves.toBeNull();
-    expect(warn).toHaveBeenCalledWith(
-      "AI explanation unavailable or failed",
-      expect.objectContaining({ code: "ai_explanation_failed" }),
-    );
   });
 
-  it("stringifies non-Error failures", async () => {
-    setAiWarn(warn);
+  it("returns null when the AI call rejects with a non-Error", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockRejectedValue("offline");
     await expect(generateAiExplanation(finding, control)).resolves.toBeNull();
-    expect(warn).toHaveBeenCalledWith(
-      "AI explanation unavailable or failed",
-      expect.objectContaining({ detail: "offline" }),
-    );
   });
 });

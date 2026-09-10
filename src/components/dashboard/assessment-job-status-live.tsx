@@ -1,8 +1,8 @@
 "use client";
 
-import type { AssessmentJob } from "@/core/assessment-job";
-import { assessmentJobsResponseSchema } from "@/core/assessment-job";
-import { parseUnknown } from "@/core/boundary";
+import type { AssessmentJob } from "@/core/lifecycle";
+import { assessmentJobsResponseSchema } from "@/core/lifecycle";
+import { parseUnknown } from "@/core/filters";
 import { AssessmentJobStatus } from "@/components/dashboard/assessment-job-status";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

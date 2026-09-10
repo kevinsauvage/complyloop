@@ -29,7 +29,7 @@ describe("failed automated verification feedback", () => {
   it("surfaces the still-failing outcome as a success-channel message", async () => {
     const user = userEvent.setup();
     const action = vi.fn(async () => ({
-      error: null,
+      ok: true,
       message: STILL_FAILING_VERIFY_MESSAGE,
     }));
 

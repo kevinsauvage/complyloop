@@ -12,11 +12,11 @@ import { shippedCatalog } from "@complyloop/adapters/catalog";
 import {
   parsePresetIdParam,
   requirementsPageHref,
-} from "@/core/query";
+} from "@/core/filters";
 import {
   parseRequirementStatusParam,
-} from "@/core/query";
-import { countByStatus, toCountMap } from "@/core/count-by-status";
+} from "@/core/filters";
+import { countByStatus, toCountMap } from "@/core/lifecycle";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { projectCapabilities } from "@/server/project-capabilities";

@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { signIn, signOut } from "@/auth";
-import { parseForm } from "@/core/boundary";
+import { parseForm } from "@/core/filters";
 
 const signInInput = z.object({
   callbackUrl: z.string().optional(),

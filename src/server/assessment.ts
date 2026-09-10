@@ -1,5 +1,5 @@
-import { latestAssessmentFor } from "@/core/assessment";
-import { countByStatus } from "@/core/count-by-status";
+import { latestAssessmentFor } from "@/core/lifecycle";
+import { countByStatus } from "@/core/lifecycle";
 import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
 import {
   scanRuntime,
@@ -20,7 +20,7 @@ import type {
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
-import { advanceRemediation } from "@/core/remediation";
+import { advanceRemediation } from "@/core/lifecycle";
 import {
   REQUIREMENT_STATUSES,
 } from "@complyloop/analysis-core/contract/statuses";

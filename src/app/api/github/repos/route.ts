@@ -3,7 +3,7 @@ import { z } from "zod";
 import { listGitHubRepos } from "@/server/github-access";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { publicErrorMessage } from "@/server/action-state";
-import { parseInput } from "@/core/boundary";
+import { parseInput } from "@/core/filters";
 import { getWorkspace } from "@/server/workspace";
 
 export const dynamic = "force-dynamic";

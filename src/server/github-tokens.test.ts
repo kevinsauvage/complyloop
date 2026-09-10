@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getDrizzle = vi.hoisted(() => vi.fn());
 
-vi.mock("@complyloop/db/client", () => ({
+vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 

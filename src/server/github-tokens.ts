@@ -6,7 +6,7 @@ import {
 } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import { githubTokens } from "@complyloop/db/schema";
 import { reportError } from "./observability";
 

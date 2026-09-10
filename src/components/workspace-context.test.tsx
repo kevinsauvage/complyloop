@@ -46,7 +46,7 @@ vi.mock("@/server/workspace", () => ({
   getWorkspace: vi.fn(async () => workspaceFixture),
 }));
 
-vi.mock("@complyloop/db/client", () => ({
+vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: vi.fn(),
 }));
 

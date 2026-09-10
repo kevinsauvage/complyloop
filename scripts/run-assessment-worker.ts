@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /** Runs one durable assessment worker process outside the web request path. */
-import { processNextAssessmentJob } from "../src/server/assessment-worker";
+import { runAssessmentJobBatch } from "../src/server/assessment-runner";
 import { pruneRateLimitBuckets } from "../src/server/rate-limit";
 import { loadLocalEnv } from "./env";
 
@@ -40,9 +40,9 @@ async function sleep(ms: number): Promise<void> {
 
 async function main(): Promise<void> {
   while (!stopping) {
-    const result = await processNextAssessmentJob();
+    const [result] = await runAssessmentJobBatch(1);
     await maybePruneRateLimitBuckets();
-    if (result.kind === "idle") await sleep(pollMs);
+    if (!result || result.kind === "idle") await sleep(pollMs);
   }
 }
 

@@ -3,7 +3,7 @@ import { FilterChipList } from "@/components/filter-chip-list";
 import {
   EVIDENCE_KIND_FILTER_ORDER,
   evidenceKindHref,
-} from "@/core/query";
+} from "@/core/filters";
 import type { EvidenceKind } from "@complyloop/db/types";
 
 export function EvidenceKindChips({

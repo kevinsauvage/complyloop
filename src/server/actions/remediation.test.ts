@@ -6,7 +6,7 @@ import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
 import { RateLimitError } from "../rate-limit";
-import { emptyActionMessageState } from "../action-state";
+import { initialActionState } from "../action-state";
 import { runAssessmentAction } from "./assessment";
 import {
   approveRemediationAction,
@@ -96,11 +96,11 @@ describe("remediation action authz", () => {
     withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspaceFor("viewer"), fn));
     const result = await approveRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/Not allowed/);
-    expect(result.message).toBeNull();
+    expect((result.ok ? null : result.message)).toMatch(/Not allowed/);
+    expect(result.ok).toBe(false);
   });
 
   it("approves for members", async () => {
@@ -108,11 +108,11 @@ describe("remediation action authz", () => {
     withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     const result = await approveRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
     expect(result).toEqual({
-      error: null,
+      ok: true,
       message: "Remediation approved.",
     });
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("approved");
@@ -125,10 +125,10 @@ describe("remediation action authz", () => {
     formData.set("note", "not a real issue");
     const result = await dismissFindingAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       formData,
     );
-    expect(result.error).toMatch(/Not allowed/);
+    expect((result.ok ? null : result.message)).toMatch(/Not allowed/);
   });
 
   it("denies run assessment for viewers", async () => {
@@ -136,10 +136,10 @@ describe("remediation action authz", () => {
       invokeProjectWriteMock(workspaceFor("viewer"), fn),
     );
     const result = await runAssessmentAction(
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/Not allowed/);
+    expect((result.ok ? null : result.message)).toMatch(/Not allowed/);
   });
 });
 
@@ -147,10 +147,10 @@ describe("bulkApproveRemediationsAction", () => {
   it("requires at least one finding id", async () => {
     withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspaceFor("member"), fn));
     const result = await bulkApproveRemediationsAction(
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/Select at least one finding/);
+    expect((result.ok ? null : result.message)).toMatch(/Select at least one finding/);
   });
 
   it("approves suggested runtime remediations and skips source findings", async () => {
@@ -192,12 +192,12 @@ describe("bulkApproveRemediationsAction", () => {
     form.append("findingIds", "f2");
 
     const result = await bulkApproveRemediationsAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
 
     expect(result).toEqual({
-      error: null,
+      ok: true,
       message: "Approved 1 remediation.",
     });
     const payload = projectWritePayload();
@@ -216,10 +216,10 @@ describe("bulkApproveRemediationsAction", () => {
     form.append("findingIds", "f1");
 
     const result = await bulkApproveRemediationsAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/No selected findings had runtime guidance/);
+    expect((result.ok ? null : result.message)).toMatch(/No selected findings had runtime guidance/);
   });
 });
 
@@ -234,12 +234,12 @@ describe("runAssessmentAction", () => {
     vi.stubEnv("E2E_AUTH_ENABLED", "");
 
     const result = await runAssessmentAction(
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
     expect(result).toEqual({
-      error: null,
+      ok: true,
       message: "No assessment jobs were ready to run.",
     });
     expect(enqueueAssessmentJob).toHaveBeenCalledWith({
@@ -264,7 +264,7 @@ describe("runAssessmentAction", () => {
     vi.stubEnv("E2E_AUTH_ENABLED", "");
 
     const result = await runAssessmentAction(
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
@@ -278,11 +278,11 @@ describe("runAssessmentAction", () => {
     assertAssessRateLimit.mockRejectedValue(new RateLimitError());
 
     const result = await runAssessmentAction(
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
-    expect(result.error).toMatch(/Too many requests/);
+    expect((result.ok ? null : result.message)).toMatch(/Too many requests/);
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
   });
 });
@@ -297,7 +297,7 @@ describe("dismissFindingAction", () => {
 
     const result = await dismissFindingAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
 
@@ -311,10 +311,10 @@ describe("dismissFindingAction", () => {
     withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
     const result = await dismissFindingAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/dismissal reason/i);
+    expect((result.ok ? null : result.message)).toMatch(/dismissal reason/i);
   });
 });
 
@@ -324,10 +324,10 @@ describe("bulkDismissFindingsAction", () => {
     const form = new FormData();
     form.set("reason", "accepted_risk");
     const result = await bulkDismissFindingsAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/Select at least one finding/);
+    expect((result.ok ? null : result.message)).toMatch(/Select at least one finding/);
   });
 
   it("requires a valid dismissal reason", async () => {
@@ -335,10 +335,10 @@ describe("bulkDismissFindingsAction", () => {
     const form = new FormData();
     form.append("findingIds", "f1");
     const result = await bulkDismissFindingsAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/dismissal reason/i);
+    expect((result.ok ? null : result.message)).toMatch(/dismissal reason/i);
   });
 
   it("dismisses open findings and skips closed ones", async () => {
@@ -356,12 +356,12 @@ describe("bulkDismissFindingsAction", () => {
     form.set("note", "out of scope");
 
     const result = await bulkDismissFindingsAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
 
     expect(result).toEqual({
-      error: null,
+      ok: true,
       message: "Dismissed 1 finding.",
     });
     const payload = projectWritePayload();
@@ -384,9 +384,9 @@ describe("bulkDismissFindingsAction", () => {
     form.set("reason", "false_positive");
 
     const result = await bulkDismissFindingsAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
-    expect(result.error).toMatch(/No open findings were dismissed/);
+    expect((result.ok ? null : result.message)).toMatch(/No open findings were dismissed/);
   });
 });

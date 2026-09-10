@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
-import { closeDrizzle, getDrizzle, type DrizzleDb } from "./client";
+import { closeDrizzle, getDrizzle, type DrizzleDb } from "./postgres";
 import { upsertAlerts } from "./repo/alerts";
 import type { Alert } from "./types";
 

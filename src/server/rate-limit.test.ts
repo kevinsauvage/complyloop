@@ -16,11 +16,8 @@ const buckets = vi.hoisted(() => new Map<string, BucketRow>());
 const getDrizzle = vi.hoisted(() => vi.fn());
 const withNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 
-vi.mock("@complyloop/db/client", () => ({
+vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: () => getDrizzle(),
-}));
-
-vi.mock("@complyloop/db/write-lock", () => ({
   withNamedPostgresAdvisoryLock: (
     drizzle: unknown,
     key: string,

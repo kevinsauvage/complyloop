@@ -57,10 +57,9 @@ export default defineConfig({
         // Live link checker (network) — covered by test:e2e.
         "packages/analysis-core/src/runtime/site-level/link-check.ts",
         // Live Postgres wiring without a default-suite unit driver — test:db.
-        "packages/db/src/client.ts", // test:db (postgres client)
+        "packages/db/src/postgres.ts", // test:db (postgres client + connection handling)
         "packages/db/src/schema.ts", // test:db (schema declarations only)
         "packages/db/src/workspace-load.ts", // test:db (workspace.integration.test.ts)
-        "packages/db/src/postgres-url.ts", // test:db (connection-string handling)
         "packages/db/src/repo/**", // test:db (query layer; pure helpers have unit tests)
         "packages/db/src/test-fixtures/**", // test support files, no product logic
         // Write path covered by workspace.test.ts + workspace.integration.test.ts (test:db).

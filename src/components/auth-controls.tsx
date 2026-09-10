@@ -1,18 +1,51 @@
-import { auth, isGitHubAuthConfigured } from "@/auth";
+"use client";
+
+import { useId } from "react";
 import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
-import { SignOutMenuItem } from "@/components/sign-out-menu-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { signOutAction } from "@/server/actions/auth";
 
-export async function AuthControls() {
-  if (!isGitHubAuthConfigured()) {
+/**
+ * Sign-out row for the account menu. The form lives outside the menu item and
+ * the item submits it via `onSelect`, so screen readers and keyboards get a
+ * full-row target instead of a nested form-in-menu-item.
+ */
+function SignOutMenuItem() {
+  const formId = useId();
+  return (
+    <>
+      <form id={formId} action={signOutAction} className="hidden" aria-hidden />
+      <DropdownMenuItem
+        className="w-full cursor-pointer px-2 py-2"
+        onSelect={(event) => {
+          event.preventDefault();
+          const form = document.getElementById(formId);
+          if (form instanceof HTMLFormElement) form.requestSubmit();
+        }}
+      >
+        Sign out
+      </DropdownMenuItem>
+    </>
+  );
+}
+
+export function AuthControls({
+  configured,
+  user,
+}: {
+  configured: boolean;
+  user: { image: string | null; label: string } | null;
+}) {
+  if (!configured) {
     return (
       <p className="px-3 text-xs text-muted-foreground">
         GitHub sign-in not configured. Set{" "}
@@ -22,9 +55,7 @@ export async function AuthControls() {
     );
   }
 
-  const session = await auth();
-
-  if (!session?.user) {
+  if (!user) {
     return (
       <div className="px-3">
         <SignInWithGitHubButton />
@@ -32,9 +63,7 @@ export async function AuthControls() {
     );
   }
 
-  const label =
-    session.user.login ?? session.user.name ?? session.user.email ?? "Signed in";
-  const initials = label.slice(0, 2).toUpperCase();
+  const initials = user.label.slice(0, 2).toUpperCase();
 
   return (
     <div className="px-3">
@@ -46,17 +75,15 @@ export async function AuthControls() {
             className="h-auto w-full justify-start gap-2 px-2 py-1.5"
           >
             <Avatar className="size-7">
-              {session.user.image ? (
-                <AvatarImage src={session.user.image} alt="" />
-              ) : null}
+              {user.image ? <AvatarImage src={user.image} alt="" /> : null}
               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
             </Avatar>
-            <span className="truncate text-sm font-medium">{label}</span>
+            <span className="truncate text-sm font-medium">{user.label}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
           <DropdownMenuLabel className="font-normal">
-            <span className="block truncate text-sm">{label}</span>
+            <span className="block truncate text-sm">{user.label}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <SignOutMenuItem />

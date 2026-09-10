@@ -1,6 +1,6 @@
 "use server";
 
-import { canBulkApproveRemediation } from "@/core/finding-act";
+import { canBulkApproveRemediation } from "@/core/lifecycle";
 import { type Finding, type Remediation } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
@@ -9,18 +9,18 @@ import {
 } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { advanceRemediation } from "@/core/remediation";
+import { advanceRemediation } from "@/core/lifecycle";
 import {
   entityIdSchema,
   findingIdsField,
   optionalNoteSchema,
   parseForm,
   parseInput,
-} from "@/core/boundary";
+} from "@/core/filters";
 import { z } from "zod";
 import {
-  runActionMessage,
-  type ActionMessageState,
+  runAction,
+  type ActionState,
 } from "../action-state";
 import { applyRequirementStatusRefresh } from "../assessment-status";
 import {
@@ -112,12 +112,12 @@ function dismissFindingInRows(
 
 export async function approveRemediationAction(
   findingIdRaw: string,
-  _previous: ActionMessageState,
+  _previous: ActionState,
   _formData: FormData,
-): Promise<ActionMessageState> {
+): Promise<ActionState> {
   void _previous;
   void _formData;
-  return runActionMessage(async () => {
+  return runAction(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     await withFindingWrite(
       findingId,
@@ -139,10 +139,10 @@ export async function approveRemediationAction(
 
 /** Approves remediations that are already in `suggested` (skips others). */
 export async function bulkApproveRemediationsAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const { findingIds } = parseForm(bulkApproveInput, formData);
     let approved = 0;
 
@@ -179,10 +179,10 @@ export async function bulkApproveRemediationsAction(
 
 export async function dismissFindingAction(
   findingIdRaw: string,
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const { reason, note } = parseForm(dismissFindingInput, formData);
     await withFindingWrite(findingId, "project.remediate", async ({ db, finding }) => {
@@ -220,10 +220,10 @@ export async function dismissFindingAction(
 }
 
 export async function bulkDismissFindingsAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const { findingIds, reason, note } = parseForm(bulkDismissInput, formData);
     const dismissalNote = note ?? "";
     const at = new Date().toISOString();

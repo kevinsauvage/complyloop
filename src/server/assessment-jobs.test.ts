@@ -34,7 +34,7 @@ const reportWarning = vi.hoisted(() => vi.fn());
 // winning the race for the same idempotency key).
 const insertThrow = vi.hoisted(() => ({ error: null as unknown }));
 
-vi.mock("@complyloop/db/client", () => ({
+vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 

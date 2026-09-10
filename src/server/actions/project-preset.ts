@@ -1,32 +1,49 @@
 "use server";
 
+import { presetById } from "@complyloop/adapters/registry";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { z } from "zod";
-import { parseForm, requiredField } from "@/core/boundary";
+import { parseForm, requiredField } from "@/core/filters";
 import {
-  runActionMessage,
-  type ActionMessageState,
+  runAction,
+  type ActionState,
 } from "../action-state";
-import { setDefaultPreset } from "../project-preset";
+import { appendEvidence } from "../project-rows";
 import { withProjectWrite } from "../workspace-write";
 import { refresh, requireOnActive } from "./shared";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 const setDefaultPresetInput = z.object({
   presetId: requiredField("A framework preset is required."),
 });
 
 export async function setDefaultPresetAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const { presetId } = parseForm(setDefaultPresetInput, formData);
     let changed = false;
     await withProjectWrite({ touch: "project" }, async (workspace) => {
       requireOnActive(workspace, "project.connect");
-      const { db, project } = workspace;
+      const { project } = workspace;
       const payload: ProjectWritePayload = {};
-      changed = setDefaultPreset(db, project, presetId, payload).changed;
+
+      const preset = presetById(presetId);
+      if (!preset) {
+        throw new PublicError(`Unknown framework preset: ${presetId}`);
+      }
+      if (project.defaultPresetId !== preset.id) {
+        project.defaultPresetId = preset.id;
+        appendEvidence(payload, {
+          kind: "requirements_imported",
+          summary: `Default assessment preset set to "${preset.name}" (${preset.controlIds.length} controls)`,
+          projectId: project.id,
+          detail: { presetId: preset.id, controlIds: preset.controlIds },
+        });
+        payload.project = project;
+        changed = true;
+      }
       return payload;
     });
     refresh();

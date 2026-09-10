@@ -4,7 +4,7 @@ import { useState, type ComponentProps } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { nativeSelectClass } from "@/components/ui/native-select";
+import { nativeSelectClass } from "@/components/form-classes";
 import { cn } from "@/lib/utils";
 
 export type AutoSubmitSelectOption = {

@@ -1,5 +1,5 @@
-import { processNextAssessmentJob } from "./assessment-worker";
 import { isE2EHarnessEnabled } from "./e2e-harness";
+import { runAssessmentJobBatch } from "./assessment-runner";
 
 /**
  * Process jobs in-process when a dedicated worker is not expected —
@@ -20,12 +20,10 @@ export async function drainAssessmentJobQueue(
   maxJobs = 20,
 ): Promise<DrainAssessmentJobsResult> {
   const outcome: DrainAssessmentJobsResult = { ran: 0, failed: 0, retrying: 0 };
-  for (let index = 0; index < maxJobs; index += 1) {
-    const result = await processNextAssessmentJob();
-    if (result.kind === "idle") return outcome;
+  for (const result of await runAssessmentJobBatch(maxJobs)) {
     if (result.kind === "succeeded") outcome.ran += 1;
-    if (result.kind === "failed") outcome.failed += 1;
-    if (result.kind === "retrying") outcome.retrying += 1;
+    else if (result.kind === "failed") outcome.failed += 1;
+    else if (result.kind === "retrying") outcome.retrying += 1;
   }
   return outcome;
 }

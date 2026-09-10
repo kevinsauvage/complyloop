@@ -1,7 +1,7 @@
 import { RemediationStatusBadge } from "@/components/badges";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Remediation } from "@complyloop/db/types";
-import { formatDateTime } from "@/core/format-datetime";
+import { formatDateTime } from "@/core/lifecycle";
 import { cn } from "@/lib/utils";
 
 /**

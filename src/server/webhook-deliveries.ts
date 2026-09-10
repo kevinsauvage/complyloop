@@ -1,5 +1,5 @@
 import { asc, count, inArray } from "drizzle-orm";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import { webhookDeliveries } from "@complyloop/db/schema";
 
 const MAX_DELIVERIES = 2000;

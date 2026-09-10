@@ -34,15 +34,19 @@ export function isOrgRole(value: unknown): value is OrgRole {
   return typeof value === "string" && ORG_ROLES.some((role) => role === value);
 }
 
-function membershipForProject(
-  project: Project,
+export function canInOrg(
   memberships: ReadonlyArray<OrgMembership>,
-  userId: string,
-): OrgMembership | undefined {
-  return memberships.find(
-    (membership) =>
-      membership.orgId === project.orgId && membership.userId === userId,
+  userId: string | null | undefined,
+  orgId: string,
+  permission: Permission,
+): boolean {
+  if (!userId) return false;
+  const membership = memberships.find(
+    (candidate) =>
+      candidate.orgId === orgId && candidate.userId === userId,
   );
+  if (!membership) return false;
+  return roleHasPermission(membership.role, permission);
 }
 
 export function canOnProject(
@@ -51,8 +55,5 @@ export function canOnProject(
   userId: string | null | undefined,
   permission: Permission,
 ): boolean {
-  if (!userId) return false;
-  const membership = membershipForProject(project, memberships, userId);
-  if (!membership) return false;
-  return roleHasPermission(membership.role, permission);
+  return canInOrg(memberships, userId, project.orgId, permission);
 }

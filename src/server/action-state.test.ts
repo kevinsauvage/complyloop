@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
-  actionErrorState,
-  emptyActionMessageState,
+  initialActionState,
   publicErrorMessage,
-  runActionMessage,
+  runAction,
   unexpectedActionMessage,
 } from "./action-state";
 import { RateLimitError } from "./rate-limit";
@@ -20,17 +19,17 @@ function stubErrorRef(): void {
   vi.spyOn(crypto, "randomUUID").mockReturnValue(ERROR_REF_UUID);
 }
 
-describe("runActionMessage", () => {
+describe("runAction", () => {
   it("returns a success message from the runner", async () => {
-    await expect(runActionMessage(async () => "Saved.")).resolves.toEqual({
-      error: null,
+    await expect(runAction(async () => "Saved.")).resolves.toEqual({
+      ok: true,
       message: "Saved.",
     });
   });
 
   it("defaults the success message when the runner returns void", async () => {
-    await expect(runActionMessage(async () => undefined)).resolves.toEqual({
-      error: null,
+    await expect(runAction(async () => undefined)).resolves.toEqual({
+      ok: true,
       message: "Done.",
     });
   });
@@ -38,14 +37,14 @@ describe("runActionMessage", () => {
   it("keeps PublicError messages without reporting them", async () => {
     const spy = vi.spyOn(process.stderr, "write");
     await expect(
-      runActionMessage(async () => {
+      runAction(async () => {
         throw new PublicError(
           "Not allowed: missing permission project.connect.",
         );
       }),
     ).resolves.toEqual({
-      error: "Not allowed: missing permission project.connect.",
-      message: null,
+      ok: false,
+      message: "Not allowed: missing permission project.connect.",
     });
     expect(spy).not.toHaveBeenCalled();
   });
@@ -54,27 +53,21 @@ describe("runActionMessage", () => {
     stubErrorRef();
     vi.spyOn(process.stderr, "write");
     await expect(
-      runActionMessage(async () => {
+      runAction(async () => {
         throw "unexpected";
       }),
     ).resolves.toEqual({
-      error: unexpectedActionMessage(ERROR_REF),
-      message: null,
+      ok: false,
+      message: unexpectedActionMessage(ERROR_REF),
     });
+  });
+
+  it("exposes a stable initial state", () => {
+    expect(initialActionState).toEqual({ ok: false, message: null });
   });
 });
 
-describe("actionErrorState / publicErrorMessage", () => {
-  it("maps PublicError instances to form-state errors without reporting", () => {
-    const spy = vi.spyOn(process.stderr, "write");
-    expect(actionErrorState(new PublicError("Not allowed."))).toEqual({
-      error: "Not allowed.",
-      message: null,
-    });
-    expect(emptyActionMessageState).toEqual({ error: null, message: null });
-    expect(spy).not.toHaveBeenCalled();
-  });
-
+describe("publicErrorMessage", () => {
   it("maps RateLimitError and connect PublicError as public copy", () => {
     expect(publicErrorMessage(new RateLimitError())).toBe(
       "Too many requests. Try again shortly.",
@@ -87,10 +80,9 @@ describe("actionErrorState / publicErrorMessage", () => {
   it("sanitizes unexpected Error messages and reports them", () => {
     stubErrorRef();
     const spy = vi.spyOn(process.stderr, "write");
-    expect(actionErrorState(new Error("ENOENT /tmp/clone"))).toEqual({
-      error: unexpectedActionMessage(ERROR_REF),
-      message: null,
-    });
+    expect(publicErrorMessage(new Error("ENOENT /tmp/clone"))).toBe(
+      unexpectedActionMessage(ERROR_REF),
+    );
     expect(spy).toHaveBeenCalled();
   });
 });

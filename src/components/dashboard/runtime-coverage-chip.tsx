@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { runtimeCoverageSummary } from "@/core/assessment";
-import { STATUS_TONE_BADGE } from "@/core/status-display";
+import { runtimeCoverageSummary } from "@/core/lifecycle";
+import { STATUS_TONE_BADGE } from "@/core/display";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { cn } from "@/lib/utils";

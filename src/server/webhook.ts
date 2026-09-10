@@ -1,7 +1,7 @@
 import type { EmitterWebhookEvent } from "@octokit/webhooks";
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
 import { enqueueAssessmentJob } from "./assessment-jobs";
-import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
+import { getDrizzle, type DrizzleDb } from "@complyloop/db/postgres";
 import { findProjectByGithubFullName, getProjectById, updateProject } from "@complyloop/db/repo/projects";
 import { assertRateLimit } from "./rate-limit";
 

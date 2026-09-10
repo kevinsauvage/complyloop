@@ -2,10 +2,10 @@
 
 import { z } from "zod";
 import { getGitHubAccessToken } from "@/auth";
-import { parseForm, requiredField } from "@/core/boundary";
+import { parseForm, requiredField } from "@/core/filters";
 import {
-  runActionMessage,
-  type ActionMessageState,
+  runAction,
+  type ActionState,
 } from "../action-state";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
@@ -68,10 +68,10 @@ export async function switchProjectAction(formData: FormData): Promise<void> {
 }
 
 export async function connectGitHubRepoAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const { fullName, installationId: claimedInstallationId } = parseForm(
       connectGitHubRepoInput,
       formData,
@@ -148,10 +148,10 @@ export async function connectGitHubRepoAction(
 }
 
 export async function disconnectGitHubRepoAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const { projectId } = parseForm(disconnectGitHubRepoInput, formData);
     await requireSignedIn(
       "Sign in with GitHub to disconnect a repository.",

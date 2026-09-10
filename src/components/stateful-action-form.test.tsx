@@ -1,7 +1,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ActionMessageState } from "@/server/action-state";
+import type { ActionState } from "@/server/action-state";
 import { StatefulActionForm } from "./stateful-action-form";
 
 const toastSuccess = vi.fn();
@@ -23,10 +23,10 @@ afterEach(() => {
 describe("StatefulActionForm", () => {
   it("disables the submit control while pending and confirms success inline plus toast", async () => {
     const user = userEvent.setup();
-    let resolveAction: ((value: ActionMessageState) => void) | undefined;
+    let resolveAction: ((value: ActionState) => void) | undefined;
     const action = vi.fn(
       () =>
-        new Promise<ActionMessageState>((resolve) => {
+        new Promise<ActionState>((resolve) => {
           resolveAction = resolve;
         }),
     );
@@ -44,7 +44,7 @@ describe("StatefulActionForm", () => {
     await user.click(button);
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
 
-    resolveAction?.({ error: null, message: "Saved." });
+    resolveAction?.({ ok: true, message: "Saved." });
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledWith("Saved.", { duration: 4_000 });
     });
@@ -54,8 +54,8 @@ describe("StatefulActionForm", () => {
    it("shows errors inline without a toast", async () => {
      const user = userEvent.setup();
      const action = vi.fn(async () => ({
-       error: "Not allowed.",
-       message: null,
+       ok: false,
+       message: "Not allowed.",
      }));
 
      render(

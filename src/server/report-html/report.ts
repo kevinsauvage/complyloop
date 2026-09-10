@@ -1,5 +1,5 @@
-import { requirementStatusDisplay } from "@/core/status-display";
-import { formatDateTimeWithZone } from "@/core/format-datetime";
+import { requirementStatusDisplay } from "@/core/display";
+import { formatDateTimeWithZone } from "@/core/lifecycle";
 import {
   REQUIREMENT_STATUSES,
   type RequirementStatus,

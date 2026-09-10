@@ -1,35 +1,19 @@
 import { createHmac } from "node:crypto";
 import http, { type Server } from "node:http";
-import path from "node:path";
-import { config as loadEnv } from "dotenv";
 import type { APIRequestContext } from "@playwright/test";
 import postgres from "postgres";
 import { E2E_PROJECT_FULL_NAME } from "./constants";
+import { resolveE2EDbUrl } from "./helpers";
 
 /** Must match `GITHUB_WEBHOOK_SECRET` injected into the e2e webServer env. */
 export function resolveWebhookSecret(): string {
   return process.env.GITHUB_WEBHOOK_SECRET?.trim() || "e2e-webhook-secret";
 }
 
-/** Same resolution order as scripts/e2e-seed.ts so the spec queries the same DB. */
-export function resolveDbUrl(): string {
-  if (!process.env.DATABASE_URL?.trim()) {
-    loadEnv({ path: path.join(process.cwd(), ".env.local") });
-  }
-  if (!process.env.DATABASE_URL?.trim()) {
-    loadEnv({ path: path.join(process.cwd(), ".env") });
-  }
-  return (
-    process.env.E2E_DATABASE_URL?.trim() ??
-    process.env.DATABASE_URL?.trim() ??
-    "postgres://complyloop:complyloop@localhost:5433/complyloop"
-  );
-}
-
 export async function withDb<T>(
   fn: (sql: postgres.Sql) => Promise<T>,
 ): Promise<T> {
-  const sql = postgres(resolveDbUrl(), { max: 3 });
+  const sql = postgres(resolveE2EDbUrl(), { max: 3 });
   try {
     return await fn(sql);
   } finally {

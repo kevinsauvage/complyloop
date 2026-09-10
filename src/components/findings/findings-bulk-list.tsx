@@ -6,16 +6,16 @@ import { DismissFindingFields } from "@/components/findings/dismiss-finding-fiel
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { canBulkApproveRemediation } from "@/core/finding-act";
+import { canBulkApproveRemediation } from "@/core/lifecycle";
 import {
   findingDetailHref,
   type FindingListParams,
-} from "@/core/finding-list-filter";
+} from "@/core/filters";
 import {
   engineDisplay,
   remediationStatusDisplay,
   severityDisplay,
-} from "@/core/status-display";
+} from "@/core/display";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import type { Severity } from "@complyloop/analysis-core/contract/statuses";

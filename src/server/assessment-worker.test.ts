@@ -32,8 +32,12 @@ vi.mock("./assessment-jobs", () => ({
   failAssessmentJob: (...args: unknown[]) => failAssessmentJob(...args),
 }));
 
-vi.mock("@complyloop/db/client", () => ({
+vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: async () => ({ transaction }),
+  acquireNamedPostgresAdvisoryLock: (
+    ...args: Parameters<typeof acquireNamedPostgresAdvisoryLock>
+  ) => acquireNamedPostgresAdvisoryLock(...args),
+  projectWriteLockKey: (projectId: string) => `project-write:${projectId}`,
 }));
 
 vi.mock("@complyloop/db/repo/apply", async () => {
@@ -54,13 +58,6 @@ vi.mock("@complyloop/db/repo/alerts", () => ({
 
 vi.mock("@complyloop/db/repo/evidence", () => ({
   insertEvidence: (...args: unknown[]) => insertEvidence(...args),
-}));
-
-vi.mock("@complyloop/db/write-lock", () => ({
-  acquireNamedPostgresAdvisoryLock: (
-    ...args: Parameters<typeof acquireNamedPostgresAdvisoryLock>
-  ) => acquireNamedPostgresAdvisoryLock(...args),
-  projectWriteLockKey: (projectId: string) => `project-write:${projectId}`,
 }));
 
 vi.mock("./db", async () => {

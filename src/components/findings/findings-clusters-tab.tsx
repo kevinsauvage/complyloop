@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { SeverityBadge } from "@/components/badges";
 import { EmptyState } from "@/components/page-primitives";
-import { findingsListHref } from "@/core/finding-list-filter";
+import { findingsListHref } from "@/core/filters";
 import type { Finding, FindingCluster } from "@complyloop/db/types";
-import { severityRank } from "@/core/prioritization";
+import { severityRank } from "@/core/lifecycle";
 import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 
 function severityMix(

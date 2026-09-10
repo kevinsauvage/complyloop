@@ -1,6 +1,6 @@
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { RoleSelect } from "@/components/role-select";
-import { formatDateTime } from "@/core/format-datetime";
+import { formatDateTime } from "@/core/lifecycle";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -15,7 +15,7 @@ import {
   changeOrgMemberRoleAction,
   removeOrgMemberAction,
 } from "@/server/actions/org";
-import { STATUS_TONE_BADGE, roleTone } from "@/core/status-display";
+import { STATUS_TONE_BADGE, roleTone } from "@/core/display";
 import { cn } from "@/lib/utils";
 
 export function OrgMembersCard({

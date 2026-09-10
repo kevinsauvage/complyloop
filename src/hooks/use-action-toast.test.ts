@@ -18,42 +18,29 @@ afterEach(() => {
   toastError.mockClear();
 });
 
+const idle = { ok: false, message: null as string | null };
+
 describe("useActionToast", () => {
   it("toasts when pending flips to false after a submit", async () => {
     const { rerender } = renderHook(
       ({ state, pending }) => useActionToast(state, pending),
       {
         initialProps: {
-          state: {
-            error: null as string | null,
-            message: null as string | null,
-          },
+          state: idle,
           pending: false,
         },
       },
     );
 
-    rerender({
-      state: { error: null, message: null },
-      pending: true,
-    });
-    rerender({
-      state: { error: "Nope.", message: null },
-      pending: false,
-    });
+    rerender({ state: idle, pending: true });
+    rerender({ state: { ok: false, message: "Nope." }, pending: false });
     await waitFor(() => {
       // Errors stay inline by default — no error toast.
       expect(toastError).not.toHaveBeenCalled();
     });
 
-    rerender({
-      state: { error: null, message: null },
-      pending: true,
-    });
-    rerender({
-      state: { error: null, message: "Done." },
-      pending: false,
-    });
+    rerender({ state: idle, pending: true });
+    rerender({ state: { ok: true, message: "Done." }, pending: false });
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledWith("Done.", { duration: 4_000 });
     });
@@ -64,35 +51,20 @@ describe("useActionToast", () => {
       ({ state, pending }) => useActionToast(state, pending),
       {
         initialProps: {
-          state: {
-            error: null as string | null,
-            message: null as string | null,
-          },
+          state: idle,
           pending: false,
         },
       },
     );
 
-    rerender({
-      state: { error: null, message: null },
-      pending: true,
-    });
-    rerender({
-      state: { error: null, message: "Assessment complete." },
-      pending: false,
-    });
+    rerender({ state: idle, pending: true });
+    rerender({ state: { ok: true, message: "Assessment complete." }, pending: false });
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledTimes(1);
     });
 
-    rerender({
-      state: { error: null, message: "Assessment complete." },
-      pending: true,
-    });
-    rerender({
-      state: { error: null, message: "Assessment complete." },
-      pending: false,
-    });
+    rerender({ state: { ok: true, message: "Assessment complete." }, pending: true });
+    rerender({ state: { ok: true, message: "Assessment complete." }, pending: false });
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledTimes(2);
     });
@@ -104,23 +76,14 @@ describe("useActionToast", () => {
         useActionToast(state, pending, { toastErrors: true }),
       {
         initialProps: {
-          state: {
-            error: null as string | null,
-            message: null as string | null,
-          },
+          state: idle,
           pending: false,
         },
       },
     );
 
-    rerender({
-      state: { error: null, message: null },
-      pending: true,
-    });
-    rerender({
-      state: { error: "Nope.", message: null },
-      pending: false,
-    });
+    rerender({ state: idle, pending: true });
+    rerender({ state: { ok: false, message: "Nope." }, pending: false });
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith("Nope.", { duration: 8_000 });
     });
@@ -128,7 +91,7 @@ describe("useActionToast", () => {
 
   it("does not toast the initial idle state", () => {
     renderHook(() =>
-      useActionToast({ error: null, message: "Should not toast" }, false),
+      useActionToast({ ok: true, message: "Should not toast" }, false),
     );
     expect(toastSuccess).not.toHaveBeenCalled();
     expect(toastError).not.toHaveBeenCalled();

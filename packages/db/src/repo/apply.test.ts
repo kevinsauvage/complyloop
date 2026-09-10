@@ -19,7 +19,7 @@ vi.mock("./evidence.ts", () => ({ insertEvidenceRecords }));
 vi.mock("./assessments.ts", () => ({ insertAssessment }));
 vi.mock("./projects.ts", () => ({ updateProject }));
 
-import type { DrizzleDb } from "../client.ts";
+import type { DrizzleDb } from "../postgres.ts";
 import {
   applyAssessmentPayload,
   buildAssessmentApplyPayload,

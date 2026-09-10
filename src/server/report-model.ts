@@ -16,10 +16,10 @@ import {
   remediationStatusDisplay,
   requirementStatusDisplay,
   severityDisplay,
-} from "@/core/status-display";
-import { countByStatus } from "@/core/count-by-status";
+} from "@/core/display";
+import { countByStatus } from "@/core/lifecycle";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
-import { prioritizeClusters } from "@/core/prioritization";
+import { prioritizeClusters } from "@/core/lifecycle";
 import {
   formatLocationRef,
   locationSnippet,

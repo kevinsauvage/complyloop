@@ -1,4 +1,4 @@
-import { STATUS_TONE_ACCENT, requirementStatusDisplay } from "@/core/status-display";
+import { STATUS_TONE_ACCENT, requirementStatusDisplay } from "@/core/display";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 

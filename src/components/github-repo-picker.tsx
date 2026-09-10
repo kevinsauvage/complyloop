@@ -14,12 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { githubRepoSearchResponseSchema, parseUnknown } from "@/core/boundary";
-import { STATUS_TONE_BADGE } from "@/core/status-display";
+import { githubRepoSearchResponseSchema, parseUnknown } from "@/core/filters";
+import { STATUS_TONE_BADGE } from "@/core/display";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
-  emptyActionMessageState,
-  type ActionMessageState,
+  initialActionState,
+  type ActionState,
 } from "@/server/action-state";
 import {
   connectGitHubRepoAction,
@@ -51,8 +51,8 @@ function groupReposByOwner(repos: GitHubRepoSummary[]): RepoOwnerGroup[] {
     .map(([owner, ownerRepos]) => ({ owner, repos: ownerRepos }));
 }
 
-const connectInitial: ActionMessageState = emptyActionMessageState;
-const disconnectInitial: ActionMessageState = emptyActionMessageState;
+const connectInitial: ActionState = initialActionState;
+const disconnectInitial: ActionState = initialActionState;
 
 const repoSearchErrorSchema = z.object({
   error: z.string().optional(),
@@ -240,14 +240,14 @@ export function GitHubRepoPicker({
         </p>
       ) : null}
 
-      {connectState.error && !connectPending ? (
+      {!connectState.ok && connectState.message && !connectPending ? (
         <p className="text-sm text-destructive" role="alert">
-          {connectState.error}
+          {connectState.message}
         </p>
       ) : null}
-      {disconnectState.error && !disconnectPending ? (
+      {!disconnectState.ok && disconnectState.message && !disconnectPending ? (
         <p className="text-sm text-destructive" role="alert">
-          {disconnectState.error}
+          {disconnectState.message}
         </p>
       ) : null}
 

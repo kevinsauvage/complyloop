@@ -1,6 +1,6 @@
 "use client";
 
-import { nativeSelectClass } from "@/components/ui/native-select";
+import { nativeSelectClass } from "@/components/form-classes";
 
 /** Assignable org roles (owner transfer unsupported). Single source for role <select>s. */
 export const ORG_ROLE_OPTIONS = [

@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import {
   WORKSPACE_EVIDENCE_LIMIT,
   listEvidencePageForProject,

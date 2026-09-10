@@ -7,17 +7,17 @@ import {
 } from "./assessment-jobs";
 import { runAssessment, type AssessmentRunResult } from "./assessment";
 import { loadProjectDb } from "./db";
-import { getDrizzle } from "@complyloop/db/client";
+import {
+  acquireNamedPostgresAdvisoryLock,
+  getDrizzle,
+  projectWriteLockKey,
+} from "@complyloop/db/postgres";
 import {
   applyAssessmentPayload,
   snapshotProjectSlice,
 } from "@complyloop/db/repo/apply";
 import { listAlertsForProject } from "@complyloop/db/repo/alerts";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
-import {
-  acquireNamedPostgresAdvisoryLock,
-  projectWriteLockKey,
-} from "@complyloop/db/write-lock";
 import {
   postPullRequestCheckRun,
   summarizeAssessmentForCheckRun,

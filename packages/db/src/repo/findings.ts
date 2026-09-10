@@ -1,6 +1,6 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import type { Finding } from "../types";
-import type { DrizzleDb } from "../client.ts";
+import type { DrizzleDb } from "../postgres.ts";
 import { findings } from "../schema.ts";
 import { findingToRow } from "./mappers.ts";
 import { upsertPayloadRows } from "./upsert-guard.ts";

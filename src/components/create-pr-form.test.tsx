@@ -36,7 +36,7 @@ afterEach(() => {
 describe("CreatePrForm", () => {
   it("toasts success with a PR action when a url is present", async () => {
     const successState = {
-      error: null as string | null,
+      ok: true,
       message: "Pull request ready." as string | null,
       prUrl: "https://github.com/acme/shop/pull/1" as string | null,
     };
@@ -59,8 +59,8 @@ describe("CreatePrForm", () => {
 
    it("shows failures inline instead of a toast", async () => {
      const errorState = {
-       error: "Push failed." as string | null,
-       message: null as string | null,
+       ok: false,
+       message: "Push failed." as string | null,
        prUrl: null as string | null,
      };
      useActionStateMock.mockReturnValue([errorState, vi.fn(), true]);

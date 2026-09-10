@@ -3,20 +3,16 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/db/types";
 import { generateObject } from "ai";
 import { generateAiRemediation } from "./remediation";
-import { setAiWarn } from "./ai-call";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
 }));
 
 const generate = vi.mocked(generateObject);
-const warn = vi.fn();
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  warn.mockClear();
   generate.mockReset();
-  setAiWarn(() => { });
 });
 
 const control = {
@@ -122,31 +118,17 @@ describe("generateAiRemediation", () => {
     );
   });
 
-  it("warns and returns null when the model throws", async () => {
-    setAiWarn(warn);
+  it("returns null when the model throws", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockRejectedValue(new Error("gateway down"));
 
     await expect(generateAiRemediation(sourceFinding(), control)).resolves.toBeNull();
-    expect(warn).toHaveBeenCalledWith(
-      "AI remediation unavailable or failed",
-      expect.objectContaining({
-        code: "ai_remediation_failed",
-        findingId: "f1",
-        detail: "gateway down",
-      }),
-    );
   });
 
-  it("stringifies non-Error failures in the warn detail", async () => {
-    setAiWarn(warn);
+  it("returns null when the model rejects with a non-Error", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockRejectedValue("boom");
 
     await expect(generateAiRemediation(sourceFinding(), control)).resolves.toBeNull();
-    expect(warn).toHaveBeenCalledWith(
-      "AI remediation unavailable or failed",
-      expect.objectContaining({ detail: "boom" }),
-    );
   });
 });

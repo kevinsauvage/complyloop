@@ -1,7 +1,7 @@
 import type { AssessmentJob } from "@/server/assessment-jobs";
 import { runAssessmentAction } from "@/server/actions/assessment";
 import { StatefulActionForm } from "@/components/stateful-action-form";
-import { formatDateTime } from "@/core/format-datetime";
+import { formatDateTime } from "@/core/lifecycle";
 import { cn } from "@/lib/utils";
 import { RefreshCw } from "lucide-react";
 

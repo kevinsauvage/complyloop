@@ -26,7 +26,14 @@ vi.mock("./active-cookies", () => ({
   readActiveOrgCookie,
   readActiveProjectCookie,
 }));
-vi.mock("@complyloop/db/client", () => ({ getDrizzle }));
+vi.mock("@complyloop/db/postgres", () => ({
+  getDrizzle,
+  acquireNamedPostgresAdvisoryLock: (
+    ...args: Parameters<typeof acquireNamedPostgresAdvisoryLock>
+  ) => acquireNamedPostgresAdvisoryLock(...args),
+  projectWriteLockKey: (projectId: string) => `project-write:${projectId}`,
+  orgWriteLockKey: (userId: string) => `org-write:${userId}`,
+}));
 vi.mock("@complyloop/db/workspace-load", () => ({
   loadTenancyDb,
   loadTargetedProjectWriteDb: (...args: unknown[]) =>
@@ -54,13 +61,6 @@ vi.mock("@complyloop/db/repo/projects", () => ({
 vi.mock("@complyloop/db/repo/evidence", () => ({
   WORKSPACE_EVIDENCE_LIMIT: 100,
   insertEvidenceRecords: (...args: unknown[]) => insertEvidenceRecords(...args),
-}));
-vi.mock("@complyloop/db/write-lock", () => ({
-  acquireNamedPostgresAdvisoryLock: (
-    ...args: Parameters<typeof acquireNamedPostgresAdvisoryLock>
-  ) => acquireNamedPostgresAdvisoryLock(...args),
-  projectWriteLockKey: (projectId: string) => `project-write:${projectId}`,
-  orgWriteLockKey: (userId: string) => `org-write:${userId}`,
 }));
 
 import {

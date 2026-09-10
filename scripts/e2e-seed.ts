@@ -11,18 +11,16 @@ import {
   E2E_PROJECT_ID,
   E2E_VIEWER,
 } from "../e2e/constants";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle, openScriptClient, requireDatabaseUrl } from "./db";
 import { upsertFinding } from "@complyloop/db/repo/findings";
 import { insertMembership, insertOrganization } from "@complyloop/db/repo/orgs";
 import { insertProject } from "@complyloop/db/repo/projects";
 import { upsertRemediation } from "@complyloop/db/repo/remediations";
 import { insertAssessment } from "@complyloop/db/repo/assessments";
-import { createPostgresClient } from "@complyloop/db/postgres-url";
 import { storeUserGitHubToken } from "../src/server/github-tokens";
-import { loadLocalEnv } from "./env";
 
 async function truncateAll(connectionString: string): Promise<void> {
-  const sql = await createPostgresClient(connectionString, { max: 1 });
+  const sql = await openScriptClient(connectionString, 1);
   try {
     await sql.unsafe(`
       TRUNCATE TABLE
@@ -46,12 +44,7 @@ async function truncateAll(connectionString: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  loadLocalEnv();
-  const url = process.env.DATABASE_URL?.trim();
-  if (!url) {
-    console.error("DATABASE_URL is required for e2e:seed.");
-    process.exit(1);
-  }
+  const url = requireDatabaseUrl("DATABASE_URL is required for e2e:seed.");
 
   await truncateAll(url);
 

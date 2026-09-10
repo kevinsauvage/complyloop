@@ -1,7 +1,11 @@
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import { formatDateTimeWithZone } from "@/core/format-datetime";
+import { formatDateTimeWithZone } from "@/core/lifecycle";
+import {
+  requirementStatusReportClass,
+  severityDisplay,
+  STATUS_TONE_REPORT,
+} from "@/core/display";
 import type { ReportHeaderModel } from "../report-model";
-import { reportCssVariables, reportStatusClass } from "./report-colors";
 
 export function escapeHtml(text: string): string {
   return text
@@ -29,7 +33,33 @@ export function reportSection(id: string, title: string, body: string): string {
 }
 
 export function statusClass(status: RequirementStatus): string {
-  return reportStatusClass(status);
+  return requirementStatusReportClass(status);
+}
+
+/** CSS custom properties for the standalone report stylesheet. */
+function reportCssVariables(): string {
+  const tone = STATUS_TONE_REPORT;
+  const severity = (name: Parameters<typeof severityDisplay>[0]) =>
+    severityDisplay(name).report;
+  return `
+  --passed: ${tone.passed.fg};
+  --passed-bg: ${tone.passed.bg};
+  --failed: ${tone.failed.fg};
+  --failed-bg: ${tone.failed.bg};
+  --review: ${tone.review.fg};
+  --review-bg: ${tone.review.bg};
+  --na: ${tone.na.fg};
+  --na-bg: ${tone.na.bg};
+  --unable: ${tone.unverifiable.fg};
+  --unable-bg: ${tone.unverifiable.bg};
+  --critical: ${severity("critical").fg};
+  --critical-bg: ${severity("critical").bg};
+  --serious: ${severity("serious").fg};
+  --serious-bg: ${severity("serious").bg};
+  --moderate: ${severity("moderate").fg};
+  --moderate-bg: ${severity("moderate").bg};
+  --minor: ${severity("minor").fg};
+  --minor-bg: ${severity("minor").bg};`;
 }
 
 const REPORT_STYLES = `

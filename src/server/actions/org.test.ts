@@ -6,7 +6,7 @@ import type { Organization } from "@complyloop/analysis-core/contract/project-ty
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { emptyActionMessageState } from "../action-state";
+import { initialActionState } from "../action-state";
 import {
   changeOrgMemberRoleAction,
   createOrgAction,
@@ -70,7 +70,7 @@ vi.mock("./shared", async () => {
   };
 });
 
-vi.mock("@complyloop/db/client", () => ({
+vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: async () => ({}),
 }));
 
@@ -277,8 +277,8 @@ describe("org lifecycle actions", () => {
     const formData = new FormData();
     formData.set("orgId", "org-1");
     formData.set("confirm", "nope");
-    const result = await deleteOrgAction(emptyActionMessageState, formData);
-    expect(result.error).toMatch(/Type DELETE/);
+    const result = await deleteOrgAction(initialActionState, formData);
+    expect((result.ok ? null : result.message)).toMatch(/Type DELETE/);
     expect(deleteOrganization).not.toHaveBeenCalled();
   });
 
@@ -287,8 +287,8 @@ describe("org lifecycle actions", () => {
     const formData = new FormData();
     formData.set("orgId", "org-1");
     formData.set("confirm", "DELETE");
-    const result = await deleteOrgAction(emptyActionMessageState, formData);
-    expect(result.error).toBeNull();
+    const result = await deleteOrgAction(initialActionState, formData);
+    expect((result.ok ? null : result.message)).toBeNull();
     expect(result.message).toMatch(/Evidence history was retained/);
     expect(deleteOrganization).toHaveBeenCalledWith(
       expect.anything(),
@@ -328,26 +328,26 @@ describe("createOrgAction", () => {
   it("creates an organization for a signed-in GitHub user", async () => {
     const form = new FormData();
     form.set("name", "New Co");
-    const result = await createOrgAction(emptyActionMessageState, form);
-    expect(result.error).toBeNull();
+    const result = await createOrgAction(initialActionState, form);
+    expect((result.ok ? null : result.message)).toBeNull();
     expect(result.message).toMatch(/Created organization "New Co"/);
     expect(writeActiveOrgCookie).toHaveBeenCalled();
   });
 
   it("requires a name", async () => {
     const result = await createOrgAction(
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/organization name/i);
+    expect((result.ok ? null : result.message)).toMatch(/organization name/i);
   });
 
   it("requires GitHub sign-in", async () => {
     actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     const form = new FormData();
     form.set("name", "No Login");
-    const result = await createOrgAction(emptyActionMessageState, form);
-    expect(result.error).toMatch(/Sign in with GitHub/);
+    const result = await createOrgAction(initialActionState, form);
+    expect((result.ok ? null : result.message)).toMatch(/Sign in with GitHub/);
   });
 });
 
@@ -357,7 +357,7 @@ describe("org member management actions", () => {
     form.set("orgId", "org-1");
     form.set("githubLogin", "bob");
     form.set("role", "member");
-    const result = await inviteOrgMemberAction(emptyActionMessageState, form);
+    const result = await inviteOrgMemberAction(initialActionState, form);
     expect(result.message).toMatch(/Invited @bob as member/);
   });
 
@@ -366,16 +366,16 @@ describe("org member management actions", () => {
     form.set("orgId", "org-1");
     form.set("githubLogin", "bob");
     form.set("role", "owner");
-    const result = await inviteOrgMemberAction(emptyActionMessageState, form);
-    expect(result.error).toMatch(/Choose a role/);
+    const result = await inviteOrgMemberAction(initialActionState, form);
+    expect((result.ok ? null : result.message)).toMatch(/Choose a role/);
   });
 
   it("requires a GitHub username to invite", async () => {
     const form = new FormData();
     form.set("orgId", "org-1");
     form.set("role", "viewer");
-    const result = await inviteOrgMemberAction(emptyActionMessageState, form);
-    expect(result.error).toMatch(/GitHub username/);
+    const result = await inviteOrgMemberAction(initialActionState, form);
+    expect((result.ok ? null : result.message)).toMatch(/GitHub username/);
   });
 
   it("removes a member", async () => {
@@ -400,7 +400,7 @@ describe("org member management actions", () => {
     const form = new FormData();
     form.set("orgId", "org-1");
     form.set("membershipId", "m-member");
-    const result = await removeOrgMemberAction(emptyActionMessageState, form);
+    const result = await removeOrgMemberAction(initialActionState, form);
     expect(result.message).toBe("Member removed.");
   });
 
@@ -428,7 +428,7 @@ describe("org member management actions", () => {
     const form = new FormData();
     form.set("orgId", "org-1");
     form.set("membershipId", "m-invite");
-    const result = await removeOrgMemberAction(emptyActionMessageState, form);
+    const result = await removeOrgMemberAction(initialActionState, form);
     expect(result.message).toBe("Invite revoked.");
   });
 
@@ -456,7 +456,7 @@ describe("org member management actions", () => {
     form.set("membershipId", "m-member");
     form.set("role", "admin");
     const result = await changeOrgMemberRoleAction(
-      emptyActionMessageState,
+      initialActionState,
       form,
     );
     expect(result.message).toBe("Role updated to admin.");
@@ -487,20 +487,20 @@ describe("org member management actions", () => {
     inviteForm.set("githubLogin", "bob");
     inviteForm.set("role", "member");
     await expect(
-      inviteOrgMemberAction(emptyActionMessageState, inviteForm),
+      inviteOrgMemberAction(initialActionState, inviteForm),
     ).resolves.toEqual({
-      message: null,
-      error: "Only org owners and admins can invite members.",
+      ok: false,
+      message: "Only org owners and admins can invite members.",
     });
 
     const removeForm = new FormData();
     removeForm.set("orgId", "org-1");
     removeForm.set("membershipId", "m-caller");
     await expect(
-      removeOrgMemberAction(emptyActionMessageState, removeForm),
+      removeOrgMemberAction(initialActionState, removeForm),
     ).resolves.toEqual({
-      message: null,
-      error: "Only org owners and admins can remove members.",
+      ok: false,
+      message: "Only org owners and admins can remove members.",
     });
 
     const roleForm = new FormData();
@@ -508,10 +508,10 @@ describe("org member management actions", () => {
     roleForm.set("membershipId", "m-caller");
     roleForm.set("role", "admin");
     await expect(
-      changeOrgMemberRoleAction(emptyActionMessageState, roleForm),
+      changeOrgMemberRoleAction(initialActionState, roleForm),
     ).resolves.toEqual({
-      message: null,
-      error: "Only org owners and admins can change member roles.",
+      ok: false,
+      message: "Only org owners and admins can change member roles.",
     });
   });
 });

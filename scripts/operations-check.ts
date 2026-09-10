@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /** Fails a deployment/cron check when production operational prerequisites drift. */
 import { sql } from "drizzle-orm";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import { queuedAssessmentJobCount } from "../src/server/assessment-jobs";
 import { loadLocalEnv } from "./env";
 

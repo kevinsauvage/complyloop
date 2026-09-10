@@ -12,8 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { createPostgresClient } from "@complyloop/db/postgres-url";
-import { loadLocalEnv } from "./env";
+import { openScriptClient, requireDatabaseUrl } from "./db";
 
 // Deterministic per-database lock key for serializing migrations across
 // processes. hashtext makes it stable without hand-picking a magic number.
@@ -24,7 +23,7 @@ async function applyMigrations(
   dir: string,
   files: string[],
 ): Promise<void> {
-  const sql = await createPostgresClient(url, { max: 1 });
+  const sql = await openScriptClient(url, 1);
   try {
     // Serialize against any other migration process (replica starts, the
     // deploy step, an overlapping deploy). Session-scoped, so a crashed
@@ -71,14 +70,9 @@ export async function applyPendingMigrations(url: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  loadLocalEnv();
-  const url = process.env.DATABASE_URL?.trim();
-  if (!url) {
-    console.error(
-      "DATABASE_URL is required. Set it in .env.local or the environment.",
-    );
-    process.exit(1);
-  }
+  const url = requireDatabaseUrl(
+    "DATABASE_URL is required. Set it in .env.local or the environment.",
+  );
   await applyPendingMigrations(url);
 }
 

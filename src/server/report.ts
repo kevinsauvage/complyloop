@@ -8,12 +8,12 @@ import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { controlForDisplay } from "@complyloop/adapters/control-theme";
 import { presetById, projectDefaultPresetId } from "@complyloop/adapters/registry";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
 import {
   parseReportViewParam,
   type ReportView,
-} from "@/core/query";
+} from "@/core/filters";
 import type {
   Alert,
   Assessment,

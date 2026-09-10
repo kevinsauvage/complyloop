@@ -8,17 +8,17 @@ import {
   scanRuntime,
 } from "@complyloop/analysis-core/runtime/scan";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { advanceRemediation, appendRemediationHistory } from "@/core/remediation";
+import { advanceRemediation, appendRemediationHistory } from "@/core/lifecycle";
 import {
   entityIdSchema,
   optionalNoteSchema,
   parseForm,
   parseInput,
-} from "@/core/boundary";
+} from "@/core/filters";
 import { z } from "zod";
 import {
-  runActionMessage,
-  type ActionMessageState,
+  runAction,
+  type ActionState,
 } from "../action-state";
 import { sameInstance } from "../assessment-findings";
 import { applyRequirementStatusRefresh } from "../assessment-status";
@@ -120,12 +120,12 @@ function markVerified(
 
 export async function verifyRemediationAction(
   findingIdRaw: string,
-  previous: ActionMessageState,
+  previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
+): Promise<ActionState> {
   void previous;
   void formData;
-  return runActionMessage(async () => {
+  return runAction(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);
@@ -204,10 +204,10 @@ export async function verifyRemediationAction(
  */
 export async function markRemediationImplementedAction(
   findingIdRaw: string,
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const { note: parsedNote } = parseForm(markImplementedInput, formData);
     await withFindingWrite(

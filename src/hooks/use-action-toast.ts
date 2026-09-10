@@ -2,17 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-
-/** Minimal shape shared by `ActionMessageState` / form error states. */
-export type ToastableActionState = {
-  error: string | null;
-  message?: string | null;
-};
-
-export type ActionToastSuccessAction = {
-  label: string;
-  onClick: () => void;
-};
+import type { ActionState } from "@/server/action-state";
 
 /**
  * Surfaces `useActionState` results via the global Sonner toaster.
@@ -24,11 +14,11 @@ export type ActionToastSuccessAction = {
  * fire-and-forget actions with no inline error slot.
  */
 export function useActionToast(
-  state: ToastableActionState,
+  state: ActionState,
   pending = false,
   options?: {
     successDuration?: number;
-    successAction?: ActionToastSuccessAction | null;
+    successAction?: { label: string; onClick: () => void } | null;
     toastErrors?: boolean;
   },
 ): void {
@@ -45,8 +35,10 @@ export function useActionToast(
     if (!wasPending.current) return;
     wasPending.current = false;
 
-    if (state.error) {
-      if (toastErrors) toast.error(state.error, { duration: 8_000 });
+    if (!state.ok) {
+      if (state.message && toastErrors) {
+        toast.error(state.message, { duration: 8_000 });
+      }
       return;
     }
     if (state.message) {
@@ -55,5 +47,5 @@ export function useActionToast(
         ...(successAction ? { action: successAction } : {}),
       });
     }
-  }, [pending, state.error, state.message, successDuration, successAction, toastErrors]);
+  }, [pending, state.ok, state.message, successDuration, successAction, toastErrors]);
 }

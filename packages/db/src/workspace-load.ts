@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import type { Db } from "./types.ts";
-import type { DrizzleDb } from "./client.ts";
+import type { DrizzleDb } from "./postgres.ts";
 import {
   rowToEvidence,
 } from "./repo/mappers.ts";

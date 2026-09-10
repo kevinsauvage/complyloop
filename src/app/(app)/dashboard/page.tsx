@@ -20,13 +20,13 @@ import { projectDescription } from "@/components/dashboard/project-description";
 import { PageActionLink, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { AssessmentRunForm } from "@/components/dashboard/assessment-run-form";
-import { latestAssessmentFor } from "@/core/assessment";
-import { countByStatus } from "@/core/count-by-status";
+import { latestAssessmentFor } from "@/core/lifecycle";
+import { countByStatus } from "@/core/lifecycle";
 import {
   prioritizeClusters,
   prioritizeFindings,
-} from "@/core/prioritization";
-import { clusterFindings } from "@/core/root-cause";
+} from "@/core/lifecycle";
+import { clusterFindings } from "@/core/lifecycle";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import {

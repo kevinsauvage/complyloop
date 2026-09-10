@@ -6,7 +6,7 @@
  * Example: npm run db:ensure-owner -- 64160579 kevinsauvage
  */
 import { ensurePersonalOrgProvisioned } from "../src/server/personal-org";
-import { loadLocalEnv } from "./env";
+import { loadLocalEnv } from "./db";
 
 async function main(): Promise<void> {
   loadLocalEnv();

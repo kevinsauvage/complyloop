@@ -29,7 +29,7 @@ import {
   deleteOrgAction,
   exportOrgDataAction,
 } from "@/server/actions/org";
-import { emptyActionMessageState } from "@/server/action-state";
+import { initialActionState } from "@/server/action-state";
 
 export function OrgDataLifecycle({
   orgId,
@@ -48,7 +48,7 @@ export function OrgDataLifecycle({
   const [confirmText, setConfirmText] = useState("");
   const [deleteState, deleteAction, deletePending] = useActionState(
     deleteOrgAction,
-    emptyActionMessageState,
+    initialActionState,
   );
   useActionToast(deleteState, deletePending);
 
@@ -60,11 +60,11 @@ export function OrgDataLifecycle({
       wasDeletePending.current = true;
       return;
     }
-    if (wasDeletePending.current && !deleteState.error) {
+    if (wasDeletePending.current && deleteState.ok) {
       setDeleteConfirmOpen(false);
     }
     wasDeletePending.current = false;
-  }, [deletePending, deleteState.error]);
+  }, [deletePending, deleteState.ok]);
 
   async function runExport(): Promise<void> {
     setExporting(true);
@@ -238,9 +238,9 @@ export function OrgDataLifecycle({
                     {deletePending ? "Deleting…" : "Delete permanently"}
                   </Button>
                 </AlertDialogFooter>
-                {deleteState.error && !deletePending ? (
+                {!deleteState.ok && deleteState.message && !deletePending ? (
                   <p role="alert" className="text-sm text-destructive">
-                    {deleteState.error}
+                    {deleteState.message}
                   </p>
                 ) : null}
               </AlertDialogContent>

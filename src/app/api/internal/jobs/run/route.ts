@@ -1,4 +1,4 @@
-import { processNextAssessmentJob } from "@/server/assessment-worker";
+import { runAssessmentJobBatch } from "@/server/assessment-runner";
 import {
   isWorkerAuthConfigured,
   isWorkerRequestAuthorized,
@@ -36,11 +36,6 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  const results = [];
-  for (let index = 0; index < requestedBatchSize(request); index += 1) {
-    const result = await processNextAssessmentJob();
-    results.push(result);
-    if (result.kind === "idle") break;
-  }
+  const results = await runAssessmentJobBatch(requestedBatchSize(request));
   return Response.json({ results });
 }

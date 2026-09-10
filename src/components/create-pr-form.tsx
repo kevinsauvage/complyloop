@@ -7,10 +7,10 @@ import {
   createPullRequestAction,
   type CreatePrFormState,
 } from "@/server/actions/pr";
-import { emptyActionMessageState } from "@/server/action-state";
+import { initialActionState } from "@/server/action-state";
 
 const initial: CreatePrFormState = {
-  ...emptyActionMessageState,
+  ...initialActionState,
   prUrl: null,
 };
 
@@ -45,9 +45,9 @@ export function CreatePrForm({ findingId }: { findingId: string }) {
           {pending ? "Creating draft…" : "Create draft pull request"}
         </Button>
       </div>
-      {state.error && !pending ? (
+      {!state.ok && state.message && !pending ? (
         <p role="alert" className="text-sm text-destructive">
-          {state.error}
+          {state.message}
         </p>
       ) : null}
       {state.prUrl && !pending ? (

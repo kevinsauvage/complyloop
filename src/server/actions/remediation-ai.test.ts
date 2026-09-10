@@ -7,7 +7,7 @@ import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { emptyActionMessageState } from "../action-state";
+import { initialActionState } from "../action-state";
 import {
   generateAiExplanationAction,
   generateAiRemediationAction,
@@ -27,10 +27,6 @@ vi.mock("@/ai/explainer", () => ({
 
 vi.mock("@/ai/remediation", () => ({
   generateAiRemediation: (...args: unknown[]) => generateAiRemediation(...args),
-}));
-
-vi.mock("@/ai/ai-call", () => ({
-  setAiWarn: vi.fn(),
 }));
 
 vi.mock("../rate-limit", () => ({
@@ -89,10 +85,10 @@ describe("generateAiExplanationAction", () => {
 
     const result = await generateAiExplanationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/Not allowed/);
+    expect((result.ok ? null : result.message)).toMatch(/Not allowed/);
   });
 
   it("adds an explanation when the model returns one", async () => {
@@ -111,7 +107,7 @@ describe("generateAiExplanationAction", () => {
 
     const result = await generateAiExplanationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
@@ -127,11 +123,11 @@ describe("generateAiExplanationAction", () => {
 
     const result = await generateAiExplanationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
-    expect(result.error).toMatch(/AI explanation unavailable/);
+    expect((result.ok ? null : result.message)).toMatch(/AI explanation unavailable/);
   });
 });
 
@@ -146,10 +142,10 @@ describe("generateAiRemediationAction", () => {
 
     const result = await generateAiRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/only available for open findings/);
+    expect((result.ok ? null : result.message)).toMatch(/only available for open findings/);
   });
 
   it("rejects remediations past the suggestion stage", async () => {
@@ -159,10 +155,10 @@ describe("generateAiRemediationAction", () => {
 
     const result = await generateAiRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/before approval/);
+    expect((result.ok ? null : result.message)).toMatch(/before approval/);
   });
 
   it("advances detected remediations to suggested", async () => {
@@ -191,7 +187,7 @@ describe("generateAiRemediationAction", () => {
 
     const result = await generateAiRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
@@ -223,7 +219,7 @@ describe("generateAiRemediationAction", () => {
 
     const result = await generateAiRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
@@ -242,9 +238,9 @@ describe("generateAiRemediationAction", () => {
 
     const result = await generateAiRemediationAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/AI remediation unavailable/);
+    expect((result.ok ? null : result.message)).toMatch(/AI remediation unavailable/);
   });
 });

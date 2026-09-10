@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { advanceRemediation } from "@/core/remediation";
+import { advanceRemediation } from "@/core/lifecycle";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { type Finding } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";

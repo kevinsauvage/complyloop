@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import { closeDrizzle, getDrizzle } from "@complyloop/db/client";
+import { closeDrizzle, getDrizzle } from "@complyloop/db/postgres";
 import { findings } from "@complyloop/db/schema";
 import {
   cleanupProjectSliceFixture,

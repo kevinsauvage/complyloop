@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MetaTile } from "@/components/page-primitives";
-import { formatDateTime } from "@/core/format-datetime";
+import { formatDateTime } from "@/core/lifecycle";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -9,7 +9,7 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import type { OrgRole } from "@complyloop/analysis-core/contract/project-types";
-import { STATUS_TONE_BADGE, roleTone } from "@/core/status-display";
+import { STATUS_TONE_BADGE, roleTone } from "@/core/display";
 import { cn } from "@/lib/utils";
 
 type OrgAccountOverviewProps = {

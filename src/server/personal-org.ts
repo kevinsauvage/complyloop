@@ -1,4 +1,4 @@
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import { provisionPersonalOrg } from "@complyloop/db/repo/orgs";
 
 /**

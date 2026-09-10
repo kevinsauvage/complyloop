@@ -5,8 +5,7 @@ import type { Finding } from "@complyloop/db/types"
 import type { Explanation } from "@complyloop/analysis-core/contract/finding-types";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef, locationSnippet } from "@complyloop/analysis-core/contract/location";
-import { AI_MODEL, aiCall } from "./ai-call";
-import { confidenceSchema } from "./schemas";
+import { AI_MODEL, aiCall, confidenceSchema } from "./ai-call";
 
 const explanationSchema = z.object({
   whyItFailed: z.string(),
@@ -46,9 +45,8 @@ export async function generateAiExplanation(
   const object = await aiCall({
     schema: explanationSchema,
     available: aiExplanationAvailable(),
-    warnMessage: "AI explanation unavailable or failed",
-    warnCode: "ai_explanation_failed",
-    warnDetail: { findingId: finding.id, controlId: control.id },
+    code: "ai_explanation_failed",
+    detail: { findingId: finding.id, controlId: control.id },
     prompt: [
       "You explain accessibility compliance findings to web developers.",
       `Requirement: ${control.code} / ${control.secondaryCode} — ${control.title}. ${control.description}`,

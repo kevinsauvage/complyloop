@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
-import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
+import { getDrizzle, type DrizzleDb } from "@complyloop/db/postgres";
 import { assessmentJobs } from "@complyloop/db/schema";
 import {
   ASSESSMENT_JOB_STATUSES,
@@ -11,7 +11,7 @@ import {
   assessmentJobPayloadSchema,
   type AssessmentJob,
   type AssessmentJobPayload,
-} from "@/core/assessment-job";
+} from "@/core/lifecycle";
 import { reportWarning } from "./observability";
 
 export type { AssessmentJob };

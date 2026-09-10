@@ -1,6 +1,8 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { reportError } from "@/server/observability";
+
 /** Vercel AI Gateway model id (`provider/model`). */
 export const AI_MODEL = "minimax/minimax-m3";
 
@@ -8,65 +10,39 @@ export const AI_MODEL = "minimax/minimax-m3";
 export const AI_PATCH_UNAVAILABLE_MESSAGE =
   "AI patch generation isn't enabled for this workspace, and there's no built-in fix for this finding. Use the developer handoff to fix it manually.";
 
-type AiWarnFn = (
-  message: string,
-  context?: Record<string, unknown>,
-) => void;
+/**
+ * Shared zod schema for AI confidence values, aligned with analysis-core's
+ * `Confidence` type (`"high" | "medium" | "low"`). Kept here so every AI
+ * module that asks the gateway for a confidence parses it identically.
+ */
+export const confidenceSchema = z.enum(["high", "medium", "low"]);
 
-let warnFn: AiWarnFn = () => {
-  /* default: no-op until the server wires observability */
-};
-
-export function setAiWarn(fn: AiWarnFn): void {
-  warnFn = fn;
-}
-
-export function aiWarn(
-  message: string,
-  context?: Record<string, unknown>,
-): void {
-  warnFn(message, context);
-}
-
-interface AiCallInputBase<TSchema extends z.ZodType> {
+interface AiCallInput<TSchema extends z.ZodType> {
   schema: TSchema;
-  /** Set when AI credentials are configured; null short-circuits. */
+  /** Set when AI credentials are configured; false short-circuits. */
   available: boolean;
+  /** When true, unavailable/failed calls throw PublicError instead of returning null. */
+  throwIfUnavailable?: boolean;
   prompt: string | string[];
-  warnMessage: string;
-  warnCode: string;
-  warnDetail?: Record<string, unknown>;
-  /** User-facing copy when `onFailure` is `"throw"`. */
+  /** Stable machine-readable code attached to the observability report. */
+  code: string;
+  /** Extra context attached to the observability report. */
+  detail?: Record<string, unknown>;
+  /** User-facing copy when `throwIfUnavailable` is set. */
   failureMessage?: string;
 }
 
-type AiCallInputThrow<TSchema extends z.ZodType> = AiCallInputBase<TSchema> & {
-  onFailure: "throw";
-};
-
-type AiCallInputNull<TSchema extends z.ZodType> = AiCallInputBase<TSchema> & {
-  /** When `"throw"`, failures surface as PublicError instead of returning null. */
-  onFailure?: "null";
-};
-
 /**
- * Shared AI gateway shell: availability check + structured `generateObject` +
- * warn on failure. Returns `null` when AI is disabled or the call fails unless
- * `onFailure` is `"throw"`. Callers always keep a deterministic baseline (AI
- * never sets status).
+ * Shared AI gateway shell: availability check + structured `generateObject`.
+ * Returns `null` when AI is disabled or the call fails unless
+ * `throwIfUnavailable` is set. Callers always keep a deterministic baseline
+ * (AI never sets status), and failures are reported for observability.
  */
 export async function aiCall<TSchema extends z.ZodType>(
-  input: AiCallInputThrow<TSchema>,
-): Promise<z.infer<TSchema>>;
-export async function aiCall<TSchema extends z.ZodType>(
-  input: AiCallInputNull<TSchema>,
-): Promise<z.infer<TSchema> | null>;
-export async function aiCall<TSchema extends z.ZodType>(
-  input: AiCallInputThrow<TSchema> | AiCallInputNull<TSchema>,
+  input: AiCallInput<TSchema>,
 ): Promise<z.infer<TSchema> | null> {
-  const onFailure = input.onFailure ?? "null";
   if (!input.available) {
-    if (onFailure === "throw") {
+    if (input.throwIfUnavailable) {
       throw new PublicError(
         input.failureMessage ??
           "AI is unavailable. Check AI credentials or try again.",
@@ -82,15 +58,13 @@ export async function aiCall<TSchema extends z.ZodType>(
     });
     return object as z.infer<TSchema>;
   } catch (error) {
-    aiWarn(input.warnMessage, {
-      code: input.warnCode,
+    reportError(error, {
+      code: input.code,
       detail: error instanceof Error ? error.message : String(error),
-      ...input.warnDetail,
+      ...input.detail,
     });
-    if (onFailure === "throw") {
-      throw new PublicError(
-        input.failureMessage ?? input.warnMessage,
-      );
+    if (input.throwIfUnavailable) {
+      throw new PublicError(input.failureMessage ?? "AI call failed. Try again.");
     }
     return null;
   }

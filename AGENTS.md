@@ -66,6 +66,10 @@ Module layout (packages, boundaries, data flow): [`docs/ai/architecture.md`](./d
 3. Use canonical statuses with exhaustive `switch` + `never` default ([`domain-model.mdc`](./.cursor/rules/domain-model.mdc)).
 4. Update `docs/ai/architecture.md` when persistence or system shape changes.
 
+## Dependency policy
+
+Keep the UI dependency surface from regrowing: do not add a new Radix/`ui/` primitive without 2+ consumers, and keep success/error toasts centralized (`useActionToast` / `action-state.ts`) rather than sprinkling new `sonner` calls.
+
 <!-- graft:start -->
 ## Graft — repo context graph
 

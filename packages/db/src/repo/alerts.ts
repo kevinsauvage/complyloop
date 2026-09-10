@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import type { Alert } from "../types";
-import type { DrizzleDb } from "../client.ts";
+import type { DrizzleDb } from "../postgres.ts";
 import { alerts } from "../schema.ts";
 import { alertToRow } from "./mappers.ts";
 

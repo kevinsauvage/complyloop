@@ -1,7 +1,12 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import type { EvidenceRecord } from "./types";
-import { closeDrizzle, getDrizzle } from "./client";
+import {
+  acquireNamedPostgresAdvisoryLock,
+  closeDrizzle,
+  getDrizzle,
+  projectWriteLockKey,
+} from "./postgres";
 import {
   persistProjectRows,
   snapshotProjectSlice,
@@ -18,10 +23,6 @@ import {
   sliceFingerprint,
   type ProjectSliceFixture,
 } from "./test-fixtures/project-slice-fixture";
-import {
-  acquireNamedPostgresAdvisoryLock,
-  projectWriteLockKey,
-} from "./write-lock";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Run via `npm run test:db`. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());

@@ -5,7 +5,13 @@ import type {
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
+import {
+  acquireNamedPostgresAdvisoryLock,
+  getDrizzle,
+  orgWriteLockKey,
+  projectWriteLockKey,
+  type DrizzleDb,
+} from "@complyloop/db/postgres";
 import {
   insertEvidenceRecords,
   WORKSPACE_EVIDENCE_LIMIT,
@@ -26,11 +32,6 @@ import {
   loadTargetedProjectWriteDb,
   loadTenancyDb,
 } from "@complyloop/db/workspace-load";
-import {
-  acquireNamedPostgresAdvisoryLock,
-  orgWriteLockKey,
-  projectWriteLockKey,
-} from "@complyloop/db/write-lock";
 import type { EvidenceRecord, Finding } from "@complyloop/db/types";
 import type { Permission } from "@/core/rbac";
 import { orgsForUser } from "./org-queries";

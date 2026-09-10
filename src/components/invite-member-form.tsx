@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { RoleSelect } from "@/components/role-select";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
-  emptyActionMessageState,
-  type ActionMessageState,
+  initialActionState,
+  type ActionState,
 } from "@/server/action-state";
 
 export function InviteMemberForm({
@@ -17,16 +17,16 @@ export function InviteMemberForm({
   canAssignAdmin = false,
 }: {
   action: (
-    previous: ActionMessageState,
+    previous: ActionState,
     formData: FormData,
-  ) => Promise<ActionMessageState>;
+  ) => Promise<ActionState>;
   orgId: string;
   /** Owners may invite admins; admins may only invite member/viewer. */
   canAssignAdmin?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     action,
-    emptyActionMessageState,
+    initialActionState,
   );
   useActionToast(state, pending);
 
@@ -43,9 +43,11 @@ export function InviteMemberForm({
           required
           placeholder="octocat"
           aria-describedby={
-            state.error && !pending ? "githubLogin-error" : "githubLogin-hint"
+            !state.ok && state.message && !pending
+              ? "githubLogin-error"
+              : "githubLogin-hint"
           }
-          aria-invalid={state.error ? true : undefined}
+          aria-invalid={!state.ok && state.message ? true : undefined}
         />
         <p id="githubLogin-hint" className="text-xs text-muted-foreground">
           GitHub handle without the @ — they must have signed in once with
@@ -59,9 +61,9 @@ export function InviteMemberForm({
       <Button type="submit" disabled={pending}>
         {pending ? "Inviting…" : "Invite"}
       </Button>
-      {state.error && !pending ? (
+      {!state.ok && state.message && !pending ? (
         <p id="githubLogin-error" role="alert" className="text-sm text-destructive">
-          {state.error}
+          {state.message}
         </p>
       ) : null}
     </form>

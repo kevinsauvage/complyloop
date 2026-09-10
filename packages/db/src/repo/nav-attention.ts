@@ -1,5 +1,5 @@
 import { and, count, eq, inArray } from "drizzle-orm";
-import type { DrizzleDb } from "../client.ts";
+import type { DrizzleDb } from "../postgres.ts";
 import { alerts, findings } from "../schema.ts";
 
 export interface NavAttentionCounts {

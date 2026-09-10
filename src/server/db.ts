@@ -1,4 +1,4 @@
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import { loadProjectAssessmentDb } from "@complyloop/db/workspace-load";
 import type { Db } from "@complyloop/db/types";
 

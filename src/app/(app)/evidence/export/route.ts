@@ -1,4 +1,4 @@
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
 import { listRequirementsForProject } from "@complyloop/db/repo/requirements";
 import {

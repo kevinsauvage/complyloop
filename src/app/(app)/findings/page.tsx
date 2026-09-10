@@ -19,11 +19,11 @@ import {
   type FilterFindingsContext,
   type FindingsTab,
   type FindingListParams,
-} from "@/core/finding-list-filter";
-import { reportHref } from "@/core/query";
-import { paginateSlice, DEFAULT_PAGE_SIZE } from "@/core/pagination";
-import { prioritizeClusters } from "@/core/prioritization";
-import { clusterFindings } from "@/core/root-cause";
+} from "@/core/filters";
+import { reportHref } from "@/core/filters";
+import { paginateSlice, DEFAULT_PAGE_SIZE } from "@/core/filters";
+import { prioritizeClusters } from "@/core/lifecycle";
+import { clusterFindings } from "@/core/lifecycle";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Finding } from "@complyloop/db/types";
 import { projectCapabilities } from "@/server/project-capabilities";

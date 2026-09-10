@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { actionAuthMocks, actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
-import { emptyActionMessageState } from "../action-state";
+import { initialActionState } from "../action-state";
 import { markAlertReadAction } from "./alerts";
 
 const { withProjectLock, getWorkspace } = actionWorkspaceMocks;
@@ -13,7 +13,7 @@ const getProjectById = vi.hoisted(() => vi.fn());
 const listMembershipsForOrgs = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
 
-vi.mock("@complyloop/db/client", () => ({
+vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: async () => ({ transaction }),
 }));
 
@@ -63,7 +63,7 @@ describe("markAlertReadAction", () => {
     const form = new FormData();
     form.set("alertId", "alert-1");
 
-    const result = await markAlertReadAction(emptyActionMessageState, form);
+    const result = await markAlertReadAction(initialActionState, form);
     expect(result.message).toBe("Alert marked as read.");
     expect(markAlertRead).toHaveBeenCalledWith(
       expect.anything(),
@@ -80,8 +80,8 @@ describe("markAlertReadAction", () => {
     const form = new FormData();
     form.set("alertId", "alert-1");
 
-    const result = await markAlertReadAction(emptyActionMessageState, form);
-    expect(result.error).toMatch(/Not allowed/);
+    const result = await markAlertReadAction(initialActionState, form);
+    expect((result.ok ? null : result.message)).toMatch(/Not allowed/);
     expect(markAlertRead).not.toHaveBeenCalled();
   });
 
@@ -90,16 +90,16 @@ describe("markAlertReadAction", () => {
     getAlertById.mockResolvedValue(undefined);
     const form = new FormData();
     form.set("alertId", "missing");
-    const result = await markAlertReadAction(emptyActionMessageState, form);
-    expect(result.error).toMatch(/Unknown alert/);
+    const result = await markAlertReadAction(initialActionState, form);
+    expect((result.ok ? null : result.message)).toMatch(/Unknown alert/);
   });
 
   it("requires an alert id", async () => {
     signIn();
     const result = await markAlertReadAction(
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/Unknown alert/);
+    expect((result.ok ? null : result.message)).toMatch(/Unknown alert/);
   });
 });

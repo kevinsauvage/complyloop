@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { SeverityBadge } from "@/components/badges";
 import { PageActionLink } from "@/components/page-primitives";
-import { formatDateTime } from "@/core/format-datetime";
+import { formatDateTime } from "@/core/lifecycle";
 import {
   Card,
   CardContent,
@@ -16,7 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { evidenceDisplay } from "@/core/status-display";
+import { evidenceDisplay } from "@/core/display";
 import { cn } from "@/lib/utils";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";

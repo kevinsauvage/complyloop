@@ -1,68 +1,115 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
-import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
+import type {
+  OrgMembership,
+  Project,
+} from "@complyloop/analysis-core/contract/project-types";
+import {
+  actionWorkspaceMocks,
+  clearProjectWritePayloads,
+  invokeProjectWriteMock,
+  projectWritePayload,
+} from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { emptyActionMessageState } from "../action-state";
+import { initialActionState } from "../action-state";
 import { setDefaultPresetAction } from "./project-preset";
 
 const { withProjectWrite } = actionWorkspaceMocks;
-const setDefaultPreset = vi.hoisted(() => vi.fn());
 
-vi.mock("../project-preset", () => ({
-  setDefaultPreset: (...args: unknown[]) => setDefaultPreset(...args),
-}));
+function formWith(presetId: string): FormData {
+  const form = new FormData();
+  form.set("presetId", presetId);
+  return form;
+}
 
-const project = testProject({ orgId: "org-1" });
-
-function workspaceFor(role: OrgMembership["role"]) {
-  return testWorkspace({
+function mockWrite(project: Project, role: OrgMembership["role"] = "admin") {
+  const workspace = testWorkspace({
     role,
     project,
     findings: [],
     remediations: [],
   });
+  withProjectWrite.mockImplementation(async (_scope, fn) =>
+    invokeProjectWriteMock(workspace, fn),
+  );
+  return workspace;
 }
 
 afterEach(() => {
   vi.clearAllMocks();
+  clearProjectWritePayloads();
 });
 
 describe("setDefaultPresetAction", () => {
   it("requires a preset id", async () => {
     const result = await setDefaultPresetAction(
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/framework preset is required/);
+    expect((result.ok ? null : result.message)).toMatch(/framework preset is required/);
   });
 
   it("denies viewers", async () => {
-    withProjectWrite.mockImplementation(async (_scope, fn) =>
-      invokeProjectWriteMock(workspaceFor("viewer"), fn),
+    mockWrite(testProject({ orgId: "org-1" }), "viewer");
+    const result = await setDefaultPresetAction(
+      initialActionState,
+      formWith("preset-wcag-aa"),
     );
-    const form = new FormData();
-    form.set("presetId", "preset-wcag-aa");
-    const result = await setDefaultPresetAction(emptyActionMessageState, form);
-    expect(result.error).toMatch(/Not allowed/);
+    expect((result.ok ? null : result.message)).toMatch(/Not allowed/);
   });
 
   it("saves the default preset for admins", async () => {
-    const workspace = workspaceFor("admin");
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
-    setDefaultPreset.mockReturnValue({ changed: true });
-    const form = new FormData();
-    form.set("presetId", "preset-wcag-aa");
+    const project = testProject({ orgId: "org-1" });
+    mockWrite(project);
 
-    const result = await setDefaultPresetAction(emptyActionMessageState, form);
+    const result = await setDefaultPresetAction(
+      initialActionState,
+      formWith("preset-wcag-aa"),
+    );
 
     expect(result.message).toBe("Default assessment preset saved");
-    expect(setDefaultPreset).toHaveBeenCalledWith(
-      workspace.db,
-      project,
-      "preset-wcag-aa",
-      expect.any(Object),
+    expect(project.defaultPresetId).toBe("preset-wcag-aa");
+    expect(projectWritePayload()?.project).toBe(project);
+  });
+
+  it("records evidence when the default changes", async () => {
+    mockWrite(testProject({ orgId: "org-1" }));
+    await setDefaultPresetAction(
+      initialActionState,
+      formWith("preset-wcag-aa"),
     );
+    expect(
+      projectWritePayload()?.evidence?.some(
+        (record) =>
+          record.kind === "requirements_imported" &&
+          record.summary.includes("Default assessment preset"),
+      ),
+    ).toBe(true);
+  });
+
+  it("is a no-op when the default is unchanged", async () => {
+    const project = testProject({
+      orgId: "org-1",
+      defaultPresetId: "preset-wcag-aa",
+    });
+    mockWrite(project);
+
+    const result = await setDefaultPresetAction(
+      initialActionState,
+      formWith("preset-wcag-aa"),
+    );
+
+    expect(result.message).toBe("This is already the default preset.");
+    expect(projectWritePayload()?.evidence).toBeUndefined();
+  });
+
+  it("rejects an unknown preset", async () => {
+    mockWrite(testProject({ orgId: "org-1" }));
+    const result = await setDefaultPresetAction(
+      initialActionState,
+      formWith("nope"),
+    );
+    expect((result.ok ? null : result.message)).toMatch(/Unknown framework preset/);
   });
 });

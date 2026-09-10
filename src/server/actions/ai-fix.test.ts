@@ -5,7 +5,7 @@ import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { emptyActionMessageState } from "../action-state";
+import { initialActionState } from "../action-state";
 import { generateAiFixAction } from "./ai-fix";
 
 const { withProjectWrite, getWorkspace } = actionWorkspaceMocks;
@@ -103,11 +103,11 @@ describe("generateAiFixAction", () => {
 
     const result = await generateAiFixAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
-    expect(result.error).toBeNull();
+    expect((result.ok ? null : result.message)).toBeNull();
     expect(result.message).toMatch(/ready for review/i);
     expect(runAiFixOnCheckout).toHaveBeenCalledWith(
       "/tmp/checkout",
@@ -140,10 +140,10 @@ describe("generateAiFixAction", () => {
 
     const result = await generateAiFixAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/source findings/);
+    expect((result.ok ? null : result.message)).toMatch(/source findings/);
     expect(withProjectCheckout).not.toHaveBeenCalled();
   });
 
@@ -172,11 +172,11 @@ describe("generateAiFixAction", () => {
 
     const result = await generateAiFixAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
 
-    expect(result.error).toBeNull();
+    expect((result.ok ? null : result.message)).toBeNull();
     expect(assertAiRateLimit).not.toHaveBeenCalled();
   });
 
@@ -187,10 +187,10 @@ describe("generateAiFixAction", () => {
 
     const result = await generateAiFixAction(
       "f1",
-      emptyActionMessageState,
+      initialActionState,
       new FormData(),
     );
-    expect(result.error).toMatch(/GitHub repository/);
+    expect((result.ok ? null : result.message)).toMatch(/GitHub repository/);
     expect(withProjectCheckout).not.toHaveBeenCalled();
   });
 });

@@ -2,14 +2,34 @@
 
 import { z } from "zod";
 import {
-  runActionMessage,
-  type ActionMessageState,
+  runAction,
+  type ActionState,
 } from "../action-state";
-import { parseForm } from "@/core/boundary";
+import { parseForm } from "@/core/filters";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { normalizeRoutes } from "@complyloop/analysis-core/runtime/routes";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
-import { parseRoutes } from "../runtime-routes";
 import { withProjectWrite } from "../workspace-write";
 import { refresh, requireOnActive } from "./shared";
+
+const ABSOLUTE_ROUTE_MESSAGE =
+  "Routes must be paths under the Preview / staging URL (e.g. `/` or `/pricing`), not absolute http(s) URLs.";
+
+/**
+ * Parses the free-text routes field (newlines/commas), rejecting absolute
+ * URLs. Returns `[]` for blank input — storage keeps "not configured" and the
+ * scan-time `["/"]` default lives in `runtimeRoutesFor`.
+ */
+function parseRoutes(raw: string | undefined): string[] {
+  if (raw == null) return [];
+  const entries = raw.split(/[\n,]+/);
+  for (const entry of entries) {
+    if (/^https?:\/\//i.test(entry.trim())) {
+      throw new PublicError(ABSOLUTE_ROUTE_MESSAGE);
+    }
+  }
+  return normalizeRoutes(entries);
+}
 
 const updateRuntimeAuditInput = z.object({
   runtimeBaseUrl: z.string().optional(),
@@ -17,10 +37,10 @@ const updateRuntimeAuditInput = z.object({
 });
 
 export async function updateRuntimeAuditAction(
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const parsed = parseForm(updateRuntimeAuditInput, formData);
     const base = parsed.runtimeBaseUrl?.trim() ?? "";
     const routes = parseRoutes(parsed.runtimeRoutes);

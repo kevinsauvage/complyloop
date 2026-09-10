@@ -6,21 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
-  emptyActionMessageState,
-  type ActionMessageState,
+  initialActionState,
+  type ActionState,
 } from "@/server/action-state";
 
 export function CreateOrgForm({
   action,
 }: {
   action: (
-    previous: ActionMessageState,
+    previous: ActionState,
     formData: FormData,
-  ) => Promise<ActionMessageState>;
+  ) => Promise<ActionState>;
 }) {
   const [state, formAction, pending] = useActionState(
     action,
-    emptyActionMessageState,
+    initialActionState,
   );
   useActionToast(state, pending);
 
@@ -35,9 +35,11 @@ export function CreateOrgForm({
           required
           placeholder="Acme Engineering"
           aria-describedby={
-            state.error && !pending ? "orgName-error" : "orgName-hint"
+            !state.ok && state.message && !pending
+              ? "orgName-error"
+              : "orgName-hint"
           }
-          aria-invalid={state.error ? true : undefined}
+          aria-invalid={!state.ok && state.message ? true : undefined}
         />
         <p id="orgName-hint" className="text-xs text-muted-foreground">
           Used for the URL slug (lowercase letters, numbers, dashes) — you can
@@ -47,9 +49,9 @@ export function CreateOrgForm({
       <Button type="submit" disabled={pending}>
         {pending ? "Creating…" : "Create organization"}
       </Button>
-      {state.error && !pending ? (
+      {!state.ok && state.message && !pending ? (
         <p id="orgName-error" role="alert" className="text-sm text-destructive">
-          {state.error}
+          {state.message}
         </p>
       ) : null}
     </form>

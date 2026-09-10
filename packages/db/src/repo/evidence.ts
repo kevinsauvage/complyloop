@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import type { EvidenceKind, EvidenceRecord } from "../types";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
-import type { DrizzleDb } from "../client.ts";
+import type { DrizzleDb } from "../postgres.ts";
 import { evidence } from "../schema.ts";
 import {
   evidenceToRow,

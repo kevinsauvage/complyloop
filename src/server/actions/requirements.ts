@@ -11,12 +11,12 @@ import {
   parseForm,
   parseInput,
   requiredField,
-} from "@/core/boundary";
+} from "@/core/filters";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import {
-  runActionMessage,
-  type ActionMessageState,
+  runAction,
+  type ActionState,
 } from "../action-state";
 import { applyRequirementStatusRefresh } from "../assessment-status";
 import type { Db } from "@complyloop/db/types";
@@ -132,10 +132,10 @@ function clearRequirementOverride(
 
 export async function markRequirementExceptionAction(
   requirementIdRaw: string,
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     const parsed = parseForm(markExceptionInput, formData);
     await withProjectWrite(
@@ -206,10 +206,10 @@ export async function markRequirementExceptionAction(
 
 export async function markRequirementPassedAction(
   requirementIdRaw: string,
-  _previous: ActionMessageState,
+  _previous: ActionState,
   formData: FormData,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     const { note } = parseForm(markPassedInput, formData);
     await withProjectWrite(
@@ -274,9 +274,9 @@ export async function markRequirementPassedAction(
 
 export async function clearRequirementHumanPassAction(
   requirementIdRaw: string,
-  _previous: ActionMessageState,
+  _previous: ActionState,
   _formData: FormData,
-): Promise<ActionMessageState> {
+): Promise<ActionState> {
   void _formData;
   return clearRequirementOverrideAction(
     requirementIdRaw,
@@ -287,9 +287,9 @@ export async function clearRequirementHumanPassAction(
 
 export async function clearRequirementExceptionAction(
   requirementIdRaw: string,
-  _previous: ActionMessageState,
+  _previous: ActionState,
   _formData: FormData,
-): Promise<ActionMessageState> {
+): Promise<ActionState> {
   void _formData;
   return clearRequirementOverrideAction(
     requirementIdRaw,
@@ -302,8 +302,8 @@ async function clearRequirementOverrideAction(
   requirementIdRaw: string,
   field: "humanPass" | "exception",
   message: string,
-): Promise<ActionMessageState> {
-  return runActionMessage(async () => {
+): Promise<ActionState> {
+  return runAction(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     await withProjectWrite(
       { touch: "entities", requirementIds: [requirementId] },

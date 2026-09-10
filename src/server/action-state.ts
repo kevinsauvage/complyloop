@@ -1,13 +1,17 @@
 import { isPublicError } from "@complyloop/analysis-core/contract/public-error";
-import { reportDebug, reportError } from "./observability";
+import { reportError } from "./observability";
 
-export type ActionMessageState = {
-  error: string | null;
+/**
+ * Result of a form server action. `ok` separates a success toast from an inline
+ * error; `message` is public copy in both cases.
+ */
+export type ActionState = {
+  ok: boolean;
   message: string | null;
 };
 
-export const emptyActionMessageState: ActionMessageState = {
-  error: null,
+export const initialActionState: ActionState = {
+  ok: false,
   message: null,
 };
 
@@ -29,26 +33,17 @@ export function publicErrorMessage(error: unknown): string {
   return unexpectedActionMessage(errorRef);
 }
 
-/** Maps thrown errors to form state: public copy, or a generic message + ref. */
-export function actionErrorState(error: unknown): ActionMessageState {
-  return { error: publicErrorMessage(error), message: null };
-}
-
 /** Canonical server-action idiom: throw `PublicError`, catch here. */
-export async function runActionMessage(
+export async function runAction(
   run: () => Promise<string | void>,
-  actionName?: string,
-): Promise<ActionMessageState> {
-  reportDebug(`action:start ${actionName ?? ""}`.trim());
+): Promise<ActionState> {
   try {
     const message = await run();
-    reportDebug(`action:end ${actionName ?? ""}`.trim());
     return {
-      error: null,
+      ok: true,
       message: typeof message === "string" ? message : "Done.",
     };
   } catch (error) {
-    reportDebug(`action:error ${actionName ?? ""}`.trim());
-    return actionErrorState(error);
+    return { ok: false, message: publicErrorMessage(error) };
   }
 }

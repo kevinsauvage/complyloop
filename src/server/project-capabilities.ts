@@ -1,4 +1,4 @@
-import { canOnProject, roleHasPermission, type Permission } from "@/core/rbac";
+import { canInOrg, canOnProject, type Permission } from "@/core/rbac";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { AccessContext } from "./project-visibility";
 
@@ -13,13 +13,13 @@ function canConnectInOrg(
   access: AccessContext,
   activeOrgId: string | null | undefined,
 ): boolean {
-  if (!access.userId || !activeOrgId) return false;
-  const membership = access.memberships.find(
-    (candidate) =>
-      candidate.orgId === activeOrgId && candidate.userId === access.userId,
+  if (!activeOrgId) return false;
+  return canInOrg(
+    access.memberships,
+    access.userId,
+    activeOrgId,
+    "project.connect",
   );
-  if (!membership) return false;
-  return roleHasPermission(membership.role, "project.connect");
 }
 
 export function projectCapabilities(

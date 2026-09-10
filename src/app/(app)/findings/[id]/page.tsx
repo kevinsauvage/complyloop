@@ -4,19 +4,19 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { aiExplanationAvailable } from "@/ai/explainer";
 import {
+  BadgeWithDescription,
   FindingStatusBadge,
   RemediationStatusBadge,
   SeverityBadge,
 } from "@/components/badges";
-import { BadgeWithDescription } from "@/components/badge-with-description";
 import { CopyButton } from "@/components/copy-button";
 import { DeveloperHandoffCard } from "@/components/developer-handoff";
 import { FindingNextStepPanel } from "@/components/findings/finding-next-step-panel";
 import { FindingQueueNav } from "@/components/findings/finding-queue-nav";
 import { FindingUnderstandCard } from "@/components/findings/finding-understand-card";
 import { RemediationHistory } from "@/components/findings/remediation-history";
-import { findingAct } from "@/core/finding-act";
-import { confidenceDisplay, engineDisplay, evidenceDisplay } from "@/core/status-display";
+import { findingAct } from "@/core/lifecycle";
+import { confidenceDisplay, engineDisplay, evidenceDisplay } from "@/core/display";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   findingQueuePosition,
@@ -24,14 +24,14 @@ import {
   orderedFindingIdsForQueue,
   parseFindingListParams,
   type FilterFindingsContext,
-} from "@/core/finding-list-filter";
+} from "@/core/filters";
 import { EmptyState, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
-import { formatDateTime } from "@/core/format-datetime";
+import { formatDateTime } from "@/core/lifecycle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { pullRequestUrlFromEvidence, latestPatchState } from "@/server/ai-fix";
 import { buildDeveloperHandoff } from "@/server/handoff";
-import { getDrizzle } from "@complyloop/db/client";
+import { getDrizzle } from "@complyloop/db/postgres";
 import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { findingsInScope } from "@/server/project-scope";
@@ -43,8 +43,8 @@ import {
 import { getProjectRuntime } from "@/server/project-runtime";
 import { displayControl } from "@/server/report";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
-import { prioritizeClusters } from "@/core/prioritization";
-import { clusterFindings } from "@/core/root-cause";
+import { prioritizeClusters } from "@/core/lifecycle";
+import { clusterFindings } from "@/core/lifecycle";
 import { cn } from "@/lib/utils";
 import { isProjectVisible } from "@/server/project-visibility";
 
