@@ -27,9 +27,6 @@ export const isRuntimeOnlyCheck = (checkId: string): boolean => {
   );
 };
 
-export const isSiteLevelCheck = (checkId: string): boolean =>
-  entryFor(checkId)?.authority === "site_level";
-
 export const isHeuristicCheck = (checkId: string): boolean =>
   entryFor(checkId)?.authority === "heuristic";
 
@@ -56,11 +53,6 @@ export const isPackageTwinSourceCheck = (checkId: string): boolean =>
  */
 export function authorityForCheck(checkId: string): CheckAuthority {
   return entryFor(checkId)?.authority ?? "standard";
-}
-
-/** Runtime findings for these ids must not be resolved when axe did not run. */
-export function keepOpenWhenRuntimeScanSkipped(checkId: string): boolean {
-  return isCompositionSensitiveCheck(checkId) || isRuntimeOnlyCheck(checkId);
 }
 
 /**

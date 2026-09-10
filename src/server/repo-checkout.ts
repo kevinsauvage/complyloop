@@ -31,17 +31,38 @@ function maxCheckoutFiles(): number {
   return positiveEnv("ASSESSMENT_MAX_CHECKOUT_FILES", 50_000);
 }
 
-/** Rejects oversized clones before AST parsing or Playwright can consume capacity. */
-export function assertCheckoutWithinQuota(rootPath: string): void {
+function maxCheckoutScanMs(): number {
+  return positiveEnv("ASSESSMENT_MAX_CHECKOUT_SCAN_MS", 30_000);
+}
+
+/**
+ * Rejects oversized clones before AST parsing or Playwright can consume
+ * capacity. Async + time-budgeted so a huge tree cannot block the event loop.
+ */
+export async function assertCheckoutWithinQuota(rootPath: string): Promise<void> {
   const byteLimit = maxCheckoutBytes();
   const fileLimit = maxCheckoutFiles();
+  const deadline = Date.now() + maxCheckoutScanMs();
+  const { opendir, stat } = fs.promises;
   let bytes = 0;
   let files = 0;
   const pending = [rootPath];
   while (pending.length > 0) {
     const current = pending.pop();
     if (!current) continue;
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+    let directory: fs.Dir;
+    try {
+      directory = await opendir(current);
+    } catch {
+      continue;
+    }
+    for await (const entry of directory) {
+      if (Date.now() > deadline) {
+        throw new PublicError(
+          "Repository quota check timed out.",
+          "assessment_quota_exceeded",
+        );
+      }
       if (entry.name === ".git") continue;
       const absolute = path.join(current, entry.name);
       if (entry.isDirectory()) {
@@ -50,7 +71,7 @@ export function assertCheckoutWithinQuota(rootPath: string): void {
       }
       if (!entry.isFile()) continue;
       files += 1;
-      bytes += fs.statSync(absolute).size;
+      bytes += (await stat(absolute)).size;
       if (files > fileLimit || bytes > byteLimit) {
         throw new PublicError(
           `Repository exceeds the assessment quota (${fileLimit} files or ${Math.floor(byteLimit / 1024 / 1024)} MB).`,
@@ -181,7 +202,7 @@ export async function withRepoCheckout<T>(
     if (ref) {
       // Ref fetches can pull more tree than the default shallow clone: fail
       // fast on quota before fetching instead of after.
-      assertCheckoutWithinQuota(rootPath);
+      await assertCheckoutWithinQuota(rootPath);
       const git = createAuthedGit(accessToken, { baseDir: rootPath });
       try {
         await git.fetch(["--depth", "1", "origin", ref]);
@@ -193,7 +214,7 @@ export async function withRepoCheckout<T>(
       }
       await git.checkout([ref]);
     }
-    assertCheckoutWithinQuota(rootPath);
+    await assertCheckoutWithinQuota(rootPath);
     return await fn(rootPath);
   } finally {
     fs.rmSync(rootPath, { recursive: true, force: true });

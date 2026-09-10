@@ -10,6 +10,7 @@ import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   composeAuditReport,
   composeEngineeringReport,
+  projectSourceLabel,
   type AuditReportModel,
   type EngineeringReportModel,
   type ReportHeaderModel,
@@ -49,7 +50,7 @@ function headerMarkdown(header: ReportHeaderModel): string[] {
     ``,
     `**Exported:** ${formatDateTimeWithZone(header.exportedAt)}`,
     `**Framework:** ${mdProse(header.frameworkName)} (${mdProse(header.frameworkVersion)})`,
-    `**Project source:** ${mdProse(header.sourceKind)}${header.sourceRef ? ` — ${mdProse(header.sourceRef)}` : ""}`,
+    `**Project source:** ${mdProse(projectSourceLabel(header))}`,
     header.githubFullName
       ? `**GitHub repository:** \`${mdCode(header.githubFullName)}\``
       : "",

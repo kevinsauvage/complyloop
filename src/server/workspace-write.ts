@@ -86,32 +86,35 @@ export async function withProjectWrite(
       };
     };
 
-    // Single-lock protocol: the cookie names the expected project, so lock it
-    // before loading. If the resolved project differs (stale/absent cookie),
-    // lock the real project and RE-LOAD under it — otherwise load→mutate is
-    // not atomic and two cookieless writers could last-write-win.
-    if (preferredProjectId) {
-      await acquireNamedPostgresAdvisoryLock(
-        tx,
-        projectWriteLockKey(preferredProjectId),
-      );
+    // Single-lock protocol: resolve the effective project from a lock-free
+    // tenancy read, then lock exactly that project. Locking the cookie project
+    // and re-locking the resolved project can deadlock two writers whose stale
+    // cookies point at each other's projects.
+    const probe = await loadTenancyDb(tx, {
+      userId,
+      githubLogin,
+      activeProjectId: preferredProjectId,
+    });
+    const probeProject = prepareWorkspaceState(
+      probe,
+      userId,
+      githubLogin,
+      preferredOrgId,
+      preferredProjectId,
+    ).project;
+    if (!probeProject) {
+      throw new PublicError("Select a project first.");
     }
+    const projectId = probeProject.id;
 
-    let workspace = await loadWorkspace();
-    if (!workspace.project) {
-      throw new PublicError("Select a project first.");
-    }
-    const projectId = workspace.project.id;
-    if (projectId !== preferredProjectId) {
-      await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
-      workspace = await loadWorkspace();
-      if (!workspace.project || workspace.project.id !== projectId) {
-        throw new PublicError("Select a project first.");
-      }
-    }
-    const project = workspace.project;
-    if (!project) {
-      throw new PublicError("Select a project first.");
+    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
+
+    const workspace = await loadWorkspace();
+    if (!workspace.project || workspace.project.id !== projectId) {
+      // Project set changed between the lock-free resolve and the locked load.
+      // No write has happened; ask the caller to retry rather than write to an
+      // unlocked project.
+      throw new PublicError("The active project changed. Try again.");
     }
 
     // Clone before the handler mutates rows in place: persist compares against

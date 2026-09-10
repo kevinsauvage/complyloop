@@ -15,7 +15,8 @@ import type { RawFinding } from "./types.ts";
  * When runtime owns composition-sensitive OR runtime-only rules, drop AST
  * findings for those check ids so requirement status is not driven by false
  * primitive hits and a defect seen on both source and rendered DOM yields one
- * finding, not two. Same precedent as `keepOpenWhenRuntimeScanSkipped`: the
+ * finding, not two. Same precedent as the runtime-authority gate
+ * (composition-sensitive or runtime-only): the
  * runtime verdict wins when it ran; when it did not, source findings stay and
  * drive CI and the requirement.
  */

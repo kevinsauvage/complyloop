@@ -72,9 +72,8 @@ export async function storeUserGitHubToken(
   expiresAt?: string,
 ): Promise<void> {
   if (!userId || !accessToken) return;
-  if (!process.env.AUTH_SECRET) {
-    return;
-  }
+  // encryptToken throws a clear error when AUTH_SECRET is missing — fail loud
+  // rather than silently dropping the token and breaking every later clone.
   const entry = encryptToken(accessToken);
   const drizzle = await getDrizzle();
 

@@ -32,10 +32,12 @@ describe("github token encryption", () => {
     expect(decryptToken(entry)).toBe("gho_secret_token");
   });
 
-  it("skips persistence when AUTH_SECRET is missing", async () => {
+  it("fails loudly when AUTH_SECRET is missing", async () => {
     const { storeUserGitHubToken } = await import("./github-tokens");
     delete process.env.AUTH_SECRET;
-    await storeUserGitHubToken("user-1", "gho_should_not_land");
+    await expect(
+      storeUserGitHubToken("user-1", "gho_should_not_land"),
+    ).rejects.toThrow(/AUTH_SECRET is required/);
     expect(getDrizzle).not.toHaveBeenCalled();
   });
 });

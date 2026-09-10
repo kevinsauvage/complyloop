@@ -85,6 +85,14 @@ describe("withProjectWrite project touch", () => {
     auth.mockResolvedValue({ user: { id: userId, login: "dev" } });
     readActiveOrgCookie.mockResolvedValue(orgId);
     readActiveProjectCookie.mockResolvedValue(project.id);
+    loadTenancyDb.mockResolvedValue({
+      ...emptyDb(),
+      organizations: [
+        { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
+      ],
+      memberships: [testMembership("owner", { userId, orgId })],
+      projects: [structuredClone(project)],
+    });
     loadProjectWriteDb.mockResolvedValue({
       ...emptyDb(),
       organizations: [
@@ -195,6 +203,14 @@ describe("withProjectWrite runtime slice", () => {
     readActiveProjectCookie.mockResolvedValue(project.id);
     acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
     persistProjectRows.mockResolvedValue(undefined);
+    loadTenancyDb.mockResolvedValue({
+      ...emptyDb(),
+      organizations: [
+        { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
+      ],
+      memberships: [testMembership("owner", { userId, orgId })],
+      projects: [structuredClone(project)],
+    });
   });
 
   it("loads the project runtime and persists with a loaded slice", async () => {
@@ -246,25 +262,40 @@ describe("withProjectWrite runtime slice", () => {
     );
   });
 
-  it("re-locks and reloads when the cookie project differs", async () => {
+  it("locks only the resolved project when the cookie is stale (no double-lock)", async () => {
     loadProjectWriteDb.mockResolvedValue(dbWithFinding());
     readActiveProjectCookie.mockResolvedValue("stale-cookie-id");
 
     await withProjectWrite(async () => ({}));
 
-    expect(acquireNamedPostgresAdvisoryLock).toHaveBeenCalledWith(
-      tx,
-      "project-write:stale-cookie-id",
-    );
+    expect(acquireNamedPostgresAdvisoryLock).toHaveBeenCalledTimes(1);
     expect(acquireNamedPostgresAdvisoryLock).toHaveBeenCalledWith(
       tx,
       `project-write:${project.id}`,
     );
-    expect(loadProjectWriteDb).toHaveBeenCalledTimes(2);
+    expect(loadProjectWriteDb).toHaveBeenCalledTimes(1);
     expect(persistProjectRows).toHaveBeenCalled();
   });
 
+  it("aborts when the locked load resolves a different project", async () => {
+    loadProjectWriteDb.mockResolvedValue({
+      ...dbWithFinding(),
+      projects: [structuredClone(testProject({ id: "p2", orgId, ownerUserId: userId }))],
+    });
+
+    await expect(withProjectWrite(async () => ({}))).rejects.toThrow(
+      /active project changed/i,
+    );
+    expect(persistProjectRows).not.toHaveBeenCalled();
+  });
+
   it("throws when no project resolves", async () => {
+    loadTenancyDb.mockResolvedValue({
+      ...emptyDb(),
+      organizations: [],
+      memberships: [],
+      projects: [],
+    });
     loadProjectWriteDb.mockResolvedValue({
       ...emptyDb(),
       organizations: [],
@@ -296,6 +327,14 @@ describe("withFindingWrite", () => {
     readActiveProjectCookie.mockResolvedValue(project.id);
     acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
     persistProjectRows.mockResolvedValue(undefined);
+    loadTenancyDb.mockResolvedValue({
+      ...emptyDb(),
+      organizations: [
+        { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
+      ],
+      memberships: [testMembership("owner", { userId, orgId })],
+      projects: [structuredClone(project)],
+    });
     loadProjectWriteDb.mockResolvedValue({
       ...emptyDb(),
       organizations: [

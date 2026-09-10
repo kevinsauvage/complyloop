@@ -6,8 +6,6 @@ import {
   isHtmlValidateOwnedCheck,
   isPackageTwinSourceCheck,
   isRuntimeOnlyCheck,
-  isSiteLevelCheck,
-  keepOpenWhenRuntimeScanSkipped,
 } from "./check-authority";
 import { CHECK_REGISTRY, type CheckId, type CheckRegistration } from "./check-registry";
 
@@ -34,11 +32,18 @@ const COMPOSITION_SENSITIVE = [
   "text-spacing",
 ] as const;
 
+/** Runtime findings for these ids stay open when axe did not run. */
+function keepsRuntimeFindingsOpen(checkId: string): boolean {
+  return (
+    isCompositionSensitiveCheck(checkId) || isRuntimeOnlyCheck(checkId)
+  );
+}
+
 describe("check authority", () => {
   it("marks every composition-sensitive AST check", () => {
     for (const checkId of COMPOSITION_SENSITIVE) {
       expect(isCompositionSensitiveCheck(checkId)).toBe(true);
-      expect(keepOpenWhenRuntimeScanSkipped(checkId)).toBe(true);
+      expect(keepsRuntimeFindingsOpen(checkId)).toBe(true);
     }
     expect(isCompositionSensitiveCheck("img-alt")).toBe(false);
     expect(isCompositionSensitiveCheck("color-contrast")).toBe(false);
@@ -49,7 +54,7 @@ describe("check authority", () => {
     // drift from check-authority.ts (a hardcopy rots silently on additions).
     for (const checkId of RUNTIME_ONLY_CHECK_IDS) {
       expect(isRuntimeOnlyCheck(checkId)).toBe(true);
-      expect(keepOpenWhenRuntimeScanSkipped(checkId)).toBe(true);
+      expect(keepsRuntimeFindingsOpen(checkId)).toBe(true);
     }
     expect(isRuntimeOnlyCheck("img-alt")).toBe(false);
     expect(isRuntimeOnlyCheck("input-label")).toBe(false);
@@ -57,13 +62,13 @@ describe("check authority", () => {
   });
 
   it("keeps runtime findings open only for authority-gated ids", () => {
-    expect(keepOpenWhenRuntimeScanSkipped("color-contrast")).toBe(true);
-    expect(keepOpenWhenRuntimeScanSkipped("input-label")).toBe(true);
-    expect(keepOpenWhenRuntimeScanSkipped("empty-heading")).toBe(true);
-    expect(keepOpenWhenRuntimeScanSkipped("target-size")).toBe(true);
-    expect(keepOpenWhenRuntimeScanSkipped("target-size-enhanced")).toBe(true);
-    expect(keepOpenWhenRuntimeScanSkipped("forced-colors")).toBe(true);
-    expect(keepOpenWhenRuntimeScanSkipped("img-alt")).toBe(false);
+    expect(keepsRuntimeFindingsOpen("color-contrast")).toBe(true);
+    expect(keepsRuntimeFindingsOpen("input-label")).toBe(true);
+    expect(keepsRuntimeFindingsOpen("empty-heading")).toBe(true);
+    expect(keepsRuntimeFindingsOpen("target-size")).toBe(true);
+    expect(keepsRuntimeFindingsOpen("target-size-enhanced")).toBe(true);
+    expect(keepsRuntimeFindingsOpen("forced-colors")).toBe(true);
+    expect(keepsRuntimeFindingsOpen("img-alt")).toBe(false);
   });
 
   it("marks source package twins without changing authority class", () => {
@@ -94,18 +99,16 @@ describe("check authority", () => {
     expect(isRuntimeOnlyCheck("hover-content")).toBe(false);
     expect(isHeuristicCheck("blockquote-cite")).toBe(false);
     expect(isHeuristicCheck("img-alt")).toBe(false);
-    expect(keepOpenWhenRuntimeScanSkipped("pointer-gesture")).toBe(false);
+    expect(keepsRuntimeFindingsOpen("pointer-gesture")).toBe(false);
     expect(isRuntimeOnlyCheck("duplicate-page-title")).toBe(true);
   });
 
   it("classifies with site_level → runtime_only → heuristic → standard", () => {
-    expect(isSiteLevelCheck("consistent-nav")).toBe(true);
-    expect(isRuntimeOnlyCheck("consistent-nav")).toBe(true);
     expect(authorityForCheck("consistent-nav")).toBe("site_level");
+    expect(isRuntimeOnlyCheck("consistent-nav")).toBe(true);
 
-    expect(isSiteLevelCheck("consistent-lang")).toBe(true);
-    expect(isRuntimeOnlyCheck("consistent-lang")).toBe(false);
     expect(authorityForCheck("consistent-lang")).toBe("site_level");
+    expect(isRuntimeOnlyCheck("consistent-lang")).toBe(false);
 
     expect(isRuntimeOnlyCheck("label-adjacent")).toBe(true);
     expect(isHeuristicCheck("label-adjacent")).toBe(false);
@@ -124,9 +127,8 @@ describe("check authority", () => {
   it("never returns a lower class when a higher list also contains the id", () => {
     const dualListed = ["consistent-nav", "consistent-labels"] as const;
     for (const checkId of dualListed) {
-      expect(isSiteLevelCheck(checkId)).toBe(true);
-      expect(isRuntimeOnlyCheck(checkId)).toBe(true);
       expect(authorityForCheck(checkId)).toBe("site_level");
+      expect(isRuntimeOnlyCheck(checkId)).toBe(true);
     }
   });
 

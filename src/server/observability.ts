@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { stdout } from "node:process";
 import { inspect } from "node:util";
+import { redactSecrets } from "./redact";
 
 /**
  * Leveled observability. Emits pretty, human-readable log lines to the console
@@ -113,21 +114,34 @@ export function reportAppError(
   reportError(error, { code, digest: error.digest });
 }
 
+/** Copy an error with credential-shaped text scrubbed from message and stack. */
+function redactError(error: Error): Error {
+  const sanitized = new Error(redactSecrets(error.message));
+  sanitized.name = error.name;
+  if (error.stack) sanitized.stack = redactSecrets(error.stack);
+  return sanitized;
+}
+
 export function reportError(
   error: unknown,
   context?: ReportContext,
 ): void {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = redactSecrets(
+    error instanceof Error ? error.message : String(error),
+  );
   emitLog("error", message, {
     ...context,
     name: error instanceof Error ? error.name : undefined,
-    stack: error instanceof Error ? error.stack : undefined,
+    stack:
+      error instanceof Error && error.stack
+        ? redactSecrets(error.stack)
+        : undefined,
   });
 
   Sentry.withScope((scope) => {
     applyReportContext(scope, context);
     if (error instanceof Error) {
-      Sentry.captureException(error);
+      Sentry.captureException(redactError(error));
     } else {
       Sentry.captureMessage(message, "error");
     }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CHECK_IDS } from "@complyloop/analysis-core/check-registry";
 import { CHECK_REGISTRY } from "@complyloop/analysis-core/check-registry";
 import { allChecks } from "@complyloop/analysis-core/checks/registry";
-import { isSiteLevelCheck } from "@complyloop/analysis-core/check-authority";
+import { authorityForCheck } from "@complyloop/analysis-core/check-authority";
 import { jsxA11yMappedCheckIds } from "@complyloop/analysis-core/jsx-a11y-map";
 import { axeMappedCheckIds } from "@complyloop/analysis-core/runtime/axe-map";
 import { CUSTOM_PROBE_CHECK_IDS } from "@complyloop/analysis-core/runtime/custom-checks/types";
@@ -82,7 +82,8 @@ describe("RGAA 4.1.2 catalog coverage", () => {
       .map((control) => control.checkId)
       .filter((checkId): checkId is string => checkId !== null)
       .filter(
-        (checkId) => !emitted.has(checkId) && !isSiteLevelCheck(checkId),
+        (checkId) =>
+          !emitted.has(checkId) && authorityForCheck(checkId) !== "site_level",
       );
     expect(unbound).toEqual([]);
   });

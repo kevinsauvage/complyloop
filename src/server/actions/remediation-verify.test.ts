@@ -131,6 +131,43 @@ describe("verifyRemediationAction", () => {
     expect(projectWritePayload()).toBeUndefined();
   });
 
+  it("rejects when a concurrent write already verified the remediation", async () => {
+    const domFinding = testFinding({
+      location: {
+        kind: "dom",
+        url: "https://preview.test/",
+        selector: "img",
+        snippet: "<img>",
+      },
+    });
+    const preview = baseWorkspace({
+      findings: [domFinding],
+      remediations: [
+        testRemediation({ status: "implemented", suggestion: null, history: [] }),
+      ],
+    });
+    const locked = baseWorkspace({
+      findings: [domFinding],
+      remediations: [
+        testRemediation({ status: "verified", suggestion: null, history: [] }),
+      ],
+    });
+    getWorkspace.mockResolvedValue(preview);
+    withProjectWrite.mockImplementation(async (fn) =>
+      invokeProjectWriteMock(locked, fn),
+    );
+    runtimeViolationStillPresent.mockResolvedValue(false);
+
+    const result = await verifyRemediationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect((result.ok ? null : result.message)).toMatch(/implemented/);
+    expect(projectWritePayload()).toBeUndefined();
+  });
+
   it("verifies a runtime finding when the DOM re-audit is clean", async () => {
     const workspace = baseWorkspace({
       findings: [
@@ -300,5 +337,25 @@ describe("markRemediationImplementedAction", () => {
 
     expect(result.message).toMatch(/implemented/i);
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("implemented");
+  });
+
+  it("rejects a remediation that is not approved", async () => {
+    const workspace = baseWorkspace({
+      remediations: [
+        testRemediation({ status: "verified", suggestion: null, history: [] }),
+      ],
+    });
+    withProjectWrite.mockImplementation(async (fn) =>
+      invokeProjectWriteMock(workspace, fn),
+    );
+
+    const result = await markRemediationImplementedAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect((result.ok ? null : result.message)).toMatch(/approved/);
+    expect(projectWritePayload()).toBeUndefined();
   });
 });

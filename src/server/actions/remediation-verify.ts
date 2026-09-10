@@ -49,6 +49,12 @@ const SOURCE_VERIFY_MESSAGE =
 const STILL_FAILING_VERIFY_MESSAGE =
   "Still failing — the violation is still detected at this location.";
 
+const VERIFY_REQUIRES_IMPLEMENTED_MESSAGE =
+  "Verification requires status implemented.";
+
+const IMPLEMENT_REQUIRES_APPROVED_MESSAGE =
+  "Marking implemented requires status approved.";
+
 interface VerifyAuditFlags {
   runtimeRan: boolean;
   siteLevelChecksRan?: boolean;
@@ -81,6 +87,12 @@ function markVerified(
     (candidate) => candidate.id === live.projectId,
   );
   if (!project) throw new PublicError("Unknown project.");
+
+  // Re-check inside the write lock: a concurrent write may have advanced the
+  // remediation between the preview load and this transaction.
+  if (remediation.status !== "implemented") {
+    throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
+  }
 
   const rows = cloneProjectRows(
     db.findings,
@@ -132,7 +144,7 @@ export async function verifyRemediationAction(
     const { project: previewProject } = requireFindingContext(preview, finding, "project.remediate");
     const previewRemediation = await requireRemediationForFinding(findingId);
     if (previewRemediation.status !== "implemented") {
-      throw new PublicError("Verification requires status implemented.");
+      throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
     }
 
     const location = finding.location;
@@ -215,6 +227,9 @@ export async function markRemediationImplementedAction(
       "project.remediate",
       async ({ db, finding }) => {
         const remediation = remediationForFinding(db, findingId);
+        if (remediation.status !== "approved") {
+          throw new PublicError(IMPLEMENT_REQUIRES_APPROVED_MESSAGE);
+        }
         const note =
           parsedNote ??
           "Marked implemented by user (applied outside the platform)";

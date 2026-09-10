@@ -158,18 +158,3 @@ Generated from a Graft-backed audit of the whole project. Each item is written f
 - **Verification:** `npm run typecheck && npm run test -- src/server/report-model.test.ts`.
 
 ---
-
-## Completed — P0/P1 correctness pass
-
-The items from `docs/superpowers/specs/2026-09-08-p0-p1-correctness-design.md` are already implemented and verified:
-
-- **P0-1** SSRF per-URL guard + absolute-route rejection (`packages/analysis-core/src/runtime/scan.ts:324-335`, `src/server/actions/runtime-audit.ts:23-32`).
-- **P0-2** In-memory `OrgMembershipIndex` (`src/server/org-queries.ts`, `src/server/orgs.ts`, `src/server/org-membership.ts`).
-- **P1-1** Error-prevention dataset keys (`packages/analysis-core/src/runtime/custom-checks/error-prevention.ts:68`).
-- **P1-2** Atomic rate-limit increment (`src/server/rate-limit.ts:54-65`).
-- **P1-3** Webhook PR `head.sha` validation (`src/server/webhook.ts:106-115`).
-- **P1-4** Low-confidence heuristic audit (dropped checks no longer present in registry).
-- **P1-5** Shared `AutoSubmitSelectForm` (`src/components/auto-submit-select-form.tsx`, used by org/project switchers).
-- **P1-6** Unified status counting (`src/core/lifecycle.ts:141-154`, used by dashboard/requirements pages).
-
-Definition of done for any new work: `npm run lint && npm run typecheck && npm run test && npm run build`.

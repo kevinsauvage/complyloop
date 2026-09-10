@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { runAssessmentJobBatch } from "@/server/assessment-runner";
+import { assertRateLimit, RateLimitError } from "@/server/rate-limit";
 import {
   isWorkerAuthConfigured,
   isWorkerRequestAuthorized,
@@ -7,6 +9,11 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** Hashed so the bearer secret is never stored in the rate-limit table. */
+function tokenFingerprint(header: string): string {
+  return createHash("sha256").update(header).digest("hex").slice(0, 16);
+}
 
 const workerBatchSizeSchema = z
   .string()
@@ -32,8 +39,22 @@ export async function POST(request: Request): Promise<Response> {
   if (!isWorkerAuthConfigured()) {
     return Response.json({ error: "WORKER_SECRET is not configured." }, { status: 503 });
   }
-  if (!isWorkerRequestAuthorized(request.headers.get("authorization"))) {
+  const authorization = request.headers.get("authorization");
+  if (!isWorkerRequestAuthorized(authorization)) {
     return Response.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  try {
+    await assertRateLimit(
+      `worker-run:${tokenFingerprint(authorization ?? "")}`,
+      120,
+      60_000,
+    );
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      return Response.json({ error: error.message }, { status: 429 });
+    }
+    throw error;
   }
 
   const results = await runAssessmentJobBatch(requestedBatchSize(request));

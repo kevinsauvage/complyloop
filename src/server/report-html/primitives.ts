@@ -5,7 +5,7 @@ import {
   severityDisplay,
   STATUS_TONE_REPORT,
 } from "@/core/display";
-import type { ReportHeaderModel } from "../report-model";
+import { projectSourceLabel, type ReportHeaderModel } from "../report-model";
 
 export function escapeHtml(text: string): string {
   return text
@@ -418,7 +418,7 @@ export function reportShell(
   bodySections: string,
 ): string {
   const safeProjectName = escapeHtml(header.projectName);
-  const source = header.sourceRef ?? header.sourceKind;
+  const source = projectSourceLabel(header);
   const githubMeta = header.githubFullName
     ? `<span><strong>GitHub:</strong> <code>${escapeHtml(header.githubFullName)}</code></span>`
     : "";

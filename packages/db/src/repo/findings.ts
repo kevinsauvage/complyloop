@@ -70,11 +70,3 @@ export async function upsertFindings(
     },
   );
 }
-
-export async function upsertFinding(
-  tx: DrizzleDb,
-  finding: Finding,
-  options?: UpsertFindingsOptions,
-): Promise<void> {
-  await upsertFindings(tx, [finding], options);
-}

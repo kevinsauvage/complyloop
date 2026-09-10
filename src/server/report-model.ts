@@ -40,18 +40,6 @@ export interface ReportInput {
   exportedAt: string;
 }
 
-function countRequirementsByStatus(
-  requirements: Requirement[],
-): Record<RequirementStatus, number> {
-  return countByStatus(requirements, REQUIREMENT_STATUSES);
-}
-
-function countFindingsByStatus(
-  findings: Finding[],
-): Record<FindingStatus, number> {
-  return countByStatus(findings, FINDING_STATUSES);
-}
-
 export interface ReportHeaderModel {
   title: string;
   projectName: string;
@@ -61,6 +49,13 @@ export interface ReportHeaderModel {
   sourceRef?: string;
   githubFullName?: string;
   exportedAt: string;
+}
+
+/** Shared "kind — ref" label so HTML and markdown render the same source. */
+export function projectSourceLabel(
+  header: Pick<ReportHeaderModel, "sourceKind" | "sourceRef">,
+): string {
+  return `${header.sourceKind}${header.sourceRef ? ` — ${header.sourceRef}` : ""}`;
 }
 
 export interface EngineeringFindingCard {
@@ -251,7 +246,7 @@ export function composeEngineeringReport(
 export function composeAuditReport(input: ReportInput): AuditReportModel {
   const { framework, controls, requirements, findings, evidence, project } =
     input;
-  const statusCounts = countRequirementsByStatus(requirements);
+  const statusCounts = countByStatus(requirements, REQUIREMENT_STATUSES);
   const totalRequirements = requirements.length;
   const requirementByControlId = indexBy(
     requirements,
@@ -261,7 +256,7 @@ export function composeAuditReport(input: ReportInput): AuditReportModel {
   return {
     header: reportHeader("Audit report", input),
     statusCounts,
-    findingCounts: countFindingsByStatus(findings),
+    findingCounts: countByStatus(findings, FINDING_STATUSES),
     totalRequirements,
     passRate:
       totalRequirements > 0

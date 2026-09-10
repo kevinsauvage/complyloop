@@ -12,10 +12,10 @@ import {
   E2E_VIEWER,
 } from "../e2e/constants";
 import { getDrizzle, openScriptClient, requireDatabaseUrl } from "./db";
-import { upsertFinding } from "@complyloop/db/repo/findings";
+import { upsertFindings } from "@complyloop/db/repo/findings";
 import { insertMembership, insertOrganization } from "@complyloop/db/repo/orgs";
 import { insertProject } from "@complyloop/db/repo/projects";
-import { upsertRemediation } from "@complyloop/db/repo/remediations";
+import { upsertRemediations } from "@complyloop/db/repo/remediations";
 import { insertAssessment } from "@complyloop/db/repo/assessments";
 import { storeUserGitHubToken } from "../src/server/github-tokens";
 
@@ -120,7 +120,7 @@ async function main(): Promise<void> {
       { fileHashes: { "Bad.tsx": "e2e-seed" } },
     );
 
-    await upsertFinding(tx, {
+    await upsertFindings(tx, [{
       id: findingId,
       projectId: E2E_PROJECT_ID,
       controlId: control.id,
@@ -149,9 +149,9 @@ async function main(): Promise<void> {
       },
       explanations: [],
       detectedAt: now,
-    });
+    }]);
 
-    await upsertRemediation(tx, {
+    await upsertRemediations(tx, [{
       id: "e2e-remediation-img-alt",
       findingId,
       status: "suggested",
@@ -164,7 +164,7 @@ async function main(): Promise<void> {
         { status: "detected", at: now },
         { status: "suggested", at: now },
       ],
-    });
+    }]);
   });
 
   await storeUserGitHubToken(

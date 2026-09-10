@@ -15,6 +15,7 @@ import {
   UNSAFE_RUNTIME_URL_MESSAGE,
   allowRuntimeNavigation,
   assertSafeRuntimeUrl,
+  assertStableRuntimeDns,
   createRedirectHopGuard,
   TOO_MANY_REDIRECTS_MESSAGE,
   type DnsLookup,
@@ -189,6 +190,44 @@ describe("assertSafeRuntimeUrl", () => {
     expect(dnsLookupMock).toHaveBeenCalledWith("preview.example.com", {
       all: true,
     });
+  });
+});
+
+describe("assertStableRuntimeDns", () => {
+  it("blocks navigation when the host flips from public to private", async () => {
+    const rebinding = vi
+      .fn<DnsLookup>()
+      .mockResolvedValueOnce([{ address: "93.184.216.34", family: 4 }])
+      .mockResolvedValueOnce([{ address: "10.0.0.5", family: 4 }]);
+
+    await expect(
+      assertStableRuntimeDns("https://evil.example.com", { lookup: rebinding }),
+    ).rejects.toThrow(UNSAFE_RUNTIME_URL_MESSAGE);
+    expect(rebinding).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects when the address set differs between checks", async () => {
+    const shifting = vi
+      .fn<DnsLookup>()
+      .mockResolvedValueOnce([{ address: "93.184.216.34", family: 4 }])
+      .mockResolvedValueOnce([{ address: "93.184.216.35", family: 4 }]);
+
+    await expect(
+      assertStableRuntimeDns("https://shift.example.com", {
+        lookup: shifting,
+      }),
+    ).rejects.toThrow(/different addresses/);
+  });
+
+  it("allows a stable resolution", async () => {
+    const stable = vi
+      .fn<DnsLookup>()
+      .mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+
+    await expect(
+      assertStableRuntimeDns("https://preview.example.com", { lookup: stable }),
+    ).resolves.toBe("https://preview.example.com/");
+    expect(stable).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -158,19 +158,6 @@ export function attributeContextOf(node: JsxTagNode): string {
   return `${tagNameOf(node)} ${classNameTextOf(node)} ${idText}`;
 }
 
-export function styleHasBackgroundImage(node: JsxTagNode): boolean {
-  const style = getAttribute(node, "style");
-  if (!style || !style.initializer || !ts.isJsxExpression(style.initializer)) {
-    return false;
-  }
-  const expression = style.initializer.expression;
-  if (!expression || !ts.isObjectLiteralExpression(expression)) return false;
-  return expression.properties.some(
-    (prop) =>
-      ts.isPropertyAssignment(prop) && prop.name.getText() === "backgroundImage",
-  );
-}
-
 export function textContentOf(element: ts.JsxElement): string {
   let text = "";
   const walk = (node: ts.Node): void => {

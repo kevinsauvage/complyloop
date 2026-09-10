@@ -229,15 +229,15 @@ describe("assertCheckoutWithinQuota", () => {
     }
   });
 
-  it("allows an empty tree", () => {
+  it("allows an empty tree", async () => {
     process.env.ASSESSMENT_MAX_CHECKOUT_FILES = "10";
     process.env.ASSESSMENT_MAX_CHECKOUT_BYTES = String(1024 * 1024);
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "quota-empty-"));
     tempDirs.push(root);
-    expect(() => assertCheckoutWithinQuota(root)).not.toThrow();
+    await expect(assertCheckoutWithinQuota(root)).resolves.toBeUndefined();
   });
 
-  it("counts files across nested directories, ignoring .git", () => {
+  it("counts files across nested directories, ignoring .git", async () => {
     process.env.ASSESSMENT_MAX_CHECKOUT_FILES = "2";
     process.env.ASSESSMENT_MAX_CHECKOUT_BYTES = String(1024 * 1024);
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "quota-nested-"));
@@ -247,13 +247,15 @@ describe("assertCheckoutWithinQuota", () => {
     fs.writeFileSync(path.join(root, "a", "b", "two.ts"), "2");
     fs.mkdirSync(path.join(root, ".git", "objects"), { recursive: true });
     fs.writeFileSync(path.join(root, ".git", "objects", "pack"), "x".repeat(100));
-    expect(() => assertCheckoutWithinQuota(root)).not.toThrow();
+    await expect(assertCheckoutWithinQuota(root)).resolves.toBeUndefined();
 
     fs.writeFileSync(path.join(root, "a", "b", "three.ts"), "3");
-    expect(() => assertCheckoutWithinQuota(root)).toThrow(/assessment quota/);
+    await expect(assertCheckoutWithinQuota(root)).rejects.toThrow(
+      /assessment quota/,
+    );
   });
 
-  it("allows trees within the quota", () => {
+  it("allows trees within the quota", async () => {
     process.env.ASSESSMENT_MAX_CHECKOUT_FILES = "10";
     process.env.ASSESSMENT_MAX_CHECKOUT_BYTES = String(1024 * 1024);
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "quota-ok-"));
@@ -262,26 +264,32 @@ describe("assertCheckoutWithinQuota", () => {
     fs.writeFileSync(path.join(root, "src", "a.ts"), "export const a = 1;\n");
     fs.mkdirSync(path.join(root, ".git"));
     fs.writeFileSync(path.join(root, ".git", "HEAD"), "ref: refs/heads/main\n");
-    expect(() => assertCheckoutWithinQuota(root)).not.toThrow();
+    await expect(assertCheckoutWithinQuota(root)).resolves.toBeUndefined();
   });
 
-  it("rejects when file count exceeds the quota", () => {
+  it("rejects when file count exceeds the quota", async () => {
     process.env.ASSESSMENT_MAX_CHECKOUT_FILES = "1";
     process.env.ASSESSMENT_MAX_CHECKOUT_BYTES = String(1024 * 1024);
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "quota-files-"));
     tempDirs.push(root);
     fs.writeFileSync(path.join(root, "one.ts"), "1");
     fs.writeFileSync(path.join(root, "two.ts"), "2");
-    expect(() => assertCheckoutWithinQuota(root)).toThrow(PublicError);
-    expect(() => assertCheckoutWithinQuota(root)).toThrow(/assessment quota/);
+    await expect(assertCheckoutWithinQuota(root)).rejects.toBeInstanceOf(
+      PublicError,
+    );
+    await expect(assertCheckoutWithinQuota(root)).rejects.toThrow(
+      /assessment quota/,
+    );
   });
 
-  it("rejects when byte size exceeds the quota", () => {
+  it("rejects when byte size exceeds the quota", async () => {
     process.env.ASSESSMENT_MAX_CHECKOUT_FILES = "10";
     process.env.ASSESSMENT_MAX_CHECKOUT_BYTES = "8";
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "quota-bytes-"));
     tempDirs.push(root);
     fs.writeFileSync(path.join(root, "big.txt"), "0123456789");
-    expect(() => assertCheckoutWithinQuota(root)).toThrow(/assessment quota/);
+    await expect(assertCheckoutWithinQuota(root)).rejects.toThrow(
+      /assessment quota/,
+    );
   });
 });

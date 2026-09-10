@@ -24,6 +24,9 @@ export const UNSAFE_RUNTIME_PORT_MESSAGE =
 export const TOO_MANY_REDIRECTS_MESSAGE =
   "Runtime audit stopped: too many redirects while loading the page.";
 
+export const DNS_REBIND_MESSAGE =
+  "Runtime audit stopped: the preview host resolved to different addresses between checks.";
+
 /** Extra hosts beyond ssrf-guard's built-in localhost/.local policy. */
 const EXTRA_BLOCKED_HOSTNAMES: BlockedHostnamePolicy = {
   exact: ["metadata.google.internal", "metadata.goog", "metadata"],
@@ -83,6 +86,19 @@ export async function assertSafeRuntimeUrl(
   raw: string,
   options?: { lookup?: DnsLookup },
 ): Promise<string> {
+  return (await resolveSafeRuntimeUrl(raw, options)).href;
+}
+
+interface ResolvedRuntimeUrl {
+  href: string;
+  /** Resolved addresses; empty for IP literals (hostname check covers them). */
+  records: ReadonlyArray<{ address: string; family: number }>;
+}
+
+async function resolveSafeRuntimeUrl(
+  raw: string,
+  options?: { lookup?: DnsLookup },
+): Promise<ResolvedRuntimeUrl> {
   const parsed = parseHttpUrl(raw);
   assertPublicHostname(parsed.hostname);
   assertAllowedPort(parsed);
@@ -90,7 +106,7 @@ export async function assertSafeRuntimeUrl(
   const hostname = parsed.hostname;
   // Literal IPs already covered by isPublicHostname; no DNS needed.
   if (net.isIP(hostname) !== 0) {
-    return parsed.href;
+    return { href: parsed.href, records: [] };
   }
 
   const lookup = options?.lookup ?? nodeDnsLookup;
@@ -108,7 +124,33 @@ export async function assertSafeRuntimeUrl(
   } catch {
     throw new PublicError(UNSAFE_RUNTIME_URL_MESSAGE);
   }
-  return parsed.href;
+  return { href: parsed.href, records };
+}
+
+function addressSetKey(
+  records: ReadonlyArray<{ address: string; family: number }>,
+): string {
+  return records
+    .map((record) => `${record.family}:${record.address}`)
+    .sort()
+    .join(",");
+}
+
+/**
+ * DNS-rebinding guard: resolve twice back-to-back and reject when the address
+ * set changes. Chromium re-resolves at connect time, so this narrows (does not
+ * fully close) the window between the safety check and the browser connection.
+ */
+export async function assertStableRuntimeDns(
+  raw: string,
+  options?: { lookup?: DnsLookup },
+): Promise<string> {
+  const first = await resolveSafeRuntimeUrl(raw, options);
+  const second = await resolveSafeRuntimeUrl(raw, options);
+  if (addressSetKey(first.records) !== addressSetKey(second.records)) {
+    throw new PublicError(DNS_REBIND_MESSAGE);
+  }
+  return second.href;
 }
 
 /** Route-handler helper for Playwright navigation/redirect hops. */

@@ -74,11 +74,3 @@ export async function upsertRemediations(
     },
   );
 }
-
-export async function upsertRemediation(
-  tx: DrizzleDb,
-  remediation: Remediation,
-  options?: UpsertRemediationsOptions,
-): Promise<void> {
-  await upsertRemediations(tx, [remediation], options);
-}

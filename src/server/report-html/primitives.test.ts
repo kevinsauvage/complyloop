@@ -85,4 +85,13 @@ describe("reportShell", () => {
     expect(html).toContain("<strong>GitHub:</strong>");
     expect(html).toContain("acme/demo");
   });
+
+  it("renders both source kind and ref", () => {
+    const html = reportShell(
+      { ...header, sourceKind: "github", sourceRef: "main" },
+      "<section>Body</section>",
+    );
+
+    expect(html).toContain("<strong>Source:</strong> github — main");
+  });
 });

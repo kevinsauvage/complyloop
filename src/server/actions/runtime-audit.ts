@@ -32,8 +32,8 @@ function parseRoutes(raw: string | undefined): string[] {
 }
 
 const updateRuntimeAuditInput = z.object({
-  runtimeBaseUrl: z.string().optional(),
-  runtimeRoutes: z.string().optional(),
+  runtimeBaseUrl: z.string().max(2048).optional(),
+  runtimeRoutes: z.string().max(4000).optional(),
 });
 
 export async function updateRuntimeAuditAction(

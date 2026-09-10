@@ -1,5 +1,6 @@
 import { Octokit } from "@octokit/rest";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { redactSecrets } from "./redact";
 
 /** Authenticated Octokit client for server-side GitHub REST calls. */
 export function createOctokit(accessToken: string): Octokit {
@@ -116,16 +117,13 @@ export function githubPublicCloneUrl(fullName: string): string {
 }
 
 /**
- * Strips embedded URL credentials (`https://user:pass@host/...`) from free
- * text such as git error output. Git echoes the remote URL on failure, which
- * would otherwise leak the clone token into user-visible errors. Also scrubs
- * leaked `Authorization` header values (defense-in-depth now that tokens travel
- * via `http.extraHeader` env).
+ * Strips embedded URL credentials (`https://user:pass@host/...`) and leaked
+ * `Authorization` header values from git error output. Git echoes the remote
+ * URL on failure, which would otherwise leak the clone token into
+ * user-visible errors.
  */
 export function redactCloneUrl(text: string): string {
-  return text
-    .replace(/:\/\/[^@\s/]+@/g, "://***@")
-    .replace(/(Authorization:\s*(?:Bearer|Basic|token)\s+)\S+/gi, "$1***");
+  return redactSecrets(text);
 }
 
 /** GitHub full names are case-insensitive; normalize for map keys and equality. */

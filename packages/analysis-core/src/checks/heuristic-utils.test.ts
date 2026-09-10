@@ -21,7 +21,6 @@ import {
   isComplexDataTable,
   isInsideNamingHost,
   nextMeaningfulSibling,
-  styleHasBackgroundImage,
   styleLocksTextSpacing,
   tagNodeOfJsxChild,
   textContentOf,
@@ -39,21 +38,17 @@ function firstTag(source: string): JsxTagNode {
 }
 
 describe("heuristic-utils", () => {
-  it("detects attributes, class names, and background-image styles", () => {
+  it("detects attributes and class names", () => {
     const tagged = firstTag(
       `const A = () => <div className="card" style={{ backgroundImage: "url(x)" }} data-ok />`,
     );
     expect(hasAnyAttr(tagged, ["data-ok"])).toBe(true);
     expect(hasAnyAttr(tagged, ["missing"])).toBe(false);
     expect(classNameTextOf(tagged)).toBe("card");
-    expect(styleHasBackgroundImage(tagged)).toBe(true);
 
     const classAttr = firstTag(`const A = () => <div class="plain" />;`);
     expect(classNameTextOf(classAttr)).toBe("plain");
     expect(classNameTextOf(firstTag(`const A = () => <div />;`))).toBe("");
-    expect(
-      styleHasBackgroundImage(firstTag(`const A = () => <div style={{ color: "red" }} />;`)),
-    ).toBe(false);
   });
 
   it("detects context-changing handlers and motion listeners", () => {

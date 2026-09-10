@@ -17,6 +17,7 @@ import { capturePageSnapshot } from "./site-level/snapshot.ts";
 import {
   allowRuntimeNavigation,
   assertSafeRuntimeUrl,
+  assertStableRuntimeDns,
   createRedirectHopGuard,
   TOO_MANY_REDIRECTS_MESSAGE,
   UNSAFE_RUNTIME_URL_MESSAGE,
@@ -197,8 +198,9 @@ function createPlaywrightAxeScanner(options?: {
         const page = await context.newPage();
         try {
           try {
-            // Re-resolve DNS immediately before goto to shrink rebinding TOCTOU.
-            await assertSafeRuntimeUrl(url, lookupOptions);
+            // Re-resolve DNS immediately before goto and reject address
+            // changes to shrink the rebinding TOCTOU window.
+            await assertStableRuntimeDns(url, lookupOptions);
             await gotoForRuntimeAudit(page, url);
           } catch (error) {
             if (blockedReason) throw new PublicError(blockedReason);
