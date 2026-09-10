@@ -36,7 +36,14 @@ ${renderSummaryRows(statusCounts)}
   const body = [
     reportSection("summary", "Summary", summaryBody),
     reportSection("requirements", "Requirements", renderAuditRequirements(model.requirements)),
-    reportSection("evidence", "Evidence trail", renderEvidence(model.evidence)),
+    reportSection(
+      "evidence",
+      "Evidence trail",
+      renderEvidence(model.evidence, {
+        total: model.evidenceTotal,
+        truncated: model.evidenceTruncated,
+      }),
+    ),
   ].join("\n");
 
   return reportShell(model.header, body);
@@ -110,7 +117,13 @@ function renderClusters(model: EngineeringReportModel): string {
   return `<ul class="cluster-list">${items}</ul>`;
 }
 
-function renderEvidence(evidence: AuditEvidenceRow[]): string {
+function renderEvidence(
+  evidence: AuditEvidenceRow[],
+  meta: { total: number; truncated: boolean },
+): string {
+  const truncationNote = meta.truncated
+    ? `<p class="note">Showing the latest ${evidence.length} of ${meta.total} evidence records — download raw JSON for the full trail.</p>`
+    : "";
   if (evidence.length === 0) {
     return emptyParagraph("No evidence records.");
   }
@@ -126,7 +139,7 @@ function renderEvidence(evidence: AuditEvidenceRow[]): string {
     )
     .join("\n");
 
-  return `<table class="data-table evidence-table">
+  return `${truncationNote}<table class="data-table evidence-table">
 <thead><tr><th>When</th><th>Kind</th><th>Summary</th></tr></thead>
 <tbody>
 ${rows}

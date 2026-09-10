@@ -1,13 +1,13 @@
 "use server";
 
 import { z } from "zod";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   runActionMessage,
   type ActionMessageState,
 } from "../action-state";
 import { parseForm } from "@/core/boundary";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
+import { parseRoutes } from "../runtime-routes";
 import { withProjectWrite } from "../workspace-write";
 import { refresh, requireOnActive } from "./shared";
 
@@ -15,23 +15,6 @@ const updateRuntimeAuditInput = z.object({
   runtimeBaseUrl: z.string().optional(),
   runtimeRoutes: z.string().optional(),
 });
-
-const ABSOLUTE_ROUTE_MESSAGE =
-  "Routes must be paths under the Preview / staging URL (e.g. `/` or `/pricing`), not absolute http(s) URLs.";
-
-function parseRoutes(raw: string | undefined): string[] {
-  if (raw == null) return [];
-  return raw
-    .split(/[\n,]+/)
-    .map((route) => route.trim())
-    .filter((route) => route.length > 0)
-    .map((route) => {
-      if (/^https?:\/\//i.test(route)) {
-        throw new PublicError(ABSOLUTE_ROUTE_MESSAGE);
-      }
-      return route.startsWith("/") ? route : `/${route}`;
-    });
-}
 
 export async function updateRuntimeAuditAction(
   _previous: ActionMessageState,

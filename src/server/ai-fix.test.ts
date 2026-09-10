@@ -15,6 +15,17 @@ import {
   runAiFixOnCheckout,
 } from "./ai-fix";
 
+const { reportWarningMock } = vi.hoisted(() => ({
+  reportWarningMock: vi.fn(),
+}));
+
+vi.mock("./observability", () => ({
+  reportWarning: reportWarningMock,
+  reportError: vi.fn(),
+  reportDebug: vi.fn(),
+  reportInfo: vi.fn(),
+}));
+
 const tempDirs: string[] = [];
 
 afterEach(() => {
@@ -305,6 +316,27 @@ describe("persistPatchCandidate", () => {
     // Loaded db is not mutated.
     expect(db.remediations[0]?.status).toBe("detected");
     expect(db.evidence).toHaveLength(0);
+  });
+
+  it("warns and skips the suggestion when remediation already advanced", () => {
+    reportWarningMock.mockClear();
+    const db = emptyDb();
+    db.findings.push(patchFinding);
+    db.remediations.push({ ...remediation, status: "verified" });
+    const payload: ProjectWritePayload = {};
+
+    persistPatchCandidate(db, patchFinding, candidate, payload);
+
+    expect(reportWarningMock).toHaveBeenCalledWith(
+      expect.stringContaining("already advanced"),
+      expect.objectContaining({
+        code: "ai_patch_skipped_status",
+        findingId: "f1",
+        status: "verified",
+      }),
+    );
+    expect(payload.remediations).toBeUndefined();
+    expect(payload.evidence?.[0]?.kind).toBe("ai_patch_ready");
   });
 });
 

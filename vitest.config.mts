@@ -41,37 +41,43 @@ export default defineConfig({
         "packages/adapters/src/**",
       ],
       exclude: [
+        // Test files themselves carry no product logic.
         "src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/**/*.test.{ts,tsx}",
         "packages/db/src/**/*.test.{ts,tsx}",
         "packages/adapters/src/**/*.test.{ts,tsx}",
+        // Runtime scan driver — exercised by test:e2e (needs a repo + browsers).
         "packages/analysis-core/src/runtime/scan.ts",
         // Playwright page probes — unit job has no Chromium, so these skip.
         "packages/analysis-core/src/runtime/custom-checks/**",
+        // HTML-validate runtime probe — covered by test:e2e browser runs.
         "packages/analysis-core/src/runtime/html-validate-runtime.ts",
+        // Scan applicability gating — covered by test:e2e assessment runs.
         "packages/analysis-core/src/runtime/applicability.ts",
+        // Live link checker (network) — covered by test:e2e.
         "packages/analysis-core/src/runtime/site-level/link-check.ts",
-        // Live Postgres wiring without a default-suite unit driver.
-        "packages/db/src/client.ts",
-        "packages/db/src/schema.ts",
-        "packages/db/src/workspace-load.ts",
-        "packages/db/src/postgres-url.ts",
-        "packages/db/src/repo/**",
-        "packages/db/src/test-fixtures/**",
+        // Live Postgres wiring without a default-suite unit driver — test:db.
+        "packages/db/src/client.ts", // test:db (postgres client)
+        "packages/db/src/schema.ts", // test:db (schema declarations only)
+        "packages/db/src/workspace-load.ts", // test:db (workspace.integration.test.ts)
+        "packages/db/src/postgres-url.ts", // test:db (connection-string handling)
+        "packages/db/src/repo/**", // test:db (query layer; pure helpers have unit tests)
+        "packages/db/src/test-fixtures/**", // test support files, no product logic
         // Write path covered by workspace.test.ts + workspace.integration.test.ts (test:db).
-        "src/server/workspace.ts",
-        // Thin Next Auth / cookie glue — covered via e2e.
-        "src/server/active-cookies.ts",
-        "src/server/db.ts",
+        "src/server/workspace.ts", // test:db
+        // Thin Next Auth / cookie glue — covered via test:e2e.
+        "src/server/active-cookies.ts", // test:e2e
+        "src/server/db.ts", // test:e2e
         // Live GitHub/git checkout I/O — e2e + fixture paths cover the contract.
-        "src/server/repo-checkout.ts",
-        "src/server/github-tokens.ts",
-        "src/server/github-app.ts",
-        "src/server/octokit.ts",
-        "src/server/connect-github.ts",
-        "src/server/github-repo.ts",
-        // Markdown report assembly — HTML covered by report-html/report.test.ts.
-        "src/server/report.ts",
+        "src/server/repo-checkout.ts", // test:e2e
+        "src/server/github-tokens.ts", // test:e2e
+        "src/server/github-app.ts", // test:e2e
+        "src/server/octokit.ts", // test:e2e
+        "src/server/connect-github.ts", // test:e2e
+        "src/server/github-repo.ts", // test:e2e
+        // Report loader (needs Postgres); input builder is unit-covered by
+        // report.test.ts and renderers by report-html/report.test.ts.
+        "src/server/report.ts", // test:db (loadReportInput) + unit (reportInputForProject)
       ],
       thresholds: {
         lines: 94,

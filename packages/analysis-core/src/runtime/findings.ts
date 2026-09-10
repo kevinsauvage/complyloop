@@ -6,6 +6,7 @@ import type { RawFinding } from "../types.ts";
 import { checkIdForAxeRule } from "./axe-map.ts";
 import { htmlSnippet, selectorFromTarget } from "./dom-location.ts";
 import { dedupeRuntimeFindings } from "./dedupe-runtime-findings.ts";
+import { normalizeRoutes } from "./routes.ts";
 import { rawFindingFromDom } from "./raw-finding-from-dom.ts";
 
 import type { RuntimePageSnapshot } from "./site-level/types.ts";
@@ -162,8 +163,8 @@ export function runtimeRoutesFor(project: {
   runtimeRoutes?: string[];
 }): string[] {
   if (!project.runtimeBaseUrl?.trim()) return [];
-  const routes = project.runtimeRoutes?.filter((route) => route.trim().length > 0);
-  return routes && routes.length > 0 ? routes : ["/"];
+  const routes = normalizeRoutes(project.runtimeRoutes ?? []);
+  return routes.length > 0 ? routes : ["/"];
 }
 
 export function joinRuntimeUrl(baseUrl: string, route: string): string {

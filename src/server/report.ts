@@ -79,6 +79,7 @@ export type ReportRuntimeSlice = {
 export function reportInputForProject(
   runtime: ReportRuntimeSlice,
   project: Project,
+  evidenceMeta?: { total: number; truncated: boolean },
 ): ReportInput {
   const findings = findingsInScope(runtime.findings, project);
   const findingIds = new Set(findings.map((finding) => finding.id));
@@ -93,6 +94,8 @@ export function reportInputForProject(
     ),
     requirements: requirementsInScope(runtime.requirements, project),
     evidence: evidenceForProject(runtime.evidence, project.id),
+    evidenceTotal: evidenceMeta?.total ?? runtime.evidence.length,
+    evidenceTruncated: evidenceMeta?.truncated ?? false,
     exportedAt: new Date().toISOString(),
   };
 }
@@ -124,6 +127,7 @@ export async function loadReportInput(
     input: reportInputForProject(
       { ...runtime, evidence: exported.records },
       project,
+      { total: exported.total, truncated: exported.truncated },
     ),
   };
 }

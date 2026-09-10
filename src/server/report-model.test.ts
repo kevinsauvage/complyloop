@@ -92,6 +92,25 @@ describe("report model composers", () => {
     );
   });
 
+  it("notes capped evidence in both renderers, and stays silent when whole", () => {
+    const input = sampleReportInput();
+    input.evidenceTotal = 2000;
+    input.evidenceTruncated = true;
+
+    const model = composeAuditReport(input);
+    expect(model.evidenceTotal).toBe(2000);
+    expect(model.evidenceTruncated).toBe(true);
+
+    const markdown = buildAuditReportMarkdown(input);
+    expect(markdown).toContain("latest 1 of 2000 evidence records");
+    const html = buildAuditReportHtml(input);
+    expect(html).toContain("latest 1 of 2000 evidence records");
+
+    const whole = sampleReportInput();
+    expect(buildAuditReportMarkdown(whole)).not.toContain("latest");
+    expect(buildAuditReportHtml(whole)).not.toContain("latest");
+  });
+
   it("labels a non-RGAA/WCAG secondary reference as Also", () => {
     const input = sampleReportInput();
     input.controls = [

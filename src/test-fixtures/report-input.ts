@@ -81,6 +81,8 @@ export function sampleReportInput(): ReportInput {
         projectId: reportSampleProject.id,
       },
     ],
+    evidenceTotal: 1,
+    evidenceTruncated: false,
     exportedAt: "2026-01-03T00:00:00.000Z",
   };
 }

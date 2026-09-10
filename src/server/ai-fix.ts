@@ -23,6 +23,7 @@ import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { Db } from "@complyloop/db/types";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
 import { appendEvidence } from "./project-rows";
+import { reportWarning } from "./observability";
 
 export type PatchUiState =
   | { status: "idle" }
@@ -192,6 +193,11 @@ export function persistPatchCandidate(
       : {}),
   };
   if (remediation.status !== "detected" && remediation.status !== "suggested") {
+    reportWarning("AI patch ready but remediation already advanced; suggestion not persisted.", {
+      code: "ai_patch_skipped_status",
+      findingId: finding.id,
+      status: remediation.status,
+    });
     return;
   }
   payload.remediations = [

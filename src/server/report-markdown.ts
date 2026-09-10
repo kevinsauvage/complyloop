@@ -184,6 +184,12 @@ function renderAuditMarkdown(model: AuditReportModel): string {
 
   lines.push(`## Evidence trail`);
   lines.push(``);
+  if (model.evidenceTruncated) {
+    lines.push(
+      `_Showing the latest ${model.evidence.length} of ${model.evidenceTotal} evidence records — download raw JSON for the full trail._`,
+    );
+    lines.push(``);
+  }
   if (model.evidence.length === 0) {
     lines.push(`_No evidence recorded._`);
   } else {

@@ -33,6 +33,10 @@ export interface ReportInput {
   findings: Finding[];
   remediations: Remediation[];
   evidence: EvidenceRecord[];
+  /** Total evidence rows in the table (may exceed `evidence` when capped). */
+  evidenceTotal: number;
+  /** True when the loader capped `evidence` to the newest window. */
+  evidenceTruncated: boolean;
   exportedAt: string;
 }
 
@@ -107,6 +111,8 @@ export interface AuditReportModel {
   passRate: number;
   requirements: AuditRequirementRow[];
   evidence: AuditEvidenceRow[];
+  evidenceTotal: number;
+  evidenceTruncated: boolean;
 }
 
 function reportHeader(title: string, input: ReportInput): ReportHeaderModel {
@@ -267,5 +273,7 @@ export function composeAuditReport(input: ReportInput): AuditReportModel {
       return [toAuditRequirementRow(control, requirement, framework)];
     }),
     evidence: evidenceRowsForProject(evidence, project.id),
+    evidenceTotal: input.evidenceTotal,
+    evidenceTruncated: input.evidenceTruncated,
   };
 }
