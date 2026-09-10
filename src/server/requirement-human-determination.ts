@@ -21,6 +21,21 @@ export type HumanDeterminationOverride =
       humanPass: RequirementHumanPass;
     };
 
+/**
+ * Date-only input (`YYYY-MM-DD` from `<input type="date">`) means the whole
+ * calendar day UTC — normalize to end of day so "expires today" stays valid
+ * until the day is over instead of expiring at UTC midnight.
+ */
+export function normalizeExpiryInstant(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const instant = `${trimmed}T23:59:59.999Z`;
+    return Number.isNaN(Date.parse(instant)) ? null : instant;
+  }
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
 export function setRequirementHumanDetermination(
   requirement: Requirement,
   override: HumanDeterminationOverride,
