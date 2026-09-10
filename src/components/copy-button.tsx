@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useCopyText } from "@/hooks/use-copy-text";
+import { copyText } from "@/lib/copy-text";
 
 export function CopyButton({
   label,
@@ -13,7 +12,6 @@ export function CopyButton({
   text: string;
 }) {
   const [announcement, setAnnouncement] = useState("");
-  const [, copy] = useCopyText();
 
   return (
     <>
@@ -22,13 +20,8 @@ export function CopyButton({
         variant="outline"
         size="sm"
         onClick={async () => {
-          try {
-            await copy(text);
-            setAnnouncement("Copied");
-          } catch {
-            setAnnouncement("Could not copy");
-            toast.error("Could not copy to clipboard");
-          }
+          const ok = await copyText(text);
+          setAnnouncement(ok ? "Copied" : "Could not copy");
         }}
       >
         {label}

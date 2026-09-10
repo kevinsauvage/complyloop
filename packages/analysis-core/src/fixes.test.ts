@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { applyFix, describeFix, previewFixedLine } from "./fixes";
 import { parseSource } from "./parse";
-import { autoplayMediaCheck } from "./checks/autoplay-media";
-import { buttonNameCheck } from "./checks/button-name";
+import { autoplayMediaCheck } from "./checks/families/media";
+import { buttonNameCheck } from "./checks/families/names";
 import type { ProposedFix } from "./contract/finding-types";
 
 describe("applyFix", () => {
