@@ -1,6 +1,6 @@
+import { formatDateTime } from "@/core/datetime";
 import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
-import { formatDateTime } from "@/core/lifecycle";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";

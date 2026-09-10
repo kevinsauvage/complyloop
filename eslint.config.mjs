@@ -63,6 +63,26 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // Assessment/worker pipeline must not pull finding-page UX policy:
+  // `src/server/assessment*` may use remediation transitions and assessment
+  // helpers, but never the `finding-act` beat model (docs/ai/architecture.md).
+  {
+    files: ["src/server/assessment*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/finding-act", "**/finding-act/**"],
+              message:
+                "assessment pipeline must not import the finding-page UX model (finding-act) — use remediation-lifecycle / assessment-helpers — see docs/ai/architecture.md.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Persistence, the compliance catalog, and the CI CLI are framework-agnostic
   // leaves: they must not import app/server/adapters-at-app layers. They may
   // import the analysis contract and each other. The catalog and db depend on

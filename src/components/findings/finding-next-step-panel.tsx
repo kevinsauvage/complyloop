@@ -1,3 +1,4 @@
+import type { FindingActView } from "@/core/finding-act";
 import { CreatePrForm } from "@/components/create-pr-form";
 import { RemediationStepper } from "@/components/findings/remediation-stepper";
 import { SecondaryFindingActions } from "@/components/findings/secondary-finding-actions";
@@ -14,7 +15,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { FindingActView } from "@/core/lifecycle";
 import type {
   Finding,
   Remediation,

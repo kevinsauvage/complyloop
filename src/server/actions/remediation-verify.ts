@@ -1,5 +1,9 @@
 "use server";
 
+import {
+  advanceRemediation,
+  appendRemediationHistory,
+} from "@/core/remediation-lifecycle";
 import type { CheckId } from "@complyloop/analysis-core/check-registry";
 import {
   type Finding,
@@ -11,7 +15,6 @@ import {
   scanRuntime,
 } from "@complyloop/analysis-core/runtime/scan";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { advanceRemediation, appendRemediationHistory } from "@/core/lifecycle";
 import { optionalNoteSchema, parseEntityId, parseForm } from "@/core/filters";
 import { z } from "zod";
 import { runAction, type ActionState } from "../action-state";

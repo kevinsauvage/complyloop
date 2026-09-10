@@ -12,7 +12,7 @@
 | Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                          |
 | Catalog  | `packages/analysis-core/src/adapters/` | RGAA/WCAG catalog, presets, guidance                          |
 | DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load, `Db` slice (imports entities from contract; `types.ts` only re-exports for compat) |
-| App core | `src/core/`                            | RBAC, finding UX (contract only), `finding-cluster.ts` presentation type |
+| App core | `src/core/`                            | Shared kernel (contract only): `rbac`, `remediation-lifecycle` (domain transitions), `assessment-helpers` (worker-safe summaries), `finding-priority` (clustering/scoring), `finding-act` (finding-page UX beats), `finding-cluster` type, `datetime`, `display`, `filters` |
 | AI       | `src/ai/`                              | Explain / remediate — never sets status                       |
 | Server   | `src/server/`                          | Jobs, GitHub, actions                                         |
 | App      | `src/app/`                             | Next.js UI + API                                              |
@@ -20,6 +20,9 @@
 
 `src/core` must not import the catalog, db, or analysis-core beyond `contract/*`
 (ESLint). Dependency direction: `contract → { db, catalog, app }`.
+Remediation legality lives in `src/core/remediation-lifecycle.ts`; the
+finding-page beat model (`src/core/finding-act.ts`) is UI policy and must not
+be imported by `src/server/assessment*` (ESLint).
 
 Workspace packages export `src/*.ts`. Next transpiles them; `dist/` is
 publish-only. `@complyloop/check` bundles analysis-core; Playwright stays

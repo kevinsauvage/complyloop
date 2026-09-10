@@ -1,5 +1,6 @@
 "use client";
 
+import { canBulkApproveRemediation } from "@/core/remediation-lifecycle";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { DismissFindingFields } from "@/components/findings/dismiss-finding-fields";
@@ -13,7 +14,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { canBulkApproveRemediation } from "@/core/lifecycle";
 import {
   findingDetailHref,
   type FindingListParams,
@@ -71,53 +71,53 @@ function FindingsBulkRowContent({
   const remediationLabel = remediationStatusDisplay(remediationStatus).label;
   const engineLabel = engineDisplay(engineFor(finding)).label;
   return (
-      <div
-        className={cn(
-          "group flex gap-3 rounded-xl border border-border/70 bg-card/80 p-3 shadow-none transition-[background-color,border-color,box-shadow]",
-          "hover:border-signal/40 hover:bg-accent/30 hover:shadow-sm",
-          isSelected && "border-signal/50 bg-signal/5",
-        )}
+    <div
+      className={cn(
+        "group flex gap-3 rounded-xl border border-border/70 bg-card/80 p-3 shadow-none transition-[background-color,border-color,box-shadow]",
+        "hover:border-signal/40 hover:bg-accent/30 hover:shadow-sm",
+        isSelected && "border-signal/50 bg-signal/5",
+      )}
+    >
+      {canRemediate ? (
+        <div className="pt-1">
+          <input
+            id={checkboxId}
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggle(finding.id)}
+            className="size-4 rounded border-input accent-signal"
+            aria-label={`Select ${control.code} at ${formatLocationRef(finding.location)}`}
+          />
+        </div>
+      ) : null}
+      <Link
+        href={findingDetailHref(finding.id, listParams)}
+        prefetch={false}
+        className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {canRemediate ? (
-          <div className="pt-1">
-            <input
-              id={checkboxId}
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onToggle(finding.id)}
-              className="size-4 rounded border-input accent-signal"
-              aria-label={`Select ${control.code} at ${formatLocationRef(finding.location)}`}
-            />
-          </div>
-        ) : null}
-        <Link
-          href={findingDetailHref(finding.id, listParams)}
-          prefetch={false}
-          className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span className="flex items-baseline gap-2">
-            <span
-              aria-hidden
-              className={cn(
-                "size-2 shrink-0 translate-y-[-1px] rounded-full",
-                severityDotClass(finding.severity),
-              )}
-            />
-            <span className="min-w-0 flex-1 truncate text-sm font-medium group-hover:underline">
-              {control.code} — {control.title}
-            </span>
-            <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground">
-              {severityLabel} · {remediationLabel}
-            </span>
+        <span className="flex items-baseline gap-2">
+          <span
+            aria-hidden
+            className={cn(
+              "size-2 shrink-0 translate-y-[-1px] rounded-full",
+              severityDotClass(finding.severity),
+            )}
+          />
+          <span className="min-w-0 flex-1 truncate text-sm font-medium group-hover:underline">
+            {control.code} — {control.title}
           </span>
-          <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">
-            {finding.reason}
+          <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground">
+            {severityLabel} · {remediationLabel}
           </span>
-          <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">
-            {formatLocationRef(finding.location)} · {engineLabel}
-          </span>
-        </Link>
-      </div>
+        </span>
+        <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">
+          {finding.reason}
+        </span>
+        <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">
+          {formatLocationRef(finding.location)} · {engineLabel}
+        </span>
+      </Link>
+    </div>
   );
 }
 
@@ -135,7 +135,8 @@ export function FindingsBulkList({
   const [showDismiss, setShowDismiss] = useState(false);
 
   const allIds = items.map((item) => item.finding.id);
-  const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
+  const allSelected =
+    allIds.length > 0 && allIds.every((id) => selected.has(id));
   const someSelected = selected.size > 0 && !allSelected;
   const selectedCount = selected.size;
   const approvableIds = items
@@ -206,7 +207,12 @@ export function FindingsBulkList({
                   confirmMessage={`Approve ${approvableIds.length} runtime guidance suggestion${approvableIds.length === 1 ? "" : "s"}?`}
                 >
                   {approvableIds.map((id) => (
-                    <input key={id} type="hidden" name="findingIds" value={id} />
+                    <input
+                      key={id}
+                      type="hidden"
+                      name="findingIds"
+                      value={id}
+                    />
                   ))}
                 </StatefulActionForm>
               ) : (

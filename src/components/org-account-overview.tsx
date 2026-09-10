@@ -1,6 +1,6 @@
+import { formatDateTime } from "@/core/datetime";
 import Link from "next/link";
 import { MetaTile } from "@/components/page-primitives";
-import { formatDateTime } from "@/core/lifecycle";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -48,7 +48,12 @@ export function OrgAccountOverview({
           </h2>
           <Badge variant="secondary">Early access pilot</Badge>
           {viewerRole ? (
-            <Badge className={cn("capitalize", STATUS_TONE_BADGE[roleTone(viewerRole)])}>
+            <Badge
+              className={cn(
+                "capitalize",
+                STATUS_TONE_BADGE[roleTone(viewerRole)],
+              )}
+            >
               {viewerRole}
             </Badge>
           ) : null}
@@ -58,10 +63,7 @@ export function OrgAccountOverview({
           Billing and self-serve plans are not enabled yet for this pilot.
         </CardDescription>
         <div className="flex flex-wrap gap-2 pt-1">
-          <SummaryChip
-            label="Projects"
-            value={String(projectCount)}
-          />
+          <SummaryChip label="Projects" value={String(projectCount)} />
           <SummaryChip label="Members" value={String(memberCount)} />
           {pendingInviteCount > 0 ? (
             <SummaryChip
@@ -120,8 +122,8 @@ export function OrgAccountOverview({
         <div className="sm:col-span-2 rounded-lg border border-signal/20 bg-signal/5 px-4 py-3 text-sm">
           <p className="font-medium text-foreground">Data retention</p>
           <p className="mt-1 text-muted-foreground">
-            Evidence is kept for audit after disconnect or org deletion;
-            mutable records are removed with the organization. Details in{" "}
+            Evidence is kept for audit after disconnect or org deletion; mutable
+            records are removed with the organization. Details in{" "}
             <Link
               href="/legal/privacy"
               className="text-foreground underline underline-offset-2"

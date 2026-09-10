@@ -1,7 +1,15 @@
+import { countByStatus, toCountMap } from "@/core/assessment-helpers";
 import { AssessedRequirementList } from "@/components/requirements/assessed-requirement-list";
 import { RequirementsPresetPanel } from "@/components/requirements/requirements-preset-panel";
 import { RequirementsStatusChips } from "@/components/requirements/requirements-status-chips";
-import { EmptyState, NoProjectNotice, PageActionLink, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
+import {
+  EmptyState,
+  NoProjectNotice,
+  PageActionLink,
+  PageContent,
+  PageHeader,
+  PageSection,
+} from "@/components/page-primitives";
 import {
   defaultConnectPreset,
   isValidPresetId,
@@ -15,14 +23,11 @@ import {
   parsePresetIdParam,
   parseRequirementsQueryParam,
 } from "@/core/filter-params";
-import {
-  parseRequirementStatusParam,
-} from "@/core/filter-params";
+import { parseRequirementStatusParam } from "@/core/filter-params";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PaginationNav } from "@/components/pagination-nav";
-import { countByStatus, toCountMap } from "@/core/lifecycle";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { loadActiveProjectPage } from "@/server/active-project-page";
@@ -91,7 +96,10 @@ export default async function RequirementsPage({
   );
 
   const openFindingCounts = toCountMap(
-    runtime.findings.filter((finding) => finding.projectId === project.id && finding.status === "open"),
+    runtime.findings.filter(
+      (finding) =>
+        finding.projectId === project.id && finding.status === "open",
+    ),
     (finding) => finding.controlId,
   );
 
@@ -169,7 +177,11 @@ export default async function RequirementsPage({
                   <input type="hidden" name="status" value={statusFilter} />
                 ) : null}
                 {selectedPresetId !== defaultPresetId ? (
-                  <input type="hidden" name="presetId" value={selectedPresetId} />
+                  <input
+                    type="hidden"
+                    name="presetId"
+                    value={selectedPresetId}
+                  />
                 ) : null}
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                   <Label htmlFor="requirements-q">Search requirements</Label>
@@ -192,7 +204,11 @@ export default async function RequirementsPage({
               <EmptyState
                 title="No requirements assessed yet"
                 variant="first-run"
-                action={<PageActionLink href="/dashboard">Run assessment from dashboard</PageActionLink>}
+                action={
+                  <PageActionLink href="/dashboard">
+                    Run assessment from dashboard
+                  </PageActionLink>
+                }
               >
                 <p>
                   Run an assessment from the dashboard to evaluate each in-scope

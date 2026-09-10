@@ -1,6 +1,9 @@
 "use server";
 
-import { canBulkApproveRemediation } from "@/core/lifecycle";
+import {
+  canBulkApproveRemediation,
+  advanceRemediation,
+} from "@/core/remediation-lifecycle";
 import {
   type Finding,
   type Remediation,
@@ -12,7 +15,6 @@ import {
 } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { advanceRemediation } from "@/core/lifecycle";
 import {
   findingIdsField,
   optionalNoteSchema,

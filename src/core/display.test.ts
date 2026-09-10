@@ -19,7 +19,7 @@ import {
   STATUS_TONE_REPORT,
   type ReportColorPair,
 } from "./display";
-import { severityRank } from "./lifecycle";
+import { severityRank } from "./finding-priority";
 import {
   FINDING_STATUSES,
   REMEDIATION_STATUSES,

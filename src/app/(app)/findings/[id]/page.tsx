@@ -1,3 +1,6 @@
+import { findingAct } from "@/core/finding-act";
+import { formatDateTime } from "@/core/datetime";
+import { prioritizeClusters, clusterFindings } from "@/core/finding-priority";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -15,8 +18,11 @@ import { FindingNextStepPanel } from "@/components/findings/finding-next-step-pa
 import { FindingQueueNav } from "@/components/findings/finding-queue-nav";
 import { FindingUnderstandCard } from "@/components/findings/finding-understand-card";
 import { RemediationHistory } from "@/components/findings/remediation-history";
-import { findingAct } from "@/core/lifecycle";
-import { confidenceDisplay, engineDisplay, evidenceDisplay } from "@/core/display";
+import {
+  confidenceDisplay,
+  engineDisplay,
+  evidenceDisplay,
+} from "@/core/display";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   findingQueuePosition,
@@ -25,8 +31,12 @@ import {
   parseFindingListParams,
   type FilterFindingsContext,
 } from "@/core/filter-params";
-import { EmptyState, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
-import { formatDateTime } from "@/core/lifecycle";
+import {
+  EmptyState,
+  PageContent,
+  PageHeader,
+  PageSection,
+} from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { pullRequestUrlFromEvidence, latestPatchState } from "@/server/ai-fix";
@@ -42,8 +52,6 @@ import {
 import { getProjectRuntime } from "@/server/project-runtime";
 import { displayControl } from "@/server/report";
 import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
-import { prioritizeClusters } from "@/core/lifecycle";
-import { clusterFindings } from "@/core/lifecycle";
 import { cn } from "@/lib/utils";
 import { isProjectVisible } from "@/server/project-visibility";
 
@@ -90,7 +98,9 @@ export default async function FindingPage({
   } catch {
     notFound();
   }
-  const project = projects.find((candidate) => candidate.id === finding.projectId);
+  const project = projects.find(
+    (candidate) => candidate.id === finding.projectId,
+  );
   if (!project || !isProjectVisible(project, access)) notFound();
 
   const statusForTab = listParams.tab === "by_cause" ? "open" : listParams.tab;
@@ -192,10 +202,7 @@ export default async function FindingPage({
             <span>Confidence: {finding.confidence}</span>
           </BadgeWithDescription>
           <span aria-hidden>·</span>
-          <span
-            title={finding.checkId}
-            className="max-w-64 truncate font-mono"
-          >
+          <span title={finding.checkId} className="max-w-64 truncate font-mono">
             {finding.checkId}
           </span>
           <CopyButton label="Copy check ID" text={finding.checkId} />

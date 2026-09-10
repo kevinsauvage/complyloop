@@ -1,4 +1,6 @@
 import "server-only";
+import { countByStatus } from "@/core/assessment-helpers";
+import { prioritizeClusters } from "@/core/finding-priority";
 import {
   FINDING_STATUSES,
   REQUIREMENT_STATUSES,
@@ -28,10 +30,8 @@ import {
   requirementStatusDisplay,
   severityDisplay,
 } from "@/core/display";
-import { countByStatus } from "@/core/lifecycle";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import type { FindingLocation } from "@complyloop/analysis-core/contract/finding-types";
-import { prioritizeClusters } from "@/core/lifecycle";
 import {
   formatLocationRef,
   locationSnippet,

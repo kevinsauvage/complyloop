@@ -1,17 +1,17 @@
 "use server";
 
+import { advanceRemediation } from "@/core/remediation-lifecycle";
 import { parseEntityId } from "@/core/filters";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { advanceRemediation } from "@/core/lifecycle";
-import {
-  runAction,
-  type ActionState,
-} from "../action-state";
+import { runAction, type ActionState } from "../action-state";
 import { patchCandidateFromEvidence } from "../ai-fix";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
 import { preparePullRequest } from "../pr";
-import { remediationEvidenceDetail, remediationEvidenceSummary } from "../remediation-evidence";
+import {
+  remediationEvidenceDetail,
+  remediationEvidenceSummary,
+} from "../remediation-evidence";
 import {
   controlById,
   getWorkspace,
@@ -21,11 +21,7 @@ import {
 } from "../workspace";
 import { withFindingWrite } from "../workspace-write";
 import { appendEvidence } from "../project-rows";
-import {
-  refresh,
-  replaceRemediation,
-  requireFindingContext,
-} from "./shared";
+import { refresh, replaceRemediation, requireFindingContext } from "./shared";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
@@ -45,7 +41,11 @@ export async function createPullRequestAction(
     const findingId = parseEntityId(findingIdRaw);
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);
-    const { project } = requireFindingContext(preview, finding, "project.remediate");
+    const { project } = requireFindingContext(
+      preview,
+      finding,
+      "project.remediate",
+    );
     const control = controlById(finding.controlId);
     const remediation = await requireRemediationForFinding(findingId);
     if (!project) {
@@ -100,7 +100,9 @@ export async function createPullRequestAction(
               projectId: project.id,
               controlId: liveFinding.controlId,
               findingId: liveFinding.id,
-              detail: remediationEvidenceDetail({ approvalAction: "create_draft_pull_request" }),
+              detail: remediationEvidenceDetail({
+                approvalAction: "create_draft_pull_request",
+              }),
             });
           }
           appendEvidence(payload, {

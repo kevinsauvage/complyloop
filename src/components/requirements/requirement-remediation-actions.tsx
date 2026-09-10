@@ -1,8 +1,8 @@
 "use client";
 
+import { formatDateTime } from "@/core/datetime";
 import { useState } from "react";
 import { AlertTriangle, ChevronDown, ShieldCheck } from "lucide-react";
-import { formatDateTime } from "@/core/lifecycle";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
@@ -15,7 +15,10 @@ import { ReasonNoteFields } from "@/components/reason-note-fields";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { Control, Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Control,
+  Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
 import {
   clearRequirementExceptionAction,
   clearRequirementHumanPassAction,
@@ -122,7 +125,8 @@ export function RequirementRemediationActions({
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3">
                 <p className="mb-3 text-xs text-muted-foreground">
-                  Who can see this? Visible to the whole org and kept as evidence until cleared.
+                  Who can see this? Visible to the whole org and kept as
+                  evidence until cleared.
                 </p>
                 <StatefulActionForm
                   action={markRequirementPassedAction.bind(
@@ -147,8 +151,12 @@ export function RequirementRemediationActions({
                       aria-describedby={`pass-note-${requirement.id}-hint`}
                       className="max-w-md"
                     />
-                    <p id={`pass-note-${requirement.id}-hint`} className="text-xs text-muted-foreground">
-                      Include what was checked and why it passes; kept as evidence.
+                    <p
+                      id={`pass-note-${requirement.id}-hint`}
+                      className="text-xs text-muted-foreground"
+                    >
+                      Include what was checked and why it passes; kept as
+                      evidence.
                     </p>
                   </div>
                 </StatefulActionForm>
@@ -199,7 +207,10 @@ export function RequirementRemediationActions({
                 />
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor={`exception-expires-${requirement.id}`}>
-                    Expires{exceptionReason === "temporary" ? " (required)" : " (required for temporary)"}
+                    Expires
+                    {exceptionReason === "temporary"
+                      ? " (required)"
+                      : " (required for temporary)"}
                   </Label>
                   <input
                     id={`exception-expires-${requirement.id}`}

@@ -25,7 +25,11 @@ import {
   type RequirementStatus,
   type Severity,
 } from "@complyloop/analysis-core/contract/statuses";
-import { prioritizeFindings, SEVERITY_ORDER, severityRank } from "./lifecycle";
+import {
+  prioritizeFindings,
+  SEVERITY_ORDER,
+  severityRank,
+} from "./finding-priority";
 
 export { DEFAULT_PAGE_SIZE };
 

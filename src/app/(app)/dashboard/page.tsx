@@ -1,3 +1,9 @@
+import { latestAssessmentFor, countByStatus } from "@/core/assessment-helpers";
+import {
+  prioritizeClusters,
+  prioritizeFindings,
+  clusterFindings,
+} from "@/core/finding-priority";
 import { Suspense } from "react";
 import {
   ConnectProjectCard,
@@ -20,19 +26,9 @@ import { projectDescription } from "@/components/dashboard/project-description";
 import { PageActionLink, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { AssessmentRunForm } from "@/components/dashboard/assessment-run-form";
-import { latestAssessmentFor } from "@/core/lifecycle";
-import { countByStatus } from "@/core/lifecycle";
-import {
-  prioritizeClusters,
-  prioritizeFindings,
-} from "@/core/lifecycle";
-import { clusterFindings } from "@/core/lifecycle";
 import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
-import {
-  findingsInScope,
-  requirementsInScope,
-} from "@/server/project-scope";
+import { findingsInScope, requirementsInScope } from "@/server/project-scope";
 import { displayControl } from "@/server/report";
 import { loadActiveProjectPage } from "@/server/active-project-page";
 import { getProjectRuntime } from "@/server/project-runtime";
@@ -40,7 +36,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Dashboard",
-  description: "Compliance snapshot, pipeline activity, and next actions for the active project.",
+  description:
+    "Compliance snapshot, pipeline activity, and next actions for the active project.",
 };
 
 export default async function DashboardPage() {
@@ -103,8 +100,7 @@ export default async function DashboardPage() {
         (record.projectId === project.id || !record.projectId) &&
         (record.kind === "remediation_verified" ||
           record.kind === "remediation_manually_verified" ||
-          record.kind === "finding" &&
-          record.detail?.event === "resolved"),
+          (record.kind === "finding" && record.detail?.event === "resolved")),
     )
     .slice(-5)
     .reverse();
@@ -146,18 +142,18 @@ export default async function DashboardPage() {
           label: "Open findings",
           value: openFindings.length,
           href: openFindings.length > 0 ? "/findings" : undefined,
-          tone: openFindings.length > 0
-            ? ("warning" as const)
-            : ("success" as const),
+          tone:
+            openFindings.length > 0
+              ? ("warning" as const)
+              : ("success" as const),
         },
         {
           label: "Unread alerts",
           value: unreadAlerts.length,
           href:
             unreadAlerts.length > 0 ? "#regression-alerts-heading" : undefined,
-          tone: unreadAlerts.length > 0
-            ? ("warning" as const)
-            : ("muted" as const),
+          tone:
+            unreadAlerts.length > 0 ? ("warning" as const) : ("muted" as const),
         },
         {
           label: "Failed requirements",

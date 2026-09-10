@@ -1,27 +1,31 @@
+import { latestAssessmentFor } from "@/core/assessment-helpers";
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
-import { MetaTile, NoProjectNotice, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
+import {
+  MetaTile,
+  NoProjectNotice,
+  PageContent,
+  PageHeader,
+  PageSection,
+} from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { DefaultPresetForm } from "@/components/settings/default-preset-form";
 import { RuntimeAuditForm } from "@/components/runtime-audit-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   presetById,
   presetSummaries,
   projectDefaultPresetId,
 } from "@complyloop/analysis-core/adapters/registry";
-import { latestAssessmentFor } from "@/core/lifecycle";
 import { loadActiveProjectPage } from "@/server/active-project-page";
 import { getProjectRuntime } from "@/server/project-runtime";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Settings",
-  description: "Project configuration: connected repository, presets, and runtime audits.",
+  description:
+    "Project configuration: connected repository, presets, and runtime audits.",
 };
 
 export default async function SettingsPage() {
@@ -64,7 +68,10 @@ export default async function SettingsPage() {
       />
 
       <PageContent>
-        <PageSection title="Project" description="Connected repository and assessment defaults.">
+        <PageSection
+          title="Project"
+          description="Connected repository and assessment defaults."
+        >
           <Card className="shadow-none">
             <CardContent className="space-y-3 pt-6 text-sm">
               <MetaTile label="Name">
@@ -92,7 +99,10 @@ export default async function SettingsPage() {
                     <p className="min-w-0 flex-1 font-mono text-sm break-all">
                       {project.runtimeBaseUrl}
                     </p>
-                    <CopyButton label="Copy preview URL" text={project.runtimeBaseUrl} />
+                    <CopyButton
+                      label="Copy preview URL"
+                      text={project.runtimeBaseUrl}
+                    />
                   </div>
                 </MetaTile>
               ) : (

@@ -1,7 +1,7 @@
+import { formatDateTime } from "@/core/datetime";
 import type { AssessmentJob } from "@/server/assessment-jobs";
 import { runAssessmentAction } from "@/server/actions/assessment";
 import { StatefulActionForm } from "@/components/stateful-action-form";
-import { formatDateTime } from "@/core/lifecycle";
 import { cn } from "@/lib/utils";
 import { RefreshCw } from "lucide-react";
 
@@ -39,7 +39,8 @@ export function stalledQueueAgeMs(
     const readyAt = Date.parse(job.availableAt);
     // Unparseable or future availableAt is a scheduled retry, not a stuck job.
     if (Number.isNaN(readyAt) || readyAt > now) continue;
-    oldestReady = oldestReady === null ? readyAt : Math.min(oldestReady, readyAt);
+    oldestReady =
+      oldestReady === null ? readyAt : Math.min(oldestReady, readyAt);
   }
   if (oldestReady === null) return null;
   const age = now - oldestReady;
@@ -95,8 +96,9 @@ export function AssessmentJobStatus({
             Assessment worker may be stopped.
           </span>{" "}
           Oldest queued job waiting {formatStallAge(stalledAge)} — jobs run only
-          while a worker is active (<code className="font-mono">npm run worker</code>,
-          see Workers in docs/deploy.md).
+          while a worker is active (
+          <code className="font-mono">npm run worker</code>, see Workers in
+          docs/deploy.md).
         </p>
       ) : null}
       <ul className="flex flex-col gap-2" aria-label="Recent assessment jobs">

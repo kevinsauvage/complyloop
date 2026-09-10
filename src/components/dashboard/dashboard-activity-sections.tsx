@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/core/datetime";
 import Link from "next/link";
 import type { ComponentType, ReactNode } from "react";
 import {
@@ -8,7 +9,6 @@ import {
 } from "lucide-react";
 import { SeverityBadge } from "@/components/badges";
 import { PageActionLink } from "@/components/page-primitives";
-import { formatDateTime } from "@/core/lifecycle";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,

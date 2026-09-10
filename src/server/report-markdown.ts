@@ -1,11 +1,11 @@
 import "server-only";
+import { formatDateTimeWithZone } from "@/core/datetime";
 import {
   FINDING_STATUSES,
   REQUIREMENT_STATUSES,
   type FindingStatus,
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
-import { formatDateTimeWithZone } from "@/core/lifecycle";
 import {
   findingStatusDisplay,
   requirementStatusDisplay,
@@ -72,17 +72,17 @@ function footerMarkdown(): string[] {
   ];
 }
 
-function statusCountRows(
-  counts: Record<RequirementStatus, number>,
-): string[] {
+function statusCountRows(counts: Record<RequirementStatus, number>): string[] {
   return REQUIREMENT_STATUSES.map(
-    (status) => `| ${mdProse(requirementStatusDisplay(status).label)} | ${counts[status]} |`,
+    (status) =>
+      `| ${mdProse(requirementStatusDisplay(status).label)} | ${counts[status]} |`,
   );
 }
 
 function findingCountRows(counts: Record<FindingStatus, number>): string[] {
   return FINDING_STATUSES.map(
-    (status) => `| ${mdProse(findingStatusDisplay(status).label)} | ${counts[status]} |`,
+    (status) =>
+      `| ${mdProse(findingStatusDisplay(status).label)} | ${counts[status]} |`,
   );
 }
 
@@ -96,9 +96,7 @@ function fencedBlock(text: string, language: string): string[] {
   return [`${fence}${language}`, text, fence];
 }
 
-function engineeringSeverityRows(
-  findings: EngineeringFindingCard[],
-): string[] {
+function engineeringSeverityRows(findings: EngineeringFindingCard[]): string[] {
   return (["critical", "serious", "moderate", "minor"] as const)
     .filter((severity) =>
       findings.some((finding) => finding.severityClass === severity),
@@ -214,7 +212,9 @@ function renderAuditMarkdown(model: AuditReportModel): string {
   ];
 
   for (const requirement of model.requirements) {
-    lines.push(`### ${mdProse(requirement.code)} — ${mdProse(requirement.title)}`);
+    lines.push(
+      `### ${mdProse(requirement.code)} — ${mdProse(requirement.title)}`,
+    );
     lines.push(``);
     lines.push(
       `- **${mdProse(requirement.secondaryLabel)}:** ${mdProse(requirement.secondaryCode)}`,
@@ -227,7 +227,9 @@ function renderAuditMarkdown(model: AuditReportModel): string {
         `- **Exception:** ${mdProse(requirement.exception.reason)} — ${mdProse(requirement.exception.note)} (${formatDateTimeWithZone(requirement.exception.at)})`,
       );
     }
-    lines.push(`- **Updated:** ${formatDateTimeWithZone(requirement.updatedAt)}`);
+    lines.push(
+      `- **Updated:** ${formatDateTimeWithZone(requirement.updatedAt)}`,
+    );
     lines.push(`- ${mdProse(requirement.description)}`);
     lines.push(``);
   }

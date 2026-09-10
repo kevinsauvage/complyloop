@@ -1,6 +1,6 @@
 import "server-only";
+import { formatDateTimeWithZone } from "@/core/datetime";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import { formatDateTimeWithZone } from "@/core/lifecycle";
 import {
   requirementStatusReportClass,
   severityDisplay,
@@ -454,4 +454,3 @@ export function reportShell(
 </body>
 </html>`;
 }
-

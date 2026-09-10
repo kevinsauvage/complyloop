@@ -1,6 +1,6 @@
 import "server-only";
-import { latestAssessmentFor } from "@/core/lifecycle";
-import { countByStatus } from "@/core/lifecycle";
+import { latestAssessmentFor, countByStatus } from "@/core/assessment-helpers";
+import { advanceRemediation } from "@/core/remediation-lifecycle";
 import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
 import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
 import type { RawFinding } from "@complyloop/analysis-core/types";
@@ -25,7 +25,6 @@ import type {
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
-import { advanceRemediation } from "@/core/lifecycle";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import type { Db } from "@complyloop/db/types";
 import { detectChanges, readRepoHead, summarizeChanges } from "./monitor";

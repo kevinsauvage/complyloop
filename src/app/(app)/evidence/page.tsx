@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/core/datetime";
 import { PaginationNav } from "@/components/pagination-nav";
 import { EvidenceKindChips } from "@/components/evidence/evidence-kind-chips";
 import { EvidenceKindBadge } from "@/components/badges";
@@ -8,7 +9,6 @@ import {
   PageContent,
   PageHeader,
 } from "@/components/page-primitives";
-import { formatDateTime } from "@/core/lifecycle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EvidenceExportMenu } from "./_components/evidence-export-menu";
@@ -35,7 +35,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Evidence",
-  description: "Append-only record of everything checked, found, changed, and verified.",
+  description:
+    "Append-only record of everything checked, found, changed, and verified.",
 };
 
 export default async function EvidencePage({
@@ -120,7 +121,9 @@ export default async function EvidencePage({
             title="No evidence yet"
             variant="first-run"
             action={
-              <PageActionLink href="/dashboard">Run assessment from dashboard</PageActionLink>
+              <PageActionLink href="/dashboard">
+                Run assessment from dashboard
+              </PageActionLink>
             }
           >
             <p>
@@ -218,7 +221,10 @@ export default async function EvidencePage({
               </p>
             </EmptyState>
           ) : total === 0 && kindFilter ? (
-            <EmptyState title={`No "${evidenceDisplay(kindFilter).label}" entries`} variant="no-results">
+            <EmptyState
+              title={`No "${evidenceDisplay(kindFilter).label}" entries`}
+              variant="no-results"
+            >
               <p>
                 Try another filter or{" "}
                 <Link href={evidenceKindHref()} className="underline">
@@ -235,7 +241,10 @@ export default async function EvidencePage({
                   aria-label="Evidence records"
                 >
                   {slice.items.map((record) => {
-                    const tone = evidenceDisplay(record.kind, record.detail).tone;
+                    const tone = evidenceDisplay(
+                      record.kind,
+                      record.detail,
+                    ).tone;
                     const href = evidenceRecordHref(record, requirements);
                     const rowClassName = cn(
                       "flex gap-3 px-4 py-3.5 transition-colors",

@@ -1,6 +1,6 @@
+import { formatDateTime } from "@/core/datetime";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { RoleSelect } from "@/components/role-select";
-import { formatDateTime } from "@/core/lifecycle";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -36,9 +36,7 @@ export function OrgMembersCard({
     <Table className="min-w-[40rem]">
       <TableHeader>
         <TableRow className="hover:bg-transparent">
-          <TableHead className="pl-4">
-            Member
-          </TableHead>
+          <TableHead className="pl-4">Member</TableHead>
           <TableHead>Role</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="hidden sm:table-cell">Joined</TableHead>
@@ -56,10 +54,7 @@ export function OrgMembersCard({
           const canActOnMember = !isOwner && (!isAdmin || canAssignAdmin);
 
           return (
-            <TableRow
-              key={membership.id}
-              className="hover:bg-accent/30"
-            >
+            <TableRow key={membership.id} className="hover:bg-accent/30">
               <TableCell className="pl-4">
                 <p className="font-medium">
                   @{membership.githubLogin}
@@ -86,9 +81,7 @@ export function OrgMembersCard({
                     Invite pending
                   </Badge>
                 ) : (
-                  <Badge className={STATUS_TONE_BADGE.passed}>
-                    Signed in
-                  </Badge>
+                  <Badge className={STATUS_TONE_BADGE.passed}>Signed in</Badge>
                 )}
               </TableCell>
               <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground sm:table-cell">

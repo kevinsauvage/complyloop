@@ -1,3 +1,8 @@
+import { formatDateTime } from "@/core/datetime";
+import {
+  unableToVerifyReason,
+  unableToVerifyReasonLabel,
+} from "@/core/finding-priority";
 import Link from "next/link";
 import {
   isHeuristicCheck,
@@ -5,20 +10,16 @@ import {
 } from "@complyloop/analysis-core/check-authority";
 import { isPertinenceTwinControl } from "@complyloop/analysis-core/adapters/rgaa/pertinence-twins";
 import { RequirementStatusBadge } from "@/components/badges";
-import { formatDateTime } from "@/core/lifecycle";
-import {
-  determinationDisplay,
-  requirementStatusDisplay,
-} from "@/core/display";
+import { determinationDisplay, requirementStatusDisplay } from "@/core/display";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { findingsListHref } from "@/core/filter-params";
-import type { Control, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
-import {
-  unableToVerifyReason,
-  unableToVerifyReasonLabel,
-} from "@/core/lifecycle";
+import type {
+  Control,
+  Project,
+  Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
 import { RequirementRemediationActions } from "./requirement-remediation-actions";
 import { RequirementStatusAccent } from "./requirement-status-accent";
 
@@ -38,14 +39,14 @@ export function RequirementCard({
   const unverifiableReason =
     requirement.status === "unable_to_verify"
       ? unableToVerifyReason(control, project, {
-        isRuntimeOnlyCheck: control.checkId
-          ? isRuntimeOnlyCheck(control.checkId)
-          : false,
-        isHeuristicCheck: control.checkId
-          ? isHeuristicCheck(control.checkId)
-          : false,
-        isPertinenceTwin: isPertinenceTwinControl(control.id),
-      })
+          isRuntimeOnlyCheck: control.checkId
+            ? isRuntimeOnlyCheck(control.checkId)
+            : false,
+          isHeuristicCheck: control.checkId
+            ? isHeuristicCheck(control.checkId)
+            : false,
+          isPertinenceTwin: isPertinenceTwinControl(control.id),
+        })
       : null;
   const openFindingsHref =
     openCount > 0
@@ -65,7 +66,9 @@ export function RequirementCard({
               {control.code}
               {control.secondaryCode ? ` · ${control.secondaryCode}` : ""}
             </p>
-            <p className="mt-0.5 font-medium text-foreground">{control.title}</p>
+            <p className="mt-0.5 font-medium text-foreground">
+              {control.title}
+            </p>
           </div>
           <div
             className="flex flex-wrap items-center gap-2"
@@ -75,7 +78,9 @@ export function RequirementCard({
             <RequirementStatusBadge status={requirement.status} />
             <span className="text-xs text-muted-foreground">
               Decided by{" "}
-              {determinationDisplay(requirement.determination).label.toLowerCase()}
+              {determinationDisplay(
+                requirement.determination,
+              ).label.toLowerCase()}
             </span>
           </div>
         </div>
@@ -91,11 +96,15 @@ export function RequirementCard({
                 href={openFindingsHref}
                 className="font-medium text-foreground underline underline-offset-4 hover:text-foreground"
               >
-                {openCount === 1 ? "1 open finding" : `${openCount} open findings`}
+                {openCount === 1
+                  ? "1 open finding"
+                  : `${openCount} open findings`}
               </Link>
             ) : (
               <>
-                {openCount === 1 ? "1 open finding" : `${openCount} open findings`}
+                {openCount === 1
+                  ? "1 open finding"
+                  : `${openCount} open findings`}
               </>
             )
           ) : (
@@ -122,7 +131,7 @@ export function RequirementCard({
             <AlertDescription className="text-sm text-muted-foreground">
               {unableToVerifyReasonLabel(unverifiableReason)}
               {unverifiableReason === "needs_preview_url" ||
-                unverifiableReason === "runtime_only_pending" ? (
+              unverifiableReason === "runtime_only_pending" ? (
                 <span className="mt-2 block">
                   <Link
                     href="/settings"

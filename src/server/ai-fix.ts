@@ -1,4 +1,8 @@
 import "server-only";
+import {
+  hasSafeDeterministicFix,
+  refreshSuggestion,
+} from "@/core/remediation-lifecycle";
 import fs from "node:fs";
 import { applyFix, describeFix } from "@complyloop/analysis-core/fixes";
 import { scanChangedFiles } from "@complyloop/analysis-core/scan";
@@ -21,8 +25,6 @@ import {
 } from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import { hasSafeDeterministicFix } from "@/core/lifecycle";
-import { refreshSuggestion } from "@/core/lifecycle";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { Db } from "@complyloop/db/types";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";

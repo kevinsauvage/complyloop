@@ -51,7 +51,7 @@ External edges                           GitHub, Auth.js, Playwright/axe (via an
 
 ## P1 — High
 
-- [ ] **Split `src/core/lifecycle.ts` — stop the god module**
+- [x] **Split `src/core/lifecycle.ts` — stop the god module** — done: `remediation-lifecycle.ts` (domain transitions/history/suggestion + fix-safety), `assessment-helpers.ts` (latest assessment, preview coverage, counting — worker-safe), `finding-priority.ts` (severity, clustering, scoring, unable-to-verify), `finding-act.ts` (finding-page UX beats; ESLint-barred from `src/server/assessment*`), `datetime.ts` (formatters); `lifecycle.ts` kept as a one-release compat re-export shim; tests split per module.
   - Why: ~790 lines mixing **domain transitions** (`advanceRemediation`, `canTransition`, `refreshSuggestion`), **assessment presentation math** (`clusterFindings`, `prioritizeFindings`, `unableToVerifyReason`), **finding UX state machine** (`findingAct` and beat variants), and **formatting** (`formatDateTime*`). One file owns too many reasons to change.
   - Where: `src/core/lifecycle.ts` (and its tests); callers in `src/server/assessment.ts`, `src/server/actions/*`, `src/app/(app)/**`, components.
   - Current: Everything exported from one module; server conventions correctly say status changes go through these helpers — but UI policy rides along.

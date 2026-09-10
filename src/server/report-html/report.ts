@@ -1,6 +1,6 @@
 import "server-only";
+import { formatDateTimeWithZone } from "@/core/datetime";
 import { requirementStatusDisplay } from "@/core/display";
-import { formatDateTimeWithZone } from "@/core/lifecycle";
 import {
   REQUIREMENT_STATUSES,
   type RequirementStatus,
@@ -13,7 +13,14 @@ import {
   type EngineeringReportModel,
   type ReportInput,
 } from "../report-model";
-import { emptyParagraph, escapeHtml, reportSection, reportShell, statusClass, summaryStat } from "./primitives";
+import {
+  emptyParagraph,
+  escapeHtml,
+  reportSection,
+  reportShell,
+  statusClass,
+  summaryStat,
+} from "./primitives";
 
 export function buildAuditReportHtml(input: ReportInput): string {
   const model = composeAuditReport(input);
@@ -36,7 +43,11 @@ ${renderSummaryRows(statusCounts)}
 
   const body = [
     reportSection("summary", "Summary", summaryBody),
-    reportSection("requirements", "Requirements", renderAuditRequirements(model.requirements)),
+    reportSection(
+      "requirements",
+      "Requirements",
+      renderAuditRequirements(model.requirements),
+    ),
     reportSection(
       "evidence",
       "Evidence trail",
@@ -71,7 +82,11 @@ export function buildEngineeringReportHtml(input: ReportInput): string {
   }
 
   sections.push(
-    reportSection("findings", "Open findings", renderEngineeringFindings(model)),
+    reportSection(
+      "findings",
+      "Open findings",
+      renderEngineeringFindings(model),
+    ),
   );
 
   return reportShell(model.header, sections.join("\n"));
