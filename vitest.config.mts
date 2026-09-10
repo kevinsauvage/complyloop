@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
@@ -22,6 +23,18 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     tsconfigPaths: true,
+    // `server-only` throws under its `default` export condition; unit tests run
+    // outside React Server Components, so resolve the package's empty server
+    // entry instead. Production enforcement is unchanged (Next sets
+    // `react-server` for RSC and fails client imports at build time).
+    alias: [
+      {
+        find: /^server-only$/,
+        replacement: fileURLToPath(
+          new URL("./vitest.server-only-stub.js", import.meta.url),
+        ),
+      },
+    ],
   },
   test: {
     // Assessment / temp-fs tests can exceed 5s under parallel load.

@@ -187,6 +187,10 @@ pushes are ignored. PR events post a Check Run. Failures become
   picker typeahead), auth, health, and the internal job runner. Do not
   convert polling/search to Server Actions, and do not proxy Server
   Component reads through `/api`.
+- **Providers** — `ThemeProvider` + `TooltipProvider` + `Toaster` stay in
+  the root layout (theme needs the HTML shell to avoid FOUC). Only move
+  them under `(app)/layout.tsx` if marketing pages ever need zero client
+  JS; until then the global placement is intentional.
 
 ## Invariants
 

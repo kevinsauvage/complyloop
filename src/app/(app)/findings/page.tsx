@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { FindingsClustersTab } from "@/components/findings/findings-clusters-tab";
 import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
 import { FindingsTabPanel } from "@/components/findings/findings-tab-panel";

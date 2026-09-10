@@ -35,7 +35,7 @@ function sqlStringParts(node: unknown, out: string[] = []): string[] {
 
 describe("listOrgIdsForUser", () => {
   it("compares github login case-insensitively via lower()", async () => {
-    const where = vi.fn(async () => [{ orgId: "org-mixed" }]);
+    const where = vi.fn(async (_clause: unknown) => [{ orgId: "org-mixed" }]);
     const drizzle = {
       select: () => ({
         from: () => ({ where }),
