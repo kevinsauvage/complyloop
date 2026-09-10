@@ -1,4 +1,14 @@
+/* eslint-disable simple-import-sort/imports --
+ * Import order is load-bearing here: `vi.mock` factories below reference
+ * `actionAuthMocks` / `actionWorkspaceMocks`, and Vitest hoists `vi.mock`
+ * above imports. The mock-state module must initialise before any import
+ * that (transitively) pulls a mocked specifier (`@/auth`,
+ * `@/server/workspace`, …), so it stays first. Do not re-sort. */
 import { vi } from "vitest";
+import {
+  actionAuthMocks,
+  actionWorkspaceMocks,
+} from "./action-workspace-mocks";
 
 import type {
   Finding,
@@ -8,11 +18,6 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { requireOnFindingProject } from "@/server/actions/shared";
 import type { ProjectWriteWorkspace } from "@/server/workspace";
-
-import {
-  actionAuthMocks,
-  actionWorkspaceMocks,
-} from "./action-workspace-mocks";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
