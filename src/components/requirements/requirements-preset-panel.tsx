@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { allFrameworkPresets } from "@complyloop/analysis-core/adapters/registry";
+import { FRAMEWORK_PRESETS } from "@complyloop/analysis-core/adapters/registry";
 import { PresetNavigator } from "./preset-navigator";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
@@ -13,7 +13,7 @@ export function RequirementsPresetPanel({
   selectedPresetId: string;
   statusFilter: RequirementStatus | undefined;
 }) {
-  const presets = allFrameworkPresets();
+  const presets = FRAMEWORK_PRESETS;
   const viewingDefault = selectedPresetId === defaultPresetId;
 
   return (

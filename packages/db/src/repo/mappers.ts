@@ -16,39 +16,41 @@ import { evidence } from "../schema.ts";
  * set a projected column independently of its payload.
  */
 
+/** Row = the typed payload plus its indexed projection columns. */
+function withPayload<T extends { id: string }, E extends Record<string, unknown>>(
+  entity: T,
+  extra: E,
+) {
+  return { id: entity.id, ...extra, payload: entity };
+}
+
 export function organizationToRow(org: Organization) {
-  return { id: org.id, slug: org.slug, payload: org };
+  return withPayload(org, { slug: org.slug });
 }
 
 export function membershipToRow(membership: OrgMembership) {
-  return {
-    id: membership.id,
+  return withPayload(membership, {
     orgId: membership.orgId,
     userId: membership.userId ?? null,
     githubLogin: membership.githubLogin,
     role: membership.role,
-    payload: membership,
-  };
+  });
 }
 
 export function projectToRow(project: Project) {
-  return {
-    id: project.id,
+  return withPayload(project, {
     name: project.name,
     ownerUserId: project.ownerUserId ?? null,
     orgId: project.orgId,
-    payload: project,
-  };
+  });
 }
 
 export function requirementToRow(requirement: Requirement) {
-  return {
-    id: requirement.id,
+  return withPayload(requirement, {
     projectId: requirement.projectId,
     controlId: requirement.controlId,
     status: requirement.status,
-    payload: requirement,
-  };
+  });
 }
 
 function assessmentPayloadFrom(assessment: Assessment): AssessmentPayload {
@@ -58,11 +60,9 @@ function assessmentPayloadFrom(assessment: Assessment): AssessmentPayload {
 }
 
 export function assessmentToRow(assessment: Assessment) {
-  return {
-    id: assessment.id,
+  return withPayload(assessmentPayloadFrom(assessment), {
     projectId: assessment.projectId,
-    payload: assessmentPayloadFrom(assessment),
-  };
+  });
 }
 
 export function assessmentFromRow(
@@ -73,32 +73,26 @@ export function assessmentFromRow(
 }
 
 export function findingToRow(finding: Finding) {
-  return {
-    id: finding.id,
+  return withPayload(finding, {
     projectId: finding.projectId,
     controlId: finding.controlId,
     assessmentId: finding.assessmentId,
     status: finding.status,
-    payload: finding,
-  };
+  });
 }
 
 export function remediationToRow(remediation: Remediation) {
-  return {
-    id: remediation.id,
+  return withPayload(remediation, {
     findingId: remediation.findingId,
     status: remediation.status,
-    payload: remediation,
-  };
+  });
 }
 
 export function alertToRow(alert: Alert) {
-  return {
-    id: alert.id,
+  return withPayload(alert, {
     projectId: alert.projectId,
     read: alert.read,
-    payload: alert,
-  };
+  });
 }
 
 export function newEvidenceRecord(

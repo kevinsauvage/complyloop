@@ -1,9 +1,9 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { allFrameworkPresets } from "@complyloop/analysis-core/adapters/registry";
+import { FRAMEWORK_PRESETS } from "@complyloop/analysis-core/adapters/registry";
 import { PresetNavigator } from "./preset-navigator";
 
-const presets = allFrameworkPresets();
+const presets = FRAMEWORK_PRESETS;
 
 afterEach(() => {
   cleanup();

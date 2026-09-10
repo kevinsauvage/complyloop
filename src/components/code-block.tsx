@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, WrapText } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { copyText } from "@/lib/copy-text";
+import { useCopy } from "@/hooks/use-copy";
 
 /** Code viewer with copy + wrap controls — long diffs stay readable on 320px viewports. */
 export function CodeBlock({
@@ -15,15 +15,7 @@ export function CodeBlock({
   filename?: string;
 }) {
   const [wrap, setWrap] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    const ok = await copyText(children);
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  }
+  const { copied, copy: handleCopy } = useCopy(children);
 
   return (
     <div className="flex flex-col gap-1.5">

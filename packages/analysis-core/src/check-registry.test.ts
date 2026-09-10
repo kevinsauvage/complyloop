@@ -8,7 +8,7 @@ import { allChecks } from "./checks/registry.ts";
 import { jsxA11yMappedCheckIds } from "./jsx-a11y-map.ts";
 import { axeMappedCheckIds } from "./runtime/axe-map.ts";
 import { htmlValidateMappedCheckIds } from "./runtime/html-validate-map.ts";
-import { customProbeCheckIds } from "./runtime/custom-checks/types.ts";
+import { CUSTOM_PROBE_CHECK_IDS } from "./runtime/custom-checks/types.ts";
 
 const BY_ID = new Map<string, CheckRegistration>(
   CHECK_REGISTRY.map((entry) => [entry.id, entry] as const),
@@ -34,7 +34,7 @@ describe("check registry", () => {
       ["jsx-a11y", jsxA11yMappedCheckIds()],
       ["axe", axeMappedCheckIds()],
       ["html-validate", htmlValidateMappedCheckIds()],
-      ["playwright-custom", customProbeCheckIds()],
+      ["playwright-custom", CUSTOM_PROBE_CHECK_IDS],
     ];
     for (const [analyzer, actualEmitters] of cases) {
       const actual = new Set(actualEmitters);

@@ -10,7 +10,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import {
-  allFrameworkPresets,
+  FRAMEWORK_PRESETS,
   presetById,
   projectDefaultPresetId,
 } from "@complyloop/analysis-core/adapters/registry";
@@ -56,7 +56,7 @@ export default async function SettingsPage() {
     (githubFullName ? `https://github.com/${githubFullName}` : undefined);
   const defaultPresetId = projectDefaultPresetId(project);
   const defaultPreset = presetById(defaultPresetId);
-  const presets = allFrameworkPresets();
+  const presets = FRAMEWORK_PRESETS;
 
   return (
     <>

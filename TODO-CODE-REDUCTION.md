@@ -8,13 +8,6 @@
 
 ## P0 — Major reduction
 
-- [ ] **Merge `packages/adapters` catalog into `packages/analysis-core`**
-  - Why: `adapters` is a tiny package (~2.9 kLOC, mostly static RGAA/WCAG data) that adds a whole package boundary, its own build step, extra `package.json`, and cross-package imports. `src/server/report.ts` already has to bridge `Framework` (`project-types.ts`) with `FrameworkPreset` (`adapters/types.ts`). The separation does not enforce a meaningful runtime boundary; both are compile-time catalogs.
-  - Where: `packages/adapters/src/*` → `packages/analysis-core/src/catalog/`; consumers in `src/`.
-  - Reduction: remove 1 workspace package, ~3 kLOC, multiple cross-package import maps, and the `Framework`/`FrameworkPreset` duplication.
-  - Risk: medium
-  - Impact: ~1 package / ~3 kLOC / several import maps removed
-
 - [ ] **Collapse the targeted project-write loading optimization**
   - Why: `loadTargetedProjectWriteDb` + `loadTargetedProjectRuntime` (`packages/db/src/workspace-load.ts:142-274`) plus `ProjectWriteScope`/`captureEntityLoadedSlice` (`src/server/workspace-write.ts:47-119`) exist only to load a subset of project rows for hot-path writes. For typical projects the full runtime slice is small (latest assessment + bounded evidence window). The targeted load adds ~250 LOC, a second load path, and stale-write slice capture machinery for a performance gain that is likely unmeasured.
   - Where: `packages/db/src/workspace-load.ts`, `src/server/workspace-write.ts`, `packages/db/src/repo/apply.ts`.

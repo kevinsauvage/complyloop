@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import {
-  allFrameworkPresets,
+  FRAMEWORK_PRESETS,
   defaultConnectPreset,
   presetById,
   projectDefaultPresetId,
@@ -48,7 +48,7 @@ describe("framework presets and catalog", () => {
     expect(rgaaFull).not.toContain("ctl-target-size-enhanced");
     expect(wcagFull).toContain("ctl-focus-appearance");
     expect(wcagFull).toContain("ctl-target-size-enhanced");
-    expect(allFrameworkPresets().map((preset) => preset.id)).toEqual([
+    expect(FRAMEWORK_PRESETS.map((preset) => preset.id)).toEqual([
       "preset-rgaa-full",
       "preset-wcag-full",
       "preset-wcag-aa",

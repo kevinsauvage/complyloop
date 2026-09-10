@@ -50,7 +50,3 @@ export const CUSTOM_PROBE_CHECK_IDS = [
   "target-size-enhanced",
   "text-spacing-runtime",
 ] as const satisfies readonly CheckId[];
-
-export function customProbeCheckIds(): CheckId[] {
-  return [...CUSTOM_PROBE_CHECK_IDS];
-}

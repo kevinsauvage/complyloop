@@ -5,7 +5,7 @@ import { allChecks } from "@complyloop/analysis-core/checks/registry";
 import { isSiteLevelCheck } from "@complyloop/analysis-core/check-authority";
 import { jsxA11yMappedCheckIds } from "@complyloop/analysis-core/jsx-a11y-map";
 import { axeMappedCheckIds } from "@complyloop/analysis-core/runtime/axe-map";
-import { customProbeCheckIds } from "@complyloop/analysis-core/runtime/custom-checks/types";
+import { CUSTOM_PROBE_CHECK_IDS } from "@complyloop/analysis-core/runtime/custom-checks/types";
 import { htmlValidateMappedCheckIds } from "@complyloop/analysis-core/runtime/html-validate-map";
 import { wcagPresets } from "../wcag/presets.ts";
 import { rgaaControls } from "./controls";
@@ -74,7 +74,7 @@ describe("RGAA 4.1.2 catalog coverage", () => {
       ...allChecks.map((check) => check.id),
       ...jsxA11yMappedCheckIds(),
       ...axeMappedCheckIds(),
-      ...customProbeCheckIds(),
+      ...CUSTOM_PROBE_CHECK_IDS,
       ...htmlValidateMappedCheckIds(),
       "broken-link",
     ]);

@@ -7,17 +7,13 @@ import type { CheckGuidance, FrameworkPreset } from "./types";
 
 const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";
 
-const FRAMEWORK_PRESETS: readonly FrameworkPreset[] = [
+export const FRAMEWORK_PRESETS: readonly FrameworkPreset[] = [
   ...rgaaPresets,
   ...wcagPresets,
 ];
 
-export function allFrameworkPresets(): FrameworkPreset[] {
-  return [...FRAMEWORK_PRESETS];
-}
-
 export function presetById(id: string): FrameworkPreset | undefined {
-  return allFrameworkPresets().find((preset) => preset.id === id);
+  return FRAMEWORK_PRESETS.find((preset) => preset.id === id);
 }
 
 export function defaultConnectPreset(): FrameworkPreset {

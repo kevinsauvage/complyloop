@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { copyText } from "@/lib/copy-text";
+import { useCopy } from "@/hooks/use-copy";
 
 export function CopyButton({
   label,
@@ -11,19 +10,13 @@ export function CopyButton({
   label: string;
   text: string;
 }) {
-  const [announcement, setAnnouncement] = useState("");
+  const { status, copy } = useCopy(text);
+  const announcement =
+    status === "copied" ? "Copied" : status === "error" ? "Could not copy" : "";
 
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={async () => {
-          const ok = await copyText(text);
-          setAnnouncement(ok ? "Copied" : "Could not copy");
-        }}
-      >
+      <Button type="button" variant="outline" size="sm" onClick={copy}>
         {label}
       </Button>
       <span className="sr-only" aria-live="polite">

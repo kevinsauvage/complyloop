@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { findingsFromCustomViolations } from "./custom-checks/index";
-import { customProbeCheckIds } from "./custom-checks/types";
+import { CUSTOM_PROBE_CHECK_IDS } from "./custom-checks/types";
 
 describe("custom runtime findings", () => {
   it("emits catalog check ids without an axe mapping layer", () => {
-    expect(customProbeCheckIds()).toContain("reflow");
-    expect(customProbeCheckIds()).toContain("dialog-keyboard");
-    expect(customProbeCheckIds()).toContain("form-error-association");
+    expect(CUSTOM_PROBE_CHECK_IDS).toContain("reflow");
+    expect(CUSTOM_PROBE_CHECK_IDS).toContain("dialog-keyboard");
+    expect(CUSTOM_PROBE_CHECK_IDS).toContain("form-error-association");
   });
 
   it("builds findings from custom violations", () => {

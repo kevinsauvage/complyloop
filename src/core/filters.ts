@@ -35,6 +35,16 @@ import {
 
 export { DEFAULT_PAGE_SIZE };
 
+/** Append defined query params to `path`; returns the bare path when none apply. */
+function href(path: string, params: Record<string, string | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) search.set(key, value);
+  }
+  const qs = search.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
 export function parseRequirementStatusParam(
   raw: string | string[] | undefined,
 ): RequirementStatus | undefined {
@@ -48,10 +58,7 @@ export function parseRequirementStatusParam(
 export function requirementsStatusHref(
   status?: RequirementStatus,
 ): string {
-  const params = new URLSearchParams();
-  if (status) params.set("status", status);
-  const qs = params.toString();
-  return qs ? `/requirements?${qs}` : "/requirements";
+  return href("/requirements", { status });
 }
 
 /**
@@ -85,11 +92,10 @@ export function evidenceKindHref(
   kind?: EvidenceKind,
   page?: number,
 ): string {
-  const params = new URLSearchParams();
-  if (kind) params.set("kind", kind);
-  if (page && page > 1) params.set("page", String(page));
-  const qs = params.toString();
-  return qs ? `/evidence?${qs}` : "/evidence";
+  return href("/evidence", {
+    kind,
+    page: page && page > 1 ? String(page) : undefined,
+  });
 }
 
 export type ReportView = "engineering" | "audit";
@@ -105,7 +111,7 @@ export type ReportFormat = "markdown" | "html";
 
 export function reportHref(view: ReportView, format: ReportFormat): string {
   const base = format === "html" ? "/evidence/report/html" : "/evidence/report";
-  return `${base}?${new URLSearchParams({ view }).toString()}`;
+  return href(base, { view });
 }
 
 export function parsePresetIdParam(
@@ -122,13 +128,13 @@ export function requirementsPageHref(options: {
   status?: RequirementStatus;
   defaultPresetId: string;
 }): string {
-  const params = new URLSearchParams();
-  if (options.presetId && options.presetId !== options.defaultPresetId) {
-    params.set("presetId", options.presetId);
-  }
-  if (options.status) params.set("status", options.status);
-  const qs = params.toString();
-  return qs ? `/requirements?${qs}` : "/requirements";
+  return href("/requirements", {
+    presetId:
+      options.presetId && options.presetId !== options.defaultPresetId
+        ? options.presetId
+        : undefined,
+    status: options.status,
+  });
 }
 
 /** Primary navigation target for an evidence row in the compliance loop. */
