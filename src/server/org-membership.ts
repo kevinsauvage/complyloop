@@ -1,3 +1,4 @@
+import "server-only";
 import type { OrgMembership, OrgRole } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { isOrgRole } from "@/core/rbac";

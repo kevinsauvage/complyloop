@@ -1,3 +1,4 @@
+import "server-only";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { formatDateTimeWithZone } from "@/core/lifecycle";
 import {

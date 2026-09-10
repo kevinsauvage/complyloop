@@ -25,12 +25,9 @@ import { PaginationNav } from "@/components/pagination-nav";
 import { countByStatus, toCountMap } from "@/core/lifecycle";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import { projectCapabilities } from "@/server/project-capabilities";
-import { getWorkspace } from "@/server/workspace";
+import { loadActiveProjectPage } from "@/server/active-project-page";
 import { getProjectRuntime } from "@/server/project-runtime";
 import type { Metadata } from "next";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Requirements",
@@ -61,8 +58,7 @@ export default async function RequirementsPage({
   const statusFilter = parseRequirementStatusParam(params.status);
   const query = parseRequirementsQueryParam(params.q);
   const urlPresetId = parsePresetIdParam(params.presetId, isValidPresetId);
-  const { project, access, activeOrgId } = await getWorkspace();
-  const caps = projectCapabilities(project, access, activeOrgId);
+  const { project, caps } = await loadActiveProjectPage();
   if (!project) {
     return (
       <NoProjectNotice

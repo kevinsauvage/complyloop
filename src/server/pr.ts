@@ -1,3 +1,4 @@
+import "server-only";
 import { applyFileEdits, type PatchCandidate } from "@/ai/verified-fix";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";

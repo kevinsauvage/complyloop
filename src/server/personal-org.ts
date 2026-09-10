@@ -1,3 +1,4 @@
+import "server-only";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { provisionPersonalOrg } from "@complyloop/db/repo/orgs";
 

@@ -1,3 +1,4 @@
+import "server-only";
 import { createAppAuth } from "@octokit/auth-app";
 import type { Octokit } from "@octokit/rest";
 import { isProductionRuntime } from "@/auth-secret";

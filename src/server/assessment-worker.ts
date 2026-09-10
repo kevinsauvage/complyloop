@@ -1,3 +1,4 @@
+import "server-only";
 import type { Alert, Finding } from "@complyloop/db/types";
 import {
   claimNextAssessmentJob,

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
-import { toast } from "sonner";
 import { TriangleAlert } from "lucide-react";
 import {
   AlertDialog,
@@ -24,7 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useActionToast } from "@/hooks/use-action-toast";
+import { announceResult, useActionToast } from "@/hooks/use-action-toast";
 import { deleteOrgAction, exportOrgDataAction } from "@/server/actions/org";
 import { initialActionState } from "@/core/action-state";
 
@@ -69,7 +68,7 @@ export function OrgDataLifecycle({
     setExporting(false);
     setExportConfirmOpen(false);
     if (result.error || !result.json) {
-      toast.error(result.error ?? "Export failed.");
+      announceResult(false, result.error ?? "Export failed.");
       return;
     }
     const blob = new Blob([result.json], { type: "application/json" });
@@ -80,7 +79,7 @@ export function OrgDataLifecycle({
     anchor.download = `complyloop-${orgSlug ?? orgId}-${stamp}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
-    toast.success(`Exported ${orgName} data as JSON.`);
+    announceResult(true, `Exported ${orgName} data as JSON.`);
   }
 
   const deleteReady = confirmText === "DELETE";

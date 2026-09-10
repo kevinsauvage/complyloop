@@ -1,3 +1,4 @@
+import "server-only";
 import {
   FINDING_STATUSES,
   REQUIREMENT_STATUSES,

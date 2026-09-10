@@ -1,12 +1,6 @@
-"use client";
-
-import type { ReactElement, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { BadgeWithDescription } from "@/components/badge-with-description";
 import {
   confidenceDisplay,
   determinationDisplay,
@@ -35,31 +29,7 @@ import type { EvidenceKind } from "@complyloop/db/types";
 import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
 import { cn } from "@/lib/utils";
 
-/** Tooltip wrapper — tooltips require interactivity; badge markup stays in the parent. */
-export function BadgeWithDescription({
-  description,
-  children,
-}: {
-  description: string;
-  children: ReactElement;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {/* No tabindex here: badges often render inside links, where a nested
-            focusable would be invalid. The definition is always exposed to
-            assistive tech as text; the tooltip stays a hover enhancement. */}
-        <span className="inline-flex cursor-help">
-          {children}
-          <span className="sr-only">: {description}</span>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="max-w-xs text-pretty">
-        {description}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
+export { BadgeWithDescription };
 
 /**
  * The single status badge renderer — every status surface is

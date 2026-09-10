@@ -1,3 +1,4 @@
+import "server-only";
 import { isPublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   unexpectedActionMessage,

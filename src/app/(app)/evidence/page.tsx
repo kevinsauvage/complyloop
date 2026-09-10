@@ -9,15 +9,8 @@ import {
   PageHeader,
 } from "@/components/page-primitives";
 import { formatDateTime } from "@/core/lifecycle";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { EvidenceExportMenu } from "./_components/evidence-export-menu";
 import { evidenceRecordHref } from "@/core/filter-params";
 import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/display";
 import {
@@ -26,7 +19,6 @@ import {
   parseEvidenceQueryParam,
   evidenceKindHref,
 } from "@/core/filter-params";
-import { reportHref } from "@/core/filter-params";
 import {
   DEFAULT_PAGE_SIZE,
   pageSliceFromQuery,
@@ -35,19 +27,10 @@ import {
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getDrizzle } from "@complyloop/db/postgres";
-import {
-  countEvidenceForProject,
-  countEvidenceKindsForProject,
-  listEvidencePageForProject,
-} from "@complyloop/db/repo/evidence";
-import { getWorkspace } from "@/server/workspace";
-import { listRequirementsForProject } from "@complyloop/db/repo/requirements";
-import { ChevronDownIcon } from "lucide-react";
+import { loadActiveProjectPage } from "@/server/active-project-page";
+import { loadEvidencePage } from "@/server/evidence-queries";
 import Link from "next/link";
 import type { Metadata } from "next";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Evidence",
@@ -74,7 +57,7 @@ export default async function EvidencePage({
     to: toRaw,
     actor: actorRaw,
   } = await searchParams;
-  const { project } = await getWorkspace();
+  const { project } = await loadActiveProjectPage();
   if (!project) {
     return (
       <NoProjectNotice
@@ -96,23 +79,14 @@ export default async function EvidencePage({
     to !== undefined ||
     actor !== undefined;
   const page = parsePageParam(pageRaw);
-  const drizzle = await getDrizzle();
-  const [requirements, kindCounts, items, filteredTotal] = await Promise.all([
-    listRequirementsForProject(drizzle, project.id),
-    countEvidenceKindsForProject(drizzle, project.id),
-    listEvidencePageForProject(drizzle, project.id, page, DEFAULT_PAGE_SIZE, {
-      kind: kindFilter,
-      ...filters,
-    }),
-    // The unfiltered total is the sum of the per-kind counts; text/date
-    // narrowing needs a real count(*) — one extra scan, only when filtered.
-    hasTextOrDateFilter
-      ? countEvidenceForProject(drizzle, project.id, {
-          kind: kindFilter,
-          ...filters,
-        })
-      : Promise.resolve(null),
-  ]);
+  const { requirements, kindCounts, items, filteredTotal } =
+    await loadEvidencePage(
+      project.id,
+      page,
+      DEFAULT_PAGE_SIZE,
+      { kind: kindFilter, ...filters },
+      hasTextOrDateFilter,
+    );
   // The unfiltered total is the sum of the per-kind counts; the kind-only
   // total is one bucket — no extra count(*) scans needed.
   const totalUnfiltered = [...kindCounts.values()].reduce(
@@ -137,71 +111,7 @@ export default async function EvidencePage({
         title="Evidence"
         description="Append-only log of every requirement check, finding, fix, and verification. Nothing here can be edited — only superseded."
       >
-        <div className="flex items-center gap-2">
-          <Button variant="default" size="sm" asChild>
-            <a href={reportHref("audit", "markdown")} download>
-              Download audit report
-            </a>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" aria-label="More export formats">
-                More formats <ChevronDownIcon aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <a href={reportHref("engineering", "markdown")} download>
-                  <span className="flex flex-col gap-0.5">
-                    <span>Download engineering report</span>
-                    <span className="text-xs text-muted-foreground">
-                      Markdown for developers fixing findings
-                    </span>
-                  </span>
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <a
-                  href={reportHref("audit", "html")}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <span className="flex flex-col gap-0.5">
-                    <span>Open audit report</span>
-                    <span className="text-xs text-muted-foreground">
-                      Auditor-ready HTML in a new tab
-                    </span>
-                  </span>
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <a
-                  href={reportHref("engineering", "html")}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <span className="flex flex-col gap-0.5">
-                    <span>Open engineering report</span>
-                    <span className="text-xs text-muted-foreground">
-                      HTML in a new tab
-                    </span>
-                  </span>
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <a href="/evidence/export" download="evidence.json">
-                  <span className="flex flex-col gap-0.5">
-                    <span>Download raw JSON</span>
-                    <span className="text-xs text-muted-foreground">
-                      Machine-readable export
-                    </span>
-                  </span>
-                </a>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <EvidenceExportMenu />
       </PageHeader>
       {totalUnfiltered === 0 ? (
         <PageContent>

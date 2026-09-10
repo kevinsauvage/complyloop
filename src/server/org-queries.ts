@@ -1,3 +1,4 @@
+import "server-only";
 import type { OrgMembership, OrgRole, Organization } from "@complyloop/analysis-core/contract/project-types";
 import type { Db } from "@complyloop/db/types";
 

@@ -1,3 +1,4 @@
+import "server-only";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { FindingLocation } from "@complyloop/analysis-core/contract/finding-types";
 

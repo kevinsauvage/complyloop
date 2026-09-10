@@ -15,12 +15,9 @@ import {
   projectDefaultPresetId,
 } from "@complyloop/analysis-core/adapters/registry";
 import { latestAssessmentFor } from "@/core/lifecycle";
-import { projectCapabilities } from "@/server/project-capabilities";
-import { getWorkspace } from "@/server/workspace";
+import { loadActiveProjectPage } from "@/server/active-project-page";
 import { getProjectRuntime } from "@/server/project-runtime";
 import type { Metadata } from "next";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -28,8 +25,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SettingsPage() {
-  const { project, access, activeOrgId } = await getWorkspace();
-  const caps = projectCapabilities(project, access, activeOrgId);
+  const { project, caps } = await loadActiveProjectPage();
 
   if (!project) {
     return (

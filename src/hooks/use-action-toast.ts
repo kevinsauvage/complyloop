@@ -5,6 +5,16 @@ import { toast } from "sonner";
 import type { ActionState } from "@/core/action-state";
 
 /**
+ * Ad-hoc outcome toast for flows without a `useActionState` form (direct
+ * action calls, clipboard). Routes every Sonner call through this module so
+ * `useActionToast` stays the single feedback channel.
+ */
+export function announceResult(ok: boolean, message: string): void {
+  if (ok) toast.success(message);
+  else toast.error(message);
+}
+
+/**
  * Surfaces `useActionState` results via the global Sonner toaster.
  * Toasts when `pending` flips true → false so the same success copy still
  * fires on every submit (message text alone is not a unique key).

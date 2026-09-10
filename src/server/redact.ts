@@ -1,3 +1,4 @@
+import "server-only";
 /**
  * Redacts credential-shaped substrings before text is logged or reported.
  * Shared by error observability and git-clone error formatting.

@@ -1,3 +1,4 @@
+import "server-only";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { loadProjectAssessmentDb } from "@complyloop/db/workspace-load";
 import type { Db } from "@complyloop/db/types";

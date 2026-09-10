@@ -1,3 +1,4 @@
+import "server-only";
 import type { EmitterWebhookEvent } from "@octokit/webhooks";
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
 import { enqueueAssessmentJob } from "./assessment-jobs";

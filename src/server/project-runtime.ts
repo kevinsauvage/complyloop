@@ -1,3 +1,4 @@
+import "server-only";
 import { cache } from "react";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import { getDrizzle } from "@complyloop/db/postgres";

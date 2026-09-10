@@ -11,7 +11,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { NavAttentionCounts } from "@/server/nav-attention";
+import type { NavAttentionCounts } from "@complyloop/db/repo/nav-attention";
 
 const LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, badgeKey: "unreadAlerts" as const },

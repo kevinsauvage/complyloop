@@ -33,13 +33,10 @@ import {
   findingsInScope,
   requirementsInScope,
 } from "@/server/project-scope";
-import { projectCapabilities } from "@/server/project-capabilities";
 import { displayControl } from "@/server/report";
-import { getWorkspace } from "@/server/workspace";
+import { loadActiveProjectPage } from "@/server/active-project-page";
 import { getProjectRuntime } from "@/server/project-runtime";
 import type { Metadata } from "next";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -47,13 +44,7 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardPage() {
-  const {
-    project,
-    access,
-    visibleProjects,
-    activeOrgId,
-  } = await getWorkspace();
-  const caps = projectCapabilities(project, access, activeOrgId);
+  const { project, visibleProjects, caps } = await loadActiveProjectPage();
   const hasConnectedProject = visibleProjects.length > 0;
 
   const assessAction = caps.canAssess ? (

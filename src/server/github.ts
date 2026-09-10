@@ -1,6 +1,11 @@
+import "server-only";
 import { Octokit } from "@octokit/rest";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { redactSecrets } from "./redact";
+
+import type { GitHubRepoSummary } from "./github-types";
+
+export type { GitHubRepoSummary } from "./github-types";
 
 /** Authenticated Octokit client for server-side GitHub REST calls. */
 export function createOctokit(accessToken: string): Octokit {
@@ -30,19 +35,6 @@ export function octokitErrorMessage(error: unknown, fallback: string): string {
   }
   if (error instanceof Error) return `${fallback}: ${error.message.slice(0, 300)}`;
   return fallback;
-}
-
-export interface GitHubRepoSummary {
-  fullName: string;
-  name: string;
-  description: string | null;
-  private: boolean;
-  defaultBranch: string;
-  updatedAt: string;
-  htmlUrl: string;
-  cloneUrl: string;
-  /** Present when listed via a GitHub App installation. */
-  installationId?: number;
 }
 
 type GitHubRepoApiShape = {

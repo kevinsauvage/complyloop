@@ -1,3 +1,4 @@
+import "server-only";
 import simpleGit, {
   type SimpleGit,
   type SimpleGitOptions,

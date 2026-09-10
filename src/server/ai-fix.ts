@@ -1,3 +1,4 @@
+import "server-only";
 import fs from "node:fs";
 import { applyFix, describeFix } from "@complyloop/analysis-core/fixes";
 import { scanChangedFiles } from "@complyloop/analysis-core/scan";

@@ -1,3 +1,4 @@
+import "server-only";
 import fs from "node:fs";
 import { createTwoFilesPatch } from "diff";
 import { applyFix } from "@complyloop/analysis-core/fixes";

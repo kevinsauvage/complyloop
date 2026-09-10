@@ -1,3 +1,4 @@
+import "server-only";
 import { type Finding, type EvidenceRecord } from "@complyloop/db/types";
 import {
   deriveRequirementStatus,

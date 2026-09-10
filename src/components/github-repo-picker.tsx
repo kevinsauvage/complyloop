@@ -9,8 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,37 +17,14 @@ import {
   parseGitHubRepoSearchResponse,
   type GitHubRepoSearchResponse,
 } from "@/components/github-repo-search";
-import { STATUS_TONE_BADGE } from "@/core/display";
+import { GitHubRepoList, groupReposByOwner } from "@/components/github-repo-list";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { initialActionState, type ActionState } from "@/core/action-state";
 import {
   connectGitHubRepoAction,
   disconnectGitHubRepoAction,
 } from "@/server/actions/connect";
-import type { GitHubRepoSummary } from "@/server/github-access";
-
-function repoOwner(fullName: string): string {
-  return fullName.split("/")[0] ?? fullName;
-}
-
-type RepoOwnerGroup = {
-  owner: string;
-  repos: GitHubRepoSummary[];
-};
-
-/** Groups repos by GitHub owner/org, sorted alphabetically. */
-function groupReposByOwner(repos: GitHubRepoSummary[]): RepoOwnerGroup[] {
-  const byOwner = new Map<string, GitHubRepoSummary[]>();
-  for (const repo of repos) {
-    const owner = repoOwner(repo.fullName);
-    const list = byOwner.get(owner) ?? [];
-    list.push(repo);
-    byOwner.set(owner, list);
-  }
-  return [...byOwner.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([owner, ownerRepos]) => ({ owner, repos: ownerRepos }));
-}
+import type { GitHubRepoSummary } from "@/server/github-types";
 
 const connectInitial: ActionState = initialActionState;
 const disconnectInitial: ActionState = initialActionState;
@@ -174,12 +149,16 @@ export function GitHubRepoPicker({
   // Radix unmounts dialog content on close, so this refires per open —
   // intentional: each open shows fresh repos. Effect-scoped controller keeps
   // this StrictMode-safe: the simulated unmount aborts the first fetch and
-  // the remount retries instead of stranding `loading`.
+  // the remount retries instead of stranding `loading`. Deferred via timeout
+  // so the effect body itself doesn't synchronously set state.
   useEffect(() => {
     if (!fetchOnMount) return;
     const controller = new AbortController();
-    void loadRepos(1, "", false, controller.signal);
+    const timer = window.setTimeout(() => {
+      void loadRepos(1, "", false, controller.signal);
+    }, 0);
     return () => {
+      window.clearTimeout(timer);
       controller.abort();
     };
   }, [fetchOnMount, loadRepos]);
@@ -305,99 +284,14 @@ export function GitHubRepoPicker({
           </ul>
         ) : null}
 
-        <div className="flex flex-col gap-4">
-          {grouped.map(({ owner, repos: ownerRepos }) => (
-            <section key={owner} aria-label={`Repositories for ${owner}`}>
-              <h3 className="mb-2 font-mono text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                {owner}
-              </h3>
-              <ul className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60 ring-1 ring-border/40">
-                {ownerRepos.map((repo) => {
-                  const projectId =
-                    connectedByFullName[repo.fullName.trim().toLowerCase()];
-                  const connected = Boolean(projectId);
-                  const formId = `disconnect-${repo.fullName}`;
-                  return (
-                    <li
-                      key={`${repo.installationId ?? 0}:${repo.fullName}`}
-                      className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 transition-colors hover:bg-accent/30"
-                    >
-                      <div className="min-w-0 flex-1 basis-48">
-                        <p className="flex flex-wrap items-center gap-2 font-mono text-sm font-medium break-all">
-                          {repo.fullName}
-                          {connected ? (
-                            <Badge
-                              className={`${STATUS_TONE_BADGE.passed} font-sans`}
-                            >
-                              Connected
-                            </Badge>
-                          ) : null}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {repo.private ? "Private" : "Public"}
-                          {repo.description ? ` · ${repo.description}` : ""}
-                        </p>
-                      </div>
-                      {connected && projectId ? (
-                        <form
-                          id={formId}
-                          action={disconnectAction}
-                          className="w-full sm:w-auto"
-                        >
-                          <input
-                            type="hidden"
-                            name="projectId"
-                            value={projectId}
-                          />
-                          <ConfirmSubmitButton
-                            label={
-                              disconnectPending
-                                ? "Disconnecting…"
-                                : "Disconnect"
-                            }
-                            pendingLabel="Disconnecting…"
-                            confirmMessage={`Disconnect ${repo.fullName}? Future assessments stop. Past evidence is retained for audit; findings and remediations for this project are removed.`}
-                            confirmTitle="Disconnect repository"
-                            variant="outline"
-                            size="sm"
-                            formId={formId}
-                            className="w-full sm:w-auto"
-                          />
-                        </form>
-                      ) : (
-                        <form
-                          action={connectAction}
-                          className="w-full sm:w-auto"
-                        >
-                          <input
-                            type="hidden"
-                            name="fullName"
-                            value={repo.fullName}
-                          />
-                          {repo.installationId != null ? (
-                            <input
-                              type="hidden"
-                              name="installationId"
-                              value={String(repo.installationId)}
-                            />
-                          ) : null}
-                          <Button
-                            type="submit"
-                            size="sm"
-                            disabled={connectPending}
-                            className="w-full sm:w-auto"
-                          >
-                            {connectPending ? "Connecting…" : "Connect"}
-                          </Button>
-                        </form>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-        </div>
+        <GitHubRepoList
+          grouped={grouped}
+          connectedByFullName={connectedByFullName}
+          connectAction={connectAction}
+          disconnectAction={disconnectAction}
+          connectPending={connectPending}
+          disconnectPending={disconnectPending}
+        />
       </div>
 
       {hasMore ? (

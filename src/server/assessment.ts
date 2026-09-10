@@ -1,3 +1,4 @@
+import "server-only";
 import { latestAssessmentFor } from "@/core/lifecycle";
 import { countByStatus } from "@/core/lifecycle";
 import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";

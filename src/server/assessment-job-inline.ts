@@ -1,3 +1,4 @@
+import "server-only";
 import { isE2EHarnessEnabled } from "./e2e-harness";
 import { runAssessmentJobBatch } from "./assessment-runner";
 

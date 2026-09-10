@@ -1,3 +1,4 @@
+import "server-only";
 import { cache } from "react";
 import { getSession } from "./auth-session";
 import type {

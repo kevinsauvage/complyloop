@@ -25,8 +25,6 @@ import { signOutAction } from "@/server/actions/auth";
 import { getWorkspace } from "@/server/workspace";
 import type { Metadata } from "next";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Organization",
   description: "Manage organization ownership, members, and data lifecycle.",

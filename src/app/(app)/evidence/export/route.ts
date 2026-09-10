@@ -1,6 +1,4 @@
-import { getDrizzle } from "@complyloop/db/postgres";
-import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
-import { listRequirementsForProject } from "@complyloop/db/repo/requirements";
+import { loadEvidenceExport } from "@/server/evidence-queries";
 import {
   controlsInScope,
   requirementsInScope,
@@ -8,18 +6,12 @@ import {
 import { frameworkForProject } from "@/server/report";
 import { getWorkspace } from "@/server/workspace";
 
-export const dynamic = "force-dynamic";
-
 export async function GET(): Promise<Response> {
   const { project } = await getWorkspace();
   if (!project) {
     return new Response("No project connected.", { status: 404 });
   }
-  const drizzle = await getDrizzle();
-  const [exported, requirements] = await Promise.all([
-    listEvidenceForExport(drizzle, project.id),
-    listRequirementsForProject(drizzle, project.id),
-  ]);
+  const { exported, requirements } = await loadEvidenceExport(project.id);
   const payload = {
     exportedAt: new Date().toISOString(),
     project: { name: project.name, connectedAt: project.createdAt },

@@ -1,21 +1,11 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import type { ReactNode } from "react";
 import { NavLinks } from "@/components/nav-links";
 import { ThemeToggle } from "@/components/theme-toggle";
-import type { NavAttentionCounts } from "@/server/nav-attention";
-import { Button } from "@/components/ui/button";
+import { MobileNavSheet } from "@/components/mobile-nav-sheet";
+import { PathnameFocus } from "@/components/pathname-focus";
+import type { NavAttentionCounts } from "@complyloop/db/repo/nav-attention";
 import { Separator } from "@/components/ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 
 function BrandMark({ className }: { className?: string }) {
   return (
@@ -96,7 +86,7 @@ export function AppShell({
   children,
 }: {
   workspaceContext: ReactNode;
-  /** Server-rendered auth UI — must not be imported into this client module. */
+  /** Server-rendered auth UI — passed as a slot, never imported. */
   authControls: ReactNode;
   /** Sync counts for the non-streaming fallback path (tests, previews). */
   navAttention?: NavAttentionCounts;
@@ -104,29 +94,20 @@ export function AppShell({
   navLinks?: ReactNode;
   children: ReactNode;
 }) {
-  const pathname = usePathname();
-  const [navOpen, setNavOpen] = useState(false);
-  const [lastPathname, setLastPathname] = useState(pathname);
-
-  // Close nav when the route changes using setState-during-render (avoids effect).
-  if (lastPathname !== pathname) {
-    setLastPathname(pathname);
-    setNavOpen(false);
-  }
-
-  useEffect(() => {
-    const main = document.getElementById("main-content");
-    const heading = main?.querySelector("h1");
-    if (heading instanceof HTMLElement) {
-      heading.focus({ preventScroll: true });
-    }
-  }, [pathname]);
+  const sidebar = (
+    <SidebarBody
+      authControls={authControls}
+      navAttention={navAttention}
+      navLinks={navLinks}
+    />
+  );
 
   return (
     <>
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
+      <PathnameFocus />
       <div className="flex min-h-screen flex-col md:flex-row">
         <header className="panel-frost sticky top-0 z-40 flex items-center justify-between border-b border-border bg-sidebar/70 px-4 py-3 md:hidden">
           <Link href="/dashboard" className="flex items-center gap-2 text-base font-semibold tracking-tight">
@@ -137,54 +118,12 @@ export function AppShell({
           </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle compact />
-            <Sheet open={navOpen} onOpenChange={setNavOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label={navOpen ? "Close menu" : "Menu"}
-                >
-                  <Menu />
-                  Menu
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                side="left"
-                className="w-72 bg-sidebar p-4"
-                // The streaming nav slot is server-rendered and can't close
-                // the sheet itself — close on any link click instead.
-                // Keyboard-safe: Enter/Space on a link fires click.
-                // (Custom component, so jsx-a11y doesn't flag the handler;
-                // only link clicks close — toggles and empty space don't.)
-                onClick={(event) => {
-                  if (
-                    event.target instanceof HTMLElement &&
-                    event.target.closest("a")
-                  ) {
-                    setNavOpen(false);
-                  }
-                }}
-              >
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Main navigation</SheetTitle>
-                </SheetHeader>
-                <SidebarBody
-                  authControls={authControls}
-                  navAttention={navAttention}
-                  navLinks={navLinks}
-                />
-              </SheetContent>
-            </Sheet>
+            <MobileNavSheet>{sidebar}</MobileNavSheet>
           </div>
         </header>
 
         <aside className="panel-frost sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/60 px-3 py-6 md:flex">
-          <SidebarBody
-            authControls={authControls}
-            navAttention={navAttention}
-            navLinks={navLinks}
-          />
+          {sidebar}
         </aside>
 
         <main
@@ -200,3 +139,4 @@ export function AppShell({
     </>
   );
 }
+

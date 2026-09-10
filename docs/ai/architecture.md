@@ -46,8 +46,9 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
   projects, active project). Compliance rows load via
   `getProjectRuntime(projectId)` or repo `list*`/`get*` helpers. The compliance
   catalog is compile-time data (`shippedCatalog()`). File hashes live in
-  `assessment_snapshots` and load only for `runAssessment`. Evidence pages
-  query Postgres directly.
+  `assessment_snapshots` and load only for `runAssessment`. Evidence and
+  findings pages load via `src/server/evidence-queries.ts` and
+  `src/server/findings-queries.ts`.
 - **Writes** — `withProjectWrite` / `withOrgWrite` / `withConnectWrite` /
   `withProjectLock` in `src/server/workspace-write.ts`. A project write
   callback returns a `ProjectWritePayload` (or void); `persistProjectRows`
@@ -162,6 +163,30 @@ pushes are ignored. PR events post a Check Run. Failures become
 `assessment_job_failed` evidence.
 
 **Reports:** `report-model.ts` + markdown/HTML renderers; routes load via `loadReportInput` in `report.ts`.
+
+## Rendering and data access
+
+- **Server boundary** — `src/server/*` (and `packages/db/src/postgres.ts`)
+  carry `import "server-only"` so a client import fails at build time.
+  Client-safe shared types live in `*.types.ts` / `@/server/github-types`
+  and `@complyloop/db/repo/*` (type-only); `src/server/actions/*`
+  (`"use server"`) stay unfenced because clients invoke them.
+- **Reads** — pages compose loaders from `@/server/*` (`getWorkspace`,
+  `getProjectRuntime`, `findings-queries`, `evidence-queries`); pages never
+  open Drizzle or import `@complyloop/db/repo/*` directly (except the health
+  probe, which is a DB check by definition).
+- **Caching** — authenticated `(app)` pages rely on dynamic-from-usage
+  (`getWorkspace` reads `auth()`/`cookies()`; list pages also await
+  `searchParams`) plus targeted `revalidatePath` on mutation
+  (`src/server/actions/shared.ts`). No blanket `force-dynamic` on pages.
+  `force-dynamic` stays only on JSON Route Handlers
+  (`api/github/repos`, `assessment-jobs`, `health`, `internal/jobs/run`)
+  where accidental static caching of per-user JSON must be impossible.
+- **Mutations vs routes** — mutations go through Server Actions; Route
+  Handlers exist only for webhooks, polling/streaming (`assessment-jobs`,
+  picker typeahead), auth, health, and the internal job runner. Do not
+  convert polling/search to Server Actions, and do not proxy Server
+  Component reads through `/api`.
 
 ## Invariants
 

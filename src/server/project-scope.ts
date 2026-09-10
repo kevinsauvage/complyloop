@@ -1,3 +1,4 @@
+import "server-only";
 import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import { presetById } from "@complyloop/analysis-core/adapters/registry";
 import { type Finding } from "@complyloop/db/types";

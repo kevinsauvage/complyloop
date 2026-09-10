@@ -31,8 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { pullRequestUrlFromEvidence, latestPatchState } from "@/server/ai-fix";
 import { buildDeveloperHandoff } from "@/server/handoff";
-import { getDrizzle } from "@complyloop/db/postgres";
-import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
+import { listEvidenceForFindingScoped } from "@/server/evidence-queries";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { findingsInScope } from "@/server/project-scope";
 import {
@@ -47,8 +46,6 @@ import { prioritizeClusters } from "@/core/lifecycle";
 import { clusterFindings } from "@/core/lifecycle";
 import { cn } from "@/lib/utils";
 import { isProjectVisible } from "@/server/project-visibility";
-
-export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -107,7 +104,7 @@ export default async function FindingPage({
   const caps = projectCapabilities(project, access, project.orgId);
 
   const control = displayControl(finding.controlId, project);
-  const evidence = await listEvidenceForFinding(await getDrizzle(), finding.id);
+  const evidence = await listEvidenceForFindingScoped(finding.id);
   const chronologicalEvidence = [...evidence].reverse();
   const aiAvailable = isAiAvailable();
   const prUrl = pullRequestUrlFromEvidence(chronologicalEvidence);

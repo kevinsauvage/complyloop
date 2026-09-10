@@ -1,3 +1,4 @@
+import "server-only";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";

@@ -1,3 +1,4 @@
+import "server-only";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import {
@@ -10,10 +11,10 @@ import {
   mapGitHubRepo,
   octokitErrorMessage,
   parseOwnerRepo,
-  type GitHubRepoSummary,
 } from "./github";
+import type { GitHubRepoSummary } from "./github-types";
 
-export type { GitHubRepoSummary };
+export type { GitHubRepoSummary } from "./github-types";
 
 /**
  * Token for clone / PR / Checks against a connected GitHub project.

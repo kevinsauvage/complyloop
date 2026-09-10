@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
+import { announceResult } from "@/hooks/use-action-toast";
 
 type CopyStatus = "idle" | "copied" | "error";
 
@@ -18,11 +18,11 @@ export function useCopy(
   async function copy(): Promise<void> {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Copied to clipboard");
+      announceResult(true, "Copied to clipboard");
       setStatus("copied");
       setTimeout(() => setStatus("idle"), resetMs);
     } catch {
-      toast.error("Could not copy to clipboard");
+      announceResult(false, "Could not copy to clipboard");
       setStatus("error");
     }
   }

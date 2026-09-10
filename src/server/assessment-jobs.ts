@@ -1,3 +1,4 @@
+import "server-only";
 import { and, asc, count, desc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { getDrizzle, type DrizzleDb } from "@complyloop/db/postgres";
 import { assessmentJobs } from "@complyloop/db/schema";

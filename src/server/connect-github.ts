@@ -1,3 +1,4 @@
+import "server-only";
 import fs from "node:fs";
 import { hasSourceFiles } from "@complyloop/analysis-core/source-files";
 import type { Project, ProjectGitHubMeta } from "@complyloop/analysis-core/contract/project-types";

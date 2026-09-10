@@ -1,3 +1,4 @@
+import "server-only";
 import { canInOrg, canOnProject, type Permission } from "@/core/rbac";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { AccessContext } from "./project-visibility";

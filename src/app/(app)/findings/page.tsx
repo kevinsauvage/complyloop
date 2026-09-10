@@ -1,5 +1,3 @@
-import Link from "next/link";
-import type { ReactNode } from "react";
 import { FindingsClustersTab } from "@/components/findings/findings-clusters-tab";
 import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
 import { FindingsTabPanel } from "@/components/findings/findings-tab-panel";
@@ -9,7 +7,7 @@ import { toFindingListItems } from "@/components/findings/finding-list-items";
 import { PaginationNav } from "@/components/pagination-nav";
 import { EmptyState, NoProjectNotice, PageActionLink, PageContent, PageHeader } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { FindingsStatusNav } from "./_components/status-nav";
 import {
   findingListPaginationQuery,
   findingsListHref,
@@ -19,7 +17,6 @@ import {
   parseFindingListParams,
   type FilterFindingsContext,
   type FindingsTab,
-  type FindingListParams,
 } from "@/core/filter-params";
 import { reportHref } from "@/core/filter-params";
 import { paginateSlice, DEFAULT_PAGE_SIZE } from "@/core/filter-params";
@@ -27,55 +24,18 @@ import { prioritizeClusters } from "@/core/lifecycle";
 import { clusterFindings } from "@/core/lifecycle";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Finding } from "@complyloop/db/types";
-import { getDrizzle } from "@complyloop/db/postgres";
-import { countFindingsByStatusForProject } from "@complyloop/db/repo/findings";
-import { projectCapabilities } from "@/server/project-capabilities";
+import { countFindingsByStatus } from "@/server/findings-queries";
 import { findingsInScope } from "@/server/project-scope";
-import { getWorkspace } from "@/server/workspace";
+import { loadActiveProjectPage } from "@/server/active-project-page";
 import { getProjectRuntime } from "@/server/project-runtime";
 import { displayControl } from "@/server/report";
 import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import type { Metadata } from "next";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Findings",
   description: "Every failure with its reason, location, remediation state, and evidence.",
 };
-
-function tabHref(tab: FindingsTab, params: FindingListParams): string {
-  return findingsListHref({ ...params, tab, page: 1 });
-}
-
-function statusNavLinkClass(current: boolean): string {
-  return cn(
-    "rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-    current
-      ? "bg-background text-foreground shadow-sm ring-1 ring-border"
-      : "text-foreground/60",
-  );
-}
-
-function StatusNavLink({
-  href,
-  current,
-  children,
-}: {
-  href: string;
-  current: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={current ? "page" : undefined}
-      className={statusNavLinkClass(current)}
-    >
-      {children}
-    </Link>
-  );
-}
 
 export default async function FindingsPage({
   searchParams,
@@ -84,7 +44,7 @@ export default async function FindingsPage({
 }) {
   const rawParams = await searchParams;
   const listParams = parseFindingListParams(rawParams);
-  const { project, access, activeOrgId } = await getWorkspace();
+  const { project, caps } = await loadActiveProjectPage();
   if (!project) {
     return (
       <NoProjectNotice
@@ -106,17 +66,13 @@ export default async function FindingsPage({
   // the payload. Only open findings plus the active status load in full:
   // dashboard/requirements/finding pages only need open findings, and resolved
   // or dismissed rows are fetched only when their tab is actually viewed.
-  const statusCounts = await countFindingsByStatusForProject(
-    await getDrizzle(),
-    project.id,
-  );
+  const statusCounts = await countFindingsByStatus(project.id);
   const totalFindings =
     statusCounts.open + statusCounts.resolved + statusCounts.dismissed;
   const findingStatuses: FindingStatus[] =
     statusForTab === "open" ? ["open"] : ["open", statusForTab];
 
   const runtime = await getProjectRuntime(project.id, { findingStatuses });
-  const caps = projectCapabilities(project, access, activeOrgId);
   const findings = findingsInScope(runtime.findings, project);
   const remediationByFindingId = new Map(
     runtime.remediations.map((remediation) => [remediation.findingId, remediation]),
@@ -222,32 +178,16 @@ export default async function FindingsPage({
       </PageHeader>
 
       <PageContent>
-        <nav
-          aria-label="Findings"
-          className="surface-panel flex w-full items-center gap-1 overflow-x-auto rounded-xl p-1"
-        >
-          <StatusNavLink href={tabHref("open", listParams)} current={activeTab === "open"}>
-            Open ({openSlice.total})
-          </StatusNavLink>
-          <StatusNavLink
-            href={tabHref("by_cause", listParams)}
-            current={activeTab === "by_cause"}
-          >
-            Root cause ({clusters.length})
-          </StatusNavLink>
-          <StatusNavLink
-            href={tabHref("resolved", listParams)}
-            current={activeTab === "resolved"}
-          >
-            Resolved ({resolvedSlice.total})
-          </StatusNavLink>
-          <StatusNavLink
-            href={tabHref("dismissed", listParams)}
-            current={activeTab === "dismissed"}
-          >
-            Dismissed ({dismissedSlice.total})
-          </StatusNavLink>
-        </nav>
+        <FindingsStatusNav
+          listParams={listParams}
+          activeTab={activeTab}
+          totals={{
+            open: openSlice.total,
+            byCause: clusters.length,
+            resolved: resolvedSlice.total,
+            dismissed: dismissedSlice.total,
+          }}
+        />
 
         {activeTab === "resolved" ? (
           <FindingsTabPanel

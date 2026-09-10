@@ -4,8 +4,6 @@ import {
 } from "@/server/report-markdown";
 import { loadReportInput } from "@/server/report";
 
-export const dynamic = "force-dynamic";
-
 function sanitizeDownloadFilename(
   raw: string,
   fallback = "download",

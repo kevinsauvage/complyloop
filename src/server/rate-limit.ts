@@ -1,3 +1,4 @@
+import "server-only";
 /** Persistent sliding-window rate limits for expensive server actions. */
 
 import { and, eq, lt, sql } from "drizzle-orm";

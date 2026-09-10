@@ -1,3 +1,4 @@
+import "server-only";
 import {
   processNextAssessmentJob,
   type AssessmentWorkerResult,

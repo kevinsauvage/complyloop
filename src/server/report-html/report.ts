@@ -1,3 +1,4 @@
+import "server-only";
 import { requirementStatusDisplay } from "@/core/display";
 import { formatDateTimeWithZone } from "@/core/lifecycle";
 import {

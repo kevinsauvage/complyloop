@@ -1,3 +1,4 @@
+import "server-only";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { getDrizzle } from "@complyloop/db/postgres";
 import {

@@ -1,3 +1,4 @@
+import "server-only";
 import { getSession } from "./auth-session";
 import type {
   OrgMembership,
