@@ -44,7 +44,7 @@ export function FilterChipList({
               aria-pressed={allSelected}
               className={filterChipClass(allSelected)}
             >
-              All
+              <span className="text-xs font-medium">All</span>
               {typeof allCount === "number" ? (
                 <span className="font-mono text-sm font-semibold tabular-nums">
                   {allCount}
