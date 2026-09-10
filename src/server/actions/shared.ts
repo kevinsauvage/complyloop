@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
+import { getSession } from "@/server/auth-session";
 import { advanceRemediation } from "@/core/lifecycle";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { type Finding } from "@complyloop/db/types";
@@ -17,7 +17,7 @@ export interface SignedInUser {
 export async function requireSignedIn(
   message = "Sign in to continue.",
 ): Promise<SignedInUser> {
-  const session = await auth();
+  const session = await getSession();
   const userId = session?.user?.id;
   if (!userId) throw new PublicError(message);
   return { userId, githubLogin: session?.user?.login ?? null };

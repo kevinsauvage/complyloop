@@ -30,7 +30,6 @@ import {
 import { cn } from "@/lib/utils";
 import { getDrizzle } from "@complyloop/db/postgres";
 import {
-  countEvidenceForProject,
   countEvidenceKindsForProject,
   listEvidencePageForProject,
 } from "@complyloop/db/repo/evidence";
@@ -66,10 +65,8 @@ export default async function EvidencePage({
   const kindFilter = parseEvidenceKindParam(kindRaw);
   const page = parsePageParam(pageRaw);
   const drizzle = await getDrizzle();
-  const [requirements, totalUnfiltered, total, kindCounts, items] = await Promise.all([
+  const [requirements, kindCounts, items] = await Promise.all([
     listRequirementsForProject(drizzle, project.id),
-    countEvidenceForProject(drizzle, project.id),
-    countEvidenceForProject(drizzle, project.id, kindFilter),
     countEvidenceKindsForProject(drizzle, project.id),
     listEvidencePageForProject(
       drizzle,
@@ -79,6 +76,13 @@ export default async function EvidencePage({
       kindFilter,
     ),
   ]);
+  // The unfiltered total is the sum of the per-kind counts; the filtered total
+  // is one bucket — no extra count(*) scans needed.
+  const totalUnfiltered = [...kindCounts.values()].reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+  const total = kindFilter ? (kindCounts.get(kindFilter) ?? 0) : totalUnfiltered;
   const slice = pageSliceFromQuery(items, page, total);
   const paginationQuery = kindFilter ? { kind: kindFilter } : undefined;
 

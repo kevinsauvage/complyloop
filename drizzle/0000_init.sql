@@ -1,4 +1,6 @@
 -- ComplyLoop Postgres schema (pre-launch single migration).
+-- Squashed: this is the authoritative current schema. The app is pre-launch, so
+-- there are no incremental migrations — reset and re-run instead of upgrading.
 -- Evidence is append-only (no FKs) so history survives project/org deletion.
 -- Mutable tables use ON DELETE CASCADE for scoped persist prune.
 
@@ -28,6 +30,11 @@ CREATE INDEX IF NOT EXISTS "memberships_org_id_idx" ON "memberships" ("org_id");
 CREATE INDEX IF NOT EXISTS "memberships_user_id_idx" ON "memberships" ("user_id");
 CREATE INDEX IF NOT EXISTS "memberships_github_login_idx" ON "memberships" ("github_login");
 
+-- Login lookup without an org (`lower(github_login) = $1`) cannot use the
+-- composite (org_id, lower(...)) unique index.
+CREATE INDEX IF NOT EXISTS "memberships_github_login_lower_idx"
+  ON "memberships" (lower("github_login"));
+
 CREATE UNIQUE INDEX IF NOT EXISTS "memberships_org_user_uidx"
   ON "memberships" ("org_id", "user_id")
   WHERE "user_id" IS NOT NULL;
@@ -44,6 +51,10 @@ CREATE TABLE IF NOT EXISTS "projects" (
 );
 
 CREATE INDEX IF NOT EXISTS "projects_org_id_idx" ON "projects" ("org_id");
+
+-- Webhook path looks up a repo by lower(fullName) with no org_id.
+CREATE INDEX IF NOT EXISTS "projects_github_fullname_lower_idx"
+  ON "projects" (lower(("payload"->'github'->>'fullName')));
 
 CREATE UNIQUE INDEX IF NOT EXISTS "projects_org_github_uidx"
   ON "projects" ("org_id", lower(("payload"->'github'->>'fullName')))
@@ -65,6 +76,10 @@ CREATE TABLE IF NOT EXISTS "requirements" (
 CREATE INDEX IF NOT EXISTS "requirements_project_status_idx"
   ON "requirements" ("project_id", "status");
 
+-- One requirement row per (project, control). The upsert conflict target.
+CREATE UNIQUE INDEX IF NOT EXISTS "requirements_project_control_uidx"
+  ON "requirements" ("project_id", "control_id");
+
 CREATE TABLE IF NOT EXISTS "assessments" (
   "id" text PRIMARY KEY NOT NULL,
   "project_id" text NOT NULL REFERENCES "projects" ("id") ON DELETE CASCADE,
@@ -73,13 +88,14 @@ CREATE TABLE IF NOT EXISTS "assessments" (
 
 CREATE INDEX IF NOT EXISTS "assessments_project_id_idx" ON "assessments" ("project_id");
 
+-- Latest-per-project ordering; the app always sorts by completedAt/startedAt.
+CREATE INDEX IF NOT EXISTS "assessments_project_completed_idx"
+  ON "assessments" ("project_id", (payload->>'completedAt') DESC, (payload->>'startedAt') DESC);
+
 CREATE TABLE IF NOT EXISTS "assessment_snapshots" (
   "assessment_id" text PRIMARY KEY NOT NULL REFERENCES "assessments" ("id") ON DELETE CASCADE,
   "snapshot" jsonb NOT NULL
 );
-
-CREATE INDEX IF NOT EXISTS "assessment_snapshots_assessment_id_idx"
-  ON "assessment_snapshots" ("assessment_id");
 
 CREATE TABLE IF NOT EXISTS "findings" (
   "id" text PRIMARY KEY NOT NULL,
@@ -118,6 +134,10 @@ CREATE TABLE IF NOT EXISTS "alerts" (
 
 CREATE INDEX IF NOT EXISTS "alerts_project_id_idx" ON "alerts" ("project_id");
 
+-- Nav attention counts unread alerts per project on every page.
+CREATE INDEX IF NOT EXISTS "alerts_project_unread_idx"
+  ON "alerts" ("project_id") WHERE "read" = false;
+
 -- ---------------------------------------------------------------------------
 -- Evidence (append-only; intentionally no foreign keys)
 -- ---------------------------------------------------------------------------
@@ -135,6 +155,9 @@ CREATE TABLE IF NOT EXISTS "evidence" (
 
 CREATE INDEX IF NOT EXISTS "evidence_at_idx" ON "evidence" ("at");
 CREATE INDEX IF NOT EXISTS "evidence_project_at_idx" ON "evidence" ("project_id", "at");
+CREATE INDEX IF NOT EXISTS "evidence_finding_at_idx" ON "evidence" ("finding_id", "at" DESC);
+CREATE INDEX IF NOT EXISTS "evidence_project_kind_at_idx"
+  ON "evidence" ("project_id", "kind", "at");
 
 CREATE OR REPLACE FUNCTION complyloop_reject_evidence_mutation()
 RETURNS trigger
@@ -165,7 +188,11 @@ CREATE TABLE IF NOT EXISTS "github_tokens" (
   "iv" text NOT NULL,
   "tag" text NOT NULL,
   "ciphertext" text NOT NULL,
-  "updated_at" timestamptz NOT NULL
+  "updated_at" timestamptz NOT NULL,
+  "refresh_token" text,
+  "refresh_iv" text,
+  "refresh_tag" text,
+  "expires_at" timestamptz
 );
 
 CREATE TABLE IF NOT EXISTS "webhook_deliveries" (
@@ -208,6 +235,10 @@ CREATE INDEX IF NOT EXISTS "assessment_jobs_ready_idx"
 CREATE INDEX IF NOT EXISTS "assessment_jobs_project_idx"
   ON "assessment_jobs" ("project_id", "created_at");
 
+-- recoverExpiredLeases scans running jobs by lease expiry on every claim tick.
+CREATE INDEX IF NOT EXISTS "assessment_jobs_running_lease_idx"
+  ON "assessment_jobs" ("lease_expires_at") WHERE "status" = 'running';
+
 CREATE UNIQUE INDEX IF NOT EXISTS "assessment_jobs_idempotency_uidx"
   ON "assessment_jobs" ("idempotency_key")
   WHERE "idempotency_key" IS NOT NULL;
@@ -219,3 +250,6 @@ CREATE TABLE IF NOT EXISTS "rate_limit_buckets" (
   "updated_at" timestamptz NOT NULL,
   CONSTRAINT "rate_limit_buckets_count_check" CHECK ("count" >= 0)
 );
+
+CREATE INDEX IF NOT EXISTS "rate_limit_buckets_updated_at_idx"
+  ON "rate_limit_buckets" ("updated_at");

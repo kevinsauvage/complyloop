@@ -1,4 +1,5 @@
-import { auth, getGitHubAccessToken, isGitHubAuthConfigured } from "@/auth";
+import { getGitHubAccessToken, isGitHubAuthConfigured } from "@/auth";
+import { getSession } from "@/server/auth-session";
 import { ConnectProjectDialog } from "@/components/connect-project-dialog";
 import { GitHubRepoPicker } from "@/components/github-repo-picker";
 import { PermissionNotice } from "@/components/permission-notice";
@@ -23,7 +24,7 @@ export async function ConnectProjectPanel({
   triggerLabel?: string;
 }) {
   const configured = isGitHubAuthConfigured();
-  const session = configured ? await auth() : null;
+  const session = configured ? await getSession() : null;
   const signedIn = Boolean(session?.user);
   const userId = session?.user?.id ?? null;
   const workspace = await getWorkspace();

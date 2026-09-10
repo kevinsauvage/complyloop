@@ -116,7 +116,7 @@ function createDrizzle() {
             : a.availableAt.localeCompare(b.availableAt),
         )
         .slice(0, 1)
-        .map((row) => ({ id: row.id }));
+        .map((row) => ({ id: row.id, attempts: row.attempts }));
     },
     select: (shape?: { projectId?: unknown; id?: unknown }) => ({
       from: () => ({

@@ -75,6 +75,11 @@ export const memberships = pgTable(
     index("memberships_org_id_idx").on(table.orgId),
     index("memberships_user_id_idx").on(table.userId),
     index("memberships_github_login_idx").on(table.githubLogin),
+    // Login lookup without an org (`lower(github_login) = $1`) cannot use the
+    // composite (org_id, lower(...)) unique index.
+    index("memberships_github_login_lower_idx").on(
+      sql`lower(${table.githubLogin})`,
+    ),
     uniqueIndex("memberships_org_user_uidx")
       .on(table.orgId, table.userId)
       .where(sql`${table.userId} IS NOT NULL`),
@@ -101,6 +106,10 @@ export const projects = pgTable(
   },
   (table) => [
     index("projects_org_id_idx").on(table.orgId),
+    // Webhook path looks up a repo by lower(fullName) with no org_id.
+    index("projects_github_fullname_lower_idx").on(
+      sql`lower((${table.payload}->'github'->>'fullName'))`,
+    ),
     uniqueIndex("projects_org_github_uidx")
       .on(table.orgId, sql`lower((payload->'github'->>'fullName'))`)
       .where(sql`payload->'github'->>'fullName' IS NOT NULL`),
@@ -143,7 +152,15 @@ export const assessments = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     payload: jsonb("payload").$type<AssessmentPayload>().notNull(),
   },
-  (table) => [index("assessments_project_id_idx").on(table.projectId)],
+  (table) => [
+    index("assessments_project_id_idx").on(table.projectId),
+    // Latest-per-project ordering; the app always sorts by completedAt/startedAt.
+    index("assessments_project_completed_idx").on(
+      table.projectId,
+      sql`(${table.payload}->>'completedAt') DESC`,
+      sql`(${table.payload}->>'startedAt') DESC`,
+    ),
+  ],
 );
 
 /** File-hash snapshot for change detection; loaded only during assessment runs. */
@@ -213,7 +230,13 @@ export const alerts = pgTable(
     read: boolean("read").notNull().default(false),
     payload: jsonb("payload").$type<Alert>().notNull(),
   },
-  (table) => [index("alerts_project_id_idx").on(table.projectId)],
+  (table) => [
+    index("alerts_project_id_idx").on(table.projectId),
+    // Nav attention counts unread alerts per project on every page.
+    index("alerts_project_unread_idx")
+      .on(table.projectId)
+      .where(sql`${table.read} = false`),
+  ],
 );
 
 /** Append-only audit trail — application code must never UPDATE or DELETE. */
@@ -234,6 +257,11 @@ export const evidence = pgTable(
     index("evidence_at_idx").on(table.at),
     index("evidence_project_at_idx").on(table.projectId, table.at),
     index("evidence_finding_at_idx").on(table.findingId, table.at),
+    index("evidence_project_kind_at_idx").on(
+      table.projectId,
+      table.kind,
+      table.at,
+    ),
   ],
 );
 
@@ -289,6 +317,10 @@ export const assessmentJobs = pgTable(
   (table) => [
     index("assessment_jobs_ready_idx").on(table.status, table.availableAt),
     index("assessment_jobs_project_idx").on(table.projectId, table.createdAt),
+    // recoverExpiredLeases scans running jobs by lease expiry on every claim tick.
+    index("assessment_jobs_running_lease_idx")
+      .on(table.leaseExpiresAt)
+      .where(sql`${table.status} = 'running'`),
     uniqueIndex("assessment_jobs_idempotency_uidx")
       .on(table.idempotencyKey)
       .where(sql`${table.idempotencyKey} IS NOT NULL`),
@@ -316,6 +348,7 @@ export const rateLimitBuckets = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
   },
   (table) => [
+    index("rate_limit_buckets_updated_at_idx").on(table.updatedAt),
     check("rate_limit_buckets_count_check", sql`${table.count} >= 0`),
   ],
 );

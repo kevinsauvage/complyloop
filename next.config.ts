@@ -51,6 +51,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  experimental: {
+    // The consolidated `radix-ui` barrel is not in Next's default list; rewrite
+    // it to per-primitive imports so unused primitives are not bundled.
+    optimizePackageImports: ["radix-ui"],
+  },
   // Dev-only: allow tunnel hosts to fetch dev assets (403 otherwise).
   // Production ignores this setting. Set ALLOWED_DEV_ORIGINS="host1,host2".
   // Entries are normalized to bare hosts (scheme/path stripped, lowercased),

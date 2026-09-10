@@ -2,7 +2,7 @@ import {
   ConfidenceBadge,
   ProvenanceBadge,
 } from "@/components/badges";
-import { CodeBlock } from "@/components/page-primitives";
+import { CodeBlock } from "@/components/code-block";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import {
   Card,

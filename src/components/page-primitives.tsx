@@ -223,8 +223,6 @@ export function PageActionLink({
   );
 }
 
-export { CodeBlock } from "@/components/code-block";
-
 export function MetaTile({
   label,
   children,

@@ -177,17 +177,8 @@ describe("processNextAssessmentJob", () => {
     pruneRateLimitBuckets.mockResolvedValue(0);
     await expect(processNextAssessmentJob()).resolves.toEqual({ kind: "idle" });
     expect(completeAssessmentJob).not.toHaveBeenCalled();
-    expect(pruneRateLimitBuckets).toHaveBeenCalledOnce();
-  });
-
-  it("still returns idle when rate-limit prune fails", async () => {
-    claimNextAssessmentJob.mockResolvedValue(null);
-    pruneRateLimitBuckets.mockRejectedValue(new Error("prune failed"));
-    await expect(processNextAssessmentJob()).resolves.toEqual({ kind: "idle" });
-    expect(reportWarning).toHaveBeenCalledWith(
-      "prune failed",
-      expect.objectContaining({ code: "rate_limit_prune_failed" }),
-    );
+    // Pruning now runs on the worker's wall-clock cadence, not per idle poll.
+    expect(pruneRateLimitBuckets).not.toHaveBeenCalled();
   });
 
   it("runs assessment and completes on success", async () => {

@@ -1,4 +1,5 @@
-import { auth, getGitHubAccessToken } from "@/auth";
+import { getGitHubAccessToken } from "@/auth";
+import { getSession } from "@/server/auth-session";
 import { z } from "zod";
 import { listGitHubRepos } from "@/server/github-access";
 import { projectCapabilities } from "@/server/project-capabilities";
@@ -20,7 +21,7 @@ const githubReposQuerySchema = z.object({
 });
 
 export async function GET(request: Request): Promise<Response> {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) {
     return Response.json({ error: "Sign in required." }, { status: 401 });
   }

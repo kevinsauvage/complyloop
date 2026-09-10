@@ -1,6 +1,16 @@
 import { isPublicError } from "@complyloop/analysis-core/contract/public-error";
-import { unexpectedActionMessage, type ActionState } from "@/core/action-state";
+import {
+  unexpectedActionMessage,
+  type ActionState,
+} from "@/core/action-state";
 import { reportError } from "./observability";
+
+// Re-exported so existing server-action callers keep importing from here.
+export type { ActionState } from "@/core/action-state";
+export {
+  initialActionState,
+  unexpectedActionMessage,
+} from "@/core/action-state";
 
 function createErrorRef(): string {
   return crypto.randomUUID().replaceAll("-", "").slice(0, 12);

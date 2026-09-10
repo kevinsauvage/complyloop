@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { auth } from "@/auth";
+import { getSession } from "./auth-session";
 import type {
   Control,
   Organization,
@@ -104,7 +104,7 @@ export async function readViewerSession(): Promise<{
   preferredOrgId: string | null;
   preferredProjectId: string | null;
 }> {
-  const session = await auth();
+  const session = await getSession();
   const userId = session?.user?.id ?? null;
   const githubLogin = session?.user?.login ?? null;
   return {
@@ -149,7 +149,7 @@ export const getWorkspace = cache(async (): Promise<Workspace> =>
 export async function viewerCanViewProject(
   projectId: string,
 ): Promise<boolean> {
-  const session = await auth();
+  const session = await getSession();
   const userId = session?.user?.id ?? null;
   if (!userId) return false;
   const drizzle = await getDrizzle();
@@ -194,21 +194,23 @@ export function remediationForFinding(db: Db, findingId: string): Remediation {
   return remediation;
 }
 
-/** Request-path finding load (pages / action previews). */
-export async function requireFinding(findingId: string): Promise<Finding> {
-  const finding = await getFindingById(await getDrizzle(), findingId);
-  if (!finding) throw new PublicError("Unknown finding.");
-  return finding;
-}
+/** Request-path finding load (pages / action previews). Memoized per request. */
+export const requireFinding = cache(
+  async (findingId: string): Promise<Finding> => {
+    const finding = await getFindingById(await getDrizzle(), findingId);
+    if (!finding) throw new PublicError("Unknown finding.");
+    return finding;
+  },
+);
 
-/** Request-path remediation load (pages / action previews). */
-export async function requireRemediationForFinding(
-  findingId: string,
-): Promise<Remediation> {
-  const remediation = await getRemediationByFindingId(
-    await getDrizzle(),
-    findingId,
-  );
-  if (!remediation) throw new PublicError("No remediation for that finding.");
-  return remediation;
-}
+/** Request-path remediation load (pages / action previews). Memoized per request. */
+export const requireRemediationForFinding = cache(
+  async (findingId: string): Promise<Remediation> => {
+    const remediation = await getRemediationByFindingId(
+      await getDrizzle(),
+      findingId,
+    );
+    if (!remediation) throw new PublicError("No remediation for that finding.");
+    return remediation;
+  },
+);

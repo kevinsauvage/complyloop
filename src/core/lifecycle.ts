@@ -236,15 +236,18 @@ export function clusterFindings(
     list.push(finding);
     byCheck.set(finding.checkId, list);
   }
+  // Index controls once instead of a linear scan per check group.
+  const controlByCheckId = new Map<string, Control>();
+  for (const control of controls) {
+    if (control.checkId) controlByCheckId.set(control.checkId, control);
+  }
 
   const clusters: FindingCluster[] = [];
 
   for (const [checkId, group] of byCheck) {
     if (group.length < 2) continue;
 
-    const controlTitle =
-      controls.find((control) => control.checkId === checkId)?.title ??
-      checkId;
+    const controlTitle = controlByCheckId.get(checkId)?.title ?? checkId;
 
     const sourceGroup = group.filter(isSourceFinding);
     const domGroup = group.filter(isDomFinding);
@@ -255,23 +258,25 @@ export function clusterFindings(
     for (const finding of sourceGroup) {
       const file = fileNameOf(finding.location.filePath);
       const dir = directoryOf(finding.location.filePath);
-      byFile.set(file, [...(byFile.get(file) ?? []), finding]);
-      byDir.set(dir, [...(byDir.get(dir) ?? []), finding]);
+      const fileList = byFile.get(file);
+      if (fileList) fileList.push(finding);
+      else byFile.set(file, [finding]);
+      const dirList = byDir.get(dir);
+      if (dirList) dirList.push(finding);
+      else byDir.set(dir, [finding]);
       const component = componentKey(finding.location.filePath);
       if (component) {
-        byComponent.set(component, [
-          ...(byComponent.get(component) ?? []),
-          finding,
-        ]);
+        const componentList = byComponent.get(component);
+        if (componentList) componentList.push(finding);
+        else byComponent.set(component, [finding]);
       }
     }
 
     const byUrl = new Map<string, Finding[]>();
     for (const finding of domGroup) {
-      byUrl.set(finding.location.url, [
-        ...(byUrl.get(finding.location.url) ?? []),
-        finding,
-      ]);
+      const urlList = byUrl.get(finding.location.url);
+      if (urlList) urlList.push(finding);
+      else byUrl.set(finding.location.url, [finding]);
     }
 
     for (const [file, members] of byFile) {
@@ -332,10 +337,9 @@ const CONFIDENCE_BONUS: Record<Finding["confidence"], number> = {
 
 function controlWeight(
   finding: Finding,
-  controls: ReadonlyArray<Control>,
+  controlById: ReadonlyMap<string, Control>,
 ): number {
-  const control = controls.find((candidate) => candidate.id === finding.controlId);
-  const weight = control?.complianceWeight ?? 1;
+  const weight = controlById.get(finding.controlId)?.complianceWeight ?? 1;
   return weight > 0 ? weight : 1;
 }
 
@@ -346,13 +350,13 @@ function controlWeight(
 function findingPriorityScore(
   finding: Finding,
   clusterSize: number,
-  controls: ReadonlyArray<Control> = [],
+  controlById: ReadonlyMap<string, Control> = new Map(),
 ): number {
   const severityScore = (4 - severityRank(finding.severity)) * 10;
   const confidenceScore = CONFIDENCE_BONUS[finding.confidence];
   const clusterBonus = Math.max(0, clusterSize - 1) * 4;
   const base = severityScore + confidenceScore + clusterBonus;
-  return base * controlWeight(finding, controls);
+  return base * controlWeight(finding, controlById);
 }
 
 export function prioritizeFindings(
@@ -367,6 +371,7 @@ export function prioritizeFindings(
       sizeByFinding.set(id, Math.max(previous, cluster.findingIds.length));
     }
   }
+  const controlById = new Map(controls.map((control) => [control.id, control]));
 
   return [...findings]
     .filter((finding) => finding.status === "open")
@@ -374,12 +379,12 @@ export function prioritizeFindings(
       const scoreA = findingPriorityScore(
         a,
         sizeByFinding.get(a.id) ?? 1,
-        controls,
+        controlById,
       );
       const scoreB = findingPriorityScore(
         b,
         sizeByFinding.get(b.id) ?? 1,
-        controls,
+        controlById,
       );
       if (scoreB !== scoreA) return scoreB - scoreA;
       return severityRank(a.severity) - severityRank(b.severity);
@@ -393,6 +398,7 @@ export function prioritizeClusters(
   clusters: ReadonlyArray<FindingCluster> = clusterFindings(findings, controls),
 ): FindingCluster[] {
   const byId = new Map(findings.map((finding) => [finding.id, finding]));
+  const controlById = new Map(controls.map((control) => [control.id, control]));
 
   return clusters
     .map((cluster) => {
@@ -402,7 +408,7 @@ export function prioritizeClusters(
       const priorityScore = members.reduce(
         (sum, finding) =>
           sum +
-          findingPriorityScore(finding, cluster.findingIds.length, controls),
+          findingPriorityScore(finding, cluster.findingIds.length, controlById),
         0,
       );
       return {

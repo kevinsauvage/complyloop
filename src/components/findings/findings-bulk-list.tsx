@@ -91,6 +91,7 @@ function FindingsBulkRow({
         )}
         <Link
           href={findingDetailHref(finding.id, listParams)}
+          prefetch={false}
           className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className="flex items-baseline gap-2">

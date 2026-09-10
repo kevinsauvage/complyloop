@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getSession } from "./auth-session";
 import type {
   OrgMembership,
   Organization,
@@ -178,7 +178,7 @@ async function withLockedTenancy<T>(
   options: { activeProjectId: string | null },
   fn: (ctx: LockedTenancyContext) => Promise<T>,
 ): Promise<T> {
-  const session = await auth();
+  const session = await getSession();
   const userId = session?.user?.id ?? null;
   const githubLogin = session?.user?.login ?? null;
   if (!userId) throw new PublicError("Sign in to continue.");

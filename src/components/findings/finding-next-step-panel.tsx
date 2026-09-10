@@ -1,7 +1,7 @@
 import { CreatePrForm } from "@/components/create-pr-form";
 import { RemediationStepper } from "@/components/findings/remediation-stepper";
 import { SecondaryFindingActions } from "@/components/findings/secondary-finding-actions";
-import { CodeBlock } from "@/components/page-primitives";
+import { CodeBlock } from "@/components/code-block";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Button } from "@/components/ui/button";

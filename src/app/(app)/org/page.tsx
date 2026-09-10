@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getSession } from "@/server/auth-session";
 import { CreateOrgForm } from "@/components/create-org-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { OrgAccountOverview } from "@/components/org-account-overview";
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
 };
 
 export default async function OrgPage() {
-  const session = await auth();
+  const session = await getSession();
   const userId = session?.user?.id ?? null;
 
   if (!userId) {

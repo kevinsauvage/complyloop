@@ -450,7 +450,11 @@ async function collectBrowserConditionFindings(
   for (const condition of conditions) {
     await page.emulateMedia(emulationForCondition(condition));
     try {
-      const axeResult = await runAxeOnPage(page);
+      // Only the color-scheme-sensitive rules are reported from this pass, so
+      // restrict the engine to them instead of re-running the whole ruleset.
+      const axeResult = await runAxeOnPage(page, {
+        runOnly: [...THEME_SENSITIVE_AXE_RULES],
+      });
       const themeAxe = axeResult.violations.filter((v) =>
         THEME_SENSITIVE_AXE_RULES.has(v.id),
       );

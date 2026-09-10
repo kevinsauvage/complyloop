@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { auth, isGitHubAuthConfigured } from "@/auth";
+import { isGitHubAuthConfigured } from "@/auth";
+import { getSession } from "@/server/auth-session";
 import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ export default async function LoginPage({
       : null;
 
   if (isGitHubAuthConfigured()) {
-    const session = await auth();
+    const session = await getSession();
     if (session?.user) {
       redirect(callbackUrl);
     }

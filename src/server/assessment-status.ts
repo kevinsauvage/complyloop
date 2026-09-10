@@ -46,6 +46,10 @@ export function clearExpiredExceptions(
 ): ClearExpiredExceptionsResult {
   const evidence: EvidenceRecord[] = [];
   const updated: Requirement[] = [];
+  // Build the catalog index once instead of scanning per expired exception.
+  const controlById = new Map(
+    catalogControls().map((control) => [control.id, control]),
+  );
 
   for (const original of requirements) {
     if (original.projectId !== projectId) continue;
@@ -59,9 +63,7 @@ export function clearExpiredExceptions(
     }
     if (new Date(exception.expiresAt).getTime() > now.getTime()) continue;
 
-    const control = catalogControls().find(
-      (candidate) => candidate.id === original.controlId,
-    );
+    const control = controlById.get(original.controlId);
     const requirement: Requirement = {
       ...original,
       determination: "automated",
@@ -151,7 +153,7 @@ export function upsertRequirementsById(
 
 function refreshRequirementForControl(
   workingByControlId: Map<string, Requirement>,
-  findings: ReadonlyArray<Finding>,
+  openFindingsByControlId: ReadonlyMap<string, Finding[]>,
   projectId: string,
   control: Control,
   options: RefreshRequirementStatusesOptions & { now: string },
@@ -208,12 +210,7 @@ function refreshRequirementForControl(
     return;
   }
 
-  const openFindings = findings.filter(
-    (finding) =>
-      finding.projectId === projectId &&
-      finding.controlId === control.id &&
-      finding.status === "open",
-  );
+  const openFindings = openFindingsByControlId.get(control.id) ?? [];
   const status = statusFromFindings(control.checkId, openFindings, {
     runtimeRan,
     siteLevelChecksRan,
@@ -312,10 +309,20 @@ export function refreshRequirementStatuses(input: {
     options.controls,
   );
 
+  // Index open findings by control once instead of scanning the full array for
+  // every scoped control (O(controls × findings) → O(findings + controls)).
+  const openFindingsByControlId = new Map<string, Finding[]>();
+  for (const finding of findings) {
+    if (finding.projectId !== project.id || finding.status !== "open") continue;
+    const list = openFindingsByControlId.get(finding.controlId);
+    if (list) list.push(finding);
+    else openFindingsByControlId.set(finding.controlId, [finding]);
+  }
+
   for (const control of scoped) {
     refreshRequirementForControl(
       workingByControlId,
-      findings,
+      openFindingsByControlId,
       project.id,
       control,
       { ...options, now },

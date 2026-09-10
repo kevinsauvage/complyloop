@@ -72,21 +72,7 @@ export function FirstAssessmentChecklist({
       <CardContent className="flex flex-col gap-6">
         <ol className="flex flex-col gap-5">
           <li className="flex gap-3">
-            <StepIndicator done={false} stepNumber={1} />
-            <div className="min-w-0 flex-1 space-y-2">
-              <p className="text-sm font-medium">Run assessment</p>
-              <p className="text-sm text-muted-foreground">
-                Scan the connected repository for compliance gaps.
-                {previewDone
-                  ? " Code and live-page checks will both run."
-                  : " Code checks run now; add a preview URL later to unlock live-page checks."}
-              </p>
-              {assessAction}
-            </div>
-          </li>
-
-          <li className="flex gap-3">
-            <StepIndicator done={previewDone} optional stepNumber={2} />
+            <StepIndicator done={previewDone} optional stepNumber={1} />
             <div className="min-w-0 flex-1 space-y-3">
               <div className="space-y-1">
                 <p className="text-sm font-medium">
@@ -98,7 +84,7 @@ export function FirstAssessmentChecklist({
                 <p className="text-sm text-muted-foreground">
                   {previewDone
                     ? "Live-page checks will run on your preview."
-                    : "Code-only for now — contrast, page title, landmarks, and other live-page-only checks stay unable to verify until you add a preview URL."}
+                    : "Add a preview URL so contrast, page title, landmarks, and other live-page checks can verify. Without one, the assessment is code-only."}
                 </p>
               </div>
               {previewDone ? (
@@ -129,6 +115,20 @@ export function FirstAssessmentChecklist({
                   .
                 </p>
               )}
+            </div>
+          </li>
+
+          <li className="flex gap-3">
+            <StepIndicator done={false} stepNumber={2} />
+            <div className="min-w-0 flex-1 space-y-2">
+              <p className="text-sm font-medium">Run assessment</p>
+              <p className="text-sm text-muted-foreground">
+                Scan the connected repository for compliance gaps.
+                {previewDone
+                  ? " Code and live-page checks will both run."
+                  : " Code checks run now; add a preview URL above to unlock live-page checks."}
+              </p>
+              {assessAction}
             </div>
           </li>
         </ol>

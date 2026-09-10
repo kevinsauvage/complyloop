@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { auth, isGitHubAuthConfigured } from "@/auth";
+import { isGitHubAuthConfigured } from "@/auth";
+import { getSession } from "@/server/auth-session";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 
@@ -8,7 +9,7 @@ export default async function MarketingLayout({
 }: {
   children: ReactNode;
 }) {
-  const session = isGitHubAuthConfigured() ? await auth() : null;
+  const session = isGitHubAuthConfigured() ? await getSession() : null;
   const isSignedIn = Boolean(session?.user);
 
   return (

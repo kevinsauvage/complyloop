@@ -1,5 +1,6 @@
 import { CopyButton } from "@/components/copy-button";
-import { CodeBlock, EmptyState } from "@/components/page-primitives";
+import { CodeBlock } from "@/components/code-block";
+import { EmptyState } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
 import {
   Card,

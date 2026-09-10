@@ -21,16 +21,13 @@ export async function listRemediationsForProject(
   drizzle: DrizzleDb,
   projectId: string,
 ): Promise<Remediation[]> {
-  const findingRows = await drizzle
-    .select({ id: findings.id })
-    .from(findings)
-    .where(eq(findings.projectId, projectId));
-  const findingIds = findingRows.map((row) => row.id);
-  if (findingIds.length === 0) return [];
+  // Join through findings in one query instead of loading every finding id and
+  // passing an unbounded IN list (which grows with history).
   const rows = await drizzle
     .select({ payload: remediations.payload })
     .from(remediations)
-    .where(inArray(remediations.findingId, findingIds));
+    .innerJoin(findings, eq(remediations.findingId, findings.id))
+    .where(eq(findings.projectId, projectId));
   return rows.map((row) => row.payload);
 }
 

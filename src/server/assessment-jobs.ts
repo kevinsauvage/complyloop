@@ -232,8 +232,9 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
     // Single-row claim: lock exactly the job we will run. The correlated
     // NOT EXISTS keeps one assessment per project without rescanning the table
     // (served by assessment_jobs_ready_idx + assessment_jobs_project_idx).
-    const locked = await tx.execute<{ id: string }>(sql`
-      SELECT job.id
+    // `attempts` is read in the same lock to avoid a second round trip.
+    const locked = await tx.execute<{ id: string; attempts: number }>(sql`
+      SELECT job.id, job.attempts
       FROM assessment_jobs AS job
       WHERE job.status = 'queued'
         AND job.available_at <= ${now}
@@ -251,18 +252,12 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
     if (!row) return null;
     const candidateId = String(row.id);
 
-    const [candidate] = await tx
-      .select()
-      .from(assessmentJobs)
-      .where(eq(assessmentJobs.id, candidateId));
-    if (!candidate) return null;
-
     const leaseExpiresAt = new Date(Date.now() + DEFAULT_LEASE_MS).toISOString();
     const [claimed] = await tx
       .update(assessmentJobs)
       .set({
         status: "running",
-        attempts: candidate.attempts + 1,
+        attempts: Number(row.attempts) + 1,
         startedAt: now,
         leaseExpiresAt,
         error: null,

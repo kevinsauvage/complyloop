@@ -24,7 +24,6 @@ import {
 } from "./github-checks";
 import { resolveProjectGitHubToken } from "./github-access";
 import { reportError, reportInfo, reportWarning } from "./observability";
-import { pruneRateLimitBuckets } from "./rate-limit";
 import { withProjectCheckout } from "./repo-checkout";
 
 function collectRegressionAlerts(input: {
@@ -237,14 +236,9 @@ export type AssessmentWorkerResult =
 export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
   const job = await claimNextAssessmentJob();
   if (!job) {
-    try {
-      await pruneRateLimitBuckets();
-    } catch (error) {
-      reportWarning(
-        error instanceof Error ? error.message : "Rate-limit bucket prune failed.",
-        { code: "rate_limit_prune_failed" },
-      );
-    }
+    // Rate-limit pruning runs on a wall-clock cadence in the worker loop
+    // (`scripts/run-assessment-worker.ts`) rather than on every idle poll, so
+    // an idle worker no longer writes to Postgres every few seconds.
     return { kind: "idle" };
   }
   reportInfo("assessment job claimed", {
