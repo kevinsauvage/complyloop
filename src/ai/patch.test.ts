@@ -3,6 +3,7 @@ import { generateObject } from "ai";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/db/types";
 import { proposeFixEdits } from "./patch";
+import { AI_MODEL } from "./ai-call";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
@@ -58,7 +59,7 @@ describe("proposeFixEdits", () => {
     expect(result).toEqual({
       description: "Add alt",
       provenance: "ai",
-      model: "minimax/minimax-m3",
+        model: AI_MODEL,
       edits: [
         {
           path: "Hero.tsx",
@@ -70,7 +71,7 @@ describe("proposeFixEdits", () => {
     expect(result.edits[0]?.newText).toContain("alt=");
     expect(generate).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "minimax/minimax-m3",
+      model: AI_MODEL,
         prompt: expect.stringContaining("Change only the Finding source file"),
       }),
     );

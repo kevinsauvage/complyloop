@@ -256,7 +256,6 @@ export function FindingsFilterBar({
               <Link
                 href={findingsListHref({
                   tab: params.tab,
-                  control: params.control,
                 })}
               >
                 Reset filters

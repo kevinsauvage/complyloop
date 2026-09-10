@@ -254,6 +254,14 @@ export default function HomePage() {
                 Illustrative sample — your trail is generated from real
                 assessments.
               </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                <Link
+                  href="/login"
+                  className="font-medium text-foreground underline underline-offset-4"
+                >
+                  Sign in to generate your trail from a real assessment
+                </Link>
+              </p>
             </div>
           </div>
         </div>
@@ -323,7 +331,7 @@ export default function HomePage() {
               <Link href="/login">Sign in with GitHub</Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="min-w-48">
-              <Link href="#sample">View sample evidence</Link>
+              <Link href="#sample">See sample trail</Link>
             </Button>
           </div>
         </div>

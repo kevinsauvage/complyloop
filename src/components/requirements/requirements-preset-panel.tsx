@@ -8,10 +8,12 @@ export function RequirementsPresetPanel({
   defaultPresetId,
   selectedPresetId,
   statusFilter,
+  q,
 }: {
   defaultPresetId: string;
   selectedPresetId: string;
   statusFilter: RequirementStatus | undefined;
+  q?: string;
 }) {
   const presets = presetSummaries();
   const viewingDefault = selectedPresetId === defaultPresetId;
@@ -31,6 +33,7 @@ export function RequirementsPresetPanel({
           defaultPresetId={defaultPresetId}
           selectedPresetId={selectedPresetId}
           statusFilter={statusFilter}
+          q={q}
         />
         <p className="text-xs text-muted-foreground">
           Assessments always use the project default.{" "}

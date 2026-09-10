@@ -224,7 +224,7 @@ export default async function FindingPage({
 
         {handoff ? (
           <PageSection id="copy-handoff" title="Copy patch / PR body">
-            <DeveloperHandoffCard handoff={handoff} />
+            <DeveloperHandoffCard handoff={handoff} prUrl={prUrl} />
           </PageSection>
         ) : null}
 
@@ -240,7 +240,7 @@ export default async function FindingPage({
             <div className="surface-panel rounded-2xl p-4">
               <p className="mb-3 text-xs text-muted-foreground">Newest first</p>
               <ol className="relative flex flex-col gap-0 border-l border-border/70 pl-4">
-                {evidence.map((record, index) => (
+                {evidence.slice(0, 5).map((record, index) => (
                   <li key={record.id} className="relative pb-4 last:pb-0">
                     <span
                       className={cn(
@@ -271,6 +271,37 @@ export default async function FindingPage({
                   </li>
                 ))}
               </ol>
+              {evidence.length > 5 ? (
+                <details className="mt-3 border-t border-border/60 pt-3">
+                  <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                    Show all {evidence.length} ({evidence.length} total)
+                  </summary>
+                  <ol className="relative mt-3 flex flex-col gap-0 border-l border-border/70 pl-4">
+                    {evidence.slice(5).map((record) => (
+                      <li key={record.id} className="relative pb-4 last:pb-0">
+                        <span
+                          className="absolute top-1.5 -left-[1.28125rem] size-2.5 rounded-full bg-muted-foreground/40 ring-4 ring-background"
+                          aria-hidden
+                        />
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                          <Badge variant="secondary">
+                            {evidenceDisplay(record.kind, record.detail).label}
+                          </Badge>
+                          <time
+                            dateTime={record.at}
+                            className="text-xs text-muted-foreground"
+                          >
+                            {formatDateTime(record.at)}
+                          </time>
+                        </div>
+                        <p className="mt-1.5 text-sm text-muted-foreground">
+                          {record.summary}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              ) : null}
             </div>
           )}
         </PageSection>

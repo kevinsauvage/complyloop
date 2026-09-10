@@ -45,7 +45,7 @@ export async function markAlertReadAction(
     await withProjectLock(project.id, async (tx) => {
       await markAlertRead(tx, alert);
     });
-    refresh();
+    refresh("/dashboard");
     return "Alert marked as read.";
   });
 }
@@ -81,7 +81,7 @@ export async function markAllAlertsReadAction(
         runtime.alerts.filter((alert) => alert.projectId === project.id),
       );
     });
-    refresh();
+    refresh("/dashboard");
     return count === 0
       ? "No unread alerts."
       : `${count} alert${count === 1 ? "" : "s"} marked as read.`;

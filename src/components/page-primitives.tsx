@@ -77,7 +77,7 @@ export function PageSection({
   id,
 }: {
   title: string;
-  description?: string;
+  description?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;

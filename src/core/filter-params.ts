@@ -60,6 +60,16 @@ export function parseRequirementStatusParam(
     : undefined;
 }
 
+/** Trimmed requirements search query (code or title), capped at 100 chars. */
+export function parseRequirementsQueryParam(
+  raw: string | string[] | undefined,
+): string | undefined {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return undefined;
+  const trimmed = value.trim().slice(0, 100).trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function requirementsStatusHref(
   status?: RequirementStatus,
 ): string {
@@ -131,6 +141,7 @@ export function parsePresetIdParam(
 export function requirementsPageHref(options: {
   presetId?: string;
   status?: RequirementStatus;
+  q?: string;
   page?: number;
   defaultPresetId: string;
 }): string {
@@ -140,6 +151,7 @@ export function requirementsPageHref(options: {
         ? options.presetId
         : undefined,
     status: options.status,
+    q: options.q,
     page: options.page && options.page > 1 ? String(options.page) : undefined,
   });
 }

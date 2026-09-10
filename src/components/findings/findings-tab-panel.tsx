@@ -18,6 +18,7 @@ export function FindingsTabPanel({
   filtersActive,
   items,
   emptyMessage,
+  emptyAction,
   filteredEmptyState,
   paginationQuery,
   paginationLabel,
@@ -30,6 +31,7 @@ export function FindingsTabPanel({
   filtersActive: boolean;
   items: FindingListItem[];
   emptyMessage: string;
+  emptyAction?: ReactNode;
   filteredEmptyState: ReactNode;
   paginationQuery: Record<string, string>;
   paginationLabel: string;
@@ -53,7 +55,11 @@ export function FindingsTabPanel({
         filtersActive ? (
           filteredEmptyState
         ) : (
-          <EmptyState title="No findings">
+          <EmptyState
+            title={tab === "resolved" ? "All clear — nothing resolved yet" : "No findings"}
+            variant={tab === "resolved" ? "all-clear" : "default"}
+            action={emptyAction}
+          >
             {emptyMessage} Nothing to triage here.
           </EmptyState>
         )

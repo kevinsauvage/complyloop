@@ -26,12 +26,17 @@
     "esbuild": "^0.28.1"
   },
   "scripts": {
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/complyloop/compliance-engineering-platform.git",
     "directory": "packages/check"
   },
-  "license": "UNLICENSED"
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }

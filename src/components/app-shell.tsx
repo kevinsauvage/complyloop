@@ -44,11 +44,14 @@ function BrandMark({ className }: { className?: string }) {
 function SidebarBody({
   authControls,
   navAttention,
+  navLinks,
   onNavigate,
   showBrand = true,
 }: {
   authControls: ReactNode;
   navAttention: NavAttentionCounts;
+  /** Streaming nav slot — takes precedence over `navAttention` when set. */
+  navLinks?: ReactNode;
   onNavigate?: () => void;
   showBrand?: boolean;
 }) {
@@ -56,7 +59,9 @@ function SidebarBody({
     <div className="flex h-full flex-col gap-6">
       {showBrand ? <BrandMark className="px-3" /> : null}
       <nav aria-label="Main" className="flex-1">
-        <NavLinks navAttention={navAttention} onNavigate={onNavigate} />
+        {navLinks ?? (
+          <NavLinks navAttention={navAttention} onNavigate={onNavigate} />
+        )}
       </nav>
       <div className="mt-auto space-y-3">
         <Separator />
@@ -88,13 +93,17 @@ function SidebarBody({
 export function AppShell({
   workspaceContext,
   authControls,
-  navAttention,
+  navAttention = { openFindings: 0, unreadAlerts: 0 },
+  navLinks,
   children,
 }: {
   workspaceContext: ReactNode;
   /** Server-rendered auth UI — must not be imported into this client module. */
   authControls: ReactNode;
-  navAttention: NavAttentionCounts;
+  /** Sync counts for the non-streaming fallback path (tests, previews). */
+  navAttention?: NavAttentionCounts;
+  /** Streaming nav, e.g. `<Suspense><NavAttentionBadges /></Suspense>`. */
+  navLinks?: ReactNode;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -149,6 +158,7 @@ export function AppShell({
                 <SidebarBody
                   authControls={authControls}
                   navAttention={navAttention}
+                  navLinks={navLinks}
                   onNavigate={() => setNavOpen(false)}
                 />
               </SheetContent>
@@ -157,7 +167,11 @@ export function AppShell({
         </header>
 
         <aside className="panel-frost sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/60 px-3 py-6 md:flex">
-          <SidebarBody authControls={authControls} navAttention={navAttention} />
+          <SidebarBody
+            authControls={authControls}
+            navAttention={navAttention}
+            navLinks={navLinks}
+          />
         </aside>
 
         <main

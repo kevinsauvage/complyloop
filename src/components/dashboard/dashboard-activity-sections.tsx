@@ -9,6 +9,7 @@ import {
 import { SeverityBadge } from "@/components/badges";
 import { PageActionLink } from "@/components/page-primitives";
 import { formatDateTime } from "@/core/lifecycle";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -88,6 +89,19 @@ export function DashboardActivitySections({
   hideRegressions?: boolean;
 }) {
   const allClear = openFindings.length === 0;
+  const verifiedIds = new Set(recentVerified.map((record) => record.id));
+  const mergedActivity = (() => {
+    const seen = new Set<string>();
+    const combined = [...recentEvidence, ...recentVerified].filter(
+      (record) => {
+        if (seen.has(record.id)) return false;
+        seen.add(record.id);
+        return true;
+      },
+    );
+    combined.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+    return combined.slice(0, 6);
+  })();
 
   return (
     <div className="grid gap-4 lg:grid-cols-12">
@@ -155,30 +169,6 @@ export function DashboardActivitySections({
               Everything detected has been fixed, verified, or reviewed. Keep
               monitoring for regressions after the next assessment.
             </p>
-            {recentVerified.length > 0 ? (
-              <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Recently verified
-                </h3>
-                <ul className="flex flex-col gap-2">
-                  {recentVerified.map((record) => (
-                    <li
-                      key={record.id}
-                      className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm text-muted-foreground"
-                    >
-                      <span className="font-medium text-foreground">
-                        {evidenceDisplay(record.kind, record.detail).label}
-                      </span>
-                      {" — "}
-                      {record.summary}
-                      <span className="ml-2 text-xs">
-                        {formatDateTime(record.at)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
             <div className="flex flex-wrap gap-2">
               <PageActionLink href="/evidence">View evidence trail</PageActionLink>
               <PageActionLink href="/requirements">View requirements</PageActionLink>
@@ -243,7 +233,12 @@ export function DashboardActivitySections({
         ) : null}
 
         {clusters.length > 0 ? (
-          <ActivityCard title="Likely shared root causes" icon={Layers}>
+          <ActivityCard
+            title="Likely shared root causes"
+            icon={Layers}
+            className="scroll-mt-4"
+          >
+            <div id="root-causes" className="scroll-mt-4" aria-hidden />
             <ul className="flex flex-col gap-2">
               {clusters.map((cluster) => (
                 <li
@@ -264,21 +259,37 @@ export function DashboardActivitySections({
       </div>
 
       <ActivityCard title="Recent activity" className="lg:col-span-12" icon={Layers}>
-        {recentEvidence.length === 0 ? (
+        {mergedActivity.length === 0 ? (
           <p className="text-sm text-muted-foreground">No evidence yet.</p>
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2">
-            {recentEvidence.map((record) => (
-              <li
-                key={record.id}
-                className="rounded-lg border border-border/50 bg-muted/15 px-3 py-2 text-sm text-muted-foreground"
-              >
-                {record.summary}
-                <span className="mt-1 block text-xs">
-                  {formatDateTime(record.at)}
-                </span>
-              </li>
-            ))}
+            {mergedActivity.map((record) => {
+              const isVerified = verifiedIds.has(record.id);
+              return (
+                <li
+                  key={record.id}
+                  className="rounded-lg border border-border/50 bg-muted/15 px-3 py-2 text-sm text-muted-foreground"
+                >
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-foreground">
+                      {evidenceDisplay(record.kind, record.detail).label}
+                    </span>
+                    {isVerified ? (
+                      <Badge
+                        variant="secondary"
+                        className="border-status-passed/30 text-status-passed"
+                      >
+                        Verified
+                      </Badge>
+                    ) : null}
+                  </span>
+                  <span className="mt-1 block">{record.summary}</span>
+                  <span className="mt-1 block text-xs">
+                    {formatDateTime(record.at)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </ActivityCard>

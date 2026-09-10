@@ -11,11 +11,13 @@ export function PresetNavigator({
   defaultPresetId,
   selectedPresetId,
   statusFilter,
+  q,
 }: {
   presets: readonly FrameworkPresetSummary[];
   defaultPresetId: string;
   selectedPresetId: string;
   statusFilter: RequirementStatus | undefined;
+  q?: string;
 }) {
   return (
     <nav aria-label="Framework scope" className="flex flex-col gap-2">
@@ -30,6 +32,7 @@ export function PresetNavigator({
                 href={requirementsPageHref({
                   presetId: preset.id,
                   status: statusFilter,
+                  q,
                   defaultPresetId,
                 })}
                 aria-current={selected ? "page" : undefined}

@@ -9,14 +9,16 @@ export function RequirementsStatusChips({
   selected,
   presetId,
   defaultPresetId,
+  q,
 }: {
   counts: Record<RequirementStatus, number>;
   selected: RequirementStatus | undefined;
   presetId: string;
   defaultPresetId: string;
+  q?: string;
 }) {
   const pageHref = (status?: RequirementStatus) =>
-    requirementsPageHref({ presetId, status, defaultPresetId });
+    requirementsPageHref({ presetId, status, q, defaultPresetId });
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const hiddenCount = REQUIREMENT_STATUS_DISPLAY_ORDER.filter(
@@ -50,7 +52,8 @@ export function RequirementsStatusChips({
       />
       {hiddenCount > 0 ? (
         <p className="text-xs text-muted-foreground">
-          {hiddenCount} hidden empty categor{hiddenCount === 1 ? "y" : "ies"}
+          No requirement entries in {hiddenCount} categor
+          {hiddenCount === 1 ? "y" : "ies"} yet
         </p>
       ) : null}
     </div>

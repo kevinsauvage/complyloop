@@ -73,6 +73,7 @@ export function AuthControls({
             type="button"
             variant="ghost"
             className="h-auto w-full justify-start gap-2 px-2 py-1.5"
+            aria-label={`Account: ${user.label}`}
           >
             <Avatar className="size-7">
               {user.image ? <AvatarImage src={user.image} alt="" /> : null}

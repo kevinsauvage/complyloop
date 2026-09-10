@@ -53,7 +53,8 @@ export function EvidenceKindChips({
       ) : null}
       {zeroHidden > 0 ? (
         <p className="text-xs text-muted-foreground">
-          {zeroHidden} hidden empty categor{zeroHidden === 1 ? "y" : "ies"}
+          No evidence entries in {zeroHidden} categor
+          {zeroHidden === 1 ? "y" : "ies"} yet
         </p>
       ) : null}
     </div>

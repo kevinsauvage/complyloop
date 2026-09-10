@@ -104,7 +104,7 @@ export function OrgDataLifecycle({
       <CardContent className="flex flex-col gap-8">
         <section
           aria-labelledby="org-export-heading"
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-3 border-b border-border/60 pb-6"
         >
           <div>
             <h3
@@ -162,11 +162,11 @@ export function OrgDataLifecycle({
 
         <section
           aria-labelledby="org-delete-heading"
-          className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4"
+          className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
         >
           <div className="flex items-start gap-2">
             <TriangleAlert
-              className="mt-0.5 size-4 shrink-0 text-destructive"
+              className="mt-0.5 size-4 shrink-0 text-muted-foreground"
               aria-hidden
             />
             <div>
@@ -186,7 +186,12 @@ export function OrgDataLifecycle({
             </div>
           </div>
 
-          <form id={deleteFormId} action={deleteAction}>
+          <details className="rounded-lg border border-border/60 px-3 py-2">
+            <summary className="cursor-pointer text-sm font-medium text-foreground">
+              Advanced — show delete controls
+            </summary>
+            <div className="mt-3">
+              <form id={deleteFormId} action={deleteAction}>
             <input type="hidden" name="orgId" value={orgId} />
             <AlertDialog
               open={deleteConfirmOpen}
@@ -198,7 +203,7 @@ export function OrgDataLifecycle({
               <AlertDialogTrigger asChild>
                 <Button
                   type="button"
-                  variant="destructive"
+                  variant="outline"
                   size="sm"
                   disabled={deletePending}
                 >
@@ -249,6 +254,8 @@ export function OrgDataLifecycle({
               </AlertDialogContent>
             </AlertDialog>
           </form>
+            </div>
+          </details>
         </section>
       </CardContent>
     </Card>

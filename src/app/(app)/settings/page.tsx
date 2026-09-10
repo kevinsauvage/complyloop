@@ -134,7 +134,16 @@ export default async function SettingsPage() {
 
         <PageSection
           title="Framework scope"
-          description="Default framework and level for assessments. Browse other frameworks on Requirements without changing this default."
+          description={
+            <>
+              <strong className="font-semibold text-foreground">
+                Applies to future assessments only — does not re-score past
+                runs.
+              </strong>{" "}
+              Default framework and level for assessments. Browse other
+              frameworks on Requirements without changing this default.
+            </>
+          }
         >
           <Card className="shadow-none">
             <CardContent className="pt-6">
@@ -157,7 +166,15 @@ export default async function SettingsPage() {
         <PageSection
           id="preview-url"
           title="Preview URL"
-          description={`Staging or preview URL for live-page checks. ${runtimeStatus}`}
+          description={
+            <>
+              <strong className="font-semibold text-foreground">
+                Applies to future assessments only — does not re-score past
+                runs.
+              </strong>{" "}
+              Staging or preview URL for live-page checks. {runtimeStatus}
+            </>
+          }
         >
           <Card className="shadow-none">
             <CardContent className="space-y-3 pt-6 text-sm">

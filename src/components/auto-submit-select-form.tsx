@@ -2,6 +2,7 @@
 
 import { useState, type ComponentProps } from "react";
 import { useFormStatus } from "react-dom";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { nativeSelectClass } from "@/components/form-classes";
@@ -53,25 +54,41 @@ export function AutoSubmitSelectForm({
     <form
       key={defaultValue}
       action={action}
-      className="flex min-w-0 items-center gap-1.5"
+      className="flex min-w-0 flex-wrap items-center gap-1.5"
     >
-      <Label htmlFor={id} className="sr-only">
-        {label}
-      </Label>
-      <select
-        id={id}
-        name={name}
-        value={value}
-        title={selectedLabel}
-        onChange={(event) => setValue(event.target.value)}
-        className={cn(nativeSelectClass, "truncate", className)}
+      <Label
+        htmlFor={id}
+        className="shrink-0 text-xs font-medium text-muted-foreground"
       >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        {label}{" "}
+        <span aria-hidden="true" className="text-muted-foreground/70">
+          · {options.length}
+        </span>
+      </Label>
+      <div className="relative min-w-0 flex-1">
+        <select
+          id={id}
+          name={name}
+          value={value}
+          title={`${label} — ${selectedLabel} (${options.length} available)`}
+          onChange={(event) => setValue(event.target.value)}
+          className={cn(
+            nativeSelectClass,
+            "truncate appearance-none bg-background pr-8 shadow-sm",
+            className,
+          )}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-muted-foreground"
+        />
+      </div>
       {changed ? <SwitchButton /> : null}
       <span aria-live="polite" className="sr-only">
         {changed

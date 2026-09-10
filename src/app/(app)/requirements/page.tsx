@@ -13,11 +13,14 @@ import {
   paginateSlice,
   parsePageParam,
   parsePresetIdParam,
-  requirementsPageHref,
+  parseRequirementsQueryParam,
 } from "@/core/filters";
 import {
   parseRequirementStatusParam,
 } from "@/core/filters";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PaginationNav } from "@/components/pagination-nav";
 import { countByStatus, toCountMap } from "@/core/lifecycle";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
@@ -51,10 +54,12 @@ export default async function RequirementsPage({
     status?: string | string[];
     presetId?: string | string[];
     page?: string | string[];
+    q?: string | string[];
   }>;
 }) {
   const params = await searchParams;
   const statusFilter = parseRequirementStatusParam(params.status);
+  const query = parseRequirementsQueryParam(params.q);
   const urlPresetId = parsePresetIdParam(params.presetId, isValidPresetId);
   const { project, access, activeOrgId } = await getWorkspace();
   const caps = projectCapabilities(project, access, activeOrgId);
@@ -102,17 +107,24 @@ export default async function RequirementsPage({
   const filteredControlIds = new Set(
     filtered.map((requirement) => requirement.controlId),
   );
-  const filteredControls = presetControls.filter((control) =>
+  const statusControls = presetControls.filter((control) =>
     filteredControlIds.has(control.id),
   );
+  const needle = query?.toLowerCase();
+  const filteredControls = needle
+    ? statusControls.filter((control) =>
+        `${control.code} ${control.title}`.toLowerCase().includes(needle),
+      )
+    : statusControls;
 
-  const page = paginateSlice(filteredControls, parsePageParam(params.page));
+  const page = paginateSlice(filteredControls, parsePageParam(params.page), 25);
   const pageControlIds = new Set(page.items.map((control) => control.id));
   const pageRequirements = filtered.filter((requirement) =>
     pageControlIds.has(requirement.controlId),
   );
   const paginationQuery: Record<string, string> = {};
   if (statusFilter) paginationQuery.status = statusFilter;
+  if (query) paginationQuery.q = query;
   if (selectedPresetId !== defaultPresetId) {
     paginationQuery.presetId = selectedPresetId;
   }
@@ -133,6 +145,7 @@ export default async function RequirementsPage({
             selected={statusFilter}
             presetId={selectedPresetId}
             defaultPresetId={defaultPresetId}
+            q={query}
           />
         ) : null}
 
@@ -140,12 +153,45 @@ export default async function RequirementsPage({
           <PageSection
             title="Assessed requirements"
             description={
-              statusFilter
-                ? `Showing ${filtered.length} requirement${filtered.length === 1 ? "" : "s"} with selected status.`
-                : `${assessed.length} requirement${assessed.length === 1 ? "" : "s"} in this preset.`
+              query
+                ? `Showing ${filteredControls.length} requirement${filteredControls.length === 1 ? "" : "s"} matching “${query}”.`
+                : statusFilter
+                  ? `Showing ${filtered.length} requirement${filtered.length === 1 ? "" : "s"} with selected status.`
+                  : `${assessed.length} requirement${assessed.length === 1 ? "" : "s"} in this preset.`
             }
             className="lg:col-span-2"
           >
+            {assessed.length > 0 ? (
+              <form
+                method="get"
+                action="/requirements"
+                role="search"
+                aria-label="Search requirements"
+                className="flex flex-col gap-2 sm:flex-row sm:items-end"
+              >
+                {statusFilter ? (
+                  <input type="hidden" name="status" value={statusFilter} />
+                ) : null}
+                {selectedPresetId !== defaultPresetId ? (
+                  <input type="hidden" name="presetId" value={selectedPresetId} />
+                ) : null}
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <Label htmlFor="requirements-q">Search requirements</Label>
+                  <Input
+                    id="requirements-q"
+                    name="q"
+                    type="search"
+                    defaultValue={query ?? ""}
+                    placeholder="Search code or title…"
+                    maxLength={100}
+                    autoComplete="off"
+                  />
+                </div>
+                <Button type="submit" size="sm" className="shrink-0">
+                  Search
+                </Button>
+              </form>
+            ) : null}
             {assessed.length === 0 ? (
               <EmptyState
                 title="No requirements assessed yet"
@@ -157,19 +203,23 @@ export default async function RequirementsPage({
                   requirement for this preset.
                 </p>
               </EmptyState>
-            ) : filtered.length === 0 ? (
+            ) : filteredControls.length === 0 ? (
               <EmptyState
-                title="No requirements match this status"
+                title={
+                  query
+                    ? `No requirements match “${query}”`
+                    : "No requirements match this status"
+                }
                 variant="no-results"
                 action={
-                  <PageActionLink href={requirementsPageHref({ presetId: selectedPresetId, defaultPresetId })}>
+                  <PageActionLink href="/requirements">
                     Clear filter
                   </PageActionLink>
                 }
               >
                 <p>
-                  Try another status chip, or clear the filter to see the full
-                  assessed list.
+                  Try another search or status chip, or clear the filter to see
+                  the full assessed list.
                 </p>
               </EmptyState>
             ) : (
@@ -204,6 +254,7 @@ export default async function RequirementsPage({
                 defaultPresetId={defaultPresetId}
                 selectedPresetId={selectedPresetId}
                 statusFilter={statusFilter}
+                q={query}
               />
             </PageSection>
           </aside>

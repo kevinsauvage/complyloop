@@ -7,6 +7,7 @@ import {
   deterministicExplanation,
   generateAiExplanation,
 } from "./explainer";
+import { AI_MODEL } from "./ai-call";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
@@ -98,7 +99,7 @@ describe("generateAiExplanation", () => {
       howToFix: "Add alt",
       confidence: "medium",
       provenance: "ai",
-      model: "minimax/minimax-m3",
+      model: AI_MODEL,
     });
   });
 

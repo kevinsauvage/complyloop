@@ -174,13 +174,7 @@ export default async function OrgPage() {
           </Card>
         </PageSection>
 
-        {role === "owner" ? (
-          <OrgDataLifecycle
-            orgId={org.id}
-            orgName={org.name}
-            orgSlug={org.slug}
-          />
-        ) : (
+        {role === "owner" ? null : (
           <Card className="shadow-none">
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground">
@@ -191,16 +185,6 @@ export default async function OrgPage() {
             </CardContent>
           </Card>
         )}
-
-        {!canManage ? (
-          <Alert className="surface-panel border-border/60 bg-muted/30">
-            <AlertDescription>
-              Only owners and admins can invite, change roles, or revoke invites
-              for this organization. Only the organization owner can export or
-              delete the organization.
-            </AlertDescription>
-          </Alert>
-        ) : null}
 
         <PageSection title="New organization">
           <Dialog>
@@ -220,6 +204,24 @@ export default async function OrgPage() {
             </DialogContent>
           </Dialog>
         </PageSection>
+
+        {role === "owner" ? (
+          <OrgDataLifecycle
+            orgId={org.id}
+            orgName={org.name}
+            orgSlug={org.slug}
+          />
+        ) : null}
+
+        {!canManage ? (
+          <Alert className="surface-panel border-border/60 bg-muted/30">
+            <AlertDescription>
+              Only owners and admins can invite, change roles, or revoke invites
+              for this organization. Only the organization owner can export or
+              delete the organization.
+            </AlertDescription>
+          </Alert>
+        ) : null}
       </PageContent>
     </>
   );

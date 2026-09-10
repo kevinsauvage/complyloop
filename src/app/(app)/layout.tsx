@@ -1,18 +1,18 @@
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthControls } from "@/components/auth-controls";
+import {
+  NavAttentionBadges,
+  NavBadgeSkeletons,
+} from "@/components/nav-attention-badges";
 import { WorkspaceContext } from "@/components/workspace-context";
 import { isGitHubAuthConfigured } from "@/auth";
 import { getSession } from "@/server/auth-session";
-import { navAttentionForProject } from "@/server/nav-attention";
-import { getWorkspace } from "@/server/workspace";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const { project } = await getWorkspace();
-  const navAttention = project
-    ? await navAttentionForProject(project)
-    : { openFindings: 0, unreadAlerts: 0 };
-
+  // Badge counts stream via <NavAttentionBadges> below — the shell and route
+  // content render without awaiting the counts query.
   const configured = isGitHubAuthConfigured();
   const session = configured ? await getSession() : null;
   const signedInUser = session?.user
@@ -32,7 +32,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       authControls={
         <AuthControls configured={configured} user={signedInUser} />
       }
-      navAttention={navAttention}
+      navLinks={
+        <Suspense fallback={<NavBadgeSkeletons />}>
+          <NavAttentionBadges />
+        </Suspense>
+      }
     >
       {children}
     </AppShell>

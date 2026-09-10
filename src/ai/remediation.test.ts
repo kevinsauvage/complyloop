@@ -3,6 +3,7 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/db/types";
 import { generateObject } from "ai";
 import { generateAiRemediation } from "./remediation";
+import { AI_MODEL } from "./ai-call";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
@@ -82,7 +83,7 @@ describe("generateAiRemediation", () => {
         proposedSnippet: '<img src="/x.png" alt="Product photo" />',
         provenance: "ai",
         confidence: "high",
-        model: "minimax/minimax-m3",
+        model: AI_MODEL,
       },
     });
     expect(result?.suggestion.generatedAt).toMatch(/^\d{4}-/);

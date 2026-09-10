@@ -12,8 +12,11 @@ import type { DeveloperHandoff } from "@/server/handoff";
 
 export function DeveloperHandoffCard({
   handoff,
+  prUrl = null,
 }: {
   handoff: DeveloperHandoff;
+  /** When a PR already exists the patch is collapsed to keep the page dense. */
+  prUrl?: string | null;
 }) {
   const patchFile = `${handoff.title.replace(/[^\w.-]+/g, "-").toLowerCase()}.patch`;
   const prFile = `${handoff.title.replace(/[^\w.-]+/g, "-").toLowerCase()}-pr.md`;
@@ -33,40 +36,55 @@ export function DeveloperHandoffCard({
         </div>
 
         {handoff.diff ? (
-          <div className="flex flex-col gap-3">
-            <div className="sticky top-4 z-10 -mx-1 flex flex-wrap gap-2 bg-card/90 px-1 py-1 backdrop-blur-sm">
-              <CopyButton label="Copy diff" text={handoff.diff} />
-              <Button variant="outline" size="sm" asChild>
-                <a
-                  href={`data:text/plain;charset=utf-8,${encodeURIComponent(handoff.diff)}`}
-                  download={patchFile}
-                >
-                  Download .patch
-                </a>
-              </Button>
+          <details
+            open={prUrl == null}
+            className="flex flex-col gap-3 rounded-lg border border-border/50 bg-muted/10 px-3 py-2"
+          >
+            <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+              Show patch diff
+            </summary>
+            <div className="mt-2 flex flex-col gap-3">
+              <div className="flex flex-wrap gap-2">
+                <CopyButton label="Copy diff" text={handoff.diff} />
+                <Button variant="outline" size="sm" asChild>
+                  <a
+                    href={`data:text/plain;charset=utf-8,${encodeURIComponent(handoff.diff)}`}
+                    download={patchFile}
+                  >
+                    Download .patch
+                  </a>
+                </Button>
+              </div>
+              <CodeBlock>{handoff.diff}</CodeBlock>
             </div>
-            <CodeBlock>{handoff.diff}</CodeBlock>
-          </div>
+          </details>
         ) : (
           <EmptyState title="No patch available" className="border-border/60">
             Automated remediation not yet generated for this finding.
           </EmptyState>
         )}
 
-        <div className="flex flex-col gap-3">
-          <div className="sticky top-4 z-10 -mx-1 flex flex-wrap gap-2 bg-card/90 px-1 py-1 backdrop-blur-sm">
-            <CopyButton label="Copy PR body" text={handoff.body} />
-            <Button variant="outline" size="sm" asChild>
-              <a
-                href={`data:text/markdown;charset=utf-8,${encodeURIComponent(handoff.body)}`}
-                download={prFile}
-              >
-                Download PR markdown
-              </a>
-            </Button>
+        <details className="flex flex-col gap-3 rounded-lg border border-border/50 bg-muted/10 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+            Show PR body
+          </summary>
+          <div className="mt-2 flex flex-col gap-3">
+            <div className="flex flex-wrap gap-2">
+              <CopyButton label="Copy PR body" text={handoff.body} />
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={`data:text/markdown;charset=utf-8,${encodeURIComponent(handoff.body)}`}
+                  download={prFile}
+                >
+                  Download PR markdown
+                </a>
+              </Button>
+            </div>
+            <div className="max-h-96 overflow-auto rounded-xl">
+              <CodeBlock>{handoff.body}</CodeBlock>
+            </div>
           </div>
-          <CodeBlock>{handoff.body}</CodeBlock>
-        </div>
+        </details>
 
       </CardContent>
     </Card>

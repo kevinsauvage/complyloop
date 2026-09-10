@@ -5,6 +5,13 @@ import { useId, useState } from "react";
 import { DismissFindingFields } from "@/components/findings/dismiss-finding-fields";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { canBulkApproveRemediation } from "@/core/lifecycle";
 import {
@@ -72,7 +79,6 @@ function FindingsBulkRow({
           isSelected && "border-signal/50 bg-signal/5",
         )}
       >
-        {/* Reserved gutter keeps rows aligned for view-only roles. */}
         {canRemediate ? (
           <div className="pt-1">
             <input
@@ -84,11 +90,7 @@ function FindingsBulkRow({
               aria-label={`Select ${control.code} at ${formatLocationRef(finding.location)}`}
             />
           </div>
-        ) : (
-          <div className="pt-1" aria-hidden>
-            <span className="block size-4" />
-          </div>
-        )}
+        ) : null}
         <Link
           href={findingDetailHref(finding.id, listParams)}
           prefetch={false}
@@ -220,36 +222,50 @@ export function FindingsBulkList({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => setShowDismiss((open) => !open)}
+                onClick={() => setShowDismiss(true)}
                 aria-expanded={showDismiss}
+                aria-haspopup="dialog"
               >
                 Dismiss…
               </Button>
+              <Dialog open={showDismiss} onOpenChange={setShowDismiss}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>
+                      Dismiss {selectedCount} finding
+                      {selectedCount === 1 ? "" : "s"}
+                    </DialogTitle>
+                    <DialogDescription>
+                      Reason and note are kept as evidence.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <StatefulActionForm
+                    action={bulkDismissFindingsAction}
+                    submitLabel={`Dismiss ${selectedCount} finding${selectedCount === 1 ? "" : "s"}`}
+                    pendingLabel="Dismissing…"
+                    variant="destructive"
+                    size="sm"
+                    className="flex flex-col gap-3"
+                    confirmMessage={`Dismiss ${selectedCount} finding${selectedCount === 1 ? "" : "s"}? Reason and note are kept as evidence.`}
+                    confirmTitle="Dismiss findings"
+                  >
+                    {[...selected].map((id) => (
+                      <input
+                        key={id}
+                        type="hidden"
+                        name="findingIds"
+                        value={id}
+                      />
+                    ))}
+                    <DismissFindingFields
+                      reasonId="bulk-dismiss-reason"
+                      noteId="bulk-dismiss-note"
+                    />
+                  </StatefulActionForm>
+                </DialogContent>
+              </Dialog>
             </div>
           ) : null}
-        </div>
-      ) : null}
-
-      {canRemediate && showDismiss && selectedCount > 0 ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-          <StatefulActionForm
-            action={bulkDismissFindingsAction}
-            submitLabel={`Dismiss ${selectedCount} finding${selectedCount === 1 ? "" : "s"}`}
-            pendingLabel="Dismissing…"
-            variant="destructive"
-            size="sm"
-            className="flex flex-col gap-3"
-            confirmMessage={`Dismiss ${selectedCount} finding${selectedCount === 1 ? "" : "s"}? Reason and note are kept as evidence.`}
-            confirmTitle="Dismiss findings"
-          >
-            {[...selected].map((id) => (
-              <input key={id} type="hidden" name="findingIds" value={id} />
-            ))}
-            <DismissFindingFields
-              reasonId="bulk-dismiss-reason"
-              noteId="bulk-dismiss-note"
-            />
-          </StatefulActionForm>
         </div>
       ) : null}
 

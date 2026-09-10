@@ -19,7 +19,7 @@ export function DefaultPresetForm({
   return (
     <StatefulActionForm
       action={setDefaultPresetAction}
-      submitLabel="Save default scope"
+      submitLabel="Save scope"
       pendingLabel="Saving…"
       variant="default"
       className="flex flex-col gap-4"

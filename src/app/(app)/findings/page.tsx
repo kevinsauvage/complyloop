@@ -227,28 +227,25 @@ export default async function FindingsPage({
           className="surface-panel flex w-full items-center gap-1 overflow-x-auto rounded-xl p-1"
         >
           <StatusNavLink href={tabHref("open", listParams)} current={activeTab === "open"}>
-            Open{openSlice.total > 0 ? ` (${openSlice.total})` : ""}
+            Open ({openSlice.total})
           </StatusNavLink>
           <StatusNavLink
             href={tabHref("by_cause", listParams)}
             current={activeTab === "by_cause"}
           >
-            Root cause
-            {clusters.length > 0 ? ` (${clusters.length})` : ""}
+            Root cause ({clusters.length})
           </StatusNavLink>
           <StatusNavLink
             href={tabHref("resolved", listParams)}
             current={activeTab === "resolved"}
           >
-            Resolved
-            {resolvedSlice.total > 0 ? ` (${resolvedSlice.total})` : ""}
+            Resolved ({resolvedSlice.total})
           </StatusNavLink>
           <StatusNavLink
             href={tabHref("dismissed", listParams)}
             current={activeTab === "dismissed"}
           >
-            Dismissed
-            {dismissedSlice.total > 0 ? ` (${dismissedSlice.total})` : ""}
+            Dismissed ({dismissedSlice.total})
           </StatusNavLink>
         </nav>
 
@@ -259,7 +256,17 @@ export default async function FindingsPage({
             listParams={listParams}
             filtersActive={filtersActive}
             items={listFor(resolvedSlice.items)}
-            emptyMessage="No resolved findings."
+            emptyMessage="No resolved findings yet. Fixed findings appear here once verified."
+            emptyAction={
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <PageActionLink href={findingsListHref({ tab: "open" })}>
+                  Review open findings
+                </PageActionLink>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/dashboard">Run assessment</Link>
+                </Button>
+              </div>
+            }
             filteredEmptyState={filteredEmptyState("resolved")}
             paginationQuery={paginationQuery}
             paginationLabel="Resolved findings pagination"
@@ -274,6 +281,11 @@ export default async function FindingsPage({
             filtersActive={filtersActive}
             items={listFor(dismissedSlice.items)}
             emptyMessage="No dismissed findings."
+            emptyAction={
+              <PageActionLink href={findingsListHref({ tab: "open" })}>
+                Review open findings
+              </PageActionLink>
+            }
             filteredEmptyState={filteredEmptyState("dismissed")}
             paginationQuery={paginationQuery}
             paginationLabel="Dismissed findings pagination"

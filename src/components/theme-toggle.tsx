@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
-  const { setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const activeTheme = resolvedTheme ?? theme;
+  const isDark = activeTheme === "dark";
 
   return (
     <Button
@@ -15,10 +17,11 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
       size={compact ? "icon" : "sm"}
       className={cn(!compact && "w-full justify-start gap-2")}
       onClick={() => {
-        const isDark = document.documentElement.classList.contains("dark");
-        setTheme(isDark ? "light" : "dark");
+        const isDarkNow = document.documentElement.classList.contains("dark");
+        setTheme(isDarkNow ? "light" : "dark");
       }}
       aria-label="Toggle light and dark theme"
+      aria-pressed={isDark}
     >
       <Sun className="size-4 dark:hidden" aria-hidden />
       <Moon className="hidden size-4 dark:block" aria-hidden />
