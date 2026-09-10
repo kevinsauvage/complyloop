@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSuspectedKeyboardTrap } from "./focus-trap";
+import { isSuspectedKeyboardTrap } from "./focus";
 
 describe("isSuspectedKeyboardTrap", () => {
   it("detects cycling between two focus targets", () => {

@@ -146,9 +146,7 @@ export async function bulkApproveRemediationsAction(
     const { findingIds } = parseForm(bulkApproveInput, formData);
     let approved = 0;
 
-    await withProjectWrite(
-      { touch: "entities", findingIds },
-      async (workspace) => {
+    await withProjectWrite(async (workspace) => {
         const { db } = workspace;
         const payload: ProjectWritePayload = {};
         for (const findingId of findingIds) {
@@ -229,9 +227,7 @@ export async function bulkDismissFindingsAction(
     const at = new Date().toISOString();
     let dismissed = 0;
 
-    await withProjectWrite(
-      { touch: "entities", findingIds },
-      async (workspace) => {
+    await withProjectWrite(async (workspace) => {
         const { db } = workspace;
         const project = workspace.project;
         if (!project) throw new PublicError("Select a project first.");

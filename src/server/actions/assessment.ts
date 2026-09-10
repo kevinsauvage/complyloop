@@ -24,7 +24,7 @@ export async function runAssessmentAction(
     // One workspace load for the whole action: enqueue + evidence in the same
     // project write (rate limit + permission checks included).
     let job: AssessmentJob;
-    await withProjectWrite({ touch: "project" }, async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.assess");
       if (workspace.userId) await assertAssessRateLimit(workspace.userId);
       job = await enqueueAssessmentJob({

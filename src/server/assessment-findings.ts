@@ -2,7 +2,6 @@ import fs from "node:fs";
 import { guidanceFor } from "@complyloop/analysis-core/adapters/registry";
 import { deterministicExplanation } from "@/ai/explainer";
 import { describeFix, previewFixedLine } from "@complyloop/analysis-core/fixes";
-import { filterAstFindingsForAuthority } from "@complyloop/analysis-core/merge-findings";
 import { scanFile } from "@complyloop/analysis-core/scan";
 import type { RawFinding } from "@complyloop/analysis-core/types";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
@@ -332,19 +331,4 @@ export function createFinding(
         : {}),
     },
   });
-}
-
-export function mergeRawFindings(
-  astFindings: RawFinding[],
-  runtimeFindings: RawFinding[],
-  runtimeRan: boolean,
-): RawFinding[] {
-  const filteredAst = filterAstFindingsForAuthority(
-    astFindings,
-    runtimeRan,
-  ).map((finding) => ({
-    ...finding,
-    analyzerId: finding.analyzerId ?? ("ast" as const),
-  }));
-  return [...filteredAst, ...runtimeFindings];
 }

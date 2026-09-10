@@ -4,7 +4,7 @@ import {
   LAYOUT_TABLE_IMPLICIT_BODY,
   LAYOUT_TABLE_PRESENTATION_BODY,
 } from "./layout-table-fixtures";
-import { isLayoutTable, IS_LAYOUT_TABLE_SRC } from "./is-layout-table";
+import { isLayoutTable, IS_LAYOUT_TABLE_SRC } from "./layout-table-linearization";
 
 function tableFrom(html: string): HTMLTableElement {
   document.body.innerHTML = html;

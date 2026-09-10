@@ -145,7 +145,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
     runtimeViolationStillPresent.mockResolvedValue(false);
 
     const result = await verifyRemediationAction(
@@ -184,7 +184,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
     scanRuntime.mockResolvedValue({
       findings: [],
       pagesScanned: 2,
@@ -228,7 +228,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
     scanRuntime.mockResolvedValue({
       findings: [],
       pagesScanned: 1,
@@ -260,7 +260,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
     runtimeViolationStillPresent.mockResolvedValue(true);
 
     const result = await verifyRemediationAction(
@@ -288,7 +288,7 @@ describe("markRemediationImplementedAction", () => {
         },
       ],
     });
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
     const form = new FormData();
     form.set("note", "Fixed in PR #9");
 

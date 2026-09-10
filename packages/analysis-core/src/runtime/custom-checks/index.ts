@@ -74,6 +74,11 @@ export interface CustomChecksResult {
 
 type ProbeResult = CustomViolation | CustomViolation[] | null;
 
+interface GuardedProbe {
+  id: string;
+  run: (page: Page) => Promise<ProbeResult>;
+}
+
 async function runProbe(
   failures: string[],
   probeId: string,
@@ -89,65 +94,71 @@ async function runProbe(
   }
 }
 
+/** Condition-neutral probes — safe to run concurrently. */
+const PARALLEL_PROBES: readonly GuardedProbe[] = [
+  { id: "text-spacing-runtime", run: (page) => textSpacingRuntimeViolation(page) },
+  { id: "non-text-contrast", run: (page) => nonTextContrastViolation(page) },
+  { id: "label-adjacent", run: (page) => labelAdjacentViolation(page) },
+  { id: "css-disabled-content", run: (page) => cssDisabledContentViolations(page) },
+  { id: "media-keyboard", run: (page) => mediaKeyboardViolation(page) },
+  { id: "css-hover-keyboard", run: (page) => cssHoverKeyboardViolation(page) },
+  {
+    id: "layout-table-linearization",
+    run: (page) => layoutTableLinearizationViolation(page),
+  },
+  { id: "error-prevention", run: (page) => errorPreventionViolation(page) },
+  { id: "captcha-alternative", run: (page) => captchaAlternativeViolation(page) },
+  {
+    id: "accessible-auth-enhanced",
+    run: (page) => accessibleAuthEnhancedViolation(page),
+  },
+  { id: "media-identification", run: (page) => mediaIdentificationViolation(page) },
+  {
+    id: "supplementary-content-keyboard",
+    run: (page) => supplementaryContentKeyboardViolation(page),
+  },
+];
+
+/**
+ * Mutating probes. css-off restores styles in-page; form submit, live-region,
+ * and hover mutate DOM state — run sequentially, then reload before the
+ * viewport probes so later checks stay clean.
+ */
+const INTERACTION_PROBES: readonly GuardedProbe[] = [
+  { id: "focus", run: (page) => focusCustomViolations(page) },
+  { id: "dialog-focus", run: (page) => dialogFocusViolations(page) },
+  { id: "widget-keyboard", run: (page) => widgetKeyboardViolations(page) },
+  { id: "css-off-understandable", run: (page) => cssOffUnderstandableViolation(page) },
+  { id: "form-error-submit", run: (page) => formErrorSubmitViolation(page) },
+  { id: "live-region-updates", run: (page) => liveRegionUpdatesViolation(page) },
+  { id: "hover-content", run: (page) => hoverContentViolation(page) },
+];
+
+const VIEWPORT_PROBES: readonly GuardedProbe[] = [
+  { id: "forced-colors", run: (page) => forcedColorsViolation(page) },
+  { id: "reduced-motion", run: (page) => reducedMotionViolation(page) },
+  { id: "reflow", run: (page) => reflowViolation(page) },
+  { id: "resize-text", run: (page) => resizeTextViolation(page) },
+  { id: "target-size-enhanced", run: (page) => targetSizeEnhancedViolation(page) },
+];
+
 async function collectCustomViolations(
   page: Page,
 ): Promise<{ violations: CustomViolation[]; probeFailures: string[] }> {
   const probeFailures: string[] = [];
-  const guarded = (
-    probeId: string,
-    probe: () => Promise<ProbeResult>,
-  ): Promise<CustomViolation[]> => runProbe(probeFailures, probeId, probe);
+  const run = (probe: GuardedProbe): Promise<CustomViolation[]> =>
+    runProbe(probeFailures, probe.id, () => probe.run(page));
 
-  const optional = await Promise.all([
-    guarded("text-spacing-runtime", () => textSpacingRuntimeViolation(page)),
-    guarded("non-text-contrast", () => nonTextContrastViolation(page)),
-    guarded("label-adjacent", () => labelAdjacentViolation(page)),
-    guarded("css-disabled-content", () => cssDisabledContentViolations(page)),
-    guarded("media-keyboard", () => mediaKeyboardViolation(page)),
-    guarded("css-hover-keyboard", () => cssHoverKeyboardViolation(page)),
-    guarded("layout-table-linearization", () =>
-      layoutTableLinearizationViolation(page),
-    ),
-    guarded("error-prevention", () => errorPreventionViolation(page)),
-    guarded("captcha-alternative", () => captchaAlternativeViolation(page)),
-    guarded("accessible-auth-enhanced", () =>
-      accessibleAuthEnhancedViolation(page),
-    ),
-    guarded("media-identification", () => mediaIdentificationViolation(page)),
-    guarded("supplementary-content-keyboard", () =>
-      supplementaryContentKeyboardViolation(page),
-    ),
-  ]);
+  const optional = await Promise.all(PARALLEL_PROBES.map(run));
 
-  const violations: CustomViolation[] = [
-    ...(await guarded("focus", () => focusCustomViolations(page))),
-    ...(await guarded("dialog-focus", () => dialogFocusViolations(page))),
-    ...(await guarded("widget-keyboard", () => widgetKeyboardViolations(page))),
-  ];
-
-  // css-off restores styles in-page; form submit, live-region, and hover mutate
-  // DOM state — reload before media/viewport probes so later checks stay clean.
-  violations.push(
-    ...(await guarded("css-off-understandable", () =>
-      cssOffUnderstandableViolation(page),
-    )),
-    ...(await guarded("form-error-submit", () => formErrorSubmitViolation(page))),
-    ...(await guarded("live-region-updates", () =>
-      liveRegionUpdatesViolation(page),
-    )),
-    ...(await guarded("hover-content", () => hoverContentViolation(page))),
-  );
+  const violations: CustomViolation[] = [];
+  for (const probe of INTERACTION_PROBES) {
+    violations.push(...(await run(probe)));
+  }
   await restorePageAfterMutatingProbes(page);
-
-  violations.push(
-    ...(await guarded("forced-colors", () => forcedColorsViolation(page))),
-    ...(await guarded("reduced-motion", () => reducedMotionViolation(page))),
-    ...(await guarded("reflow", () => reflowViolation(page))),
-    ...(await guarded("resize-text", () => resizeTextViolation(page))),
-    ...(await guarded("target-size-enhanced", () =>
-      targetSizeEnhancedViolation(page),
-    )),
-  );
+  for (const probe of VIEWPORT_PROBES) {
+    violations.push(...(await run(probe)));
+  }
 
   violations.push(...optional.flat());
 

@@ -12,13 +12,10 @@ import {
   projectWriteLockKey,
   type DrizzleDb,
 } from "@complyloop/db/postgres";
-import {
-  insertEvidenceRecords,
-  WORKSPACE_EVIDENCE_LIMIT,
-} from "@complyloop/db/repo/evidence";
+import { insertEvidenceRecords } from "@complyloop/db/repo/evidence";
 import {
   persistProjectRows,
-  type ProjectSlice,
+  snapshotProjectSlice,
   type ProjectWritePayload,
 } from "@complyloop/db/repo/apply";
 import {
@@ -29,7 +26,7 @@ import {
 } from "@complyloop/db/repo/orgs";
 import { deleteProject, insertProject } from "@complyloop/db/repo/projects";
 import {
-  loadTargetedProjectWriteDb,
+  loadProjectWriteDb,
   loadTenancyDb,
 } from "@complyloop/db/workspace-load";
 import type { EvidenceRecord, Finding } from "@complyloop/db/types";
@@ -43,18 +40,6 @@ import {
 import { findingById } from "./workspace";
 import { requireOnFindingProject } from "./actions/shared";
 import type { Db } from "@complyloop/db/types";
-
-/** What rows a project write may load and persist. */
-export type ProjectWriteScope =
-  /** Project settings and assessment enqueue — project row + new evidence only. */
-  | { touch: "project" }
-  /** Hot-path entity mutations — only the listed findings/requirements/controls. */
-  | {
-      touch: "entities";
-      findingIds?: readonly string[];
-      requirementIds?: readonly string[];
-      refreshControlIds?: readonly string[];
-    };
 
 export interface OrgWritePayload {
   insertOrgs?: Organization[];
@@ -70,93 +55,25 @@ export interface OrgWriteContext {
   organizations: Organization[];
 }
 
-interface EntityWriteScope {
-  findingIds?: readonly string[];
-  requirementIds?: readonly string[];
-  refreshControlIds?: readonly string[];
-}
-
-function effectiveRefreshControlIds(
-  db: Db,
-  scope: EntityWriteScope,
-): Set<string> {
-  const controlIds = new Set(scope.refreshControlIds ?? []);
-  for (const findingId of scope.findingIds ?? []) {
-    const finding = db.findings.find((item) => item.id === findingId);
-    if (finding) controlIds.add(finding.controlId);
-  }
-  for (const requirementId of scope.requirementIds ?? []) {
-    const requirement = db.requirements.find((item) => item.id === requirementId);
-    if (requirement) controlIds.add(requirement.controlId);
-  }
-  return controlIds;
-}
-
-/** Snapshots the loaded entity rows at load time for stale-write guards on persist. */
-function captureEntityLoadedSlice(
-  db: Db,
-  scope: Extract<ProjectWriteScope, { touch: "entities" }>,
-): ProjectSlice {
-  const findingIds = new Set(scope.findingIds ?? []);
-  const requirementIds = new Set(scope.requirementIds ?? []);
-  const controlIds = effectiveRefreshControlIds(db, scope);
-
-  // Clone at load time: the callback mutates the live rows in place. The
-  // stale/unchanged diff must compare against what was actually loaded, not
-  // against the post-mutation state.
-  return structuredClone({
-    findings: db.findings.filter((finding) => findingIds.has(finding.id)),
-    remediations: db.remediations.filter((remediation) =>
-      findingIds.has(remediation.findingId),
-    ),
-    requirements: db.requirements.filter(
-      (requirement) =>
-        requirementIds.has(requirement.id) ||
-        controlIds.has(requirement.controlId),
-    ),
-    alerts: [],
-  });
-}
-
 /**
- * Serializes project mutations under a per-project advisory lock. Pass
- * {@link ProjectWriteScope} to load only the rows you touch. Return a
- * {@link ProjectWritePayload}, or void when there is nothing to persist.
+ * Serializes project mutations under a per-project advisory lock. Loads the
+ * full project runtime; the handler returns a {@link ProjectWritePayload}, or
+ * void when there is nothing to persist.
  */
 export async function withProjectWrite(
-  scope: ProjectWriteScope,
   fn: (workspace: ProjectWriteWorkspace) => Promise<ProjectWritePayload | void>,
 ): Promise<void> {
-  if (
-    scope.touch === "entities" &&
-    (scope.findingIds?.length ?? 0) === 0 &&
-    (scope.requirementIds?.length ?? 0) === 0
-  ) {
-    throw new PublicError("Project write requires at least one entity id.");
-  }
-
   const { userId, githubLogin, preferredOrgId, preferredProjectId } =
     await readViewerSession();
 
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
     const loadWorkspace = async (): Promise<ProjectWriteWorkspace> => {
-      const db =
-        scope.touch === "project"
-          ? await loadTenancyDb(tx, {
-              userId,
-              githubLogin,
-              activeProjectId: preferredProjectId,
-            })
-          : await loadTargetedProjectWriteDb(tx, {
-              userId,
-              githubLogin,
-              activeProjectId: preferredProjectId,
-              evidenceLimit: WORKSPACE_EVIDENCE_LIMIT,
-              findingIds: scope.findingIds,
-              requirementIds: scope.requirementIds,
-              controlIds: scope.refreshControlIds,
-            });
+      const db = await loadProjectWriteDb(tx, {
+        userId,
+        githubLogin,
+        activeProjectId: preferredProjectId,
+      });
       return {
         ...prepareWorkspaceState(
           db,
@@ -197,13 +114,18 @@ export async function withProjectWrite(
       throw new PublicError("Select a project first.");
     }
 
-    const loadedSlice =
-      scope.touch === "entities"
-        ? captureEntityLoadedSlice(workspace.db, scope)
-        : undefined;
+    // Clone before the handler mutates rows in place: persist compares against
+    // what was loaded, not the post-mutation state.
+    const loadedSlice = snapshotProjectSlice(
+      workspace.db.requirements,
+      workspace.db.findings,
+      workspace.db.remediations,
+      workspace.db.alerts,
+      projectId,
+    );
     const payload = (await fn(workspace)) ?? {};
 
-    await persistProjectRows(tx, payload, loadedSlice ? { loadedSlice } : {});
+    await persistProjectRows(tx, payload, { loadedSlice });
   });
 }
 
@@ -217,15 +139,12 @@ export async function withFindingWrite(
     workspace: ProjectWriteWorkspace;
   }) => Promise<ProjectWritePayload | void>,
 ): Promise<void> {
-  await withProjectWrite(
-    { touch: "entities", findingIds: [findingId] },
-    async (workspace) => {
-      const { db } = workspace;
-      const finding = findingById(db, findingId);
-      requireOnFindingProject(workspace, finding, permission);
-      return fn({ db, finding, workspace });
-    },
-  );
+  await withProjectWrite(async (workspace) => {
+    const { db } = workspace;
+    const finding = findingById(db, findingId);
+    requireOnFindingProject(workspace, finding, permission);
+    return fn({ db, finding, workspace });
+  });
 }
 
 /** Serializes a single-row project mutation (e.g. mark alert read). */

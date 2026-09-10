@@ -3,7 +3,7 @@ import {
   contrastRatio,
   parseRgb,
   relativeLuminance,
-} from "./non-text-contrast-math";
+} from "./non-text-contrast";
 
 describe("parseRgb", () => {
   it("parses rgb and rgba strings", () => {

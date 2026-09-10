@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isTwoDimensionalLayout } from "./reflow-exceptions";
-import { REFLOW_VIEWPORT } from "./reflow-math";
+import { isTwoDimensionalLayout } from "./reflow";
+import { REFLOW_VIEWPORT } from "./reflow";
 import { reflowViolation } from "./reflow";
 import {
   chromiumExecutableAvailable,
@@ -19,7 +19,7 @@ describe("reflow viewport constants", () => {
 });
 
 describe("reflow exemptions", () => {
-  it("delegates 2D layout detection to reflow-exceptions", () => {
+  it("detects 2D layout exceptions", () => {
     expect(isTwoDimensionalLayout("table", null)).toBe(true);
     expect(isTwoDimensionalLayout("div", null)).toBe(false);
   });

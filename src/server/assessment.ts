@@ -26,10 +26,8 @@ import {
 } from "@complyloop/analysis-core/contract/statuses";
 import type { Db } from "@complyloop/db/types";
 import { detectChanges, summarizeChanges } from "./monitor";
-import {
-  mergeRawFindings,
-  reconcileControlFindings,
-} from "./assessment-findings";
+import { mergeRawFindings } from "@complyloop/analysis-core/merge-findings";
+import { reconcileControlFindings } from "./assessment-findings";
 import {
   applyRequirementStatusRefresh,
   clearExpiredExceptions,

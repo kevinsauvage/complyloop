@@ -3,7 +3,7 @@ import {
   hasVisibleFocusIndicator,
   snapshotFocusStyles,
   type FocusStyleSnapshot,
-} from "./focus-indicator";
+} from "./focus";
 
 function snap(overrides: Partial<FocusStyleSnapshot> = {}): FocusStyleSnapshot {
   return {

@@ -30,7 +30,7 @@ function mockWrite(project: Project, role: OrgMembership["role"] = "admin") {
     findings: [],
     remediations: [],
   });
-  withProjectWrite.mockImplementation(async (_scope, fn) =>
+  withProjectWrite.mockImplementation(async (fn) =>
     invokeProjectWriteMock(workspace, fn),
   );
   return workspace;

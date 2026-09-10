@@ -138,9 +138,7 @@ export async function markRequirementExceptionAction(
   return runAction(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     const parsed = parseForm(markExceptionInput, formData);
-    await withProjectWrite(
-      { touch: "entities", requirementIds: [requirementId] },
-      async (workspace) => {
+    await withProjectWrite(async (workspace) => {
         requireOnActive(workspace, "project.remediate");
         const { db, project } = workspace;
         const requirement = requireRequirement(
@@ -212,9 +210,7 @@ export async function markRequirementPassedAction(
   return runAction(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
     const { note } = parseForm(markPassedInput, formData);
-    await withProjectWrite(
-      { touch: "entities", requirementIds: [requirementId] },
-      async (workspace) => {
+    await withProjectWrite(async (workspace) => {
         requireOnActive(workspace, "project.remediate");
         const { db, project } = workspace;
         const requirement = requireRequirement(
@@ -305,9 +301,7 @@ async function clearRequirementOverrideAction(
 ): Promise<ActionState> {
   return runAction(async () => {
     const requirementId = parseInput(entityIdSchema, requirementIdRaw);
-    await withProjectWrite(
-      { touch: "entities", requirementIds: [requirementId] },
-      async (workspace) => {
+    await withProjectWrite(async (workspace) => {
         requireOnActive(workspace, "project.remediate");
         const { db, project } = workspace;
         const requirement = requireRequirement(

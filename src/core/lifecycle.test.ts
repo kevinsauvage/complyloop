@@ -5,7 +5,6 @@ import type { RemediationSuggestion } from "@complyloop/analysis-core/contract/f
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import {
   advanceRemediation,
-  assessmentJobsResponseSchema,
   canBulkApproveRemediation,
   clusterFindings,
   countByStatus,
@@ -23,6 +22,7 @@ import {
   unableToVerifyReason,
   unableToVerifyReasonLabel,
 } from "./lifecycle";
+import { assessmentJobsResponseSchema } from "./assessment-jobs";
 
 describe("assessmentJobsResponseSchema", () => {
   it("accepts a job list and rejects a missing jobs array", () => {

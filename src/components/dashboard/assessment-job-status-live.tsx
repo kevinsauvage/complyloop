@@ -1,7 +1,7 @@
 "use client";
 
-import type { AssessmentJob } from "@/core/lifecycle";
-import { assessmentJobsResponseSchema } from "@/core/lifecycle";
+import type { AssessmentJob } from "@/core/assessment-jobs";
+import { assessmentJobsResponseSchema } from "@/core/assessment-jobs";
 import { parseUnknown } from "@/core/filters";
 import { AssessmentJobStatus } from "@/components/dashboard/assessment-job-status";
 import { useRouter } from "next/navigation";

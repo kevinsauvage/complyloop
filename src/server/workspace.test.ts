@@ -3,14 +3,13 @@ import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testMembership } from "@/test-fixtures/membership";
 import { emptyDb } from "@complyloop/db/types";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 const auth = vi.hoisted(() => vi.fn());
 const readActiveOrgCookie = vi.hoisted(() => vi.fn());
 const readActiveProjectCookie = vi.hoisted(() => vi.fn());
 const getDrizzle = vi.hoisted(() => vi.fn());
 const loadTenancyDb = vi.hoisted(() => vi.fn());
-const loadTargetedProjectWriteDb = vi.hoisted(() => vi.fn());
+const loadProjectWriteDb = vi.hoisted(() => vi.fn());
 const persistProjectRows = vi.hoisted(() => vi.fn());
 const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 const insertOrganization = vi.hoisted(() => vi.fn());
@@ -36,8 +35,8 @@ vi.mock("@complyloop/db/postgres", () => ({
 }));
 vi.mock("@complyloop/db/workspace-load", () => ({
   loadTenancyDb,
-  loadTargetedProjectWriteDb: (...args: unknown[]) =>
-    loadTargetedProjectWriteDb(...args),
+  loadProjectWriteDb: (...args: unknown[]) =>
+    loadProjectWriteDb(...args),
 }));
 vi.mock("@complyloop/db/repo/apply", async () => {
   const actual = await vi.importActual<typeof import("@complyloop/db/repo/apply")>(
@@ -86,7 +85,7 @@ describe("withProjectWrite project touch", () => {
     auth.mockResolvedValue({ user: { id: userId, login: "dev" } });
     readActiveOrgCookie.mockResolvedValue(orgId);
     readActiveProjectCookie.mockResolvedValue(project.id);
-    loadTenancyDb.mockResolvedValue({
+    loadProjectWriteDb.mockResolvedValue({
       ...emptyDb(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
@@ -99,14 +98,14 @@ describe("withProjectWrite project touch", () => {
   });
 
   it("persists the payload the handler returns", async () => {
-    await withProjectWrite({ touch: "project" }, async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       const active = workspace.project!;
       active.runtimeBaseUrl = "https://preview.example";
       active.runtimeRoutes = ["/"];
       return { project: active };
     });
 
-    expect(loadTenancyDb).toHaveBeenCalledWith(
+    expect(loadProjectWriteDb).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         userId,
@@ -126,29 +125,37 @@ describe("withProjectWrite project touch", () => {
           runtimeRoutes: ["/"],
         }),
       }),
-      {},
+      expect.objectContaining({ loadedSlice: expect.anything() }),
     );
   });
 
   it("requires the handler to return payload.project for project changes", async () => {
-    await withProjectWrite({ touch: "project" }, async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       workspace.project!.runtimeBaseUrl = "https://preview.example";
       return {};
     });
 
     // No JSON-diff auto-persist: a handler that mutates the workspace project
     // without putting it back on the payload discards the mutation.
-    expect(persistProjectRows).toHaveBeenCalledWith(tx, {}, {});
+    expect(persistProjectRows).toHaveBeenCalledWith(
+      tx,
+      {},
+      expect.objectContaining({ loadedSlice: expect.anything() }),
+    );
   });
 
   it("skips project update when the payload is empty and the project is unchanged", async () => {
-    await withProjectWrite({ touch: "project" }, async () => ({}));
+    await withProjectWrite(async () => ({}));
 
-    expect(persistProjectRows).toHaveBeenCalledWith(tx, {}, {});
+    expect(persistProjectRows).toHaveBeenCalledWith(
+      tx,
+      {},
+      expect.objectContaining({ loadedSlice: expect.anything() }),
+    );
   });
 });
 
-describe("withProjectWrite entities touch", () => {
+describe("withProjectWrite runtime slice", () => {
   const orgId = "org-1";
   const userId = "user-1";
   const project = testProject({ id: "p1", orgId, ownerUserId: userId });
@@ -190,21 +197,14 @@ describe("withProjectWrite entities touch", () => {
     persistProjectRows.mockResolvedValue(undefined);
   });
 
-  it("rejects an entities scope without entity ids", async () => {
-    await expect(
-      withProjectWrite({ touch: "entities" }, async () => ({})),
-    ).rejects.toBeInstanceOf(PublicError);
-    expect(persistProjectRows).not.toHaveBeenCalled();
-  });
+  it("loads the project runtime and persists with a loaded slice", async () => {
+    loadProjectWriteDb.mockResolvedValue(dbWithFinding());
 
-  it("loads the scoped rows and persists with a loaded slice", async () => {
-    loadTargetedProjectWriteDb.mockResolvedValue(dbWithFinding());
+    await withProjectWrite(async () => ({}));
 
-    await withProjectWrite({ touch: "entities", findingIds: ["f1"] }, async () => ({}));
-
-    expect(loadTargetedProjectWriteDb).toHaveBeenCalledWith(
+    expect(loadProjectWriteDb).toHaveBeenCalledWith(
       tx,
-      expect.objectContaining({ findingIds: ["f1"] }),
+      expect.objectContaining({ activeProjectId: project.id }),
     );
     expect(persistProjectRows).toHaveBeenCalledWith(
       tx,
@@ -212,14 +212,13 @@ describe("withProjectWrite entities touch", () => {
       expect.objectContaining({
         loadedSlice: expect.objectContaining({
           findings: [expect.objectContaining({ id: "f1" })],
-          // The finding's control is derived for the requirement refresh.
           requirements: [expect.objectContaining({ id: "r1" })],
         }),
       }),
     );
   });
 
-  it("derives refresh controls from requirements and explicit ids", async () => {
+  it("captures every loaded row in the stale-write slice", async () => {
     const db = dbWithFinding();
     db.requirements.push({
       id: "r2",
@@ -229,33 +228,29 @@ describe("withProjectWrite entities touch", () => {
       determination: "automated",
       updatedAt: "2026-01-01T00:00:00.000Z",
     });
-    loadTargetedProjectWriteDb.mockResolvedValue(db);
+    loadProjectWriteDb.mockResolvedValue(db);
 
-    await withProjectWrite(
-      {
-        touch: "entities",
-        requirementIds: ["r2"],
-        refreshControlIds: ["ctl-explicit"],
-      },
-      async () => ({}),
-    );
+    await withProjectWrite(async () => ({}));
 
     expect(persistProjectRows).toHaveBeenCalledWith(
       tx,
       {},
       expect.objectContaining({
         loadedSlice: expect.objectContaining({
-          requirements: [expect.objectContaining({ id: "r2" })],
+          requirements: expect.arrayContaining([
+            expect.objectContaining({ id: "r1" }),
+            expect.objectContaining({ id: "r2" }),
+          ]),
         }),
       }),
     );
   });
 
   it("re-locks and reloads when the cookie project differs", async () => {
-    loadTargetedProjectWriteDb.mockResolvedValue(dbWithFinding());
+    loadProjectWriteDb.mockResolvedValue(dbWithFinding());
     readActiveProjectCookie.mockResolvedValue("stale-cookie-id");
 
-    await withProjectWrite({ touch: "entities", findingIds: ["f1"] }, async () => ({}));
+    await withProjectWrite(async () => ({}));
 
     expect(acquireNamedPostgresAdvisoryLock).toHaveBeenCalledWith(
       tx,
@@ -265,21 +260,21 @@ describe("withProjectWrite entities touch", () => {
       tx,
       `project-write:${project.id}`,
     );
-    expect(loadTargetedProjectWriteDb).toHaveBeenCalledTimes(2);
+    expect(loadProjectWriteDb).toHaveBeenCalledTimes(2);
     expect(persistProjectRows).toHaveBeenCalled();
   });
 
   it("throws when no project resolves", async () => {
-    loadTargetedProjectWriteDb.mockResolvedValue({
+    loadProjectWriteDb.mockResolvedValue({
       ...emptyDb(),
       organizations: [],
       memberships: [],
       projects: [],
     });
 
-    await expect(
-      withProjectWrite({ touch: "entities", findingIds: ["f1"] }, async () => ({})),
-    ).rejects.toThrow(/Select a project first/);
+    await expect(withProjectWrite(async () => ({}))).rejects.toThrow(
+      /Select a project first/,
+    );
     expect(persistProjectRows).not.toHaveBeenCalled();
   });
 });
@@ -301,7 +296,7 @@ describe("withFindingWrite", () => {
     readActiveProjectCookie.mockResolvedValue(project.id);
     acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
     persistProjectRows.mockResolvedValue(undefined);
-    loadTargetedProjectWriteDb.mockResolvedValue({
+    loadProjectWriteDb.mockResolvedValue({
       ...emptyDb(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
@@ -330,7 +325,7 @@ describe("withFindingWrite", () => {
   });
 
   it("denies viewers the remediate permission", async () => {
-    loadTargetedProjectWriteDb.mockResolvedValue({
+    loadProjectWriteDb.mockResolvedValue({
       ...emptyDb(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },

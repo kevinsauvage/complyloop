@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import type { Db } from "./types.ts";
 import type { DrizzleDb } from "./postgres.ts";
 import {
@@ -14,18 +14,11 @@ import {
 } from "./repo/projects.ts";
 import { listRemediationsForProject } from "./repo/remediations.ts";
 import { listRequirementsForProject } from "./repo/requirements.ts";
-import {
-  alerts,
-  evidence,
-  findings,
-  remediations,
-  requirements,
-} from "./schema.ts";
+import { evidence } from "./schema.ts";
 import {
   getLatestAssessmentSnapshot,
   listLatestAssessmentForProject,
 } from "./repo/assessments.ts";
-import { projectScopedSlice } from "./repo/apply.ts";
 
 const EMPTY_RUNTIME: Pick<
   Db,
@@ -139,137 +132,43 @@ export async function loadTenancyDb(
   };
 }
 
-interface TargetedProjectWriteLoadInput extends WorkspaceLoadInput {
-  findingIds?: readonly string[];
-  requirementIds?: readonly string[];
-  /** Preload requirement rows for these controls (used before targeted refresh). */
-  controlIds?: readonly string[];
-}
-
-async function loadTargetedProjectRuntime(
-  drizzle: DrizzleDb,
-  projectId: string,
-  input: Pick<
-    TargetedProjectWriteLoadInput,
-    "findingIds" | "requirementIds" | "controlIds"
-  >,
-): Promise<
-  Pick<Db, "requirements" | "findings" | "remediations" | "alerts" | "assessments">
-> {
-  const findingIds = [...(input.findingIds ?? [])];
-  const requirementIds = [...(input.requirementIds ?? [])];
-  const controlIds = [...(input.controlIds ?? [])];
-
-  const findingRows =
-    findingIds.length === 0
-      ? []
-      : await drizzle
-          .select()
-          .from(findings)
-          .where(inArray(findings.id, findingIds));
-
-  const findingControlIds = findingRows.map((row) => row.payload.controlId);
-  const allControlIds = [
-    ...new Set([...controlIds, ...findingControlIds]),
-  ];
-
-  const remediationRows =
-    findingIds.length === 0
-      ? []
-      : await drizzle
-          .select()
-          .from(remediations)
-          .where(inArray(remediations.findingId, findingIds));
-
-  const requirementFilters = [];
-  if (requirementIds.length > 0) {
-    requirementFilters.push(inArray(requirements.id, requirementIds));
-  }
-  if (allControlIds.length > 0) {
-    requirementFilters.push(inArray(requirements.controlId, allControlIds));
-  }
-
-  const requirementRows =
-    requirementFilters.length === 0
-      ? []
-      : await drizzle
-          .select()
-          .from(requirements)
-          .where(
-            and(
-              eq(requirements.projectId, projectId),
-              requirementFilters.length === 1
-                ? requirementFilters[0]!
-                : or(...requirementFilters),
-            ),
-          );
-
-  // Rows are already scoped to the active project in SQL; re-apply the
-  // shared projectScopedSlice predicate so remediation scoping (via finding,
-  // not project) matches the in-memory path and cross-project findingIds
-  // cannot leak remediations.
-  const projectRequirements = requirementRows.map((row) => row.payload);
-
-  // Latest assessment + alerts are bounded per-project context the handler may
-  // read; only the potentially-large requirements/findings/remediations are
-  // scoped by id.
-  const [assessmentsList, alertRows] = await Promise.all([
-    listLatestAssessmentForProject(drizzle, projectId),
-    drizzle.select().from(alerts).where(eq(alerts.projectId, projectId)),
-  ]);
-
-  const scoped = projectScopedSlice(
-    {
-      findings: findingRows.map((row) => row.payload),
-      remediations: remediationRows.map((row) => row.payload),
-      requirements: projectRequirements,
-      alerts: alertRows.map((row) => row.payload),
-    },
-    projectId,
-  );
-
-  return {
-    requirements: scoped.requirements,
-    assessments: assessmentsList,
-    findings: scoped.findings,
-    remediations: scoped.remediations,
-    alerts: scoped.alerts,
-  };
-}
-
 /**
- * Loads tenancy + only the runtime rows touched by a hot-path write.
- * Findings outside the active project are dropped so RBAC checks still fail loud.
+ * Loads tenancy + the full project runtime + a bounded evidence window for a
+ * write. Handlers clone onto a payload; `persistProjectRows` derives the
+ * per-entity stale-write guards from this full snapshot.
  */
-export async function loadTargetedProjectWriteDb(
+export async function loadProjectWriteDb(
   drizzle: DrizzleDb,
-  input: TargetedProjectWriteLoadInput,
+  input: WorkspaceLoadInput,
 ): Promise<Db> {
   const { organizations, memberships, projects, activeProjectId } =
     await loadWorkspaceTenancy(drizzle, input);
 
-  const runtime =
-    activeProjectId != null
-      ? await loadTargetedProjectRuntime(drizzle, activeProjectId, input)
-      : EMPTY_RUNTIME;
+  if (activeProjectId == null) {
+    return {
+      organizations,
+      memberships,
+      projects,
+      ...EMPTY_RUNTIME,
+      evidence: [],
+    };
+  }
 
-  // Evidence window is bounded and append-accessible; give handlers a truthful
-  // snapshot so a read of db.evidence reflects what is already persisted.
-  const evidence =
-    activeProjectId != null
-      ? await loadEvidenceWindow(
-          drizzle,
-          activeProjectId,
-          input.evidenceLimit ?? WORKSPACE_EVIDENCE_LIMIT,
-        )
-      : [];
+  const [runtime, evidenceWindow] = await Promise.all([
+    loadProjectRuntime(drizzle, activeProjectId),
+    loadEvidenceWindow(
+      drizzle,
+      activeProjectId,
+      input.evidenceLimit ?? WORKSPACE_EVIDENCE_LIMIT,
+    ),
+  ]);
 
   return {
     organizations,
     memberships,
     projects,
     ...runtime,
-    evidence,
+    evidence: evidenceWindow,
   };
 }
 

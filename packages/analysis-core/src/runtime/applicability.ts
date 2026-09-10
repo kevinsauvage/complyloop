@@ -9,7 +9,7 @@ import {
   BROWSER_COLLECT_CAPTCHA_SRC,
   captchaProbeBootstrap,
 } from "./custom-checks/captcha-candidates.ts";
-import { IS_LAYOUT_TABLE_SRC } from "./custom-checks/is-layout-table.ts";
+import { IS_LAYOUT_TABLE_SRC } from "./custom-checks/layout-table-linearization.ts";
 
 export interface ApplicabilityObservation {
   checkId: CheckId;

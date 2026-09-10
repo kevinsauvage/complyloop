@@ -1,5 +1,4 @@
 import type { Locator, Page } from "playwright";
-import { contrastRatio, parseRgb, relativeLuminance } from "./non-text-contrast-math.ts";
 import { type CapturedHit } from "./hit-capture.ts";
 import {
   locatorEvaluateWithHitCapture,
@@ -8,6 +7,31 @@ import {
 import { NON_TEXT_CONTRAST_CONTROL_SELECTOR } from "./interactive-control-selectors.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
+
+export function parseRgb(value: string): [number, number, number] | null {
+  const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!match) return null;
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+export function relativeLuminance([r, g, b]: [number, number, number]): number {
+  const channel = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+export function contrastRatio(
+  a: [number, number, number],
+  b: [number, number, number],
+): number {
+  const l1 = relativeLuminance(a);
+  const l2 = relativeLuminance(b);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
 
 const MAX_HOVER = 12;
 const MAX_NODES = 5;

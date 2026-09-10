@@ -119,7 +119,7 @@ describe("createPullRequestAction", () => {
   it("records evidence when a PR is prepared", async () => {
     const workspace = workspaceFor("member");
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
       prUrl: "https://github.com/acme/shop/pull/1",
@@ -151,7 +151,7 @@ describe("createPullRequestAction", () => {
       status: "suggested",
     };
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
       prUrl: "https://github.com/acme/shop/pull/1",

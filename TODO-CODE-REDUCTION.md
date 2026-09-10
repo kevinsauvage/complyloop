@@ -6,99 +6,7 @@
 
 ---
 
-## P0 — Major reduction
-
-- [ ] **Collapse the targeted project-write loading optimization**
-  - Why: `loadTargetedProjectWriteDb` + `loadTargetedProjectRuntime` (`packages/db/src/workspace-load.ts:142-274`) plus `ProjectWriteScope`/`captureEntityLoadedSlice` (`src/server/workspace-write.ts:47-119`) exist only to load a subset of project rows for hot-path writes. For typical projects the full runtime slice is small (latest assessment + bounded evidence window). The targeted load adds ~250 LOC, a second load path, and stale-write slice capture machinery for a performance gain that is likely unmeasured.
-  - Where: `packages/db/src/workspace-load.ts`, `src/server/workspace-write.ts`, `packages/db/src/repo/apply.ts`.
-  - Reduction: load full project runtime for every write, delete `loadTargetedProjectWriteDb`, `loadTargetedProjectRuntime`, `ProjectWriteScope` entities mode, `captureEntityLoadedSlice`, and the `loadedSlice` diffing in `persistProjectRows` (keep `updatedAt` guards). Keep the advisory lock.
-  - Risk: medium-high (verify data bounds and write throughput first)
-  - Impact: ~350 LOC / 3 files / 1 abstraction removed
-
-- [ ] **Consolidate runtime custom-check orchestration and merge tiny probe files**
-  - Why: `packages/analysis-core/src/runtime/custom-checks/index.ts` repeats `guarded("...", () => ...Violation(page))` ~20 times, and many probe files are under 70 LOC with separate math/helper files (`focus-trap.ts`, `focus-indicator.ts`, `reflow-math.ts`, `reflow-exceptions.ts`, `is-layout-table.ts`, `page-restore.ts`, `with-emulated-media.ts`, `widget-keyboard-utils.ts`, etc.). The file-per-probe convention creates more files than concepts.
-  - Where: `packages/analysis-core/src/runtime/custom-checks/*`.
-  - Reduction: define a probe registry array/map in `index.ts` and iterate; merge each probe with its math/helpers (e.g., `focus.ts` + `focus-indicator.ts` + `focus-trap.ts`; `reflow.ts` + `reflow-math.ts` + `reflow-exceptions.ts`); delete the standalone helper files.
-  - Risk: medium
-  - Impact: ~400 LOC / 10+ files / 1 orchestration pattern removed
-
-- [ ] **Unify finding merge / deduplication utilities**
-  - Why: there are three overlapping concepts: `filterAstFindingsForAuthority` (`packages/analysis-core/src/merge-findings.ts`), `dedupeRuntimeFindings` + `mergeContributors` (`packages/analysis-core/src/runtime/dedupe-runtime-findings.ts`), and `mergeFix` (`src/server/assessment-findings.ts`). They all decide which finding “wins” when multiple analyzers report the same issue. The priority logic and contribution merging could live in one place.
-  - Where: `packages/analysis-core/src/merge-findings.ts`, `packages/analysis-core/src/runtime/dedupe-runtime-findings.ts`, `src/server/assessment-findings.ts`.
-  - Reduction: merge AST authority filtering and runtime dedupe into a single `mergeFindings` module; absorb fix merging if it fits the same precedence model.
-  - Risk: medium-high (touches core assessment correctness)
-  - Impact: ~150 LOC / 2-3 files / 1 concept unified
-
----
-
-## P1 — Significant reduction
-
-- [ ] **Extract a shared copy-to-clipboard hook/component**
-  - Why: `CodeBlock` (`src/components/code-block.tsx`) and `CopyButton` (`src/components/copy-button.tsx`) both implement the same pattern: `copyText` call → copied state → `setTimeout` reset → live region. This is small but exact duplication.
-  - Where: `src/components/code-block.tsx`, `src/components/copy-button.tsx`, `src/lib/copy-text.ts`.
-  - Reduction: replace both with a `useCopy(text)` hook or a single `CopyButton` that `CodeBlock` imports.
-  - Risk: low
-  - Impact: ~30 LOC / 1 abstraction unified
-
-- [ ] **Generalize the DB `*ToRow` mappers**
-  - Why: `packages/db/src/repo/mappers.ts` has seven near-identical functions (`organizationToRow`, `membershipToRow`, `projectToRow`, etc.) that mostly wrap `{ ...extra, payload: entity }`. A single generic helper plus per-entity extra columns removes repetition without losing the rule that projected columns stay in sync.
-  - Where: `packages/db/src/repo/mappers.ts`.
-  - Reduction: replace seven one-liner functions with one `toRow(entity, extra)` helper; keep `newEvidenceRecord` and `rowToEvidence`.
-  - Risk: low
-  - Impact: ~80 LOC / 1 file simplified
-
-- [ ] **Simplify `FindingsBulkList`**
-  - Why: the component (`src/components/findings/findings-bulk-list.tsx`, ~280 LOC) uses `memo`, `useCallback`, `useMemo`, `useRef`, and `useEffect` for a checkbox list with bulk actions. Most of this memoization is unnecessary; the data set is bounded by pagination.
-  - Where: `src/components/findings/findings-bulk-list.tsx`.
-  - Reduction: remove `memo`/`useCallback`/`useMemo`; inline `FindingsBulkRow`; replace `useEffect` indeterminate checkbox handling with a derived prop or simpler DOM ref.
-  - Risk: low
-  - Impact: ~120 LOC / 1 file simplified
-
-- [ ] **Flatten adapter registry helpers**
-  - Why: `allFrameworkPresets()`, `presetById()`, `customProbeCheckIds()` are trivial wrappers that just spread a readonly array. They add indirection and extra test surface.
-  - Where: `packages/adapters/src/registry.ts`, `packages/analysis-core/src/runtime/custom-checks/types.ts`.
-  - Reduction: export the arrays directly (`FRAMEWORK_PRESETS`, `CUSTOM_PROBE_CHECK_IDS`) and use `array.find(...)` / `array.includes(...)` at call sites. If consumers need immutability, export as `readonly`.
-  - Risk: low
-  - Impact: ~20 LOC / 2 files / 3 wrappers removed
-
-- [ ] **Merge small related runtime probe files**
-  - Why: probes such as `label-adjacent-math.ts`, `non-text-contrast-math.ts`, `layout-table-fixtures.ts`, `hover-reveal.ts`, `interactive-control-selectors.ts`, and `widget-keyboard-utils.ts` are helpers used by only one probe. They add file overhead and public surface.
-  - Where: `packages/analysis-core/src/runtime/custom-checks/*`.
-  - Reduction: inline single-use helpers into the probe that calls them; keep helpers only when shared by two or more probes.
-  - Risk: low
-  - Impact: ~200 LOC / 6-8 files merged
-
-- [ ] **Simplify `src/core/filters.ts` URL builders**
-  - Why: the file is 567 LOC and contains many almost-identical `URLSearchParams` builders (`requirementsStatusHref`, `evidenceKindHref`, `requirementsPageHref`, `reportHref`, etc.). A small helper `href(path, params)` collapses the repetition.
-  - Where: `src/core/filters.ts`.
-  - Reduction: introduce one generic builder and inline the trivial ones.
-  - Risk: low
-  - Impact: ~80 LOC / 1 file simplified
-
-- [ ] **Reduce `src/core/lifecycle.ts` display/status complexity**
-  - Why: 825 LOC mixing assessment status derivation, remediation lifecycle, formatting, clustering, and job schemas. Several helpers (e.g., `formatDateTimeWithZone`, `toCountMap`, `mustGet`) could be simpler or moved closer to their only consumer.
-  - Where: `src/core/lifecycle.ts`.
-  - Reduction: split job schemas into `src/core/assessment-jobs.ts`; move `formatDateTime*` to a date helper; inline `mustGet`/`toCountMap` if only used once or twice; review clustering for duplicate grouping logic.
-  - Risk: medium
-  - Impact: ~150 LOC / 1-2 files reorganized
-
-- [ ] **Remove or consolidate redundant type definitions**
-  - Why: `Framework` (`packages/analysis-core/src/contract/project-types.ts`) and `FrameworkPreset` (`packages/adapters/src/types.ts`) are nearly the same concept. `CheckGuidance` (`packages/adapters/src/types.ts`) duplicates the shape already implied by `rgaaGuidanceFor`.
-  - Where: `packages/analysis-core/src/contract/project-types.ts`, `packages/adapters/src/types.ts`.
-  - Reduction: keep one type; inline the other or derive it. Delete `CheckGuidance` if `rgaa/guidance.ts` already exports a return type.
-  - Risk: low
-  - Impact: ~30 LOC / 2 files / 2 abstractions removed
-
----
-
 ## P2 — Minor reduction
-
-- [ ] **Simplify `useActionToast`**
-  - Why: 51 lines to show a toast when an action resolves. The `wasPending` ref dance can be replaced by deriving “just finished” from `(previousPending && !pending)` at the call site, or by a much smaller hook.
-  - Where: `src/hooks/use-action-toast.ts`.
-  - Reduction: remove the ref and effect complexity; use a simple effect that fires when `state` changes after `pending` flips false.
-  - Risk: low
-  - Impact: ~25 LOC / 1 file simplified
 
 - [ ] **Simplify `observability.ts` console logger**
   - Why: 156 LOC for a wrapper around `console` + Sentry. `emitLog`, `prettyValue`, `formatTsMillis`, `STYLES`, and `SEVERITY_ORDER` recreate structured logging that Sentry and the runtime already provide.
@@ -107,13 +15,6 @@
   - Risk: low-medium (changes log format; verify local dev experience)
   - Impact: ~100 LOC / 1 file simplified
 
-- [ ] **Centralize action input schemas**
-  - Why: every server action file (`src/server/actions/*.ts`) repeats `z.object({ orgId: requiredField("...") })` patterns. A small `schemas.ts` with reusable `orgId`, `projectId`, `membershipId`, etc. schemas removes duplication.
-  - Where: `src/server/actions/*.ts`.
-  - Reduction: extract common field schemas; inline compose with `.extend()` where action-specific fields exist.
-  - Risk: low
-  - Impact: ~60 LOC / 10 files touched
-
 - [ ] **Simplify `StatefulActionForm` feedback surface**
   - Why: the component (`src/components/stateful-action-form.tsx`) is a 99-line wrapper around `useActionState` + `useActionToast` + `ConfirmSubmitButton`. For forms without confirmation it is barely shorter than inlining the hook + Button.
   - Where: `src/components/stateful-action-form.tsx`, consumers in `src/components/`.
@@ -121,26 +22,26 @@
   - Risk: medium (many call sites)
   - Impact: ~50 LOC / 3-4 files simplified
 
-- [ ] **Inline trivial component wrappers**
-  - Why: `SubmitButton` inside `sign-in-with-github-button.tsx` is only used once and is a thin wrapper over `Button`. `sign-in-with-github-button.tsx` itself is only two imports deep.
-  - Where: `src/components/sign-in-with-github-button.tsx`.
-  - Reduction: inline `SubmitButton` into the form; consider inlining the whole component into `auth-controls.tsx` if it is the only consumer.
-  - Risk: low
-  - Impact: ~15 LOC / 1 file removed or inlined
+- [ ] **Simplify `useActionToast`**
+  - Why: 51 lines to show a toast when an action resolves. The `wasPending` ref dance can be replaced by deriving “just finished” from `(previousPending && !pending)` at the call site, or by a much smaller hook.
+  - Where: `src/hooks/use-action-toast.ts`.
+  - Reduction: remove the ref and effect complexity; use a simple effect that fires when `state` changes after `pending` flips false.
+  - Risk: medium (tests encode the pending-flip + repeat-success semantics)
+  - Impact: ~25 LOC / 1 file simplified
+
+- [ ] **Centralize action input schemas**
+  - Why: every server action file (`src/server/actions/*.ts`) repeats `z.object({ orgId: requiredField("...") })` patterns. A small `schemas.ts` with reusable `orgId`, `projectId`, `membershipId`, etc. schemas removes duplication.
+  - Where: `src/server/actions/*.ts`.
+  - Reduction: extract common field schemas; inline compose with `.extend()` where action-specific fields exist. Watch the per-field messages — they are user-facing.
+  - Risk: low-medium (message strings differ per action and are asserted in tests)
+  - Impact: ~60 LOC / 10 files touched
 
 - [ ] **Remove `exactLineEdit` fallback complexity**
-  - Why: `exactLineEdit` (`src/server/ai-fix.ts:39-56`) tries to produce a single-line diff, then falls back to replacing the whole file. The line-level optimization is fragile (uses `split` count to detect uniqueness) and the fallback already handles correctness.
+  - Why: `exactLineEdit` (`src/server/ai-fix.ts`) tries to produce a single-line diff, then falls back to replacing the whole file. The line-level optimization is fragile (uses `split` count to detect uniqueness) and the fallback already handles correctness.
   - Where: `src/server/ai-fix.ts`.
   - Reduction: keep the whole-file replacement path; delete the line-level heuristic.
-  - Risk: low-medium (slightly larger diffs in AI suggestions)
+  - Risk: medium (`src/server/ai-fix.test.ts` asserts line-level `oldText`/`newText`)
   - Impact: ~20 LOC / 1 file simplified
-
-- [ ] **Delete `customProbeCheckIds()` wrapper**
-  - Why: it just returns `[...CUSTOM_PROBE_CHECK_IDS]`. Tests and coverage code can import the array directly.
-  - Where: `packages/analysis-core/src/runtime/custom-checks/types.ts`.
-  - Reduction: export `CUSTOM_PROBE_CHECK_IDS` as the public API; delete the function.
-  - Risk: low
-  - Impact: ~5 LOC / 1 wrapper removed
 
 ---
 
@@ -152,13 +53,6 @@
   - Reduction: inline single-use primitives into their callers if they add no real value.
   - Risk: low
   - Impact: ~50-100 LOC / 2-4 files potentially merged
-
-- [ ] **Drop `form-classes.ts` if it duplicates Tailwind primitives**
-  - Why: `nativeSelectClass` (`src/components/form-classes.ts`) may overlap with styling already provided by the `select` primitive. Verify if it is still needed.
-  - Where: `src/components/form-classes.ts`, `src/components/ui/select.tsx` (if it exists).
-  - Reduction: delete `form-classes.ts` or inline the class string into `RoleSelect`/`AutoSubmitSelectForm`.
-  - Risk: low
-  - Impact: ~10 LOC
 
 - [ ] **Simplify `report-client-error.ts` + `ReportedError`**
   - Why: `src/lib/report-client-error.ts` and `src/components/reported-error.tsx` wrap a client-side fetch to report errors. If Next.js error boundaries + Sentry already capture client errors, the custom reporter may be redundant.
@@ -176,23 +70,25 @@
 
 ---
 
-## Biggest Wins
+## Completed
 
-These are the highest-value reductions that remove the most code and complexity with the least loss of meaningful boundaries:
-
-1. **Merge `packages/adapters` into `packages/analysis-core`** — removes an entire package boundary, ~3 kLOC, and the `Framework`/`FrameworkPreset` duplication.
-2. **Collapse targeted project-write loading** — deletes the `loadTargetedProjectWriteDb`/`captureEntityLoadedSlice` optimization and stale-write slice diffing, ~350 LOC.
-3. **Consolidate runtime custom-check orchestration and merge tiny probe files** — replaces ~20 repetitive `guarded(...)` calls with a registry and merges helper files, ~400 LOC / 10+ files.
-4. **Unify finding merge/dedupe utilities** — one module for AST authority filtering, runtime dedupe, and fix precedence, ~150 LOC.
-5. **Simplify `FindingsBulkList`** — remove unnecessary memoization and inline the row sub-component, ~120 LOC.
-6. **Generalize DB row mappers** — collapse seven repetitive `*ToRow` functions into one helper, ~80 LOC.
-7. **Simplify `src/core/filters.ts` URL builders** — one generic builder for the repetitive href logic, ~80 LOC.
-8. **Simplify `observability.ts`** — use console/Sentry directly, ~100 LOC.
+- **P0 — Collapse the targeted project-write loading optimization.** `loadTargetedProjectWriteDb`/`loadTargetedProjectRuntime` and the `ProjectWriteScope` entities mode are gone; `withProjectWrite` now loads the full project runtime (`loadProjectWriteDb`) and captures one stale-write slice. Also fixes the partial-findings requirement-refresh bug in `TODO.md` P0-1.
+- **P0 — Consolidate runtime custom-check orchestration.** `index.ts` now iterates `PARALLEL_PROBES` / `INTERACTION_PROBES` / `VIEWPORT_PROBES` instead of ~20 repeated `guarded(...)` calls.
+- **P0 — Unify finding merge/dedupe.** `dedupeRuntimeFindings`, `mergeContributors`, `filterAstFindingsForAuthority`, and `mergeRawFindings` now live in `packages/analysis-core/src/merge-findings.ts`; `runtime/dedupe-runtime-findings.ts` deleted.
+- **P1 — Merge small related runtime probe files.** Inlined `reflow-math`, `label-adjacent-math`, `non-text-contrast-math`, `focus-trap`, `focus-indicator`, `reflow-exceptions`, and `is-layout-table` into their consumers. Shared helpers (`widget-keyboard-utils`, `interactive-control-selectors`, `hover-reveal`, `form-submit-probe`, `layout-table-fixtures`) and `page-restore` (mocked by `index.test.ts`) intentionally kept.
+- **P1 — Simplify `FindingsBulkList`.** Removed `memo`/`useCallback`/`useMemo`/`useEffect`/`useRef`; indeterminate state now set via ref callback.
+- **P1 — Reduce `lifecycle.ts`.** Assessment-job schemas/types extracted to `src/core/assessment-jobs.ts`.
+- **Merge `packages/adapters` into `packages/analysis-core`** (earlier): package boundary, build step, and `@complyloop/adapters` imports removed; `CheckGuidance` derived from `Explanation`.
+- **Shared copy-to-clipboard hook** (`src/hooks/use-copy.ts`).
+- **Generalized DB `*ToRow` mappers** (`withPayload` helper).
+- **Flattened adapter registry helpers** (`FRAMEWORK_PRESETS`, `CUSTOM_PROBE_CHECK_IDS` used directly).
+- **Simplified `src/core/filters.ts` URL builders** (one `href(path, params)` helper).
 
 ---
 
 ## Notes
 
 - Do **not** remove meaningful domain boundaries (assessment engine, DB repo layer, check registry, workspace read/write separation) or tests just to reduce LOC.
-- Verify data bounds and write throughput before collapsing the targeted project-write loader.
-- The shadcn/ui primitives are auto-generated; only remove them if they have no real consumers.
+- Rejected: inlining `SubmitButton` (`sign-in-with-github-button.tsx`) — `useFormStatus` only reports the nearest parent `<form>`, so it must stay a child component.
+- Rejected: removing `src/components/form-classes.ts` — there is no `ui/select` primitive to replace `nativeSelectClass`.
+- `Framework` (id/name/version) and `FrameworkPreset` (id/name/description/frameworkId/controlIds) are distinct concepts, not duplicates — kept as-is.

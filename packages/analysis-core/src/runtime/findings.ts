@@ -5,7 +5,7 @@ import type { CheckId } from "../check-registry.ts";
 import type { RawFinding } from "../types.ts";
 import { checkIdForAxeRule } from "./axe-map.ts";
 import { htmlSnippet, selectorFromTarget } from "./dom-location.ts";
-import { dedupeRuntimeFindings } from "./dedupe-runtime-findings.ts";
+import { dedupeRuntimeFindings } from "../merge-findings.ts";
 import { normalizeRoutes } from "./routes.ts";
 import { rawFindingFromDom } from "./raw-finding-from-dom.ts";
 

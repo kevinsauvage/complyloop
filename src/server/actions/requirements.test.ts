@@ -89,7 +89,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("reason", "not_applicable");
@@ -118,7 +118,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("reason", "temporary");
@@ -148,7 +148,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("reason", "temporary");
@@ -172,7 +172,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("reason", "accepted_risk");
@@ -195,7 +195,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("note", "Reviewed in staging");
@@ -221,7 +221,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
 
     const form = new FormData();
     form.set("note", "should not work");
@@ -248,7 +248,7 @@ describe("requirement decision actions", () => {
       },
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
 
     const result = await clearRequirementHumanPassAction(
       "req-pass",
@@ -275,7 +275,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
 
     const result = await clearRequirementHumanPassAction(
       "req-no-pass",
@@ -300,7 +300,7 @@ describe("requirement decision actions", () => {
       },
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
 
     const result = await clearRequirementExceptionAction(
       "req-3",
@@ -327,7 +327,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
 
     const result = await clearRequirementExceptionAction(
       "req-no-ex",

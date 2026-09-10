@@ -1,9 +1,23 @@
 import type { Page } from "playwright";
-import { isTwoDimensionalLayout } from "./reflow-exceptions.ts";
-import { REFLOW_VIEWPORT } from "./reflow-math.ts";
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
+
+export const REFLOW_VIEWPORT = { width: 320, height: 568 } as const;
+
+/**
+ * WCAG 1.4.10 two-dimensional layout exceptions. Horizontal scrolling is
+ * legitimate for tables, maps, diagrams, video, and similar content.
+ */
+export function isTwoDimensionalLayout(
+  tagName: string,
+  role: string | null,
+): boolean {
+  const tags = ["table", "img", "svg", "canvas", "video", "iframe", "pre", "map"];
+  const roles = ["grid", "treegrid", "img", "application"];
+  if (tags.includes(tagName.toLowerCase())) return true;
+  return role !== null && roles.includes(role);
+}
 
 const TWO_D_LAYOUT_SOURCE = isTwoDimensionalLayout.toString();
 

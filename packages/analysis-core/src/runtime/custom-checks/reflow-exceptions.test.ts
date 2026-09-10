@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTwoDimensionalLayout } from "./reflow-exceptions";
+import { isTwoDimensionalLayout } from "./reflow";
 
 describe("isTwoDimensionalLayout", () => {
   it("exempts data tables, grids, and maps", () => {

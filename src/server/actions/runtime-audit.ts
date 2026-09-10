@@ -52,7 +52,7 @@ export async function updateRuntimeAuditAction(
       normalized = new URL(resolved).origin;
     }
 
-    await withProjectWrite({ touch: "project" }, async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.connect");
       const { project } = workspace;
 

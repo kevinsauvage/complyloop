@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { DismissFindingFields } from "@/components/findings/dismiss-finding-fields";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,7 @@ function severityDotClass(severity: Severity): string {
 }
 
 /** Scannable row: severity dot + title first, meta as muted text (no badge stack). */
-const FindingsBulkRow = memo(function FindingsBulkRow({
+function FindingsBulkRow({
   finding,
   control,
   remediationStatus,
@@ -118,7 +118,7 @@ const FindingsBulkRow = memo(function FindingsBulkRow({
       </div>
     </li>
   );
-});
+}
 
 export function FindingsBulkList({
   items,
@@ -130,45 +130,33 @@ export function FindingsBulkList({
   listParams: FindingListParams;
 }) {
   const selectAllId = useId();
-  const selectAllRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [showDismiss, setShowDismiss] = useState(false);
 
-  const allIds = useMemo(() => items.map((item) => item.finding.id), [items]);
+  const allIds = items.map((item) => item.finding.id);
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
   const someSelected = selected.size > 0 && !allSelected;
   const selectedCount = selected.size;
+  const approvableIds = items
+    .filter((item) =>
+      canBulkApproveRemediation(item.finding, item.remediationStatus),
+    )
+    .filter((item) => selected.has(item.finding.id))
+    .map((item) => item.finding.id);
 
-  useEffect(() => {
-    if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = someSelected;
-    }
-  }, [someSelected]);
-
-  const approvableIds = useMemo(() => {
-    return items
-      .filter((item) =>
-        canBulkApproveRemediation(item.finding, item.remediationStatus),
-      )
-      .filter((item) => selected.has(item.finding.id))
-      .map((item) => item.finding.id);
-  }, [items, selected]);
-
-  // Stable identity so memoized rows skip re-render when only selection changes.
-  const toggle = useCallback((id: string) => {
+  function toggle(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  }, []);
+  }
 
   function toggleAll() {
-    setSelected((prev) => {
-      if (allIds.every((id) => prev.has(id))) return new Set();
-      return new Set(allIds);
-    });
+    setSelected((prev) =>
+      allIds.every((id) => prev.has(id)) ? new Set() : new Set(allIds),
+    );
   }
 
   return (
@@ -187,7 +175,9 @@ export function FindingsBulkList({
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5">
           <div className="flex items-center gap-2">
             <input
-              ref={selectAllRef}
+              ref={(el) => {
+                if (el) el.indeterminate = someSelected;
+              }}
               id={selectAllId}
               type="checkbox"
               checked={allSelected}

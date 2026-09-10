@@ -43,17 +43,14 @@ describe.skipIf(!enabled)("withProjectWrite postgres integration", () => {
     readActiveProjectCookie.mockResolvedValue(fixture.projectId);
 
     try {
-      await withProjectWrite(
-        { touch: "entities", findingIds: [fixture.findingOneId] },
-        async (workspace) => {
-          const finding = workspace.db.findings.find(
-            (item) => item.id === fixture.findingOneId,
-          );
-          if (!finding) throw new Error("Expected seeded finding.");
-          finding.status = "dismissed";
-          return { findings: [finding] };
-        },
-      );
+      await withProjectWrite(async (workspace) => {
+        const finding = workspace.db.findings.find(
+          (item) => item.id === fixture.findingOneId,
+        );
+        if (!finding) throw new Error("Expected seeded finding.");
+        finding.status = "dismissed";
+        return { findings: [finding] };
+      });
 
       const rows = await drizzle
         .select({ payload: findings.payload })

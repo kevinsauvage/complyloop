@@ -51,18 +51,15 @@ vi.mock("@/server/workspace-write", async () => {
   );
   return {
     ...actual,
-    withProjectWrite: (
-      scope: Parameters<typeof actual.withProjectWrite>[0],
-      fn: Parameters<typeof actual.withProjectWrite>[1],
-    ) => actionWorkspaceMocks.withProjectWrite(scope, fn),
+    withProjectWrite: (fn: Parameters<typeof actual.withProjectWrite>[0]) =>
+      actionWorkspaceMocks.withProjectWrite(fn),
     withFindingWrite: (
       findingId: string,
       permission: Parameters<typeof actual.withFindingWrite>[1],
       fn: Parameters<typeof actual.withFindingWrite>[2],
     ) =>
       actionWorkspaceMocks.withProjectWrite(
-        { touch: "entities", findingIds: [findingId] },
-        (workspace: Parameters<typeof actual.withProjectWrite>[1] extends (
+        (workspace: Parameters<typeof actual.withProjectWrite>[0] extends (
           w: infer W,
         ) => unknown
           ? W

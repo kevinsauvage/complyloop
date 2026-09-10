@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gapBetweenRects } from "./label-adjacent-math";
+import { gapBetweenRects } from "./label-adjacent";
 import { labelAdjacentViolation } from "./label-adjacent";
 import {
   chromiumExecutableAvailable,

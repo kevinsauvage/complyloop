@@ -24,7 +24,7 @@ export async function setDefaultPresetAction(
   return runAction(async () => {
     const { presetId } = parseForm(setDefaultPresetInput, formData);
     let changed = false;
-    await withProjectWrite({ touch: "project" }, async (workspace) => {
+    await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.connect");
       const { project } = workspace;
       const payload: ProjectWritePayload = {};

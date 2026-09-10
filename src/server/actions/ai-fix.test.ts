@@ -81,7 +81,7 @@ describe("generateAiFixAction", () => {
   it("generates and persists a verified patch in the request", async () => {
     const current = workspace();
     getWorkspace.mockResolvedValue(current);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(current, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(current, fn));
     withProjectCheckout.mockImplementation(
       async (_project, fn: (rootPath: string) => unknown) =>
         fn("/tmp/checkout"),
@@ -158,7 +158,7 @@ describe("generateAiFixAction", () => {
       },
     };
     getWorkspace.mockResolvedValue(current);
-    withProjectWrite.mockImplementation(async (_scope, fn) => invokeProjectWriteMock(current, fn));
+    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(current, fn));
     withProjectCheckout.mockImplementation(
       async (_project, fn: (rootPath: string) => unknown) =>
         fn("/tmp/checkout"),
