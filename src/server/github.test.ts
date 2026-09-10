@@ -44,12 +44,18 @@ describe("redactCloneUrl", () => {
     );
   });
 
-  it("redacts leaked Bearer header values", () => {
-    const redacted = redactCloneUrl(
+  it("redacts leaked Authorization header values", () => {
+    const bearer = redactCloneUrl(
       "http.extraHeader: Authorization: Bearer ghs_secret_token",
     );
-    expect(redacted).not.toContain("ghs_secret_token");
-    expect(redacted).toContain("Authorization: Bearer ***");
+    expect(bearer).not.toContain("ghs_secret_token");
+    expect(bearer).toContain("Authorization: Bearer ***");
+
+    const basic = redactCloneUrl(
+      "http.extraHeader: Authorization: Basic eC1hY2Nlc3MtdG9rZW46Z2hzX3NlY3JldA==",
+    );
+    expect(basic).not.toContain("eC1hY2Nlc3MtdG9rZW46Z2hzX3NlY3JldA==");
+    expect(basic).toContain("Authorization: Basic ***");
   });
 });
 

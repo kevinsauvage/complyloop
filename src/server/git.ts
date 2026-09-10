@@ -47,16 +47,23 @@ export function createGit(
 /**
  * Auth for git-over-HTTPS without embedding the token in the clone/push URL
  * (URLs become process argv, visible via `ps`). Git ≥2.31 reads
- * `GIT_CONFIG_COUNT/KEY_x/VALUE_x` into its config, so the token travels as an
- * `Authorization` header in the child process environment instead. Env of a
- * short-lived child is meaningfully safer than argv (same-user visibility
- * vs world-readable cmdline).
+ * `GIT_CONFIG_COUNT/KEY_x/VALUE_x` into its config, so the credential travels
+ * in the child process environment instead. Env of a short-lived child is
+ * meaningfully safer than argv (same-user visibility vs world-readable cmdline).
+ *
+ * GitHub's git endpoints expect the token as the password of an HTTP Basic
+ * credential (`x-access-token:<token>`); `Authorization: Bearer` is accepted by
+ * the REST API but rejected by git-over-HTTPS, which then falls back to a
+ * credential prompt.
  */
 export function gitAuthEnv(accessToken: string): Record<string, string> {
+  const basic = Buffer.from(`x-access-token:${accessToken}`, "utf8").toString(
+    "base64",
+  );
   return {
     GIT_CONFIG_COUNT: "1",
     GIT_CONFIG_KEY_0: "http.extraHeader",
-    GIT_CONFIG_VALUE_0: `Authorization: Bearer ${accessToken}`,
+    GIT_CONFIG_VALUE_0: `Authorization: Basic ${basic}`,
   };
 }
 

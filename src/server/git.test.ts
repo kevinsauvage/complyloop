@@ -33,12 +33,13 @@ describe("gitProcessEnv", () => {
 });
 
 describe("gitAuthEnv", () => {
-  it("maps the token to an http.extraHeader Authorization header", () => {
+  it("maps the token to an http.extraHeader Basic credential", () => {
     const env = gitAuthEnv("ghs_secret");
+    const encoded = Buffer.from("x-access-token:ghs_secret").toString("base64");
     expect(env).toEqual({
       GIT_CONFIG_COUNT: "1",
       GIT_CONFIG_KEY_0: "http.extraHeader",
-      GIT_CONFIG_VALUE_0: "Authorization: Bearer ghs_secret",
+      GIT_CONFIG_VALUE_0: `Authorization: Basic ${encoded}`,
     });
   });
 

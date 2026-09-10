@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseSource } from "@complyloop/analysis-core/parse";
-import { buttonNameCheck } from "@complyloop/analysis-core/checks/button-name";
+import { buttonNameCheck } from "@complyloop/analysis-core/checks/families/names";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding, Remediation } from "@complyloop/db/types";
 import { testProject } from "@/test-fixtures/project";

@@ -119,13 +119,13 @@ export function githubPublicCloneUrl(fullName: string): string {
  * Strips embedded URL credentials (`https://user:pass@host/...`) from free
  * text such as git error output. Git echoes the remote URL on failure, which
  * would otherwise leak the clone token into user-visible errors. Also scrubs
- * leaked `Authorization: Bearer` header values (defense-in-depth now that
- * tokens travel via `http.extraHeader` env).
+ * leaked `Authorization` header values (defense-in-depth now that tokens travel
+ * via `http.extraHeader` env).
  */
 export function redactCloneUrl(text: string): string {
   return text
     .replace(/:\/\/[^@\s/]+@/g, "://***@")
-    .replace(/(Authorization:\s*Bearer\s+)\S+/gi, "$1***");
+    .replace(/(Authorization:\s*(?:Bearer|Basic|token)\s+)\S+/gi, "$1***");
 }
 
 /** GitHub full names are case-insensitive; normalize for map keys and equality. */

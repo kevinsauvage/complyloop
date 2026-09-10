@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buttonNameCheck } from "@complyloop/analysis-core/checks/button-name";
+import { buttonNameCheck } from "@complyloop/analysis-core/checks/families/names";
 import { applyFix } from "@complyloop/analysis-core/fixes";
 import { parseSource } from "@complyloop/analysis-core/parse";
 import { scanFile } from "@complyloop/analysis-core/scan";
