@@ -20,6 +20,13 @@ export interface AssessmentSnapshot {
   /** Relative path → content hash for source files at assessment time. */
   fileHashes: Record<string, string>;
   gitHead?: string;
+  /**
+   * Fingerprint of the assessed control scope + AST check registry at snapshot
+   * time. Lets a re-assessment at the same `gitHead` reuse prior AST findings
+   * and skip a full source scan when sources, scope, and engine set are all
+   * unchanged.
+   */
+  controlScopeKey?: string;
 }
 
 export interface Assessment {

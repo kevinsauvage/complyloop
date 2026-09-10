@@ -31,9 +31,15 @@ export function AssessmentJobStatusLive({
     if (!polling) return;
 
     let cancelled = false;
+    let inFlight = false;
     let wasActive = true;
 
     async function poll(): Promise<void> {
+      // Skip while a previous request is outstanding or the tab is hidden so a
+      // slow response can't stack requests in the background.
+      if (cancelled || inFlight) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      inFlight = true;
       try {
         const response = await fetch(`/api/projects/${projectId}/assessment-jobs`);
         if (cancelled) return;
@@ -59,6 +65,8 @@ export function AssessmentJobStatusLive({
         if (!cancelled) {
           setPollError("Could not refresh assessment job status.");
         }
+      } finally {
+        inFlight = false;
       }
     }
 
@@ -66,9 +74,17 @@ export function AssessmentJobStatusLive({
       void poll();
     }, POLL_MS);
 
+    // Refresh immediately when the tab becomes visible again instead of waiting
+    // out the interval.
+    const onVisibilityChange = (): void => {
+      if (!document.hidden) void poll();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     return () => {
       cancelled = true;
       window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [polling, projectId, router]);
 

@@ -233,6 +233,7 @@ export const evidence = pgTable(
   (table) => [
     index("evidence_at_idx").on(table.at),
     index("evidence_project_at_idx").on(table.projectId, table.at),
+    index("evidence_finding_at_idx").on(table.findingId, table.at),
   ],
 );
 

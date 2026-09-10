@@ -1,4 +1,5 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { FINDING_STATUSES, type FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Finding } from "../types";
 import type { DrizzleDb } from "../postgres.ts";
 import { findings } from "../schema.ts";
@@ -17,15 +18,58 @@ export async function getFindingById(
   return rows[0]?.payload;
 }
 
+export interface ListFindingsOptions {
+  /**
+   * Restrict the load to these finding statuses. Omit for all statuses (the
+   * write/assessment/report paths that need full history). An empty array
+   * loads no findings for callers that only need the rest of the runtime.
+   */
+  statuses?: readonly FindingStatus[];
+}
+
 export async function listFindingsForProject(
   drizzle: DrizzleDb,
   projectId: string,
+  options: ListFindingsOptions = {},
 ): Promise<Finding[]> {
+  const { statuses } = options;
+  if (statuses && statuses.length === 0) return [];
+  const where =
+    statuses && statuses.length > 0
+      ? and(
+          eq(findings.projectId, projectId),
+          inArray(findings.status, [...statuses]),
+        )
+      : eq(findings.projectId, projectId);
   const rows = await drizzle
     .select({ payload: findings.payload })
     .from(findings)
-    .where(eq(findings.projectId, projectId));
+    .where(where);
   return rows.map((row) => row.payload);
+}
+
+/**
+ * Status counts for a project. Served by `findings_project_status_idx`, so the
+ * findings page can render tab totals without loading history rows.
+ */
+export async function countFindingsByStatusForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+): Promise<Record<FindingStatus, number>> {
+  const rows = await drizzle
+    .select({ status: findings.status, value: count() })
+    .from(findings)
+    .where(eq(findings.projectId, projectId))
+    .groupBy(findings.status);
+  const counts = Object.fromEntries(
+    FINDING_STATUSES.map((status) => [status, 0]),
+  ) as Record<FindingStatus, number>;
+  for (const row of rows) {
+    if ((FINDING_STATUSES as readonly string[]).includes(row.status)) {
+      counts[row.status as FindingStatus] = Number(row.value ?? 0);
+    }
+  }
+  return counts;
 }
 
 export interface UpsertFindingsOptions {

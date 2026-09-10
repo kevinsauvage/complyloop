@@ -72,7 +72,9 @@ export async function markAllAlertsReadAction(
       "project.view",
     );
 
-    const runtime = await getProjectRuntime(project.id);
+    const runtime = await getProjectRuntime(project.id, {
+      findingStatuses: [],
+    });
     const count = await withProjectLock(project.id, async (tx) => {
       return markAllProjectAlertsRead(
         tx,

@@ -15,6 +15,7 @@ import {
   findingsListHref,
   hasActiveFindingFilters,
   orderFindingsForList,
+  pageSliceFromQuery,
   parseFindingListParams,
   type FilterFindingsContext,
   type FindingsTab,
@@ -26,6 +27,8 @@ import { prioritizeClusters } from "@/core/lifecycle";
 import { clusterFindings } from "@/core/lifecycle";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Finding } from "@complyloop/db/types";
+import { getDrizzle } from "@complyloop/db/postgres";
+import { countFindingsByStatusForProject } from "@complyloop/db/repo/findings";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { findingsInScope } from "@/server/project-scope";
 import { getWorkspace } from "@/server/workspace";
@@ -92,7 +95,27 @@ export default async function FindingsPage({
     );
   }
 
-  const runtime = await getProjectRuntime(project.id);
+  // Never rewrite the requested tab: a shared or bookmarked ?tab=open link
+  // must render the open list (or its empty state), not silently jump to
+  // another status.
+  const activeTab: FindingsTab = listParams.tab;
+  const statusForTab: FindingStatus =
+    activeTab === "by_cause" ? "open" : activeTab;
+
+  // Tab totals come from an index-only count so inherited history never inflates
+  // the payload. Only open findings plus the active status load in full:
+  // dashboard/requirements/finding pages only need open findings, and resolved
+  // or dismissed rows are fetched only when their tab is actually viewed.
+  const statusCounts = await countFindingsByStatusForProject(
+    await getDrizzle(),
+    project.id,
+  );
+  const totalFindings =
+    statusCounts.open + statusCounts.resolved + statusCounts.dismissed;
+  const findingStatuses: FindingStatus[] =
+    statusForTab === "open" ? ["open"] : ["open", statusForTab];
+
+  const runtime = await getProjectRuntime(project.id, { findingStatuses });
   const caps = projectCapabilities(project, access, activeOrgId);
   const findings = findingsInScope(runtime.findings, project);
   const remediationByFindingId = new Map(
@@ -118,8 +141,14 @@ export default async function FindingsPage({
     orderFindingsForList(findings, status, listParams, filterContext);
 
   const openSlice = paginateSlice(byStatus("open"), listParams.page);
-  const resolvedSlice = paginateSlice(byStatus("resolved"), listParams.page);
-  const dismissedSlice = paginateSlice(byStatus("dismissed"), listParams.page);
+  // Inactive history tabs use the SQL count for their badge; their rows load
+  // only when the tab is active, so the slice is intentionally empty.
+  const resolvedSlice = findingStatuses.includes("resolved")
+    ? paginateSlice(byStatus("resolved"), listParams.page)
+    : pageSliceFromQuery<Finding>([], listParams.page, statusCounts.resolved);
+  const dismissedSlice = findingStatuses.includes("dismissed")
+    ? paginateSlice(byStatus("dismissed"), listParams.page)
+    : pageSliceFromQuery<Finding>([], listParams.page, statusCounts.dismissed);
   const paginationQuery = findingListPaginationQuery(listParams);
 
   const listFor = (sliceFindings: Finding[]) => {
@@ -136,16 +165,11 @@ export default async function FindingsPage({
     );
   };
 
-  // Never rewrite the requested tab: a shared or bookmarked ?tab=open link
-  // must render the open list (or its empty state), not silently jump to
-  // another status.
-  const activeTab: FindingsTab = listParams.tab;
-
   const hasAssessment = runtime.assessments.some(
     (assessment) => assessment.projectId === project.id,
   );
 
-  if (findings.length === 0) {
+  if (totalFindings === 0) {
     return (
       <>
         <PageHeader

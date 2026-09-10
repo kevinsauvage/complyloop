@@ -17,10 +17,7 @@ import { Label } from "@/components/ui/label";
 import { githubRepoSearchResponseSchema, parseUnknown } from "@/core/filters";
 import { STATUS_TONE_BADGE } from "@/core/display";
 import { useActionToast } from "@/hooks/use-action-toast";
-import {
-  initialActionState,
-  type ActionState,
-} from "@/server/action-state";
+import { initialActionState, type ActionState } from "@/core/action-state";
 import {
   connectGitHubRepoAction,
   disconnectGitHubRepoAction,
@@ -140,7 +137,10 @@ export function GitHubRepoPicker({
             ? [
                 ...prev,
                 ...result.repos.filter(
-                  (repo) => !prev.some((existing) => existing.fullName === repo.fullName),
+                  (repo) =>
+                    !prev.some(
+                      (existing) => existing.fullName === repo.fullName,
+                    ),
                 ),
               ]
             : result.repos,
@@ -150,7 +150,9 @@ export function GitHubRepoPicker({
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") return;
         setFetchError(
-          error instanceof Error ? error.message : "Could not load repositories.",
+          error instanceof Error
+            ? error.message
+            : "Could not load repositories.",
         );
         if (!append) setRepos([]);
         setHasMore(false);
@@ -191,7 +193,8 @@ export function GitHubRepoPicker({
 
   const grouped = useMemo(() => groupReposByOwner(repos), [repos]);
   const trimmedQuery = query.trim();
-  const showEmpty = !loading && repos.length === 0 && !fetchError && !trimmedQuery;
+  const showEmpty =
+    !loading && repos.length === 0 && !fetchError && !trimmedQuery;
   const showNoMatch =
     !loading && repos.length === 0 && !fetchError && trimmedQuery.length > 0;
 
@@ -199,8 +202,8 @@ export function GitHubRepoPicker({
     return (
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          No repositories from your GitHub App installations. Install the App
-          on the repos you want to assess, then refresh this page.
+          No repositories from your GitHub App installations. Install the App on
+          the repos you want to assess, then refresh this page.
         </p>
         {appInstallUrl ? (
           <Button asChild size="sm" className="w-fit">
@@ -251,7 +254,11 @@ export function GitHubRepoPicker({
         </p>
       ) : null}
 
-      <p aria-live="polite" aria-atomic="true" className="text-xs text-muted-foreground">
+      <p
+        aria-live="polite"
+        aria-atomic="true"
+        className="text-xs text-muted-foreground"
+      >
         {loading && repos.length === 0
           ? "Loading repositories…"
           : `${repos.length} ${repos.length === 1 ? "repository" : "repositories"} shown`}
@@ -288,79 +295,96 @@ export function GitHubRepoPicker({
 
         <div className="flex flex-col gap-4">
           {grouped.map(({ owner, repos: ownerRepos }) => (
-          <section key={owner} aria-label={`Repositories for ${owner}`}>
-            <h3 className="mb-2 font-mono text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              {owner}
-            </h3>
-            <ul className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60 ring-1 ring-border/40">
-              {ownerRepos.map((repo) => {
-                const projectId =
-                  connectedByFullName[repo.fullName.trim().toLowerCase()];
-                const connected = Boolean(projectId);
-                const formId = `disconnect-${repo.fullName}`;
-                return (
-                  <li
-                    key={`${repo.installationId ?? 0}:${repo.fullName}`}
-                    className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 transition-colors hover:bg-accent/30"
-                  >
-                    <div className="min-w-0 flex-1 basis-48">
-                      <p className="flex flex-wrap items-center gap-2 font-mono text-sm font-medium break-all">
-                        {repo.fullName}
-                        {connected ? (
-                          <Badge className={`${STATUS_TONE_BADGE.passed} font-sans`}>
-                            Connected
-                          </Badge>
-                        ) : null}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {repo.private ? "Private" : "Public"}
-                        {repo.description ? ` · ${repo.description}` : ""}
-                      </p>
-                    </div>
-                    {connected && projectId ? (
-                      <form
-                        id={formId}
-                        action={disconnectAction}
-                        className="w-full sm:w-auto"
-                      >
-                        <input type="hidden" name="projectId" value={projectId} />
-                        <ConfirmSubmitButton
-                          label={disconnectPending ? "Disconnecting…" : "Disconnect"}
-                          pendingLabel="Disconnecting…"
-                          confirmMessage={`Disconnect ${repo.fullName}? Future assessments stop. Past evidence is retained for audit; findings and remediations for this project are removed.`}
-                          confirmTitle="Disconnect repository"
-                          variant="outline"
-                          size="sm"
-                          formId={formId}
-                          className="w-full sm:w-auto"
-                        />
-                      </form>
-                    ) : (
-                      <form action={connectAction} className="w-full sm:w-auto">
-                        <input type="hidden" name="fullName" value={repo.fullName} />
-                        {repo.installationId != null ? (
-                          <input
-                            type="hidden"
-                            name="installationId"
-                            value={String(repo.installationId)}
-                          />
-                        ) : null}
-                        <Button
-                          type="submit"
-                          size="sm"
-                          disabled={connectPending}
+            <section key={owner} aria-label={`Repositories for ${owner}`}>
+              <h3 className="mb-2 font-mono text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                {owner}
+              </h3>
+              <ul className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60 ring-1 ring-border/40">
+                {ownerRepos.map((repo) => {
+                  const projectId =
+                    connectedByFullName[repo.fullName.trim().toLowerCase()];
+                  const connected = Boolean(projectId);
+                  const formId = `disconnect-${repo.fullName}`;
+                  return (
+                    <li
+                      key={`${repo.installationId ?? 0}:${repo.fullName}`}
+                      className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 transition-colors hover:bg-accent/30"
+                    >
+                      <div className="min-w-0 flex-1 basis-48">
+                        <p className="flex flex-wrap items-center gap-2 font-mono text-sm font-medium break-all">
+                          {repo.fullName}
+                          {connected ? (
+                            <Badge
+                              className={`${STATUS_TONE_BADGE.passed} font-sans`}
+                            >
+                              Connected
+                            </Badge>
+                          ) : null}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {repo.private ? "Private" : "Public"}
+                          {repo.description ? ` · ${repo.description}` : ""}
+                        </p>
+                      </div>
+                      {connected && projectId ? (
+                        <form
+                          id={formId}
+                          action={disconnectAction}
                           className="w-full sm:w-auto"
                         >
-                          {connectPending ? "Connecting…" : "Connect"}
-                        </Button>
-                      </form>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
+                          <input
+                            type="hidden"
+                            name="projectId"
+                            value={projectId}
+                          />
+                          <ConfirmSubmitButton
+                            label={
+                              disconnectPending
+                                ? "Disconnecting…"
+                                : "Disconnect"
+                            }
+                            pendingLabel="Disconnecting…"
+                            confirmMessage={`Disconnect ${repo.fullName}? Future assessments stop. Past evidence is retained for audit; findings and remediations for this project are removed.`}
+                            confirmTitle="Disconnect repository"
+                            variant="outline"
+                            size="sm"
+                            formId={formId}
+                            className="w-full sm:w-auto"
+                          />
+                        </form>
+                      ) : (
+                        <form
+                          action={connectAction}
+                          className="w-full sm:w-auto"
+                        >
+                          <input
+                            type="hidden"
+                            name="fullName"
+                            value={repo.fullName}
+                          />
+                          {repo.installationId != null ? (
+                            <input
+                              type="hidden"
+                              name="installationId"
+                              value={String(repo.installationId)}
+                            />
+                          ) : null}
+                          <Button
+                            type="submit"
+                            size="sm"
+                            disabled={connectPending}
+                            className="w-full sm:w-auto"
+                          >
+                            {connectPending ? "Connecting…" : "Connect"}
+                          </Button>
+                        </form>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
         </div>
       </div>
 
@@ -373,7 +397,9 @@ export function GitHubRepoPicker({
           disabled={loading}
           onClick={() => void loadRepos(page + 1, query.trim(), true)}
         >
-          {loading ? "Loading…" : `Load more repositories (${repos.length} shown)`}
+          {loading
+            ? "Loading…"
+            : `Load more repositories (${repos.length} shown)`}
         </Button>
       ) : null}
     </div>

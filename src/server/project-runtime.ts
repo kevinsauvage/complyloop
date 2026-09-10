@@ -1,4 +1,5 @@
 import { cache } from "react";
+import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import { getDrizzle } from "@complyloop/db/postgres";
 import {
   WORKSPACE_EVIDENCE_LIMIT,
@@ -28,16 +29,23 @@ export interface ProjectRuntime {
  * Loads runtime rows for one project. Memoized per React request so dashboard
  * sections share one round-trip set. Delegates to {@link loadProjectRuntime}.
  * Pass `{ includeEvidence: false }` when the caller loads evidence separately
- * (e.g. report exports), so the window read is not issued twice.
+ * (e.g. report exports), so the window read is not issued twice. Pass
+ * `{ findingStatuses: ["open"] }` on read pages that never need history so an
+ * unbounded findings table does not inflate every response.
  */
 export const getProjectRuntime = cache(
   async (
     projectId: string,
-    options?: { includeEvidence?: boolean },
+    options?: {
+      includeEvidence?: boolean;
+      findingStatuses?: readonly FindingStatus[];
+    },
   ): Promise<ProjectRuntime> => {
     const drizzle = await getDrizzle();
     const [runtime, evidenceNewestFirst] = await Promise.all([
-      loadProjectRuntime(drizzle, projectId),
+      loadProjectRuntime(drizzle, projectId, {
+        findingStatuses: options?.findingStatuses,
+      }),
       options?.includeEvidence === false
         ? []
         : listEvidencePageForProject(

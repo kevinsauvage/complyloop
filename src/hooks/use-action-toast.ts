@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import type { ActionState } from "@/server/action-state";
+import type { ActionState } from "@/core/action-state";
 
 /**
  * Surfaces `useActionState` results via the global Sonner toaster.
@@ -22,7 +22,11 @@ export function useActionToast(
     toastErrors?: boolean;
   },
 ): void {
-  const { successDuration = 4_000, successAction, toastErrors = false } = options ?? {};
+  const {
+    successDuration = 4_000,
+    successAction,
+    toastErrors = false,
+  } = options ?? {};
   const wasPending = useRef(false);
 
   useEffect(() => {
@@ -38,5 +42,12 @@ export function useActionToast(
       duration: successDuration,
       ...(successAction ? { action: successAction } : {}),
     });
-  }, [pending, state.ok, state.message, successDuration, successAction, toastErrors]);
+  }, [
+    pending,
+    state.ok,
+    state.message,
+    successDuration,
+    successAction,
+    toastErrors,
+  ]);
 }

@@ -6,20 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RoleSelect } from "@/components/role-select";
 import { useActionToast } from "@/hooks/use-action-toast";
-import {
-  initialActionState,
-  type ActionState,
-} from "@/server/action-state";
+import { initialActionState, type ActionState } from "@/core/action-state";
 
 export function InviteMemberForm({
   action,
   orgId,
   canAssignAdmin = false,
 }: {
-  action: (
-    previous: ActionState,
-    formData: FormData,
-  ) => Promise<ActionState>;
+  action: (previous: ActionState, formData: FormData) => Promise<ActionState>;
   orgId: string;
   /** Owners may invite admins; admins may only invite member/viewer. */
   canAssignAdmin?: boolean;
@@ -62,7 +56,11 @@ export function InviteMemberForm({
         {pending ? "Inviting…" : "Invite"}
       </Button>
       {!state.ok && state.message && !pending ? (
-        <p id="githubLogin-error" role="alert" className="text-sm text-destructive">
+        <p
+          id="githubLogin-error"
+          role="alert"
+          className="text-sm text-destructive"
+        >
           {state.message}
         </p>
       ) : null}

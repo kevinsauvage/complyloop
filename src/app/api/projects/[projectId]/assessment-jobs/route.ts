@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { entityIdSchema, parseInput } from "@/core/filters";
-import { isProjectVisible } from "@/server/project-visibility";
 import { recentAssessmentJobsForProject } from "@/server/assessment-jobs";
-import { getWorkspace } from "@/server/workspace";
+import { viewerCanViewProject } from "@/server/workspace";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,9 +21,9 @@ export async function GET(
   } catch {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
-  const workspace = await getWorkspace();
-  const project = workspace.projects.find((candidate) => candidate.id === projectId);
-  if (!project || !isProjectVisible(project, workspace.access)) {
+  // Polled every few seconds while a job is active: authorize with a single
+  // project row instead of the full workspace tenancy load.
+  if (!(await viewerCanViewProject(projectId))) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 

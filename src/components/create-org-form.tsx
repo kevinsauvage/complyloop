@@ -5,18 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActionToast } from "@/hooks/use-action-toast";
-import {
-  initialActionState,
-  type ActionState,
-} from "@/server/action-state";
+import { initialActionState, type ActionState } from "@/core/action-state";
 
 export function CreateOrgForm({
   action,
 }: {
-  action: (
-    previous: ActionState,
-    formData: FormData,
-  ) => Promise<ActionState>;
+  action: (previous: ActionState, formData: FormData) => Promise<ActionState>;
 }) {
   const [state, formAction, pending] = useActionState(
     action,

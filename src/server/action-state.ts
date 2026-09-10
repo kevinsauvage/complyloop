@@ -1,25 +1,6 @@
 import { isPublicError } from "@complyloop/analysis-core/contract/public-error";
+import { unexpectedActionMessage, type ActionState } from "@/core/action-state";
 import { reportError } from "./observability";
-
-/**
- * Result of a form server action. `ok` separates a success toast from an inline
- * error; `message` is public copy in both cases.
- */
-export type ActionState = {
-  ok: boolean;
-  message: string | null;
-};
-
-export const initialActionState: ActionState = {
-  ok: false,
-  message: null,
-};
-
-const UNEXPECTED_ACTION_MESSAGE = "Something went wrong.";
-
-export function unexpectedActionMessage(errorRef: string): string {
-  return `${UNEXPECTED_ACTION_MESSAGE} Reference: ${errorRef}`;
-}
 
 function createErrorRef(): string {
   return crypto.randomUUID().replaceAll("-", "").slice(0, 12);

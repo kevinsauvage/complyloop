@@ -61,7 +61,9 @@ export default async function RequirementsPage({
     );
   }
 
-  const runtime = await getProjectRuntime(project.id);
+  const runtime = await getProjectRuntime(project.id, {
+    findingStatuses: ["open"],
+  });
   const defaultPresetId = projectDefaultPresetId(project);
   const selectedPresetId = urlPresetId ?? defaultPresetId;
   const selectedPreset = presetById(selectedPresetId);

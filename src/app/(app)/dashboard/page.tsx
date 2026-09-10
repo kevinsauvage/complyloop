@@ -80,7 +80,9 @@ export default async function DashboardPage() {
     );
   }
 
-  const runtime = await getProjectRuntime(project.id);
+  const runtime = await getProjectRuntime(project.id, {
+    findingStatuses: ["open"],
+  });
   const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
   const requirements = requirementsInScope(runtime.requirements, project);
   const projectFindings = findingsInScope(runtime.findings, project);

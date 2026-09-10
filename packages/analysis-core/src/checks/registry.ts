@@ -65,8 +65,7 @@ import {
 } from "./families/behavior.ts";
 import type { AccessibilityCheck } from "../types.ts";
 
-export const allChecks: AccessibilityCheck[] = [
-  buttonNameCheck,
+export const allChecks: AccessibilityCheck[] = [  buttonNameCheck,
   headingOrderCheck,
   inputLabelCheck,
   autoplayMediaCheck,
@@ -120,3 +119,15 @@ export const allChecks: AccessibilityCheck[] = [
   captchaAlternativeCheck,
   accessibleAuthEnhancedCheck,
 ];
+
+/**
+ * Stable signature of the shipped AST check set. Changes when a check is added
+ * or removed, so a re-assessment can safely reuse prior AST findings at an
+ * unchanged git HEAD only when the engine set is identical.
+ */
+export function checkRegistrySignature(): string {
+  return allChecks
+    .map((check) => check.id)
+    .sort()
+    .join("|");
+}

@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import type { Db } from "./types.ts";
 import type { DrizzleDb } from "./postgres.ts";
 import {
@@ -47,9 +48,19 @@ async function loadEvidenceWindow(
 }
 
 /** Compliance rows for one project — single query path shared by writes and reads. */
+export interface LoadProjectRuntimeOptions {
+  /**
+   * Restrict finding rows to these statuses. Omit for full history (writes,
+   * assessments, reports, org export). Pages that only need open findings pass
+   * `["open"]` so project history does not grow request payloads.
+   */
+  findingStatuses?: readonly FindingStatus[];
+}
+
 export async function loadProjectRuntime(
   drizzle: DrizzleDb,
   projectId: string,
+  options: LoadProjectRuntimeOptions = {},
 ): Promise<
   Pick<
     Db,
@@ -59,7 +70,9 @@ export async function loadProjectRuntime(
   const [requirementsList, findingsList, remediationsList, alertsList, assessmentsList] =
     await Promise.all([
       listRequirementsForProject(drizzle, projectId),
-      listFindingsForProject(drizzle, projectId),
+      listFindingsForProject(drizzle, projectId, {
+        statuses: options.findingStatuses,
+      }),
       listRemediationsForProject(drizzle, projectId),
       listAlertsForProject(drizzle, projectId),
       // Latest only — the app consumes latestAssessmentFor + "has any".

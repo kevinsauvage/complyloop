@@ -18,6 +18,7 @@ import {
   allowRuntimeNavigation,
   assertSafeRuntimeUrl,
   assertStableRuntimeDns,
+  createCachedDnsLookup,
   createRedirectHopGuard,
   TOO_MANY_REDIRECTS_MESSAGE,
   UNSAFE_RUNTIME_URL_MESSAGE,
@@ -157,6 +158,12 @@ function createPlaywrightAxeScanner(options?: {
   return async (urls) => {
     const browser = await getBrowser();
     const context = await browser.newContext();
+    // Cache DNS per host for this scan: the interceptor runs for every
+    // subresource, while the pre-navigation/rebinding checks below keep using
+    // the uncached lookup on purpose.
+    const navigationLookupOptions = {
+      lookup: createCachedDnsLookup(options?.lookup),
+    };
     const pages: RuntimeScanPageResult[] = [];
     let blockedReason: string | null = null;
     let hopGuard = createRedirectHopGuard();
@@ -176,7 +183,7 @@ function createPlaywrightAxeScanner(options?: {
       }
       const decision = await allowRuntimeNavigation(
         request.url(),
-        lookupOptions,
+        navigationLookupOptions,
       );
       if (!decision.ok) {
         blockedReason = decision.message;

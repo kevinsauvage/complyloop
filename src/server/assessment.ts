@@ -1,6 +1,8 @@
 import { latestAssessmentFor } from "@/core/lifecycle";
 import { countByStatus } from "@/core/lifecycle";
 import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
+import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
+import type { RawFinding } from "@complyloop/analysis-core/types";
 import {
   scanRuntime,
   type RuntimePageScanner,
@@ -11,7 +13,9 @@ import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   type Assessment,
+  type AssessmentSnapshot,
   type EvidenceRecord,
+  type FileChange,
   type Finding,
   type Remediation,
 } from "@complyloop/db/types";
@@ -25,7 +29,7 @@ import {
   REQUIREMENT_STATUSES,
 } from "@complyloop/analysis-core/contract/statuses";
 import type { Db } from "@complyloop/db/types";
-import { detectChanges, summarizeChanges } from "./monitor";
+import { detectChanges, readRepoHead, summarizeChanges } from "./monitor";
 import { mergeRawFindings } from "@complyloop/analysis-core/merge-findings";
 import { reconcileControlFindings } from "./assessment-findings";
 import {
@@ -181,7 +185,32 @@ export async function runAssessment(
   const startedAt = new Date().toISOString();
 
   const previous = latestAssessmentFor(db.assessments, projectId);
-  const { snapshot, changes } = detectChanges(rootPath, previous?.snapshot);
+  const scoped = assertAssessableCatalog(project, options.controls);
+  // Reuse prior AST findings only when the commit, control scope, and AST check
+  // set are all unchanged. Any difference forces a real scan so new/changed
+  // checks or a new preset are not silently missed.
+  const snapshotKey = `${checkRegistrySignature()}#${scoped
+    .map((control) => control.id)
+    .sort()
+    .join(",")}`;
+  const head = readRepoHead(rootPath);
+  const sourcesUnchanged =
+    previous?.snapshot?.gitHead !== undefined &&
+    head !== undefined &&
+    previous.snapshot.gitHead === head &&
+    previous.snapshot.controlScopeKey === snapshotKey;
+
+  let snapshot: AssessmentSnapshot;
+  let changes: FileChange[];
+  if (sourcesUnchanged && previous?.snapshot) {
+    snapshot = { ...previous.snapshot };
+    changes = [];
+  } else {
+    const detected = detectChanges(rootPath, previous?.snapshot);
+    snapshot = detected.snapshot;
+    changes = detected.changes;
+  }
+  snapshot.controlScopeKey = snapshotKey;
   const changeContext = changes.length > 0 ? summarizeChanges(changes) : undefined;
 
   if (changes.length > 0) {
@@ -201,14 +230,32 @@ export async function runAssessment(
     .map((change) => change.filePath)
     .filter((filePath) => /\.(tsx|jsx)$/i.test(filePath));
   const useScoped = Boolean(previous?.snapshot) && changedJsx.length > 0;
-  const {
-    findings: astFindings,
-    filesScanned,
-    scanMode,
-  } = useScoped
-    ? scanChangedFiles(rootPath, changedJsx)
-    : scanProject(rootPath);
-const scopedFileSet = useScoped ? new Set(changedJsx) : null;
+
+  let astFindings: RawFinding[] = [];
+  let filesScanned: number;
+  let scanMode: "full" | "scoped";
+  if (sourcesUnchanged) {
+    // Sources, scope, and engine set are identical to the last run: keep the
+    // existing AST findings and skip the full-tree scan. Runtime checks still
+    // run and reconcile their own findings below.
+    filesScanned = previous?.filesScanned ?? 0;
+    scanMode = "scoped";
+  } else if (useScoped) {
+    const scopedScan = scanChangedFiles(rootPath, changedJsx);
+    astFindings = scopedScan.findings;
+    filesScanned = scopedScan.filesScanned;
+    scanMode = scopedScan.scanMode;
+  } else {
+    const fullScan = scanProject(rootPath);
+    astFindings = fullScan.findings;
+    filesScanned = fullScan.filesScanned;
+    scanMode = fullScan.scanMode;
+  }
+  const scopedFileSet = sourcesUnchanged
+    ? new Set<string>()
+    : useScoped
+      ? new Set(changedJsx)
+      : null;
 
     const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
     const runtimeResult = runtimeConfigured
@@ -238,7 +285,6 @@ const scopedFileSet = useScoped ? new Set(changedJsx) : null;
     );
 
     const assessmentId = crypto.randomUUID();
-    const scoped = assertAssessableCatalog(project, options.controls);
 
     for (const control of scoped) {
         if (control.checkId === null) continue;

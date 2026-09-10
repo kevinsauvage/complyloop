@@ -41,7 +41,9 @@ export default async function SettingsPage() {
     );
   }
 
-  const runtime = await getProjectRuntime(project.id);
+  const runtime = await getProjectRuntime(project.id, {
+    findingStatuses: [],
+  });
   const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
   const runtimeError = latestAssessment?.engines?.runtimeError ?? null;
   const runtimeStatus = latestAssessment?.engines?.runtime

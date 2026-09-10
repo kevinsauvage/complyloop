@@ -25,11 +25,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useActionToast } from "@/hooks/use-action-toast";
-import {
-  deleteOrgAction,
-  exportOrgDataAction,
-} from "@/server/actions/org";
-import { initialActionState } from "@/server/action-state";
+import { deleteOrgAction, exportOrgDataAction } from "@/server/actions/org";
+import { initialActionState } from "@/core/action-state";
 
 export function OrgDataLifecycle({
   orgId,
@@ -105,7 +102,10 @@ export function OrgDataLifecycle({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-8">
-        <section aria-labelledby="org-export-heading" className="flex flex-col gap-3">
+        <section
+          aria-labelledby="org-export-heading"
+          className="flex flex-col gap-3"
+        >
           <div>
             <h3
               id="org-export-heading"
@@ -138,8 +138,8 @@ export function OrgDataLifecycle({
                 <AlertDialogTitle>Export organization data?</AlertDialogTitle>
                 <AlertDialogDescription>
                   Download a JSON file for <strong>{orgName}</strong>. The file
-                  may include repository names, findings, and membership
-                  GitHub usernames — store it securely.
+                  may include repository names, findings, and membership GitHub
+                  usernames — store it securely.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -165,7 +165,10 @@ export function OrgDataLifecycle({
           className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4"
         >
           <div className="flex items-start gap-2">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+            <TriangleAlert
+              className="mt-0.5 size-4 shrink-0 text-destructive"
+              aria-hidden
+            />
             <div>
               <h3
                 id="org-delete-heading"
@@ -176,9 +179,9 @@ export function OrgDataLifecycle({
               <p className="mt-1 text-sm text-muted-foreground">
                 Permanently remove{" "}
                 <strong className="text-foreground">{orgName}</strong>, its
-                projects, and mutable compliance records. Evidence is kept
-                for audit after disconnect or org deletion; mutable records
-                are removed with the organization.
+                projects, and mutable compliance records. Evidence is kept for
+                audit after disconnect or org deletion; mutable records are
+                removed with the organization.
               </p>
             </div>
           </div>

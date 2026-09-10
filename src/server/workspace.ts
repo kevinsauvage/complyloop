@@ -9,6 +9,8 @@ import { type Finding, type Remediation } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { getFindingById } from "@complyloop/db/repo/findings";
+import { listMembershipsForOrgs } from "@complyloop/db/repo/orgs";
+import { getProjectById } from "@complyloop/db/repo/projects";
 import { getRemediationByFindingId } from "@complyloop/db/repo/remediations";
 import { loadTenancyDb } from "@complyloop/db/workspace-load";
 import {
@@ -21,6 +23,7 @@ import { orgsForUser, resolveActiveOrgId } from "./org-queries";
 import {
   type AccessContext,
   accessFromStore,
+  isProjectVisible,
   resolveActiveProject,
   visibleProjects,
 } from "./project-visibility";
@@ -137,6 +140,29 @@ async function loadViewerWorkspaceState(): Promise<Workspace> {
 export const getWorkspace = cache(async (): Promise<Workspace> =>
   loadViewerWorkspaceState(),
 );
+
+/**
+ * Lightweight project-visibility check for hot endpoints (e.g. assessment-job
+ * polling): session + one project row + that project org's memberships. Avoids
+ * the full tenancy load in {@link getWorkspace} on every request.
+ */
+export async function viewerCanViewProject(
+  projectId: string,
+): Promise<boolean> {
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  if (!userId) return false;
+  const drizzle = await getDrizzle();
+  const project = await getProjectById(drizzle, projectId);
+  if (!project) return false;
+  const memberships = await listMembershipsForOrgs(drizzle, [project.orgId]);
+  return isProjectVisible(project, {
+    userId,
+    githubLogin: session?.user?.login ?? null,
+    organizations: [],
+    memberships,
+  });
+}
 
 export function controlById(controlId: string): Control {
   const control = shippedCatalog().controls.find(

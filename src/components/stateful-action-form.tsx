@@ -5,10 +5,7 @@ import type { VariantProps } from "class-variance-authority";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { buttonVariants } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
-import {
-  initialActionState,
-  type ActionState,
-} from "@/server/action-state";
+import { initialActionState, type ActionState } from "@/core/action-state";
 
 const initialState: ActionState = initialActionState;
 
@@ -28,10 +25,7 @@ export function StatefulActionForm({
   retryLabel,
   disabled = false,
 }: {
-  action: (
-    previous: ActionState,
-    formData: FormData,
-  ) => Promise<ActionState>;
+  action: (previous: ActionState, formData: FormData) => Promise<ActionState>;
   submitLabel: string;
   pendingLabel?: string;
   variant?: ButtonVariant;
@@ -50,7 +44,8 @@ export function StatefulActionForm({
   const formId = useId();
   useActionToast(state, pending);
 
-  const showRetry = !state.ok && Boolean(state.message) && !pending && Boolean(retryLabel);
+  const showRetry =
+    !state.ok && Boolean(state.message) && !pending && Boolean(retryLabel);
   const feedbackRole = state.ok ? "status" : "alert";
 
   return (
@@ -70,7 +65,9 @@ export function StatefulActionForm({
           <p
             role={feedbackRole}
             className={
-              state.ok ? "text-sm text-status-passed" : "text-sm text-destructive"
+              state.ok
+                ? "text-sm text-status-passed"
+                : "text-sm text-destructive"
             }
           >
             {state.message}

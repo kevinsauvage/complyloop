@@ -7,7 +7,7 @@ import {
   createPullRequestAction,
   type CreatePrFormState,
 } from "@/server/actions/pr";
-import { initialActionState } from "@/server/action-state";
+import { initialActionState } from "@/core/action-state";
 
 const initial: CreatePrFormState = {
   ...initialActionState,

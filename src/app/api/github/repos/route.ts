@@ -32,7 +32,10 @@ export async function GET(request: Request): Promise<Response> {
     workspace.activeOrgId,
   );
   if (!caps.canConnect) {
-    return Response.json({ error: "Not allowed to connect repos." }, { status: 403 });
+    return Response.json(
+      { error: "Not allowed to connect repos." },
+      { status: 403 },
+    );
   }
 
   let token: string | null;
@@ -43,7 +46,9 @@ export async function GET(request: Request): Promise<Response> {
   }
   if (!token) {
     return Response.json(
-      { error: "Could not read your GitHub token. Sign out and sign in again." },
+      {
+        error: "Could not read your GitHub token. Sign out and sign in again.",
+      },
       { status: 401 },
     );
   }
@@ -74,9 +79,6 @@ export async function GET(request: Request): Promise<Response> {
       hasMore: repos.length >= perPage,
     });
   } catch (error) {
-    return Response.json(
-      { error: publicErrorMessage(error) },
-      { status: 502 },
-    );
+    return Response.json({ error: publicErrorMessage(error) }, { status: 502 });
   }
 }

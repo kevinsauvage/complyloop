@@ -96,8 +96,9 @@ export default async function FindingPage({
   const project = projects.find((candidate) => candidate.id === finding.projectId);
   if (!project || !isProjectVisible(project, access)) notFound();
 
+  const statusForTab = listParams.tab === "by_cause" ? "open" : listParams.tab;
   const [runtime, remediation] = await Promise.all([
-    getProjectRuntime(project.id),
+    getProjectRuntime(project.id, { findingStatuses: [statusForTab] }),
     requireRemediationForFinding(finding.id),
   ]);
   const remediationByFindingId = new Map(

@@ -46,6 +46,29 @@ export type DnsLookup = (
 const nodeDnsLookup: DnsLookup = (hostname) =>
   dns.lookup(hostname, { all: true });
 
+/**
+ * Memoizes DNS resolutions per hostname for the lifetime of a scan. The
+ * Playwright route interceptor sees every subresource request (images, CSS,
+ * fonts, XHR), so resolving each one is a large hidden latency tax. Bind the
+ * cache to a single scan so rebinding checks that deliberately re-resolve (see
+ * {@link assertStableRuntimeDns}) can still use an uncached lookup.
+ */
+export function createCachedDnsLookup(base?: DnsLookup): DnsLookup {
+  const resolve = base ?? nodeDnsLookup;
+  const cache = new Map<
+    string,
+    Promise<ReadonlyArray<{ address: string; family: number }>>
+  >();
+  return (hostname) => {
+    let pending = cache.get(hostname);
+    if (!pending) {
+      pending = resolve(hostname);
+      cache.set(hostname, pending);
+    }
+    return pending;
+  };
+}
+
 function parseHttpUrl(raw: string): URL {
   let parsed: URL;
   try {

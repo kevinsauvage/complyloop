@@ -10,22 +10,25 @@ function hashFileContents(absolutePath: string): string {
   return createHash("sha256").update(buffer).digest("hex");
 }
 
+/** Current commit of the checkout, or `undefined` when git metadata is absent. */
+export function readRepoHead(rootPath: string): string | undefined {
+  try {
+    return execFileSync("git", ["-C", rootPath, "rev-parse", "HEAD"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
 export function captureSnapshot(rootPath: string): AssessmentSnapshot {
   const fileHashes: Record<string, string> = {};
   for (const absolute of listSourceFiles(rootPath, "script")) {
     const relative = path.relative(rootPath, absolute);
     fileHashes[relative] = hashFileContents(absolute);
   }
-  let gitHead: string | undefined;
-  try {
-    gitHead = execFileSync("git", ["-C", rootPath, "rev-parse", "HEAD"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch {
-    gitHead = undefined;
-  }
-  return { fileHashes, gitHead };
+  return { fileHashes, gitHead: readRepoHead(rootPath) };
 }
 
 /**
@@ -36,6 +39,13 @@ export function detectChanges(
   rootPath: string,
   previous: AssessmentSnapshot | undefined,
 ): { snapshot: AssessmentSnapshot; changes: FileChange[] } {
+  const gitHead = readRepoHead(rootPath);
+  // Unchanged commit: reuse the previous snapshot instead of re-reading and
+  // SHA-256ing every source file. The AST scan is likewise skipped by the
+  // caller when the control/engine scope is also unchanged.
+  if (previous && gitHead !== undefined && previous.gitHead === gitHead) {
+    return { snapshot: previous, changes: [] };
+  }
   const snapshot = captureSnapshot(rootPath);
   if (!previous) {
     return { snapshot, changes: [] };

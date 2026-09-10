@@ -1,8 +1,4 @@
-import {
-  auth,
-  getGitHubAccessToken,
-  isGitHubAuthConfigured,
-} from "@/auth";
+import { auth, getGitHubAccessToken, isGitHubAuthConfigured } from "@/auth";
 import { ConnectProjectDialog } from "@/components/connect-project-dialog";
 import { GitHubRepoPicker } from "@/components/github-repo-picker";
 import { PermissionNotice } from "@/components/permission-notice";
@@ -121,7 +117,9 @@ export async function ConnectProjectPanel({
   }
 
   return (
-    <ConnectProjectDialog triggerLabel={triggerLabel}>{body}</ConnectProjectDialog>
+    <ConnectProjectDialog triggerLabel={triggerLabel}>
+      {body}
+    </ConnectProjectDialog>
   );
 }
 
@@ -132,10 +130,7 @@ export async function ConnectProjectPanel({
  */
 export function ConnectProjectCard({ children }: { children: ReactNode }) {
   return (
-    <EmptyState
-      title="Connect a repository"
-      footer={children}
-    >
+    <EmptyState title="Connect a repository" footer={children}>
       <div className="flex flex-col gap-3 text-left">
         <p>
           Connecting creates a project — link a GitHub repository to assess
@@ -143,15 +138,21 @@ export function ConnectProjectCard({ children }: { children: ReactNode }) {
         </p>
         <ol className="flex flex-col gap-1.5 text-sm">
           <li className="flex gap-2">
-            <span aria-hidden className="font-semibold text-signal">1.</span>
+            <span aria-hidden className="font-semibold text-signal">
+              1.
+            </span>
             Connect a repository — it becomes your project
           </li>
           <li className="flex gap-2">
-            <span aria-hidden className="font-semibold text-signal">2.</span>
+            <span aria-hidden className="font-semibold text-signal">
+              2.
+            </span>
             Run your first assessment from the dashboard
           </li>
           <li className="flex gap-2">
-            <span aria-hidden className="font-semibold text-signal">3.</span>
+            <span aria-hidden className="font-semibold text-signal">
+              3.
+            </span>
             Fix findings to Verified — every step is kept as evidence
           </li>
         </ol>
