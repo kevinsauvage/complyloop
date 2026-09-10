@@ -27,13 +27,25 @@ export interface ProjectRuntime {
 /**
  * Loads runtime rows for one project. Memoized per React request so dashboard
  * sections share one round-trip set. Delegates to {@link loadProjectRuntime}.
+ * Pass `{ includeEvidence: false }` when the caller loads evidence separately
+ * (e.g. report exports), so the window read is not issued twice.
  */
 export const getProjectRuntime = cache(
-  async (projectId: string): Promise<ProjectRuntime> => {
+  async (
+    projectId: string,
+    options?: { includeEvidence?: boolean },
+  ): Promise<ProjectRuntime> => {
     const drizzle = await getDrizzle();
     const [runtime, evidenceNewestFirst] = await Promise.all([
       loadProjectRuntime(drizzle, projectId),
-      listEvidencePageForProject(drizzle, projectId, 1, WORKSPACE_EVIDENCE_LIMIT),
+      options?.includeEvidence === false
+        ? []
+        : listEvidencePageForProject(
+            drizzle,
+            projectId,
+            1,
+            WORKSPACE_EVIDENCE_LIMIT,
+          ),
     ]);
     return {
       ...runtime,

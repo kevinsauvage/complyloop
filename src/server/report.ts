@@ -116,7 +116,9 @@ export async function loadReportInput(
     new URL(request.url).searchParams.get("view"),
   );
   const [runtime, exported] = await Promise.all([
-    getProjectRuntime(project.id),
+    // Evidence comes from the export window below; skip the runtime's own
+    // window read so evidence is fetched exactly once per export.
+    getProjectRuntime(project.id, { includeEvidence: false }),
     listEvidenceForExport(await getDrizzle(), project.id),
   ]);
 

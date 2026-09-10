@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
 import { assessmentJobs } from "@complyloop/db/schema";
 import {
@@ -114,6 +114,43 @@ export async function enqueueAssessmentJob(
   }
 
   const now = new Date().toISOString();
+  // Webhook coalescing: rapid pushes / PR synchronizes for the same project
+  // would otherwise stack full scans of superseded SHAs behind the
+  // serial-per-project claim. A still-queued webhook job is refreshed in place
+  // (newest ref wins); running jobs and non-webhook triggers are untouched.
+  if (input.trigger === "webhook") {
+    const [pending] = await drizzle
+      .select()
+      .from(assessmentJobs)
+      .where(
+        and(
+          eq(assessmentJobs.projectId, input.projectId),
+          eq(assessmentJobs.status, "queued"),
+          eq(assessmentJobs.trigger, "webhook"),
+        ),
+      )
+      .orderBy(asc(assessmentJobs.createdAt))
+      .limit(1);
+    if (pending) {
+      const [updated] = await drizzle
+        .update(assessmentJobs)
+        .set({
+          payload: { ...parseJobPayload(pending.payload), ...(input.payload ?? {}) },
+          availableAt: now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(assessmentJobs.id, pending.id),
+            eq(assessmentJobs.status, "queued"),
+          ),
+        )
+        .returning();
+      // Empty when a worker claimed the row concurrently — fall through and
+      // insert so the delivery is not silently dropped.
+      if (updated) return jobFromRow(updated);
+    }
+  }
   try {
     const [created] = await drizzle
       .insert(assessmentJobs)

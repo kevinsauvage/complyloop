@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { githubCloneUrl, redactCloneUrl } from "./github";
+import {
+  githubCloneUrl,
+  githubPublicCloneUrl,
+  redactCloneUrl,
+} from "./github";
+
+describe("githubPublicCloneUrl", () => {
+  it("builds a token-free URL for a valid full name", () => {
+    expect(githubPublicCloneUrl("octo/repo")).toBe(
+      "https://github.com/octo/repo.git",
+    );
+  });
+
+  it("rejects malformed full names", () => {
+    expect(() => githubPublicCloneUrl("not-a-repo")).toThrow();
+    expect(() => githubPublicCloneUrl("")).toThrow();
+  });
+});
 
 describe("redactCloneUrl", () => {
   it("strips the token from an authenticated clone URL", () => {
@@ -22,5 +39,13 @@ describe("redactCloneUrl", () => {
     expect(redactCloneUrl("https://user:s3cret@example.com/r.git")).toBe(
       "https://***@example.com/r.git",
     );
+  });
+
+  it("redacts leaked Bearer header values", () => {
+    const redacted = redactCloneUrl(
+      "http.extraHeader: Authorization: Bearer ghs_secret_token",
+    );
+    expect(redacted).not.toContain("ghs_secret_token");
+    expect(redacted).toContain("Authorization: Bearer ***");
   });
 });

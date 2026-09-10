@@ -40,6 +40,23 @@ export function gitProcessEnv(
 /** simple-git instance with a sanitized environment for non-interactive use. */
 export function createGit(
   options: Partial<SimpleGitOptions> = {},
+  envOverrides: Record<string, string> = {},
 ): SimpleGit {
-  return simpleGit(options).env(gitProcessEnv());
+  return simpleGit(options).env(gitProcessEnv(envOverrides));
+}
+
+/**
+ * Auth for git-over-HTTPS without embedding the token in the clone/push URL
+ * (URLs become process argv, visible via `ps`). Git ≥2.31 reads
+ * `GIT_CONFIG_COUNT/KEY_x/VALUE_x` into its config, so the token travels as an
+ * `Authorization` header in the child process environment instead. Env of a
+ * short-lived child is meaningfully safer than argv (same-user visibility
+ * vs world-readable cmdline).
+ */
+export function gitAuthEnv(accessToken: string): Record<string, string> {
+  return {
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "http.extraHeader",
+    GIT_CONFIG_VALUE_0: `Authorization: Bearer ${accessToken}`,
+  };
 }

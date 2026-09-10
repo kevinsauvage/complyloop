@@ -128,6 +128,10 @@ function createDrizzle() {
             if (eqs.includes(row.idempotencyKey)) return true;
             if (eqs.includes(row.projectId) && eqs.length === 1) return true;
             if (eqs.includes("running") && row.status === "running") return true;
+            // Webhook-coalescing lookup: project + queued + webhook trigger.
+            if (eqs.includes(row.projectId) && eqs.includes("webhook")) {
+              return row.status === "queued" && row.trigger === "webhook";
+            }
             if (eqs.includes("queued") && row.status === "queued") {
               if (ltes.length === 0) return true;
               return row.availableAt <= String(ltes[0]);
@@ -364,6 +368,53 @@ describe("claimNextAssessmentJob", () => {
     expect(await claimNextAssessmentJob()).toBeNull();
     expect(jobs.get(job.id)?.status).toBe("failed");
     expect(jobs.get(job.id)?.error).toMatch(/repeatedly/);
+  });
+
+  it("coalesces rapid webhook enqueues into the pending job", async () => {
+    const first = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "webhook",
+      idempotencyKey: "delivery-1",
+      payload: { ref: "a".repeat(40), eventName: "push" },
+    });
+    const second = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "webhook",
+      idempotencyKey: "delivery-2",
+      payload: { ref: "b".repeat(40), eventName: "push" },
+    });
+    // Newest SHA wins; the oldest idempotency key is retained.
+    expect(second.id).toBe(first.id);
+    expect(jobs.size).toBe(1);
+    expect(second.payload).toMatchObject({ ref: "b".repeat(40) });
+    expect(second.idempotencyKey).toBe("delivery-1");
+  });
+
+  it("does not coalesce manual jobs or running webhook jobs", async () => {
+    const manual1 = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const manual2 = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    expect(manual2.id).not.toBe(manual1.id);
+
+    const webhook1 = await enqueueAssessmentJob({
+      projectId: "p9",
+      trigger: "webhook",
+      payload: { ref: "a".repeat(40) },
+    });
+    const running = jobs.get(webhook1.id);
+    if (!running) throw new Error("expected job");
+    running.status = "running";
+    const webhook2 = await enqueueAssessmentJob({
+      projectId: "p9",
+      trigger: "webhook",
+      payload: { ref: "b".repeat(40) },
+    });
+    expect(webhook2.id).not.toBe(webhook1.id);
   });
 });
 

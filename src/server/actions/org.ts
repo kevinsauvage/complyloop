@@ -40,6 +40,11 @@ import { refresh, requireSignedIn } from "./shared";
 import { loadProjectRuntime } from "@complyloop/db/workspace-load";
 import { emptyDb } from "@complyloop/db/types";
 
+/** Max projects per org export — bounds the O(P) runtime fan-out below. */
+const MAX_EXPORT_PROJECTS = 50;
+/** Concurrent runtime loads per export chunk — bounds pool pressure. */
+const EXPORT_RUNTIME_CONCURRENCY = 5;
+
 const switchOrgInput = z.object({
   orgId: requiredField("An organization id is required."),
 });
@@ -203,14 +208,29 @@ export async function exportOrgDataAction(
     const { organizations, projects, access } = await getWorkspace();
     const orgProjects = projects.filter((project) => project.orgId === orgId);
     const projectIds = orgProjects.map((project) => project.id);
+    // Bound the fan-out: runtime loads are O(P) full history reads. Chunked
+    // concurrency keeps pool usage flat; the cap keeps huge orgs from timing
+    // out the action (narrow scope or export per project instead).
+    if (projectIds.length > MAX_EXPORT_PROJECTS) {
+      throw new PublicError(
+        `Organization has ${projectIds.length} projects; exports are limited to ${MAX_EXPORT_PROJECTS} projects.`,
+        "export_too_large",
+      );
+    }
     // The workspace slice is bounded (latest assessment, evidence window);
     // the export is the audit artifact, so fetch full history directly.
     const drizzle = await getDrizzle();
-    const [evidence, assessments, ...runtimes] = await Promise.all([
+    const [evidence, assessments] = await Promise.all([
       listAllEvidenceForProjects(drizzle, projectIds),
       listAssessmentsForProjects(drizzle, projectIds),
-      ...projectIds.map((projectId) => loadProjectRuntime(drizzle, projectId)),
     ]);
+    const runtimes: Awaited<ReturnType<typeof loadProjectRuntime>>[] = [];
+    for (let index = 0; index < projectIds.length; index += EXPORT_RUNTIME_CONCURRENCY) {
+      const chunk = projectIds.slice(index, index + EXPORT_RUNTIME_CONCURRENCY);
+      runtimes.push(
+        ...await Promise.all(chunk.map((projectId) => loadProjectRuntime(drizzle, projectId))),
+      );
+    }
     const payload = exportOrgData(
       {
         ...emptyDb(),

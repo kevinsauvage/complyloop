@@ -7,9 +7,13 @@ import {
   assertE2EFixtureRoot,
   isE2EHarnessEnabled,
 } from "./e2e-harness";
-import { createGit } from "./git";
+import { createGit, gitAuthEnv } from "./git";
 import { resolveProjectGitHubToken } from "./github-access";
-import { githubCloneUrl, redactCloneUrl } from "./github";
+import {
+  githubPublicCloneUrl,
+  parseOwnerRepo,
+  redactCloneUrl,
+} from "./github";
 
 function positiveEnv(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -98,10 +102,14 @@ export function parseCheckoutRef(ref: string): string {
 export async function cloneShallow(
   cloneUrl: string,
   rootPath: string,
+  envOverrides: Record<string, string> = {},
 ): Promise<void> {
   fs.mkdirSync(path.dirname(rootPath), { recursive: true });
   try {
-    await createGit().clone(cloneUrl, rootPath, ["--depth", "1"]);
+    await createGit({}, envOverrides).clone(cloneUrl, rootPath, [
+      "--depth",
+      "1",
+    ]);
   } catch (error) {
     fs.rmSync(rootPath, { recursive: true, force: true });
     const detail = error instanceof Error ? error.message : "unknown error";
@@ -142,17 +150,18 @@ export async function withRepoCheckout<T>(
   }
 
   const ref = options.ref === undefined ? undefined : parseCheckoutRef(options.ref);
+  // Token travels in the child env (http.extraHeader), never in the URL/argv.
+  const { fullName, accessToken } = options;
+  parseOwnerRepo(fullName);
+  const authEnv = gitAuthEnv(accessToken);
   const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "complyloop-checkout-"));
   try {
-    await cloneShallow(
-      githubCloneUrl(options.fullName, options.accessToken),
-      rootPath,
-    );
+    await cloneShallow(githubPublicCloneUrl(fullName), rootPath, authEnv);
     if (ref) {
       // Ref fetches can pull more tree than the default shallow clone: fail
       // fast on quota before fetching instead of after.
       assertCheckoutWithinQuota(rootPath);
-      const git = createGit({ baseDir: rootPath });
+      const git = createGit({ baseDir: rootPath }, authEnv);
       try {
         await git.fetch(["--depth", "1", "origin", ref]);
       } catch {

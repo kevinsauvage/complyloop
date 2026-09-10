@@ -19,6 +19,7 @@ const pruneRateLimitBuckets = vi.hoisted(() => vi.fn());
 const resolveProjectGitHubToken = vi.hoisted(() => vi.fn());
 const postPullRequestCheckRun = vi.hoisted(() => vi.fn());
 const applyAssessmentPayload = vi.hoisted(() => vi.fn());
+const listAlertsForProject = vi.hoisted(() => vi.fn());
 const insertEvidence = vi.hoisted(() => vi.fn());
 const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
@@ -46,6 +47,10 @@ vi.mock("@complyloop/db/repo/apply", async () => {
     buildAssessmentApplyPayload: (input: unknown) => input,
   };
 });
+
+vi.mock("@complyloop/db/repo/alerts", () => ({
+  listAlertsForProject: (...args: unknown[]) => listAlertsForProject(...args),
+}));
 
 vi.mock("@complyloop/db/repo/evidence", () => ({
   insertEvidence: (...args: unknown[]) => insertEvidence(...args),
@@ -162,6 +167,7 @@ function assessmentRun(
 beforeEach(() => {
   transaction.mockImplementation(async (fn: (tx: object) => unknown) => fn({}));
   acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
+  listAlertsForProject.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -299,7 +305,7 @@ describe("processNextAssessmentJob", () => {
 
   it("reuses the unread regression alert id per control instead of minting a new row (P2-1)", async () => {
     const db = projectDb();
-    db.alerts = [
+    const storedAlerts: Db["alerts"] = [
       {
         id: "alert-existing",
         projectId: "p1",
@@ -319,6 +325,13 @@ describe("processNextAssessmentJob", () => {
         detail: { controlId: "c2" },
       },
     ];
+    db.alerts = [...storedAlerts];
+    // The worker matches against a fresh in-transaction read, not the
+    // pre-scan slice: simulate an alert the user read mid-scan.
+    listAlertsForProject.mockResolvedValue([
+      { ...storedAlerts[0], read: true },
+      storedAlerts[1],
+    ]);
     db.evidence = [
       {
         id: "ev-reg-1",
@@ -379,10 +392,75 @@ describe("processNextAssessmentJob", () => {
     const alertForC2 = payload.alerts.find(
       (alert) => alert.detail?.controlId === "c2",
     );
-    // Unread alert for the same control is refreshed in place.
-    expect(alertForC1?.id).toBe("alert-existing");
+    // The pre-scan slice still shows c1's alert as unread, but the fresh
+    // in-transaction read shows it was read mid-scan — so a fresh row is
+    // minted instead of resurrecting the acknowledged one in place.
+    expect(alertForC1?.id).not.toBe("alert-existing");
     // A read alert does not swallow the recurrence — fresh row.
     expect(alertForC2?.id).not.toBe("alert-read");
+  });
+
+  it("refreshes the unread regression alert in place when the fresh read still shows it unread", async () => {
+    const db = projectDb();
+    db.alerts = [
+      {
+        id: "alert-existing",
+        projectId: "p1",
+        kind: "compliance_regression",
+        summary: "old regression",
+        at: "2026-01-01T00:00:00.000Z",
+        read: false,
+        detail: { controlId: "c1" },
+      },
+    ];
+    db.evidence = [
+      {
+        id: "ev-reg-1",
+        at: "2026-01-02T00:00:00.000Z",
+        kind: "requirement_status_changed",
+        summary: "Control c1 regressed",
+        projectId: "p1",
+        controlId: "c1",
+        assessmentId: "a1",
+        detail: { regression: true },
+      },
+    ];
+    listAlertsForProject.mockResolvedValue([...db.alerts]);
+    claimNextAssessmentJob.mockResolvedValue(
+      job({ trigger: "webhook", payload: { eventName: "push" } }),
+    );
+    loadProjectDb.mockResolvedValue(db);
+    withProjectCheckout.mockImplementation(
+      async (
+        _project: unknown,
+        fn: (rootPath: string) => Promise<unknown>,
+      ) => fn("/tmp/checkout"),
+    );
+    runAssessment.mockResolvedValue(
+      assessmentRun(
+        {
+          id: "a1",
+          projectId: "p1",
+          snapshot: { fileHashes: {} },
+        },
+        {
+          evidence: db.evidence,
+          findings: db.findings,
+        },
+      ),
+    );
+    completeAssessmentJob.mockResolvedValue(undefined);
+
+    await expect(processNextAssessmentJob()).resolves.toEqual({
+      kind: "succeeded",
+      jobId: "job-1",
+    });
+    const payload = applyAssessmentPayload.mock.calls[0]?.[1] as {
+      alerts: Array<{ id: string; detail?: Record<string, unknown> }>;
+    };
+    expect(
+      payload.alerts.find((alert) => alert.detail?.controlId === "c1")?.id,
+    ).toBe("alert-existing");
   });
 
   it("retries when failAssessmentJob returns queued", async () => {

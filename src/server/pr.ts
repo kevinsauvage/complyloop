@@ -3,10 +3,10 @@ import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
 import { type Finding, type Remediation } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { createGit } from "./git";
+import { createGit, gitAuthEnv } from "./git";
 import {
   createOctokit,
-  githubCloneUrl,
+  githubPublicCloneUrl,
   octokitErrorMessage,
   parseOwnerRepo,
 } from "./github";
@@ -146,9 +146,14 @@ export async function preparePullRequest(
       const token = await resolveProjectGitHubToken(project);
 
       if (fullName && token) {
-        const remote = githubCloneUrl(fullName, token);
+        // Token travels in the child env (http.extraHeader), never in argv.
+        const remote = githubPublicCloneUrl(fullName);
         try {
-          await git.push(remote, `HEAD:refs/heads/${branch}`, ["-u"]);
+          await createGit({ baseDir: rootPath }, gitAuthEnv(token)).push(
+            remote,
+            `HEAD:refs/heads/${branch}`,
+            ["-u"],
+          );
           const base = project.github?.defaultBranch || "main";
           prUrl = await createPullRequestViaApi({
             fullName,

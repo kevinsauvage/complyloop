@@ -5,10 +5,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 const clone = vi.hoisted(() => vi.fn());
+const fetch = vi.hoisted(() => vi.fn());
+const checkout = vi.hoisted(() => vi.fn());
+const createGitArgs = vi.hoisted(() => [] as unknown[][]);
 
-vi.mock("./git", () => ({
-  createGit: () => ({ clone }),
-}));
+vi.mock("./git", async () => {
+  const actual = await vi.importActual<typeof import("./git")>("./git");
+  return {
+    ...actual,
+    createGit: (...args: unknown[]) => {
+      createGitArgs.push(args);
+      return { clone, fetch, checkout };
+    },
+  };
+});
 
 import { cloneShallow, withFixtureCheckout, withProjectCheckout, withRepoCheckout, assertCheckoutWithinQuota, parseCheckoutRef } from "./repo-checkout";
 
@@ -25,6 +35,9 @@ afterEach(() => {
   if (previousRoot === undefined) delete process.env.E2E_FIXTURE_ROOT;
   else process.env.E2E_FIXTURE_ROOT = previousRoot;
   clone.mockReset();
+  fetch.mockReset();
+  checkout.mockReset();
+  createGitArgs.splice(0);
 });
 
 describe("cloneShallow", () => {
@@ -156,6 +169,35 @@ describe("parseCheckoutRef", () => {
       ),
     ).rejects.toBeInstanceOf(PublicError);
     expect(clone).not.toHaveBeenCalled();
+  });
+
+  it("withRepoCheckout clones the public URL and authenticates via env, not argv", async () => {
+    delete process.env.E2E_AUTH_ENABLED;
+    clone.mockResolvedValue(undefined);
+    fetch.mockResolvedValue(undefined);
+    checkout.mockResolvedValue(undefined);
+    const sha = "0123456789abcdef0123456789abcdef01234567";
+    const result = await withRepoCheckout(
+      { fullName: "octo/repo", accessToken: "ghs_secret", ref: sha },
+      async () => "done",
+    );
+    expect(result).toBe("done");
+    expect(clone).toHaveBeenCalledWith(
+      "https://github.com/octo/repo.git",
+      expect.any(String),
+      ["--depth", "1"],
+    );
+    const cloneUrl = clone.mock.calls[0]?.[0] as string;
+    expect(cloneUrl).not.toContain("ghs_secret");
+    expect(cloneUrl).not.toContain("x-access-token");
+    expect(fetch).toHaveBeenCalledWith(["--depth", "1", "origin", sha]);
+    expect(checkout).toHaveBeenCalledWith([sha]);
+    // The token travels in the child env (http.extraHeader), never in argv.
+    const envArgs = createGitArgs.map((args) => args[1]);
+    expect(envArgs.length).toBeGreaterThan(0);
+    const serialized = JSON.stringify(envArgs);
+    expect(serialized).toContain("ghs_secret");
+    expect(serialized).toContain("http.extraHeader");
   });
 });
 

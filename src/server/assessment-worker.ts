@@ -1,4 +1,4 @@
-import type { Alert, Finding, Db } from "@complyloop/db/types";
+import type { Alert, Finding } from "@complyloop/db/types";
 import {
   claimNextAssessmentJob,
   completeAssessmentJob,
@@ -12,6 +12,7 @@ import {
   applyAssessmentPayload,
   snapshotProjectSlice,
 } from "@complyloop/db/repo/apply";
+import { listAlertsForProject } from "@complyloop/db/repo/alerts";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
 import {
   acquireNamedPostgresAdvisoryLock,
@@ -27,12 +28,12 @@ import { pruneRateLimitBuckets } from "./rate-limit";
 import { withProjectCheckout } from "./repo-checkout";
 
 function collectRegressionAlerts(input: {
-  db: Db;
+  alerts: ReadonlyArray<Alert>;
   run: AssessmentRunResult;
   projectId: string;
   trigger: string;
 }): Alert[] {
-  const { db, run, projectId, trigger } = input;
+  const { alerts: projectAlerts, run, projectId, trigger } = input;
   const assessment = run.assessment;
   const primaryChange = assessment.changesSincePrevious?.[0];
 
@@ -56,7 +57,7 @@ function collectRegressionAlerts(input: {
       // minting a new row on every webhook push. Once read, a recurrence
       // mints a fresh alert.
       const existingUnread = record.controlId
-        ? db.alerts.find(
+        ? projectAlerts.find(
             (alert) =>
               alert.projectId === projectId &&
               alert.kind === "compliance_regression" &&
@@ -131,15 +132,6 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
       });
       const { assessment } = run;
       const trigger = job.payload.eventName ?? "manual assessment";
-      const alerts =
-        authoritative && job.trigger === "webhook"
-          ? collectRegressionAlerts({
-              db,
-              run,
-              projectId: project.id,
-              trigger,
-            })
-          : [];
 
       const snapshot = assessment.snapshot;
       if (!snapshot) {
@@ -153,6 +145,19 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
             tx,
             projectWriteLockKey(project.id),
           );
+          // Read alerts inside the apply transaction (under the project write
+          // lock): the pre-scan slice above may be minutes stale, and matching
+          // against it could refresh an alert the user just read or mint
+          // duplicates of one just created.
+          const alerts =
+            job.trigger === "webhook"
+              ? collectRegressionAlerts({
+                  alerts: await listAlertsForProject(tx, project.id),
+                  run,
+                  projectId: project.id,
+                  trigger,
+                })
+              : [];
           await applyAssessmentPayload(
             tx,
             {

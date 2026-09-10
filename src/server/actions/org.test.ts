@@ -27,6 +27,7 @@ const resolveActiveOrgId = vi.hoisted(() => vi.fn());
 const writeActiveOrgCookie = vi.hoisted(() => vi.fn());
 const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
+const loadProjectRuntime = vi.hoisted(() => vi.fn());
 
 vi.mock("../orgs", async () => {
   const actual = await vi.importActual<typeof import("../orgs")>("../orgs");
@@ -74,13 +75,7 @@ vi.mock("@complyloop/db/client", () => ({
 }));
 
 vi.mock("@complyloop/db/workspace-load", () => ({
-  loadProjectRuntime: async () => ({
-    requirements: [],
-    findings: [],
-    remediations: [],
-    alerts: [],
-    assessments: [],
-  }),
+  loadProjectRuntime: (...args: unknown[]) => loadProjectRuntime(...args),
 }));
 
 vi.mock("@complyloop/db/repo/evidence", () => ({
@@ -152,6 +147,14 @@ beforeEach(() => {
   writeActiveOrgCookie.mockReset();
   writeActiveProjectCookie.mockReset();
   refresh.mockReset();
+  loadProjectRuntime.mockReset();
+  loadProjectRuntime.mockResolvedValue({
+    requirements: [],
+    findings: [],
+    remediations: [],
+    alerts: [],
+    assessments: [],
+  });
   deleteOrganization.mockReturnValue({ deleteMembershipIds: ["m-owner"] });
   actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1", login: "alice" } });
   withOrgWrite.mockImplementation(async (fn) =>
@@ -191,6 +194,59 @@ describe("org lifecycle actions", () => {
       error: "Sign in to export organization data.",
       json: null,
     });
+  });
+
+  it("loads one runtime per org project", async () => {
+    const projects = [0, 1, 2].map((index) =>
+      testProject({ id: `p-${index}`, orgId: "org-1", ownerUserId: "user-1" }),
+    );
+    const db = {
+      ...emptyDbBase(),
+      organizations: [org],
+      memberships: [ownerMembership],
+      projects,
+    };
+    getWorkspace.mockResolvedValue(
+      testWorkspace({
+        role: "owner",
+        userId: "user-1",
+        project: projects[0],
+        findings: [],
+        remediations: [],
+        db,
+      }),
+    );
+    exportOrgData.mockReturnValue({ organization: org, projects });
+    const result = await exportOrgDataAction("org-1");
+    expect(result.error).toBeNull();
+    expect(loadProjectRuntime).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects exports beyond the project cap", async () => {
+    const projects = Array.from({ length: 51 }, (_, index) =>
+      testProject({ id: `p-${index}`, orgId: "org-1", ownerUserId: "user-1" }),
+    );
+    const db = {
+      ...emptyDbBase(),
+      organizations: [org],
+      memberships: [ownerMembership],
+      projects,
+    };
+    getWorkspace.mockResolvedValue(
+      testWorkspace({
+        role: "owner",
+        userId: "user-1",
+        project: projects[0],
+        findings: [],
+        remediations: [],
+        db,
+      }),
+    );
+    await expect(exportOrgDataAction("org-1")).resolves.toEqual({
+      error: expect.stringMatching(/limited to 50 projects/),
+      json: null,
+    });
+    expect(loadProjectRuntime).not.toHaveBeenCalled();
   });
 
   it("maps public export failures to their message", async () => {
