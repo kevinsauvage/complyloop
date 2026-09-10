@@ -4,7 +4,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { reportError } from "@/server/observability";
 
 /** Vercel AI Gateway model id (`provider/model`). */
-export const AI_MODEL = "minimax/minimax-m3";
+export const AI_MODEL = "poolside/laguna-s-2.1-free";
 
 /** User-facing copy when patch generation needs AI and none is configured. */
 export const AI_PATCH_UNAVAILABLE_MESSAGE =
@@ -54,7 +54,9 @@ export async function aiCall<TSchema extends z.ZodType>(
     const { object } = await generateObject({
       model: AI_MODEL,
       schema: input.schema,
-      prompt: Array.isArray(input.prompt) ? input.prompt.join("\n") : input.prompt,
+      prompt: Array.isArray(input.prompt)
+        ? input.prompt.join("\n")
+        : input.prompt,
     });
     return object as z.infer<TSchema>;
   } catch (error) {
@@ -64,7 +66,9 @@ export async function aiCall<TSchema extends z.ZodType>(
       ...input.detail,
     });
     if (input.throwIfUnavailable) {
-      throw new PublicError(input.failureMessage ?? "AI call failed. Try again.");
+      throw new PublicError(
+        input.failureMessage ?? "AI call failed. Try again.",
+      );
     }
     return null;
   }

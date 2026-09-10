@@ -84,6 +84,28 @@ describe("parseSource helpers", () => {
     expect(location.snippet).toContain("<button>");
   });
 
+  it("keeps attributes when a tag spans multiple lines", () => {
+    const { tag, parsed } = firstTag(
+      [
+        `const A = () => (`,
+        `  <a`,
+        `    href="https://example.com"`,
+        `    target="_blank"`,
+        `  >`,
+        `    Site`,
+        `  </a>`,
+        `);`,
+      ].join("\n"),
+    );
+
+    const location = locationOf(parsed, tag);
+
+    expect(location.line).toBe(2);
+    expect(location.snippet).toContain("<a");
+    expect(location.snippet).toContain('href="https://example.com"');
+    expect(location.snippet).toContain('target="_blank"');
+  });
+
   it("returns the wrapping element for opening tags only", () => {
     const opening = firstTag(`const A = () => <button>Save</button>;`);
     expect(jsxElementOf(opening.tag)).toBeDefined();

@@ -186,9 +186,10 @@ export async function runAssessment(
 
   const previous = latestAssessmentFor(db.assessments, projectId);
   const scoped = assertAssessableCatalog(project, options.controls);
-  // Reuse prior AST findings only when the commit, control scope, and AST check
-  // set are all unchanged. Any difference forces a real scan so new/changed
-  // checks or a new preset are not silently missed.
+  // Reuse prior AST findings only when the commit, control scope, and engine
+  // behavior version/check set are all unchanged. Any difference forces a real
+  // scan so new/changed checks (or a bumped ANALYSIS_ENGINE_VERSION) are not
+  // silently missed.
   const snapshotKey = `${checkRegistrySignature()}#${scoped
     .map((control) => control.id)
     .sort()

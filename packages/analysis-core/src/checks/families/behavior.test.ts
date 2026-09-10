@@ -74,6 +74,30 @@ describe("new-window-onload", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]?.kind).toBe("warning");
   });
+
+  it("keeps attributes on a multiline target=_blank link snippet", () => {
+    const findings = newWindowOnloadCheck.run(
+      parseSource(
+        "test.tsx",
+        [
+          `const A = () => (`,
+          `  <a`,
+          `    href="https://example.com"`,
+          `    target="_blank"`,
+          `  >`,
+          `    External site`,
+          `  </a>`,
+          `);`,
+        ].join("\n"),
+      ),
+    );
+    expect(findings).toHaveLength(1);
+    const location = findings[0]?.location;
+    expect(location?.kind).toBe("source");
+    if (location?.kind !== "source") return;
+    expect(location.snippet).toContain("<a");
+    expect(location.snippet).toContain('target="_blank"');
+  });
 });
 
 describe("dir-change", () => {

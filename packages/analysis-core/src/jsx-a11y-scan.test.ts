@@ -84,6 +84,25 @@ describe("jsx-a11y source scan", () => {
     expect(findings.some((finding) => finding.checkId === "img-alt")).toBe(true);
   });
 
+  it("keeps attributes when the flagged tag spans multiple lines", () => {
+    const findings = scanSnippet(
+      [
+        `export const Hero = () => (`,
+        `  <img`,
+        `    src="/hero.png"`,
+        `  />`,
+        `);`,
+      ].join("\n"),
+    );
+    const finding = findings.find((candidate) => candidate.checkId === "img-alt");
+    const location = finding?.location;
+    expect(location?.kind).toBe("source");
+    if (location?.kind !== "source") return;
+    expect(location.line).toBe(2);
+    expect(location.snippet).toContain("<img");
+    expect(location.snippet).toContain('src="/hero.png"');
+  });
+
   it("proposes removing autoFocus", () => {
     const source = "export const Field = () => <input autoFocus />;\n";
     const findings = scanSnippet(source);

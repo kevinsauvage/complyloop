@@ -5,13 +5,17 @@ import {
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
 import { formatDateTimeWithZone } from "@/core/lifecycle";
-import { findingStatusDisplay, requirementStatusDisplay } from "@/core/display";
-import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
+import {
+  findingStatusDisplay,
+  requirementStatusDisplay,
+  severityDisplay,
+} from "@/core/display";
 import {
   composeAuditReport,
   composeEngineeringReport,
   projectSourceLabel,
   type AuditReportModel,
+  type EngineeringFindingCard,
   type EngineeringReportModel,
   type ReportHeaderModel,
   type ReportInput,
@@ -45,17 +49,18 @@ function mdCode(text: string): string {
 }
 
 function headerMarkdown(header: ReportHeaderModel): string[] {
-  return [
+  const lines = [
     `# ${mdProse(header.title)} — ${mdProse(header.projectName)}`,
     ``,
-    `**Exported:** ${formatDateTimeWithZone(header.exportedAt)}`,
-    `**Framework:** ${mdProse(header.frameworkName)} (${mdProse(header.frameworkVersion)})`,
-    `**Project source:** ${mdProse(projectSourceLabel(header))}`,
-    header.githubFullName
-      ? `**GitHub repository:** \`${mdCode(header.githubFullName)}\``
-      : "",
-    ``,
-  ].filter((line) => line !== "");
+    `- **Exported:** ${formatDateTimeWithZone(header.exportedAt)}`,
+    `- **Framework:** ${mdProse(header.frameworkName)} (${mdProse(header.frameworkVersion)})`,
+    `- **Project source:** ${mdProse(projectSourceLabel(header))}`,
+  ];
+  if (header.githubFullName) {
+    lines.push(`- **GitHub repository:** \`${mdCode(header.githubFullName)}\``);
+  }
+  lines.push(``);
+  return lines;
 }
 
 function footerMarkdown(): string[] {
@@ -80,6 +85,31 @@ function findingCountRows(counts: Record<FindingStatus, number>): string[] {
   );
 }
 
+/** Fenced block whose fence outlengths any backtick run, so a snippet cannot break out. */
+function fencedBlock(text: string, language: string): string[] {
+  const longestRun = Math.max(
+    0,
+    ...[...text.matchAll(/`+/g)].map((match) => match[0].length),
+  );
+  const fence = "`".repeat(Math.max(3, longestRun + 1));
+  return [`${fence}${language}`, text, fence];
+}
+
+function engineeringSeverityRows(
+  findings: EngineeringFindingCard[],
+): string[] {
+  return (["critical", "serious", "moderate", "minor"] as const)
+    .filter((severity) =>
+      findings.some((finding) => finding.severityClass === severity),
+    )
+    .map((severity) => {
+      const count = findings.filter(
+        (finding) => finding.severityClass === severity,
+      ).length;
+      return `| ${mdProse(severityDisplay(severity).label)} | ${count} |`;
+    });
+}
+
 function renderEngineeringMarkdown(model: EngineeringReportModel): string {
   const lines: string[] = [
     ...headerMarkdown(model.header),
@@ -92,16 +122,28 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
     ``,
   ];
 
-  if (model.clusters.length > 0) {
-    lines.push(`## Shared root causes`);
+  const severityRows = engineeringSeverityRows(model.findings);
+  if (severityRows.length > 0) {
+    lines.push(`### Findings by severity`);
     lines.push(``);
-    for (const cluster of model.clusters) {
-      lines.push(
-        `- **${mdProse(cluster.label)}** — ${cluster.findingCount} open finding(s)`,
-      );
-    }
+    lines.push(`| Severity | Count |`);
+    lines.push(`| --- | ---: |`);
+    lines.push(...severityRows);
     lines.push(``);
   }
+
+  lines.push(`## Shared root causes`);
+  lines.push(``);
+  if (model.clusters.length === 0) {
+    lines.push(`_No shared root causes detected._`);
+  } else {
+    for (const cluster of model.clusters) {
+      lines.push(
+        `- **${mdProse(cluster.checkId)}** — ${cluster.findingCount} finding(s) at \`${mdCode(cluster.sharedLocation)}\``,
+      );
+    }
+  }
+  lines.push(``);
 
   lines.push(`## Open findings`);
   lines.push(``);
@@ -110,33 +152,42 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
     lines.push(`_No open findings — nothing to fix right now._`);
     lines.push(``);
   } else {
-    for (const finding of model.findings) {
-      lines.push(`### ${mdProse(finding.code)} @ \`${mdCode(finding.locationRef)}\``);
+    model.findings.forEach((finding, index) => {
+      lines.push(
+        `### ${index + 1}. ${mdProse(finding.code)} — \`${mdCode(finding.locationRef)}\``,
+      );
       lines.push(``);
+      lines.push(`- **Severity:** ${mdProse(finding.severity)}`);
+      lines.push(`- **Confidence:** ${mdProse(finding.confidence)}`);
+      lines.push(
+        `- **Check:** \`${mdCode(finding.checkId)}\`${finding.engine ? ` · **Engine:** \`${mdCode(finding.engine)}\`` : ""}`,
+      );
       if (finding.requirementLine) {
         lines.push(`- **Requirement:** ${mdProse(finding.requirementLine)}`);
       }
-      lines.push(
-        `- **Severity / confidence:** ${mdProse(finding.severity)} / ${mdProse(finding.confidence)}`,
-      );
-      lines.push(
-        `- **Check:** \`${mdCode(finding.checkId)}\` · **Engine:** \`${mdCode(engineFor(finding))}\``,
-      );
-      lines.push(`- **Reason:** ${mdProse(finding.reason)}`);
       if (finding.remediationStatus) {
         lines.push(`- **Remediation:** ${mdProse(finding.remediationStatus)}`);
       }
+      lines.push(``);
+      lines.push(`**Reason:** ${mdProse(finding.reason)}`);
+      lines.push(``);
+      lines.push(...fencedBlock(finding.snippet, finding.language));
+      lines.push(``);
       if (finding.suggestion) {
         lines.push(
-          `- **Suggestion (${mdProse(finding.suggestion.provenance)}):** ${mdProse(finding.suggestion.description)}`,
+          `**Suggested change (${mdProse(finding.suggestion.provenance)}):** ${mdProse(finding.suggestion.description)}`,
         );
+        lines.push(``);
+        lines.push(
+          ...fencedBlock(finding.suggestion.proposedSnippet, finding.language),
+        );
+        lines.push(``);
       }
-      lines.push(``);
-      for (const snippetLine of finding.snippet.split("\n")) {
-        lines.push(`    ${snippetLine}`);
+      if (index < model.findings.length - 1) {
+        lines.push(`---`);
+        lines.push(``);
       }
-      lines.push(``);
-    }
+    });
   }
 
   lines.push(...footerMarkdown());

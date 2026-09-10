@@ -144,17 +144,33 @@ export function attributeRemovalSpan(
   return { start: adjustedStart, end };
 }
 
+/**
+ * Trimmed source covering every full line a `[start, end)` span touches, so a
+ * node whose tag spans multiple lines keeps its attributes (e.g. a `<a` with
+ * `target` on later lines). Shared by the AST and jsx-a11y finding producers.
+ */
+export function snippetForSpan(
+  text: string,
+  start: number,
+  end: number,
+): string {
+  const lineStart = text.lastIndexOf("\n", Math.max(start - 1, 0)) + 1;
+  const nextNewline = text.indexOf("\n", end);
+  const lineEnd = nextNewline === -1 ? text.length : nextNewline;
+  return text.slice(lineStart, lineEnd).trim();
+}
+
 export function locationOf(source: ParsedSource, node: ts.Node): SourceLocation {
   const start = node.getStart(source.sourceFile);
   const position = source.sourceFile.getLineAndCharacterOfPosition(start);
-  const lineText = source.text.split("\n")[position.line] ?? "";
+  const span = spanOf(node, source.sourceFile);
   return {
     kind: "source",
     filePath: source.filePath,
     line: position.line + 1,
     column: position.character + 1,
-    snippet: lineText.trim(),
-    span: spanOf(node, source.sourceFile),
+    snippet: snippetForSpan(source.text, start, span.end),
+    span,
   };
 }
 

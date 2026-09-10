@@ -5,6 +5,10 @@ import {
   type CheckRegistration,
 } from "./check-registry.ts";
 import { allChecks } from "./checks/registry.ts";
+import {
+  ANALYSIS_ENGINE_VERSION,
+  checkRegistrySignature,
+} from "./checks/registry.ts";
 import { jsxA11yMappedCheckIds } from "./jsx-a11y-map.ts";
 import { axeMappedCheckIds } from "./runtime/axe-map.ts";
 import { htmlValidateMappedCheckIds } from "./runtime/html-validate-map.ts";
@@ -81,5 +85,13 @@ describe("check registry", () => {
   it("wires each check to a unique catalog control", () => {
     const controlIds = CHECK_REGISTRY.map((entry) => entry.catalogControlId);
     expect(new Set(controlIds).size).toBe(controlIds.length);
+  });
+
+  it("signs the engine with its behavior version and every check id", () => {
+    const signature = checkRegistrySignature();
+    expect(signature.startsWith(`${ANALYSIS_ENGINE_VERSION}#`)).toBe(true);
+    for (const check of allChecks) {
+      expect(signature).toContain(check.id);
+    }
   });
 });

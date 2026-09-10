@@ -3,6 +3,7 @@ import {
   REQUIREMENT_STATUSES,
   type FindingStatus,
   type RequirementStatus,
+  type Severity,
 } from "@complyloop/analysis-core/contract/statuses";
 import type { Control, Framework, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type { EvidenceRecord, Finding, Remediation } from "@complyloop/db/types";
@@ -19,6 +20,7 @@ import {
 } from "@/core/display";
 import { countByStatus } from "@/core/lifecycle";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
+import type { FindingLocation } from "@complyloop/analysis-core/contract/finding-types";
 import { prioritizeClusters } from "@/core/lifecycle";
 import {
   formatLocationRef,
@@ -61,21 +63,32 @@ export function projectSourceLabel(
 export interface EngineeringFindingCard {
   code: string;
   locationRef: string;
+  /** Fenced-code language inferred from the location (tsx, ts, html, …). */
+  language: string;
   requirementLine?: string;
   severity: string;
-  severityClass: string;
+  severityClass: Severity;
   confidence: string;
   checkId: string;
   engine?: string;
   reason: string;
   snippet: string;
   remediationStatus?: string;
-  suggestion?: { provenance: string; description: string };
+  suggestion?: {
+    provenance: string;
+    description: string;
+    proposedSnippet: string;
+  };
 }
 
 export interface EngineeringReportModel {
   header: ReportHeaderModel;
-  clusters: { label: string; findingCount: number }[];
+  clusters: {
+    label: string;
+    findingCount: number;
+    checkId: string;
+    sharedLocation: string;
+  }[];
   findings: EngineeringFindingCard[];
 }
 
@@ -145,6 +158,34 @@ function indexBy<T, K extends string>(
   return new Map(items.map((item) => [key(item), item]));
 }
 
+/** Fenced-code hint for a finding snippet, from its file extension or DOM kind. */
+function languageForLocation(location: FindingLocation): string {
+  if (location.kind === "dom") return "html";
+  if (location.kind !== "source") return "";
+  const extension = location.filePath.split(".").pop()?.toLowerCase();
+  switch (extension) {
+    case "tsx":
+      return "tsx";
+    case "jsx":
+      return "jsx";
+    case "ts":
+      return "ts";
+    case "js":
+      return "js";
+    case "html":
+    case "htm":
+      return "html";
+    case "vue":
+      return "vue";
+    case "svelte":
+      return "svelte";
+    case "css":
+      return "css";
+    default:
+      return "";
+  }
+}
+
 function toEngineeringFindingCard(
   finding: Finding,
   framework: Framework,
@@ -162,6 +203,7 @@ function toEngineeringFindingCard(
   return {
     code: display?.code ?? control?.code ?? finding.controlId,
     locationRef: formatLocationRef(finding.location),
+    language: languageForLocation(finding.location),
     requirementLine: requirement
       ? `${requirementStatusDisplay(requirement.status).label} (${determinationDisplay(requirement.determination).label})`
       : undefined,
@@ -179,6 +221,7 @@ function toEngineeringFindingCard(
       ? {
           provenance: remediation.suggestion.provenance,
           description: remediation.suggestion.description,
+          proposedSnippet: remediation.suggestion.proposedSnippet,
         }
       : undefined,
   };
@@ -230,6 +273,8 @@ export function composeEngineeringReport(
     clusters: prioritizeClusters(openFindings, controls).map((cluster) => ({
       label: cluster.label,
       findingCount: cluster.findingIds.length,
+      checkId: cluster.checkId,
+      sharedLocation: cluster.sharedLocation,
     })),
     findings: openFindings.map((finding) =>
       toEngineeringFindingCard(

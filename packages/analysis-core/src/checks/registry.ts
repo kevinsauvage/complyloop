@@ -121,13 +121,23 @@ export const allChecks: AccessibilityCheck[] = [  buttonNameCheck,
 ];
 
 /**
- * Stable signature of the shipped AST check set. Changes when a check is added
- * or removed, so a re-assessment can safely reuse prior AST findings at an
- * unchanged git HEAD only when the engine set is identical.
+ * Version of the analysis engine's observable behavior. Bump whenever AST
+ * check logic, snippet extraction, predicates, or fixes change without a check
+ * id change — otherwise a re-assessment at an unchanged git HEAD reuses prior
+ * findings and the new behavior never runs on unchanged sources.
+ */
+export const ANALYSIS_ENGINE_VERSION = "2026.09.10.1";
+
+/**
+ * Stable signature of the shipped AST engine: behavior version + check id set.
+ * Changes when a check is added/removed or the engine's behavior changes, so a
+ * re-assessment can safely reuse prior AST findings at an unchanged git HEAD
+ * only when the engine is byte-for-byte behaviorally identical.
  */
 export function checkRegistrySignature(): string {
-  return allChecks
+  const checkIds = allChecks
     .map((check) => check.id)
     .sort()
     .join("|");
+  return `${ANALYSIS_ENGINE_VERSION}#${checkIds}`;
 }

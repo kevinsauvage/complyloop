@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { wcagFramework } from "@complyloop/analysis-core/adapters/wcag/controls";
-import type { Finding } from "@complyloop/db/types";
+import type { Finding, Remediation } from "@complyloop/db/types";
 import { sampleReportInput, reportSampleProject } from "@/test-fixtures/report-input";
 import { emptyDb } from "@complyloop/db/types";
 import {
@@ -68,12 +68,13 @@ describe("buildEngineeringReportMarkdown", () => {
     expect(markdown).toContain("## Open findings");
     expect(markdown).toContain("Button.tsx:4");
     expect(markdown).toContain("<button><svg /></button>");
-    expect(markdown).toContain("Critical / high");
+    expect(markdown).toContain("- **Severity:** Critical");
+    expect(markdown).toContain("- **Confidence:** high");
     expect(markdown).not.toContain("## Requirements");
     expect(markdown).not.toContain("## Evidence trail");
   });
 
-  it("renders snippets as indented code blocks, immune to embedded fences", () => {
+  it("renders snippets as fenced code blocks, immune to embedded fences", () => {
     const input = sampleReportInput();
     input.findings[0] = {
       ...input.findings[0],
@@ -86,14 +87,38 @@ describe("buildEngineeringReportMarkdown", () => {
 
     const markdown = buildEngineeringReportMarkdown(input);
 
-    // The snippet is preserved verbatim, indented as a code block, and the
-    // embedded fence cannot terminate it early.
-    expect(markdown).toContain("    const s = `template with ``` inside`;");
-    // A raw fence line around the snippet would imply an unescaped block.
-    expect(markdown).not.toMatch(/\n```\nconst s = /);
+    // The fence is one backtick longer than the longest run in the snippet
+    // (three), so the embedded fence cannot terminate the block early.
+    expect(markdown).toContain(
+      "````tsx\nconst s = `template with ``` inside`;\n````",
+    );
     // Multiline reason is collapsed into the bullet.
-    expect(markdown).toContain("- **Reason:** Template literal with a fence inside");
+    expect(markdown).toContain("**Reason:** Template literal with a fence inside");
     expect(markdown).not.toContain("Reason:** Template literal with a fence\n");
+  });
+
+  it("summarizes severity and renders the suggested fix as a fenced snippet", () => {
+    const input = sampleReportInput();
+    input.remediations[0] = {
+      ...input.remediations[0],
+      status: "suggested",
+      suggestion: {
+        description: "Add an accessible name.",
+        proposedSnippet: '<button aria-label="Close">…</button>',
+        provenance: "ai",
+      },
+    } as Remediation;
+
+    const markdown = buildEngineeringReportMarkdown(input);
+
+    expect(markdown).toContain("### Findings by severity");
+    expect(markdown).toContain("| Critical | 1 |");
+    expect(markdown).toContain(
+      "**Suggested change (ai):** Add an accessible name.",
+    );
+    expect(markdown).toContain(
+      '```tsx\n<button aria-label="Close">…</button>\n```',
+    );
   });
 
   it("neutralizes markdown injection from finding content", () => {
