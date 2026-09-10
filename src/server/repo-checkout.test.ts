@@ -10,7 +10,7 @@ vi.mock("./git", () => ({
   createGit: () => ({ clone }),
 }));
 
-import { cloneShallow, withFixtureCheckout, withProjectCheckout, assertCheckoutWithinQuota } from "./repo-checkout";
+import { cloneShallow, withFixtureCheckout, withProjectCheckout, withRepoCheckout, assertCheckoutWithinQuota, parseCheckoutRef } from "./repo-checkout";
 
 const previousEnabled = process.env.E2E_AUTH_ENABLED;
 const previousRoot = process.env.E2E_FIXTURE_ROOT;
@@ -113,6 +113,49 @@ describe("withFixtureCheckout", () => {
       async (rootPath) => fs.existsSync(path.join(rootPath, "Bad.tsx")),
     );
     expect(seen).toBe(true);
+  });
+});
+
+describe("parseCheckoutRef", () => {
+  it("accepts commit SHAs and plain branch names", () => {
+    expect(parseCheckoutRef("abc1234")).toBe("abc1234");
+    expect(parseCheckoutRef("0123456789abcdef0123456789abcdef01234567")).toBe(
+      "0123456789abcdef0123456789abcdef01234567",
+    );
+    expect(parseCheckoutRef("main")).toBe("main");
+    expect(parseCheckoutRef("feature/my-branch_v2.1")).toBe(
+      "feature/my-branch_v2.1",
+    );
+  });
+
+  it("rejects flag-injection and malformed refs", () => {
+    for (const ref of [
+      "--upload-pack=touch pwned",
+      "--upload-pack=id",
+      "-h",
+      "feature branch",
+      "main\ncheckout evil",
+      "",
+      "/etc/passwd",
+      "..",
+      "feature/../evil",
+      "branch.lock",
+      "branch/",
+      "refs/heads/main@{1}",
+    ]) {
+      expect(() => parseCheckoutRef(ref)).toThrow(PublicError);
+    }
+  });
+
+  it("withRepoCheckout rejects a malicious ref before cloning", async () => {
+    delete process.env.E2E_AUTH_ENABLED;
+    await expect(
+      withRepoCheckout(
+        { fullName: "o/r", accessToken: "token", ref: "--upload-pack=id" },
+        async () => "unreached",
+      ),
+    ).rejects.toBeInstanceOf(PublicError);
+    expect(clone).not.toHaveBeenCalled();
   });
 });
 

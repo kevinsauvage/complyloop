@@ -22,6 +22,8 @@ type JobRow = {
 type Clause =
   | { kind: "eq"; value: unknown }
   | { kind: "lte"; value: unknown }
+  | { kind: "lt"; value: unknown }
+  | { kind: "gte"; value: unknown }
   | { kind: "in"; values: unknown[] }
   | { kind: "and"; parts: Clause[] };
 
@@ -45,6 +47,13 @@ vi.mock("drizzle-orm", async () => {
     eq: (_column: unknown, value: unknown): Clause => ({ kind: "eq", value }),
     lte: (_column: unknown, value: unknown): Clause => ({
       kind: "lte",
+      value,
+    }),
+    // Column-to-column comparisons (attempts vs maxAttempts) arrive with a
+    // non-number value; numeric values compare against row.attempts.
+    lt: (_column: unknown, value: unknown): Clause => ({ kind: "lt", value }),
+    gte: (_column: unknown, value: unknown): Clause => ({
+      kind: "gte",
       value,
     }),
     and: (...parts: Clause[]): Clause => ({ kind: "and", parts }),
@@ -188,7 +197,20 @@ function createDrizzle() {
               row.leaseExpiresAt != null &&
               row.leaseExpiresAt <= String(ltes[0])
             ) {
-              match = true;
+              // Lease-recovery updates carry lt/gte on attempts vs maxAttempts
+              // (column value, not a number). Updates without them match as before.
+              const bounds = flatten(clause).filter(
+                (part) => part.kind === "lt" || part.kind === "gte",
+              );
+              match = bounds.every((part) => {
+                const limit =
+                  typeof part.value === "number"
+                    ? part.value
+                    : row.maxAttempts;
+                return part.kind === "lt"
+                  ? row.attempts < limit
+                  : row.attempts >= limit;
+              });
             }
             if (!match) continue;
             const next = { ...row, ...patch } as JobRow;
@@ -325,6 +347,23 @@ describe("claimNextAssessmentJob", () => {
     expect(claimed?.id).toBe(job.id);
     expect(claimed?.status).toBe("running");
     expect(claimed?.attempts).toBe(2);
+  });
+
+  it("fails expired leases that exhausted their attempts instead of resurrecting them", async () => {
+    const job = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const row = jobs.get(job.id);
+    if (!row) throw new Error("expected job");
+    row.status = "running";
+    row.leaseExpiresAt = new Date(Date.now() - 60_000).toISOString();
+    row.attempts = 3;
+    row.maxAttempts = 3;
+
+    expect(await claimNextAssessmentJob()).toBeNull();
+    expect(jobs.get(job.id)?.status).toBe("failed");
+    expect(jobs.get(job.id)?.error).toMatch(/repeatedly/);
   });
 });
 

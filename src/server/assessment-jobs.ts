@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, lte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { getDrizzle, type DrizzleDb } from "@complyloop/db/client";
 import { assessmentJobs } from "@complyloop/db/schema";
 import {
@@ -148,6 +148,9 @@ export async function enqueueAssessmentJob(
 }
 
 async function recoverExpiredLeases(tx: DrizzleDb, now: string): Promise<void> {
+  // Leases expire when a worker crashes mid-run. Requeue only while attempts
+  // remain; a poison job (OOM, crash loop) at max attempts is terminal instead
+  // of being resurrected on every claim tick forever.
   await tx
     .update(assessmentJobs)
     .set({
@@ -161,6 +164,23 @@ async function recoverExpiredLeases(tx: DrizzleDb, now: string): Promise<void> {
       and(
         eq(assessmentJobs.status, "running"),
         lte(assessmentJobs.leaseExpiresAt, now),
+        lt(assessmentJobs.attempts, assessmentJobs.maxAttempts),
+      ),
+    );
+  await tx
+    .update(assessmentJobs)
+    .set({
+      status: "failed",
+      completedAt: now,
+      leaseExpiresAt: null,
+      updatedAt: now,
+      error: "Worker lease expired repeatedly; giving up.",
+    })
+    .where(
+      and(
+        eq(assessmentJobs.status, "running"),
+        lte(assessmentJobs.leaseExpiresAt, now),
+        gte(assessmentJobs.attempts, assessmentJobs.maxAttempts),
       ),
     );
 }

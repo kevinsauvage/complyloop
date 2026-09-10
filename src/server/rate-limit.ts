@@ -64,7 +64,7 @@ export async function assertRateLimit(
   });
 }
 
-/** Removes expired windows; the worker calls this on idle ticks. */
+/** Removes expired windows; the worker loop calls this on a wall-clock cadence (plus once per idle tick inside processNextAssessmentJob). */
 export async function pruneRateLimitBuckets(maxAgeMs = 86_400_000): Promise<number> {
   const drizzle = await getDrizzle();
   const cutoff = new Date(Date.now() - maxAgeMs).toISOString();

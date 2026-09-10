@@ -63,6 +63,37 @@ export interface RepoCheckoutOptions {
   ref?: string;
 }
 
+/**
+ * Validates an untrusted git ref before it reaches simple-git. A ref starting
+ * with `-` would be parsed as a git flag (e.g. `--upload-pack=...`), so only
+ * hex SHAs and strict branch/tag names are accepted. Called by
+ * `withRepoCheckout`, the single sink for every server checkout path.
+ */
+export function parseCheckoutRef(ref: string): string {
+  if (
+    ref.length === 0 ||
+    ref.length > 128 ||
+    /[\x00-\x20\x7f\s]/.test(ref) ||
+    ref.startsWith("-") ||
+    ref.startsWith("/") ||
+    ref.startsWith(".")
+  ) {
+    throw new PublicError("Invalid checkout ref.", "ref_not_found");
+  }
+  if (/^[0-9a-f]{4,64}$/i.test(ref)) return ref;
+  if (
+    /^[A-Za-z0-9._/-]+$/.test(ref) &&
+    !ref.includes("..") &&
+    !ref.includes("@{") &&
+    !ref.endsWith("/") &&
+    !ref.endsWith(".") &&
+    !ref.endsWith(".lock")
+  ) {
+    return ref;
+  }
+  throw new PublicError("Invalid checkout ref.", "ref_not_found");
+}
+
 /** Shallow-clones into `rootPath`; removes the directory on clone failure. */
 export async function cloneShallow(
   cloneUrl: string,
@@ -110,26 +141,27 @@ export async function withRepoCheckout<T>(
     return withFixtureCheckout(fn);
   }
 
+  const ref = options.ref === undefined ? undefined : parseCheckoutRef(options.ref);
   const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "complyloop-checkout-"));
   try {
     await cloneShallow(
       githubCloneUrl(options.fullName, options.accessToken),
       rootPath,
     );
-    if (options.ref) {
+    if (ref) {
       // Ref fetches can pull more tree than the default shallow clone: fail
       // fast on quota before fetching instead of after.
       assertCheckoutWithinQuota(rootPath);
       const git = createGit({ baseDir: rootPath });
       try {
-        await git.fetch(["--depth", "1", "origin", options.ref]);
+        await git.fetch(["--depth", "1", "origin", ref]);
       } catch {
         throw new PublicError(
-          `Ref not found: ${options.ref}. The branch or commit may have been deleted.`,
+          `Ref not found: ${ref}. The branch or commit may have been deleted.`,
           "ref_not_found",
         );
       }
-      await git.checkout([options.ref]);
+      await git.checkout([ref]);
     }
     assertCheckoutWithinQuota(rootPath);
     return await fn(rootPath);

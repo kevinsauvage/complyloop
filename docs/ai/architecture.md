@@ -165,9 +165,14 @@ pushes are ignored. PR events post a Check Run. Failures become
 
 ## Invariants
 
-- Evidence append-only; decisions keep history.
+- Evidence append-only; decisions keep history. Enforced by convention: writes
+  go through `insertEvidence` (`packages/db/src/repo/evidence.ts`) — there is
+  no update/delete helper for evidence rows.
 - Every status records `automated` vs `human_review`.
-- `verified` only via deterministic re-check.
+- `verified` only via deterministic re-check. Status derivation order (sticky
+  human decisions → findings → applicability → authority gates) is the source
+  of truth in `packages/analysis-core/src/contract/requirement-status.ts`; AI
+  (`src/ai/`) is advisory only and never writes statuses.
 - Webhook assessments idempotent via job `idempotencyKey`.
 
 ## Tests

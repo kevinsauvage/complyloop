@@ -11,6 +11,14 @@ import {
 } from "../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../types.ts";
 
+/**
+ * BLAST RADIUS: this module is imported by ~14 checks (descendantTags,
+ * textContentOf, handlerTriggersContextChange, style/ARIA string heuristics).
+ * Any change here silently alters every dependent check — run the full
+ * `packages/analysis-core/src/checks/` suite and do not extract, rename, or
+ * split helpers without a dedicated design task.
+ */
+
 /** React keyboard event handler prop names. */
 export const KEY_HANDLERS = ["onKeyDown", "onKeyUp", "onKeyPress"] as const;
 
