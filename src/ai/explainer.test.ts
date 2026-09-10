@@ -3,11 +3,10 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/db/types";
 import { generateObject } from "ai";
 import {
-  aiExplanationAvailable,
   deterministicExplanation,
   generateAiExplanation,
 } from "./explainer";
-import { AI_MODEL } from "./ai-call";
+import { AI_MODEL, aiAvailable } from "./ai-call";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
@@ -66,12 +65,12 @@ describe("deterministicExplanation", () => {
   });
 });
 
-describe("aiExplanationAvailable", () => {
+describe("aiAvailable", () => {
   it("is true only when AI_GATEWAY_API_KEY is set", () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "");
-    expect(aiExplanationAvailable()).toBe(false);
+    expect(aiAvailable()).toBe(false);
     vi.stubEnv("AI_GATEWAY_API_KEY", "k");
-    expect(aiExplanationAvailable()).toBe(true);
+    expect(aiAvailable()).toBe(true);
   });
 });
 

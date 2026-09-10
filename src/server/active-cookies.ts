@@ -40,3 +40,8 @@ export function readActiveProjectCookie(): Promise<string | null> {
 export function writeActiveProjectCookie(projectId: string): Promise<void> {
   return writeIdCookie(ACTIVE_PROJECT_COOKIE, projectId);
 }
+
+export async function clearActiveProjectCookie(): Promise<void> {
+  const store = await cookies();
+  store.delete(ACTIVE_PROJECT_COOKIE);
+}

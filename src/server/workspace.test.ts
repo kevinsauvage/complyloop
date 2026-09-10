@@ -19,6 +19,7 @@ const deleteOrganizationRow = vi.hoisted(() => vi.fn());
 const insertProject = vi.hoisted(() => vi.fn());
 const deleteProject = vi.hoisted(() => vi.fn());
 const insertEvidenceRecords = vi.hoisted(() => vi.fn());
+const getFindingById = vi.hoisted(() => vi.fn());
 
 vi.mock("@/auth", () => ({ auth }));
 vi.mock("./active-cookies", () => ({
@@ -60,6 +61,9 @@ vi.mock("@complyloop/db/repo/projects", () => ({
 vi.mock("@complyloop/db/repo/evidence", () => ({
   WORKSPACE_EVIDENCE_LIMIT: 100,
   insertEvidenceRecords: (...args: unknown[]) => insertEvidenceRecords(...args),
+}));
+vi.mock("@complyloop/db/repo/findings", () => ({
+  getFindingById: (...args: unknown[]) => getFindingById(...args),
 }));
 
 import {
@@ -327,6 +331,12 @@ describe("withFindingWrite", () => {
     readActiveProjectCookie.mockResolvedValue(project.id);
     acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
     persistProjectRows.mockResolvedValue(undefined);
+    getFindingById.mockImplementation(
+      async (_tx: unknown, findingId: string) =>
+        findingId === "f1"
+          ? testFinding({ id: "f1", projectId: "p1" })
+          : undefined,
+    );
     loadTenancyDb.mockResolvedValue({
       ...emptyDb(),
       organizations: [

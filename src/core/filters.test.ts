@@ -5,20 +5,14 @@ import type { EvidenceRecord, Finding } from "@complyloop/db/types";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import {
   EVIDENCE_KIND_FILTER_ORDER,
-  entityIdSchema,
   evidenceKindHref,
   evidenceRecordHref,
   filterFindings,
   findingDetailHref,
-  findingIdsField,
   findingListPaginationQuery,
   findingQueuePosition,
   findingsListHref,
-  firstIssueMessage,
-  formRecord,
-  githubRepoSearchResponseSchema,
   hasActiveFindingFilters,
-  optionalNoteSchema,
   orderedFindingIdsForQueue,
   pageSliceFromQuery,
   paginateSlice,
@@ -26,17 +20,25 @@ import {
   parseEvidenceKindParam,
   parseEvidenceQueryParam,
   parseFindingListParams,
-  parseForm,
-  parseInput,
   parsePageParam,
   parsePresetIdParam,
   parseReportViewParam,
   parseRequirementStatusParam,
-  parseUnknown,
   reportHref,
-  requiredField,
   requirementsPageHref,
   requirementsStatusHref,
+} from "./filter-params";
+import {
+  entityIdSchema,
+  findingIdsField,
+  firstIssueMessage,
+  formRecord,
+  githubRepoSearchResponseSchema,
+  optionalNoteSchema,
+  parseForm,
+  parseInput,
+  parseUnknown,
+  requiredField,
 } from "./filters";
 
 describe("EVIDENCE_KIND_FILTER_ORDER", () => {
@@ -288,7 +290,7 @@ describe("evidenceRecordHref", () => {
   it("links an assessment event to the project home", () => {
     expect(
       evidenceRecordHref({ ...base, assessmentId: "a1" }, []),
-    ).toBe("/");
+    ).toBe("/dashboard");
   });
 
   it("returns undefined for records with no navigation target", () => {

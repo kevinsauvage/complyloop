@@ -13,7 +13,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { findingsListHref } from "@/core/filters";
+import { findingsListHref } from "@/core/filter-params";
 import type { Control, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import {
   unableToVerifyReason,

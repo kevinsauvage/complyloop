@@ -1,6 +1,6 @@
 import { RequirementStatusBadge } from "@/components/badges";
 import { FilterChipList } from "@/components/filter-chip-list";
-import { requirementsPageHref } from "@/core/filters";
+import { requirementsPageHref } from "@/core/filter-params";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 

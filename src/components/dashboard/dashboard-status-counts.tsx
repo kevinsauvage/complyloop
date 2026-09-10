@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { RequirementStatusBadge } from "@/components/badges";
 import { Card, CardContent } from "@/components/ui/card";
-import { requirementsStatusHref } from "@/core/filters";
+import { requirementsStatusHref } from "@/core/filter-params";
 import { cn } from "@/lib/utils";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";

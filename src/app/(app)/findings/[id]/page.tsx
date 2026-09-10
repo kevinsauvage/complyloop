@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { aiExplanationAvailable } from "@/ai/explainer";
+import { aiAvailable as isAiAvailable } from "@/ai/ai-call";
 import {
   BadgeWithDescription,
   FindingStatusBadge,
@@ -24,7 +24,7 @@ import {
   orderedFindingIdsForQueue,
   parseFindingListParams,
   type FilterFindingsContext,
-} from "@/core/filters";
+} from "@/core/filter-params";
 import { EmptyState, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
 import { formatDateTime } from "@/core/lifecycle";
 import { Button } from "@/components/ui/button";
@@ -109,7 +109,7 @@ export default async function FindingPage({
   const control = displayControl(finding.controlId, project);
   const evidence = await listEvidenceForFinding(await getDrizzle(), finding.id);
   const chronologicalEvidence = [...evidence].reverse();
-  const aiAvailable = aiExplanationAvailable();
+  const aiAvailable = isAiAvailable();
   const prUrl = pullRequestUrlFromEvidence(chronologicalEvidence);
   const patchState = latestPatchState(chronologicalEvidence);
   const githubConnected = Boolean(project.github?.fullName);

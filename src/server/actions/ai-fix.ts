@@ -1,7 +1,7 @@
 "use server";
 
 import { assertSourceLocatedFinding } from "@/ai/verified-fix";
-import { aiExplanationAvailable } from "@/ai/explainer";
+import { aiAvailable } from "@/ai/ai-call";
 import { hasSafeDeterministicFix } from "@/core/lifecycle";
 import { parseEntityId } from "@/core/filters";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
@@ -54,7 +54,7 @@ export async function generateAiFixAction(
       project,
       (rootPath) =>
         runAiFixOnCheckout(rootPath, finding, control, {
-          aiAvailable: aiExplanationAvailable(),
+          aiAvailable: aiAvailable(),
         }),
     );
 

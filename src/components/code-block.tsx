@@ -64,7 +64,7 @@ export function CodeBlock({
       </div>
       <pre
         className={cn(
-          "surface-panel max-h-96 overflow-y-auto rounded-xl px-4 py-3 font-mono text-xs leading-relaxed text-foreground",
+          "max-h-96 overflow-y-auto rounded-xl border border-border/60 bg-muted/20 px-4 py-3 font-mono text-xs leading-relaxed text-foreground dark:bg-muted/30",
           wrap
             ? "break-all whitespace-pre-wrap"
             : // Always wrap on narrow viewports even when the toggle is off.

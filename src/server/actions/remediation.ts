@@ -91,6 +91,9 @@ function dismissFindingInRows(
   at: string,
   options: { bulk?: boolean },
 ): Finding {
+  if (finding.status !== "open") {
+    throw new PublicError("Only open findings can be dismissed.");
+  }
   const updated: Finding = {
     ...finding,
     status: "dismissed",

@@ -4,11 +4,11 @@ import type { FindingListItem } from "@/components/findings/finding-list-items";
 import { EmptyState } from "@/components/page-primitives";
 import { FocusFilterResults } from "@/components/findings/focus-filter-results";
 import { PaginationNav } from "@/components/pagination-nav";
-import { DEFAULT_PAGE_SIZE } from "@/core/filters";
+import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
 import type {
   FindingListParams,
   FindingsTab,
-} from "@/core/filters";
+} from "@/core/filter-params";
 import type { ReactNode } from "react";
 
 export function FindingsTabPanel({

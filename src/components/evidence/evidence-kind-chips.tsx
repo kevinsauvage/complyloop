@@ -4,7 +4,7 @@ import {
   EVIDENCE_KIND_FILTER_ORDER,
   evidenceKindHref,
   type EvidencePageFilters,
-} from "@/core/filters";
+} from "@/core/filter-params";
 import type { EvidenceKind } from "@complyloop/db/types";
 
 export function EvidenceKindChips({

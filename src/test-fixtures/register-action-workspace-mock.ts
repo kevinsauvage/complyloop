@@ -1,7 +1,8 @@
 import { vi } from "vitest";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { actionAuthMocks, actionWorkspaceMocks } from "./action-workspace-mocks";
-import type { Db, Finding, Remediation } from "@complyloop/db/types";
+import type { Finding, Remediation } from "@complyloop/db/types";
+import type { ProjectWriteWorkspace } from "@/server/workspace";
 import { requireOnFindingProject } from "@/server/actions/shared";
 
 vi.mock("next/cache", () => ({
@@ -59,16 +60,13 @@ vi.mock("@/server/workspace-write", async () => {
       fn: Parameters<typeof actual.withFindingWrite>[2],
     ) =>
       actionWorkspaceMocks.withProjectWrite(
-        (workspace: Parameters<typeof actual.withProjectWrite>[0] extends (
-          w: infer W,
-        ) => unknown
-          ? W
-          : never) => {
-          const db = (workspace as unknown as { db: Db }).db;
-          const finding = db.findings.find((row) => row.id === findingId);
+        (workspace: ProjectWriteWorkspace) => {
+          const finding = workspace.db.findings.find(
+            (row) => row.id === findingId,
+          );
           if (!finding) throw new PublicError("Unknown finding.");
           requireOnFindingProject(workspace, finding, permission);
-          return fn({ db, finding, workspace });
+          return fn({ db: workspace.db, finding, workspace });
         },
       ),
     withOrgWrite: (fn: Parameters<typeof actual.withOrgWrite>[0]) =>

@@ -3,9 +3,7 @@ import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/db/types"
 import type { Explanation } from "@complyloop/analysis-core/contract/finding-types";
-import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
-import { formatLocationRef, locationSnippet } from "@complyloop/analysis-core/contract/location";
-import { AI_MODEL, aiCall, confidenceSchema } from "./ai-call";
+import { AI_MODEL, aiAvailable, aiCall, confidenceSchema, findingPromptContext } from "./ai-call";
 
 const explanationSchema = z.object({
   whyItFailed: z.string(),
@@ -28,10 +26,6 @@ export function deterministicExplanation(
   };
 }
 
-export function aiExplanationAvailable(): boolean {
-  return Boolean(process.env.AI_GATEWAY_API_KEY);
-}
-
 /**
  * Generates a developer-oriented explanation with an LLM. Returns null when no
  * AI credentials are configured or the call fails — the deterministic
@@ -44,18 +38,13 @@ export async function generateAiExplanation(
 ): Promise<Explanation | null> {
   const object = await aiCall({
     schema: explanationSchema,
-    available: aiExplanationAvailable(),
+    available: aiAvailable(),
     code: "ai_explanation_failed",
     detail: { findingId: finding.id, controlId: control.id },
     prompt: [
       "You explain accessibility compliance findings to web developers.",
-      `Requirement: ${control.code} / ${control.secondaryCode} — ${control.title}. ${control.description}`,
+      ...findingPromptContext(finding, control),
       `Automated check result: ${finding.reason}`,
-      `Location: ${formatLocationRef(finding.location)}`,
-      `Code: ${locationSnippet(finding.location)}`,
-      engineFor(finding) === "runtime"
-        ? "This finding came from a rendered-page audit — guide the developer to the call site that renders this control, not a shared UI primitive."
-        : "",
       "Write whyItFailed, impact (who is affected and how), and howToFix (concrete code-level guidance for this exact snippet).",
       "Set confidence to high/medium/low for how sure you are about this explanation.",
       "Be concise and practical; no legal language.",

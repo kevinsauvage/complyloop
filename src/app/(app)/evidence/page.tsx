@@ -18,20 +18,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { evidenceRecordHref } from "@/core/filters";
+import { evidenceRecordHref } from "@/core/filter-params";
 import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/display";
 import {
   parseEvidenceDateParam,
   parseEvidenceKindParam,
   parseEvidenceQueryParam,
   evidenceKindHref,
-} from "@/core/filters";
-import { reportHref } from "@/core/filters";
+} from "@/core/filter-params";
+import { reportHref } from "@/core/filter-params";
 import {
   DEFAULT_PAGE_SIZE,
   pageSliceFromQuery,
   parsePageParam,
-} from "@/core/filters";
+} from "@/core/filter-params";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -275,7 +275,7 @@ export default async function EvidencePage({
                 name="actor"
                 type="search"
                 defaultValue={actor ?? ""}
-                placeholder="GitHub login…"
+                placeholder="GitHub login or System…"
                 maxLength={100}
                 autoComplete="off"
               />

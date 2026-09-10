@@ -41,15 +41,15 @@ export function AppErrorCard({
   return (
     <Card
       className={cn(
-        "border-destructive/30 bg-destructive/[0.04] shadow-none ring-1 ring-destructive/25",
+        "mx-auto my-8 w-full max-w-lg border-destructive/30 bg-destructive/[0.04] shadow-none ring-1 ring-destructive/25",
         className,
       )}
       role="alert"
       aria-labelledby="app-error-title"
       aria-describedby="app-error-description"
     >
-      <CardHeader className="gap-3">
-        <div className="flex items-center gap-3">
+      <CardHeader className="items-center gap-2 text-center">
+        <div className="flex flex-col items-center gap-2 text-center">
           <span
             className="flex size-11 shrink-0 items-center justify-center rounded-full border border-destructive/30 bg-destructive/10"
             aria-hidden
@@ -67,7 +67,7 @@ export function AppErrorCard({
         </div>
         <CardDescription
           id="app-error-description"
-          className="max-w-xl text-base text-muted-foreground"
+          className="max-w-xl text-center text-base text-balance text-muted-foreground"
         >
           {description}
           {digest ? (
@@ -84,7 +84,7 @@ export function AppErrorCard({
           ) : null}
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-wrap gap-3">
+      <CardContent className="flex flex-wrap justify-center gap-3">
         <Button
           type="button"
           size="lg"

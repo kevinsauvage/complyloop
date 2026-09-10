@@ -20,9 +20,9 @@ import {
   type FilterFindingsContext,
   type FindingsTab,
   type FindingListParams,
-} from "@/core/filters";
-import { reportHref } from "@/core/filters";
-import { paginateSlice, DEFAULT_PAGE_SIZE } from "@/core/filters";
+} from "@/core/filter-params";
+import { reportHref } from "@/core/filter-params";
+import { paginateSlice, DEFAULT_PAGE_SIZE } from "@/core/filter-params";
 import { prioritizeClusters } from "@/core/lifecycle";
 import { clusterFindings } from "@/core/lifecycle";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";

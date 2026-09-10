@@ -29,6 +29,21 @@ import { appendEvidence, cloneProjectRows } from "../project-rows";
 import { refresh, requireOnActive } from "./shared";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 
+/**
+ * Date-only input (`YYYY-MM-DD` from `<input type="date">`) means the whole
+ * calendar day UTC — normalize to end of day so "expires today" stays valid
+ * until the day is over instead of expiring at UTC midnight.
+ */
+export function normalizeExpiryInstant(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const instant = `${trimmed}T23:59:59.999Z`;
+    return Number.isNaN(Date.parse(instant)) ? null : instant;
+  }
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
 const markExceptionInput = z
   .object({
     reason: z.enum(REQUIREMENT_EXCEPTION_REASONS, {
@@ -42,11 +57,29 @@ const markExceptionInput = z
   })
   .superRefine((value, ctx) => {
     if (value.reason !== TEMPORARY_EXCEPTION_REASON) return;
-    if (value.expiresAt == null || value.expiresAt.trim().length === 0) {
+    const raw = value.expiresAt;
+    if (raw == null || raw.trim().length === 0) {
       ctx.addIssue({
         code: "custom",
         path: ["expiresAt"],
         message: "Temporary exceptions require an expiry date.",
+      });
+      return;
+    }
+    const instant = normalizeExpiryInstant(raw);
+    if (!instant) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["expiresAt"],
+        message: "Enter a valid expiry date (YYYY-MM-DD).",
+      });
+      return;
+    }
+    if (instant <= new Date().toISOString()) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["expiresAt"],
+        message: "Expiry date must be in the future.",
       });
     }
   });
@@ -151,7 +184,7 @@ export async function markRequirementExceptionAction(
         const expiresRaw = parsed.expiresAt;
         const expiresAt =
           reason === TEMPORARY_EXCEPTION_REASON && typeof expiresRaw === "string"
-            ? new Date(expiresRaw).toISOString()
+            ? (normalizeExpiryInstant(expiresRaw) ?? undefined)
             : undefined;
 
         const { updated, previous } = setRequirementHumanDetermination(

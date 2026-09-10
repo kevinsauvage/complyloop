@@ -2,7 +2,7 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -11,14 +11,12 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   // Gate theme-dependent props behind mount: server (and pre-hydration
   // client) render without resolved theme, so emitting aria-pressed from
   // `resolvedTheme` mismatches when the stored theme is dark.
-  // useSyncExternalStore (server snapshot `false`) avoids a setState-in-effect.
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-  const activeTheme = resolvedTheme ?? theme;
-  const isDark = activeTheme === "dark";
+  const [mounted, setMounted] = useState(false);
+  // One-shot mount flag (no cascade) so SSR omits `aria-pressed` until the
+  // client theme resolves.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
+  const isDark = (resolvedTheme ?? theme) === "dark";
 
   return (
     <Button
@@ -26,10 +24,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
       variant="outline"
       size={compact ? "icon" : "sm"}
       className={cn(!compact && "w-full justify-start gap-2")}
-      onClick={() => {
-        const isDarkNow = document.documentElement.classList.contains("dark");
-        setTheme(isDarkNow ? "light" : "dark");
-      }}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label="Toggle light and dark theme"
       aria-pressed={mounted ? isDark : undefined}
     >

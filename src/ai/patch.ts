@@ -4,7 +4,11 @@ import { type Finding } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { AI_MODEL, AI_PATCH_UNAVAILABLE_MESSAGE, aiCall } from "./ai-call";
-import { fileEditSchema, type ProposedFixEdits } from "./verified-fix";
+import {
+  assertSingleFileEdits,
+  fileEditSchema,
+  type ProposedFixEdits,
+} from "./patch-types";
 
 const editsSchema = z.object({
   description: z.string(),
@@ -129,12 +133,10 @@ export async function proposeFixEdits(
   if (!object) {
     throw new PublicError(AI_PATCH_FAILED_MESSAGE);
   }
-  if (object.edits.length === 0) {
-    throw new PublicError("AI patch must contain at least one edit.");
-  }
-  if (object.edits.some((edit) => edit.path !== targetPath)) {
-    throw new PublicError(`AI patch edits must target ${targetPath}.`);
-  }
+  assertSingleFileEdits(object.edits, targetPath, {
+    emptyMessage: "AI patch must contain at least one edit.",
+    offTargetMessage: (path) => `AI patch edits must target ${path}.`,
+  });
   return {
     description: object.description,
     provenance: "ai",

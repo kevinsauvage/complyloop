@@ -13,7 +13,7 @@ import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
 import {
   parseReportViewParam,
   type ReportView,
-} from "@/core/filters";
+} from "@/core/filter-params";
 import type {
   Alert,
   Assessment,
@@ -27,7 +27,6 @@ import {
   requirementsInScope,
 } from "./project-scope";
 import { getProjectRuntime } from "./project-runtime";
-import { evidenceForProject } from "./project-visibility";
 import type { ReportInput } from "./report-model";
 import { getWorkspace } from "./workspace";
 
@@ -111,7 +110,7 @@ export function reportInputForProject(
       findingIds.has(remediation.findingId),
     ),
     requirements: requirementsInScope(runtime.requirements, project),
-    evidence: evidenceForProject(runtime.evidence, project.id),
+    evidence: runtime.evidence.filter((row) => row.projectId === project.id),
     evidenceTotal: evidenceMeta?.total ?? runtime.evidence.length,
     evidenceTruncated: evidenceMeta?.truncated ?? false,
     exportedAt: new Date().toISOString(),

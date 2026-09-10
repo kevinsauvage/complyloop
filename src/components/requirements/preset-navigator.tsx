@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
-import { requirementsPageHref } from "@/core/filters";
+import { requirementsPageHref } from "@/core/filter-params";
 import type { FrameworkPresetSummary } from "@complyloop/analysis-core/adapters/types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { PresetItemBody } from "./preset-item-body";

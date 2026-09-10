@@ -14,8 +14,9 @@ import type {
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/project-types";
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
-import { controlsInScope, catalogControls } from "./project-scope";
+import { controlsInScope } from "./project-scope";
 import type { ProjectRows } from "./project-rows";
 
 /** Human exceptions and human passes block automated status overwrite. */
@@ -48,7 +49,7 @@ export function clearExpiredExceptions(
   const updated: Requirement[] = [];
   // Build the catalog index once instead of scanning per expired exception.
   const controlById = new Map(
-    catalogControls().map((control) => [control.id, control]),
+    shippedCatalog().controls.map((control) => [control.id, control]),
   );
 
   for (const original of requirements) {
@@ -273,7 +274,7 @@ function scopedControlsForRefresh(
 ): Control[] {
   const base = project
     ? controlsInScope(project, catalog)
-    : catalogControls(catalog);
+    : [...(catalog ?? shippedCatalog().controls)];
   if (!controlIds) return [...base];
   const controlIdSet = new Set(controlIds);
   return base.filter((control) => controlIdSet.has(control.id));

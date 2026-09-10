@@ -9,6 +9,7 @@ import {
 } from "../action-state";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
+  clearActiveProjectCookie,
   readActiveOrgCookie,
   writeActiveProjectCookie,
 } from "../active-cookies";
@@ -180,6 +181,8 @@ export async function disconnectGitHubRepoAction(
 
     if (nextProjectId) {
       await writeActiveProjectCookie(nextProjectId);
+    } else {
+      await clearActiveProjectCookie();
     }
     refresh();
     return `Disconnected ${disconnectedName}.`;

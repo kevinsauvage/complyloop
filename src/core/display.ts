@@ -437,49 +437,58 @@ const STATUS_TONE_STYLE = {
   },
 } satisfies Record<StatusTone, StatusToneStyle>;
 
+type SignallessTone = Exclude<StatusTone, "signal">;
+
+function toneStyle(tone: StatusTone): StatusToneStyle {
+  return mustGet(STATUS_TONE_STYLE, tone, "status tone");
+}
+
+function requiredReport(tone: SignallessTone): ReportColorPair {
+  const pair = toneStyle(tone).report;
+  if (!pair) throw new Error(`Missing report palette: ${tone}`);
+  return pair;
+}
+
+function requiredReportClass(tone: SignallessTone): string {
+  const value = toneStyle(tone).reportClass;
+  if (!value) throw new Error(`Missing report class: ${tone}`);
+  return value;
+}
+
 /** Soft tint + readable text; stronger fill in dark mode for contrast. */
 export const STATUS_TONE_BADGE: Record<StatusTone, string> = {
-  passed: STATUS_TONE_STYLE.passed.badge,
-  failed: STATUS_TONE_STYLE.failed.badge,
-  review: STATUS_TONE_STYLE.review.badge,
-  na: STATUS_TONE_STYLE.na.badge,
-  unverifiable: STATUS_TONE_STYLE.unverifiable.badge,
-  signal: STATUS_TONE_STYLE.signal.badge,
+  passed: toneStyle("passed").badge,
+  failed: toneStyle("failed").badge,
+  review: toneStyle("review").badge,
+  na: toneStyle("na").badge,
+  unverifiable: toneStyle("unverifiable").badge,
+  signal: toneStyle("signal").badge,
 };
 
-export const STATUS_TONE_ACCENT: Record<
-  Exclude<StatusTone, "signal">,
-  string
-> = {
-  passed: STATUS_TONE_STYLE.passed.accent,
-  failed: STATUS_TONE_STYLE.failed.accent,
-  review: STATUS_TONE_STYLE.review.accent,
-  na: STATUS_TONE_STYLE.na.accent,
-  unverifiable: STATUS_TONE_STYLE.unverifiable.accent,
+export const STATUS_TONE_ACCENT: Record<SignallessTone, string> = {
+  passed: toneStyle("passed").accent,
+  failed: toneStyle("failed").accent,
+  review: toneStyle("review").accent,
+  na: toneStyle("na").accent,
+  unverifiable: toneStyle("unverifiable").accent,
 };
 
 /** Print/email hex palette per requirement tone (Tailwind unavailable). */
-export const STATUS_TONE_REPORT: Record<
-  Exclude<StatusTone, "signal">,
-  ReportColorPair
-> = {
-  passed: STATUS_TONE_STYLE.passed.report,
-  failed: STATUS_TONE_STYLE.failed.report,
-  review: STATUS_TONE_STYLE.review.report,
-  na: STATUS_TONE_STYLE.na.report,
-  unverifiable: STATUS_TONE_STYLE.unverifiable.report,
+export const STATUS_TONE_REPORT: Record<SignallessTone, ReportColorPair> = {
+  passed: requiredReport("passed"),
+  failed: requiredReport("failed"),
+  review: requiredReport("review"),
+  na: requiredReport("na"),
+  unverifiable: requiredReport("unverifiable"),
 };
 
 /** CSS badge class suffix per tone in the standalone report. */
-export const STATUS_TONE_REPORT_CLASS: Record<
-  Exclude<StatusTone, "signal">,
-  string
-> = {
-  passed: STATUS_TONE_STYLE.passed.reportClass,
-  failed: STATUS_TONE_STYLE.failed.reportClass,
-  review: STATUS_TONE_STYLE.review.reportClass,
-  na: STATUS_TONE_STYLE.na.reportClass,
-  unverifiable: STATUS_TONE_STYLE.unverifiable.reportClass,
+export const STATUS_TONE_REPORT_CLASS: Record<SignallessTone, string> = {
+  passed: requiredReportClass("passed"),
+  failed: requiredReportClass("failed"),
+  review: requiredReportClass("review"),
+  na: requiredReportClass("na"),
+  unverifiable: requiredReportClass("unverifiable"),
 };
 
 /** Report CSS class for a requirement status, via its unified tone. */

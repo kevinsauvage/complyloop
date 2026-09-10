@@ -1,12 +1,10 @@
 import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-export * from "./filter-params";
-
 /*
  * Zod request/form validation. Kept in this module (not `./filter-params`) so
- * client components can import the pure URL/filter helpers without pulling
- * `zod` into their bundles.
+ * client components can import the pure URL/filter helpers from
+ * `./filter-params` without pulling `zod` into their bundles.
  */
 
 export const entityIdSchema = z.string().trim().min(1).max(128);

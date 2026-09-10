@@ -13,6 +13,7 @@ import {
   type ActionState,
 } from "../action-state";
 import {
+  clearActiveProjectCookie,
   writeActiveOrgCookie,
   writeActiveProjectCookie,
 } from "../active-cookies";
@@ -93,6 +94,8 @@ export async function switchOrgAction(formData: FormData): Promise<void> {
   await writeActiveOrgCookie(orgId);
   if (projectInOrg) {
     await writeActiveProjectCookie(projectInOrg.id);
+  } else {
+    await clearActiveProjectCookie();
   }
   refresh();
 }
@@ -123,6 +126,7 @@ export async function createOrgAction(
       };
     });
     await writeActiveOrgCookie(org.id);
+    await clearActiveProjectCookie();
     refresh();
     return `Created organization "${org.name}".`;
   });

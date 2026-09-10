@@ -19,7 +19,7 @@ type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
 type ButtonSize = VariantProps<typeof buttonVariants>["size"];
 
 /** Pending label rule shared by every submit control. */
-export function resolveSubmitLabel(
+function resolveSubmitLabel(
   pending: boolean,
   label: string,
   pendingLabel?: string,

@@ -77,12 +77,11 @@ export function prepareWorkspaceState(
       : null;
 
   const scoped = projectsForActiveOrg(db.projects, access, activeOrgId);
-  const project =
-    resolveActiveProject(
-      scoped.length > 0 ? scoped : db.projects,
-      preferredProjectId,
-      access,
-    ) ?? null;
+  // When an org is selected, never fall back to other orgs' projects — a
+  // stale project cookie must not leak tenancy context into an empty org.
+  const project = activeOrgId
+    ? (resolveActiveProject(scoped, preferredProjectId, access) ?? null)
+    : null;
 
   return {
     project,
@@ -90,8 +89,7 @@ export function prepareWorkspaceState(
     githubLogin,
     access,
     projects: db.projects,
-    visibleProjects:
-      scoped.length > 0 ? scoped : visibleProjects(db.projects, access),
+    visibleProjects: activeOrgId ? scoped : [],
     organizations,
     activeOrgId,
   };

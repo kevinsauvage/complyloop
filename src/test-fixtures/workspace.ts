@@ -61,6 +61,3 @@ export function testWorkspace(options: {
     db,
   };
 }
-
-/** @deprecated Prefer {@link testWorkspace} (already includes `db`). */
-export const testWriteWorkspace = testWorkspace;

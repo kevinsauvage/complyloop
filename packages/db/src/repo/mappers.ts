@@ -99,9 +99,9 @@ export function newEvidenceRecord(
   entry: Omit<EvidenceRecord, "id" | "at">,
 ): EvidenceRecord {
   return {
+    ...entry,
     id: crypto.randomUUID(),
     at: new Date().toISOString(),
-    ...entry,
   };
 }
 

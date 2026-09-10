@@ -7,7 +7,6 @@ import type {
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
-import { findingsForProject, requirementsForProject } from "./project-visibility";
 
 /**
  * Control IDs this project assesses. Uses live preset membership so new rules
@@ -28,29 +27,24 @@ export function scopedControlIds(
  * Controls assessed for a project. `undefined` scope means the full catalog.
  * Pass `catalog` in tests that inject a subset; production uses the shipped set.
  */
-export function catalogControls(catalog?: readonly Control[]): readonly Control[] {
-  return catalog === undefined ? shippedCatalog().controls : catalog;
-}
-
 export function controlsInScope(
   project: Project,
-  catalog?: readonly Control[],
+  catalog: readonly Control[] = shippedCatalog().controls,
 ): Control[] {
-  const controls = catalogControls(catalog);
   const controlIds = scopedControlIds(project);
-  if (!controlIds) return [...controls];
-  return controls.filter((control) => controlIds.has(control.id));
+  if (!controlIds) return [...catalog];
+  return catalog.filter((control) => controlIds.has(control.id));
 }
 
 /** Fails loud when the catalog or preset scope would produce a no-op assessment. */
 export function assertAssessableCatalog(
   project: Project,
-  catalog?: readonly Control[],
+  catalog: readonly Control[] = shippedCatalog().controls,
 ): Control[] {
   const scoped = controlsInScope(project, catalog);
   if (scoped.length > 0) return scoped;
   throw new PublicError(
-    catalogControls(catalog).length === 0
+    catalog.length === 0
       ? "Compliance catalog is unavailable."
       : "No controls are in scope for this project. Check the assessment preset in Settings.",
   );
@@ -61,7 +55,9 @@ export function requirementsInScope(
   requirements: ReadonlyArray<Requirement>,
   project: Project,
 ): Requirement[] {
-  const forProject = requirementsForProject(requirements, project.id);
+  const forProject = requirements.filter(
+    (requirement) => requirement.projectId === project.id,
+  );
   const controlIds = scopedControlIds(project);
   if (!controlIds) return forProject;
   return forProject.filter((requirement) =>
@@ -74,7 +70,9 @@ export function findingsInScope(
   findings: ReadonlyArray<Finding>,
   project: Project,
 ): Finding[] {
-  const forProject = findingsForProject(findings, project.id);
+  const forProject = findings.filter(
+    (finding) => finding.projectId === project.id,
+  );
   const controlIds = scopedControlIds(project);
   if (!controlIds) return forProject;
   return forProject.filter((finding) => controlIds.has(finding.controlId));

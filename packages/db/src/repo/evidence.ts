@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import type { EvidenceKind, EvidenceRecord } from "../types";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
@@ -94,7 +94,18 @@ export function evidenceFilterConditions(
     conditions.push(lte(evidence.at, `${filter.to}T23:59:59.999Z`));
   }
   if (filter.actor) {
-    conditions.push(ilike(evidence.actor, `%${escapeLikeLiteral(filter.actor)}%`));
+    // Rows with no actor render as "System" in the UI; `ilike` never matches
+    // NULL, so searching "System" must include unset actors.
+    if (filter.actor.trim().toLowerCase() === "system") {
+      conditions.push(
+        or(
+          isNull(evidence.actor),
+          ilike(evidence.actor, `%${escapeLikeLiteral(filter.actor)}%`),
+        )!,
+      );
+    } else {
+      conditions.push(ilike(evidence.actor, `%${escapeLikeLiteral(filter.actor)}%`));
+    }
   }
   return conditions;
 }

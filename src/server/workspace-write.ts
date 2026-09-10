@@ -12,6 +12,7 @@ import {
   projectWriteLockKey,
   type DrizzleDb,
 } from "@complyloop/db/postgres";
+import { getFindingById } from "@complyloop/db/repo/findings";
 import { insertEvidenceRecords } from "@complyloop/db/repo/evidence";
 import {
   persistProjectRows,
@@ -134,7 +135,7 @@ export async function withProjectWrite(
   });
 }
 
-/** Finding-scoped project write: loads the finding + asserts permission. */
+/** Finding-scoped project write: locks the finding's project, not the cookie project. */
 export async function withFindingWrite(
   findingId: string,
   permission: Permission,
@@ -144,11 +145,39 @@ export async function withFindingWrite(
     workspace: ProjectWriteWorkspace;
   }) => Promise<ProjectWritePayload | void>,
 ): Promise<void> {
-  await withProjectWrite(async (workspace) => {
-    const { db } = workspace;
+  const { userId, githubLogin, preferredOrgId } = await readViewerSession();
+
+  const drizzle = await getDrizzle();
+  return drizzle.transaction(async (tx) => {
+    const preview = await getFindingById(tx, findingId);
+    if (!preview) throw new PublicError("Unknown finding.");
+    const projectId = preview.projectId;
+
+    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
+
+    const db = await loadProjectWriteDb(tx, {
+      userId,
+      githubLogin,
+      activeProjectId: projectId,
+    });
+    const base = prepareWorkspaceState(db, userId, githubLogin, preferredOrgId, projectId);
+    const lockedProject =
+      db.projects.find((candidate) => candidate.id === projectId) ?? base.project;
+    const workspace: ProjectWriteWorkspace = { ...base, project: lockedProject, db };
     const finding = findingById(db, findingId);
     requireOnFindingProject(workspace, finding, permission);
-    return fn({ db, finding, workspace });
+
+    const loadedSlice = snapshotProjectSlice(
+      workspace.db.requirements,
+      workspace.db.findings,
+      workspace.db.remediations,
+      workspace.db.alerts,
+      projectId,
+    );
+    const payload = (await fn({ db, finding, workspace })) ?? {};
+    stampEvidenceActor(payload.evidence, githubLogin ?? userId);
+
+    await persistProjectRows(tx, payload, { loadedSlice });
   });
 }
 

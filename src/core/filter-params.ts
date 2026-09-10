@@ -218,7 +218,7 @@ export function evidenceRecordHref(
     return `${href}#${anchor}`;
   }
   if (record.assessmentId) {
-    return "/";
+    return "/dashboard";
   }
   return undefined;
 }

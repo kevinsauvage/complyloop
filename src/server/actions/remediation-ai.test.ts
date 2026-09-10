@@ -22,7 +22,6 @@ const refresh = vi.hoisted(() => vi.fn());
 
 vi.mock("@/ai/explainer", () => ({
   generateAiExplanation: (...args: unknown[]) => generateAiExplanation(...args),
-  aiExplanationAvailable: () => true,
 }));
 
 vi.mock("@/ai/remediation", () => ({

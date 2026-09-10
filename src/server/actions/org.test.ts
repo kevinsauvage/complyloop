@@ -26,6 +26,7 @@ const deleteOrganization = vi.hoisted(() => vi.fn());
 const resolveActiveOrgId = vi.hoisted(() => vi.fn());
 const writeActiveOrgCookie = vi.hoisted(() => vi.fn());
 const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
+const clearActiveProjectCookie = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 const listFindingsForProjects = vi.hoisted(() => vi.fn());
 const listRemediationsForProjects = vi.hoisted(() => vi.fn());
@@ -55,6 +56,8 @@ vi.mock("../active-cookies", () => ({
   writeActiveOrgCookie: (...args: unknown[]) => writeActiveOrgCookie(...args),
   writeActiveProjectCookie: (...args: unknown[]) =>
     writeActiveProjectCookie(...args),
+  clearActiveProjectCookie: (...args: unknown[]) =>
+    clearActiveProjectCookie(...args),
   readActiveOrgCookie: vi.fn(),
   readActiveProjectCookie: vi.fn(),
 }));
@@ -161,6 +164,7 @@ beforeEach(() => {
   resolveActiveOrgId.mockReset();
   writeActiveOrgCookie.mockReset();
   writeActiveProjectCookie.mockReset();
+  clearActiveProjectCookie.mockReset();
   refresh.mockReset();
   listFindingsForProjects.mockReset();
   listFindingsForProjects.mockResolvedValue([]);
@@ -353,6 +357,34 @@ describe("switchOrgAction", () => {
     const form = new FormData();
     form.set("orgId", "org-other");
     await expect(switchOrgAction(form)).rejects.toThrow(/not a member/);
+  });
+
+  it("clears the project cookie when the target org has no projects", async () => {
+    const emptyOrg: Organization = {
+      id: "org-empty",
+      name: "Empty",
+      slug: "empty",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const db = {
+      ...emptyDb(),
+      organizations: [org, emptyOrg],
+      memberships: [
+        ownerMembership,
+        testMembership("owner", {
+          id: "m-empty",
+          orgId: "org-empty",
+          githubLogin: "alice",
+        }),
+      ],
+    };
+    getWorkspace.mockResolvedValue(fixtureWorkspace(db));
+    const form = new FormData();
+    form.set("orgId", "org-empty");
+    await switchOrgAction(form);
+    expect(writeActiveOrgCookie).toHaveBeenCalledWith("org-empty");
+    expect(writeActiveProjectCookie).not.toHaveBeenCalled();
+    expect(clearActiveProjectCookie).toHaveBeenCalled();
   });
 });
 

@@ -45,7 +45,37 @@ async function createPullRequestViaApi(options: {
     if (!data.html_url) throw new Error("GitHub PR API returned no html_url.");
     return data.html_url;
   } catch (error) {
+    // Retry-safe: a second attempt after an orphan PR hits "already exists".
+    // Reconcile by returning the open PR for this head branch instead.
+    const existing = await openPullRequestUrl({
+      fullName: options.fullName,
+      accessToken: options.accessToken,
+      head: options.head,
+    });
+    if (existing) return existing;
     throw new Error(octokitErrorMessage(error, "GitHub PR API failed"));
+  }
+}
+
+/** Open PR URL for a head branch, or null when none exists. */
+async function openPullRequestUrl(options: {
+  fullName: string;
+  accessToken: string;
+  head: string;
+}): Promise<string | null> {
+  const { owner, repo } = parseOwnerRepo(options.fullName);
+  const octokit = createOctokit(options.accessToken);
+  try {
+    const { data } = await octokit.rest.pulls.list({
+      owner,
+      repo,
+      state: "open",
+      head: `${owner}:${options.head}`,
+      per_page: 1,
+    });
+    return data[0]?.html_url ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -149,20 +179,24 @@ export async function preparePullRequest(
         // Token travels in the child env (http.extraHeader), never in argv.
         const remote = githubPublicCloneUrl(fullName);
         try {
+          // Force-push: each action runs on a fresh shallow clone, so a retry
+          // after an orphan remote branch would otherwise be non-fast-forward.
           await createAuthedGit(token, { baseDir: rootPath }).push(
             remote,
             `HEAD:refs/heads/${branch}`,
-            ["-u"],
+            ["-u", "--force"],
           );
           const base = project.github?.defaultBranch || "main";
-          prUrl = await createPullRequestViaApi({
-            fullName,
-            accessToken: token,
-            head: branch,
-            base,
-            title: handoff.title,
-            body: pullRequestBody,
-          });
+          prUrl =
+            (await openPullRequestUrl({ fullName, accessToken: token, head: branch })) ??
+            (await createPullRequestViaApi({
+              fullName,
+              accessToken: token,
+              head: branch,
+              base,
+              title: handoff.title,
+              body: pullRequestBody,
+            }));
           message = `Draft pull request created via GitHub API: ${prUrl}`;
         } catch (error) {
           reportError(error, { code: "prepare_pull_request" });

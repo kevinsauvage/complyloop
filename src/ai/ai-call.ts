@@ -1,10 +1,22 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
+import {
+  formatLocationRef,
+  locationSnippet,
+} from "@complyloop/analysis-core/contract/location";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
+import type { Finding } from "@complyloop/db/types";
 import { reportError } from "@/server/observability";
 
 /** Vercel AI Gateway model id (`provider/model`). */
 export const AI_MODEL = "poolside/laguna-s-2.1-free";
+
+/** True when AI gateway credentials are configured. */
+export function aiAvailable(): boolean {
+  return Boolean(process.env.AI_GATEWAY_API_KEY);
+}
 
 /** User-facing copy when patch generation needs AI and none is configured. */
 export const AI_PATCH_UNAVAILABLE_MESSAGE =
@@ -16,6 +28,21 @@ export const AI_PATCH_UNAVAILABLE_MESSAGE =
  * module that asks the gateway for a confidence parses it identically.
  */
 export const confidenceSchema = z.enum(["high", "medium", "low"]);
+
+/** Shared finding/control context lines for AI prompts (location + engine). */
+export function findingPromptContext(
+  finding: Finding,
+  control: Control,
+  runtimeNote = "This finding came from a rendered-page audit — guide the developer to the call site that renders this control, not a shared UI primitive.",
+): string[] {
+  return [
+    `Requirement: ${control.code} / ${control.secondaryCode} — ${control.title}.`,
+    `Finding: ${finding.reason}`,
+    `Location: ${formatLocationRef(finding.location)}`,
+    `Code: ${locationSnippet(finding.location)}`,
+    engineFor(finding) === "runtime" ? runtimeNote : "",
+  ];
+}
 
 interface AiCallInput<TSchema extends z.ZodType> {
   schema: TSchema;

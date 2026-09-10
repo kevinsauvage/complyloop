@@ -273,13 +273,26 @@ describe("clusterFindings", () => {
       ],
       rootCauseControls,
     );
-    expect(clusters.some((cluster) => cluster.sharedLocation === "ProductCard.tsx")).toBe(
+    expect(clusters.some((cluster) => cluster.sharedLocation === "components/ProductCard.tsx")).toBe(
       true,
     );
     expect(
-      clusters.find((cluster) => cluster.sharedLocation === "ProductCard.tsx")
+      clusters.find((cluster) => cluster.sharedLocation === "components/ProductCard.tsx")
         ?.findingIds,
     ).toHaveLength(2);
+  });
+
+  it("does not merge files that share a basename across directories", () => {
+    const clusters = clusterFindings(
+      [
+        rootCauseFinding("1", "img-alt", "app/page.tsx"),
+        rootCauseFinding("2", "img-alt", "src/legacy/page.tsx"),
+      ],
+      rootCauseControls,
+    );
+    expect(
+      clusters.filter((cluster) => cluster.id.includes(":file:")),
+    ).toHaveLength(0);
   });
 
   it("groups findings that share a directory across files", () => {
@@ -326,7 +339,7 @@ describe("clusterFindings", () => {
       rootCauseControls,
     );
     const fileCluster = clusters.find(
-      (cluster) => cluster.sharedLocation === "ContactForm.tsx",
+      (cluster) => cluster.sharedLocation === "src/components/features/contact/ContactForm.tsx",
     );
     expect(fileCluster).toBeDefined();
     expect(fileCluster?.checkId).toBe("form-error-association");

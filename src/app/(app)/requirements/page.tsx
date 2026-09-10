@@ -14,10 +14,10 @@ import {
   parsePageParam,
   parsePresetIdParam,
   parseRequirementsQueryParam,
-} from "@/core/filters";
+} from "@/core/filter-params";
 import {
   parseRequirementStatusParam,
-} from "@/core/filters";
+} from "@/core/filter-params";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

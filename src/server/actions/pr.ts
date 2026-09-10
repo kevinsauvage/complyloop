@@ -78,47 +78,56 @@ export async function createPullRequestAction(
       throw new PublicError(result.message);
     }
     prUrl = result.prUrl;
-    await withFindingWrite(
-      findingId,
-      "project.remediate",
-      async ({ db, finding: liveFinding }) => {
-        const liveRemediation = remediationForFinding(db, findingId);
-        const payload: ProjectWritePayload = {};
-        if (liveRemediation.status === "suggested") {
-          replaceRemediation(payload, {
-            ...advanceRemediation(
-              liveRemediation,
-              "approved",
-              "Approved by creating a draft pull request",
-            ),
-            approvalAction: "create_draft_pull_request",
-          });
+    try {
+      await withFindingWrite(
+        findingId,
+        "project.remediate",
+        async ({ db, finding: liveFinding }) => {
+          const liveRemediation = remediationForFinding(db, findingId);
+          const payload: ProjectWritePayload = {};
+          if (liveRemediation.status === "suggested") {
+            replaceRemediation(payload, {
+              ...advanceRemediation(
+                liveRemediation,
+                "approved",
+                "Approved by creating a draft pull request",
+              ),
+              approvalAction: "create_draft_pull_request",
+            });
+            appendEvidence(payload, {
+              kind: "remediation_approved",
+              summary: remediationEvidenceSummary("approved", liveFinding),
+              projectId: project.id,
+              controlId: liveFinding.controlId,
+              findingId: liveFinding.id,
+              detail: remediationEvidenceDetail({ approvalAction: "create_draft_pull_request" }),
+            });
+          }
           appendEvidence(payload, {
-            kind: "remediation_approved",
-            summary: remediationEvidenceSummary("approved", liveFinding),
+            kind: "pull_request_prepared",
+            summary: `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`,
             projectId: project.id,
             controlId: liveFinding.controlId,
             findingId: liveFinding.id,
-            detail: remediationEvidenceDetail({ approvalAction: "create_draft_pull_request" }),
+            detail: {
+              branch: result.branch,
+              prUrl: result.prUrl,
+              title: result.title,
+            },
           });
-        }
-        appendEvidence(payload, {
-          kind: "pull_request_prepared",
-          summary: `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`,
-          projectId: project.id,
-          controlId: liveFinding.controlId,
-          findingId: liveFinding.id,
-          detail: {
-            branch: result.branch,
-            prUrl: result.prUrl,
-            title: result.title,
-          },
-        });
-        return payload;
-      },
-    );
+          return payload;
+        },
+      );
+    } catch (error) {
+      // The draft PR already exists on GitHub. Surface the URL so the write
+      // can be retried — prepare force-pushes to the same branch and reuses
+      // the open PR instead of opening a second one.
+      throw new PublicError(
+        `Draft pull request ${result.prUrl} was created on branch \`${result.branch}\` but the database write failed (${error instanceof Error ? error.message : "unknown error"}). Retry — the existing branch and PR will be reused.`,
+      );
+    }
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return result.message;
   });
-  return { ...state, prUrl: state.ok ? prUrl : null };
+  return { ...state, prUrl };
 }

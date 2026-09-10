@@ -23,7 +23,6 @@ const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
 
 vi.mock("@/ai/explainer", () => ({
   generateAiExplanation: vi.fn(),
-  aiExplanationAvailable: () => false,
 }));
 
 vi.mock("@/ai/remediation", () => ({

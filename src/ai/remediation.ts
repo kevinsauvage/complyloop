@@ -3,10 +3,7 @@ import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Finding } from "@complyloop/db/types"
 import type { RemediationSuggestion } from "@complyloop/analysis-core/contract/finding-types";
-import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
-import { formatLocationRef, locationSnippet } from "@complyloop/analysis-core/contract/location";
-import { aiExplanationAvailable } from "./explainer";
-import { AI_MODEL, aiCall, confidenceSchema } from "./ai-call";
+import { AI_MODEL, aiAvailable, aiCall, confidenceSchema, findingPromptContext } from "./ai-call";
 
 const remediationSchema = z.object({
   description: z.string(),
@@ -32,18 +29,16 @@ export async function generateAiRemediation(
 ): Promise<AiRemediationResult | null> {
   const object = await aiCall({
     schema: remediationSchema,
-    available: aiExplanationAvailable(),
+    available: aiAvailable(),
     code: "ai_remediation_failed",
     detail: { findingId: finding.id, controlId: control.id },
     prompt: [
       "You propose accessibility remediations for React/TypeScript source.",
-      `Requirement: ${control.code} / ${control.secondaryCode} — ${control.title}.`,
-      `Finding: ${finding.reason}`,
-      `Location: ${formatLocationRef(finding.location)}`,
-      `Current snippet: ${locationSnippet(finding.location)}`,
-      engineFor(finding) === "runtime"
-        ? "Runtime finding — propose a call-site fix, not a generic aria-label on a shared Input/Button primitive."
-        : "",
+      ...findingPromptContext(
+        finding,
+        control,
+        "Runtime finding — propose a call-site fix, not a generic aria-label on a shared Input/Button primitive.",
+      ),
       finding.fix
         ? `A deterministic fix template exists (${finding.fix.kind}). Improve the developer-facing description and the proposed fixed line. If an attribute value is needed, put the best value in attributeValue.`
         : "No automated fix template exists. Propose a concrete one-line (or short) code change as proposedSnippet and describe it.",

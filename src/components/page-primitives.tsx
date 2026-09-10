@@ -40,7 +40,9 @@ export function PageHeader({
         className,
       )}
     >
-      {variant === "panel" ? <div aria-hidden className={PAGE_HERO_GLOW} /> : null}
+      {variant === "panel" ? (
+        <div aria-hidden className={PAGE_HERO_GLOW} />
+      ) : null}
       <div className="relative z-[1] flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
         <div className="min-w-0 space-y-1">
           {eyebrow ? (
@@ -59,7 +61,7 @@ export function PageHeader({
           ) : null}
         </div>
         {children ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 w-full">
             {children}
           </div>
         ) : null}
@@ -116,9 +118,7 @@ export function PageContent({
   children: ReactNode;
   className?: string;
 }) {
-  return (
-    <div className={cn("flex flex-col gap-6", className)}>{children}</div>
-  );
+  return <div className={cn("flex flex-col gap-6", className)}>{children}</div>;
 }
 
 export function EmptyState({
@@ -167,7 +167,9 @@ export function EmptyState({
             <span
               className={cn(
                 "size-2 rounded-full",
-                variant === "no-results" ? "bg-muted-foreground/50" : "bg-signal/60",
+                variant === "no-results"
+                  ? "bg-muted-foreground/50"
+                  : "bg-signal/60",
               )}
             />
           )}
@@ -201,7 +203,9 @@ export function NoProjectNotice({
       <PageHeader title={title} description={description} />
       <EmptyState
         title="No project connected"
-        action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
+        action={
+          <PageActionLink href="/dashboard">Go to dashboard</PageActionLink>
+        }
       >
         {hint ? <p>{hint}</p> : null}
       </EmptyState>
@@ -233,7 +237,9 @@ export function MetaTile({
   className?: string;
 }) {
   return (
-    <div className={cn("surface-panel rounded-xl px-3 py-2.5 text-sm", className)}>
+    <div
+      className={cn("surface-panel rounded-xl px-3 py-2.5 text-sm", className)}
+    >
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </p>

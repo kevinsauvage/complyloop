@@ -1,5 +1,4 @@
-import type { OrgMembership, Organization, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
-import { type EvidenceRecord, type Finding } from "@complyloop/db/types";
+import type { OrgMembership, Organization, Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { canOnProject, type Permission } from "@/core/rbac";
 
@@ -45,36 +44,6 @@ export function visibleProjects(
   ctx: AccessContext,
 ): Project[] {
   return projects.filter((project) => isProjectVisible(project, ctx));
-}
-
-/** Generic project-id filter (single source for per-entity helpers). */
-export function rowsForProject<T extends { projectId?: string }>(
-  rows: ReadonlyArray<T>,
-  projectId: string,
-): T[] {
-  return rows.filter((row) => row.projectId === projectId);
-}
-
-/** Evidence rows belonging to a single project (export / report / evidence UI). */
-export function evidenceForProject(
-  evidence: ReadonlyArray<EvidenceRecord>,
-  projectId: string,
-): EvidenceRecord[] {
-  return rowsForProject(evidence, projectId);
-}
-
-export function requirementsForProject(
-  requirements: ReadonlyArray<Requirement>,
-  projectId: string,
-): Requirement[] {
-  return rowsForProject(requirements, projectId);
-}
-
-export function findingsForProject(
-  findings: ReadonlyArray<Finding>,
-  projectId: string,
-): Finding[] {
-  return rowsForProject(findings, projectId);
 }
 
 /**

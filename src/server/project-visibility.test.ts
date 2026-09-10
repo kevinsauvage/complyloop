@@ -5,13 +5,11 @@ import { testProject } from "@/test-fixtures/project";
 import {
   type AccessContext,
   accessFromStore,
-  evidenceForProject,
-  findingsForProject,
   isProjectVisible,
-  requirementsForProject,
   resolveActiveProject,
   visibleProjects,
 } from "./project-visibility";
+import { findingsInScope, requirementsInScope } from "./project-scope";
 
 function project(
   partial: Pick<Project, "id" | "source" | "orgId"> &
@@ -208,21 +206,15 @@ describe("tenant-scoped read helpers", () => {
   const aliceRequirement = requirement({ id: "r-a", projectId: "proj-a" });
   const bobRequirement = requirement({ id: "r-b", projectId: "proj-b" });
 
-  it("scopes evidence and requirements to the active project only", () => {
+  it("scopes findings and requirements to the active project only", () => {
     expect(
-      evidenceForProject(
-        [aliceEvidence, bobEvidence, unscopedEvidence],
-        "proj-a",
-      ).map((record) => record.id),
-    ).toEqual(["e-a"]);
-    expect(
-      requirementsForProject(
+      requirementsInScope(
         [aliceRequirement, bobRequirement],
-        "proj-a",
+        aliceProject,
       ).map((requirement) => requirement.id),
     ).toEqual(["r-a"]);
     expect(
-      findingsForProject([aliceFinding, bobFinding], "proj-a").map(
+      findingsInScope([aliceFinding, bobFinding], aliceProject).map(
         (finding) => finding.id,
       ),
     ).toEqual(["f-a"]);
@@ -235,16 +227,17 @@ describe("tenant-scoped read helpers", () => {
         ctx("user-b", [bobMembership]),
       ).map((project) => project.id),
     );
-    const leaked = evidenceForProject(
-      [aliceEvidence, bobEvidence],
-      "proj-a",
-    ).filter((record) => bobVisible.has(record.projectId ?? ""));
-    expect(leaked).toEqual([]);
+    expect(bobVisible.has("proj-a")).toBe(false);
+    // Export/report narrow rows to the resolved project id (see report.ts).
+    const rows = [aliceEvidence, bobEvidence].filter(
+      (record) => record.projectId === "proj-b",
+    );
+    expect(rows.map((record) => record.id)).toEqual(["e-b"]);
     expect(
-      evidenceForProject([aliceEvidence, bobEvidence], "proj-b").map(
-        (record) => record.id,
-      ),
-    ).toEqual(["e-b"]);
+      [aliceEvidence, bobEvidence, unscopedEvidence].filter(
+        (record) => record.projectId === "proj-a",
+      ).map((record) => record.id),
+    ).toEqual(["e-a"]);
   });
 
   it("resolves independent preferred projects without a shared store field", () => {

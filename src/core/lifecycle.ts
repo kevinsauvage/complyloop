@@ -256,7 +256,7 @@ export function clusterFindings(
     const byDir = new Map<string, Finding[]>();
     const byComponent = new Map<string, Finding[]>();
     for (const finding of sourceGroup) {
-      const file = fileNameOf(finding.location.filePath);
+      const file = finding.location.filePath;
       const dir = directoryOf(finding.location.filePath);
       const fileList = byFile.get(file);
       if (fileList) fileList.push(finding);
@@ -293,9 +293,7 @@ export function clusterFindings(
 
     for (const [dir, members] of byDir) {
       const fileKeys = new Set(
-        members.filter(isSourceFinding).map((finding) =>
-          fileNameOf(finding.location.filePath),
-        ),
+        members.filter(isSourceFinding).map((finding) => finding.location.filePath),
       );
       if (fileKeys.size === 1) continue;
       pushCluster(clusters, checkId, controlTitle, "dir", members, dir);
