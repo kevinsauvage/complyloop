@@ -1,5 +1,5 @@
 import { CopyButton } from "@/components/copy-button";
-import { CodeBlock } from "@/components/page-primitives";
+import { CodeBlock, EmptyState } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -47,9 +47,9 @@ export function DeveloperHandoffCard({
             <CodeBlock>{handoff.diff}</CodeBlock>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            No patch available for this finding yet.
-          </p>
+          <EmptyState title="No patch available" className="border-border/60">
+            Automated remediation not yet generated for this finding.
+          </EmptyState>
         )}
 
         <div className="flex flex-col gap-3">

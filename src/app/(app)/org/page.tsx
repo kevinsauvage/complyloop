@@ -21,14 +21,15 @@ import {
   createOrgAction,
   inviteOrgMemberAction,
 } from "@/server/actions/org";
+import { signOutAction } from "@/server/actions/auth";
 import { getWorkspace } from "@/server/workspace";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Organization account",
-  description: "Manage workspace ownership, members, and data lifecycle.",
+  title: "Organization",
+  description: "Manage organization ownership, members, and data lifecycle.",
 };
 
 export default async function OrgPage() {
@@ -39,8 +40,8 @@ export default async function OrgPage() {
     return (
       <>
         <PageHeader
-          title="Organization account"
-          description="Sign in with GitHub to manage workspace ownership, members, and data lifecycle."
+          title="Organization"
+          description="Sign in with GitHub to manage organization ownership, members, and data lifecycle."
         />
         <EmptyState
           title="Sign in required"
@@ -62,12 +63,29 @@ export default async function OrgPage() {
     return (
       <>
         <PageHeader
-          title="Organization account"
-          description="A personal workspace is created on first sign-in."
+          title="Organization"
+          description="A personal organization is created on first sign-in."
         />
-        <EmptyState title="No organization yet">
-          Reload after signing in — a personal workspace is created
-          automatically. If this persists, sign out and sign in again.
+        <EmptyState
+          title="No organization yet"
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button size="sm" asChild>
+                <a href="/org">Retry</a>
+              </Button>
+              <form action={signOutAction}>
+                <Button type="submit" variant="outline" size="sm">
+                  Sign out
+                </Button>
+              </form>
+            </div>
+          }
+        >
+          <p>
+            A personal organization is created automatically on first sign-in.
+            If this persists after retrying, sign out and sign in again or
+            contact support.
+          </p>
         </EmptyState>
       </>
     );
@@ -96,7 +114,7 @@ export default async function OrgPage() {
   return (
     <>
       <PageHeader
-        title="Organization account"
+        title="Organization"
         description={`Settings for ${org.name}: ownership, access, retention, and data controls.`}
       >
         {canManage ? (
@@ -122,21 +140,6 @@ export default async function OrgPage() {
             </DialogContent>
           </Dialog>
         ) : null}
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">New organization</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create a team organization</DialogTitle>
-              <DialogDescription>
-                Create a named org, switch to it, then invite teammates. Your
-                personal workspace stays available in the switcher.
-              </DialogDescription>
-            </DialogHeader>
-            <CreateOrgForm action={createOrgAction} />
-          </DialogContent>
-        </Dialog>
       </PageHeader>
 
       <PageContent>
@@ -158,30 +161,65 @@ export default async function OrgPage() {
         >
           <Card className="overflow-hidden shadow-none">
             <CardContent className="p-0">
-              <OrgMembersCard
-                orgId={org.id}
-                members={members}
-                currentUserId={userId}
-                canManage={canManage}
-                canAssignAdmin={role === "owner"}
-              />
+              <div className="overflow-x-auto">
+                <OrgMembersCard
+                  orgId={org.id}
+                  members={members}
+                  currentUserId={userId}
+                  canManage={canManage}
+                  canAssignAdmin={role === "owner"}
+                />
+              </div>
             </CardContent>
           </Card>
         </PageSection>
 
         {role === "owner" ? (
-          <OrgDataLifecycle orgId={org.id} orgName={org.name} />
-        ) : null}
+          <OrgDataLifecycle
+            orgId={org.id}
+            orgName={org.name}
+            orgSlug={org.slug}
+          />
+        ) : (
+          <Card className="shadow-none" aria-disabled="true">
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">
+                Owner-only — export and deletion are managed by{" "}
+                {owner?.githubLogin ? `@${owner.githubLogin}` : "the organization owner"}.
+                Contact the owner for data requests.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {!canManage ? (
           <Alert className="surface-panel border-border/60 bg-muted/30">
             <AlertDescription>
               Only owners and admins can invite, change roles, or revoke invites
-              for this organization. Only the workspace owner can export or
+              for this organization. Only the organization owner can export or
               delete the organization.
             </AlertDescription>
           </Alert>
         ) : null}
+
+        <PageSection title="New organization">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">New organization</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create an organization</DialogTitle>
+                <DialogDescription>
+                  Create a named organization, switch to it, then invite
+                  teammates. Your personal organization stays available in the
+                  switcher.
+                </DialogDescription>
+              </DialogHeader>
+              <CreateOrgForm action={createOrgAction} />
+            </DialogContent>
+          </Dialog>
+        </PageSection>
       </PageContent>
     </>
   );

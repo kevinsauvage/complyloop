@@ -28,7 +28,8 @@ export function DefaultPresetForm({
         <legend className="text-sm font-medium">Default assessment preset</legend>
         <p className="text-xs text-muted-foreground">
           Used for assessments and as the Requirements page default. Browse other
-          presets on Requirements via the URL.
+          presets on Requirements via the URL. Will apply to future
+          assessments only.
         </p>
         <ul className="flex flex-col gap-2">
           {presets.map((preset) => (

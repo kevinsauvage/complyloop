@@ -38,7 +38,7 @@ export function OrgMembersCard({
           <TableHead className="pl-4">Member</TableHead>
           <TableHead>Role</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Joined</TableHead>
+          <TableHead className="hidden sm:table-cell">Joined</TableHead>
           {canManage ? (
             <TableHead className="pr-4 text-right">Actions</TableHead>
           ) : null}
@@ -88,12 +88,16 @@ export function OrgMembersCard({
                   </Badge>
                 )}
               </TableCell>
-              <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+              <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground sm:table-cell">
                 {formatDateTime(membership.createdAt)}
               </TableCell>
               {canManage ? (
                 <TableCell className="pr-4">
-                  {canActOnMember ? (
+                  {isAdmin && !canAssignAdmin ? (
+                    <p className="text-xs text-muted-foreground">
+                      Admin (managed by owner)
+                    </p>
+                  ) : canActOnMember ? (
                     <div className="flex flex-wrap items-end justify-end gap-2">
                       <StatefulActionForm
                         action={changeOrgMemberRoleAction}
@@ -113,11 +117,7 @@ export function OrgMembersCard({
                           Role
                           <select
                             name="role"
-                            defaultValue={
-                              membership.role === "admin" && !canAssignAdmin
-                                ? "member"
-                                : membership.role
-                            }
+                            defaultValue={membership.role}
                             aria-label={`Role for @${membership.githubLogin}`}
                             className="h-8 rounded-lg border border-input bg-transparent px-2 py-1 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
                           >
@@ -153,7 +153,9 @@ export function OrgMembersCard({
                         />
                       </StatefulActionForm>
                     </div>
-                  ) : null}
+                  ) : (
+                    <span aria-label="No actions available">—</span>
+                  )}
                 </TableCell>
               ) : null}
             </TableRow>

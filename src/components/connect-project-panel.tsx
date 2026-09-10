@@ -8,13 +8,7 @@ import { GitHubRepoPicker } from "@/components/github-repo-picker";
 import { PermissionNotice } from "@/components/permission-notice";
 import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { EmptyState } from "@/components/page-primitives";
 import type { ReactNode } from "react";
 import { publicErrorMessage } from "@/server/action-state";
 import { connectedGitHubProjectsByFullName } from "@/server/connect-github";
@@ -25,7 +19,7 @@ import { getWorkspace } from "@/server/workspace";
 
 export async function ConnectProjectPanel({
   defaultOpen = true,
-  triggerLabel = "Add project",
+  triggerLabel = "Connect repository (creates project)",
 }: {
   /** When false, connect UI opens in a dialog. */
   defaultOpen?: boolean;
@@ -86,7 +80,8 @@ export async function ConnectProjectPanel({
     <div className="space-y-4">
       <div className="rounded-lg border border-signal/20 bg-signal/5 px-3 py-2.5 text-sm text-muted-foreground">
         Connect a GitHub repository to run assessments, track findings, and
-        build an evidence trail for this organization.
+        build an evidence trail for this organization. Connecting creates a
+        project — a project is a connected repository.
       </div>
       {!configured ? (
         <Alert className="border-border/60 bg-muted/40">
@@ -130,23 +125,19 @@ export async function ConnectProjectPanel({
   );
 }
 
-/** Full-page connect card used on the empty dashboard. */
+/**
+ * Project variant of the `EmptyState` pattern (icon + title + description +
+ * content): the picker body renders as the card footer instead of a single
+ * centered action.
+ */
 export function ConnectProjectCard({ children }: { children: ReactNode }) {
   return (
-    <Card className="shadow-none">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <span
-            className="size-2 shrink-0 rounded-full bg-signal"
-            aria-hidden
-          />
-          <CardTitle>Connect a project</CardTitle>
-        </div>
-        <CardDescription>
-          Link a GitHub repository to assess against RGAA/WCAG.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+    <EmptyState
+      title="Connect a repository"
+      footer={children}
+    >
+      Connecting creates a project — link a GitHub repository to assess
+      against RGAA/WCAG.
+    </EmptyState>
   );
 }

@@ -75,7 +75,7 @@ describe("RequirementCard", () => {
     });
 
     expect(screen.queryByRole("link", { name: /open finding/i })).toBeNull();
-    expect(screen.getByText(/0 open findings/)).toBeInTheDocument();
+     expect(screen.getByText(/no open findings/i)).toBeInTheDocument();
   });
 
   it("shows See findings as the primary action for failed requirements", () => {

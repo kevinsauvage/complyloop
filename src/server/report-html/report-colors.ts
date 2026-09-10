@@ -7,7 +7,15 @@ import {
   type StatusTone,
 } from "@/core/status-display";
 
-/** Hex palette for standalone HTML reports (no Tailwind / app CSS). */
+/**
+ * Hex palette for standalone HTML reports (no Tailwind / app CSS).
+ *
+ * Deliberate isolation for print/email — but a second source of truth next to
+ * the app `STATUS_TONE_BADGE` tokens (`src/core/status-display.ts`, gated by
+ * `src/core/status-contrast.test.ts`). If you retune either side, run
+ * `report-colors.test.ts`: every pair must hold WCAG AA 4.5:1 so exports
+ * never diverge from the app.
+ */
 export interface ReportColorPair {
   fg: string;
   bg: string;

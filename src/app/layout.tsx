@@ -28,8 +28,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    // Synced to --background in globals.css (oklch 0.985 0.004 230 / 0.16 0.02 240).
+    { media: "(prefers-color-scheme: light)", color: "#f7fbfc" },
+    { media: "(prefers-color-scheme: dark)", color: "#060e15" },
   ],
 };
 

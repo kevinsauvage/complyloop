@@ -331,7 +331,12 @@ export default async function FindingsPage({
                   </p>
                 </EmptyState>
               ) : (
-                <p className="text-sm text-muted-foreground">No open findings.</p>
+                <EmptyState title="No assessment yet">
+                  <p>
+                    Run your first assessment from the dashboard to detect
+                    findings. Evidence and findings will appear here.
+                  </p>
+                </EmptyState>
               )
             ) : (
               <>

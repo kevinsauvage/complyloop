@@ -27,7 +27,7 @@ describe("OrgAccountOverview", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Early access pilot")).toBeInTheDocument();
     expect(screen.getByText("@alice")).toBeInTheDocument();
-    expect(screen.getByText(/workspace owner/i)).toBeInTheDocument();
+    expect(screen.getByText(/organization owner/i)).toBeInTheDocument();
     expect(screen.getByText(/data retention/i)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "support@example.com" }),
@@ -42,7 +42,7 @@ describe("OrgAccountOverview", () => {
     expect(screen.queryByText("Members")?.parentElement).toHaveTextContent("3");
   });
 
-  it("falls back when support email is unset", () => {
+  it("hides the support contact when support email is unset", () => {
     render(
       <OrgAccountOverview
         orgName="Personal"
@@ -57,8 +57,10 @@ describe("OrgAccountOverview", () => {
       />,
     );
 
+    expect(screen.queryByRole("link", { name: /@/ })).not.toBeInTheDocument();
     expect(
-      screen.getByText(/your complyloop pilot operator/i),
-    ).toBeInTheDocument();
+      screen.queryByText(/your complyloop pilot operator/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/manually provisioned/i)).toBeInTheDocument();
   });
 });

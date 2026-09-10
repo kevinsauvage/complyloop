@@ -25,7 +25,7 @@ import {
   parseFindingListParams,
   type FilterFindingsContext,
 } from "@/core/finding-list-filter";
-import { PageContent, PageHeader, PageSection } from "@/components/page-primitives";
+import { EmptyState, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
 import { formatDateTime } from "@/core/format-datetime";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -216,9 +216,12 @@ export default async function FindingPage({
 
         <PageSection title={`Evidence trail (${evidence.length})`}>
           {evidence.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No evidence recorded yet.
-            </p>
+            <EmptyState title="No evidence yet">
+              <p>
+                Evidence appears after assessments and actions. This finding has
+                not yet generated an evidence record.
+              </p>
+            </EmptyState>
           ) : (
             <div className="surface-panel rounded-2xl p-4">
               <p className="mb-3 text-xs text-muted-foreground">Newest first</p>

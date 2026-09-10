@@ -1,6 +1,7 @@
 import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
 import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
 import type { FindingListItem } from "@/components/findings/finding-list-items";
+import { EmptyState } from "@/components/page-primitives";
 import { FocusFilterResults } from "@/components/findings/focus-filter-results";
 import { PaginationNav } from "@/components/pagination-nav";
 import type {
@@ -51,9 +52,9 @@ export function FindingsTabPanel({
         filtersActive ? (
           filteredEmptyState
         ) : (
-          <p className="rounded-xl border border-dashed border-border/60 bg-card/40 px-4 py-6 text-center text-sm text-muted-foreground">
+          <EmptyState title="No findings">
             {emptyMessage} Nothing to triage here.
-          </p>
+          </EmptyState>
         )
       ) : (
         <>

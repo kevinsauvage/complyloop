@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
+import { TriangleAlert } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -33,9 +34,11 @@ import { emptyActionMessageState } from "@/server/action-state";
 export function OrgDataLifecycle({
   orgId,
   orgName,
+  orgSlug,
 }: {
   orgId: string;
   orgName: string;
+  orgSlug?: string;
 }) {
   const deleteFormId = useId();
   const confirmFieldId = useId();
@@ -76,7 +79,8 @@ export function OrgDataLifecycle({
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `complyloop-org-${orgId}.json`;
+    const stamp = new Date().toISOString().slice(0, 10);
+    anchor.download = `complyloop-${orgSlug ?? orgId}-${stamp}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${orgName} data as JSON.`);
@@ -158,21 +162,25 @@ export function OrgDataLifecycle({
 
         <section
           aria-labelledby="org-delete-heading"
-          className="flex flex-col gap-3 border-t pt-6"
+          className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4"
         >
-          <div>
-            <h3
-              id="org-delete-heading"
-              className="text-sm font-medium text-foreground"
-            >
-              Delete organization
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Permanently remove <strong className="text-foreground">{orgName}</strong>
-              , its projects, and mutable compliance records. Append-only
-              evidence rows remain for audit unless an operator purges them
-              outside the app.
-            </p>
+          <div className="flex items-start gap-2">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+            <div>
+              <h3
+                id="org-delete-heading"
+                className="text-sm font-medium text-foreground"
+              >
+                Delete organization
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Permanently remove{" "}
+                <strong className="text-foreground">{orgName}</strong>, its
+                projects, and mutable compliance records. Evidence is kept
+                for audit after disconnect or org deletion; mutable records
+                are removed with the organization.
+              </p>
+            </div>
           </div>
 
           <form id={deleteFormId} action={deleteAction}>

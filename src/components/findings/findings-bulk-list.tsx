@@ -143,7 +143,7 @@ export function FindingsBulkList({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" aria-busy={false}>
       <p aria-live="polite" className="sr-only">
         {selectedCount === 0
           ? "No findings selected"

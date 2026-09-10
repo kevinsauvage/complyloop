@@ -17,6 +17,7 @@ export function FilterChipList({
   allHref,
   showAll,
   allSelected,
+  allCount,
   items,
 }: {
   "aria-label": string;
@@ -24,6 +25,7 @@ export function FilterChipList({
   /** When false, hide the All chip (requirements page when nothing selected). */
   showAll: boolean;
   allSelected: boolean;
+  allCount?: number;
   items: Array<{
     key: string;
     href: string;
@@ -33,32 +35,39 @@ export function FilterChipList({
   }>;
 }) {
   return (
-    <ul className="mb-6 flex flex-wrap gap-2" aria-label={ariaLabel}>
-      {showAll ? (
-        <li>
-          <Link
-            href={allHref}
-            aria-pressed={allSelected}
-            className={filterChipClass(allSelected)}
-          >
-            All
-          </Link>
-        </li>
-      ) : null}
-      {items.map((item) => (
-        <li key={item.key}>
-          <Link
-            href={item.href}
-            aria-pressed={item.selected}
-            className={filterChipClass(item.selected)}
-          >
-            {item.label}
-            <span className="font-mono text-sm font-semibold tabular-nums">
-              {item.count}
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <nav aria-label={ariaLabel}>
+      <ul className="mb-6 flex flex-wrap gap-2">
+        {showAll ? (
+          <li>
+            <Link
+              href={allHref}
+              aria-pressed={allSelected}
+              className={filterChipClass(allSelected)}
+            >
+              All
+              {typeof allCount === "number" ? (
+                <span className="font-mono text-sm font-semibold tabular-nums">
+                  {allCount}
+                </span>
+              ) : null}
+            </Link>
+          </li>
+        ) : null}
+        {items.map((item) => (
+          <li key={item.key}>
+            <Link
+              href={item.href}
+              aria-pressed={item.selected}
+              className={filterChipClass(item.selected)}
+            >
+              {item.label}
+              <span className="font-mono text-sm font-semibold tabular-nums">
+                {item.count}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }

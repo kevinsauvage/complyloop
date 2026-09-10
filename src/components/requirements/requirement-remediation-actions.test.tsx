@@ -32,16 +32,18 @@ function baseRequirement(
 }
 
 describe("RequirementRemediationActions", () => {
-  it("hides when the user cannot remediate and there is no sticky decision", () => {
-    const { container } = renderWithUiProviders(
-      <RequirementRemediationActions
-        control={testControl({ id: "ctl-1", checkId: null })}
-        requirement={baseRequirement()}
-        canRemediate={false}
-      />,
-    );
-    expect(container).toBeEmptyDOMElement();
-  });
+   it("shows an editor restriction when the user cannot remediate and there is no sticky decision", () => {
+     renderWithUiProviders(
+       <RequirementRemediationActions
+         control={testControl({ id: "ctl-1", checkId: null })}
+         requirement={baseRequirement()}
+         canRemediate={false}
+       />,
+     );
+     expect(
+       screen.getByText("Only editors can record passes or exceptions."),
+     ).toBeInTheDocument();
+   });
 
   it("shows human-pass recording for manual controls when remediating", async () => {
     const user = userEvent.setup();
@@ -53,13 +55,13 @@ describe("RequirementRemediationActions", () => {
       />,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: /mark passed \(human review\)/i }),
-    );
-    expect(
-      screen.getByRole("button", { name: /record human pass/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText(/evidence note/i)).toBeInTheDocument();
+      await user.click(
+        screen.getByRole("button", { name: /mark as passed by human review/i }),
+      );
+      expect(
+        screen.getAllByRole("button", { name: /mark as passed by human review/i }).length,
+      ).toBeGreaterThanOrEqual(2);
+     expect(screen.getByLabelText(/evidence note/i)).toBeInTheDocument();
   });
 
   it("shows clear action when a human pass is already recorded", () => {
@@ -79,9 +81,9 @@ describe("RequirementRemediationActions", () => {
     expect(screen.getByText(/human pass recorded/i)).toBeInTheDocument();
     expect(screen.getByText("Reviewed manually")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", {
-        name: /clear human pass & return to unable to verify/i,
-      }),
+       screen.getByRole("button", {
+         name: /clear human pass/i,
+       }),
     ).toBeInTheDocument();
   });
 });

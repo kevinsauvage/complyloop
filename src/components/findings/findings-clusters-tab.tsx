@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SeverityBadge } from "@/components/badges";
+import { EmptyState } from "@/components/page-primitives";
 import { findingsListHref } from "@/core/finding-list-filter";
 import type { Finding, FindingCluster } from "@complyloop/db/types";
 import { severityRank } from "@/core/prioritization";
@@ -28,10 +29,10 @@ export function FindingsClustersTab({
 
   if (clusters.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-border/60 bg-card/40 px-4 py-6 text-center text-sm text-muted-foreground">
-        No shared root causes detected yet. Clusters appear when two or more
-        open findings share a check and location signal.
-      </p>
+      <EmptyState title="No shared root causes">
+        Clusters appear when two or more open findings share a check and location
+        signal.
+      </EmptyState>
     );
   }
 

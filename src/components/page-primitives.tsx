@@ -124,11 +124,14 @@ export function EmptyState({
   title,
   children,
   action,
+  footer,
   className,
 }: {
   title: string;
   children?: ReactNode;
   action?: ReactNode;
+  /** Full-width content below the centered header (e.g. the connect picker). */
+  footer?: ReactNode;
   className?: string;
 }) {
   return (
@@ -155,6 +158,7 @@ export function EmptyState({
       {action ? (
         <CardContent className="flex justify-center">{action}</CardContent>
       ) : null}
+      {footer ? <CardContent>{footer}</CardContent> : null}
     </Card>
   );
 }
@@ -195,13 +199,7 @@ export function PageActionLink({
   );
 }
 
-export function CodeBlock({ children }: { children: string }) {
-  return (
-    <pre className="surface-panel overflow-x-auto rounded-xl px-4 py-3 font-mono text-xs leading-relaxed text-foreground">
-      <code>{children}</code>
-    </pre>
-  );
-}
+export { CodeBlock } from "@/components/code-block";
 
 export function MetaTile({
   label,

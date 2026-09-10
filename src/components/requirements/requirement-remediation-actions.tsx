@@ -117,19 +117,19 @@ export function RequirementRemediationActions({
                   "group h-auto min-h-9 justify-start gap-1.5 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground",
                 )}
               >
-                Mark passed (human review)
+                Mark as passed by human review
                 <ChevronDown className="size-3 transition-transform group-data-[state=open]:rotate-180" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3">
                 <p className="mb-3 text-xs text-muted-foreground">
-                  Visible to the whole org and kept as evidence until cleared.
+                  Who can see this? Visible to the whole org and kept as evidence until cleared.
                 </p>
                 <StatefulActionForm
                   action={markRequirementPassedAction.bind(
                     null,
                     requirement.id,
                   )}
-                  submitLabel="Mark passed"
+                  submitLabel="Mark as passed by human review"
                   pendingLabel="Saving…"
                   variant="outline"
                   size="sm"
@@ -144,9 +144,12 @@ export function RequirementRemediationActions({
                       name="note"
                       required
                       rows={2}
-                      placeholder="What was reviewed and why this control passes"
+                      aria-describedby={`pass-note-${requirement.id}-hint`}
                       className="max-w-md"
                     />
+                    <p id={`pass-note-${requirement.id}-hint`} className="text-xs text-muted-foreground">
+                      Include what was checked and why it passes; kept as evidence.
+                    </p>
                   </div>
                 </StatefulActionForm>
               </CollapsibleContent>

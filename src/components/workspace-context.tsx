@@ -20,7 +20,7 @@ function ContextStrip({
   return (
     <div
       className={cn(
-        "mb-6 flex flex-wrap items-center gap-2 surface-panel px-3 py-2.5 text-sm text-muted-foreground backdrop-blur-sm",
+        "mb-6 flex flex-col sm:flex-row items-center gap-2 surface-panel px-3 py-2.5 text-sm text-muted-foreground backdrop-blur-sm",
         className,
       )}
     >
@@ -61,7 +61,7 @@ export async function WorkspaceContext() {
     <ConnectProjectPanel defaultOpen={false} />
   ) : null;
   const connectProject = showConnect ? (
-    <ConnectProjectPanel defaultOpen={false} triggerLabel="Connect project" />
+    <ConnectProjectPanel defaultOpen={false} />
   ) : null;
 
   if (!project) {
@@ -82,11 +82,9 @@ export async function WorkspaceContext() {
     );
   }
 
-  if (!showOrgSwitcher && !showProjectSwitcher) {
+if (!showOrgSwitcher && !showProjectSwitcher) {
     return (
       <ContextStrip>
-        <FolderGit2 className="size-4 shrink-0 text-signal" aria-hidden />
-        <span className="font-medium text-foreground">{project.name}</span>
         {orgName ? (
           <>
             <span aria-hidden className="text-border">
@@ -95,10 +93,10 @@ export async function WorkspaceContext() {
             <span>{orgName}</span>
           </>
         ) : null}
+        <span className="font-medium text-foreground">{project.name}</span>
+        <FolderGit2 className="size-4 shrink-0 text-signal" aria-hidden />
         {coverageStrip}
-        {addProject ? (
-          <div className={coverageStrip ? "" : "ml-auto"}>{addProject}</div>
-        ) : null}
+        {addProject ? <div className="ml-auto">{addProject}</div> : null}
       </ContextStrip>
     );
   }

@@ -1,10 +1,14 @@
+import { Suspense } from "react";
 import {
   ConnectProjectCard,
   ConnectProjectPanel,
 } from "@/components/connect-project-panel";
 import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-card";
 import { DashboardActivitySections } from "@/components/dashboard/dashboard-activity-sections";
-import { AssessmentJobStatusLive } from "@/components/dashboard/assessment-job-status-live";
+import {
+  DashboardPipelineSection,
+  DashboardPipelineSkeleton,
+} from "@/components/dashboard/dashboard-pipeline-section";
 import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
 import { DashboardStatusCounts } from "@/components/dashboard/dashboard-status-counts";
 import {
@@ -26,7 +30,6 @@ import { clusterFindings } from "@/core/root-cause";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import { runAssessmentAction } from "@/server/actions/assessment";
-import { recentAssessmentJobsForProject } from "@/server/assessment-jobs";
 import {
   findingsInScope,
   requirementsInScope,
@@ -127,7 +130,6 @@ export default async function DashboardPage() {
     rawClusters,
   ).slice(0, 5);
   const recentChanges = latestAssessment?.changesSincePrevious ?? [];
-  const recentJobs = await recentAssessmentJobsForProject(project.id);
 
   const counts = countByStatus(requirements, REQUIREMENT_STATUSES);
 
@@ -235,17 +237,12 @@ export default async function DashboardPage() {
             <DashboardStatusCounts counts={counts} />
           </PageSection>
 
-          <PageSection
-            title="Pipeline"
-            description="Recent assessment job history."
-          >
-            <AssessmentJobStatusLive
-              key={recentJobs.map((job) => `${job.id}:${job.status}`).join("|")}
+          <Suspense fallback={<DashboardPipelineSkeleton />}>
+            <DashboardPipelineSection
               projectId={project.id}
-              initialJobs={recentJobs}
               canRetry={caps.canAssess}
             />
-          </PageSection>
+          </Suspense>
 
           <PageSection
             title="Activity"

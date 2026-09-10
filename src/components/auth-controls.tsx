@@ -1,11 +1,11 @@
 import { auth, isGitHubAuthConfigured } from "@/auth";
-import { signInWithGitHubAction, signOutAction } from "@/server/actions/auth";
+import { signInWithGitHubAction } from "@/server/actions/auth";
+import { SignOutMenuItem } from "@/components/sign-out-menu-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -62,13 +62,7 @@ export async function AuthControls() {
             <span className="block truncate text-sm">{label}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <form action={signOutAction} className="w-full">
-              <button type="submit" className="w-full cursor-pointer text-left">
-                Sign out
-              </button>
-            </form>
-          </DropdownMenuItem>
+          <SignOutMenuItem />
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

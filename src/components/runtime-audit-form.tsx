@@ -14,13 +14,13 @@ export function RuntimeAuditForm({
   return (
     <StatefulActionForm
       action={updateRuntimeAuditAction}
-      submitLabel="Save preview settings"
+      submitLabel="Save preview URL"
       pendingLabel="Saving…"
       variant="default"
       className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="runtimeBaseUrl">Preview / staging URL</Label>
+        <Label htmlFor="runtimeBaseUrl">Preview URL (runtime audit)</Label>
         <Input
           id="runtimeBaseUrl"
           name="runtimeBaseUrl"
@@ -49,12 +49,15 @@ export function RuntimeAuditForm({
         <p id="runtimeRoutes-hint" className="text-xs text-muted-foreground">
           One path per line (e.g. <code className="font-mono">/</code>,{" "}
           <code className="font-mono">/pricing</code>); relative to the Preview
-          / staging URL. A missing leading <code className="font-mono">/</code>{" "}
+          URL (runtime audit). A missing leading <code className="font-mono">/</code>{" "}
           is added automatically. Empty list defaults to auditing{" "}
           <code className="font-mono">/</code> only. Absolute http(s) URLs are
           not allowed.
         </p>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Will apply to future assessments only.
+      </p>
     </StatefulActionForm>
   );
 }

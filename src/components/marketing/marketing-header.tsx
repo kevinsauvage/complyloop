@@ -54,14 +54,9 @@ export function MarketingHeader({ isSignedIn }: { isSignedIn: boolean }) {
               <Link href="/dashboard">Open dashboard</Link>
             </Button>
           ) : (
-            <>
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-                <Link href="/login">Sign in</Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link href="/login">Get started</Link>
-              </Button>
-            </>
+            <Button asChild size="sm">
+              <Link href="/login">Sign in with GitHub</Link>
+            </Button>
           )}
         </div>
       </div>

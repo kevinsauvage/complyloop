@@ -74,16 +74,18 @@ describe("RequirementsStatusChips", () => {
       selected: "failed",
     });
 
-    const all = screen.getByRole("link", { name: /^all$/i });
+    const all = screen.getByRole("link", { name: /all/i });
     expect(all).toHaveAttribute("href", "/requirements");
   });
 
-  it("hides the All chip when no status filter is active", () => {
+  it("always shows the All chip with count", () => {
     renderChips({
       counts: countsOf({ failed: 2 }),
       selected: undefined,
     });
 
-    expect(screen.queryByRole("link", { name: /^all$/i })).toBeNull();
+    const all = screen.getByRole("link", { name: /all/i });
+    expect(all).toHaveAttribute("href", "/requirements");
+    expect(all).toHaveAttribute("aria-pressed", "true");
   });
 });

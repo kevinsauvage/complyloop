@@ -194,7 +194,7 @@
 @layer utilities {
   /* Frosted panel: used by the sidebar and sticky headers over the grid */
   .panel-frost {
-    background: color-mix(in oklch, var(--card) 55%, transparent);
+    background: color-mix(in oklch, var(--card) 80%, transparent);
     backdrop-filter: blur(12px) saturate(1.4);
   }
 

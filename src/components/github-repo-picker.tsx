@@ -190,8 +190,10 @@ export function GitHubRepoPicker({
   }
 
   const grouped = useMemo(() => groupReposByOwner(repos), [repos]);
-  const pending = connectPending || disconnectPending;
-  const showEmpty = !loading && repos.length === 0 && !fetchError && !query.trim();
+  const trimmedQuery = query.trim();
+  const showEmpty = !loading && repos.length === 0 && !fetchError && !trimmedQuery;
+  const showNoMatch =
+    !loading && repos.length === 0 && !fetchError && trimmedQuery.length > 0;
 
   if (showEmpty) {
     return (
@@ -249,11 +251,41 @@ export function GitHubRepoPicker({
         </p>
       ) : null}
 
-      {loading && repos.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Loading repositories…</p>
+      <p aria-live="polite" aria-atomic="true" className="text-xs text-muted-foreground">
+        {loading && repos.length === 0
+          ? "Loading repositories…"
+          : `${repos.length} ${repos.length === 1 ? "repository" : "repositories"} shown`}
+      </p>
+
+      {showNoMatch ? (
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 px-4 py-5">
+          <p className="text-sm text-muted-foreground">
+            No repositories match “{trimmedQuery}”.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            onClick={() => onQueryChange("")}
+          >
+            Clear search
+          </Button>
+        </div>
       ) : null}
 
-      <div className="flex flex-col gap-4">
+      {loading && repos.length === 0 ? (
+        <ul aria-hidden className="flex flex-col gap-2">
+          {[0, 1, 2].map((index) => (
+            <li
+              key={index}
+              className="h-14 animate-pulse rounded-lg border border-border/60 bg-muted/40"
+            />
+          ))}
+        </ul>
+      ) : null}
+
+      <div className="flex flex-col gap-4" aria-busy={loading}>
         {grouped.map(({ owner, repos: ownerRepos }) => (
           <section key={owner} aria-label={`Repositories for ${owner}`}>
             <h3 className="mb-2 font-mono text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -290,7 +322,7 @@ export function GitHubRepoPicker({
                         <ConfirmSubmitButton
                           label={disconnectPending ? "Disconnecting…" : "Disconnect"}
                           pendingLabel="Disconnecting…"
-                          confirmMessage={`Disconnect ${repo.fullName}? Project findings and remediations will be removed.`}
+                          confirmMessage={`Disconnect ${repo.fullName}? Future assessments stop. Past evidence is retained for audit; findings and remediations for this project are removed.`}
                           confirmTitle="Disconnect repository"
                           variant="outline"
                           size="sm"
@@ -307,7 +339,7 @@ export function GitHubRepoPicker({
                             value={String(repo.installationId)}
                           />
                         ) : null}
-                        <Button type="submit" size="sm" disabled={pending}>
+                        <Button type="submit" size="sm" disabled={connectPending}>
                           {connectPending ? "Connecting…" : "Connect"}
                         </Button>
                       </form>
@@ -329,7 +361,7 @@ export function GitHubRepoPicker({
           disabled={loading}
           onClick={() => void loadRepos(page + 1, query.trim(), true)}
         >
-          {loading ? "Loading…" : "Load more repositories"}
+          {loading ? "Loading…" : `Load more repositories (${repos.length} shown)`}
         </Button>
       ) : null}
     </div>

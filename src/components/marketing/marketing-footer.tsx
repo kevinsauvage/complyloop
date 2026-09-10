@@ -11,23 +11,42 @@ export function MarketingFooter() {
             verified evidence.
           </p>
         </div>
-        <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:items-end">
+        <div className="flex flex-col gap-4 text-sm text-muted-foreground sm:items-end">
           <p>RGAA / WCAG accessibility</p>
-          <p>
+          <nav aria-label="Marketing" className="flex flex-wrap gap-x-4 gap-y-2 sm:justify-end">
+            <Link
+              href="/#how-it-works"
+              className="py-2 underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              How it works
+            </Link>
+            <Link
+              href="/#features"
+              className="py-2 underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              Features
+            </Link>
+            <Link
+              href="/#principles"
+              className="py-2 underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              Principles
+            </Link>
+          </nav>
+          <nav aria-label="Legal" className="flex flex-wrap gap-x-4 gap-y-2 sm:justify-end">
             <Link
               href="/legal/terms"
-              className="underline-offset-2 transition-colors hover:text-foreground hover:underline"
+              className="py-2 underline-offset-2 transition-colors hover:text-foreground hover:underline"
             >
               Terms
             </Link>
-            {" · "}
             <Link
               href="/legal/privacy"
-              className="underline-offset-2 transition-colors hover:text-foreground hover:underline"
+              className="py-2 underline-offset-2 transition-colors hover:text-foreground hover:underline"
             >
               Privacy
             </Link>
-          </p>
+          </nav>
         </div>
       </div>
     </footer>

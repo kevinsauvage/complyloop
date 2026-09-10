@@ -79,10 +79,7 @@ export default async function LoginPage({
           ) : (
             <Alert>
               <AlertDescription>
-                GitHub sign-in is not configured. Set{" "}
-                <code className="font-mono text-xs">AUTH_GITHUB_*</code> in{" "}
-                <code className="font-mono text-xs">.env.local</code> to enable
-                authentication.
+                Sign-in is temporarily unavailable — contact your administrator.
               </AlertDescription>
             </Alert>
           )}

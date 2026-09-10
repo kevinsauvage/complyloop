@@ -105,7 +105,7 @@ export default function HomePage() {
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="min-w-44">
               <Link href="/login">
-                Get started free
+                Sign in with GitHub
                 <ArrowRight aria-hidden />
               </Link>
             </Button>
@@ -122,7 +122,7 @@ export default function HomePage() {
           <h2 className="text-center text-sm font-medium uppercase tracking-wider text-muted-foreground">
             The compliance loop
           </h2>
-          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <ol className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {LOOP_STEPS.map((step, index) => {
               const Icon = step.icon;
               return (
@@ -137,10 +137,21 @@ export default function HomePage() {
                     {String(index + 1).padStart(2, "0")}
                   </span>
                   <span className="mt-1 text-sm font-semibold">{step.label}</span>
+                  {index < LOOP_STEPS.length - 1 ? (
+                    <span
+                      aria-hidden
+                      className="absolute top-1/2 -right-2.5 hidden text-muted-foreground xl:block"
+                    >
+                      →
+                    </span>
+                  ) : null}
                 </li>
               );
             })}
           </ol>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Repeats on every assessment — each run closes the loop again.
+          </p>
         </div>
       </section>
 
@@ -225,7 +236,7 @@ export default function HomePage() {
               </p>
               <Button asChild className="mt-8 w-full sm:w-auto" size="lg">
                 <Link href="/login">
-                  Start with GitHub
+                  Sign in with GitHub
                   <ArrowRight aria-hidden />
                 </Link>
               </Button>
@@ -243,9 +254,14 @@ export default function HomePage() {
             Sign in with GitHub, connect a repository, and run your first
             assessment — evidence included.
           </p>
-          <Button asChild size="lg" className="mt-8 min-w-48">
-            <Link href="/login">Get started</Link>
-          </Button>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button asChild size="lg" className="min-w-48">
+              <Link href="/login">Sign in with GitHub</Link>
+            </Button>
+            <Button asChild variant="outline" size="lg" className="min-w-48">
+              <Link href="#how-it-works">See how it works</Link>
+            </Button>
+          </div>
         </div>
       </section>
     </div>

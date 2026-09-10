@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { CopyButton } from "@/components/copy-button";
 import { MetaTile, NoProjectNotice, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { DefaultPresetForm } from "@/components/settings/default-preset-form";
@@ -40,10 +42,11 @@ export default async function SettingsPage() {
 
   const runtime = await getProjectRuntime(project.id);
   const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
+  const runtimeError = latestAssessment?.engines?.runtimeError ?? null;
   const runtimeStatus = latestAssessment?.engines?.runtime
     ? `Last assessment audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s).`
-    : latestAssessment?.engines?.runtimeError
-      ? `Last runtime attempt failed: ${latestAssessment.engines.runtimeError}`
+    : runtimeError
+      ? "Last runtime attempt failed — details below."
       : "No runtime audit has run yet for this project.";
 
   const githubFullName = project.github?.fullName;
@@ -85,14 +88,18 @@ export default async function SettingsPage() {
                 </MetaTile>
               ) : null}
               {project.runtimeBaseUrl ? (
-                <MetaTile label="Runtime audit URL">
-                  <p className="font-mono text-sm break-all">
-                    {project.runtimeBaseUrl}
-                  </p>
+                <MetaTile label="Preview URL (runtime audit)">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="min-w-0 flex-1 font-mono text-sm break-all">
+                      {project.runtimeBaseUrl}
+                    </p>
+                    <CopyButton label="Copy preview URL" text={project.runtimeBaseUrl} />
+                  </div>
                 </MetaTile>
               ) : (
                 <p className="surface-panel rounded-xl px-3 py-2.5 text-muted-foreground">
-                  Runtime audit is off — assessments use source (AST) checks only.
+                  Preview URL (runtime audit) is off — assessments use source
+                  (AST) checks only.
                 </p>
               )}
               {defaultPreset ? (
@@ -103,6 +110,14 @@ export default async function SettingsPage() {
                   </p>
                 </MetaTile>
               ) : null}
+              <p className="text-sm">
+                <Link
+                  href="/dashboard"
+                  className="font-medium text-foreground underline underline-offset-4"
+                >
+                  Manage repositories
+                </Link>
+              </p>
             </CardContent>
           </Card>
         </PageSection>
@@ -130,11 +145,21 @@ export default async function SettingsPage() {
         </PageSection>
 
         <PageSection
-          title="Runtime audit"
+          title="Preview URL (runtime audit)"
           description={`Staging or preview URL for rendered-page checks. ${runtimeStatus}`}
         >
           <Card className="shadow-none">
-            <CardContent className="pt-6">
+            <CardContent className="space-y-3 pt-6">
+              {runtimeError ? (
+                <details className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm">
+                  <summary className="cursor-pointer font-medium">
+                    Runtime error details
+                  </summary>
+                  <p className="mt-2 font-mono text-xs break-all text-foreground">
+                    {runtimeError}
+                  </p>
+                </details>
+              ) : null}
               {caps.canConnect ? (
                 <RuntimeAuditForm
                   runtimeBaseUrl={project.runtimeBaseUrl}

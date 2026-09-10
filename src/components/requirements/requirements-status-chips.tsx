@@ -18,6 +18,11 @@ export function RequirementsStatusChips({
   const pageHref = (status?: RequirementStatus) =>
     requirementsPageHref({ presetId, status, defaultPresetId });
 
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const hiddenCount = REQUIREMENT_STATUS_DISPLAY_ORDER.filter(
+    (s) => (counts[s] ?? 0) === 0,
+  ).length;
+
   const items = REQUIREMENT_STATUS_DISPLAY_ORDER.flatMap((status) => {
     const count = counts[status];
     if (count === 0) return [];
@@ -34,12 +39,20 @@ export function RequirementsStatusChips({
   });
 
   return (
-    <FilterChipList
-      aria-label="Requirement status filter"
-      allHref={pageHref()}
-      showAll={Boolean(selected)}
-      allSelected={false}
-      items={items}
-    />
+    <div className="flex flex-col gap-1">
+      <FilterChipList
+        aria-label="Requirement status filter"
+        allHref={pageHref()}
+        showAll
+        allSelected={!selected}
+        allCount={total}
+        items={items}
+      />
+      {hiddenCount > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {hiddenCount} hidden empty categor{hiddenCount === 1 ? "y" : "ies"}
+        </p>
+      ) : null}
+    </div>
   );
 }

@@ -55,7 +55,7 @@ export function RequirementCard({
   return (
     <Card
       id={`requirement-${control.id}`}
-      className="relative scroll-mt-24 overflow-hidden shadow-none transition-[border-color] hover:border-signal/30 focus-within:border-signal/30"
+      className="relative scroll-mt-24 overflow-hidden shadow-none transition-[border-color,box-shadow] hover:border-signal/30 focus-within:border-signal/30 focus-within:shadow-sm"
     >
       <RequirementStatusAccent status={requirement.status} />
       <CardHeader className="pb-2 pl-5">

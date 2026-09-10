@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { PageContent, PageHeader } from "@/components/page-primitives";
 
@@ -12,12 +11,13 @@ export default function PrivacyPage() {
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
       <PageHeader
         title="Privacy Policy"
-        description="How ComplyLoop handles account, repository, and compliance data. Draft for early access — not counsel-reviewed."
+        description="How ComplyLoop handles account, repository, and compliance data during early access."
       />
       <PageContent>
-        <div className="surface-panel flex flex-col gap-6 rounded-2xl p-6 text-sm leading-relaxed text-muted-foreground">
+        <p className="text-xs text-muted-foreground">Last updated: 2026-09-10</p>
+        <div className="surface-panel flex flex-col gap-6 rounded-2xl p-6 text-sm leading-relaxed text-foreground">
           <section>
-            <h2 className="text-base font-medium text-foreground">What we store</h2>
+            <h2 className="text-lg font-semibold text-foreground">What we store</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5">
               <li>GitHub account identity (user id, login) when you sign in</li>
               <li>
@@ -35,7 +35,7 @@ export default function PrivacyPage() {
             </ul>
           </section>
           <section>
-            <h2 className="text-base font-medium text-foreground">Retention</h2>
+            <h2 className="text-lg font-semibold text-foreground">Retention</h2>
             <p className="mt-2">
               Evidence is append-only and retained for audit history. Disconnecting
               a GitHub project or deleting an organization removes project-scoped
@@ -45,23 +45,20 @@ export default function PrivacyPage() {
             </p>
           </section>
           <section>
-            <h2 className="text-base font-medium text-foreground">
+            <h2 className="text-lg font-semibold text-foreground">
               Export and deletion
             </h2>
             <p className="mt-2">
-              Organization owners can download a machine-readable JSON export of
-              org-scoped product data and delete the organization from{" "}
-              <Link href="/org" className="text-foreground underline underline-offset-2">
-                Organization account
-              </Link>
-              . Sign-out clears stored encrypted GitHub tokens for that user.
-              Support-assisted deletion requests are handled within 30 days for
-              early-access pilots (see the support contact on that page when
-              configured).
+              Organization owners can download a machine-readable JSON export
+              of org-scoped product data and delete the organization from the
+              Organization page. Sign-out clears stored encrypted GitHub tokens
+              for that user. Support-assisted deletion requests are handled
+              within 30 days for early-access pilots — contact your pilot
+              operator.
             </p>
           </section>
           <section>
-            <h2 className="text-base font-medium text-foreground">Subprocessors</h2>
+            <h2 className="text-lg font-semibold text-foreground">Subprocessors</h2>
             <p className="mt-2">
               Optional AI features send finding context to the configured AI
               gateway when <code className="font-mono text-xs text-foreground">AI_GATEWAY_API_KEY</code> is set. Error reporting

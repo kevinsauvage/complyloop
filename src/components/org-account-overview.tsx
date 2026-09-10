@@ -77,7 +77,7 @@ export function OrgAccountOverview({
           <p className="font-medium text-foreground">{orgName}</p>
           <p className="font-mono text-xs text-muted-foreground">{orgSlug}</p>
         </MetaTile>
-        <MetaTile label="Workspace owner">
+        <MetaTile label="Organization owner">
           <p className="font-medium text-foreground">
             {ownerGithubLogin ? `@${ownerGithubLogin}` : "Unknown"}
           </p>
@@ -86,46 +86,42 @@ export function OrgAccountOverview({
             not supported yet.
           </p>
         </MetaTile>
-        <MetaTile label="Plan">
+        <MetaTile label="Plan & support">
           <p className="text-sm text-muted-foreground">
             Manually provisioned. Seat and project quotas are not enforced in
             product yet.
           </p>
+          {supportEmail ? (
+            <>
+              <a
+                href={`mailto:${supportEmail}`}
+                className="mt-1 block font-medium text-signal underline-offset-4 hover:underline"
+              >
+                {supportEmail}
+              </a>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Export and delete from this page. Assisted deletion within 30
+                days — see{" "}
+                <Link
+                  href="/legal/privacy"
+                  className="text-foreground underline underline-offset-2"
+                >
+                  Privacy
+                </Link>
+                .
+              </p>
+            </>
+          ) : null}
         </MetaTile>
         <MetaTile label="Workspace age">
           <p className="text-foreground">Created {formatDateTime(createdAt)}</p>
-        </MetaTile>
-        <MetaTile label="Support contact" className="sm:col-span-2">
-          {supportEmail ? (
-            <a
-              href={`mailto:${supportEmail}`}
-              className="font-medium text-signal underline-offset-4 hover:underline"
-            >
-              {supportEmail}
-            </a>
-          ) : (
-            <p className="text-muted-foreground">
-              Your ComplyLoop pilot operator
-            </p>
-          )}
-          <p className="mt-1 text-xs text-muted-foreground">
-            Export and delete from this page. Assisted deletion within 30 days —
-            see{" "}
-            <Link
-              href="/legal/privacy"
-              className="text-foreground underline underline-offset-2"
-            >
-              Privacy
-            </Link>
-            .
-          </p>
         </MetaTile>
 
         <div className="sm:col-span-2 rounded-lg border border-signal/20 bg-signal/5 px-4 py-3 text-sm">
           <p className="font-medium text-foreground">Data retention</p>
           <p className="mt-1 text-muted-foreground">
-            Evidence is kept for audit after disconnect or org deletion; mutable
-            records are removed with the organization. Details in{" "}
+            Evidence is kept for audit after disconnect or org deletion;
+            mutable records are removed with the organization. Details in{" "}
             <Link
               href="/legal/privacy"
               className="text-foreground underline underline-offset-2"

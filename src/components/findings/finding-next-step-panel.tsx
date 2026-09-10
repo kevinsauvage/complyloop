@@ -226,10 +226,13 @@ export function FindingNextStepPanel({
   canRemediate: boolean;
   patchState?: PatchUiState;
 }) {
+  const isTerminalBeat = act.beat === "verified" || act.beat === "dismissed" || act.beat === "view_only";
+  const cardBorder = isTerminalBeat ? "border-border/60" : "border-signal/30";
   return (
     <Card
       className={cn(
-        "border-signal/30 bg-card shadow-none",
+        cardBorder,
+        "bg-card shadow-none",
         "md:sticky md:top-4 md:z-10",
       )}
     >
