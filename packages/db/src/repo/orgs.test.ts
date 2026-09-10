@@ -6,13 +6,21 @@ import { listOrgIdsForUser } from "./orgs.ts";
 /** Collect primitive / Param values from a drizzle SQL tree (no circular JSON). */
 function sqlBoundValues(node: unknown, out: unknown[] = []): unknown[] {
   if (node == null) return out;
-  if (typeof node === "string" || typeof node === "number" || typeof node === "boolean") {
+  if (
+    typeof node === "string" ||
+    typeof node === "number" ||
+    typeof node === "boolean"
+  ) {
     out.push(node);
     return out;
   }
   if (typeof node !== "object") return out;
   const record = node as { queryChunks?: unknown[]; value?: unknown };
-  if ("value" in record && record.value !== undefined && !("queryChunks" in record)) {
+  if (
+    "value" in record &&
+    record.value !== undefined &&
+    !("queryChunks" in record)
+  ) {
     out.push(record.value);
     return out;
   }
@@ -25,7 +33,10 @@ function sqlBoundValues(node: unknown, out: unknown[] = []): unknown[] {
 function sqlStringParts(node: unknown, out: string[] = []): string[] {
   if (node == null || typeof node !== "object") return out;
   const record = node as { queryChunks?: unknown[]; value?: unknown };
-  if (Array.isArray(record.value) && record.value.every((part) => typeof part === "string")) {
+  if (
+    Array.isArray(record.value) &&
+    record.value.every((part) => typeof part === "string")
+  ) {
     out.push(...(record.value as string[]));
   }
   if (Array.isArray(record.queryChunks)) {
@@ -36,7 +47,7 @@ function sqlStringParts(node: unknown, out: string[] = []): string[] {
 
 describe("listOrgIdsForUser", () => {
   it("compares github login case-insensitively via lower()", async () => {
-    const where = vi.fn(async (_clause: unknown) => [{ orgId: "org-mixed" }]);
+    const where = vi.fn(async () => [{ orgId: "org-mixed" }]);
     const drizzle = {
       select: () => ({
         from: () => ({ where }),

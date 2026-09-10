@@ -9,7 +9,8 @@ import { generateAiRemediation } from "@/ai/remediation";
 import { parseEntityId } from "@/core/filters";
 import { refreshSuggestion } from "@/core/remediation-lifecycle";
 
-import { type ActionState,runAction } from "../action-state";
+import { type ActionState, runAction } from "../action-state";
+import { reportError } from "../observability";
 import { appendEvidence } from "../project-rows";
 import { assertAiRateLimit } from "../rate-limit";
 import { controlById, remediationForFinding } from "../workspace";
@@ -33,7 +34,9 @@ export async function generateAiExplanationAction(
         if (workspace.userId) await assertAiRateLimit(workspace.userId);
         const control = controlById(finding.controlId);
 
-        const explanation = await generateAiExplanation(finding, control);
+        const explanation = await generateAiExplanation(finding, control, {
+          onError: (error, report) => reportError(error, report),
+        });
         if (!explanation) {
           throw new PublicError(
             "AI explanation unavailable. Check AI credentials or try again.",
@@ -79,7 +82,9 @@ export async function generateAiRemediationAction(
           );
         }
 
-        const result = await generateAiRemediation(finding, control);
+        const result = await generateAiRemediation(finding, control, {
+          onError: (error, report) => reportError(error, report),
+        });
         if (!result) {
           throw new PublicError(
             "AI remediation unavailable. Check AI credentials or try again.",

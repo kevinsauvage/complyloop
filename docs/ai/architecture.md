@@ -6,20 +6,23 @@
 
 ## Modules
 
-| Piece    | Location                               | Role                                                          |
-| -------- | -------------------------------------- | ------------------------------------------------------------- |
-| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, org/project/requirement types, job enums, persisted entities (`entities.ts`: Finding, Remediation, Assessment, Evidence, Alert) |
-| Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                          |
-| Catalog  | `packages/analysis-core/src/adapters/` | RGAA/WCAG catalog, presets, guidance                          |
-| DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load, `Db` slice (imports entities from contract; `types.ts` only re-exports for compat) |
+| Piece    | Location                               | Role                                                                                                                                                                                                                                                                        |
+| -------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, org/project/requirement types, job enums, persisted entities (`entities.ts`: Finding, Remediation, Assessment, Evidence, Alert)                                                                                                                         |
+| Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                                                                                                                                                                                                                                        |
+| Catalog  | `packages/analysis-core/src/adapters/` | RGAA/WCAG catalog, presets, guidance ("adapters" = catalog packaging, not hexagonal ports — no app-level adapters layer exists)                                                                                                                                             |
+| DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load, `Db` slice (imports entities from contract; `types.ts` only re-exports for compat)                                                                                                                                                 |
 | App core | `src/core/`                            | Shared kernel (contract only): `rbac`, `remediation-lifecycle` (domain transitions), `assessment-helpers` (worker-safe summaries), `finding-priority` (clustering/scoring), `finding-act` (finding-page UX beats), `finding-cluster` type, `datetime`, `display`, `filters` |
-| AI       | `src/ai/`                              | Explain / remediate — never sets status                       |
-| Server   | `src/server/`                          | Jobs, GitHub, actions                                         |
-| App      | `src/app/`                             | Next.js UI + API                                              |
-| CI       | `packages/check/src/`                  | `npx complyloop-check` (AST only)                             |
+| AI       | `src/ai/`                              | Explain / remediate — never sets status; takes contract in, returns results / throws `PublicError`, reports failures only via an injected `onError` hook (never imports `@/server`)                                                                                         |
+| Server   | `src/server/`                          | Jobs, GitHub, actions                                                                                                                                                                                                                                                       |
+| App      | `src/app/`                             | Next.js UI + API                                                                                                                                                                                                                                                            |
+| CI       | `packages/check/src/`                  | `npx complyloop-check` (AST only)                                                                                                                                                                                                                                           |
 
 `src/core` must not import the catalog, db, or analysis-core beyond `contract/*`
 (ESLint). Dependency direction: `contract → { db, catalog, app }`.
+Integration is direct — pages/actions call `src/server`, which calls
+`packages/db` and analysis-core. `src/ai` depends only on the contract
+(plus its own gateway/fs helpers); `src/server` depends on `src/ai`.
 Remediation legality lives in `src/core/remediation-lifecycle.ts`; the
 finding-page beat model (`src/core/finding-act.ts`) is UI policy and must not
 be imported by `src/server/assessment*` (ESLint).
@@ -44,7 +47,8 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
 
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`). Roles
   `owner|admin|member|viewer`. Workspace load is membership-org + active
-  project.
+  project. RBAC stays in the app kernel — never move the permission matrix
+  into analysis-core.
 - **Reads** — `getWorkspace()` loads **tenancy only** (orgs, memberships,
   projects, active project). Compliance rows load via
   `getProjectRuntime(projectId)` or repo `list*`/`get*` helpers. The compliance
@@ -52,16 +56,26 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
   `assessment_snapshots` and load only for `runAssessment`. Evidence and
   findings pages load via `src/server/evidence-queries.ts` and
   `src/server/findings-queries.ts`.
-- **Writes** — `withProjectWrite` / `withOrgWrite` / `withConnectWrite` /
-  `withProjectLock` in `src/server/workspace-write.ts`. A project write
+- **Writes (the write model)** — `withProjectWrite` / `withOrgWrite` /
+  `withConnectWrite` / `withProjectLock` in `src/server/workspace-write.ts`.
+  Project **compliance** mutations (findings, remediations, requirements,
+  evidence) go through `withProjectWrite` / `withFindingWrite` so locking,
+  stale-write guards, and evidence appends apply. Tenancy/org/connect
+  mutations go through `withOrgWrite` / `withConnectWrite`. Raw `getDrizzle()`
+  in actions is allowed **only** for reads or lock-scoped single-row touches
+  that cannot violate stale-write/evidence invariants — today exactly:
+  `actions/alerts.ts` (RBAC reads + `withProjectLock`-scoped alert read flags),
+  `actions/org.ts` (org-export reads), `actions/pr.ts` (evidence read for the
+  PR candidate; the state change itself uses `withFindingWrite`). Anything
+  else must use the write helpers. No generic Unit-of-Work framework.
   callback returns a `ProjectWritePayload` (or void); `persistProjectRows`
   upserts it. Org writes return `{ result, insertOrgs, upsertMemberships,
-  deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory slice.
+deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory slice.
   Connect/disconnect uses `withConnectWrite` (tenancy load, org lock, no
   project lock — there may be no active project yet) and returns
   `{ result, insertProjects, deleteProjectIds, evidence }`. Structural
   entities go through `repo/*`. `runAssessment` returns `{ assessment,
-  evidence, findings, remediations, requirements }`; the worker persists via
+evidence, findings, remediations, requirements }`; the worker persists via
   `applyAssessmentPayload`. Stale-write guards take a single `loadedSlice`
   (`ProjectSlice`); `persistProjectRows` derives the per-entity `updatedAt`
   maps. Project-scoped filtering is shared via `projectScopedSlice` (used by
@@ -75,6 +89,14 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
   decision.
 - **Latest assessment** — `latestAssessmentFor` compares `completedAt`.
   Do not use `.at(-1)` (loaders return newest-first).
+- **Validation** — shared zod primitives (`entityIdSchema`,
+  `requiredField`, `parseForm` / `parseInput` / `parseEntityId`) live in
+  `src/core/filters.ts`; action- and route-specific schemas stay next to
+  their actions/handlers. No separate validation layer.
+- **Persistence API** — concrete `packages/db/repo` functions are the API.
+  No abstract repositories, interfaces-per-table, or DI containers: expensive
+  edges are injected explicitly via function params (`runAssessment`
+  options), everything else is a direct import.
 - **Jobs** — 30-min lease, 3 attempts, serial per project. HTTP only
   enqueues. Dev/e2e drain in-process.
 - **Clones** — shallow temp checkout per job; deleted after. See
@@ -107,13 +129,13 @@ axe > html-validate > playwright-custom > site-level > linkinator > ast > jsx-a1
 
 ### Check authority (`check-authority.ts`)
 
-| Class                 | Behavior                                                                 |
-| --------------------- | ------------------------------------------------------------------------ |
-| Runtime-only          | `unable_to_verify` until page audit — never `passed` from empty AST      |
-| Composition-sensitive | AST in CI; runtime findings replace AST when both run                    |
-| Heuristic AST         | Empty scan → `unable_to_verify`, not `passed`                            |
-| Site-level            | Needs `runtimeRan` + ≥2 preview routes                                   |
-| Standard              | Empty AST scan → `passed`                                                |
+| Class                 | Behavior                                                            |
+| --------------------- | ------------------------------------------------------------------- |
+| Runtime-only          | `unable_to_verify` until page audit — never `passed` from empty AST |
+| Composition-sensitive | AST in CI; runtime findings replace AST when both run               |
+| Heuristic AST         | Empty scan → `unable_to_verify`, not `passed`                       |
+| Site-level            | Needs `runtimeRan` + ≥2 preview routes                              |
+| Standard              | Empty AST scan → `passed`                                           |
 
 Precedence: site_level → runtime_only → heuristic → standard.
 Composition-sensitive uses `standard` authority; runtime override is merge,

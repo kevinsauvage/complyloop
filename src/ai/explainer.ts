@@ -9,6 +9,7 @@ import {
   AI_MODEL,
   aiAvailable,
   aiCall,
+  type AiCallOnError,
   confidenceSchema,
   findingPromptContext,
 } from "./ai-call";
@@ -43,12 +44,14 @@ export function deterministicExplanation(
 export async function generateAiExplanation(
   finding: Finding,
   control: Control,
+  options: { onError?: AiCallOnError } = {},
 ): Promise<Explanation | null> {
   const object = await aiCall({
     schema: explanationSchema,
     available: aiAvailable(),
     code: "ai_explanation_failed",
     detail: { findingId: finding.id, controlId: control.id },
+    onError: options.onError,
     prompt: [
       "You explain accessibility compliance findings to web developers.",
       ...findingPromptContext(finding, control),

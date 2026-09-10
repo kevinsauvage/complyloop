@@ -9,6 +9,7 @@ import {
   AI_MODEL,
   aiAvailable,
   aiCall,
+  type AiCallOnError,
   confidenceSchema,
   findingPromptContext,
 } from "./ai-call";
@@ -34,12 +35,14 @@ interface AiRemediationResult {
 export async function generateAiRemediation(
   finding: Finding,
   control: Control,
+  options: { onError?: AiCallOnError } = {},
 ): Promise<AiRemediationResult | null> {
   const object = await aiCall({
     schema: remediationSchema,
     available: aiAvailable(),
     code: "ai_remediation_failed",
     detail: { findingId: finding.id, controlId: control.id },
+    onError: options.onError,
     prompt: [
       "You propose accessibility remediations for React/TypeScript source.",
       ...findingPromptContext(

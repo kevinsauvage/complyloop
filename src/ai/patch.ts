@@ -5,7 +5,12 @@ import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { AI_MODEL, AI_PATCH_UNAVAILABLE_MESSAGE, aiCall } from "./ai-call";
+import {
+  AI_MODEL,
+  AI_PATCH_UNAVAILABLE_MESSAGE,
+  aiCall,
+  type AiCallOnError,
+} from "./ai-call";
 import {
   assertSingleFileEdits,
   fileEditSchema,
@@ -95,6 +100,8 @@ interface ProposeFixEditsInput {
   fileContents: Record<string, string>;
   /** When false, skip the gateway call and fail fast with actionable copy. */
   aiAvailable?: boolean;
+  /** Failure hook for observability (owned by the server caller). */
+  onError?: AiCallOnError;
 }
 
 /**
@@ -119,6 +126,7 @@ export async function proposeFixEdits(
     throwIfUnavailable: true,
     failureMessage: AI_PATCH_FAILED_MESSAGE,
     code: "ai_fix_propose",
+    onError: input.onError,
     prompt: [
       "You fix accessibility failures in a React/TypeScript repository.",
       "Return unique search/replace edits. oldText must match exactly once in that file.",

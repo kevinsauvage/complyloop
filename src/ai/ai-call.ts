@@ -10,7 +10,21 @@ import {
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { reportError } from "@/server/observability";
+/** Error report handed to the `onError` hook on gateway failure. */
+export interface AiErrorReport {
+  /** Stable machine-readable code attached to the observability report. */
+  code: string;
+  /** Stringified failure, plus caller `detail` merged in. */
+  detail: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Failure hook owned by the server caller (`src/server` reports via
+ * observability). `src/ai` never imports `@/server/*` — reporting is
+ * injected, not reached for.
+ */
+export type AiCallOnError = (error: unknown, report: AiErrorReport) => void;
 
 /** Vercel AI Gateway model id (`provider/model`). */
 export const AI_MODEL = "poolside/laguna-s-2.1-free";
@@ -53,10 +67,16 @@ interface AiCallInput<TSchema extends z.ZodType> {
   /** When true, unavailable/failed calls throw PublicError instead of returning null. */
   throwIfUnavailable?: boolean;
   prompt: string | string[];
-  /** Stable machine-readable code attached to the observability report. */
+  /** Stable machine-readable code attached to the error report. */
   code: string;
-  /** Extra context attached to the observability report. */
+  /** Extra context merged into the error report. */
   detail?: Record<string, unknown>;
+  /**
+   * Failure hook for observability. When omitted the failure is silent
+   * (null / `PublicError` per `throwIfUnavailable`) — server callers pass a
+   * `reportError` wrapper to keep gateway failures visible.
+   */
+  onError?: AiCallOnError;
   /** User-facing copy when `throwIfUnavailable` is set. */
   failureMessage?: string;
 }
@@ -65,7 +85,8 @@ interface AiCallInput<TSchema extends z.ZodType> {
  * Shared AI gateway shell: availability check + structured `generateObject`.
  * Returns `null` when AI is disabled or the call fails unless
  * `throwIfUnavailable` is set. Callers always keep a deterministic baseline
- * (AI never sets status), and failures are reported for observability.
+ * (AI never sets status), and failures surface through `onError` so the
+ * server boundary owns observability.
  */
 export async function aiCall<TSchema extends z.ZodType>(
   input: AiCallInput<TSchema>,
@@ -89,7 +110,7 @@ export async function aiCall<TSchema extends z.ZodType>(
     });
     return object as z.infer<TSchema>;
   } catch (error) {
-    reportError(error, {
+    input.onError?.(error, {
       code: input.code,
       detail: error instanceof Error ? error.message : String(error),
       ...input.detail,

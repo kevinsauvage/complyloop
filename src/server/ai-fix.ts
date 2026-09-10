@@ -15,7 +15,7 @@ import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { Db } from "@complyloop/db/types";
 
-import { AI_PATCH_UNAVAILABLE_MESSAGE } from "@/ai/ai-call";
+import { AI_PATCH_UNAVAILABLE_MESSAGE, type AiCallOnError } from "@/ai/ai-call";
 import { proposeFixEdits } from "@/ai/patch";
 import {
   assertSourceLocatedFinding,
@@ -32,7 +32,7 @@ import {
 } from "@/core/remediation-lifecycle";
 
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
-import { reportWarning } from "./observability";
+import { reportError, reportWarning } from "./observability";
 import { appendEvidence } from "./project-rows";
 
 export type PatchUiState =
@@ -43,6 +43,8 @@ export interface RunAiFixOnCheckoutOptions {
   scan?: GeneratePatchCandidateOptions["scan"];
   /** When false, patch generation fails fast with actionable copy. */
   aiAvailable?: boolean;
+  /** Gateway-failure hook; defaults to observability reporting. */
+  onError?: AiCallOnError;
 }
 
 function deterministicProposal(
@@ -79,6 +81,8 @@ export async function runAiFixOnCheckout(
       "The deterministic fix could not be re-located. Re-run the assessment and try again.",
     );
   }
+  const onError: AiCallOnError =
+    options.onError ?? ((error, report) => reportError(error, report));
   const propose =
     deterministic !== null
       ? async () => deterministic
@@ -87,6 +91,7 @@ export async function runAiFixOnCheckout(
           proposeFixEdits({
             finding,
             control,
+            onError,
             fileContents: {
               [filePath]: fs.readFileSync(
                 resolveInside(rootPath, filePath),

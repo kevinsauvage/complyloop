@@ -46,10 +46,12 @@ const eslintConfig = defineConfig([
     },
   },
   // Architecture boundary (docs/ai/architecture.md, "Module boundaries"):
-  // src/core/ is framework-agnostic and must not import from adapters,
-  // analysis engines, server, or app. The shared contract
-  // (@complyloop/analysis-core/contract/*) is the exception. server/app
-  // integrate core via src/adapters/registry.ts.
+  // src/core/ is the framework-agnostic shared app kernel: no Next, no
+  // Drizzle, no GitHub, no analysis engines. The shared contract
+  // (@complyloop/analysis-core/contract/*) is the exception. Integration is
+  // direct — pages/actions call src/server, which calls packages/db and
+  // analysis-core. There is no app-level adapters/registry layer ("adapters"
+  // under analysis-core is catalog packaging: RGAA/WCAG data, not ports).
   {
     files: ["src/core/**/*.{ts,tsx}"],
     rules: {
@@ -68,8 +70,7 @@ const eslintConfig = defineConfig([
                 "src/core must not import analysis — see docs/ai/architecture.md (module boundaries).",
             },
             {
-              regex:
-                "^@complyloop/analysis-core(?!/contract(?:/|$))(?:$|/)",
+              regex: "^@complyloop/analysis-core(?!/contract(?:/|$))(?:$|/)",
               message:
                 "src/core may import only @complyloop/analysis-core/contract/* — see docs/ai/architecture.md (module boundaries).",
             },
@@ -102,6 +103,27 @@ const eslintConfig = defineConfig([
               group: ["**/finding-act", "**/finding-act/**"],
               message:
                 "assessment pipeline must not import the finding-page UX model (finding-act) — use remediation-lifecycle / assessment-helpers — see docs/ai/architecture.md.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // AI is an optional generation edge: `src/ai` takes contract types in and
+  // returns results / throws PublicError out. It must never reach sideways
+  // into `@/server` (observability included) — server callers inject an
+  // `onError` hook instead (docs/ai/architecture.md).
+  {
+    files: ["src/ai/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/server", "**/server/**"],
+              message:
+                "src/ai must not import server (observability included) — accept an onError hook from the server caller instead — see docs/ai/architecture.md.",
             },
           ],
         },

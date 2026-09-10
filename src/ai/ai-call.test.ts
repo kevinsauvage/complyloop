@@ -4,25 +4,27 @@ import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { reportError } from "@/server/observability";
-
-import { aiCall } from "./ai-call";
+import { aiCall, type AiErrorReport } from "./ai-call";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
 }));
 
-vi.mock("@/server/observability", () => ({
-  reportError: vi.fn(),
-}));
-
 const generate = vi.mocked(generateObject);
-const report = vi.mocked(reportError);
 const schema = z.object({ value: z.string() });
+
+function errorHook() {
+  const calls: Array<{ error: unknown; report: AiErrorReport }> = [];
+  return {
+    calls,
+    onError: (error: unknown, report: AiErrorReport) => {
+      calls.push({ error, report });
+    },
+  };
+}
 
 afterEach(() => {
   generate.mockReset();
-  report.mockReset();
 });
 
 describe("aiCall", () => {
@@ -55,8 +57,9 @@ describe("aiCall", () => {
     expect(generate).not.toHaveBeenCalled();
   });
 
-  it("reports and returns null when the gateway call fails", async () => {
+  it("reports through onError and returns null when the gateway call fails", async () => {
     generate.mockRejectedValue(new Error("gateway down"));
+    const hook = errorHook();
 
     await expect(
       aiCall({
@@ -65,28 +68,42 @@ describe("aiCall", () => {
         prompt: "hi",
         code: "ai_test",
         detail: { findingId: "f1" },
+        onError: hook.onError,
       }),
     ).resolves.toBeNull();
-    expect(report).toHaveBeenCalledWith(
-      expect.any(Error),
-      expect.objectContaining({
-        code: "ai_test",
-        detail: "gateway down",
-        findingId: "f1",
-      }),
-    );
+    expect(hook.calls).toHaveLength(1);
+    expect(hook.calls[0]?.error).toEqual(expect.any(Error));
+    expect(hook.calls[0]?.report).toMatchObject({
+      code: "ai_test",
+      detail: "gateway down",
+      findingId: "f1",
+    });
   });
 
-  it("stringifies non-Error failures in the report detail", async () => {
-    generate.mockRejectedValue("offline");
+  it("stays silent without onError when the gateway call fails", async () => {
+    generate.mockRejectedValue(new Error("gateway down"));
 
     await expect(
       aiCall({ schema, available: true, prompt: "hi", code: "ai_test" }),
     ).resolves.toBeNull();
-    expect(report).toHaveBeenCalledWith(
-      "offline",
-      expect.objectContaining({ detail: "offline" }),
-    );
+  });
+
+  it("stringifies non-Error failures in the report detail", async () => {
+    generate.mockRejectedValue("offline");
+    const hook = errorHook();
+
+    await expect(
+      aiCall({
+        schema,
+        available: true,
+        prompt: "hi",
+        code: "ai_test",
+        onError: hook.onError,
+      }),
+    ).resolves.toBeNull();
+    expect(hook.calls).toHaveLength(1);
+    expect(hook.calls[0]?.error).toBe("offline");
+    expect(hook.calls[0]?.report).toMatchObject({ detail: "offline" });
   });
 
   it("throws a PublicError when the gateway fails and throwIfUnavailable is set", async () => {
