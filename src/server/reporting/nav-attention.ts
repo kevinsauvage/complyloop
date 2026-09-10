@@ -7,7 +7,7 @@ import {
   type NavAttentionCounts,
 } from "@complyloop/db/repo/nav-attention";
 
-import { scopedControlIds } from "./project-scope";
+import { scopedControlIds } from "../workspace/project-scope";
 
 export type { NavAttentionCounts };
 

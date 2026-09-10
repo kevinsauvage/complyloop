@@ -11,7 +11,7 @@ import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
 import { initialActionState } from "../action-state";
-import type { ConnectWriteContext } from "../workspace-write";
+import type { ConnectWriteContext } from "../workspace/workspace-write";
 import {
   connectGitHubRepoAction,
   disconnectGitHubRepoAction,
@@ -30,14 +30,14 @@ const createInstallationAccessToken = vi.hoisted(() => vi.fn());
 const assertConnectRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 
-vi.mock("../active-cookies", () => ({
+vi.mock("../workspace/active-cookies", () => ({
   writeActiveProjectCookie: (...args: unknown[]) =>
     writeActiveProjectCookie(...args),
   readActiveOrgCookie: async () => "org-1",
 }));
 
-vi.mock("../project-visibility", async () => {
-  const actual = await vi.importActual<typeof import("../project-visibility")>(
+vi.mock("../workspace/project-visibility", async () => {
+  const actual = await vi.importActual<typeof import("../workspace/project-visibility")>(
     "../project-visibility",
   );
   return {
@@ -46,18 +46,18 @@ vi.mock("../project-visibility", async () => {
   };
 });
 
-vi.mock("../connect-github", () => ({
+vi.mock("../workspace/connect-github", () => ({
   connectGitHubRepo: (...args: unknown[]) => connectGitHubRepo(...args),
   disconnectGitHubRepo: (...args: unknown[]) => disconnectGitHubRepo(...args),
   findConnectedGitHubProject: (...args: unknown[]) =>
     findConnectedGitHubProject(...args),
 }));
 
-vi.mock("../github-access", () => ({
+vi.mock("../github/github-access", () => ({
   fetchGitHubRepo: (...args: unknown[]) => fetchGitHubRepo(...args),
 }));
 
-vi.mock("../github-app", () => ({
+vi.mock("../github/github-app", () => ({
   resolveUserInstallationForRepo: (...args: unknown[]) =>
     resolveUserInstallationForRepo(...args),
   createInstallationAccessToken: (...args: unknown[]) =>
@@ -69,7 +69,7 @@ vi.mock("../rate-limit", () => ({
     assertConnectRateLimit(...args),
 }));
 
-vi.mock("../personal-org", () => ({
+vi.mock("../workspace/personal-org", () => ({
   ensurePersonalOrgProvisioned: async () => undefined,
 }));
 

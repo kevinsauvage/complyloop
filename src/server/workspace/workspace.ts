@@ -21,8 +21,8 @@ import { getRemediationByFindingId } from "@complyloop/db/repo/remediations";
 import type { Db } from "@complyloop/db/types";
 import { loadTenancyDb } from "@complyloop/db/workspace-load";
 
+import { getSession } from "../auth-session";
 import { readActiveOrgCookie, readActiveProjectCookie } from "./active-cookies";
-import { getSession } from "./auth-session";
 import { orgsForUser, resolveActiveOrgId } from "./org-queries";
 import {
   type AccessContext,

@@ -17,10 +17,10 @@ import {
   buildEngineeringReportMarkdown,
 } from "./report-markdown";
 
-vi.mock("./workspace", () => ({
+vi.mock("../workspace/workspace", () => ({
   getWorkspace: vi.fn(),
 }));
-vi.mock("./project-runtime", () => ({
+vi.mock("../workspace/project-runtime", () => ({
   getProjectRuntime: vi.fn(),
 }));
 

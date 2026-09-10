@@ -2,12 +2,12 @@ import { createHash } from "node:crypto";
 
 import { z } from "zod";
 
-import { runAssessmentJobBatch } from "@/server/assessment-runner";
-import { assertRateLimit, RateLimitError } from "@/server/rate-limit";
+import { runAssessmentJobBatch } from "@/server/assessment/assessment-runner";
 import {
   isWorkerAuthConfigured,
   isWorkerRequestAuthorized,
-} from "@/server/worker-auth";
+} from "@/server/assessment/worker-auth";
+import { assertRateLimit, RateLimitError } from "@/server/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

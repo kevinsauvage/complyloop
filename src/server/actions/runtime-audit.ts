@@ -12,7 +12,7 @@ import {
   type ActionState,
   runAction,
 } from "../action-state";
-import { withProjectWrite } from "../workspace-write";
+import { withProjectWrite } from "../workspace/workspace-write";
 import { refresh, requireOnActive } from "./shared";
 
 const ABSOLUTE_ROUTE_MESSAGE =

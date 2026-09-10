@@ -18,12 +18,12 @@ const persistPatchCandidate = vi.hoisted(() => vi.fn());
 const assertAiRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 
-vi.mock("../repo-checkout", () => ({
+vi.mock("../assessment/repo-checkout", () => ({
   withProjectCheckout: (...args: unknown[]) => withProjectCheckout(...args),
 }));
 
-vi.mock("../ai-fix", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../ai-fix")>();
+vi.mock("../assessment/ai-fix", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../assessment/ai-fix")>();
   return {
     ...actual,
     runAiFixOnCheckout: (...args: unknown[]) => runAiFixOnCheckout(...args),

@@ -74,20 +74,20 @@ export default defineConfig({
         "packages/db/src/repo/**", // test:db (query layer; pure helpers have unit tests)
         "packages/db/src/test-fixtures/**", // test support files, no product logic
         // Write path covered by workspace.test.ts + workspace.integration.test.ts (test:db).
-        "src/server/workspace.ts", // test:db
+        "src/server/workspace/workspace.ts", // test:db
         // Thin Next Auth / cookie glue — covered via test:e2e.
-        "src/server/active-cookies.ts", // test:e2e
-        "src/server/db.ts", // test:e2e
+        "src/server/workspace/active-cookies.ts", // test:e2e
+        "src/server/workspace/db.ts", // test:e2e
         // Live GitHub/git checkout I/O — e2e + fixture paths cover the contract.
-        "src/server/repo-checkout.ts", // test:e2e
-        "src/server/github-tokens.ts", // test:e2e
-        "src/server/github-app.ts", // test:e2e
+        "src/server/assessment/repo-checkout.ts", // test:e2e
+        "src/server/github/github-tokens.ts", // test:e2e
+        "src/server/github/github-app.ts", // test:e2e
         "src/server/octokit.ts", // test:e2e
-        "src/server/connect-github.ts", // test:e2e
+        "src/server/workspace/connect-github.ts", // test:e2e
         "src/server/github-repo.ts", // test:e2e
         // Report loader (needs Postgres); input builder is unit-covered by
         // report.test.ts and renderers by report-html/report.test.ts.
-        "src/server/report.ts", // test:db (loadReportInput) + unit (reportInputForProject)
+        "src/server/reporting/report.ts", // test:db (loadReportInput) + unit (reportInputForProject)
       ],
       thresholds: {
         lines: 94,

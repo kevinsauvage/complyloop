@@ -16,7 +16,7 @@ import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
 import { initialActionState } from "../action-state";
-import type { Workspace } from "../workspace";
+import type { Workspace } from "../workspace/workspace";
 import {
   markRemediationImplementedAction,
   verifyRemediationAction,
@@ -28,7 +28,7 @@ const runtimeViolationStillPresent = vi.hoisted(() => vi.fn());
 const scanRuntime = vi.hoisted(() => vi.fn());
 const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
 
-vi.mock("../repo-checkout", () => ({
+vi.mock("../assessment/repo-checkout", () => ({
   withProjectCheckout: async (
     _project: unknown,
     fn: (rootPath: string) => Promise<unknown>,
@@ -44,8 +44,8 @@ vi.mock("../observability", () => ({
   reportAppError: vi.fn(),
 }));
 
-vi.mock("../assessment-findings", async () => {
-  const actual = await vi.importActual<typeof import("../assessment-findings")>(
+vi.mock("../assessment/assessment-findings", async () => {
+  const actual = await vi.importActual<typeof import("../assessment/assessment-findings")>(
     "../assessment-findings",
   );
   return {
@@ -57,8 +57,8 @@ vi.mock("../assessment-findings", async () => {
   };
 });
 
-vi.mock("../assessment-status", async () => {
-  const actual = await vi.importActual<typeof import("../assessment-status")>(
+vi.mock("../assessment/assessment-status", async () => {
+  const actual = await vi.importActual<typeof import("../assessment/assessment-status")>(
     "../assessment-status",
   );
   return {

@@ -22,8 +22,8 @@ import {
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 
-import type { ProjectRows } from "./project-rows";
-import { controlsInScope } from "./project-scope";
+import type { ProjectRows } from "../workspace/project-rows";
+import { controlsInScope } from "../workspace/project-scope";
 
 /** Human exceptions and human passes block automated status overwrite. */
 function requirementIsSticky(requirement: Requirement | undefined): boolean {

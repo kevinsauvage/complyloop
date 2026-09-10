@@ -31,9 +31,9 @@ import {
   refreshSuggestion,
 } from "@/core/remediation-lifecycle";
 
+import { reportError, reportWarning } from "../observability";
+import { appendEvidence } from "../workspace/project-rows";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
-import { reportError, reportWarning } from "./observability";
-import { appendEvidence } from "./project-rows";
 
 export type PatchUiState =
   { status: "idle" } | { status: "ready"; candidate: PatchCandidate };

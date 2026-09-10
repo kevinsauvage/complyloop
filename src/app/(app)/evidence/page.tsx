@@ -30,8 +30,8 @@ import {
   parsePageParam,
 } from "@/core/filter-params";
 import { cn } from "@/lib/utils";
-import { loadActiveProjectPage } from "@/server/active-project-page";
-import { loadEvidencePage } from "@/server/evidence-queries";
+import { loadEvidencePage } from "@/server/reporting/evidence-queries";
+import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 
 import { EvidenceExportMenu } from "./_components/evidence-export-menu";
 

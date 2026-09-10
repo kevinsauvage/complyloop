@@ -2,7 +2,7 @@ import { vi } from "vitest";
 
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
-import type { Workspace } from "@/server/workspace";
+import type { Workspace } from "@/server/workspace/workspace";
 
 const withProjectWrite = vi.fn();
 const withOrgWrite = vi.fn();

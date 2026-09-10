@@ -39,8 +39,8 @@ import {
 
 import type { Permission } from "@/core/rbac";
 
-import { requireOnFindingProject } from "./actions/shared";
-import { getSession } from "./auth-session";
+import { requireOnFindingProject } from "../actions/shared";
+import { getSession } from "../auth-session";
 import { orgsForUser } from "./org-queries";
 import { stampEvidenceActor } from "./project-rows";
 import {

@@ -21,8 +21,8 @@ import { DefaultPresetForm } from "@/components/settings/default-preset-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { latestAssessmentFor } from "@/core/assessment-helpers";
-import { loadActiveProjectPage } from "@/server/active-project-page";
-import { getProjectRuntime } from "@/server/project-runtime";
+import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
+import { getProjectRuntime } from "@/server/workspace/project-runtime";
 
 export const metadata: Metadata = {
   title: "Settings",

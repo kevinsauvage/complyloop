@@ -4,7 +4,7 @@ import path from "node:path";
 import {
   ACTIVE_ORG_COOKIE,
   ACTIVE_PROJECT_COOKIE,
-} from "../src/server/active-cookies";
+} from "../src/server/workspace/active-cookies";
 import {
   E2E_ORG_ID,
   E2E_OWNER,

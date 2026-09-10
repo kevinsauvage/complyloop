@@ -63,8 +63,8 @@ vi.mock("@complyloop/db/repo/evidence", () => ({
   insertEvidence: (...args: unknown[]) => insertEvidence(...args),
 }));
 
-vi.mock("./db", async () => {
-  const actual = await vi.importActual<typeof import("./db")>("./db");
+vi.mock("../workspace/db", async () => {
+  const actual = await vi.importActual<typeof import("../workspace/db")>("./db");
   return {
     ...actual,
     loadProjectDb: (...args: unknown[]) => loadProjectDb(...args),
@@ -93,12 +93,12 @@ vi.mock("./rate-limit", () => ({
   pruneRateLimitBuckets: (...args: unknown[]) => pruneRateLimitBuckets(...args),
 }));
 
-vi.mock("./github-access", () => ({
+vi.mock("../github/github-access", () => ({
   resolveProjectGitHubToken: (...args: unknown[]) =>
     resolveProjectGitHubToken(...args),
 }));
 
-vi.mock("./github-checks", () => ({
+vi.mock("../github/github-checks", () => ({
   postPullRequestCheckRun: (...args: unknown[]) =>
     postPullRequestCheckRun(...args),
   summarizeAssessmentForCheckRun: () => ({

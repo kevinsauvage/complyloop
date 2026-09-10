@@ -1,6 +1,6 @@
 import { AssessmentJobStatusLive } from "@/components/dashboard/assessment-job-status-live";
 import { PageSection } from "@/components/page-primitives";
-import { recentAssessmentJobsForProject } from "@/server/assessment-jobs";
+import { recentAssessmentJobsForProject } from "@/server/assessment/assessment-jobs";
 
 /** Pipeline history, fetched independently so header/stats paint first. */
 export async function DashboardPipelineSection({

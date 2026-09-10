@@ -4,9 +4,9 @@ import { getGitHubAccessToken } from "@/auth";
 import { parseInput } from "@/core/filters";
 import { publicErrorMessage } from "@/server/action-state";
 import { getSession } from "@/server/auth-session";
-import { listGitHubRepos } from "@/server/github-access";
-import { projectCapabilities } from "@/server/project-capabilities";
-import { getWorkspace } from "@/server/workspace";
+import { listGitHubRepos } from "@/server/github/github-access";
+import { projectCapabilities } from "@/server/workspace/project-capabilities";
+import { getWorkspace } from "@/server/workspace/workspace";
 
 export const dynamic = "force-dynamic";
 

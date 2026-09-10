@@ -90,10 +90,10 @@ const eslintConfig = defineConfig([
     },
   },
   // Assessment/worker pipeline must not pull finding-page UX policy:
-  // `src/server/assessment*` may use remediation transitions and assessment
+  // `src/server/assessment/` may use remediation transitions and assessment
   // helpers, but never the `finding-act` beat model (docs/ai/architecture.md).
   {
-    files: ["src/server/assessment*.{ts,tsx}"],
+    files: ["src/server/assessment/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": [
         "error",

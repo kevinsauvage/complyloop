@@ -33,8 +33,8 @@ import {
   parseRequirementsQueryParam,
 } from "@/core/filter-params";
 import { parseRequirementStatusParam } from "@/core/filter-params";
-import { loadActiveProjectPage } from "@/server/active-project-page";
-import { getProjectRuntime } from "@/server/project-runtime";
+import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
+import { getProjectRuntime } from "@/server/workspace/project-runtime";
 
 export const metadata: Metadata = {
   title: "Requirements",

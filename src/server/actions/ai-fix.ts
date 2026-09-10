@@ -9,11 +9,11 @@ import { parseEntityId } from "@/core/filters";
 import { hasSafeDeterministicFix } from "@/core/remediation-lifecycle";
 
 import { type ActionState,runAction } from "../action-state";
-import { persistPatchCandidate, runAiFixOnCheckout } from "../ai-fix";
+import { persistPatchCandidate, runAiFixOnCheckout } from "../assessment/ai-fix";
+import { withProjectCheckout } from "../assessment/repo-checkout";
 import { assertAiRateLimit } from "../rate-limit";
-import { withProjectCheckout } from "../repo-checkout";
-import { controlById, getWorkspace, requireFinding } from "../workspace";
-import { withFindingWrite } from "../workspace-write";
+import { controlById, getWorkspace, requireFinding } from "../workspace/workspace";
+import { withFindingWrite } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh, requireFindingContext } from "./shared";
 

@@ -28,20 +28,20 @@ import {
   clearActiveProjectCookie,
   writeActiveOrgCookie,
   writeActiveProjectCookie,
-} from "../active-cookies";
+} from "../workspace/active-cookies";
 import {
   changeOrgMemberRole,
   inviteOrgMember,
   removeOrgMember,
-} from "../org-membership";
-import { resolveActiveOrgId } from "../org-queries";
+} from "../workspace/org-membership";
+import { resolveActiveOrgId } from "../workspace/org-queries";
 import {
   createOrganization,
   deleteOrganization,
   exportOrgData,
-} from "../orgs";
-import { getWorkspace } from "../workspace";
-import { withOrgWrite } from "../workspace-write";
+} from "../workspace/orgs";
+import { getWorkspace } from "../workspace/workspace";
+import { withOrgWrite } from "../workspace/workspace-write";
 import { refresh, requireSignedIn } from "./shared";
 
 /** Roles assignable via invite/change UI (owner transfer unsupported). Single source: ORG_ROLES. */

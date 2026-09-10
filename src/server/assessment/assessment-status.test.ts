@@ -15,13 +15,13 @@ import { emptyDb } from "@complyloop/db/types";
 import { testControl } from "@/test-fixtures/control";
 import { testProject } from "@/test-fixtures/project";
 
-import { refreshRequirementStatuses } from "./assessment-status";
 import {
   assertAssessableCatalog,
   controlsInScope,
   findingsInScope,
   requirementsInScope,
-} from "./project-scope";
+} from "../workspace/project-scope";
+import { refreshRequirementStatuses } from "./assessment-status";
 
 function project(partial: Partial<Project> & Pick<Project, "id">): Project {
   return testProject(partial);

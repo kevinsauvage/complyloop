@@ -17,7 +17,7 @@ import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
 import { initialActionState } from "../action-state";
-import type { Workspace } from "../workspace";
+import type { Workspace } from "../workspace/workspace";
 import {
   clearRequirementExceptionAction,
   clearRequirementHumanPassAction,
@@ -36,8 +36,8 @@ vi.mock("../observability", () => ({
   reportAppError: vi.fn(),
 }));
 
-vi.mock("../assessment-status", async () => {
-  const actual = await vi.importActual<typeof import("../assessment-status")>(
+vi.mock("../assessment/assessment-status", async () => {
+  const actual = await vi.importActual<typeof import("../assessment/assessment-status")>(
     "../assessment-status",
   );
   return {

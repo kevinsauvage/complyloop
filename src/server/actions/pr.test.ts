@@ -19,7 +19,7 @@ const getDrizzle = vi.hoisted(() => vi.fn());
 const listEvidenceForFinding = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 
-vi.mock("../pr", () => ({
+vi.mock("../github/pr", () => ({
   preparePullRequest: (...args: unknown[]) => preparePullRequest(...args),
 }));
 

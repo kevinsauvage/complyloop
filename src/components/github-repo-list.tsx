@@ -4,7 +4,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { STATUS_TONE_BADGE } from "@/core/display";
-import type { GitHubRepoSummary } from "@/server/github-types";
+import type { GitHubRepoSummary } from "@/server/github/github-types";
 
 export type RepoOwnerGroup = {
   owner: string;

@@ -5,8 +5,8 @@ import { ConnectProjectPanel } from "@/components/connect-project-panel";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { cn } from "@/lib/utils";
-import { projectCapabilities } from "@/server/project-capabilities";
-import { getWorkspace } from "@/server/workspace";
+import { projectCapabilities } from "@/server/workspace/project-capabilities";
+import { getWorkspace } from "@/server/workspace/workspace";
 
 function ContextStrip({
   children,

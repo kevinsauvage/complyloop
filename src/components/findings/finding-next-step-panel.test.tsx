@@ -7,7 +7,7 @@ import type {
 } from "@complyloop/analysis-core/contract/entities";
 
 import { findingAct } from "@/core/finding-act";
-import type { PatchUiState } from "@/server/ai-fix";
+import type { PatchUiState } from "@/server/assessment/ai-fix";
 
 import { FindingNextStepPanel } from "./finding-next-step-panel";
 

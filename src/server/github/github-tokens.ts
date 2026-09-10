@@ -13,7 +13,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { githubTokens } from "@complyloop/db/schema";
 
-import { reportError } from "./observability";
+import { reportError } from "../observability";
 
 interface EncryptedTokenEntry {
   v: 1;

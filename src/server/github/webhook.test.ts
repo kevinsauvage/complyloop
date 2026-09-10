@@ -19,7 +19,7 @@ vi.mock("@complyloop/db/repo/projects", () => ({
   getProjectById: (...args: unknown[]) => getProjectById(...args),
   updateProject: (...args: unknown[]) => updateProject(...args),
 }));
-vi.mock("./assessment-jobs", () => ({ enqueueAssessmentJob }));
+vi.mock("../assessment/assessment-jobs", () => ({ enqueueAssessmentJob }));
 vi.mock("./rate-limit", () => ({ assertRateLimit }));
 
 afterEach(() => {

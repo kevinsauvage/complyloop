@@ -14,7 +14,7 @@
 | DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load, `Db` slice (imports entities from contract; `types.ts` only re-exports for compat)                                                                                                                                                 |
 | App core | `src/core/`                            | Shared kernel (contract only): `rbac`, `remediation-lifecycle` (domain transitions), `assessment-helpers` (worker-safe summaries), `finding-priority` (clustering/scoring), `finding-act` (finding-page UX beats), `finding-cluster` type, `datetime`, `display`, `filters` |
 | AI       | `src/ai/`                              | Explain / remediate — never sets status; takes contract in, returns results / throws `PublicError`, reports failures only via an injected `onError` hook (never imports `@/server`)                                                                                         |
-| Server   | `src/server/`                          | Jobs, GitHub, actions                                                                                                                                                                                                                                                       |
+| Server   | `src/server/`                          | Domain folders (`assessment/`, `github/`, `workspace/`, `reporting/`) + `actions/` mutation edge + shared kernel (`observability`, `rate-limit`, `action-state`) |
 | App      | `src/app/`                             | Next.js UI + API                                                                                                                                                                                                                                                            |
 | CI       | `packages/check/src/`                  | `npx complyloop-check` (AST only)                                                                                                                                                                                                                                           |
 
@@ -25,7 +25,7 @@ Integration is direct — pages/actions call `src/server`, which calls
 (plus its own gateway/fs helpers); `src/server` depends on `src/ai`.
 Remediation legality lives in `src/core/remediation-lifecycle.ts`; the
 finding-page beat model (`src/core/finding-act.ts`) is UI policy and must not
-be imported by `src/server/assessment*` (ESLint).
+be imported by `src/server/assessment/` (ESLint).
 
 Workspace packages export `src/*.ts`. Next transpiles them; `dist/` is
 publish-only. `@complyloop/check` bundles analysis-core; Playwright stays
@@ -54,10 +54,10 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
   `getProjectRuntime(projectId)` or repo `list*`/`get*` helpers. The compliance
   catalog is compile-time data (`shippedCatalog()`). File hashes live in
   `assessment_snapshots` and load only for `runAssessment`. Evidence and
-  findings pages load via `src/server/evidence-queries.ts` and
-  `src/server/findings-queries.ts`.
+  findings pages load via `src/server/reporting/evidence-queries.ts` and
+  `src/server/reporting/findings-queries.ts`.
 - **Writes (the write model)** — `withProjectWrite` / `withOrgWrite` /
-  `withConnectWrite` / `withProjectLock` in `src/server/workspace-write.ts`.
+  `withConnectWrite` / `withProjectLock` in `src/server/workspace/workspace-write.ts`.
   Project **compliance** mutations (findings, remediations, requirements,
   evidence) go through `withProjectWrite` / `withFindingWrite` so locking,
   stale-write guards, and evidence appends apply. Tenancy/org/connect
@@ -193,7 +193,7 @@ pushes are ignored. PR events post a Check Run. Failures become
 
 - **Server boundary** — `src/server/*` (and `packages/db/src/postgres.ts`)
   carry `import "server-only"` so a client import fails at build time.
-  Client-safe shared types live in `*.types.ts` / `@/server/github-types`
+  Client-safe shared types live in `*.types.ts` / `@/server/github/github-types`
   and `@complyloop/db/repo/*` (type-only); `src/server/actions/*`
   (`"use server"`) stay unfenced because clients invoke them.
 - **Reads** — pages compose loaders from `@/server/*` (`getWorkspace`,

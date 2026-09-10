@@ -43,19 +43,19 @@ import {
 import { findingAct } from "@/core/finding-act";
 import { clusterFindings,prioritizeClusters } from "@/core/finding-priority";
 import { cn } from "@/lib/utils";
-import { latestPatchState,pullRequestUrlFromEvidence } from "@/server/ai-fix";
-import { listEvidenceForFindingScoped } from "@/server/evidence-queries";
-import { buildDeveloperHandoff } from "@/server/handoff";
-import { projectCapabilities } from "@/server/project-capabilities";
-import { getProjectRuntime } from "@/server/project-runtime";
-import { findingsInScope } from "@/server/project-scope";
-import { isProjectVisible } from "@/server/project-visibility";
-import { displayControl } from "@/server/report";
+import { latestPatchState,pullRequestUrlFromEvidence } from "@/server/assessment/ai-fix";
+import { buildDeveloperHandoff } from "@/server/assessment/handoff";
+import { listEvidenceForFindingScoped } from "@/server/reporting/evidence-queries";
+import { displayControl } from "@/server/reporting/report";
+import { projectCapabilities } from "@/server/workspace/project-capabilities";
+import { getProjectRuntime } from "@/server/workspace/project-runtime";
+import { findingsInScope } from "@/server/workspace/project-scope";
+import { isProjectVisible } from "@/server/workspace/project-visibility";
 import {
   getWorkspace,
   requireFinding,
   requireRemediationForFinding,
-} from "@/server/workspace";
+} from "@/server/workspace/workspace";
 
 export async function generateMetadata({
   params,

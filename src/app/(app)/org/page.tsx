@@ -24,7 +24,7 @@ import {
   inviteOrgMemberAction,
 } from "@/server/actions/org";
 import { getSession } from "@/server/auth-session";
-import { getWorkspace } from "@/server/workspace";
+import { getWorkspace } from "@/server/workspace/workspace";
 
 export const metadata: Metadata = {
   title: "Organization",

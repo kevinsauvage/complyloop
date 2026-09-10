@@ -8,8 +8,8 @@ import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
 import { getSession } from "@/server/auth-session";
 
-import { assertProjectPermission } from "../project-visibility";
-import type { Workspace } from "../workspace";
+import { assertProjectPermission } from "../workspace/project-visibility";
+import type { Workspace } from "../workspace/workspace";
 
 export interface SignedInUser {
   userId: string;

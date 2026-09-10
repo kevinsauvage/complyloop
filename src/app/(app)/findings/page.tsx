@@ -33,11 +33,11 @@ import {
 import { reportHref } from "@/core/filter-params";
 import { DEFAULT_PAGE_SIZE,paginateSlice } from "@/core/filter-params";
 import { clusterFindings,prioritizeClusters } from "@/core/finding-priority";
-import { loadActiveProjectPage } from "@/server/active-project-page";
-import { countFindingsByStatus } from "@/server/findings-queries";
-import { getProjectRuntime } from "@/server/project-runtime";
-import { findingsInScope } from "@/server/project-scope";
-import { displayControl } from "@/server/report";
+import { countFindingsByStatus } from "@/server/reporting/findings-queries";
+import { displayControl } from "@/server/reporting/report";
+import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
+import { getProjectRuntime } from "@/server/workspace/project-runtime";
+import { findingsInScope } from "@/server/workspace/project-scope";
 
 import { FindingsStatusNav } from "./_components/status-nav";
 

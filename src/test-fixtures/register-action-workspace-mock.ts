@@ -17,7 +17,7 @@ import type {
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { requireOnFindingProject } from "@/server/actions/shared";
-import type { ProjectWriteWorkspace } from "@/server/workspace";
+import type { ProjectWriteWorkspace } from "@/server/workspace/workspace";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -31,10 +31,10 @@ vi.mock("@/auth", () => ({
   signOut: actionAuthMocks.signOut,
 }));
 
-vi.mock("@/server/workspace", async () => {
+vi.mock("@/server/workspace/workspace", async () => {
   const actual =
-    await vi.importActual<typeof import("@/server/workspace")>(
-      "@/server/workspace",
+    await vi.importActual<typeof import("@/server/workspace/workspace")>(
+      "@/server/workspace/workspace",
     );
 
   type WriteSlice = {
@@ -66,10 +66,10 @@ vi.mock("@/server/workspace", async () => {
   };
 });
 
-vi.mock("@/server/workspace-write", async () => {
+vi.mock("@/server/workspace/workspace-write", async () => {
   const actual = await vi.importActual<
-    typeof import("@/server/workspace-write")
-  >("@/server/workspace-write");
+    typeof import("@/server/workspace/workspace-write")
+  >("@/server/workspace/workspace-write");
   return {
     ...actual,
     withProjectWrite: (fn: Parameters<typeof actual.withProjectWrite>[0]) =>

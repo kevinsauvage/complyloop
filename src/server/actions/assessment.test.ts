@@ -2,15 +2,15 @@ import "@/test-fixtures/register-action-workspace-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../assessment-worker", () => ({
+vi.mock("../assessment/assessment-worker", () => ({
   processNextAssessmentJob: vi.fn(),
 }));
 
 import {
   drainAssessmentJobQueue,
   shouldDrainAssessmentJobsInline,
-} from "../assessment-job-inline";
-import { processNextAssessmentJob } from "../assessment-worker";
+} from "../assessment/assessment-job-inline";
+import { processNextAssessmentJob } from "../assessment/assessment-worker";
 
 const processNext = vi.mocked(processNextAssessmentJob);
 

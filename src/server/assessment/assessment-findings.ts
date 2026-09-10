@@ -30,7 +30,7 @@ import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 
 import { deterministicExplanation } from "@/ai/explainer";
 
-import { appendEvidence, type ProjectRows } from "./project-rows";
+import { appendEvidence, type ProjectRows } from "../workspace/project-rows";
 
 /**
  * Findings are matched across assessments by location identity so remediation

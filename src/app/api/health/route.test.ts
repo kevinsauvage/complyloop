@@ -11,7 +11,7 @@ vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 
-vi.mock("@/server/assessment-jobs", () => ({
+vi.mock("@/server/assessment/assessment-jobs", () => ({
   queuedAssessmentJobCount: () => queuedAssessmentJobCount(),
 }));
 

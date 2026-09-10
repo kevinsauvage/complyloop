@@ -1,8 +1,8 @@
-import { loadReportInput } from "@/server/report";
+import { loadReportInput } from "@/server/reporting/report";
 import {
   buildAuditReportMarkdown,
   buildEngineeringReportMarkdown,
-} from "@/server/report-markdown";
+} from "@/server/reporting/report-markdown";
 
 function sanitizeDownloadFilename(
   raw: string,

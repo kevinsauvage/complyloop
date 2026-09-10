@@ -4,8 +4,8 @@ import { NavLinks } from "@/components/nav-links";
 import {
   type NavAttentionCounts,
   navAttentionForProject,
-} from "@/server/nav-attention";
-import { getWorkspace } from "@/server/workspace";
+} from "@/server/reporting/nav-attention";
+import { getWorkspace } from "@/server/workspace/workspace";
 
 const EMPTY: NavAttentionCounts = { openFindings: 0, unreadAlerts: 0 };
 

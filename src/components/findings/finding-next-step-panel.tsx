@@ -29,7 +29,7 @@ import {
   markRemediationImplementedAction,
   verifyRemediationAction,
 } from "@/server/actions/remediation-verify";
-import type { PatchUiState } from "@/server/ai-fix";
+import type { PatchUiState } from "@/server/assessment/ai-fix";
 
 function PatchPreview({ candidate }: { candidate: PatchCandidate }) {
   return (

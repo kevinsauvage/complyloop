@@ -4,6 +4,7 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Db } from "@complyloop/db/types";
 import { emptyDb } from "@complyloop/db/types";
 
+import { githubCloneUrl } from "../github/github";
 import {
   connectedGitHubProjectsByFullName,
   deriveProjectName,
@@ -11,7 +12,6 @@ import {
   findConnectedGitHubProject,
   uniqueProjectName,
 } from "./connect-github";
-import { githubCloneUrl } from "./github";
 import { setActiveProject } from "./project-visibility";
 
 function githubProject(

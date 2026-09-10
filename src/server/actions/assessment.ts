@@ -9,11 +9,11 @@ import {
 import {
   drainAssessmentJobQueue,
   shouldDrainAssessmentJobsInline,
-} from "../assessment-job-inline";
-import { type AssessmentJob,enqueueAssessmentJob } from "../assessment-jobs";
-import { appendEvidence } from "../project-rows";
+} from "../assessment/assessment-job-inline";
+import { type AssessmentJob,enqueueAssessmentJob } from "../assessment/assessment-jobs";
 import { assertAssessRateLimit } from "../rate-limit";
-import { withProjectWrite } from "../workspace-write";
+import { appendEvidence } from "../workspace/project-rows";
+import { withProjectWrite } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh, requireOnActive } from "./shared";
 

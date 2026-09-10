@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import { getDrizzle } from "@complyloop/db/postgres";
 
-import { queuedAssessmentJobCount } from "@/server/assessment-jobs";
+import { queuedAssessmentJobCount } from "@/server/assessment/assessment-jobs";
 import { reportWarning } from "@/server/observability";
 
 export const runtime = "nodejs";

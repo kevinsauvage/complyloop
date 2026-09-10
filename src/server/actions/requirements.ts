@@ -21,15 +21,15 @@ import {
   type ActionState,
   runAction,
 } from "../action-state";
-import { applyRequirementStatusRefresh } from "../assessment-status";
-import { appendEvidence, cloneProjectRows } from "../project-rows";
+import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
 import {
   clearRequirementHumanDetermination,
   normalizeExpiryInstant,
   setRequirementHumanDetermination,
-} from "../requirement-human-determination";
-import { controlById } from "../workspace";
-import { withProjectWrite } from "../workspace-write";
+} from "../assessment/requirement-human-determination";
+import { appendEvidence, cloneProjectRows } from "../workspace/project-rows";
+import { controlById } from "../workspace/workspace";
+import { withProjectWrite } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh, requireOnActive } from "./shared";
 

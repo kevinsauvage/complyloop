@@ -40,15 +40,15 @@ vi.mock("../observability", () => ({
   reportAppError: vi.fn(),
 }));
 
-vi.mock("../assessment", () => ({
+vi.mock("../assessment/assessment", () => ({
   runAssessment: vi.fn(),
 }));
 
-vi.mock("../assessment-jobs", () => ({
+vi.mock("../assessment/assessment-jobs", () => ({
   enqueueAssessmentJob: (...args: unknown[]) => enqueueAssessmentJob(...args),
 }));
 
-vi.mock("../assessment-worker", () => ({
+vi.mock("../assessment/assessment-worker", () => ({
   processNextAssessmentJob: (...args: unknown[]) =>
     processNextAssessmentJob(...args),
 }));
@@ -64,8 +64,8 @@ vi.mock("../rate-limit", async () => {
   };
 });
 
-vi.mock("../assessment-status", async () => {
-  const actual = await vi.importActual<typeof import("../assessment-status")>(
+vi.mock("../assessment/assessment-status", async () => {
+  const actual = await vi.importActual<typeof import("../assessment/assessment-status")>(
     "../assessment-status",
   );
   return {

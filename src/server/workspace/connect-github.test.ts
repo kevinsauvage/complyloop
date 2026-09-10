@@ -6,12 +6,12 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { emptyDb } from "@complyloop/db/types";
 
+import { githubCloneUrl } from "../github/github";
 import {
   assertAssessableRoot,
   deriveProjectName,
   uniqueProjectName,
 } from "./connect-github";
-import { githubCloneUrl } from "./github";
 
 const tempDirs: string[] = [];
 

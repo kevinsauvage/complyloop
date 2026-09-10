@@ -11,10 +11,10 @@ import { refreshSuggestion } from "@/core/remediation-lifecycle";
 
 import { type ActionState, runAction } from "../action-state";
 import { reportError } from "../observability";
-import { appendEvidence } from "../project-rows";
 import { assertAiRateLimit } from "../rate-limit";
-import { controlById, remediationForFinding } from "../workspace";
-import { withFindingWrite } from "../workspace-write";
+import { appendEvidence } from "../workspace/project-rows";
+import { controlById, remediationForFinding } from "../workspace/workspace";
+import { withFindingWrite } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh, replaceRemediation } from "./shared";
 

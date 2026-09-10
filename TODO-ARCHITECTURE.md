@@ -35,7 +35,7 @@ External edges                           GitHub, Auth.js, Playwright/axe (via an
 
 ## P2 — Medium
 
-- [ ] **Group `src/server` by domain folders (no new layers)**
+- [x] **Group `src/server` by domain folders (no new layers)** — done: `assessment/`, `github/`, `workspace/`, `reporting/` (+ kept `actions/` edge and top-level shared kernel); filenames kept, all importers rewritten; ESLint/vitest/docs paths updated.
   - Why: Flat `src/server` mixes assessment pipeline, GitHub, workspace, reporting, webhooks, AI fix persistence — discoverability cost as the file count grows.
   - Where: `src/server/assessment*.ts`, `github*.ts`, `workspace*.ts`, `report*`, `webhook*.ts`, `actions/`.
   - Current: Conventions file helps; filenames prefix by domain.

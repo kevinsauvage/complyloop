@@ -11,8 +11,8 @@ const fetch = vi.hoisted(() => vi.fn());
 const checkout = vi.hoisted(() => vi.fn());
 const createAuthedGitArgs = vi.hoisted(() => [] as unknown[][]);
 
-vi.mock("./git", async () => {
-  const actual = await vi.importActual<typeof import("./git")>("./git");
+vi.mock("../github/git", async () => {
+  const actual = await vi.importActual<typeof import("../github/git")>("./git");
   return {
     ...actual,
     createGit: () => ({ clone, fetch, checkout }),

@@ -16,9 +16,9 @@ import type { Db } from "@complyloop/db/types";
 
 import { canOnProject } from "@/core/rbac";
 
-import { normalizeGitHubFullName } from "./github";
+import { withRepoCheckout } from "../assessment/repo-checkout";
+import { normalizeGitHubFullName } from "../github/github";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
-import { withRepoCheckout } from "./repo-checkout";
 
 /** Short filesystem-safe name from a GitHub `owner/repo` full name. */
 export function deriveProjectName(fullName: string): string {

@@ -4,13 +4,13 @@ import { z } from "zod";
 import {
   drainAssessmentJobQueue,
   shouldDrainAssessmentJobsInline,
-} from "@/server/assessment-job-inline";
+} from "@/server/assessment/assessment-job-inline";
 import {
   handleGitHubWebhookEvent,
   isWebhookConfigured,
   verifyGitHubSignature,
-} from "@/server/webhook";
-import { claimWebhookDelivery } from "@/server/webhook-deliveries";
+} from "@/server/github/webhook";
+import { claimWebhookDelivery } from "@/server/github/webhook-deliveries";
 
 export const runtime = "nodejs";
 

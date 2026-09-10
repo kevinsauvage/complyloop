@@ -42,7 +42,7 @@ const workspaceFixture = {
   access: { userId: "u1", githubLogin: "u1", memberships: [], organizations: [] },
 };
 
-vi.mock("@/server/workspace", () => ({
+vi.mock("@/server/workspace/workspace", () => ({
   getWorkspace: vi.fn(async () => workspaceFixture),
 }));
 
@@ -54,7 +54,7 @@ vi.mock("@complyloop/db/repo/assessments", () => ({
   listLatestAssessmentForProject: vi.fn(async () => []),
 }));
 
-vi.mock("@/server/project-capabilities", () => ({
+vi.mock("@/server/workspace/project-capabilities", () => ({
   projectCapabilities: () => ({
     canView: true,
     canAssess: true,

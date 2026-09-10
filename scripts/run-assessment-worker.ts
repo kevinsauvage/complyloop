@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /** Runs one durable assessment worker process outside the web request path. */
-import { runAssessmentJobBatch } from "../src/server/assessment-runner";
+import { runAssessmentJobBatch } from "../src/server/assessment/assessment-runner";
 import { pruneRateLimitBuckets } from "../src/server/rate-limit";
 import { loadLocalEnv } from "./env";
 

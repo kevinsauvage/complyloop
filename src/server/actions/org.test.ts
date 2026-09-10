@@ -13,7 +13,7 @@ import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
 import { initialActionState } from "../action-state";
-import type { ProjectWriteWorkspace } from "../workspace";
+import type { ProjectWriteWorkspace } from "../workspace/workspace";
 import {
   changeOrgMemberRoleAction,
   createOrgAction,
@@ -37,8 +37,8 @@ const listRemediationsForProjects = vi.hoisted(() => vi.fn());
 const listRequirementsForProjects = vi.hoisted(() => vi.fn());
 const listAlertsForProjects = vi.hoisted(() => vi.fn());
 
-vi.mock("../orgs", async () => {
-  const actual = await vi.importActual<typeof import("../orgs")>("../orgs");
+vi.mock("../workspace/orgs", async () => {
+  const actual = await vi.importActual<typeof import("../workspace/orgs")>("../orgs");
   return {
     ...actual,
     exportOrgData: (...args: unknown[]) => exportOrgData(...args),
@@ -46,8 +46,8 @@ vi.mock("../orgs", async () => {
   };
 });
 
-vi.mock("../org-queries", async () => {
-  const actual = await vi.importActual<typeof import("../org-queries")>(
+vi.mock("../workspace/org-queries", async () => {
+  const actual = await vi.importActual<typeof import("../workspace/org-queries")>(
     "../org-queries",
   );
   return {
@@ -56,7 +56,7 @@ vi.mock("../org-queries", async () => {
   };
 });
 
-vi.mock("../active-cookies", () => ({
+vi.mock("../workspace/active-cookies", () => ({
   writeActiveOrgCookie: (...args: unknown[]) => writeActiveOrgCookie(...args),
   writeActiveProjectCookie: (...args: unknown[]) =>
     writeActiveProjectCookie(...args),

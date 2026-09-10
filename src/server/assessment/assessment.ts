@@ -31,6 +31,12 @@ import type { Db } from "@complyloop/db/types";
 import { countByStatus,latestAssessmentFor } from "@/core/assessment-helpers";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
 
+import {
+  appendEvidence,
+  cloneProjectRows,
+  type ProjectRows,
+} from "../workspace/project-rows";
+import { assertAssessableCatalog, requirementsInScope } from "../workspace/project-scope";
 import { reconcileControlFindings } from "./assessment-findings";
 import {
   applyRequirementStatusRefresh,
@@ -38,12 +44,6 @@ import {
   upsertRequirementsById,
 } from "./assessment-status";
 import { detectChanges, readRepoHead, summarizeChanges } from "./monitor";
-import {
-  appendEvidence,
-  cloneProjectRows,
-  type ProjectRows,
-} from "./project-rows";
-import { assertAssessableCatalog, requirementsInScope } from "./project-scope";
 import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,

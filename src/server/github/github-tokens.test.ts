@@ -105,7 +105,7 @@ describe("getStoredGitHubTokenWithExpiry", () => {
 
   it("reports and throws a reconnect error when the row cannot be decrypted", async () => {
     const { encryptToken, getStoredGitHubTokenWithExpiry } = await import("./github-tokens");
-    const { reportError } = await import("./observability");
+    const { reportError } = await import("../observability");
     vi.mocked(reportError).mockClear();
     const encrypted = encryptToken("gho_access");
     getDrizzle.mockResolvedValue({

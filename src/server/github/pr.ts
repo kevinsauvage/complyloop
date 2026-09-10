@@ -13,6 +13,9 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { applyFileEdits, type PatchCandidate } from "@/ai/verified-fix";
 
+import { buildDeveloperHandoff } from "../assessment/handoff";
+import { withProjectCheckout } from "../assessment/repo-checkout";
+import { reportError } from "../observability";
 import { createAuthedGit, createGit } from "./git";
 import {
   createOctokit,
@@ -21,9 +24,6 @@ import {
   parseOwnerRepo,
 } from "./github";
 import { resolveProjectGitHubToken } from "./github-access";
-import { buildDeveloperHandoff } from "./handoff";
-import { reportError } from "./observability";
-import { withProjectCheckout } from "./repo-checkout";
 
 export interface PullRequestResult {
   branch: string;

@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { DeveloperHandoff } from "@/server/handoff";
+import type { DeveloperHandoff } from "@/server/assessment/handoff";
 
 export function DeveloperHandoffCard({
   handoff,

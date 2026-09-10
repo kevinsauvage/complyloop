@@ -25,14 +25,14 @@ import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
 
 import { parseReportViewParam, type ReportView } from "@/core/filter-params";
 
-import { getProjectRuntime } from "./project-runtime";
+import { getProjectRuntime } from "../workspace/project-runtime";
 import {
   controlsInScope,
   findingsInScope,
   requirementsInScope,
-} from "./project-scope";
+} from "../workspace/project-scope";
+import { getWorkspace } from "../workspace/workspace";
 import type { ReportInput } from "./report-model";
-import { getWorkspace } from "./workspace";
 
 export type ReportLoadResult =
   | { ok: false; response: Response }

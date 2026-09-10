@@ -7,7 +7,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { isProductionRuntime } from "@/auth-secret";
 
-import { isE2EHarnessEnabled } from "./e2e-harness";
+import { isE2EHarnessEnabled } from "../e2e-harness";
 import {
   createOctokit,
   filterReposByQuery,

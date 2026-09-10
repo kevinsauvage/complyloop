@@ -1,7 +1,7 @@
 import "server-only";
 
+import { isE2EHarnessEnabled } from "../e2e-harness";
 import { runAssessmentJobBatch } from "./assessment-runner";
-import { isE2EHarnessEnabled } from "./e2e-harness";
 
 /**
  * Process jobs in-process when a dedicated worker is not expected —

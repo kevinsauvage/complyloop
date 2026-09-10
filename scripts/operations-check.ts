@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 
 import { getDrizzle } from "@complyloop/db/postgres";
 
-import { queuedAssessmentJobCount } from "../src/server/assessment-jobs";
+import { queuedAssessmentJobCount } from "../src/server/assessment/assessment-jobs";
 import { loadLocalEnv } from "./env";
 
 loadLocalEnv();

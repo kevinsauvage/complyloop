@@ -12,8 +12,8 @@ import {
   type ActionState,
   runAction,
 } from "../action-state";
-import { appendEvidence } from "../project-rows";
-import { withProjectWrite } from "../workspace-write";
+import { appendEvidence } from "../workspace/project-rows";
+import { withProjectWrite } from "../workspace/workspace-write";
 import { refresh, requireOnActive } from "./shared";
 
 const setDefaultPresetInput = z.object({

@@ -11,28 +11,28 @@ import {
   type ActionState,
   runAction,
 } from "../action-state";
+import { fetchGitHubRepo } from "../github/github-access";
+import {
+  createInstallationAccessToken,
+  resolveUserInstallationForRepo,
+} from "../github/github-app";
+import { assertConnectRateLimit } from "../rate-limit";
 import {
   clearActiveProjectCookie,
   readActiveOrgCookie,
   writeActiveProjectCookie,
-} from "../active-cookies";
+} from "../workspace/active-cookies";
 import {
   connectGitHubRepo,
   disconnectGitHubRepo,
   findConnectedGitHubProject,
-} from "../connect-github";
-import { fetchGitHubRepo } from "../github-access";
-import {
-  createInstallationAccessToken,
-  resolveUserInstallationForRepo,
-} from "../github-app";
-import { resolveActiveOrgId } from "../org-queries";
-import { ensurePersonalOrgProvisioned } from "../personal-org";
-import { projectCapabilities } from "../project-capabilities";
-import { accessFromStore, setActiveProject } from "../project-visibility";
-import { assertConnectRateLimit } from "../rate-limit";
-import { getWorkspace } from "../workspace";
-import { withConnectWrite } from "../workspace-write";
+} from "../workspace/connect-github";
+import { resolveActiveOrgId } from "../workspace/org-queries";
+import { ensurePersonalOrgProvisioned } from "../workspace/personal-org";
+import { projectCapabilities } from "../workspace/project-capabilities";
+import { accessFromStore, setActiveProject } from "../workspace/project-visibility";
+import { getWorkspace } from "../workspace/workspace";
+import { withConnectWrite } from "../workspace/workspace-write";
 import { refresh, requireSignedIn } from "./shared";
 
 const switchProjectInput = z.object({

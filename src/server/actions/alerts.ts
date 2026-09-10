@@ -14,9 +14,9 @@ import {
   type ActionState,
   runAction,
 } from "../action-state";
-import { getProjectRuntime } from "../project-runtime";
-import { assertProjectPermission } from "../project-visibility";
-import { withProjectLock } from "../workspace-write";
+import { getProjectRuntime } from "../workspace/project-runtime";
+import { assertProjectPermission } from "../workspace/project-visibility";
+import { withProjectLock } from "../workspace/workspace-write";
 import { refresh, requireSignedIn } from "./shared";
 
 const markAlertReadInput = z.object({

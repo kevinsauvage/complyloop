@@ -1,10 +1,10 @@
-import { loadEvidenceExport } from "@/server/evidence-queries";
+import { loadEvidenceExport } from "@/server/reporting/evidence-queries";
+import { frameworkForProject } from "@/server/reporting/report";
 import {
   controlsInScope,
   requirementsInScope,
-} from "@/server/project-scope";
-import { frameworkForProject } from "@/server/report";
-import { getWorkspace } from "@/server/workspace";
+} from "@/server/workspace/project-scope";
+import { getWorkspace } from "@/server/workspace/workspace";
 
 export async function GET(): Promise<Response> {
   const { project } = await getWorkspace();

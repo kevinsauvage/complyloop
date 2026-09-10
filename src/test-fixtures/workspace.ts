@@ -9,7 +9,7 @@ import type {
 import type { Db } from "@complyloop/db/types";
 import { emptyDb } from "@complyloop/db/types";
 
-import type { ProjectWriteWorkspace } from "@/server/workspace";
+import type { ProjectWriteWorkspace } from "@/server/workspace/workspace";
 
 import { testFinding } from "./finding";
 import { testMembership } from "./membership";

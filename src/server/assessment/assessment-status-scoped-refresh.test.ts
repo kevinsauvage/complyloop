@@ -5,8 +5,8 @@ import type { Requirement } from "@complyloop/analysis-core/contract/project-typ
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 
+import { cloneProjectRows } from "../workspace/project-rows";
 import { applyRequirementStatusRefresh } from "./assessment-status";
-import { cloneProjectRows } from "./project-rows";
 
 describe("applyRequirementStatusRefresh (scoped)", () => {
   const project = testProject({ id: "p1", orgId: "org-1" });

@@ -9,11 +9,11 @@ import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button"
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { publicErrorMessage } from "@/server/action-state";
 import { getSession } from "@/server/auth-session";
-import { connectedGitHubProjectsByFullName } from "@/server/connect-github";
-import { listGitHubRepos } from "@/server/github-access";
-import { githubAppInstallUrl } from "@/server/github-app";
-import { projectCapabilities } from "@/server/project-capabilities";
-import { getWorkspace } from "@/server/workspace";
+import { listGitHubRepos } from "@/server/github/github-access";
+import { githubAppInstallUrl } from "@/server/github/github-app";
+import { connectedGitHubProjectsByFullName } from "@/server/workspace/connect-github";
+import { projectCapabilities } from "@/server/workspace/project-capabilities";
+import { getWorkspace } from "@/server/workspace/workspace";
 
 export async function ConnectProjectPanel({
   defaultOpen = true,

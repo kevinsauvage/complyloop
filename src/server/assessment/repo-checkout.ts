@@ -12,14 +12,14 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   assertE2EFixtureRoot,
   isE2EHarnessEnabled,
-} from "./e2e-harness";
-import { createAuthedGit, createGit } from "./git";
+} from "../e2e-harness";
+import { createAuthedGit, createGit } from "../github/git";
 import {
   githubPublicCloneUrl,
   parseOwnerRepo,
   redactCloneUrl,
-} from "./github";
-import { resolveProjectGitHubToken } from "./github-access";
+} from "../github/github";
+import { resolveProjectGitHubToken } from "../github/github-access";
 
 function positiveEnv(name: string, fallback: number): number {
   const raw = process.env[name];

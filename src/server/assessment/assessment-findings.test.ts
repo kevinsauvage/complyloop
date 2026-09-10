@@ -9,6 +9,7 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 import { testFinding } from "@/test-fixtures/finding";
 
+import type { ProjectRows } from "../workspace/project-rows";
 import {
   buildSuggestion,
   createFinding,
@@ -17,7 +18,6 @@ import {
   sameInstance,
   shouldResolveOpenFinding,
 } from "./assessment-findings";
-import type { ProjectRows } from "./project-rows";
 
 function emptyRows(): ProjectRows {
   return {

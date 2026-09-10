@@ -7,14 +7,14 @@ const verifyGitHubSignature = vi.hoisted(() => vi.fn());
 const handleGitHubWebhookEvent = vi.hoisted(() => vi.fn());
 const claimWebhookDelivery = vi.hoisted(() => vi.fn());
 
-vi.mock("@/server/webhook", () => ({
+vi.mock("@/server/github/webhook", () => ({
   isWebhookConfigured: () => isWebhookConfigured(),
   verifyGitHubSignature: (...args: unknown[]) => verifyGitHubSignature(...args),
   handleGitHubWebhookEvent: (...args: unknown[]) =>
     handleGitHubWebhookEvent(...args),
 }));
 
-vi.mock("@/server/webhook-deliveries", () => ({
+vi.mock("@/server/github/webhook-deliveries", () => ({
   claimWebhookDelivery: (...args: unknown[]) => claimWebhookDelivery(...args),
 }));
 

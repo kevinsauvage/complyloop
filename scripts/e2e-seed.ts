@@ -17,7 +17,7 @@ import {
   E2E_PROJECT_ID,
   E2E_VIEWER,
 } from "../e2e/constants";
-import { storeUserGitHubToken } from "../src/server/github-tokens";
+import { storeUserGitHubToken } from "../src/server/github/github-tokens";
 import { getDrizzle, openScriptClient, requireDatabaseUrl } from "./db";
 
 async function truncateAll(connectionString: string): Promise<void> {

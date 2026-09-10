@@ -25,7 +25,7 @@ import {
   connectGitHubRepoAction,
   disconnectGitHubRepoAction,
 } from "@/server/actions/connect";
-import type { GitHubRepoSummary } from "@/server/github-types";
+import type { GitHubRepoSummary } from "@/server/github/github-types";
 
 const connectInitial: ActionState = initialActionState;
 const disconnectInitial: ActionState = initialActionState;

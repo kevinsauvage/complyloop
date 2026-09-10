@@ -1,4 +1,4 @@
-import type { GitHubRepoSummary } from "@/server/github-types";
+import type { GitHubRepoSummary } from "@/server/github/github-types";
 
 /*
  * Client-safe guard for the `/api/github/repos` response. Kept out of

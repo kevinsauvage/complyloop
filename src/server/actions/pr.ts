@@ -9,21 +9,21 @@ import { parseEntityId } from "@/core/filters";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
 
 import { type ActionState,runAction } from "../action-state";
-import { patchCandidateFromEvidence } from "../ai-fix";
-import { preparePullRequest } from "../pr";
-import { appendEvidence } from "../project-rows";
+import { patchCandidateFromEvidence } from "../assessment/ai-fix";
 import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,
-} from "../remediation-evidence";
+} from "../assessment/remediation-evidence";
+import { preparePullRequest } from "../github/pr";
+import { appendEvidence } from "../workspace/project-rows";
 import {
   controlById,
   getWorkspace,
   remediationForFinding,
   requireFinding,
   requireRemediationForFinding,
-} from "../workspace";
-import { withFindingWrite } from "../workspace-write";
+} from "../workspace/workspace";
+import { withFindingWrite } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh, replaceRemediation, requireFindingContext } from "./shared";
 

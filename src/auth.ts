@@ -4,14 +4,14 @@ import { getToken } from "next-auth/jwt";
 import GitHub from "next-auth/providers/github";
 
 import { isProductionRuntime, resolveAuthSecret, sessionCookieIsSecure } from "@/auth-secret";
-import { assertProductionGitHubApp } from "@/server/github-app";
+import { assertProductionGitHubApp } from "@/server/github/github-app";
 import {
   clearStoredGitHubToken,
   getStoredGitHubTokenWithExpiry,
   refreshGitHubToken,
   storeUserGitHubToken,
-} from "@/server/github-tokens";
-import { ensurePersonalOrgProvisioned } from "@/server/personal-org";
+} from "@/server/github/github-tokens";
+import { ensurePersonalOrgProvisioned } from "@/server/workspace/personal-org";
 
 /** True when GitHub OAuth env vars are present — otherwise sign-in is hidden. */
 export function isGitHubAuthConfigured(): boolean {

@@ -19,7 +19,7 @@ import { scanFile } from "@complyloop/analysis-core/scan";
 
 import { testProject } from "@/test-fixtures/project";
 
-import { locateViolationInProject, mergeFix } from "./assessment-findings";
+import { locateViolationInProject, mergeFix } from "../assessment/assessment-findings";
 import { createGit } from "./git";
 import { preparePullRequest } from "./pr";
 
@@ -56,7 +56,7 @@ const listPullRequests = vi.hoisted(() =>
 
 const githubPublicCloneUrl = vi.hoisted(() => vi.fn(() => ""));
 
-vi.mock("./repo-checkout", () => ({
+vi.mock("../assessment/repo-checkout", () => ({
   withProjectCheckout: (
     project: unknown,
     fn: (rootPath: string) => Promise<unknown>,

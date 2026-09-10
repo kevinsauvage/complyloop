@@ -16,6 +16,13 @@ import {
 } from "@complyloop/db/repo/apply";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
 
+import { resolveProjectGitHubToken } from "../github/github-access";
+import {
+  postPullRequestCheckRun,
+  summarizeAssessmentForCheckRun,
+} from "../github/github-checks";
+import { reportError, reportInfo, reportWarning } from "../observability";
+import { loadProjectDb } from "../workspace/db";
 import { type AssessmentRunResult,runAssessment } from "./assessment";
 import {
   type AssessmentJob,
@@ -23,13 +30,6 @@ import {
   completeAssessmentJob,
   failAssessmentJob,
 } from "./assessment-jobs";
-import { loadProjectDb } from "./db";
-import { resolveProjectGitHubToken } from "./github-access";
-import {
-  postPullRequestCheckRun,
-  summarizeAssessmentForCheckRun,
-} from "./github-checks";
-import { reportError, reportInfo, reportWarning } from "./observability";
 import { withProjectCheckout } from "./repo-checkout";
 
 function collectRegressionAlerts(input: {

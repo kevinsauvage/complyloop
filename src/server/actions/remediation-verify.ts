@@ -22,24 +22,24 @@ import {
 } from "@/core/remediation-lifecycle";
 
 import { type ActionState,runAction } from "../action-state";
-import { sameInstance } from "../assessment-findings";
-import { applyRequirementStatusRefresh } from "../assessment-status";
+import { sameInstance } from "../assessment/assessment-findings";
+import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
+import {
+  remediationEvidenceDetail,
+  remediationEvidenceSummary,
+} from "../assessment/remediation-evidence";
 import {
   appendEvidence,
   cloneProjectRows,
   upsertFindingInRows,
-} from "../project-rows";
-import {
-  remediationEvidenceDetail,
-  remediationEvidenceSummary,
-} from "../remediation-evidence";
+} from "../workspace/project-rows";
 import {
   getWorkspace,
   remediationForFinding,
   requireFinding,
   requireRemediationForFinding,
-} from "../workspace";
-import { withFindingWrite } from "../workspace-write";
+} from "../workspace/workspace";
+import { withFindingWrite } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh, replaceRemediation, requireFindingContext } from "./shared";
 

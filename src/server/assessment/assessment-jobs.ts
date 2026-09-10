@@ -17,7 +17,7 @@ import {
   assessmentJobPayloadSchema,
 } from "@/core/assessment-jobs";
 
-import { reportWarning } from "./observability";
+import { reportWarning } from "../observability";
 
 export type { AssessmentJob };
 

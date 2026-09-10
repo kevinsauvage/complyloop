@@ -31,10 +31,10 @@ import {
   prioritizeClusters,
   prioritizeFindings,
 } from "@/core/finding-priority";
-import { loadActiveProjectPage } from "@/server/active-project-page";
-import { getProjectRuntime } from "@/server/project-runtime";
-import { findingsInScope, requirementsInScope } from "@/server/project-scope";
-import { displayControl } from "@/server/report";
+import { displayControl } from "@/server/reporting/report";
+import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
+import { getProjectRuntime } from "@/server/workspace/project-runtime";
+import { findingsInScope, requirementsInScope } from "@/server/workspace/project-scope";
 
 export const metadata: Metadata = {
   title: "Dashboard",
