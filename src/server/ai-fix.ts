@@ -36,25 +36,6 @@ export interface RunAiFixOnCheckoutOptions {
   aiAvailable?: boolean;
 }
 
-function exactLineEdit(
-  path: string,
-  original: string,
-  fixed: string,
-  line: number,
-): ProposedFixEdits["edits"][number] {
-  const oldLine = original.split("\n")[line - 1];
-  const newLine = fixed.split("\n")[line - 1];
-  if (
-    oldLine !== undefined &&
-    newLine !== undefined &&
-    oldLine !== newLine &&
-    original.split(oldLine).length === 2
-  ) {
-    return { path, oldText: oldLine, newText: newLine };
-  }
-  return { path, oldText: original, newText: fixed };
-}
-
 function deterministicProposal(
   rootPath: string,
   finding: Finding,
@@ -71,9 +52,7 @@ function deterministicProposal(
   return {
     description: describeFix(fix),
     provenance: "deterministic",
-    edits: [
-      exactLineEdit(path, original, applyFix(original, fix), match.location.line),
-    ],
+    edits: [{ path, oldText: original, newText: applyFix(original, fix) }],
   };
 }
 

@@ -4,7 +4,7 @@ import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { entityIdSchema, parseInput } from "@/core/filters";
+import { parseEntityId } from "@/core/filters";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { refreshSuggestion } from "@/core/lifecycle";
 import {
@@ -31,7 +31,7 @@ export async function generateAiExplanationAction(
   void _previous;
   void _formData;
   return runAction(async () => {
-    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const findingId = parseEntityId(findingIdRaw);
     await withFindingWrite(findingId, "project.view", async ({ workspace, finding }) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const control = controlById(finding.controlId);
@@ -58,7 +58,7 @@ export async function generateAiRemediationAction(
   void _previous;
   void _formData;
   return runAction(async () => {
-    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const findingId = parseEntityId(findingIdRaw);
     await withFindingWrite(findingId, "project.remediate", async ({ db, finding, workspace }) => {
       if (workspace.userId) await assertAiRateLimit(workspace.userId);
       const control = controlById(finding.controlId);

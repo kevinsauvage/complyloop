@@ -10,10 +10,9 @@ import {
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { advanceRemediation, appendRemediationHistory } from "@/core/lifecycle";
 import {
-  entityIdSchema,
   optionalNoteSchema,
+  parseEntityId,
   parseForm,
-  parseInput,
 } from "@/core/filters";
 import { z } from "zod";
 import {
@@ -138,7 +137,7 @@ export async function verifyRemediationAction(
   void previous;
   void formData;
   return runAction(async () => {
-    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const findingId = parseEntityId(findingIdRaw);
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);
     const { project: previewProject } = requireFindingContext(preview, finding, "project.remediate");
@@ -220,7 +219,7 @@ export async function markRemediationImplementedAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const findingId = parseEntityId(findingIdRaw);
     const { note: parsedNote } = parseForm(markImplementedInput, formData);
     await withFindingWrite(
       findingId,

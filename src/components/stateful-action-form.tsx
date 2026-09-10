@@ -2,11 +2,8 @@
 
 import { useActionState, useId, type ReactNode } from "react";
 import type { VariantProps } from "class-variance-authority";
-import {
-  ConfirmSubmitButton,
-  resolveSubmitLabel,
-} from "@/components/confirm-submit-button";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { buttonVariants } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   initialActionState,
@@ -53,43 +50,29 @@ export function StatefulActionForm({
   const formId = useId();
   useActionToast(state, pending);
 
-  const buttonLabel =
-    !state.ok && state.message && !pending && retryLabel
-      ? retryLabel
-      : resolveSubmitLabel(pending, submitLabel, pendingLabel);
+  const showRetry = !state.ok && Boolean(state.message) && !pending && Boolean(retryLabel);
+  const feedbackRole = state.ok ? "status" : "alert";
 
   return (
     <form id={formId} action={formAction} className={className}>
       {children}
       <div className="flex flex-col gap-2">
-        {confirmMessage ? (
-          <ConfirmSubmitButton
-            label={submitLabel}
-            pendingLabel={pendingLabel}
-            confirmMessage={confirmMessage}
-            confirmTitle={confirmTitle}
-            variant={variant}
-            size={size}
-            formId={formId}
-            disabled={disabled}
-          />
-        ) : (
-          <Button
-            type="submit"
-            disabled={pending || disabled}
-            variant={variant}
-            size={size}
+        <ConfirmSubmitButton
+          label={showRetry ? (retryLabel ?? submitLabel) : submitLabel}
+          pendingLabel={pendingLabel}
+          variant={variant}
+          size={size}
+          formId={formId}
+          disabled={disabled}
+          {...(confirmMessage ? { confirmMessage, confirmTitle } : {})}
+        />
+        {!pending && state.message ? (
+          <p
+            role={feedbackRole}
+            className={
+              state.ok ? "text-sm text-status-passed" : "text-sm text-destructive"
+            }
           >
-            {buttonLabel}
-          </Button>
-        )}
-        {!state.ok && state.message && !pending ? (
-          <p role="alert" className="text-sm text-destructive">
-            {state.message}
-          </p>
-        ) : null}
-        {state.ok && state.message && !pending ? (
-          <p role="status" className="text-sm text-status-passed">
             {state.message}
           </p>
         ) : null}

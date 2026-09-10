@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { inspect } from "node:util";
 import {
   reportAppError,
   reportDebug,
@@ -13,86 +14,79 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** Returns the raw (uncolored) lines written to a stream during `callback`. */
-function captureOutput(
-  stream: NodeJS.WriteStream,
-  callback: () => void,
-): string {
+type ConsoleMethod = "error" | "warn" | "info" | "debug";
+
+/** Raw text written through a console method during `callback`. */
+function captureConsole(method: ConsoleMethod, callback: () => void): string {
   const chunks: string[] = [];
-  const spy = vi
-    .spyOn(stream, "write")
-    .mockImplementation((chunk: unknown) => {
-      chunks.push(String(chunk));
-      return true;
-    });
+  const spy = vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
+    chunks.push(
+      args
+        .map((value) => (typeof value === "string" ? value : inspect(value)))
+        .join(" "),
+    );
+  });
   callback();
   spy.mockRestore();
-  return chunks.join("").replace(/\x1b\[[0-9;]*m/g, "");
+  return chunks.join("\n");
 }
 
 describe("observability", () => {
-  it("emits a readable error line with context to stderr", () => {
-    const out = captureOutput(process.stderr, () =>
+  it("emits a readable error line with context", () => {
+    const out = captureConsole("error", () =>
       reportError(new Error("workspace missing"), {
         code: "workspace_missing",
         projectId: "p1",
       }),
     );
-    expect(out).toContain("ERR");
-    expect(out).toContain("workspace missing");
-    expect(out).toContain(`code="workspace_missing"`);
-    expect(out).toContain(`projectId="p1"`);
+    expect(out).toContain("[error] workspace missing");
+    expect(out).toContain("workspace_missing");
+    expect(out).toContain("p1");
     expect(Sentry.captureException).toHaveBeenCalledWith(
       expect.objectContaining({ message: "workspace missing" }),
     );
   });
 
-  it("emits a readable warning line to stderr", () => {
-    const out = captureOutput(process.stderr, () =>
+  it("emits a readable warning line", () => {
+    const out = captureConsole("warn", () =>
       reportWarning("token decrypt failed", { code: "token_decrypt" }),
     );
-    expect(out).toContain("WRN");
-    expect(out).toContain("token decrypt failed");
-    expect(out).toContain(`code="token_decrypt"`);
+    expect(out).toContain("[warning] token decrypt failed");
+    expect(out).toContain("token_decrypt");
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       "token decrypt failed",
       "warning",
     );
   });
 
-  it("logs info/debug in development to stdout", () => {
+  it("logs info/debug in development", () => {
     vi.stubEnv("NODE_ENV", "development");
-    const out = captureOutput(process.stdout, () => {
-      reportInfo("assessment started", { code: "assessment_started" });
-      reportDebug("page evaluate", { url: "/" });
-    });
-    expect(out).toContain("INF");
-    expect(out).toContain("assessment started");
-    expect(out).toContain("DBG");
-    expect(out).toContain("page evaluate");
+    const info = captureConsole("info", () =>
+      reportInfo("assessment started", { code: "assessment_started" }),
+    );
+    const debug = captureConsole("debug", () =>
+      reportDebug("page evaluate", { url: "/" }),
+    );
+    expect(info).toContain("[info] assessment started");
+    expect(debug).toContain("[debug] page evaluate");
   });
 
   it("silences info/debug in production", () => {
     vi.stubEnv("NODE_ENV", "production");
-    let written = false;
-    const spy = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => {
-        written = true;
-        return true;
-      });
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     reportInfo("should not appear", {});
     reportDebug("should not appear", {});
-    expect(written).toBe(false);
-    spy.mockRestore();
+    expect(info).not.toHaveBeenCalled();
+    expect(debug).not.toHaveBeenCalled();
   });
 
   it("reportAppError forwards digest and code", () => {
-    const out = captureOutput(process.stderr, () =>
+    const out = captureConsole("error", () =>
       reportAppError(Object.assign(new Error("boom"), { digest: "d-1" }), "app_error_boundary"),
     );
-    expect(out).toContain(`code="app_error_boundary"`);
-    expect(out).toContain(`digest="d-1"`);
+    expect(out).toContain("app_error_boundary");
+    expect(out).toContain("d-1");
     expect(out).toContain("boom");
   });
 
@@ -101,7 +95,7 @@ describe("observability", () => {
     const token = "ghp_secret_token_123456";
     const error = new Error(`connect failed for ${dbUrl} token=${token}`);
     error.stack = `Error: connect failed for ${dbUrl} token=${token}\n    at connect`;
-    const out = captureOutput(process.stderr, () =>
+    const out = captureConsole("error", () =>
       reportError(error, { code: "db_error" }),
     );
 

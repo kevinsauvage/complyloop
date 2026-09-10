@@ -1,6 +1,6 @@
 "use server";
 
-import { entityIdSchema, parseInput } from "@/core/filters";
+import { parseEntityId } from "@/core/filters";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { advanceRemediation } from "@/core/lifecycle";
 import {
@@ -41,7 +41,7 @@ export async function createPullRequestAction(
   void formData;
   let prUrl: string | null = null;
   const state = await runAction(async () => {
-    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const findingId = parseEntityId(findingIdRaw);
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);
     const { project } = requireFindingContext(preview, finding, "project.remediate");

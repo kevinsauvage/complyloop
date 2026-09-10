@@ -571,3 +571,11 @@ export function parseInput<T>(
   }
   return result.data;
 }
+
+/** Parse a raw entity id (finding, requirement, org, …) with a public error. */
+export function parseEntityId(
+  value: unknown,
+  fallback = "Invalid input.",
+): string {
+  return parseInput(entityIdSchema, value, fallback);
+}

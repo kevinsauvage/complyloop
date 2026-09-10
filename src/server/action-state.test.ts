@@ -35,7 +35,7 @@ describe("runAction", () => {
   });
 
   it("keeps PublicError messages without reporting them", async () => {
-    const spy = vi.spyOn(process.stderr, "write");
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(
       runAction(async () => {
         throw new PublicError(
@@ -79,7 +79,7 @@ describe("publicErrorMessage", () => {
 
   it("sanitizes unexpected Error messages and reports them", () => {
     stubErrorRef();
-    const spy = vi.spyOn(process.stderr, "write");
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(publicErrorMessage(new Error("ENOENT /tmp/clone"))).toBe(
       unexpectedActionMessage(ERROR_REF),
     );

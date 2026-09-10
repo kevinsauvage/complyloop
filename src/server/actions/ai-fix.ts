@@ -3,7 +3,7 @@
 import { assertSourceLocatedFinding } from "@/ai/verified-fix";
 import { aiExplanationAvailable } from "@/ai/explainer";
 import { hasSafeDeterministicFix } from "@/core/lifecycle";
-import { entityIdSchema, parseInput } from "@/core/filters";
+import { parseEntityId } from "@/core/filters";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import {
@@ -32,7 +32,7 @@ export async function generateAiFixAction(
   void _previous;
   void _formData;
   return runAction(async () => {
-    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const findingId = parseEntityId(findingIdRaw);
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);
     const { project } = requireFindingContext(preview, finding, "project.remediate");

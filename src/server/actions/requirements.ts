@@ -7,9 +7,8 @@ import {
   TEMPORARY_EXCEPTION_REASON,
 } from "@complyloop/analysis-core/contract/project-types";
 import {
-  entityIdSchema,
+  parseEntityId,
   parseForm,
-  parseInput,
   requiredField,
 } from "@/core/filters";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
@@ -136,7 +135,7 @@ export async function markRequirementExceptionAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const requirementId = parseInput(entityIdSchema, requirementIdRaw);
+    const requirementId = parseEntityId(requirementIdRaw);
     const parsed = parseForm(markExceptionInput, formData);
     await withProjectWrite(async (workspace) => {
         requireOnActive(workspace, "project.remediate");
@@ -208,7 +207,7 @@ export async function markRequirementPassedAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const requirementId = parseInput(entityIdSchema, requirementIdRaw);
+    const requirementId = parseEntityId(requirementIdRaw);
     const { note } = parseForm(markPassedInput, formData);
     await withProjectWrite(async (workspace) => {
         requireOnActive(workspace, "project.remediate");
@@ -300,7 +299,7 @@ async function clearRequirementOverrideAction(
   message: string,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const requirementId = parseInput(entityIdSchema, requirementIdRaw);
+    const requirementId = parseEntityId(requirementIdRaw);
     await withProjectWrite(async (workspace) => {
         requireOnActive(workspace, "project.remediate");
         const { db, project } = workspace;

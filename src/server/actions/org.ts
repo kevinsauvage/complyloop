@@ -3,9 +3,8 @@
 import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
-  entityIdSchema,
+  parseEntityId,
   parseForm,
-  parseInput,
   requiredField,
 } from "@/core/filters";
 import {
@@ -75,8 +74,7 @@ const changeOrgMemberRoleInput = orgMembershipInput.extend({
   }),
 });
 
-const deleteOrgInput = z.object({
-  orgId: requiredField("Organization id is required."),
+const deleteOrgInput = orgMembershipInput.pick({ orgId: true }).extend({
   confirm: z.literal("DELETE", {
     error: "Type DELETE to confirm organization deletion.",
   }),
@@ -198,7 +196,7 @@ export async function exportOrgDataAction(
 ): Promise<{ error: string | null; json: string | null }> {
   try {
     const { userId } = await requireSignedIn("Sign in to export organization data.");
-    const orgId = parseInput(entityIdSchema, orgIdRaw);
+    const orgId = parseEntityId(orgIdRaw);
     const { organizations, projects, access } = await getWorkspace();
     const orgProjects = projects.filter((project) => project.orgId === orgId);
     const projectIds = orgProjects.map((project) => project.id);

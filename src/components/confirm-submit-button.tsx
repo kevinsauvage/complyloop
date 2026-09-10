@@ -18,7 +18,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
 type ButtonSize = VariantProps<typeof buttonVariants>["size"];
 
-/** Single pending-label rule shared with `StatefulActionForm`. */
+/** Pending label rule shared by every submit control. */
 export function resolveSubmitLabel(
   pending: boolean,
   label: string,
@@ -28,8 +28,9 @@ export function resolveSubmitLabel(
 }
 
 /**
- * Submit control gated by AlertDialog confirmation (replaces window.confirm).
- * Uses the HTML form= attribute so the confirm action still submits a portaled dialog.
+ * Submit control. With `confirmMessage`, gates submission behind an AlertDialog
+ * (replaces `window.confirm`); without it, renders a plain submit button. Uses
+ * the HTML form= attribute so the confirm action still submits a portaled dialog.
  */
 export function ConfirmSubmitButton({
   label,
@@ -44,7 +45,8 @@ export function ConfirmSubmitButton({
 }: {
   label: string;
   pendingLabel?: string;
-  confirmMessage: string;
+  /** When omitted, renders a plain submit button with no confirmation dialog. */
+  confirmMessage?: string;
   confirmTitle?: string;
   variant?: ButtonVariant;
   size?: ButtonSize;
@@ -75,6 +77,22 @@ export function ConfirmSubmitButton({
     }
   }, [pending]);
 
+  const buttonLabel = resolveSubmitLabel(pending, label, pendingLabel);
+
+  if (!confirmMessage) {
+    return (
+      <Button
+        type="submit"
+        variant={variant}
+        size={size}
+        disabled={triggerDisabled}
+        className={className}
+      >
+        {buttonLabel}
+      </Button>
+    );
+  }
+
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
@@ -85,7 +103,7 @@ export function ConfirmSubmitButton({
           disabled={triggerDisabled}
           className={className}
         >
-          {resolveSubmitLabel(pending, label, pendingLabel)}
+          {buttonLabel}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
@@ -102,7 +120,7 @@ export function ConfirmSubmitButton({
             variant={variant === "destructive" ? "destructive" : "default"}
             className="pointer-events-auto"
           >
-            {resolveSubmitLabel(pending, label, pendingLabel)}
+            {buttonLabel}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -22,30 +22,21 @@ export function useActionToast(
     toastErrors?: boolean;
   },
 ): void {
+  const { successDuration = 4_000, successAction, toastErrors = false } = options ?? {};
   const wasPending = useRef(false);
-  const successDuration = options?.successDuration ?? 4_000;
-  const successAction = options?.successAction;
-  const toastErrors = options?.toastErrors ?? false;
 
   useEffect(() => {
-    if (pending) {
-      wasPending.current = true;
-      return;
-    }
-    if (!wasPending.current) return;
-    wasPending.current = false;
+    const finished = wasPending.current && !pending;
+    wasPending.current = pending;
+    if (!finished || !state.message) return;
 
     if (!state.ok) {
-      if (state.message && toastErrors) {
-        toast.error(state.message, { duration: 8_000 });
-      }
+      if (toastErrors) toast.error(state.message, { duration: 8_000 });
       return;
     }
-    if (state.message) {
-      toast.success(state.message, {
-        duration: successDuration,
-        ...(successAction ? { action: successAction } : {}),
-      });
-    }
+    toast.success(state.message, {
+      duration: successDuration,
+      ...(successAction ? { action: successAction } : {}),
+    });
   }, [pending, state.ok, state.message, successDuration, successAction, toastErrors]);
 }

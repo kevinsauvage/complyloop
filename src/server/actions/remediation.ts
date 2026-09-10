@@ -11,11 +11,10 @@ import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { advanceRemediation } from "@/core/lifecycle";
 import {
-  entityIdSchema,
   findingIdsField,
   optionalNoteSchema,
+  parseEntityId,
   parseForm,
-  parseInput,
 } from "@/core/filters";
 import { z } from "zod";
 import {
@@ -118,7 +117,7 @@ export async function approveRemediationAction(
   void _previous;
   void _formData;
   return runAction(async () => {
-    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const findingId = parseEntityId(findingIdRaw);
     await withFindingWrite(
       findingId,
       "project.remediate",
@@ -181,7 +180,7 @@ export async function dismissFindingAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const findingId = parseInput(entityIdSchema, findingIdRaw);
+    const findingId = parseEntityId(findingIdRaw);
     const { reason, note } = parseForm(dismissFindingInput, formData);
     await withFindingWrite(findingId, "project.remediate", async ({ db, finding }) => {
       const project = db.projects.find(
