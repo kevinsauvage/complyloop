@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { requirementsPageHref } from "@/core/filters";
-import type { FrameworkPreset } from "@complyloop/analysis-core/adapters/types";
+import type { FrameworkPresetSummary } from "@complyloop/analysis-core/adapters/types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { PresetItemBody } from "./preset-item-body";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,7 @@ export function PresetNavigator({
   selectedPresetId,
   statusFilter,
 }: {
-  presets: readonly FrameworkPreset[];
+  presets: readonly FrameworkPresetSummary[];
   defaultPresetId: string;
   selectedPresetId: string;
   statusFilter: RequirementStatus | undefined;

@@ -28,8 +28,8 @@ export function scopedControlIds(
  * Controls assessed for a project. `undefined` scope means the full catalog.
  * Pass `catalog` in tests that inject a subset; production uses the shipped set.
  */
-export function catalogControls(catalog?: readonly Control[]): Control[] {
-  return catalog === undefined ? shippedCatalog().controls : [...catalog];
+export function catalogControls(catalog?: readonly Control[]): readonly Control[] {
+  return catalog === undefined ? shippedCatalog().controls : catalog;
 }
 
 export function controlsInScope(

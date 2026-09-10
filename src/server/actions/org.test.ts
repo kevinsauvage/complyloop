@@ -27,7 +27,10 @@ const resolveActiveOrgId = vi.hoisted(() => vi.fn());
 const writeActiveOrgCookie = vi.hoisted(() => vi.fn());
 const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
-const loadProjectRuntime = vi.hoisted(() => vi.fn());
+const listFindingsForProjects = vi.hoisted(() => vi.fn());
+const listRemediationsForProjects = vi.hoisted(() => vi.fn());
+const listRequirementsForProjects = vi.hoisted(() => vi.fn());
+const listAlertsForProjects = vi.hoisted(() => vi.fn());
 
 vi.mock("../orgs", async () => {
   const actual = await vi.importActual<typeof import("../orgs")>("../orgs");
@@ -74,15 +77,27 @@ vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: async () => ({}),
 }));
 
-vi.mock("@complyloop/db/workspace-load", () => ({
-  loadProjectRuntime: (...args: unknown[]) => loadProjectRuntime(...args),
-}));
-
 vi.mock("@complyloop/db/repo/evidence", () => ({
   listAllEvidenceForProjects: async () => [],
 }));
 vi.mock("@complyloop/db/repo/assessments", () => ({
   listAssessmentsForProjects: async () => [],
+}));
+vi.mock("@complyloop/db/repo/findings", () => ({
+  listFindingsForProjects: (...args: unknown[]) =>
+    listFindingsForProjects(...args),
+}));
+vi.mock("@complyloop/db/repo/remediations", () => ({
+  listRemediationsForProjects: (...args: unknown[]) =>
+    listRemediationsForProjects(...args),
+}));
+vi.mock("@complyloop/db/repo/requirements", () => ({
+  listRequirementsForProjects: (...args: unknown[]) =>
+    listRequirementsForProjects(...args),
+}));
+vi.mock("@complyloop/db/repo/alerts", () => ({
+  listAlertsForProjects: (...args: unknown[]) =>
+    listAlertsForProjects(...args),
 }));
 
 const org: Organization = {
@@ -147,14 +162,14 @@ beforeEach(() => {
   writeActiveOrgCookie.mockReset();
   writeActiveProjectCookie.mockReset();
   refresh.mockReset();
-  loadProjectRuntime.mockReset();
-  loadProjectRuntime.mockResolvedValue({
-    requirements: [],
-    findings: [],
-    remediations: [],
-    alerts: [],
-    assessments: [],
-  });
+  listFindingsForProjects.mockReset();
+  listFindingsForProjects.mockResolvedValue([]);
+  listRemediationsForProjects.mockReset();
+  listRemediationsForProjects.mockResolvedValue([]);
+  listRequirementsForProjects.mockReset();
+  listRequirementsForProjects.mockResolvedValue([]);
+  listAlertsForProjects.mockReset();
+  listAlertsForProjects.mockResolvedValue([]);
   deleteOrganization.mockReturnValue({ deleteMembershipIds: ["m-owner"] });
   actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1", login: "alice" } });
   withOrgWrite.mockImplementation(async (fn) =>
@@ -196,7 +211,7 @@ describe("org lifecycle actions", () => {
     });
   });
 
-  it("loads one runtime per org project", async () => {
+  it("loads org rows with one set-based query per entity type", async () => {
     const projects = [0, 1, 2].map((index) =>
       testProject({ id: `p-${index}`, orgId: "org-1", ownerUserId: "user-1" }),
     );
@@ -219,7 +234,24 @@ describe("org lifecycle actions", () => {
     exportOrgData.mockReturnValue({ organization: org, projects });
     const result = await exportOrgDataAction("org-1");
     expect(result.error).toBeNull();
-    expect(loadProjectRuntime).toHaveBeenCalledTimes(3);
+    const projectIds = ["p-0", "p-1", "p-2"];
+    expect(listFindingsForProjects).toHaveBeenCalledTimes(1);
+    expect(listFindingsForProjects).toHaveBeenCalledWith(
+      expect.anything(),
+      projectIds,
+    );
+    expect(listRemediationsForProjects).toHaveBeenCalledWith(
+      expect.anything(),
+      projectIds,
+    );
+    expect(listRequirementsForProjects).toHaveBeenCalledWith(
+      expect.anything(),
+      projectIds,
+    );
+    expect(listAlertsForProjects).toHaveBeenCalledWith(
+      expect.anything(),
+      projectIds,
+    );
   });
 
   it("rejects exports beyond the project cap", async () => {
@@ -246,7 +278,7 @@ describe("org lifecycle actions", () => {
       error: expect.stringMatching(/limited to 50 projects/),
       json: null,
     });
-    expect(loadProjectRuntime).not.toHaveBeenCalled();
+    expect(listFindingsForProjects).not.toHaveBeenCalled();
   });
 
   it("maps public export failures to their message", async () => {

@@ -49,6 +49,22 @@ export async function listFindingsForProject(
 }
 
 /**
+ * Full-history findings for many projects in one query (org export), instead
+ * of one `listFindingsForProject` per project.
+ */
+export async function listFindingsForProjects(
+  drizzle: DrizzleDb,
+  projectIds: readonly string[],
+): Promise<Finding[]> {
+  if (projectIds.length === 0) return [];
+  const rows = await drizzle
+    .select({ payload: findings.payload })
+    .from(findings)
+    .where(inArray(findings.projectId, [...projectIds]));
+  return rows.map((row) => row.payload);
+}
+
+/**
  * Status counts for a project. Served by `findings_project_status_idx`, so the
  * findings page can render tab totals without loading history rows.
  */

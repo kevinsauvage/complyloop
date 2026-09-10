@@ -16,6 +16,18 @@ export async function listRequirementsForProject(
   return rows.map((row) => row.payload);
 }
 
+export async function listRequirementsForProjects(
+  drizzle: DrizzleDb,
+  projectIds: readonly string[],
+): Promise<Requirement[]> {
+  if (projectIds.length === 0) return [];
+  const rows = await drizzle
+    .select({ payload: requirements.payload })
+    .from(requirements)
+    .where(inArray(requirements.projectId, [...projectIds]));
+  return rows.map((row) => row.payload);
+}
+
 export interface UpsertRequirementsOptions {
   /**
    * Requirement `updatedAt` values from the load that started this write.

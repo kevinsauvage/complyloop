@@ -106,15 +106,32 @@ export function locateViolationInProject(
   });
 }
 
+/**
+ * Per-run memo of source file text keyed by absolute path. Many findings in one
+ * assessment share a file, so `buildSuggestion` should not re-read (and re-read)
+ * the same file for each new finding.
+ */
+export type FileTextCache = Map<string, string>;
+
+function readFileText(cache: FileTextCache | undefined, absolutePath: string): string {
+  if (!cache) return fs.readFileSync(absolutePath, "utf8");
+  const cached = cache.get(absolutePath);
+  if (cached !== undefined) return cached;
+  const text = fs.readFileSync(absolutePath, "utf8");
+  cache.set(absolutePath, text);
+  return text;
+}
+
 export function buildSuggestion(
   rootPath: string,
   raw: Pick<RawFinding, "location" | "fix">,
+  fileTextCache?: FileTextCache,
 ): RemediationSuggestion | null {
   if (!raw.fix) return null;
   if (!isSourceLocation(raw.location)) return null;
-  const text = fs.readFileSync(
+  const text = readFileText(
+    fileTextCache,
     resolveInside(rootPath, raw.location.filePath),
-    "utf8",
   );
   return {
     description: describeFix(raw.fix),
@@ -143,6 +160,8 @@ export interface ReconcileControlFindingsInput {
   rawForControl: RawFinding[];
   scopedFileSet: Set<string> | null;
   runtimeRan: boolean;
+  /** Shared per-run file-text memo so suggestion building reads each file once. */
+  fileTextCache?: FileTextCache;
   onFindingResolved: (finding: Finding) => void;
 }
 
@@ -187,6 +206,7 @@ export function reconcileControlFindings(
     rawForControl,
     scopedFileSet,
     runtimeRan,
+    fileTextCache,
     onFindingResolved,
   } = input;
   const projectId = project.id;
@@ -225,7 +245,15 @@ export function reconcileControlFindings(
         existing.contributingAnalyzers = raw.contributingAnalyzers;
       }
     } else {
-      createFinding(rows, project, rootPath, control.id, assessmentId, raw);
+      createFinding(
+        rows,
+        project,
+        rootPath,
+        control.id,
+        assessmentId,
+        raw,
+        fileTextCache,
+      );
       const created = rows.findings[rows.findings.length - 1];
       if (created) {
         matchPool.push(created);
@@ -267,6 +295,7 @@ export function createFinding(
   controlId: string,
   assessmentId: string,
   raw: RawFinding,
+  fileTextCache?: FileTextCache,
 ): void {
   const now = new Date().toISOString();
   const guidance = guidanceFor(raw.checkId);
@@ -292,7 +321,7 @@ export function createFinding(
   };
   rows.findings.push(finding);
 
-  const suggestion = buildSuggestion(rootPath, raw);
+  const suggestion = buildSuggestion(rootPath, raw, fileTextCache);
   const remediation: Remediation = {
     id: crypto.randomUUID(),
     findingId: finding.id,

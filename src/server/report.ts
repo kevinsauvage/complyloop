@@ -39,31 +39,49 @@ const CONTROLS_BY_ID: ReadonlyMap<string, Control> = new Map(
   shippedCatalog().controls.map((control) => [control.id, control]),
 );
 
+/**
+ * Framework resolved per preset id (catalog is static), so `displayControl` on
+ * a list render does not re-scan the framework list for every finding row.
+ */
+const FRAMEWORK_BY_PRESET: Map<string, Framework> = new Map();
+
 /** Resolves the framework named by the project's assessment preset. */
 export function frameworkForProject(project: Project): Framework {
+  const presetId = projectDefaultPresetId(project);
+  const cached = FRAMEWORK_BY_PRESET.get(presetId);
+  if (cached) return cached;
+
   const frameworks = shippedCatalog().frameworks;
-  const preset = presetById(projectDefaultPresetId(project));
-  if (preset) {
-    const fromPreset = frameworks.find(
-      (framework) => framework.id === preset.frameworkId,
-    );
-    if (fromPreset) return fromPreset;
-  }
-  const fallback = frameworks[0];
-  if (!fallback) {
+  const preset = presetById(presetId);
+  const resolved =
+    (preset
+      ? frameworks.find((framework) => framework.id === preset.frameworkId)
+      : undefined) ?? frameworks[0];
+  if (!resolved) {
     throw new Error("No compliance framework is configured.");
   }
-  return fallback;
+  FRAMEWORK_BY_PRESET.set(presetId, resolved);
+  return resolved;
 }
 
+/** Themed controls cached per `frameworkId:controlId` (bounded, catalog-static). */
+const DISPLAY_CONTROLS: Map<string, Control> = new Map();
+
 /**
- * Catalog control themed for the project's framework. Uses a once-built Map
- * so list rendering is O(1) per finding instead of scanning the catalog.
+ * Catalog control themed for the project's framework. Uses once-built Maps so
+ * list rendering is O(1) per finding instead of scanning/re-theming the catalog.
  */
 export function displayControl(controlId: string, project: Project): Control {
+  const frameworkId = frameworkForProject(project).id;
+  const key = `${frameworkId}\u0000${controlId}`;
+  const cached = DISPLAY_CONTROLS.get(key);
+  if (cached) return cached;
+
   const control = CONTROLS_BY_ID.get(controlId);
   if (!control) throw new PublicError("Unknown control.");
-  return controlForDisplay(control, frameworkForProject(project).id);
+  const themed = controlForDisplay(control, frameworkId);
+  DISPLAY_CONTROLS.set(key, themed);
+  return themed;
 }
 
 export type ReportRuntimeSlice = {

@@ -286,6 +286,9 @@ export async function runAssessment(
     );
 
     const assessmentId = crypto.randomUUID();
+    // Shared for the whole run: many new findings share a source file, so the
+    // suggestion builder should read each file once (see buildSuggestion).
+    const fileTextCache = new Map<string, string>();
 
     for (const control of scoped) {
         if (control.checkId === null) continue;
@@ -300,6 +303,7 @@ export async function runAssessment(
             ),
             scopedFileSet,
             runtimeRan,
+            fileTextCache,
             // A preview scan (PR head / feature branch) must not derive the
             // persistent compliance decision: never auto-verify an approved
             // remediation off a branch the project's state does not reflect.

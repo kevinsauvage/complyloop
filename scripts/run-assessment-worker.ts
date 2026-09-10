@@ -7,6 +7,13 @@ import { loadLocalEnv } from "./env";
 loadLocalEnv();
 
 const pollMs = Math.max(1_000, Number(process.env.WORKER_POLL_MS ?? 5_000));
+// Bounded in-process pool across independent projects. Default 1 preserves the
+// historic one-job-per-process behavior; raise it to drain a backlog faster.
+// Per-project exclusivity is enforced by `claimNextAssessmentJob`.
+const concurrency = Math.max(
+  1,
+  Math.min(Number(process.env.WORKER_CONCURRENCY ?? 1) || 1, 8),
+);
 // `processNextAssessmentJob` prunes only when it happens to go idle, so a
 // continuously busy worker would let rate_limit_buckets grow unbounded.
 // Prune on a wall-clock cadence regardless of idle/busy instead.
@@ -40,9 +47,14 @@ async function sleep(ms: number): Promise<void> {
 
 async function main(): Promise<void> {
   while (!stopping) {
-    const [result] = await runAssessmentJobBatch(1);
+    const results = await runAssessmentJobBatch({
+      limit: concurrency,
+      concurrency,
+    });
     await maybePruneRateLimitBuckets();
-    if (!result || result.kind === "idle") await sleep(pollMs);
+    const idle =
+      results.length === 0 || results.every((result) => result.kind === "idle");
+    if (idle) await sleep(pollMs);
   }
 }
 

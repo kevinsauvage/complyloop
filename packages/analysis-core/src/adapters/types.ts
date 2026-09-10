@@ -11,3 +11,13 @@ export interface FrameworkPreset {
   /** Catalog control ids (`ctl-*`). Unknown ids fail at construction via `catalogControlIds`. */
   controlIds: readonly string[];
 }
+
+/**
+ * Serializable preset projection for client components: everything a preset
+ * row renders plus the control count, without the full `controlIds` array that
+ * would otherwise ship in the RSC payload.
+ */
+export type FrameworkPresetSummary = Pick<
+  FrameworkPreset,
+  "id" | "name" | "description" | "frameworkId"
+> & { controlCount: number };

@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { STATUS_TONE_BADGE } from "@/core/display";
-import type { FrameworkPreset } from "@complyloop/analysis-core/adapters/types";
+import type { FrameworkPresetSummary } from "@complyloop/analysis-core/adapters/types";
 
 /**
  * Name + badge + description + control count for one preset row. Wrapper and
@@ -10,7 +10,7 @@ export function PresetItemBody({
   preset,
   badgeLabel,
 }: {
-  preset: FrameworkPreset;
+  preset: FrameworkPresetSummary;
   /** Badge shown when this preset is the org default. */
   badgeLabel?: string;
 }) {
@@ -26,7 +26,7 @@ export function PresetItemBody({
         {preset.description}
       </span>
       <span className="mt-1 block font-mono text-xs text-muted-foreground">
-        {preset.controlIds.length} controls
+        {preset.controlCount} controls
       </span>
     </span>
   );

@@ -24,9 +24,29 @@ const workerBatchSizeSchema = z
     return Math.min(parsed, 10);
   });
 
+const workerConcurrencySchema = z
+  .string()
+  .optional()
+  .transform((value) => {
+    const parsed = value ? Number(value) : 1;
+    if (!Number.isInteger(parsed) || parsed < 1) return 1;
+    return Math.min(parsed, 4);
+  });
+
 function requestedBatchSize(request: Request): number {
   return workerBatchSizeSchema.parse(
     new URL(request.url).searchParams.get("limit") ?? undefined,
+  );
+}
+
+/**
+ * Optional in-process pool size (1–4, default 1). Claims are per-project
+ * exclusive, so this only raises throughput across independent projects;
+ * schedulers that already fan out invocations can leave it at 1.
+ */
+function requestedConcurrency(request: Request): number {
+  return workerConcurrencySchema.parse(
+    new URL(request.url).searchParams.get("concurrency") ?? undefined,
   );
 }
 
@@ -57,6 +77,9 @@ export async function POST(request: Request): Promise<Response> {
     throw error;
   }
 
-  const results = await runAssessmentJobBatch(requestedBatchSize(request));
+  const results = await runAssessmentJobBatch({
+    limit: requestedBatchSize(request),
+    concurrency: requestedConcurrency(request),
+  });
   return Response.json({ results });
 }

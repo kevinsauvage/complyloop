@@ -31,6 +31,19 @@ export async function listRemediationsForProject(
   return rows.map((row) => row.payload);
 }
 
+export async function listRemediationsForProjects(
+  drizzle: DrizzleDb,
+  projectIds: readonly string[],
+): Promise<Remediation[]> {
+  if (projectIds.length === 0) return [];
+  const rows = await drizzle
+    .select({ payload: remediations.payload })
+    .from(remediations)
+    .innerJoin(findings, eq(remediations.findingId, findings.id))
+    .where(inArray(findings.projectId, [...projectIds]));
+  return rows.map((row) => row.payload);
+}
+
 export interface UpsertRemediationsOptions {
   /**
    * Remediation `updatedAt` values captured when the writing slice was loaded.

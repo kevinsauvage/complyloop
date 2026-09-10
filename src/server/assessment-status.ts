@@ -274,7 +274,7 @@ function scopedControlsForRefresh(
   const base = project
     ? controlsInScope(project, catalog)
     : catalogControls(catalog);
-  if (!controlIds) return base;
+  if (!controlIds) return [...base];
   const controlIdSet = new Set(controlIds);
   return base.filter((control) => controlIdSet.has(control.id));
 }

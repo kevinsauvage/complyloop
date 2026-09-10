@@ -3,7 +3,7 @@ import { guidanceFor as rgaaGuidanceFor } from "./rgaa/guidance.ts";
 import { wcagPresets } from "./wcag/presets.ts";
 import type { CheckId } from "@complyloop/analysis-core/check-registry";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import type { CheckGuidance, FrameworkPreset } from "./types";
+import type { CheckGuidance, FrameworkPreset, FrameworkPresetSummary } from "./types";
 
 const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";
 
@@ -11,6 +11,25 @@ export const FRAMEWORK_PRESETS: readonly FrameworkPreset[] = [
   ...rgaaPresets,
   ...wcagPresets,
 ];
+
+const PRESET_SUMMARIES: readonly FrameworkPresetSummary[] = Object.freeze(
+  FRAMEWORK_PRESETS.map((preset) => ({
+    id: preset.id,
+    name: preset.name,
+    description: preset.description,
+    frameworkId: preset.frameworkId,
+    controlCount: preset.controlIds.length,
+  })),
+);
+
+/**
+ * Serializable preset list for client components. Omits `controlIds` so the
+ * full catalog id list is not serialized into the RSC payload on `/settings`
+ * and `/requirements` (preset rows only need the count).
+ */
+export function presetSummaries(): readonly FrameworkPresetSummary[] {
+  return PRESET_SUMMARIES;
+}
 
 export function presetById(id: string): FrameworkPreset | undefined {
   return FRAMEWORK_PRESETS.find((preset) => preset.id === id);

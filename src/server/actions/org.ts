@@ -30,10 +30,13 @@ import {
 import { getDrizzle } from "@complyloop/db/postgres";
 import { listAssessmentsForProjects } from "@complyloop/db/repo/assessments";
 import { listAllEvidenceForProjects } from "@complyloop/db/repo/evidence";
+import { listFindingsForProjects } from "@complyloop/db/repo/findings";
+import { listRemediationsForProjects } from "@complyloop/db/repo/remediations";
+import { listRequirementsForProjects } from "@complyloop/db/repo/requirements";
+import { listAlertsForProjects } from "@complyloop/db/repo/alerts";
 import { getWorkspace } from "../workspace";
 import { withOrgWrite } from "../workspace-write";
 import { refresh, requireSignedIn } from "./shared";
-import { loadProjectRuntime } from "@complyloop/db/workspace-load";
 import { emptyDb } from "@complyloop/db/types";
 import { ORG_ROLES } from "@complyloop/analysis-core/contract/project-types";
 
@@ -42,10 +45,8 @@ const ASSIGNABLE_ORG_ROLES = ORG_ROLES.filter(
   (role): role is "admin" | "member" | "viewer" => role !== "owner",
 );
 
-/** Max projects per org export — bounds the O(P) runtime fan-out below. */
+/** Max projects per org export — bounds the export payload. */
 const MAX_EXPORT_PROJECTS = 50;
-/** Concurrent runtime loads per export chunk — bounds pool pressure. */
-const EXPORT_RUNTIME_CONCURRENCY = 5;
 
 const switchOrgInput = z.object({
   orgId: requiredField("An organization id is required."),
@@ -210,30 +211,29 @@ export async function exportOrgDataAction(
       );
     }
     // The workspace slice is bounded (latest assessment, evidence window);
-    // the export is the audit artifact, so fetch full history directly.
+    // the export is the audit artifact, so fetch full history directly with
+    // one set-based query per entity type (no per-project N+1).
     const drizzle = await getDrizzle();
-    const [evidence, assessments] = await Promise.all([
-      listAllEvidenceForProjects(drizzle, projectIds),
-      listAssessmentsForProjects(drizzle, projectIds),
-    ]);
-    const runtimes: Awaited<ReturnType<typeof loadProjectRuntime>>[] = [];
-    for (let index = 0; index < projectIds.length; index += EXPORT_RUNTIME_CONCURRENCY) {
-      const chunk = projectIds.slice(index, index + EXPORT_RUNTIME_CONCURRENCY);
-      runtimes.push(
-        ...await Promise.all(chunk.map((projectId) => loadProjectRuntime(drizzle, projectId))),
-      );
-    }
+    const [evidence, assessments, findings, remediations, requirements, alerts] =
+      await Promise.all([
+        listAllEvidenceForProjects(drizzle, projectIds),
+        listAssessmentsForProjects(drizzle, projectIds),
+        listFindingsForProjects(drizzle, projectIds),
+        listRemediationsForProjects(drizzle, projectIds),
+        listRequirementsForProjects(drizzle, projectIds),
+        listAlertsForProjects(drizzle, projectIds),
+      ]);
     const payload = exportOrgData(
       {
         ...emptyDb(),
         organizations,
         memberships: [...access.memberships],
-        // Already org-scoped: repo lists + runtimes were loaded for these ids.
+        // Already org-scoped: repo lists were loaded for these ids.
         projects: orgProjects,
-        findings: runtimes.flatMap((runtime) => runtime.findings),
-        remediations: runtimes.flatMap((runtime) => runtime.remediations),
-        requirements: runtimes.flatMap((runtime) => runtime.requirements),
-        alerts: runtimes.flatMap((runtime) => runtime.alerts),
+        findings,
+        remediations,
+        requirements,
+        alerts,
         assessments,
         evidence,
       },

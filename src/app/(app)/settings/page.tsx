@@ -10,8 +10,8 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import {
-  FRAMEWORK_PRESETS,
   presetById,
+  presetSummaries,
   projectDefaultPresetId,
 } from "@complyloop/analysis-core/adapters/registry";
 import { latestAssessmentFor } from "@/core/lifecycle";
@@ -58,7 +58,7 @@ export default async function SettingsPage() {
     (githubFullName ? `https://github.com/${githubFullName}` : undefined);
   const defaultPresetId = projectDefaultPresetId(project);
   const defaultPreset = presetById(defaultPresetId);
-  const presets = FRAMEWORK_PRESETS;
+  const presets = presetSummaries();
 
   return (
     <>

@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { Alert } from "../types";
 import type { DrizzleDb } from "../postgres.ts";
 import { alerts } from "../schema.ts";
@@ -24,6 +24,18 @@ export async function listAlertsForProject(
     .select({ payload: alerts.payload })
     .from(alerts)
     .where(eq(alerts.projectId, projectId));
+  return rows.map((row) => row.payload);
+}
+
+export async function listAlertsForProjects(
+  drizzle: DrizzleDb,
+  projectIds: readonly string[],
+): Promise<Alert[]> {
+  if (projectIds.length === 0) return [];
+  const rows = await drizzle
+    .select({ payload: alerts.payload })
+    .from(alerts)
+    .where(inArray(alerts.projectId, [...projectIds]));
   return rows.map((row) => row.payload);
 }
 
