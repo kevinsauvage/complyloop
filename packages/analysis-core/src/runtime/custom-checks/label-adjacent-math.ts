@@ -26,14 +26,3 @@ export function gapBetweenRects(a: RectLike, b: RectLike): number {
         : 0;
   return Math.max(horizontal, vertical);
 }
-
-export function labelGapExceedsThreshold(
-  labelRect: RectLike,
-  fieldRect: RectLike,
-  maxGap = MAX_LABEL_GAP_PX,
-): boolean {
-  const labelWidth = labelRect.width ?? labelRect.right - labelRect.left;
-  const fieldWidth = fieldRect.width ?? fieldRect.right - fieldRect.left;
-  if (fieldWidth === 0 || labelWidth === 0) return false;
-  return gapBetweenRects(labelRect, fieldRect) > maxGap;
-}

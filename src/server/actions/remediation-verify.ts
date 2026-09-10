@@ -59,12 +59,14 @@ function recordStillFailing(
   payload: ProjectWritePayload,
   remediation: Remediation,
 ): void {
-  const updated = appendRemediationHistory(
-    remediation,
-    remediation.status,
-    "Verification failed: the violation is still detected on the page.",
+  replaceRemediation(
+    payload,
+    appendRemediationHistory(
+      remediation,
+      remediation.status,
+      "Verification failed: the violation is still detected on the page.",
+    ),
   );
-  payload.remediations = [...(payload.remediations ?? []), updated];
 }
 
 function markVerified(
@@ -107,12 +109,13 @@ function markVerified(
     siteLevelChecksRan: audit.siteLevelChecksRan,
     htmlValidateRan: audit.htmlValidateRan,
   });
-  return {
-    remediations: [verifiedRemediation],
+  const payload: ProjectWritePayload = {
     findings: [updatedFinding],
     requirements: rows.requirements,
     evidence: rows.evidence,
   };
+  replaceRemediation(payload, verifiedRemediation);
+  return payload;
 }
 
 export async function verifyRemediationAction(

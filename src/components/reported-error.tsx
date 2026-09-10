@@ -12,10 +12,11 @@ export interface ReportedErrorProps {
   title?: string;
   secondaryHref?: string;
   secondaryLabel?: string;
+  className?: string;
 }
 
 /** Shared error-boundary body: report once + accessible error card. */
-export function ReportedError({ error, retry, tag, description, title, secondaryHref, secondaryLabel }: ReportedErrorProps) {
+export function ReportedError({ error, retry, tag, description, title, secondaryHref, secondaryLabel, className }: ReportedErrorProps) {
   useEffect(() => {
     reportClientError(error, tag);
   }, [error, tag]);
@@ -25,9 +26,10 @@ export function ReportedError({ error, retry, tag, description, title, secondary
       digest={error.digest}
       description={description}
       onReset={retry}
-      {...(title ? { title } : {})}
-      {...(secondaryHref ? { secondaryHref } : {})}
-      {...(secondaryLabel ? { secondaryLabel } : {})}
+      title={title}
+      secondaryHref={secondaryHref}
+      secondaryLabel={secondaryLabel}
+      className={className}
     />
   );
 }

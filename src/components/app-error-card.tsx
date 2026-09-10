@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { Loader2, RotateCcw, TriangleAlert } from "lucide-react";
+import { RotateCcw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,7 +30,6 @@ export function AppErrorCard({
   className?: string;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const [isRetrying, setIsRetrying] = useState(false);
 
   // Move keyboard + screen-reader focus to the error heading on mount
   // (ux: focusable error summary, focus states). role="alert" announces,
@@ -38,18 +37,6 @@ export function AppErrorCard({
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
-
-  const handleRetry = () => {
-    setIsRetrying(true);
-    onReset();
-  };
-
-  // Reset the spinner if the boundary keeps us mounted (retry failed).
-  useEffect(() => {
-    if (!isRetrying) return;
-    const t = setTimeout(() => setIsRetrying(false), 4000);
-    return () => clearTimeout(t);
-  }, [isRetrying]);
 
   return (
     <Card
@@ -60,7 +47,6 @@ export function AppErrorCard({
       role="alert"
       aria-labelledby="app-error-title"
       aria-describedby="app-error-description"
-      aria-busy={isRetrying}
     >
       <CardHeader className="gap-3">
         <div className="flex items-center gap-3">
@@ -103,15 +89,10 @@ export function AppErrorCard({
           type="button"
           size="lg"
           className="min-h-11 min-w-11"
-          onClick={handleRetry}
-          disabled={isRetrying}
+          onClick={onReset}
         >
-          {isRetrying ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <RotateCcw className="size-4" aria-hidden />
-          )}
-          {isRetrying ? "Retrying…" : "Try again"}
+          <RotateCcw className="size-4" aria-hidden />
+          Try again
         </Button>
         <Button
           variant="outline"

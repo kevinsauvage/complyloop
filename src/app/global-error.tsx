@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { reportClientError } from "@/lib/report-client-error";
-import { AppErrorCard } from "@/components/app-error-card";
+import { ReportedError } from "@/components/reported-error";
 import "./globals.css";
 
 export default function GlobalError({
@@ -12,18 +10,15 @@ export default function GlobalError({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
-  useEffect(() => {
-    reportClientError(error, "app_global_error_boundary");
-  }, [error]);
-
   return (
     <html lang="en" className="dark h-full antialiased">
       <body className="min-h-full bg-background p-6 text-foreground">
-        <AppErrorCard
-          className="mx-auto max-w-lg border-destructive/30 bg-destructive/[0.04] shadow-none ring-1 ring-destructive/25"
-          digest={error.digest}
+        <ReportedError
+          error={error}
+          retry={retry}
+          tag="app_global_error_boundary"
           description="An unexpected error occurred while loading the application."
-          onReset={retry}
+          className="mx-auto max-w-lg"
         />
       </body>
     </html>

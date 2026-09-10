@@ -48,12 +48,13 @@ export function requireOnFindingProject(
   workspace: Workspace,
   finding: Finding,
   permission: Parameters<typeof assertProjectPermission>[2],
-): void {
+): Project {
   const project = workspace.projects.find(
     (candidate) => candidate.id === finding.projectId,
   );
   if (!project) throw new PublicError("Unknown project.");
   assertProjectPermission(project, workspace.access, permission);
+  return project;
 }
 
 /** Preview-load + permission + project resolve for finding actions. */
@@ -62,10 +63,6 @@ export function requireFindingContext(
   finding: Finding,
   permission: Parameters<typeof assertProjectPermission>[2],
 ): { finding: Finding; project: Project } {
-  requireOnFindingProject(workspace, finding, permission);
-  const project = workspace.projects.find(
-    (candidate) => candidate.id === finding.projectId,
-  );
-  if (!project) throw new PublicError("Unknown project.");
+  const project = requireOnFindingProject(workspace, finding, permission);
   return { finding, project };
 }

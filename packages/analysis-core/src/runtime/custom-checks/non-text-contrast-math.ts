@@ -22,14 +22,3 @@ export function contrastRatio(
   const darker = Math.min(l1, l2);
   return (lighter + 0.05) / (darker + 0.05);
 }
-
-export function meetsNonTextContrast(
-  borderColor: string,
-  backgroundColor: string,
-  minRatio = 3,
-): boolean | null {
-  const border = parseRgb(borderColor);
-  const background = parseRgb(backgroundColor);
-  if (!border || !background) return null;
-  return contrastRatio(border, background) >= minRatio;
-}

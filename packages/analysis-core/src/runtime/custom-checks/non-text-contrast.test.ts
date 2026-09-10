@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   contrastRatio,
-  meetsNonTextContrast,
   parseRgb,
   relativeLuminance,
 } from "./non-text-contrast-math";
@@ -34,24 +33,5 @@ describe("relativeLuminance", () => {
     expect(relativeLuminance([255, 255, 255])).toBeGreaterThan(
       relativeLuminance([0, 0, 0]),
     );
-  });
-});
-
-describe("meetsNonTextContrast", () => {
-  it("passes a strong border against white", () => {
-    expect(meetsNonTextContrast("rgb(0, 0, 0)", "rgb(255, 255, 255)")).toBe(
-      true,
-    );
-  });
-
-  it("fails a low-contrast border", () => {
-    expect(meetsNonTextContrast("rgb(220, 220, 220)", "rgb(255, 255, 255)")).toBe(
-      false,
-    );
-  });
-
-  it("returns null when colors cannot be parsed", () => {
-    expect(meetsNonTextContrast("transparent", "rgb(255, 255, 255)")).toBeNull();
-    expect(meetsNonTextContrast("rgb(0, 0, 0)", "currentColor")).toBeNull();
   });
 });
