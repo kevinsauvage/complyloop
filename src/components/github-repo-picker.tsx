@@ -274,19 +274,20 @@ export function GitHubRepoPicker({
         </div>
       ) : null}
 
-      {loading && repos.length === 0 ? (
-        <ul aria-hidden className="flex flex-col gap-2">
-          {[0, 1, 2].map((index) => (
-            <li
-              key={index}
-              className="h-14 animate-pulse rounded-lg border border-border/60 bg-muted/40"
-            />
-          ))}
-        </ul>
-      ) : null}
-
       <div className="flex flex-col gap-4" aria-busy={loading}>
-        {grouped.map(({ owner, repos: ownerRepos }) => (
+        {loading && repos.length === 0 ? (
+          <ul aria-hidden className="flex flex-col gap-2">
+            {[0, 1, 2].map((index) => (
+              <li
+                key={index}
+                className="h-14 animate-pulse rounded-lg border border-border/60 bg-muted/40"
+              />
+            ))}
+          </ul>
+        ) : null}
+
+        <div className="flex flex-col gap-4">
+          {grouped.map(({ owner, repos: ownerRepos }) => (
           <section key={owner} aria-label={`Repositories for ${owner}`}>
             <h3 className="mb-2 font-mono text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               {owner}
@@ -302,8 +303,8 @@ export function GitHubRepoPicker({
                     key={`${repo.installationId ?? 0}:${repo.fullName}`}
                     className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 transition-colors hover:bg-accent/30"
                   >
-                    <div className="min-w-0">
-                      <p className="flex flex-wrap items-center gap-2 truncate font-mono text-sm font-medium">
+                    <div className="min-w-0 flex-1 basis-48">
+                      <p className="flex flex-wrap items-center gap-2 font-mono text-sm font-medium break-all">
                         {repo.fullName}
                         {connected ? (
                           <Badge className={`${STATUS_TONE_BADGE.passed} font-sans`}>
@@ -317,7 +318,11 @@ export function GitHubRepoPicker({
                       </p>
                     </div>
                     {connected && projectId ? (
-                      <form id={formId} action={disconnectAction}>
+                      <form
+                        id={formId}
+                        action={disconnectAction}
+                        className="w-full sm:w-auto"
+                      >
                         <input type="hidden" name="projectId" value={projectId} />
                         <ConfirmSubmitButton
                           label={disconnectPending ? "Disconnecting…" : "Disconnect"}
@@ -327,10 +332,11 @@ export function GitHubRepoPicker({
                           variant="outline"
                           size="sm"
                           formId={formId}
+                          className="w-full sm:w-auto"
                         />
                       </form>
                     ) : (
-                      <form action={connectAction}>
+                      <form action={connectAction} className="w-full sm:w-auto">
                         <input type="hidden" name="fullName" value={repo.fullName} />
                         {repo.installationId != null ? (
                           <input
@@ -339,7 +345,12 @@ export function GitHubRepoPicker({
                             value={String(repo.installationId)}
                           />
                         ) : null}
-                        <Button type="submit" size="sm" disabled={connectPending}>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={connectPending}
+                          className="w-full sm:w-auto"
+                        >
                           {connectPending ? "Connecting…" : "Connect"}
                         </Button>
                       </form>
@@ -350,6 +361,7 @@ export function GitHubRepoPicker({
             </ul>
           </section>
         ))}
+        </div>
       </div>
 
       {hasMore ? (

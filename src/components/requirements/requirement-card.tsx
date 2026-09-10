@@ -4,7 +4,7 @@ import {
   isRuntimeOnlyCheck,
 } from "@complyloop/analysis-core/check-authority";
 import { isPertinenceTwinControl } from "@complyloop/adapters/rgaa/pertinence-twins";
-import { DeterminationBadge, RequirementStatusBadge } from "@/components/badges";
+import { RequirementStatusBadge } from "@/components/badges";
 import { formatDateTime } from "@/core/format-datetime";
 import {
   determinationDisplay,
@@ -73,7 +73,10 @@ export function RequirementCard({
             aria-label={`Status: ${requirementStatusDisplay(requirement.status).label}, decided by: ${determinationDisplay(requirement.determination).label}`}
           >
             <RequirementStatusBadge status={requirement.status} />
-            <DeterminationBadge method={requirement.determination} />
+            <span className="text-xs text-muted-foreground">
+              Decided by{" "}
+              {determinationDisplay(requirement.determination).label.toLowerCase()}
+            </span>
           </div>
         </div>
         {control.description ? (
@@ -106,7 +109,7 @@ export function RequirementCard({
         {(requirement.status === "failed" ||
           requirement.status === "needs_review") &&
         openFindingsHref ? (
-          <Button size="sm" asChild>
+          <Button size="sm" variant="outline" asChild className="w-fit">
             <Link href={openFindingsHref}>See findings</Link>
           </Button>
         ) : null}

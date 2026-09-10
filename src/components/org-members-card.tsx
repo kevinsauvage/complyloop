@@ -32,10 +32,12 @@ export function OrgMembersCard({
   canAssignAdmin?: boolean;
 }) {
   return (
-    <Table>
+    <Table className="min-w-[40rem]">
       <TableHeader>
         <TableRow className="hover:bg-transparent">
-          <TableHead className="pl-4">Member</TableHead>
+          <TableHead className="sticky left-0 bg-card pl-4">
+            Member
+          </TableHead>
           <TableHead>Role</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="hidden sm:table-cell">Joined</TableHead>
@@ -57,7 +59,7 @@ export function OrgMembersCard({
               key={membership.id}
               className="hover:bg-accent/30"
             >
-              <TableCell className="pl-4">
+              <TableCell className="sticky left-0 bg-card pl-4">
                 <p className="font-medium">
                   @{membership.githubLogin}
                   {isYou ? (

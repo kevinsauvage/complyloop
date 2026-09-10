@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 describe("StatefulActionForm", () => {
-  it("disables the submit control while pending and toasts success", async () => {
+  it("disables the submit control while pending and confirms success inline plus toast", async () => {
     const user = userEvent.setup();
     let resolveAction: ((value: ActionMessageState) => void) | undefined;
     const action = vi.fn(
@@ -48,7 +48,7 @@ describe("StatefulActionForm", () => {
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledWith("Saved.", { duration: 4_000 });
     });
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Saved.");
   });
 
    it("shows errors inline without a toast", async () => {

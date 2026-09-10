@@ -18,6 +18,20 @@ export const metadata: Metadata = {
   description: "Sign in to ComplyLoop with GitHub to access your compliance dashboard.",
 };
 
+const AUTH_ERROR_COPY: Record<string, string> = {
+  AccessDenied:
+    "You denied GitHub access. Retry and approve access to continue.",
+  OAuthAccountNotLinked:
+    "This GitHub account is already linked to another sign-in method. Use the original method or contact your administrator.",
+  Verification:
+    "The sign-in attempt expired or was already used. Please try again.",
+  Configuration:
+    "Sign-in is misconfigured — contact your administrator.",
+};
+
+const FALLBACK_AUTH_ERROR_COPY =
+  "Sign-in with GitHub failed. Please try again — if it keeps failing, contact your administrator.";
+
 export default async function LoginPage({
   searchParams,
 }: PageProps<"/login">) {
@@ -59,8 +73,7 @@ export default async function LoginPage({
           {authError ? (
             <Alert variant="destructive">
               <AlertDescription>
-                Sign-in with GitHub failed. Please try again — if it keeps
-                failing, contact your administrator.
+                {AUTH_ERROR_COPY[authError] ?? FALLBACK_AUTH_ERROR_COPY}
               </AlertDescription>
             </Alert>
           ) : null}

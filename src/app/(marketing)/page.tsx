@@ -140,7 +140,7 @@ export default function HomePage() {
                   {index < LOOP_STEPS.length - 1 ? (
                     <span
                       aria-hidden
-                      className="absolute top-1/2 -right-2.5 hidden text-muted-foreground xl:block"
+                      className="absolute top-1/2 -right-2.5 hidden text-muted-foreground lg:block"
                     >
                       →
                     </span>
@@ -192,6 +192,70 @@ export default function HomePage() {
               );
             })}
           </ul>
+        </div>
+      </section>
+
+      <section id="sample" className="scroll-mt-24 border-t border-border/60 bg-muted/20 py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+            <div>
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                Every run leaves a trail
+              </h2>
+              <p className="mt-4 text-muted-foreground">
+                Assessments, findings, fixes, and verifications accumulate as
+                append-only evidence — nothing can be edited, only superseded.
+                This is what your auditor receives.
+              </p>
+              <p className="mt-4 text-sm text-muted-foreground">
+                We built ComplyLoop the way we expect our customers to build
+                accessible products: with clear semantics, visible decisions,
+                and proof you can show an auditor.
+              </p>
+            </div>
+
+            <div
+              className="rounded-2xl border border-border/80 bg-card/70 p-5 card-sheen sm:p-6"
+              aria-label="Sample evidence trail"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Sample evidence trail
+              </p>
+              <ol className="mt-4 flex flex-col gap-2">
+                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2.5">
+                  <span aria-hidden className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-passed" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Assessment completed</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      48 requirements checked · 3 findings detected
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2.5">
+                  <span aria-hidden className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-failed" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Finding detected</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Form control has no label · ContactForm.tsx:42
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2.5">
+                  <span aria-hidden className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-passed" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Remediation verified</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Fix confirmed by automated re-check · human approved
+                    </p>
+                  </div>
+                </li>
+              </ol>
+              <p className="mt-4 text-xs text-muted-foreground">
+                Illustrative sample — your trail is generated from real
+                assessments.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -259,7 +323,7 @@ export default function HomePage() {
               <Link href="/login">Sign in with GitHub</Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="min-w-48">
-              <Link href="#how-it-works">See how it works</Link>
+              <Link href="#sample">View sample evidence</Link>
             </Button>
           </div>
         </div>

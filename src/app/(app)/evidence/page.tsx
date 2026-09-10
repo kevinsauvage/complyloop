@@ -178,7 +178,7 @@ export default async function EvidencePage({
           <h2
             id="evidence-results"
             tabIndex={-1}
-            className="text-sm font-medium text-muted-foreground outline-none"
+            className="min-h-5 text-sm font-medium text-muted-foreground outline-none"
           >
             {total === 1 ? "1 entry" : `${total} entries`}
             {kindFilter ? ` · ${evidenceDisplay(kindFilter).label}` : ""}

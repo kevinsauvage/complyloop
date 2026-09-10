@@ -97,7 +97,7 @@
   --sidebar-accent-foreground: oklch(0.28 0.05 210);
   --sidebar-border: oklch(0.88 0.015 230);
   --sidebar-ring: oklch(0.62 0.1 200);
-  --surface-grid: oklch(0.82 0.02 230 / 0.35);
+  --surface-grid: oklch(0.82 0.02 230 / 0.18);
 }
 
 .dark {
@@ -148,20 +148,27 @@
     @apply border-border outline-ring/50;
   }
   html {
-    @apply scroll-smooth;
+    @apply font-sans;
+    letter-spacing: -0.011em;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      @apply scroll-smooth;
+    }
   }
   body {
     @apply bg-background text-foreground antialiased;
-    background-image:
-      linear-gradient(var(--surface-grid) 1px, transparent 1px),
-      linear-gradient(90deg, var(--surface-grid) 1px, transparent 1px);
-    background-size: 48px 48px;
-    background-attachment: fixed;
     text-rendering: optimizeLegibility;
   }
-  html {
-    @apply font-sans;
-    letter-spacing: -0.011em;
+  /* Subtle grid backdrop — desktop only, so dense content stays readable. */
+  @media (min-width: 1024px) {
+    body {
+      background-image:
+        linear-gradient(var(--surface-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--surface-grid) 1px, transparent 1px);
+      background-size: 48px 48px;
+      background-attachment: fixed;
+    }
   }
   h1,
   h2,
@@ -191,6 +198,17 @@
   }
 }
 
+/* Calm all motion (skeleton pulses, hovers, toasts) for reduced-motion users. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @layer utilities {
   /* Frosted panel: used by the sidebar and sticky headers over the grid */
   .panel-frost {
@@ -198,11 +216,12 @@
     backdrop-filter: blur(12px) saturate(1.4);
   }
 
-  /* Bordered surface panel — no highlight line */
+  /* Bordered surface panel — near-opaque so the grid never shows through
+     dense content. Translucency stays reserved for sidebar/sticky headers. */
   .surface-panel {
     border-radius: var(--radius-xl);
     border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
-    background: color-mix(in oklch, var(--card) 80%, transparent);
+    background: color-mix(in oklch, var(--card) 96%, transparent);
   }
 
   /* Subtle top-edge highlight clipped to border-radius (replaces inset box-shadow) */

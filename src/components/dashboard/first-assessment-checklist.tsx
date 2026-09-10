@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { PermissionNotice } from "@/components/permission-notice";
+import { AssessmentRunForm } from "@/components/dashboard/assessment-run-form";
 import { RuntimeAuditForm } from "@/components/runtime-audit-form";
-import { StatefulActionForm } from "@/components/stateful-action-form";
 import {
   Card,
   CardContent,
@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { cn } from "@/lib/utils";
-import { runAssessmentAction } from "@/server/actions/assessment";
 
 function StepIndicator({
   done,
@@ -54,11 +53,7 @@ export function FirstAssessmentChecklist({
   const previewDone = Boolean(project.runtimeBaseUrl?.trim());
 
   const assessAction = canAssess ? (
-    <StatefulActionForm
-      action={runAssessmentAction}
-      submitLabel="Run assessment"
-      pendingLabel="Assessing…"
-    />
+    <AssessmentRunForm />
   ) : (
     <PermissionNotice>
       View-only role — you can browse results but not run assessments.

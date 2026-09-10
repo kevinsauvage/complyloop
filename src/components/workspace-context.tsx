@@ -43,13 +43,10 @@ export async function WorkspaceContext() {
   const showOrgSwitcher = Boolean(activeOrgId) && organizations.length > 1;
   const showProjectSwitcher = visibleProjects.length > 1;
   const showAddProject = caps.canConnect && visibleProjects.length > 0;
-  const showConnect =
-    caps.canConnect && visibleProjects.length === 0;
 
+  // Single Connect entry point per page: the dashboard empty card owns
+  // connecting when no project exists; other pages link back to it.
   const addProject = showAddProject ? (
-    <ConnectProjectPanel defaultOpen={false} />
-  ) : null;
-  const connectProject = showConnect ? (
     <ConnectProjectPanel defaultOpen={false} />
   ) : null;
 
@@ -67,9 +64,6 @@ export async function WorkspaceContext() {
             </span>
             <span>{orgName}</span>
           </span>
-        ) : null}
-        {connectProject ? (
-          <div className="w-full sm:ml-auto sm:w-auto">{connectProject}</div>
         ) : null}
       </ContextStrip>
     );

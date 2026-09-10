@@ -181,7 +181,7 @@ export default async function OrgPage() {
             orgSlug={org.slug}
           />
         ) : (
-          <Card className="shadow-none" aria-disabled="true">
+          <Card className="shadow-none">
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground">
                 Owner-only — export and deletion are managed by{" "}

@@ -88,6 +88,11 @@ export function StatefulActionForm({
             {state.error}
           </p>
         ) : null}
+        {state.message && !state.error && !pending ? (
+          <p role="status" className="text-sm text-status-passed">
+            {state.message}
+          </p>
+        ) : null}
       </div>
     </form>
   );

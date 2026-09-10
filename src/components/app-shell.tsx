@@ -65,9 +65,7 @@ function SidebarBody({
         </div>
         {authControls}
         <p className="px-3 text-xs leading-relaxed text-muted-foreground">
-          RGAA / WCAG for React &amp; Next.js
-        </p>
-        <p className="px-3 text-xs text-muted-foreground">
+          RGAA / WCAG for React &amp; Next.js ·{" "}
           <Link
             href="/legal/terms"
             className="underline-offset-2 hover:text-foreground hover:underline"
@@ -130,29 +128,32 @@ export function AppShell({
             </span>
             ComplyLoop
           </Link>
-          <Sheet open={navOpen} onOpenChange={setNavOpen}>
-            <SheetTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                aria-label={navOpen ? "Close menu" : "Menu"}
-              >
-                <Menu />
-                Menu
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 bg-sidebar p-4">
-              <SheetHeader className="sr-only">
-                <SheetTitle>Main navigation</SheetTitle>
-              </SheetHeader>
-              <SidebarBody
-                authControls={authControls}
-                navAttention={navAttention}
-                onNavigate={() => setNavOpen(false)}
-              />
-            </SheetContent>
-          </Sheet>
+          <div className="flex items-center gap-2">
+            <ThemeToggle compact />
+            <Sheet open={navOpen} onOpenChange={setNavOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label={navOpen ? "Close menu" : "Menu"}
+                >
+                  <Menu />
+                  Menu
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 bg-sidebar p-4">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Main navigation</SheetTitle>
+                </SheetHeader>
+                <SidebarBody
+                  authControls={authControls}
+                  navAttention={navAttention}
+                  onNavigate={() => setNavOpen(false)}
+                />
+              </SheetContent>
+            </Sheet>
+          </div>
         </header>
 
         <aside className="panel-frost sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/60 px-3 py-6 md:flex">

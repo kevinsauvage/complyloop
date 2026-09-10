@@ -113,26 +113,32 @@ export function FindingQueueNav({
       <div className="flex items-center gap-1">
         {prevId ? (
           <Button variant="outline" size="sm" asChild>
-            <Link href={findingDetailHref(prevId, listParams)}>
+            <Link
+              href={findingDetailHref(prevId, listParams)}
+              title="Previous finding (K)"
+            >
               <ChevronLeft className="size-4" aria-hidden />
               Previous
             </Link>
           </Button>
         ) : (
-          <Button variant="outline" size="sm" disabled>
+          <Button variant="outline" size="sm" disabled title="No previous finding">
             <ChevronLeft className="size-4" aria-hidden />
             Previous
           </Button>
         )}
         {nextId ? (
           <Button variant="outline" size="sm" asChild>
-            <Link href={findingDetailHref(nextId, listParams)}>
+            <Link
+              href={findingDetailHref(nextId, listParams)}
+              title="Next finding (J)"
+            >
               Next
               <ChevronRight className="size-4" aria-hidden />
             </Link>
           </Button>
         ) : (
-          <Button variant="outline" size="sm" disabled>
+          <Button variant="outline" size="sm" disabled title="No next finding">
             Next
             <ChevronRight className="size-4" aria-hidden />
           </Button>

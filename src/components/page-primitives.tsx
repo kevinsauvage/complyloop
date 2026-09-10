@@ -35,7 +35,7 @@ export function PageHeader({
     <header
       className={cn(
         variant === "panel" &&
-          "surface-panel card-sheen relative mb-6 overflow-hidden rounded-2xl",
+          "surface-panel relative mb-6 overflow-hidden rounded-2xl",
         variant === "plain" && "relative",
         className,
       )}

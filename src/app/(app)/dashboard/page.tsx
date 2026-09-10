@@ -19,7 +19,7 @@ import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chi
 import { projectDescription } from "@/components/dashboard/project-description";
 import { PageActionLink, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
-import { StatefulActionForm } from "@/components/stateful-action-form";
+import { AssessmentRunForm } from "@/components/dashboard/assessment-run-form";
 import { latestAssessmentFor } from "@/core/assessment";
 import { countByStatus } from "@/core/count-by-status";
 import {
@@ -29,7 +29,6 @@ import {
 import { clusterFindings } from "@/core/root-cause";
 import { shippedCatalog } from "@complyloop/adapters/catalog";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
-import { runAssessmentAction } from "@/server/actions/assessment";
 import {
   findingsInScope,
   requirementsInScope,
@@ -58,11 +57,7 @@ export default async function DashboardPage() {
   const hasConnectedProject = visibleProjects.length > 0;
 
   const assessAction = caps.canAssess ? (
-    <StatefulActionForm
-      action={runAssessmentAction}
-      submitLabel="Run assessment"
-      pendingLabel="Assessing…"
-    />
+    <AssessmentRunForm />
   ) : (
     <PermissionNotice>
       View-only role — you can browse results but not run assessments.

@@ -30,6 +30,7 @@ function statToneClass(tone: DashboardQuickStat["tone"]): string {
 }
 
 function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
+  const linked = Boolean(stat.href);
   const inner = (
     <>
       <p
@@ -39,17 +40,18 @@ function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
           stat.tone === "warning" && "text-status-failed",
           stat.tone === "review" && "text-status-review",
           stat.tone === "success" && "text-status-passed",
+          linked && "group-hover:text-signal",
         )}
       >
         {stat.value}
-        {stat.href ? (
+        {linked ? (
           <ArrowUpRight className="size-4 shrink-0 opacity-60" aria-hidden />
         ) : null}
       </p>
       <p
         className={cn(
           "mt-1 text-xs font-medium text-muted-foreground",
-          stat.href && "underline decoration-dotted underline-offset-4",
+          linked && "underline decoration-dotted underline-offset-4",
         )}
       >
         {stat.label}
@@ -58,15 +60,20 @@ function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
   );
 
   const className = cn(
-    "surface-panel block w-full min-w-0 rounded-xl px-4 py-3 transition-[border-color,background-color] duration-200",
+    "surface-panel group block w-full min-w-0 rounded-xl px-4 py-3 transition-[border-color,background-color] duration-200",
     statToneClass(stat.tone),
-    stat.href &&
-      "hover:border-signal/30 hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    linked
+      ? "hover:border-signal/30 hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      : "cursor-default",
   );
 
   if (stat.href) {
     return (
-      <Link href={stat.href} className={className}>
+      <Link
+        href={stat.href}
+        className={className}
+        aria-label={`${stat.label}: ${stat.value}. View details`}
+      >
         {inner}
       </Link>
     );
