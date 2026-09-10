@@ -1,8 +1,9 @@
-import type { RawFinding } from "@complyloop/analysis-core/types";
 import { type Finding } from "@complyloop/analysis-core/contract/entities";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { SourceLocation } from "@complyloop/analysis-core/contract/finding-types";
+import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import type { RawFinding } from "@complyloop/analysis-core/types";
+
 import { applyFileEdits } from "./patch-apply";
 import { complyLoopGate } from "./patch-gate";
 import { assertSingleFileEdits, type ProposedFixEdits } from "./patch-types";

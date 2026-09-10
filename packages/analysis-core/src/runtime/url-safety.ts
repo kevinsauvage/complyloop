@@ -8,12 +8,14 @@
 
 import dns from "node:dns/promises";
 import net from "node:net";
-import { PublicError, publicMessage } from "../contract/public-error.ts";
+
 import {
+  type BlockedHostnamePolicy,
   isPublicHostname,
   validateResolvedAddresses,
-  type BlockedHostnamePolicy,
 } from "ssrf-guard";
+
+import { PublicError, publicMessage } from "../contract/public-error.ts";
 
 export const UNSAFE_RUNTIME_URL_MESSAGE =
   "Runtime audit URL cannot target localhost, private, or metadata hosts.";

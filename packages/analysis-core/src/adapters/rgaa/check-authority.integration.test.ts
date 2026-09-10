@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { rgaaControls } from "../rgaa/controls.ts";
+
 import {
   authorityForCheck,
   isHtmlValidateOwnedCheck,
 } from "@complyloop/analysis-core/check-authority";
 import { deriveRequirementStatus } from "@complyloop/analysis-core/contract/requirement-status";
+
+import { rgaaControls } from "../rgaa/controls.ts";
 
 /**
  * Integration sweep: every control in the live catalog must map to an

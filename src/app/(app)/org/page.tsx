@@ -1,4 +1,5 @@
-import { getSession } from "@/server/auth-session";
+import type { Metadata } from "next";
+
 import { CreateOrgForm } from "@/components/create-org-form";
 import { InviteMemberForm } from "@/components/invite-member-form";
 import { OrgAccountOverview } from "@/components/org-account-overview";
@@ -17,13 +18,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { signOutAction } from "@/server/actions/auth";
 import {
   createOrgAction,
   inviteOrgMemberAction,
 } from "@/server/actions/org";
-import { signOutAction } from "@/server/actions/auth";
+import { getSession } from "@/server/auth-session";
 import { getWorkspace } from "@/server/workspace";
-import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Organization",

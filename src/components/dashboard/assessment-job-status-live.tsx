@@ -1,10 +1,11 @@
 "use client";
 
-import type { AssessmentJob } from "@/core/assessment-jobs";
-import { parseAssessmentJobsResponse } from "@/core/assessment-job-guard";
-import { AssessmentJobStatus } from "@/components/dashboard/assessment-job-status";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
+import { AssessmentJobStatus } from "@/components/dashboard/assessment-job-status";
+import { parseAssessmentJobsResponse } from "@/core/assessment-job-guard";
+import type { AssessmentJob } from "@/core/assessment-jobs";
 
 const POLL_MS = 3_000;
 

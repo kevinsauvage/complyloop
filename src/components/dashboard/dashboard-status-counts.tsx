@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { RequirementStatusBadge } from "@/components/badges";
-import { Card, CardContent } from "@/components/ui/card";
-import { requirementsStatusHref } from "@/core/filter-params";
-import { cn } from "@/lib/utils";
+
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
-import { STATUS_TONE_ACCENT, requirementStatusDisplay } from "@/core/display";
+
+import { RequirementStatusBadge } from "@/components/badges";
+import { Card, CardContent } from "@/components/ui/card";
+import { requirementStatusDisplay,STATUS_TONE_ACCENT } from "@/core/display";
+import { requirementsStatusHref } from "@/core/filter-params";
+import { cn } from "@/lib/utils";
 
 export function DashboardStatusCounts({
   counts,

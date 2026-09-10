@@ -1,5 +1,5 @@
-import type { Confidence, Severity } from "../../contract/statuses.ts";
 import { maxRuntimePages } from "../../contract/assessment-limits.ts";
+import type { Confidence, Severity } from "../../contract/statuses.ts";
 import type { RawFinding } from "../../types.ts";
 import {
   assertSafeRuntimeUrl,

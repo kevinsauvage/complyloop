@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 
 function node(sel: string, html: string, failureSummary: string): CustomViolationNode {

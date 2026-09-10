@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 const clone = vi.hoisted(() => vi.fn());
@@ -21,7 +23,7 @@ vi.mock("./git", async () => {
   };
 });
 
-import { cloneAuthedShallow, cloneShallow, withFixtureCheckout, withProjectCheckout, withRepoCheckout, assertCheckoutWithinQuota, parseCheckoutRef } from "./repo-checkout";
+import { assertCheckoutWithinQuota, cloneAuthedShallow, cloneShallow, parseCheckoutRef,withFixtureCheckout, withProjectCheckout, withRepoCheckout } from "./repo-checkout";
 
 const previousEnabled = process.env.E2E_AUTH_ENABLED;
 const previousRoot = process.env.E2E_FIXTURE_ROOT;

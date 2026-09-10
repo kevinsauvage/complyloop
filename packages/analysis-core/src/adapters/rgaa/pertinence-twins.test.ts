@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { isPertinenceTwinControl } from "./pertinence-twins";
 
 describe("isPertinenceTwinControl", () => {

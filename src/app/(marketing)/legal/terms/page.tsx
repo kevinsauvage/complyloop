@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+
 import { PageContent, PageHeader } from "@/components/page-primitives";
 
 export const metadata: Metadata = {

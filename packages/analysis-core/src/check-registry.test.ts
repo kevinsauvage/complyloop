@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AnalyzerId } from "./contract/finding-types.ts";
+
 import {
   CHECK_REGISTRY,
   type CheckRegistration,
@@ -9,10 +9,11 @@ import {
   ANALYSIS_ENGINE_VERSION,
   checkRegistrySignature,
 } from "./checks/registry.ts";
+import type { AnalyzerId } from "./contract/finding-types.ts";
 import { jsxA11yMappedCheckIds } from "./jsx-a11y-map.ts";
 import { axeMappedCheckIds } from "./runtime/axe-map.ts";
-import { htmlValidateMappedCheckIds } from "./runtime/html-validate-map.ts";
 import { CUSTOM_PROBE_CHECK_IDS } from "./runtime/custom-checks/types.ts";
+import { htmlValidateMappedCheckIds } from "./runtime/html-validate-map.ts";
 
 const BY_ID = new Map<string, CheckRegistration>(
   CHECK_REGISTRY.map((entry) => [entry.id, entry] as const),

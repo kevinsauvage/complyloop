@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { sentryInitOptions, sentryTracesSampleRate } from "./init";
 
 afterEach(() => {

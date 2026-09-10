@@ -7,7 +7,9 @@ import type {
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+
 import type { ReportInput } from "@/server/report-model";
+
 import { testProject } from "./project";
 
 export const reportSampleProject = testProject({

@@ -1,6 +1,10 @@
 import "@/test-fixtures/register-action-workspace-mock";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { Db } from "@complyloop/db/types";
+
 import {
   actionWorkspaceMocks,
   clearProjectWritePayloads,
@@ -11,8 +15,8 @@ import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
+
 import { initialActionState } from "../action-state";
-import type { Db } from "@complyloop/db/types";
 import type { Workspace } from "../workspace";
 import {
   clearRequirementExceptionAction,

@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
 import type { Page } from "playwright";
+import { beforeEach, describe, expect, it } from "vitest";
+
 import { capturePageSnapshot } from "./snapshot";
 
 function pageThatEvaluatesInJsdom(): Page {

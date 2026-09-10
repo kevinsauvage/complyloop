@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import { FORCED_COLORS_CONTROL_SELECTOR } from "./interactive-control-selectors.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";

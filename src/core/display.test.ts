@@ -1,35 +1,38 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
+
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
+import {
+  FINDING_STATUSES,
+  REMEDIATION_STATUSES,
+  type RemediationStatus,
+  REQUIREMENT_STATUS_DISPLAY_ORDER,
+  REQUIREMENT_STATUSES,
+  type RequirementStatus,
+  type Severity,
+} from "@complyloop/analysis-core/contract/statuses";
+
 import {
   confidenceDisplay,
   determinationDisplay,
+  engineDisplay,
   EVIDENCE_TONE_BADGE,
   EVIDENCE_TONE_DOT,
   evidenceDisplay,
-  engineDisplay,
   findingStatusDisplay,
   provenanceDisplay,
   remediationStatusDisplay,
+  type ReportColorPair,
   requirementStatusDisplay,
   roleTone,
   severityDisplay,
   STATUS_TONE_BADGE,
   STATUS_TONE_REPORT,
-  type ReportColorPair,
 } from "./display";
 import { severityRank } from "./finding-priority";
-import {
-  FINDING_STATUSES,
-  REMEDIATION_STATUSES,
-  REQUIREMENT_STATUSES,
-  REQUIREMENT_STATUS_DISPLAY_ORDER,
-  type RemediationStatus,
-  type RequirementStatus,
-  type Severity,
-} from "@complyloop/analysis-core/contract/statuses";
-import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 
 const SEVERITIES: Severity[] = ["critical", "serious", "moderate", "minor"];
 

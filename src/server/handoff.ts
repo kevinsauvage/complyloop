@@ -1,8 +1,15 @@
 import "server-only";
+
 import fs from "node:fs";
+
 import { createTwoFilesPatch } from "diff";
-import { applyFix } from "@complyloop/analysis-core/fixes";
-import { resolveInside } from "@complyloop/analysis-core/workspace-path";
+
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
+import type { ProposedFix } from "@complyloop/analysis-core/contract/finding-types";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   formatLocationRef,
   isSourceLocation,
@@ -12,12 +19,8 @@ import type {
   Control,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
-import type {
-  Finding,
-  Remediation,
-} from "@complyloop/analysis-core/contract/entities";
-import type { ProposedFix } from "@complyloop/analysis-core/contract/finding-types";
-import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
+import { applyFix } from "@complyloop/analysis-core/fixes";
+import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 
 export interface DeveloperHandoff {
   title: string;

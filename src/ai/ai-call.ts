@@ -1,13 +1,15 @@
 import { generateObject } from "ai";
 import { z } from "zod";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   formatLocationRef,
   locationSnippet,
 } from "@complyloop/analysis-core/contract/location";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import { reportError } from "@/server/observability";
 
 /** Vercel AI Gateway model id (`provider/model`). */

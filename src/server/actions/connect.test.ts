@@ -1,11 +1,15 @@
 import "@/test-fixtures/register-action-workspace-mock";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { actionAuthMocks, actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
+import { actionAuthMocks, actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import { initialActionState } from "../action-state";
 import type { ConnectWriteContext } from "../workspace-write";
 import {

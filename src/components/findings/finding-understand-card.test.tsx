@@ -1,6 +1,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
+
 import { FindingUnderstandCard } from "./finding-understand-card";
 
 vi.mock("@/server/actions/remediation-ai", () => ({

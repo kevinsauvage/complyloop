@@ -1,11 +1,14 @@
-import { findingAct } from "@/core/finding-act";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
+
+import { findingAct } from "@/core/finding-act";
 import type { PatchUiState } from "@/server/ai-fix";
+
 import { FindingNextStepPanel } from "./finding-next-step-panel";
 
 vi.mock("@/server/actions/ai-fix", () => ({

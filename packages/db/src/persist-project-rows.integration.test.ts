@@ -1,6 +1,8 @@
-import { afterAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
+import { afterAll, describe, expect, it } from "vitest";
+
 import type { EvidenceRecord } from "@complyloop/analysis-core/contract/entities";
+
 import {
   acquireNamedPostgresAdvisoryLock,
   closeDrizzle,
@@ -20,8 +22,8 @@ import {
   cleanupProjectSliceFixture,
   insertProjectSliceFixture,
   loadProjectSlice,
-  sliceFingerprint,
   type ProjectSliceFixture,
+  sliceFingerprint,
 } from "./test-fixtures/project-slice-fixture";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Run via `npm run test:db`. */

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+
 import { brokenLinkFindingsForUrls } from "./link-check";
 
 const checkMock = vi.fn();

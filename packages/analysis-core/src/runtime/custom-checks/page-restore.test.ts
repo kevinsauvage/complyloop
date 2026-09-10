@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
+
+import { formErrorSubmitViolation } from "./form-error-submit";
+import { runCustomRuntimeChecks } from "./index";
+import { liveRegionUpdatesViolation } from "./live-region-updates";
+import { restorePageAfterMutatingProbes } from "./page-restore";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./playwright-page";
-import { restorePageAfterMutatingProbes } from "./page-restore";
-import { formErrorSubmitViolation } from "./form-error-submit";
-import { liveRegionUpdatesViolation } from "./live-region-updates";
 import { reflowViolation } from "./reflow";
-import { runCustomRuntimeChecks } from "./index";
 
 registerPlaywrightBrowserTeardown();
 

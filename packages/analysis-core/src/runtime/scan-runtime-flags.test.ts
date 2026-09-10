@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { scanRuntime } from "./scan";
 import type { DnsLookup } from "./url-safety";
 

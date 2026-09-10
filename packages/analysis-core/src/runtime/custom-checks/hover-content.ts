@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+
 import { locatorEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import { measureHoverVsFocusReveal } from "./hover-reveal.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";

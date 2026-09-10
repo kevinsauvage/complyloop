@@ -1,16 +1,17 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   findingDetailHref,
+  type FindingListParams,
   findingsListHref,
   hasActiveFindingFilters,
-  type FindingListParams,
 } from "@/core/filter-params";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;

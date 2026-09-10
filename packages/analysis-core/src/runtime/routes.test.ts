@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { normalizeRoutes } from "./routes";
 
 describe("normalizeRoutes", () => {

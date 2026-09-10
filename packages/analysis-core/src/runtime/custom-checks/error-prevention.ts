@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+
 import { ERROR_PREVENTION_CONFIRM_DATASET_KEYS } from "../../patterns/error-prevention-criteria.ts";
 import {
   AGREE_LABEL,

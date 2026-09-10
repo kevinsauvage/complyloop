@@ -1,9 +1,10 @@
-import { rgaaPresets } from "./rgaa/presets.ts";
-import { guidanceFor as rgaaGuidanceFor } from "./rgaa/guidance.ts";
-import { wcagPresets } from "./wcag/presets.ts";
 import type { CheckId } from "@complyloop/analysis-core/check-registry";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
+
+import { guidanceFor as rgaaGuidanceFor } from "./rgaa/guidance.ts";
+import { rgaaPresets } from "./rgaa/presets.ts";
 import type { CheckGuidance, FrameworkPreset, FrameworkPresetSummary } from "./types";
+import { wcagPresets } from "./wcag/presets.ts";
 
 const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";
 

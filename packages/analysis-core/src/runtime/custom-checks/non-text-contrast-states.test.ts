@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { nonTextContrastViolation } from "./non-text-contrast";
 import {
   chromiumExecutableAvailable,

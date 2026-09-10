@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
+
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
+
 import {
   reportSampleProject,
   sampleReportInput,
 } from "@/test-fixtures/report-input";
+
 import { buildAuditReportHtml, buildEngineeringReportHtml } from "./report";
 
 describe("buildAuditReportHtml", () => {

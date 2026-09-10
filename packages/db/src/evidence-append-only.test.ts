@@ -1,5 +1,6 @@
-import { afterAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
+import { afterAll, describe, expect, it } from "vitest";
+
 import { closeDrizzle, getDrizzle } from "./postgres";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`) and avoids stealing the pool during the default suite. */

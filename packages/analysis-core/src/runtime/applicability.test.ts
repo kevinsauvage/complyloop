@@ -1,21 +1,22 @@
 import { describe, expect, it } from "vitest";
+
 import {
   aggregateApplicabilityObservations,
   applicabilityObservationsForPage,
   isApplicabilityObservableCheck,
 } from "./applicability";
 import {
-  chromiumExecutableAvailable,
-  PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
-} from "./custom-checks/playwright-page";
-import {
   documentWithBody,
   LAYOUT_TABLE_DATA_BODY,
   LAYOUT_TABLE_IMPLICIT_BODY,
   LAYOUT_TABLE_PRESENTATION_BODY,
 } from "./custom-checks/layout-table-fixtures";
+import {
+  chromiumExecutableAvailable,
+  PLAYWRIGHT_TEST_TIMEOUT_MS,
+  registerPlaywrightBrowserTeardown,
+  withPlaywrightPage,
+} from "./custom-checks/playwright-page";
 
 registerPlaywrightBrowserTeardown();
 

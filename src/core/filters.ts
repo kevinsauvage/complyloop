@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 /*

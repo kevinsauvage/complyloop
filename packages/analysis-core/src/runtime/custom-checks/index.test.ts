@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
 import type { Page } from "playwright";
+import { describe, expect, it, vi } from "vitest";
+
 import type { CustomViolation } from "./types";
 
 const violation = (

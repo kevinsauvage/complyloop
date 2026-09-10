@@ -1,4 +1,5 @@
 import ts from "typescript";
+
 import { getAttribute, hasAnyAttr, type JsxTagNode } from "./parse.ts";
 
 /**

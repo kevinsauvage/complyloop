@@ -1,10 +1,13 @@
-import Link from "next/link";
 import { Check } from "lucide-react";
-import { requirementsPageHref } from "@/core/filter-params";
+import Link from "next/link";
+
 import type { FrameworkPresetSummary } from "@complyloop/analysis-core/adapters/types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
-import { PresetItemBody } from "./preset-item-body";
+
+import { requirementsPageHref } from "@/core/filter-params";
 import { cn } from "@/lib/utils";
+
+import { PresetItemBody } from "./preset-item-body";
 
 export function PresetNavigator({
   presets,

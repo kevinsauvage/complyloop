@@ -1,5 +1,5 @@
-import type { CheckAuthority } from "./contract/requirement-status.ts";
 import { CHECK_REGISTRY, type CheckRegistration } from "./check-registry.ts";
+import type { CheckAuthority } from "./contract/requirement-status.ts";
 
 /**
  * All check-id lists are derived from the single `CHECK_REGISTRY` — adding a

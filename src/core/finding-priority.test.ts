@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
+
 import {
   clusterFindings,
   prioritizeClusters,

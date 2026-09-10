@@ -14,12 +14,13 @@
  */
 import type { HtmlValidate } from "html-validate";
 import type { Page } from "playwright";
+
 import { htmlValidatePackageVersion } from "../analyzer-versions.ts";
-import { checkIdForHtmlValidateRule, HTML_VALIDATE_TO_CHECK_RULE_IDS } from "./html-validate-map.ts";
-import { htmlSnippet } from "./dom-location.ts";
 import { offsetAt as offsetForLineColumn } from "../parse.ts";
-import { rawFindingFromDom } from "./raw-finding-from-dom.ts";
 import type { RawFinding } from "../types.ts";
+import { htmlSnippet } from "./dom-location.ts";
+import { checkIdForHtmlValidateRule, HTML_VALIDATE_TO_CHECK_RULE_IDS } from "./html-validate-map.ts";
+import { rawFindingFromDom } from "./raw-finding-from-dom.ts";
 
 /**
  * Curated html-validate rules for RGAA 8.2 markup validity and 10.1 deprecated

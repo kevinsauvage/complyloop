@@ -1,9 +1,12 @@
 import "@/test-fixtures/register-action-workspace-mock";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import type {
   OrgMembership,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
+
 import {
   actionWorkspaceMocks,
   clearProjectWritePayloads,
@@ -12,6 +15,7 @@ import {
 } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
+
 import { initialActionState } from "../action-state";
 import { setDefaultPresetAction } from "./project-preset";
 

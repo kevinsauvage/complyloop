@@ -1,6 +1,7 @@
+import { ArrowUpRight, GitBranch } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowUpRight, GitBranch } from "lucide-react";
+
 import { PageHeader } from "@/components/page-primitives";
 import { cn } from "@/lib/utils";
 

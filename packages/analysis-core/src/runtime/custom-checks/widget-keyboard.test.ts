@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { isKeyboardFocusable, selectorOf } from "./widget-keyboard-utils";
-import { widgetKeyboardViolations } from "./widget-keyboard";
+
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./playwright-page";
+import { widgetKeyboardViolations } from "./widget-keyboard";
+import { isKeyboardFocusable, selectorOf } from "./widget-keyboard-utils";
 
 registerPlaywrightBrowserTeardown();
 

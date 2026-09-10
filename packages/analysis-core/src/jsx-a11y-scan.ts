@@ -1,12 +1,14 @@
 import { createRequire } from "node:module";
-import { Linter } from "eslint";
+
 import tsParser from "@typescript-eslint/parser";
-import type { RawFinding } from "./types.ts";
+import { Linter } from "eslint";
+
 import type { Severity } from "./contract/statuses.ts";
-import type { ParsedSource } from "./parse.ts";
 import { proposedFixForJsxA11y } from "./jsx-a11y-fixes.ts";
 import { checkIdForJsxA11yRule, jsxA11yEslintRules } from "./jsx-a11y-map.ts";
+import type { ParsedSource } from "./parse.ts";
 import { offsetAt, snippetForSpan } from "./parse.ts";
+import type { RawFinding } from "./types.ts";
 
 const require = createRequire(import.meta.url);
 const jsxA11y = require("eslint-plugin-jsx-a11y") as NonNullable<

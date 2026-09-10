@@ -1,11 +1,12 @@
 import type { Page } from "playwright";
-import type { CustomViolation } from "./types.ts";
+
 import {
   isInvalidField,
   submitFirstValidatableForm,
 } from "./form-submit-probe.ts";
 import { type CapturedHit } from "./hit-capture.ts";
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 type FormErrorHit = CapturedHit & {

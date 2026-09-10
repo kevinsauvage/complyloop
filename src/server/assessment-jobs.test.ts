@@ -250,13 +250,13 @@ function createDrizzle() {
 }
 
 import {
+  type AssessmentJob,
   claimNextAssessmentJob,
   completeAssessmentJob,
   enqueueAssessmentJob,
   failAssessmentJob,
   queuedAssessmentJobCount,
   recentAssessmentJobsForProject,
-  type AssessmentJob,
 } from "./assessment-jobs";
 
 beforeEach(() => {

@@ -1,13 +1,14 @@
 import "server-only";
+
 import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import { presetById } from "@complyloop/analysis-core/adapters/registry";
 import { type Finding } from "@complyloop/analysis-core/contract/entities";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type {
   Control,
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 /**
  * Control IDs this project assesses. Uses live preset membership so new rules

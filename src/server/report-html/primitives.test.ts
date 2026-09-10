@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { emptyParagraph, escapeHtml, reportSection, reportShell, statusClass, summaryStat } from "./primitives";
 
 describe("escapeHtml", () => {

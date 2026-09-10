@@ -1,11 +1,12 @@
-import type { ReactNode } from "react";
 import { FolderGit2, Layers } from "lucide-react";
+import type { ReactNode } from "react";
+
+import { ConnectProjectPanel } from "@/components/connect-project-panel";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { ProjectSwitcher } from "@/components/project-switcher";
-import { ConnectProjectPanel } from "@/components/connect-project-panel";
+import { cn } from "@/lib/utils";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
-import { cn } from "@/lib/utils";
 
 function ContextStrip({
   children,

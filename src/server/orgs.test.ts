@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
+
 import type {
-  OrgMembership,
   Organization,
+  OrgMembership,
 } from "@complyloop/analysis-core/contract/project-types";
+import type { Db } from "@complyloop/db/types";
 import { emptyDb } from "@complyloop/db/types";
+
 import {
-  createOrganization,
-  deleteOrganization,
-  exportOrgData,
-} from "./orgs";
+  changeOrgMemberRole,
+  inviteOrgMember,
+  removeOrgMember,
+} from "./org-membership";
 import {
   buildOrgMembershipIndex,
   orgsForUser,
@@ -16,11 +19,10 @@ import {
   userRoleInOrg,
 } from "./org-queries";
 import {
-  changeOrgMemberRole,
-  inviteOrgMember,
-  removeOrgMember,
-} from "./org-membership";
-import type { Db } from "@complyloop/db/types";
+  createOrganization,
+  deleteOrganization,
+  exportOrgData,
+} from "./orgs";
 
 function applyMembership(db: Db, membership: OrgMembership): OrgMembership {
   const index = db.memberships.findIndex((row) => row.id === membership.id);

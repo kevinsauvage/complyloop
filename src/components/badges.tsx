@@ -1,21 +1,7 @@
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
-import { BadgeWithDescription } from "@/components/badge-with-description";
-import {
-  confidenceDisplay,
-  determinationDisplay,
-  engineDisplay,
-  evidenceDisplay,
-  EVIDENCE_TONE_BADGE,
-  findingStatusDisplay,
-  provenanceDisplay,
-  remediationStatusDisplay,
-  requirementStatusDisplay,
-  severityDisplay,
-  STATUS_TONE_BADGE,
-  type BadgeVariant,
-  type StatusTone,
-} from "@/core/display";
+
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
+import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
 import type {
   Confidence,
   DeterminationMethod,
@@ -25,8 +11,24 @@ import type {
   RequirementStatus,
   Severity,
 } from "@complyloop/analysis-core/contract/statuses";
-import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
-import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
+
+import { BadgeWithDescription } from "@/components/badge-with-description";
+import { Badge } from "@/components/ui/badge";
+import {
+  type BadgeVariant,
+  confidenceDisplay,
+  determinationDisplay,
+  engineDisplay,
+  EVIDENCE_TONE_BADGE,
+  evidenceDisplay,
+  findingStatusDisplay,
+  provenanceDisplay,
+  remediationStatusDisplay,
+  requirementStatusDisplay,
+  severityDisplay,
+  STATUS_TONE_BADGE,
+  type StatusTone,
+} from "@/core/display";
 import { cn } from "@/lib/utils";
 
 export { BadgeWithDescription };

@@ -1,5 +1,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
+
 import type { Alert } from "@complyloop/analysis-core/contract/entities";
+
 import type { DrizzleDb } from "../postgres.ts";
 import { alerts } from "../schema.ts";
 import { alertToRow } from "./mappers.ts";

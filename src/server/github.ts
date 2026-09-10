@@ -1,9 +1,11 @@
 import "server-only";
+
 import { Octokit } from "@octokit/rest";
+
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { redactSecrets } from "./redact";
 
 import type { GitHubRepoSummary } from "./github-types";
+import { redactSecrets } from "./redact";
 
 export type { GitHubRepoSummary } from "./github-types";
 

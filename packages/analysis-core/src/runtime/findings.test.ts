@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { checkIdForAxeRule } from "./axe-map";
 import {
   findingsFromAxePages,

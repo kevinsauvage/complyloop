@@ -1,7 +1,8 @@
 import "server-only";
+
 import {
-  projectCapabilities,
   type ProjectCapabilities,
+  projectCapabilities,
 } from "./project-capabilities";
 import { getWorkspace, type Workspace } from "./workspace";
 

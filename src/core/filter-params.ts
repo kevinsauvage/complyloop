@@ -3,28 +3,29 @@ import type {
   EvidenceRecord,
   Finding,
 } from "@complyloop/analysis-core/contract/entities";
-import type { FindingCluster } from "./finding-cluster";
 import {
-  DEFAULT_PAGE_SIZE,
-  type Control,
-  type Requirement,
-} from "@complyloop/analysis-core/contract/project-types";
-import {
-  engineFor,
   type AssessmentEngine,
+  engineFor,
 } from "@complyloop/analysis-core/contract/finding-types";
 import {
   formatLocationRef,
   locationPathOrUrl,
 } from "@complyloop/analysis-core/contract/location";
 import {
-  REMEDIATION_STATUSES,
-  REQUIREMENT_STATUSES,
+  type Control,
+  DEFAULT_PAGE_SIZE,
+  type Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
+import {
   type FindingStatus,
+  REMEDIATION_STATUSES,
   type RemediationStatus,
+  REQUIREMENT_STATUSES,
   type RequirementStatus,
   type Severity,
 } from "@complyloop/analysis-core/contract/statuses";
+
+import type { FindingCluster } from "./finding-cluster";
 import {
   prioritizeFindings,
   SEVERITY_ORDER,

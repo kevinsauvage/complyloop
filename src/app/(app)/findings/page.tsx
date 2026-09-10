@@ -1,12 +1,16 @@
-import { prioritizeClusters, clusterFindings } from "@/core/finding-priority";
+import type { Metadata } from "next";
 import Link from "next/link";
+
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
+
+import { toFindingListItems } from "@/components/findings/finding-list-items";
+import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
 import { FindingsClustersTab } from "@/components/findings/findings-clusters-tab";
 import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
 import { FindingsTabPanel } from "@/components/findings/findings-tab-panel";
-import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
 import { FocusFilterResults } from "@/components/findings/focus-filter-results";
-import { toFindingListItems } from "@/components/findings/finding-list-items";
-import { PaginationNav } from "@/components/pagination-nav";
 import {
   EmptyState,
   NoProjectNotice,
@@ -14,29 +18,28 @@ import {
   PageContent,
   PageHeader,
 } from "@/components/page-primitives";
+import { PaginationNav } from "@/components/pagination-nav";
 import { Button } from "@/components/ui/button";
-import { FindingsStatusNav } from "./_components/status-nav";
 import {
+  type FilterFindingsContext,
   findingListPaginationQuery,
   findingsListHref,
+  type FindingsTab,
   hasActiveFindingFilters,
   orderFindingsForList,
   pageSliceFromQuery,
   parseFindingListParams,
-  type FilterFindingsContext,
-  type FindingsTab,
 } from "@/core/filter-params";
 import { reportHref } from "@/core/filter-params";
-import { paginateSlice, DEFAULT_PAGE_SIZE } from "@/core/filter-params";
-import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
-import type { Finding } from "@complyloop/analysis-core/contract/entities";
-import { countFindingsByStatus } from "@/server/findings-queries";
-import { findingsInScope } from "@/server/project-scope";
+import { DEFAULT_PAGE_SIZE,paginateSlice } from "@/core/filter-params";
+import { clusterFindings,prioritizeClusters } from "@/core/finding-priority";
 import { loadActiveProjectPage } from "@/server/active-project-page";
+import { countFindingsByStatus } from "@/server/findings-queries";
 import { getProjectRuntime } from "@/server/project-runtime";
+import { findingsInScope } from "@/server/project-scope";
 import { displayControl } from "@/server/report";
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
-import type { Metadata } from "next";
+
+import { FindingsStatusNav } from "./_components/status-nav";
 
 export const metadata: Metadata = {
   title: "Findings",

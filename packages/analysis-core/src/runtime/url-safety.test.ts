@@ -10,17 +10,17 @@ vi.mock("node:dns/promises", () => ({
   },
 }));
 
+import { scanRuntime } from "./scan";
 import {
-  UNSAFE_RUNTIME_PORT_MESSAGE,
-  UNSAFE_RUNTIME_URL_MESSAGE,
   allowRuntimeNavigation,
   assertSafeRuntimeUrl,
   assertStableRuntimeDns,
   createRedirectHopGuard,
-  TOO_MANY_REDIRECTS_MESSAGE,
   type DnsLookup,
+  TOO_MANY_REDIRECTS_MESSAGE,
+  UNSAFE_RUNTIME_PORT_MESSAGE,
+  UNSAFE_RUNTIME_URL_MESSAGE,
 } from "./url-safety";
-import { scanRuntime } from "./scan";
 
 const publicLookup: DnsLookup = async () => [
   { address: "93.184.216.34", family: 4 },

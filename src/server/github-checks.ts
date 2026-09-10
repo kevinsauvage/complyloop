@@ -1,5 +1,7 @@
 import "server-only";
+
 import { isPublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import { createOctokit, octokitErrorMessage, parseOwnerRepo } from "./github";
 
 export interface CheckRunInput {

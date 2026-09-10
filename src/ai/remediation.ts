@@ -1,8 +1,10 @@
 import { z } from "zod";
-import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
-import type { Control } from "@complyloop/analysis-core/contract/project-types";
+
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { RemediationSuggestion } from "@complyloop/analysis-core/contract/finding-types";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
+import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
+
 import {
   AI_MODEL,
   aiAvailable,

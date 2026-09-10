@@ -1,15 +1,18 @@
 import "server-only";
-import { applyFileEdits, type PatchCandidate } from "@/ai/verified-fix";
+
+import {
+  type Finding,
+  type Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type {
   Control,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
-import {
-  type Finding,
-  type Remediation,
-} from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
+import { applyFileEdits, type PatchCandidate } from "@/ai/verified-fix";
+
 import { createAuthedGit, createGit } from "./git";
 import {
   createOctokit,

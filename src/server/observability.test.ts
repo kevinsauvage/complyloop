@@ -1,6 +1,8 @@
+import { inspect } from "node:util";
+
 import * as Sentry from "@sentry/nextjs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { inspect } from "node:util";
+
 import {
   reportAppError,
   reportDebug,

@@ -1,8 +1,9 @@
 "use client";
 
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { switchProjectAction } from "@/server/actions/connect";
+
 import { AutoSubmitSelectForm } from "@/components/auto-submit-select-form";
+import { switchProjectAction } from "@/server/actions/connect";
 
 export function ProjectSwitcher({
   projects,

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
+
 import {
   escapeLikeLiteral,
   evidenceExportWindow,

@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+
 import type { RuntimePageSnapshot } from "./types.ts";
 
 export async function capturePageSnapshot(

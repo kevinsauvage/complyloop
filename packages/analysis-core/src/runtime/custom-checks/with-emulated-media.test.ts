@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+
 import { withEmulatedMedia } from "./with-emulated-media";
 
 describe("withEmulatedMedia", () => {

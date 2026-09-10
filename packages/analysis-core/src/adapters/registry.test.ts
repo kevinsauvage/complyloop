@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
+
 import {
-  FRAMEWORK_PRESETS,
   defaultConnectPreset,
+  FRAMEWORK_PRESETS,
   presetById,
   projectDefaultPresetId,
 } from "./registry";

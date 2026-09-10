@@ -1,8 +1,13 @@
-import type { FindingActView } from "@/core/finding-act";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
+
+import type { PatchCandidate } from "@/ai/verified-fix";
+import { CodeBlock } from "@/components/code-block";
 import { CreatePrForm } from "@/components/create-pr-form";
 import { RemediationStepper } from "@/components/findings/remediation-stepper";
 import { SecondaryFindingActions } from "@/components/findings/secondary-finding-actions";
-import { CodeBlock } from "@/components/code-block";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Button } from "@/components/ui/button";
@@ -15,20 +20,16 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type {
-  Finding,
-  Remediation,
-} from "@complyloop/analysis-core/contract/entities";
+import type { FindingActView } from "@/core/finding-act";
 import { cn } from "@/lib/utils";
-import type { PatchCandidate } from "@/ai/verified-fix";
-import type { PatchUiState } from "@/server/ai-fix";
 import { generateAiFixAction } from "@/server/actions/ai-fix";
-import { generateAiRemediationAction } from "@/server/actions/remediation-ai";
 import { approveRemediationAction } from "@/server/actions/remediation";
+import { generateAiRemediationAction } from "@/server/actions/remediation-ai";
 import {
   markRemediationImplementedAction,
   verifyRemediationAction,
 } from "@/server/actions/remediation-verify";
+import type { PatchUiState } from "@/server/ai-fix";
 
 function PatchPreview({ candidate }: { candidate: PatchCandidate }) {
   return (

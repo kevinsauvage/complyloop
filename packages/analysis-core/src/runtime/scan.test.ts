@@ -1,17 +1,8 @@
+import fs from "node:fs";
+
+import { type Browser,chromium } from "playwright";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { chromium, type Browser } from "playwright";
-import {
-  resolveAxeMinJsPath,
-  runAxeOnPage,
-  runtimeViolationStillPresent,
-  type RuntimePageScanner,
-} from "./scan";
-import {
-  gotoForRuntimeAudit,
-  runtimePageMatchesAuditedUrl,
-} from "./runtime-navigation";
-import { emulateCoarsePointer } from "./viewport-conditions";
-import * as htmlValidateRuntime from "./html-validate-runtime";
+
 import type { RawFinding } from "../types";
 import {
   chromiumExecutableAvailable,
@@ -19,7 +10,18 @@ import {
   registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./custom-checks/playwright-page";
-import fs from "node:fs";
+import * as htmlValidateRuntime from "./html-validate-runtime";
+import {
+  gotoForRuntimeAudit,
+  runtimePageMatchesAuditedUrl,
+} from "./runtime-navigation";
+import {
+  resolveAxeMinJsPath,
+  runAxeOnPage,
+  type RuntimePageScanner,
+  runtimeViolationStillPresent,
+} from "./scan";
+import { emulateCoarsePointer } from "./viewport-conditions";
 
 registerPlaywrightBrowserTeardown();
 

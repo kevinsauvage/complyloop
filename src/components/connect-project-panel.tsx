@@ -1,13 +1,14 @@
+import type { ReactNode } from "react";
+
 import { getGitHubAccessToken, isGitHubAuthConfigured } from "@/auth";
-import { getSession } from "@/server/auth-session";
 import { ConnectProjectDialog } from "@/components/connect-project-dialog";
 import { GitHubRepoPicker } from "@/components/github-repo-picker";
+import { EmptyState } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { EmptyState } from "@/components/page-primitives";
-import type { ReactNode } from "react";
 import { publicErrorMessage } from "@/server/action-state";
+import { getSession } from "@/server/auth-session";
 import { connectedGitHubProjectsByFullName } from "@/server/connect-github";
 import { listGitHubRepos } from "@/server/github-access";
 import { githubAppInstallUrl } from "@/server/github-app";

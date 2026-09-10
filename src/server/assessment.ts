@@ -1,17 +1,6 @@
 import "server-only";
-import { latestAssessmentFor, countByStatus } from "@/core/assessment-helpers";
-import { advanceRemediation } from "@/core/remediation-lifecycle";
-import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
+
 import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
-import type { RawFinding } from "@complyloop/analysis-core/types";
-import {
-  scanRuntime,
-  type RuntimePageScanner,
-} from "@complyloop/analysis-core/runtime/scan";
-import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
-import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
-import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   type Assessment,
   type AssessmentSnapshot,
@@ -20,27 +9,41 @@ import {
   type Finding,
   type Remediation,
 } from "@complyloop/analysis-core/contract/entities";
+import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
+import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type {
   Control,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
-import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
-import type { Db } from "@complyloop/db/types";
-import { detectChanges, readRepoHead, summarizeChanges } from "./monitor";
 import { mergeRawFindings } from "@complyloop/analysis-core/merge-findings";
+import {
+  type RuntimePageScanner,
+  scanRuntime,
+} from "@complyloop/analysis-core/runtime/scan";
+import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
+import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
+import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
+import type { RawFinding } from "@complyloop/analysis-core/types";
+import type { Db } from "@complyloop/db/types";
+
+import { countByStatus,latestAssessmentFor } from "@/core/assessment-helpers";
+import { advanceRemediation } from "@/core/remediation-lifecycle";
+
 import { reconcileControlFindings } from "./assessment-findings";
 import {
   applyRequirementStatusRefresh,
   clearExpiredExceptions,
   upsertRequirementsById,
 } from "./assessment-status";
-import { assertAssessableCatalog, requirementsInScope } from "./project-scope";
+import { detectChanges, readRepoHead, summarizeChanges } from "./monitor";
 import {
   appendEvidence,
   cloneProjectRows,
   type ProjectRows,
 } from "./project-rows";
+import { assertAssessableCatalog, requirementsInScope } from "./project-scope";
 import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,

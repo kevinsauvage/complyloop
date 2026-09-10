@@ -1,8 +1,12 @@
 "use client";
 
-import { canBulkApproveRemediation } from "@/core/remediation-lifecycle";
 import Link from "next/link";
 import { useId, useState } from "react";
+
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+import type { Severity } from "@complyloop/analysis-core/contract/statuses";
+
 import { DismissFindingFields } from "@/components/findings/dismiss-finding-fields";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Button } from "@/components/ui/button";
@@ -15,22 +19,21 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
-  findingDetailHref,
-  type FindingListParams,
-} from "@/core/filter-params";
-import {
   engineDisplay,
   remediationStatusDisplay,
   severityDisplay,
 } from "@/core/display";
-import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
-import type { Severity } from "@complyloop/analysis-core/contract/statuses";
+import {
+  findingDetailHref,
+  type FindingListParams,
+} from "@/core/filter-params";
+import { canBulkApproveRemediation } from "@/core/remediation-lifecycle";
 import { cn } from "@/lib/utils";
 import {
   bulkApproveRemediationsAction,
   bulkDismissFindingsAction,
 } from "@/server/actions/remediation";
+
 import type { FindingListItem } from "./finding-list-items";
 
 type BulkRowProps = {

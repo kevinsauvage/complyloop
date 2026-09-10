@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 
 vi.mock("@/server/actions/org", () => ({

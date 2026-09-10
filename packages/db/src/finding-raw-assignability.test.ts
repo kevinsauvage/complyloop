@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { RawFinding } from "@complyloop/analysis-core/types";
+
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import type { RawFinding } from "@complyloop/analysis-core/types";
 
 /**
  * Assignability canary (P2-2): a persisted `Finding` must stay constructible

@@ -1,9 +1,12 @@
 import "server-only";
+
 import type { EmitterWebhookEvent } from "@octokit/webhooks";
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
-import { enqueueAssessmentJob } from "./assessment-jobs";
-import { getDrizzle, type DrizzleDb } from "@complyloop/db/postgres";
+
+import { type DrizzleDb,getDrizzle } from "@complyloop/db/postgres";
 import { findProjectByGithubFullName, getProjectById, updateProject } from "@complyloop/db/repo/projects";
+
+import { enqueueAssessmentJob } from "./assessment-jobs";
 import { assertRateLimit } from "./rate-limit";
 
 type PushPayload = EmitterWebhookEvent<"push">["payload"];

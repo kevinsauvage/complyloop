@@ -1,6 +1,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+
 import { presetSummaries } from "@complyloop/analysis-core/adapters/registry";
+
 import { PresetNavigator } from "./preset-navigator";
 
 const presets = presetSummaries();

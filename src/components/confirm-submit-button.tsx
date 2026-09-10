@@ -1,8 +1,9 @@
 "use client";
 
+import type { VariantProps } from "class-variance-authority";
 import { useEffect, useId, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import type { VariantProps } from "class-variance-authority";
+
 import {
   AlertDialog,
   AlertDialogCancel,

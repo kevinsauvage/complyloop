@@ -7,11 +7,12 @@ import type {
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
 import type {
-  OrgMembership,
   Organization,
+  OrgMembership,
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
+
 import type { AssessmentPayload } from "../schema.ts";
 import { evidence } from "../schema.ts";
 

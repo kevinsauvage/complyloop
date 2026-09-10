@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { targetSizeEnhancedViolation } from "./target-size-enhanced";
+
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./playwright-page";
+import { targetSizeEnhancedViolation } from "./target-size-enhanced";
 
 registerPlaywrightBrowserTeardown();
 

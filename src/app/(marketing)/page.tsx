@@ -1,5 +1,3 @@
-import Link from "next/link";
-import type { Metadata } from "next";
 import {
   ArrowRight,
   CheckCircle2,
@@ -11,6 +9,9 @@ import {
   Sparkles,
   Wrench,
 } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {

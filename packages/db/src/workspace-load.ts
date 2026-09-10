@@ -1,13 +1,18 @@
 import { desc, eq } from "drizzle-orm";
+
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
-import type { Db } from "./types.ts";
+
 import type { DrizzleDb } from "./postgres.ts";
+import { listAlertsForProject } from "./repo/alerts.ts";
+import {
+  getLatestAssessmentSnapshot,
+  listLatestAssessmentForProject,
+} from "./repo/assessments.ts";
+import { WORKSPACE_EVIDENCE_LIMIT } from "./repo/evidence.ts";
+import { listFindingsForProject } from "./repo/findings.ts";
 import {
   rowToEvidence,
 } from "./repo/mappers.ts";
-import { listAlertsForProject } from "./repo/alerts.ts";
-import { WORKSPACE_EVIDENCE_LIMIT } from "./repo/evidence.ts";
-import { listFindingsForProject } from "./repo/findings.ts";
 import {
   listMembershipsForOrgs,
   listOrganizationsForUser,
@@ -21,10 +26,7 @@ import {
 import { listRemediationsForProject } from "./repo/remediations.ts";
 import { listRequirementsForProject } from "./repo/requirements.ts";
 import { evidence } from "./schema.ts";
-import {
-  getLatestAssessmentSnapshot,
-  listLatestAssessmentForProject,
-} from "./repo/assessments.ts";
+import type { Db } from "./types.ts";
 
 const EMPTY_RUNTIME: Pick<
   Db,

@@ -1,21 +1,25 @@
 import "server-only";
+
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
+import type { SimpleGit } from "simple-git";
+
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import {
   assertE2EFixtureRoot,
   isE2EHarnessEnabled,
 } from "./e2e-harness";
-import type { SimpleGit } from "simple-git";
 import { createAuthedGit, createGit } from "./git";
-import { resolveProjectGitHubToken } from "./github-access";
 import {
   githubPublicCloneUrl,
   parseOwnerRepo,
   redactCloneUrl,
 } from "./github";
+import { resolveProjectGitHubToken } from "./github-access";
 
 function positiveEnv(name: string, fallback: number): number {
   const raw = process.env[name];

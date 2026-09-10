@@ -1,5 +1,7 @@
 import "server-only";
+
 import * as Sentry from "@sentry/nextjs";
+
 import { redactSecrets } from "./redact";
 
 /**

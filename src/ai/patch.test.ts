@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateObject } from "ai";
-import type { Control } from "@complyloop/analysis-core/contract/project-types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
-import { proposeFixEdits } from "./patch";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
+
 import { AI_MODEL } from "./ai-call";
+import { proposeFixEdits } from "./patch";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),

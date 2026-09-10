@@ -3,15 +3,16 @@ import type {
   DomLocation,
   SourceLocation,
 } from "@complyloop/analysis-core/contract/finding-types";
-import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 import {
   isDomLocation,
   isSourceLocation,
 } from "@complyloop/analysis-core/contract/location";
-import type { FindingCluster } from "./finding-cluster";
-import { hasPreviewUrl } from "./assessment-helpers";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
+import type { Severity } from "@complyloop/analysis-core/contract/statuses";
+
+import { hasPreviewUrl } from "./assessment-helpers";
+import type { FindingCluster } from "./finding-cluster";
 
 /**
  * Finding prioritization policy: severity order, root-cause clustering,

@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
+
 import {
   AGREE_LABEL,
   AUTH_CONTEXT,
   CAPTCHA_ALTERNATIVE,
   CONFIRM_LABEL,
+  foldAccents,
   HIGH_RISK,
+  matchesMultilingual,
   PUZZLE_CAPTCHA,
   VAGUE_LINK_TEXT,
-  foldAccents,
-  matchesMultilingual,
 } from "./multilingual";
 
 describe("multilingual patterns", () => {

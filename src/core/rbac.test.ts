@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { canOnProject, isOrgRole, roleHasPermission } from "./rbac";
+
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
+
 import { testProject } from "@/test-fixtures/project";
+
+import { canOnProject, isOrgRole, roleHasPermission } from "./rbac";
 
 const project = testProject({ orgId: "org-1", name: "shop" });
 

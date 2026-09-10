@@ -1,7 +1,8 @@
 "use client";
 
-import { ReportedError } from "@/components/reported-error";
 import "./globals.css";
+
+import { ReportedError } from "@/components/reported-error";
 
 export default function GlobalError({
   error,

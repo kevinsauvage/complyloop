@@ -10,14 +10,15 @@ import type {
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
+
 import type { DrizzleDb } from "../postgres.ts";
-import { insertAssessment } from "./assessments.ts";
 import { insertAlerts } from "./alerts.ts";
+import { insertAssessment } from "./assessments.ts";
 import { insertEvidenceRecords } from "./evidence.ts";
 import { upsertFindings } from "./findings.ts";
+import { updateProject } from "./projects.ts";
 import { upsertRemediations } from "./remediations.ts";
 import { upsertRequirements } from "./requirements.ts";
-import { updateProject } from "./projects.ts";
 
 /**
  * Project-scoped runtime rows. One shape for stale-write snapshots, assessment

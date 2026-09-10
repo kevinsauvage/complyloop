@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GET } from "./route";
+
 import { reportError, reportWarning } from "@/server/observability";
+
+import { GET } from "./route";
 
 const getDrizzle = vi.hoisted(() => vi.fn());
 const queuedAssessmentJobCount = vi.hoisted(() => vi.fn());

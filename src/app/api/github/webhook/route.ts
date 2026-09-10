@@ -1,15 +1,16 @@
+import { after } from "next/server";
+import { z } from "zod";
+
+import {
+  drainAssessmentJobQueue,
+  shouldDrainAssessmentJobsInline,
+} from "@/server/assessment-job-inline";
 import {
   handleGitHubWebhookEvent,
   isWebhookConfigured,
   verifyGitHubSignature,
 } from "@/server/webhook";
-import {
-  drainAssessmentJobQueue,
-  shouldDrainAssessmentJobsInline,
-} from "@/server/assessment-job-inline";
 import { claimWebhookDelivery } from "@/server/webhook-deliveries";
-import { after } from "next/server";
-import { z } from "zod";
 
 export const runtime = "nodejs";
 

@@ -1,5 +1,7 @@
-import { formatDateTime } from "@/core/datetime";
 import Link from "next/link";
+
+import type { OrgRole } from "@complyloop/analysis-core/contract/project-types";
+
 import { MetaTile } from "@/components/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -8,8 +10,8 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
-import type { OrgRole } from "@complyloop/analysis-core/contract/project-types";
-import { STATUS_TONE_BADGE, roleTone } from "@/core/display";
+import { formatDateTime } from "@/core/datetime";
+import { roleTone,STATUS_TONE_BADGE } from "@/core/display";
 import { cn } from "@/lib/utils";
 
 type OrgAccountOverviewProps = {

@@ -1,17 +1,19 @@
 import "server-only";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import {
-  createInstallationAccessToken,
-  isGitHubAppConfigured,
-  listReposViaInstallations,
-} from "./github-app";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import {
   createOctokit,
   mapGitHubRepo,
   octokitErrorMessage,
   parseOwnerRepo,
 } from "./github";
+import {
+  createInstallationAccessToken,
+  isGitHubAppConfigured,
+  listReposViaInstallations,
+} from "./github-app";
 import type { GitHubRepoSummary } from "./github-types";
 
 export type { GitHubRepoSummary } from "./github-types";

@@ -1,14 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
+
 import { wcagFramework } from "@complyloop/analysis-core/adapters/wcag/controls";
 import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
-import {
-  sampleReportInput,
-  reportSampleProject,
-} from "@/test-fixtures/report-input";
 import { emptyDb } from "@complyloop/db/types";
+
+import {
+  reportSampleProject,
+  sampleReportInput,
+} from "@/test-fixtures/report-input";
+
 import {
   buildAuditReportMarkdown,
   buildEngineeringReportMarkdown,

@@ -1,20 +1,24 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { buttonNameCheck } from "@complyloop/analysis-core/checks/families/names";
-import { applyFix } from "@complyloop/analysis-core/fixes";
-import { parseSource } from "@complyloop/analysis-core/parse";
-import { scanFile } from "@complyloop/analysis-core/scan";
-import type {
-  Control,
-  Project,
-} from "@complyloop/analysis-core/contract/project-types";
 import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
+import type {
+  Control,
+  Project,
+} from "@complyloop/analysis-core/contract/project-types";
+import { applyFix } from "@complyloop/analysis-core/fixes";
+import { parseSource } from "@complyloop/analysis-core/parse";
+import { scanFile } from "@complyloop/analysis-core/scan";
+
 import { testProject } from "@/test-fixtures/project";
+
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
 import { createGit } from "./git";
 import { preparePullRequest } from "./pr";

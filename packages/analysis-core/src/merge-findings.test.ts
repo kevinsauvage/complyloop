@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { RawFinding } from "./types";
+
 import { dedupeRuntimeFindings, filterAstFindingsForAuthority } from "./merge-findings";
+import type { RawFinding } from "./types";
 
 describe("filterAstFindingsForAuthority", () => {
   const astInput: RawFinding = {

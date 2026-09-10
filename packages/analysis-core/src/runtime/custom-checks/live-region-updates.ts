@@ -1,10 +1,11 @@
 import type { Page } from "playwright";
-import type { CustomViolation } from "./types.ts";
+
 import {
   isInvalidField,
   submitFirstValidatableForm,
 } from "./form-submit-probe.ts";
 import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 /** Form-validation feedback — not marketing copy with incidental substrings. */

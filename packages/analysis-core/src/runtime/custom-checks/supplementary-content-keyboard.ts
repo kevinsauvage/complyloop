@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+
 import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation } from "./types.ts";
 import {

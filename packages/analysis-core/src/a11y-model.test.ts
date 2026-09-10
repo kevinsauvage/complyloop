@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import { implicitRoles, isFocusable } from "./a11y-model";
-import { parseSource, visitJsxTags, type JsxTagNode } from "./parse";
+import { type JsxTagNode,parseSource, visitJsxTags } from "./parse";
 
 function firstTag(jsx: string): JsxTagNode {
   const parsed = parseSource("test.tsx", jsx);

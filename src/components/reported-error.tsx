@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { reportClientError } from "@/lib/report-client-error";
+
 import { AppErrorCard } from "@/components/app-error-card";
+import { reportClientError } from "@/lib/report-client-error";
 
 export interface ReportedErrorProps {
   error: Error & { digest?: string };

@@ -1,54 +1,56 @@
 import { createRequire } from "node:module";
 import path from "node:path";
+
 import type { Browser, Page } from "playwright";
+
+import { maxRuntimePages } from "../contract/assessment-limits.ts";
 import { PublicError, publicMessage } from "../contract/public-error.ts";
-import { classifyRuntimeScanError } from "./scan-error.ts";
 import type { RawFinding } from "../types.ts";
-import {
-  findingsFromAxePages,
-  joinRuntimeUrl,
-  runtimeRoutesFor,
-  siteLevelFindingsFromPages,
-  type AxeViolationLike,
-  type RuntimeScanPageResult,
-  type RuntimeScanResult,
-} from "./findings.ts";
-import { capturePageSnapshot } from "./site-level/snapshot.ts";
-import {
-  allowRuntimeNavigation,
-  assertSafeRuntimeUrl,
-  assertStableRuntimeDns,
-  createCachedDnsLookup,
-  createRedirectHopGuard,
-  TOO_MANY_REDIRECTS_MESSAGE,
-  UNSAFE_RUNTIME_URL_MESSAGE,
-  type DnsLookup,
-} from "./url-safety.ts";
-import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./custom-checks/index.ts";
-import { htmlValidateFindingsForPage } from "./html-validate-runtime.ts";
-import { brokenLinkFindingsForUrls } from "./site-level/link-check.ts";
 import {
   aggregateApplicabilityObservations,
   applicabilityObservationsForPage,
 } from "./applicability.ts";
-import { maxRuntimePages } from "../contract/assessment-limits.ts";
+import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./custom-checks/index.ts";
 import {
+  type AxeViolationLike,
+  findingsFromAxePages,
+  joinRuntimeUrl,
+  runtimeRoutesFor,
+  type RuntimeScanPageResult,
+  type RuntimeScanResult,
+  siteLevelFindingsFromPages,
+} from "./findings.ts";
+import { htmlValidateFindingsForPage } from "./html-validate-runtime.ts";
+import { gotoForRuntimeAudit, runtimePageMatchesAuditedUrl } from "./runtime-navigation.ts";
+import { classifyRuntimeScanError } from "./scan-error.ts";
+import { brokenLinkFindingsForUrls } from "./site-level/link-check.ts";
+import { capturePageSnapshot } from "./site-level/snapshot.ts";
+import {
+  type BrowserCondition,
   conditionLabel,
   conditionSpecificFindings,
   conditionSpecificViolations,
   emulationForCondition,
   RESET_EMULATION,
   THEME_SENSITIVE_AXE_RULES,
-  type BrowserCondition,
 } from "./theme-conditions.ts";
 import {
+  allowRuntimeNavigation,
+  assertSafeRuntimeUrl,
+  assertStableRuntimeDns,
+  createCachedDnsLookup,
+  createRedirectHopGuard,
+  type DnsLookup,
+  TOO_MANY_REDIRECTS_MESSAGE,
+  UNSAFE_RUNTIME_URL_MESSAGE,
+} from "./url-safety.ts";
+import {
   COARSE_POINTER_LABEL,
+  emulateCoarsePointer,
   MOBILE_TARGET_SIZE_LABEL,
   MOBILE_VIEWPORT,
   TARGET_SIZE_AXE_RULE,
-  emulateCoarsePointer,
 } from "./viewport-conditions.ts";
-import { gotoForRuntimeAudit, runtimePageMatchesAuditedUrl } from "./runtime-navigation.ts";
 
 export type RuntimePageScanner = (
   urls: ReadonlyArray<string>,

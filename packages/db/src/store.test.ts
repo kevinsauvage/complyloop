@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { emptyDb } from "./types";
+
 import { newEvidenceRecord } from "./repo/mappers";
 import {
   evidenceToRow,
   rowToEvidence,
 } from "./repo/mappers";
+import { emptyDb } from "./types";
 
 describe("emptyDb evidence append", () => {
   it("starts empty and appends evidence records", () => {

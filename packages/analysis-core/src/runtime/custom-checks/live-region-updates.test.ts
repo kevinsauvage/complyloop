@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { liveRegionUpdatesViolation } from "./live-region-updates";
 import {
   chromiumExecutableAvailable,

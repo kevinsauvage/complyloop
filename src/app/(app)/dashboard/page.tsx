@@ -1,38 +1,40 @@
-import { latestAssessmentFor, countByStatus } from "@/core/assessment-helpers";
-import {
-  prioritizeClusters,
-  prioritizeFindings,
-  clusterFindings,
-} from "@/core/finding-priority";
+import type { Metadata } from "next";
 import { Suspense } from "react";
+
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
+
 import {
   ConnectProjectCard,
   ConnectProjectPanel,
 } from "@/components/connect-project-panel";
-import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-card";
+import { AssessmentRunForm } from "@/components/dashboard/assessment-run-form";
 import { DashboardActivitySections } from "@/components/dashboard/dashboard-activity-sections";
+import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-card";
+import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
 import {
   DashboardPipelineSection,
   DashboardPipelineSkeleton,
 } from "@/components/dashboard/dashboard-pipeline-section";
-import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
 import { DashboardStatusCounts } from "@/components/dashboard/dashboard-status-counts";
 import {
   FirstAssessmentChecklist,
   UnableToVerifyRuntimeHint,
 } from "@/components/dashboard/first-assessment-checklist";
-import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { projectDescription } from "@/components/dashboard/project-description";
+import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { PageActionLink, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
-import { AssessmentRunForm } from "@/components/dashboard/assessment-run-form";
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
-import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
-import { findingsInScope, requirementsInScope } from "@/server/project-scope";
-import { displayControl } from "@/server/report";
+import { countByStatus,latestAssessmentFor } from "@/core/assessment-helpers";
+import {
+  clusterFindings,
+  prioritizeClusters,
+  prioritizeFindings,
+} from "@/core/finding-priority";
 import { loadActiveProjectPage } from "@/server/active-project-page";
 import { getProjectRuntime } from "@/server/project-runtime";
-import type { Metadata } from "next";
+import { findingsInScope, requirementsInScope } from "@/server/project-scope";
+import { displayControl } from "@/server/report";
 
 export const metadata: Metadata = {
   title: "Dashboard",

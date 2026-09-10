@@ -1,17 +1,19 @@
 import { eq, inArray, sql } from "drizzle-orm";
+
 import type {
   Alert,
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+
 import type { DrizzleDb } from "../postgres.ts";
-import { snapshotProjectSlice, type ProjectSlice } from "../repo/apply.ts";
+import { upsertAlerts } from "../repo/alerts.ts";
+import { type ProjectSlice,snapshotProjectSlice } from "../repo/apply.ts";
+import { insertAssessment } from "../repo/assessments.ts";
 import { upsertFindings } from "../repo/findings.ts";
 import { upsertRemediations } from "../repo/remediations.ts";
 import { upsertRequirements } from "../repo/requirements.ts";
-import { upsertAlerts } from "../repo/alerts.ts";
-import { insertAssessment } from "../repo/assessments.ts";
 import { alerts, findings, remediations, requirements } from "../schema.ts";
 
 export interface ProjectSliceFixture {

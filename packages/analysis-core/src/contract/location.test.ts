@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+
 import type {
   DomLocation,
   SiteLocation,
   SourceLocation,
 } from "@complyloop/analysis-core/contract/finding-types";
+
 import {
   domLocationDetails,
   formatLocationRef,

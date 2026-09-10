@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { resizeTextViolation } from "./resize-text";
-import { reflowViolation } from "./reflow";
+
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./playwright-page";
+import { reflowViolation } from "./reflow";
+import { resizeTextViolation } from "./resize-text";
 
 registerPlaywrightBrowserTeardown();
 

@@ -1,15 +1,19 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PatchCandidate } from "@/ai/verified-fix";
-import type { Control } from "@complyloop/analysis-core/contract/project-types";
+
 import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { emptyDb } from "@complyloop/db/types";
+
+import type { PatchCandidate } from "@/ai/verified-fix";
+
 import {
   latestPatchState,
   patchCandidateFromEvidence,

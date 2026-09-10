@@ -1,14 +1,14 @@
+import type { CheckId } from "./check-registry.ts";
 import type { ProposedFix } from "./contract/finding-types.ts";
 import {
   attributeRemovalSpan,
   getAttribute,
+  type JsxTagNode,
+  type ParsedSource,
   spanOf,
   tagNameOf,
   visitJsxTags,
-  type JsxTagNode,
-  type ParsedSource,
 } from "./parse.ts";
-import type { CheckId } from "./check-registry.ts";
 
 function innermostTagAt(parsed: ParsedSource, offset: number): JsxTagNode | undefined {
   let match: JsxTagNode | undefined;

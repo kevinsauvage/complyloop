@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+
 import {
+  type FocusStyleSnapshot,
   hasVisibleFocusIndicator,
   snapshotFocusStyles,
-  type FocusStyleSnapshot,
 } from "./focus";
 
 function snap(overrides: Partial<FocusStyleSnapshot> = {}): FocusStyleSnapshot {

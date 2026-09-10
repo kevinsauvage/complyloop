@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { cssDisabledContentViolations } from "./css-disabled-content";
 import {
   chromiumExecutableAvailable,

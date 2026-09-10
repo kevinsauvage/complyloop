@@ -2,6 +2,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import jsxA11y from "eslint-plugin-jsx-a11y";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -18,6 +19,30 @@ const eslintConfig = defineConfig([
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
+    },
+  },
+  // Import organisation (docs/ai/architecture.md, "Module boundaries"):
+  // side-effect ("server-only", css) → node builtins → external packages →
+  // workspace (@complyloop/*) → app alias (@/*) → relative. Run
+  // `npx eslint --fix` to sort; the sorter only reorders, it never merges.
+  {
+    plugins: {
+      "simple-import-sort": simpleImportSort,
+    },
+    rules: {
+      "simple-import-sort/imports": [
+        "error",
+        {
+          groups: [
+            ["^\\u0000"],
+            ["^node:"],
+            ["^(?!@complyloop/|@/|\\.)"],
+            ["^@complyloop/"],
+            ["^@/"],
+            ["^\\."],
+          ],
+        },
+      ],
     },
   },
   // Architecture boundary (docs/ai/architecture.md, "Module boundaries"):

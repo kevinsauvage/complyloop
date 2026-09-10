@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { captchaAlternativeViolation } from "./captcha-alternative";
 import {
   chromiumExecutableAvailable,

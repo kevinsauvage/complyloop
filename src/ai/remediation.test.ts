@@ -1,9 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import { generateObject } from "ai";
-import { generateAiRemediation } from "./remediation";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
+
 import { AI_MODEL } from "./ai-call";
+import { generateAiRemediation } from "./remediation";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),

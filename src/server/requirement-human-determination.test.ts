@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+
 import {
   clearRequirementHumanDetermination,
   setRequirementHumanDetermination,

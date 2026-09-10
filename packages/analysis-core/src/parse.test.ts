@@ -1,5 +1,6 @@
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
+
 import {
   attributeRemovalSpan,
   booleanAttributeValue,
@@ -7,12 +8,12 @@ import {
   hasTextContent,
   humanizeFileName,
   jsxElementOf,
+  type JsxTagNode,
   locationOf,
   parseSource,
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-  type JsxTagNode,
 } from "./parse";
 
 function firstTag(source: string): {

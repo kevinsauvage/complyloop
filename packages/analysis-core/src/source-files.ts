@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import fg from "fast-glob";
 
 const IGNORED_DIRECTORIES = ["node_modules", ".next", ".git", "dist", "out"];

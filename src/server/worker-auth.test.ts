@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+
 import { isWorkerAuthConfigured, isWorkerRequestAuthorized } from "./worker-auth";
 
 const originalSecret = process.env.WORKER_SECRET;

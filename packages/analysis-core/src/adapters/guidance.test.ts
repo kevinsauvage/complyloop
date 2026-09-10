@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import { allChecks } from "@complyloop/analysis-core/checks/registry";
+
 import { guidanceFor } from "./registry";
 
 describe("guidance facade", () => {

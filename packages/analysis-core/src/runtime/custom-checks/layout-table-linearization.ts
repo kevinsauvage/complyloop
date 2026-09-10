@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";

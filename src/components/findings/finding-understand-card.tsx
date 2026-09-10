@@ -1,17 +1,19 @@
+import { MapPin } from "lucide-react";
+
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import type { Explanation } from "@complyloop/analysis-core/contract/finding-types";
+import {
+  domLocationDetails,
+  formatLocationRef,
+  isDomLocation,
+  locationSnippet,
+} from "@complyloop/analysis-core/contract/location";
+
 import { ConfidenceBadge, ProvenanceBadge } from "@/components/badges";
 import { CodeBlock } from "@/components/code-block";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Finding } from "@complyloop/analysis-core/contract/entities";
-import type { Explanation } from "@complyloop/analysis-core/contract/finding-types";
-import {
-  formatLocationRef,
-  isDomLocation,
-  locationSnippet,
-  domLocationDetails,
-} from "@complyloop/analysis-core/contract/location";
 import { generateAiExplanationAction } from "@/server/actions/remediation-ai";
-import { MapPin } from "lucide-react";
 
 function baselineExplanation(finding: Finding): Explanation | undefined {
   return (

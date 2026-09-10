@@ -1,4 +1,5 @@
 import ts from "typescript";
+
 import { hasAriaName, isPropSpreadingHost } from "../../jsx-primitives.ts";
 import {
   booleanAttributeValue,
@@ -6,22 +7,14 @@ import {
   hasTextContent,
   humanizeFileName,
   jsxElementOf,
+  type JsxTagNode,
   locationOf,
   spanOf,
   stringValueOf,
   tagNameOf,
   visitJsxElements,
   visitJsxTags,
-  type JsxTagNode,
 } from "../../parse.ts";
-import type { AccessibilityCheck, RawFinding } from "../../types.ts";
-import { AUTH_AUTOCOMPLETE, isAuthField } from "../auth-field.ts";
-import {
-  attributeContextOf,
-  descendantTags,
-  tagNodeOfJsxChild,
-  textContentOf,
-} from "../heuristic-utils.ts";
 import {
   CAPTCHA_COMPONENT_HOSTS,
   ERROR_PREVENTION_CONFIRM_DATA_ATTRS,
@@ -35,6 +28,14 @@ import {
   matchesMultilingual,
 } from "../../patterns/multilingual.ts";
 import { isObjectRecognitionCaptchaSignal } from "../../patterns/object-recognition-captcha.ts";
+import type { AccessibilityCheck, RawFinding } from "../../types.ts";
+import { AUTH_AUTOCOMPLETE, isAuthField } from "../auth-field.ts";
+import {
+  attributeContextOf,
+  descendantTags,
+  tagNodeOfJsxChild,
+  textContentOf,
+} from "../heuristic-utils.ts";
 
 const UNLABELED_EXEMPT_TYPES = new Set([
   "hidden",

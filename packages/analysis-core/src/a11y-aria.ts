@@ -1,10 +1,11 @@
-import { aria, dom, roles, type ARIARoleDefinition } from "aria-query";
+import { aria, type ARIARoleDefinition,dom, roles } from "aria-query";
+
 import {
   booleanAttributeValue,
   getAttribute,
+  type JsxTagNode,
   stringValueOf,
   tagNameOf,
-  type JsxTagNode,
 } from "./parse.ts";
 
 const ariaPropertyNames = new Set<string>(aria.keys());

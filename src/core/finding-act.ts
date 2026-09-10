@@ -1,5 +1,6 @@
 import type { Finding, Remediation } from "@complyloop/analysis-core/contract/entities";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
+
 import {
   hasSafeDeterministicFix,
   verifiedDescription,

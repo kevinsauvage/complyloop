@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
+
 import {
   HTML_SNIPPET_MAX_LENGTH,
   HTML_SNIPPET_TRUNCATE_LENGTH,
   htmlSnippet,
 } from "../dom-location";
-import { captureHit, BROWSER_HIT_CAPTURE_SRC, loadHitCapture, LOAD_HIT_CAPTURE_SRC } from "./hit-capture";
+import { BROWSER_HIT_CAPTURE_SRC, captureHit, LOAD_HIT_CAPTURE_SRC,loadHitCapture } from "./hit-capture";
 
 describe("htmlSnippet truncation constants", () => {
   it("exports the shared 197/200 limits used across engines", () => {

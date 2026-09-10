@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { Suspense } from "react";
+
+import { isGitHubAuthConfigured } from "@/auth";
 import { AppShell } from "@/components/app-shell";
 import { AuthControls } from "@/components/auth-controls";
 import {
@@ -7,7 +9,6 @@ import {
   NavBadgeSkeletons,
 } from "@/components/nav-attention-badges";
 import { WorkspaceContext } from "@/components/workspace-context";
-import { isGitHubAuthConfigured } from "@/auth";
 import { getSession } from "@/server/auth-session";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {

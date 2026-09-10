@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { isSuspectedKeyboardTrap } from "./focus";
 
 describe("isSuspectedKeyboardTrap", () => {

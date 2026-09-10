@@ -1,15 +1,18 @@
 import { vi } from "vitest";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import {
-  actionAuthMocks,
-  actionWorkspaceMocks,
-} from "./action-workspace-mocks";
+
 import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
-import type { ProjectWriteWorkspace } from "@/server/workspace";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import { requireOnFindingProject } from "@/server/actions/shared";
+import type { ProjectWriteWorkspace } from "@/server/workspace";
+
+import {
+  actionAuthMocks,
+  actionWorkspaceMocks,
+} from "./action-workspace-mocks";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),

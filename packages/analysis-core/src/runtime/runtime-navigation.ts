@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+
 import { PublicError } from "../contract/public-error.ts";
 
 /** Max time to wait for DOMContentLoaded on a preview route. */

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { rawFindingFromDom } from "./raw-finding-from-dom";
 
 describe("rawFindingFromDom", () => {

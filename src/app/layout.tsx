@@ -1,9 +1,11 @@
+import "./globals.css";
+
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import "./globals.css";
 
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-jakarta-sans",

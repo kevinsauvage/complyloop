@@ -1,9 +1,13 @@
 import "@/test-fixtures/register-action-workspace-mock";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import { actionWorkspaceMocks, clearProjectWritePayloads, invokeProjectWriteMock, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import { initialActionState } from "../action-state";
 import { updateRuntimeAuditAction } from "./runtime-audit";
 

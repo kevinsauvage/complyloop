@@ -1,12 +1,20 @@
-import { formatDateTime } from "@/core/datetime";
-import Link from "next/link";
-import type { ComponentType, ReactNode } from "react";
 import {
   ArrowUpRight,
   FileSearch,
   GitCommitHorizontal,
   Layers,
 } from "lucide-react";
+import Link from "next/link";
+import type { ComponentType, ReactNode } from "react";
+
+import type {
+  EvidenceRecord,
+  FileChange,
+  Finding,
+} from "@complyloop/analysis-core/contract/entities";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
+
 import { SeverityBadge } from "@/components/badges";
 import { PageActionLink } from "@/components/page-primitives";
 import { Badge } from "@/components/ui/badge";
@@ -17,16 +25,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatDateTime } from "@/core/datetime";
 import { evidenceDisplay } from "@/core/display";
-import { cn } from "@/lib/utils";
-import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type {
-  EvidenceRecord,
-  FileChange,
-  Finding,
-} from "@complyloop/analysis-core/contract/entities";
 import type { FindingCluster } from "@/core/finding-cluster";
+import { cn } from "@/lib/utils";
 
 function ActivityCard({
   title,

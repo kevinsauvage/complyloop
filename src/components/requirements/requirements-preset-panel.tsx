@@ -1,8 +1,11 @@
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { presetSummaries } from "@complyloop/analysis-core/adapters/registry";
-import { PresetNavigator } from "./preset-navigator";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { PresetNavigator } from "./preset-navigator";
 
 export function RequirementsPresetPanel({
   defaultPresetId,

@@ -1,3 +1,5 @@
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
+
 import { EvidenceKindBadge } from "@/components/badges";
 import { FilterChipList } from "@/components/filter-chip-list";
 import {
@@ -5,7 +7,6 @@ import {
   evidenceKindHref,
   type EvidencePageFilters,
 } from "@/core/filter-params";
-import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 
 export function EvidenceKindChips({
   counts,

@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type {
-  OrgMembership,
-  Organization,
-  Project,
-  Requirement,
-} from "@complyloop/analysis-core/contract/project-types";
+
 import type {
   EvidenceRecord,
   Finding,
 } from "@complyloop/analysis-core/contract/entities";
+import type {
+  Organization,
+  OrgMembership,
+  Project,
+  Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
+
 import { testProject } from "@/test-fixtures/project";
+
+import { findingsInScope, requirementsInScope } from "./project-scope";
 import {
   type AccessContext,
   accessFromStore,
@@ -17,7 +21,6 @@ import {
   resolveActiveProject,
   visibleProjects,
 } from "./project-visibility";
-import { findingsInScope, requirementsInScope } from "./project-scope";
 
 function project(
   partial: Pick<Project, "id" | "source" | "orgId"> &

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+
 import {
+  type AnalyzerId,
   engineFromAnalyzer,
   isDismissalReason,
-  type AnalyzerId,
 } from "./finding-types";
 
 describe("isDismissalReason", () => {

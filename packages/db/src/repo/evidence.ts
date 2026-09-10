@@ -1,3 +1,4 @@
+import type { SQL } from "drizzle-orm";
 import {
   and,
   asc,
@@ -11,12 +12,13 @@ import {
   lte,
   or,
 } from "drizzle-orm";
-import type { SQL } from "drizzle-orm";
+
 import type {
   EvidenceKind,
   EvidenceRecord,
 } from "@complyloop/analysis-core/contract/entities";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
+
 import type { DrizzleDb } from "../postgres.ts";
 import { evidence } from "../schema.ts";
 import { evidenceToRow, newEvidenceRecord, rowToEvidence } from "./mappers.ts";

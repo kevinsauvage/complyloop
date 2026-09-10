@@ -1,10 +1,12 @@
 import "server-only";
+
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { getDrizzle } from "@complyloop/db/postgres";
 import {
   countNavAttentionForProject,
   type NavAttentionCounts,
 } from "@complyloop/db/repo/nav-attention";
+
 import { scopedControlIds } from "./project-scope";
 
 export type { NavAttentionCounts };

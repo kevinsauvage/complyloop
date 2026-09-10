@@ -1,17 +1,21 @@
 import "server-only";
+
 import { createAppAuth } from "@octokit/auth-app";
 import type { Octokit } from "@octokit/rest";
-import { isProductionRuntime } from "@/auth-secret";
+
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
+import { isProductionRuntime } from "@/auth-secret";
+
+import { isE2EHarnessEnabled } from "./e2e-harness";
 import {
   createOctokit,
   filterReposByQuery,
+  type GitHubRepoSummary,
   mapGitHubRepo,
   normalizeGitHubFullName,
   octokitErrorMessage,
-  type GitHubRepoSummary,
 } from "./github";
-import { isE2EHarnessEnabled } from "./e2e-harness";
 
 /** True when a GitHub App can mint per-installation tokens. */
 export function isGitHubAppConfigured(): boolean {

@@ -1,10 +1,13 @@
 import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+
 import {
   REQUIREMENT_STATUSES,
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
+
 import { renderWithUiProviders } from "@/test/render-ui";
+
 import { DashboardStatusCounts } from "./dashboard-status-counts";
 
 afterEach(() => {

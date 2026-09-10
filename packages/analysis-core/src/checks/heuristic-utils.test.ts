@@ -1,13 +1,14 @@
-import { describe, expect, it } from "vitest";
 import ts from "typescript";
+import { describe, expect, it } from "vitest";
+
 import {
   hasAnyAttr,
   jsxElementOf,
+  type JsxTagNode,
   parseSource,
   tagNameOf,
   visitJsxElements,
   visitJsxTags,
-  type JsxTagNode,
 } from "../parse";
 import {
   ariaDescribedByPointsToTranscript,

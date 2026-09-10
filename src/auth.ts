@@ -1,7 +1,8 @@
-import NextAuth from "next-auth";
-import GitHub from "next-auth/providers/github";
-import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
+import NextAuth from "next-auth";
+import { getToken } from "next-auth/jwt";
+import GitHub from "next-auth/providers/github";
+
 import { isProductionRuntime, resolveAuthSecret, sessionCookieIsSecure } from "@/auth-secret";
 import { assertProductionGitHubApp } from "@/server/github-app";
 import {

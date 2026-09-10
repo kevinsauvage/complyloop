@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isPublicError, publicMessage, PublicError } from "./public-error";
+
+import { isPublicError, PublicError,publicMessage } from "./public-error";
 
 describe("PublicError", () => {
   it("is an Error with a stable name and a default user code", () => {

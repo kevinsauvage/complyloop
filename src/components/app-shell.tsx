@@ -1,10 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { NavLinks } from "@/components/nav-links";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { MobileNavSheet } from "@/components/mobile-nav-sheet";
-import { PathnameFocus } from "@/components/pathname-focus";
+
 import type { NavAttentionCounts } from "@complyloop/db/repo/nav-attention";
+
+import { MobileNavSheet } from "@/components/mobile-nav-sheet";
+import { NavLinks } from "@/components/nav-links";
+import { PathnameFocus } from "@/components/pathname-focus";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Separator } from "@/components/ui/separator";
 
 function BrandMark({ className }: { className?: string }) {

@@ -1,11 +1,13 @@
-import { severityRank } from "@/core/finding-priority";
 import Link from "next/link";
+
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import type { Severity } from "@complyloop/analysis-core/contract/statuses";
+
 import { SeverityBadge } from "@/components/badges";
 import { EmptyState } from "@/components/page-primitives";
 import { findingsListHref } from "@/core/filter-params";
-import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { FindingCluster } from "@/core/finding-cluster";
-import type { Severity } from "@complyloop/analysis-core/contract/statuses";
+import { severityRank } from "@/core/finding-priority";
 
 function severityMix(
   members: Finding[],

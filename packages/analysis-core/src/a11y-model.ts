@@ -2,13 +2,14 @@ import type { ARIARoleRelationConcept } from "aria-query";
 import { dom, elementRoles, roles } from "aria-query";
 import { AXObjects, elementAXObjects } from "axobject-query";
 import ts from "typescript";
+
 import { explicitRoles } from "./a11y-aria.ts";
 import {
   booleanAttributeValue,
   getAttribute,
+  type JsxTagNode,
   stringValueOf,
   tagNameOf,
-  type JsxTagNode,
 } from "./parse.ts";
 
 interface ConceptAttribute {

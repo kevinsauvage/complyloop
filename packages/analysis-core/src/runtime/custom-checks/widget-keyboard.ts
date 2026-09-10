@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
-import type { CustomViolation, CustomViolationNode } from "./types.ts";
+
 import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import type { CustomViolation, CustomViolationNode } from "./types.ts";
 import {
   isKeyboardFocusable,
   selectorOf,

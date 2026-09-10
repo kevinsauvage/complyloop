@@ -1,19 +1,21 @@
 "use server";
 
-import { hasSafeDeterministicFix } from "@/core/remediation-lifecycle";
-import { assertSourceLocatedFinding } from "@/ai/verified-fix";
-import { aiAvailable } from "@/ai/ai-call";
-import { parseEntityId } from "@/core/filters";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { runAction, type ActionState } from "../action-state";
+
+import { aiAvailable } from "@/ai/ai-call";
+import { assertSourceLocatedFinding } from "@/ai/verified-fix";
+import { parseEntityId } from "@/core/filters";
+import { hasSafeDeterministicFix } from "@/core/remediation-lifecycle";
+
+import { type ActionState,runAction } from "../action-state";
 import { persistPatchCandidate, runAiFixOnCheckout } from "../ai-fix";
 import { assertAiRateLimit } from "../rate-limit";
 import { withProjectCheckout } from "../repo-checkout";
 import { controlById, getWorkspace, requireFinding } from "../workspace";
 import { withFindingWrite } from "../workspace-write";
-import { refresh, requireFindingContext } from "./shared";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
+import { refresh, requireFindingContext } from "./shared";
 
 export async function generateAiFixAction(
   findingIdRaw: string,

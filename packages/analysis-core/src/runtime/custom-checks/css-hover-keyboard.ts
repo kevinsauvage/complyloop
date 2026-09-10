@@ -1,6 +1,7 @@
 import type { Page } from "playwright";
+
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture, locatorEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { locatorEvaluateWithHitCapture,pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import { measureHoverVsFocusReveal } from "./hover-reveal.ts";
 import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";

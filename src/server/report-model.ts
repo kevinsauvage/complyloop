@@ -1,28 +1,35 @@
 import "server-only";
-import { countByStatus } from "@/core/assessment-helpers";
-import { prioritizeClusters } from "@/core/finding-priority";
+
 import {
-  FINDING_STATUSES,
-  REQUIREMENT_STATUSES,
-  type FindingStatus,
-  type RequirementStatus,
-  type Severity,
-} from "@complyloop/analysis-core/contract/statuses";
+  controlDisplayCodes,
+  secondaryReferenceLabel,
+} from "@complyloop/analysis-core/adapters/control-theme";
+import type {
+  EvidenceRecord,
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
+import type { FindingLocation } from "@complyloop/analysis-core/contract/finding-types";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
+import {
+  formatLocationRef,
+  locationSnippet,
+} from "@complyloop/analysis-core/contract/location";
 import type {
   Control,
   Framework,
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
-import type {
-  EvidenceRecord,
-  Finding,
-  Remediation,
-} from "@complyloop/analysis-core/contract/entities";
 import {
-  controlDisplayCodes,
-  secondaryReferenceLabel,
-} from "@complyloop/analysis-core/adapters/control-theme";
+  FINDING_STATUSES,
+  type FindingStatus,
+  REQUIREMENT_STATUSES,
+  type RequirementStatus,
+  type Severity,
+} from "@complyloop/analysis-core/contract/statuses";
+
+import { countByStatus } from "@/core/assessment-helpers";
 import {
   determinationDisplay,
   evidenceDisplay,
@@ -30,12 +37,7 @@ import {
   requirementStatusDisplay,
   severityDisplay,
 } from "@/core/display";
-import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
-import type { FindingLocation } from "@complyloop/analysis-core/contract/finding-types";
-import {
-  formatLocationRef,
-  locationSnippet,
-} from "@complyloop/analysis-core/contract/location";
+import { prioritizeClusters } from "@/core/finding-priority";
 
 export interface ReportInput {
   project: Project;

@@ -1,10 +1,13 @@
-import { advanceRemediation } from "@/core/remediation-lifecycle";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/server/auth-session";
-import type { Project } from "@complyloop/analysis-core/contract/project-types";
+
 import { type Finding } from "@complyloop/analysis-core/contract/entities";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+
+import { advanceRemediation } from "@/core/remediation-lifecycle";
+import { getSession } from "@/server/auth-session";
+
 import { assertProjectPermission } from "../project-visibility";
 import type { Workspace } from "../workspace";
 

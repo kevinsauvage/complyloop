@@ -1,6 +1,7 @@
+import type { Control, Framework } from "@complyloop/analysis-core/contract/project-types";
+
 import { rgaaControls, rgaaFramework } from "./rgaa/controls.ts";
 import { wcagFramework } from "./wcag/controls.ts";
-import type { Control, Framework } from "@complyloop/analysis-core/contract/project-types";
 
 /**
  * Frozen module-level catalog slices. `shippedCatalog` is called on hot render

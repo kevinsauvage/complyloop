@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
+
 import { parseSource } from "../../parse";
 import {
   buttonNameCheck,
   dialogNameCheck,
-  svgNameCheck,
   summaryNameCheck,
+  svgNameCheck,
   tabNameCheck,
 } from "./names";
 

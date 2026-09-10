@@ -1,8 +1,9 @@
 "use client";
 
 import type { Organization } from "@complyloop/analysis-core/contract/project-types";
-import { switchOrgAction } from "@/server/actions/org";
+
 import { AutoSubmitSelectForm } from "@/components/auto-submit-select-form";
+import { switchOrgAction } from "@/server/actions/org";
 
 export function OrgSwitcher({
   organizations,

@@ -1,15 +1,16 @@
-import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
-import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
+import type { ReactNode } from "react";
+
 import type { FindingListItem } from "@/components/findings/finding-list-items";
-import { EmptyState } from "@/components/page-primitives";
+import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
+import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
 import { FocusFilterResults } from "@/components/findings/focus-filter-results";
+import { EmptyState } from "@/components/page-primitives";
 import { PaginationNav } from "@/components/pagination-nav";
-import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
 import type {
   FindingListParams,
   FindingsTab,
 } from "@/core/filter-params";
-import type { ReactNode } from "react";
+import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
 
 export function FindingsTabPanel({
   tab,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   ENHANCED_TARGET_CONTROL_SELECTOR,
   FORCED_COLORS_CONTROL_SELECTOR,

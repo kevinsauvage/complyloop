@@ -1,15 +1,19 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
-import { parseSource } from "@complyloop/analysis-core/parse";
+
 import { buttonNameCheck } from "@complyloop/analysis-core/checks/families/names";
-import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
+import { parseSource } from "@complyloop/analysis-core/parse";
+
 import { testProject } from "@/test-fixtures/project";
+
 import { buildDeveloperHandoff, buildDiffForFix } from "./handoff";
 
 const tempDirs: string[] = [];

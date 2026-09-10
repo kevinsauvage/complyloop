@@ -8,10 +8,11 @@
  * from its source exports. Externals are derived from package.json so the
  * two cannot drift.
  */
-import * as esbuild from "esbuild";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import * as esbuild from "esbuild";
 
 const packageDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(readFileSync(path.join(packageDir, "package.json"), "utf8"));

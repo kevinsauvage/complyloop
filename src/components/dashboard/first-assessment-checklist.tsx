@@ -1,7 +1,10 @@
-import Link from "next/link";
 import { Check } from "lucide-react";
-import { PermissionNotice } from "@/components/permission-notice";
+import Link from "next/link";
+
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
+
 import { AssessmentRunForm } from "@/components/dashboard/assessment-run-form";
+import { PermissionNotice } from "@/components/permission-notice";
 import { RuntimeAuditForm } from "@/components/runtime-audit-form";
 import {
   Card,
@@ -10,7 +13,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { cn } from "@/lib/utils";
 
 function StepIndicator({

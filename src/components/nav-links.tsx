@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   Building2,
   FileSearch,
@@ -10,8 +8,12 @@ import {
   ScrollText,
   Settings,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
 import type { NavAttentionCounts } from "@complyloop/db/repo/nav-attention";
+
+import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, badgeKey: "unreadAlerts" as const },

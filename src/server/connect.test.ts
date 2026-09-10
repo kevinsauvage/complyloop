@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
+
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
+import type { Db } from "@complyloop/db/types";
+import { emptyDb } from "@complyloop/db/types";
+
 import {
   connectedGitHubProjectsByFullName,
+  deriveProjectName,
   disconnectGitHubRepo,
   findConnectedGitHubProject,
-  deriveProjectName,
   uniqueProjectName,
 } from "./connect-github";
 import { githubCloneUrl } from "./github";
 import { setActiveProject } from "./project-visibility";
-import { emptyDb } from "@complyloop/db/types";
-import type { Db } from "@complyloop/db/types";
 
 function githubProject(
   partial: Pick<Project, "id" | "name" | "orgId"> &

@@ -1,17 +1,20 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { afterEach,describe, expect, it, vi } from "vitest";
+
+import * as registry from "@complyloop/analysis-core/adapters/registry";
 import {
   rgaaControls,
   rgaaFramework,
 } from "@complyloop/analysis-core/adapters/rgaa/controls";
-import * as registry from "@complyloop/analysis-core/adapters/registry";
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type {
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
-import { testProject } from "@/test-fixtures/project";
-import { testControl } from "@/test-fixtures/control";
 import { emptyDb } from "@complyloop/db/types";
+
+import { testControl } from "@/test-fixtures/control";
+import { testProject } from "@/test-fixtures/project";
+
 import { refreshRequirementStatuses } from "./assessment-status";
 import {
   assertAssessableCatalog,

@@ -1,7 +1,7 @@
-import { rgaaControls } from "../rgaa/controls.ts";
 import { catalogControlIds } from "../catalog-ids.ts";
-import { wcagFramework } from "./controls";
+import { rgaaControls } from "../rgaa/controls.ts";
 import type { FrameworkPreset } from "../types.ts";
+import { wcagFramework } from "./controls";
 
 /**
  * AAA / enhanced heuristics that must not leak into the AA assessment target.

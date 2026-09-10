@@ -20,8 +20,8 @@ vi.mock("./repo/projects.ts", () => ({
   getProjectById: vi.fn(),
 }));
 
-import { loadTenancyDb } from "./workspace-load.ts";
 import type { DrizzleDb } from "./postgres.ts";
+import { loadTenancyDb } from "./workspace-load.ts";
 
 describe("loadTenancyDb claim-on-workspace-load", () => {
   const drizzle = { kind: "drizzle" } as unknown as DrizzleDb;

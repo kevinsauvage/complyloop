@@ -1,7 +1,15 @@
-import { countByStatus, toCountMap } from "@/core/assessment-helpers";
-import { AssessedRequirementList } from "@/components/requirements/assessed-requirement-list";
-import { RequirementsPresetPanel } from "@/components/requirements/requirements-preset-panel";
-import { RequirementsStatusChips } from "@/components/requirements/requirements-status-chips";
+import type { Metadata } from "next";
+
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import {
+  defaultConnectPreset,
+  isValidPresetId,
+  presetById,
+  projectDefaultPresetId,
+} from "@complyloop/analysis-core/adapters/registry";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
+import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
+
 import {
   EmptyState,
   NoProjectNotice,
@@ -10,13 +18,14 @@ import {
   PageHeader,
   PageSection,
 } from "@/components/page-primitives";
-import {
-  defaultConnectPreset,
-  isValidPresetId,
-  presetById,
-  projectDefaultPresetId,
-} from "@complyloop/analysis-core/adapters/registry";
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { PaginationNav } from "@/components/pagination-nav";
+import { AssessedRequirementList } from "@/components/requirements/assessed-requirement-list";
+import { RequirementsPresetPanel } from "@/components/requirements/requirements-preset-panel";
+import { RequirementsStatusChips } from "@/components/requirements/requirements-status-chips";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { countByStatus, toCountMap } from "@/core/assessment-helpers";
 import {
   paginateSlice,
   parsePageParam,
@@ -24,15 +33,8 @@ import {
   parseRequirementsQueryParam,
 } from "@/core/filter-params";
 import { parseRequirementStatusParam } from "@/core/filter-params";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { PaginationNav } from "@/components/pagination-nav";
-import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
-import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { loadActiveProjectPage } from "@/server/active-project-page";
 import { getProjectRuntime } from "@/server/project-runtime";
-import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Requirements",

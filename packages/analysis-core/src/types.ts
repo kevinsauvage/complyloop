@@ -1,12 +1,12 @@
-import type { Confidence, FindingKind, Severity } from "./contract/statuses.ts";
+import type { CheckId } from "./check-registry.ts";
 import type {
   AnalyzerContribution,
   AnalyzerId,
   FindingLocation,
   ProposedFix,
 } from "./contract/finding-types.ts";
+import type { Confidence, FindingKind, Severity } from "./contract/statuses.ts";
 import type { ParsedSource } from "./parse.ts";
-import type { CheckId } from "./check-registry.ts";
 
 export interface RawFinding {
   checkId: CheckId;

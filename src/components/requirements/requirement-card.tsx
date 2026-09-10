@@ -1,25 +1,28 @@
-import { formatDateTime } from "@/core/datetime";
-import {
-  unableToVerifyReason,
-  unableToVerifyReasonLabel,
-} from "@/core/finding-priority";
 import Link from "next/link";
+
+import { isPertinenceTwinControl } from "@complyloop/analysis-core/adapters/rgaa/pertinence-twins";
 import {
   isHeuristicCheck,
   isRuntimeOnlyCheck,
 } from "@complyloop/analysis-core/check-authority";
-import { isPertinenceTwinControl } from "@complyloop/analysis-core/adapters/rgaa/pertinence-twins";
-import { RequirementStatusBadge } from "@/components/badges";
-import { determinationDisplay, requirementStatusDisplay } from "@/core/display";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { findingsListHref } from "@/core/filter-params";
 import type {
   Control,
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
+
+import { RequirementStatusBadge } from "@/components/badges";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { formatDateTime } from "@/core/datetime";
+import { determinationDisplay, requirementStatusDisplay } from "@/core/display";
+import { findingsListHref } from "@/core/filter-params";
+import {
+  unableToVerifyReason,
+  unableToVerifyReasonLabel,
+} from "@/core/finding-priority";
+
 import { RequirementRemediationActions } from "./requirement-remediation-actions";
 import { RequirementStatusAccent } from "./requirement-status-accent";
 

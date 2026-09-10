@@ -1,4 +1,5 @@
 import ts from "typescript";
+
 import { isDecorativeOrHidden, isDomHost } from "../../a11y-aria.ts";
 import { isNativeInteractive } from "../../a11y-model.ts";
 import { isPropSpreadingHost } from "../../jsx-primitives.ts";
@@ -7,11 +8,11 @@ import {
   getAttribute,
   hasAnyAttr,
   jsxElementOf,
+  type JsxTagNode,
   locationOf,
   stringValueOf,
   tagNameOf,
   visitJsxTags,
-  type JsxTagNode,
 } from "../../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../../types.ts";
 import {

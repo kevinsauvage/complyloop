@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { testFinding } from "@/test-fixtures/finding";
-import { testProject } from "@/test-fixtures/project";
-import { testMembership } from "@/test-fixtures/membership";
+
 import { emptyDb } from "@complyloop/db/types";
+
+import { testFinding } from "@/test-fixtures/finding";
+import { testMembership } from "@/test-fixtures/membership";
+import { testProject } from "@/test-fixtures/project";
 
 const auth = vi.hoisted(() => vi.fn());
 const readActiveOrgCookie = vi.hoisted(() => vi.fn());

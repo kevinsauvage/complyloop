@@ -1,32 +1,34 @@
 import "server-only";
+
 import type {
   Alert,
   Finding,
 } from "@complyloop/analysis-core/contract/entities";
 import {
-  claimNextAssessmentJob,
-  completeAssessmentJob,
-  failAssessmentJob,
-  type AssessmentJob,
-} from "./assessment-jobs";
-import { runAssessment, type AssessmentRunResult } from "./assessment";
-import { loadProjectDb } from "./db";
-import {
   acquireNamedPostgresAdvisoryLock,
   getDrizzle,
   projectWriteLockKey,
 } from "@complyloop/db/postgres";
+import { listAlertsForProject } from "@complyloop/db/repo/alerts";
 import {
   applyAssessmentPayload,
   snapshotProjectSlice,
 } from "@complyloop/db/repo/apply";
-import { listAlertsForProject } from "@complyloop/db/repo/alerts";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
+
+import { type AssessmentRunResult,runAssessment } from "./assessment";
+import {
+  type AssessmentJob,
+  claimNextAssessmentJob,
+  completeAssessmentJob,
+  failAssessmentJob,
+} from "./assessment-jobs";
+import { loadProjectDb } from "./db";
+import { resolveProjectGitHubToken } from "./github-access";
 import {
   postPullRequestCheckRun,
   summarizeAssessmentForCheckRun,
 } from "./github-checks";
-import { resolveProjectGitHubToken } from "./github-access";
 import { reportError, reportInfo, reportWarning } from "./observability";
 import { withProjectCheckout } from "./repo-checkout";
 

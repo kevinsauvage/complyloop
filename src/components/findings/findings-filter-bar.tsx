@@ -1,20 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
-import type { FindingListParams } from "@/core/filter-params";
-import { findingsListHref } from "@/core/filter-params";
+import { type ReactNode,useState } from "react";
+
+import type { RemediationStatus, Severity } from "@complyloop/analysis-core/contract/statuses";
+
+import { filterChipClass } from "@/components/filter-chip-list";
+import { nativeSelectClass } from "@/components/form-classes";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   engineDisplay,
   remediationStatusDisplay,
   severityDisplay,
 } from "@/core/display";
-import type { RemediationStatus, Severity } from "@complyloop/analysis-core/contract/statuses";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { nativeSelectClass } from "@/components/form-classes";
-import { filterChipClass } from "@/components/filter-chip-list";
+import type { FindingListParams } from "@/core/filter-params";
+import { findingsListHref } from "@/core/filter-params";
 import { cn } from "@/lib/utils";
 
 const SEVERITIES: Severity[] = ["critical", "serious", "moderate", "minor"];

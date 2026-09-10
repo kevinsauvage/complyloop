@@ -1,21 +1,8 @@
 import "server-only";
+
 import fs from "node:fs";
+
 import { guidanceFor } from "@complyloop/analysis-core/adapters/registry";
-import { deterministicExplanation } from "@/ai/explainer";
-import { describeFix, previewFixedLine } from "@complyloop/analysis-core/fixes";
-import { scanFile } from "@complyloop/analysis-core/scan";
-import type { RawFinding } from "@complyloop/analysis-core/types";
-import { resolveInside } from "@complyloop/analysis-core/workspace-path";
-import {
-  formatLocationRef,
-  isDomLocation,
-  isSiteLocation,
-  isSourceLocation,
-} from "@complyloop/analysis-core/contract/location";
-import type {
-  Control,
-  Project,
-} from "@complyloop/analysis-core/contract/project-types";
 import type {
   Finding,
   Remediation,
@@ -26,6 +13,23 @@ import type {
   RemediationSuggestion,
 } from "@complyloop/analysis-core/contract/finding-types";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
+import {
+  formatLocationRef,
+  isDomLocation,
+  isSiteLocation,
+  isSourceLocation,
+} from "@complyloop/analysis-core/contract/location";
+import type {
+  Control,
+  Project,
+} from "@complyloop/analysis-core/contract/project-types";
+import { describeFix, previewFixedLine } from "@complyloop/analysis-core/fixes";
+import { scanFile } from "@complyloop/analysis-core/scan";
+import type { RawFinding } from "@complyloop/analysis-core/types";
+import { resolveInside } from "@complyloop/analysis-core/workspace-path";
+
+import { deterministicExplanation } from "@/ai/explainer";
+
 import { appendEvidence, type ProjectRows } from "./project-rows";
 
 /**

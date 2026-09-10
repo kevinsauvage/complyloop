@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+
 import { gitAuthEnv, gitProcessEnv } from "./git";
 
 const previousPager = process.env.PAGER;

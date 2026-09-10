@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
+
+import { authorityForCheck } from "@complyloop/analysis-core/check-authority";
 import { CHECK_IDS } from "@complyloop/analysis-core/check-registry";
 import { CHECK_REGISTRY } from "@complyloop/analysis-core/check-registry";
 import { allChecks } from "@complyloop/analysis-core/checks/registry";
-import { authorityForCheck } from "@complyloop/analysis-core/check-authority";
 import { jsxA11yMappedCheckIds } from "@complyloop/analysis-core/jsx-a11y-map";
 import { axeMappedCheckIds } from "@complyloop/analysis-core/runtime/axe-map";
 import { CUSTOM_PROBE_CHECK_IDS } from "@complyloop/analysis-core/runtime/custom-checks/types";
 import { htmlValidateMappedCheckIds } from "@complyloop/analysis-core/runtime/html-validate-map";
+
 import { wcagPresets } from "../wcag/presets.ts";
 import { rgaaControls } from "./controls";
 import { rgaaPresets } from "./presets";

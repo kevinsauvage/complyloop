@@ -1,4 +1,5 @@
 import "server-only";
+
 import { timingSafeEqual } from "node:crypto";
 
 export function isWorkerAuthConfigured(): boolean {

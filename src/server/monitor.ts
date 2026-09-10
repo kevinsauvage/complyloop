@@ -1,13 +1,15 @@
 import "server-only";
-import { createHash } from "node:crypto";
+
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { listSourceFiles } from "@complyloop/analysis-core/source-files";
+
 import type {
   AssessmentSnapshot,
   FileChange,
 } from "@complyloop/analysis-core/contract/entities";
+import { listSourceFiles } from "@complyloop/analysis-core/source-files";
 
 function hashFileContents(absolutePath: string): string {
   const buffer = fs.readFileSync(absolutePath);

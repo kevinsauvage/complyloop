@@ -6,7 +6,7 @@ import {
   escapeAttr,
   roleLabel,
 } from "./dom-hit-rich.ts";
-import { selectorRef, type SelectorRef } from "./widget-keyboard-utils.ts";
+import { type SelectorRef,selectorRef } from "./widget-keyboard-utils.ts";
 
 export type CaptureHitOptions = {
   obscuredAt?: { x: number; y: number; corner: string };

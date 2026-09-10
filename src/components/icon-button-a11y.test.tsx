@@ -15,12 +15,13 @@ vi.mock("@/server/actions/auth", () => ({
   signInWithGitHubAction: vi.fn(),
 }));
 
-import { ThemeToggle } from "./theme-toggle";
+import { XIcon } from "lucide-react";
+
 import { AuthControls } from "./auth-controls";
+import { ThemeToggle } from "./theme-toggle";
+import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
-import { Button } from "./ui/button";
-import { XIcon } from "lucide-react";
 
 afterEach(() => {
   cleanup();

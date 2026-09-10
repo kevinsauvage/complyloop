@@ -1,16 +1,16 @@
 import type {
-  OrgMembership,
-  Organization,
-  Project,
-  Requirement,
-} from "@complyloop/analysis-core/contract/project-types";
-import type {
   Alert,
   Assessment,
   EvidenceRecord,
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
+import type {
+  Organization,
+  OrgMembership,
+  Project,
+  Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
 
 // Domain entities live in the contract — re-exported here so persistence
 // mappers and the `Db` slice keep compiling while app/core/ai import from

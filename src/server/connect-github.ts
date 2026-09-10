@@ -1,17 +1,21 @@
 import "server-only";
+
 import fs from "node:fs";
-import { hasSourceFiles } from "@complyloop/analysis-core/source-files";
+
+import { defaultConnectPreset } from "@complyloop/analysis-core/adapters/registry";
+import { type EvidenceRecord } from "@complyloop/analysis-core/contract/entities";
 import type {
   Project,
   ProjectGitHubMeta,
 } from "@complyloop/analysis-core/contract/project-types";
-import { type EvidenceRecord } from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { canOnProject } from "@/core/rbac";
-import { defaultConnectPreset } from "@complyloop/analysis-core/adapters/registry";
+import { hasSourceFiles } from "@complyloop/analysis-core/source-files";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import { nextUniqueSlug } from "@complyloop/db/repo/orgs";
 import type { Db } from "@complyloop/db/types";
+
+import { canOnProject } from "@/core/rbac";
+
 import { normalizeGitHubFullName } from "./github";
 import { accessFromStore, resolveActiveProject } from "./project-visibility";
 import { withRepoCheckout } from "./repo-checkout";

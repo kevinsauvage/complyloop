@@ -1,25 +1,29 @@
 import "server-only";
-import { getSession } from "./auth-session";
+
 import type {
-  OrgMembership,
+  EvidenceRecord,
+  Finding,
+} from "@complyloop/analysis-core/contract/entities";
+import type {
   Organization,
+  OrgMembership,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   acquireNamedPostgresAdvisoryLock,
+  type DrizzleDb,
   getDrizzle,
   orgWriteLockKey,
   projectWriteLockKey,
-  type DrizzleDb,
 } from "@complyloop/db/postgres";
-import { getFindingById } from "@complyloop/db/repo/findings";
-import { insertEvidenceRecords } from "@complyloop/db/repo/evidence";
 import {
   persistProjectRows,
-  snapshotProjectSlice,
   type ProjectWritePayload,
+  snapshotProjectSlice,
 } from "@complyloop/db/repo/apply";
+import { insertEvidenceRecords } from "@complyloop/db/repo/evidence";
+import { getFindingById } from "@complyloop/db/repo/findings";
 import {
   deleteMembership,
   deleteOrganizationRow,
@@ -27,25 +31,24 @@ import {
   upsertMembership,
 } from "@complyloop/db/repo/orgs";
 import { deleteProject, insertProject } from "@complyloop/db/repo/projects";
+import type { Db } from "@complyloop/db/types";
 import {
   loadProjectWriteDb,
   loadTenancyDb,
 } from "@complyloop/db/workspace-load";
-import type {
-  EvidenceRecord,
-  Finding,
-} from "@complyloop/analysis-core/contract/entities";
+
 import type { Permission } from "@/core/rbac";
+
+import { requireOnFindingProject } from "./actions/shared";
+import { getSession } from "./auth-session";
 import { orgsForUser } from "./org-queries";
+import { stampEvidenceActor } from "./project-rows";
 import {
   prepareWorkspaceState,
-  readViewerSession,
   type ProjectWriteWorkspace,
+  readViewerSession,
 } from "./workspace";
 import { findingById } from "./workspace";
-import { requireOnFindingProject } from "./actions/shared";
-import { stampEvidenceActor } from "./project-rows";
-import type { Db } from "@complyloop/db/types";
 
 export interface OrgWritePayload {
   insertOrgs?: Organization[];

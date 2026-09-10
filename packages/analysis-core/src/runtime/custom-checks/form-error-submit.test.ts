@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { formErrorSubmitViolation } from "./form-error-submit";
 import {
   chromiumExecutableAvailable,

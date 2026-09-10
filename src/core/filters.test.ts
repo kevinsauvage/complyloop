@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import type {
   EvidenceRecord,
   Finding,
 } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import {
   EVIDENCE_KIND_FILTER_ORDER,
   evidenceKindHref,

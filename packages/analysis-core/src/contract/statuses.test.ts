@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+
 import {
   FINDING_STATUSES,
   REMEDIATION_STATUSES,
-  REQUIREMENT_STATUSES,
   REQUIREMENT_STATUS_DISPLAY_ORDER,
+  REQUIREMENT_STATUSES,
 } from "./statuses";
 
 describe("contract statuses", () => {

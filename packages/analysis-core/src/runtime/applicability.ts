@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+
 import type { CheckId } from "../check-registry.ts";
 import {
   CAPTCHA_TOKEN,

@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
+
+import { collectCaptchaCandidates } from "../runtime/custom-checks/captcha-candidates.ts";
 import {
   CAPTCHA_CANDIDATE_SELECTORS,
   CAPTCHA_COMPONENT_HOSTS,
   PUZZLE_HOST_NAMES,
 } from "./captcha-config.ts";
-import { collectCaptchaCandidates } from "../runtime/custom-checks/captcha-candidates.ts";
 import { CAPTCHA_COMPONENT_HOSTS as CRITERIA_HOSTS } from "./error-prevention-criteria.ts";
 import { PUZZLE_HOSTS } from "./multilingual.ts";
 

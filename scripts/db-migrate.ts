@@ -12,6 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+
 import { openScriptClient, requireDatabaseUrl } from "./db";
 
 // Deterministic per-database lock key for serializing migrations across

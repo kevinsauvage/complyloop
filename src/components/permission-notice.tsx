@@ -1,5 +1,6 @@
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function PermissionNotice({ children }: { children: string }) {
   return (

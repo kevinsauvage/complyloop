@@ -1,6 +1,11 @@
-import { chromium, type Browser } from "playwright";
 import fs from "node:fs";
+
+import { type Browser,chromium } from "playwright";
 import { afterAll, describe, expect, it } from "vitest";
+
+import { runThemeSensitiveCustomChecks } from "./custom-checks/index";
+import type { AxeViolationLike } from "./findings";
+import { runAxeOnPage } from "./scan";
 import {
   conditionLabel,
   conditionSpecificFindings,
@@ -8,9 +13,6 @@ import {
   emulationForCondition,
   THEME_SENSITIVE_AXE_RULES,
 } from "./theme-conditions";
-import type { AxeViolationLike } from "./findings";
-import { runThemeSensitiveCustomChecks } from "./custom-checks/index";
-import { runAxeOnPage } from "./scan";
 
 function violation(id: string, target: string): AxeViolationLike {
   return {

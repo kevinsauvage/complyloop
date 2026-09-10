@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { supplementaryContentKeyboardViolation } from "./supplementary-content-keyboard";
+
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./playwright-page";
+import { supplementaryContentKeyboardViolation } from "./supplementary-content-keyboard";
 
 registerPlaywrightBrowserTeardown();
 

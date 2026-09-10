@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { findingsFromCustomViolations } from "./custom-checks/index";
 import { CUSTOM_PROBE_CHECK_IDS } from "./custom-checks/types";
 

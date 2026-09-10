@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+
+import type { FrameworkPresetSummary } from "@complyloop/analysis-core/adapters/types";
+
+import { PresetItemBody } from "@/components/requirements/preset-item-body";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Label } from "@/components/ui/label";
-import type { FrameworkPresetSummary } from "@complyloop/analysis-core/adapters/types";
 import { setDefaultPresetAction } from "@/server/actions/project-preset";
-import { PresetItemBody } from "@/components/requirements/preset-item-body";
 
 export function DefaultPresetForm({
   presets,

@@ -1,6 +1,7 @@
-import { formatDateTime } from "@/core/datetime";
-import { StatefulActionForm } from "@/components/stateful-action-form";
+import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
+
 import { RoleSelect } from "@/components/role-select";
+import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -10,13 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
+import { formatDateTime } from "@/core/datetime";
+import { roleTone,STATUS_TONE_BADGE } from "@/core/display";
+import { cn } from "@/lib/utils";
 import {
   changeOrgMemberRoleAction,
   removeOrgMemberAction,
 } from "@/server/actions/org";
-import { STATUS_TONE_BADGE, roleTone } from "@/core/display";
-import { cn } from "@/lib/utils";
 
 export function OrgMembersCard({
   orgId,

@@ -1,7 +1,8 @@
-import Link from "next/link";
 import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+
 import { isGitHubAuthConfigured } from "@/auth";
-import { getSession } from "@/server/auth-session";
 import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { redirect } from "next/navigation";
+import { getSession } from "@/server/auth-session";
 
 export const metadata: Metadata = {
   title: "Sign in",

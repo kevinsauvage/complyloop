@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { isTwoDimensionalLayout } from "./reflow";
-import { REFLOW_VIEWPORT } from "./reflow";
-import { reflowViolation } from "./reflow";
+
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./playwright-page";
+import { isTwoDimensionalLayout } from "./reflow";
+import { REFLOW_VIEWPORT } from "./reflow";
+import { reflowViolation } from "./reflow";
 
 registerPlaywrightBrowserTeardown();
 

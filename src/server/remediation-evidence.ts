@@ -1,6 +1,7 @@
 import "server-only";
-import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+
 import type { FindingLocation } from "@complyloop/analysis-core/contract/finding-types";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 
 /** Evidence summary for remediation lifecycle events (approved / implemented / verified). */
 export function remediationEvidenceSummary(

@@ -1,12 +1,16 @@
 import "@/test-fixtures/register-action-workspace-mock";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Db } from "@complyloop/db/types";
+
 import { actionWorkspaceMocks, clearProjectWritePayloads, invokeProjectWriteMock, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import { createPullRequestAction } from "./pr";
 
 const { getWorkspace, withProjectWrite } = actionWorkspaceMocks;

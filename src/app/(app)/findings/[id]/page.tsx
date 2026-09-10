@@ -1,10 +1,11 @@
-import { findingAct } from "@/core/finding-act";
-import { formatDateTime } from "@/core/datetime";
-import { prioritizeClusters, clusterFindings } from "@/core/finding-priority";
-import Link from "next/link";
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
+
 import { aiAvailable as isAiAvailable } from "@/ai/ai-call";
 import {
   BadgeWithDescription,
@@ -19,41 +20,42 @@ import { FindingQueueNav } from "@/components/findings/finding-queue-nav";
 import { FindingUnderstandCard } from "@/components/findings/finding-understand-card";
 import { RemediationHistory } from "@/components/findings/remediation-history";
 import {
-  confidenceDisplay,
-  engineDisplay,
-  evidenceDisplay,
-} from "@/core/display";
-import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
-import {
-  findingQueuePosition,
-  findingsListHref,
-  orderedFindingIdsForQueue,
-  parseFindingListParams,
-  type FilterFindingsContext,
-} from "@/core/filter-params";
-import {
   EmptyState,
   PageContent,
   PageHeader,
   PageSection,
 } from "@/components/page-primitives";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { pullRequestUrlFromEvidence, latestPatchState } from "@/server/ai-fix";
-import { buildDeveloperHandoff } from "@/server/handoff";
+import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/core/datetime";
+import {
+  confidenceDisplay,
+  engineDisplay,
+  evidenceDisplay,
+} from "@/core/display";
+import {
+  type FilterFindingsContext,
+  findingQueuePosition,
+  findingsListHref,
+  orderedFindingIdsForQueue,
+  parseFindingListParams,
+} from "@/core/filter-params";
+import { findingAct } from "@/core/finding-act";
+import { clusterFindings,prioritizeClusters } from "@/core/finding-priority";
+import { cn } from "@/lib/utils";
+import { latestPatchState,pullRequestUrlFromEvidence } from "@/server/ai-fix";
 import { listEvidenceForFindingScoped } from "@/server/evidence-queries";
+import { buildDeveloperHandoff } from "@/server/handoff";
 import { projectCapabilities } from "@/server/project-capabilities";
+import { getProjectRuntime } from "@/server/project-runtime";
 import { findingsInScope } from "@/server/project-scope";
+import { isProjectVisible } from "@/server/project-visibility";
+import { displayControl } from "@/server/report";
 import {
   getWorkspace,
   requireFinding,
   requireRemediationForFinding,
 } from "@/server/workspace";
-import { getProjectRuntime } from "@/server/project-runtime";
-import { displayControl } from "@/server/report";
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
-import { cn } from "@/lib/utils";
-import { isProjectVisible } from "@/server/project-visibility";
 
 export async function generateMetadata({
   params,

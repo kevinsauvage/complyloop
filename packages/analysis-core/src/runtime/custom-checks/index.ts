@@ -1,34 +1,35 @@
 import type { Page } from "playwright";
+
 import { HEURISTIC_RUNTIME_DOWNGRADE, isHeuristicCheck } from "../../check-authority.ts";
 import type { RawFinding } from "../../types.ts";
 import { htmlSnippet, selectorFromTarget } from "../dom-location.ts";
 import { rawFindingFromDom } from "../raw-finding-from-dom.ts";
-import { cssDisabledContentViolations } from "./css-disabled-content.ts";
-import { cssOffUnderstandableViolation } from "./css-off-understandable.ts";
-import { errorPreventionViolation } from "./error-prevention.ts";
-import { captchaAlternativeViolation } from "./captcha-alternative.ts";
 import { accessibleAuthEnhancedViolation } from "./accessible-auth-enhanced.ts";
-import { mediaIdentificationViolation } from "./media-identification.ts";
-import { supplementaryContentKeyboardViolation } from "./supplementary-content-keyboard.ts";
+import { captchaAlternativeViolation } from "./captcha-alternative.ts";
+import { cssDisabledContentViolations } from "./css-disabled-content.ts";
 import { cssHoverKeyboardViolation } from "./css-hover-keyboard.ts";
-import { layoutTableLinearizationViolation } from "./layout-table-linearization.ts";
-import { mediaKeyboardViolation } from "./media-keyboard.ts";
-import { focusCustomViolations } from "./focus.ts";
-import { labelAdjacentViolation } from "./label-adjacent.ts";
-import { nonTextContrastViolation } from "./non-text-contrast.ts";
-import { targetSizeEnhancedViolation } from "./target-size-enhanced.ts";
-import { hoverContentViolation } from "./hover-content.ts";
-import { liveRegionUpdatesViolation } from "./live-region-updates.ts";
-import { formErrorSubmitViolation } from "./form-error-submit.ts";
-import { forcedColorsViolation } from "./forced-colors.ts";
-import { reducedMotionViolation } from "./reduced-motion.ts";
+import { cssOffUnderstandableViolation } from "./css-off-understandable.ts";
 import { dialogFocusViolations } from "./dialog-focus.ts";
-import { widgetKeyboardViolations } from "./widget-keyboard.ts";
+import { errorPreventionViolation } from "./error-prevention.ts";
+import { focusCustomViolations } from "./focus.ts";
+import { forcedColorsViolation } from "./forced-colors.ts";
+import { formErrorSubmitViolation } from "./form-error-submit.ts";
+import { hoverContentViolation } from "./hover-content.ts";
+import { labelAdjacentViolation } from "./label-adjacent.ts";
+import { layoutTableLinearizationViolation } from "./layout-table-linearization.ts";
+import { liveRegionUpdatesViolation } from "./live-region-updates.ts";
+import { mediaIdentificationViolation } from "./media-identification.ts";
+import { mediaKeyboardViolation } from "./media-keyboard.ts";
+import { nonTextContrastViolation } from "./non-text-contrast.ts";
 import { restorePageAfterMutatingProbes } from "./page-restore.ts";
+import { reducedMotionViolation } from "./reduced-motion.ts";
 import { reflowViolation } from "./reflow.ts";
 import { resizeTextViolation } from "./resize-text.ts";
+import { supplementaryContentKeyboardViolation } from "./supplementary-content-keyboard.ts";
+import { targetSizeEnhancedViolation } from "./target-size-enhanced.ts";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime.ts";
 import type { CustomViolation } from "./types.ts";
+import { widgetKeyboardViolations } from "./widget-keyboard.ts";
 
 export function findingsFromCustomViolations(
   pageUrl: string,

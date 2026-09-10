@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { catalogControlIds } from "./catalog-ids.ts";
 import { rgaaControls } from "./rgaa/controls.ts";
 

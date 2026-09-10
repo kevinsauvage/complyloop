@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { shippedCatalog } from "./catalog";
 
 describe("shippedCatalog", () => {

@@ -1,14 +1,18 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { rgaaControls, rgaaFramework } from "@complyloop/analysis-core/adapters/rgaa/controls";
+
 import * as registry from "@complyloop/analysis-core/adapters/registry";
+import { rgaaControls, rgaaFramework } from "@complyloop/analysis-core/adapters/rgaa/controls";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { runAssessment } from "./assessment";
 import type { Db } from "@complyloop/db/types";
+
 import { materializeAssessmentRun } from "@/test-fixtures/materialize-assessment-run";
+
+import { runAssessment } from "./assessment";
 
 const BROKEN = `export const Hero = () => <img src="/hero-banner.png" />;\n`;
 const FIXED = `export const Hero = () => <img src="/hero-banner.png" alt="Summer sale banner" />;\n`;

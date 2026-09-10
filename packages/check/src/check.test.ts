@@ -2,9 +2,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
+
 import { scanProject } from "@complyloop/analysis-core/scan";
-import { CHECK_HELP, runCheck, type CheckIo } from "./run-check";
+
+import { CHECK_HELP, type CheckIo,runCheck } from "./run-check";
 
 const testdataDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
+
 import {
   CAPTCHA_TOKEN,
   CAPTCHA_WITH_CHALLENGE,
-  PUZZLE_CAPTCHA,
   matchesMultilingual,
+  PUZZLE_CAPTCHA,
 } from "../../patterns/multilingual";
 import { PUZZLE_HOST_NAMES } from "../../patterns/object-recognition-captcha";
 import {

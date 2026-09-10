@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { axeMappedCheckIds, checkIdForAxeRule, REJECTED_AXE_RULES } from "./axe-map";
 
 describe("axe-map", () => {

@@ -4,6 +4,12 @@
  * Usage: npm run e2e:seed
  */
 import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { insertAssessment } from "@complyloop/db/repo/assessments";
+import { upsertFindings } from "@complyloop/db/repo/findings";
+import { insertMembership, insertOrganization } from "@complyloop/db/repo/orgs";
+import { insertProject } from "@complyloop/db/repo/projects";
+import { upsertRemediations } from "@complyloop/db/repo/remediations";
+
 import {
   E2E_ORG_ID,
   E2E_OWNER,
@@ -11,13 +17,8 @@ import {
   E2E_PROJECT_ID,
   E2E_VIEWER,
 } from "../e2e/constants";
-import { getDrizzle, openScriptClient, requireDatabaseUrl } from "./db";
-import { upsertFindings } from "@complyloop/db/repo/findings";
-import { insertMembership, insertOrganization } from "@complyloop/db/repo/orgs";
-import { insertProject } from "@complyloop/db/repo/projects";
-import { upsertRemediations } from "@complyloop/db/repo/remediations";
-import { insertAssessment } from "@complyloop/db/repo/assessments";
 import { storeUserGitHubToken } from "../src/server/github-tokens";
+import { getDrizzle, openScriptClient, requireDatabaseUrl } from "./db";
 
 async function truncateAll(connectionString: string): Promise<void> {
   const sql = await openScriptClient(connectionString, 1);

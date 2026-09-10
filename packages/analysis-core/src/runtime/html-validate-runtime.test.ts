@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
@@ -6,15 +7,15 @@ import {
   withPlaywrightPage,
 } from "./custom-checks/playwright-page";
 import {
-  htmlValidateFindingsForPage,
-  htmlValidateFindingsFromSerialized,
   HTML_VALIDATE_INPUT_KIND,
   HTML_VALIDATE_RENDERED_RULE_IDS,
+  htmlValidateFindingsForPage,
+  htmlValidateFindingsFromSerialized,
 } from "./html-validate-runtime";
 
 registerPlaywrightBrowserTeardown();
-import type { SerializeDocumentResult } from "./html-validate-runtime";
 import { checkIdForHtmlValidateRule, HTML_VALIDATE_TO_CHECK_RULE_IDS } from "./html-validate-map";
+import type { SerializeDocumentResult } from "./html-validate-runtime";
 
 /**
  * Builds a SerializeDocumentResult from a one-line HTML string, recording each

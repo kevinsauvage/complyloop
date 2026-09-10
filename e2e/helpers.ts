@@ -1,5 +1,6 @@
-import { encode } from "next-auth/jwt";
 import type { BrowserContextOptions } from "@playwright/test";
+import { encode } from "next-auth/jwt";
+
 import { loadLocalEnv } from "../scripts/env";
 import { resolveE2EAuthSecret } from "./env";
 

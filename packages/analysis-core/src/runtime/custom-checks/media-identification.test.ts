@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { mediaIdentificationViolation } from "./media-identification";
 import {
   chromiumExecutableAvailable,

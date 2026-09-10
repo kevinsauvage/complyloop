@@ -1,6 +1,7 @@
-import { StrictMode } from "react";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { GitHubRepoPicker } from "./github-repo-picker";
 
 vi.mock("@/server/actions/connect", () => ({

@@ -7,10 +7,10 @@ import {
   hasAnyAttr,
   hasTextContent,
   jsxElementOf,
+  type JsxTagNode,
   locationOf,
   stringValueOf,
   tagNameOf,
-  type JsxTagNode,
   visitJsxTags,
 } from "../../parse.ts";
 import type { AccessibilityCheck, RawFinding } from "../../types.ts";

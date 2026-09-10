@@ -1,8 +1,9 @@
 import { cache } from "react";
+
 import { NavLinks } from "@/components/nav-links";
 import {
-  navAttentionForProject,
   type NavAttentionCounts,
+  navAttentionForProject,
 } from "@/server/nav-attention";
 import { getWorkspace } from "@/server/workspace";
 

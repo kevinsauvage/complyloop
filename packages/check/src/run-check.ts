@@ -4,8 +4,9 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { scanProject } from "@complyloop/analysis-core/scan";
+
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+import { scanProject } from "@complyloop/analysis-core/scan";
 
 export const CHECK_HELP = `Usage: npx complyloop-check [path]
 

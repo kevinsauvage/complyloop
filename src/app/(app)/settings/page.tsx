@@ -1,5 +1,12 @@
-import { latestAssessmentFor } from "@/core/assessment-helpers";
+import type { Metadata } from "next";
 import Link from "next/link";
+
+import {
+  presetById,
+  presetSummaries,
+  projectDefaultPresetId,
+} from "@complyloop/analysis-core/adapters/registry";
+
 import { CopyButton } from "@/components/copy-button";
 import {
   MetaTile,
@@ -9,18 +16,13 @@ import {
   PageSection,
 } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
-import { DefaultPresetForm } from "@/components/settings/default-preset-form";
 import { RuntimeAuditForm } from "@/components/runtime-audit-form";
+import { DefaultPresetForm } from "@/components/settings/default-preset-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  presetById,
-  presetSummaries,
-  projectDefaultPresetId,
-} from "@complyloop/analysis-core/adapters/registry";
+import { latestAssessmentFor } from "@/core/assessment-helpers";
 import { loadActiveProjectPage } from "@/server/active-project-page";
 import { getProjectRuntime } from "@/server/project-runtime";
-import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Settings",

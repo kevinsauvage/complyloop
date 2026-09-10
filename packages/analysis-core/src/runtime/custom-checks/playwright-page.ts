@@ -1,6 +1,7 @@
 import fs from "node:fs";
+
+import { type Browser, chromium, type Page } from "playwright";
 import { afterAll } from "vitest";
-import { chromium, type Browser, type Page } from "playwright";
 
 let sharedBrowser: Browser | null = null;
 

@@ -1,7 +1,9 @@
-import { useId } from "react";
 import { Check } from "lucide-react";
-import { REMEDIATION_STATUSES } from "@complyloop/analysis-core/contract/statuses";
+import { useId } from "react";
+
 import type { RemediationStatus } from "@complyloop/analysis-core/contract/statuses";
+import { REMEDIATION_STATUSES } from "@complyloop/analysis-core/contract/statuses";
+
 import { remediationStatusDisplay } from "@/core/display";
 import { cn } from "@/lib/utils";
 

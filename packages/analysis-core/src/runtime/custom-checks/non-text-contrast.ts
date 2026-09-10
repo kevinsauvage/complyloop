@@ -1,4 +1,5 @@
 import type { Locator, Page } from "playwright";
+
 import { type CapturedHit } from "./hit-capture.ts";
 import {
   locatorEvaluateWithHitCapture,

@@ -1,19 +1,21 @@
 "use server";
 
-import { refreshSuggestion } from "@/core/remediation-lifecycle";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
-import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { parseEntityId } from "@/core/filters";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { runAction, type ActionState } from "../action-state";
+import { refreshSuggestion } from "@/core/remediation-lifecycle";
+
+import { type ActionState,runAction } from "../action-state";
+import { appendEvidence } from "../project-rows";
 import { assertAiRateLimit } from "../rate-limit";
 import { controlById, remediationForFinding } from "../workspace";
 import { withFindingWrite } from "../workspace-write";
-import { appendEvidence } from "../project-rows";
-import { refresh, replaceRemediation } from "./shared";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
+import { refresh, replaceRemediation } from "./shared";
 
 export async function generateAiExplanationAction(
   findingIdRaw: string,

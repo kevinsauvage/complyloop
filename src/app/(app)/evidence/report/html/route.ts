@@ -1,5 +1,5 @@
-import { buildAuditReportHtml, buildEngineeringReportHtml } from "@/server/report-html/report";
 import { loadReportInput } from "@/server/report";
+import { buildAuditReportHtml, buildEngineeringReportHtml } from "@/server/report-html/report";
 
 export async function GET(request: Request): Promise<Response> {
   const context = await loadReportInput(request);

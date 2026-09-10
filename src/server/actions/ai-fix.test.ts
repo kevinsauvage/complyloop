@@ -1,10 +1,13 @@
 import "@/test-fixtures/register-action-workspace-mock";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
+
 import { initialActionState } from "../action-state";
 import { generateAiFixAction } from "./ai-fix";
 

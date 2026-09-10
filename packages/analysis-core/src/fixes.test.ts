@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { applyFix, describeFix, previewFixedLine } from "./fixes";
-import { parseSource } from "./parse";
+
 import { autoplayMediaCheck } from "./checks/families/media";
 import { buttonNameCheck } from "./checks/families/names";
 import type { ProposedFix } from "./contract/finding-types";
+import { applyFix, describeFix, previewFixedLine } from "./fixes";
+import { parseSource } from "./parse";
 
 describe("applyFix", () => {
   it("inserts an attribute into a self-closing element", () => {

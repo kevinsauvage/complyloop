@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import { parseSource } from "../../parse";
-import { motionActuationCheck, noBlinkMarqueeCheck, noAutoRefreshCheck, draggingCheck, pointerCancellationCheck, pointerGestureCheck } from "./motion";
+import { draggingCheck, motionActuationCheck, noAutoRefreshCheck, noBlinkMarqueeCheck, pointerCancellationCheck, pointerGestureCheck } from "./motion";
 
 describe("motion-actuation", () => {
   it("flags a deviceorientation listener", () => {

@@ -1,7 +1,9 @@
 import { cleanup, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
 import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it } from "vitest";
+
 import { renderWithUiProviders } from "@/test/render-ui";
+
 import { FindingsFilterBar } from "./findings-filter-bar";
 
 afterEach(() => {

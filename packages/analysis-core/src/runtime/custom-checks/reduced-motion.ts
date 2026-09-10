@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 import { withEmulatedMedia } from "./with-emulated-media.ts";

@@ -1,8 +1,11 @@
+import { generateObject } from "ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { generateObject } from "ai";
+
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+
 import { reportError } from "@/server/observability";
+
 import { aiCall } from "./ai-call";
 
 vi.mock("ai", () => ({

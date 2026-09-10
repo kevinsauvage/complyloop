@@ -1,6 +1,8 @@
 import fs from "node:fs";
-import { resolveInside } from "@complyloop/analysis-core/workspace-path";
+
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { resolveInside } from "@complyloop/analysis-core/workspace-path";
+
 import type { FileEdit } from "./patch-types";
 
 /** Replaces unique `oldText` occurrences. Restores nothing on failure — caller snapshots. */

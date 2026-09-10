@@ -1,17 +1,16 @@
-import type { Confidence, Severity } from "../contract/statuses.ts";
 import { axeCorePackageVersion } from "../analyzer-versions.ts";
 import { HEURISTIC_RUNTIME_DOWNGRADE, isHeuristicCheck } from "../check-authority.ts";
 import type { CheckId } from "../check-registry.ts";
+import type { Confidence, Severity } from "../contract/statuses.ts";
+import { dedupeRuntimeFindings } from "../merge-findings.ts";
 import type { RawFinding } from "../types.ts";
+import type { ApplicabilityObservation } from "./applicability.ts";
 import { checkIdForAxeRule } from "./axe-map.ts";
 import { htmlSnippet, selectorFromTarget } from "./dom-location.ts";
-import { dedupeRuntimeFindings } from "../merge-findings.ts";
-import { normalizeRoutes } from "./routes.ts";
 import { rawFindingFromDom } from "./raw-finding-from-dom.ts";
-
-import type { RuntimePageSnapshot } from "./site-level/types.ts";
-import type { ApplicabilityObservation } from "./applicability.ts";
+import { normalizeRoutes } from "./routes.ts";
 import { runSiteLevelChecks } from "./site-level/checks.ts";
+import type { RuntimePageSnapshot } from "./site-level/types.ts";
 
 interface AxeNodeLike {
   html: string;

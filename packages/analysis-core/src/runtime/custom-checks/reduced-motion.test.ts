@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { reducedMotionViolation } from "./reduced-motion";
+
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./playwright-page";
+import { reducedMotionViolation } from "./reduced-motion";
 
 registerPlaywrightBrowserTeardown();
 

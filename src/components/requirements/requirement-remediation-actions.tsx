@@ -1,8 +1,14 @@
 "use client";
 
-import { formatDateTime } from "@/core/datetime";
-import { useState } from "react";
 import { AlertTriangle, ChevronDown, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+
+import type {
+  Control,
+  Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
+
+import { ReasonNoteFields } from "@/components/reason-note-fields";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
@@ -11,14 +17,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ReasonNoteFields } from "@/components/reason-note-fields";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDateTime } from "@/core/datetime";
 import { cn } from "@/lib/utils";
-import type {
-  Control,
-  Requirement,
-} from "@complyloop/analysis-core/contract/project-types";
 import {
   clearRequirementExceptionAction,
   clearRequirementHumanPassAction,

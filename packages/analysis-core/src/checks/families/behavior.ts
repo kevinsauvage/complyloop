@@ -1,22 +1,23 @@
 import ts from "typescript";
+
 import { hasAriaName, isPropSpreadingHost } from "../../jsx-primitives.ts";
-import {
-  VAGUE_LINK_PREFIX,
-  VAGUE_LINK_TEXT,
-  foldAccents,
-} from "../../patterns/multilingual.ts";
 import {
   booleanAttributeValue,
   getAttribute,
   hasTextContent,
   jsxElementOf,
+  type JsxTagNode,
   locationOf,
   stringValueOf,
   tagNameOf,
   visitJsxElements,
   visitJsxTags,
-  type JsxTagNode,
 } from "../../parse.ts";
+import {
+  foldAccents,
+  VAGUE_LINK_PREFIX,
+  VAGUE_LINK_TEXT,
+} from "../../patterns/multilingual.ts";
 import type { AccessibilityCheck, RawFinding } from "../../types.ts";
 import {
   descendantTags,

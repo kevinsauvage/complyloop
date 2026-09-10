@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import type { EvidenceRecord } from "@complyloop/analysis-core/contract/entities";
+
 import { appendEvidence, stampEvidenceActor } from "./project-rows";
 
 function record(overrides: Partial<EvidenceRecord> = {}): EvidenceRecord {

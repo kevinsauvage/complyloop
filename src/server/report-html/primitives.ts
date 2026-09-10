@@ -1,11 +1,14 @@
 import "server-only";
-import { formatDateTimeWithZone } from "@/core/datetime";
+
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+
+import { formatDateTimeWithZone } from "@/core/datetime";
 import {
   requirementStatusReportClass,
   severityDisplay,
   STATUS_TONE_REPORT,
 } from "@/core/display";
+
 import { projectSourceLabel, type ReportHeaderModel } from "../report-model";
 
 export function escapeHtml(text: string): string {

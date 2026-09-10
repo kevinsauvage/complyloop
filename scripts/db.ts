@@ -7,9 +7,10 @@
  */
 import {
   createPostgresClient,
-  getDrizzle,
   type DrizzleDb,
+  getDrizzle,
 } from "@complyloop/db/postgres";
+
 import { loadLocalEnv } from "./env";
 
 export { loadLocalEnv, getDrizzle };

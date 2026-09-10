@@ -1,10 +1,11 @@
 import type { Locator, Page } from "playwright";
+
 import {
   BROWSER_HIT_CAPTURE_SRC,
-  LOAD_HIT_CAPTURE_SRC,
-  type CaptureHitOptions,
   type CapturedHit,
+  type CaptureHitOptions,
   type HitCaptureHelpers,
+  LOAD_HIT_CAPTURE_SRC,
 } from "./hit-capture.ts";
 
 export type CaptureHitFn = (

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { POST } from "./route";
 
 const isWebhookConfigured = vi.hoisted(() => vi.fn());

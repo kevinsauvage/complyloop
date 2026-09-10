@@ -1,13 +1,17 @@
 "use server";
 
-import { advanceRemediation } from "@/core/remediation-lifecycle";
-import { parseEntityId } from "@/core/filters";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { runAction, type ActionState } from "../action-state";
-import { patchCandidateFromEvidence } from "../ai-fix";
 import { getDrizzle } from "@complyloop/db/postgres";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
+
+import { parseEntityId } from "@/core/filters";
+import { advanceRemediation } from "@/core/remediation-lifecycle";
+
+import { type ActionState,runAction } from "../action-state";
+import { patchCandidateFromEvidence } from "../ai-fix";
 import { preparePullRequest } from "../pr";
+import { appendEvidence } from "../project-rows";
 import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,
@@ -20,10 +24,8 @@ import {
   requireRemediationForFinding,
 } from "../workspace";
 import { withFindingWrite } from "../workspace-write";
-import { appendEvidence } from "../project-rows";
-import { refresh, replaceRemediation, requireFindingContext } from "./shared";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { refresh, replaceRemediation, requireFindingContext } from "./shared";
 
 export type CreatePrFormState = ActionState & {
   prUrl: string | null;

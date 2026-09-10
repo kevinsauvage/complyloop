@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { assertE2EFixtureRoot, isE2EHarnessEnabled } from "./e2e-harness";
 
 const previousEnabled = process.env.E2E_AUTH_ENABLED;

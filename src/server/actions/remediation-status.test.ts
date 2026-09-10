@@ -1,5 +1,9 @@
 import "@/test-fixtures/register-action-workspace-mock";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+
 import {
   actionWorkspaceMocks,
   clearProjectWritePayloads,
@@ -9,7 +13,7 @@ import {
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
-import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+
 import { initialActionState } from "../action-state";
 import { dismissFindingAction } from "./remediation";
 import { clearRequirementExceptionAction } from "./requirements";

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseSource } from "./parse";
-import { isPropSpreadingHost } from "./jsx-primitives";
-import { visitJsxTags } from "./parse";
+
 import { buttonNameCheck } from "./checks/families/names";
+import { isPropSpreadingHost } from "./jsx-primitives";
+import { parseSource } from "./parse";
+import { visitJsxTags } from "./parse";
 
 describe("prop-spreading primitives", () => {
   it("detects JSX spread attributes", () => {

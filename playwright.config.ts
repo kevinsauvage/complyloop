@@ -1,5 +1,7 @@
 import path from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
+
 import { ANON_STATE, OWNER_STATE, VIEWER_STATE } from "./e2e/auth";
 import { resolveE2EAuthSecret } from "./e2e/env";
 

@@ -1,10 +1,12 @@
-import { formatDateTime } from "@/core/datetime";
-import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
+import Link from "next/link";
+
+import type { Alert as AlertRecord } from "@complyloop/analysis-core/contract/entities";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
+
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import type { Alert as AlertRecord } from "@complyloop/analysis-core/contract/entities";
+import { formatDateTime } from "@/core/datetime";
 import {
   markAlertReadAction,
   markAllAlertsReadAction,

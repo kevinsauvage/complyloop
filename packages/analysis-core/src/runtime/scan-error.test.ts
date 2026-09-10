@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+
 import { PublicError } from "../contract/public-error";
 import {
-  RUNTIME_SCAN_FAILED_MESSAGE,
   classifyRuntimeScanError,
+  RUNTIME_SCAN_FAILED_MESSAGE,
 } from "./scan-error";
 import { TOO_MANY_REDIRECTS_MESSAGE } from "./url-safety";
 

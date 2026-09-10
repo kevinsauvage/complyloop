@@ -1,8 +1,11 @@
-import type { ComponentProps } from "react";
 import { cleanup, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { TooltipProvider } from "@/components/ui/tooltip";
+
 import type { Control, Requirement } from "@complyloop/analysis-core/contract/project-types";
+
+import { TooltipProvider } from "@/components/ui/tooltip";
+
 import { RequirementCard } from "./requirement-card";
 
 vi.mock("@/server/actions/requirements", () => ({

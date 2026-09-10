@@ -1,5 +1,6 @@
-import { afterAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
+import { afterAll, describe, expect, it } from "vitest";
+
 import { closeDrizzle, getDrizzle } from "./postgres";
 
 /** Runs when Postgres is migrated (`DATABASE_URL`). Skipped in the default CI quality job. */

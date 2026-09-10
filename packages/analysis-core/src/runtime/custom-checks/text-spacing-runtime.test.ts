@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { textSpacingRuntimeViolation } from "./text-spacing-runtime";
+
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./playwright-page";
+import { textSpacingRuntimeViolation } from "./text-spacing-runtime";
 
 registerPlaywrightBrowserTeardown();
 

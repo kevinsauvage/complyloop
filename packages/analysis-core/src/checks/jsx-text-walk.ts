@@ -1,4 +1,5 @@
 import ts from "typescript";
+
 import { getAttribute, tagNameOf } from "../parse.ts";
 
 export function hasAttrOnAncestors(

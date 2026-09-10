@@ -1,35 +1,39 @@
 import "server-only";
-import {
-  hasSafeDeterministicFix,
-  refreshSuggestion,
-} from "@/core/remediation-lifecycle";
+
 import fs from "node:fs";
+
+import {
+  type EvidenceRecord,
+  type Finding,
+} from "@complyloop/analysis-core/contract/entities";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { applyFix, describeFix } from "@complyloop/analysis-core/fixes";
 import { scanChangedFiles } from "@complyloop/analysis-core/scan";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
+import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import type { Db } from "@complyloop/db/types";
+
 import { AI_PATCH_UNAVAILABLE_MESSAGE } from "@/ai/ai-call";
 import { proposeFixEdits } from "@/ai/patch";
 import {
   assertSourceLocatedFinding,
   generatePatchCandidate,
-  patchCandidateFromDetail,
-  patchCandidateToDetail,
   type GeneratePatchCandidateOptions,
   type PatchCandidate,
+  patchCandidateFromDetail,
+  patchCandidateToDetail,
   type ProposedFixEdits,
 } from "@/ai/verified-fix";
-import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import {
-  type EvidenceRecord,
-  type Finding,
-} from "@complyloop/analysis-core/contract/entities";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import type { Db } from "@complyloop/db/types";
+  hasSafeDeterministicFix,
+  refreshSuggestion,
+} from "@/core/remediation-lifecycle";
+
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
-import { appendEvidence } from "./project-rows";
 import { reportWarning } from "./observability";
+import { appendEvidence } from "./project-rows";
 
 export type PatchUiState =
   { status: "idle" } | { status: "ready"; candidate: PatchCandidate };

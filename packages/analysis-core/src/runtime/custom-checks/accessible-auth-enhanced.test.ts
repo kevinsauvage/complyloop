@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { accessibleAuthEnhancedViolation } from "./accessible-auth-enhanced";
 import {
   chromiumExecutableAvailable,

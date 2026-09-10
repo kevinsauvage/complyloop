@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { rgaaControls, rgaaFramework } from "./rgaa/controls.ts";
-import { wcagFramework } from "./wcag/controls.ts";
+
 import {
   controlDisplayCodes,
   controlForDisplay,
   groupControlsByTheme,
   secondaryReferenceLabel,
 } from "./control-theme";
+import { rgaaControls, rgaaFramework } from "./rgaa/controls.ts";
+import { wcagFramework } from "./wcag/controls.ts";
 
 function controlById(id: string) {
   const control = rgaaControls.find((candidate) => candidate.id === id);

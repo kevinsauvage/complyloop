@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { Check, Copy, WrapText } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState } from "react";
+
 import { useCopy } from "@/hooks/use-copy";
+import { cn } from "@/lib/utils";
 
 /** Code viewer with copy + wrap controls — long diffs stay readable on 320px viewports. */
 export function CodeBlock({

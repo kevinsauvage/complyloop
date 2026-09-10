@@ -1,7 +1,8 @@
-import { formatDateTime } from "@/core/datetime";
+import type { Remediation } from "@complyloop/analysis-core/contract/entities";
+
 import { RemediationStatusBadge } from "@/components/badges";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Remediation } from "@complyloop/analysis-core/contract/entities";
+import { formatDateTime } from "@/core/datetime";
 import { cn } from "@/lib/utils";
 
 /**

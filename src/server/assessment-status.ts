@@ -1,27 +1,29 @@
 import "server-only";
-import {
-  type Finding,
-  type EvidenceRecord,
-} from "@complyloop/analysis-core/contract/entities";
-import {
-  deriveRequirementStatus,
-  isStickyHumanDecision,
-} from "@complyloop/analysis-core/contract/requirement-status";
+
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import {
   authorityForCheck,
   isHtmlValidateOwnedCheck,
 } from "@complyloop/analysis-core/check-authority";
-import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import {
+  type EvidenceRecord,
+  type Finding,
+} from "@complyloop/analysis-core/contract/entities";
 import type {
   Control,
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/project-types";
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import {
+  deriveRequirementStatus,
+  isStickyHumanDecision,
+} from "@complyloop/analysis-core/contract/requirement-status";
+import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
-import { controlsInScope } from "./project-scope";
+
 import type { ProjectRows } from "./project-rows";
+import { controlsInScope } from "./project-scope";
 
 /** Human exceptions and human passes block automated status overwrite. */
 function requirementIsSticky(requirement: Requirement | undefined): boolean {

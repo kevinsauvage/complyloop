@@ -5,9 +5,9 @@
  */
 import {
   CAPTCHA_WITH_CHALLENGE,
+  matchesMultilingual,
   PUZZLE_CAPTCHA,
   PUZZLE_HOSTS,
-  matchesMultilingual,
 } from "./multilingual.ts";
 
 export { PUZZLE_HOST_NAMES } from "./captcha-config.ts";

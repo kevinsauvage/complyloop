@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+
 import { announceResult } from "@/hooks/use-action-toast";
 
 type CopyStatus = "idle" | "copied" | "error";

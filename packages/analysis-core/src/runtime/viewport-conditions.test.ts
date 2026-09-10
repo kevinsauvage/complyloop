@@ -1,18 +1,19 @@
 import { describe, expect, it } from "vitest";
-import {
-  COARSE_POINTER_LABEL,
-  MOBILE_TARGET_SIZE_LABEL,
-  MOBILE_VIEWPORT,
-  TARGET_SIZE_AXE_RULE,
-  TARGET_SIZE_ENHANCED_MIN_PX,
-  emulateCoarsePointer,
-} from "./viewport-conditions";
+
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./custom-checks/playwright-page";
+import {
+  COARSE_POINTER_LABEL,
+  emulateCoarsePointer,
+  MOBILE_TARGET_SIZE_LABEL,
+  MOBILE_VIEWPORT,
+  TARGET_SIZE_AXE_RULE,
+  TARGET_SIZE_ENHANCED_MIN_PX,
+} from "./viewport-conditions";
 
 registerPlaywrightBrowserTeardown();
 

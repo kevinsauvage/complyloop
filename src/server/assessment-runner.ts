@@ -1,7 +1,8 @@
 import "server-only";
+
 import {
-  processNextAssessmentJob,
   type AssessmentWorkerResult,
+  processNextAssessmentJob,
 } from "./assessment-worker";
 
 export type { AssessmentWorkerResult };
