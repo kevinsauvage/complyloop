@@ -26,7 +26,10 @@ export async function listAssessmentsForProjects(
     .select()
     .from(assessments)
     .where(inArray(assessments.projectId, [...projectIds]))
-    .orderBy(desc(sql`${assessments.payload}->>'completedAt'`));
+    .orderBy(
+      desc(sql`${assessments.payload}->>'completedAt'`),
+      desc(sql`${assessments.payload}->>'startedAt'`),
+    );
   return rows.map((row) => assessmentFromRow(row));
 }
 
@@ -43,7 +46,10 @@ export async function listLatestAssessmentForProject(
     .select()
     .from(assessments)
     .where(eq(assessments.projectId, projectId))
-    .orderBy(desc(sql`${assessments.payload}->>'completedAt'`))
+    .orderBy(
+      desc(sql`${assessments.payload}->>'completedAt'`),
+      desc(sql`${assessments.payload}->>'startedAt'`),
+    )
     .limit(1);
   return rows.map((row) => assessmentFromRow(row));
 }
@@ -60,7 +66,10 @@ export async function getLatestAssessmentSnapshot(
       eq(assessmentSnapshots.assessmentId, assessments.id),
     )
     .where(eq(assessments.projectId, projectId))
-    .orderBy(desc(sql`${assessments.payload}->>'completedAt'`))
+    .orderBy(
+      desc(sql`${assessments.payload}->>'completedAt'`),
+      desc(sql`${assessments.payload}->>'startedAt'`),
+    )
     .limit(1);
   return rows[0]?.snapshot;
 }

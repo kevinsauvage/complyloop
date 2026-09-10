@@ -63,26 +63,28 @@ export type FindingLocation = SourceLocation | DomLocation | SiteLocation;
 /** Which analysis engine produced a finding (`analyzerId` is finer-grained). */
 export type AssessmentEngine = "ast" | "runtime";
 
+/** Single source for analyzer → engine bucket + dedupe priority. */
+export const ANALYZER_META: Record<AnalyzerId, { engine: AssessmentEngine; priority: number }> = {
+  axe: { engine: "runtime", priority: 0 },
+  "html-validate": { engine: "runtime", priority: 1 },
+  "playwright-custom": { engine: "runtime", priority: 2 },
+  "site-level": { engine: "runtime", priority: 3 },
+  linkinator: { engine: "runtime", priority: 4 },
+  ast: { engine: "ast", priority: 5 },
+  "jsx-a11y": { engine: "ast", priority: 6 },
+};
+
 /** Coarse engine bucket derived from the analyzer that produced the finding. */
 export function engineFromAnalyzer(
   analyzerId: AnalyzerId | undefined,
 ): AssessmentEngine {
-  switch (analyzerId) {
-    case "axe":
-    case "html-validate":
-    case "playwright-custom":
-    case "site-level":
-    case "linkinator":
-      return "runtime";
-    case "ast":
-    case "jsx-a11y":
-    case undefined:
-      return "ast";
-    default: {
-      const _exhaustive: never = analyzerId;
-      throw new Error(`Unhandled analyzer: ${_exhaustive}`);
-    }
+  if (analyzerId === undefined) return "ast";
+  const meta: { engine: AssessmentEngine; priority: number } | undefined =
+    ANALYZER_META[analyzerId];
+  if (!meta) {
+    throw new Error(`Unhandled analyzer: ${analyzerId as string}`);
   }
+  return meta.engine;
 }
 
 /**

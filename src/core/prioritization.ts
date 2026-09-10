@@ -9,6 +9,14 @@ export function severityRank(severity: Severity): number {
   return lookupExhaustive(SEVERITY_RANK, severity, "severity");
 }
 
+/** Canonical severity order (single source; list filter re-exports it). */
+export const SEVERITY_ORDER = [
+  "critical",
+  "serious",
+  "moderate",
+  "minor",
+] as const satisfies readonly Severity[];
+
 const SEVERITY_RANK: Record<Severity, number> = {
   critical: 0,
   serious: 1,

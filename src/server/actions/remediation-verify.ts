@@ -8,7 +8,7 @@ import {
   scanRuntime,
 } from "@complyloop/analysis-core/runtime/scan";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { advanceRemediation } from "@/core/remediation";
+import { advanceRemediation, appendRemediationHistory } from "@/core/remediation";
 import {
   entityIdSchema,
   optionalNoteSchema,
@@ -23,7 +23,7 @@ import {
 import { sameInstance } from "../assessment-findings";
 import { applyRequirementStatusRefresh } from "../assessment-status";
 import type { Db } from "@complyloop/db/types";
-import { remediationEvidenceSummary } from "../remediation-evidence";
+import { remediationEvidenceDetail, remediationEvidenceSummary } from "../remediation-evidence";
 import {
   getWorkspace,
   remediationForFinding,
@@ -31,11 +31,11 @@ import {
   requireRemediationForFinding,
 } from "../workspace";
 import { withFindingWrite } from "../workspace-write";
-import { appendEvidence, cloneProjectRows } from "../project-rows";
+import { appendEvidence, cloneProjectRows, upsertFindingInRows } from "../project-rows";
 import {
   refresh,
   replaceRemediation,
-  requireOnFindingProject,
+  requireFindingContext,
 } from "./shared";
 
 const markImplementedInput = z.object({
@@ -59,17 +59,11 @@ function recordStillFailing(
   payload: ProjectWritePayload,
   remediation: Remediation,
 ): void {
-  const updated: Remediation = {
-    ...remediation,
-    history: [
-      ...remediation.history,
-      {
-        status: remediation.status,
-        at: new Date().toISOString(),
-        note: "Verification failed: the violation is still detected on the page.",
-      },
-    ],
-  };
+  const updated = appendRemediationHistory(
+    remediation,
+    remediation.status,
+    "Verification failed: the violation is still detected on the page.",
+  );
   payload.remediations = [...(payload.remediations ?? []), updated];
 }
 
@@ -98,21 +92,14 @@ function markVerified(
     status: "resolved",
     resolvedNote: "Fix verified by re-running the runtime audit.",
   };
-  const findingIndex = rows.findings.findIndex(
-    (candidate) => candidate.id === live.id,
-  );
-  if (findingIndex >= 0) {
-    rows.findings[findingIndex] = updatedFinding;
-  } else {
-    rows.findings.push(updatedFinding);
-  }
+  upsertFindingInRows(rows, updatedFinding);
   appendEvidence(rows, {
     kind: "remediation_verified",
     summary: remediationEvidenceSummary("verified", live),
     projectId: live.projectId,
     controlId: live.controlId,
     findingId: live.id,
-    detail: { engine },
+    detail: remediationEvidenceDetail({ engine }),
   });
   applyRequirementStatusRefresh(rows, project, {
     controlIds: [live.controlId],
@@ -139,7 +126,7 @@ export async function verifyRemediationAction(
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);
-    requireOnFindingProject(preview, finding, "project.remediate");
+    const { project: previewProject } = requireFindingContext(preview, finding, "project.remediate");
     const previewRemediation = await requireRemediationForFinding(findingId);
     if (previewRemediation.status !== "implemented") {
       throw new PublicError("Verification requires status implemented.");
@@ -165,10 +152,7 @@ export async function verifyRemediationAction(
         break;
       }
       case "site": {
-        const project = preview.projects.find(
-          (candidate) => candidate.id === finding.projectId,
-        );
-        if (!project) throw new PublicError("Unknown project.");
+        const project = previewProject;
         const result = await scanRuntime({
           runtimeBaseUrl: project.runtimeBaseUrl,
           runtimeRoutes: project.runtimeRoutes,
@@ -243,7 +227,7 @@ export async function markRemediationImplementedAction(
           projectId: finding.projectId,
           controlId: finding.controlId,
           findingId: finding.id,
-          detail: { manual: true, note },
+          detail: remediationEvidenceDetail({ manual: true, note }),
         });
         return payload;
       },

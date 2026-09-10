@@ -10,8 +10,7 @@ import {
   matchesMultilingual,
 } from "./multilingual.ts";
 
-/** PascalCase hosts for browser injection (`Set` does not serialize). */
-export const PUZZLE_HOST_NAMES: readonly string[] = [...PUZZLE_HOSTS];
+export { PUZZLE_HOST_NAMES } from "./captcha-config.ts";
 
 export interface ObjectRecognitionCaptchaSignal {
   /** JSX / custom-element tag name (e.g. `PuzzleCaptcha`, `div`). */

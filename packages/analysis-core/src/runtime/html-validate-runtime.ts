@@ -15,8 +15,9 @@
 import type { HtmlValidate } from "html-validate";
 import type { Page } from "playwright";
 import { htmlValidatePackageVersion } from "../analyzer-versions.ts";
-import { checkIdForHtmlValidateRule } from "./html-validate-map.ts";
+import { checkIdForHtmlValidateRule, HTML_VALIDATE_TO_CHECK_RULE_IDS } from "./html-validate-map.ts";
 import { htmlSnippet } from "./dom-location.ts";
+import { offsetAt as offsetForLineColumn } from "../parse.ts";
 import { rawFindingFromDom } from "./raw-finding-from-dom.ts";
 import type { RawFinding } from "../types.ts";
 
@@ -24,16 +25,12 @@ import type { RawFinding } from "../types.ts";
  * Curated html-validate rules for RGAA 8.2 markup validity and 10.1 deprecated
  * presentational markup. Duplicate ids, landmarks, labels, ARIA, and broken
  * idrefs are axe / custom Playwright — not enabled here.
+ * Keys are derived from the rule→check map so the runner and the map
+ * cannot drift (map is the single source for which rules exist).
  */
-const RENDERED_RULES = {
-  "element-permitted-content": "error",
-  "element-permitted-order": "error",
-  "close-order": "error",
-  "no-implicit-close": "error",
-  "no-dup-attr": "error",
-  "no-deprecated-attr": "error",
-  deprecated: "error",
-} as const;
+const RENDERED_RULES = Object.fromEntries(
+  HTML_VALIDATE_TO_CHECK_RULE_IDS.map((ruleId) => [ruleId, "error" as const]),
+) as Record<(typeof HTML_VALIDATE_TO_CHECK_RULE_IDS)[number], "error">;
 
 export const HTML_VALIDATE_RENDERED_RULE_IDS = Object.keys(
   RENDERED_RULES,
@@ -206,19 +203,6 @@ interface HtmlValidateMessage {
   line?: number;
   column?: number;
   message?: string;
-}
-
-/** Offset of a 1-based line/column in a string. */
-function offsetForLineColumn(text: string, line: number, column: number): number {
-  let offset = 0;
-  let currentLine = 1;
-  while (currentLine < line && offset < text.length) {
-    const nl = text.indexOf("\n", offset);
-    if (nl === -1) break;
-    offset = nl + 1;
-    currentLine += 1;
-  }
-  return Math.min(offset + Math.max(0, column - 1), text.length);
 }
 
 /** The element whose serialized span contains `offset` (deepest match). */

@@ -21,7 +21,7 @@ import {
 import { withFindingWrite } from "../workspace-write";
 import {
   refresh,
-  requireOnFindingProject,
+  requireFindingContext,
 } from "./shared";
 
 export async function generateAiFixAction(
@@ -35,14 +35,11 @@ export async function generateAiFixAction(
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);
-    requireOnFindingProject(preview, finding, "project.remediate");
+    const { project } = requireFindingContext(preview, finding, "project.remediate");
     assertSourceLocatedFinding(finding);
     if (finding.status !== "open") {
       throw new PublicError("Patch generation is only available for open findings.");
     }
-    const project = preview.projects.find(
-      (candidate) => candidate.id === finding.projectId,
-    );
     if (!project?.github?.fullName) {
       throw new PublicError(
         "Connect a GitHub repository before generating a patch.",

@@ -9,6 +9,11 @@ export function hasSafeDeterministicFix(finding: Finding): boolean {
   );
 }
 
+/** Single copy for the verified-finding description. */
+export function verifiedDescription(finding: Finding): string {
+  return finding.resolvedNote ?? "Fix confirmed by automated re-check.";
+}
+
 /** Bulk approve is for runtime guidance only — source findings use patch → PR. */
 export function canBulkApproveRemediation(
   finding: Finding,
@@ -119,9 +124,7 @@ function runtimeAct(input: FindingActInput): FindingActView {
         ...chrome(input),
         beat: "verified",
         title: "Verified",
-        description:
-          input.finding.resolvedNote ??
-          "Fix confirmed by automated re-check.",
+        description: verifiedDescription(input.finding),
       };
     default: {
       const _exhaustive: never = input.remediation.status;
@@ -179,9 +182,7 @@ export function findingAct(input: FindingActInput): FindingActView {
       ...chrome(input),
       beat: "verified",
       title: "Verified",
-      description:
-        input.finding.resolvedNote ??
-        "Fix confirmed by automated re-check.",
+      description: verifiedDescription(input.finding),
     };
   }
 

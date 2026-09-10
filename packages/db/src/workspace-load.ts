@@ -25,6 +25,7 @@ import {
   getLatestAssessmentSnapshot,
   listLatestAssessmentForProject,
 } from "./repo/assessments.ts";
+import { projectScopedSlice } from "./repo/apply.ts";
 
 const EMPTY_RUNTIME: Pick<
   Db,
@@ -203,7 +204,10 @@ async function loadTargetedProjectRuntime(
             ),
           );
 
-  // Rows are already scoped to the active project in SQL.
+  // Rows are already scoped to the active project in SQL; re-apply the
+  // shared projectScopedSlice predicate so remediation scoping (via finding,
+  // not project) matches the in-memory path and cross-project findingIds
+  // cannot leak remediations.
   const projectRequirements = requirementRows.map((row) => row.payload);
 
   // Latest assessment + alerts are bounded per-project context the handler may
@@ -214,14 +218,22 @@ async function loadTargetedProjectRuntime(
     drizzle.select().from(alerts).where(eq(alerts.projectId, projectId)),
   ]);
 
+  const scoped = projectScopedSlice(
+    {
+      findings: findingRows.map((row) => row.payload),
+      remediations: remediationRows.map((row) => row.payload),
+      requirements: projectRequirements,
+      alerts: alertRows.map((row) => row.payload),
+    },
+    projectId,
+  );
+
   return {
-    requirements: projectRequirements,
+    requirements: scoped.requirements,
     assessments: assessmentsList,
-    findings: findingRows
-      .map((row) => row.payload)
-      .filter((finding) => finding.projectId === projectId),
-    remediations: remediationRows.map((row) => row.payload),
-    alerts: alertRows.map((row) => row.payload),
+    findings: scoped.findings,
+    remediations: scoped.remediations,
+    alerts: scoped.alerts,
   };
 }
 

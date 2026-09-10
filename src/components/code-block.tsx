@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, WrapText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCopyText } from "@/hooks/use-copy-text";
 
 /** Code viewer with copy + wrap controls — long diffs stay readable on 320px viewports. */
 export function CodeBlock({
@@ -14,16 +15,10 @@ export function CodeBlock({
   filename?: string;
 }) {
   const [wrap, setWrap] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, copy] = useCopyText();
 
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(children);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
+  async function handleCopy() {
+    await copy(children);
   }
 
   return (
@@ -44,7 +39,7 @@ export function CodeBlock({
         </span>
         <button
           type="button"
-          onClick={copy}
+          onClick={handleCopy}
           aria-label={copied ? "Copied" : "Copy code to clipboard"}
           className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
         >

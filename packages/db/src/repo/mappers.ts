@@ -125,6 +125,11 @@ export function evidenceToRow(record: EvidenceRecord) {
   };
 }
 
+/** Drizzle returns null for unset columns; domain uses `undefined`. */
+function nullToUndefined<T>(value: T | null | undefined): T | undefined {
+  return value ?? undefined;
+}
+
 export function rowToEvidence(
   row: typeof evidence.$inferSelect,
 ): EvidenceRecord {
@@ -133,10 +138,10 @@ export function rowToEvidence(
     at: row.at,
     kind: row.kind as EvidenceRecord["kind"],
     summary: row.summary,
-    projectId: row.projectId ?? undefined,
-    controlId: row.controlId ?? undefined,
-    findingId: row.findingId ?? undefined,
-    assessmentId: row.assessmentId ?? undefined,
-    detail: row.detail ?? undefined,
+    projectId: nullToUndefined(row.projectId),
+    controlId: nullToUndefined(row.controlId),
+    findingId: nullToUndefined(row.findingId),
+    assessmentId: nullToUndefined(row.assessmentId),
+    detail: nullToUndefined(row.detail),
   };
 }

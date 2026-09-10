@@ -118,6 +118,17 @@ export function spanOf(node: ts.Node, sourceFile: ts.SourceFile): Span {
   return { start: node.getStart(sourceFile), end: node.getEnd() };
 }
 
+/** Offset of a 1-based line/column in a string (shared by AST + html-validate). */
+export function offsetAt(text: string, line: number, column: number): number {
+  let offset = 0;
+  let currentLine = 1;
+  while (currentLine < line && offset < text.length) {
+    if (text[offset] === "\n") currentLine += 1;
+    offset += 1;
+  }
+  return Math.min(offset + Math.max(column, 1) - 1, text.length);
+}
+
 /** Span of a JSX attribute including leading whitespace (for safe removal). */
 export function attributeRemovalSpan(
   attr: ts.JsxAttribute,

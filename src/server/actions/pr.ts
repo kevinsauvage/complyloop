@@ -11,7 +11,7 @@ import { patchCandidateFromEvidence } from "../ai-fix";
 import { getDrizzle } from "@complyloop/db/client";
 import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
 import { preparePullRequest } from "../pr";
-import { remediationEvidenceSummary } from "../remediation-evidence";
+import { remediationEvidenceDetail, remediationEvidenceSummary } from "../remediation-evidence";
 import {
   controlById,
   getWorkspace,
@@ -24,7 +24,7 @@ import { appendEvidence } from "../project-rows";
 import {
   refresh,
   replaceRemediation,
-  requireOnFindingProject,
+  requireFindingContext,
 } from "./shared";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
@@ -44,12 +44,9 @@ export async function createPullRequestAction(
     const findingId = parseInput(entityIdSchema, findingIdRaw);
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);
-    requireOnFindingProject(preview, finding, "project.remediate");
+    const { project } = requireFindingContext(preview, finding, "project.remediate");
     const control = controlById(finding.controlId);
     const remediation = await requireRemediationForFinding(findingId);
-    const project = preview.projects.find(
-      (candidate) => candidate.id === finding.projectId,
-    );
     if (!project) {
       throw new PublicError("Unknown project.");
     }
@@ -101,7 +98,7 @@ export async function createPullRequestAction(
             projectId: project.id,
             controlId: liveFinding.controlId,
             findingId: liveFinding.id,
-            detail: { approvalAction: "create_draft_pull_request" },
+            detail: remediationEvidenceDetail({ approvalAction: "create_draft_pull_request" }),
           });
         }
         appendEvidence(payload, {

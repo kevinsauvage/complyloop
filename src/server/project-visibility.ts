@@ -47,28 +47,34 @@ export function visibleProjects(
   return projects.filter((project) => isProjectVisible(project, ctx));
 }
 
+/** Generic project-id filter (single source for per-entity helpers). */
+export function rowsForProject<T extends { projectId?: string }>(
+  rows: ReadonlyArray<T>,
+  projectId: string,
+): T[] {
+  return rows.filter((row) => row.projectId === projectId);
+}
+
 /** Evidence rows belonging to a single project (export / report / evidence UI). */
 export function evidenceForProject(
   evidence: ReadonlyArray<EvidenceRecord>,
   projectId: string,
 ): EvidenceRecord[] {
-  return evidence.filter((record) => record.projectId === projectId);
+  return rowsForProject(evidence, projectId);
 }
 
 export function requirementsForProject(
   requirements: ReadonlyArray<Requirement>,
   projectId: string,
 ): Requirement[] {
-  return requirements.filter(
-    (requirement) => requirement.projectId === projectId,
-  );
+  return rowsForProject(requirements, projectId);
 }
 
 export function findingsForProject(
   findings: ReadonlyArray<Finding>,
   projectId: string,
 ): Finding[] {
-  return findings.filter((finding) => finding.projectId === projectId);
+  return rowsForProject(findings, projectId);
 }
 
 /**

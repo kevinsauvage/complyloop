@@ -48,6 +48,23 @@ export function uniqueProjectName(db: Db, desired: string): string {
  * A GitHub repo is already connected for this org when it belongs to the
  * active org. Matches connect-action duplicate detection.
  */
+export function isConnectedGitHubProject(
+  project: Project,
+  normalizedFullName: string,
+  activeOrgId: string | null,
+): boolean {
+  if (!activeOrgId) return false;
+  if (project.source !== "github" || project.orgId !== activeOrgId) return false;
+  if (project.github?.fullName) {
+    return normalizeGitHubFullName(project.github.fullName) === normalizedFullName;
+  }
+  // Legacy rows without github meta: fall back to case-insensitive sourceRef.
+  return (
+    project.sourceRef?.toLowerCase() ===
+    `https://github.com/${normalizedFullName}`.toLowerCase()
+  );
+}
+
 export function findConnectedGitHubProject(
   projects: ReadonlyArray<Project>,
   fullName: string,
@@ -55,13 +72,7 @@ export function findConnectedGitHubProject(
 ): Project | undefined {
   if (!activeOrgId) return undefined;
   const needle = normalizeGitHubFullName(fullName);
-  return projects.find((project) => {
-    if (project.source !== "github" || !project.github?.fullName) return false;
-    if (normalizeGitHubFullName(project.github.fullName) !== needle) {
-      return false;
-    }
-    return project.orgId === activeOrgId;
-  });
+  return projects.find((project) => isConnectedGitHubProject(project, needle, activeOrgId));
 }
 
 /**
@@ -113,12 +124,7 @@ export async function connectGitHubRepo(
   }
 
   const sourceRef = `https://github.com/${fullName}`;
-  const existing = db.projects.find(
-    (project) =>
-      project.source === "github" &&
-      project.orgId === input.orgId &&
-      (project.github?.fullName === fullName || project.sourceRef === sourceRef),
-  );
+  const existing = findConnectedGitHubProject(db.projects, fullName, input.orgId);
   if (existing) {
     // Already connected: no-op, no duplicate evidence.
     return { project: existing, evidence: [] };

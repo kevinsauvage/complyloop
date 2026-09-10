@@ -3,7 +3,7 @@ import type { Requirement } from "@complyloop/analysis-core/contract/project-typ
 import type { DrizzleDb } from "../client.ts";
 import { requirements } from "../schema.ts";
 import { requirementToRow } from "./mappers.ts";
-import { filterStalePayloadWrites } from "./upsert-guard.ts";
+import { upsertPayloadRows } from "./upsert-guard.ts";
 
 export async function listRequirementsForProject(
   drizzle: DrizzleDb,
@@ -30,9 +30,7 @@ export async function upsertRequirements(
   items: ReadonlyArray<Requirement>,
   options: UpsertRequirementsOptions = {},
 ): Promise<void> {
-  if (items.length === 0) return;
-
-  const toWrite = await filterStalePayloadWrites(
+  await upsertPayloadRows(
     items,
     options.loadedUpdatedAtById,
     async (ids) => {
@@ -42,23 +40,24 @@ export async function upsertRequirements(
         .where(inArray(requirements.id, [...ids]));
       return new Map(rows.map((row) => [row.id, row.payload.updatedAt]));
     },
+    requirementToRow,
+    async (rows) => {
+      // Conflict target is the composite unique index, not the id: two writers
+      // that each created an in-memory row for the same (project, control) with
+      // fresh ids must converge on one DB row instead of inserting a duplicate.
+      // Same-id updates hit the same arbiter (same row), so the common status-flip
+      // path is unchanged.
+      await tx
+        .insert(requirements)
+        .values(rows)
+        .onConflictDoUpdate({
+          target: [requirements.projectId, requirements.controlId],
+          set: {
+            id: sql`excluded.id`,
+            status: sql`excluded.status`,
+            payload: sql`excluded.payload`,
+          },
+        });
+    },
   );
-
-  if (toWrite.length === 0) return;
-  // Conflict target is the composite unique index, not the id: two writers
-  // that each created an in-memory row for the same (project, control) with
-  // fresh ids must converge on one DB row instead of inserting a duplicate.
-  // Same-id updates hit the same arbiter (same row), so the common status-flip
-  // path is unchanged.
-  await tx
-    .insert(requirements)
-    .values(toWrite.map(requirementToRow))
-    .onConflictDoUpdate({
-      target: [requirements.projectId, requirements.controlId],
-      set: {
-        id: sql`excluded.id`,
-        status: sql`excluded.status`,
-        payload: sql`excluded.payload`,
-      },
-    });
 }

@@ -24,6 +24,11 @@ export function latestAssessmentFor(
 
 export type RuntimeCoverageMode = "source_only" | "source_and_preview";
 
+/** Single predicate for "preview URL configured" (blank/whitespace = absent). */
+export function hasPreviewUrl(project: Pick<Project, "runtimeBaseUrl">): boolean {
+  return Boolean(project.runtimeBaseUrl?.trim());
+}
+
 export interface RuntimeCoverageSummary {
   mode: RuntimeCoverageMode;
   label: string;
@@ -35,14 +40,14 @@ export function runtimeCoverageSummary(
   project: Pick<Project, "runtimeBaseUrl">,
   engines?: AssessmentEngines,
 ): RuntimeCoverageSummary {
-  const hasPreviewUrl = Boolean(project.runtimeBaseUrl?.trim());
+  const hasPreviewUrlValue = hasPreviewUrl(project);
   const runtimeError = engines?.runtimeError ?? null;
   const pagesScanned =
     engines?.runtime && typeof engines.runtimePagesScanned === "number"
       ? engines.runtimePagesScanned
       : null;
 
-  if (!hasPreviewUrl) {
+  if (!hasPreviewUrlValue) {
     return {
       mode: "source_only",
       label: "Source only",

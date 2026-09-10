@@ -7,7 +7,7 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { formatLocationRef, locationPathOrUrl } from "@complyloop/analysis-core/contract/location";
 import { parsePageParam } from "./pagination";
 import { parseEnumParam, firstParam, buildHref, pickDefined } from "./query";
-import { prioritizeFindings, severityRank } from "./prioritization";
+import { prioritizeFindings, SEVERITY_ORDER, severityRank } from "./prioritization";
 import {
   REMEDIATION_STATUSES,
   type RemediationStatus,
@@ -24,12 +24,7 @@ const FINDINGS_TABS = [
 
 export type FindingsTab = (typeof FINDINGS_TABS)[number];
 
-const SEVERITIES = [
-  "critical",
-  "serious",
-  "moderate",
-  "minor",
-] as const satisfies readonly Severity[];
+const SEVERITIES = SEVERITY_ORDER;
 
 export interface FindingListParams {
   q?: string;

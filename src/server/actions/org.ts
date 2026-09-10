@@ -22,10 +22,7 @@ import {
   deleteOrganization,
   exportOrgData,
 } from "../orgs";
-import {
-  canManageOrgMembers,
-  resolveActiveOrgId,
-} from "../org-queries";
+import { resolveActiveOrgId } from "../org-queries";
 import {
   changeOrgMemberRole,
   inviteOrgMember,
@@ -39,6 +36,12 @@ import { withOrgWrite } from "../workspace-write";
 import { refresh, requireSignedIn } from "./shared";
 import { loadProjectRuntime } from "@complyloop/db/workspace-load";
 import { emptyDb } from "@complyloop/db/types";
+import { ORG_ROLES } from "@complyloop/analysis-core/contract/project-types";
+
+/** Roles assignable via invite/change UI (owner transfer unsupported). Single source: ORG_ROLES. */
+const ASSIGNABLE_ORG_ROLES = ORG_ROLES.filter(
+  (role): role is "admin" | "member" | "viewer" => role !== "owner",
+);
 
 /** Max projects per org export — bounds the O(P) runtime fan-out below. */
 const MAX_EXPORT_PROJECTS = 50;
@@ -56,7 +59,7 @@ const createOrgInput = z.object({
 const inviteOrgMemberInput = z.object({
   orgId: requiredField("Select an organization."),
   githubLogin: requiredField("Enter a GitHub username.", 39),
-  role: z.enum(["admin", "member", "viewer"], {
+  role: z.enum(ASSIGNABLE_ORG_ROLES, {
     error: "Choose a role: admin, member, or viewer.",
   }),
 });
@@ -67,7 +70,7 @@ const orgMembershipInput = z.object({
 });
 
 const changeOrgMemberRoleInput = orgMembershipInput.extend({
-  role: z.enum(["admin", "member", "viewer"], {
+  role: z.enum(ASSIGNABLE_ORG_ROLES, {
     error: "Choose a role: admin, member, or viewer.",
   }),
 });
@@ -137,9 +140,6 @@ export async function inviteOrgMemberAction(
     const { orgId, githubLogin, role } = parseForm(inviteOrgMemberInput, formData);
 
     await withOrgWrite(({ db }) => {
-      if (!canManageOrgMembers(db, orgId, userId)) {
-        throw new PublicError("Only org owners and admins can invite members.");
-      }
       const membership = inviteOrgMember(db, orgId, userId, githubLogin, role);
       return { result: undefined, upsertMemberships: [membership] };
     });
@@ -159,9 +159,6 @@ export async function removeOrgMemberAction(
 
     let revokedInvite = false;
     await withOrgWrite(({ db }) => {
-      if (!canManageOrgMembers(db, orgId, userId)) {
-        throw new PublicError("Only org owners and admins can remove members.");
-      }
       const target = db.memberships.find(
         (membership) =>
           membership.id === membershipId && membership.orgId === orgId,
@@ -188,9 +185,6 @@ export async function changeOrgMemberRoleAction(
     );
 
     await withOrgWrite(({ db }) => {
-      if (!canManageOrgMembers(db, orgId, userId)) {
-        throw new PublicError("Only org owners and admins can change member roles.");
-      }
       const membership = changeOrgMemberRole(db, orgId, userId, membershipId, role);
       return { result: undefined, upsertMemberships: [membership] };
     });

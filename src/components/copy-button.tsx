@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useCopyText } from "@/hooks/use-copy-text";
 
 export function CopyButton({
   label,
@@ -12,6 +13,7 @@ export function CopyButton({
   text: string;
 }) {
   const [announcement, setAnnouncement] = useState("");
+  const [, copy] = useCopyText();
 
   return (
     <>
@@ -21,7 +23,7 @@ export function CopyButton({
         size="sm"
         onClick={async () => {
           try {
-            await navigator.clipboard.writeText(text);
+            await copy(text);
             setAnnouncement("Copied");
           } catch {
             setAnnouncement("Could not copy");

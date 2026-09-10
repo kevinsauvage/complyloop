@@ -31,9 +31,10 @@ import { withFindingWrite, withProjectWrite } from "../workspace-write";
 import {
   appendEvidence,
   cloneProjectRows,
+  upsertFindingInRows,
   type ProjectRows,
 } from "../project-rows";
-import { remediationEvidenceSummary } from "../remediation-evidence";
+import { remediationEvidenceDetail, remediationEvidenceSummary } from "../remediation-evidence";
 import {
   refresh,
   replaceRemediation,
@@ -75,14 +76,10 @@ function approveRemediationInPayload(
     projectId: finding.projectId,
     controlId: finding.controlId,
     findingId: finding.id,
-    detail: options.bulk
-      ? {
-          bulk: true,
-          ...(finding.fix ? { fix: { ...finding.fix } } : {}),
-        }
-      : finding.fix
-        ? { fix: { ...finding.fix } }
-        : undefined,
+    detail: remediationEvidenceDetail({
+      ...(options.bulk ? { bulk: true } : {}),
+      ...(finding.fix ? { fix: { ...finding.fix } } : {}),
+    }),
   });
 }
 
@@ -99,12 +96,7 @@ function dismissFindingInRows(
     status: "dismissed",
     dismissal: { reason, note, at },
   };
-  const index = rows.findings.findIndex((candidate) => candidate.id === finding.id);
-  if (index >= 0) {
-    rows.findings[index] = updated;
-  } else {
-    rows.findings.push(updated);
-  }
+  upsertFindingInRows(rows, updated);
   appendEvidence(rows, {
     kind: "finding",
     summary: `Finding dismissed (${reason}): ${finding.checkId} at ${formatLocationRef(finding.location)}`,

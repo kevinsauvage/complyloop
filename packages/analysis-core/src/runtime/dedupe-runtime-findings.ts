@@ -1,15 +1,11 @@
 import type { AnalyzerContribution, AnalyzerId } from "../contract/finding-types.ts";
+import { ANALYZER_META } from "../contract/finding-types.ts";
+import { normalizeSnippetKey } from "./dom-location.ts";
 import type { RawFinding } from "../types.ts";
 
-const ANALYZER_PRIORITY: Record<AnalyzerId, number> = {
-  axe: 0,
-  "html-validate": 1,
-  "playwright-custom": 2,
-  "site-level": 3,
-  linkinator: 4,
-  ast: 5,
-  "jsx-a11y": 6,
-};
+function analyzerPriority(id: AnalyzerId): number {
+  return ANALYZER_META[id].priority;
+}
 
 function effectiveAnalyzerId(finding: RawFinding): AnalyzerId {
   if (finding.analyzerId) return finding.analyzerId;
@@ -19,7 +15,7 @@ function effectiveAnalyzerId(finding: RawFinding): AnalyzerId {
 }
 
 function normalizeSnippet(snippet: string): string {
-  return snippet.replace(/\s+/g, " ").trim().toLowerCase();
+  return normalizeSnippetKey(snippet);
 }
 
 /** Stable key for collapsing dom/runtime findings on the same node. */
@@ -105,8 +101,8 @@ export function dedupeRuntimeFindings(
     let winner = group[0]!;
     for (let index = 1; index < group.length; index += 1) {
       const candidate = group[index]!;
-      const winnerPriority = ANALYZER_PRIORITY[effectiveAnalyzerId(winner)];
-      const candidatePriority = ANALYZER_PRIORITY[effectiveAnalyzerId(candidate)];
+      const winnerPriority = analyzerPriority(effectiveAnalyzerId(winner));
+      const candidatePriority = analyzerPriority(effectiveAnalyzerId(candidate));
       if (candidatePriority < winnerPriority) {
         winner = {
           ...candidate,

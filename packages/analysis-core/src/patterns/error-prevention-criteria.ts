@@ -22,11 +22,5 @@ export const ERROR_PREVENTION_CONFIRM_DATASET_KEYS = [
   "confirmSubmit",
 ] as const;
 
-/** Known captcha host component tag names (AST). */
-export const CAPTCHA_COMPONENT_HOSTS = [
-  "ReCAPTCHA",
-  "HCaptcha",
-  "Captcha",
-  "Turnstile",
-  "FriendlyCaptcha",
-] as const;
+/** Known captcha host component tag names (AST). Single source: captcha-config. */
+export { CAPTCHA_COMPONENT_HOSTS } from "./captcha-config.ts";

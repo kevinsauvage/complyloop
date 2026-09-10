@@ -1,4 +1,5 @@
 import { lookupExhaustive } from "./assert-exhaustive";
+import { hasPreviewUrl } from "./assessment";
 import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
 
 export type UnableToVerifyReason =
@@ -30,7 +31,7 @@ export function unableToVerifyReason(
     return "needs_human_review";
   }
 
-  const hasPreview = Boolean(project.runtimeBaseUrl?.trim());
+  const hasPreview = hasPreviewUrl(project);
 
   if (options.isRuntimeOnlyCheck && !hasPreview) {
     return "needs_preview_url";

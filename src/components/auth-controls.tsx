@@ -1,5 +1,5 @@
 import { auth, isGitHubAuthConfigured } from "@/auth";
-import { signInWithGitHubAction } from "@/server/actions/auth";
+import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
 import { SignOutMenuItem } from "@/components/sign-out-menu-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,9 @@ export async function AuthControls() {
 
   if (!session?.user) {
     return (
-      <form action={signInWithGitHubAction} className="px-3">
-        <input type="hidden" name="callbackUrl" value="/dashboard" />
-        <Button type="submit" className="w-full">
-          Sign in with GitHub
-        </Button>
-      </form>
+      <div className="px-3">
+        <SignInWithGitHubButton />
+      </div>
     );
   }
 

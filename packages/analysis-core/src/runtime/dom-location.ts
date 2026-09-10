@@ -22,9 +22,28 @@ export const HTML_SNIPPET_MAX_LENGTH = 200;
  * self-contained for Playwright injection — keep literals in sync with
  * {@link HTML_SNIPPET_TRUNCATE_LENGTH} / {@link HTML_SNIPPET_MAX_LENGTH}.
  */
+export function collapseWhitespace(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+export function truncateSnippet(text: string): string {
+  return text.length > 200 ? `${text.slice(0, 197)}…` : text;
+}
+
+/**
+ * Collapses whitespace and truncates an element's HTML to ≤200 chars.
+ * Self-contained for Playwright injection (`htmlSnippet.toString()` runs in
+ * the page and cannot call sibling helpers) — keep logic identical to
+ * {@link collapseWhitespace} + {@link truncateSnippet}.
+ */
 export function htmlSnippet(html: string): string {
   const trimmed = html.replace(/\s+/g, " ").trim();
   return trimmed.length > 200 ? `${trimmed.slice(0, 197)}…` : trimmed;
+}
+
+/** Dedupe-key form: collapsed whitespace + lowercase (not truncated). */
+export function normalizeSnippetKey(text: string): string {
+  return collapseWhitespace(text).toLowerCase();
 }
 
 /** First CSS selector from an element's target path, with an unknown fallback. */

@@ -37,14 +37,14 @@ import {
 } from "./assessment-status";
 import {
   assertAssessableCatalog,
-  scopedControlIds,
+  requirementsInScope,
 } from "./project-scope";
 import {
   appendEvidence,
   cloneProjectRows,
   type ProjectRows,
 } from "./project-rows";
-import { remediationEvidenceSummary } from "./remediation-evidence";
+import { remediationEvidenceDetail, remediationEvidenceSummary } from "./remediation-evidence";
 
 interface RuntimeScanEngineInput {
   pagesScanned: number;
@@ -129,10 +129,10 @@ function verifyDraftPrRemediation(
     "Verified by deterministic reassessment",
   );
   rows.remediations[remediationIndex] = verified;
-  const detail = {
+  const detail = remediationEvidenceDetail({
     determination: "automated",
     method: "deterministic_reassessment",
-  };
+  });
   appendEvidence(rows, {
     kind: "remediation_implemented",
     summary: remediationEvidenceSummary("implemented", finding),
@@ -276,10 +276,7 @@ const scopedFileSet = useScoped ? new Set(changedJsx) : null;
         controls: options.controls,
     });
 
-  const inScope = scopedControlIds(project);
-  const scopedRequirements = rows.requirements.filter(
-    (requirement) => !inScope || inScope.has(requirement.controlId),
-  );
+  const scopedRequirements = requirementsInScope(rows.requirements, project);
   const summary = countByStatus(scopedRequirements, REQUIREMENT_STATUSES);
 
   const assessment: Assessment = {

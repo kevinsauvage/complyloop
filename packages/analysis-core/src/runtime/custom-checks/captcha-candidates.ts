@@ -6,6 +6,8 @@
 
 /** Collects captcha candidate elements (iframe, class/id/data-sitekey, captcha imgs, puzzle hosts). */
 export function collectCaptchaCandidates(doc: Document = document): Element[] {
+  // Import-free for page injection — keep in sync with CAPTCHA_CANDIDATE_SELECTORS
+  // in patterns/captcha-config.ts (parity test enforces it).
   const found = new Set<Element>();
   const selectors = [
     "iframe",

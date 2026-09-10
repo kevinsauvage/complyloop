@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { reportClientError } from "@/lib/report-client-error";
-import { AppErrorCard } from "@/components/app-error-card";
+import { ReportedError } from "@/components/reported-error";
 
 export default function AppGroupError({
   error,
@@ -11,15 +9,12 @@ export default function AppGroupError({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
-  useEffect(() => {
-    reportClientError(error, "app_group_error_boundary");
-  }, [error]);
-
   return (
-    <AppErrorCard
-      digest={error.digest}
+    <ReportedError
+      error={error}
+      retry={retry}
+      tag="app_group_error_boundary"
       description="Something went wrong loading this workspace section. Your data is safe — try again or return to the dashboard."
-      onReset={retry}
     />
   );
 }

@@ -6,6 +6,7 @@ import type { Severity } from "./contract/statuses.ts";
 import type { ParsedSource } from "./parse.ts";
 import { proposedFixForJsxA11y } from "./jsx-a11y-fixes.ts";
 import { checkIdForJsxA11yRule, jsxA11yEslintRules } from "./jsx-a11y-map.ts";
+import { offsetAt } from "./parse.ts";
 
 const require = createRequire(import.meta.url);
 const jsxA11y = require("eslint-plugin-jsx-a11y") as NonNullable<
@@ -35,16 +36,6 @@ const FLAT_CONFIG: Linter.Config = {
   },
   rules: jsxA11yEslintRules(),
 };
-
-function offsetAt(text: string, line: number, column: number): number {
-  let offset = 0;
-  let currentLine = 1;
-  while (currentLine < line && offset < text.length) {
-    if (text[offset] === "\n") currentLine += 1;
-    offset += 1;
-  }
-  return Math.min(offset + Math.max(column, 1) - 1, text.length);
-}
 
 function severityFromEslint(severity: Linter.Severity): Severity {
   return severity === 2 ? "serious" : "moderate";

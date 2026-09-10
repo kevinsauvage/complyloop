@@ -1,4 +1,5 @@
 import { StatefulActionForm } from "@/components/stateful-action-form";
+import { RoleSelect } from "@/components/role-select";
 import { formatDateTime } from "@/core/format-datetime";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -115,20 +116,19 @@ export function OrgMembersCard({
                           name="membershipId"
                           value={membership.id}
                         />
-                        <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                        <label
+                          htmlFor={`role-${membership.id}`}
+                          className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
+                        >
                           Role
-                          <select
+                          <RoleSelect
+                            id={`role-${membership.id}`}
                             name="role"
                             defaultValue={membership.role}
-                            aria-label={`Role for @${membership.githubLogin}`}
+                            canAssignAdmin={canAssignAdmin}
+                            ariaLabel={`Role for @${membership.githubLogin}`}
                             className="h-8 rounded-lg border border-input bg-transparent px-2 py-1 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
-                          >
-                            {canAssignAdmin ? (
-                              <option value="admin">Admin</option>
-                            ) : null}
-                            <option value="member">Member</option>
-                            <option value="viewer">Viewer</option>
-                          </select>
+                          />
                         </label>
                       </StatefulActionForm>
 

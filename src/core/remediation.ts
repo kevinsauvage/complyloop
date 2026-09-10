@@ -34,12 +34,21 @@ export function advanceRemediation(
       `Invalid remediation transition: ${remediation.status} → ${to}`,
     );
   }
+  return appendRemediationHistory(remediation, to, note);
+}
+
+/** Append a history entry without changing status (e.g. failed verification). */
+export function appendRemediationHistory(
+  remediation: Remediation,
+  status: RemediationStatus,
+  note?: string,
+): Remediation {
   return {
     ...remediation,
-    status: to,
+    status,
     history: [
       ...remediation.history,
-      { status: to, at: new Date().toISOString(), note },
+      { status, at: new Date().toISOString(), note },
     ],
   };
 }
@@ -62,18 +71,11 @@ export function refreshSuggestion(
         note,
       );
     case "suggested":
-      return {
-        ...remediation,
-        suggestion,
-        history: [
-          ...remediation.history,
-          {
-            status: "suggested",
-            at: new Date().toISOString(),
-            note,
-          },
-        ],
-      };
+      return appendRemediationHistory(
+        { ...remediation, suggestion },
+        "suggested",
+        note,
+      );
     case "approved":
     case "implemented":
     case "verified":

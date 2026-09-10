@@ -103,7 +103,7 @@ export function snapshotProjectSlice(
 export function requirementUpdatedAtById(
   items: ReadonlyArray<Requirement>,
 ): Map<string, string> {
-  return new Map(items.map((item) => [item.id, item.updatedAt]));
+  return updatedAtById(items);
 }
 
 /** `updatedAt` per id for entities that carry it (findings, remediations). */

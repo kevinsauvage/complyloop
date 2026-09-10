@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { nativeSelectClass } from "@/components/ui/native-select";
+import { RoleSelect } from "@/components/role-select";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   emptyActionMessageState,
@@ -54,16 +54,7 @@ export function InviteMemberForm({
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="role">Role</Label>
-        <select
-          id="role"
-          name="role"
-          defaultValue="member"
-          className={nativeSelectClass}
-        >
-          {canAssignAdmin ? <option value="admin">Admin</option> : null}
-          <option value="member">Member</option>
-          <option value="viewer">Viewer</option>
-        </select>
+        <RoleSelect id="role" canAssignAdmin={canAssignAdmin} />
       </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Inviting…" : "Invite"}
