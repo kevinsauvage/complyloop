@@ -43,8 +43,9 @@ const SKELETON_ROWS = [
  */
 export function NavBadgeSkeletons() {
   return (
-    <ul className="flex flex-col gap-1" role="status" aria-label="Loading navigation">
+    <div role="status" aria-label="Loading navigation">
       <span className="sr-only">Loading navigation…</span>
+      <ul className="flex flex-col gap-1">
       {SKELETON_ROWS.map((row) => (
         <li
           key={row.label}
@@ -60,6 +61,7 @@ export function NavBadgeSkeletons() {
           ) : null}
         </li>
       ))}
-    </ul>
+      </ul>
+    </div>
   );
 }

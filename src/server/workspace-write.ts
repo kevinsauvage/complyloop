@@ -39,6 +39,7 @@ import {
 } from "./workspace";
 import { findingById } from "./workspace";
 import { requireOnFindingProject } from "./actions/shared";
+import { stampEvidenceActor } from "./project-rows";
 import type { Db } from "@complyloop/db/types";
 
 export interface OrgWritePayload {
@@ -127,6 +128,7 @@ export async function withProjectWrite(
       projectId,
     );
     const payload = (await fn(workspace)) ?? {};
+    stampEvidenceActor(payload.evidence, githubLogin ?? userId);
 
     await persistProjectRows(tx, payload, { loadedSlice });
   });
@@ -269,6 +271,7 @@ export async function withConnectWrite<T>(
     for (const project of insertProjects ?? []) {
       await insertProject(tx, project);
     }
+    stampEvidenceActor(evidence, githubLogin ?? userId);
     await insertEvidenceRecords(tx, evidence ?? []);
 
     return result;

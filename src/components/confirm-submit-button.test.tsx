@@ -16,11 +16,11 @@ describe("ConfirmSubmitButton", () => {
     });
 
     render(
-      <form id="test-form" onSubmit={onSubmit}>
+      <form id="test-form-cancel" onSubmit={onSubmit}>
         <ConfirmSubmitButton
           label="Delete"
           confirmMessage="Are you sure?"
-          formId="test-form"
+          formId="test-form-cancel"
           variant="destructive"
         />
       </form>,
@@ -39,11 +39,11 @@ describe("ConfirmSubmitButton", () => {
     });
 
     render(
-      <form id="test-form" onSubmit={onSubmit}>
+      <form id="test-form-confirm" onSubmit={onSubmit}>
         <ConfirmSubmitButton
           label="Delete"
           confirmMessage="Are you sure?"
-          formId="test-form"
+          formId="test-form-confirm"
           variant="destructive"
         />
       </form>,

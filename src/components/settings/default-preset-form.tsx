@@ -43,6 +43,7 @@ export function DefaultPresetForm({
                   type="radio"
                   name="presetId"
                   value={preset.id}
+                  aria-label={`Default scope: ${preset.name}`}
                   checked={preset.id === selectedPresetId}
                   onChange={() => setSelectedPresetId(preset.id)}
                   required

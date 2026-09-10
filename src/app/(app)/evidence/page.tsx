@@ -63,9 +63,17 @@ export default async function EvidencePage({
     q?: string | string[];
     from?: string | string[];
     to?: string | string[];
+    actor?: string | string[];
   }>;
 }) {
-  const { page: pageRaw, kind: kindRaw, q: qRaw, from: fromRaw, to: toRaw } = await searchParams;
+  const {
+    page: pageRaw,
+    kind: kindRaw,
+    q: qRaw,
+    from: fromRaw,
+    to: toRaw,
+    actor: actorRaw,
+  } = await searchParams;
   const { project } = await getWorkspace();
   if (!project) {
     return (
@@ -80,8 +88,13 @@ export default async function EvidencePage({
   const query = parseEvidenceQueryParam(qRaw);
   const from = parseEvidenceDateParam(fromRaw);
   const to = parseEvidenceDateParam(toRaw);
-  const filters = { q: query, from, to };
-  const hasTextOrDateFilter = query !== undefined || from !== undefined || to !== undefined;
+  const actor = parseEvidenceQueryParam(actorRaw);
+  const filters = { q: query, from, to, actor };
+  const hasTextOrDateFilter =
+    query !== undefined ||
+    from !== undefined ||
+    to !== undefined ||
+    actor !== undefined;
   const page = parsePageParam(pageRaw);
   const drizzle = await getDrizzle();
   const [requirements, kindCounts, items, filteredTotal] = await Promise.all([
@@ -115,6 +128,7 @@ export default async function EvidencePage({
   if (query) paginationQuery.q = query;
   if (from) paginationQuery.from = from;
   if (to) paginationQuery.to = to;
+  if (actor) paginationQuery.actor = actor;
   const filtersActive = kindFilter !== undefined || hasTextOrDateFilter;
 
   return (
@@ -254,6 +268,18 @@ export default async function EvidencePage({
                 defaultValue={to ?? ""}
               />
             </div>
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <Label htmlFor="evidence-actor">Author</Label>
+              <Input
+                id="evidence-actor"
+                name="actor"
+                type="search"
+                defaultValue={actor ?? ""}
+                placeholder="GitHub login…"
+                maxLength={100}
+                autoComplete="off"
+              />
+            </div>
             <Button type="submit" size="sm" className="shrink-0">
               Search
             </Button>
@@ -268,6 +294,7 @@ export default async function EvidencePage({
             {query ? ` · matching “${query}”` : ""}
             {from ? ` · from ${from}` : ""}
             {to ? ` · to ${to}` : ""}
+            {actor ? ` · by ${actor}` : ""}
           </h2>
           {total === 0 && filtersActive ? (
             <EmptyState title="No matching entries" variant="no-results">
@@ -323,6 +350,9 @@ export default async function EvidencePage({
                             >
                               {formatDateTime(record.at)}
                             </time>
+                            <span className="text-xs text-muted-foreground">
+                              · {record.actor ?? "System"}
+                            </span>
                           </div>
                           <p className="mt-1.5 text-sm text-muted-foreground">
                             {record.summary}

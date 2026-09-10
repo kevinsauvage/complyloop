@@ -41,7 +41,7 @@ export function FilterChipList({
           <li>
             <Link
               href={allHref}
-              aria-pressed={allSelected}
+              aria-current={allSelected ? "page" : undefined}
               className={filterChipClass(allSelected)}
             >
               <span className="text-xs font-medium">All</span>
@@ -57,7 +57,7 @@ export function FilterChipList({
           <li key={item.key}>
             <Link
               href={item.href}
-              aria-pressed={item.selected}
+              aria-current={item.selected ? "page" : undefined}
               className={filterChipClass(item.selected)}
             >
               {item.label}

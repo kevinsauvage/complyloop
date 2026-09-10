@@ -31,6 +31,7 @@ export function ReasonNoteFields({
         <select
           id={reasonId}
           name="reason"
+          aria-label={reasonLabel}
           defaultValue={defaultReason ?? options[0]?.value}
           onChange={
             onReasonChange

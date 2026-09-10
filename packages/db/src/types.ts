@@ -136,6 +136,8 @@ export interface EvidenceRecord {
   controlId?: string;
   findingId?: string;
   assessmentId?: string;
+  /** GitHub login or user id of the author; undefined = automated. */
+  actor?: string;
   detail?: Record<string, unknown>;
 }
 

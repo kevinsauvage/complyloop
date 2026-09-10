@@ -125,8 +125,8 @@ Both already implemented — do not re-ticket as work:
 - Jargon in UI: `src/components/evidence/evidence-kind-chips.tsx:54-57` + `requirements-status-chips.tsx:52-54` — "{n} hidden empty categories".
 
 **Step 1 (S, done):** rename to "No X entries yet" or omit line + `Show empty` tooltip.
-**Step 2 (M, done 2026-09-10):** `?q=&from=&to=` end-to-end — `EvidenceFilter` in `packages/db/src/repo/evidence.ts` (`ilike(summary)` with wildcard escaping + `at` date range), `parseEvidenceQueryParam`/`parseEvidenceDateParam` + filter-preserving `evidenceKindHref(kind, page, filters)` in `src/core/filter-params.ts`, search + date form + preserved pagination/chips in `src/app/(app)/evidence/page.tsx`. Kind-only totals still come from the per-kind counts map (no extra scan); text/date narrowing adds one `count(*)`.
-**Actor (deferred, needs schema change):** the evidence table has no actor column (`packages/db/src/schema.ts:243-266` — id/at/kind/summary/project/control/finding/assessment/detail, no actor anywhere in write paths). Filtering by actor requires a migration + write-path changes — separate ticket.
+**Step 2 (M, done 2026-09-10):** `?q=&from=&to=&actor=` end-to-end — `EvidenceFilter` in `packages/db/src/repo/evidence.ts` (`ilike(summary)` with wildcard escaping + `at` date range + `ilike(actor)`), `parseEvidenceQueryParam`/`parseEvidenceDateParam` + filter-preserving `evidenceKindHref(kind, page, filters)` in `src/core/filter-params.ts`, search + date + author form + preserved pagination/chips in `src/app/(app)/evidence/page.tsx`, author shown per row (`actor ?? "System"`). Kind-only totals still come from the per-kind counts map (no extra scan); text/date/author narrowing adds one `count(*)`.
+**Actor writes (done, local-only):** `actor` text column added to `packages/db/src/schema.ts` + `drizzle/0000_init.sql` in place (no new migration file — reset via `npm run db:reset -- --confirm`). Stamped once per write path, not per call site: `stampEvidenceActor()` in `src/server/project-rows.ts`, called in `withProjectWrite` and `withConnectWrite` with `githubLogin ?? userId`; worker/system rows keep `actor` unset → read as "System".
 **Accept (step 1):** no "hidden empty categories" string in repo (`rg` clean).
 
 ### P2-2 Empty states with next step, esp. Resolved (0 today) [S]
@@ -184,7 +184,8 @@ Missing (all have `page.tsx`, no co-located loader): `requirements/loading.tsx`,
 
 - `src/app/(app)/layout.tsx:10-14` — `await getWorkspace()` then `await navAttentionForProject(project)` (`src/server/nav-attention.ts:12-20` → `countNavAttentionForProject` + `workspace.ts:118-142 loadTenancyDb` + `getSession()`); passes `navAttention` to `AppShell` (`app-shell.tsx:88-99,159-171`, client, no `Suspense`). Only `Suspense` today: `dashboard/page.tsx:304-309`, `findings/layout.tsx:1-8` (trivial).
 
-**Fix:** split badges to async `<NavAttentionBadges project>` wrapped in `<Suspense fallback={…}>` in layout/shell; keep shell + `children` streaming. S-variant: wrap existing promise with `use()`.
+**Fix (done):** split badges to async `<NavAttentionBadges project>` wrapped in `<Suspense fallback={…}>` in layout; keep shell + `children` streaming. S-variant: wrap existing promise with `use()`.
+**Follow-up (done 2026-09-10):** mobile sheet close-on-click restored via link-click delegation on the sidebar `<nav>` (server slot can't take `onNavigate` directly; keyboard-safe since Enter on a link fires click).
 **Accept:** slow badge-count query shows shell + route content with badge skeletons, not blank shell (despite `(app)/loading.tsx` fallback).
 
 ### P3-4 Publish `@complyloop/check` [M, blocked on license]

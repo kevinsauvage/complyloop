@@ -150,6 +150,7 @@ CREATE TABLE IF NOT EXISTS "evidence" (
   "control_id" text,
   "finding_id" text,
   "assessment_id" text,
+  "actor" text,
   "detail" jsonb
 );
 

@@ -54,6 +54,18 @@ export function appendEvidence(
   return record;
 }
 
+/**
+ * Stamp user-initiated evidence with its author. Worker/system rows keep
+ * `actor` unset (read as "System"). `??=` preserves an explicitly set actor.
+ */
+export function stampEvidenceActor(
+  records: readonly EvidenceRecord[] | undefined,
+  actor: string | null | undefined,
+): void {
+  if (!actor) return;
+  for (const record of records ?? []) record.actor ??= actor;
+}
+
 /** Insert-or-replace one finding in a scratch row set (shared findIndex/push). */
 export function upsertFindingInRows(rows: { findings: Finding[] }, updated: Finding): void {
   const index = rows.findings.findIndex((candidate) => candidate.id === updated.id);

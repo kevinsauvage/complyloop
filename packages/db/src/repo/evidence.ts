@@ -50,7 +50,7 @@ export async function insertEvidenceRecords(
   await tx.insert(evidence).values(records.map(evidenceToRow));
 }
 
-/** Text/date narrowing for the evidence page. `actor` is intentionally absent: the evidence table has no actor column (see P2-1 Step 2 note in todo.md). */
+/** Text/date/author narrowing for the evidence page. */
 export interface EvidenceFilter {
   kind?: EvidenceKind;
   /** Case-insensitive substring match on `summary`. */
@@ -59,6 +59,8 @@ export interface EvidenceFilter {
   from?: string;
   /** Inclusive `YYYY-MM-DD` upper bound on `at` (UTC). */
   to?: string;
+  /** Case-insensitive substring match on `actor` (unset = automated). */
+  actor?: string;
 }
 
 /** A bare kind where callers predate the filter object. */
@@ -90,6 +92,9 @@ export function evidenceFilterConditions(
   }
   if (filter.to) {
     conditions.push(lte(evidence.at, `${filter.to}T23:59:59.999Z`));
+  }
+  if (filter.actor) {
+    conditions.push(ilike(evidence.actor, `%${escapeLikeLiteral(filter.actor)}%`));
   }
   return conditions;
 }

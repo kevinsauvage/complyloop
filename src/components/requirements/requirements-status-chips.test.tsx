@@ -44,11 +44,11 @@ describe("RequirementsStatusChips", () => {
     renderChips({ selected: "failed" });
 
     const failed = screen.getByRole("link", { name: /failed/i });
-    expect(failed).toHaveAttribute("aria-pressed", "true");
+    expect(failed).toHaveAttribute("aria-current", "page");
     expect(failed).toHaveAttribute("href", "/requirements");
 
     const passed = screen.getByRole("link", { name: /passed/i });
-    expect(passed).toHaveAttribute("aria-pressed", "false");
+    expect(passed).not.toHaveAttribute("aria-current");
     expect(passed).toHaveAttribute("href", "/requirements?status=passed");
   });
 
@@ -86,6 +86,6 @@ describe("RequirementsStatusChips", () => {
 
     const all = screen.getByRole("link", { name: /all/i });
     expect(all).toHaveAttribute("href", "/requirements");
-    expect(all).toHaveAttribute("aria-pressed", "true");
+    expect(all).toHaveAttribute("aria-current", "page");
   });
 });

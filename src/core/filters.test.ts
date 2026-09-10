@@ -75,14 +75,17 @@ describe("evidenceKindHref", () => {
     expect(evidenceKindHref("finding", 1)).toBe("/evidence?kind=finding");
   });
 
-  it("preserves text/date filters when switching kinds", () => {
+  it("preserves text/date/author filters when switching kinds", () => {
     expect(
       evidenceKindHref("finding", undefined, {
         q: "alt",
         from: "2026-09-01",
         to: "2026-09-10",
+        actor: "octocat",
       }),
-    ).toBe("/evidence?kind=finding&q=alt&from=2026-09-01&to=2026-09-10");
+    ).toBe(
+      "/evidence?kind=finding&q=alt&from=2026-09-01&to=2026-09-10&actor=octocat",
+    );
     expect(evidenceKindHref(undefined, undefined, { q: "alt" })).toBe(
       "/evidence?q=alt",
     );

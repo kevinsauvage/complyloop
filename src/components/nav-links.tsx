@@ -44,10 +44,8 @@ function badgeAccessibleLabel(
 }
 
 export function NavLinks({
-  onNavigate,
   navAttention = { openFindings: 0, unreadAlerts: 0 },
 }: {
-  onNavigate?: () => void;
   navAttention?: NavAttentionCounts;
 }) {
   const pathname = usePathname();
@@ -72,7 +70,6 @@ export function NavLinks({
               href={link.href}
               aria-current={active ? "page" : undefined}
               aria-label={badgeLabel}
-              onClick={() => onNavigate?.()}
               className={cn(
                 "relative flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-150",
                 active

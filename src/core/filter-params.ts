@@ -138,6 +138,7 @@ export interface EvidencePageFilters {
   q?: string;
   from?: string;
   to?: string;
+  actor?: string;
 }
 
 export function evidenceKindHref(
@@ -150,6 +151,7 @@ export function evidenceKindHref(
     q: filters?.q,
     from: filters?.from,
     to: filters?.to,
+    actor: filters?.actor,
     page: page && page > 1 ? String(page) : undefined,
   });
 }

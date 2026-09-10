@@ -57,7 +57,7 @@ function severityDotClass(severity: Severity): string {
 }
 
 /** Scannable row: severity dot + title first, meta as muted text (no badge stack). */
-function FindingsBulkRow({
+function FindingsBulkRowContent({
   finding,
   control,
   remediationStatus,
@@ -71,7 +71,6 @@ function FindingsBulkRow({
   const remediationLabel = remediationStatusDisplay(remediationStatus).label;
   const engineLabel = engineDisplay(engineFor(finding)).label;
   return (
-    <li>
       <div
         className={cn(
           "group flex gap-3 rounded-xl border border-border/70 bg-card/80 p-3 shadow-none transition-[background-color,border-color,box-shadow]",
@@ -119,7 +118,6 @@ function FindingsBulkRow({
           </span>
         </Link>
       </div>
-    </li>
   );
 }
 
@@ -271,16 +269,17 @@ export function FindingsBulkList({
 
       <ul className="flex flex-col gap-2" aria-label="Findings">
         {items.map(({ finding, control, remediationStatus }) => (
-          <FindingsBulkRow
-            key={finding.id}
-            finding={finding}
-            control={control}
-            remediationStatus={remediationStatus}
-            isSelected={selected.has(finding.id)}
-            canRemediate={canRemediate}
-            listParams={listParams}
-            onToggle={toggle}
-          />
+          <li key={finding.id}>
+            <FindingsBulkRowContent
+              finding={finding}
+              control={control}
+              remediationStatus={remediationStatus}
+              isSelected={selected.has(finding.id)}
+              canRemediate={canRemediate}
+              listParams={listParams}
+              onToggle={toggle}
+            />
+          </li>
         ))}
       </ul>
     </div>

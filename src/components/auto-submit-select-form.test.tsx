@@ -11,7 +11,7 @@ describe("AutoSubmitSelectForm", () => {
   it("hides when there is at most one option", () => {
     const { container } = render(
       <AutoSubmitSelectForm
-        id="switcher"
+        id="switcher-single"
         name="id"
         action="/switch"
         label="Thing"
@@ -26,7 +26,7 @@ describe("AutoSubmitSelectForm", () => {
     const user = userEvent.setup();
     render(
       <AutoSubmitSelectForm
-        id="switcher"
+        id="switcher-confirm"
         name="id"
         action="/switch"
         label="Thing"
@@ -62,7 +62,7 @@ describe("AutoSubmitSelectForm", () => {
     const user = userEvent.setup();
     render(
       <AutoSubmitSelectForm
-        id="switcher"
+        id="switcher-reselect"
         name="id"
         action="/switch"
         label="Thing"

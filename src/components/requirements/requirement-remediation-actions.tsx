@@ -205,6 +205,7 @@ export function RequirementRemediationActions({
                     id={`exception-expires-${requirement.id}`}
                     type="date"
                     name="expiresAt"
+                    aria-label="Exception expiry date"
                     required={exceptionReason === "temporary"}
                     className="h-8 w-full max-w-md rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-input/30"
                   />

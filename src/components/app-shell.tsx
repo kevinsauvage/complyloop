@@ -45,14 +45,12 @@ function SidebarBody({
   authControls,
   navAttention,
   navLinks,
-  onNavigate,
   showBrand = true,
 }: {
   authControls: ReactNode;
   navAttention: NavAttentionCounts;
   /** Streaming nav slot — takes precedence over `navAttention` when set. */
   navLinks?: ReactNode;
-  onNavigate?: () => void;
   showBrand?: boolean;
 }) {
   return (
@@ -60,7 +58,7 @@ function SidebarBody({
       {showBrand ? <BrandMark className="px-3" /> : null}
       <nav aria-label="Main" className="flex-1">
         {navLinks ?? (
-          <NavLinks navAttention={navAttention} onNavigate={onNavigate} />
+          <NavLinks navAttention={navAttention} />
         )}
       </nav>
       <div className="mt-auto space-y-3">
@@ -151,7 +149,23 @@ export function AppShell({
                   Menu
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 bg-sidebar p-4">
+              <SheetContent
+                side="left"
+                className="w-72 bg-sidebar p-4"
+                // The streaming nav slot is server-rendered and can't close
+                // the sheet itself — close on any link click instead.
+                // Keyboard-safe: Enter/Space on a link fires click.
+                // (Custom component, so jsx-a11y doesn't flag the handler;
+                // only link clicks close — toggles and empty space don't.)
+                onClick={(event) => {
+                  if (
+                    event.target instanceof HTMLElement &&
+                    event.target.closest("a")
+                  ) {
+                    setNavOpen(false);
+                  }
+                }}
+              >
                 <SheetHeader className="sr-only">
                   <SheetTitle>Main navigation</SheetTitle>
                 </SheetHeader>
@@ -159,7 +173,6 @@ export function AppShell({
                   authControls={authControls}
                   navAttention={navAttention}
                   navLinks={navLinks}
-                  onNavigate={() => setNavOpen(false)}
                 />
               </SheetContent>
             </Sheet>

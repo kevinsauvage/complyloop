@@ -115,6 +115,7 @@ export function evidenceToRow(record: EvidenceRecord) {
     controlId: record.controlId ?? null,
     findingId: record.findingId ?? null,
     assessmentId: record.assessmentId ?? null,
+    actor: record.actor ?? null,
     detail: record.detail ?? null,
   };
 }
@@ -136,6 +137,7 @@ export function rowToEvidence(
     controlId: nullToUndefined(row.controlId),
     findingId: nullToUndefined(row.findingId),
     assessmentId: nullToUndefined(row.assessmentId),
+    actor: nullToUndefined(row.actor),
     detail: nullToUndefined(row.detail),
   };
 }

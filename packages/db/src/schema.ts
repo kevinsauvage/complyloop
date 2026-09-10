@@ -251,6 +251,8 @@ export const evidence = pgTable(
     controlId: text("control_id"),
     findingId: text("finding_id"),
     assessmentId: text("assessment_id"),
+    /** Who caused the entry (GitHub login or user id); null = automated. */
+    actor: text("actor"),
     detail: jsonb("detail").$type<Record<string, unknown>>(),
   },
   (table) => [

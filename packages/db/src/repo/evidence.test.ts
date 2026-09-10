@@ -57,8 +57,9 @@ describe("evidenceFilterConditions", () => {
         q: "alt",
         from: "2026-09-01",
         to: "2026-09-10",
+        actor: "octocat",
       }),
-    ).toHaveLength(5);
+    ).toHaveLength(6);
     expect(
       evidenceFilterConditions("p1", { q: "alt" }),
     ).toHaveLength(2);

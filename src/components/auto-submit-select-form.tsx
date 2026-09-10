@@ -70,6 +70,7 @@ export function AutoSubmitSelectForm({
           id={id}
           name={name}
           value={value}
+          aria-label={label}
           title={`${label} — ${selectedLabel} (${options.length} available)`}
           onChange={(event) => setValue(event.target.value)}
           className={cn(

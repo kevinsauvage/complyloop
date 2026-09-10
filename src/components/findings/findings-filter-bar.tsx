@@ -204,6 +204,7 @@ export function FindingsFilterBar({
               id="findings-severity"
               name="severity"
               defaultValue={params.severity ?? ""}
+              aria-label="Severity"
               className={nativeSelectClass}
             >
               <option value="">Any severity</option>
@@ -221,6 +222,7 @@ export function FindingsFilterBar({
               id="findings-engine"
               name="engine"
               defaultValue={params.engine ?? ""}
+              aria-label="Found in"
               className={nativeSelectClass}
             >
               <option value="">Code or live page</option>
@@ -235,6 +237,7 @@ export function FindingsFilterBar({
               id="findings-remediation"
               name="remediation"
               defaultValue={params.remediation ?? ""}
+              aria-label="Remediation"
               className={nativeSelectClass}
             >
               <option value="">Any remediation</option>
