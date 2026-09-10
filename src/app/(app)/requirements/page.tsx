@@ -10,12 +10,15 @@ import {
 } from "@complyloop/analysis-core/adapters/registry";
 import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import {
+  paginateSlice,
+  parsePageParam,
   parsePresetIdParam,
   requirementsPageHref,
 } from "@/core/filters";
 import {
   parseRequirementStatusParam,
 } from "@/core/filters";
+import { PaginationNav } from "@/components/pagination-nav";
 import { countByStatus, toCountMap } from "@/core/lifecycle";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
@@ -44,7 +47,11 @@ function controlsForPreset(
 export default async function RequirementsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string | string[]; presetId?: string | string[] }>;
+  searchParams: Promise<{
+    status?: string | string[];
+    presetId?: string | string[];
+    page?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
   const statusFilter = parseRequirementStatusParam(params.status);
@@ -98,6 +105,17 @@ export default async function RequirementsPage({
   const filteredControls = presetControls.filter((control) =>
     filteredControlIds.has(control.id),
   );
+
+  const page = paginateSlice(filteredControls, parsePageParam(params.page));
+  const pageControlIds = new Set(page.items.map((control) => control.id));
+  const pageRequirements = filtered.filter((requirement) =>
+    pageControlIds.has(requirement.controlId),
+  );
+  const paginationQuery: Record<string, string> = {};
+  if (statusFilter) paginationQuery.status = statusFilter;
+  if (selectedPresetId !== defaultPresetId) {
+    paginationQuery.presetId = selectedPresetId;
+  }
 
   const targetLabel = selectedPreset?.name ?? "all catalog controls";
 
@@ -155,14 +173,24 @@ export default async function RequirementsPage({
                 </p>
               </EmptyState>
             ) : (
-              <AssessedRequirementList
-                controls={filteredControls}
-                requirements={filtered}
-                openFindingCounts={openFindingCounts}
-                frameworkId={frameworkId}
-                canRemediate={caps.canRemediate}
-                project={project}
-              />
+              <div className="flex flex-col gap-4">
+                <AssessedRequirementList
+                  controls={page.items}
+                  requirements={pageRequirements}
+                  openFindingCounts={openFindingCounts}
+                  frameworkId={frameworkId}
+                  canRemediate={caps.canRemediate}
+                  project={project}
+                />
+                <PaginationNav
+                  page={page.page}
+                  totalPages={page.totalPages}
+                  total={page.total}
+                  pageSize={page.pageSize}
+                  basePath="/requirements"
+                  query={paginationQuery}
+                />
+              </div>
             )}
           </PageSection>
 

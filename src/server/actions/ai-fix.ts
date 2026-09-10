@@ -23,6 +23,7 @@ import {
   refresh,
   requireFindingContext,
 } from "./shared";
+import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 
 export async function generateAiFixAction(
   findingIdRaw: string,
@@ -62,7 +63,7 @@ export async function generateAiFixAction(
       persistPatchCandidate(db, liveFinding, candidate, payload);
       return payload;
     });
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Patch passed ComplyLoop and is ready for review.";
   });
 }

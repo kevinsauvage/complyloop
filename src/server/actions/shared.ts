@@ -23,8 +23,18 @@ export async function requireSignedIn(
   return { userId, githubLogin: session?.user?.login ?? null };
 }
 
-export function refresh(): void {
-  revalidatePath("/", "layout");
+/**
+ * Invalidates the Router Cache for the given routes (or the whole app layout
+ * when called with no paths). Triage-loop mutations should pass the narrow
+ * route list from `COMPLIANCE_LOOP_ROUTES` so unrelated `force-dynamic` pages
+ * are not refetched; shell/tenancy mutations keep the layout-wide default.
+ */
+export function refresh(...paths: string[]): void {
+  if (paths.length === 0) {
+    revalidatePath("/", "layout");
+    return;
+  }
+  for (const path of new Set(paths)) revalidatePath(path);
 }
 
 export function replaceRemediation(

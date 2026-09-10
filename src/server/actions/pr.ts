@@ -26,6 +26,7 @@ import {
   replaceRemediation,
   requireFindingContext,
 } from "./shared";
+import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 export type CreatePrFormState = ActionState & {
@@ -116,7 +117,7 @@ export async function createPullRequestAction(
         return payload;
       },
     );
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return result.message;
   });
   return { ...state, prUrl: state.ok ? prUrl : null };

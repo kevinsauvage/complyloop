@@ -22,6 +22,7 @@ import {
   refresh,
   replaceRemediation,
 } from "./shared";
+import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 
 export async function generateAiExplanationAction(
   findingIdRaw: string,
@@ -45,7 +46,7 @@ export async function generateAiExplanationAction(
       finding.explanations.push(explanation);
       return { findings: [finding] };
     });
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return "AI explanation added.";
   });
 }
@@ -123,7 +124,7 @@ export async function generateAiRemediationAction(
       });
       return payload;
     });
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return "AI remediation suggestion saved.";
   });
 }

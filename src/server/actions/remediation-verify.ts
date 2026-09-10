@@ -36,6 +36,7 @@ import {
   replaceRemediation,
   requireFindingContext,
 } from "./shared";
+import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 
 const markImplementedInput = z.object({
   note: optionalNoteSchema,
@@ -202,7 +203,7 @@ export async function verifyRemediationAction(
       }
       return markVerified(db, live, remediation, note, engine, audit);
     });
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return stillFailing
       ? STILL_FAILING_VERIFY_MESSAGE
       : "Fix verified by automated re-check.";
@@ -249,7 +250,7 @@ export async function markRemediationImplementedAction(
         return payload;
       },
     );
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Marked as implemented.";
   });
 }

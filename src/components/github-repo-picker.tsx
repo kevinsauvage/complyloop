@@ -14,7 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { githubRepoSearchResponseSchema, parseUnknown } from "@/core/filters";
+import {
+  githubRepoSearchError,
+  parseGitHubRepoSearchResponse,
+  type GitHubRepoSearchResponse,
+} from "@/components/github-repo-search";
 import { STATUS_TONE_BADGE } from "@/core/display";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { initialActionState, type ActionState } from "@/core/action-state";
@@ -23,7 +27,6 @@ import {
   disconnectGitHubRepoAction,
 } from "@/server/actions/connect";
 import type { GitHubRepoSummary } from "@/server/github-access";
-import { z } from "zod";
 
 function repoOwner(fullName: string): string {
   return fullName.split("/")[0] ?? fullName;
@@ -51,15 +54,11 @@ function groupReposByOwner(repos: GitHubRepoSummary[]): RepoOwnerGroup[] {
 const connectInitial: ActionState = initialActionState;
 const disconnectInitial: ActionState = initialActionState;
 
-const repoSearchErrorSchema = z.object({
-  error: z.string().optional(),
-});
-
 async function fetchRepos(options: {
   q: string;
   page: number;
   signal?: AbortSignal;
-}): Promise<z.infer<typeof githubRepoSearchResponseSchema>> {
+}): Promise<GitHubRepoSearchResponse> {
   const params = new URLSearchParams();
   if (options.q) params.set("q", options.q);
   if (options.page > 1) params.set("page", String(options.page));
@@ -70,17 +69,11 @@ async function fetchRepos(options: {
   );
   const json: unknown = await response.json();
   if (!response.ok) {
-    const payload = repoSearchErrorSchema.safeParse(json);
     throw new Error(
-      (payload.success ? payload.data.error : undefined) ??
-        "Could not load repositories.",
+      githubRepoSearchError(json) ?? "Could not load repositories.",
     );
   }
-  return parseUnknown(
-    githubRepoSearchResponseSchema,
-    json,
-    "Could not load repositories.",
-  );
+  return parseGitHubRepoSearchResponse(json);
 }
 
 export function GitHubRepoPicker({

@@ -21,26 +21,42 @@ export function parseSource(filePath: string, text: string): ParsedSource {
   return { filePath, text, sourceFile };
 }
 
-function walkSourceFile(
-  sourceFile: ts.SourceFile,
-  visit: (node: ts.Node) => void,
-): void {
+interface JsxIndex {
+  tags: JsxTagNode[];
+  elements: ts.JsxElement[];
+}
+
+/**
+ * One pre-order walk per source file, memoized by `SourceFile` identity. All
+ * AST checks that call `visitJsxTags`/`visitJsxElements` share this index
+ * instead of re-walking the whole tree once per check (previously ~one full
+ * `forEachChild` traversal per registered check per file).
+ */
+const jsxIndexCache = new WeakMap<ts.SourceFile, JsxIndex>();
+
+function jsxIndexFor(sourceFile: ts.SourceFile): JsxIndex {
+  const cached = jsxIndexCache.get(sourceFile);
+  if (cached) return cached;
+  const index: JsxIndex = { tags: [], elements: [] };
   const walk = (node: ts.Node): void => {
-    visit(node);
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      index.tags.push(node);
+    } else if (ts.isJsxElement(node)) {
+      index.elements.push(node);
+    }
     ts.forEachChild(node, walk);
   };
   walk(sourceFile);
+  jsxIndexCache.set(sourceFile, index);
+  return index;
 }
 
+/** Visits every JSX opening/self-closing tag once, in source order. */
 export function visitJsxTags(
   sourceFile: ts.SourceFile,
   visit: (node: JsxTagNode) => void,
 ): void {
-  walkSourceFile(sourceFile, (node) => {
-    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
-      visit(node);
-    }
-  });
+  for (const node of jsxIndexFor(sourceFile).tags) visit(node);
 }
 
 /** Full JSX elements (`<Foo>…</Foo>`), not opening/self-closing tags alone. */
@@ -48,9 +64,7 @@ export function visitJsxElements(
   sourceFile: ts.SourceFile,
   visit: (element: ts.JsxElement) => void,
 ): void {
-  walkSourceFile(sourceFile, (node) => {
-    if (ts.isJsxElement(node)) visit(node);
-  });
+  for (const element of jsxIndexFor(sourceFile).elements) visit(element);
 }
 
 export function tagNameOf(node: JsxTagNode): string {

@@ -27,6 +27,7 @@ import { controlById } from "../workspace";
 import { withProjectWrite } from "../workspace-write";
 import { appendEvidence, cloneProjectRows } from "../project-rows";
 import { refresh, requireOnActive } from "./shared";
+import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 
 const markExceptionInput = z
   .object({
@@ -196,7 +197,7 @@ export async function markRequirementExceptionAction(
         return payload;
       },
     );
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Exception recorded.";
   });
 }
@@ -262,7 +263,7 @@ export async function markRequirementPassedAction(
         return payload;
       },
     );
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Human pass recorded.";
   });
 }
@@ -311,7 +312,7 @@ async function clearRequirementOverrideAction(
         return clearRequirementOverride(db, project, requirement, field);
       },
     );
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return message;
   });
 }

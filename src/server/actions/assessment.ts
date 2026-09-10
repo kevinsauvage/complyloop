@@ -13,6 +13,7 @@ import { assertAssessRateLimit } from "../rate-limit";
 import { withProjectWrite } from "../workspace-write";
 import { appendEvidence } from "../project-rows";
 import { refresh, requireOnActive } from "./shared";
+import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 export async function runAssessmentAction(
@@ -44,7 +45,7 @@ export async function runAssessmentAction(
 
     if (shouldDrainAssessmentJobsInline()) {
       const outcome = await drainAssessmentJobQueue();
-      refresh();
+      refresh(...COMPLIANCE_LOOP_ROUTES);
       if (outcome.ran > 0) {
         return "Assessment complete.";
       }
@@ -60,7 +61,7 @@ export async function runAssessmentAction(
       return "No assessment jobs were ready to run.";
     }
 
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Assessment queued. Results will appear when the worker completes it.";
   });
 }

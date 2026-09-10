@@ -66,7 +66,7 @@ export async function updateRuntimeAuditAction(
       project.runtimeRoutes = routes;
       return { project };
     });
-    refresh();
+    refresh("/settings", "/dashboard", "/requirements");
     return "Runtime audit settings saved. Run assessment to audit the pages.";
   });
 }

@@ -10,7 +10,7 @@ import { canBulkApproveRemediation } from "@/core/lifecycle";
 import {
   findingDetailHref,
   type FindingListParams,
-} from "@/core/filters";
+} from "@/core/filter-params";
 import {
   engineDisplay,
   remediationStatusDisplay,

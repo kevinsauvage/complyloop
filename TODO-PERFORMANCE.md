@@ -1,43 +1,5 @@
 # TODO — Performance
 
-## P1 — High
-
-- [ ] **AST scan runs all 52 checks as independent full-tree walks and parses each file twice**
-  - Why: This is the AST half of the assessment loop; cost is O(checks × nodes) per file plus a duplicate parse.
-  - Where: `packages/analysis-core/src/scan.ts:30-51` (`scanFile` = `allChecks.flatMap(check => check.run(parsed))`), `packages/analysis-core/src/checks/registry.ts:68-122` (52 checks), traversal in `packages/analysis-core/src/parse.ts:35-44`, and `packages/analysis-core/src/jsx-a11y-scan.ts:50` (`linter.verify(text, …)` re-parses the same text with `@typescript-eslint/parser`).
-  - Problem: Nearly every check calls `visitJsxTags`/`visitJsxElements`, each a fresh `ts.forEachChild` recursion. `lintJsxA11y` ignores the already-built `SourceFile` and hands raw text to ESLint for a second full parse.
-  - Change: Single indexed traversal that dispatches nodes to interested checks (a visitor registry keyed by tag/attr/role), so each file is walked once. For jsx-a11y, either accept the second parse or drop the redundant engine if findings overlap; if kept, investigate a shared parse service/program.
-  - Expected impact: Large reduction in CPU per scanned file (AST phase is a major share of job time on larger repos).
-  - Risk: high (behavior parity across 52 checks — needs the existing test suite as a gate).
-  - Confidence: **Confirmed** (code). Measure first: counter on `forEachChild` invocations per `scanProject`; split time between `parseSource` and `linter.verify`.
-
-- [ ] **A one-row mutation revalidates the whole app layout, forcing every `force-dynamic` page to fully refetch**
-  - Why: Action→UI latency is dominated by unrelated page recomputation, and it compounds the unbounded findings load.
-  - Where: `src/server/actions/shared.ts:26-28` (`refresh()` = `revalidatePath("/", "layout")`), called from `src/server/actions/remediation.ts:134,172,214,268`, `alerts.ts:48,82`, `requirements.ts:199,265,314`, etc.; pages set `dynamic = "force-dynamic"` (all of `src/app/(app)/**/page.tsx`).
-  - Problem: Marking one alert read or approving one remediation re-runs `getProjectRuntime` (all findings + remediations), `clusterFindings`, `prioritizeFindings`, `prioritizeClusters`, and activity filtering.
-  - Change: Revalidate the narrowest scope (`revalidatePath("/findings")`, or tag-based `revalidateTag` per entity) and return the updated row for optimistic UI.
-  - Expected impact: Big reduction in server CPU and perceived latency under active triage.
-  - Risk: medium (stale-cache regressions — cover with tests).
-  - Confidence: **Confirmed**.
-
-- [ ] **Requirements page renders the entire preset (~100) as client-component islands, unpaginated**
-  - Why: Hydration cost and DOM size are the main front-end risk on the second-heaviest route.
-  - Where: `src/app/(app)/requirements/page.tsx:156-163` → `src/components/requirements/assessed-requirement-list.tsx:27-52` maps every control with no pagination/virtualization → `src/components/requirements/requirement-card.tsx:139-143` renders `RequirementRemediationActions` (client, `useActionState`, `Collapsible`, textareas) for each.
-  - Change: URL-driven pagination/windowing by theme + status (pattern already exists via `PaginationNav` on findings/evidence), or render summary rows and lazy-mount the action island on interaction/intersection.
-  - Expected impact: Lower INP/time-to-interactive and less hydration work on `/requirements`.
-  - Risk: medium.
-  - Confidence: **Confirmed** (no pagination in path). Measure first: React DevTools hydration timeline + Lighthouse.
-
-- [ ] **`zod` (64.5 KB gzip) reaches the client through shared modules**
-  - Why: A schema library is in the client graph for small response parsing / URL helpers.
-  - Where: `src/core/filters.ts:1` (`import { z } from "zod"`, schemas `:467-516`), `src/core/assessment-jobs.ts:1-38`; client consumers `src/components/github-repo-picker.tsx:17,29`, `src/components/dashboard/assessment-job-status-live.tsx:3-5`, `src/components/findings/findings-filter-bar.tsx:5-6`, `findings-bulk-list.tsx:10-13`, `finding-queue-nav.tsx:12`. Build evidence: `.next/static/chunks/1dr1jm0uhmg8d.js` = **284,859 B raw / 64,513 B gzip** begins with the zod runtime.
-  - Change: Use `zod/mini`, hand-write the few small guards used client-side, or move validation server-side and share only types. Split pure client-safe helpers (href builders/param parsers) out of `core/filters` so importing them does not pull zod/`lifecycle`.
-  - Expected impact: Remove a large chunk from dashboard/findings/picker bundles; reduces parse/execute on hydration.
-  - Risk: low–medium.
-  - Confidence: **Confirmed** (build chunk + imports).
-
----
-
 ## P2 — Medium
 
 - [ ] **App layout blocks children streaming on the nav-attention count**

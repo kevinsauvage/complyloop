@@ -9,7 +9,7 @@ import {
   findingsListHref,
   hasActiveFindingFilters,
   type FindingListParams,
-} from "@/core/filters";
+} from "@/core/filter-params";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 function isEditableTarget(target: EventTarget | null): boolean {

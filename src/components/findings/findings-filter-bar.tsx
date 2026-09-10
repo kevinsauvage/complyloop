@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import type { FindingListParams } from "@/core/filters";
-import { findingsListHref } from "@/core/filters";
+import type { FindingListParams } from "@/core/filter-params";
+import { findingsListHref } from "@/core/filter-params";
 import {
   engineDisplay,
   remediationStatusDisplay,

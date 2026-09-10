@@ -46,7 +46,7 @@ export async function setDefaultPresetAction(
       }
       return payload;
     });
-    refresh();
+    refresh("/settings", "/requirements", "/evidence");
     return changed
       ? "Default assessment preset saved"
       : "This is already the default preset.";

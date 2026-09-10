@@ -39,6 +39,7 @@ import {
   replaceRemediation,
   requireOnFindingProject,
 } from "./shared";
+import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 
 const bulkApproveInput = z.object({
   findingIds: findingIdsField("Select at least one finding to approve."),
@@ -131,7 +132,7 @@ export async function approveRemediationAction(
         return payload;
       },
     );
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Remediation approved.";
   });
 }
@@ -169,7 +170,7 @@ export async function bulkApproveRemediationsAction(
         "No selected findings had runtime guidance ready to approve.",
       );
     }
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return `Approved ${approved} remediation${approved === 1 ? "" : "s"}.`;
   });
 }
@@ -211,7 +212,7 @@ export async function dismissFindingAction(
         evidence: rows.evidence,
       };
     });
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Finding dismissed.";
   });
 }
@@ -265,7 +266,7 @@ export async function bulkDismissFindingsAction(
     if (dismissed === 0) {
       throw new PublicError("No open findings were dismissed.");
     }
-    refresh();
+    refresh(...COMPLIANCE_LOOP_ROUTES);
     return `Dismissed ${dismissed} finding${dismissed === 1 ? "" : "s"}.`;
   });
 }
