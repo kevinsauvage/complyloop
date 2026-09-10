@@ -3,15 +3,19 @@ import { FilterChipList } from "@/components/filter-chip-list";
 import {
   EVIDENCE_KIND_FILTER_ORDER,
   evidenceKindHref,
+  type EvidencePageFilters,
 } from "@/core/filters";
 import type { EvidenceKind } from "@complyloop/db/types";
 
 export function EvidenceKindChips({
   counts,
   selected,
+  filters,
 }: {
   counts: Map<EvidenceKind, number>;
   selected: EvidenceKind | undefined;
+  /** Active text/date narrowing, preserved when switching kinds. */
+  filters?: EvidencePageFilters;
 }) {
   const visibleKinds = EVIDENCE_KIND_FILTER_ORDER.filter(
     (kind) => (counts.get(kind) ?? 0) > 0,
@@ -30,7 +34,7 @@ export function EvidenceKindChips({
     <div className="flex flex-col gap-2">
       <FilterChipList
         aria-label="Evidence kind filter"
-        allHref={evidenceKindHref()}
+        allHref={evidenceKindHref(undefined, undefined, filters)}
         showAll
         allSelected={!selected}
         allCount={totalEvidence}
@@ -38,7 +42,9 @@ export function EvidenceKindChips({
           const isSelected = selected === kind;
           return {
             key: kind,
-            href: isSelected ? evidenceKindHref() : evidenceKindHref(kind),
+            href: isSelected
+              ? evidenceKindHref(undefined, undefined, filters)
+              : evidenceKindHref(kind, undefined, filters),
             selected: isSelected,
             label: <EvidenceKindBadge kind={kind} />,
             count: counts.get(kind) ?? 0,

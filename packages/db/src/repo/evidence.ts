@@ -1,4 +1,5 @@
-import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import type { EvidenceKind, EvidenceRecord } from "../types";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../postgres.ts";
@@ -49,21 +50,63 @@ export async function insertEvidenceRecords(
   await tx.insert(evidence).values(records.map(evidenceToRow));
 }
 
-function evidenceProjectFilter(projectId: string, kind?: EvidenceKind) {
-  const projectClause = eq(evidence.projectId, projectId);
-  if (!kind) return projectClause;
-  return and(projectClause, eq(evidence.kind, kind));
+/** Text/date narrowing for the evidence page. `actor` is intentionally absent: the evidence table has no actor column (see P2-1 Step 2 note in todo.md). */
+export interface EvidenceFilter {
+  kind?: EvidenceKind;
+  /** Case-insensitive substring match on `summary`. */
+  q?: string;
+  /** Inclusive `YYYY-MM-DD` lower bound on `at` (UTC). */
+  from?: string;
+  /** Inclusive `YYYY-MM-DD` upper bound on `at` (UTC). */
+  to?: string;
+}
+
+/** A bare kind where callers predate the filter object. */
+function normalizeEvidenceFilter(
+  kindOrFilter?: EvidenceKind | EvidenceFilter,
+): EvidenceFilter {
+  if (!kindOrFilter) return {};
+  return typeof kindOrFilter === "string" ? { kind: kindOrFilter } : kindOrFilter;
+}
+
+/** Escape LIKE wildcards so `q` always matches literally. */
+export function escapeLikeLiteral(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+}
+
+/** Pure WHERE-clause builder — unit-testable without a database. */
+export function evidenceFilterConditions(
+  projectId: string,
+  filter: EvidenceFilter = {},
+): SQL[] {
+  const conditions: SQL[] = [eq(evidence.projectId, projectId)];
+  if (filter.kind) conditions.push(eq(evidence.kind, filter.kind));
+  if (filter.q) {
+    conditions.push(ilike(evidence.summary, `%${escapeLikeLiteral(filter.q)}%`));
+  }
+  if (filter.from) {
+    // `at` is string-moded: compare ISO bounds and let Postgres cast.
+    conditions.push(gte(evidence.at, `${filter.from}T00:00:00.000Z`));
+  }
+  if (filter.to) {
+    conditions.push(lte(evidence.at, `${filter.to}T23:59:59.999Z`));
+  }
+  return conditions;
+}
+
+function evidenceProjectFilter(projectId: string, filter: EvidenceFilter = {}) {
+  return and(...evidenceFilterConditions(projectId, filter));
 }
 
 export async function countEvidenceForProject(
   drizzle: DrizzleDb,
   projectId: string,
-  kind?: EvidenceKind,
+  kindOrFilter?: EvidenceKind | EvidenceFilter,
 ): Promise<number> {
   const [row] = await drizzle
     .select({ value: count() })
     .from(evidence)
-    .where(evidenceProjectFilter(projectId, kind));
+    .where(evidenceProjectFilter(projectId, normalizeEvidenceFilter(kindOrFilter)));
   return Number(row?.value ?? 0);
 }
 
@@ -90,12 +133,12 @@ export async function listEvidencePageForProject(
   projectId: string,
   page: number,
   pageSize: number = DEFAULT_PAGE_SIZE,
-  kind?: EvidenceKind,
+  kindOrFilter?: EvidenceKind | EvidenceFilter,
 ): Promise<EvidenceRecord[]> {
   const rows = await drizzle
     .select()
     .from(evidence)
-    .where(evidenceProjectFilter(projectId, kind))
+    .where(evidenceProjectFilter(projectId, normalizeEvidenceFilter(kindOrFilter)))
     .orderBy(desc(evidence.at))
     .limit(pageSize)
     .offset(sqlPageOffset(page, pageSize));

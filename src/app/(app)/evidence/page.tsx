@@ -20,7 +20,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { evidenceRecordHref } from "@/core/filters";
 import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/display";
-import { parseEvidenceKindParam, evidenceKindHref } from "@/core/filters";
+import {
+  parseEvidenceDateParam,
+  parseEvidenceKindParam,
+  parseEvidenceQueryParam,
+  evidenceKindHref,
+} from "@/core/filters";
 import { reportHref } from "@/core/filters";
 import {
   DEFAULT_PAGE_SIZE,
@@ -28,8 +33,11 @@ import {
   parsePageParam,
 } from "@/core/filters";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { getDrizzle } from "@complyloop/db/postgres";
 import {
+  countEvidenceForProject,
   countEvidenceKindsForProject,
   listEvidencePageForProject,
 } from "@complyloop/db/repo/evidence";
@@ -49,9 +57,15 @@ export const metadata: Metadata = {
 export default async function EvidencePage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; kind?: string | string[] }>;
+  searchParams: Promise<{
+    page?: string | string[];
+    kind?: string | string[];
+    q?: string | string[];
+    from?: string | string[];
+    to?: string | string[];
+  }>;
 }) {
-  const { page: pageRaw, kind: kindRaw } = await searchParams;
+  const { page: pageRaw, kind: kindRaw, q: qRaw, from: fromRaw, to: toRaw } = await searchParams;
   const { project } = await getWorkspace();
   if (!project) {
     return (
@@ -63,28 +77,45 @@ export default async function EvidencePage({
     );
   }
   const kindFilter = parseEvidenceKindParam(kindRaw);
+  const query = parseEvidenceQueryParam(qRaw);
+  const from = parseEvidenceDateParam(fromRaw);
+  const to = parseEvidenceDateParam(toRaw);
+  const filters = { q: query, from, to };
+  const hasTextOrDateFilter = query !== undefined || from !== undefined || to !== undefined;
   const page = parsePageParam(pageRaw);
   const drizzle = await getDrizzle();
-  const [requirements, kindCounts, items] = await Promise.all([
+  const [requirements, kindCounts, items, filteredTotal] = await Promise.all([
     listRequirementsForProject(drizzle, project.id),
     countEvidenceKindsForProject(drizzle, project.id),
-    listEvidencePageForProject(
-      drizzle,
-      project.id,
-      page,
-      DEFAULT_PAGE_SIZE,
-      kindFilter,
-    ),
+    listEvidencePageForProject(drizzle, project.id, page, DEFAULT_PAGE_SIZE, {
+      kind: kindFilter,
+      ...filters,
+    }),
+    // The unfiltered total is the sum of the per-kind counts; text/date
+    // narrowing needs a real count(*) — one extra scan, only when filtered.
+    hasTextOrDateFilter
+      ? countEvidenceForProject(drizzle, project.id, {
+          kind: kindFilter,
+          ...filters,
+        })
+      : Promise.resolve(null),
   ]);
-  // The unfiltered total is the sum of the per-kind counts; the filtered total
-  // is one bucket — no extra count(*) scans needed.
+  // The unfiltered total is the sum of the per-kind counts; the kind-only
+  // total is one bucket — no extra count(*) scans needed.
   const totalUnfiltered = [...kindCounts.values()].reduce(
     (sum, value) => sum + value,
     0,
   );
-  const total = kindFilter ? (kindCounts.get(kindFilter) ?? 0) : totalUnfiltered;
+  const total =
+    filteredTotal ??
+    (kindFilter ? (kindCounts.get(kindFilter) ?? 0) : totalUnfiltered);
   const slice = pageSliceFromQuery(items, page, total);
-  const paginationQuery = kindFilter ? { kind: kindFilter } : undefined;
+  const paginationQuery: Record<string, string> = {};
+  if (kindFilter) paginationQuery.kind = kindFilter;
+  if (query) paginationQuery.q = query;
+  if (from) paginationQuery.from = from;
+  if (to) paginationQuery.to = to;
+  const filtersActive = kindFilter !== undefined || hasTextOrDateFilter;
 
   return (
     <>
@@ -178,7 +209,55 @@ export default async function EvidencePage({
         </PageContent>
       ) : (
         <PageContent>
-          <EvidenceKindChips counts={kindCounts} selected={kindFilter} />
+          <EvidenceKindChips
+            counts={kindCounts}
+            selected={kindFilter}
+            filters={filters}
+          />
+          <form
+            method="get"
+            action="/evidence"
+            role="search"
+            aria-label="Search evidence"
+            className="flex flex-col gap-2 sm:flex-row sm:items-end"
+          >
+            {kindFilter ? (
+              <input type="hidden" name="kind" value={kindFilter} />
+            ) : null}
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <Label htmlFor="evidence-q">Search evidence</Label>
+              <Input
+                id="evidence-q"
+                name="q"
+                type="search"
+                defaultValue={query ?? ""}
+                placeholder="Search summaries…"
+                maxLength={100}
+                autoComplete="off"
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="evidence-from">From</Label>
+              <Input
+                id="evidence-from"
+                name="from"
+                type="date"
+                defaultValue={from ?? ""}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="evidence-to">To</Label>
+              <Input
+                id="evidence-to"
+                name="to"
+                type="date"
+                defaultValue={to ?? ""}
+              />
+            </div>
+            <Button type="submit" size="sm" className="shrink-0">
+              Search
+            </Button>
+          </form>
           <h2
             id="evidence-results"
             tabIndex={-1}
@@ -186,8 +265,21 @@ export default async function EvidencePage({
           >
             {total === 1 ? "1 entry" : `${total} entries`}
             {kindFilter ? ` · ${evidenceDisplay(kindFilter).label}` : ""}
+            {query ? ` · matching “${query}”` : ""}
+            {from ? ` · from ${from}` : ""}
+            {to ? ` · to ${to}` : ""}
           </h2>
-          {total === 0 && kindFilter ? (
+          {total === 0 && filtersActive ? (
+            <EmptyState title="No matching entries" variant="no-results">
+              <p>
+                Try another search or date range, or{" "}
+                <Link href={evidenceKindHref()} className="underline">
+                  view all evidence
+                </Link>
+                .
+              </p>
+            </EmptyState>
+          ) : total === 0 && kindFilter ? (
             <EmptyState title={`No "${evidenceDisplay(kindFilter).label}" entries`} variant="no-results">
               <p>
                 Try another filter or{" "}

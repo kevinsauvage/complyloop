@@ -103,12 +103,53 @@ export function parseEvidenceKindParam(
     : undefined;
 }
 
+/** Trimmed evidence search query (summary substring), capped at 100 chars. */
+export function parseEvidenceQueryParam(
+  raw: string | string[] | undefined,
+): string | undefined {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return undefined;
+  const trimmed = value.trim().slice(0, 100).trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Strict `YYYY-MM-DD` date bound for evidence filtering. Returns undefined
+ * for missing, malformed, or non-existent calendar dates (e.g. 2026-02-30)
+ * so a typo degrades to "no date filter" instead of an empty page.
+ */
+export function parseEvidenceDateParam(
+  raw: string | string[] | undefined,
+): string | undefined {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value || !ISO_DATE_PATTERN.test(value)) return undefined;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const roundTrips =
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day;
+  return roundTrips ? value : undefined;
+}
+
+export interface EvidencePageFilters {
+  q?: string;
+  from?: string;
+  to?: string;
+}
+
 export function evidenceKindHref(
   kind?: EvidenceKind,
   page?: number,
+  filters?: EvidencePageFilters,
 ): string {
   return href("/evidence", {
     kind,
+    q: filters?.q,
+    from: filters?.from,
+    to: filters?.to,
     page: page && page > 1 ? String(page) : undefined,
   });
 }

@@ -124,8 +124,9 @@ Both already implemented — do not re-ticket as work:
 - Current `src/app/(app)/evidence/page.tsx:52,65,71-77` — only `{page,kind}`; `packages/db/src/repo/evidence.ts:52-103` only `eq(kind)`; no `ilike(summary)`, date range, or actor column.
 - Jargon in UI: `src/components/evidence/evidence-kind-chips.tsx:54-57` + `requirements-status-chips.tsx:52-54` — "{n} hidden empty categories".
 
-**Step 1 (S, do now):** rename to "No X entries yet" or omit line + `Show empty` tooltip.
-**Step 2 (M):** `?q=&from=&to=&actor=` end-to-end (repo `ilike` + date range, `filter-params.ts`, page UI).
+**Step 1 (S, done):** rename to "No X entries yet" or omit line + `Show empty` tooltip.
+**Step 2 (M, done 2026-09-10):** `?q=&from=&to=` end-to-end — `EvidenceFilter` in `packages/db/src/repo/evidence.ts` (`ilike(summary)` with wildcard escaping + `at` date range), `parseEvidenceQueryParam`/`parseEvidenceDateParam` + filter-preserving `evidenceKindHref(kind, page, filters)` in `src/core/filter-params.ts`, search + date form + preserved pagination/chips in `src/app/(app)/evidence/page.tsx`. Kind-only totals still come from the per-kind counts map (no extra scan); text/date narrowing adds one `count(*)`.
+**Actor (deferred, needs schema change):** the evidence table has no actor column (`packages/db/src/schema.ts:243-266` — id/at/kind/summary/project/control/finding/assessment/detail, no actor anywhere in write paths). Filtering by actor requires a migration + write-path changes — separate ticket.
 **Accept (step 1):** no "hidden empty categories" string in repo (`rg` clean).
 
 ### P2-2 Empty states with next step, esp. Resolved (0 today) [S]

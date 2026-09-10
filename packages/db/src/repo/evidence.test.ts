@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
-import { evidenceExportWindow, sqlPageOffset } from "./evidence";
+import {
+  escapeLikeLiteral,
+  evidenceExportWindow,
+  evidenceFilterConditions,
+  sqlPageOffset,
+} from "./evidence";
 
 describe("evidenceExportWindow", () => {
   it("is not truncated when the table is within the limit", () => {
@@ -28,5 +33,34 @@ describe("sqlPageOffset", () => {
   it("clamps invalid pages to the first page", () => {
     expect(sqlPageOffset(0, 25)).toBe(0);
     expect(sqlPageOffset(-2, 25)).toBe(0);
+  });
+});
+
+describe("escapeLikeLiteral", () => {
+  it("escapes LIKE wildcards so q matches literally", () => {
+    expect(escapeLikeLiteral("100%_covered\\all")).toBe(
+      "100\\%\\_covered\\\\all",
+    );
+    expect(escapeLikeLiteral("plain")).toBe("plain");
+  });
+});
+
+describe("evidenceFilterConditions", () => {
+  it("always scopes to the project", () => {
+    expect(evidenceFilterConditions("p1")).toHaveLength(1);
+  });
+
+  it("adds one condition per active filter", () => {
+    expect(
+      evidenceFilterConditions("p1", {
+        kind: "finding",
+        q: "alt",
+        from: "2026-09-01",
+        to: "2026-09-10",
+      }),
+    ).toHaveLength(5);
+    expect(
+      evidenceFilterConditions("p1", { q: "alt" }),
+    ).toHaveLength(2);
   });
 });

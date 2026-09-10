@@ -22,7 +22,9 @@ import {
   orderedFindingIdsForQueue,
   pageSliceFromQuery,
   paginateSlice,
+  parseEvidenceDateParam,
   parseEvidenceKindParam,
+  parseEvidenceQueryParam,
   parseFindingListParams,
   parseForm,
   parseInput,
@@ -71,6 +73,48 @@ describe("evidenceKindHref", () => {
       "/evidence?kind=finding&page=2",
     );
     expect(evidenceKindHref("finding", 1)).toBe("/evidence?kind=finding");
+  });
+
+  it("preserves text/date filters when switching kinds", () => {
+    expect(
+      evidenceKindHref("finding", undefined, {
+        q: "alt",
+        from: "2026-09-01",
+        to: "2026-09-10",
+      }),
+    ).toBe("/evidence?kind=finding&q=alt&from=2026-09-01&to=2026-09-10");
+    expect(evidenceKindHref(undefined, undefined, { q: "alt" })).toBe(
+      "/evidence?q=alt",
+    );
+  });
+});
+
+describe("parseEvidenceQueryParam", () => {
+  it("trims and caps the query", () => {
+    expect(parseEvidenceQueryParam("  alt text  ")).toBe("alt text");
+    expect(parseEvidenceQueryParam("x".repeat(200))).toHaveLength(100);
+  });
+
+  it("returns undefined for missing or blank values", () => {
+    expect(parseEvidenceQueryParam(undefined)).toBeUndefined();
+    expect(parseEvidenceQueryParam("   ")).toBeUndefined();
+    expect(parseEvidenceQueryParam(["alt", "other"])).toBe("alt");
+  });
+});
+
+describe("parseEvidenceDateParam", () => {
+  it("accepts valid calendar dates", () => {
+    expect(parseEvidenceDateParam("2026-09-10")).toBe("2026-09-10");
+  });
+
+  it("rejects malformed or impossible dates", () => {
+    expect(parseEvidenceDateParam(undefined)).toBeUndefined();
+    expect(parseEvidenceDateParam("09/10/2026")).toBeUndefined();
+    expect(parseEvidenceDateParam("2026-13-01")).toBeUndefined();
+    expect(parseEvidenceDateParam("2026-02-30")).toBeUndefined();
+    expect(parseEvidenceDateParam(["2026-09-10", "2026-09-11"])).toBe(
+      "2026-09-10",
+    );
   });
 });
 
