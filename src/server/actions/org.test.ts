@@ -38,7 +38,7 @@ const listRequirementsForProjects = vi.hoisted(() => vi.fn());
 const listAlertsForProjects = vi.hoisted(() => vi.fn());
 
 vi.mock("../workspace/orgs", async () => {
-  const actual = await vi.importActual<typeof import("../workspace/orgs")>("../orgs");
+  const actual = await vi.importActual<typeof import("../workspace/orgs")>("../workspace/orgs");
   return {
     ...actual,
     exportOrgData: (...args: unknown[]) => exportOrgData(...args),
@@ -48,7 +48,7 @@ vi.mock("../workspace/orgs", async () => {
 
 vi.mock("../workspace/org-queries", async () => {
   const actual = await vi.importActual<typeof import("../workspace/org-queries")>(
-    "../org-queries",
+    "../workspace/org-queries",
   );
   return {
     ...actual,

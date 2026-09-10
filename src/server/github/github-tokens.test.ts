@@ -6,7 +6,7 @@ vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 
-vi.mock("./observability", () => ({
+vi.mock("../observability", () => ({
   reportError: vi.fn(),
 }));
 

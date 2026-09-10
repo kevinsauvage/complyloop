@@ -38,7 +38,7 @@ vi.mock("../workspace/active-cookies", () => ({
 
 vi.mock("../workspace/project-visibility", async () => {
   const actual = await vi.importActual<typeof import("../workspace/project-visibility")>(
-    "../project-visibility",
+    "../workspace/project-visibility",
   );
   return {
     ...actual,

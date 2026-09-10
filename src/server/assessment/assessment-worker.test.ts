@@ -64,7 +64,7 @@ vi.mock("@complyloop/db/repo/evidence", () => ({
 }));
 
 vi.mock("../workspace/db", async () => {
-  const actual = await vi.importActual<typeof import("../workspace/db")>("./db");
+  const actual = await vi.importActual<typeof import("../workspace/db")>("../workspace/db");
   return {
     ...actual,
     loadProjectDb: (...args: unknown[]) => loadProjectDb(...args),
@@ -83,13 +83,13 @@ vi.mock("./repo-checkout", () => ({
   ) => withProjectCheckout(_project, fn, _ref),
 }));
 
-vi.mock("./observability", () => ({
+vi.mock("../observability", () => ({
   reportError: (...args: unknown[]) => reportError(...args),
   reportWarning: (...args: unknown[]) => reportWarning(...args),
   reportInfo: (...args: unknown[]) => reportInfo(...args),
 }));
 
-vi.mock("./rate-limit", () => ({
+vi.mock("../rate-limit", () => ({
   pruneRateLimitBuckets: (...args: unknown[]) => pruneRateLimitBuckets(...args),
 }));
 

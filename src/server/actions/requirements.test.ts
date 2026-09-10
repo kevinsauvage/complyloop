@@ -38,7 +38,7 @@ vi.mock("../observability", () => ({
 
 vi.mock("../assessment/assessment-status", async () => {
   const actual = await vi.importActual<typeof import("../assessment/assessment-status")>(
-    "../assessment-status",
+    "../assessment/assessment-status",
   );
   return {
     ...actual,

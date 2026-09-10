@@ -26,7 +26,7 @@ const { reportWarningMock } = vi.hoisted(() => ({
   reportWarningMock: vi.fn(),
 }));
 
-vi.mock("./observability", () => ({
+vi.mock("../observability", () => ({
   reportWarning: reportWarningMock,
   reportError: vi.fn(),
   reportDebug: vi.fn(),

@@ -20,7 +20,7 @@ vi.mock("@complyloop/db/repo/projects", () => ({
   updateProject: (...args: unknown[]) => updateProject(...args),
 }));
 vi.mock("../assessment/assessment-jobs", () => ({ enqueueAssessmentJob }));
-vi.mock("./rate-limit", () => ({ assertRateLimit }));
+vi.mock("../rate-limit", () => ({ assertRateLimit }));
 
 afterEach(() => {
   delete process.env.GITHUB_WEBHOOK_SECRET;
