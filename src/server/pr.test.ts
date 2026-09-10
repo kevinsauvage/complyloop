@@ -38,6 +38,12 @@ const createPullRequest = vi.hoisted(() =>
   })),
 );
 
+const listPullRequests = vi.hoisted(() =>
+  vi.fn(async () => ({
+    data: [] as Array<{ html_url: string }>,
+  })),
+);
+
 const githubPublicCloneUrl = vi.hoisted(() => vi.fn(() => ""));
 
 vi.mock("./repo-checkout", () => ({
@@ -64,7 +70,7 @@ vi.mock("./github", async (importOriginal) => {
       return { owner, repo };
     },
     createOctokit: () => ({
-      rest: { pulls: { create: createPullRequest } },
+      rest: { pulls: { create: createPullRequest, list: listPullRequests } },
     }),
     octokitErrorMessage: (error: unknown) => String(error),
   };
@@ -479,5 +485,40 @@ describe("locateViolationInProject + PR apply", () => {
     );
     expect(second.branch).toBe(first.branch);
     expect(second.prUrl).toBe("https://github.com/acme/shop/pull/42");
+  });
+
+  it("reuses an open PR from pulls.list without calling pulls.create", async () => {
+    const initial = `export const Hero = () => <button></button>;\n`;
+    const { root, relative, project, control, finding, remediation } =
+      await initRepo(initial);
+    finding.fix = null;
+    resolveProjectGitHubToken.mockResolvedValue("token");
+    githubPublicCloneUrl.mockReturnValue(root);
+    listPullRequests.mockResolvedValue({
+      data: [{ html_url: "https://github.com/acme/shop/pull/7" }],
+    });
+
+    const result = await preparePullRequest(
+      project,
+      control,
+      finding,
+      remediation,
+      {
+        description: "Add alt",
+        provenance: "ai",
+        edits: [
+          {
+            path: relative,
+            oldText: "<button></button>",
+            newText: '<button aria-label="Save"></button>',
+          },
+        ],
+        complyLoop: { passed: true, remaining: [] },
+      },
+    );
+
+    expect(result.prUrl).toBe("https://github.com/acme/shop/pull/7");
+    expect(listPullRequests).toHaveBeenCalled();
+    expect(createPullRequest).not.toHaveBeenCalled();
   });
 });

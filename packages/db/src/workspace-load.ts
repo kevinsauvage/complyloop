@@ -8,7 +8,12 @@ import {
 import { listAlertsForProject } from "./repo/alerts.ts";
 import { WORKSPACE_EVIDENCE_LIMIT } from "./repo/evidence.ts";
 import { listFindingsForProject } from "./repo/findings.ts";
-import { listMembershipsForOrgs, listOrganizationsForUser, listOrgIdsForUser } from "./repo/orgs.ts";
+import {
+  listMembershipsForOrgs,
+  listOrganizationsForUser,
+  listOrgIdsForUser,
+  provisionPersonalOrg,
+} from "./repo/orgs.ts";
 import {
   getProjectById,
   listProjectsForOrgs,
@@ -104,6 +109,12 @@ async function loadWorkspaceTenancy(
   projects: Db["projects"];
   activeProjectId: string | null;
 }> {
+  // Steady-state claim: signed-in reloads attach pending invites (userId) so
+  // RBAC works without re-auth. provisionPersonalOrg early-returns when already
+  // provisioned (one indexed read).
+  if (input.userId && input.githubLogin) {
+    await provisionPersonalOrg(drizzle, input.userId, input.githubLogin);
+  }
   const orgIds = await listOrgIdsForUser(
     drizzle,
     input.userId,

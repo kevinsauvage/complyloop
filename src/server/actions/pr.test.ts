@@ -205,4 +205,42 @@ describe("createPullRequestAction", () => {
     expect((result.ok ? null : result.message)).toMatch(/Generate and review/);
     expect(preparePullRequest).not.toHaveBeenCalled();
   });
+
+  it("keeps prUrl when the evidence write fails, then records pull_request_prepared on retry", async () => {
+    const workspace = workspaceFor("member");
+    getWorkspace.mockResolvedValue(workspace);
+    preparePullRequest.mockResolvedValue({
+      branch: "fix/img-alt",
+      prUrl: "https://github.com/acme/shop/pull/1",
+      title: "fix: alt text",
+      message: "Opened pull request.",
+    });
+    withProjectWrite
+      .mockRejectedValueOnce(new Error("db write failed"))
+      .mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+
+    const first = await createPullRequestAction(
+      "f1",
+      { ok: false, message: null, prUrl: null },
+      new FormData(),
+    );
+    expect(first.ok).toBe(false);
+    expect(first.prUrl).toBe("https://github.com/acme/shop/pull/1");
+    expect(first.message).toMatch(/database write failed/i);
+    expect(first.message).toMatch(/Retry/);
+
+    const second = await createPullRequestAction("f1", first, new FormData());
+    expect(second).toEqual({
+      ok: true,
+      message: "Opened pull request.",
+      prUrl: "https://github.com/acme/shop/pull/1",
+    });
+    expect(
+      projectWritePayload()?.evidence?.some(
+        (row) => row.kind === "pull_request_prepared",
+      ),
+    ).toBe(true);
+    // prepare may run twice; reconcile inside prepare avoids a second pulls.create.
+    expect(preparePullRequest).toHaveBeenCalledTimes(2);
+  });
 });

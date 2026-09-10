@@ -100,6 +100,7 @@ export function GitHubRepoPicker({
   const [fetchError, setFetchError] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
   const filterId = useId();
   const [connectState, connectAction, connectPending] = useActionState(
     connectGitHubRepoAction,
@@ -113,18 +114,31 @@ export function GitHubRepoPicker({
   useActionToast(disconnectState, disconnectPending);
 
   const loadRepos = useCallback(
-    async (nextPage: number, q: string, append: boolean) => {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
+    async (
+      nextPage: number,
+      q: string,
+      append: boolean,
+      externalSignal?: AbortSignal,
+    ) => {
+      let ownedController: AbortController | null = null;
+      let effectiveSignal = externalSignal;
+      if (!effectiveSignal) {
+        abortRef.current?.abort();
+        ownedController = new AbortController();
+        abortRef.current = ownedController;
+        effectiveSignal = ownedController.signal;
+      }
+      const requestId = (requestIdRef.current += 1);
+      const isCurrent = () => requestIdRef.current === requestId;
       setLoading(true);
       setFetchError(null);
       try {
         const result = await fetchRepos({
           q,
           page: nextPage,
-          signal: controller.signal,
+          signal: effectiveSignal,
         });
+        if (!isCurrent()) return;
         setRepos((prev) =>
           append
             ? [
@@ -141,6 +155,7 @@ export function GitHubRepoPicker({
         setPage(nextPage);
         setHasMore(result.hasMore);
       } catch (error) {
+        if (!isCurrent()) return;
         if (error instanceof Error && error.name === "AbortError") return;
         setFetchError(
           error instanceof Error
@@ -150,19 +165,23 @@ export function GitHubRepoPicker({
         if (!append) setRepos([]);
         setHasMore(false);
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     },
     [],
   );
 
   // Radix unmounts dialog content on close, so this refires per open —
-  // intentional: each open shows fresh repos.
-  const bootstrappedRef = useRef(false);
+  // intentional: each open shows fresh repos. Effect-scoped controller keeps
+  // this StrictMode-safe: the simulated unmount aborts the first fetch and
+  // the remount retries instead of stranding `loading`.
   useEffect(() => {
-    if (!fetchOnMount || bootstrappedRef.current) return;
-    bootstrappedRef.current = true;
-    void loadRepos(1, "", false);
+    if (!fetchOnMount) return;
+    const controller = new AbortController();
+    void loadRepos(1, "", false, controller.signal);
+    return () => {
+      controller.abort();
+    };
   }, [fetchOnMount, loadRepos]);
 
   useEffect(() => {

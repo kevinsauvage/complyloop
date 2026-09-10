@@ -82,6 +82,23 @@ describe("orgs", () => {
     ).toBe("user-b");
   });
 
+  it("normalizes invite GitHub logins to lowercase when storing", () => {
+    const db = emptyDb();
+    const org = seedOwnerOrg(db, "user-a", "alice");
+    applyMembership(
+      db,
+      inviteOrgMember(db, org.id, "user-a", "@AliceDev", "member"),
+    );
+    const invited = db.memberships.find(
+      (membership) => membership.githubLogin === "alicedev",
+    );
+    expect(invited).toMatchObject({
+      githubLogin: "alicedev",
+      role: "member",
+    });
+    expect(invited?.userId).toBeUndefined();
+  });
+
   it("prevents removing the owner", () => {
     const db = emptyDb();
     const org = seedOwnerOrg(db, "user-a", "alice");

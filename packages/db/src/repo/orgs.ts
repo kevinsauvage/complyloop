@@ -35,7 +35,14 @@ export async function listOrgIdsForUser(
   if (!userId && !githubLogin) return [];
   const clauses = [];
   if (userId) clauses.push(eq(memberships.userId, userId));
-  if (githubLogin) clauses.push(eq(memberships.githubLogin, githubLogin));
+  if (githubLogin) {
+    const login = githubLogin.trim().toLowerCase();
+    if (login) {
+      // Match invite / claim paths — github_login may be stored with any casing.
+      clauses.push(sql`lower(${memberships.githubLogin}) = ${login}`);
+    }
+  }
+  if (clauses.length === 0) return [];
   const rows = await drizzle
     .select({ orgId: memberships.orgId })
     .from(memberships)

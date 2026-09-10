@@ -67,7 +67,8 @@ export function inviteOrgMember(
     id: crypto.randomUUID(),
     orgId,
     role,
-    githubLogin: login,
+    // Store lowercase so invite lookup / claim / listOrgIds stay aligned.
+    githubLogin: login.toLowerCase(),
     createdAt: new Date().toISOString(),
   };
 }
