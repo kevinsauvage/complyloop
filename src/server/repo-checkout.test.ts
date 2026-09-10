@@ -7,20 +7,21 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 const clone = vi.hoisted(() => vi.fn());
 const fetch = vi.hoisted(() => vi.fn());
 const checkout = vi.hoisted(() => vi.fn());
-const createGitArgs = vi.hoisted(() => [] as unknown[][]);
+const createAuthedGitArgs = vi.hoisted(() => [] as unknown[][]);
 
 vi.mock("./git", async () => {
   const actual = await vi.importActual<typeof import("./git")>("./git");
   return {
     ...actual,
-    createGit: (...args: unknown[]) => {
-      createGitArgs.push(args);
+    createGit: () => ({ clone, fetch, checkout }),
+    createAuthedGit: (...args: unknown[]) => {
+      createAuthedGitArgs.push(args);
       return { clone, fetch, checkout };
     },
   };
 });
 
-import { cloneShallow, withFixtureCheckout, withProjectCheckout, withRepoCheckout, assertCheckoutWithinQuota, parseCheckoutRef } from "./repo-checkout";
+import { cloneAuthedShallow, cloneShallow, withFixtureCheckout, withProjectCheckout, withRepoCheckout, assertCheckoutWithinQuota, parseCheckoutRef } from "./repo-checkout";
 
 const previousEnabled = process.env.E2E_AUTH_ENABLED;
 const previousRoot = process.env.E2E_FIXTURE_ROOT;
@@ -37,7 +38,7 @@ afterEach(() => {
   clone.mockReset();
   fetch.mockReset();
   checkout.mockReset();
-  createGitArgs.splice(0);
+  createAuthedGitArgs.splice(0);
 });
 
 describe("cloneShallow", () => {
@@ -192,12 +193,22 @@ describe("parseCheckoutRef", () => {
     expect(cloneUrl).not.toContain("x-access-token");
     expect(fetch).toHaveBeenCalledWith(["--depth", "1", "origin", sha]);
     expect(checkout).toHaveBeenCalledWith([sha]);
-    // The token travels in the child env (http.extraHeader), never in argv.
-    const envArgs = createGitArgs.map((args) => args[1]);
-    expect(envArgs.length).toBeGreaterThan(0);
-    const serialized = JSON.stringify(envArgs);
-    expect(serialized).toContain("ghs_secret");
-    expect(serialized).toContain("http.extraHeader");
+    // The token is handed to the authed git factory (child env transport),
+    // never interpolated into the clone URL above.
+    expect(createAuthedGitArgs[0]?.[0]).toBe("ghs_secret");
+  });
+
+  it("cloneAuthedShallow delegates to the authed factory with the public URL", async () => {
+    clone.mockResolvedValue(undefined);
+    const root = path.join(os.tmpdir(), `complyloop-authed-${Date.now()}`, "repo");
+    tempDirs.push(path.dirname(root));
+    await cloneAuthedShallow("https://github.com/o/r.git", "tok", root);
+    expect(createAuthedGitArgs[0]?.[0]).toBe("tok");
+    expect(clone).toHaveBeenCalledWith(
+      "https://github.com/o/r.git",
+      root,
+      ["--depth", "1"],
+    );
   });
 });
 
@@ -216,6 +227,30 @@ describe("assertCheckoutWithinQuota", () => {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     }
+  });
+
+  it("allows an empty tree", () => {
+    process.env.ASSESSMENT_MAX_CHECKOUT_FILES = "10";
+    process.env.ASSESSMENT_MAX_CHECKOUT_BYTES = String(1024 * 1024);
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "quota-empty-"));
+    tempDirs.push(root);
+    expect(() => assertCheckoutWithinQuota(root)).not.toThrow();
+  });
+
+  it("counts files across nested directories, ignoring .git", () => {
+    process.env.ASSESSMENT_MAX_CHECKOUT_FILES = "2";
+    process.env.ASSESSMENT_MAX_CHECKOUT_BYTES = String(1024 * 1024);
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "quota-nested-"));
+    tempDirs.push(root);
+    fs.mkdirSync(path.join(root, "a", "b"), { recursive: true });
+    fs.writeFileSync(path.join(root, "a", "one.ts"), "1");
+    fs.writeFileSync(path.join(root, "a", "b", "two.ts"), "2");
+    fs.mkdirSync(path.join(root, ".git", "objects"), { recursive: true });
+    fs.writeFileSync(path.join(root, ".git", "objects", "pack"), "x".repeat(100));
+    expect(() => assertCheckoutWithinQuota(root)).not.toThrow();
+
+    fs.writeFileSync(path.join(root, "a", "b", "three.ts"), "3");
+    expect(() => assertCheckoutWithinQuota(root)).toThrow(/assessment quota/);
   });
 
   it("allows trees within the quota", () => {

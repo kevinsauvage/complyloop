@@ -38,7 +38,7 @@ const createPullRequest = vi.hoisted(() =>
   })),
 );
 
-const githubCloneUrl = vi.hoisted(() => vi.fn(() => ""));
+const githubPublicCloneUrl = vi.hoisted(() => vi.fn(() => ""));
 
 vi.mock("./repo-checkout", () => ({
   withProjectCheckout: (
@@ -57,7 +57,7 @@ vi.mock("./github", async (importOriginal) => {
   const original = await importOriginal<typeof import("./github")>();
   return {
     ...original,
-    githubCloneUrl,
+    githubPublicCloneUrl,
     parseOwnerRepo: (fullName: string) => {
       const [owner, repo] = fullName.split("/");
       if (!owner || !repo) throw new Error("invalid full name");
@@ -267,7 +267,7 @@ describe("locateViolationInProject + PR apply", () => {
       await initRepo(initial);
     finding.fix = null;
     resolveProjectGitHubToken.mockResolvedValue("token");
-    githubCloneUrl.mockReturnValue(root);
+    githubPublicCloneUrl.mockReturnValue(root);
 
     const result = await preparePullRequest(
       project,
@@ -295,6 +295,33 @@ describe("locateViolationInProject + PR apply", () => {
         body: expect.stringContaining("Repository tests run in GitHub CI"),
       }),
     );
+  });
+
+  it("fails loud when pushing the fix branch fails", async () => {
+    const initial = `export const Hero = () => <button></button>;\n`;
+    const { relative, project, control, finding, remediation } =
+      await initRepo(initial);
+    finding.fix = null;
+    resolveProjectGitHubToken.mockResolvedValue("token");
+    // A remote that can never accept the push: the branch commits locally,
+    // then push + PR creation fail as one user-visible error.
+    githubPublicCloneUrl.mockReturnValue(path.join(os.tmpdir(), "no-such-remote"));
+
+    await expect(
+      preparePullRequest(project, control, finding, remediation, {
+        description: "Add alt",
+        provenance: "ai",
+        edits: [
+          {
+            path: relative,
+            oldText: "<button></button>",
+            newText: '<button aria-label="Save"></button>',
+          },
+        ],
+        complyLoop: { passed: true, remaining: [] },
+      }),
+    ).rejects.toThrow(/committed locally but push/);
+    expect(createPullRequest).not.toHaveBeenCalled();
   });
 
   it("aborts when the violation can no longer be found", async () => {

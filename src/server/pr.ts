@@ -3,7 +3,7 @@ import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
 import { type Finding, type Remediation } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { createGit, gitAuthEnv } from "./git";
+import { createAuthedGit, createGit } from "./git";
 import {
   createOctokit,
   githubPublicCloneUrl,
@@ -149,7 +149,7 @@ export async function preparePullRequest(
         // Token travels in the child env (http.extraHeader), never in argv.
         const remote = githubPublicCloneUrl(fullName);
         try {
-          await createGit({ baseDir: rootPath }, gitAuthEnv(token)).push(
+          await createAuthedGit(token, { baseDir: rootPath }).push(
             remote,
             `HEAD:refs/heads/${branch}`,
             ["-u"],

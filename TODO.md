@@ -14,8 +14,6 @@ Conventions per item: **Problem** (what is wrong) · **Evidence** (exact files/f
 
 ## P1 — high-impact correctness / architecture
 
-### 7. P1 — Coverage exclusions hide the riskiest paths; add unit tests for pure logic
-
 - **Problem:** `vitest.config.mts:43-81` excludes `repo-checkout`, `github-tokens/app`, `report.ts` loader, `db/repo/**`, runtime scan drivers from unit thresholds. Thresholds (94 lines / 96 funcs) therefore certify a subset while checkout quota, ref handling, token decrypt errors, and report ordering ship with little or no unit coverage.
 - **Evidence:** `vitest.config.mts:59-80`; untested pure functions: `assertCheckoutWithinQuota` (`src/server/repo-checkout.ts:30-57`), `parseJobPayload`/`jobFromRow` (`src/server/assessment-jobs.ts:59-89`), `evidenceRowsForProject`/`composeAuditReport` (`src/server/report-model.ts:131-144,251-279`), `verifyGitHubSignature` (`src/server/webhook.ts:33-44`).
 - **Action:** Add (not refactor) unit tests only: quota counting (empty dir, nested, `.git` ignored, over-limit throws), payload parse fallback to `{}` on garbage, evidence ordering (export window oldest-first → rendered order asserted), signature verify false on missing secret/header. Do not lower thresholds; do not un-exclude live-I/O files.

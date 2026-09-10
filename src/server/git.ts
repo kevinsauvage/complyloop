@@ -40,9 +40,8 @@ export function gitProcessEnv(
 /** simple-git instance with a sanitized environment for non-interactive use. */
 export function createGit(
   options: Partial<SimpleGitOptions> = {},
-  envOverrides: Record<string, string> = {},
 ): SimpleGit {
-  return simpleGit(options).env(gitProcessEnv(envOverrides));
+  return simpleGit(options).env(gitProcessEnv());
 }
 
 /**
@@ -59,4 +58,22 @@ export function gitAuthEnv(accessToken: string): Record<string, string> {
     GIT_CONFIG_KEY_0: "http.extraHeader",
     GIT_CONFIG_VALUE_0: `Authorization: Bearer ${accessToken}`,
   };
+}
+
+/**
+ * simple-git instance authenticated via {@link gitAuthEnv}. Scoped exception
+ * to simple-git's env-config gate (`unsafe.allowUnsafeConfigEnvCount`): the
+ * only value passed this way is a server-minted token under a hardcoded
+ * `http.extraHeader` key — no remote input reaches git config (refs are
+ * validated by `parseCheckoutRef`, URLs by `parseOwnerRepo`). argv transport
+ * would be strictly worse, so the flag is enabled here and nowhere else.
+ */
+export function createAuthedGit(
+  accessToken: string,
+  options: Partial<SimpleGitOptions> = {},
+): SimpleGit {
+  return simpleGit({
+    ...options,
+    unsafe: { ...options.unsafe, allowUnsafeConfigEnvCount: true },
+  }).env(gitProcessEnv(gitAuthEnv(accessToken)));
 }

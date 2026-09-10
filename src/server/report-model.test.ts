@@ -125,4 +125,23 @@ describe("report model composers", () => {
     const model = composeAuditReport(input);
     expect(model.requirements[0]?.secondaryLabel).toBe("Also");
   });
+
+  it("renders the export window (oldest-first) newest-first", () => {
+    const input = sampleReportInput();
+    input.evidence = [1, 2, 3].map((day) => ({
+      id: `e${day}`,
+      at: `2026-01-0${day}T00:00:00.000Z`,
+      kind: "assessment_completed",
+      summary: `assessment day ${day}`,
+      projectId: input.project.id,
+    }));
+    input.evidenceTotal = 3;
+
+    const model = composeAuditReport(input);
+    expect(model.evidence.map((row) => row.summary)).toEqual([
+      "assessment day 3",
+      "assessment day 2",
+      "assessment day 1",
+    ]);
+  });
 });

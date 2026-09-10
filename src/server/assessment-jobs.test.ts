@@ -416,6 +416,31 @@ describe("claimNextAssessmentJob", () => {
     });
     expect(webhook2.id).not.toBe(webhook1.id);
   });
+
+  it("falls back to an empty payload for garbage stored payloads", async () => {
+    const now = new Date().toISOString();
+    jobs.set("job-garbage", {
+      id: "job-garbage",
+      projectId: "p1",
+      status: "queued",
+      trigger: "manual",
+      requestedByUserId: null,
+      idempotencyKey: null,
+      // Simulates a row written before payload validation existed.
+      payload: "not-a-payload" as unknown as Record<string, unknown>,
+      attempts: 0,
+      maxAttempts: 3,
+      availableAt: now,
+      startedAt: null,
+      leaseExpiresAt: null,
+      completedAt: null,
+      error: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const [job] = await recentAssessmentJobsForProject("p1", 5);
+    expect(job?.payload).toEqual({});
+  });
 });
 
 describe("completeAssessmentJob", () => {

@@ -7,7 +7,8 @@ import {
   assertE2EFixtureRoot,
   isE2EHarnessEnabled,
 } from "./e2e-harness";
-import { createGit, gitAuthEnv } from "./git";
+import type { SimpleGit } from "simple-git";
+import { createAuthedGit, createGit } from "./git";
 import { resolveProjectGitHubToken } from "./github-access";
 import {
   githubPublicCloneUrl,
@@ -102,14 +103,31 @@ export function parseCheckoutRef(ref: string): string {
 export async function cloneShallow(
   cloneUrl: string,
   rootPath: string,
-  envOverrides: Record<string, string> = {},
+): Promise<void> {
+  await cloneWith(createGit(), cloneUrl, rootPath);
+}
+
+/**
+ * Authenticated shallow clone for GitHub checkouts. The token travels in the
+ * child env (`http.extraHeader`), never in the URL/argv — use this instead of
+ * embedding credentials in `cloneUrl`.
+ */
+export async function cloneAuthedShallow(
+  publicUrl: string,
+  accessToken: string,
+  rootPath: string,
+): Promise<void> {
+  await cloneWith(createAuthedGit(accessToken), publicUrl, rootPath);
+}
+
+async function cloneWith(
+  git: SimpleGit,
+  cloneUrl: string,
+  rootPath: string,
 ): Promise<void> {
   fs.mkdirSync(path.dirname(rootPath), { recursive: true });
   try {
-    await createGit({}, envOverrides).clone(cloneUrl, rootPath, [
-      "--depth",
-      "1",
-    ]);
+    await git.clone(cloneUrl, rootPath, ["--depth", "1"]);
   } catch (error) {
     fs.rmSync(rootPath, { recursive: true, force: true });
     const detail = error instanceof Error ? error.message : "unknown error";
@@ -153,15 +171,18 @@ export async function withRepoCheckout<T>(
   // Token travels in the child env (http.extraHeader), never in the URL/argv.
   const { fullName, accessToken } = options;
   parseOwnerRepo(fullName);
-  const authEnv = gitAuthEnv(accessToken);
   const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "complyloop-checkout-"));
   try {
-    await cloneShallow(githubPublicCloneUrl(fullName), rootPath, authEnv);
+    await cloneAuthedShallow(
+      githubPublicCloneUrl(fullName),
+      accessToken,
+      rootPath,
+    );
     if (ref) {
       // Ref fetches can pull more tree than the default shallow clone: fail
       // fast on quota before fetching instead of after.
       assertCheckoutWithinQuota(rootPath);
-      const git = createGit({ baseDir: rootPath }, authEnv);
+      const git = createAuthedGit(accessToken, { baseDir: rootPath });
       try {
         await git.fetch(["--depth", "1", "origin", ref]);
       } catch {

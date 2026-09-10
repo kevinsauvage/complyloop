@@ -38,6 +38,14 @@ describe("verifyGitHubSignature", () => {
     expect(await verifyGitHubSignature("{}", null)).toBe(false);
     expect(await verifyGitHubSignature("{}", "sha256=deadbeef")).toBe(false);
   });
+
+  it("rejects everything when no webhook secret is configured", async () => {
+    delete process.env.GITHUB_WEBHOOK_SECRET;
+    const body = '{"action":"opened"}';
+    const digest = createHmac("sha256", "test-secret").update(body).digest("hex");
+    expect(await verifyGitHubSignature(body, `sha256=${digest}`)).toBe(false);
+    expect(await verifyGitHubSignature(body, null)).toBe(false);
+  });
 });
 
 describe("handleGitHubWebhookEvent", () => {
