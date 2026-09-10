@@ -3,7 +3,7 @@ import {
   isHeuristicCheck,
   isRuntimeOnlyCheck,
 } from "@complyloop/analysis-core/check-authority";
-import { isPertinenceTwinControl } from "@complyloop/adapters/rgaa/pertinence-twins";
+import { isPertinenceTwinControl } from "@complyloop/analysis-core/adapters/rgaa/pertinence-twins";
 import { RequirementStatusBadge } from "@/components/badges";
 import { formatDateTime } from "@/core/lifecycle";
 import {

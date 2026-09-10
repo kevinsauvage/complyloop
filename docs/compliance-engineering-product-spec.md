@@ -42,9 +42,9 @@ live in `.cursor/rules/` — do not restate them here.
 - Orgs: roles `owner | admin | member | viewer`, invite by GitHub login,
   personal org on first sign-in, org switcher, `/org`
 
-RGAA/WCAG catalog and presets live in `packages/adapters/`. Requirement/control
-vocabulary is shared via `@complyloop/analysis-core/contract/` — see
-[`domain-model.mdc`](../.cursor/rules/domain-model.mdc).
+RGAA/WCAG catalog and presets live in `packages/analysis-core/src/adapters/`.
+Requirement/control vocabulary is shared via `@complyloop/analysis-core/contract/`
+— see [`domain-model.mdc`](../.cursor/rules/domain-model.mdc).
 
 ## Success
 

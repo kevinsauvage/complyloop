@@ -31,7 +31,7 @@ import { findingsInScope } from "@/server/project-scope";
 import { getWorkspace } from "@/server/workspace";
 import { getProjectRuntime } from "@/server/project-runtime";
 import { displayControl } from "@/server/report";
-import { shippedCatalog } from "@complyloop/adapters/catalog";
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";

@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { guidanceFor } from "@complyloop/adapters/registry";
+import { guidanceFor } from "@complyloop/analysis-core/adapters/registry";
 import { deterministicExplanation } from "@/ai/explainer";
 import { describeFix, previewFixedLine } from "@complyloop/analysis-core/fixes";
 import { filterAstFindingsForAuthority } from "@complyloop/analysis-core/merge-findings";

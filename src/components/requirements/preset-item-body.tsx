@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { STATUS_TONE_BADGE } from "@/core/display";
-import type { FrameworkPreset } from "@complyloop/adapters/types";
+import type { FrameworkPreset } from "@complyloop/analysis-core/adapters/types";
 
 /**
  * Name + badge + description + control count for one preset row. Wrapper and

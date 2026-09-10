@@ -1,6 +1,6 @@
 "use server";
 
-import { presetById } from "@complyloop/adapters/registry";
+import { presetById } from "@complyloop/analysis-core/adapters/registry";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { z } from "zod";

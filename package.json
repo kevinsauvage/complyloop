@@ -13,7 +13,6 @@
     "build": "next build",
     "build:core": "npm run build --workspace @complyloop/analysis-core",
     "build:db": "npm run build --workspace @complyloop/db",
-    "build:adapters": "npm run build --workspace @complyloop/adapters",
     "analyze": "next experimental-analyze --output",
     "start": "next start",
     "lint": "eslint",

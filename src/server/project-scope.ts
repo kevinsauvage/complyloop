@@ -1,5 +1,5 @@
-import { shippedCatalog } from "@complyloop/adapters/catalog";
-import { presetById } from "@complyloop/adapters/registry";
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { presetById } from "@complyloop/analysis-core/adapters/registry";
 import { type Finding } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type {

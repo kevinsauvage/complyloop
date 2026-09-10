@@ -4,9 +4,9 @@ import type {
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
-import { shippedCatalog } from "@complyloop/adapters/catalog";
-import { controlForDisplay } from "@complyloop/adapters/control-theme";
-import { presetById, projectDefaultPresetId } from "@complyloop/adapters/registry";
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { controlForDisplay } from "@complyloop/analysis-core/adapters/control-theme";
+import { presetById, projectDefaultPresetId } from "@complyloop/analysis-core/adapters/registry";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { listEvidenceForExport } from "@complyloop/db/repo/evidence";

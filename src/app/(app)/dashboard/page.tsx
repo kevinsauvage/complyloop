@@ -27,7 +27,7 @@ import {
   prioritizeFindings,
 } from "@/core/lifecycle";
 import { clusterFindings } from "@/core/lifecycle";
-import { shippedCatalog } from "@complyloop/adapters/catalog";
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import {
   findingsInScope,

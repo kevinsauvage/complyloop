@@ -4,7 +4,7 @@ import type { Project, ProjectGitHubMeta } from "@complyloop/analysis-core/contr
 import { type EvidenceRecord } from "@complyloop/db/types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { canOnProject } from "@/core/rbac";
-import { defaultConnectPreset } from "@complyloop/adapters/registry";
+import { defaultConnectPreset } from "@complyloop/analysis-core/adapters/registry";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import { nextUniqueSlug } from "@complyloop/db/repo/orgs";
 import type { Db } from "@complyloop/db/types";

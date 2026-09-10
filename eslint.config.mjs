@@ -63,14 +63,14 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Persistence, adapters, and the CI CLI are framework-agnostic leaves:
-  // they must not import app/server/adapters-at-app layers. They may import the
-  // analysis contract and each other. adapters and db depend on analysis-core contract;
-  // check depends on analysis-core (bundled at publish).
+  // Persistence, the compliance catalog, and the CI CLI are framework-agnostic
+  // leaves: they must not import app/server/adapters-at-app layers. They may
+  // import the analysis contract and each other. The catalog and db depend on
+  // analysis-core contract; check depends on analysis-core (bundled at publish).
   {
     files: [
       "packages/db/**/*.{ts,tsx}",
-      "packages/adapters/**/*.{ts,tsx}",
+      "packages/analysis-core/src/adapters/**/*.{ts,tsx}",
       "packages/check/**/*.{ts,tsx}",
     ],
     rules: {
@@ -93,12 +93,12 @@ const eslintConfig = defineConfig([
                 "**/ai/**",
               ],
               message:
-                "packages/db, adapters, check must not import app/server/adapters/AI layers — see docs/ai/architecture.md (module boundaries).",
+                "packages/db, the analysis-core catalog, and check must not import app/server/adapters/AI layers — see docs/ai/architecture.md (module boundaries).",
             },
             {
               regex: "^(../)*src/",
               message:
-                "packages/db, adapters, check must not reach outside their package (no ../src) — see docs/ai/architecture.md (module boundaries).",
+                "packages/db, the analysis-core catalog, and check must not reach outside their package (no ../src) — see docs/ai/architecture.md (module boundaries).",
             },
             {
               group: ["@/*"],
@@ -124,7 +124,6 @@ const eslintConfig = defineConfig([
     "packages/check/dist/**",
     "packages/analysis-core/dist/**",
     "packages/db/dist/**",
-    "packages/adapters/dist/**",
     "e2e/fixtures/**",
     ".data/**",
   ]),

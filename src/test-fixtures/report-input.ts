@@ -1,4 +1,4 @@
-import { rgaaControls, rgaaFramework } from "@complyloop/adapters/rgaa/controls";
+import { rgaaControls, rgaaFramework } from "@complyloop/analysis-core/adapters/rgaa/controls";
 import type { Finding, Remediation } from "@complyloop/db/types";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type { ReportInput } from "@/server/report-model";

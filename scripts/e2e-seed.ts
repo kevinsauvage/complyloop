@@ -3,7 +3,7 @@
  * Resets Postgres and seeds the Playwright e2e fixture project.
  * Usage: npm run e2e:seed
  */
-import { shippedCatalog } from "@complyloop/adapters/catalog";
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import {
   E2E_ORG_ID,
   E2E_OWNER,

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Label } from "@/components/ui/label";
-import type { FrameworkPreset } from "@complyloop/adapters/types";
+import type { FrameworkPreset } from "@complyloop/analysis-core/adapters/types";
 import { setDefaultPresetAction } from "@/server/actions/project-preset";
 import { PresetItemBody } from "@/components/requirements/preset-item-body";
 

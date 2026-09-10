@@ -42,7 +42,7 @@ import {
 } from "@/server/workspace";
 import { getProjectRuntime } from "@/server/project-runtime";
 import { displayControl } from "@/server/report";
-import { shippedCatalog } from "@complyloop/adapters/catalog";
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import { prioritizeClusters } from "@/core/lifecycle";
 import { clusterFindings } from "@/core/lifecycle";
 import { cn } from "@/lib/utils";

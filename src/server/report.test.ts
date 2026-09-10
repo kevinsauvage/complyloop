@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { wcagFramework } from "@complyloop/adapters/wcag/controls";
+import { wcagFramework } from "@complyloop/analysis-core/adapters/wcag/controls";
 import type { Finding } from "@complyloop/db/types";
 import { sampleReportInput, reportSampleProject } from "@/test-fixtures/report-input";
 import { emptyDb } from "@complyloop/db/types";

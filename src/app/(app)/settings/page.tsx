@@ -13,7 +13,7 @@ import {
   allFrameworkPresets,
   presetById,
   projectDefaultPresetId,
-} from "@complyloop/adapters/registry";
+} from "@complyloop/analysis-core/adapters/registry";
 import { latestAssessmentFor } from "@/core/lifecycle";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";

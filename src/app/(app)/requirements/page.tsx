@@ -7,8 +7,8 @@ import {
   isValidPresetId,
   presetById,
   projectDefaultPresetId,
-} from "@complyloop/adapters/registry";
-import { shippedCatalog } from "@complyloop/adapters/catalog";
+} from "@complyloop/analysis-core/adapters/registry";
+import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import {
   parsePresetIdParam,
   requirementsPageHref,

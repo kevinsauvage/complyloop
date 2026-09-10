@@ -9,7 +9,7 @@ import type { EvidenceRecord, Finding, Remediation } from "@complyloop/db/types"
 import {
   controlDisplayCodes,
   secondaryReferenceLabel,
-} from "@complyloop/adapters/control-theme";
+} from "@complyloop/analysis-core/adapters/control-theme";
 import {
   determinationDisplay,
   evidenceDisplay,

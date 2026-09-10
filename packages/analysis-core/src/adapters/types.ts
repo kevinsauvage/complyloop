@@ -1,7 +1,7 @@
-export interface CheckGuidance {
-  impact: string;
-  howToFix: string;
-}
+import type { Explanation } from "../contract/finding-types.ts";
+
+/** Guidance shown for a check — the impact/how-to-fix subset of an {@link Explanation}. */
+export type CheckGuidance = Pick<Explanation, "impact" | "howToFix">;
 
 export interface FrameworkPreset {
   id: string;

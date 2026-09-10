@@ -10,16 +10,16 @@
 | -------- | -------------------------------------- | ------------------------------------------------------------- |
 | Contract | `packages/analysis-core/src/contract/` | Statuses, findings, org/project/requirement types, job enums |
 | Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                          |
+| Catalog  | `packages/analysis-core/src/adapters/` | RGAA/WCAG catalog, presets, guidance                          |
 | DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load                       |
-| Adapters | `packages/adapters/src/`               | RGAA/WCAG catalog, presets, guidance                          |
 | App core | `src/core/`                            | RBAC, finding UX (contract only)                              |
 | AI       | `src/ai/`                              | Explain / remediate — never sets status                       |
 | Server   | `src/server/`                          | Jobs, GitHub, actions                                         |
 | App      | `src/app/`                             | Next.js UI + API                                              |
 | CI       | `packages/check/src/`                  | `npx complyloop-check` (AST only)                             |
 
-`src/core` must not import adapters, db, or analysis-core beyond `contract/*`
-(ESLint). Dependency direction: `contract → { db, adapters, app }`.
+`src/core` must not import the catalog, db, or analysis-core beyond `contract/*`
+(ESLint). Dependency direction: `contract → { db, catalog, app }`.
 
 Workspace packages export `src/*.ts`. Next transpiles them; `dist/` is
 publish-only. `@complyloop/check` bundles analysis-core; Playwright stays
@@ -32,7 +32,7 @@ append-only. Tokens AES-256-GCM at rest. Assessments are durable jobs
 ```
 App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
                                          ↓
-                         Core + contract → Adapter / Analysis / AI
+                         Core + contract → Catalog / Analysis / AI
                                          ↓
                                    GitHub clone (ephemeral)
 ```
