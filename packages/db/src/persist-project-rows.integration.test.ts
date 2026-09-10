@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
-import type { EvidenceRecord } from "./types";
+import type { EvidenceRecord } from "@complyloop/analysis-core/contract/entities";
 import {
   acquireNamedPostgresAdvisoryLock,
   closeDrizzle,
@@ -107,8 +107,9 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
           ?.status,
       ).toBe("dismissed");
       expect(
-        persisted.remediations.find((item) => item.id === fixture.remediationOneId)
-          ?.status,
+        persisted.remediations.find(
+          (item) => item.id === fixture.remediationOneId,
+        )?.status,
       ).toBe("approved");
       expect(persisted.alerts[0]?.read).toBe(true);
       expect(persisted.alerts[0]?.summary).toBe("acknowledged");
@@ -131,7 +132,10 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
       const before = await loadProjectSlice(drizzle, fixture.projectId);
       const fingerprintBefore = sliceFingerprint(before);
 
-      const { payload, options } = slicePayload(before, structuredClone(before));
+      const { payload, options } = slicePayload(
+        before,
+        structuredClone(before),
+      );
       await drizzle.transaction(async (tx) => {
         await persistProjectRows(tx, payload, options);
       });
@@ -151,18 +155,10 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
     try {
       await Promise.all([
         runLockedSliceWrite(drizzle, fixture, (slice, ids) =>
-          dismissFinding(
-            slice,
-            ids.findingOneId,
-            ids.remediationOneId,
-          ),
+          dismissFinding(slice, ids.findingOneId, ids.remediationOneId),
         ),
         runLockedSliceWrite(drizzle, fixture, (slice, ids) =>
-          dismissFinding(
-            slice,
-            ids.findingTwoId,
-            ids.remediationTwoId,
-          ),
+          dismissFinding(slice, ids.findingTwoId, ids.remediationTwoId),
         ),
       ]);
 
@@ -176,12 +172,14 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
           ?.status,
       ).toBe("dismissed");
       expect(
-        finalSlice.remediations.find((item) => item.id === fixture.remediationOneId)
-          ?.status,
+        finalSlice.remediations.find(
+          (item) => item.id === fixture.remediationOneId,
+        )?.status,
       ).toBe("approved");
       expect(
-        finalSlice.remediations.find((item) => item.id === fixture.remediationTwoId)
-          ?.status,
+        finalSlice.remediations.find(
+          (item) => item.id === fixture.remediationTwoId,
+        )?.status,
       ).toBe("approved");
     } finally {
       await cleanupProjectSliceFixture(drizzle, fixture);
@@ -299,7 +297,11 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
         determination: "automated" as const,
       };
       await upsertRequirements(drizzle, [
-        { ...base, id: `dup-a-${suffix}`, updatedAt: "2026-01-01T00:00:00.000Z" },
+        {
+          ...base,
+          id: `dup-a-${suffix}`,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
       ]);
       await upsertRequirements(drizzle, [
         {
@@ -340,9 +342,9 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
           tx,
           [
             {
-              ...(loadedSlice.findings.find(
+              ...loadedSlice.findings.find(
                 (item) => item.id === fixture.findingTwoId,
-              )!),
+              )!,
               status: "dismissed",
               updatedAt: humanNow,
             },
@@ -399,9 +401,9 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
           tx,
           [
             {
-              ...(loadedSlice.remediations.find(
+              ...loadedSlice.remediations.find(
                 (item) => item.id === fixture.remediationTwoId,
-              )!),
+              )!,
               status: "approved",
               updatedAt: humanNow,
             },
@@ -442,7 +444,10 @@ async function runLockedSliceWrite(
   ) => Awaited<ReturnType<typeof loadProjectSlice>>,
 ): Promise<void> {
   await drizzle.transaction(async (tx) => {
-    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(fixture.projectId));
+    await acquireNamedPostgresAdvisoryLock(
+      tx,
+      projectWriteLockKey(fixture.projectId),
+    );
     const before = await loadProjectSlice(tx, fixture.projectId);
     const after = mutate(structuredClone(before), fixture);
     const { payload, options } = slicePayload(before, after);
@@ -458,7 +463,9 @@ function dismissFinding(
   return {
     ...slice,
     findings: slice.findings.map((finding) =>
-      finding.id === findingId ? { ...finding, status: "dismissed" as const } : finding,
+      finding.id === findingId
+        ? { ...finding, status: "dismissed" as const }
+        : finding,
     ),
     remediations: slice.remediations.map((remediation) =>
       remediation.id === remediationId

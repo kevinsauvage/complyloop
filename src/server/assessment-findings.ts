@@ -12,8 +12,14 @@ import {
   isSiteLocation,
   isSourceLocation,
 } from "@complyloop/analysis-core/contract/location";
-import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding, Remediation } from "@complyloop/db/types";
+import type {
+  Control,
+  Project,
+} from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type {
   FindingLocation,
   ProposedFix,
@@ -114,7 +120,10 @@ export function locateViolationInProject(
  */
 export type FileTextCache = Map<string, string>;
 
-function readFileText(cache: FileTextCache | undefined, absolutePath: string): string {
+function readFileText(
+  cache: FileTextCache | undefined,
+  absolutePath: string,
+): string {
   if (!cache) return fs.readFileSync(absolutePath, "utf8");
   const cached = cache.get(absolutePath);
   if (cached !== undefined) return cached;

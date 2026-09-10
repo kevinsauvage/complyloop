@@ -1,6 +1,13 @@
-import type { OrgMembership, Project } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  OrgMembership,
+  Project,
+} from "@complyloop/analysis-core/contract/project-types";
 import type { Db } from "@complyloop/db/types";
-import { emptyDb, type Finding, type Remediation } from "@complyloop/db/types";
+import {
+  type Finding,
+  type Remediation,
+} from "@complyloop/analysis-core/contract/entities";
+import { emptyDb } from "@complyloop/db/types";
 import type { ProjectWriteWorkspace } from "@/server/workspace";
 import { testFinding } from "./finding";
 import { testMembership } from "./membership";
@@ -12,15 +19,17 @@ import { testRemediation } from "./remediation";
  * tenancy only (no `db`); action tests that invoke `withProjectWrite` need the
  * slice, so fixtures keep `db`.
  */
-export function testWorkspace(options: {
-  role?: OrgMembership["role"];
-  userId?: string;
-  orgId?: string;
-  project?: Project;
-  findings?: Finding[];
-  remediations?: Remediation[];
-  db?: Partial<Db>;
-} = {}): ProjectWriteWorkspace {
+export function testWorkspace(
+  options: {
+    role?: OrgMembership["role"];
+    userId?: string;
+    orgId?: string;
+    project?: Project;
+    findings?: Finding[];
+    remediations?: Remediation[];
+    db?: Partial<Db>;
+  } = {},
+): ProjectWriteWorkspace {
   const userId = options.userId ?? "user-1";
   const orgId = options.orgId ?? "org-1";
   const role = options.role ?? "member";
@@ -34,9 +43,7 @@ export function testWorkspace(options: {
 
   const db = {
     ...emptyDb(),
-    organizations: [
-      { id: orgId, name: "Acme", slug: "acme", createdAt: "" },
-    ],
+    organizations: [{ id: orgId, name: "Acme", slug: "acme", createdAt: "" }],
     memberships: [testMembership(role, { userId, orgId })],
     projects: [project],
     findings,

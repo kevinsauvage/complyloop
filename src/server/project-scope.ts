@@ -1,7 +1,7 @@
 import "server-only";
 import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import { presetById } from "@complyloop/analysis-core/adapters/registry";
-import { type Finding } from "@complyloop/db/types";
+import { type Finding } from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type {
   Control,

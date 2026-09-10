@@ -2,7 +2,7 @@ import type {
   EvidenceRecord,
   Finding,
   Remediation,
-} from "@complyloop/db/types";
+} from "@complyloop/analysis-core/contract/entities";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 
 /**
@@ -49,7 +49,9 @@ export function materializeAssessmentRun(
     ...run.requirements,
   ];
   db.assessments = [
-    ...db.assessments.filter((assessment) => assessment.id !== run.assessment.id),
+    ...db.assessments.filter(
+      (assessment) => assessment.id !== run.assessment.id,
+    ),
     run.assessment as (typeof db.assessments)[number],
   ];
   db.evidence.push(...run.evidence);

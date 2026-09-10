@@ -1,5 +1,8 @@
 import "server-only";
-import type { Alert, Finding } from "@complyloop/db/types";
+import type {
+  Alert,
+  Finding,
+} from "@complyloop/analysis-core/contract/entities";
 import {
   claimNextAssessmentJob,
   completeAssessmentJob,
@@ -95,9 +98,8 @@ function openViolationCount(findings: ReadonlyArray<Finding>): number {
 function failedRequirementCount(
   requirements: AssessmentRunResult["requirements"],
 ): number {
-  return requirements.filter(
-    (requirement) => requirement.status === "failed",
-  ).length;
+  return requirements.filter((requirement) => requirement.status === "failed")
+    .length;
 }
 
 async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
@@ -108,7 +110,8 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
   const project = db.projects.find(
     (candidate) => candidate.id === job.projectId,
   );
-  if (!project) throw new Error("Project was removed before its assessment job ran.");
+  if (!project)
+    throw new Error("Project was removed before its assessment job ran.");
   const loadedSlice = snapshotProjectSlice(
     db.requirements,
     db.findings,
@@ -200,11 +203,14 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
   if (job.trigger !== "webhook" || !job.payload.pullRequestHeadSha) return;
   const token = await resolveProjectGitHubToken(result.project);
   if (!token || !result.project.github?.fullName) {
-    reportWarning("Could not post pull-request check: GitHub token unavailable.", {
-      code: "github_token_missing",
-      projectId: result.project.id,
-      jobId: job.id,
-    });
+    reportWarning(
+      "Could not post pull-request check: GitHub token unavailable.",
+      {
+        code: "github_token_missing",
+        projectId: result.project.id,
+        jobId: job.id,
+      },
+    );
     return;
   }
   const posted = await postPullRequestCheckRun({
@@ -301,7 +307,10 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
       }
     }
     reportError(error, {
-      code: status === "failed" ? "assessment_job_failed" : "assessment_job_retrying",
+      code:
+        status === "failed"
+          ? "assessment_job_failed"
+          : "assessment_job_retrying",
       jobId: job.id,
       projectId: job.projectId,
       attempts: job.attempts,

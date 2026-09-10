@@ -5,7 +5,7 @@ import {
   evidenceKindHref,
   type EvidencePageFilters,
 } from "@/core/filter-params";
-import type { EvidenceKind } from "@complyloop/db/types";
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 
 export function EvidenceKindChips({
   counts,

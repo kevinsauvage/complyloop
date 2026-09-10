@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { Finding } from "@complyloop/db/types";
-import { reportSampleProject, sampleReportInput } from "@/test-fixtures/report-input";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import {
+  reportSampleProject,
+  sampleReportInput,
+} from "@/test-fixtures/report-input";
 import { buildAuditReportHtml, buildEngineeringReportHtml } from "./report";
 
 describe("buildAuditReportHtml", () => {
@@ -116,8 +119,20 @@ describe("buildEngineeringReportHtml", () => {
     };
     input.findings = [input.findings[0], second];
     input.remediations = [
-      { id: "rem1", findingId: "f1", status: "detected", suggestion: null, history: [] },
-      { id: "rem2", findingId: "f2", status: "detected", suggestion: null, history: [] },
+      {
+        id: "rem1",
+        findingId: "f1",
+        status: "detected",
+        suggestion: null,
+        history: [],
+      },
+      {
+        id: "rem2",
+        findingId: "f2",
+        status: "detected",
+        suggestion: null,
+        history: [],
+      },
     ];
 
     const html = buildEngineeringReportHtml(input);

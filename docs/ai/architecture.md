@@ -8,11 +8,11 @@
 
 | Piece    | Location                               | Role                                                          |
 | -------- | -------------------------------------- | ------------------------------------------------------------- |
-| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, org/project/requirement types, job enums |
+| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, org/project/requirement types, job enums, persisted entities (`entities.ts`: Finding, Remediation, Assessment, Evidence, Alert) |
 | Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                          |
 | Catalog  | `packages/analysis-core/src/adapters/` | RGAA/WCAG catalog, presets, guidance                          |
-| DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load                       |
-| App core | `src/core/`                            | RBAC, finding UX (contract only)                              |
+| DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load, `Db` slice (imports entities from contract; `types.ts` only re-exports for compat) |
+| App core | `src/core/`                            | RBAC, finding UX (contract only), `finding-cluster.ts` presentation type |
 | AI       | `src/ai/`                              | Explain / remediate — never sets status                       |
 | Server   | `src/server/`                          | Jobs, GitHub, actions                                         |
 | App      | `src/app/`                             | Next.js UI + API                                              |

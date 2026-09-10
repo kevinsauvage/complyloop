@@ -7,21 +7,21 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import { controlForDisplay } from "@complyloop/analysis-core/adapters/control-theme";
-import { presetById, projectDefaultPresetId } from "@complyloop/analysis-core/adapters/registry";
+import {
+  presetById,
+  projectDefaultPresetId,
+} from "@complyloop/analysis-core/adapters/registry";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
-import {
-  parseReportViewParam,
-  type ReportView,
-} from "@/core/filter-params";
+import { parseReportViewParam, type ReportView } from "@/core/filter-params";
 import type {
   Alert,
   Assessment,
   EvidenceRecord,
   Finding,
   Remediation,
-} from "@complyloop/db/types";
+} from "@complyloop/analysis-core/contract/entities";
 import {
   controlsInScope,
   findingsInScope,

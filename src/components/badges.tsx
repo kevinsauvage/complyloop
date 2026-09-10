@@ -25,7 +25,7 @@ import type {
   RequirementStatus,
   Severity,
 } from "@complyloop/analysis-core/contract/statuses";
-import type { EvidenceKind } from "@complyloop/db/types";
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
 import { cn } from "@/lib/utils";
 
@@ -57,9 +57,7 @@ export function StatusBadge({
           // Outline + tone (Serious, Detected) must read as an outline, not a
           // fill: the tone map's translucent background would otherwise make
           // them identical to their filled counterparts.
-          variant === "outline" && tone
-            ? "border-current bg-transparent"
-            : "",
+          variant === "outline" && tone ? "border-current bg-transparent" : "",
           muted && "text-muted-foreground",
         )}
       >

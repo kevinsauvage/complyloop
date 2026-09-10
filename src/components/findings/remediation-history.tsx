@@ -1,6 +1,6 @@
 import { RemediationStatusBadge } from "@/components/badges";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Remediation } from "@complyloop/db/types";
+import type { Remediation } from "@complyloop/analysis-core/contract/entities";
 import { formatDateTime } from "@/core/lifecycle";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +41,10 @@ export function RemediationHistory({
             aria-label="Remediation history timeline"
           >
             {history.map((entry, index) => (
-              <li key={`${entry.at}-${index}`} className="relative pb-4 last:pb-0">
+              <li
+                key={`${entry.at}-${index}`}
+                className="relative pb-4 last:pb-0"
+              >
                 <span
                   aria-hidden
                   className={cn(

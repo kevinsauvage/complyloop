@@ -15,7 +15,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { FindingActView } from "@/core/lifecycle";
-import type { Finding, Remediation } from "@complyloop/db/types";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import { cn } from "@/lib/utils";
 import type { PatchCandidate } from "@/ai/verified-fix";
 import type { PatchUiState } from "@/server/ai-fix";
@@ -206,7 +209,10 @@ export function FindingNextStepPanel({
   canRemediate: boolean;
   patchState?: PatchUiState;
 }) {
-  const isTerminalBeat = act.beat === "verified" || act.beat === "dismissed" || act.beat === "view_only";
+  const isTerminalBeat =
+    act.beat === "verified" ||
+    act.beat === "dismissed" ||
+    act.beat === "view_only";
   const cardBorder = isTerminalBeat ? "border-border/60" : "border-signal/30";
   return (
     <Card
@@ -217,9 +223,7 @@ export function FindingNextStepPanel({
       )}
     >
       <CardHeader className="gap-1 pb-3">
-        <CardTitle className="text-base font-medium">
-          {act.title}
-        </CardTitle>
+        <CardTitle className="text-base font-medium">{act.title}</CardTitle>
         {act.beat === "view_only" ? (
           <PermissionNotice>{act.description}</PermissionNotice>
         ) : (

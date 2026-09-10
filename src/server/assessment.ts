@@ -19,16 +19,14 @@ import {
   type FileChange,
   type Finding,
   type Remediation,
-} from "@complyloop/db/types";
+} from "@complyloop/analysis-core/contract/entities";
 import type {
   Control,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
 import { advanceRemediation } from "@/core/lifecycle";
-import {
-  REQUIREMENT_STATUSES,
-} from "@complyloop/analysis-core/contract/statuses";
+import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import type { Db } from "@complyloop/db/types";
 import { detectChanges, readRepoHead, summarizeChanges } from "./monitor";
 import { mergeRawFindings } from "@complyloop/analysis-core/merge-findings";
@@ -38,16 +36,16 @@ import {
   clearExpiredExceptions,
   upsertRequirementsById,
 } from "./assessment-status";
-import {
-  assertAssessableCatalog,
-  requirementsInScope,
-} from "./project-scope";
+import { assertAssessableCatalog, requirementsInScope } from "./project-scope";
 import {
   appendEvidence,
   cloneProjectRows,
   type ProjectRows,
 } from "./project-rows";
-import { remediationEvidenceDetail, remediationEvidenceSummary } from "./remediation-evidence";
+import {
+  remediationEvidenceDetail,
+  remediationEvidenceSummary,
+} from "./remediation-evidence";
 
 interface RuntimeScanEngineInput {
   pagesScanned: number;
@@ -77,7 +75,9 @@ function buildAssessmentEngines(
     runtime: runtimeRan,
     runtimePagesScanned: runtimeResult.pagesScanned,
     scanFeatures: scanFeatures.length > 0 ? scanFeatures : undefined,
-    themeConditions: runtimeConfigured ? [...DEFAULT_THEME_CONDITIONS] : undefined,
+    themeConditions: runtimeConfigured
+      ? [...DEFAULT_THEME_CONDITIONS]
+      : undefined,
     runtimeError: runtimeResult.error,
   };
 }
@@ -213,7 +213,8 @@ export async function runAssessment(
     changes = detected.changes;
   }
   snapshot.controlScopeKey = snapshotKey;
-  const changeContext = changes.length > 0 ? summarizeChanges(changes) : undefined;
+  const changeContext =
+    changes.length > 0 ? summarizeChanges(changes) : undefined;
 
   if (changes.length > 0) {
     appendEvidence(rows, {
@@ -259,72 +260,72 @@ export async function runAssessment(
       ? new Set(changedJsx)
       : null;
 
-    const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
-    const runtimeResult = runtimeConfigured
-        ? await scanRuntime({
-            runtimeBaseUrl: project.runtimeBaseUrl,
-            runtimeRoutes: project.runtimeRoutes,
-            browserConditions: DEFAULT_THEME_CONDITIONS,
-            scanner: options.runtimeScanner,
-            lookup: options.runtimeLookup,
-        })
-        : { findings: [], pagesScanned: 0 };
-    const runtimeRan =
-        runtimeConfigured &&
-        runtimeResult.error === undefined &&
-        runtimeResult.pagesScanned > 0;
+  const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
+  const runtimeResult = runtimeConfigured
+    ? await scanRuntime({
+        runtimeBaseUrl: project.runtimeBaseUrl,
+        runtimeRoutes: project.runtimeRoutes,
+        browserConditions: DEFAULT_THEME_CONDITIONS,
+        scanner: options.runtimeScanner,
+        lookup: options.runtimeLookup,
+      })
+    : { findings: [], pagesScanned: 0 };
+  const runtimeRan =
+    runtimeConfigured &&
+    runtimeResult.error === undefined &&
+    runtimeResult.pagesScanned > 0;
 
-    const engines = buildAssessmentEngines(
-        runtimeConfigured,
-        runtimeRan,
-        runtimeResult,
-    );
+  const engines = buildAssessmentEngines(
+    runtimeConfigured,
+    runtimeRan,
+    runtimeResult,
+  );
 
-    const rawFindings = mergeRawFindings(
-        astFindings,
-        runtimeResult.findings,
-        runtimeRan,
-    );
+  const rawFindings = mergeRawFindings(
+    astFindings,
+    runtimeResult.findings,
+    runtimeRan,
+  );
 
-    const assessmentId = crypto.randomUUID();
-    // Shared for the whole run: many new findings share a source file, so the
-    // suggestion builder should read each file once (see buildSuggestion).
-    const fileTextCache = new Map<string, string>();
+  const assessmentId = crypto.randomUUID();
+  // Shared for the whole run: many new findings share a source file, so the
+  // suggestion builder should read each file once (see buildSuggestion).
+  const fileTextCache = new Map<string, string>();
 
-    for (const control of scoped) {
-        if (control.checkId === null) continue;
-        reconcileControlFindings({
-            rows,
-            project,
-            control,
-            assessmentId,
-            rootPath,
-            rawForControl: rawFindings.filter(
-                (raw) => raw.checkId === control.checkId,
-            ),
-            scopedFileSet,
-            runtimeRan,
-            fileTextCache,
-            // A preview scan (PR head / feature branch) must not derive the
-            // persistent compliance decision: never auto-verify an approved
-            // remediation off a branch the project's state does not reflect.
-            onFindingResolved:
-                options.authoritative === false
-                    ? () => {}
-                    : (finding) => verifyDraftPrRemediation(rows, finding, assessmentId),
-        });
-    }
-
-    applyRequirementStatusRefresh(rows, project, {
-        assessmentId,
-        changeContext,
-        runtimeRan,
-        siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
-        htmlValidateRan: runtimeResult.htmlValidateRan,
-        applicabilityFacts: runtimeResult.applicabilityFacts,
-        filesScanned,
-        controls: options.controls,
+  for (const control of scoped) {
+    if (control.checkId === null) continue;
+    reconcileControlFindings({
+      rows,
+      project,
+      control,
+      assessmentId,
+      rootPath,
+      rawForControl: rawFindings.filter(
+        (raw) => raw.checkId === control.checkId,
+      ),
+      scopedFileSet,
+      runtimeRan,
+      fileTextCache,
+      // A preview scan (PR head / feature branch) must not derive the
+      // persistent compliance decision: never auto-verify an approved
+      // remediation off a branch the project's state does not reflect.
+      onFindingResolved:
+        options.authoritative === false
+          ? () => {}
+          : (finding) => verifyDraftPrRemediation(rows, finding, assessmentId),
     });
+  }
+
+  applyRequirementStatusRefresh(rows, project, {
+    assessmentId,
+    changeContext,
+    runtimeRan,
+    siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
+    htmlValidateRan: runtimeResult.htmlValidateRan,
+    applicabilityFacts: runtimeResult.applicabilityFacts,
+    filesScanned,
+    controls: options.controls,
+  });
 
   const scopedRequirements = requirementsInScope(rows.requirements, project);
   const summary = countByStatus(scopedRequirements, REQUIREMENT_STATUSES);

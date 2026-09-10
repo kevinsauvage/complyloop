@@ -1,7 +1,10 @@
 "use server";
 
 import type { CheckId } from "@complyloop/analysis-core/check-registry";
-import { type Finding, type Remediation } from "@complyloop/db/types";
+import {
+  type Finding,
+  type Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   runtimeViolationStillPresent,
@@ -9,20 +12,16 @@ import {
 } from "@complyloop/analysis-core/runtime/scan";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { advanceRemediation, appendRemediationHistory } from "@/core/lifecycle";
-import {
-  optionalNoteSchema,
-  parseEntityId,
-  parseForm,
-} from "@/core/filters";
+import { optionalNoteSchema, parseEntityId, parseForm } from "@/core/filters";
 import { z } from "zod";
-import {
-  runAction,
-  type ActionState,
-} from "../action-state";
+import { runAction, type ActionState } from "../action-state";
 import { sameInstance } from "../assessment-findings";
 import { applyRequirementStatusRefresh } from "../assessment-status";
 import type { Db } from "@complyloop/db/types";
-import { remediationEvidenceDetail, remediationEvidenceSummary } from "../remediation-evidence";
+import {
+  remediationEvidenceDetail,
+  remediationEvidenceSummary,
+} from "../remediation-evidence";
 import {
   getWorkspace,
   remediationForFinding,
@@ -30,12 +29,12 @@ import {
   requireRemediationForFinding,
 } from "../workspace";
 import { withFindingWrite } from "../workspace-write";
-import { appendEvidence, cloneProjectRows, upsertFindingInRows } from "../project-rows";
 import {
-  refresh,
-  replaceRemediation,
-  requireFindingContext,
-} from "./shared";
+  appendEvidence,
+  cloneProjectRows,
+  upsertFindingInRows,
+} from "../project-rows";
+import { refresh, replaceRemediation, requireFindingContext } from "./shared";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 
 const markImplementedInput = z.object({
@@ -141,7 +140,11 @@ export async function verifyRemediationAction(
     const findingId = parseEntityId(findingIdRaw);
     const preview = await getWorkspace();
     const finding = await requireFinding(findingId);
-    const { project: previewProject } = requireFindingContext(preview, finding, "project.remediate");
+    const { project: previewProject } = requireFindingContext(
+      preview,
+      finding,
+      "project.remediate",
+    );
     const previewRemediation = await requireRemediationForFinding(findingId);
     if (previewRemediation.status !== "implemented") {
       throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
@@ -193,16 +196,20 @@ export async function verifyRemediationAction(
     }
 
     let stillFailing = false;
-    await withFindingWrite(findingId, "project.remediate", async ({ db, finding: live }) => {
-      const remediation = remediationForFinding(db, findingId);
-      const payload: ProjectWritePayload = {};
-      if (present) {
-        stillFailing = true;
-        recordStillFailing(payload, remediation);
-        return payload;
-      }
-      return markVerified(db, live, remediation, note, engine, audit);
-    });
+    await withFindingWrite(
+      findingId,
+      "project.remediate",
+      async ({ db, finding: live }) => {
+        const remediation = remediationForFinding(db, findingId);
+        const payload: ProjectWritePayload = {};
+        if (present) {
+          stillFailing = true;
+          recordStillFailing(payload, remediation);
+          return payload;
+        }
+        return markVerified(db, live, remediation, note, engine, audit);
+      },
+    );
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return stillFailing
       ? STILL_FAILING_VERIFY_MESSAGE

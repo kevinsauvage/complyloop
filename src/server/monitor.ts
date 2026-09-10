@@ -4,7 +4,10 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { listSourceFiles } from "@complyloop/analysis-core/source-files";
-import type { AssessmentSnapshot, FileChange } from "@complyloop/db/types";
+import type {
+  AssessmentSnapshot,
+  FileChange,
+} from "@complyloop/analysis-core/contract/entities";
 
 function hashFileContents(absolutePath: string): string {
   const buffer = fs.readFileSync(absolutePath);
@@ -73,7 +76,8 @@ export function detectChanges(
 }
 
 export function summarizeChanges(changes: FileChange[]): string {
-  if (changes.length === 0) return "No source changes since the previous assessment.";
+  if (changes.length === 0)
+    return "No source changes since the previous assessment.";
   const files = changes.slice(0, 5).map((change) => change.filePath);
   const more = changes.length > 5 ? ` (+${changes.length - 5} more)` : "";
   return `${changes.length} file(s) changed: ${files.join(", ")}${more}`;

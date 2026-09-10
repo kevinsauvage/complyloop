@@ -7,7 +7,7 @@ import {
   locationSnippet,
 } from "@complyloop/analysis-core/contract/location";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding } from "@complyloop/db/types";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import { reportError } from "@/server/observability";
 
 /** Vercel AI Gateway model id (`provider/model`). */

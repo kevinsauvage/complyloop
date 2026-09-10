@@ -1,8 +1,14 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { rgaaControls, rgaaFramework } from "@complyloop/analysis-core/adapters/rgaa/controls";
+import {
+  rgaaControls,
+  rgaaFramework,
+} from "@complyloop/analysis-core/adapters/rgaa/controls";
 import * as registry from "@complyloop/analysis-core/adapters/registry";
-import type { Finding } from "@complyloop/db/types";
-import type { Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import type {
+  Project,
+  Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
 import { testProject } from "@/test-fixtures/project";
 import { testControl } from "@/test-fixtures/control";
 import { emptyDb } from "@complyloop/db/types";
@@ -28,7 +34,9 @@ function applyRefresh(
   options: Parameters<typeof refreshRequirementStatuses>[0]["options"] = {},
   controlIds?: readonly string[],
 ) {
-  const projectRow = db.projects.find((candidate) => candidate.id === projectId);
+  const projectRow = db.projects.find(
+    (candidate) => candidate.id === projectId,
+  );
   if (!projectRow) throw new Error(`missing project ${projectId}`);
   const result = controlIds
     ? refreshRequirementStatuses({
@@ -212,17 +220,22 @@ describe("refreshRequirementStatuses (targeted controlIds)", () => {
       },
     ];
 
-    applyRefresh(db, "p1", {
-      runtimeRan: false,
-      controls,
-    }, ["c1"]);
+    applyRefresh(
+      db,
+      "p1",
+      {
+        runtimeRan: false,
+        controls,
+      },
+      ["c1"],
+    );
 
-    expect(db.requirements.find((item) => item.controlId === "c1")?.status).toBe(
-      "passed",
-    );
-    expect(db.requirements.find((item) => item.controlId === "c2")?.status).toBe(
-      "failed",
-    );
+    expect(
+      db.requirements.find((item) => item.controlId === "c1")?.status,
+    ).toBe("passed");
+    expect(
+      db.requirements.find((item) => item.controlId === "c2")?.status,
+    ).toBe("failed");
   });
 });
 
@@ -240,8 +253,9 @@ describe("refreshRequirementStatuses runtime-only", () => {
     applyRefresh(db, "p1", { runtimeRan: false });
 
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-color-contrast")
-        ?.status,
+      db.requirements.find(
+        (requirement) => requirement.controlId === "ctl-color-contrast",
+      )?.status,
     ).toBe("unable_to_verify");
   });
 
@@ -258,8 +272,9 @@ describe("refreshRequirementStatuses runtime-only", () => {
     applyRefresh(db, "p1", { runtimeRan: true });
 
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-color-contrast")
-        ?.status,
+      db.requirements.find(
+        (requirement) => requirement.controlId === "ctl-color-contrast",
+      )?.status,
     ).toBe("passed");
   });
 
@@ -276,8 +291,9 @@ describe("refreshRequirementStatuses runtime-only", () => {
     applyRefresh(db, "p1", { runtimeRan: false });
 
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-table-headers")
-        ?.status,
+      db.requirements.find(
+        (requirement) => requirement.controlId === "ctl-table-headers",
+      )?.status,
     ).toBe("unable_to_verify");
   });
 
@@ -294,8 +310,9 @@ describe("refreshRequirementStatuses runtime-only", () => {
     applyRefresh(db, "p1", { runtimeRan: true });
 
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-table-headers")
-        ?.status,
+      db.requirements.find(
+        (requirement) => requirement.controlId === "ctl-table-headers",
+      )?.status,
     ).toBe("passed");
   });
 });
@@ -317,8 +334,9 @@ describe("refreshRequirementStatuses site-level", () => {
     });
 
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-multiple-ways")
-        ?.status,
+      db.requirements.find(
+        (requirement) => requirement.controlId === "ctl-multiple-ways",
+      )?.status,
     ).toBe("unable_to_verify");
   });
 
@@ -338,8 +356,9 @@ describe("refreshRequirementStatuses site-level", () => {
     });
 
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-multiple-ways")
-        ?.status,
+      db.requirements.find(
+        (requirement) => requirement.controlId === "ctl-multiple-ways",
+      )?.status,
     ).toBe("passed");
   });
 });
@@ -358,8 +377,9 @@ describe("refreshRequirementStatuses heuristic", () => {
     applyRefresh(db, "p1", { runtimeRan: false });
 
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-pointer-gesture")
-        ?.status,
+      db.requirements.find(
+        (requirement) => requirement.controlId === "ctl-pointer-gesture",
+      )?.status,
     ).toBe("unable_to_verify");
   });
 
@@ -399,8 +419,9 @@ describe("refreshRequirementStatuses heuristic", () => {
     applyRefresh(db, "p1", { runtimeRan: false });
 
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-pointer-gesture")
-        ?.status,
+      db.requirements.find(
+        (requirement) => requirement.controlId === "ctl-pointer-gesture",
+      )?.status,
     ).toBe("needs_review");
   });
 });
@@ -422,7 +443,8 @@ describe("refreshRequirementStatuses html-validate-owned", () => {
     });
 
     expect(
-      db.requirements.find((r) => r.controlId === "ctl-markup-validity")?.status,
+      db.requirements.find((r) => r.controlId === "ctl-markup-validity")
+        ?.status,
     ).toBe("unable_to_verify");
   });
 });
@@ -441,10 +463,7 @@ describe("refreshRequirementStatuses applicability-gated", () => {
     applyRefresh(db, "p1", {
       runtimeRan: true,
       applicabilityFacts: new Map([
-        [
-          "captcha-alternative",
-          "No CAPTCHA challenge in audited DOM.",
-        ],
+        ["captcha-alternative", "No CAPTCHA challenge in audited DOM."],
       ]),
     });
 

@@ -2,8 +2,8 @@ import type {
   EvidenceKind,
   EvidenceRecord,
   Finding,
-  FindingCluster,
-} from "@complyloop/db/types";
+} from "@complyloop/analysis-core/contract/entities";
+import type { FindingCluster } from "./finding-cluster";
 import {
   DEFAULT_PAGE_SIZE,
   type Control,
@@ -25,11 +25,7 @@ import {
   type RequirementStatus,
   type Severity,
 } from "@complyloop/analysis-core/contract/statuses";
-import {
-  prioritizeFindings,
-  SEVERITY_ORDER,
-  severityRank,
-} from "./lifecycle";
+import { prioritizeFindings, SEVERITY_ORDER, severityRank } from "./lifecycle";
 
 export { DEFAULT_PAGE_SIZE };
 
@@ -41,7 +37,10 @@ export { DEFAULT_PAGE_SIZE };
  */
 
 /** Append defined query params to `path`; returns the bare path when none apply. */
-function href(path: string, params: Record<string, string | undefined>): string {
+function href(
+  path: string,
+  params: Record<string, string | undefined>,
+): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value) search.set(key, value);
@@ -70,9 +69,7 @@ export function parseRequirementsQueryParam(
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function requirementsStatusHref(
-  status?: RequirementStatus,
-): string {
+export function requirementsStatusHref(status?: RequirementStatus): string {
   return href("/requirements", { status });
 }
 
@@ -223,9 +220,7 @@ export function evidenceRecordHref(
   return undefined;
 }
 
-export function parsePageParam(
-  raw: string | string[] | undefined,
-): number {
+export function parsePageParam(raw: string | string[] | undefined): number {
   const value = Array.isArray(raw) ? raw[0] : raw;
   const n = Number(value);
   if (!Number.isFinite(n) || n < 1) return 1;
@@ -285,12 +280,7 @@ export function pageSliceFromQuery<T>(
   };
 }
 
-const FINDINGS_TABS = [
-  "open",
-  "resolved",
-  "dismissed",
-  "by_cause",
-] as const;
+const FINDINGS_TABS = ["open", "resolved", "dismissed", "by_cause"] as const;
 
 export type FindingsTab = (typeof FINDINGS_TABS)[number];
 
@@ -349,9 +339,7 @@ export function parseFindingListParams(
   };
 }
 
-export function hasActiveFindingFilters(
-  params: FindingListFilters,
-): boolean {
+export function hasActiveFindingFilters(params: FindingListFilters): boolean {
   return Boolean(
     params.q ||
     params.severity ||
@@ -362,9 +350,7 @@ export function hasActiveFindingFilters(
   );
 }
 
-export function findingsListHref(
-  params?: Partial<FindingListParams>,
-): string {
+export function findingsListHref(params?: Partial<FindingListParams>): string {
   const merged: FindingListParams = { tab: "open", page: 1, ...params };
   const qs = new URLSearchParams(findingListQueryWithPage(merged)).toString();
   return qs ? `/findings?${qs}` : "/findings";
@@ -433,9 +419,7 @@ export function filterFindings(
   }
 
   if (params.engine) {
-    result = result.filter(
-      (finding) => engineFor(finding) === params.engine,
-    );
+    result = result.filter((finding) => engineFor(finding) === params.engine);
   }
 
   if (params.remediation) {
@@ -493,8 +477,7 @@ export function orderedFindingIdsForQueue(
   params: FindingListParams,
   context: FilterFindingsContext,
 ): string[] {
-  const status: FindingStatus =
-    params.tab === "by_cause" ? "open" : params.tab;
+  const status: FindingStatus = params.tab === "by_cause" ? "open" : params.tab;
   return orderFindingsForList(findings, status, params, context).map(
     (finding) => finding.id,
   );

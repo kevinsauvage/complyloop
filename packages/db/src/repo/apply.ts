@@ -1,5 +1,15 @@
-import type { Alert, Assessment, AssessmentSnapshot, EvidenceRecord, Finding, Remediation } from "../types";
-import type { Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Alert,
+  Assessment,
+  AssessmentSnapshot,
+  EvidenceRecord,
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
+import type {
+  Project,
+  Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../postgres.ts";
 import { insertAssessment } from "./assessments.ts";
 import { insertAlerts } from "./alerts.ts";
@@ -49,7 +59,10 @@ export interface PersistProjectRowsOptions {
    * Slice loaded at the start of the write. `persistProjectRows` derives the
    * per-entity `updatedAt` maps for stale-write guards from this.
    */
-  loadedSlice?: Pick<ProjectSlice, "findings" | "remediations" | "requirements">;
+  loadedSlice?: Pick<
+    ProjectSlice,
+    "findings" | "remediations" | "requirements"
+  >;
 }
 
 /**
@@ -122,11 +135,17 @@ export function updatedAtById(
 /** True when two JSON values match, ignoring top-level `updatedAt`. */
 function equalIgnoringUpdatedAt(a: unknown, b: unknown): boolean {
   if (a === b) return true;
-  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) {
+  if (
+    typeof a !== "object" ||
+    typeof b !== "object" ||
+    a === null ||
+    b === null
+  ) {
     return false;
   }
   if (Array.isArray(a) || Array.isArray(b)) {
-    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length)
+      return false;
     return a.every((value, index) => equalIgnoringUpdatedAt(value, b[index]));
   }
   const aEntries = Object.entries(a).filter(([key]) => key !== "updatedAt");
@@ -163,14 +182,20 @@ export async function persistProjectRows(
   options: PersistProjectRowsOptions = {},
 ): Promise<void> {
   const slice = options.loadedSlice;
-  await upsertFindings(tx, changedSinceLoaded(slice?.findings, payload.findings), {
-    loadedUpdatedAtById: slice ? updatedAtById(slice.findings) : undefined,
-  });
+  await upsertFindings(
+    tx,
+    changedSinceLoaded(slice?.findings, payload.findings),
+    {
+      loadedUpdatedAtById: slice ? updatedAtById(slice.findings) : undefined,
+    },
+  );
   await upsertRemediations(
     tx,
     changedSinceLoaded(slice?.remediations, payload.remediations),
     {
-      loadedUpdatedAtById: slice ? updatedAtById(slice.remediations) : undefined,
+      loadedUpdatedAtById: slice
+        ? updatedAtById(slice.remediations)
+        : undefined,
     },
   );
   await upsertRequirements(

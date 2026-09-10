@@ -1,14 +1,11 @@
 import type { RawFinding } from "@complyloop/analysis-core/types";
-import { type Finding } from "@complyloop/db/types";
+import { type Finding } from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { SourceLocation } from "@complyloop/analysis-core/contract/finding-types";
 import { applyFileEdits } from "./patch-apply";
 import { complyLoopGate } from "./patch-gate";
-import {
-  assertSingleFileEdits,
-  type ProposedFixEdits,
-} from "./patch-types";
+import { assertSingleFileEdits, type ProposedFixEdits } from "./patch-types";
 
 export {
   assertSingleFileEdits,
@@ -55,9 +52,7 @@ export function assertSourceLocatedFinding(
  */
 export async function generatePatchCandidate(
   options: GeneratePatchCandidateOptions,
-): Promise<
-  import("./patch-types").PatchCandidate
-> {
+): Promise<import("./patch-types").PatchCandidate> {
   const findingPath = sourceFilePath(options.finding);
   const baseline = options.scan([findingPath]);
   const proposal = await options.propose();

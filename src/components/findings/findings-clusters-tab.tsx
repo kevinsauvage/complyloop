@@ -2,7 +2,8 @@ import Link from "next/link";
 import { SeverityBadge } from "@/components/badges";
 import { EmptyState } from "@/components/page-primitives";
 import { findingsListHref } from "@/core/filter-params";
-import type { Finding, FindingCluster } from "@complyloop/db/types";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import type { FindingCluster } from "@/core/finding-cluster";
 import { severityRank } from "@/core/lifecycle";
 import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 
@@ -30,8 +31,8 @@ export function FindingsClustersTab({
   if (clusters.length === 0) {
     return (
       <EmptyState title="No shared root causes">
-        Clusters appear when two or more open findings share a check and location
-        signal.
+        Clusters appear when two or more open findings share a check and
+        location signal.
       </EmptyState>
     );
   }
@@ -59,7 +60,10 @@ export function FindingsClustersTab({
                   {cluster.findingIds.length} findings
                 </span>
                 {mix.map(({ severity, count }) => (
-                  <span key={severity} className="inline-flex items-center gap-1">
+                  <span
+                    key={severity}
+                    className="inline-flex items-center gap-1"
+                  >
                     <SeverityBadge severity={severity} />
                     <span className="font-mono text-xs tabular-nums text-muted-foreground">
                       {count}

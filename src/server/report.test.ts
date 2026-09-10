@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { wcagFramework } from "@complyloop/analysis-core/adapters/wcag/controls";
-import type { Finding, Remediation } from "@complyloop/db/types";
-import { sampleReportInput, reportSampleProject } from "@/test-fixtures/report-input";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
+import {
+  sampleReportInput,
+  reportSampleProject,
+} from "@/test-fixtures/report-input";
 import { emptyDb } from "@complyloop/db/types";
 import {
   buildAuditReportMarkdown,
@@ -15,7 +21,11 @@ vi.mock("./project-runtime", () => ({
   getProjectRuntime: vi.fn(),
 }));
 
-import { displayControl, frameworkForProject, reportInputForProject } from "./report";
+import {
+  displayControl,
+  frameworkForProject,
+  reportInputForProject,
+} from "./report";
 
 describe("displayControl", () => {
   it("returns a themed control for a known catalog id", () => {
@@ -26,9 +36,9 @@ describe("displayControl", () => {
   });
 
   it("throws for an unknown control id", () => {
-    expect(() => displayControl("ctl-does-not-exist", reportSampleProject)).toThrow(
-      /Unknown control/,
-    );
+    expect(() =>
+      displayControl("ctl-does-not-exist", reportSampleProject),
+    ).toThrow(/Unknown control/);
   });
 });
 
@@ -93,7 +103,9 @@ describe("buildEngineeringReportMarkdown", () => {
       "````tsx\nconst s = `template with ``` inside`;\n````",
     );
     // Multiline reason is collapsed into the bullet.
-    expect(markdown).toContain("**Reason:** Template literal with a fence inside");
+    expect(markdown).toContain(
+      "**Reason:** Template literal with a fence inside",
+    );
     expect(markdown).not.toContain("Reason:** Template literal with a fence\n");
   });
 
@@ -163,7 +175,9 @@ describe("buildEngineeringReportMarkdown", () => {
     ];
 
     const markdown = buildAuditReportMarkdown(input);
-    const hackedLines = markdown.split("\n").filter((line) => line.includes("hacked"));
+    const hackedLines = markdown
+      .split("\n")
+      .filter((line) => line.includes("hacked"));
     expect(hackedLines.length).toBeGreaterThan(0);
     for (const line of hackedLines) {
       expect(line).toContain("\\| hacked \\|");

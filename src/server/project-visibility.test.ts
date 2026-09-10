@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { OrgMembership, Organization, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
-import type { EvidenceRecord, Finding } from "@complyloop/db/types";
+import type {
+  OrgMembership,
+  Organization,
+  Project,
+  Requirement,
+} from "@complyloop/analysis-core/contract/project-types";
+import type {
+  EvidenceRecord,
+  Finding,
+} from "@complyloop/analysis-core/contract/entities";
 import { testProject } from "@/test-fixtures/project";
 import {
   type AccessContext,
@@ -32,7 +40,12 @@ function ctx(
 describe("accessFromStore", () => {
   it("builds AccessContext from store collections", () => {
     const organizations: Organization[] = [
-      { id: "o1", name: "Acme", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z" },
+      {
+        id: "o1",
+        name: "Acme",
+        slug: "acme",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
     ];
     const memberships: OrgMembership[] = [
       {
@@ -130,12 +143,12 @@ describe("project visibility", () => {
   it("requires org membership for org-scoped projects", () => {
     expect(isProjectVisible(orgProject, ctx(null))).toBe(false);
     expect(isProjectVisible(orgProject, ctx("user-b"))).toBe(false);
-    expect(
-      isProjectVisible(orgProject, ctx("user-b", [membership])),
-    ).toBe(true);
-    expect(
-      isProjectVisible(orgProject, ctx("user-a", [ownerMembership])),
-    ).toBe(true);
+    expect(isProjectVisible(orgProject, ctx("user-b", [membership]))).toBe(
+      true,
+    );
+    expect(isProjectVisible(orgProject, ctx("user-a", [ownerMembership]))).toBe(
+      true,
+    );
   });
 
   it("filters the switcher list for the signed-in user", () => {
@@ -208,10 +221,9 @@ describe("tenant-scoped read helpers", () => {
 
   it("scopes findings and requirements to the active project only", () => {
     expect(
-      requirementsInScope(
-        [aliceRequirement, bobRequirement],
-        aliceProject,
-      ).map((requirement) => requirement.id),
+      requirementsInScope([aliceRequirement, bobRequirement], aliceProject).map(
+        (requirement) => requirement.id,
+      ),
     ).toEqual(["r-a"]);
     expect(
       findingsInScope([aliceFinding, bobFinding], aliceProject).map(
@@ -234,9 +246,9 @@ describe("tenant-scoped read helpers", () => {
     );
     expect(rows.map((record) => record.id)).toEqual(["e-b"]);
     expect(
-      [aliceEvidence, bobEvidence, unscopedEvidence].filter(
-        (record) => record.projectId === "proj-a",
-      ).map((record) => record.id),
+      [aliceEvidence, bobEvidence, unscopedEvidence]
+        .filter((record) => record.projectId === "proj-a")
+        .map((record) => record.id),
     ).toEqual(["e-a"]);
   });
 
@@ -251,8 +263,8 @@ describe("tenant-scoped read helpers", () => {
     const bobActive = resolveActiveProject([bobProject], "proj-b", bobCtx);
     expect(aliceActive?.id).toBe("proj-a");
     expect(bobActive?.id).toBe("proj-b");
-    expect(
-      resolveActiveProject([aliceProject], "proj-b", aliceCtx)?.id,
-    ).toBe("proj-a");
+    expect(resolveActiveProject([aliceProject], "proj-b", aliceCtx)?.id).toBe(
+      "proj-a",
+    );
   });
 });

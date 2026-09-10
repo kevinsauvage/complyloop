@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/server/auth-session";
 import { advanceRemediation } from "@/core/lifecycle";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { type Finding } from "@complyloop/db/types";
+import { type Finding } from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { assertProjectPermission } from "../project-visibility";

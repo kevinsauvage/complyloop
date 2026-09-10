@@ -1,8 +1,13 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Remediation } from "@complyloop/db/types";
+import type { Remediation } from "@complyloop/analysis-core/contract/entities";
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
-import { actionWorkspaceMocks, clearProjectWritePayloads, invokeProjectWriteMock, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
+import {
+  actionWorkspaceMocks,
+  clearProjectWritePayloads,
+  invokeProjectWriteMock,
+  projectWritePayload,
+} from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
@@ -79,7 +84,9 @@ describe("generateAiExplanationAction", () => {
   it("denies when the caller cannot view the project", async () => {
     const workspace = workspaceFor("viewer");
     workspace.access.memberships = [];
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) =>
+      invokeProjectWriteMock(workspace, fn),
+    );
     assertAiRateLimit.mockResolvedValue(undefined);
 
     const result = await generateAiExplanationAction(
@@ -87,12 +94,14 @@ describe("generateAiExplanationAction", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/Not allowed/);
+    expect(result.ok ? null : result.message).toMatch(/Not allowed/);
   });
 
   it("adds an explanation when the model returns one", async () => {
     const workspace = workspaceFor("member");
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) =>
+      invokeProjectWriteMock(workspace, fn),
+    );
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiExplanation.mockResolvedValue({
       whyItFailed: "Missing alt attribute",
@@ -116,7 +125,9 @@ describe("generateAiExplanationAction", () => {
 
   it("errors when AI explanation is unavailable", async () => {
     const workspace = workspaceFor("member");
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) =>
+      invokeProjectWriteMock(workspace, fn),
+    );
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiExplanation.mockResolvedValue(null);
 
@@ -126,7 +137,9 @@ describe("generateAiExplanationAction", () => {
       new FormData(),
     );
 
-    expect((result.ok ? null : result.message)).toMatch(/AI explanation unavailable/);
+    expect(result.ok ? null : result.message).toMatch(
+      /AI explanation unavailable/,
+    );
   });
 });
 
@@ -136,7 +149,9 @@ describe("generateAiRemediationAction", () => {
     const openFinding = workspace.db.findings[0];
     if (!openFinding) throw new Error("expected finding");
     openFinding.status = "resolved";
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) =>
+      invokeProjectWriteMock(workspace, fn),
+    );
     assertAiRateLimit.mockResolvedValue(undefined);
 
     const result = await generateAiRemediationAction(
@@ -144,12 +159,16 @@ describe("generateAiRemediationAction", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/only available for open findings/);
+    expect(result.ok ? null : result.message).toMatch(
+      /only available for open findings/,
+    );
   });
 
   it("rejects remediations past the suggestion stage", async () => {
     const workspace = workspaceFor("member", "approved");
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) =>
+      invokeProjectWriteMock(workspace, fn),
+    );
     assertAiRateLimit.mockResolvedValue(undefined);
 
     const result = await generateAiRemediationAction(
@@ -157,7 +176,7 @@ describe("generateAiRemediationAction", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/before approval/);
+    expect(result.ok ? null : result.message).toMatch(/before approval/);
   });
 
   it("advances detected remediations to suggested", async () => {
@@ -171,7 +190,9 @@ describe("generateAiRemediationAction", () => {
       editable: true,
       span: { start: 0, end: 16 },
     };
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) =>
+      invokeProjectWriteMock(workspace, fn),
+    );
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiRemediation.mockResolvedValue({
       suggestion: {
@@ -204,7 +225,9 @@ describe("generateAiRemediationAction", () => {
 
   it("refreshes an existing suggested remediation", async () => {
     const workspace = workspaceFor("member", "suggested");
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) =>
+      invokeProjectWriteMock(workspace, fn),
+    );
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiRemediation.mockResolvedValue({
       suggestion: {
@@ -224,14 +247,16 @@ describe("generateAiRemediationAction", () => {
 
     expect(result.message).toBe("AI remediation suggestion saved.");
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("suggested");
-    expect(projectWritePayload()?.remediations?.[0]?.history.at(-1)?.note).toMatch(
-      /AI suggestion refreshed/,
-    );
+    expect(
+      projectWritePayload()?.remediations?.[0]?.history.at(-1)?.note,
+    ).toMatch(/AI suggestion refreshed/);
   });
 
   it("errors when AI remediation is unavailable", async () => {
     const workspace = workspaceFor("member", "detected");
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockImplementation(async (fn) =>
+      invokeProjectWriteMock(workspace, fn),
+    );
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiRemediation.mockResolvedValue(null);
 
@@ -240,6 +265,8 @@ describe("generateAiRemediationAction", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/AI remediation unavailable/);
+    expect(result.ok ? null : result.message).toMatch(
+      /AI remediation unavailable/,
+    );
   });
 });

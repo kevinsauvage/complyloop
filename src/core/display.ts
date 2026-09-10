@@ -1,4 +1,4 @@
-import type { EvidenceKind } from "@complyloop/db/types";
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
 import type { OrgRole } from "@complyloop/analysis-core/contract/project-types";
 import type {
@@ -30,12 +30,7 @@ function mustGet<T extends string, V>(
  */
 
 export type StatusTone =
-  | "passed"
-  | "failed"
-  | "review"
-  | "na"
-  | "unverifiable"
-  | "signal";
+  "passed" | "failed" | "review" | "na" | "unverifiable" | "signal";
 
 export type BadgeVariant = "secondary" | "outline" | undefined;
 
@@ -52,11 +47,7 @@ export interface RequirementStatusDisplay {
 export function requirementStatusDisplay(
   status: RequirementStatus,
 ): RequirementStatusDisplay {
-  return mustGet(
-    REQUIREMENT_STATUS_DISPLAY,
-    status,
-    "requirement status",
-  );
+  return mustGet(REQUIREMENT_STATUS_DISPLAY, status, "requirement status");
 }
 
 const REQUIREMENT_STATUS_DISPLAY: Record<
@@ -109,11 +100,7 @@ export interface RemediationStatusDisplay {
 export function remediationStatusDisplay(
   status: RemediationStatus,
 ): RemediationStatusDisplay {
-  return mustGet(
-    REMEDIATION_STATUS_DISPLAY,
-    status,
-    "remediation status",
-  );
+  return mustGet(REMEDIATION_STATUS_DISPLAY, status, "remediation status");
 }
 
 const REMEDIATION_STATUS_DISPLAY: Record<
@@ -227,7 +214,8 @@ const SEVERITY_DISPLAY: Record<Severity, SeverityDisplay> = {
   },
   moderate: {
     label: "Moderate",
-    description: "Noticeable friction — schedule with other accessibility work.",
+    description:
+      "Noticeable friction — schedule with other accessibility work.",
     tone: "review",
     badgeVariant: undefined,
     report: { fg: "#a16207", bg: "#fef9c3" },
@@ -412,7 +400,8 @@ const STATUS_TONE_STYLE = {
     reportClass: "status-needs-review",
   },
   na: {
-    badge: "border-transparent bg-status-na/25 text-status-na dark:bg-status-na/25",
+    badge:
+      "border-transparent bg-status-na/25 text-status-na dark:bg-status-na/25",
     accent: "bg-status-na",
     dot: "bg-status-na",
     report: { fg: "#475569", bg: "#f1f5f9" },
@@ -529,9 +518,15 @@ const EVIDENCE_DISPLAY: Record<EvidenceKind, EvidenceDisplay> = {
   ai_patch_ready: { label: "Patch ready", tone: "pass" },
   requirement_status_changed: { label: "Requirement status", tone: "review" },
   requirement_exception_set: { label: "Exception recorded", tone: "review" },
-  requirement_exception_cleared: { label: "Exception cleared", tone: "default" },
+  requirement_exception_cleared: {
+    label: "Exception cleared",
+    tone: "default",
+  },
   requirement_human_passed: { label: "Human pass", tone: "pass" },
-  requirement_human_pass_cleared: { label: "Human pass cleared", tone: "default" },
+  requirement_human_pass_cleared: {
+    label: "Human pass cleared",
+    tone: "default",
+  },
   requirements_imported: { label: "Scope updated", tone: "default" },
   pull_request_prepared: { label: "Pull request prepared", tone: "signal" },
   monitoring_changes_detected: { label: "Repo changes detected", tone: "fail" },

@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { Remediation } from "@complyloop/db/types";
+import type { Remediation } from "@complyloop/analysis-core/contract/entities";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { RemediationHistory } from "./remediation-history";
 
@@ -62,7 +62,9 @@ describe("RemediationHistory", () => {
   it("shows the note attached to an entry", () => {
     renderHistory(makeRemediation());
     expect(screen.getByText("Fixed in PR #42")).toBeInTheDocument();
-    expect(screen.getByText("Approved by the accessibility lead.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Approved by the accessibility lead."),
+    ).toBeInTheDocument();
   });
 
   it("shows the current status when no history has been recorded", () => {

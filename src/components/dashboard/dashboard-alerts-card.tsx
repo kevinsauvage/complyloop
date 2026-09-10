@@ -4,8 +4,11 @@ import { formatDateTime } from "@/core/lifecycle";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import type { Alert as AlertRecord } from "@complyloop/db/types";
-import { markAlertReadAction, markAllAlertsReadAction } from "@/server/actions/alerts";
+import type { Alert as AlertRecord } from "@complyloop/analysis-core/contract/entities";
+import {
+  markAlertReadAction,
+  markAllAlertsReadAction,
+} from "@/server/actions/alerts";
 
 function alertPrimaryHref(alert: AlertRecord): string | null {
   const findingId = alert.detail?.findingId;
@@ -120,7 +123,10 @@ export function DashboardAlertsCard({
                 <TriangleAlert aria-hidden />
                 <AlertTitle className="text-base leading-snug">
                   {primaryHref ? (
-                    <Link href={primaryHref} className="hover:text-destructive hover:underline">
+                    <Link
+                      href={primaryHref}
+                      className="hover:text-destructive hover:underline"
+                    >
                       {alert.summary}
                     </Link>
                   ) : (
@@ -159,7 +165,10 @@ export function DashboardAlertsCard({
                     </p>
                   ) : null}
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <time className="text-xs text-muted-foreground" dateTime={alert.at}>
+                    <time
+                      className="text-xs text-muted-foreground"
+                      dateTime={alert.at}
+                    >
                       {formatDateTime(alert.at)}
                     </time>
                     <StatefulActionForm

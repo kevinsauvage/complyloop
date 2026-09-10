@@ -31,7 +31,10 @@ import {
   loadProjectWriteDb,
   loadTenancyDb,
 } from "@complyloop/db/workspace-load";
-import type { EvidenceRecord, Finding } from "@complyloop/db/types";
+import type {
+  EvidenceRecord,
+  Finding,
+} from "@complyloop/analysis-core/contract/entities";
 import type { Permission } from "@/core/rbac";
 import { orgsForUser } from "./org-queries";
 import {
@@ -161,10 +164,21 @@ export async function withFindingWrite(
       githubLogin,
       activeProjectId: projectId,
     });
-    const base = prepareWorkspaceState(db, userId, githubLogin, preferredOrgId, projectId);
+    const base = prepareWorkspaceState(
+      db,
+      userId,
+      githubLogin,
+      preferredOrgId,
+      projectId,
+    );
     const lockedProject =
-      db.projects.find((candidate) => candidate.id === projectId) ?? base.project;
-    const workspace: ProjectWriteWorkspace = { ...base, project: lockedProject, db };
+      db.projects.find((candidate) => candidate.id === projectId) ??
+      base.project;
+    const workspace: ProjectWriteWorkspace = {
+      ...base,
+      project: lockedProject,
+      db,
+    };
     const finding = findingById(db, findingId);
     requireOnFindingProject(workspace, finding, permission);
 
@@ -234,33 +248,38 @@ async function withLockedTenancy<T>(
 export async function withOrgWrite<T>(
   fn: (
     ctx: OrgWriteContext,
-  ) => Promise<(OrgWritePayload & { result: T })> | (OrgWritePayload & { result: T }),
+  ) =>
+    | Promise<OrgWritePayload & { result: T }>
+    | (OrgWritePayload & { result: T }),
 ): Promise<T> {
-  return withLockedTenancy({ activeProjectId: null }, async ({ tx, db, userId, githubLogin }) => {
-    const organizations = orgsForUser(db, userId);
-    const {
-      result,
-      insertOrgs,
-      upsertMemberships,
-      deleteMembershipIds,
-      deleteOrgIds,
-    } = await fn({ db, userId, githubLogin, organizations });
+  return withLockedTenancy(
+    { activeProjectId: null },
+    async ({ tx, db, userId, githubLogin }) => {
+      const organizations = orgsForUser(db, userId);
+      const {
+        result,
+        insertOrgs,
+        upsertMemberships,
+        deleteMembershipIds,
+        deleteOrgIds,
+      } = await fn({ db, userId, githubLogin, organizations });
 
-    for (const org of insertOrgs ?? []) {
-      await insertOrganization(tx, org);
-    }
-    for (const membership of upsertMemberships ?? []) {
-      await upsertMembership(tx, membership);
-    }
-    for (const id of deleteMembershipIds ?? []) {
-      await deleteMembership(tx, id);
-    }
-    for (const id of deleteOrgIds ?? []) {
-      await deleteOrganizationRow(tx, id);
-    }
+      for (const org of insertOrgs ?? []) {
+        await insertOrganization(tx, org);
+      }
+      for (const membership of upsertMemberships ?? []) {
+        await upsertMembership(tx, membership);
+      }
+      for (const id of deleteMembershipIds ?? []) {
+        await deleteMembership(tx, id);
+      }
+      for (const id of deleteOrgIds ?? []) {
+        await deleteOrganizationRow(tx, id);
+      }
 
-    return result;
-  });
+      return result;
+    },
+  );
 }
 
 export interface ConnectWritePayload {

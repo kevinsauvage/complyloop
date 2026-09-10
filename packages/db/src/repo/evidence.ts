@@ -1,14 +1,25 @@
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNull,
+  lte,
+  or,
+} from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
-import type { EvidenceKind, EvidenceRecord } from "../types";
+import type {
+  EvidenceKind,
+  EvidenceRecord,
+} from "@complyloop/analysis-core/contract/entities";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../postgres.ts";
 import { evidence } from "../schema.ts";
-import {
-  evidenceToRow,
-  newEvidenceRecord,
-  rowToEvidence,
-} from "./mappers.ts";
+import { evidenceToRow, newEvidenceRecord, rowToEvidence } from "./mappers.ts";
 
 /** Newest-first evidence rows kept in the workspace read snapshot. */
 export const WORKSPACE_EVIDENCE_LIMIT = 100;
@@ -68,7 +79,9 @@ function normalizeEvidenceFilter(
   kindOrFilter?: EvidenceKind | EvidenceFilter,
 ): EvidenceFilter {
   if (!kindOrFilter) return {};
-  return typeof kindOrFilter === "string" ? { kind: kindOrFilter } : kindOrFilter;
+  return typeof kindOrFilter === "string"
+    ? { kind: kindOrFilter }
+    : kindOrFilter;
 }
 
 /** Escape LIKE wildcards so `q` always matches literally. */
@@ -84,7 +97,9 @@ export function evidenceFilterConditions(
   const conditions: SQL[] = [eq(evidence.projectId, projectId)];
   if (filter.kind) conditions.push(eq(evidence.kind, filter.kind));
   if (filter.q) {
-    conditions.push(ilike(evidence.summary, `%${escapeLikeLiteral(filter.q)}%`));
+    conditions.push(
+      ilike(evidence.summary, `%${escapeLikeLiteral(filter.q)}%`),
+    );
   }
   if (filter.from) {
     // `at` is string-moded: compare ISO bounds and let Postgres cast.
@@ -104,7 +119,9 @@ export function evidenceFilterConditions(
         )!,
       );
     } else {
-      conditions.push(ilike(evidence.actor, `%${escapeLikeLiteral(filter.actor)}%`));
+      conditions.push(
+        ilike(evidence.actor, `%${escapeLikeLiteral(filter.actor)}%`),
+      );
     }
   }
   return conditions;
@@ -122,7 +139,9 @@ export async function countEvidenceForProject(
   const [row] = await drizzle
     .select({ value: count() })
     .from(evidence)
-    .where(evidenceProjectFilter(projectId, normalizeEvidenceFilter(kindOrFilter)));
+    .where(
+      evidenceProjectFilter(projectId, normalizeEvidenceFilter(kindOrFilter)),
+    );
   return Number(row?.value ?? 0);
 }
 
@@ -154,7 +173,9 @@ export async function listEvidencePageForProject(
   const rows = await drizzle
     .select()
     .from(evidence)
-    .where(evidenceProjectFilter(projectId, normalizeEvidenceFilter(kindOrFilter)))
+    .where(
+      evidenceProjectFilter(projectId, normalizeEvidenceFilter(kindOrFilter)),
+    )
     .orderBy(desc(evidence.at))
     .limit(pageSize)
     .offset(sqlPageOffset(page, pageSize));

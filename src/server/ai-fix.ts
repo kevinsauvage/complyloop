@@ -15,7 +15,10 @@ import {
   type ProposedFixEdits,
 } from "@/ai/verified-fix";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import { type EvidenceRecord, type Finding } from "@complyloop/db/types";
+import {
+  type EvidenceRecord,
+  type Finding,
+} from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { hasSafeDeterministicFix } from "@/core/lifecycle";
@@ -27,8 +30,7 @@ import { appendEvidence } from "./project-rows";
 import { reportWarning } from "./observability";
 
 export type PatchUiState =
-  | { status: "idle" }
-  | { status: "ready"; candidate: PatchCandidate };
+  { status: "idle" } | { status: "ready"; candidate: PatchCandidate };
 
 export interface RunAiFixOnCheckoutOptions {
   propose?: GeneratePatchCandidateOptions["propose"];
@@ -74,7 +76,7 @@ export async function runAiFixOnCheckout(
   const propose =
     deterministic !== null
       ? async () => deterministic
-      : options.propose ??
+      : (options.propose ??
         (async () =>
           proposeFixEdits({
             finding,
@@ -85,7 +87,7 @@ export async function runAiFixOnCheckout(
                 "utf8",
               ),
             },
-          }));
+          })));
 
   if (deterministic === null && options.aiAvailable === false) {
     throw new PublicError(AI_PATCH_UNAVAILABLE_MESSAGE);
@@ -173,11 +175,14 @@ export function persistPatchCandidate(
       : {}),
   };
   if (remediation.status !== "detected" && remediation.status !== "suggested") {
-    reportWarning("AI patch ready but remediation already advanced; suggestion not persisted.", {
-      code: "ai_patch_skipped_status",
-      findingId: finding.id,
-      status: remediation.status,
-    });
+    reportWarning(
+      "AI patch ready but remediation already advanced; suggestion not persisted.",
+      {
+        code: "ai_patch_skipped_status",
+        findingId: finding.id,
+        status: remediation.status,
+      },
+    );
     return;
   }
   payload.remediations = [

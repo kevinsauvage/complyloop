@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { parseSource } from "@complyloop/analysis-core/parse";
 import { buttonNameCheck } from "@complyloop/analysis-core/checks/families/names";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding, Remediation } from "@complyloop/db/types";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import { testProject } from "@/test-fixtures/project";
 import { buildDeveloperHandoff, buildDiffForFix } from "./handoff";
 
@@ -92,7 +95,9 @@ describe("developer handoff", () => {
     expect(handoff.title).toContain("WCAG 1.1.1");
     expect(handoff.body).toContain("## Requirement");
     expect(handoff.body).toContain("## Verification");
-    expect(handoff.body).toContain("Create a draft pull request from this Finding page");
+    expect(handoff.body).toContain(
+      "Create a draft pull request from this Finding page",
+    );
     expect(handoff.diff).toContain("Hero.tsx");
   });
 });

@@ -1,6 +1,6 @@
 import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { EvidenceKind } from "@complyloop/db/types";
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 import { renderWithUiProviders } from "@/test/render-ui";
 import { EvidenceKindChips } from "./evidence-kind-chips";
 
@@ -28,8 +28,7 @@ describe("EvidenceKindChips", () => {
     expect(
       screen.getByRole("link", {
         name: (accessibleName) =>
-          /finding/i.test(accessibleName) &&
-          accessibleName.includes("4"),
+          /finding/i.test(accessibleName) && accessibleName.includes("4"),
       }),
     ).toHaveAttribute("href", "/evidence?kind=finding");
   });

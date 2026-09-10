@@ -1,7 +1,10 @@
 "use server";
 
 import { canBulkApproveRemediation } from "@/core/lifecycle";
-import { type Finding, type Remediation } from "@complyloop/db/types";
+import {
+  type Finding,
+  type Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   DISMISSAL_REASONS,
@@ -17,15 +20,9 @@ import {
   parseForm,
 } from "@/core/filters";
 import { z } from "zod";
-import {
-  runAction,
-  type ActionState,
-} from "../action-state";
+import { runAction, type ActionState } from "../action-state";
 import { applyRequirementStatusRefresh } from "../assessment-status";
-import {
-  findingById,
-  remediationForFinding,
-} from "../workspace";
+import { findingById, remediationForFinding } from "../workspace";
 import { withFindingWrite, withProjectWrite } from "../workspace-write";
 import {
   appendEvidence,
@@ -33,12 +30,11 @@ import {
   upsertFindingInRows,
   type ProjectRows,
 } from "../project-rows";
-import { remediationEvidenceDetail, remediationEvidenceSummary } from "../remediation-evidence";
 import {
-  refresh,
-  replaceRemediation,
-  requireOnFindingProject,
-} from "./shared";
+  remediationEvidenceDetail,
+  remediationEvidenceSummary,
+} from "../remediation-evidence";
+import { refresh, replaceRemediation, requireOnFindingProject } from "./shared";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 
 const bulkApproveInput = z.object({
@@ -150,23 +146,22 @@ export async function bulkApproveRemediationsAction(
     let approved = 0;
 
     await withProjectWrite(async (workspace) => {
-        const { db } = workspace;
-        const payload: ProjectWritePayload = {};
-        for (const findingId of findingIds) {
-          const finding = findingById(db, findingId);
-          requireOnFindingProject(workspace, finding, "project.remediate");
-          const remediation = remediationForFinding(db, findingId);
-          if (!canBulkApproveRemediation(finding, remediation.status)) continue;
+      const { db } = workspace;
+      const payload: ProjectWritePayload = {};
+      for (const findingId of findingIds) {
+        const finding = findingById(db, findingId);
+        requireOnFindingProject(workspace, finding, "project.remediate");
+        const remediation = remediationForFinding(db, findingId);
+        if (!canBulkApproveRemediation(finding, remediation.status)) continue;
 
-          approveRemediationInPayload(payload, finding, remediation, {
-            bulk: true,
-            approvalNote: "Approved in bulk",
-          });
-          approved += 1;
-        }
-        return payload;
-      },
-    );
+        approveRemediationInPayload(payload, finding, remediation, {
+          bulk: true,
+          approvalNote: "Approved in bulk",
+        });
+        approved += 1;
+      }
+      return payload;
+    });
 
     if (approved === 0) {
       throw new PublicError(
@@ -186,35 +181,39 @@ export async function dismissFindingAction(
   return runAction(async () => {
     const findingId = parseEntityId(findingIdRaw);
     const { reason, note } = parseForm(dismissFindingInput, formData);
-    await withFindingWrite(findingId, "project.remediate", async ({ db, finding }) => {
-      const project = db.projects.find(
-        (candidate) => candidate.id === finding.projectId,
-      );
-      if (!project) throw new PublicError("Unknown project.");
+    await withFindingWrite(
+      findingId,
+      "project.remediate",
+      async ({ db, finding }) => {
+        const project = db.projects.find(
+          (candidate) => candidate.id === finding.projectId,
+        );
+        if (!project) throw new PublicError("Unknown project.");
 
-      const rows = cloneProjectRows(
-        db.findings,
-        db.remediations,
-        db.requirements,
-        project.id,
-      );
-      const updated = dismissFindingInRows(
-        rows,
-        finding,
-        reason,
-        note ?? "",
-        new Date().toISOString(),
-        {},
-      );
-      applyRequirementStatusRefresh(rows, project, {
-        controlIds: [finding.controlId],
-      });
-      return {
-        findings: [updated],
-        requirements: rows.requirements,
-        evidence: rows.evidence,
-      };
-    });
+        const rows = cloneProjectRows(
+          db.findings,
+          db.remediations,
+          db.requirements,
+          project.id,
+        );
+        const updated = dismissFindingInRows(
+          rows,
+          finding,
+          reason,
+          note ?? "",
+          new Date().toISOString(),
+          {},
+        );
+        applyRequirementStatusRefresh(rows, project, {
+          controlIds: [finding.controlId],
+        });
+        return {
+          findings: [updated],
+          requirements: rows.requirements,
+          evidence: rows.evidence,
+        };
+      },
+    );
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Finding dismissed.";
   });
@@ -231,40 +230,39 @@ export async function bulkDismissFindingsAction(
     let dismissed = 0;
 
     await withProjectWrite(async (workspace) => {
-        const { db } = workspace;
-        const project = workspace.project;
-        if (!project) throw new PublicError("Select a project first.");
-        const rows = cloneProjectRows(
-          db.findings,
-          db.remediations,
-          db.requirements,
-          project.id,
-        );
-        const dismissedFindings: Finding[] = [];
-        const controlIds = new Set<string>();
-        for (const findingId of findingIds) {
-          const finding = findingById(db, findingId);
-          requireOnFindingProject(workspace, finding, "project.remediate");
-          if (finding.status !== "open") continue;
+      const { db } = workspace;
+      const project = workspace.project;
+      if (!project) throw new PublicError("Select a project first.");
+      const rows = cloneProjectRows(
+        db.findings,
+        db.remediations,
+        db.requirements,
+        project.id,
+      );
+      const dismissedFindings: Finding[] = [];
+      const controlIds = new Set<string>();
+      for (const findingId of findingIds) {
+        const finding = findingById(db, findingId);
+        requireOnFindingProject(workspace, finding, "project.remediate");
+        if (finding.status !== "open") continue;
 
-          dismissedFindings.push(
-            dismissFindingInRows(rows, finding, reason, dismissalNote, at, {
-              bulk: true,
-            }),
-          );
-          controlIds.add(finding.controlId);
-          dismissed += 1;
-        }
-        applyRequirementStatusRefresh(rows, project, {
-          controlIds: [...controlIds],
-        });
-        return {
-          findings: dismissedFindings,
-          requirements: rows.requirements,
-          evidence: rows.evidence,
-        };
-      },
-    );
+        dismissedFindings.push(
+          dismissFindingInRows(rows, finding, reason, dismissalNote, at, {
+            bulk: true,
+          }),
+        );
+        controlIds.add(finding.controlId);
+        dismissed += 1;
+      }
+      applyRequirementStatusRefresh(rows, project, {
+        controlIds: [...controlIds],
+      });
+      return {
+        findings: dismissedFindings,
+        requirements: rows.requirements,
+        evidence: rows.evidence,
+      };
+    });
 
     if (dismissed === 0) {
       throw new PublicError("No open findings were dismissed.");

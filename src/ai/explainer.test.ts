@@ -1,11 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding } from "@complyloop/db/types";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import { generateObject } from "ai";
-import {
-  deterministicExplanation,
-  generateAiExplanation,
-} from "./explainer";
+import { deterministicExplanation, generateAiExplanation } from "./explainer";
 import { AI_MODEL, aiAvailable } from "./ai-call";
 
 vi.mock("ai", () => ({
@@ -92,7 +89,9 @@ describe("generateAiExplanation", () => {
       },
     } as never);
 
-    await expect(generateAiExplanation(finding, control)).resolves.toMatchObject({
+    await expect(
+      generateAiExplanation(finding, control),
+    ).resolves.toMatchObject({
       whyItFailed: "No alt",
       impact: "SR users miss it",
       howToFix: "Add alt",

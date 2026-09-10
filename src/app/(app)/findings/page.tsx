@@ -6,7 +6,13 @@ import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
 import { FocusFilterResults } from "@/components/findings/focus-filter-results";
 import { toFindingListItems } from "@/components/findings/finding-list-items";
 import { PaginationNav } from "@/components/pagination-nav";
-import { EmptyState, NoProjectNotice, PageActionLink, PageContent, PageHeader } from "@/components/page-primitives";
+import {
+  EmptyState,
+  NoProjectNotice,
+  PageActionLink,
+  PageContent,
+  PageHeader,
+} from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
 import { FindingsStatusNav } from "./_components/status-nav";
 import {
@@ -24,7 +30,7 @@ import { paginateSlice, DEFAULT_PAGE_SIZE } from "@/core/filter-params";
 import { prioritizeClusters } from "@/core/lifecycle";
 import { clusterFindings } from "@/core/lifecycle";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
-import type { Finding } from "@complyloop/db/types";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import { countFindingsByStatus } from "@/server/findings-queries";
 import { findingsInScope } from "@/server/project-scope";
 import { loadActiveProjectPage } from "@/server/active-project-page";
@@ -35,7 +41,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Findings",
-  description: "Every failure with its reason, location, remediation state, and evidence.",
+  description:
+    "Every failure with its reason, location, remediation state, and evidence.",
 };
 
 export default async function FindingsPage({
@@ -76,7 +83,10 @@ export default async function FindingsPage({
   const runtime = await getProjectRuntime(project.id, { findingStatuses });
   const findings = findingsInScope(runtime.findings, project);
   const remediationByFindingId = new Map(
-    runtime.remediations.map((remediation) => [remediation.findingId, remediation]),
+    runtime.remediations.map((remediation) => [
+      remediation.findingId,
+      remediation,
+    ]),
   );
   const controls = shippedCatalog().controls;
   const rawClusters = clusterFindings(findings, controls);
@@ -136,7 +146,11 @@ export default async function FindingsPage({
         <EmptyState
           title="No findings yet"
           variant="first-run"
-          action={<PageActionLink href="/dashboard">Run assessment from dashboard</PageActionLink>}
+          action={
+            <PageActionLink href="/dashboard">
+              Run assessment from dashboard
+            </PageActionLink>
+          }
         >
           <p>Run an assessment from the dashboard to detect compliance gaps.</p>
         </EmptyState>
@@ -167,10 +181,10 @@ export default async function FindingsPage({
 
   return (
     <>
-        <PageHeader
-          title="Findings"
-          description="One finding = one instance of a failed requirement. Fix it to Verified — every step is kept as evidence."
-        >
+      <PageHeader
+        title="Findings"
+        description="One finding = one instance of a failed requirement. Fix it to Verified — every step is kept as evidence."
+      >
         <Button variant="outline" size="sm" asChild>
           <a href={reportHref("engineering", "markdown")} download>
             Export engineering report

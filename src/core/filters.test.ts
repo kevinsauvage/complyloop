@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { EvidenceRecord, Finding } from "@complyloop/db/types";
+import type {
+  EvidenceRecord,
+  Finding,
+} from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import {
   EVIDENCE_KIND_FILTER_ORDER,
@@ -197,9 +200,9 @@ describe("requirements page preset URL", () => {
   });
 
   it("accepts the first element of a searchParams array", () => {
-    expect(parsePresetIdParam(["preset-wcag-aa", "junk"], isValidPresetId)).toBe(
-      "preset-wcag-aa",
-    );
+    expect(
+      parsePresetIdParam(["preset-wcag-aa", "junk"], isValidPresetId),
+    ).toBe("preset-wcag-aa");
     expect(parsePresetIdParam([], isValidPresetId)).toBeUndefined();
   });
 
@@ -247,9 +250,9 @@ const base: EvidenceRecord = {
 
 describe("evidenceRecordHref", () => {
   it("links a finding event to its finding page", () => {
-    expect(
-      evidenceRecordHref({ ...base, findingId: "f42" }, []),
-    ).toBe("/findings/f42");
+    expect(evidenceRecordHref({ ...base, findingId: "f42" }, [])).toBe(
+      "/findings/f42",
+    );
   });
 
   it("links a control event to the requirements filter matching that control's status", () => {
@@ -264,7 +267,10 @@ describe("evidenceRecordHref", () => {
       },
     ];
     expect(
-      evidenceRecordHref({ ...base, controlId: "ctl-button-name" }, requirements),
+      evidenceRecordHref(
+        { ...base, controlId: "ctl-button-name" },
+        requirements,
+      ),
     ).toBe("/requirements?status=needs_review#requirement-ctl-button-name");
   });
 
@@ -280,17 +286,14 @@ describe("evidenceRecordHref", () => {
       },
     ];
     expect(
-      evidenceRecordHref(
-        { ...base, controlId: "ctl-missing" },
-        requirements,
-      ),
+      evidenceRecordHref({ ...base, controlId: "ctl-missing" }, requirements),
     ).toBe("/requirements#requirement-ctl-missing");
   });
 
   it("links an assessment event to the project home", () => {
-    expect(
-      evidenceRecordHref({ ...base, assessmentId: "a1" }, []),
-    ).toBe("/dashboard");
+    expect(evidenceRecordHref({ ...base, assessmentId: "a1" }, [])).toBe(
+      "/dashboard",
+    );
   });
 
   it("returns undefined for records with no navigation target", () => {
@@ -319,10 +322,7 @@ const controls: Control[] = [
   },
 ];
 
-function finding(
-  id: string,
-  overrides: Partial<Finding> = {},
-): Finding {
+function finding(id: string, overrides: Partial<Finding> = {}): Finding {
   return {
     id,
     projectId: "p1",
@@ -389,8 +389,9 @@ describe("parseFindingListParams", () => {
   });
 
   it("ignores unknown enum values", () => {
-    expect(parseFindingListParams({ severity: "bogus", tab: "nope" }).severity)
-      .toBeUndefined();
+    expect(
+      parseFindingListParams({ severity: "bogus", tab: "nope" }).severity,
+    ).toBeUndefined();
     expect(parseFindingListParams({ tab: "nope" }).tab).toBe("open");
   });
 
@@ -412,9 +413,9 @@ describe("findingsListHref", () => {
   });
 
   it("includes non-default tab and page", () => {
-    expect(
-      findingsListHref({ tab: "by_cause", page: 3, cluster: "c1" }),
-    ).toBe("/findings?cluster=c1&tab=by_cause&page=3");
+    expect(findingsListHref({ tab: "by_cause", page: 3, cluster: "c1" })).toBe(
+      "/findings?cluster=c1&tab=by_cause&page=3",
+    );
   });
 
   it("returns the unfiltered list path when clearing", () => {
@@ -482,19 +483,39 @@ describe("filterFindings", () => {
 
   it("matches text search on control code, title, reason, and path", () => {
     expect(
-      filterFindings(findings, { q: "1.1" }, { controls, remediationStatusFor }),
+      filterFindings(
+        findings,
+        { q: "1.1" },
+        { controls, remediationStatusFor },
+      ),
     ).toHaveLength(1);
     expect(
-      filterFindings(findings, { q: "alt text" }, { controls, remediationStatusFor }),
+      filterFindings(
+        findings,
+        { q: "alt text" },
+        { controls, remediationStatusFor },
+      ),
     ).toHaveLength(1);
     expect(
-      filterFindings(findings, { q: "missing alt" }, { controls, remediationStatusFor }),
+      filterFindings(
+        findings,
+        { q: "missing alt" },
+        { controls, remediationStatusFor },
+      ),
     ).toHaveLength(1);
     expect(
-      filterFindings(findings, { q: "Button.tsx" }, { controls, remediationStatusFor }),
+      filterFindings(
+        findings,
+        { q: "Button.tsx" },
+        { controls, remediationStatusFor },
+      ),
     ).toHaveLength(1);
     expect(
-      filterFindings(findings, { q: "preview.example" }, { controls, remediationStatusFor }),
+      filterFindings(
+        findings,
+        { q: "preview.example" },
+        { controls, remediationStatusFor },
+      ),
     ).toHaveLength(1);
   });
 
@@ -645,7 +666,9 @@ describe("formRecord", () => {
 
 describe("parseUnknown", () => {
   it("returns parsed data when the payload matches", () => {
-    expect(parseUnknown(entityIdSchema, "  org-1  ", "Invalid id.")).toBe("org-1");
+    expect(parseUnknown(entityIdSchema, "  org-1  ", "Invalid id.")).toBe(
+      "org-1",
+    );
   });
 
   it("throws the fallback message when the payload does not match", () => {

@@ -1,5 +1,5 @@
 import type { RawFinding } from "@complyloop/analysis-core/types";
-import { type Finding } from "@complyloop/db/types";
+import { type Finding } from "@complyloop/analysis-core/contract/entities";
 import type { ComplyLoopGateResult } from "./patch-types";
 
 function findingIdentity(finding: {

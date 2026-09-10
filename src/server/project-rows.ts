@@ -3,7 +3,7 @@ import type {
   EvidenceRecord,
   Finding,
   Remediation,
-} from "@complyloop/db/types";
+} from "@complyloop/analysis-core/contract/entities";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import {
   projectScopedSlice,
@@ -68,8 +68,13 @@ export function stampEvidenceActor(
 }
 
 /** Insert-or-replace one finding in a scratch row set (shared findIndex/push). */
-export function upsertFindingInRows(rows: { findings: Finding[] }, updated: Finding): void {
-  const index = rows.findings.findIndex((candidate) => candidate.id === updated.id);
+export function upsertFindingInRows(
+  rows: { findings: Finding[] },
+  updated: Finding,
+): void {
+  const index = rows.findings.findIndex(
+    (candidate) => candidate.id === updated.id,
+  );
   if (index >= 0) {
     rows.findings[index] = updated;
   } else {

@@ -1,7 +1,9 @@
-import type { Remediation } from "@complyloop/db/types";
+import type { Remediation } from "@complyloop/analysis-core/contract/entities";
 
 /** Default suggested remediation for server tests. */
-export function testRemediation(partial: Partial<Remediation> = {}): Remediation {
+export function testRemediation(
+  partial: Partial<Remediation> = {},
+): Remediation {
   return {
     id: "r1",
     findingId: partial.findingId ?? "f1",

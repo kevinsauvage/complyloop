@@ -6,7 +6,10 @@ import type {
   Organization,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
-import { type Finding, type Remediation } from "@complyloop/db/types";
+import {
+  type Finding,
+  type Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { getFindingById } from "@complyloop/db/repo/findings";
@@ -14,10 +17,7 @@ import { listMembershipsForOrgs } from "@complyloop/db/repo/orgs";
 import { getProjectById } from "@complyloop/db/repo/projects";
 import { getRemediationByFindingId } from "@complyloop/db/repo/remediations";
 import { loadTenancyDb } from "@complyloop/db/workspace-load";
-import {
-  readActiveOrgCookie,
-  readActiveProjectCookie,
-} from "./active-cookies";
+import { readActiveOrgCookie, readActiveProjectCookie } from "./active-cookies";
 import type { Db } from "@complyloop/db/types";
 import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
 import { orgsForUser, resolveActiveOrgId } from "./org-queries";
@@ -182,9 +182,7 @@ function findRemediationForFinding(
   db: Db,
   findingId: string,
 ): Remediation | undefined {
-  return db.remediations.find(
-    (candidate) => candidate.findingId === findingId,
-  );
+  return db.remediations.find((candidate) => candidate.findingId === findingId);
 }
 
 export function remediationForFinding(db: Db, findingId: string): Remediation {

@@ -1,7 +1,10 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { findingAct } from "@/core/lifecycle";
-import type { Finding, Remediation } from "@complyloop/db/types";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type { PatchUiState } from "@/server/ai-fix";
 import { FindingNextStepPanel } from "./finding-next-step-panel";
 
@@ -197,9 +200,10 @@ describe("FindingNextStepPanel", () => {
     expect(
       screen.getByText(/Merge the draft PR, then re-assessment will verify/),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Open draft PR" }),
-    ).toHaveAttribute("href", "https://github.com/acme/shop/pull/65");
+    expect(screen.getByRole("link", { name: "Open draft PR" })).toHaveAttribute(
+      "href",
+      "https://github.com/acme/shop/pull/65",
+    );
     expect(
       screen.queryByRole("button", { name: "Generate patch" }),
     ).not.toBeInTheDocument();
@@ -225,10 +229,10 @@ describe("FindingNextStepPanel", () => {
       patchState: readyPatch,
     });
 
-    expect(screen.getByRole("heading", { name: "Verified" })).toBeInTheDocument();
     expect(
-      screen.queryByText("Not a real failure?"),
-    ).not.toBeInTheDocument();
+      screen.getByRole("heading", { name: "Verified" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Not a real failure?")).not.toBeInTheDocument();
   });
 
   it("offers Approve for a runtime Finding and never Create draft PR", () => {
@@ -253,9 +257,7 @@ describe("FindingNextStepPanel", () => {
     expect(
       screen.getByRole("heading", { name: "Review guidance" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Approve" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Create draft pull request" }),
     ).not.toBeInTheDocument();

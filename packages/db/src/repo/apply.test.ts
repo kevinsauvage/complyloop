@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Alert, Assessment, EvidenceRecord, Finding, Remediation } from "../types";
+import type {
+  Alert,
+  Assessment,
+  EvidenceRecord,
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 
 const insertAssessment = vi.hoisted(() => vi.fn());
@@ -89,7 +95,11 @@ describe("updatedAtById", () => {
 
 describe("snapshotProjectSlice", () => {
   it("scopes runtime rows to the active project and linked remediations", () => {
-    const otherFinding: Finding = { ...finding, id: "f-other", projectId: "p2" };
+    const otherFinding: Finding = {
+      ...finding,
+      id: "f-other",
+      projectId: "p2",
+    };
     const slice = snapshotProjectSlice(
       [requirement, { ...requirement, id: "req-2", projectId: "p2" }],
       [finding, otherFinding],

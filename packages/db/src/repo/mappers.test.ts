@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { Alert, Assessment, EvidenceRecord, Finding, Remediation } from "../types";
+import type {
+  Alert,
+  Assessment,
+  EvidenceRecord,
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type {
   OrgMembership,
   Organization,
@@ -71,22 +77,17 @@ describe("repo mappers emit stable row shapes", () => {
       "orgId",
       "payload",
     ]);
-    expect(Object.keys(membershipToRow({} as unknown as OrgMembership))).toEqual([
-      "id",
-      "orgId",
-      "userId",
-      "githubLogin",
-      "role",
-      "payload",
-    ]);
-    expect(Object.keys(organizationToRow({} as unknown as Organization))).toEqual([
-      "id",
-      "slug",
-      "payload",
-    ]);
     expect(
-      Object.keys(assessmentToRow({} as unknown as Assessment)),
-    ).toEqual(["id", "projectId", "payload"]);
+      Object.keys(membershipToRow({} as unknown as OrgMembership)),
+    ).toEqual(["id", "orgId", "userId", "githubLogin", "role", "payload"]);
+    expect(
+      Object.keys(organizationToRow({} as unknown as Organization)),
+    ).toEqual(["id", "slug", "payload"]);
+    expect(Object.keys(assessmentToRow({} as unknown as Assessment))).toEqual([
+      "id",
+      "projectId",
+      "payload",
+    ]);
   });
 
   it("assessment payload excludes the snapshot (stored separately)", () => {
@@ -109,7 +110,10 @@ describe("repo mappers emit stable row shapes", () => {
       summary: "done",
       projectId: "p1",
       detail: { files: 3 },
-    } satisfies Pick<EvidenceRecord, "id" | "at" | "kind" | "summary" | "projectId" | "detail">;
+    } satisfies Pick<
+      EvidenceRecord,
+      "id" | "at" | "kind" | "summary" | "projectId" | "detail"
+    >;
     // rowToEvidence is exercised below; here we only pin the
     // insert shape via the repo insert path contract (nullable columns).
     expect(record.kind).toBe("assessment_completed");

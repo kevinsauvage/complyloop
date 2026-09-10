@@ -1,9 +1,10 @@
 import type {
   Assessment,
   Finding,
-  FindingCluster,
   Remediation,
-} from "@complyloop/db/types";
+} from "@complyloop/analysis-core/contract/entities";
+import type { FindingCluster } from "./finding-cluster";
+export type { FindingCluster } from "./finding-cluster";
 import type {
   AssessmentEngines,
   DomLocation,
@@ -58,7 +59,9 @@ export function latestAssessmentFor(
 export type RuntimeCoverageMode = "source_only" | "source_and_preview";
 
 /** Single predicate for "preview URL configured" (blank/whitespace = absent). */
-export function hasPreviewUrl(project: Pick<Project, "runtimeBaseUrl">): boolean {
+export function hasPreviewUrl(
+  project: Pick<Project, "runtimeBaseUrl">,
+): boolean {
   return Boolean(project.runtimeBaseUrl?.trim());
 }
 
@@ -90,7 +93,9 @@ export function runtimeCoverageSummary(
   }
 
   const pagePart =
-    pagesScanned !== null ? ` (${pagesScanned} page${pagesScanned === 1 ? "" : "s"})` : "";
+    pagesScanned !== null
+      ? ` (${pagesScanned} page${pagesScanned === 1 ? "" : "s"})`
+      : "";
 
   return {
     mode: "source_and_preview",
@@ -105,10 +110,9 @@ export function countByStatus<T extends string>(
   items: readonly { status: T }[],
   statuses: readonly T[],
 ): Record<T, number> {
-  const counts = Object.fromEntries(statuses.map((status) => [status, 0])) as Record<
-    T,
-    number
-  >;
+  const counts = Object.fromEntries(
+    statuses.map((status) => [status, 0]),
+  ) as Record<T, number>;
   for (const item of items) {
     counts[item.status] += 1;
   }
@@ -285,15 +289,26 @@ export function clusterFindings(
 
     for (const [component, members] of byComponent) {
       const distinctPaths = new Set(
-        members.filter(isSourceFinding).map((finding) => finding.location.filePath),
+        members
+          .filter(isSourceFinding)
+          .map((finding) => finding.location.filePath),
       );
       if (distinctPaths.size < 2) continue;
-      pushCluster(clusters, checkId, controlTitle, "component", members, component);
+      pushCluster(
+        clusters,
+        checkId,
+        controlTitle,
+        "component",
+        members,
+        component,
+      );
     }
 
     for (const [dir, members] of byDir) {
       const fileKeys = new Set(
-        members.filter(isSourceFinding).map((finding) => finding.location.filePath),
+        members
+          .filter(isSourceFinding)
+          .map((finding) => finding.location.filePath),
       );
       if (fileKeys.size === 1) continue;
       pushCluster(clusters, checkId, controlTitle, "dir", members, dir);
@@ -465,16 +480,27 @@ export function unableToVerifyReason(
 }
 
 const UNABLE_TO_VERIFY_REASON_LABEL: Record<UnableToVerifyReason, string> = {
-  needs_preview_url: "Needs a preview URL — runtime-only checks cannot run on source alone.",
-  needs_human_review: "Needs human review — this control is not machine-scored.",
+  needs_preview_url:
+    "Needs a preview URL — runtime-only checks cannot run on source alone.",
+  needs_human_review:
+    "Needs human review — this control is not machine-scored.",
   needs_pertinence_review: "Presence checked; pertinence needs a human.",
-  needs_heuristic_review: "No suspicious pattern was found; that is not a pass of the criterion — a human still needs to review.",
-  runtime_only_pending: "Preview URL is set — re-run assessment after the preview is reachable.",
-  non_scorable: "Could not verify automatically — review manually or record an exception.",
+  needs_heuristic_review:
+    "No suspicious pattern was found; that is not a pass of the criterion — a human still needs to review.",
+  runtime_only_pending:
+    "Preview URL is set — re-run assessment after the preview is reachable.",
+  non_scorable:
+    "Could not verify automatically — review manually or record an exception.",
 };
 
-export function unableToVerifyReasonLabel(reason: UnableToVerifyReason): string {
-  return mustGet(UNABLE_TO_VERIFY_REASON_LABEL, reason, "unable-to-verify reason");
+export function unableToVerifyReasonLabel(
+  reason: UnableToVerifyReason,
+): string {
+  return mustGet(
+    UNABLE_TO_VERIFY_REASON_LABEL,
+    reason,
+    "unable-to-verify reason",
+  );
 }
 
 function canTransition(
@@ -567,7 +593,7 @@ export function refreshSuggestion(
 export function hasSafeDeterministicFix(finding: Finding): boolean {
   return Boolean(
     finding.fix &&
-      !(finding.fix.kind === "insert_attribute" && finding.fix.editable),
+    !(finding.fix.kind === "insert_attribute" && finding.fix.editable),
   );
 }
 

@@ -4,7 +4,10 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PatchCandidate } from "@/ai/verified-fix";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding, Remediation } from "@complyloop/db/types";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { emptyDb } from "@complyloop/db/types";
 import {
@@ -109,9 +112,9 @@ describe("runAiFixOnCheckout", () => {
       {
         propose,
         scan: () =>
-          fs.readFileSync(path.join(root, "Footer.tsx"), "utf8").includes(
-            "autoFocus",
-          )
+          fs
+            .readFileSync(path.join(root, "Footer.tsx"), "utf8")
+            .includes("autoFocus")
             ? [
                 {
                   checkId: "no-autofocus",

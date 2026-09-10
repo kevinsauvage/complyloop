@@ -13,7 +13,7 @@ import type {
   EvidenceRecord,
   Finding,
   Remediation,
-} from "@complyloop/db/types";
+} from "@complyloop/analysis-core/contract/entities";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 
 /** Active-project compliance rows for page reads (not the tenancy Workspace). */

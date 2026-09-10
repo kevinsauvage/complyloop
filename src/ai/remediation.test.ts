@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding } from "@complyloop/db/types";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import { generateObject } from "ai";
 import { generateAiRemediation } from "./remediation";
 import { AI_MODEL } from "./ai-call";
@@ -60,7 +60,9 @@ function sourceFinding(overrides: Partial<Finding> = {}): Finding {
 describe("generateAiRemediation", () => {
   it("returns null when AI credentials are missing", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "");
-    await expect(generateAiRemediation(sourceFinding(), control)).resolves.toBeNull();
+    await expect(
+      generateAiRemediation(sourceFinding(), control),
+    ).resolves.toBeNull();
     expect(generate).not.toHaveBeenCalled();
   });
 
@@ -94,7 +96,7 @@ describe("generateAiRemediation", () => {
     generate.mockResolvedValue({
       object: {
         description: "Fix the call site",
-        proposedSnippet: "<Input aria-label=\"Email\" />",
+        proposedSnippet: '<Input aria-label="Email" />',
         attributeValue: "   ",
         confidence: "medium",
       },
@@ -123,13 +125,17 @@ describe("generateAiRemediation", () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockRejectedValue(new Error("gateway down"));
 
-    await expect(generateAiRemediation(sourceFinding(), control)).resolves.toBeNull();
+    await expect(
+      generateAiRemediation(sourceFinding(), control),
+    ).resolves.toBeNull();
   });
 
   it("returns null when the model rejects with a non-Error", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockRejectedValue("boom");
 
-    await expect(generateAiRemediation(sourceFinding(), control)).resolves.toBeNull();
+    await expect(
+      generateAiRemediation(sourceFinding(), control),
+    ).resolves.toBeNull();
   });
 });

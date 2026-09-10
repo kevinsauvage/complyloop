@@ -1,4 +1,11 @@
-import type { Alert, Assessment, AssessmentSnapshot, EvidenceRecord, Finding, Remediation } from "../types";
+import type {
+  Alert,
+  Assessment,
+  AssessmentSnapshot,
+  EvidenceRecord,
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type {
   OrgMembership,
   Organization,
@@ -17,10 +24,10 @@ import { evidence } from "../schema.ts";
  */
 
 /** Row = the typed payload plus its indexed projection columns. */
-function withPayload<T extends { id: string }, E extends Record<string, unknown>>(
-  entity: T,
-  extra: E,
-) {
+function withPayload<
+  T extends { id: string },
+  E extends Record<string, unknown>,
+>(entity: T, extra: E) {
   return { id: entity.id, ...extra, payload: entity };
 }
 

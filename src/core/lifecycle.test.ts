@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { Assessment, Finding, Remediation } from "@complyloop/db/types";
+import type {
+  Assessment,
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { RemediationSuggestion } from "@complyloop/analysis-core/contract/finding-types";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
@@ -218,7 +222,11 @@ function rootCauseFinding(
   };
 }
 
-function rootCauseDomFinding(id: string, checkId: string, url: string): Finding {
+function rootCauseDomFinding(
+  id: string,
+  checkId: string,
+  url: string,
+): Finding {
   return {
     id,
     projectId: "p1",
@@ -273,12 +281,15 @@ describe("clusterFindings", () => {
       ],
       rootCauseControls,
     );
-    expect(clusters.some((cluster) => cluster.sharedLocation === "components/ProductCard.tsx")).toBe(
-      true,
-    );
     expect(
-      clusters.find((cluster) => cluster.sharedLocation === "components/ProductCard.tsx")
-        ?.findingIds,
+      clusters.some(
+        (cluster) => cluster.sharedLocation === "components/ProductCard.tsx",
+      ),
+    ).toBe(true);
+    expect(
+      clusters.find(
+        (cluster) => cluster.sharedLocation === "components/ProductCard.tsx",
+      )?.findingIds,
     ).toHaveLength(2);
   });
 
@@ -303,14 +314,17 @@ describe("clusterFindings", () => {
       ],
       rootCauseControls,
     );
-    expect(clusters.some((cluster) => cluster.sharedLocation === "components/")).toBe(
-      true,
-    );
+    expect(
+      clusters.some((cluster) => cluster.sharedLocation === "components/"),
+    ).toBe(true);
   });
 
   it("ignores singleton findings", () => {
     expect(
-      clusterFindings([rootCauseFinding("1", "img-alt", "solo.tsx")], rootCauseControls),
+      clusterFindings(
+        [rootCauseFinding("1", "img-alt", "solo.tsx")],
+        rootCauseControls,
+      ),
     ).toHaveLength(0);
   });
 
@@ -339,20 +353,36 @@ describe("clusterFindings", () => {
       rootCauseControls,
     );
     const fileCluster = clusters.find(
-      (cluster) => cluster.sharedLocation === "src/components/features/contact/ContactForm.tsx",
+      (cluster) =>
+        cluster.sharedLocation ===
+        "src/components/features/contact/ContactForm.tsx",
     );
     expect(fileCluster).toBeDefined();
     expect(fileCluster?.checkId).toBe("form-error-association");
     expect(fileCluster?.findingIds).toEqual(["f1", "f2", "f3"]);
-    expect(fileCluster?.label).toContain("Form errors are associated with fields");
+    expect(fileCluster?.label).toContain(
+      "Form errors are associated with fields",
+    );
   });
 
   it("clusters DOM findings that share a URL", () => {
     const clusters = clusterFindings(
       [
-        rootCauseDomFinding("d1", "color-contrast", "https://preview.example.com/"),
-        rootCauseDomFinding("d2", "color-contrast", "https://preview.example.com/"),
-        rootCauseDomFinding("d3", "color-contrast", "https://preview.example.com/other"),
+        rootCauseDomFinding(
+          "d1",
+          "color-contrast",
+          "https://preview.example.com/",
+        ),
+        rootCauseDomFinding(
+          "d2",
+          "color-contrast",
+          "https://preview.example.com/",
+        ),
+        rootCauseDomFinding(
+          "d3",
+          "color-contrast",
+          "https://preview.example.com/other",
+        ),
       ],
       rootCauseControls,
     );
@@ -388,9 +418,9 @@ describe("clusterFindings", () => {
       ],
       rootCauseControls,
     );
-    expect(
-      clusters.some((cluster) => cluster.id.includes(":component:")),
-    ).toBe(false);
+    expect(clusters.some((cluster) => cluster.id.includes(":component:"))).toBe(
+      false,
+    );
   });
 
   it("uses (project root) for files without a directory and skips closed findings", () => {
@@ -398,7 +428,10 @@ describe("clusterFindings", () => {
       [
         rootCauseFinding("1", "img-alt", "RootA.tsx"),
         rootCauseFinding("2", "img-alt", "RootB.tsx"),
-        { ...rootCauseFinding("3", "img-alt", "RootC.tsx"), status: "resolved" },
+        {
+          ...rootCauseFinding("3", "img-alt", "RootC.tsx"),
+          status: "resolved",
+        },
       ],
       rootCauseControls,
     );
@@ -475,8 +508,14 @@ describe("prioritization", () => {
       { ...controls[0], id: "ctl-hi", complianceWeight: 2 },
       { ...controls[0], id: "ctl-lo", complianceWeight: 1 },
     ];
-    const hi = { ...finding("1", "img-alt", "a.tsx", "serious"), controlId: "ctl-hi" };
-    const lo = { ...finding("2", "img-alt", "b.tsx", "serious"), controlId: "ctl-lo" };
+    const hi = {
+      ...finding("1", "img-alt", "a.tsx", "serious"),
+      controlId: "ctl-hi",
+    };
+    const lo = {
+      ...finding("2", "img-alt", "b.tsx", "serious"),
+      controlId: "ctl-lo",
+    };
     const ordered = prioritizeFindings([lo, hi], weighted);
     expect(ordered.map((f) => f.id)).toEqual(["1", "2"]);
   });
@@ -548,8 +587,12 @@ describe("unableToVerifyReason", () => {
   });
 
   it("labels reasons in engineer language", () => {
-    expect(unableToVerifyReasonLabel("needs_preview_url")).toMatch(/preview URL/i);
-    expect(unableToVerifyReasonLabel("needs_human_review")).toMatch(/human review/i);
+    expect(unableToVerifyReasonLabel("needs_preview_url")).toMatch(
+      /preview URL/i,
+    );
+    expect(unableToVerifyReasonLabel("needs_human_review")).toMatch(
+      /human review/i,
+    );
     expect(unableToVerifyReasonLabel("needs_pertinence_review")).toMatch(
       /Presence checked/i,
     );
@@ -610,13 +653,15 @@ describe("unableToVerifyReason", () => {
     for (const reason of reasons) {
       expect(unableToVerifyReasonLabel(reason).length).toBeGreaterThan(0);
     }
-    expect(unableToVerifyReasonLabel("non_scorable")).toMatch(/review|exception/i);
+    expect(unableToVerifyReasonLabel("non_scorable")).toMatch(
+      /review|exception/i,
+    );
   });
 
   it("throws on an unhandled reason", () => {
-    expect(() =>
-      unableToVerifyReasonLabel("bogus" as never),
-    ).toThrow(/Unhandled unable-to-verify reason/);
+    expect(() => unableToVerifyReasonLabel("bogus" as never)).toThrow(
+      /Unhandled unable-to-verify reason/,
+    );
   });
 });
 
@@ -640,40 +685,47 @@ const suggestion: RemediationSuggestion = {
 
 describe("advanceRemediation", () => {
   it("follows the remediation lifecycle in order", () => {
-    expect(advanceRemediation(remediation("detected"), "suggested").status).toBe(
-      "suggested",
-    );
-    expect(advanceRemediation(remediation("suggested"), "approved").status).toBe(
-      "approved",
-    );
-    expect(advanceRemediation(remediation("approved"), "implemented").status).toBe(
-      "implemented",
-    );
+    expect(
+      advanceRemediation(remediation("detected"), "suggested").status,
+    ).toBe("suggested");
+    expect(
+      advanceRemediation(remediation("suggested"), "approved").status,
+    ).toBe("approved");
+    expect(
+      advanceRemediation(remediation("approved"), "implemented").status,
+    ).toBe("implemented");
     expect(
       advanceRemediation(remediation("implemented"), "verified").status,
     ).toBe("verified");
   });
 
   it("appends a history entry on a valid transition", () => {
-    const advanced = advanceRemediation(remediation("suggested"), "approved", "ok");
+    const advanced = advanceRemediation(
+      remediation("suggested"),
+      "approved",
+      "ok",
+    );
     expect(advanced.status).toBe("approved");
     expect(advanced.history).toHaveLength(2);
-    expect(advanced.history[1]).toMatchObject({ status: "approved", note: "ok" });
+    expect(advanced.history[1]).toMatchObject({
+      status: "approved",
+      note: "ok",
+    });
   });
 
   it("rejects skipping stages or moving backwards", () => {
-    expect(() => advanceRemediation(remediation("detected"), "verified")).toThrow(
-      /Invalid remediation transition/,
-    );
+    expect(() =>
+      advanceRemediation(remediation("detected"), "verified"),
+    ).toThrow(/Invalid remediation transition/);
     expect(() =>
       advanceRemediation(remediation("suggested"), "implemented"),
     ).toThrow(/Invalid remediation transition/);
-    expect(() => advanceRemediation(remediation("approved"), "suggested")).toThrow(
-      /Invalid remediation transition/,
-    );
-    expect(() => advanceRemediation(remediation("verified"), "detected")).toThrow(
-      /Invalid remediation transition/,
-    );
+    expect(() =>
+      advanceRemediation(remediation("approved"), "suggested"),
+    ).toThrow(/Invalid remediation transition/);
+    expect(() =>
+      advanceRemediation(remediation("verified"), "detected"),
+    ).toThrow(/Invalid remediation transition/);
   });
 });
 
@@ -1011,15 +1063,11 @@ describe("findingAct", () => {
 
 describe("canBulkApproveRemediation", () => {
   it("allows bulk approve for open runtime findings with a suggestion", () => {
-    expect(
-      canBulkApproveRemediation(domFinding, "suggested"),
-    ).toBe(true);
+    expect(canBulkApproveRemediation(domFinding, "suggested")).toBe(true);
   });
 
   it("does not bulk approve source findings even when suggested", () => {
-    expect(
-      canBulkApproveRemediation(sourceFinding, "suggested"),
-    ).toBe(false);
+    expect(canBulkApproveRemediation(sourceFinding, "suggested")).toBe(false);
   });
 
   it("does not bulk approve resolved or non-suggested runtime findings", () => {

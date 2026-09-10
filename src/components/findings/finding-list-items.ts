@@ -1,4 +1,7 @@
-import type { Finding, Remediation } from "@complyloop/db/types";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { RemediationStatus } from "@complyloop/analysis-core/contract/statuses";
 

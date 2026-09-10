@@ -1,6 +1,9 @@
 import { and, count, eq, inArray, sql } from "drizzle-orm";
-import { FINDING_STATUSES, type FindingStatus } from "@complyloop/analysis-core/contract/statuses";
-import type { Finding } from "../types";
+import {
+  FINDING_STATUSES,
+  type FindingStatus,
+} from "@complyloop/analysis-core/contract/statuses";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { DrizzleDb } from "../postgres.ts";
 import { findings } from "../schema.ts";
 import { findingToRow } from "./mappers.ts";

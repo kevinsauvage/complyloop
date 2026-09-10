@@ -21,7 +21,13 @@ import type {
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
-import type { Alert, Assessment, AssessmentSnapshot, Finding, Remediation } from "./types";
+import type {
+  Alert,
+  Assessment,
+  AssessmentSnapshot,
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import {
   FINDING_STATUSES,
   REMEDIATION_STATUSES,
@@ -164,15 +170,12 @@ export const assessments = pgTable(
 );
 
 /** File-hash snapshot for change detection; loaded only during assessment runs. */
-export const assessmentSnapshots = pgTable(
-  "assessment_snapshots",
-  {
-    assessmentId: text("assessment_id")
-      .primaryKey()
-      .references(() => assessments.id, { onDelete: "cascade" }),
-    snapshot: jsonb("snapshot").$type<AssessmentSnapshot>().notNull(),
-  },
-);
+export const assessmentSnapshots = pgTable("assessment_snapshots", {
+  assessmentId: text("assessment_id")
+    .primaryKey()
+    .references(() => assessments.id, { onDelete: "cascade" }),
+  snapshot: jsonb("snapshot").$type<AssessmentSnapshot>().notNull(),
+});
 
 export const findings = pgTable(
   "findings",
@@ -274,7 +277,10 @@ export const githubTokens = pgTable("github_tokens", {
   iv: text("iv").notNull(),
   tag: text("tag").notNull(),
   ciphertext: text("ciphertext").notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
   refreshToken: text("refresh_token"),
   refreshIv: text("refresh_iv"),
   refreshTag: text("refresh_tag"),
@@ -291,7 +297,9 @@ export const webhookDeliveries = pgTable(
       mode: "string",
     }).notNull(),
   },
-  (table) => [index("webhook_deliveries_processed_at_idx").on(table.processedAt)],
+  (table) => [
+    index("webhook_deliveries_processed_at_idx").on(table.processedAt),
+  ],
 );
 
 export const assessmentJobs = pgTable(
@@ -308,13 +316,28 @@ export const assessmentJobs = pgTable(
     payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
     attempts: integer("attempts").notNull().default(0),
     maxAttempts: integer("max_attempts").notNull().default(3),
-    availableAt: timestamp("available_at", { withTimezone: true, mode: "string" }).notNull(),
+    availableAt: timestamp("available_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
     startedAt: timestamp("started_at", { withTimezone: true, mode: "string" }),
-    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true, mode: "string" }),
-    completedAt: timestamp("completed_at", { withTimezone: true, mode: "string" }),
+    leaseExpiresAt: timestamp("lease_expires_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
     error: text("error"),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
   },
   (table) => [
     index("assessment_jobs_ready_idx").on(table.status, table.availableAt),
@@ -347,11 +370,13 @@ export const rateLimitBuckets = pgTable(
       mode: "string",
     }).notNull(),
     count: integer("count").notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
   },
   (table) => [
     index("rate_limit_buckets_updated_at_idx").on(table.updatedAt),
     check("rate_limit_buckets_count_check", sql`${table.count} >= 0`),
   ],
 );
-

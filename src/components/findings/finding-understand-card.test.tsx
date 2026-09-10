@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Finding } from "@complyloop/db/types";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import { FindingUnderstandCard } from "./finding-understand-card";
 
 vi.mock("@/server/actions/remediation-ai", () => ({
@@ -43,7 +43,7 @@ const finding: Finding = {
   fix: null,
   explanations: [
     {
-      whyItFailed: '<header> already has an implicit banner role.',
+      whyItFailed: "<header> already has an implicit banner role.",
       impact: "Redundant roles can confuse assistive technologies.",
       howToFix: "Remove the redundant role.",
       provenance: "deterministic",
@@ -62,11 +62,7 @@ describe("FindingUnderstandCard", () => {
       false,
     ]);
     render(
-      <FindingUnderstandCard
-        finding={finding}
-        canRemediate
-        aiAvailable
-      />,
+      <FindingUnderstandCard finding={finding} canRemediate aiAvailable />,
     );
 
     expect(
@@ -92,7 +88,7 @@ describe("FindingUnderstandCard", () => {
         url: "https://www.kevin-sauvage.com/a",
         selector: 'a[href="/contact"]',
         snippet: "<a>Contact</a>",
-        elementLabel: 'link “Get in touch”',
+        elementLabel: "link “Get in touch”",
         context:
           "Covered by `header#top.sticky` at the top-left of the focus ring",
       },
@@ -106,7 +102,7 @@ describe("FindingUnderstandCard", () => {
     );
 
     expect(screen.getByText("Element")).toBeInTheDocument();
-    expect(screen.getByText('link “Get in touch”')).toBeInTheDocument();
+    expect(screen.getByText("link “Get in touch”")).toBeInTheDocument();
     expect(screen.getByText("Context")).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -123,11 +119,7 @@ describe("FindingUnderstandCard", () => {
       false,
     ]);
     render(
-      <FindingUnderstandCard
-        finding={finding}
-        canRemediate
-        aiAvailable
-      />,
+      <FindingUnderstandCard finding={finding} canRemediate aiAvailable />,
     );
 
     expect(screen.getByText("AI explanation")).toBeInTheDocument();

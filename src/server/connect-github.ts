@@ -1,8 +1,11 @@
 import "server-only";
 import fs from "node:fs";
 import { hasSourceFiles } from "@complyloop/analysis-core/source-files";
-import type { Project, ProjectGitHubMeta } from "@complyloop/analysis-core/contract/project-types";
-import { type EvidenceRecord } from "@complyloop/db/types";
+import type {
+  Project,
+  ProjectGitHubMeta,
+} from "@complyloop/analysis-core/contract/project-types";
+import { type EvidenceRecord } from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { canOnProject } from "@/core/rbac";
 import { defaultConnectPreset } from "@complyloop/analysis-core/adapters/registry";
@@ -55,9 +58,12 @@ export function isConnectedGitHubProject(
   activeOrgId: string | null,
 ): boolean {
   if (!activeOrgId) return false;
-  if (project.source !== "github" || project.orgId !== activeOrgId) return false;
+  if (project.source !== "github" || project.orgId !== activeOrgId)
+    return false;
   if (project.github?.fullName) {
-    return normalizeGitHubFullName(project.github.fullName) === normalizedFullName;
+    return (
+      normalizeGitHubFullName(project.github.fullName) === normalizedFullName
+    );
   }
   // Legacy rows without github meta: fall back to case-insensitive sourceRef.
   return (
@@ -73,7 +79,9 @@ export function findConnectedGitHubProject(
 ): Project | undefined {
   if (!activeOrgId) return undefined;
   const needle = normalizeGitHubFullName(fullName);
-  return projects.find((project) => isConnectedGitHubProject(project, needle, activeOrgId));
+  return projects.find((project) =>
+    isConnectedGitHubProject(project, needle, activeOrgId),
+  );
 }
 
 /**
@@ -115,7 +123,10 @@ export async function connectGitHubRepo(
 ): Promise<{ project: Project; evidence: EvidenceRecord[] }> {
   const fullName = input.fullName.trim();
   if (!/^[\w.-]+\/[\w.-]+$/.test(fullName)) {
-    throw new PublicError(`Invalid GitHub repository name: ${fullName}`, "connect");
+    throw new PublicError(
+      `Invalid GitHub repository name: ${fullName}`,
+      "connect",
+    );
   }
   if (!input.orgId) {
     throw new PublicError(
@@ -125,7 +136,11 @@ export async function connectGitHubRepo(
   }
 
   const sourceRef = `https://github.com/${fullName}`;
-  const existing = findConnectedGitHubProject(db.projects, fullName, input.orgId);
+  const existing = findConnectedGitHubProject(
+    db.projects,
+    fullName,
+    input.orgId,
+  );
   if (existing) {
     // Already connected: no-op, no duplicate evidence.
     return { project: existing, evidence: [] };
@@ -189,13 +204,20 @@ export function disconnectGitHubRepo(
   db: Db,
   projectId: string,
   userId: string,
-): { deleteProjectId: string; evidence: EvidenceRecord; nextProjectId: string | null } {
+): {
+  deleteProjectId: string;
+  evidence: EvidenceRecord;
+  nextProjectId: string | null;
+} {
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) {
     throw new PublicError("Unknown project.", "connect");
   }
   if (project.source !== "github") {
-    throw new PublicError("Only GitHub projects can be disconnected.", "connect");
+    throw new PublicError(
+      "Only GitHub projects can be disconnected.",
+      "connect",
+    );
   }
   if (!canOnProject(project, db.memberships, userId, "project.connect")) {
     throw new PublicError(
@@ -219,7 +241,8 @@ export function disconnectGitHubRepo(
     (candidate) => candidate.id !== projectId,
   );
   const nextProjectId =
-    resolveActiveProject(remaining, null, accessFromStore(db, userId))?.id ?? null;
+    resolveActiveProject(remaining, null, accessFromStore(db, userId))?.id ??
+    null;
 
   return { deleteProjectId: projectId, evidence, nextProjectId };
 }

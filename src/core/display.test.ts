@@ -29,7 +29,7 @@ import {
   type RequirementStatus,
   type Severity,
 } from "@complyloop/analysis-core/contract/statuses";
-import type { EvidenceKind } from "@complyloop/db/types";
+import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 
 const SEVERITIES: Severity[] = ["critical", "serious", "moderate", "minor"];
 
@@ -51,9 +51,9 @@ describe("requirementStatusDisplay", () => {
 
   it("describes every requirement status", () => {
     for (const status of REQUIREMENT_STATUSES) {
-      expect(requirementStatusDisplay(status).description.length).toBeGreaterThan(
-        10,
-      );
+      expect(
+        requirementStatusDisplay(status).description.length,
+      ).toBeGreaterThan(10);
     }
   });
 
@@ -117,7 +117,9 @@ describe("evidenceDisplay", () => {
     expect(evidenceDisplay("assessment_completed").label).toBe(
       "Assessment completed",
     );
-    expect(evidenceDisplay("requirements_imported").label).toBe("Scope updated");
+    expect(evidenceDisplay("requirements_imported").label).toBe(
+      "Scope updated",
+    );
     expect(evidenceDisplay("finding", { event: "detected" }).label).toBe(
       "Finding detected",
     );
@@ -230,12 +232,9 @@ describe("determinationDisplay", () => {
 
 describe("severityDisplay", () => {
   it("labels every severity", () => {
-    expect(SEVERITIES.map((severity) => severityDisplay(severity).label)).toEqual([
-      "Critical",
-      "Serious",
-      "Moderate",
-      "Minor",
-    ]);
+    expect(
+      SEVERITIES.map((severity) => severityDisplay(severity).label),
+    ).toEqual(["Critical", "Serious", "Moderate", "Minor"]);
   });
 
   it("describes every severity", () => {
@@ -271,8 +270,7 @@ describe("severityDisplay", () => {
       signal: "signal",
     };
     for (const [tone, token] of Object.entries(toneToken)) {
-      const classes =
-        STATUS_TONE_BADGE[tone as keyof typeof STATUS_TONE_BADGE];
+      const classes = STATUS_TONE_BADGE[tone as keyof typeof STATUS_TONE_BADGE];
       expect(classes).toContain(`bg-${token}/`);
       expect(classes).toContain(`text-${token}`);
     }
@@ -412,7 +410,11 @@ function mix(
   bg: [number, number, number],
   t: number,
 ): [number, number, number] {
-  return [fg[0] * t + bg[0] * (1 - t), fg[1] * t + bg[1] * (1 - t), fg[2] * t + bg[2] * (1 - t)];
+  return [
+    fg[0] * t + bg[0] * (1 - t),
+    fg[1] * t + bg[1] * (1 - t),
+    fg[2] * t + bg[2] * (1 - t),
+  ];
 }
 
 function contrast(
@@ -469,7 +471,10 @@ describe("report palette contrast", () => {
     ...Object.entries(STATUS_TONE_REPORT),
     ...SEVERITIES.map(
       (severity) =>
-        [severity, severityDisplay(severity).report] as [string, ReportColorPair],
+        [severity, severityDisplay(severity).report] as [
+          string,
+          ReportColorPair,
+        ],
     ),
   ];
 

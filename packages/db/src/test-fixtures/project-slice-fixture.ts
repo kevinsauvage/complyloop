@@ -1,11 +1,12 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { Alert, Finding, Remediation } from "../types";
+import type {
+  Alert,
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type { DrizzleDb } from "../postgres.ts";
-import {
-  snapshotProjectSlice,
-  type ProjectSlice,
-} from "../repo/apply.ts";
+import { snapshotProjectSlice, type ProjectSlice } from "../repo/apply.ts";
 import { upsertFindings } from "../repo/findings.ts";
 import { upsertRemediations } from "../repo/remediations.ts";
 import { upsertRequirements } from "../repo/requirements.ts";
@@ -184,9 +185,15 @@ export async function cleanupProjectSliceFixture(
   drizzle: DrizzleDb,
   fixture: ProjectSliceFixture,
 ): Promise<void> {
-  await drizzle.execute(sql`DELETE FROM projects WHERE id = ${fixture.projectId}`);
-  await drizzle.execute(sql`DELETE FROM memberships WHERE org_id = ${fixture.orgId}`);
-  await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${fixture.orgId}`);
+  await drizzle.execute(
+    sql`DELETE FROM projects WHERE id = ${fixture.projectId}`,
+  );
+  await drizzle.execute(
+    sql`DELETE FROM memberships WHERE org_id = ${fixture.orgId}`,
+  );
+  await drizzle.execute(
+    sql`DELETE FROM organizations WHERE id = ${fixture.orgId}`,
+  );
 }
 
 export async function loadProjectSlice(

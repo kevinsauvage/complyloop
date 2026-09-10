@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { Finding } from "@complyloop/db/types";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { RawFinding } from "@complyloop/analysis-core/types";
 import {
   applyFileEdits,
@@ -116,7 +116,9 @@ describe("applyFileEdits", () => {
     const root = tempRoot();
     fs.writeFileSync(path.join(root, "A.tsx"), "foo\n");
     expect(() =>
-      applyFileEdits(root, [{ path: "Missing.tsx", oldText: "x", newText: "y" }]),
+      applyFileEdits(root, [
+        { path: "Missing.tsx", oldText: "x", newText: "y" },
+      ]),
     ).toThrow(/File not found in checkout/);
   });
 });

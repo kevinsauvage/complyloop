@@ -37,7 +37,7 @@ External edges                           GitHub, Auth.js, Playwright/axe (via an
 
 ## P0 — Critical
 
-- [ ] **Move persisted domain entities out of the infrastructure type bag**
+- [x] **Move persisted domain entities out of the infrastructure type bag** — done: entities live in `packages/analysis-core/src/contract/entities.ts`, `FindingCluster` in `src/core/finding-cluster.ts`, `packages/db/src/types.ts` keeps only `Db`/`emptyDb` + compat re-exports.
   - Why: `Finding`, `Remediation`, `Assessment`, `EvidenceKind`, `FindingCluster`, etc. live in `packages/db/src/types.ts`, so “domain” and UI/`src/core`/`src/ai` all depend on the **database package** for business vocabulary. That inverts the intended dependency direction (`contract → db`) and makes persistence the source of truth for domain shape.
   - Where: `packages/db/src/types.ts`; consumers across `src/core/lifecycle.ts`, `src/core/display.ts`, `src/core/filter-params.ts`, `src/ai/*`, `src/server/**`, `src/components/**`, `src/app/**`.
   - Current: Contract holds statuses/locations/`RawFinding`; db `Finding` extends `RawFinding` with ids, project/control/assessment linkage, lifecycle fields, and stale-write `updatedAt`. Clustering UI type `FindingCluster` is also declared in db types.

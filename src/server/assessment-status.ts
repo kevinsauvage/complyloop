@@ -1,5 +1,8 @@
 import "server-only";
-import { type Finding, type EvidenceRecord } from "@complyloop/db/types";
+import {
+  type Finding,
+  type EvidenceRecord,
+} from "@complyloop/analysis-core/contract/entities";
 import {
   deriveRequirementStatus,
   isStickyHumanDecision,
@@ -21,9 +24,7 @@ import { controlsInScope } from "./project-scope";
 import type { ProjectRows } from "./project-rows";
 
 /** Human exceptions and human passes block automated status overwrite. */
-function requirementIsSticky(
-  requirement: Requirement | undefined,
-): boolean {
+function requirementIsSticky(requirement: Requirement | undefined): boolean {
   if (!requirement) return false;
   return isStickyHumanDecision({
     determination: requirement.determination,
@@ -120,23 +121,27 @@ function statusFromFindings(
   openFindings: ReadonlyArray<Pick<Finding, "kind">>,
   options: Pick<
     RefreshRequirementStatusesOptions,
-    "runtimeRan" | "siteLevelChecksRan" | "htmlValidateRan" | "applicabilityFacts" | "filesScanned"
+    | "runtimeRan"
+    | "siteLevelChecksRan"
+    | "htmlValidateRan"
+    | "applicabilityFacts"
+    | "filesScanned"
   >,
 ): RequirementStatus {
-return deriveRequirementStatus({
-      authority: checkId === null ? "manual" : authorityForCheck(checkId),
-      openFindings,
-      audit: {
-        runtimeRan: options.runtimeRan,
-        siteLevelChecksRan: options.siteLevelChecksRan,
-        htmlValidateRequired:
-          checkId !== null && isHtmlValidateOwnedCheck(checkId),
-        htmlValidateRan: options.htmlValidateRan,
-        applicabilityConfirmed:
-          checkId !== null && Boolean(options.applicabilityFacts?.has(checkId)),
-        filesScanned: options.filesScanned,
-      },
-    });
+  return deriveRequirementStatus({
+    authority: checkId === null ? "manual" : authorityForCheck(checkId),
+    openFindings,
+    audit: {
+      runtimeRan: options.runtimeRan,
+      siteLevelChecksRan: options.siteLevelChecksRan,
+      htmlValidateRequired:
+        checkId !== null && isHtmlValidateOwnedCheck(checkId),
+      htmlValidateRan: options.htmlValidateRan,
+      applicabilityConfirmed:
+        checkId !== null && Boolean(options.applicabilityFacts?.has(checkId)),
+      filesScanned: options.filesScanned,
+    },
+  });
 }
 
 /** Later id wins — used when merging refresh/clearance results into scratch rows. */

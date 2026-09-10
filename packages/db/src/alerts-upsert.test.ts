@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 import { closeDrizzle, getDrizzle, type DrizzleDb } from "./postgres";
 import { upsertAlerts } from "./repo/alerts";
-import type { Alert } from "./types";
+import type { Alert } from "@complyloop/analysis-core/contract/entities";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Skipped in the default CI quality job. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());
@@ -40,7 +40,12 @@ describe.skipIf(!enabled)("alert upserts", () => {
       // Insert twice: the second write is an in-place update of the same row.
       await upsertAlerts(drizzle, [base]);
       await upsertAlerts(drizzle, [
-        { ...base, summary: "second", read: true, at: "2026-01-02T00:00:00.000Z" },
+        {
+          ...base,
+          summary: "second",
+          read: true,
+          at: "2026-01-02T00:00:00.000Z",
+        },
       ]);
 
       const rows = await drizzle.execute(sql`

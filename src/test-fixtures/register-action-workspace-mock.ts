@@ -1,7 +1,13 @@
 import { vi } from "vitest";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { actionAuthMocks, actionWorkspaceMocks } from "./action-workspace-mocks";
-import type { Finding, Remediation } from "@complyloop/db/types";
+import {
+  actionAuthMocks,
+  actionWorkspaceMocks,
+} from "./action-workspace-mocks";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type { ProjectWriteWorkspace } from "@/server/workspace";
 import { requireOnFindingProject } from "@/server/actions/shared";
 
@@ -18,9 +24,10 @@ vi.mock("@/auth", () => ({
 }));
 
 vi.mock("@/server/workspace", async () => {
-  const actual = await vi.importActual<typeof import("@/server/workspace")>(
-    "@/server/workspace",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/server/workspace")>(
+      "@/server/workspace",
+    );
 
   type WriteSlice = {
     db?: { findings: Finding[]; remediations: Remediation[] };
@@ -30,26 +37,31 @@ vi.mock("@/server/workspace", async () => {
     ...actual,
     getWorkspace: () => actionWorkspaceMocks.getWorkspace(),
     requireFinding: async (findingId: string) => {
-      const workspace = (await actionWorkspaceMocks.getWorkspace()) as WriteSlice;
-      const finding = workspace.db?.findings.find((row) => row.id === findingId);
+      const workspace =
+        (await actionWorkspaceMocks.getWorkspace()) as WriteSlice;
+      const finding = workspace.db?.findings.find(
+        (row) => row.id === findingId,
+      );
       if (!finding) throw new PublicError("Unknown finding.");
       return finding;
     },
     requireRemediationForFinding: async (findingId: string) => {
-      const workspace = (await actionWorkspaceMocks.getWorkspace()) as WriteSlice;
+      const workspace =
+        (await actionWorkspaceMocks.getWorkspace()) as WriteSlice;
       const remediation = workspace.db?.remediations.find(
         (row) => row.findingId === findingId,
       );
-      if (!remediation) throw new PublicError("No remediation for that finding.");
+      if (!remediation)
+        throw new PublicError("No remediation for that finding.");
       return remediation;
     },
   };
 });
 
 vi.mock("@/server/workspace-write", async () => {
-  const actual = await vi.importActual<typeof import("@/server/workspace-write")>(
-    "@/server/workspace-write",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/server/workspace-write")
+  >("@/server/workspace-write");
   return {
     ...actual,
     withProjectWrite: (fn: Parameters<typeof actual.withProjectWrite>[0]) =>

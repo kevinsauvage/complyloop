@@ -1,5 +1,5 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import type { Alert } from "../types";
+import type { Alert } from "@complyloop/analysis-core/contract/entities";
 import type { DrizzleDb } from "../postgres.ts";
 import { alerts } from "../schema.ts";
 import { alertToRow } from "./mappers.ts";
@@ -39,7 +39,10 @@ export async function listAlertsForProjects(
   return rows.map((row) => row.payload);
 }
 
-export async function markAlertRead(tx: DrizzleDb, alert: Alert): Promise<void> {
+export async function markAlertRead(
+  tx: DrizzleDb,
+  alert: Alert,
+): Promise<void> {
   const updated = { ...alert, read: true };
   await upsertAlerts(tx, [updated]);
 }

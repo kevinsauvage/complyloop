@@ -25,8 +25,8 @@ import type {
   EvidenceRecord,
   FileChange,
   Finding,
-  FindingCluster,
-} from "@complyloop/db/types";
+} from "@complyloop/analysis-core/contract/entities";
+import type { FindingCluster } from "@/core/finding-cluster";
 
 function ActivityCard({
   title,
@@ -56,7 +56,9 @@ function ActivityCard({
             </span>
           ) : null}
           <div className="min-w-0">
-            <CardTitle level={3} className="text-base">{title}</CardTitle>
+            <CardTitle level={3} className="text-base">
+              {title}
+            </CardTitle>
             {description ? (
               <CardDescription className="mt-1">{description}</CardDescription>
             ) : null}
@@ -92,13 +94,11 @@ export function DashboardActivitySections({
   const verifiedIds = new Set(recentVerified.map((record) => record.id));
   const mergedActivity = (() => {
     const seen = new Set<string>();
-    const combined = [...recentEvidence, ...recentVerified].filter(
-      (record) => {
-        if (seen.has(record.id)) return false;
-        seen.add(record.id);
-        return true;
-      },
-    );
+    const combined = [...recentEvidence, ...recentVerified].filter((record) => {
+      if (seen.has(record.id)) return false;
+      seen.add(record.id);
+      return true;
+    });
     combined.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
     return combined.slice(0, 6);
   })();
@@ -148,7 +148,8 @@ export function DashboardActivitySections({
           icon={Layers}
         >
           <p className="text-sm text-muted-foreground">
-            Keep running assessments after code changes to catch regressions early.
+            Keep running assessments after code changes to catch regressions
+            early.
           </p>
         </ActivityCard>
       ) : null}
@@ -170,8 +171,12 @@ export function DashboardActivitySections({
               monitoring for regressions after the next assessment.
             </p>
             <div className="flex flex-wrap gap-2">
-              <PageActionLink href="/evidence">View evidence trail</PageActionLink>
-              <PageActionLink href="/requirements">View requirements</PageActionLink>
+              <PageActionLink href="/evidence">
+                View evidence trail
+              </PageActionLink>
+              <PageActionLink href="/requirements">
+                View requirements
+              </PageActionLink>
             </div>
           </div>
         ) : (
@@ -245,7 +250,10 @@ export function DashboardActivitySections({
                   key={cluster.id}
                   className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/15 px-3 py-2 text-sm"
                 >
-                  <Link href="/findings?tab=by_cause" className="font-medium hover:text-signal hover:underline">
+                  <Link
+                    href="/findings?tab=by_cause"
+                    className="font-medium hover:text-signal hover:underline"
+                  >
                     {cluster.label}
                   </Link>
                   <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
@@ -258,7 +266,11 @@ export function DashboardActivitySections({
         ) : null}
       </div>
 
-      <ActivityCard title="Recent activity" className="lg:col-span-12" icon={Layers}>
+      <ActivityCard
+        title="Recent activity"
+        className="lg:col-span-12"
+        icon={Layers}
+      >
         {mergedActivity.length === 0 ? (
           <p className="text-sm text-muted-foreground">No evidence yet.</p>
         ) : (

@@ -3,9 +3,19 @@ import fs from "node:fs";
 import { createTwoFilesPatch } from "diff";
 import { applyFix } from "@complyloop/analysis-core/fixes";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
-import { formatLocationRef, isSourceLocation, locationSnippet } from "@complyloop/analysis-core/contract/location";
-import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
-import type { Finding, Remediation } from "@complyloop/db/types"
+import {
+  formatLocationRef,
+  isSourceLocation,
+  locationSnippet,
+} from "@complyloop/analysis-core/contract/location";
+import type {
+  Control,
+  Project,
+} from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type { ProposedFix } from "@complyloop/analysis-core/contract/finding-types";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 
@@ -52,15 +62,15 @@ export function buildDeveloperHandoff(
   const verificationSteps =
     finding.location.kind === "dom"
       ? [
-        `1. Fix the unlabeled/incorrect control in the form that renders on this page (not in a shared Input primitive unless every consumer is wrong).`,
-        `2. Re-run the runtime audit on \`${finding.location.url}\` — the \`${finding.checkId}\` Finding at \`${finding.location.selector}\` must be gone.`,
-        `3. Keep the evidence trail (assessment + remediation history) for audit.`,
-      ]
+          `1. Fix the unlabeled/incorrect control in the form that renders on this page (not in a shared Input primitive unless every consumer is wrong).`,
+          `2. Re-run the runtime audit on \`${finding.location.url}\` — the \`${finding.checkId}\` Finding at \`${finding.location.selector}\` must be gone.`,
+          `3. Keep the evidence trail (assessment + remediation history) for audit.`,
+        ]
       : [
-        `1. Create a draft pull request from this Finding page on GitHub.`,
-        `2. Merge the PR, then re-run assessment — the \`${finding.checkId}\` check must no longer fail at this location.`,
-        `3. Keep the evidence trail (assessment + remediation history) for audit.`,
-      ];
+          `1. Create a draft pull request from this Finding page on GitHub.`,
+          `2. Merge the PR, then re-run assessment — the \`${finding.checkId}\` check must no longer fail at this location.`,
+          `3. Keep the evidence trail (assessment + remediation history) for audit.`,
+        ];
 
   const body = [
     `## Requirement`,
@@ -82,16 +92,15 @@ export function buildDeveloperHandoff(
     `## Proposed change`,
     ``,
     suggestion?.description ??
-    (finding.location.kind === "dom"
-      ? "Locate the call site that renders this control and associate a visible `<label>` or accessible name. Do not add a generic aria-label on a shared primitive."
-      : "See finding detail for remediation guidance."),
+      (finding.location.kind === "dom"
+        ? "Locate the call site that renders this control and associate a visible `<label>` or accessible name. Do not add a generic aria-label on a shared primitive."
+        : "See finding detail for remediation guidance."),
     ``,
-    suggestion
-      ? ["```", suggestion.proposedSnippet, "```", ""].join("\n")
-      : "",
+    suggestion ? ["```", suggestion.proposedSnippet, "```", ""].join("\n") : "",
     `## Why this solves it`,
     ``,
-    explanation?.howToFix ?? "Apply the proposed change and re-run the automated check.",
+    explanation?.howToFix ??
+      "Apply the proposed change and re-run the automated check.",
     ``,
     `## Verification`,
     ``,
