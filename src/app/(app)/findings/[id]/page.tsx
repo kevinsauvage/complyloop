@@ -4,19 +4,19 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { aiExplanationAvailable } from "@/ai/explainer";
 import {
-  ConfidenceBadge,
-  EngineBadge,
   FindingStatusBadge,
   RemediationStatusBadge,
   SeverityBadge,
 } from "@/components/badges";
+import { BadgeWithDescription } from "@/components/badge-with-description";
+import { CopyButton } from "@/components/copy-button";
 import { DeveloperHandoffCard } from "@/components/developer-handoff";
 import { FindingNextStepPanel } from "@/components/findings/finding-next-step-panel";
 import { FindingQueueNav } from "@/components/findings/finding-queue-nav";
 import { FindingUnderstandCard } from "@/components/findings/finding-understand-card";
 import { RemediationHistory } from "@/components/findings/remediation-history";
 import { findingAct } from "@/core/finding-act";
-import { evidenceDisplay } from "@/core/status-display";
+import { confidenceDisplay, engineDisplay, evidenceDisplay } from "@/core/status-display";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   findingQueuePosition,
@@ -179,16 +179,29 @@ export default async function FindingPage({
         >
           <FindingStatusBadge status={finding.status} />
           <SeverityBadge severity={finding.severity} />
-          <ConfidenceBadge confidence={finding.confidence} />
           <RemediationStatusBadge status={remediation.status} />
-          <EngineBadge engine={engineFor(finding)} />
+        </div>
+        <p className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground sm:justify-end">
+          <BadgeWithDescription
+            description={engineDisplay(engineFor(finding)).description}
+          >
+            <span>{engineDisplay(engineFor(finding)).label}</span>
+          </BadgeWithDescription>
+          <span aria-hidden>·</span>
+          <BadgeWithDescription
+            description={confidenceDisplay(finding.confidence).description}
+          >
+            <span>Confidence: {finding.confidence}</span>
+          </BadgeWithDescription>
+          <span aria-hidden>·</span>
           <span
             title={finding.checkId}
-            className="w-full truncate font-mono text-xs text-muted-foreground sm:w-auto sm:max-w-64 sm:text-right"
+            className="max-w-64 truncate font-mono"
           >
             {finding.checkId}
           </span>
-        </div>
+          <CopyButton label="Copy check ID" text={finding.checkId} />
+        </p>
       </PageHeader>
 
       <PageContent>

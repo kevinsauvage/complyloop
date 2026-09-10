@@ -17,7 +17,7 @@ import {
 } from "@/components/dashboard/first-assessment-checklist";
 import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { projectDescription } from "@/components/dashboard/project-description";
-import { PageSection } from "@/components/page-primitives";
+import { PageActionLink, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { latestAssessmentFor } from "@/core/assessment";
@@ -136,6 +136,8 @@ export default async function DashboardPage() {
   const failedCount = counts.failed;
   const passedCount = counts.passed;
   const totalRequirements = requirements.length;
+  const hasPreviewUrl = Boolean(project.runtimeBaseUrl?.trim());
+  const showFirstRun = !latestAssessment && hasConnectedProject;
   const passRateValue =
     totalRequirements > 0
       ? Math.round((passedCount / totalRequirements) * 100)
@@ -183,6 +185,42 @@ export default async function DashboardPage() {
       ]
     : [];
 
+  // Single next action, highest priority first: alerts → failed
+  // requirements → open findings → preview-URL coverage gap.
+  const nextAction =
+    unreadAlerts.length > 0
+      ? {
+          title: `${unreadAlerts.length} unread alert${unreadAlerts.length === 1 ? "" : "s"}`,
+          description:
+            "Requirement statuses changed since your last review — confirm each one before it becomes a regression.",
+          cta: "Review alerts",
+          href: "#regression-alerts-heading",
+        }
+      : failedCount > 0
+        ? {
+            title: `${failedCount} failed requirement${failedCount === 1 ? "" : "s"}`,
+            description:
+              "These requirements have open findings. Fix or dismiss the findings to move them to Passed.",
+            cta: "See failed requirements",
+            href: "/requirements?status=failed",
+          }
+        : openFindings.length > 0
+          ? {
+              title: `${openFindings.length} open finding${openFindings.length === 1 ? "" : "s"}`,
+              description:
+                "Triage the queue in priority order — fix each finding to Verified.",
+              cta: "Triage findings",
+              href: "/findings?tab=open",
+            }
+          : counts.unable_to_verify > 0 && !hasPreviewUrl
+            ? {
+                title: "Unlock live-page checks",
+                description: `${counts.unable_to_verify} requirement${counts.unable_to_verify === 1 ? "" : "s"} can't be verified without a preview URL — contrast, landmarks, and page structure stay unchecked.`,
+                cta: "Set preview URL",
+                href: "/settings",
+              }
+            : null;
+
   return (
     <div className="flex flex-col gap-6">
       <DashboardOverview
@@ -200,7 +238,9 @@ export default async function DashboardPage() {
             />
           ) : null
         }
-        actions={caps.canAssess ? assessAction : undefined}
+        // The header owns Run assessment once results exist; before the first
+        // assessment the checklist below owns the CTA (no duplicates).
+        actions={caps.canAssess && latestAssessment ? assessAction : undefined}
       />
 
       {!caps.canAssess ? assessAction : null}
@@ -211,7 +251,7 @@ export default async function DashboardPage() {
         </ConnectProjectCard>
       ) : null}
 
-      {!latestAssessment && hasConnectedProject ? (
+      {showFirstRun ? (
         <FirstAssessmentChecklist
           project={project}
           canAssess={caps.canAssess}
@@ -221,6 +261,33 @@ export default async function DashboardPage() {
 
       {latestAssessment ? (
         <>
+          {nextAction ? (
+            <section
+              aria-labelledby="next-action-heading"
+              className="surface-panel rounded-2xl border-signal/30 bg-signal/5 p-5 sm:p-6"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wider text-signal">
+                Next action
+              </p>
+              <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
+                <div className="min-w-0">
+                  <h2
+                    id="next-action-heading"
+                    className="text-lg font-semibold tracking-tight"
+                  >
+                    {nextAction.title}
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                    {nextAction.description}
+                  </p>
+                </div>
+                <PageActionLink href={nextAction.href}>
+                  {nextAction.cta}
+                </PageActionLink>
+              </div>
+            </section>
+          ) : null}
+
           {unreadAlerts.length > 0 ? (
             <DashboardAlertsCard alerts={unreadAlerts} project={project} />
           ) : null}

@@ -49,14 +49,14 @@ describe("badges", () => {
     expect(screen.getByText("Critical")).toBeInTheDocument();
   });
 
-  it("labels source vs rendered-page detection engines", () => {
+  it("labels code vs live-page detection engines", () => {
     renderWithUiProviders(
       <>
         <EngineBadge engine="ast" />
         <EngineBadge engine="runtime" />
       </>,
     );
-    expect(screen.getByText("Source code")).toBeInTheDocument();
-    expect(screen.getByText("Rendered page")).toBeInTheDocument();
+    expect(screen.getByText("Code")).toBeInTheDocument();
+    expect(screen.getByText("Live page")).toBeInTheDocument();
   });
 });

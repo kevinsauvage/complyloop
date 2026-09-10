@@ -78,8 +78,9 @@ export function FindingUnderstandCard({
         )}
         {isDomLocation(finding.location) ? (
           <p className="text-sm text-muted-foreground">
-            Runtime finding on the rendered page. Tab to the element above on
-            the live page, or search your codebase for the link text / selector.
+            Live-page finding on the site as visitors experience it. Tab to the
+            element above on the live page, or search your codebase for the link
+            text / selector.
           </p>
         ) : null}
         <CodeBlock>{locationSnippet(finding.location)}</CodeBlock>

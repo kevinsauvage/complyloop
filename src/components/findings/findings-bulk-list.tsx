@@ -2,11 +2,6 @@
 
 import Link from "next/link";
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import {
-  EngineBadge,
-  RemediationStatusBadge,
-  SeverityBadge,
-} from "@/components/badges";
 import { DismissFindingFields } from "@/components/findings/dismiss-finding-fields";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Button } from "@/components/ui/button";
@@ -16,8 +11,14 @@ import {
   findingDetailHref,
   type FindingListParams,
 } from "@/core/finding-list-filter";
+import {
+  engineDisplay,
+  remediationStatusDisplay,
+  severityDisplay,
+} from "@/core/status-display";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
+import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 import { cn } from "@/lib/utils";
 import {
   bulkApproveRemediationsAction,
@@ -35,7 +36,20 @@ type BulkRowProps = {
   onToggle: (id: string) => void;
 };
 
-/** Memoized row: toggling one checkbox must not re-render every row. */
+function severityDotClass(severity: Severity): string {
+  switch (severity) {
+    case "critical":
+      return "bg-status-failed";
+    case "serious":
+      return "bg-status-failed/70";
+    case "moderate":
+      return "bg-status-review";
+    case "minor":
+      return "bg-muted-foreground/40";
+  }
+}
+
+/** Scannable row: severity dot + title first, meta as muted text (no badge stack). */
 const FindingsBulkRow = memo(function FindingsBulkRow({
   finding,
   control,
@@ -46,6 +60,9 @@ const FindingsBulkRow = memo(function FindingsBulkRow({
   onToggle,
 }: BulkRowProps) {
   const checkboxId = `finding-select-${finding.id}`;
+  const severityLabel = severityDisplay(finding.severity).label;
+  const remediationLabel = remediationStatusDisplay(remediationStatus).label;
+  const engineLabel = engineDisplay(engineFor(finding)).label;
   return (
     <li>
       <div
@@ -55,6 +72,7 @@ const FindingsBulkRow = memo(function FindingsBulkRow({
           isSelected && "border-signal/50 bg-signal/5",
         )}
       >
+        {/* Reserved gutter keeps rows aligned for view-only roles. */}
         {canRemediate ? (
           <div className="pt-1">
             <input
@@ -66,24 +84,35 @@ const FindingsBulkRow = memo(function FindingsBulkRow({
               aria-label={`Select ${control.code} at ${formatLocationRef(finding.location)}`}
             />
           </div>
-        ) : null}
+        ) : (
+          <div className="pt-1" aria-hidden>
+            <span className="block size-4" />
+          </div>
+        )}
         <Link
           href={findingDetailHref(finding.id, listParams)}
           className="min-w-0 flex-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span className="flex flex-wrap items-center gap-2">
-            <SeverityBadge severity={finding.severity} />
-            <RemediationStatusBadge status={remediationStatus} />
-            <EngineBadge engine={engineFor(finding)} />
-            <span className="text-sm font-medium group-hover:underline">
+          <span className="flex items-baseline gap-2">
+            <span
+              aria-hidden
+              className={cn(
+                "size-2 shrink-0 translate-y-[-1px] rounded-full",
+                severityDotClass(finding.severity),
+              )}
+            />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium group-hover:underline">
               {control.code} — {control.title}
             </span>
+            <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground">
+              {severityLabel} · {remediationLabel}
+            </span>
           </span>
-          <span className="mt-1.5 block text-sm text-muted-foreground">
+          <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">
             {finding.reason}
           </span>
-          <span className="mt-1 block font-mono text-xs text-muted-foreground">
-            {formatLocationRef(finding.location)}
+          <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">
+            {formatLocationRef(finding.location)} · {engineLabel}
           </span>
         </Link>
       </div>
@@ -190,7 +219,7 @@ export function FindingsBulkList({
                   ))}
                 </StatefulActionForm>
               ) : (
-                <span title="Only rendered-page findings with a generated suggestion can be approved in bulk">
+                <span title="Only live-page findings with a generated suggestion can be approved in bulk">
                   <Button type="button" size="sm" variant="default" disabled>
                     Approve (runtime suggestions only)
                   </Button>

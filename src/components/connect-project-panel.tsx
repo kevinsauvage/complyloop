@@ -136,8 +136,26 @@ export function ConnectProjectCard({ children }: { children: ReactNode }) {
       title="Connect a repository"
       footer={children}
     >
-      Connecting creates a project — link a GitHub repository to assess
-      against RGAA/WCAG.
+      <div className="flex flex-col gap-3 text-left">
+        <p>
+          Connecting creates a project — link a GitHub repository to assess
+          against RGAA/WCAG.
+        </p>
+        <ol className="flex flex-col gap-1.5 text-sm">
+          <li className="flex gap-2">
+            <span aria-hidden className="font-semibold text-signal">1.</span>
+            Connect a repository — it becomes your project
+          </li>
+          <li className="flex gap-2">
+            <span aria-hidden className="font-semibold text-signal">2.</span>
+            Run your first assessment from the dashboard
+          </li>
+          <li className="flex gap-2">
+            <span aria-hidden className="font-semibold text-signal">3.</span>
+            Fix findings to Verified — every step is kept as evidence
+          </li>
+        </ol>
+      </div>
     </EmptyState>
   );
 }

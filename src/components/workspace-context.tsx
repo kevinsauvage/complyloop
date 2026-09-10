@@ -3,11 +3,8 @@ import { FolderGit2, Layers } from "lucide-react";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { ConnectProjectPanel } from "@/components/connect-project-panel";
-import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
 import { projectCapabilities } from "@/server/project-capabilities";
 import { getWorkspace } from "@/server/workspace";
-import { getDrizzle } from "@complyloop/db/client";
-import { listLatestAssessmentForProject } from "@complyloop/db/repo/assessments";
 import { cn } from "@/lib/utils";
 
 function ContextStrip({
@@ -20,7 +17,7 @@ function ContextStrip({
   return (
     <div
       className={cn(
-        "mb-6 flex flex-col sm:flex-row items-center gap-2 surface-panel px-3 py-2.5 text-sm text-muted-foreground backdrop-blur-sm",
+        "surface-panel mb-6 flex flex-col gap-2 px-3 py-2.5 text-sm text-muted-foreground backdrop-blur-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-3",
         className,
       )}
     >
@@ -29,22 +26,14 @@ function ContextStrip({
   );
 }
 
-/** Active org/project context + switchers for every workflow page. */
+/**
+ * Active org/project context + switchers for every workflow page.
+ * Coverage status lives on the dashboard hero — the strip stays a switcher.
+ */
 export async function WorkspaceContext() {
   const { project, visibleProjects, organizations, activeOrgId, access } =
     await getWorkspace();
   const caps = projectCapabilities(project, access, activeOrgId);
-  const latestAssessment = project
-    ? (await listLatestAssessmentForProject(await getDrizzle(), project.id))[0]
-    : undefined;
-  const coverageStrip = project ? (
-    <RuntimeCoverageChip
-      project={project}
-      engines={latestAssessment?.engines}
-      compact
-      className="ml-auto"
-    />
-  ) : null;
   const orgName = project?.orgId
     ? organizations.find((org) => org.id === project.orgId)?.name
     : activeOrgId
@@ -67,17 +56,21 @@ export async function WorkspaceContext() {
   if (!project) {
     return (
       <ContextStrip>
-        <Layers className="size-4 text-signal" aria-hidden />
-        <span className="font-medium text-foreground">No project connected</span>
+        <span className="flex items-center gap-2">
+          <Layers className="size-4 text-signal" aria-hidden />
+          <span className="font-medium text-foreground">No project connected</span>
+        </span>
         {orgName ? (
-          <>
+          <span className="flex items-center gap-2">
             <span aria-hidden className="text-border">
               /
             </span>
             <span>{orgName}</span>
-          </>
+          </span>
         ) : null}
-        {connectProject ? <div className="ml-auto">{connectProject}</div> : null}
+        {connectProject ? (
+          <div className="w-full sm:ml-auto sm:w-auto">{connectProject}</div>
+        ) : null}
       </ContextStrip>
     );
   }
@@ -86,23 +79,26 @@ if (!showOrgSwitcher && !showProjectSwitcher) {
     return (
       <ContextStrip>
         {orgName ? (
-          <>
+          <span className="flex items-center gap-2">
+            <span>{orgName}</span>
             <span aria-hidden className="text-border">
               /
             </span>
-            <span>{orgName}</span>
-          </>
+          </span>
         ) : null}
-        <span className="font-medium text-foreground">{project.name}</span>
-        <FolderGit2 className="size-4 shrink-0 text-signal" aria-hidden />
-        {coverageStrip}
-        {addProject ? <div className="ml-auto">{addProject}</div> : null}
+        <span className="flex items-center gap-2 font-medium text-foreground">
+          <FolderGit2 className="size-4 shrink-0 text-signal" aria-hidden />
+          {project.name}
+        </span>
+        {addProject ? (
+          <div className="w-full sm:ml-auto sm:w-auto">{addProject}</div>
+        ) : null}
       </ContextStrip>
     );
   }
 
   return (
-    <ContextStrip className="gap-3">
+    <ContextStrip>
       {showOrgSwitcher && activeOrgId ? (
         <OrgSwitcher organizations={organizations} activeOrgId={activeOrgId} />
       ) : orgName ? (
@@ -116,8 +112,9 @@ if (!showOrgSwitcher && !showProjectSwitcher) {
       ) : (
         <span className="text-sm font-medium text-foreground">{project.name}</span>
       )}
-      {coverageStrip}
-      {addProject ? <div className={coverageStrip ? "" : "ml-auto"}>{addProject}</div> : null}
+      {addProject ? (
+        <div className="w-full sm:ml-auto sm:w-auto">{addProject}</div>
+      ) : null}
     </ContextStrip>
   );
 }

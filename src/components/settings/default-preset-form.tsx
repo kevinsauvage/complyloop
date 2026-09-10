@@ -19,17 +19,17 @@ export function DefaultPresetForm({
   return (
     <StatefulActionForm
       action={setDefaultPresetAction}
-      submitLabel="Save default preset"
+      submitLabel="Save default scope"
       pendingLabel="Saving…"
       variant="default"
       className="flex flex-col gap-4"
     >
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium">Default assessment preset</legend>
+        <legend className="text-sm font-medium">Default framework scope</legend>
         <p className="text-xs text-muted-foreground">
-          Used for assessments and as the Requirements page default. Browse other
-          presets on Requirements via the URL. Will apply to future
-          assessments only.
+          Used for assessments and as the Requirements page default. Browse
+          other framework scopes on Requirements via the URL. Will apply to
+          future assessments only.
         </p>
         <ul className="flex flex-col gap-2">
           {presets.map((preset) => (

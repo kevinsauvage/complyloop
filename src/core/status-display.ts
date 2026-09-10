@@ -321,15 +321,15 @@ export function engineDisplay(engine: AssessmentEngine): EngineDisplay {
 
 const ENGINE_DISPLAY: Record<AssessmentEngine, EngineDisplay> = {
   ast: {
-    label: "Source code",
-    description: "Found in source code — fix the file and line shown.",
+    label: "Code",
+    description: "Found in your code — fix the file and line shown.",
     tone: null,
     badgeVariant: "outline",
   },
   runtime: {
-    label: "Rendered page",
+    label: "Live page",
     description:
-      "Found on the rendered page — trace to the component that renders it.",
+      "Found on the live page — trace to the component that renders it.",
     tone: "signal",
     badgeVariant: undefined,
   },

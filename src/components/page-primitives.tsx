@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -126,6 +127,7 @@ export function EmptyState({
   action,
   footer,
   className,
+  variant = "default",
 }: {
   title: string;
   children?: ReactNode;
@@ -133,20 +135,42 @@ export function EmptyState({
   /** Full-width content below the centered header (e.g. the connect picker). */
   footer?: ReactNode;
   className?: string;
+  /**
+   * `first-run` — nothing exists yet, action starts the loop.
+   * `no-results` — filters hide everything, action resets.
+   * `all-clear` — celebratory success state (nothing left to do).
+   */
+  variant?: "default" | "first-run" | "no-results" | "all-clear";
 }) {
+  const allClear = variant === "all-clear";
   return (
     <Card
       className={cn(
         "border-dashed border-border/60 bg-card/40 shadow-none",
+        allClear && "border-solid border-status-passed/40 bg-status-passed/5",
         className,
       )}
     >
       <CardHeader className="items-center justify-items-center gap-2 text-center">
         <span
-          className="flex size-11 items-center justify-center rounded-full border border-dashed border-signal/40 bg-signal/10"
+          className={cn(
+            "flex size-11 items-center justify-center rounded-full border border-dashed",
+            allClear
+              ? "border-status-passed/50 bg-status-passed/10"
+              : "border-signal/40 bg-signal/10",
+          )}
           aria-hidden
         >
-          <span className="size-2 rounded-full bg-signal/60" />
+          {allClear ? (
+            <Check className="size-5 text-status-passed" />
+          ) : (
+            <span
+              className={cn(
+                "size-2 rounded-full",
+                variant === "no-results" ? "bg-muted-foreground/50" : "bg-signal/60",
+              )}
+            />
+          )}
         </span>
         <CardTitle className="text-base font-medium">{title}</CardTitle>
         {children ? (

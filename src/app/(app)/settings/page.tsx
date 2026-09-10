@@ -4,6 +4,7 @@ import { MetaTile, NoProjectNotice, PageContent, PageHeader, PageSection } from 
 import { PermissionNotice } from "@/components/permission-notice";
 import { DefaultPresetForm } from "@/components/settings/default-preset-form";
 import { RuntimeAuditForm } from "@/components/runtime-audit-form";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -88,7 +89,7 @@ export default async function SettingsPage() {
                 </MetaTile>
               ) : null}
               {project.runtimeBaseUrl ? (
-                <MetaTile label="Preview URL (runtime audit)">
+                <MetaTile label="Preview URL">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="min-w-0 flex-1 font-mono text-sm break-all">
                       {project.runtimeBaseUrl}
@@ -97,13 +98,20 @@ export default async function SettingsPage() {
                   </div>
                 </MetaTile>
               ) : (
-                <p className="surface-panel rounded-xl px-3 py-2.5 text-muted-foreground">
-                  Preview URL (runtime audit) is off — assessments use source
-                  (AST) checks only.
-                </p>
+                <MetaTile label="Preview URL">
+                  <p className="text-muted-foreground">
+                    Not set — code checks only.{" "}
+                    <Link
+                      href="#preview-url"
+                      className="font-medium text-foreground underline underline-offset-4"
+                    >
+                      Set preview URL
+                    </Link>
+                  </p>
+                </MetaTile>
               )}
               {defaultPreset ? (
-                <MetaTile label="Default assessment preset">
+                <MetaTile label="Default framework scope">
                   <p className="font-medium">{defaultPreset.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {defaultPreset.controlIds.length} controls
@@ -123,8 +131,8 @@ export default async function SettingsPage() {
         </PageSection>
 
         <PageSection
-          title="Assessment preset"
-          description="Default framework and level for assessments. Browse other presets on Requirements without changing this default."
+          title="Framework scope"
+          description="Default framework and level for assessments. Browse other frameworks on Requirements without changing this default."
         >
           <Card className="shadow-none">
             <CardContent className="pt-6">
@@ -145,20 +153,28 @@ export default async function SettingsPage() {
         </PageSection>
 
         <PageSection
-          title="Preview URL (runtime audit)"
-          description={`Staging or preview URL for rendered-page checks. ${runtimeStatus}`}
+          id="preview-url"
+          title="Preview URL"
+          description={`Staging or preview URL for live-page checks. ${runtimeStatus}`}
         >
           <Card className="shadow-none">
-            <CardContent className="space-y-3 pt-6">
+            <CardContent className="space-y-3 pt-6 text-sm">
               {runtimeError ? (
-                <details className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm">
-                  <summary className="cursor-pointer font-medium">
-                    Runtime error details
-                  </summary>
-                  <p className="mt-2 font-mono text-xs break-all text-foreground">
-                    {runtimeError}
-                  </p>
-                </details>
+                <Alert variant="destructive">
+                  <AlertTitle>Preview audit failed</AlertTitle>
+                  <AlertDescription>
+                    The page didn&apos;t load for automated checks — live-page
+                    checks stay unable to verify until the preview loads.
+                    <details className="mt-2">
+                      <summary className="cursor-pointer font-medium">
+                        Show technical details
+                      </summary>
+                      <p className="mt-1 font-mono text-xs break-all">
+                        {runtimeError}
+                      </p>
+                    </details>
+                  </AlertDescription>
+                </Alert>
               ) : null}
               {caps.canConnect ? (
                 <RuntimeAuditForm

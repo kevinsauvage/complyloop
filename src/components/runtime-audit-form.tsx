@@ -31,9 +31,9 @@ export function RuntimeAuditForm({
           aria-describedby="runtimeBaseUrl-hint"
         />
         <p id="runtimeBaseUrl-hint" className="text-xs text-muted-foreground">
-          When set, checks that need the rendered page (contrast, page title,
+          When set, checks that need the live page (contrast, page title,
           skip link, landmarks, target size) can run, and shared checks use the
-          page as the source of truth. Leave empty for source-only assessment.
+          page as the source of truth. Leave empty for code-only assessment.
         </p>
       </div>
       <div className="flex flex-col gap-1.5">

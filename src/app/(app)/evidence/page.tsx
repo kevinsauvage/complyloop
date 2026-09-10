@@ -88,77 +88,79 @@ export default async function EvidencePage({
         title="Evidence"
         description="Append-only log of every requirement check, finding, fix, and verification. Nothing here can be edited — only superseded."
       >
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              Export <ChevronDownIcon aria-hidden />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <a href={reportHref("engineering", "markdown")} download>
-                <span className="flex flex-col gap-0.5">
-                  <span>Download engineering report</span>
-                  <span className="text-xs text-muted-foreground">
-                    Markdown for developers fixing findings
+        <div className="flex items-center gap-2">
+          <Button variant="default" size="sm" asChild>
+            <a href={reportHref("audit", "markdown")} download>
+              Download audit report
+            </a>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" aria-label="More export formats">
+                More formats <ChevronDownIcon aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <a href={reportHref("engineering", "markdown")} download>
+                  <span className="flex flex-col gap-0.5">
+                    <span>Download engineering report</span>
+                    <span className="text-xs text-muted-foreground">
+                      Markdown for developers fixing findings
+                    </span>
                   </span>
-                </span>
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href={reportHref("audit", "markdown")} download>
-                <span className="flex flex-col gap-0.5">
-                  <span>Download audit report</span>
-                  <span className="text-xs text-muted-foreground">
-                    Auditor-ready requirement status
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a
+                  href={reportHref("audit", "html")}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span className="flex flex-col gap-0.5">
+                    <span>Open audit report</span>
+                    <span className="text-xs text-muted-foreground">
+                      Auditor-ready HTML in a new tab
+                    </span>
                   </span>
-                </span>
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a
-                href={reportHref("engineering", "html")}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className="flex flex-col gap-0.5">
-                  <span>Open engineering report</span>
-                  <span className="text-xs text-muted-foreground">
-                    HTML in a new tab
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a
+                  href={reportHref("engineering", "html")}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span className="flex flex-col gap-0.5">
+                    <span>Open engineering report</span>
+                    <span className="text-xs text-muted-foreground">
+                      HTML in a new tab
+                    </span>
                   </span>
-                </span>
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href={reportHref("audit", "html")} target="_blank" rel="noreferrer">
-                <span className="flex flex-col gap-0.5">
-                  <span>Open audit report</span>
-                  <span className="text-xs text-muted-foreground">
-                    HTML in a new tab
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <a href="/evidence/export" download="evidence.json">
+                  <span className="flex flex-col gap-0.5">
+                    <span>Download raw JSON</span>
+                    <span className="text-xs text-muted-foreground">
+                      Machine-readable export
+                    </span>
                   </span>
-                </span>
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href="/evidence/export" download="evidence.json">
-                <span className="flex flex-col gap-0.5">
-                  <span>Download raw JSON</span>
-                  <span className="text-xs text-muted-foreground">
-                    Machine-readable export
-                  </span>
-                </span>
-              </a>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </PageHeader>
       {totalUnfiltered === 0 ? (
         <PageContent>
           <EmptyState
             title="No evidence yet"
+            variant="first-run"
             action={
-              <PageActionLink href="/dashboard">Go to dashboard</PageActionLink>
+              <PageActionLink href="/dashboard">Run assessment from dashboard</PageActionLink>
             }
           >
             <p>
@@ -182,7 +184,7 @@ export default async function EvidencePage({
             {kindFilter ? ` · ${evidenceDisplay(kindFilter).label}` : ""}
           </h2>
           {total === 0 && kindFilter ? (
-            <EmptyState title={`No "${evidenceDisplay(kindFilter).label}" entries`}>
+            <EmptyState title={`No "${evidenceDisplay(kindFilter).label}" entries`} variant="no-results">
               <p>
                 Try another filter or{" "}
                 <Link href={evidenceKindHref()} className="underline">
@@ -255,6 +257,7 @@ export default async function EvidencePage({
                   basePath="/evidence"
                   query={paginationQuery}
                   label="Evidence pagination"
+                  pageSize={DEFAULT_PAGE_SIZE}
                 />
               </div>
             </Card>

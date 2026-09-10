@@ -83,8 +83,8 @@ export function FirstAssessmentChecklist({
               <p className="text-sm text-muted-foreground">
                 Scan the connected repository for compliance gaps.
                 {previewDone
-                  ? " Source and rendered-page checks will both run."
-                  : " Source checks run now; add a preview URL later to unlock rendered-page checks."}
+                  ? " Code and live-page checks will both run."
+                  : " Code checks run now; add a preview URL later to unlock live-page checks."}
               </p>
               {assessAction}
             </div>
@@ -102,15 +102,26 @@ export function FirstAssessmentChecklist({
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {previewDone
-                    ? "Rendered-page checks will run on your preview."
-                    : "Source-only for now — contrast, page title, landmarks, and other runtime-only checks stay unable to verify until you add a preview URL."}
+                    ? "Live-page checks will run on your preview."
+                    : "Code-only for now — contrast, page title, landmarks, and other live-page-only checks stay unable to verify until you add a preview URL."}
                 </p>
               </div>
-              {canConnect ? (
-                <RuntimeAuditForm
-                  runtimeBaseUrl={project.runtimeBaseUrl}
-                  runtimeRoutes={project.runtimeRoutes}
-                />
+              {previewDone ? (
+                <p className="text-xs font-medium text-status-passed">
+                  Preview URL set — live-page checks will run.
+                </p>
+              ) : canConnect ? (
+                <details className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-medium hover:text-foreground">
+                    Set a preview URL to unlock live-page checks
+                  </summary>
+                  <div className="mt-3">
+                    <RuntimeAuditForm
+                      runtimeBaseUrl={project.runtimeBaseUrl}
+                      runtimeRoutes={project.runtimeRoutes}
+                    />
+                  </div>
+                </details>
               ) : (
                 <p className="text-xs text-muted-foreground">
                   Ask an admin to set a preview URL in{" "}
@@ -154,7 +165,7 @@ export function UnableToVerifyRuntimeHint({
             >
               Check preview URL settings
             </Link>
-            . Runtime-only checks stay unable to verify until the preview
+            . Live-page checks stay unable to verify until the preview
             loads.
           </span>
         </p>
@@ -184,7 +195,7 @@ export function UnableToVerifyRuntimeHint({
       >
         preview URL
       </Link>{" "}
-      to assess runtime-only checks (contrast, page title, landmarks, target
+      to assess live-page checks (contrast, page title, landmarks, target
       size, and similar). This is a coverage gap, not a pass.
     </p>
   );

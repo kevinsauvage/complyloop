@@ -18,8 +18,8 @@ export function PresetNavigator({
   statusFilter: RequirementStatus | undefined;
 }) {
   return (
-    <nav aria-label="Assessment preset" className="flex flex-col gap-2">
-      <p className="text-sm font-medium">Assessment preset</p>
+    <nav aria-label="Framework scope" className="flex flex-col gap-2">
+      <p className="text-sm font-medium">Framework scope</p>
       <ul className="flex flex-col gap-2">
         {presets.map((preset) => {
           const selected = preset.id === selectedPresetId;

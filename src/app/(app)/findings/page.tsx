@@ -21,7 +21,7 @@ import {
   type FindingListParams,
 } from "@/core/finding-list-filter";
 import { reportHref } from "@/core/query";
-import { paginateSlice } from "@/core/pagination";
+import { paginateSlice, DEFAULT_PAGE_SIZE } from "@/core/pagination";
 import { prioritizeClusters } from "@/core/prioritization";
 import { clusterFindings } from "@/core/root-cause";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
@@ -71,15 +71,6 @@ function StatusNavLink({
     >
       {children}
     </Link>
-  );
-}
-
-function viewToggleLinkClass(current: boolean): string {
-  return cn(
-    "rounded-lg px-3 py-1 text-sm font-medium whitespace-nowrap outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-    current
-      ? "bg-card text-foreground shadow-sm ring-1 ring-border"
-      : "text-muted-foreground",
   );
 }
 
@@ -147,10 +138,8 @@ export default async function FindingsPage({
 
   // Never rewrite the requested tab: a shared or bookmarked ?tab=open link
   // must render the open list (or its empty state), not silently jump to
-  // another status. "By cause" is a grouping of open findings, not a status,
-  // so it highlights the Open nav entry.
+  // another status.
   const activeTab: FindingsTab = listParams.tab;
-  const openNavCurrent = activeTab === "open" || activeTab === "by_cause";
 
   const hasAssessment = runtime.assessments.some(
     (assessment) => assessment.projectId === project.id,
@@ -165,7 +154,8 @@ export default async function FindingsPage({
         />
         <EmptyState
           title="No findings yet"
-          action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
+          variant="first-run"
+          action={<PageActionLink href="/dashboard">Run assessment from dashboard</PageActionLink>}
         >
           <p>Run an assessment from the dashboard to detect compliance gaps.</p>
         </EmptyState>
@@ -179,6 +169,7 @@ export default async function FindingsPage({
     return (
       <EmptyState
         title="No findings match these filters"
+        variant="no-results"
         action={
           <PageActionLink href={findingsListHref({ tab: listParams.tab })}>
             Reset filters
@@ -211,8 +202,15 @@ export default async function FindingsPage({
           aria-label="Findings"
           className="surface-panel flex w-full items-center gap-1 overflow-x-auto rounded-xl p-1"
         >
-          <StatusNavLink href={tabHref("open", listParams)} current={openNavCurrent}>
+          <StatusNavLink href={tabHref("open", listParams)} current={activeTab === "open"}>
             Open{openSlice.total > 0 ? ` (${openSlice.total})` : ""}
+          </StatusNavLink>
+          <StatusNavLink
+            href={tabHref("by_cause", listParams)}
+            current={activeTab === "by_cause"}
+          >
+            Root cause
+            {clusters.length > 0 ? ` (${clusters.length})` : ""}
           </StatusNavLink>
           <StatusNavLink
             href={tabHref("resolved", listParams)}
@@ -258,59 +256,39 @@ export default async function FindingsPage({
             resultCount={dismissedSlice.total}
             resultLabel="dismissed"
           />
+        ) : activeTab === "by_cause" ? (
+          <div className="mt-4 flex flex-col gap-4">
+            <FindingsClustersTab clusters={clusters} findings={findings} />
+          </div>
         ) : (
           <div className="mt-4 flex flex-col gap-4">
-            <div
-              role="group"
-              aria-label="Open findings view"
-              className="flex w-fit items-center gap-1 rounded-xl border border-border/70 bg-muted/40 p-1"
+            <FindingsFilterBar
+              params={{ ...listParams, tab: "open" }}
+              controlLabel={
+                listParams.control
+                  ? controls.find(
+                      (control) => control.id === listParams.control,
+                    )?.code
+                  : undefined
+              }
+            />
+            <h2
+              id="findings-results"
+              tabIndex={-1}
+              className="min-h-5 text-sm font-medium text-muted-foreground outline-none"
             >
-              <Link
-                href={tabHref("open", listParams)}
-                aria-current={activeTab === "open" ? "true" : undefined}
-                className={viewToggleLinkClass(activeTab === "open")}
-              >
-                List
-              </Link>
-              <Link
-                href={tabHref("by_cause", listParams)}
-                aria-current={activeTab === "by_cause" ? "true" : undefined}
-                className={viewToggleLinkClass(activeTab === "by_cause")}
-              >
-                Root cause
-                {clusters.length > 0 ? ` (${clusters.length})` : ""}
-              </Link>
-            </div>
-            {activeTab === "by_cause" ? (
-              <FindingsClustersTab clusters={clusters} findings={findings} />
-            ) : (
-              <>
-                <FindingsFilterBar
-                  params={{ ...listParams, tab: "open" }}
-                  controlLabel={
-                    listParams.control
-                      ? controls.find(
-                          (control) => control.id === listParams.control,
-                        )?.code
-                      : undefined
-                  }
-                />
-                <h2
-                  id="findings-results"
-                  tabIndex={-1}
-                  className="text-sm font-medium text-muted-foreground outline-none"
-                >
-                  {openSlice.total === 1
-                    ? "1 open finding"
-                    : `${openSlice.total} open findings`}
-                </h2>
-                <FocusFilterResults targetId="findings-results" />
+              {openSlice.total === 1
+                ? "1 open finding"
+                : `${openSlice.total} open findings`}
+            </h2>
+            <FocusFilterResults targetId="findings-results" />
             {openSlice.total === 0 ? (
               filtersActive ? (
                 filteredEmptyState("open")
               ) : hasAssessment ? (
                 <EmptyState
                   title="No open findings"
+                  variant="all-clear"
                   action={
                     <div className="flex flex-wrap items-center justify-center gap-3">
                       <PageActionLink href="/requirements">
@@ -331,7 +309,7 @@ export default async function FindingsPage({
                   </p>
                 </EmptyState>
               ) : (
-                <EmptyState title="No assessment yet">
+                <EmptyState title="No assessment yet" variant="first-run">
                   <p>
                     Run your first assessment from the dashboard to detect
                     findings. Evidence and findings will appear here.
@@ -352,9 +330,8 @@ export default async function FindingsPage({
                   basePath="/findings"
                   query={paginationQuery}
                   label="Open findings pagination"
+                  pageSize={DEFAULT_PAGE_SIZE}
                 />
-              </>
-            )}
               </>
             )}
           </div>

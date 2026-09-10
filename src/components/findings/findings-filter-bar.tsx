@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import type { FindingListParams } from "@/core/finding-list-filter";
 import { findingsListHref } from "@/core/finding-list-filter";
 import {
+  engineDisplay,
   remediationStatusDisplay,
   severityDisplay,
 } from "@/core/status-display";
@@ -96,9 +97,9 @@ export function FindingsFilterBar({
       <ActiveChip
         key="engine"
         href={clearedHref({ engine: undefined })}
-        clearLabel="Clear engine filter"
+        clearLabel="Clear source filter"
       >
-        Engine: {params.engine === "ast" ? "Source code" : "Rendered page"}
+        Source: {engineDisplay(params.engine).label}
       </ActiveChip>,
     );
   }
@@ -118,9 +119,9 @@ export function FindingsFilterBar({
       <ActiveChip
         key="control"
         href={clearedHref({ control: undefined })}
-        clearLabel="Clear control filter"
+        clearLabel="Clear rule filter"
       >
-        Control: {controlLabel ?? params.control}
+        Rule: {controlLabel ?? params.control}
       </ActiveChip>,
     );
   }
@@ -193,7 +194,7 @@ export function FindingsFilterBar({
               id="findings-q"
               name="q"
               defaultValue={params.q ?? ""}
-              placeholder="Control, reason, or file path"
+              placeholder="Rule, reason, or file path"
             />
           </div>
 
@@ -215,16 +216,16 @@ export function FindingsFilterBar({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="findings-engine">Engine</Label>
+            <Label htmlFor="findings-engine">Found in</Label>
             <select
               id="findings-engine"
               name="engine"
               defaultValue={params.engine ?? ""}
               className={nativeSelectClass}
             >
-              <option value="">Any engine</option>
-              <option value="ast">Source code</option>
-              <option value="runtime">Rendered page</option>
+              <option value="">Code or live page</option>
+              <option value="ast">{engineDisplay("ast").label}</option>
+              <option value="runtime">{engineDisplay("runtime").label}</option>
             </select>
           </div>
 

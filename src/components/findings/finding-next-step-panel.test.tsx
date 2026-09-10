@@ -335,7 +335,7 @@ describe("FindingNextStepPanel", () => {
       </>,
     );
 
-    const link = screen.getByRole("link", { name: "copy fix notes" });
+    const link = screen.getByRole("link", { name: "Copy fix notes" });
     expect(link).toHaveAttribute("href", "#copy-handoff");
     expect(document.getElementById("copy-handoff")).not.toBeNull();
   });

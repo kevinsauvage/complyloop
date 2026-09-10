@@ -103,7 +103,7 @@ export default async function RequirementsPage({
     <>
       <PageHeader
         title="Requirements"
-        description={`"${project.name}" — ${targetLabel}. A requirement states what you must do; findings are its individual failures; evidence is the proof.`}
+        description={`"${project.name}" — ${targetLabel}. Each requirement states what you must do; findings are its individual failures; evidence is the proof.`}
       />
 
       <PageContent>
@@ -129,7 +129,8 @@ export default async function RequirementsPage({
             {assessed.length === 0 ? (
               <EmptyState
                 title="No requirements assessed yet"
-                action={<PageActionLink href="/dashboard">Go to dashboard</PageActionLink>}
+                variant="first-run"
+                action={<PageActionLink href="/dashboard">Run assessment from dashboard</PageActionLink>}
               >
                 <p>
                   Run an assessment from the dashboard to evaluate each in-scope
@@ -139,6 +140,7 @@ export default async function RequirementsPage({
             ) : filtered.length === 0 ? (
               <EmptyState
                 title="No requirements match this status"
+                variant="no-results"
                 action={
                   <PageActionLink href={requirementsPageHref({ presetId: selectedPresetId, defaultPresetId })}>
                     Clear filter
@@ -165,7 +167,7 @@ export default async function RequirementsPage({
           <aside aria-label="Preset navigation" className="lg:col-span-1">
             <PageSection
               title="Framework scope"
-              description="Browse requirement scope by preset."
+              description="Browse requirements by framework."
               className="border-t-0 pt-0"
             >
               <RequirementsPresetPanel

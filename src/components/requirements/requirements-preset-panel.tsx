@@ -19,10 +19,10 @@ export function RequirementsPresetPanel({
   return (
     <Card size="sm" className="shadow-none lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
       <CardHeader>
-        <CardTitle level={3}>Assessment preset</CardTitle>
+        <CardTitle level={3}>Framework scope</CardTitle>
         <CardDescription>
-          A preset is a framework + level (e.g. RGAA 4.1 A+AA) → N controls.
-          The URL updates so views can be shared.
+          A framework scope is a framework + level (e.g. RGAA 4.1 A+AA). The
+          URL updates so views can be shared.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

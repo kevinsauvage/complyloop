@@ -1,7 +1,6 @@
 import { CreatePrForm } from "@/components/create-pr-form";
-import { DismissFindingFields } from "@/components/findings/dismiss-finding-fields";
-import { OpenDetailsOnHash } from "@/components/open-details-on-hash";
 import { RemediationStepper } from "@/components/findings/remediation-stepper";
+import { SecondaryFindingActions } from "@/components/findings/secondary-finding-actions";
 import { CodeBlock } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { StatefulActionForm } from "@/components/stateful-action-form";
@@ -21,7 +20,6 @@ import { cn } from "@/lib/utils";
 import type { PatchCandidate } from "@/ai/verified-fix";
 import type { PatchUiState } from "@/server/ai-fix";
 import { generateAiFixAction } from "@/server/actions/ai-fix";
-import { dismissFindingAction } from "@/server/actions/remediation";
 import { generateAiRemediationAction } from "@/server/actions/remediation-ai";
 import { approveRemediationAction } from "@/server/actions/remediation";
 import {
@@ -37,15 +35,9 @@ function PatchPreview({ candidate }: { candidate: PatchCandidate }) {
         ComplyLoop passed
       </p>
       {candidate.edits.map((edit, index) => (
-        <div key={`${edit.path}-${index}`} className="space-y-1">
-          <p
-            title={edit.path}
-            className="truncate font-mono text-xs text-muted-foreground"
-          >
-            {edit.path}
-          </p>
-          <CodeBlock>{`- ${edit.oldText}\n+ ${edit.newText}`}</CodeBlock>
-        </div>
+        <CodeBlock key={`${edit.path}-${index}`} filename={edit.path}>
+          {`- ${edit.oldText}\n+ ${edit.newText}`}
+        </CodeBlock>
       ))}
     </div>
   );
@@ -133,18 +125,6 @@ function ActControls({
           {!act.canGenerate ? (
             <p className="text-xs text-muted-foreground">
               AI guidance isn&apos;t enabled for this workspace.
-            </p>
-          ) : null}
-          {act.showHandoff ? (
-            <p className="text-xs text-muted-foreground">
-              Or use{" "}
-              <a
-                href="#copy-handoff"
-                className="underline underline-offset-4 hover:text-foreground"
-              >
-                copy fix notes
-              </a>{" "}
-              below.
             </p>
           ) : null}
         </>
@@ -264,34 +244,13 @@ export function FindingNextStepPanel({
         {act.showDismiss ? (
           <>
             <p className="text-xs text-muted-foreground">
-              Not a real failure?{" "}
-              <a
-                href="#dismiss-finding"
-                className="underline underline-offset-4 hover:text-foreground"
-              >
-                Dismiss with a documented reason
-              </a>
+              Not a real failure? Dismiss it with a documented reason — the
+              decision is kept as evidence.
             </p>
-            <OpenDetailsOnHash id="dismiss-finding">
-              <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
-                Dismiss this finding
-              </summary>
-              <div className="mt-3">
-                <StatefulActionForm
-                  action={dismissFindingAction.bind(null, finding.id)}
-                  submitLabel="Dismiss finding"
-                  variant="destructive"
-                  className="flex flex-col gap-4"
-                  confirmMessage="Dismiss this finding? The reason and note are kept as evidence."
-                  confirmTitle="Dismiss finding"
-                >
-                  <DismissFindingFields
-                    reasonId="dismiss-reason"
-                    noteId="dismiss-note"
-                  />
-                </StatefulActionForm>
-              </div>
-            </OpenDetailsOnHash>
+            <SecondaryFindingActions
+              findingId={finding.id}
+              showHandoff={act.showHandoff}
+            />
           </>
         ) : null}
       </CardContent>
