@@ -265,4 +265,68 @@ describe("handleGitHubWebhookEvent", () => {
     });
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
   });
+
+  it("rejects non-object payloads", async () => {
+    await expect(handleGitHubWebhookEvent("push", null)).resolves.toEqual({
+      handled: false,
+      message: "Invalid payload",
+    });
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+
+  it("rejects pull requests with unhandled actions", async () => {
+    await expect(
+      handleGitHubWebhookEvent("pull_request", {
+        action: "closed",
+        repository: { full_name: "acme/app" },
+        pull_request: { head: { sha: "b".repeat(40) } },
+      }),
+    ).resolves.toEqual({
+      handled: false,
+      message: "Ignored event pull_request",
+    });
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+
+  it("rejects events without a repository", async () => {
+    await expect(
+      handleGitHubWebhookEvent("push", {
+        ref: "refs/heads/main",
+        after: "a".repeat(40),
+      }),
+    ).resolves.toEqual({
+      handled: false,
+      message: "No repository in payload",
+    });
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+
+  it("ignores repositories with no connected project", async () => {
+    findProjectByGithubFullName.mockResolvedValue(null);
+    await expect(
+      handleGitHubWebhookEvent(
+        "push",
+        {
+          repository: { full_name: "acme/unknown" },
+          ref: "refs/heads/main",
+          after: "a".repeat(40),
+        },
+        "delivery-unknown",
+      ),
+    ).resolves.toEqual({
+      handled: false,
+      message: "No connected project for acme/unknown",
+    });
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+});
+
+describe("isWebhookConfigured", () => {
+  it("reflects the webhook secret", async () => {
+    const { isWebhookConfigured } = await import("./webhook");
+    delete process.env.GITHUB_WEBHOOK_SECRET;
+    expect(isWebhookConfigured()).toBe(false);
+    process.env.GITHUB_WEBHOOK_SECRET = "secret";
+    expect(isWebhookConfigured()).toBe(true);
+  });
 });

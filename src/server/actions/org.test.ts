@@ -462,4 +462,56 @@ describe("org member management actions", () => {
     expect(result.message).toBe("Role updated to admin.");
     expect(member.role).toBe("member");
   });
+
+  it("denies member management to non-managers", async () => {
+    const memberCaller = testMembership("member", {
+      id: "m-caller",
+      userId: "user-1",
+      githubLogin: "alice",
+    });
+    const db = emptyDb([memberCaller]);
+    withOrgWrite.mockImplementation(async (fn) =>
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-1",
+          githubLogin: "alice",
+          organizations: [org],
+        },
+        fn,
+      ),
+    );
+
+    const inviteForm = new FormData();
+    inviteForm.set("orgId", "org-1");
+    inviteForm.set("githubLogin", "bob");
+    inviteForm.set("role", "member");
+    await expect(
+      inviteOrgMemberAction(emptyActionMessageState, inviteForm),
+    ).resolves.toEqual({
+      message: null,
+      error: "Only org owners and admins can invite members.",
+    });
+
+    const removeForm = new FormData();
+    removeForm.set("orgId", "org-1");
+    removeForm.set("membershipId", "m-caller");
+    await expect(
+      removeOrgMemberAction(emptyActionMessageState, removeForm),
+    ).resolves.toEqual({
+      message: null,
+      error: "Only org owners and admins can remove members.",
+    });
+
+    const roleForm = new FormData();
+    roleForm.set("orgId", "org-1");
+    roleForm.set("membershipId", "m-caller");
+    roleForm.set("role", "admin");
+    await expect(
+      changeOrgMemberRoleAction(emptyActionMessageState, roleForm),
+    ).resolves.toEqual({
+      message: null,
+      error: "Only org owners and admins can change member roles.",
+    });
+  });
 });

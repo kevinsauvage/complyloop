@@ -29,13 +29,17 @@ type Clause =
 
 const jobs = vi.hoisted(() => new Map<string, JobRow>());
 const getDrizzle = vi.hoisted(() => vi.fn());
+const reportWarning = vi.hoisted(() => vi.fn());
+// When set, the next insert throws instead (simulates a concurrent writer
+// winning the race for the same idempotency key).
+const insertThrow = vi.hoisted(() => ({ error: null as unknown }));
 
 vi.mock("@complyloop/db/client", () => ({
   getDrizzle: () => getDrizzle(),
 }));
 
 vi.mock("./observability", () => ({
-  reportWarning: vi.fn(),
+  reportWarning: (...args: unknown[]) => reportWarning(...args),
 }));
 
 vi.mock("drizzle-orm", async () => {
@@ -166,6 +170,11 @@ function createDrizzle() {
     insert: () => ({
       values: (value: JobRow) => ({
         returning: async () => {
+          if (insertThrow.error) {
+            const error = insertThrow.error;
+            insertThrow.error = null;
+            throw error;
+          }
           const row = { ...value };
           jobs.set(row.id, row);
           return [row];
@@ -417,8 +426,7 @@ describe("claimNextAssessmentJob", () => {
     expect(webhook2.id).not.toBe(webhook1.id);
   });
 
-  it("falls back to an empty payload for garbage stored payloads", async () => {
-    const now = new Date().toISOString();
+  it("falls back to an empty payload for garbage stored payloads", async () => {    const now = new Date().toISOString();
     jobs.set("job-garbage", {
       id: "job-garbage",
       projectId: "p1",
@@ -440,6 +448,85 @@ describe("claimNextAssessmentJob", () => {
     });
     const [job] = await recentAssessmentJobsForProject("p1", 5);
     expect(job?.payload).toEqual({});
+  });
+
+  it("rejects rows with an unknown status", async () => {
+    const now = new Date().toISOString();
+    jobs.set("job-bogus", {
+      id: "job-bogus",
+      projectId: "p1",
+      status: "bogus",
+      trigger: "manual",
+      requestedByUserId: null,
+      idempotencyKey: null,
+      payload: {},
+      attempts: 0,
+      maxAttempts: 3,
+      availableAt: now,
+      startedAt: null,
+      leaseExpiresAt: null,
+      completedAt: null,
+      error: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await expect(recentAssessmentJobsForProject("p1", 5)).rejects.toThrow(
+      /Unexpected assessment job status/,
+    );
+  });
+
+  it("returns the concurrent winner on unique-violation races", async () => {
+    const now = new Date().toISOString();
+    jobs.set("job-winner", {
+      id: "job-winner",
+      projectId: "p1",
+      status: "queued",
+      trigger: "webhook",
+      requestedByUserId: null,
+      idempotencyKey: "delivery-race",
+      payload: { ref: "a".repeat(40) },
+      attempts: 0,
+      maxAttempts: 3,
+      availableAt: now,
+      startedAt: null,
+      leaseExpiresAt: null,
+      completedAt: null,
+      error: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    // The pre-insert idempotency check misses (row lands concurrently), the
+    // insert hits the unique constraint, the recovery select finds the winner.
+    insertThrow.error = { code: "23505" };
+    const job = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+      idempotencyKey: "delivery-race",
+    });
+    expect(job.id).toBe("job-winner");
+  });
+
+  it("rethrows non-unique insert failures", async () => {
+    insertThrow.error = new Error("connection lost");
+    await expect(
+      enqueueAssessmentJob({ projectId: "p1", trigger: "manual" }),
+    ).rejects.toThrow(/connection lost/);
+  });
+
+  it("warns on a stale-lease fail write", async () => {
+    const job = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const claimed = await claimNextAssessmentJob();
+    if (!claimed) throw new Error("expected claim");
+    jobs.delete(job.id);
+    const status = await failAssessmentJob(claimed, new Error("boom"));
+    expect(status).toBe("queued");
+    expect(reportWarning).toHaveBeenCalledWith(
+      "Stale lease write rejected for assessment job",
+      expect.objectContaining({ jobId: job.id }),
+    );
   });
 });
 

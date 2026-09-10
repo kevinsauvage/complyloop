@@ -349,4 +349,135 @@ describe("locateViolationInProject + PR apply", () => {
       }),
     ).rejects.toThrow(/oldText not found/);
   });
+
+  it("rejects runtime DOM findings without touching git", async () => {
+    const { project, control, finding, remediation } = await initRepo(
+      `export const Hero = () => <button></button>;\n`,
+    );
+    await expect(
+      preparePullRequest(
+        project,
+        control,
+        {
+          ...finding,
+          location: {
+            kind: "dom",
+            url: "https://preview.example/",
+            selector: "button",
+            snippet: "<button></button>",
+          },
+        },
+        remediation,
+        null,
+      ),
+    ).rejects.toThrow(/cannot be committed automatically/);
+  });
+
+  it("requires a verified candidate before opening a checkout", async () => {
+    const { project, control, finding, remediation } = await initRepo(
+      `export const Hero = () => <button></button>;\n`,
+    );
+    await expect(
+      preparePullRequest(project, control, finding, remediation, null),
+    ).rejects.toThrow(/Generate and review/);
+  });
+
+  it("fails when the checkout is not a git repository", async () => {
+    const { project, control, finding, remediation } = await initRepo(
+      `export const Hero = () => <button></button>;\n`,
+    );
+    finding.fix = null;
+    withProjectCheckout.mockImplementation(async (_project, fn) =>
+      fn(os.tmpdir()),
+    );
+    await expect(
+      preparePullRequest(project, control, finding, remediation, {
+        description: "Add alt",
+        provenance: "ai",
+        edits: [
+          {
+            path: "Hero.tsx",
+            oldText: "<button></button>",
+            newText: '<button aria-label="Save"></button>',
+          },
+        ],
+        complyLoop: { passed: true, remaining: [] },
+      }),
+    ).rejects.toThrow(/requires a git repository/);
+  });
+
+  it("surfaces GitHub API failures after a successful push", async () => {
+    const initial = `export const Hero = () => <button></button>;\n`;
+    const { root, relative, project, control, finding, remediation } =
+      await initRepo(initial);
+    finding.fix = null;
+    resolveProjectGitHubToken.mockResolvedValue("token");
+    // Push to the repo itself so only the PR creation fails.
+    githubPublicCloneUrl.mockReturnValue(root);
+    createPullRequest.mockRejectedValueOnce(new Error("API down"));
+
+    await expect(
+      preparePullRequest(project, control, finding, remediation, {
+        description: "Add alt",
+        provenance: "ai",
+        edits: [
+          {
+            path: relative,
+            oldText: "<button></button>",
+            newText: '<button aria-label="Save"></button>',
+          },
+        ],
+        complyLoop: { passed: true, remaining: [] },
+      }),
+    ).rejects.toThrow(/committed locally but push/);
+  });
+
+  it("reuses the existing fix branch on a second run", async () => {
+    const initial = `export const Hero = () => <button></button>;\n`;
+    const { root, relative, project, control, finding, remediation } =
+      await initRepo(initial);
+    finding.fix = null;
+    resolveProjectGitHubToken.mockResolvedValue("token");
+    githubPublicCloneUrl.mockReturnValue(root);
+    const candidate = {
+      description: "Add alt",
+      provenance: "ai" as const,
+      edits: [
+        {
+          path: relative,
+          oldText: "<button></button>",
+          newText: '<button aria-label="Save"></button>',
+        },
+      ],
+      complyLoop: { passed: true, remaining: [] },
+    };
+
+    const first = await preparePullRequest(
+      project,
+      control,
+      finding,
+      remediation,
+      candidate,
+    );
+    // The working tree already carries the first fix; the second run must
+    // reuse the branch instead of creating it again.
+    const second = await preparePullRequest(
+      project,
+      control,
+      finding,
+      remediation,
+      {
+        ...candidate,
+        edits: [
+          {
+            path: relative,
+            oldText: '<button aria-label="Save"></button>',
+            newText: '<button aria-label="Save twice"></button>',
+          },
+        ],
+      },
+    );
+    expect(second.branch).toBe(first.branch);
+    expect(second.prUrl).toBe("https://github.com/acme/shop/pull/42");
+  });
 });

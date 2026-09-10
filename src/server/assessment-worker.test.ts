@@ -326,6 +326,9 @@ describe("processNextAssessmentJob", () => {
       },
     ];
     db.alerts = [...storedAlerts];
+    db.findings = [
+      testFinding({ id: "f-c1", projectId: "p1", controlId: "c1" }),
+    ];
     // The worker matches against a fresh in-transaction read, not the
     // pre-scan slice: simulate an alert the user read mid-scan.
     listAlertsForProject.mockResolvedValue([
@@ -612,6 +615,118 @@ describe("processNextAssessmentJob", () => {
     expect(reportWarning).toHaveBeenCalledWith(
       expect.stringMatching(/GitHub token unavailable/),
       expect.objectContaining({ code: "github_token_missing" }),
+    );
+  });
+
+  it("retries when the project vanished before its job ran", async () => {
+    claimNextAssessmentJob.mockResolvedValue(job());
+    loadProjectDb.mockResolvedValue(baseEmptyDb());
+    failAssessmentJob.mockResolvedValue("queued");
+
+    await expect(processNextAssessmentJob()).resolves.toEqual({
+      kind: "retrying",
+      jobId: "job-1",
+    });
+    expect(withProjectCheckout).not.toHaveBeenCalled();
+  });
+
+  it("retries when the assessment has no snapshot", async () => {
+    claimNextAssessmentJob.mockResolvedValue(job());
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockImplementation(
+      async (
+        _project: unknown,
+        fn: (rootPath: string) => Promise<unknown>,
+      ) => fn("/tmp/checkout"),
+    );
+    runAssessment.mockResolvedValue({
+      assessment: { id: "a1", projectId: "p1" },
+      evidence: [],
+      findings: [],
+      remediations: [],
+      requirements: [],
+    });
+    failAssessmentJob.mockResolvedValue("queued");
+
+    await expect(processNextAssessmentJob()).resolves.toEqual({
+      kind: "retrying",
+      jobId: "job-1",
+    });
+    expect(completeAssessmentJob).not.toHaveBeenCalled();
+  });
+
+  it("warns when the posted PR check fails", async () => {
+    const db = projectDb();
+    db.findings = [
+      testFinding({ id: "f-open", projectId: "p1", controlId: "c1" }),
+    ];
+    db.requirements = [
+      {
+        id: "r1",
+        projectId: "p1",
+        controlId: "c1",
+        status: "failed",
+        determination: "automated",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ];
+    claimNextAssessmentJob.mockResolvedValue(
+      job({
+        trigger: "webhook",
+        payload: {
+          eventName: "pull_request",
+          pullRequestHeadSha: "abc123",
+        },
+      }),
+    );
+    loadProjectDb.mockResolvedValue(db);
+    withProjectCheckout.mockImplementation(
+      async (
+        _project: unknown,
+        fn: (rootPath: string) => Promise<unknown>,
+      ) => fn("/tmp/checkout"),
+    );
+    runAssessment.mockResolvedValue(
+      assessmentRun(
+        {
+          id: "a1",
+          projectId: "p1",
+          snapshot: { fileHashes: {} },
+        },
+        { evidence: [], findings: db.findings, requirements: db.requirements },
+      ),
+    );
+    completeAssessmentJob.mockResolvedValue(undefined);
+    resolveProjectGitHubToken.mockResolvedValue("ghs_token");
+    postPullRequestCheckRun.mockResolvedValue({ ok: false, error: "nope" });
+
+    await expect(processNextAssessmentJob()).resolves.toEqual({
+      kind: "succeeded",
+      jobId: "job-1",
+    });
+    expect(reportWarning).toHaveBeenCalledWith(
+      "Pull-request Check Run could not be posted.",
+      expect.objectContaining({ code: "github_check_run_failed" }),
+    );
+  });
+
+  it("warns when failure evidence cannot be recorded", async () => {
+    claimNextAssessmentJob.mockResolvedValue(job({ attempts: 3 }));
+    loadProjectDb
+      .mockResolvedValueOnce(projectDb())
+      .mockRejectedValueOnce(new Error("db gone"));
+    withProjectCheckout.mockRejectedValue(new Error("clone failed"));
+    failAssessmentJob.mockResolvedValue("failed");
+
+    await expect(processNextAssessmentJob()).resolves.toEqual({
+      kind: "failed",
+      jobId: "job-1",
+    });
+    expect(reportWarning).toHaveBeenCalledWith(
+      "db gone",
+      expect.objectContaining({
+        code: "assessment_job_failure_evidence_failed",
+      }),
     );
   });
 });
