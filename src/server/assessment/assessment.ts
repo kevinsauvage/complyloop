@@ -15,7 +15,6 @@ import type {
   Control,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import { mergeRawFindings } from "@complyloop/analysis-core/merge-findings";
 import {
@@ -26,23 +25,22 @@ import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/them
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
 import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
 import type { RawFinding } from "@complyloop/analysis-core/types";
-import type { WorkspaceSlice } from "@complyloop/db/types";
 
-import { countByStatus,latestAssessmentFor } from "@/core/assessment-helpers";
+import { countByStatus, latestAssessmentFor } from "@/core/assessment-helpers";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
 
 import {
-  appendEvidence,
-  cloneProjectRows,
-  type ProjectRows,
-} from "../workspace/project-rows";
-import { assertAssessableCatalog, requirementsInScope } from "../workspace/project-scope";
+  assertAssessableCatalog,
+  requirementsInScope,
+} from "../workspace/project-scope";
 import { reconcileControlFindings } from "./assessment-findings";
 import {
-  applyRequirementStatusRefresh,
-  clearExpiredExceptions,
-  upsertRequirementsById,
-} from "./assessment-status";
+  appendEvidence,
+  type AssessmentPipelineInput,
+  createAssessmentScratch,
+  type ProjectRows,
+} from "./assessment-pipeline";
+import { applyRequirementStatusRefresh } from "./assessment-status";
 import { detectChanges, readRepoHead, summarizeChanges } from "./monitor";
 import {
   remediationEvidenceDetail,
@@ -159,35 +157,31 @@ function verifyDraftPrRemediation(
 }
 
 /**
- * Runs assessment against a checkout. Reads the loaded `db` but never mutates
- * it — all writes live on a cloned project-row scratch and are returned for
- * `applyAssessmentPayload` (or test materialization).
+ * Runs assessment against a checkout. Takes the narrow pipeline input
+ * (project + project-scoped rows — never the full tenancy `WorkspaceSlice`).
+ * Reads the input but never mutates it — all writes live on an
+ * assessment-owned scratch (see `assessment-pipeline.ts`) and are returned
+ * for `applyAssessmentPayload` (or test materialization).
+ *
+ * Stage sequence: (1) scratch → (2) change detection → (3) AST scan →
+ * (4) runtime scan → (5) merge → (6) reconcile findings → (7) refresh
+ * statuses → (8) build assessment record.
  */
 export async function runAssessment(
-  db: WorkspaceSlice,
-  projectId: string,
+  input: AssessmentPipelineInput,
   options: RunAssessmentOptions,
 ): Promise<AssessmentRunResult> {
-  const project = db.projects.find((candidate) => candidate.id === projectId);
-  if (!project) throw new PublicError("Unknown project.");
+  const { project } = input;
+  const projectId = project.id;
   const { rootPath } = options;
 
-  const rows = cloneProjectRows(
-    db.findings,
-    db.remediations,
-    db.requirements,
-    projectId,
-  );
-  const cleared = clearExpiredExceptions(rows.requirements, projectId);
-  rows.requirements = upsertRequirementsById(
-    rows.requirements,
-    cleared.requirements,
-  );
-  rows.evidence.push(...cleared.evidence);
+  // — Stage 1: scratch rows (clone + clear expired exceptions). —
+  const rows = createAssessmentScratch(input);
 
   const startedAt = new Date().toISOString();
 
-  const previous = latestAssessmentFor(db.assessments, projectId);
+  // — Stage 2: change detection (snapshot + changed files). —
+  const previous = latestAssessmentFor(input.assessments, projectId);
   const scoped = assertAssessableCatalog(project, options.controls);
   // Reuse prior AST findings only when the commit, control scope, and engine
   // behavior version/check set are all unchanged. Any difference forces a real
@@ -239,6 +233,7 @@ export async function runAssessment(
   let astFindings: RawFinding[] = [];
   let filesScanned: number;
   let scanMode: "full" | "scoped";
+  // — Stage 3: AST scan (full / scoped / reuse when sources unchanged). —
   if (sourcesUnchanged) {
     // Sources, scope, and engine set are identical to the last run: keep the
     // existing AST findings and skip the full-tree scan. Runtime checks still
@@ -262,6 +257,7 @@ export async function runAssessment(
       ? new Set(changedJsx)
       : null;
 
+  // — Stage 4: runtime scan (only when a preview URL is configured). —
   const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
   const runtimeResult = runtimeConfigured
     ? await scanRuntime({
@@ -283,6 +279,7 @@ export async function runAssessment(
     runtimeResult,
   );
 
+  // — Stage 5: merge AST + runtime findings (dedupe, authority). —
   const rawFindings = mergeRawFindings(
     astFindings,
     runtimeResult.findings,
@@ -294,6 +291,7 @@ export async function runAssessment(
   // suggestion builder should read each file once (see buildSuggestion).
   const fileTextCache = new Map<string, string>();
 
+  // — Stage 6: reconcile per-control findings (match / create / resolve). —
   for (const control of scoped) {
     if (control.checkId === null) continue;
     reconcileControlFindings({
@@ -318,6 +316,7 @@ export async function runAssessment(
     });
   }
 
+  // — Stage 7: refresh requirement statuses + summarize. —
   applyRequirementStatusRefresh(rows, project, {
     assessmentId,
     changeContext,
@@ -332,6 +331,7 @@ export async function runAssessment(
   const scopedRequirements = requirementsInScope(rows.requirements, project);
   const summary = countByStatus(scopedRequirements, REQUIREMENT_STATUSES);
 
+  // — Stage 8: build the assessment record + completion evidence. —
   const assessment: Assessment = {
     id: assessmentId,
     projectId,

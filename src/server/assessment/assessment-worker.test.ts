@@ -207,10 +207,15 @@ describe("processNextAssessmentJob", () => {
       kind: "succeeded",
       jobId: "job-1",
     });
-    expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
-      rootPath: "/tmp/checkout",
-      authoritative: true,
-    });
+    expect(runAssessment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project: expect.objectContaining({ id: "p1" }),
+      }),
+      {
+        rootPath: "/tmp/checkout",
+        authoritative: true,
+      },
+    );
     expect(applyAssessmentPayload).toHaveBeenCalled();
     expect(insertEvidence).toHaveBeenCalledWith(
       expect.anything(),
@@ -246,9 +251,13 @@ describe("processNextAssessmentJob", () => {
         fn: (rootPath: string) => Promise<unknown>,
       ) => fn("/tmp/checkout"),
     );
-    runAssessment.mockImplementation(async (liveDb: WorkspaceSlice) => {
-      liveDb.remediations[0] = {
-        ...liveDb.remediations[0]!,
+    runAssessment.mockImplementation(async (input: {
+      findings: WorkspaceSlice["findings"];
+      remediations: WorkspaceSlice["remediations"];
+      requirements: WorkspaceSlice["requirements"];
+    }) => {
+      input.remediations[0] = {
+        ...input.remediations[0]!,
         status: "verified",
       };
       return assessmentRun(
@@ -258,9 +267,9 @@ describe("processNextAssessmentJob", () => {
           snapshot: { fileHashes: {} },
         },
         {
-          findings: liveDb.findings,
-          remediations: liveDb.remediations,
-          requirements: liveDb.requirements,
+          findings: input.findings,
+          remediations: input.remediations,
+          requirements: input.requirements,
           evidence: [],
         },
       );
@@ -271,10 +280,15 @@ describe("processNextAssessmentJob", () => {
       kind: "succeeded",
       jobId: "job-1",
     });
-    expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
-      rootPath: "/tmp/checkout",
-      authoritative: true,
-    });
+    expect(runAssessment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project: expect.objectContaining({ id: "p1" }),
+      }),
+      {
+        rootPath: "/tmp/checkout",
+        authoritative: true,
+      },
+    );
     expect(applyAssessmentPayload).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -526,10 +540,15 @@ describe("processNextAssessmentJob", () => {
     });
     // A PR-head scan is a preview: it posts the Check Run but must not
     // persist any project compliance state.
-    expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
-      rootPath: "/tmp/checkout",
-      authoritative: false,
-    });
+    expect(runAssessment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project: expect.objectContaining({ id: "p1" }),
+      }),
+      {
+        rootPath: "/tmp/checkout",
+        authoritative: false,
+      },
+    );
     expect(applyAssessmentPayload).not.toHaveBeenCalled();
     expect(insertEvidence).not.toHaveBeenCalled();
     expect(postPullRequestCheckRun).toHaveBeenCalledWith(
@@ -569,10 +588,15 @@ describe("processNextAssessmentJob", () => {
       kind: "succeeded",
       jobId: "job-1",
     });
-    expect(runAssessment).toHaveBeenCalledWith(db, "p1", {
-      rootPath: "/tmp/checkout",
-      authoritative: true,
-    });
+    expect(runAssessment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project: expect.objectContaining({ id: "p1" }),
+      }),
+      {
+        rootPath: "/tmp/checkout",
+        authoritative: true,
+      },
+    );
     expect(applyAssessmentPayload).toHaveBeenCalled();
     expect(insertEvidence).toHaveBeenCalled();
   });

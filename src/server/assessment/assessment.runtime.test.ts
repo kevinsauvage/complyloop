@@ -13,6 +13,7 @@ import type { WorkspaceSlice } from "@complyloop/db/types";
 import { materializeAssessmentRun } from "@/test-fixtures/materialize-assessment-run";
 
 import { runAssessment } from "./assessment";
+import { toPipelineInput } from "./assessment-pipeline";
 
 const CLEAN_SOURCE = `export const Page = () => <img src="/x.png" alt="ok" />;\n`;
 
@@ -62,11 +63,11 @@ describe("runAssessment with runtime engine", () => {
   ];
 
   async function assess(
-    options: Omit<Parameters<typeof runAssessment>[2], "rootPath"> & {
+    options: Omit<Parameters<typeof runAssessment>[1], "rootPath"> & {
       rootPath?: string;
     },
   ) {
-    const run = await runAssessment(db, project.id, {
+    const run = await runAssessment(toPipelineInput(db, project.id), {
       rootPath,
       ...options,
     });

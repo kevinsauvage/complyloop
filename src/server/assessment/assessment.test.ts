@@ -13,6 +13,7 @@ import type { WorkspaceSlice } from "@complyloop/db/types";
 import { materializeAssessmentRun } from "@/test-fixtures/materialize-assessment-run";
 
 import { runAssessment } from "./assessment";
+import { toPipelineInput } from "./assessment-pipeline";
 
 const BROKEN = `export const Hero = () => <img src="/hero-banner.png" />;\n`;
 const FIXED = `export const Hero = () => <img src="/hero-banner.png" alt="Summer sale banner" />;\n`;
@@ -55,8 +56,8 @@ function requirementStatus(controlId: string) {
     ?.status;
 }
 
-async function assess(options: Parameters<typeof runAssessment>[2] = { rootPath }) {
-  const run = await runAssessment(db, project.id, options);
+async function assess(options: Parameters<typeof runAssessment>[1] = { rootPath }) {
+  const run = await runAssessment(toPipelineInput(db, project.id), options);
   materializeAssessmentRun(db, run);
   return run;
 }
