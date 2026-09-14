@@ -2,7 +2,7 @@ import type {
   Requirement,
   RequirementException,
   RequirementHumanPass,
-} from "@complyloop/analysis-core/contract/project-types";
+} from "@complyloop/analysis-core/contract/entities";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
 /**

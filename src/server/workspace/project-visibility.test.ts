@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import type {
   EvidenceRecord,
   Finding,
+  Requirement,
 } from "@complyloop/analysis-core/contract/entities";
 import type {
   Organization,
   OrgMembership,
   Project,
-  Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 
 import { testProject } from "@/test-fixtures/project";

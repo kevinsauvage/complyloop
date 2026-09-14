@@ -3,9 +3,16 @@ import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 /*
- * Zod request/form validation. Kept in this module (not `./filter-params`) so
- * client components can import the pure URL/filter helpers from
- * `./filter-params` without pulling `zod` into their bundles.
+ * Zod request/form validation kernel. Pure validation primitives only:
+ * field schemas, form/record parsing, and typed parse helpers. Domain- or
+ * integration-specific schemas (GitHub API shapes, action inputs, route
+ * params) live next to their owners — never here — so this module stays
+ * framework-agnostic and safe to import from client components that already
+ * pay for zod via forms.
+ *
+ * URL/filter parsing lives in `./filter-params` (zod-free) so client
+ * components can import href/filter helpers without pulling `zod` into
+ * their bundles.
  */
 
 export const entityIdSchema = z.string().trim().min(1).max(128);
@@ -41,24 +48,6 @@ export function findingIdsField(emptyMessage: string) {
     })
     .pipe(z.array(entityIdSchema).min(1, { error: emptyMessage }));
 }
-
-const githubRepoSummarySchema = z.object({
-  fullName: z.string().min(1),
-  name: z.string().min(1),
-  description: z.string().nullable(),
-  private: z.boolean(),
-  defaultBranch: z.string().min(1),
-  updatedAt: z.string(),
-  htmlUrl: z.string().min(1),
-  cloneUrl: z.string().min(1),
-  installationId: z.number().int().positive().optional(),
-});
-
-export const githubRepoSearchResponseSchema = z.object({
-  repos: z.array(githubRepoSummarySchema),
-  hasMore: z.boolean(),
-  error: z.string().optional(),
-});
 
 export function formRecord(
   formData: FormData,

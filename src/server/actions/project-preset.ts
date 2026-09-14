@@ -6,12 +6,9 @@ import { presetById } from "@complyloop/analysis-core/catalog/registry";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
-import { parseForm, requiredField } from "@/core/filters";
+import { parseForm, requiredField } from "@/core/validate";
 
-import {
-  type ActionState,
-  runAction,
-} from "../action-state";
+import { type ActionState, runAction } from "../action-state";
 import { appendEvidence } from "../workspace/project-rows";
 import { withProjectWrite } from "../workspace/workspace-write";
 import { refresh, requireOnActive } from "./shared";

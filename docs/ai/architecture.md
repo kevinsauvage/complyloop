@@ -94,7 +94,7 @@ evidence, findings, remediations, requirements }`; the worker persists via
   Do not use `.at(-1)` (loaders return newest-first).
 - **Validation** — shared zod primitives (`entityIdSchema`,
   `requiredField`, `parseForm` / `parseInput` / `parseEntityId`) live in
-  `src/core/filters.ts`; action- and route-specific schemas stay next to
+  `src/core/validate.ts`; action- and route-specific schemas stay next to
   their actions/handlers. No separate validation layer.
 - **Persistence API** — concrete `packages/db/repo` functions are the API.
   No abstract repositories, interfaces-per-table, or DI containers: expensive

@@ -8,6 +8,7 @@ import type {
   EvidenceRecord,
   Finding,
   Remediation,
+  Requirement,
 } from "@complyloop/analysis-core/contract/entities";
 import type { FindingLocation } from "@complyloop/analysis-core/contract/finding-types";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
@@ -19,7 +20,6 @@ import type {
   Control,
   Framework,
   Project,
-  Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 import {
   FINDING_STATUSES,

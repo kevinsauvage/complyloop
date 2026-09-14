@@ -4,13 +4,9 @@ import type {
   EvidenceRecord,
   Finding,
   Remediation,
-} from "@complyloop/analysis-core/contract/entities";
-import type {
-  Organization,
-  OrgMembership,
-  Project,
   Requirement,
-} from "@complyloop/analysis-core/contract/project-types";
+} from "@complyloop/analysis-core/contract/entities";
+import type { Organization, OrgMembership, Project } from "@complyloop/analysis-core/contract/project-types";
 
 /**
  * In-memory slice for **writes and assessment** only.

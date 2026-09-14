@@ -2,31 +2,25 @@
 
 import { z } from "zod";
 
-import type { Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 import {
   REQUIREMENT_EXCEPTION_REASONS,
   TEMPORARY_EXCEPTION_REASON,
-} from "@complyloop/analysis-core/contract/project-types";
+  type Requirement,
+} from "@complyloop/analysis-core/contract/entities";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import {
-  parseEntityId,
-  parseForm,
-  requiredField,
-} from "@/core/filters";
-
-import {
-  type ActionState,
-  runAction,
-} from "../action-state";
-import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
-import {
   clearRequirementHumanDetermination,
   normalizeExpiryInstant,
   setRequirementHumanDetermination,
 } from "@/core/requirement-human-determination";
+import { parseEntityId, parseForm, requiredField } from "@/core/validate";
+
+import { type ActionState, runAction } from "../action-state";
+import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
 import { appendEvidence, cloneProjectRows } from "../workspace/project-rows";
 import { controlById } from "../workspace/workspace";
 import { withProjectWrite } from "../workspace/workspace-write";
@@ -161,64 +155,59 @@ export async function markRequirementExceptionAction(
     const requirementId = parseEntityId(requirementIdRaw);
     const parsed = parseForm(markExceptionInput, formData);
     await withProjectWrite(async (workspace) => {
-        requireOnActive(workspace, "project.remediate");
-        const { db, project } = workspace;
-        const requirement = requireRequirement(
-          db,
-          project.id,
-          requirementId,
-        );
+      requireOnActive(workspace, "project.remediate");
+      const { db, project } = workspace;
+      const requirement = requireRequirement(db, project.id, requirementId);
 
-        const { reason, note } = parsed;
-        const expiresRaw = parsed.expiresAt;
-        const expiresAt =
-          reason === TEMPORARY_EXCEPTION_REASON && typeof expiresRaw === "string"
-            ? (normalizeExpiryInstant(expiresRaw) ?? undefined)
-            : undefined;
+      const { reason, note } = parsed;
+      const expiresRaw = parsed.expiresAt;
+      const expiresAt =
+        reason === TEMPORARY_EXCEPTION_REASON && typeof expiresRaw === "string"
+          ? (normalizeExpiryInstant(expiresRaw) ?? undefined)
+          : undefined;
 
-        const { updated, previous } = setRequirementHumanDetermination(
-          requirement,
-          {
-            kind: "exception",
-            exception: {
-              reason,
-              note,
-              at: new Date().toISOString(),
-              expiresAt,
-            },
-            nextStatus:
-              reason === "not_applicable" ? "not_applicable" : undefined,
-          },
-        );
-
-        const payload: ProjectWritePayload = {};
-        const control = controlById(requirement.controlId);
-        appendEvidence(payload, {
-          kind: "requirement_exception_set",
-          summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
-          projectId: project.id,
-          controlId: requirement.controlId,
-          detail: {
+      const { updated, previous } = setRequirementHumanDetermination(
+        requirement,
+        {
+          kind: "exception",
+          exception: {
             reason,
             note,
+            at: new Date().toISOString(),
             expiresAt,
-            from: previous,
-            to: updated.status,
           },
+          nextStatus:
+            reason === "not_applicable" ? "not_applicable" : undefined,
+        },
+      );
+
+      const payload: ProjectWritePayload = {};
+      const control = controlById(requirement.controlId);
+      appendEvidence(payload, {
+        kind: "requirement_exception_set",
+        summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
+        projectId: project.id,
+        controlId: requirement.controlId,
+        detail: {
+          reason,
+          note,
+          expiresAt,
+          from: previous,
+          to: updated.status,
+        },
+      });
+      if (previous !== updated.status) {
+        appendEvidence(payload, {
+          kind: "requirement_status_changed",
+          summary: `${control.code} (${control.title}): ${previous} → ${updated.status} — human exception`,
+          projectId: project.id,
+          controlId: requirement.controlId,
+          detail: { from: previous, to: updated.status, regression: false },
         });
-        if (previous !== updated.status) {
-          appendEvidence(payload, {
-            kind: "requirement_status_changed",
-            summary: `${control.code} (${control.title}): ${previous} → ${updated.status} — human exception`,
-            projectId: project.id,
-            controlId: requirement.controlId,
-            detail: { from: previous, to: updated.status, regression: false },
-          });
-        }
-        payload.requirements = [updated];
-        return payload;
-      },
-    );
+      }
+      payload.requirements = [updated];
+      return payload;
+    });
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Exception recorded.";
   });
@@ -233,58 +222,53 @@ export async function markRequirementPassedAction(
     const requirementId = parseEntityId(requirementIdRaw);
     const { note } = parseForm(markPassedInput, formData);
     await withProjectWrite(async (workspace) => {
-        requireOnActive(workspace, "project.remediate");
-        const { db, project } = workspace;
-        const requirement = requireRequirement(
-          db,
-          project.id,
-          requirementId,
+      requireOnActive(workspace, "project.remediate");
+      const { db, project } = workspace;
+      const requirement = requireRequirement(db, project.id, requirementId);
+
+      const control = controlById(requirement.controlId);
+      if (control.checkId !== null) {
+        throw new PublicError(
+          "Only manual controls (no automated check) can be marked passed by human review.",
         );
+      }
 
-        const control = controlById(requirement.controlId);
-        if (control.checkId !== null) {
-          throw new PublicError(
-            "Only manual controls (no automated check) can be marked passed by human review.",
-          );
-        }
-
-        const { updated, previous } = setRequirementHumanDetermination(
-          requirement,
-          {
-            kind: "humanPass",
-            humanPass: {
-              note,
-              at: new Date().toISOString(),
-            },
+      const { updated, previous } = setRequirementHumanDetermination(
+        requirement,
+        {
+          kind: "humanPass",
+          humanPass: {
+            note,
+            at: new Date().toISOString(),
           },
-        );
+        },
+      );
 
-        const payload: ProjectWritePayload = {};
+      const payload: ProjectWritePayload = {};
+      appendEvidence(payload, {
+        kind: "requirement_human_passed",
+        summary: `${control.code} marked passed (human review): ${note}`,
+        projectId: project.id,
+        controlId: requirement.controlId,
+        detail: { note, from: previous, to: "passed" },
+      });
+      if (previous !== "passed") {
         appendEvidence(payload, {
-          kind: "requirement_human_passed",
-          summary: `${control.code} marked passed (human review): ${note}`,
+          kind: "requirement_status_changed",
+          summary: `${control.code} (${control.title}): ${previous} → passed — human review`,
           projectId: project.id,
           controlId: requirement.controlId,
-          detail: { note, from: previous, to: "passed" },
+          detail: {
+            from: previous,
+            to: "passed",
+            regression: false,
+            humanPass: true,
+          },
         });
-        if (previous !== "passed") {
-          appendEvidence(payload, {
-            kind: "requirement_status_changed",
-            summary: `${control.code} (${control.title}): ${previous} → passed — human review`,
-            projectId: project.id,
-            controlId: requirement.controlId,
-            detail: {
-              from: previous,
-              to: "passed",
-              regression: false,
-              humanPass: true,
-            },
-          });
-        }
-        payload.requirements = [updated];
-        return payload;
-      },
-    );
+      }
+      payload.requirements = [updated];
+      return payload;
+    });
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Human pass recorded.";
   });
@@ -324,16 +308,11 @@ async function clearRequirementOverrideAction(
   return runAction(async () => {
     const requirementId = parseEntityId(requirementIdRaw);
     await withProjectWrite(async (workspace) => {
-        requireOnActive(workspace, "project.remediate");
-        const { db, project } = workspace;
-        const requirement = requireRequirement(
-          db,
-          project.id,
-          requirementId,
-        );
-        return clearRequirementOverride(db, project, requirement, field);
-      },
-    );
+      requireOnActive(workspace, "project.remediate");
+      const { db, project } = workspace;
+      const requirement = requireRequirement(db, project.id, requirementId);
+      return clearRequirementOverride(db, project, requirement, field);
+    });
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return message;
   });

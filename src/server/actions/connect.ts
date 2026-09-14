@@ -4,18 +4,15 @@ import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
+import { parseForm, requiredField } from "@/core/validate";
 import { getGitHubAccessToken } from "@/server/github/access-token";
-import { parseForm, requiredField } from "@/core/filters";
 
-import {
-  type ActionState,
-  runAction,
-} from "../action-state";
-import { fetchGitHubRepo } from "../github/github-access";
+import { type ActionState, runAction } from "../action-state";
 import {
   createInstallationAccessToken,
   resolveUserInstallationForRepo,
 } from "../github/github-app";
+import { fetchRepo } from "../github/github-connector";
 import { assertConnectRateLimit } from "../rate-limit";
 import {
   clearActiveProjectCookie,
@@ -30,7 +27,10 @@ import {
 import { resolveActiveOrgId } from "../workspace/org-queries";
 import { ensurePersonalOrgProvisioned } from "../workspace/personal-org";
 import { projectCapabilities } from "../workspace/project-capabilities";
-import { accessFromStore, setActiveProject } from "../workspace/project-visibility";
+import {
+  accessFromStore,
+  setActiveProject,
+} from "../workspace/project-visibility";
 import { getWorkspace } from "../workspace/workspace";
 import { withConnectWrite } from "../workspace/workspace-write";
 import { refresh, requireSignedIn } from "./shared";
@@ -99,7 +99,7 @@ export async function connectGitHubRepoAction(
     });
     const accessToken = await createInstallationAccessToken(installationId);
 
-    const repo = await fetchGitHubRepo(accessToken, fullName);
+    const repo = await fetchRepo(accessToken, fullName);
     await ensurePersonalOrgProvisioned(userId, githubLogin ?? "");
     const preferredOrgId = await readActiveOrgCookie();
 
@@ -157,9 +157,7 @@ export async function disconnectGitHubRepoAction(
 ): Promise<ActionState> {
   return runAction(async () => {
     const { projectId } = parseForm(disconnectGitHubRepoInput, formData);
-    await requireSignedIn(
-      "Sign in with GitHub to disconnect a repository.",
-    );
+    await requireSignedIn("Sign in with GitHub to disconnect a repository.");
 
     const { nextProjectId, disconnectedName } = await withConnectWrite(
       { activeProjectId: projectId },
@@ -169,11 +167,8 @@ export async function disconnectGitHubRepoAction(
         );
         const disconnectedName =
           project?.github?.fullName ?? project?.name ?? "repository";
-        const {
-          deleteProjectId,
-          evidence,
-          nextProjectId,
-        } = disconnectGitHubRepo(db, projectId, userId);
+        const { deleteProjectId, evidence, nextProjectId } =
+          disconnectGitHubRepo(db, projectId, userId);
         return {
           result: { nextProjectId, disconnectedName },
           deleteProjectIds: [deleteProjectId],

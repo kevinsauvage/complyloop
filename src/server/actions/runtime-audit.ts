@@ -6,7 +6,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { normalizeRoutes } from "@complyloop/analysis-core/runtime/routes";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
 
-import { parseForm } from "@/core/filters";
+import { parseForm } from "@/core/validate";
 
 import {
   type ActionState,

@@ -1,6 +1,8 @@
-import type { DeterminationMethod, RequirementStatus } from "./statuses.ts";
-
-/** Default page size for list queries/views across app and db layers. */
+/**
+ * Tenancy and reference data: Organization, Project, Control, presets.
+ * Persisted compliance rows (Requirement, Finding, Remediation, Evidence,
+ * Alert) live in `./entities.ts` — import them from there.
+ */
 export const DEFAULT_PAGE_SIZE = 25;
 
 export interface Framework {
@@ -102,47 +104,4 @@ export interface Project {
    * Defaults to `["/"]` when the base URL is set and this is omitted.
    */
   runtimeRoutes?: string[];
-}
-
-export const REQUIREMENT_EXCEPTION_REASONS = [
-  "not_applicable",
-  "accepted_risk",
-  "compensating_control",
-  "temporary",
-] as const;
-
-export type RequirementExceptionReason =
-  (typeof REQUIREMENT_EXCEPTION_REASONS)[number];
-
-/** Reason whose exceptions expire automatically after `expiresAt`. */
-export const TEMPORARY_EXCEPTION_REASON: RequirementExceptionReason = "temporary";
-
-export interface RequirementException {
-  reason: RequirementExceptionReason;
-  note: string;
-  at: string;
-  /** ISO timestamp; when set, assessment clears the exception after this time. */
-  expiresAt?: string;
-}
-
-/** Human attestation that a manual (no-check) control passed, with retained evidence. */
-export interface RequirementHumanPass {
-  note: string;
-  at: string;
-}
-
-export interface Requirement {
-  id: string;
-  projectId: string;
-  controlId: string;
-  status: RequirementStatus;
-  determination: DeterminationMethod;
-  updatedAt: string;
-  /** Set when a human marks the requirement N/A or similar; blocks automated overwrite. */
-  exception?: RequirementException;
-  /**
-   * Set when a human marks a manual control passed with a note.
-   * Sticky across assessments until cleared (same as exceptions).
-   */
-  humanPass?: RequirementHumanPass;
 }

@@ -3,16 +3,16 @@
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
-import { parseEntityId } from "@/core/filters";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
+import { parseEntityId } from "@/core/validate";
 
-import { type ActionState,runAction } from "../action-state";
+import { type ActionState, runAction } from "../action-state";
 import { patchCandidateFromEvidence } from "../assessment/ai-fix";
 import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,
 } from "../assessment/remediation-evidence";
-import { preparePullRequest } from "../github/pr";
+import { createProjectPullRequest } from "../github/github-connector";
 import { listEvidenceForFindingScoped } from "../reporting/evidence-queries";
 import { appendEvidence } from "../workspace/project-rows";
 import {
@@ -65,7 +65,7 @@ export async function createPullRequestAction(
         "Generate and review a ComplyLoop-verified patch before creating a draft pull request.",
       );
     }
-    const result = await preparePullRequest(
+    const result = await createProjectPullRequest(
       project,
       control,
       finding,

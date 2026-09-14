@@ -5,7 +5,7 @@ import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
-import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 import type { DrizzleDb } from "../postgres.ts";
 import { upsertAlerts } from "../repo/alerts.ts";

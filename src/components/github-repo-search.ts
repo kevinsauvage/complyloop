@@ -3,8 +3,8 @@ import type { GitHubRepoSummary } from "@/server/github/github-types";
 /*
  * Client-safe guard for the `/api/github/repos` response. Kept out of
  * `src/core` (which must not import server types) and hand-written instead of
- * using the zod schema in `src/core/filters`, so the picker bundle stays
- * zod-free.
+ * a zod schema, so the picker bundle stays zod-free. The server route
+ * validates its own inputs with local schemas in `@/core/validate`.
  */
 
 export interface GitHubRepoSearchResponse {

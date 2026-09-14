@@ -7,7 +7,10 @@ import {
   type Finding,
 } from "@complyloop/analysis-core/contract/entities";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import type { Control } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Control,
+  Project,
+} from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { applyFix, describeFix } from "@complyloop/analysis-core/fixes";
 import { scanChangedFiles } from "@complyloop/analysis-core/scan";
@@ -34,9 +37,11 @@ import {
 import { reportError, reportWarning } from "../observability";
 import { appendEvidence } from "../workspace/project-rows";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
+import { withProjectCheckout } from "./repo-checkout";
 
 export type PatchUiState =
-  { status: "idle" } | { status: "ready"; candidate: PatchCandidate };
+  | { status: "idle" }
+  | { status: "ready"; candidate: PatchCandidate };
 
 export interface RunAiFixOnCheckoutOptions {
   propose?: GeneratePatchCandidateOptions["propose"];
@@ -112,6 +117,25 @@ export async function runAiFixOnCheckout(
       options.scan ??
       ((relativePaths) => scanChangedFiles(rootPath, relativePaths).findings),
   });
+}
+
+/**
+ * Checkout + patch composition for the action layer: runs
+ * `runAiFixOnCheckout` on an ephemeral checkout of the finding's project.
+ * Actions call this (never `withProjectCheckout` + `runAiFixOnCheckout`
+ * separately) so checkout wiring stays in one module.
+ */
+export async function generatePatchCandidateOnCheckout(
+  project: Project,
+  finding: Finding,
+  control: Control,
+  options: { aiAvailable: boolean },
+): Promise<PatchCandidate> {
+  return withProjectCheckout(project, (rootPath) =>
+    runAiFixOnCheckout(rootPath, finding, control, {
+      aiAvailable: options.aiAvailable,
+    }),
+  );
 }
 
 export function patchCandidateFromEvidence(

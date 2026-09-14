@@ -6,8 +6,8 @@ import type {
   EvidenceRecord,
   Finding,
   Remediation,
+  Requirement,
 } from "@complyloop/analysis-core/contract/entities";
-import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 
 const insertAssessment = vi.hoisted(() => vi.fn());
 const insertAlerts = vi.hoisted(() => vi.fn());

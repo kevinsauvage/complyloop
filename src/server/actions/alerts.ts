@@ -2,14 +2,15 @@
 
 import { z } from "zod";
 
-import { listAlertsForProject, markAlertRead, markAllProjectAlertsRead } from "@complyloop/db/repo/alerts";
-
-import { parseForm, requiredField } from "@/core/filters";
-
 import {
-  type ActionState,
-  runAction,
-} from "../action-state";
+  listAlertsForProject,
+  markAlertRead,
+  markAllProjectAlertsRead,
+} from "@complyloop/db/repo/alerts";
+
+import { parseForm, requiredField } from "@/core/validate";
+
+import { type ActionState, runAction } from "../action-state";
 import {
   requireAlertAccess,
   requireProjectAccess,
@@ -30,7 +31,10 @@ export async function markAlertReadAction(
 
     // Single-row touch: permission-scoped alert load (no full workspace
     // load), then the mutation under the project write lock.
-    const { alert, project } = await requireAlertAccess(alertId, "project.view");
+    const { alert, project } = await requireAlertAccess(
+      alertId,
+      "project.view",
+    );
 
     await withProjectLock(project.id, async (tx) => {
       await markAlertRead(tx, alert);

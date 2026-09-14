@@ -2,7 +2,8 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Control, Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { Requirement } from "@complyloop/analysis-core/contract/entities";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 

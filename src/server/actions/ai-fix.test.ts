@@ -12,21 +12,17 @@ import { initialActionState } from "../action-state";
 import { generateAiFixAction } from "./ai-fix";
 
 const { withProjectWrite, getWorkspace } = actionWorkspaceMocks;
-const withProjectCheckout = vi.hoisted(() => vi.fn());
-const runAiFixOnCheckout = vi.hoisted(() => vi.fn());
+const generatePatchCandidateOnCheckout = vi.hoisted(() => vi.fn());
 const persistPatchCandidate = vi.hoisted(() => vi.fn());
 const assertAiRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
-
-vi.mock("../assessment/repo-checkout", () => ({
-  withProjectCheckout: (...args: unknown[]) => withProjectCheckout(...args),
-}));
 
 vi.mock("../assessment/ai-fix", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../assessment/ai-fix")>();
   return {
     ...actual,
-    runAiFixOnCheckout: (...args: unknown[]) => runAiFixOnCheckout(...args),
+    generatePatchCandidateOnCheckout: (...args: unknown[]) =>
+      generatePatchCandidateOnCheckout(...args),
     persistPatchCandidate: (...args: unknown[]) =>
       persistPatchCandidate(...args),
   };
@@ -85,10 +81,6 @@ describe("generateAiFixAction", () => {
     const current = workspace();
     getWorkspace.mockResolvedValue(current);
     withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(current, fn));
-    withProjectCheckout.mockImplementation(
-      async (_project, fn: (rootPath: string) => unknown) =>
-        fn("/tmp/checkout"),
-    );
     const candidate = {
       description: "Add alt",
       provenance: "ai",
@@ -101,7 +93,7 @@ describe("generateAiFixAction", () => {
       ],
       complyLoop: { passed: true, remaining: [] },
     };
-    runAiFixOnCheckout.mockResolvedValue(candidate);
+    generatePatchCandidateOnCheckout.mockResolvedValue(candidate);
     assertAiRateLimit.mockResolvedValue(undefined);
 
     const result = await generateAiFixAction(
@@ -112,8 +104,8 @@ describe("generateAiFixAction", () => {
 
     expect((result.ok ? null : result.message)).toBeNull();
     expect(result.message).toMatch(/ready for review/i);
-    expect(runAiFixOnCheckout).toHaveBeenCalledWith(
-      "/tmp/checkout",
+    expect(generatePatchCandidateOnCheckout).toHaveBeenCalledWith(
+      project,
       finding,
       expect.objectContaining({ id: "ctl-img-alt" }),
       expect.objectContaining({ aiAvailable: expect.any(Boolean) }),
@@ -147,7 +139,7 @@ describe("generateAiFixAction", () => {
       new FormData(),
     );
     expect((result.ok ? null : result.message)).toMatch(/source findings/);
-    expect(withProjectCheckout).not.toHaveBeenCalled();
+    expect(generatePatchCandidateOnCheckout).not.toHaveBeenCalled();
   });
 
   it("does not consume the AI rate limit for a safe deterministic fix", async () => {
@@ -162,11 +154,7 @@ describe("generateAiFixAction", () => {
     };
     getWorkspace.mockResolvedValue(current);
     withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(current, fn));
-    withProjectCheckout.mockImplementation(
-      async (_project, fn: (rootPath: string) => unknown) =>
-        fn("/tmp/checkout"),
-    );
-    runAiFixOnCheckout.mockResolvedValue({
+    generatePatchCandidateOnCheckout.mockResolvedValue({
       description: "Remove autoFocus",
       provenance: "deterministic",
       edits: [{ path: "Hero.tsx", oldText: " autoFocus", newText: "" }],
@@ -194,6 +182,6 @@ describe("generateAiFixAction", () => {
       new FormData(),
     );
     expect((result.ok ? null : result.message)).toMatch(/GitHub repository/);
-    expect(withProjectCheckout).not.toHaveBeenCalled();
+    expect(generatePatchCandidateOnCheckout).not.toHaveBeenCalled();
   });
 });

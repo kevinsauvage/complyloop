@@ -1,7 +1,7 @@
 /**
- * Compat re-export — prefer `@/core/display/status`, `…/evidence`, or
- * `…/report-tones` for new imports. This barrel preserves stable public
- * symbol names for one release after the vocabulary split.
+ * Canonical entry point for display vocabulary: `@/core/display`.
+ * Status/evidence/report tones and text — no zod, no server, safe for
+ * client components.
  */
 export type {
   BadgeVariant,

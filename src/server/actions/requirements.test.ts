@@ -2,7 +2,7 @@ import "@/test-fixtures/register-action-workspace-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import {

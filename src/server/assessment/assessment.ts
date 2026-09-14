@@ -8,13 +8,11 @@ import {
   type FileChange,
   type Finding,
   type Remediation,
+  type Requirement,
 } from "@complyloop/analysis-core/contract/entities";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
-import type {
-  Control,
-  Requirement,
-} from "@complyloop/analysis-core/contract/project-types";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import { mergeRawFindings } from "@complyloop/analysis-core/merge-findings";
 import {

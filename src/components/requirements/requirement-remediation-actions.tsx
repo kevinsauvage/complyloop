@@ -3,10 +3,8 @@
 import { AlertTriangle, ChevronDown, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
-import type {
-  Control,
-  Requirement,
-} from "@complyloop/analysis-core/contract/project-types";
+import type { Requirement } from "@complyloop/analysis-core/contract/entities";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
 import { ReasonNoteFields } from "@/components/reason-note-fields";
 import { StatefulActionForm } from "@/components/stateful-action-form";

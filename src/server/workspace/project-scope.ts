@@ -2,11 +2,13 @@ import "server-only";
 
 import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import { presetById } from "@complyloop/analysis-core/catalog/registry";
-import { type Finding } from "@complyloop/analysis-core/contract/entities";
+import {
+  type Finding,
+  type Requirement,
+} from "@complyloop/analysis-core/contract/entities";
 import type {
   Control,
   Project,
-  Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 

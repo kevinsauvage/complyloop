@@ -2,12 +2,8 @@ import "server-only";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
-import { resolveProjectGitHubToken } from "../github/github-access";
-import {
-  postPullRequestCheckRun,
-  summarizeAssessmentForCheckRun,
-} from "../github/github-checks";
-import { reportError, reportInfo, reportWarning } from "../observability";
+import { postAssessmentCheckRun } from "../github/github-connector";
+import { reportError, reportInfo } from "../observability";
 import { loadProjectDb } from "../workspace/db";
 import { type AssessmentRunResult, runAssessment } from "./assessment";
 import {
@@ -85,36 +81,14 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
   );
 
   if (job.trigger !== "webhook" || !job.payload.pullRequestHeadSha) return;
-  const token = await resolveProjectGitHubToken(result.project);
-  if (!token || !result.project.github?.fullName) {
-    reportWarning(
-      "Could not post pull-request check: GitHub token unavailable.",
-      {
-        code: "github_token_missing",
-        projectId: result.project.id,
-        jobId: job.id,
-      },
-    );
-    return;
-  }
-  const posted = await postPullRequestCheckRun({
-    fullName: result.project.github.fullName,
+  await postAssessmentCheckRun({
+    project: result.project,
+    jobId: job.id,
     headSha: job.payload.pullRequestHeadSha,
-    token,
-    ...summarizeAssessmentForCheckRun({
-      openViolations: result.openViolations,
-      failedRequirements: result.failedRequirements,
-      assessmentId: result.assessment.id,
-    }),
+    openViolations: result.openViolations,
+    failedRequirements: result.failedRequirements,
+    assessmentId: result.assessment.id,
   });
-  if (!posted.ok) {
-    reportWarning("Pull-request Check Run could not be posted.", {
-      code: "github_check_run_failed",
-      projectId: result.project.id,
-      jobId: job.id,
-      error: posted.error,
-    });
-  }
 }
 
 export type AssessmentWorkerResult =

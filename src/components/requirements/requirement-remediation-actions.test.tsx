@@ -2,7 +2,7 @@ import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 import { renderWithUiProviders } from "@/test/render-ui";
 import { testControl } from "@/test-fixtures/control";

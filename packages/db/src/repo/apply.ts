@@ -5,11 +5,9 @@ import type {
   EvidenceRecord,
   Finding,
   Remediation,
-} from "@complyloop/analysis-core/contract/entities";
-import type {
-  Project,
   Requirement,
-} from "@complyloop/analysis-core/contract/project-types";
+} from "@complyloop/analysis-core/contract/entities";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 import type { DrizzleDb } from "../postgres.ts";
 import { insertAlerts } from "./alerts.ts";

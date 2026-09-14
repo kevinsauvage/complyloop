@@ -19,11 +19,9 @@ import type {
   Assessment,
   Finding,
   Remediation,
-} from "@complyloop/analysis-core/contract/entities";
-import type {
-  Project,
   Requirement,
-} from "@complyloop/analysis-core/contract/project-types";
+} from "@complyloop/analysis-core/contract/entities";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   acquireNamedPostgresAdvisoryLock,

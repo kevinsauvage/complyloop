@@ -1,8 +1,8 @@
 import type {
   EvidenceKind,
   EvidenceRecord,
+  Requirement,
 } from "@complyloop/analysis-core/contract/entities";
-import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 
 import { href } from "./href";
 import { requirementsStatusHref } from "./requirements";

@@ -5,10 +5,10 @@ import {
   isHeuristicCheck,
   isRuntimeOnlyCheck,
 } from "@complyloop/analysis-core/check-authority";
+import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 import type {
   Control,
   Project,
-  Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 
 import { RequirementStatusBadge } from "@/components/badges";

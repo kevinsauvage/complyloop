@@ -6,12 +6,12 @@ import type {
   EvidenceRecord,
   Finding,
   Remediation,
+  Requirement,
 } from "@complyloop/analysis-core/contract/entities";
 import type {
   Organization,
   OrgMembership,
   Project,
-  Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 
 import {

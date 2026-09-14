@@ -1,12 +1,10 @@
 /**
- * Compat re-export — prefer `@/core/filter-params/{findings,evidence,
- * requirements,pagination}` for new imports. This barrel preserves stable
- * public symbol names for one release after the vocabulary split.
+ * Canonical entry point for URL/filter helpers: `@/core/filter-params`.
  *
  * Pure, zod-free URL/filter helpers shared by server and client components.
  * Keep these modules free of validation schemas so client bundles importing
  * `findingsListHref`/`findingDetailHref` do not pull `zod` into the graph.
- * Validation helpers live in `./filters`.
+ * Validation helpers live in `@/core/validate`.
  */
 
 export {

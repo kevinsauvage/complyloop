@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { isGitHubAuthConfigured } from "@/auth";
-import { getGitHubAccessToken } from "@/server/github/access-token";
 import { ConnectProjectDialog } from "@/components/connect-project-dialog";
 import { GitHubRepoPicker } from "@/components/github-repo-picker";
 import { EmptyState } from "@/components/page-primitives";
@@ -10,8 +9,9 @@ import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button"
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { publicErrorMessage } from "@/server/action-state";
 import { getSession } from "@/server/auth-session";
-import { listGitHubRepos } from "@/server/github/github-access";
+import { getGitHubAccessToken } from "@/server/github/access-token";
 import { githubAppInstallUrl } from "@/server/github/github-app";
+import { listAvailableRepos } from "@/server/github/github-connector";
 import { connectedGitHubProjectsByFullName } from "@/server/workspace/connect-github";
 import { projectCapabilities } from "@/server/workspace/project-capabilities";
 import { getWorkspace } from "@/server/workspace/workspace";
@@ -36,7 +36,7 @@ export async function ConnectProjectPanel({
     workspace.activeOrgId,
   );
 
-  let repos: Awaited<ReturnType<typeof listGitHubRepos>> = [];
+  let repos: Awaited<ReturnType<typeof listAvailableRepos>> = [];
   let listError: string | null = null;
   const connectedByFullName: Record<string, string> = {};
 
@@ -56,7 +56,7 @@ export async function ConnectProjectPanel({
           listError =
             "Could not read your GitHub token. Sign out and sign in again.";
         } else {
-          repos = await listGitHubRepos({ accessToken: token, perPage: 30 });
+          repos = await listAvailableRepos({ accessToken: token, perPage: 30 });
         }
       } catch (error) {
         listError = publicErrorMessage(error);

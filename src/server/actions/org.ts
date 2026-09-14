@@ -6,11 +6,7 @@ import { ORG_ROLES } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
-import {
-  parseEntityId,
-  parseForm,
-  requiredField,
-} from "@/core/filters";
+import { parseEntityId, parseForm, requiredField } from "@/core/validate";
 
 import {
   type ActionState,
@@ -137,7 +133,10 @@ export async function inviteOrgMemberAction(
     const { userId } = await requireSignedIn(
       "Sign in to manage organization members.",
     );
-    const { orgId, githubLogin, role } = parseForm(inviteOrgMemberInput, formData);
+    const { orgId, githubLogin, role } = parseForm(
+      inviteOrgMemberInput,
+      formData,
+    );
 
     await withOrgWrite(({ db }) => {
       const membership = inviteOrgMember(db, orgId, userId, githubLogin, role);
@@ -153,7 +152,9 @@ export async function removeOrgMemberAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const { userId } = await requireSignedIn("Sign in to manage organization members.");
+    const { userId } = await requireSignedIn(
+      "Sign in to manage organization members.",
+    );
 
     const { orgId, membershipId } = parseForm(orgMembershipInput, formData);
 
@@ -177,7 +178,9 @@ export async function changeOrgMemberRoleAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const { userId } = await requireSignedIn("Sign in to manage organization members.");
+    const { userId } = await requireSignedIn(
+      "Sign in to manage organization members.",
+    );
 
     const { orgId, membershipId, role } = parseForm(
       changeOrgMemberRoleInput,
@@ -185,7 +188,13 @@ export async function changeOrgMemberRoleAction(
     );
 
     await withOrgWrite(({ db }) => {
-      const membership = changeOrgMemberRole(db, orgId, userId, membershipId, role);
+      const membership = changeOrgMemberRole(
+        db,
+        orgId,
+        userId,
+        membershipId,
+        role,
+      );
       return { result: undefined, upsertMemberships: [membership] };
     });
     refresh();
@@ -197,7 +206,9 @@ export async function exportOrgDataAction(
   orgIdRaw: string,
 ): Promise<{ error: string | null; json: string | null }> {
   try {
-    const { userId } = await requireSignedIn("Sign in to export organization data.");
+    const { userId } = await requireSignedIn(
+      "Sign in to export organization data.",
+    );
     const orgId = parseEntityId(orgIdRaw);
     const { organizations, projects, access } = await getWorkspace();
     const orgProjects = projects.filter((project) => project.orgId === orgId);
@@ -241,7 +252,9 @@ export async function deleteOrgAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const { userId } = await requireSignedIn("Sign in to delete an organization.");
+    const { userId } = await requireSignedIn(
+      "Sign in to delete an organization.",
+    );
 
     const { orgId } = parseForm(deleteOrgInput, formData);
 

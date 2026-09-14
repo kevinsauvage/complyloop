@@ -38,13 +38,12 @@ import {
   findingIdsField,
   firstIssueMessage,
   formRecord,
-  githubRepoSearchResponseSchema,
   optionalNoteSchema,
   parseForm,
   parseInput,
   parseUnknown,
   requiredField,
-} from "./filters";
+} from "./validate";
 
 describe("EVIDENCE_KIND_FILTER_ORDER", () => {
   it("lists consolidated kinds for the evidence page chips", () => {
@@ -751,32 +750,5 @@ describe("note and finding-id field schemas", () => {
     expect(findingIds.parse("f1")).toEqual(["f1"]);
     expect(findingIds.parse([" f1 ", "f1", "f2"])).toEqual(["f1", "f2"]);
     expect(findingIds.safeParse([]).success).toBe(false);
-  });
-});
-
-describe("githubRepoSearchResponseSchema", () => {
-  it("accepts a search page and rejects a forged payload", () => {
-    const ok = {
-      repos: [
-        {
-          fullName: "acme/app",
-          name: "app",
-          description: null,
-          private: false,
-          defaultBranch: "main",
-          updatedAt: "2026-01-01T00:00:00.000Z",
-          htmlUrl: "https://github.com/acme/app",
-          cloneUrl: "https://github.com/acme/app.git",
-        },
-      ],
-      page: 1,
-      hasMore: false,
-    };
-    expect(githubRepoSearchResponseSchema.parse(ok).repos[0]?.fullName).toBe(
-      "acme/app",
-    );
-    expect(
-      githubRepoSearchResponseSchema.safeParse({ error: "nope" }).success,
-    ).toBe(false);
   });
 });

@@ -10,12 +10,21 @@ import type {
 } from "./finding-types.ts";
 import type {
   Confidence,
+  DeterminationMethod,
   FindingKind,
   FindingStatus,
   RemediationStatus,
   RequirementStatus,
   Severity,
 } from "./statuses.ts";
+
+/**
+ * Persisted compliance rows live here: Assessment, Finding, Remediation,
+ * Requirement, EvidenceRecord, Alert. Observation value-objects (location,
+ * fix, suggestion, engine) live in `./finding-types.ts`; status vocabularies
+ * in `./statuses.ts`. Tenancy and reference data (Organization, Project,
+ * Control, presets) live in `./project-types.ts`.
+ */
 
 export interface FileChange {
   filePath: string;
@@ -117,6 +126,54 @@ export interface Remediation {
    * repo layer, like `Finding.updatedAt`). Optional for legacy rows.
    */
   updatedAt?: string;
+}
+
+/**
+ * A persisted requirement: a control's compliance verdict for one project.
+ * Like Finding/Remediation — sticky human decisions (exception, humanPass)
+ * block automated overwrite; `updatedAt` guards stale writes.
+ */
+export const REQUIREMENT_EXCEPTION_REASONS = [
+  "not_applicable",
+  "accepted_risk",
+  "compensating_control",
+  "temporary",
+] as const;
+
+export type RequirementExceptionReason =
+  (typeof REQUIREMENT_EXCEPTION_REASONS)[number];
+
+/** Reason whose exceptions expire automatically after `expiresAt`. */
+export const TEMPORARY_EXCEPTION_REASON: RequirementExceptionReason = "temporary";
+
+export interface RequirementException {
+  reason: RequirementExceptionReason;
+  note: string;
+  at: string;
+  /** ISO timestamp; when set, assessment clears the exception after this time. */
+  expiresAt?: string;
+}
+
+/** Human attestation that a manual (no-check) control passed, with retained evidence. */
+export interface RequirementHumanPass {
+  note: string;
+  at: string;
+}
+
+export interface Requirement {
+  id: string;
+  projectId: string;
+  controlId: string;
+  status: RequirementStatus;
+  determination: DeterminationMethod;
+  updatedAt: string;
+  /** Set when a human marks the requirement N/A or similar; blocks automated overwrite. */
+  exception?: RequirementException;
+  /**
+   * Set when a human marks a manual control passed with a note.
+   * Sticky across assessments until cleared (same as exceptions).
+   */
+  humanPass?: RequirementHumanPass;
 }
 
 /**

@@ -13,12 +13,12 @@ import { deriveStatusForCheck } from "@complyloop/analysis-core/check-authority"
 import {
   type EvidenceRecord,
   type Finding,
+  type Requirement,
 } from "@complyloop/analysis-core/contract/entities";
+import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/entities";
 import {
   type Control,
   type Project,
-  type Requirement,
-  TEMPORARY_EXCEPTION_REASON,
 } from "@complyloop/analysis-core/contract/project-types";
 import { isStickyHumanDecision } from "@complyloop/analysis-core/contract/requirement-status";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";

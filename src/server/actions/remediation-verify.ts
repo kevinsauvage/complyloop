@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 
+import type { CheckAuditInput } from "@complyloop/analysis-core/check-authority";
 import type { CheckId } from "@complyloop/analysis-core/check-registry";
 import {
   type Finding,
@@ -15,13 +16,13 @@ import {
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
-import { optionalNoteSchema, parseEntityId, parseForm } from "@/core/filters";
 import {
   advanceRemediation,
   appendRemediationHistory,
 } from "@/core/remediation-lifecycle";
+import { optionalNoteSchema, parseEntityId, parseForm } from "@/core/validate";
 
-import { type ActionState,runAction } from "../action-state";
+import { type ActionState, runAction } from "../action-state";
 import { sameInstance } from "../assessment/assessment-findings";
 import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
 import {
@@ -60,12 +61,6 @@ const VERIFY_REQUIRES_IMPLEMENTED_MESSAGE =
 const IMPLEMENT_REQUIRES_APPROVED_MESSAGE =
   "Marking implemented requires status approved.";
 
-interface VerifyAuditFlags {
-  runtimeRan: boolean;
-  siteLevelChecksRan?: boolean;
-  htmlValidateRan?: boolean;
-}
-
 function recordStillFailing(
   payload: ProjectWritePayload,
   remediation: Remediation,
@@ -86,7 +81,7 @@ function markVerified(
   remediation: Remediation,
   note: string,
   engine: "runtime" | "site",
-  audit: VerifyAuditFlags,
+  audit: CheckAuditInput,
 ): ProjectWritePayload {
   const project = db.projects.find(
     (candidate) => candidate.id === live.projectId,
@@ -160,7 +155,7 @@ export async function verifyRemediationAction(
     let present: boolean;
     let engine: "runtime" | "site";
     let note: string;
-    let audit: VerifyAuditFlags;
+    let audit: CheckAuditInput;
 
     switch (location.kind) {
       case "source":

@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-import { getGitHubAccessToken } from "@/server/github/access-token";
-import { parseInput } from "@/core/filters";
+import { parseInput } from "@/core/validate";
 import { publicErrorMessage } from "@/server/action-state";
 import { getSession } from "@/server/auth-session";
-import { listGitHubRepos } from "@/server/github/github-access";
+import { getGitHubAccessToken } from "@/server/github/access-token";
+import { listAvailableRepos } from "@/server/github/github-connector";
 import { projectCapabilities } from "@/server/workspace/project-capabilities";
 import { getWorkspace } from "@/server/workspace/workspace";
 
@@ -71,7 +71,7 @@ export async function GET(request: Request): Promise<Response> {
   const perPage = 30;
 
   try {
-    const repos = await listGitHubRepos({
+    const repos = await listAvailableRepos({
       accessToken: token,
       perPage,
       q: query.q,

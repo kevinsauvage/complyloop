@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";

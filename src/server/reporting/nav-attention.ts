@@ -9,9 +9,14 @@ import {
 
 import { scopedControlIds } from "../workspace/project-scope";
 
+/** Nav badges without hydrating the full findings/alerts arrays. */
 export type { NavAttentionCounts };
 
-/** Nav badges without hydrating the full findings/alerts arrays. */
+/**
+ * Single app entry for badge counts: preset scoping lives here, SQL lives in
+ * `packages/db/repo/nav-attention.ts` (`countNavAttentionForProject`, its
+ * only caller). Do not duplicate this query elsewhere.
+ */
 export async function navAttentionForProject(
   project: Project,
 ): Promise<NavAttentionCounts> {

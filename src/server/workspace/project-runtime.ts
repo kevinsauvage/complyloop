@@ -8,8 +8,8 @@ import type {
   EvidenceRecord,
   Finding,
   Remediation,
+  Requirement,
 } from "@complyloop/analysis-core/contract/entities";
-import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import { getDrizzle } from "@complyloop/db/postgres";
 import {

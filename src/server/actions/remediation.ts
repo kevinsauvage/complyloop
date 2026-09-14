@@ -3,29 +3,33 @@
 import { z } from "zod";
 
 import {
+  type EvidenceRecord,
   type Finding,
   type Remediation,
+  type Requirement,
 } from "@complyloop/analysis-core/contract/entities";
 import {
   type Dismissal,
   DISMISSAL_REASONS,
 } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
+import {
+  advanceRemediation,
+  canBulkApproveRemediation,
+} from "@/core/remediation-lifecycle";
 import {
   findingIdsField,
   optionalNoteSchema,
   parseEntityId,
   parseForm,
-} from "@/core/filters";
-import {
-  advanceRemediation,
-  canBulkApproveRemediation,
-} from "@/core/remediation-lifecycle";
+} from "@/core/validate";
 
-import { type ActionState,runAction } from "../action-state";
+import { type ActionState, runAction } from "../action-state";
 import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
 import {
   remediationEvidenceDetail,
@@ -38,7 +42,10 @@ import {
   upsertFindingInRows,
 } from "../workspace/project-rows";
 import { findingById, remediationForFinding } from "../workspace/workspace";
-import { withFindingWrite, withProjectWrite } from "../workspace/workspace-write";
+import {
+  withFindingWrite,
+  withProjectWrite,
+} from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh, replaceRemediation, requireOnFindingProject } from "./shared";
 
@@ -114,8 +121,52 @@ function dismissFindingInRows(
   return updated;
 }
 
-export async function approveRemediationAction(
-  findingIdRaw: string,
+/**
+ * Shared single/bulk dismiss core: clones rows once, dismisses each entry,
+ * refreshes touched controls, and returns the persistable payload slice.
+ * Callers keep their own guards (single throws on non-open; bulk skips).
+ */
+function dismissEntriesInWrite(
+  db: WorkspaceSlice,
+  project: Project,
+  entries: ReadonlyArray<{
+    finding: Finding;
+    reason: Dismissal["reason"];
+    note: string;
+  }>,
+  options: { bulk?: boolean; at: string },
+): {
+  findings: Finding[];
+  requirements: Requirement[];
+  evidence: EvidenceRecord[];
+} {
+  const rows = cloneProjectRows(
+    db.findings,
+    db.remediations,
+    db.requirements,
+    project.id,
+  );
+  const controlIds = new Set<string>();
+  const findings: Finding[] = [];
+  for (const entry of entries) {
+    findings.push(
+      dismissFindingInRows(rows, entry.finding, entry.reason, entry.note, options.at, {
+        bulk: options.bulk,
+      }),
+    );
+    controlIds.add(entry.finding.controlId);
+  }
+  applyRequirementStatusRefresh(rows, project, {
+    controlIds: [...controlIds],
+  });
+  return {
+    findings,
+    requirements: rows.requirements,
+    evidence: rows.evidence,
+  };
+}
+
+export async function approveRemediationAction(  findingIdRaw: string,
   _previous: ActionState,
   _formData: FormData,
 ): Promise<ActionState> {
@@ -194,29 +245,12 @@ export async function dismissFindingAction(
           (candidate) => candidate.id === finding.projectId,
         );
         if (!project) throw new PublicError("Unknown project.");
-
-        const rows = cloneProjectRows(
-          db.findings,
-          db.remediations,
-          db.requirements,
-          project.id,
+        return dismissEntriesInWrite(
+          db,
+          project,
+          [{ finding, reason, note: note ?? "" }],
+          { at: new Date().toISOString() },
         );
-        const updated = dismissFindingInRows(
-          rows,
-          finding,
-          reason,
-          note ?? "",
-          new Date().toISOString(),
-          {},
-        );
-        applyRequirementStatusRefresh(rows, project, {
-          controlIds: [finding.controlId],
-        });
-        return {
-          findings: [updated],
-          requirements: rows.requirements,
-          evidence: rows.evidence,
-        };
       },
     );
     refresh(...COMPLIANCE_LOOP_ROUTES);
@@ -238,40 +272,27 @@ export async function bulkDismissFindingsAction(
       const { db } = workspace;
       const project = workspace.project;
       if (!project) throw new PublicError("Select a project first.");
-      const rows = cloneProjectRows(
-        db.findings,
-        db.remediations,
-        db.requirements,
-        project.id,
-      );
-      const dismissedFindings: Finding[] = [];
-      const controlIds = new Set<string>();
+      const entries: Array<{
+        finding: Finding;
+        reason: Dismissal["reason"];
+        note: string;
+      }> = [];
       for (const findingId of findingIds) {
         const finding = findingById(db, findingId);
         requireOnFindingProject(workspace, finding, "project.remediate");
         if (finding.status !== "open") continue;
-
-        dismissedFindings.push(
-          dismissFindingInRows(rows, finding, reason, dismissalNote, at, {
-            bulk: true,
-          }),
-        );
-        controlIds.add(finding.controlId);
-        dismissed += 1;
+        entries.push({ finding, reason, note: dismissalNote });
       }
-      applyRequirementStatusRefresh(rows, project, {
-        controlIds: [...controlIds],
+      if (entries.length === 0) {
+        throw new PublicError("No open findings were dismissed.");
+      }
+      dismissed = entries.length;
+      return dismissEntriesInWrite(db, project, entries, {
+        bulk: true,
+        at,
       });
-      return {
-        findings: dismissedFindings,
-        requirements: rows.requirements,
-        evidence: rows.evidence,
-      };
     });
 
-    if (dismissed === 0) {
-      throw new PublicError("No open findings were dismissed.");
-    }
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return `Dismissed ${dismissed} finding${dismissed === 1 ? "" : "s"}.`;
   });

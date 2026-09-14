@@ -5,11 +5,8 @@ import {
   rgaaControls,
   rgaaFramework,
 } from "@complyloop/analysis-core/catalog/rgaa/controls";
-import type { Finding } from "@complyloop/analysis-core/contract/entities";
-import type {
-  Project,
-  Requirement,
-} from "@complyloop/analysis-core/contract/project-types";
+import type { Finding, Requirement } from "@complyloop/analysis-core/contract/entities";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import { testControl } from "@/test-fixtures/control";

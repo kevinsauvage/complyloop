@@ -3,7 +3,7 @@ import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
-import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
+import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 /**
  * Installs an assessment run into an in-memory `WorkspaceSlice` for unit tests.

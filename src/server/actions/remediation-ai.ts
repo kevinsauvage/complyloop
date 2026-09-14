@@ -6,8 +6,8 @@ import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
-import { parseEntityId } from "@/core/filters";
 import { refreshSuggestion } from "@/core/remediation-lifecycle";
+import { parseEntityId } from "@/core/validate";
 
 import { type ActionState, runAction } from "../action-state";
 import { reportError } from "../observability";

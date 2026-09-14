@@ -5,14 +5,20 @@ import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 import { aiAvailable } from "@/ai/ai-call";
 import { assertSourceLocatedFinding } from "@/ai/verified-fix";
-import { parseEntityId } from "@/core/filters";
 import { hasSafeDeterministicFix } from "@/core/remediation-lifecycle";
+import { parseEntityId } from "@/core/validate";
 
-import { type ActionState,runAction } from "../action-state";
-import { persistPatchCandidate, runAiFixOnCheckout } from "../assessment/ai-fix";
-import { withProjectCheckout } from "../assessment/repo-checkout";
+import { type ActionState, runAction } from "../action-state";
+import {
+  generatePatchCandidateOnCheckout,
+  persistPatchCandidate,
+} from "../assessment/ai-fix";
 import { assertAiRateLimit } from "../rate-limit";
-import { controlById, getWorkspace, requireFinding } from "../workspace/workspace";
+import {
+  controlById,
+  getWorkspace,
+  requireFinding,
+} from "../workspace/workspace";
 import { withFindingWrite } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh, requireFindingContext } from "./shared";
@@ -48,10 +54,11 @@ export async function generateAiFixAction(
       await assertAiRateLimit(preview.userId);
     }
     const control = controlById(finding.controlId);
-    const candidate = await withProjectCheckout(project, (rootPath) =>
-      runAiFixOnCheckout(rootPath, finding, control, {
-        aiAvailable: aiAvailable(),
-      }),
+    const candidate = await generatePatchCandidateOnCheckout(
+      project,
+      finding,
+      control,
+      { aiAvailable: aiAvailable() },
     );
 
     await withFindingWrite(
