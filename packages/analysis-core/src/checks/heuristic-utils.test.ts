@@ -19,6 +19,7 @@ import {
   hasAdjacentTranscriptLink,
   hasChildTrackKind,
   isComplexDataTable,
+  isDataTable,
   isInsideNamingHost,
   nextMeaningfulSibling,
   styleLocksTextSpacing,
@@ -262,6 +263,184 @@ describe("heuristic-utils", () => {
     );
     expect(attributeContextOf(firstTag(`const A = () => <ReCAPTCHA />;`))).toBe(
       "ReCAPTCHA  ",
+    );
+  });
+
+  it("returns false for video with non-matching track kind", () => {
+    const metadata = firstTag(
+      `const A = () => (<video><track kind="metadata" src="/m.vtt" /></video>);`,
+    );
+    expect(hasChildTrackKind(metadata, new Set(["captions", "subtitles"]))).toBe(
+      false,
+    );
+
+    const noKind = firstTag(
+      `const A = () => (<video><track src="/m.vtt" /></video>);`,
+    );
+    expect(hasChildTrackKind(noKind, new Set(["captions"]))).toBe(false);
+  });
+
+  it("handles non-object, spread, and non-spacing styles", () => {
+    expect(
+      styleLocksTextSpacing(
+        firstTag(`const A = () => <p style="line-height: 1.5" />;`),
+      ),
+    ).toBe(false);
+    expect(
+      styleLocksTextSpacing(firstTag(`const A = () => <p style={myStyle} />;`)),
+    ).toBe(false);
+    expect(
+      styleLocksTextSpacing(
+        firstTag(`const A = () => <p style={{ ...base }} />;`),
+      ),
+    ).toBe(false);
+    expect(
+      styleLocksTextSpacing(
+        firstTag(`const A = () => <p style={{ color: "red" }} />;`),
+      ),
+    ).toBe(false);
+    expect(
+      styleLocksTextSpacing(
+        firstTag(
+          `const A = () => <p style={{ ...base, lineHeight: "1.2 !important" }} />;`,
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("falls back to expression text for className", () => {
+    expect(
+      classNameTextOf(firstTag(`const A = () => <div className={cls} />;`)),
+    ).toBe("{cls}");
+  });
+
+  it("handles self-closing tables for data-table checks", () => {
+    const selfClosing = firstTag(`const A = () => <table />;`);
+    expect(isDataTable(selfClosing)).toBe(false);
+    expect(isComplexDataTable(selfClosing)).toBe(false);
+
+    expect(
+      isDataTable(
+        firstTag(`const A = () => <table><tr><th>H</th></tr></table>;`),
+      ),
+    ).toBe(true);
+    expect(
+      isDataTable(
+        firstTag(`const A = () => <table><tr><td>x</td></tr></table>;`),
+      ),
+    ).toBe(false);
+  });
+
+  it("detects expression colSpan values", () => {
+    const spanned = firstTag(
+      `const SPAN2 = 2; const A = () => <table><td colSpan={SPAN2}>x</td></table>;`,
+    );
+    expect(isComplexDataTable(spanned)).toBe(true);
+  });
+
+  it("skips self-closing rows and flags double thead", () => {
+    const rowSkip = firstTag(
+      `const A = () => <table><tr /><tr><td>x</td></tr></table>;`,
+    );
+    expect(isComplexDataTable(rowSkip)).toBe(false);
+
+    const doubleThead = firstTag(
+      `const A = () => <table><thead><tr><th>A</th></tr></thead><thead><tr><th>B</th></tr></thead></table>;`,
+    );
+    expect(isComplexDataTable(doubleThead)).toBe(true);
+  });
+
+  it("detects naming hosts through self-closing ancestors", () => {
+    const findLabelInExpression = (source: string): ts.Node => {
+      const parsed = parseSource("test.tsx", source);
+      let target: ts.Node | undefined;
+      const visit = (node: ts.Node): void => {
+        if (
+          ts.isIdentifier(node) &&
+          node.text === "label" &&
+          node.parent &&
+          ts.isJsxExpression(node.parent)
+        ) {
+          target = node;
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(parsed.sourceFile);
+      if (!target) throw new Error("expected label identifier");
+      return target;
+    };
+
+    expect(
+      isInsideNamingHost(
+        findLabelInExpression(`const A = () => <button aria-label={label} />;`),
+      ),
+    ).toBe(true);
+    expect(
+      isInsideNamingHost(
+        findLabelInExpression(`const A = () => <div title={label} />;`),
+      ),
+    ).toBe(false);
+  });
+
+  it("resolves self-closing and href-fallback transcript links", () => {
+    const videoWithSibling = (source: string): JsxTagNode => {
+      const parsed = parseSource("test.tsx", source);
+      let video: JsxTagNode | undefined;
+      visitJsxTags(parsed.sourceFile, (node) => {
+        if (!video && node.tagName.getText() === "video") video = node;
+      });
+      if (!video) throw new Error("expected video");
+      return video;
+    };
+
+    expect(
+      hasAdjacentTranscriptLink(
+        videoWithSibling(
+          `const A = () => (<div><video /><a href="transcript.html" /></div>);`,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      hasAdjacentTranscriptLink(
+        videoWithSibling(
+          `const A = () => (<div><video /><a href="/talk-transcript">Click here</a></div>);`,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      hasAdjacentTranscriptLink(
+        videoWithSibling(
+          `const A = () => (<div><video /><a href="/other.html" /></div>);`,
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects empty aria-describedby references", () => {
+    const parsed = parseSource(
+      "test.tsx",
+      `const A = () => (<div><video aria-describedby="   " /></div>);`,
+    );
+    let video: JsxTagNode | undefined;
+    visitJsxTags(parsed.sourceFile, (node) => {
+      if (!video && node.tagName.getText() === "video") video = node;
+    });
+    if (!video) throw new Error("expected video");
+    expect(ariaDescribedByPointsToTranscript(video, parsed.sourceFile)).toBe(
+      false,
+    );
+
+    const empty = parseSource(
+      "test.tsx",
+      `const A = () => (<div><video aria-describedby="" /></div>);`,
+    );
+    let emptyVideo: JsxTagNode | undefined;
+    visitJsxTags(empty.sourceFile, (node) => {
+      if (!emptyVideo && node.tagName.getText() === "video") emptyVideo = node;
+    });
+    if (!emptyVideo) throw new Error("expected video");
+    expect(ariaDescribedByPointsToTranscript(emptyVideo, empty.sourceFile)).toBe(
+      false,
     );
   });
 });

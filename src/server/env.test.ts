@@ -2,10 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   aiGatewayApiKey,
+  appUrl,
   assessmentCheckoutQuota,
   e2eAuthEnabled,
   githubApiBaseUrl,
   githubAppId,
+  nodeEnv,
+  supportEmail,
 } from "./env";
 
 afterEach(() => {
@@ -36,5 +39,22 @@ describe("server env", () => {
     expect(quota.maxBytes).toBe(500 * 1024 * 1024);
     expect(quota.maxFiles).toBe(50_000);
     expect(quota.scanTimeoutMs).toBe(30_000);
+  });
+
+  it("reads support email, app URL fallbacks, and node env", () => {
+    vi.stubEnv("COMPLYLOOP_SUPPORT_EMAIL", "  support@example.com  ");
+    expect(supportEmail()).toBe("support@example.com");
+    vi.stubEnv("COMPLYLOOP_SUPPORT_EMAIL", "");
+    expect(supportEmail()).toBeNull();
+
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.example.com");
+    vi.stubEnv("AUTH_URL", "https://auth.example.com");
+    expect(appUrl()).toBe("https://app.example.com");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+    expect(appUrl()).toBe("https://auth.example.com");
+    vi.stubEnv("AUTH_URL", "");
+    expect(appUrl()).toBeUndefined();
+
+    expect(nodeEnv()).toBe("test");
   });
 });

@@ -231,3 +231,222 @@ describe("pointer-gesture", () => {
     ).toHaveLength(0);
   });
 });
+
+describe("no-blink-marquee", () => {
+  it("handles string style literals with and without animation", () => {
+    expect(findingsFor(`const A = () => <div style="color: red">Hi</div>;`)).toHaveLength(0);
+    expect(findingsFor(`const A = () => <div style="animation: none">Hi</div>;`)).toHaveLength(0);
+    expect(
+      findingsFor(`const A = () => <div style="animation: spin 1s linear">Hi</div>;`),
+    ).toHaveLength(0);
+    const infinite = findingsFor(
+      `const A = () => <div style="animation: spin 1s infinite">Hi</div>;`,
+    );
+    expect(infinite).toHaveLength(1);
+    expect(infinite[0]?.kind).toBe("warning");
+  });
+
+  it("handles empty and non-object style expressions", () => {
+    expect(findingsFor(`const A = () => <div style="">Hi</div>;`)).toHaveLength(0);
+    expect(findingsFor(`const A = () => <div style={myStyle}>Hi</div>;`)).toHaveLength(0);
+    expect(
+      findingsFor(`const A = () => <div style={{ animation: "" }}>Hi</div>;`),
+    ).toHaveLength(0);
+  });
+
+  it("skips spread props and flags infinite iteration counts", () => {
+    const spread = findingsFor(
+      `const A = () => <div style={{ ...base, animation: "spin 1s infinite" }}>Hi</div>;`,
+    );
+    expect(spread).toHaveLength(1);
+    expect(
+      findingsFor(
+        `const A = () => <div style={{ animationName: "spin", animationIterationCount: "infinite" }}>Hi</div>;`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      findingsFor(
+        `const A = () => <div style={{ animationName: "spin", animationIterationCount: "infinity" }}>Hi</div>;`,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("treats a div with aria-roledescription carousel as a carousel host", () => {
+    const findings = findingsFor(
+      `const A = () => <div aria-roledescription="carousel">x</div>;`,
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.kind).toBe("warning");
+  });
+
+  it("warns on explicit or dynamic autoplay", () => {
+    expect(findingsFor(`const A = () => <Carousel autoplay />;`)).toHaveLength(1);
+    expect(findingsFor(`const A = () => <Carousel autoPlay />;`)).toHaveLength(1);
+    expect(findingsFor(`const A = () => <Carousel autoplay={maybe} />;`)).toHaveLength(1);
+  });
+
+  it("does not warn when a pause control attribute is present", () => {
+    expect(
+      findingsFor(`const A = () => <Carousel autoplay showPauseButton />;`),
+    ).toHaveLength(0);
+    expect(findingsFor(`const A = () => <Carousel autoplay pause />;`)).toHaveLength(0);
+  });
+
+  it("resolves pause buttons via title or text content", () => {
+    expect(
+      findingsFor(
+        `const A = () => (
+          <div className="animate-spin">
+            <button type="button" title="Pause animation">II</button>
+          </div>
+        );`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      findingsFor(
+        `const A = () => (
+          <div className="animate-spin">
+            <span>not a control</span>
+            <button type="button">Pause</button>
+          </div>
+        );`,
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("still warns when only a non-button descendant exists", () => {
+    expect(
+      findingsFor(
+        `const A = () => <div className="animate-spin"><span>not a control</span></div>;`,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("handles interval-driven carousels", () => {
+    expect(findingsFor(`const A = () => <Carousel interval="0" />;`)).toHaveLength(0);
+    expect(findingsFor(`const A = () => <Carousel interval={5000} />;`)).toHaveLength(1);
+    expect(findingsFor(`const A = () => <Carousel interval />;`)).toHaveLength(1);
+  });
+});
+
+describe("no-auto-refresh", () => {
+  it("ignores timer calls without a callback", () => {
+    expect(
+      noAutoRefreshCheck.run(parseSource("test.tsx", `setTimeout();`)),
+    ).toHaveLength(0);
+  });
+
+  it("ignores non-timer callee shapes", () => {
+    expect(
+      noAutoRefreshCheck.run(
+        parseSource("test.tsx", `getHandler()(); setTimeout(() => console.log("tick"), 100);`),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("dragging", () => {
+  it("ignores custom components, spread hosts, and hidden elements", () => {
+    expect(
+      draggingCheck.run(
+        parseSource("test.tsx", `const A = () => <MyComp draggable onDragStart={() => {}} />;`),
+      ),
+    ).toHaveLength(0);
+    expect(
+      draggingCheck.run(
+        parseSource("test.tsx", `const A = () => <div {...props} draggable onDragStart={() => {}} />;`),
+      ),
+    ).toHaveLength(0);
+    expect(
+      draggingCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <div draggable onDragStart={() => {}} aria-hidden="true" />;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores elements with no drag surface", () => {
+    expect(
+      draggingCheck.run(parseSource("test.tsx", `const A = () => <div>hi</div>;`)),
+    ).toHaveLength(0);
+  });
+
+  it("accepts native interactive draggable elements", () => {
+    expect(
+      draggingCheck.run(
+        parseSource("test.tsx", `const A = () => <button draggable onDragStart={() => {}} />;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("handles string draggable values", () => {
+    expect(
+      draggingCheck.run(parseSource("test.tsx", `const A = () => <div draggable="false" />;`)),
+    ).toHaveLength(0);
+    expect(
+      draggingCheck.run(
+        parseSource("test.tsx", `const A = () => <div draggable="true" onDragStart={() => {}} />;`),
+      ),
+    ).toHaveLength(1);
+  });
+});
+
+describe("pointer-cancellation", () => {
+  it("ignores custom components, spread hosts, and hidden elements", () => {
+    expect(
+      pointerCancellationCheck.run(
+        parseSource("test.tsx", `const A = () => <Foo onPointerDown={start}>x</Foo>;`),
+      ),
+    ).toHaveLength(0);
+    expect(
+      pointerCancellationCheck.run(
+        parseSource("test.tsx", `const A = () => <div {...props} onPointerDown={start}>x</div>;`),
+      ),
+    ).toHaveLength(0);
+    expect(
+      pointerCancellationCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <div onPointerDown={start} aria-hidden="true">x</div>;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores elements without pointer handlers", () => {
+    expect(
+      pointerCancellationCheck.run(parseSource("test.tsx", `const A = () => <div>hi</div>;`)),
+    ).toHaveLength(0);
+  });
+});
+
+describe("pointer-gesture", () => {
+  it("ignores custom components, spread hosts, and hidden elements", () => {
+    expect(
+      pointerGestureCheck.run(
+        parseSource("test.tsx", `const A = () => <Foo onPointerDown={drag}>x</Foo>;`),
+      ),
+    ).toHaveLength(0);
+    expect(
+      pointerGestureCheck.run(
+        parseSource("test.tsx", `const A = () => <div {...props} onPointerDown={drag}>x</div>;`),
+      ),
+    ).toHaveLength(0);
+    expect(
+      pointerGestureCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <div onPointerDown={drag} aria-hidden="true">x</div>;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores elements without gesture handlers", () => {
+    expect(
+      pointerGestureCheck.run(parseSource("test.tsx", `const A = () => <div>hi</div>;`)),
+    ).toHaveLength(0);
+  });
+});

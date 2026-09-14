@@ -5,6 +5,7 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import {
   defaultConnectPreset,
   FRAMEWORK_PRESETS,
+  isValidPresetId,
   presetById,
   projectDefaultPresetId,
 } from "./registry";
@@ -74,5 +75,12 @@ describe("framework presets and catalog", () => {
     expect(
       projectDefaultPresetId(testProject({ defaultPresetId: "gone" })),
     ).toBe("preset-rgaa-full");
+  });
+
+  it("validates preset ids", () => {
+    expect(isValidPresetId("preset-rgaa-full")).toBe(true);
+    expect(isValidPresetId("preset-wcag-aaa")).toBe(true);
+    expect(isValidPresetId("preset-gone")).toBe(false);
+    expect(isValidPresetId("")).toBe(false);
   });
 });

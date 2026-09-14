@@ -358,3 +358,414 @@ describe("link-explicit-heuristic", () => {
     expect(findings).toHaveLength(1);
   });
 });
+
+describe("status-live helpers", () => {
+  it("warns on bare Toaster without live region or role", () => {
+    expect(
+      statusLiveCheck.run(parseSource("test.tsx", `const A = () => <Toaster />;`)),
+    ).toHaveLength(1);
+  });
+
+  it("warns on bare Sonner without live region or role", () => {
+    expect(
+      statusLiveCheck.run(parseSource("test.tsx", `const A = () => <Sonner />;`)),
+    ).toHaveLength(1);
+  });
+
+  it("accepts Toaster with aria-live", () => {
+    expect(
+      statusLiveCheck.run(
+        parseSource("test.tsx", `const A = () => <Toaster aria-live="polite" />;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts Toaster with role=status", () => {
+    expect(
+      statusLiveCheck.run(
+        parseSource("test.tsx", `const A = () => <Toaster role="status" />;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts invalid field described by an aria-live region", () => {
+    expect(
+      statusLiveCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input aria-invalid="true" aria-label="Email" aria-describedby="err" /><p id="err" aria-live="polite">Required</p></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts invalid field described by a role=alert region", () => {
+    expect(
+      statusLiveCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input aria-invalid="true" aria-label="Email" aria-describedby="err" /><p id="err" role="alert">Required</p></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts invalid field described by a live region among several ids", () => {    expect(
+      statusLiveCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input aria-invalid="true" aria-label="Email" aria-describedby="missing err" /><p id="err" aria-live="polite">Required</p></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts invalid field described by a live region with trailing siblings", () => {
+    expect(
+      statusLiveCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input aria-invalid="true" aria-label="Email" aria-describedby="err" /><p id="err" aria-live="polite">Required</p><span>after</span></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("warns when aria-describedby points at a non-live region", () => {
+    expect(
+      statusLiveCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input aria-invalid="true" aria-label="Email" aria-describedby="hint" /><p id="hint">Enter your email</p></div>);`,
+        ),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("warns when aria-describedby points at a missing id", () => {
+    expect(
+      statusLiveCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input aria-invalid="true" aria-label="Email" aria-describedby="missing" /></div>);`,
+        ),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("accepts invalid field with an aria-live sibling", () => {
+    expect(
+      statusLiveCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input aria-invalid="true" aria-label="Email" /><p aria-live="polite">Required</p></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("warns on invalid field in a plain div without a live sibling", () => {
+    expect(
+      statusLiveCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input aria-invalid="true" aria-label="Email" /><span>hint</span></div>);`,
+        ),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("accepts a container with aria-invalid wrapping a live descendant", () => {
+    expect(
+      statusLiveCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div aria-invalid="true"><span role="alert">Error</span></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("warns on a container with aria-invalid wrapping only static text", () => {
+    expect(
+      statusLiveCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div aria-invalid="true"><span>hint</span></div>);`,
+        ),
+      ),
+    ).toHaveLength(1);
+  });
+});
+
+describe("new-window-onload edge cases", () => {
+  it("ignores useEffect with a single argument calling window.open", () => {
+    expect(
+      newWindowOnloadCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => { useEffect(() => { window.open("/promo"); }); return null; };`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores useEffect with empty deps but no window.open", () => {
+    expect(
+      newWindowOnloadCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => { useEffect(() => { console.log("hi"); }, []); return null; };`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("flags a bare top-level window.open call", () => {
+    const findings = newWindowOnloadCheck.run(
+      parseSource("test.tsx", `window.open("/promo"); const A = () => null;`),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.checkId).toBe("new-window-onload");
+  });
+
+  it("accepts target=_blank link with aria-describedby", () => {
+    expect(
+      newWindowOnloadCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <a href="https://example.com" target="_blank" aria-describedby="d">External site</a>;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts target=_blank link warning about the new window", () => {
+    expect(
+      newWindowOnloadCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <a href="https://example.com" target="_blank">External site opens in new window</a>;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores links without target=_blank", () => {
+    expect(
+      newWindowOnloadCheck.run(
+        parseSource("test.tsx", `const A = () => <a href="/about">About us</a>;`),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("dir-change edge cases", () => {
+  it("ignores an LTR-only file", () => {
+    expect(
+      dirChangeCheck.run(parseSource("test.tsx", `const A = () => <p>Hello world</p>;`)),
+    ).toHaveLength(0);
+  });
+
+  it("ignores dir with a non-rtl/ltr value in a mixed file", () => {
+    expect(
+      dirChangeCheck.run(
+        parseSource("test.tsx", `const A = () => <div dir="auto">Hello שלום</div>;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("handles a dir tag whose parent is not an element in a mixed file", () => {
+    const findings = dirChangeCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => (<><div dir="rtl" /><p>Hello שלום</p></>);`,
+      ),
+    );
+    expect(findings.some((f) => f.checkId === "dir-change")).toBe(true);
+  });
+
+  it("flags a dir element with mixed-direction text siblings", () => {
+    const findings = dirChangeCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => (<div>Hello <span dir="rtl">x</span> שלום</div>);`,
+      ),
+    );
+    expect(findings.some((f) => f.checkId === "dir-change")).toBe(true);
+  });
+
+  it("flags a self-closing dir element with mixed-direction siblings", () => {
+    const findings = dirChangeCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => (<div>Hello <img dir="rtl" /> שלום</div>);`,
+      ),
+    );
+    expect(findings).toHaveLength(2);
+  });
+
+  it("accepts a dir element nested under an ancestor with dir", () => {
+    expect(
+      dirChangeCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div dir="ltr">Hello <span dir="rtl">x</span> שלום</div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores a dir element without mixed-direction siblings", () => {
+    expect(
+      dirChangeCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><span dir="rtl">hi</span><p>Hello שלום</p></div>);`,
+        ),
+      ),
+    ).toHaveLength(1);
+  });
+});
+
+describe("lang-change edge cases", () => {
+  it("flags Cyrillic text on an English page", () => {
+    const findings = langChangeCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => (<html lang="en"><p>Привет мир</p></html>);`,
+      ),
+    );
+    expect(findings.length).toBeGreaterThan(0);
+  });
+
+  it("accepts plain English text on an English page", () => {
+    expect(
+      langChangeCheck.run(
+        parseSource("test.tsx", `const A = () => (<html lang="en"><p>Hello world</p></html>);`),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("meta-viewport edge cases", () => {
+  it("ignores non-meta elements", () => {
+    expect(
+      metaViewportCheck.run(parseSource("test.tsx", `const H = () => <div />;`)),
+    ).toHaveLength(0);
+  });
+});
+
+describe("both-colors edge cases", () => {
+  it("ignores elements without inline style", () => {
+    expect(
+      bothColorsCheck.run(parseSource("test.tsx", `const A = () => <p>Hi</p>;`)),
+    ).toHaveLength(0);
+  });
+
+  it("ignores non-object style expressions", () => {
+    expect(
+      bothColorsCheck.run(
+        parseSource("test.tsx", `const A = () => <p style={myStyle}>Hi</p>;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("warns on spread style with only color", () => {
+    expect(
+      bothColorsCheck.run(
+        parseSource("test.tsx", `const A = () => <p style={{ ...base, color: "red" }}>Hi</p>;`),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("warns on background-only style", () => {
+    expect(
+      bothColorsCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <p style={{ backgroundColor: "white" }}>Hi</p>;`,
+        ),
+      ),
+    ).toHaveLength(1);
+  });
+});
+
+describe("cryptic-content-alt edge cases", () => {
+  it("accepts single-line pre blocks", () => {
+    expect(
+      crypticContentAltCheck.run(
+        parseSource("test.tsx", `const A = () => (<pre>just some text</pre>);`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores emoticon text in a fragment without a host", () => {
+    expect(
+      crypticContentAltCheck.run(parseSource("test.tsx", `const A = () => <>:-)</>;`)),
+    ).toHaveLength(0);
+  });
+
+  it("ignores self-closing spans", () => {
+    expect(
+      crypticContentAltCheck.run(parseSource("test.tsx", `const A = () => <span />;`)),
+    ).toHaveLength(0);
+  });
+
+  it("accepts emoticon spans with an accessible name", () => {
+    expect(
+      crypticContentAltCheck.run(
+        parseSource("test.tsx", `const A = () => <span aria-label="smile">:-)</span>;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores non-emoticon spans", () => {
+    expect(
+      crypticContentAltCheck.run(
+        parseSource("test.tsx", `const A = () => <span>hello</span>;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("warns on emoticon-only paragraph text", () => {
+    const findings = crypticContentAltCheck.run(
+      parseSource("test.tsx", `const A = () => <p>:-)</p>;`),
+    );
+    expect(findings.length).toBeGreaterThan(0);
+  });
+});
+
+describe("link-explicit-heuristic edge cases", () => {
+  it("ignores self-closing links", () => {
+    expect(
+      linkExplicitHeuristicCheck.run(
+        parseSource("test.tsx", `const A = () => <a href="/report" />;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores spreading links even with vague text", () => {
+    expect(
+      linkExplicitHeuristicCheck.run(
+        parseSource("test.tsx", `const A = () => <a href="/report" {...props}>Click here</a>;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores empty links", () => {
+    expect(
+      linkExplicitHeuristicCheck.run(
+        parseSource("test.tsx", `const A = () => <a href="/report"></a>;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores non-link elements", () => {
+    expect(
+      linkExplicitHeuristicCheck.run(
+        parseSource("test.tsx", `const A = () => <div>Click here</div>;`),
+      ),
+    ).toHaveLength(0);
+  });
+});

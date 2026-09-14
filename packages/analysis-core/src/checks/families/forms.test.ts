@@ -843,3 +843,488 @@ describe("captcha-alternative", () => {
     ).toHaveLength(0);
   });
 });
+
+describe("input-label coverage", () => {
+  it("does not flag a prop-spreading input host (labels live at call sites)", () => {
+    expect(
+      inputLabelCheck.run(
+        parseSource("test.tsx", `const A = (props) => <input {...props} />;`),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("form-error-association coverage", () => {
+  it("collects string literals inside template-expression substitutions", () => {
+    const src =
+      "const A = () => (<form>\n" +
+      "  <input aria-describedby={`prefix ${\"email-error\"}`} />\n" +
+      '  <p id="email-error">Required</p>\n' +
+      "</form>);";
+    expect(run(src)).toHaveLength(0);
+  });
+});
+
+describe("field-grouping coverage", () => {
+  it("ignores a top-level autocomplete input with no JSX parent", () => {
+    expect(
+      fieldGroupingCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <input autoComplete="given-name" />;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores non-identity autocomplete tokens", () => {
+    expect(
+      fieldGroupingCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input autoComplete="email" /></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts a single checkbox with no pair", () => {
+    expect(
+      fieldGroupingCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input type="checkbox" name="interests" value="a" /></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts adjacent identity tokens that are not a pair", () => {
+    expect(
+      fieldGroupingCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input autoComplete="given-name" /><input autoComplete="address-line1" /></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("fieldset-legend coverage", () => {
+  it("accepts a fieldset with an aria-label", () => {
+    expect(
+      fieldsetLegendCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<fieldset aria-label="Plan"><input type="radio" name="x" /></fieldset>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("flags a self-closing fieldset without a legend", () => {
+    expect(
+      fieldsetLegendCheck.run(
+        parseSource("test.tsx", `const A = () => <fieldset />;`),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("accepts a fieldset whose legend carries an accessible name", () => {
+    expect(
+      fieldsetLegendCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<fieldset><legend aria-label="Plan"></legend></fieldset>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("flags a fieldset with only a non-legend child", () => {
+    expect(
+      fieldsetLegendCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<fieldset><div>hi</div></fieldset>);`,
+        ),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("ignores non-radio inputs and nameless radios", () => {
+    expect(
+      fieldsetLegendCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><input type="text" name="x" /><input type="radio" /></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("optgroup coverage", () => {
+  it("does not flag a prop-spreading optgroup host", () => {
+    expect(
+      optgroupCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<select><optgroup {...props}><option>One</option></optgroup></select>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts an optgroup with an aria-label", () => {
+    expect(
+      optgroupCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<select><optgroup aria-label="Fruit"><option>Apple</option></optgroup></select>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("autocomplete-purpose coverage", () => {
+  it("ignores non-input hosts", () => {
+    expect(
+      autocompletePurposeCheck.run(
+        parseSource("test.tsx", `const A = () => <select aria-label="Country" />;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores text inputs without an identity name", () => {
+    expect(
+      autocompletePurposeCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <input type="text" aria-label="Nickname" />;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("error-prevention coverage", () => {
+  it("warns on a self-closing high-risk form", () => {
+    const findings = errorPreventionCheck.run(
+      parseSource("checkout.tsx", `const C = () => <form action="/pay" />;`),
+    );
+    expect(findings.some((f) => f.checkId === "error-prevention")).toBe(true);
+  });
+
+  it("warns when a type=button control is not a safeguard", () => {
+    const findings = errorPreventionCheck.run(
+      parseSource(
+        "checkout.tsx",
+        `const C = () => (
+          <form action="/pay">
+            <input name="card" />
+            <button type="button">Click me</button>
+            <button type="submit">Place order</button>
+          </form>
+        );`,
+      ),
+    );
+    expect(findings.some((f) => f.checkId === "error-prevention")).toBe(true);
+  });
+
+  it("accepts a form with a confirm data attribute", () => {
+    expect(
+      errorPreventionCheck.run(
+        parseSource(
+          "checkout.tsx",
+          `const C = () => (
+            <form action="/pay" data-confirm="true">
+              <input name="card" />
+              <button type="submit">Place order</button>
+            </form>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts a form whose checkbox carries its agreement text via aria-label", () => {
+    expect(
+      errorPreventionCheck.run(
+        parseSource(
+          "checkout.tsx",
+          `const C = () => (
+            <form action="/pay">
+              <input type="checkbox" aria-label="I agree to the terms" />
+              <button type="submit">Place order</button>
+            </form>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts a high-risk form whose onSubmit calls confirm", () => {
+    expect(
+      errorPreventionCheck.run(
+        parseSource(
+          "checkout.tsx",
+          `const C = () => (
+            <form action="/pay" onSubmit={() => confirm("Sure?")}>
+              <input name="card" />
+              <button type="submit">Place order</button>
+            </form>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("warns on a high-risk form with an empty onSubmit expression", () => {
+    const findings = errorPreventionCheck.run(
+      parseSource(
+        "checkout.tsx",
+        `const C = () => (
+          <form action="/pay" onSubmit={}>
+            <input name="card" />
+            <button type="submit">Place order</button>
+          </form>
+        );`,
+      ),
+    );
+    expect(findings.some((f) => f.checkId === "error-prevention")).toBe(true);
+  });
+
+  it("ignores a low-risk form", () => {
+    expect(
+      errorPreventionCheck.run(
+        parseSource(
+          "contact.tsx",
+          `const C = () => (
+            <form action="/contact">
+              <input name="email" />
+              <button type="submit">Send</button>
+            </form>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores components without high-risk text", () => {
+    expect(
+      errorPreventionCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<div><p>Hello world</p></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts a high-risk component with a review safeguard", () => {
+    expect(
+      errorPreventionCheck.run(
+        parseSource(
+          "checkout.tsx",
+          `const C = () => (
+            <div>
+              <p>Your payment is due</p>
+              <button>Review order</button>
+              <button>Place order</button>
+            </div>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("redundant-entry coverage", () => {
+  it("accepts a single identity field", () => {
+    expect(
+      redundantEntryCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<form><input type="email" name="email" autoComplete="email" aria-label="Email" /></form>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("warns on name-derived identity keys matching the loose pattern", () => {
+    const findings = redundantEntryCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => (<form><input type="text" name="user-email" aria-label="Email" /><input type="text" name="user-email" aria-label="Email again" /></form>);`,
+      ),
+    );
+    expect(findings.some((f) => f.checkId === "redundant-entry")).toBe(true);
+  });
+
+  it("ignores inputs without a name or id and names outside the identity pattern", () => {
+    expect(
+      redundantEntryCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<form><input type="text" aria-label="A" /><input type="text" name="city" aria-label="B" /></form>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("warns on exact identity names without autocomplete tokens", () => {
+    const findings = redundantEntryCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => (<form><input type="text" name="email" aria-label="Email" /><input type="text" name="email" aria-label="Email again" /></form>);`,
+      ),
+    );
+    expect(findings.some((f) => f.checkId === "redundant-entry")).toBe(true);
+  });
+});
+
+describe("accessible-auth coverage", () => {
+  it("ignores non-authentication fields", () => {
+    expect(
+      accessibleAuthCheck.run(
+        parseSource("test.tsx", `const A = () => <input type="text" aria-label="Name" />;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores an empty onPaste expression (no paste blocking)", () => {
+    expect(
+      accessibleAuthCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <input type="password" autoComplete="current-password" onPaste={} aria-label="Password" />;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("warns on a read-only auth field with a manager autocomplete token", () => {
+    const findings = accessibleAuthCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => <input type="password" autoComplete="current-password" readOnly aria-label="Password" />;`,
+      ),
+    );
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.kind).toBe("warning");
+  });
+});
+
+describe("captcha-alternative coverage", () => {
+  it("flags a captcha host with a non-alternative child", () => {
+    const findings = captchaAlternativeCheck.run(
+      parseSource(
+        "login.tsx",
+        `const L = () => <ReCAPTCHA sitekey="x"><div>hello</div></ReCAPTCHA>;`,
+      ),
+    );
+    expect(findings.some((f) => f.checkId === "captcha-alternative")).toBe(true);
+  });
+
+  it("accepts a captcha host with a nested audio-challenge button", () => {
+    expect(
+      captchaAlternativeCheck.run(
+        parseSource(
+          "login.tsx",
+          `const L = () => <ReCAPTCHA sitekey="x"><button type="button">Audio challenge</button></ReCAPTCHA>;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts a captcha host with a nested audio element", () => {
+    expect(
+      captchaAlternativeCheck.run(
+        parseSource(
+          "login.tsx",
+          `const L = () => <ReCAPTCHA sitekey="x"><audio src="captcha.mp3" /></ReCAPTCHA>;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts a captcha host with an audioCaptcha attribute", () => {
+    expect(
+      captchaAlternativeCheck.run(
+        parseSource(
+          "login.tsx",
+          `const L = () => <ReCAPTCHA sitekey="x" audioCaptcha="true"><div>hi</div></ReCAPTCHA>;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts a captcha whose sibling subtree holds the alternative", () => {
+    expect(
+      captchaAlternativeCheck.run(
+        parseSource(
+          "login.tsx",
+          `const L = () => (<div><ReCAPTCHA sitekey="x" /><div><button type="button">Audio challenge</button></div></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("flags a captcha with a non-alternative sibling", () => {
+    const findings = captchaAlternativeCheck.run(
+      parseSource(
+        "login.tsx",
+        `const L = () => (<div><ReCAPTCHA sitekey="x" /><span>hi</span></div>);`,
+      ),
+    );
+    expect(findings.some((f) => f.checkId === "captcha-alternative")).toBe(true);
+  });
+
+  it("ignores a plain image", () => {
+    expect(
+      captchaAlternativeCheck.run(
+        parseSource("test.tsx", `const A = () => <img alt="logo" src="logo.png" />;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("flags a standalone image captcha without an alternative", () => {
+    const findings = captchaAlternativeCheck.run(
+      parseSource(
+        "login.tsx",
+        `const A = () => <img alt="captcha image" src="captcha.png" />;`,
+      ),
+    );
+    expect(
+      findings.some(
+        (f) => f.checkId === "captcha-alternative" && f.kind === "warning",
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts an image captcha with a sibling audio alternative", () => {
+    expect(
+      captchaAlternativeCheck.run(
+        parseSource(
+          "login.tsx",
+          `const A = () => (<div><img alt="captcha" src="c.png" /><button type="button">Audio challenge</button></div>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("links an image captcha to its captcha ancestor host", () => {
+    const findings = captchaAlternativeCheck.run(
+      parseSource(
+        "login.tsx",
+        `const L = () => <ReCAPTCHA sitekey="x"><img alt="captcha image" src="c.png" /></ReCAPTCHA>;`,
+      ),
+    );
+    expect(
+      findings.filter((f) => f.checkId === "captcha-alternative"),
+    ).toHaveLength(2);
+  });
+});

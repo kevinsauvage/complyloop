@@ -75,6 +75,9 @@ export default defineConfig({
         "packages/db/src/test-fixtures/**", // test support files, no product logic
         // Write path covered by workspace.test.ts + workspace.integration.test.ts (test:db).
         "src/server/workspace/workspace.ts", // test:db
+        // Page loaders (findings/dashboard/requirements/evidence views) — Postgres
+        // reads composed for RSC pages; covered via test:e2e page runs.
+        "src/server/workspace/project-view.ts", // test:e2e
         // Thin Next Auth / cookie glue — covered via test:e2e.
         "src/server/workspace/active-cookies.ts", // test:e2e
         "src/server/workspace/db.ts", // test:e2e

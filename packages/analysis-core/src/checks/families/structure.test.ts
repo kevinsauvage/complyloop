@@ -417,4 +417,310 @@ describe("decorative-ignored", () => {
       ),
     ).toHaveLength(0);
   });
+
+  it("flags whitespace-only alt on input image buttons", () => {
+    const findings = decorativeIgnoredCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => <input type="image" src="/go.png" alt="   " />;`,
+      ),
+    );
+    expect(findings).toHaveLength(1);
+  });
+
+  it("ignores non-image hosts", () => {
+    expect(
+      decorativeIgnoredCheck.run(
+        parseSource("test.tsx", `const A = () => <div>Hello</div>;`),
+      ),
+    ).toHaveLength(0);
+    expect(
+      decorativeIgnoredCheck.run(
+        parseSource("test.tsx", `const A = () => <input />;`),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("list-structure (self-closing coverage)", () => {
+  it("ignores self-closing lists and self-closing li children", () => {
+    expect(
+      listStructureCheck.run(
+        parseSource("test.tsx", `const A = () => <ul />;`),
+      ),
+    ).toHaveLength(0);
+    expect(
+      listStructureCheck.run(
+        parseSource("test.tsx", `const A = () => <ul><li /></ul>;`),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("p-as-heading (inline style coverage)", () => {
+  it("warns for inline fontSize styles that look like headings", () => {
+    const px = pAsHeadingCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => <p style={{ fontSize: "30px" }}>Section</p>;`,
+      ),
+    );
+    expect(px).toHaveLength(1);
+    const rem = pAsHeadingCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => <p style={{ fontSize: "2rem" }}>Section</p>;`,
+      ),
+    );
+    expect(rem).toHaveLength(1);
+  });
+
+  it("ignores role=heading, non-object styles, unrelated props, and small sizes", () => {
+    const cases = [
+      `const A = () => <p role="heading" aria-level="2" className="text-4xl">Section</p>;`,
+      `const A = () => <p style={headingStyle}>Hello</p>;`,
+      `const A = () => <p style="font-size:30px">Hello</p>;`,
+      `const A = () => <p style={{ color: "red" }}>Hello</p>;`,
+      `const A = () => <p style={{ ...base }}>Hello</p>;`,
+      `const A = () => <p style={{ fontSize: "12px" }}>Hello</p>;`,
+      `const A = () => <p style={{ fontSize: "1rem" }}>Hello</p>;`,
+    ];
+    for (const code of cases) {
+      expect(pAsHeadingCheck.run(parseSource("test.tsx", code))).toHaveLength(
+        0,
+      );
+    }
+  });
+});
+
+describe("empty-th (spread coverage)", () => {
+  it("ignores spread headers", () => {
+    expect(
+      emptyThCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <table><thead><tr><th {...props} /></tr></thead></table>;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("table-caption (spread coverage)", () => {
+  it("ignores spread and self-closing tables", () => {
+    expect(
+      tableCaptionCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<table {...props}><tr><th>Name</th></tr></table>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+    expect(
+      tableCaptionCheck.run(
+        parseSource("test.tsx", `const A = () => <table />;`),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("table-summary (summary forms coverage)", () => {
+  it("accepts summary and aria-details on complex tables", () => {
+    const base = (attrs: string) => `const A = () => (
+      <table ${attrs}>
+        <thead><tr><th>A</th><th>B</th><th>C</th><th>D</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>2</td><td>3</td><td>4</td></tr>
+          <tr><td>5</td><td>6</td><td>7</td><td>8</td></tr>
+          <tr><td>9</td><td>10</td><td>11</td><td>12</td></tr>
+          <tr><td>13</td><td>14</td><td>15</td><td>16</td></tr>
+        </tbody>
+      </table>
+    );`;
+    expect(
+      tableSummaryCheck.run(
+        parseSource("test.tsx", base(`summary="Sales by quarter"`)),
+      ),
+    ).toHaveLength(0);
+    expect(
+      tableSummaryCheck.run(
+        parseSource("test.tsx", base(`aria-details="tbl-details"`)),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores spread, presentation, and non-data tables", () => {
+    expect(
+      tableSummaryCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<table {...props}><tr><td>x</td></tr></table>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+    expect(
+      tableSummaryCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <table role="presentation">
+              <thead><tr><th>A</th></tr></thead>
+              <thead><tr><th>B</th></tr></thead>
+            </table>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+    expect(
+      tableSummaryCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<table><tr><td>Only data</td></tr></table>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+    expect(
+      tableSummaryCheck.run(
+        parseSource("test.tsx", `const A = () => <table />;`),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("flags complex tables via expression spans, multiple theads, and self-closing rows", () => {
+    expect(
+      tableSummaryCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <table>
+              <thead><tr><th>Group</th></tr></thead>
+              <tbody><tr><td colSpan={4}>x</td></tr></tbody>
+            </table>
+          );`,
+        ),
+      ),
+    ).toHaveLength(1);
+    expect(
+      tableSummaryCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <table>
+              <thead><tr><th>A</th></tr></thead>
+              <thead><tr><th>B</th></tr></thead>
+              <tbody><tr><td>x</td></tr></tbody>
+            </table>
+          );`,
+        ),
+      ),
+    ).toHaveLength(1);
+    expect(
+      tableSummaryCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <table>
+              <thead><tr><th>A</th><th>B</th></tr></thead>
+              <tbody><tr /><tr><td colSpan={2}>x</td></tr></tbody>
+            </table>
+          );`,
+        ),
+      ),
+    ).toHaveLength(1);
+  });
+});
+
+describe("layout-table-markup (host coverage)", () => {
+  it("ignores spread tables, non-presentation tables, and self-closing presentation tables", () => {
+    expect(
+      layoutTableMarkupCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<table {...props} role="presentation"><tr><th>X</th></tr></table>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+    expect(
+      layoutTableMarkupCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<table><tr><th>X</th></tr></table>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+    expect(
+      layoutTableMarkupCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <table role="presentation" />;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("figure-caption (caption shape coverage)", () => {
+  it("flags expression and element captions outside figcaption", () => {
+    expect(
+      figureCaptionCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<figure><img src="/c.png" alt="Chart" />{caption}</figure>);`,
+        ),
+      ),
+    ).toHaveLength(1);
+    expect(
+      figureCaptionCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<figure><img src="/c.png" alt="Chart" /><p>Quarterly sales</p></figure>);`,
+        ),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("ignores spread figures, self-closing figures, and figures without images", () => {
+    expect(
+      figureCaptionCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<figure {...props}><img src="/c.png" alt="Chart" />Caption</figure>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+    expect(
+      figureCaptionCheck.run(
+        parseSource("test.tsx", `const A = () => <figure />;`),
+      ),
+    ).toHaveLength(0);
+    expect(
+      figureCaptionCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (<figure><figcaption>Just a caption</figcaption></figure>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
+describe("blockquote-cite (citation coverage)", () => {
+  it("accepts plain-text citations and blockquotes without cite", () => {
+    expect(
+      blockquoteCiteCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <blockquote cite="https://example.com">Quoted text here</blockquote>;`,
+        ),
+      ),
+    ).toHaveLength(0);
+    expect(
+      blockquoteCiteCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => <blockquote>Quoted text here</blockquote>;`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
 });
