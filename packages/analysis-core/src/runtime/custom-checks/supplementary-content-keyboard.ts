@@ -1,11 +1,9 @@
 import type { Page } from "playwright";
 
 import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
+import { toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import {
-  isKeyboardFocusable,
-  selectorOf,
-} from "./widget-keyboard-utils.ts";
+import { isKeyboardFocusable } from "./widget-keyboard-utils.ts";
 
 const BROWSER_HELPERS = `(function helperSource() {
   const hit = (${BROWSER_HIT_CAPTURE_SRC});
@@ -66,6 +64,6 @@ export async function supplementaryContentKeyboardViolation(
     description:
       "Supplementary content appears available only through pointer hover or hidden popups.",
     help: "Supplementary content on hover or focus must be keyboard reachable and operable (RGAA 12.11 / WCAG 2.1.1).",
-    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
+    nodes: toViolationNodes(nodes),
   };
 }

@@ -5,7 +5,7 @@ import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 import type { DrizzleDb } from "../postgres.ts";
 import { requirements } from "../schema.ts";
 import { requirementToRow } from "./mappers.ts";
-import { upsertPayloadRows } from "./upsert-guard.ts";
+import { type StaleWriteOptions, upsertPayloadRows } from "./upsert-guard.ts";
 
 export async function listRequirementsForProject(
   drizzle: DrizzleDb,
@@ -30,19 +30,10 @@ export async function listRequirementsForProjects(
   return rows.map((row) => row.payload);
 }
 
-export interface UpsertRequirementsOptions {
-  /**
-   * Requirement `updatedAt` values from the load that started this write.
-   * Rows whose DB copy was updated afterward are skipped so a stale
-   * `refreshRequirementStatuses` pass cannot overwrite a newer human decision.
-   */
-  loadedUpdatedAtById?: ReadonlyMap<string, string>;
-}
-
 export async function upsertRequirements(
   tx: DrizzleDb,
   items: ReadonlyArray<Requirement>,
-  options: UpsertRequirementsOptions = {},
+  options: StaleWriteOptions = {},
 ): Promise<void> {
   await upsertPayloadRows(
     items,

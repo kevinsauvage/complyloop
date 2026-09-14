@@ -1,8 +1,7 @@
 import type { Page } from "playwright";
 
-import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function mediaKeyboardViolation(
   page: Page,
@@ -63,6 +62,6 @@ export async function mediaKeyboardViolation(
     impact: "serious",
     description: detail,
     help: "Ensure <video controls> and <audio controls> can be focused and operated with the keyboard (WCAG 2.1.1 / RGAA 4.11).",
-    nodes: [{ html: hit.html, target: [selectorOf(hit)] }],
+    nodes: toViolationNodes([hit]),
   };
 }

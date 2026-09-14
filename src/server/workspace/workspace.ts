@@ -154,23 +154,20 @@ export const getWorkspace = cache(async (): Promise<Workspace> =>
 );
 
 /**
- * Lightweight project-permission check for hot endpoints and single-row
- * actions (e.g. assessment-job polling, alert reads): session + one project
- * row + that project org's memberships. Avoids the full tenancy load in
- * {@link getWorkspace} on every request. Actions use this (never raw
- * `getDrizzle()`) before entering `withProjectLock`.
+ * Shared session → membership → permission check for the single-row guards
+ * below. Both `requireProjectAccess` and `requireAlertAccess` resolve a
+ * project through different rows, then run this identical check.
  */
-export async function requireProjectAccess(
-  projectId: string,
+async function checkProjectAccess(
+  project: Project,
   permission: Permission,
 ): Promise<Project> {
   const session = await getSession();
   const userId = session?.user?.id ?? null;
   if (!userId) throw new PublicError("Sign in to continue.");
-  const drizzle = await getDrizzle();
-  const project = await getProjectById(drizzle, projectId);
-  if (!project) throw new PublicError("Unknown project.");
-  const memberships = await listMembershipsForOrgs(drizzle, [project.orgId]);
+  const memberships = await listMembershipsForOrgs(await getDrizzle(), [
+    project.orgId,
+  ]);
   assertProjectPermission(
     project,
     {
@@ -185,6 +182,22 @@ export async function requireProjectAccess(
 }
 
 /**
+ * Lightweight project-permission check for hot endpoints and single-row
+ * actions (e.g. assessment-job polling, alert reads): session + one project
+ * row + that project org's memberships. Avoids the full tenancy load in
+ * {@link getWorkspace} on every request. Actions use this (never raw
+ * `getDrizzle()`) before entering `withProjectLock`.
+ */
+export async function requireProjectAccess(
+  projectId: string,
+  permission: Permission,
+): Promise<Project> {
+  const project = await getProjectById(await getDrizzle(), projectId);
+  if (!project) throw new PublicError("Unknown project.");
+  return checkProjectAccess(project, permission);
+}
+
+/**
  * Alert-scoped variant of {@link requireProjectAccess}: resolves the alert's
  * project and checks the permission against it.
  */
@@ -192,26 +205,12 @@ export async function requireAlertAccess(
   alertId: string,
   permission: Permission,
 ): Promise<{ alert: Alert; project: Project }> {
-  const session = await getSession();
-  const userId = session?.user?.id ?? null;
-  if (!userId) throw new PublicError("Sign in to continue.");
   const drizzle = await getDrizzle();
   const alert = await getAlertById(drizzle, alertId);
   if (!alert) throw new PublicError("Unknown alert.");
   const project = await getProjectById(drizzle, alert.projectId);
   if (!project) throw new PublicError("Unknown alert.");
-  const memberships = await listMembershipsForOrgs(drizzle, [project.orgId]);
-  assertProjectPermission(
-    project,
-    {
-      userId,
-      githubLogin: session?.user?.login ?? null,
-      organizations: [],
-      memberships,
-    },
-    permission,
-  );
-  return { alert, project };
+  return { alert, project: await checkProjectAccess(project, permission) };
 }
 
 /**

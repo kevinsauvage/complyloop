@@ -9,7 +9,7 @@ import {
 import type { DrizzleDb } from "../postgres.ts";
 import { findings } from "../schema.ts";
 import { findingToRow } from "./mappers.ts";
-import { upsertPayloadRows } from "./upsert-guard.ts";
+import { type StaleWriteOptions, upsertPayloadRows } from "./upsert-guard.ts";
 
 export async function getFindingById(
   drizzle: DrizzleDb,
@@ -93,19 +93,10 @@ export async function countFindingsByStatusForProject(
   return counts;
 }
 
-export interface UpsertFindingsOptions {
-  /**
-   * Finding `updatedAt` values captured when the writing slice was loaded.
-   * Rows whose DB copy was updated afterward (e.g. a human decision during a
-   * webhook assessment) are skipped so a stale apply cannot revert them.
-   */
-  loadedUpdatedAtById?: ReadonlyMap<string, string>;
-}
-
 export async function upsertFindings(
   tx: DrizzleDb,
   items: ReadonlyArray<Finding>,
-  options: UpsertFindingsOptions = {},
+  options: StaleWriteOptions = {},
 ): Promise<void> {
   await upsertPayloadRows(
     items,

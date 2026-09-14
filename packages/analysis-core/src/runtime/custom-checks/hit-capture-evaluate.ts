@@ -7,11 +7,27 @@ import {
   type HitCaptureHelpers,
   LOAD_HIT_CAPTURE_SRC,
 } from "./hit-capture.ts";
+import type { CustomViolationNode } from "./types.ts";
+import { selectorOf, type SelectorRef } from "./widget-keyboard-utils.ts";
 
 export type CaptureHitFn = (
   el: Element,
   options?: CaptureHitOptions,
 ) => CapturedHit;
+
+/**
+ * Maps captured hits to violation nodes (`html` + selector target).
+ * Centralizes the `nodes.map((node) => ({ html, target: [selectorOf] }))`
+ * tail repeated by every probe so selector construction stays in one place.
+ * Accepts any `SelectorRef & { html }` (full `CapturedHit` or a probe-local
+ * `{ html, id, role, tagName }` literal) — only `html` and the selector
+ * fields are read.
+ */
+export function toViolationNodes(
+  hits: ReadonlyArray<SelectorRef & { html: string }>,
+): CustomViolationNode[] {
+  return hits.map((hit) => ({ html: hit.html, target: [selectorOf(hit)] }));
+}
 
 type EvaluatePayload = {
   bodySrc: string;

@@ -1,9 +1,8 @@
 import type { Page } from "playwright";
 
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function mediaIdentificationViolation(
   page: Page,
@@ -56,6 +55,6 @@ export async function mediaIdentificationViolation(
     description:
       "Non-temporal media is not clearly identified and lacks an accessible alternative.",
     help: "Identify embed and canvas media and provide a text alternative (RGAA 4.7).",
-    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
+    nodes: toViolationNodes(nodes),
   };
 }

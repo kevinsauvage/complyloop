@@ -1,9 +1,8 @@
 import type { Page } from "playwright";
 
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 /** Maximum pixel gap between associated label and field before review. */
 export const MAX_LABEL_GAP_PX = 48;
@@ -113,6 +112,6 @@ export async function labelAdjacentViolation(
     description:
       "Visible label is programmatically associated but may not be visually adjacent to its field.",
     help: "Place the label next to the control it names so sighted users can match them (WCAG 3.3.2 / RGAA 11.4).",
-    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
+    nodes: toViolationNodes(nodes),
   };
 }

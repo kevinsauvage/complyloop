@@ -9,11 +9,7 @@ import {
   octokitErrorMessage,
   parseOwnerRepo,
 } from "./github";
-import {
-  createInstallationAccessToken,
-  isGitHubAppConfigured,
-  listReposViaInstallations,
-} from "./github-app";
+import { createInstallationAccessToken, isGitHubAppConfigured } from "./github-app";
 import type { GitHubRepoSummary } from "./github-types";
 
 export type { GitHubRepoSummary } from "./github-types";
@@ -36,22 +32,6 @@ export async function resolveProjectGitHubToken(
   }
 
   return null;
-}
-
-/**
- * Lists repositories available to connect: only repos on GitHub App
- * installations the signed-in user can access.
- */
-export async function listGitHubRepos(options: {
-  accessToken: string;
-  perPage?: number;
-  q?: string;
-}): Promise<GitHubRepoSummary[]> {
-  return listReposViaInstallations({
-    userAccessToken: options.accessToken,
-    perPage: options.perPage,
-    q: options.q,
-  });
 }
 
 export async function fetchGitHubRepo(

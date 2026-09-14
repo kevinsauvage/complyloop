@@ -10,7 +10,7 @@ import type {
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 import type { DrizzleDb } from "../postgres.ts";
-import { insertAlerts } from "./alerts.ts";
+import { upsertAlerts } from "./alerts.ts";
 import { insertAssessment } from "./assessments.ts";
 import { insertEvidenceRecords } from "./evidence.ts";
 import { upsertFindings } from "./findings.ts";
@@ -112,12 +112,6 @@ export function snapshotProjectSlice(
   );
 }
 
-export function requirementUpdatedAtById(
-  items: ReadonlyArray<Requirement>,
-): Map<string, string> {
-  return updatedAtById(items);
-}
-
 /** `updatedAt` per id for entities that carry it (findings, remediations). */
 export function updatedAtById(
   items: ReadonlyArray<{ id: string; updatedAt?: string }>,
@@ -202,11 +196,11 @@ export async function persistProjectRows(
     changedSinceLoaded(slice?.requirements, payload.requirements),
     {
       loadedUpdatedAtById: slice
-        ? requirementUpdatedAtById(slice.requirements)
+        ? updatedAtById(slice.requirements)
         : undefined,
     },
   );
-  await insertAlerts(tx, payload.alerts ?? []);
+  await upsertAlerts(tx, payload.alerts ?? []);
   await insertEvidenceRecords(tx, payload.evidence ?? []);
   if (payload.project) {
     await updateProject(tx, payload.project);

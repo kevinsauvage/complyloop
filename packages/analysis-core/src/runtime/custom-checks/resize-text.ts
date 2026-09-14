@@ -1,8 +1,7 @@
 import type { Page } from "playwright";
 
-import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 const FONT_SCALE = "200%";
 
@@ -50,7 +49,7 @@ export async function resizeTextViolation(
       description:
         "Text is clipped after 200% text resize at the default viewport.",
       help: "Content must remain readable when text is resized to 200% without loss (WCAG 1.4.4 / RGAA 10.4). Narrow-viewport reflow is checked separately (WCAG 1.4.10).",
-      nodes: [{ html: hit.html, target: [selectorOf(hit)] }],
+      nodes: toViolationNodes([hit]),
     };
   } finally {
     await page.evaluate(() => {

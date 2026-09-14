@@ -25,11 +25,11 @@ import {
 import {
   findingIdsField,
   optionalNoteSchema,
-  parseEntityId,
   parseForm,
 } from "@/core/validate";
 
-import { type ActionState, runAction } from "../action-state";
+import type { ActionState } from "../action-state";
+import { runAction } from "../action-state";
 import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
 import {
   remediationEvidenceDetail,
@@ -42,10 +42,8 @@ import {
   upsertFindingInRows,
 } from "../workspace/project-rows";
 import { findingById, remediationForFinding } from "../workspace/workspace";
-import {
-  withFindingWrite,
-  withProjectWrite,
-} from "../workspace/workspace-write";
+import { withProjectWrite } from "../workspace/workspace-write";
+import { runFindingAction } from "./define-action";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh, replaceRemediation, requireOnFindingProject } from "./shared";
 
@@ -178,24 +176,20 @@ export async function approveRemediationAction(  findingIdRaw: string,
 ): Promise<ActionState> {
   void _previous;
   void _formData;
-  return runAction(async () => {
-    const findingId = parseEntityId(findingIdRaw);
-    await withFindingWrite(
-      findingId,
-      "project.remediate",
-      async ({ db, finding }) => {
-        const remediation = remediationForFinding(db, findingId);
-        const payload: ProjectWritePayload = {};
+  return runFindingAction(
+    findingIdRaw,
+    "project.remediate",
+    async ({ db, finding }) => {
+      const remediation = remediationForFinding(db, finding.id);
+      const payload: ProjectWritePayload = {};
 
-        approveRemediationInPayload(payload, finding, remediation, {
-          approvalNote: "Approved by user",
-        });
-        return payload;
-      },
-    );
-    refresh(...COMPLIANCE_LOOP_ROUTES);
-    return "Remediation approved.";
-  });
+      approveRemediationInPayload(payload, finding, remediation, {
+        approvalNote: "Approved by user",
+      });
+      return payload;
+    },
+    "Remediation approved.",
+  );
 }
 
 /** Approves remediations that are already in `suggested` (skips others). */
@@ -247,28 +241,24 @@ export async function dismissFindingAction(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  return runAction(async () => {
-    const findingId = parseEntityId(findingIdRaw);
-    const { reason, note } = parseForm(dismissFindingInput, formData);
-    await withFindingWrite(
-      findingId,
-      "project.remediate",
-      async ({ db, finding }) => {
-        const project = db.projects.find(
-          (candidate) => candidate.id === finding.projectId,
-        );
-        if (!project) throw new PublicError("Unknown project.");
-        return dismissEntriesInWrite(
-          db,
-          project,
-          [{ finding, reason, note: note ?? "" }],
-          { at: new Date().toISOString() },
-        );
-      },
-    );
-    refresh(...COMPLIANCE_LOOP_ROUTES);
-    return "Finding dismissed.";
-  });
+  return runFindingAction(
+    findingIdRaw,
+    "project.remediate",
+    async ({ db, finding }) => {
+      const { reason, note } = parseForm(dismissFindingInput, formData);
+      const project = db.projects.find(
+        (candidate) => candidate.id === finding.projectId,
+      );
+      if (!project) throw new PublicError("Unknown project.");
+      return dismissEntriesInWrite(
+        db,
+        project,
+        [{ finding, reason, note: note ?? "" }],
+        { at: new Date().toISOString() },
+      );
+    },
+    "Finding dismissed.",
+  );
 }
 
 export async function bulkDismissFindingsAction(

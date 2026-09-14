@@ -1,8 +1,7 @@
 import type { Page } from "playwright";
 
-import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function cssOffUnderstandableViolation(
   page: Page,
@@ -109,6 +108,6 @@ export async function cssOffUnderstandableViolation(
     impact: "moderate",
     description,
     help: "Keep reading order and essential content in the DOM so it remains understandable without CSS (WCAG 1.3.2 / RGAA 10.3).",
-    nodes: [{ html: hit.html, target: [selectorOf(hit)] }],
+    nodes: toViolationNodes([hit]),
   };
 }

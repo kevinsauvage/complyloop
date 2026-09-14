@@ -84,10 +84,3 @@ export async function upsertAlerts(
       },
     });
 }
-
-export async function insertAlerts(
-  tx: DrizzleDb,
-  items: ReadonlyArray<Alert>,
-): Promise<void> {
-  await upsertAlerts(tx, items);
-}

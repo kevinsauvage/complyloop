@@ -1,9 +1,8 @@
 import type { Page } from "playwright";
 
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 const SPACING_STYLE_ID = "complyloop-text-spacing-test";
 
@@ -68,6 +67,6 @@ export async function textSpacingRuntimeViolation(
     description:
       "Text is clipped or hidden when WCAG 1.4.12 text-spacing overrides are applied.",
     help: "Do not lock spacing with overflow:hidden or fixed heights that clip content when users increase spacing.",
-    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
+    nodes: toViolationNodes(nodes),
   };
 }

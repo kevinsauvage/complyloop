@@ -5,7 +5,7 @@ import type { Remediation } from "@complyloop/analysis-core/contract/entities";
 import type { DrizzleDb } from "../postgres.ts";
 import { findings, remediations } from "../schema.ts";
 import { remediationToRow } from "./mappers.ts";
-import { upsertPayloadRows } from "./upsert-guard.ts";
+import { type StaleWriteOptions, upsertPayloadRows } from "./upsert-guard.ts";
 
 export async function getRemediationByFindingId(
   drizzle: DrizzleDb,
@@ -46,19 +46,10 @@ export async function listRemediationsForProjects(
   return rows.map((row) => row.payload);
 }
 
-export interface UpsertRemediationsOptions {
-  /**
-   * Remediation `updatedAt` values captured when the writing slice was loaded.
-   * Rows whose DB copy was updated afterward (a human approval/verify during a
-   * webhook assessment) are skipped so a stale apply cannot revert them.
-   */
-  loadedUpdatedAtById?: ReadonlyMap<string, string>;
-}
-
 export async function upsertRemediations(
   tx: DrizzleDb,
   items: ReadonlyArray<Remediation>,
-  options: UpsertRemediationsOptions = {},
+  options: StaleWriteOptions = {},
 ): Promise<void> {
   await upsertPayloadRows(
     items,

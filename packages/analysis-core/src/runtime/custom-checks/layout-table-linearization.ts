@@ -1,8 +1,7 @@
 import type { Page } from "playwright";
 
-import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 /** True when the table is used for layout rather than tabular data. */
 export function isLayoutTable(table: HTMLTableElement): boolean {
@@ -83,6 +82,6 @@ export async function layoutTableLinearizationViolation(
     description:
       "Layout table cells appear in a different visual order than DOM order, so disabling CSS will scramble reading order.",
     help: "Use CSS layout instead of reordering table cells, or mark up a real data table with headers (WCAG 1.3.2 / RGAA 5.3).",
-    nodes: [{ html: hit.html, target: [selectorOf(hit)] }],
+    nodes: toViolationNodes([hit]),
   };
 }

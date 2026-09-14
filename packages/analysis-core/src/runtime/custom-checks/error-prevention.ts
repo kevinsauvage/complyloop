@@ -8,9 +8,8 @@ import {
   RUNTIME_MATCHES_SRC,
 } from "../../patterns/multilingual.ts";
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 const RUNTIME_CONFIRM_LABEL = new RegExp(
   `${CONFIRM_LABEL.source}|${AGREE_LABEL.source}`,
@@ -78,6 +77,6 @@ export async function errorPreventionViolation(
     description:
       "High-impact form can submit without a review, confirm, or agreement step.",
     help: "Legal, financial, and test submissions must be reversible, checked, or confirmed (WCAG 3.3.4).",
-    nodes: hits.map((hit) => ({ html: hit.html, target: [selectorOf(hit)] })),
+    nodes: toViolationNodes(hits),
   };
 }

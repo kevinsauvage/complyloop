@@ -22,7 +22,8 @@ import {
 } from "@/core/remediation-lifecycle";
 import { optionalNoteSchema, parseEntityId, parseForm } from "@/core/validate";
 
-import { type ActionState, runAction } from "../action-state";
+import type { ActionState } from "../action-state";
+import { runAction } from "../action-state";
 import { sameInstance } from "../assessment/assessment-findings";
 import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
 import {
@@ -41,6 +42,7 @@ import {
   requireRemediationForFinding,
 } from "../workspace/workspace";
 import { withFindingWrite } from "../workspace/workspace-write";
+import { runFindingAction } from "./define-action";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh, replaceRemediation, requireFindingContext } from "./shared";
 
@@ -270,38 +272,34 @@ export async function markRemediationImplementedAction(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  return runAction(async () => {
-    const findingId = parseEntityId(findingIdRaw);
-    const { note: parsedNote } = parseForm(markImplementedInput, formData);
-    await withFindingWrite(
-      findingId,
-      "project.remediate",
-      async ({ db, finding }) => {
-        const remediation = remediationForFinding(db, findingId);
-        if (remediation.status !== "approved") {
-          throw new PublicError(IMPLEMENT_REQUIRES_APPROVED_MESSAGE);
-        }
-        const note =
-          parsedNote ??
-          "Marked implemented by user (applied outside the platform)";
-        const payload: ProjectWritePayload = {};
+  return runFindingAction(
+    findingIdRaw,
+    "project.remediate",
+    async ({ db, finding }) => {
+      const { note: parsedNote } = parseForm(markImplementedInput, formData);
+      const remediation = remediationForFinding(db, finding.id);
+      if (remediation.status !== "approved") {
+        throw new PublicError(IMPLEMENT_REQUIRES_APPROVED_MESSAGE);
+      }
+      const note =
+        parsedNote ??
+        "Marked implemented by user (applied outside the platform)";
+      const payload: ProjectWritePayload = {};
 
-        replaceRemediation(
-          payload,
-          advanceRemediation(remediation, "implemented", note),
-        );
-        appendEvidence(payload, {
-          kind: "remediation_implemented",
-          summary: remediationEvidenceSummary("implemented", finding),
-          projectId: finding.projectId,
-          controlId: finding.controlId,
-          findingId: finding.id,
-          detail: remediationEvidenceDetail({ manual: true, note }),
-        });
-        return payload;
-      },
-    );
-    refresh(...COMPLIANCE_LOOP_ROUTES);
-    return "Marked as implemented.";
-  });
+      replaceRemediation(
+        payload,
+        advanceRemediation(remediation, "implemented", note),
+      );
+      appendEvidence(payload, {
+        kind: "remediation_implemented",
+        summary: remediationEvidenceSummary("implemented", finding),
+        projectId: finding.projectId,
+        controlId: finding.controlId,
+        findingId: finding.id,
+        detail: remediationEvidenceDetail({ manual: true, note }),
+      });
+      return payload;
+    },
+    "Marked as implemented.",
+  );
 }

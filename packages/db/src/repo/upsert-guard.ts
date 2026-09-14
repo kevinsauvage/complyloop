@@ -2,6 +2,14 @@
  * Stale-write guard for JSONB-payload entity upserts (requirements, findings,
  * remediations). Skips writes when the DB row is newer than the loaded slice.
  */
+export interface StaleWriteOptions {
+  /**
+   * Entity `updatedAt` values captured when the writing slice was loaded.
+   * Rows whose DB copy was updated afterward are skipped so a stale apply
+   * cannot revert them.
+   */
+  loadedUpdatedAtById?: ReadonlyMap<string, string>;
+}
 export function filterNotStale<T extends { id: string; updatedAt?: string }>(
   items: readonly T[],
   loadedUpdatedAtById: ReadonlyMap<string, string>,

@@ -10,7 +10,7 @@ import type {
 } from "@complyloop/analysis-core/contract/entities";
 
 const insertAssessment = vi.hoisted(() => vi.fn());
-const insertAlerts = vi.hoisted(() => vi.fn());
+const upsertAlerts = vi.hoisted(() => vi.fn());
 const insertEvidenceRecords = vi.hoisted(() => vi.fn());
 const upsertRequirements = vi.hoisted(() => vi.fn());
 const upsertFindings = vi.hoisted(() => vi.fn());
@@ -21,7 +21,7 @@ const updateProject = vi.hoisted(() => vi.fn());
 vi.mock("./requirements.ts", () => ({ upsertRequirements }));
 vi.mock("./findings.ts", () => ({ upsertFindings }));
 vi.mock("./remediations.ts", () => ({ upsertRemediations }));
-vi.mock("./alerts.ts", () => ({ insertAlerts }));
+vi.mock("./alerts.ts", () => ({ upsertAlerts }));
 vi.mock("./evidence.ts", () => ({ insertEvidenceRecords }));
 vi.mock("./assessments.ts", () => ({ insertAssessment }));
 vi.mock("./projects.ts", () => ({ updateProject }));
@@ -139,7 +139,7 @@ describe("snapshotProjectSlice", () => {
     upsertRequirements.mockResolvedValue(undefined);
     upsertFindings.mockResolvedValue(undefined);
     upsertRemediations.mockResolvedValue(undefined);
-    insertAlerts.mockResolvedValue(undefined);
+    upsertAlerts.mockResolvedValue(undefined);
     insertEvidenceRecords.mockResolvedValue(undefined);
 
     await persistProjectRows(
@@ -211,7 +211,7 @@ describe("applyAssessmentPayload", () => {
     upsertFindings.mockResolvedValue(undefined);
     upsertRemediations.mockResolvedValue(undefined);
     upsertRequirements.mockResolvedValue(undefined);
-    insertAlerts.mockResolvedValue(undefined);
+    upsertAlerts.mockResolvedValue(undefined);
     insertEvidenceRecords.mockResolvedValue(undefined);
   });
 
@@ -272,7 +272,7 @@ describe("applyAssessmentPayload", () => {
     expect(upsertRequirements).toHaveBeenCalledWith(tx, [updatedRequirement], {
       loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
     });
-    expect(insertAlerts).toHaveBeenCalledWith(tx, []);
+    expect(upsertAlerts).toHaveBeenCalledWith(tx, []);
     expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, evidence);
   });
 
@@ -316,7 +316,7 @@ describe("applyAssessmentPayload", () => {
     expect(upsertRemediations).toHaveBeenCalledWith(tx, [], {
       loadedUpdatedAtById: new Map(),
     });
-    expect(insertAlerts).toHaveBeenCalledWith(tx, []);
+    expect(upsertAlerts).toHaveBeenCalledWith(tx, []);
   });
 });
 
@@ -338,7 +338,7 @@ describe("persistProjectRows", () => {
     upsertRequirements.mockResolvedValue(undefined);
     upsertFindings.mockResolvedValue(undefined);
     upsertRemediations.mockResolvedValue(undefined);
-    insertAlerts.mockResolvedValue(undefined);
+    upsertAlerts.mockResolvedValue(undefined);
     insertEvidenceRecords.mockResolvedValue(undefined);
     updateProject.mockResolvedValue(undefined);
   });

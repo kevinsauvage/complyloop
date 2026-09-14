@@ -12,9 +12,8 @@ import {
   BROWSER_OBJECT_RECOGNITION_CAPTCHA_SRC,
 } from "./captcha-candidates.ts";
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function accessibleAuthEnhancedViolation(
   page: Page,
@@ -105,6 +104,6 @@ export async function accessibleAuthEnhancedViolation(
     description:
       "Authentication uses object-recognition or image-selection CAPTCHA.",
     help: "Do not require image or object puzzles to authenticate (WCAG 3.3.9).",
-    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
+    nodes: toViolationNodes(nodes),
   };
 }

@@ -1,10 +1,9 @@
 import type { Page } from "playwright";
 
 import { type CapturedHit } from "./hit-capture.ts";
-import { locatorEvaluateWithHitCapture,pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { locatorEvaluateWithHitCapture,pageEvaluateWithHitCapture,toViolationNodes } from "./hit-capture-evaluate.ts";
 import { measureHoverVsFocusReveal } from "./hover-reveal.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 const MAX_TRIGGERS = 12;
 
@@ -80,6 +79,6 @@ export async function cssHoverKeyboardViolation(
     description:
       "Extra content may appear on pointer hover without an equivalent reveal on keyboard focus.",
     help: "Ensure :hover-only menus and tooltips can also be opened with keyboard focus (WCAG 2.1.1 / RGAA 10.14).",
-    nodes: nodes.map((hit) => ({ html: hit.html, target: [selectorOf(hit)] })),
+    nodes: toViolationNodes(nodes),
   };
 }

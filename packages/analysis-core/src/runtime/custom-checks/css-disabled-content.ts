@@ -1,9 +1,8 @@
 import type { Page } from "playwright";
 
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function cssDisabledContentViolations(
   page: Page,
@@ -70,7 +69,7 @@ export async function cssDisabledContentViolations(
       description:
         "Visible text may depend on CSS pseudo-elements or background images instead of HTML.",
       help: "Put essential text in the document, not only in ::before/::after content or image backgrounds (WCAG 1.3.1 / RGAA 10.2).",
-      nodes: hits.map((hit) => ({ html: hit.html, target: [selectorOf(hit)] })),
+      nodes: toViolationNodes(hits),
     },
   ];
 }

@@ -24,11 +24,8 @@ import type {
 import type { PatchCandidate } from "@/ai/verified-fix";
 
 import { reportWarning } from "../observability";
-import {
-  fetchGitHubRepo,
-  listGitHubRepos,
-  resolveProjectGitHubToken,
-} from "./github-access";
+import { fetchGitHubRepo, resolveProjectGitHubToken } from "./github-access";
+import { listReposViaInstallations } from "./github-app";
 import {
   postPullRequestCheckRun,
   summarizeAssessmentForCheckRun,
@@ -38,13 +35,8 @@ import { preparePullRequest, type PullRequestResult } from "./pr";
 
 export type { GitHubRepoSummary };
 
-/**
- * Installation token for clone / PR / Checks against a connected project.
- * Null when the project is not connected via the GitHub App.
- */
-export function getProjectToken(project: Project): Promise<string | null> {
-  return resolveProjectGitHubToken(project);
-}
+/** Installation token for clone / PR / Checks. Null when not App-connected. */
+export { resolveProjectGitHubToken as getProjectToken };
 
 /** Repositories available to connect for a signed-in user's access token. */
 export function listAvailableRepos(options: {
@@ -52,7 +44,11 @@ export function listAvailableRepos(options: {
   perPage?: number;
   q?: string;
 }): Promise<GitHubRepoSummary[]> {
-  return listGitHubRepos(options);
+  return listReposViaInstallations({
+    userAccessToken: options.accessToken,
+    perPage: options.perPage,
+    q: options.q,
+  });
 }
 
 /** Single repository metadata for a user access token (connect flow). */

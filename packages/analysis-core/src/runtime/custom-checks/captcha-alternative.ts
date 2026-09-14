@@ -11,9 +11,8 @@ import {
   captchaProbeBootstrap,
 } from "./captcha-candidates.ts";
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
+import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
-import { selectorOf } from "./widget-keyboard-utils.ts";
 
 export async function captchaAlternativeViolation(
   page: Page,
@@ -85,6 +84,6 @@ export async function captchaAlternativeViolation(
     impact: "serious",
     description: "CAPTCHA does not expose a non-visual alternative modality.",
     help: "Provide audio, logic, or human-contact alternatives for image CAPTCHA (RGAA 1.5).",
-    nodes: nodes.map((node) => ({ html: node.html, target: [selectorOf(node)] })),
+    nodes: toViolationNodes(nodes),
   };
 }
