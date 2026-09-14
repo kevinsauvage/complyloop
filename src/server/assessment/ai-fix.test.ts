@@ -10,7 +10,7 @@ import type {
 } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { emptyDb } from "@complyloop/db/types";
+import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import type { PatchCandidate } from "@/ai/verified-fix";
 
@@ -302,7 +302,7 @@ describe("persistPatchCandidate", () => {
   };
 
   it("records ready evidence and moves remediation to suggested", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.findings.push(patchFinding);
     db.remediations.push(remediation);
     const payload: ProjectWritePayload = {};
@@ -327,7 +327,7 @@ describe("persistPatchCandidate", () => {
 
   it("warns and skips the suggestion when remediation already advanced", () => {
     reportWarningMock.mockClear();
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.findings.push(patchFinding);
     db.remediations.push({ ...remediation, status: "verified" });
     const payload: ProjectWritePayload = {};

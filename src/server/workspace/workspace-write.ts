@@ -31,7 +31,7 @@ import {
   upsertMembership,
 } from "@complyloop/db/repo/orgs";
 import { deleteProject, insertProject } from "@complyloop/db/repo/projects";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 import {
   loadProjectWriteDb,
   loadTenancyDb,
@@ -58,7 +58,7 @@ export interface OrgWritePayload {
 }
 
 export interface OrgWriteContext {
-  db: Db;
+  db: WorkspaceSlice;
   userId: string;
   githubLogin: string | null;
   organizations: Organization[];
@@ -147,7 +147,7 @@ export async function withFindingWrite(
   findingId: string,
   permission: Permission,
   fn: (ctx: {
-    db: Db;
+    db: WorkspaceSlice;
     finding: Finding;
     workspace: ProjectWriteWorkspace;
   }) => Promise<ProjectWritePayload | void>,
@@ -213,7 +213,7 @@ export async function withProjectLock<T>(
 
 interface LockedTenancyContext {
   tx: DrizzleDb;
-  db: Db;
+  db: WorkspaceSlice;
   userId: string;
   githubLogin: string | null;
 }
@@ -292,7 +292,7 @@ export interface ConnectWritePayload {
 }
 
 export interface ConnectWriteContext {
-  db: Db;
+  db: WorkspaceSlice;
   userId: string;
   githubLogin: string | null;
 }

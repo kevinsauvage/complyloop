@@ -6,8 +6,8 @@ import type {
   OrgMembership,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
-import type { Db } from "@complyloop/db/types";
-import { emptyDb } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
+import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import type { ProjectWriteWorkspace } from "@/server/workspace/workspace";
 
@@ -29,7 +29,7 @@ export function testWorkspace(
     project?: Project;
     findings?: Finding[];
     remediations?: Remediation[];
-    db?: Partial<Db>;
+    db?: Partial<WorkspaceSlice>;
   } = {},
 ): ProjectWriteWorkspace {
   const userId = options.userId ?? "user-1";
@@ -44,14 +44,14 @@ export function testWorkspace(
   ];
 
   const db = {
-    ...emptyDb(),
+    ...emptyWorkspaceSlice(),
     organizations: [{ id: orgId, name: "Acme", slug: "acme", createdAt: "" }],
     memberships: [testMembership(role, { userId, orgId })],
     projects: [project],
     findings,
     remediations,
     ...options.db,
-  } as Db;
+  } as WorkspaceSlice;
 
   return {
     project,

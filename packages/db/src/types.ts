@@ -13,7 +13,7 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 
 // Domain entities live in the contract — re-exported here so persistence
-// mappers and the `Db` slice keep compiling while app/core/ai import from
+// mappers and the `WorkspaceSlice` slice keep compiling while app/core/ai import from
 // `@complyloop/analysis-core/contract/entities` directly.
 export type {
   Alert,
@@ -33,7 +33,7 @@ export type {
  * Request pages use tenancy Workspace + repo / getProjectRuntime reads.
  * Persist changes via row-level repo functions — never bulk-sync this object.
  */
-export interface Db {
+export interface WorkspaceSlice {
   organizations: Organization[];
   memberships: OrgMembership[];
   projects: Project[];
@@ -46,7 +46,7 @@ export interface Db {
   alerts: Alert[];
 }
 
-export function emptyDb(): Db {
+export function emptyWorkspaceSlice(): WorkspaceSlice {
   return {
     organizations: [],
     memberships: [],

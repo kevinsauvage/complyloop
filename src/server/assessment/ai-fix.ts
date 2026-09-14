@@ -13,7 +13,7 @@ import { applyFix, describeFix } from "@complyloop/analysis-core/fixes";
 import { scanChangedFiles } from "@complyloop/analysis-core/scan";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { AI_PATCH_UNAVAILABLE_MESSAGE, type AiCallOnError } from "@/ai/ai-call";
 import { proposeFixEdits } from "@/ai/patch";
@@ -153,7 +153,7 @@ function snippetFromCandidate(candidate: PatchCandidate): string {
 }
 
 export function persistPatchCandidate(
-  db: Db,
+  db: WorkspaceSlice,
   finding: Finding,
   candidate: PatchCandidate,
   payload: ProjectWritePayload,

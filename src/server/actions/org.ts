@@ -11,7 +11,7 @@ import { listAllEvidenceForProjects } from "@complyloop/db/repo/evidence";
 import { listFindingsForProjects } from "@complyloop/db/repo/findings";
 import { listRemediationsForProjects } from "@complyloop/db/repo/remediations";
 import { listRequirementsForProjects } from "@complyloop/db/repo/requirements";
-import { emptyDb } from "@complyloop/db/types";
+import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import {
   parseEntityId,
@@ -232,7 +232,7 @@ export async function exportOrgDataAction(
       ]);
     const payload = exportOrgData(
       {
-        ...emptyDb(),
+        ...emptyWorkspaceSlice(),
         organizations,
         memberships: [...access.memberships],
         // Already org-scoped: repo lists were loaded for these ids.

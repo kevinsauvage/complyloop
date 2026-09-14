@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { getGitHubAccessToken } from "@/auth";
+import { getGitHubAccessToken } from "@/server/github/access-token";
 import { parseInput } from "@/core/filters";
 import { publicErrorMessage } from "@/server/action-state";
 import { getSession } from "@/server/auth-session";

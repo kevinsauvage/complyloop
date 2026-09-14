@@ -12,7 +12,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { hasSourceFiles } from "@complyloop/analysis-core/source-files";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import { nextUniqueSlug } from "@complyloop/db/repo/orgs";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { canOnProject } from "@/core/rbac";
 
@@ -45,7 +45,7 @@ export function assertAssessableRoot(rootPath: string): void {
   }
 }
 
-export function uniqueProjectName(db: Db, desired: string): string {
+export function uniqueProjectName(db: WorkspaceSlice, desired: string): string {
   return nextUniqueSlug(
     desired,
     new Set(db.projects.map((project) => project.name)),
@@ -122,7 +122,7 @@ interface ConnectGitHubRepoInput {
  * store (no durable workspace on disk).
  */
 export async function connectGitHubRepo(
-  db: Db,
+  db: WorkspaceSlice,
   input: ConnectGitHubRepoInput,
 ): Promise<{ project: Project; evidence: EvidenceRecord[] }> {
   const fullName = input.fullName.trim();
@@ -205,7 +205,7 @@ export async function connectGitHubRepo(
  * the next visible project id for the cookie. Does not mutate `db`.
  */
 export function disconnectGitHubRepo(
-  db: Db,
+  db: WorkspaceSlice,
   projectId: string,
   userId: string,
 ): {

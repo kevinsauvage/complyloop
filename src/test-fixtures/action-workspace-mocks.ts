@@ -14,7 +14,7 @@ const capturedPayloads: ProjectWritePayload[] = [];
 /**
  * Runs the write callback and captures the payload it produces, WITHOUT
  * applying it back to the workspace. Actions clone onto the payload and never
- * mutate the loaded Db, so tests assert on the captured payload directly.
+ * mutate the loaded WorkspaceSlice, so tests assert on the captured payload directly.
  */
 export async function invokeProjectWriteMock(
   workspace: Workspace,

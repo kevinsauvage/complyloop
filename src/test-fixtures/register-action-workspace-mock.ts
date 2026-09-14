@@ -3,7 +3,7 @@
  * `actionAuthMocks` / `actionWorkspaceMocks`, and Vitest hoists `vi.mock`
  * above imports. The mock-state module must initialise before any import
  * that (transitively) pulls a mocked specifier (`@/auth`,
- * `@/server/workspace`, …), so it stays first. Do not re-sort. */
+ * `@/server/github/access-token`, `@/server/workspace`, …), so it stays first. Do not re-sort. */
 import { vi } from "vitest";
 import {
   actionAuthMocks,
@@ -25,10 +25,13 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/auth", () => ({
   auth: actionAuthMocks.auth,
-  getGitHubAccessToken: actionAuthMocks.getGitHubAccessToken,
   isGitHubAuthConfigured: () => false,
   signIn: actionAuthMocks.signIn,
   signOut: actionAuthMocks.signOut,
+}));
+
+vi.mock("@/server/github/access-token", () => ({
+  getGitHubAccessToken: actionAuthMocks.getGitHubAccessToken,
 }));
 
 vi.mock("@/server/workspace/workspace", async () => {

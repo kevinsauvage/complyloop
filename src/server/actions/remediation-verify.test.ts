@@ -2,7 +2,7 @@ import "@/test-fixtures/register-action-workspace-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import {
   actionWorkspaceMocks,
@@ -76,7 +76,7 @@ vi.mock("@complyloop/analysis-core/runtime/scan", () => ({
 const project = testProject({ orgId: "org-1" });
 const finding = testFinding();
 
-function baseWorkspace(overrides: Partial<Db> = {}): Workspace {
+function baseWorkspace(overrides: Partial<WorkspaceSlice> = {}): Workspace {
   const { findings, remediations, ...rest } = overrides;
   return testWorkspace({
     role: "member",

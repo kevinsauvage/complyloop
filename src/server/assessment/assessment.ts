@@ -26,7 +26,7 @@ import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/them
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
 import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
 import type { RawFinding } from "@complyloop/analysis-core/types";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { countByStatus,latestAssessmentFor } from "@/core/assessment-helpers";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
@@ -164,7 +164,7 @@ function verifyDraftPrRemediation(
  * `applyAssessmentPayload` (or test materialization).
  */
 export async function runAssessment(
-  db: Db,
+  db: WorkspaceSlice,
   projectId: string,
   options: RunAssessmentOptions,
 ): Promise<AssessmentRunResult> {

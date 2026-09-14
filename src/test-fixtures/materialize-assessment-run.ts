@@ -6,7 +6,7 @@ import type {
 import type { Requirement } from "@complyloop/analysis-core/contract/project-types";
 
 /**
- * Installs an assessment run into an in-memory `Db` for unit tests.
+ * Installs an assessment run into an in-memory `WorkspaceSlice` for unit tests.
  * Production persists via `applyAssessmentPayload` instead.
  */
 export function materializeAssessmentRun(

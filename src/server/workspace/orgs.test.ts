@@ -4,8 +4,8 @@ import type {
   Organization,
   OrgMembership,
 } from "@complyloop/analysis-core/contract/project-types";
-import type { Db } from "@complyloop/db/types";
-import { emptyDb } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
+import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import {
   changeOrgMemberRole,
@@ -24,7 +24,7 @@ import {
   exportOrgData,
 } from "./orgs";
 
-function applyMembership(db: Db, membership: OrgMembership): OrgMembership {
+function applyMembership(db: WorkspaceSlice, membership: OrgMembership): OrgMembership {
   const index = db.memberships.findIndex((row) => row.id === membership.id);
   if (index >= 0) {
     db.memberships[index] = membership;
@@ -35,7 +35,7 @@ function applyMembership(db: Db, membership: OrgMembership): OrgMembership {
 }
 
 function applyOrg(
-  db: Db,
+  db: WorkspaceSlice,
   created: { org: Organization; membership: OrgMembership },
 ): Organization {
   db.organizations.push(created.org);
@@ -45,7 +45,7 @@ function applyOrg(
 
 /** Seed an owner org for fixtures (production uses `provisionPersonalOrg`). */
 function seedOwnerOrg(
-  db: Db,
+  db: WorkspaceSlice,
   userId: string,
   githubLogin: string,
   name = `${githubLogin}'s workspace`,
@@ -57,7 +57,7 @@ function seedOwnerOrg(
 }
 
 /** Test fixture: attach userId to invite rows (mirrors DB claimMembershipsForLogin). */
-function claimInvite(db: Db, userId: string, githubLogin: string): void {
+function claimInvite(db: WorkspaceSlice, userId: string, githubLogin: string): void {
   const login = githubLogin.trim().toLowerCase();
   for (const membership of db.memberships) {
     if (
@@ -71,7 +71,7 @@ function claimInvite(db: Db, userId: string, githubLogin: string): void {
 
 describe("orgs", () => {
   it("leaves pending invites unclaimed until DB provision attaches userId", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
     applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "member"));
 
@@ -85,7 +85,7 @@ describe("orgs", () => {
   });
 
   it("normalizes invite GitHub logins to lowercase when storing", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
     applyMembership(
       db,
@@ -102,7 +102,7 @@ describe("orgs", () => {
   });
 
   it("prevents removing the owner", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
     const ownerId = db.memberships[0]!.id;
     expect(() => removeOrgMember(db, org.id, "user-a", ownerId)).toThrow(
@@ -111,7 +111,7 @@ describe("orgs", () => {
   });
 
   it("lets an invited admin manage a shared team org (not only personal)", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     seedOwnerOrg(db, "user-a", "alice");
     const team = applyOrg(
       db,
@@ -144,7 +144,7 @@ describe("orgs", () => {
   });
 
   it("creates named team orgs with unique slugs", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     const first = createOrganization(db, {
       name: "Acme",
       creatorUserId: "user-a",
@@ -162,7 +162,7 @@ describe("orgs", () => {
   });
 
   it("changes a member role and rejects owner / invalid promotions", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
     const invite = applyMembership(
       db,
@@ -190,7 +190,7 @@ describe("orgs", () => {
   });
 
   it("lets admins revoke pending invites via remove", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
     applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "admin"));
     claimInvite(db, "user-b", "bob");
@@ -212,7 +212,7 @@ describe("orgs", () => {
   });
 
   it("exports and deletes org data as owner only", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
     db.projects.push({
       id: "p1",
@@ -248,7 +248,7 @@ describe("orgs", () => {
   });
 
   it("denies admins inviting, changing, or removing other admins", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
     const adminInvite = applyMembership(
       db,
@@ -285,7 +285,7 @@ describe("orgs", () => {
 
 describe("buildOrgMembershipIndex", () => {
   it("returns the same membership sets as filter scans", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     const orgA = seedOwnerOrg(db, "user-a", "alice");
     const orgB = applyOrg(
       db,

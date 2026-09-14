@@ -5,7 +5,7 @@ import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
-import { emptyDb } from "@complyloop/db/types";
+import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import {
   reportSampleProject,
@@ -192,7 +192,7 @@ describe("buildEngineeringReportMarkdown", () => {
 
 describe("reportInputForProject", () => {
   it("uses the project's assessment target framework, not frameworks[0]", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       ...reportSampleProject,
       defaultPresetId: "preset-wcag-aa",

@@ -26,10 +26,10 @@ import {
 import { listRemediationsForProject } from "./repo/remediations.ts";
 import { listRequirementsForProject } from "./repo/requirements.ts";
 import { evidence } from "./schema.ts";
-import type { Db } from "./types.ts";
+import type { WorkspaceSlice } from "./types.ts";
 
 const EMPTY_RUNTIME: Pick<
-  Db,
+  WorkspaceSlice,
   "requirements" | "assessments" | "findings" | "remediations" | "alerts"
 > = {
   requirements: [],
@@ -43,7 +43,7 @@ async function loadEvidenceWindow(
   drizzle: DrizzleDb,
   projectId: string,
   limit: number,
-): Promise<Db["evidence"]> {
+): Promise<WorkspaceSlice["evidence"]> {
   if (limit === 0) return [];
   const rows = await drizzle
     .select()
@@ -70,7 +70,7 @@ export async function loadProjectRuntime(
   options: LoadProjectRuntimeOptions = {},
 ): Promise<
   Pick<
-    Db,
+    WorkspaceSlice,
     "requirements" | "assessments" | "findings" | "remediations" | "alerts"
   >
 > {
@@ -106,9 +106,9 @@ async function loadWorkspaceTenancy(
   drizzle: DrizzleDb,
   input: Pick<WorkspaceLoadInput, "userId" | "githubLogin" | "activeProjectId">,
 ): Promise<{
-  organizations: Db["organizations"];
-  memberships: Db["memberships"];
-  projects: Db["projects"];
+  organizations: WorkspaceSlice["organizations"];
+  memberships: WorkspaceSlice["memberships"];
+  projects: WorkspaceSlice["projects"];
   activeProjectId: string | null;
 }> {
   // Steady-state claim: signed-in reloads attach pending invites (userId) so
@@ -146,7 +146,7 @@ async function loadWorkspaceTenancy(
 export async function loadTenancyDb(
   drizzle: DrizzleDb,
   input: Pick<WorkspaceLoadInput, "userId" | "githubLogin" | "activeProjectId">,
-): Promise<Db> {
+): Promise<WorkspaceSlice> {
   const { organizations, memberships, projects } =
     await loadWorkspaceTenancy(drizzle, input);
   return {
@@ -166,7 +166,7 @@ export async function loadTenancyDb(
 export async function loadProjectWriteDb(
   drizzle: DrizzleDb,
   input: WorkspaceLoadInput,
-): Promise<Db> {
+): Promise<WorkspaceSlice> {
   const { organizations, memberships, projects, activeProjectId } =
     await loadWorkspaceTenancy(drizzle, input);
 
@@ -202,7 +202,7 @@ export async function loadProjectWriteDb(
 export async function loadProjectAssessmentDb(
   drizzle: DrizzleDb,
   projectId: string,
-): Promise<Db> {
+): Promise<WorkspaceSlice> {
   const project = await getProjectById(drizzle, projectId);
   if (!project) {
     return {

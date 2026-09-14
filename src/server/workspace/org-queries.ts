@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { Organization,OrgMembership, OrgRole } from "@complyloop/analysis-core/contract/project-types";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 /** In-memory indexes over memberships — build once when a call path looks up more than once. */
 export type OrgMembershipIndex = {
@@ -45,7 +45,7 @@ export function roleInOrg(
 }
 
 export function userRoleInOrg(
-  db: Db,
+  db: WorkspaceSlice,
   orgId: string,
   userId: string,
 ): OrgRole | undefined {
@@ -54,7 +54,7 @@ export function userRoleInOrg(
 
 /** Personal owner org — fallback when no active org is selected. */
 function defaultOrgIdForUser(
-  db: Pick<Db, "memberships">,
+  db: Pick<WorkspaceSlice, "memberships">,
   userId: string,
 ): string | undefined {
   const owned = (buildOrgMembershipIndex(db.memberships).byUserId.get(userId) ?? []).find(
@@ -65,7 +65,7 @@ function defaultOrgIdForUser(
 
 /** Organizations the user belongs to (claimed memberships only). */
 export function orgsForUser(
-  db: Pick<Db, "organizations" | "memberships">,
+  db: Pick<WorkspaceSlice, "organizations" | "memberships">,
   userId: string,
 ): Organization[] {
   const index = buildOrgMembershipIndex(db.memberships);
@@ -80,7 +80,7 @@ export function orgsForUser(
  * member, otherwise personal owner org, otherwise first membership.
  */
 export function resolveActiveOrgId(
-  db: Pick<Db, "organizations" | "memberships">,
+  db: Pick<WorkspaceSlice, "organizations" | "memberships">,
   userId: string,
   preferredOrgId: string | null | undefined,
 ): string | undefined {
@@ -99,7 +99,7 @@ export function resolveActiveOrgId(
 
 /** True when the user may invite/remove members for this org. */
 export function canManageOrgMembers(
-  db: Db,
+  db: WorkspaceSlice,
   orgId: string,
   userId: string,
 ): boolean {

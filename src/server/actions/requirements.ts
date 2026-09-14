@@ -9,7 +9,7 @@ import {
 } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import {
   parseEntityId,
@@ -26,7 +26,7 @@ import {
   clearRequirementHumanDetermination,
   normalizeExpiryInstant,
   setRequirementHumanDetermination,
-} from "../assessment/requirement-human-determination";
+} from "@/core/requirement-human-determination";
 import { appendEvidence, cloneProjectRows } from "../workspace/project-rows";
 import { controlById } from "../workspace/workspace";
 import { withProjectWrite } from "../workspace/workspace-write";
@@ -81,7 +81,7 @@ const markPassedInput = z.object({
 });
 
 function requireRequirement(
-  db: Db,
+  db: WorkspaceSlice,
   projectId: string,
   requirementId: string,
 ): Requirement {
@@ -95,7 +95,7 @@ function requireRequirement(
 }
 
 function clearRequirementOverride(
-  db: Db,
+  db: WorkspaceSlice,
   project: Project,
   requirement: Requirement,
   field: "humanPass" | "exception",

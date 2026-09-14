@@ -2,7 +2,7 @@ import "server-only";
 
 import type { OrgMembership, OrgRole } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { isOrgRole } from "@/core/rbac";
 
@@ -40,7 +40,7 @@ function assertCanManageTarget(
 
 /** Returns a new or updated membership; does not mutate `db`. */
 export function inviteOrgMember(
-  db: Db,
+  db: WorkspaceSlice,
   orgId: string,
   actorUserId: string,
   githubLogin: string,
@@ -79,7 +79,7 @@ export function inviteOrgMember(
 
 /** Validates removal; caller persists via `deleteMembershipIds`. */
 export function removeOrgMember(
-  db: Db,
+  db: WorkspaceSlice,
   orgId: string,
   actorUserId: string,
   membershipId: string,
@@ -102,7 +102,7 @@ export function removeOrgMember(
  * before they sign in. Returns a copy; does not mutate `db`.
  */
 export function changeOrgMemberRole(
-  db: Db,
+  db: WorkspaceSlice,
   orgId: string,
   actorUserId: string,
   membershipId: string,

@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { emptyDb } from "@complyloop/db/types";
+import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import { githubCloneUrl } from "../github/github";
 import {
@@ -45,11 +45,11 @@ describe("deriveProjectName", () => {
 
 describe("uniqueProjectName", () => {
   it("returns the desired name when free", () => {
-    expect(uniqueProjectName(emptyDb(), "Shop")).toBe("Shop");
+    expect(uniqueProjectName(emptyWorkspaceSlice(), "Shop")).toBe("Shop");
   });
 
   it("suffixes when taken", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "Shop",

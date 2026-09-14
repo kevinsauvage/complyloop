@@ -3,7 +3,7 @@ import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { actionWorkspaceMocks, clearProjectWritePayloads, invokeProjectWriteMock, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
@@ -54,7 +54,7 @@ const remediation = testRemediation({ status: "approved" });
 
 function workspaceFor(
   role: "viewer" | "member" | "admin" | "owner",
-  overrides: Partial<Db> = {},
+  overrides: Partial<WorkspaceSlice> = {},
 ) {
   return testWorkspace({
     role,

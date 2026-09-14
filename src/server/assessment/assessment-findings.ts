@@ -206,7 +206,7 @@ export function shouldResolveOpenFinding(input: {
 /**
  * Matches raw scan hits to open findings, creates new ones, and resolves
  * opens that no longer appear — for one control in one assessment run.
- * Mutates `rows` only (never the loaded workspace Db).
+ * Mutates `rows` only (never the loaded workspace WorkspaceSlice).
  */
 export function reconcileControlFindings(
   input: ReconcileControlFindingsInput,

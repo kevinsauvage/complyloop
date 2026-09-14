@@ -8,7 +8,7 @@ import { rgaaControls } from "@complyloop/analysis-core/adapters/rgaa/controls";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { isDomLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { materializeAssessmentRun } from "@/test-fixtures/materialize-assessment-run";
 
@@ -18,7 +18,7 @@ const CLEAN_SOURCE = `export const Page = () => <img src="/x.png" alt="ok" />;\n
 
 describe("runAssessment with runtime engine", () => {
   let rootPath: string;
-  let db: Db;
+  let db: WorkspaceSlice;
   let project: Project;
 
   beforeEach(() => {

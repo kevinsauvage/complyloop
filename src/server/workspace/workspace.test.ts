@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { emptyDb } from "@complyloop/db/types";
+import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import { testFinding } from "@/test-fixtures/finding";
 import { testMembership } from "@/test-fixtures/membership";
@@ -92,7 +92,7 @@ describe("withProjectWrite project touch", () => {
     readActiveOrgCookie.mockResolvedValue(orgId);
     readActiveProjectCookie.mockResolvedValue(project.id);
     loadTenancyDb.mockResolvedValue({
-      ...emptyDb(),
+      ...emptyWorkspaceSlice(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
       ],
@@ -100,7 +100,7 @@ describe("withProjectWrite project touch", () => {
       projects: [structuredClone(project)],
     });
     loadProjectWriteDb.mockResolvedValue({
-      ...emptyDb(),
+      ...emptyWorkspaceSlice(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
       ],
@@ -177,7 +177,7 @@ describe("withProjectWrite runtime slice", () => {
 
   function dbWithFinding() {
     return {
-      ...emptyDb(),
+      ...emptyWorkspaceSlice(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
       ],
@@ -210,7 +210,7 @@ describe("withProjectWrite runtime slice", () => {
     acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
     persistProjectRows.mockResolvedValue(undefined);
     loadTenancyDb.mockResolvedValue({
-      ...emptyDb(),
+      ...emptyWorkspaceSlice(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
       ],
@@ -297,13 +297,13 @@ describe("withProjectWrite runtime slice", () => {
 
   it("throws when no project resolves", async () => {
     loadTenancyDb.mockResolvedValue({
-      ...emptyDb(),
+      ...emptyWorkspaceSlice(),
       organizations: [],
       memberships: [],
       projects: [],
     });
     loadProjectWriteDb.mockResolvedValue({
-      ...emptyDb(),
+      ...emptyWorkspaceSlice(),
       organizations: [],
       memberships: [],
       projects: [],
@@ -340,7 +340,7 @@ describe("withFindingWrite", () => {
           : undefined,
     );
     loadTenancyDb.mockResolvedValue({
-      ...emptyDb(),
+      ...emptyWorkspaceSlice(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
       ],
@@ -348,7 +348,7 @@ describe("withFindingWrite", () => {
       projects: [structuredClone(project)],
     });
     loadProjectWriteDb.mockResolvedValue({
-      ...emptyDb(),
+      ...emptyWorkspaceSlice(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
       ],
@@ -377,7 +377,7 @@ describe("withFindingWrite", () => {
 
   it("denies viewers the remediate permission", async () => {
     loadProjectWriteDb.mockResolvedValue({
-      ...emptyDb(),
+      ...emptyWorkspaceSlice(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
       ],
@@ -426,7 +426,7 @@ describe("withOrgWrite and withConnectWrite", () => {
     auth.mockResolvedValue({ user: { id: userId, login: "dev" } });
     acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
     loadTenancyDb.mockResolvedValue({
-      ...emptyDb(),
+      ...emptyWorkspaceSlice(),
       organizations: [
         { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
       ],

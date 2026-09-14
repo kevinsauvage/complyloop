@@ -13,7 +13,7 @@ import {
   scanRuntime,
 } from "@complyloop/analysis-core/runtime/scan";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { optionalNoteSchema, parseEntityId, parseForm } from "@/core/filters";
 import {
@@ -81,7 +81,7 @@ function recordStillFailing(
 }
 
 function markVerified(
-  db: Db,
+  db: WorkspaceSlice,
   live: Finding,
   remediation: Remediation,
   note: string,

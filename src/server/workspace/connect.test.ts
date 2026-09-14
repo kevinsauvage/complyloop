@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import type { Db } from "@complyloop/db/types";
-import { emptyDb } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
+import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import { githubCloneUrl } from "../github/github";
 import {
@@ -30,8 +30,8 @@ function githubProject(
   };
 }
 
-function seededDb(): Db {
-  return emptyDb();
+function seededDb(): WorkspaceSlice {
+  return emptyWorkspaceSlice();
 }
 
 describe("deriveProjectName", () => {
@@ -157,7 +157,7 @@ describe("setActiveProject", () => {
 });
 
 describe("disconnectGitHubRepo", () => {
-  it("returns delete/evidence/next ids without mutating the loaded Db", () => {
+  it("returns delete/evidence/next ids without mutating the loaded WorkspaceSlice", () => {
     const db = seededDb();
     db.memberships.push({
       id: "m1",

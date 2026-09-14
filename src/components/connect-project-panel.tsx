@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
-import { getGitHubAccessToken, isGitHubAuthConfigured } from "@/auth";
+import { isGitHubAuthConfigured } from "@/auth";
+import { getGitHubAccessToken } from "@/server/github/access-token";
 import { ConnectProjectDialog } from "@/components/connect-project-dialog";
 import { GitHubRepoPicker } from "@/components/github-repo-picker";
 import { EmptyState } from "@/components/page-primitives";

@@ -3,7 +3,7 @@ import "server-only";
 import type { Organization,OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { nextUniqueSlug, slugifyOrgName } from "@complyloop/db/repo/orgs";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import {
   buildOrgMembershipIndex,
@@ -13,7 +13,7 @@ import {
 
 /** Picks an unused slug from a read-only org list (does not mutate). */
 function uniqueOrgSlug(
-  db: Pick<Db, "organizations">,
+  db: Pick<WorkspaceSlice, "organizations">,
   base: string,
 ): string {
   return nextUniqueSlug(base, new Set(db.organizations.map((o) => o.slug)));
@@ -26,7 +26,7 @@ export interface CreateOrganizationResult {
 
 /** Builds org + owner membership without mutating `db`. */
 export function createOrganization(
-  db: Pick<Db, "organizations">,
+  db: Pick<WorkspaceSlice, "organizations">,
   input: { name: string; creatorUserId: string; githubLogin: string },
 ): CreateOrganizationResult {
   const name = input.name.trim();
@@ -43,7 +43,7 @@ export function createOrganization(
 }
 
 function buildOrgWithOwner(
-  db: Pick<Db, "organizations">,
+  db: Pick<WorkspaceSlice, "organizations">,
   input: {
     name: string;
     slugBase: string;
@@ -70,7 +70,7 @@ function buildOrgWithOwner(
 
 /** Machine-readable export of org-scoped, user-visible product data. */
 export function exportOrgData(
-  db: Db,
+  db: WorkspaceSlice,
   orgId: string,
   actorUserId: string,
 ): Record<string, unknown> {
@@ -126,7 +126,7 @@ export interface DeleteOrganizationResult {
  * `db` — DB FK cascade handles projects; evidence remains append-only.
  */
 export function deleteOrganization(
-  db: Db,
+  db: WorkspaceSlice,
   orgId: string,
   actorUserId: string,
 ): DeleteOrganizationResult {

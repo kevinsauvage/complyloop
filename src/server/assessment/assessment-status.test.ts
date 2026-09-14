@@ -10,7 +10,7 @@ import type {
   Project,
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
-import { emptyDb } from "@complyloop/db/types";
+import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import { testControl } from "@/test-fixtures/control";
 import { testProject } from "@/test-fixtures/project";
@@ -32,7 +32,7 @@ afterEach(() => {
 });
 
 function applyRefresh(
-  db: ReturnType<typeof emptyDb>,
+  db: ReturnType<typeof emptyWorkspaceSlice>,
   projectId: string,
   options: Parameters<typeof refreshRequirementStatuses>[0]["options"] = {},
   controlIds?: readonly string[],
@@ -198,7 +198,7 @@ describe("assessment scope filters", () => {
 
 describe("refreshRequirementStatuses (targeted controlIds)", () => {
   it("re-derives only the requested controls", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects = [project({ id: "p1" })];
     const controls = [
       testControl({ id: "c1", checkId: "img-alt" }),
@@ -244,7 +244,7 @@ describe("refreshRequirementStatuses (targeted controlIds)", () => {
 
 describe("refreshRequirementStatuses runtime-only", () => {
   it("does not pass color-contrast when the runtime audit did not run", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",
@@ -263,7 +263,7 @@ describe("refreshRequirementStatuses runtime-only", () => {
   });
 
   it("passes color-contrast when runtime ran and there are no findings", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",
@@ -282,7 +282,7 @@ describe("refreshRequirementStatuses runtime-only", () => {
   });
 
   it("does not pass axe-only controls when the runtime audit did not run", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",
@@ -301,7 +301,7 @@ describe("refreshRequirementStatuses runtime-only", () => {
   });
 
   it("passes axe-only controls when runtime ran and there are no findings", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",
@@ -322,7 +322,7 @@ describe("refreshRequirementStatuses runtime-only", () => {
 
 describe("refreshRequirementStatuses site-level", () => {
   it("does not pass site-level checks when fewer than two pages were audited", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",
@@ -344,7 +344,7 @@ describe("refreshRequirementStatuses site-level", () => {
   });
 
   it("passes site-level checks when two pages were audited and there are no findings", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",
@@ -368,7 +368,7 @@ describe("refreshRequirementStatuses site-level", () => {
 
 describe("refreshRequirementStatuses heuristic", () => {
   it("does not pass a heuristic check when the AST scan found no pattern", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",
@@ -387,7 +387,7 @@ describe("refreshRequirementStatuses heuristic", () => {
   });
 
   it("marks a heuristic check needs_review when it emitted a warning", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",
@@ -431,7 +431,7 @@ describe("refreshRequirementStatuses heuristic", () => {
 
 describe("refreshRequirementStatuses html-validate-owned", () => {
   it("does not pass markup-nesting when runtime ran but html-validate did not", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",
@@ -454,7 +454,7 @@ describe("refreshRequirementStatuses html-validate-owned", () => {
 
 describe("refreshRequirementStatuses applicability-gated", () => {
   it("sets not_applicable when runtime confirmed no captcha on all pages", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",
@@ -477,7 +477,7 @@ describe("refreshRequirementStatuses applicability-gated", () => {
   });
 
   it("does not pass captcha-alternative when applicability was not confirmed", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",
@@ -495,7 +495,7 @@ describe("refreshRequirementStatuses applicability-gated", () => {
   });
 
   it("still fails video-caption when a violation is open", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     db.projects.push({
       id: "p1",
       name: "App",

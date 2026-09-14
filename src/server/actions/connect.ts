@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { getGitHubAccessToken } from "@/auth";
+import { getGitHubAccessToken } from "@/server/github/access-token";
 import { parseForm, requiredField } from "@/core/filters";
 
 import {

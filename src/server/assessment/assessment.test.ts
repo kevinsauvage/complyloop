@@ -8,7 +8,7 @@ import * as registry from "@complyloop/analysis-core/adapters/registry";
 import { rgaaControls, rgaaFramework } from "@complyloop/analysis-core/adapters/rgaa/controls";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { materializeAssessmentRun } from "@/test-fixtures/materialize-assessment-run";
 
@@ -18,7 +18,7 @@ const BROKEN = `export const Hero = () => <img src="/hero-banner.png" />;\n`;
 const FIXED = `export const Hero = () => <img src="/hero-banner.png" alt="Summer sale banner" />;\n`;
 
 let rootPath: string;
-let db: Db;
+let db: WorkspaceSlice;
 let project: Project;
 
 beforeEach(() => {

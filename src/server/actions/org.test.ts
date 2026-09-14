@@ -4,8 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Organization } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { Db } from "@complyloop/db/types";
-import { emptyDb as emptyDbBase } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
+import { emptyWorkspaceSlice as emptyDbBase } from "@complyloop/db/types";
 
 import { actionAuthMocks, actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
 import { testMembership } from "@/test-fixtures/membership";
@@ -123,13 +123,13 @@ const ownerMembership = testMembership("owner", {
 
 async function invokeOrgWrite(
   ctx: {
-    db: Db;
+    db: WorkspaceSlice;
     userId: string;
     githubLogin: string | null;
     organizations: typeof org[];
   },
   fn: (ctx: {
-    db: Db;
+    db: WorkspaceSlice;
     userId: string;
     githubLogin: string | null;
     organizations: typeof org[];
@@ -139,7 +139,7 @@ async function invokeOrgWrite(
   return out.result;
 }
 
-function emptyDb(memberships = [ownerMembership]): Db {
+function emptyWorkspaceSlice(memberships = [ownerMembership]): WorkspaceSlice {
   return {
     ...emptyDbBase(),
     organizations: [org],
@@ -148,7 +148,7 @@ function emptyDb(memberships = [ownerMembership]): Db {
   };
 }
 
-function fixtureWorkspace(db: Db = emptyDb()): ProjectWriteWorkspace {
+function fixtureWorkspace(db: WorkspaceSlice = emptyWorkspaceSlice()): ProjectWriteWorkspace {
   return testWorkspace({
     role: "owner",
     userId: "user-1",
@@ -371,7 +371,7 @@ describe("switchOrgAction", () => {
       createdAt: "2026-01-01T00:00:00.000Z",
     };
     const db = {
-      ...emptyDb(),
+      ...emptyWorkspaceSlice(),
       organizations: [org, emptyOrg],
       memberships: [
         ownerMembership,
@@ -452,7 +452,7 @@ describe("org member management actions", () => {
       userId: "user-2",
       githubLogin: "bob",
     });
-    const db = emptyDb([ownerMembership, member]);
+    const db = emptyWorkspaceSlice([ownerMembership, member]);
     withOrgWrite.mockImplementation(async (fn) =>
       invokeOrgWrite(
         {
@@ -480,7 +480,7 @@ describe("org member management actions", () => {
       githubLogin: "carol",
       createdAt: "2026-01-01T00:00:00.000Z",
     };
-    const db = emptyDb([ownerMembership, invite]);
+    const db = emptyWorkspaceSlice([ownerMembership, invite]);
     withOrgWrite.mockImplementation(async (fn) =>
       invokeOrgWrite(
         {
@@ -506,7 +506,7 @@ describe("org member management actions", () => {
       userId: "user-2",
       githubLogin: "bob",
     });
-    const db = emptyDb([ownerMembership, member]);
+    const db = emptyWorkspaceSlice([ownerMembership, member]);
     withOrgWrite.mockImplementation(async (fn) =>
       invokeOrgWrite(
         {
@@ -537,7 +537,7 @@ describe("org member management actions", () => {
       userId: "user-1",
       githubLogin: "alice",
     });
-    const db = emptyDb([memberCaller]);
+    const db = emptyWorkspaceSlice([memberCaller]);
     withOrgWrite.mockImplementation(async (fn) =>
       invokeOrgWrite(
         {

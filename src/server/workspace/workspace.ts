@@ -18,7 +18,7 @@ import { getFindingById } from "@complyloop/db/repo/findings";
 import { listMembershipsForOrgs } from "@complyloop/db/repo/orgs";
 import { getProjectById } from "@complyloop/db/repo/projects";
 import { getRemediationByFindingId } from "@complyloop/db/repo/remediations";
-import type { Db } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
 import { loadTenancyDb } from "@complyloop/db/workspace-load";
 
 import { getSession } from "../auth-session";
@@ -54,7 +54,7 @@ export interface Workspace {
 }
 
 /** Workspace plus the in-transaction project slice for {@link withProjectWrite}. */
-export type ProjectWriteWorkspace = Workspace & { db: Db };
+export type ProjectWriteWorkspace = Workspace & { db: WorkspaceSlice };
 
 function projectsForActiveOrg(
   projects: ReadonlyArray<Project>,
@@ -67,7 +67,7 @@ function projectsForActiveOrg(
 }
 
 export function prepareWorkspaceState(
-  db: Pick<Db, "organizations" | "memberships" | "projects">,
+  db: Pick<WorkspaceSlice, "organizations" | "memberships" | "projects">,
   userId: string | null,
   githubLogin: string | null,
   preferredOrgId: string | null,
@@ -175,20 +175,20 @@ export function controlById(controlId: string): Control {
 }
 
 /** Slice lookup used inside {@link withProjectWrite} callbacks. */
-export function findingById(db: Db, findingId: string): Finding {
+export function findingById(db: WorkspaceSlice, findingId: string): Finding {
   const finding = db.findings.find((candidate) => candidate.id === findingId);
   if (!finding) throw new PublicError("Unknown finding.");
   return finding;
 }
 
 function findRemediationForFinding(
-  db: Db,
+  db: WorkspaceSlice,
   findingId: string,
 ): Remediation | undefined {
   return db.remediations.find((candidate) => candidate.findingId === findingId);
 }
 
-export function remediationForFinding(db: Db, findingId: string): Remediation {
+export function remediationForFinding(db: WorkspaceSlice, findingId: string): Remediation {
   const remediation = findRemediationForFinding(db, findingId);
   if (!remediation) throw new PublicError("No remediation for that finding.");
   return remediation;

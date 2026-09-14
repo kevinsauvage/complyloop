@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Db } from "@complyloop/db/types";
-import { emptyDb as baseEmptyDb } from "@complyloop/db/types";
+import type { WorkspaceSlice } from "@complyloop/db/types";
+import { emptyWorkspaceSlice as baseEmptyDb } from "@complyloop/db/types";
 
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
@@ -138,7 +138,7 @@ function job(partial: Partial<AssessmentJob> = {}): AssessmentJob {
   };
 }
 
-function projectDb(): Db {
+function projectDb(): WorkspaceSlice {
   return {
     ...baseEmptyDb(),
     projects: [{ ...project }],
@@ -152,7 +152,7 @@ function assessmentRun(
     snapshot: { fileHashes: Record<string, string> };
   },
   slice: Partial<
-    Pick<Db, "evidence" | "findings" | "remediations" | "requirements">
+    Pick<WorkspaceSlice, "evidence" | "findings" | "remediations" | "requirements">
   > = {},
 ) {
   return {
@@ -246,7 +246,7 @@ describe("processNextAssessmentJob", () => {
         fn: (rootPath: string) => Promise<unknown>,
       ) => fn("/tmp/checkout"),
     );
-    runAssessment.mockImplementation(async (liveDb: Db) => {
+    runAssessment.mockImplementation(async (liveDb: WorkspaceSlice) => {
       liveDb.remediations[0] = {
         ...liveDb.remediations[0]!,
         status: "verified",
@@ -296,7 +296,7 @@ describe("processNextAssessmentJob", () => {
 
   it("reuses the unread regression alert id per control instead of minting a new row (P2-1)", async () => {
     const db = projectDb();
-    const storedAlerts: Db["alerts"] = [
+    const storedAlerts: WorkspaceSlice["alerts"] = [
       {
         id: "alert-existing",
         projectId: "p1",

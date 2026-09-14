@@ -5,11 +5,11 @@ import {
   evidenceToRow,
   rowToEvidence,
 } from "./repo/mappers";
-import { emptyDb } from "./types";
+import { emptyWorkspaceSlice } from "./types";
 
-describe("emptyDb evidence append", () => {
+describe("emptyWorkspaceSlice evidence append", () => {
   it("starts empty and appends evidence records", () => {
-    const db = emptyDb();
+    const db = emptyWorkspaceSlice();
     expect(db.projects).toEqual([]);
     expect(db.evidence).toEqual([]);
 
