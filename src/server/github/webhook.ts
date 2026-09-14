@@ -2,9 +2,13 @@ import "server-only";
 
 import type { EmitterWebhookEvent } from "@octokit/webhooks";
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
+import { sql } from "drizzle-orm";
 
-import { type DrizzleDb,getDrizzle } from "@complyloop/db/postgres";
-import { findProjectByGithubFullName, getProjectById, updateProject } from "@complyloop/db/repo/projects";
+import { type DrizzleDb, getDrizzle } from "@complyloop/db/postgres";
+import {
+  findProjectByGithubFullName,
+  getProjectById,
+} from "@complyloop/db/repo/projects";
 
 import { enqueueAssessmentJob } from "../assessment/assessment-jobs";
 import { githubWebhookSecret } from "../env";
@@ -68,16 +72,26 @@ function parseHandledWebhookEvent(
     return { ok: false, message: "Invalid payload" };
   }
   if (eventName === "push") {
-    return { ok: true, event: { kind: "push", payload: payload as PushPayload } };
+    return {
+      ok: true,
+      event: { kind: "push", payload: payload as PushPayload },
+    };
   }
   if (eventName === "pull_request") {
     const prPayload = payload as PullRequestPayload;
-    if (typeof prPayload.action !== "string" || !isHandledPrAction(prPayload.action)) {
+    if (
+      typeof prPayload.action !== "string" ||
+      !isHandledPrAction(prPayload.action)
+    ) {
       return { ok: false, message: `Ignored event ${eventName}` };
     }
     return {
       ok: true,
-      event: { kind: "pull_request", payload: prPayload, action: prPayload.action },
+      event: {
+        kind: "pull_request",
+        payload: prPayload,
+        action: prPayload.action,
+      },
     };
   }
   return { ok: false, message: `Ignored event ${eventName}` };
@@ -85,10 +99,14 @@ function parseHandledWebhookEvent(
 
 function repositoryFullName(event: HandledWebhookEvent): string | undefined {
   const fullName = event.payload.repository?.full_name;
-  return typeof fullName === "string" && fullName.length > 0 ? fullName : undefined;
+  return typeof fullName === "string" && fullName.length > 0
+    ? fullName
+    : undefined;
 }
 
-function repositoryDefaultBranch(event: HandledWebhookEvent): string | undefined {
+function repositoryDefaultBranch(
+  event: HandledWebhookEvent,
+): string | undefined {
   const branch = event.payload.repository?.default_branch;
   return typeof branch === "string" && branch.length > 0 ? branch : undefined;
 }
@@ -98,14 +116,21 @@ async function persistDefaultBranchIfChanged(
   projectId: string,
   liveBranch: string,
   storedBranch: string | undefined,
-): Promise<void> {
-  if (liveBranch === storedBranch) return;
-  const full = await getProjectById(drizzle, projectId);
-  if (!full?.github || full.github.defaultBranch === liveBranch) return;
-  await updateProject(drizzle, {
-    ...full,
-    github: { ...full.github, defaultBranch: liveBranch },
-  });
+): Promise<string | undefined> {
+  if (liveBranch === storedBranch) return storedBranch ?? liveBranch;
+  // Atomic compare-and-set: concurrent deliveries race here, so the check and
+  // the write must happen in one UPDATE. IS DISTINCT FROM also covers a NULL
+  // stored branch. Checkout-ref validation stays at checkoutRef() (40-hex).
+  await drizzle.execute(sql`
+    UPDATE projects
+    SET payload = jsonb_set(payload, '{github,defaultBranch}', to_jsonb(${liveBranch}::text), true)
+    WHERE id = ${projectId}
+      AND (payload->'github'->>'defaultBranch' IS DISTINCT FROM ${liveBranch})
+  `);
+  // Decide authority on the post-write row so concurrent renames converge
+  // instead of each delivery acting on its own stale view.
+  const fresh = await getProjectById(drizzle, projectId);
+  return fresh?.github?.defaultBranch ?? liveBranch;
 }
 
 function checkoutRef(event: HandledWebhookEvent): string | undefined {
@@ -116,7 +141,9 @@ function checkoutRef(event: HandledWebhookEvent): string | undefined {
       : undefined;
   }
   const sha = event.payload.pull_request?.head?.sha;
-  return typeof sha === "string" && /^[0-9a-f]{40}$/i.test(sha) ? sha : undefined;
+  return typeof sha === "string" && /^[0-9a-f]{40}$/i.test(sha)
+    ? sha
+    : undefined;
 }
 
 /**
@@ -163,7 +190,10 @@ export async function handleGitHubWebhookEvent(
   }
 
   const payloadInstallationId = installationIdFromPayload(parsed.event.payload);
-  if (project.installationId && payloadInstallationId !== project.installationId) {
+  if (
+    project.installationId &&
+    payloadInstallationId !== project.installationId
+  ) {
     return {
       handled: false,
       message: `Installation id mismatch for ${fullName}.`,
@@ -171,14 +201,15 @@ export async function handleGitHubWebhookEvent(
   }
 
   const payloadDefaultBranch = repositoryDefaultBranch(parsed.event);
-  const liveDefaultBranch = payloadDefaultBranch ?? project.defaultBranch;
+  let liveDefaultBranch = payloadDefaultBranch ?? project.defaultBranch;
   if (payloadDefaultBranch) {
-    await persistDefaultBranchIfChanged(
+    const freshBranch = await persistDefaultBranchIfChanged(
       drizzle,
       project.id,
       payloadDefaultBranch,
       project.defaultBranch,
     );
+    if (freshBranch) liveDefaultBranch = freshBranch;
   }
 
   if (

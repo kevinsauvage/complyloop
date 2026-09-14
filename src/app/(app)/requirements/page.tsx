@@ -70,6 +70,16 @@ export default async function RequirementsPage({
       />
 
       <PageContent>
+        {/* Assessments always evaluate the project default preset —
+            any other ?presetId= is browse-only until a re-assessment runs. */}
+        {selectedPresetId !== defaultPresetId ? (
+          <div
+            role="status"
+            className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+          >
+            Browse-only — run assessment to evaluate this preset.
+          </div>
+        ) : null}
         {assessed.length > 0 ? (
           <RequirementsStatusChips
             counts={statusCounts}

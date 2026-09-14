@@ -55,6 +55,13 @@ const SOURCE_VERIFY_MESSAGE =
 const STILL_FAILING_VERIFY_MESSAGE =
   "Still failing — the violation is still detected at this location.";
 
+/** Distinct site-verify failure reasons (preview-down vs 0-pages vs engine-skipped). */
+const PREVIEW_UNREACHABLE_MESSAGE =
+  "Preview unreachable — check preview URL.";
+const NO_PAGES_SCANNED_MESSAGE =
+  "No pages scanned — check preview routes.";
+const SITE_CHECKS_NOT_RUN_MESSAGE = "Site checks did not run.";
+
 const VERIFY_REQUIRES_IMPLEMENTED_MESSAGE =
   "Verification requires status implemented.";
 
@@ -82,6 +89,7 @@ function markVerified(
   note: string,
   engine: "runtime" | "site",
   audit: CheckAuditInput,
+  preview?: Finding,
 ): ProjectWritePayload {
   const project = db.projects.find(
     (candidate) => candidate.id === live.projectId,
@@ -89,7 +97,15 @@ function markVerified(
   if (!project) throw new PublicError("Unknown project.");
 
   // Re-check inside the write lock: a concurrent write may have advanced the
-  // remediation between the preview load and this transaction.
+  // remediation between the preview load and this transaction. Never resolve
+  // a finding that is no longer open, and never verify against a location
+  // that drifted since the preview scan.
+  if (live.status !== "open") {
+    throw new PublicError("Finding is no longer open.");
+  }
+  if (preview && !sameInstance(preview, live)) {
+    throw new PublicError("Finding changed since scan. Re-assess.");
+  }
   if (remediation.status !== "implemented") {
     throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
   }
@@ -156,9 +172,13 @@ export async function verifyRemediationAction(
     let engine: "runtime" | "site";
     let note: string;
     let audit: CheckAuditInput;
+    let stillFailingMessage = STILL_FAILING_VERIFY_MESSAGE;
 
     switch (location.kind) {
       case "source":
+        // No on-demand source re-check here on purpose. Source
+        // findings are verified by merging the draft pull request and
+        // re-assessing (see verifyDraftPrRemediation in assessment.ts).
         throw new PublicError(SOURCE_VERIFY_MESSAGE);
       case "dom": {
         present = await runtimeViolationStillPresent({
@@ -176,8 +196,9 @@ export async function verifyRemediationAction(
           runtimeBaseUrl: project.runtimeBaseUrl,
           runtimeRoutes: project.runtimeRoutes,
         });
+        const previewUnreachable = Boolean(result.error);
         present =
-          Boolean(result.error) ||
+          previewUnreachable ||
           result.pagesScanned === 0 ||
           result.siteLevelChecksRan !== true ||
           result.findings.some((raw) => sameInstance(finding, raw));
@@ -188,6 +209,17 @@ export async function verifyRemediationAction(
           siteLevelChecksRan: result.siteLevelChecksRan,
           htmlValidateRan: result.htmlValidateRan,
         };
+        // Distinguish preview-down vs 0-pages vs engine-skipped so the
+        // engineer knows whether to fix the preview URL/routes or the code.
+        if (previewUnreachable) {
+          stillFailingMessage = PREVIEW_UNREACHABLE_MESSAGE;
+        } else if (result.pagesScanned === 0) {
+          stillFailingMessage = NO_PAGES_SCANNED_MESSAGE;
+        } else if (result.siteLevelChecksRan !== true) {
+          stillFailingMessage = SITE_CHECKS_NOT_RUN_MESSAGE;
+        } else {
+          stillFailingMessage = STILL_FAILING_VERIFY_MESSAGE;
+        }
         break;
       }
       default: {
@@ -197,10 +229,21 @@ export async function verifyRemediationAction(
     }
 
     let stillFailing = false;
+    const previewFinding = finding;
     await withFindingWrite(
       findingId,
       "project.remediate",
       async ({ db, finding: live }) => {
+        // The "still present?" proof was computed outside the lock from
+        // preview data. Re-validate the live row before trusting it: the
+        // finding must still be open and at the same instance that was
+        // scanned, otherwise the stale verdict must not decide the write.
+        if (live.status !== "open") {
+          throw new PublicError("Finding is no longer open.");
+        }
+        if (!sameInstance(previewFinding, live)) {
+          throw new PublicError("Finding changed since scan. Re-assess.");
+        }
         const remediation = remediationForFinding(db, findingId);
         const payload: ProjectWritePayload = {};
         if (present) {
@@ -208,12 +251,12 @@ export async function verifyRemediationAction(
           recordStillFailing(payload, remediation);
           return payload;
         }
-        return markVerified(db, live, remediation, note, engine, audit);
+        return markVerified(db, live, remediation, note, engine, audit, previewFinding);
       },
     );
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return stillFailing
-      ? STILL_FAILING_VERIFY_MESSAGE
+      ? stillFailingMessage
       : "Fix verified by automated re-check.";
   });
 }

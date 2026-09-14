@@ -105,7 +105,9 @@ describe("runAiFixOnCheckout", () => {
       filePath: "Footer.tsx",
       line: 1,
       column: 28,
-      snippet: "<input autoFocus />",
+      // Exact scanner snippet: source identity is snippet-first, so the
+      // fixture must carry what scanFile emits (not just the element).
+      snippet: "export const Footer = () => <input autoFocus />;",
       span: { start: source.indexOf("<input"), end: source.indexOf("/>") + 2 },
     };
 
@@ -131,7 +133,8 @@ describe("runAiFixOnCheckout", () => {
                     filePath: "Footer.tsx",
                     line: 1,
                     column: 28,
-                    snippet: "<input autoFocus />",
+                    snippet:
+                      "export const Footer = () => <input autoFocus />;",
                     span: {
                       start: source.indexOf("<input"),
                       end: source.indexOf("/>") + 2,

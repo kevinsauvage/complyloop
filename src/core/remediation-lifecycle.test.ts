@@ -201,8 +201,35 @@ describe("canBulkApproveRemediation", () => {
     expect(canBulkApproveRemediation(domFinding, "suggested")).toBe(true);
   });
 
-  it("does not bulk approve source findings even when suggested", () => {
+  it("does not bulk approve source findings without a deterministic high-confidence fix", () => {
     expect(canBulkApproveRemediation(sourceFinding, "suggested")).toBe(false);
+    expect(
+      canBulkApproveRemediation(sourceFinding, "suggested", {
+        description: "Add an alt attribute",
+        proposedSnippet: '<img alt="…" />',
+        provenance: "ai",
+        confidence: "medium",
+      }),
+    ).toBe(false);
+    expect(
+      canBulkApproveRemediation(sourceFinding, "suggested", {
+        description: "Remove redundant role",
+        proposedSnippet: "<div />",
+        provenance: "deterministic",
+        confidence: "medium",
+      }),
+    ).toBe(false);
+  });
+
+  it("bulk approves source findings with a deterministic high-confidence fix", () => {
+    expect(
+      canBulkApproveRemediation(sourceFinding, "suggested", {
+        description: "Remove redundant role",
+        proposedSnippet: "<div />",
+        provenance: "deterministic",
+        confidence: "high",
+      }),
+    ).toBe(true);
   });
 
   it("does not bulk approve resolved or non-suggested runtime findings", () => {

@@ -14,8 +14,8 @@ import { mustGet } from "./must-get";
 import {
   type BadgeVariant,
   type ReportColorPair,
-  type StatusTone,
   STATUS_TONE_REPORT_CLASS,
+  type StatusTone,
 } from "./report-tones";
 
 // ---------------------------------------------------------------------------

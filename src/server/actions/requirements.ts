@@ -3,9 +3,9 @@
 import { z } from "zod";
 
 import {
+  type Requirement,
   REQUIREMENT_EXCEPTION_REASONS,
   TEMPORARY_EXCEPTION_REASON,
-  type Requirement,
 } from "@complyloop/analysis-core/contract/entities";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";

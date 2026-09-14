@@ -210,6 +210,9 @@ export function persistPatchCandidate(
       : {}),
   };
   if (remediation.status !== "detected" && remediation.status !== "suggested") {
+    // The remediation advanced while the patch was generating, so the ready
+    // patch is not persisted — applying it onto a moved-forward state would
+    // be unsound.
     reportWarning(
       "AI patch ready but remediation already advanced; suggestion not persisted.",
       {

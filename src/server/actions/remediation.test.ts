@@ -221,7 +221,7 @@ describe("bulkApproveRemediationsAction", () => {
       initialActionState,
       form,
     );
-    expect((result.ok ? null : result.message)).toMatch(/No selected findings had runtime guidance/);
+    expect((result.ok ? null : result.message)).toMatch(/No selected findings had guidance/);
   });
 });
 

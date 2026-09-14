@@ -282,7 +282,7 @@ describe("verifyRemediationAction", () => {
       new FormData(),
     );
 
-    expect(result.message).toMatch(/still failing|still detected/i);
+    expect(result.message).toMatch(/Site checks did not run/i);
     expect((result.ok ? null : result.message)).toBeNull();
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("implemented");
   });

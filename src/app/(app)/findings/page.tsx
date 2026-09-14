@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 
 import { toFindingListItems } from "@/components/findings/finding-list-items";
 import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
@@ -66,19 +69,31 @@ export default async function FindingsPage({
     totalFindings,
   } = view;
 
+  // Orphan findings (scoped re-assess, stale apply, manual DB edit)
+  // must not 500 the whole page. They are skipped here and counted for the
+  // non-blocking repair banner below; present remediations still render via
+  // RemediationStatusBadge downstream.
+  const orphanFindingIds: string[] = [];
   const listFor = (sliceFindings: Finding[]) => {
+    const withRemediation = sliceFindings.filter((finding) => {
+      if (remediationByFindingId.has(finding.id)) return true;
+      orphanFindingIds.push(finding.id);
+      return false;
+    });
     return toFindingListItems(
-      sliceFindings,
+      withRemediation,
       (controlId) => displayControl(controlId, project),
-      (findingId) => {
-        const remediation = remediationByFindingId.get(findingId);
-        if (!remediation) {
-          throw new Error(`No remediation for finding ${findingId}`);
-        }
-        return remediation;
-      },
+      (findingId) => remediationByFindingId.get(findingId) as Remediation,
     );
   };
+
+  // Resolve the visible tabs' items eagerly so the orphan count is known
+  // before the banner renders.
+  const openItems = listFor(openSlice.items);
+  const resolvedItems =
+    activeTab === "resolved" ? listFor(resolvedSlice.items) : [];
+  const dismissedItems =
+    activeTab === "dismissed" ? listFor(dismissedSlice.items) : [];
 
   if (totalFindings === 0) {
     return (
@@ -135,6 +150,16 @@ export default async function FindingsPage({
       </PageHeader>
 
       <PageContent>
+        {orphanFindingIds.length > 0 ? (
+          <div
+            role="status"
+            className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+          >
+            {orphanFindingIds.length} finding
+            {orphanFindingIds.length === 1 ? "" : "s"} missing remediation —
+            re-assess to repair.
+          </div>
+        ) : null}
         <FindingsStatusNav
           listParams={listParams}
           activeTab={activeTab}
@@ -152,7 +177,7 @@ export default async function FindingsPage({
             slice={resolvedSlice}
             listParams={listParams}
             filtersActive={filtersActive}
-            items={listFor(resolvedSlice.items)}
+            items={resolvedItems}
             emptyMessage="No resolved findings yet. Fixed findings appear here once verified."
             emptyAction={
               <div className="flex flex-wrap items-center justify-center gap-3">
@@ -176,7 +201,7 @@ export default async function FindingsPage({
             slice={dismissedSlice}
             listParams={listParams}
             filtersActive={filtersActive}
-            items={listFor(dismissedSlice.items)}
+            items={dismissedItems}
             emptyMessage="No dismissed findings."
             emptyAction={
               <PageActionLink href={findingsListHref({ tab: "open" })}>
@@ -252,7 +277,7 @@ export default async function FindingsPage({
             ) : (
               <>
                 <FindingsBulkList
-                  items={listFor(openSlice.items)}
+                  items={openItems}
                   canRemediate={caps.canRemediate}
                   listParams={{ ...listParams, tab: "open" }}
                 />

@@ -240,7 +240,7 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
     }
   });
 
-  it("persists worker-shape in-place mutations after the job-start snapshot (P0-1)", async () => {
+  it("persists worker-shape in-place mutations after the job-start snapshot", async () => {
     const drizzle = await getDrizzle();
     const suffix = `${Date.now()}-inplace`;
     const fixture = await insertProjectSliceFixture(drizzle, suffix);
@@ -281,7 +281,7 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
     }
   });
 
-  it("collapses interleaved fresh-id creates for the same control into one row (P1-1)", async () => {
+  it("collapses interleaved fresh-id creates for the same control into one row", async () => {
     const drizzle = await getDrizzle();
     const suffix = `${Date.now()}-dup`;
     const fixture = await insertProjectSliceFixture(drizzle, suffix);
@@ -326,7 +326,7 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
     }
   });
 
-  it("does not let a stale worker apply revert a concurrent finding dismissal (P0-1)", async () => {
+  it("does not let a stale worker apply revert a concurrent finding dismissal", async () => {
     const drizzle = await getDrizzle();
     const suffix = `${Date.now()}-finding-stale`;
     const fixture = await insertProjectSliceFixture(drizzle, suffix);
@@ -388,7 +388,7 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
     }
   });
 
-  it("does not let a stale worker apply revert a concurrent remediation approval (P0-1)", async () => {
+  it("does not let a stale worker apply revert a concurrent remediation approval", async () => {
     const drizzle = await getDrizzle();
     const suffix = `${Date.now()}-remediation-stale`;
     const fixture = await insertProjectSliceFixture(drizzle, suffix);

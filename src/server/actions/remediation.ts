@@ -156,8 +156,14 @@ function dismissEntriesInWrite(
     );
     controlIds.add(entry.finding.controlId);
   }
+  // A human dismiss is not an automated pass. Force a no-scan audit
+  // context so standard controls resolve to unable_to_verify (not passed)
+  // and runtime/site controls stay unable_to_verify without an engine run.
+  // Human attribution lives on the "finding dismissed" evidence above.
   applyRequirementStatusRefresh(rows, project, {
     controlIds: [...controlIds],
+    runtimeRan: false,
+    filesScanned: 0,
   });
   return {
     findings,
@@ -208,7 +214,14 @@ export async function bulkApproveRemediationsAction(
         const finding = findingById(db, findingId);
         requireOnFindingProject(workspace, finding, "project.remediate");
         const remediation = remediationForFinding(db, findingId);
-        if (!canBulkApproveRemediation(finding, remediation.status)) continue;
+        if (
+          !canBulkApproveRemediation(
+            finding,
+            remediation.status,
+            remediation.suggestion,
+          )
+        )
+          continue;
 
         approveRemediationInPayload(payload, finding, remediation, {
           bulk: true,
@@ -221,7 +234,7 @@ export async function bulkApproveRemediationsAction(
 
     if (approved === 0) {
       throw new PublicError(
-        "No selected findings had runtime guidance ready to approve.",
+        "No selected findings had guidance ready to approve.",
       );
     }
     refresh(...COMPLIANCE_LOOP_ROUTES);

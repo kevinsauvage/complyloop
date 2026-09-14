@@ -27,6 +27,7 @@ import type { RawFinding } from "@complyloop/analysis-core/types";
 import { countByStatus, latestAssessmentFor } from "@/core/assessment-helpers";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
 
+import { reportWarning } from "../observability";
 import {
   assertAssessableCatalog,
   requirementsInScope,
@@ -52,6 +53,18 @@ interface RuntimeScanEngineInput {
   linkCheckRan?: boolean;
   error?: string;
 }
+
+/**
+ * AST checks whose verdict can depend on files beyond the one scanned
+ * (document order, cross-node structure, id uniqueness). A scoped re-scan of
+ * only changed files cannot confirm or clear these — any run assessing them
+ * (or any run that deleted a file) must scan the full tree.
+ */
+const STRUCTURAL_CHECK_IDS: ReadonlySet<string> = new Set([
+  "heading-order",
+  "list-structure",
+  "duplicate-id",
+]);
 
 function buildAssessmentEngines(
   runtimeConfigured: boolean,
@@ -106,10 +119,23 @@ export interface AssessmentRunResult {
   requirements: Requirement[];
 }
 
-function verifyDraftPrRemediation(
+/** Re-scan scope proof for draft-PR auto-verification. */
+export interface DraftPrVerifyScope {
+  /**
+   * Files this run re-scanned (`null` after a full-tree scan). A resolve only
+   * counts as fix-confirmed when the finding's file is among them.
+   */
+  scopedFileSet: Set<string> | null;
+  /** True when sources were reused without any scan — nothing was re-checked. */
+  sourcesUnchanged: boolean;
+}
+
+/** Exported for unit tests of the re-scan scope guard. */
+export function verifyDraftPrRemediation(
   rows: ProjectRows,
   finding: Finding,
   assessmentId: string,
+  scope: DraftPrVerifyScope,
 ): void {
   if (!isSourceLocation(finding.location)) return;
   const remediationIndex = rows.remediations.findIndex(
@@ -118,6 +144,39 @@ function verifyDraftPrRemediation(
   const remediation = rows.remediations[remediationIndex];
   if (!remediation || remediation.status !== "approved") return;
   if (remediation.approvalAction !== "create_draft_pull_request") return;
+
+  // A reconcile resolve is only a confirmed fix when the finding's location
+  // was actually re-scanned this run: full scans re-check the whole tree,
+  // scoped scans must include the finding's file. Otherwise the resolve may
+  // come from an identity mismatch — skip auto-verify instead of advancing.
+  if (scope.sourcesUnchanged) {
+    reportWarning(
+      "Skipping draft-PR auto-verify: sources unchanged, finding was not re-scanned",
+      {
+        code: "draft_pr_verify_scope_unproven",
+        projectId: finding.projectId,
+        findingId: finding.id,
+        assessmentId,
+      },
+    );
+    return;
+  }
+  if (
+    scope.scopedFileSet !== null &&
+    !scope.scopedFileSet.has(finding.location.filePath)
+  ) {
+    reportWarning(
+      "Skipping draft-PR auto-verify: finding file outside the re-scanned scope",
+      {
+        code: "draft_pr_verify_scope_unproven",
+        projectId: finding.projectId,
+        findingId: finding.id,
+        assessmentId,
+        filePath: finding.location.filePath,
+      },
+    );
+    return;
+  }
 
   const implemented = advanceRemediation(
     remediation,
@@ -226,7 +285,29 @@ export async function runAssessment(
   const changedJsx = changes
     .map((change) => change.filePath)
     .filter((filePath) => /\.(tsx|jsx)$/i.test(filePath));
-  const useScoped = Boolean(previous?.snapshot) && changedJsx.length > 0;
+  // Files the previous snapshot knew but the current tree no longer has.
+  // `changes` already lists them (detectChanges adds missing paths), but the
+  // resolve scope must name them explicitly: a deleted file is never scanned,
+  // so its findings only clear when the file is in the invalidation set.
+  const deletedFiles = previous?.snapshot
+    ? Object.keys(previous.snapshot.fileHashes).filter(
+        (filePath) => snapshot.fileHashes[filePath] === undefined,
+      )
+    : [];
+  const deletedJsx = deletedFiles.filter((filePath) =>
+    /\.(tsx|jsx)$/i.test(filePath),
+  );
+  const hasDeletion = deletedFiles.length > 0;
+  const hasStructuralChecks = scoped.some(
+    (control) =>
+      control.checkId !== null && STRUCTURAL_CHECK_IDS.has(control.checkId),
+  );
+  // Structural verdicts can shift with any cross-file change and deletions
+  // invalidate per-file assumptions outright — both force a full-tree scan
+  // with an unbounded resolve scope instead of a scoped re-scan.
+  const forceFullScan = hasDeletion || hasStructuralChecks;
+  const useScoped =
+    Boolean(previous?.snapshot) && changedJsx.length > 0 && !forceFullScan;
 
   let astFindings: RawFinding[] = [];
   let filesScanned: number;
@@ -252,7 +333,7 @@ export async function runAssessment(
   const scopedFileSet = sourcesUnchanged
     ? new Set<string>()
     : useScoped
-      ? new Set(changedJsx)
+      ? new Set([...changedJsx, ...deletedJsx])
       : null;
 
   // — Stage 4: runtime scan (only when a preview URL is configured). —
@@ -310,7 +391,11 @@ export async function runAssessment(
       onFindingResolved:
         options.authoritative === false
           ? () => {}
-          : (finding) => verifyDraftPrRemediation(rows, finding, assessmentId),
+          : (finding) =>
+              verifyDraftPrRemediation(rows, finding, assessmentId, {
+                scopedFileSet,
+                sourcesUnchanged,
+              }),
     });
   }
 

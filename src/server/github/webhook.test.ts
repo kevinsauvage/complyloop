@@ -6,18 +6,17 @@ import { handleGitHubWebhookEvent, verifyGitHubSignature } from "./webhook";
 
 const findProjectByGithubFullName = vi.hoisted(() => vi.fn());
 const getProjectById = vi.hoisted(() => vi.fn());
-const updateProject = vi.hoisted(() => vi.fn());
+const drizzleExecute = vi.hoisted(() => vi.fn());
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const assertRateLimit = vi.hoisted(() => vi.fn());
 
 vi.mock("@complyloop/db/postgres", () => ({
-  getDrizzle: async () => ({}),
+  getDrizzle: async () => ({ execute: (...args: unknown[]) => drizzleExecute(...args) }),
 }));
 vi.mock("@complyloop/db/repo/projects", () => ({
   findProjectByGithubFullName: (...args: unknown[]) =>
     findProjectByGithubFullName(...args),
   getProjectById: (...args: unknown[]) => getProjectById(...args),
-  updateProject: (...args: unknown[]) => updateProject(...args),
 }));
 vi.mock("../assessment/assessment-jobs", () => ({ enqueueAssessmentJob }));
 vi.mock("../rate-limit", () => ({ assertRateLimit }));
@@ -195,13 +194,14 @@ describe("handleGitHubWebhookEvent", () => {
       orgId: "org-1",
       defaultBranch: "main",
     });
+    drizzleExecute.mockResolvedValue([]);
     getProjectById.mockResolvedValue({
       id: "p1",
       name: "App",
       source: "github",
       orgId: "org-1",
       createdAt: "2026-01-01T00:00:00.000Z",
-      github: { fullName: "acme/app", defaultBranch: "main", private: false },
+      github: { fullName: "acme/app", defaultBranch: "master", private: false },
     });
     enqueueAssessmentJob.mockResolvedValue({ id: "job-rename" });
 
@@ -216,12 +216,10 @@ describe("handleGitHubWebhookEvent", () => {
     );
 
     expect(result.handled).toBe(true);
-    expect(updateProject).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        github: expect.objectContaining({ defaultBranch: "master" }),
-      }),
-    );
+    // Atomic compare-and-set: single conditional UPDATE, then fresh read for
+    // the authority decision.
+    expect(drizzleExecute).toHaveBeenCalled();
+    expect(getProjectById).toHaveBeenCalled();
     expect(enqueueAssessmentJob).toHaveBeenCalled();
   });
 
@@ -231,13 +229,14 @@ describe("handleGitHubWebhookEvent", () => {
       orgId: "org-1",
       defaultBranch: "main",
     });
+    drizzleExecute.mockResolvedValue([]);
     getProjectById.mockResolvedValue({
       id: "p1",
       name: "App",
       source: "github",
       orgId: "org-1",
       createdAt: "2026-01-01T00:00:00.000Z",
-      github: { fullName: "acme/app", defaultBranch: "main", private: false },
+      github: { fullName: "acme/app", defaultBranch: "master", private: false },
     });
 
     const result = await handleGitHubWebhookEvent(
@@ -252,12 +251,34 @@ describe("handleGitHubWebhookEvent", () => {
 
     expect(result.handled).toBe(false);
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-    expect(updateProject).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        github: expect.objectContaining({ defaultBranch: "master" }),
-      }),
+    // Authority is decided on the post-write row (master), so the stale-main
+    // push is ignored even though the stored branch was main at read time.
+    expect(drizzleExecute).toHaveBeenCalled();
+    expect(getProjectById).toHaveBeenCalled();
+  });
+
+  it("skips the conditional write when the stored branch already matches", async () => {
+    findProjectByGithubFullName.mockResolvedValue({
+      id: "p1",
+      orgId: "org-1",
+      defaultBranch: "main",
+    });
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-same" });
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        repository: { full_name: "acme/app", default_branch: "main" },
+        ref: "refs/heads/main",
+        after: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      "delivery-same",
     );
+
+    expect(result.handled).toBe(true);
+    expect(drizzleExecute).not.toHaveBeenCalled();
+    expect(getProjectById).not.toHaveBeenCalled();
+    expect(enqueueAssessmentJob).toHaveBeenCalled();
   });
 
   it("ignores unsupported events without enqueuing work", async () => {

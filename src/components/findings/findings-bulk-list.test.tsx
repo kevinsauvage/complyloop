@@ -41,8 +41,12 @@ const control: Control = {
   checkId: "label",
 };
 
-function item(finding: Finding, remediationStatus: Remediation["status"]) {
-  return { finding, control, remediationStatus };
+function item(
+  finding: Finding,
+  remediationStatus: Remediation["status"],
+  suggestion: Remediation["suggestion"] = null,
+) {
+  return { finding, control, remediationStatus, suggestion };
 }
 
 const sourceFinding: Finding = {
@@ -114,5 +118,41 @@ describe("FindingsBulkList bulk approve", () => {
     expect(
       screen.queryByRole("button", { name: "Approve guidance (2)" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("offers bulk approve for source findings with a deterministic high-confidence fix", async () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    const user = userEvent.setup();
+
+    render(
+      <TooltipProvider>
+        <FindingsBulkList
+          items={[
+            item(sourceFinding, "suggested", {
+              description: "Remove redundant role",
+              proposedSnippet: "<div />",
+              provenance: "deterministic",
+              confidence: "high",
+            }),
+          ]}
+          canRemediate
+          listParams={{ tab: "open", page: 1 }}
+        />
+      </TooltipProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Select all findings on this page",
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Approve guidance (1)" }),
+    ).toBeInTheDocument();
   });
 });

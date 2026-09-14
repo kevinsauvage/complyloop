@@ -215,10 +215,12 @@ export async function exportOrgDataAction(
     const projectIds = orgProjects.map((project) => project.id);
     // Bound the fan-out: runtime loads are O(P) full history reads. Chunked
     // concurrency keeps pool usage flat; the cap keeps huge orgs from timing
-    // out the action (narrow scope or export per project instead).
+    // out the action. Fallback is per-project export: every project has an
+    // Evidence → Export button hitting GET /evidence/export (see
+    // src/app/(app)/evidence/export/route.ts), so no data is unreachable.
     if (projectIds.length > MAX_EXPORT_PROJECTS) {
       throw new PublicError(
-        `Organization has ${projectIds.length} projects; exports are limited to ${MAX_EXPORT_PROJECTS} projects.`,
+        `Organization has ${projectIds.length} projects; exports are limited to ${MAX_EXPORT_PROJECTS} projects. Export each project separately from its Evidence page (Export downloads /evidence/export for that project).`,
         "export_too_large",
       );
     }

@@ -6,6 +6,8 @@ import {
   presetSummaries,
   projectDefaultPresetId,
 } from "@complyloop/analysis-core/catalog/registry";
+import { isRuntimeOnlyCheck } from "@complyloop/analysis-core/check-authority";
+import { CHECK_REGISTRY } from "@complyloop/analysis-core/check-registry";
 
 import { CopyButton } from "@/components/copy-button";
 import {
@@ -61,6 +63,11 @@ export default async function SettingsPage() {
   const defaultPresetId = projectDefaultPresetId(project);
   const defaultPreset = presetById(defaultPresetId);
   const presets = presetSummaries();
+  // Runtime-only check count from the static registry (same source as
+  // check-authority.ts) for the "needs runtime audit" empty-state hint below.
+  const runtimeOnlyCheckCount = CHECK_REGISTRY.filter((entry) =>
+    isRuntimeOnlyCheck(entry.id),
+  ).length;
 
   return (
     <>
@@ -202,6 +209,21 @@ export default async function SettingsPage() {
                     </details>
                   </AlertDescription>
                 </Alert>
+              ) : null}
+              {/* Empty-state hint — code-only projects leave every
+                  runtime-only criterion unable_to_verify until a preview URL
+                  is set. */}
+              {!project.runtimeBaseUrl && !runtimeError ? (
+                <p className="text-sm text-muted-foreground">
+                  {runtimeOnlyCheckCount} criteria need a runtime audit.{" "}
+                  <Link
+                    href="#preview-url"
+                    className="font-medium text-foreground underline underline-offset-4"
+                  >
+                    Set a preview URL
+                  </Link>{" "}
+                  to verify them.
+                </p>
               ) : null}
               {caps.canConnect ? (
                 <RuntimeAuditForm

@@ -142,7 +142,16 @@ describe("deriveRequirementStatus", () => {
   });
 
   it("passes standard checks when nothing is open", () => {
-    expect(deriveRequirementStatus({ authority: "standard" })).toBe("passed");
+    // No scan context must not default to passed.
+    expect(deriveRequirementStatus({ authority: "standard" })).toBe(
+      "unable_to_verify",
+    );
+    expect(
+      deriveRequirementStatus({
+        authority: "standard",
+        audit: { filesScanned: 4 },
+      }),
+    ).toBe("passed");
   });
 
   it("returns not_applicable when runtime confirmed absence on all pages", () => {
@@ -203,7 +212,7 @@ describe("deriveRequirementStatus", () => {
     expect(
       deriveRequirementStatus({
         authority: "standard",
-        audit: { runtimeRan: true, htmlValidateRan: false },
+        audit: { runtimeRan: true, htmlValidateRan: false, filesScanned: 2 },
       }),
     ).toBe("passed");
   });

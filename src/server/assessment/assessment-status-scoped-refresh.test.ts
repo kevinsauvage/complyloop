@@ -27,7 +27,9 @@ describe("applyRequirementStatusRefresh (scoped)", () => {
     const requirement = rows.requirements.find(
       (row) => row.controlId === "ctl-img-alt",
     );
-    expect(requirement?.status).toBe("passed");
+    // A human dismiss with no scan context must not become an
+    // automated pass.
+    expect(requirement?.status).toBe("unable_to_verify");
   });
 
   it("refreshes using requirement overrides staged on rows", () => {

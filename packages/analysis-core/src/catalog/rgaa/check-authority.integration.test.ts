@@ -36,7 +36,12 @@ describe("check authority × RGAA catalog", () => {
     for (const control of CHECKED) {
       const checkId = control.checkId as string;
       const authority = authorityForCheck(checkId);
-      const status = deriveRequirementStatus({ authority });
+      // Standard needs a real scan (filesScanned > 0); a bare call
+      // with no audit context must stay unable_to_verify.
+      const status = deriveRequirementStatus({
+        authority,
+        audit: authority === "standard" ? { filesScanned: 5 } : undefined,
+      });
       if (
         authority === "runtime_only" ||
         authority === "site_level" ||
@@ -46,6 +51,8 @@ describe("check authority × RGAA catalog", () => {
       } else {
         expect(status).toBe("passed");
       }
+      // And without scan context even standard stays unable_to_verify.
+      expect(deriveRequirementStatus({ authority })).toBe("unable_to_verify");
     }
   });
 
@@ -60,6 +67,8 @@ describe("check authority × RGAA catalog", () => {
           siteLevelChecksRan: true,
           htmlValidateRequired: isHtmlValidateOwnedCheck(control.checkId as string),
           htmlValidateRan: true,
+          // Standard controls need a real AST scan to pass.
+          ...(authority === "standard" ? { filesScanned: 5 } : {}),
         },
       });
       expect(status).toBe("passed");

@@ -42,6 +42,26 @@ Only `FAIL` lines (violations) cause exit code `1`. Warnings are reported but do
 | `1` | At least one violation finding |
 | `2` | Usage or I/O error (path is not a directory) |
 
+## Gate matrix (what CI can and cannot catch)
+
+This gate is **AST-only**: it scans source (`scanProject`) with no browser, so
+it catches static violations (missing alt, invalid ARIA, label association…)
+but **cannot verify runtime-only checks** — contrast, landmarks, reflow,
+keyboard behavior, and other rules that need a rendered page (authority
+`runtime_only` in `packages/analysis-core/src/check-authority.ts`, derived from
+`CHECK_REGISTRY`).
+
+Every run prints the current runtime-only count to stderr:
+
+```
+complyloop-check: AST-only gate; N runtime-only check(s) require a preview audit and cannot fail this gate.
+```
+
+Cover those with a preview audit from the app (Settings → Preview URL), which
+runs Playwright + axe over the live pages. There is intentionally no
+`--runtime` mode in this package (browser engines stay out of the CI
+dependency closure).
+
 ## GitHub Actions
 
 Copy [`templates/github-actions/complyloop-check.yml`](../../templates/github-actions/complyloop-check.yml):

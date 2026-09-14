@@ -10,6 +10,7 @@ export const assessmentJobPayloadSchema = z.object({
   ref: z.string().optional(),
   eventName: z.enum(["push", "pull_request"]).optional(),
   pullRequestHeadSha: z.string().optional(),
+  supersededRefs: z.array(z.string()).optional(),
 });
 
 export const assessmentJobSchema = z.object({

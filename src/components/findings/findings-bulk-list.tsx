@@ -144,7 +144,11 @@ export function FindingsBulkList({
   const selectedCount = selected.size;
   const approvableIds = items
     .filter((item) =>
-      canBulkApproveRemediation(item.finding, item.remediationStatus),
+      canBulkApproveRemediation(
+        item.finding,
+        item.remediationStatus,
+        item.suggestion,
+      ),
     )
     .filter((item) => selected.has(item.finding.id))
     .map((item) => item.finding.id);
@@ -207,7 +211,7 @@ export function FindingsBulkList({
                   pendingLabel="Approving…"
                   size="sm"
                   variant="default"
-                  confirmMessage={`Approve ${approvableIds.length} runtime guidance suggestion${approvableIds.length === 1 ? "" : "s"}?`}
+                  confirmMessage={`Approve ${approvableIds.length} suggestion${approvableIds.length === 1 ? "" : "s"}?`}
                 >
                   {approvableIds.map((id) => (
                     <input
@@ -219,9 +223,9 @@ export function FindingsBulkList({
                   ))}
                 </StatefulActionForm>
               ) : (
-                <span title="Only live-page findings with a generated suggestion can be approved in bulk">
+                <span title="Only findings with a generated suggestion — live-page findings or source findings with a deterministic fix — can be approved in bulk">
                   <Button type="button" size="sm" variant="default" disabled>
-                    Approve (runtime suggestions only)
+                    Approve (suggestions only)
                   </Button>
                 </span>
               )}

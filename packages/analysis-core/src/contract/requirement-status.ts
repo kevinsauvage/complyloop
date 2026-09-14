@@ -104,7 +104,13 @@ export function deriveRequirementStatus(
         ? "passed"
         : "unable_to_verify";
     case "standard":
-      return audit?.filesScanned === 0 ? "unable_to_verify" : "passed";
+      // Undefined means "no AST scan context" (e.g. dismiss/refresh without a
+      // scan) — must not default to passed. Only a real scan (>0 files)
+      // can pass a standard control.
+      return typeof audit?.filesScanned === "number" &&
+        audit.filesScanned > 0
+        ? "passed"
+        : "unable_to_verify";
     default: {
       const _exhaustive: never = input.authority;
       throw new Error(`Unhandled check authority: ${String(_exhaustive)}`);

@@ -106,6 +106,134 @@ describe("createFinding analyzer evidence", () => {
 });
 
 describe("reconcileControlFindings", () => {
+  it("re-opens a dismissed finding when the same instance is re-detected", () => {
+    const dismissed = testFinding({
+      id: "f-dismissed",
+      projectId: project.id,
+      controlId: "ctl-img-alt",
+      assessmentId: "a0",
+      status: "dismissed",
+      dismissal: {
+        reason: "accepted_risk",
+        note: "Placeholder asset",
+        at: "2026-01-02T00:00:00.000Z",
+      },
+      location: sourceLoc({
+        filePath: "Hero.tsx",
+        line: 1,
+        snippet: '<img src="/hero.png" />',
+      }),
+    });
+    const rows = emptyRows();
+    rows.findings.push(dismissed);
+    const raw = {
+      checkId: "img-alt" as const,
+      kind: "violation" as const,
+      severity: "serious" as const,
+      confidence: "high" as const,
+      reason: "Missing alt",
+      location: sourceLoc({
+        filePath: "Hero.tsx",
+        line: 1,
+        snippet: '<img src="/hero.png" />',
+      }),
+      fix: null,
+    };
+
+    reconcileControlFindings({
+      rows,
+      project,
+      control: {
+        id: "ctl-img-alt",
+        frameworkId: "rgaa",
+        code: "RGAA 1.1",
+        secondaryCode: "WCAG 1.1.1",
+        title: "Images",
+        description: "Images have text alternatives",
+        checkId: "img-alt",
+      },
+      assessmentId: "a1",
+      rootPath: "/tmp",
+      rawForControl: [raw, { ...raw }],
+      scopedFileSet: null,
+      runtimeRan: false,
+      onFindingResolved: () => {},
+    });
+
+    expect(rows.findings).toHaveLength(1);
+    expect(dismissed.status).toBe("open");
+    expect(dismissed.assessmentId).toBe("a1");
+    expect(dismissed.dismissal).toBeUndefined();
+    expect(
+      rows.evidence.some(
+        (record) =>
+          record.findingId === dismissed.id &&
+          record.detail?.event === "re-detected",
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps a dismissal when the re-detected snippet differs on the same line", () => {
+    const dismissed = testFinding({
+      id: "f-dismissed",
+      projectId: project.id,
+      controlId: "ctl-img-alt",
+      assessmentId: "a0",
+      status: "dismissed",
+      dismissal: {
+        reason: "accepted_risk",
+        note: "Placeholder asset",
+        at: "2026-01-02T00:00:00.000Z",
+      },
+      location: sourceLoc({
+        filePath: "Hero.tsx",
+        line: 1,
+        snippet: '<img src="/hero.png" />',
+      }),
+    });
+    const rows = emptyRows();
+    rows.findings.push(dismissed);
+
+    reconcileControlFindings({
+      rows,
+      project,
+      control: {
+        id: "ctl-img-alt",
+        frameworkId: "rgaa",
+        code: "RGAA 1.1",
+        secondaryCode: "WCAG 1.1.1",
+        title: "Images",
+        description: "Images have text alternatives",
+        checkId: "img-alt",
+      },
+      assessmentId: "a1",
+      rootPath: "/tmp",
+      rawForControl: [
+        {
+          checkId: "img-alt" as const,
+          kind: "violation" as const,
+          severity: "serious" as const,
+          confidence: "high" as const,
+          reason: "Missing alt",
+          location: sourceLoc({
+            filePath: "Hero.tsx",
+            line: 1,
+            snippet: '<img src="/other.png" />',
+          }),
+          fix: null,
+        },
+      ],
+      scopedFileSet: null,
+      runtimeRan: false,
+      onFindingResolved: () => {},
+    });
+
+    expect(dismissed.status).toBe("dismissed");
+    expect(
+      rows.findings.filter((finding) => finding.status === "open"),
+    ).toHaveLength(1);
+  });
+
   it("collapses duplicate DOM raw hits onto one open finding in a single pass", () => {
     const rows = emptyRows();
     const raw = {
@@ -223,13 +351,52 @@ describe("sameInstance", () => {
     ).toBe(true);
   });
 
-  it("matches by line when snippets differ", () => {
+  it("does not match by line alone when both snippets are present", () => {
     expect(
       sameInstance(
         { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "old" }) },
         { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "new" }) },
       ),
+    ).toBe(false);
+  });
+
+  it("does not match a moved snippet whose text changed", () => {
+    expect(
+      sameInstance(
+        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: '<img src="x" />' }) },
+        { location: sourceLoc({ filePath: "App.tsx", line: 20, snippet: '<img src="x" alt="moved" />' }) },
+      ),
+    ).toBe(false);
+  });
+
+  it("falls back to line when both snippets are empty", () => {
+    expect(
+      sameInstance(
+        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "" }) },
+        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "" }) },
+      ),
     ).toBe(true);
+    expect(
+      sameInstance(
+        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "" }) },
+        { location: sourceLoc({ filePath: "App.tsx", line: 9, snippet: "" }) },
+      ),
+    ).toBe(false);
+  });
+
+  it("falls back to line when only one snippet is empty", () => {
+    expect(
+      sameInstance(
+        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "" }) },
+        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: '<img src="x" />' }) },
+      ),
+    ).toBe(true);
+    expect(
+      sameInstance(
+        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "  " }) },
+        { location: sourceLoc({ filePath: "App.tsx", line: 9, snippet: '<img src="x" />' }) },
+      ),
+    ).toBe(false);
   });
 
   it("rejects different files", () => {

@@ -195,6 +195,21 @@ function createDrizzle() {
             const hasStarted = eqs.includes(row.startedAt);
             if (eqs.length === 2 && hasId && hasStatus && !hasLease && !hasStarted) {
               match = true;
+              // Atomic per-project claim guard: the real UPDATE carries
+              // NOT EXISTS (running same project, different id). Simulate it:
+              // a claim (status -> running) loses when another running row
+              // for the same project already exists.
+              if (
+                (patch as Partial<JobRow>).status === "running" &&
+                [...jobs.values()].some(
+                  (other) =>
+                    other.id !== row.id &&
+                    other.status === "running" &&
+                    other.projectId === row.projectId,
+                )
+              ) {
+                match = false;
+              }
             } else if (
               eqs.length === 4 &&
               hasId &&
@@ -397,6 +412,104 @@ describe("claimNextAssessmentJob", () => {
     expect(jobs.size).toBe(1);
     expect(second.payload).toMatchObject({ ref: "b".repeat(40) });
     expect(second.idempotencyKey).toBe("delivery-1");
+  });
+
+  it("records the superseded SHA when same-authority coalescing happens", async () => {
+    const first = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "webhook",
+      idempotencyKey: "delivery-1",
+      payload: { ref: "a".repeat(40), eventName: "push" },
+    });
+    const second = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "webhook",
+      idempotencyKey: "delivery-2",
+      payload: { ref: "b".repeat(40), eventName: "push" },
+    });
+    expect(second.id).toBe(first.id);
+    expect(second.payload).toMatchObject({
+      ref: "b".repeat(40),
+      supersededRefs: ["a".repeat(40)],
+    });
+  });
+
+  it("does not coalesce across the push/PR authority boundary", async () => {
+    const push = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "webhook",
+      idempotencyKey: "delivery-push",
+      payload: { ref: "a".repeat(40), eventName: "push" },
+    });
+    const pr = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "webhook",
+      idempotencyKey: "delivery-pr",
+      payload: {
+        ref: "b".repeat(40),
+        eventName: "pull_request",
+        pullRequestHeadSha: "b".repeat(40),
+      },
+    });
+    expect(pr.id).not.toBe(push.id);
+    expect(jobs.size).toBe(2);
+
+    // The in-memory mock's coalescing lookup is project-agnostic (it matches
+    // any queued webhook job), so isolate the reverse direction.
+    jobs.clear();
+    const prPending = await enqueueAssessmentJob({
+      projectId: "p2",
+      trigger: "webhook",
+      idempotencyKey: "delivery-pr-2",
+      payload: {
+        ref: "c".repeat(40),
+        eventName: "pull_request",
+        pullRequestHeadSha: "c".repeat(40),
+      },
+    });
+    const pushAfterPr = await enqueueAssessmentJob({
+      projectId: "p2",
+      trigger: "webhook",
+      idempotencyKey: "delivery-push-2",
+      payload: { ref: "d".repeat(40), eventName: "push" },
+    });
+    expect(pushAfterPr.id).not.toBe(prPending.id);
+    expect(pushAfterPr.payload).not.toHaveProperty("supersededRefs");
+  });
+
+  it("rejects a claim that loses the per-project race (UPDATE guard)", async () => {
+    const queued = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    // Simulate a second worker winning first: a running row for the same
+    // project lands after SELECT but before UPDATE. Force a stale SELECT hit
+    // so the atomic UPDATE guard is what rejects the claim.
+    const now = new Date().toISOString();
+    jobs.set("job-running-winner", {
+      id: "job-running-winner",
+      projectId: "p1",
+      status: "running",
+      trigger: "manual",
+      requestedByUserId: null,
+      idempotencyKey: null,
+      payload: {},
+      attempts: 1,
+      maxAttempts: 3,
+      availableAt: now,
+      startedAt: now,
+      leaseExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+      completedAt: null,
+      error: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const drizzle = await getDrizzle();
+    drizzle.execute = async () => [
+      { id: queued.id, attempts: 0, project_id: "p1" },
+    ];
+    expect(await claimNextAssessmentJob()).toBeNull();
+    expect(jobs.get(queued.id)?.status).toBe("queued");
   });
 
   it("does not coalesce manual jobs or running webhook jobs", async () => {

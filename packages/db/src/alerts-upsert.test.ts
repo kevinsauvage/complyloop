@@ -10,7 +10,7 @@ import { upsertAlerts } from "./repo/alerts";
 const enabled = Boolean(process.env.DATABASE_URL?.trim());
 
 /**
- * Regression test for P0-1: alert rows must be updatable through the
+ * Regression test: alert rows must be updatable through the
  * upsert path (`persistProjectRows` / `markAlertRead`) without a
  * primary-key violation, and `read`/payload must follow the latest write.
  */

@@ -36,6 +36,12 @@ import { appendEvidence, type ProjectRows } from "../workspace/project-rows";
  * Findings are matched across assessments by location identity so remediation
  * state survives re-assessment and dismissals stick.
  *
+ * Source identity is snippet-first: when both sides carry a snippet, only
+ * snippet equality matches (line numbers drift with unrelated edits, so a
+ * line-only match would refresh a stale row instead of resolving it and
+ * creating the new instance). Line equality is only a fallback when at least
+ * one side has no snippet to compare.
+ *
  * DOM identity is the node selector (same as runtime dedupe): many contrast /
  * name failures share identical markup snippets, so snippet-only matching
  * keeps stale opens alive while new nodes accumulate every run.
@@ -48,10 +54,11 @@ export function sameInstance(
   const right = raw.location;
   if (left.kind !== right.kind) return false;
   if (isSourceLocation(left) && isSourceLocation(right)) {
-    return (
-      left.filePath === right.filePath &&
-      (left.snippet === right.snippet || left.line === right.line)
-    );
+    if (left.filePath !== right.filePath) return false;
+    if (hasSnippet(left.snippet) && hasSnippet(right.snippet)) {
+      return left.snippet === right.snippet;
+    }
+    return left.line === right.line;
   }
   if (isDomLocation(left) && isDomLocation(right)) {
     if (left.url !== right.url) return false;
@@ -78,6 +85,11 @@ function usableDomSelector(selector: string): string {
   return trimmed && trimmed !== "(unknown)" ? trimmed : "";
 }
 
+/** A snippet counts for identity only when it carries non-blank content. */
+function hasSnippet(snippet: string): boolean {
+  return snippet.trim().length > 0;
+}
+
 /** Carries a human-edited fix value over to the freshly scanned fix. */
 export function mergeFix(
   existing: ProposedFix | null,
@@ -95,7 +107,8 @@ export function mergeFix(
 
 /**
  * Re-scans the finding's file and re-locates this violation instance (by
- * snippet, then line) so fixes use current character offsets after drift.
+ * snippet when both sides carry one, else by line fallback) so fixes use
+ * current character offsets after drift.
  * Warnings are ignored — they carry no fix. DOM findings are not relocatable here.
  */
 export function locateViolationInProject(
@@ -110,10 +123,13 @@ export function locateViolationInProject(
   );
   return violations.find((candidate) => {
     if (!isSourceLocation(candidate.location)) return false;
-    return (
-      candidate.location.snippet === location.snippet ||
-      candidate.location.line === location.line
-    );
+    if (
+      hasSnippet(location.snippet) &&
+      hasSnippet(candidate.location.snippet)
+    ) {
+      return candidate.location.snippet === location.snippet;
+    }
+    return candidate.location.line === location.line;
   });
 }
 
@@ -243,7 +259,37 @@ export function reconcileControlFindings(
   // same open row instead of minting siblings (axe can emit overlapping nodes).
   const matchPool = [...openFindings];
   for (const raw of rawForControl) {
-    if (dismissedFindings.some((finding) => sameInstance(finding, raw))) {
+    // A dismissal never blinds future runs: re-detection re-opens the
+    // dismissed row (status + current assessment + re-detected evidence)
+    // instead of dropping the raw hit or minting a duplicate.
+    const redetected = dismissedFindings.find((finding) =>
+      sameInstance(finding, raw),
+    );
+    if (redetected) {
+      matchedIds.add(redetected.id);
+      redetected.status = "open";
+      redetected.dismissal = undefined;
+      redetected.resolvedNote = undefined;
+      redetected.assessmentId = assessmentId;
+      redetected.fix = mergeFix(redetected.fix, raw.fix);
+      redetected.location = raw.location;
+      if (raw.analyzerId) redetected.analyzerId = raw.analyzerId;
+      if (raw.analyzerRuleId) redetected.analyzerRuleId = raw.analyzerRuleId;
+      if (raw.analyzerVersion)
+        redetected.analyzerVersion = raw.analyzerVersion;
+      if (raw.contributingAnalyzers?.length) {
+        redetected.contributingAnalyzers = raw.contributingAnalyzers;
+      }
+      if (!matchPool.includes(redetected)) matchPool.push(redetected);
+      appendEvidence(rows, {
+        kind: "finding",
+        summary: `${redetected.checkId}: ${formatLocationRef(redetected.location)} re-detected after dismissal`,
+        projectId,
+        controlId: control.id,
+        findingId: redetected.id,
+        assessmentId,
+        detail: { event: "re-detected" },
+      });
       continue;
     }
     const existing = matchPool.find((finding) => sameInstance(finding, raw));

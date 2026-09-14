@@ -10,9 +10,11 @@ import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
+import { testFinding } from "@/test-fixtures/finding";
 import { materializeAssessmentRun } from "@/test-fixtures/materialize-assessment-run";
 
-import { runAssessment } from "./assessment";
+import { runAssessment, verifyDraftPrRemediation } from "./assessment";
+import type { ProjectRows } from "./assessment-pipeline";
 import { toPipelineInput } from "./assessment-pipeline";
 
 const BROKEN = `export const Hero = () => <img src="/hero-banner.png" />;\n`;
@@ -195,8 +197,9 @@ describe("runAssessment", () => {
     ).toBe(false);
   });
 
-  it("keeps dismissed findings dismissed on re-assessment", async () => {
+  it("re-opens a dismissed finding when the same instance is re-detected", async () => {
     await assess();
+    const originalId = db.findings[0].id;
     db.findings[0].status = "dismissed";
     db.findings[0].dismissal = {
       reason: "accepted_risk",
@@ -206,7 +209,15 @@ describe("runAssessment", () => {
 
     await assess();
     expect(db.findings).toHaveLength(1);
-    expect(db.findings[0].status).toBe("dismissed");
+    expect(db.findings[0].id).toBe(originalId);
+    expect(db.findings[0].status).toBe("open");
+    expect(
+      db.evidence.some(
+        (record) =>
+          record.findingId === originalId &&
+          record.detail?.event === "re-detected",
+      ),
+    ).toBe(true);
   });
 
   it("does not overwrite a human requirement exception on re-assessment", async () => {
@@ -337,8 +348,16 @@ describe("runAssessment", () => {
   });
 
   it("scoped re-scan does not resolve findings outside changed files", async () => {
+    // Narrow the catalog to non-structural checks so the second run stays
+    // scoped (structural checks in scope force a full-tree scan).
+    const scopedControls = rgaaControls.filter(
+      (control) =>
+        control.checkId !== "heading-order" &&
+        control.checkId !== "list-structure" &&
+        control.checkId !== "duplicate-id",
+    );
     fs.writeFileSync(path.join(rootPath, "Other.tsx"), BROKEN);
-    await assess();
+    await assess({ rootPath, controls: scopedControls });
     const otherFinding = db.findings.find(
       (finding) =>
         isSourceLocation(finding.location) &&
@@ -349,7 +368,10 @@ describe("runAssessment", () => {
 
     // Only Hero.tsx changes; Other.tsx must stay open under scoped scan.
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    const { assessment: second } = await assess();
+    const { assessment: second } = await assess({
+      rootPath,
+      controls: scopedControls,
+    });
     expect(second.scanMode).toBe("scoped");
     expect(
       db.findings.find(
@@ -390,5 +412,142 @@ describe("runAssessment", () => {
     );
     expect(completedEvidence).toBeDefined();
     expect(completedEvidence?.summary).toContain("0 files scanned");
+  });
+
+  it("forces a full scan when structural checks are in scope", async () => {
+    await assess();
+
+    // Only Hero.tsx changes, but the default catalog includes heading-order /
+    // list-structure / duplicate-id, so the re-assessment must scan the full
+    // tree instead of scoping to the changed file.
+    fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
+    const { assessment: second } = await assess();
+    expect(second.scanMode).toBe("full");
+    expect(
+      db.findings.find(
+        (finding) =>
+          isSourceLocation(finding.location) &&
+          finding.location.filePath === "Hero.tsx",
+      )?.status,
+    ).toBe("resolved");
+  });
+
+  it("resolves findings from deleted files and forces a full scan", async () => {
+    fs.writeFileSync(path.join(rootPath, "Other.tsx"), BROKEN);
+    await assess();
+    expect(
+      db.findings.filter((finding) => finding.status === "open"),
+    ).toHaveLength(2);
+
+    fs.unlinkSync(path.join(rootPath, "Other.tsx"));
+    const { assessment: second } = await assess();
+    expect(second.scanMode).toBe("full");
+    expect(
+      db.findings.find(
+        (finding) =>
+          isSourceLocation(finding.location) &&
+          finding.location.filePath === "Other.tsx",
+      )?.status,
+    ).toBe("resolved");
+    // The untouched file's finding survives the full re-scan.
+    expect(
+      db.findings.find(
+        (finding) =>
+          isSourceLocation(finding.location) &&
+          finding.location.filePath === "Hero.tsx",
+      )?.status,
+    ).toBe("open");
+  });
+
+  it("does not auto-verify a draft-PR remediation when the finding file was not re-scanned", () => {
+    const finding = testFinding({
+      projectId: project.id,
+      assessmentId: "a0",
+    });
+    const rows: ProjectRows = {
+      findings: [finding],
+      remediations: [
+        {
+          id: "r1",
+          findingId: finding.id,
+          status: "approved" as const,
+          approvalAction: "create_draft_pull_request" as const,
+          suggestion: null,
+          history: [{ status: "approved" as const, at: new Date().toISOString() }],
+        },
+      ],
+      requirements: [],
+      evidence: [],
+    };
+
+    verifyDraftPrRemediation(rows, finding, "a1", {
+      scopedFileSet: new Set(["Other.tsx"]),
+      sourcesUnchanged: false,
+    });
+
+    expect(rows.remediations[0]?.status).toBe("approved");
+    expect(
+      rows.evidence.some(
+        (record) => record.kind === "remediation_verified",
+      ),
+    ).toBe(false);
+  });
+
+  it("auto-verifies a draft-PR remediation after a full re-scan", () => {
+    const finding = testFinding({
+      projectId: project.id,
+      assessmentId: "a0",
+    });
+    const rows: ProjectRows = {
+      findings: [finding],
+      remediations: [
+        {
+          id: "r1",
+          findingId: finding.id,
+          status: "approved" as const,
+          approvalAction: "create_draft_pull_request" as const,
+          suggestion: null,
+          history: [{ status: "approved" as const, at: new Date().toISOString() }],
+        },
+      ],
+      requirements: [],
+      evidence: [],
+    };
+
+    verifyDraftPrRemediation(rows, finding, "a1", {
+      scopedFileSet: null,
+      sourcesUnchanged: false,
+    });
+
+    expect(rows.remediations[0]?.status).toBe("verified");
+  });
+
+  it("does not auto-verify a draft-PR remediation when sources were reused without a scan", () => {
+    const finding = testFinding({
+      projectId: project.id,
+      assessmentId: "a0",
+    });
+    const rows: ProjectRows = {
+      findings: [finding],
+      remediations: [
+        {
+          id: "r1",
+          findingId: finding.id,
+          status: "approved" as const,
+          approvalAction: "create_draft_pull_request" as const,
+          suggestion: null,
+          history: [{ status: "approved" as const, at: new Date().toISOString() }],
+        },
+      ],
+      requirements: [],
+      evidence: [],
+    };
+
+    verifyDraftPrRemediation(rows, finding, "a1", {
+      scopedFileSet: null,
+      sourcesUnchanged: true,
+    });
+
+    expect(rows.remediations[0]?.status).toBe("approved");
   });
 });

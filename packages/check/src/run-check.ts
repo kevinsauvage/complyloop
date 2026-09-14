@@ -1,10 +1,18 @@
 /**
  * CI gate core: scan a project tree and report violation findings.
  * Pure aside from filesystem reads — the entry (`check.ts`) owns process.exit.
+ *
+ * Gate matrix: this gate is AST-only. Runtime-only checks (see
+ * `check-authority.ts` / `CHECK_REGISTRY`) need a live preview audit and can
+ * never fail this gate — the run always prints the unverifiable count below
+ * so CI logs state the coverage gap explicitly. No `--runtime` mode: use a
+ * preview audit from the app (Settings → Preview URL) for those checks.
  */
 import fs from "node:fs";
 import path from "node:path";
 
+import { isRuntimeOnlyCheck } from "@complyloop/analysis-core/check-authority";
+import { CHECK_REGISTRY } from "@complyloop/analysis-core/check-registry";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { scanProject } from "@complyloop/analysis-core/scan";
 
@@ -57,6 +65,15 @@ export function runCheck(argv: readonly string[], io: CheckIo): number {
       `  WARN ${finding.checkId} ${formatLocationRef(finding.location)} — ${finding.reason}`,
     );
   }
+
+  // Gate matrix footer: always warn that runtime-only checks are unverifiable
+  // here. `io.error` (stderr) so stdout stays parseable as the finding list.
+  const runtimeOnlyCount = CHECK_REGISTRY.filter((entry) =>
+    isRuntimeOnlyCheck(entry.id),
+  ).length;
+  io.error(
+    `complyloop-check: AST-only gate; ${runtimeOnlyCount} runtime-only check(s) require a preview audit and cannot fail this gate.`,
+  );
 
   return violations.length > 0 ? 1 : 0;
 }

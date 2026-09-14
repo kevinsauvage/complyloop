@@ -130,23 +130,45 @@ export async function enqueueAssessmentJob(
       .orderBy(asc(assessmentJobs.createdAt))
       .limit(1);
     if (pending) {
-      const [updated] = await drizzle
-        .update(assessmentJobs)
-        .set({
-          payload: { ...parseJobPayload(pending.payload), ...(input.payload ?? {}) },
-          availableAt: now,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(assessmentJobs.id, pending.id),
-            eq(assessmentJobs.status, "queued"),
-          ),
-        )
-        .returning();
-      // Empty when a worker claimed the row concurrently — fall through and
-      // insert so the delivery is not silently dropped.
-      if (updated) return jobFromRow(updated);
+      const pendingPayload = parseJobPayload(pending.payload);
+      const pendingIsPrPreview = pendingPayload.pullRequestHeadSha !== undefined;
+      const incomingIsPrPreview =
+        input.payload?.pullRequestHeadSha !== undefined;
+      // Authority boundary: pushes (authoritative, no pullRequestHeadSha) and
+      // PR previews (pullRequestHeadSha set) must never coalesce into each
+      // other, otherwise an authoritative scan is silently dropped or a
+      // preview-only scan overwrites a pending authoritative one.
+      if (pendingIsPrPreview === incomingIsPrPreview) {
+        const oldRef = pendingPayload.ref;
+        const newRef = input.payload?.ref;
+        const seen = new Set<string>([
+          ...(pendingPayload.supersededRefs ?? []),
+          ...(input.payload?.supersededRefs ?? []),
+        ]);
+        if (oldRef && newRef && oldRef !== newRef) seen.add(oldRef);
+        const mergedPayload: AssessmentJobPayload = {
+          ...pendingPayload,
+          ...(input.payload ?? {}),
+        };
+        if (seen.size > 0) mergedPayload.supersededRefs = [...seen];
+        const [updated] = await drizzle
+          .update(assessmentJobs)
+          .set({
+            payload: mergedPayload,
+            availableAt: now,
+            updatedAt: now,
+          })
+          .where(
+            and(
+              eq(assessmentJobs.id, pending.id),
+              eq(assessmentJobs.status, "queued"),
+            ),
+          )
+          .returning();
+        // Empty when a worker claimed the row concurrently — fall through and
+        // insert so the delivery is not silently dropped.
+        if (updated) return jobFromRow(updated);
+      }
     }
   }
   try {
@@ -230,9 +252,17 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
     // Single-row claim: lock exactly the job we will run. The correlated
     // NOT EXISTS keeps one assessment per project without rescanning the table
     // (served by assessment_jobs_ready_idx + assessment_jobs_project_idx).
-    // `attempts` is read in the same lock to avoid a second round trip.
-    const locked = await tx.execute<{ id: string; attempts: number }>(sql`
-      SELECT job.id, job.attempts
+    // `attempts` and `project_id` are read in the same lock to avoid a second
+    // round trip. The final UPDATE re-checks NOT EXISTS atomically: under
+    // READ COMMITTED two workers claiming different queued jobs for the same
+    // project could both see "no running" in SELECT, so the UPDATE guard is
+    // what enforces serial-per-project. Zero rows → lost the race → null.
+    const locked = await tx.execute<{
+      id: string;
+      attempts: number;
+      project_id: string;
+    }>(sql`
+      SELECT job.id AS id, job.attempts AS attempts, job.project_id AS project_id
       FROM assessment_jobs AS job
       WHERE job.status = 'queued'
         AND job.available_at <= ${now}
@@ -249,6 +279,10 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
     const [row] = [...locked];
     if (!row) return null;
     const candidateId = String(row.id);
+    const candidateProjectId = String(
+      (row as { project_id?: unknown; projectId?: unknown }).project_id ??
+        (row as { projectId?: unknown }).projectId,
+    );
 
     const leaseExpiresAt = new Date(Date.now() + DEFAULT_LEASE_MS).toISOString();
     const [claimed] = await tx
@@ -265,6 +299,12 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
         and(
           eq(assessmentJobs.id, candidateId),
           eq(assessmentJobs.status, "queued"),
+          sql`NOT EXISTS (
+            SELECT 1 FROM assessment_jobs AS running
+            WHERE running.status = 'running'
+              AND running.project_id = ${candidateProjectId}
+              AND running.id <> ${candidateId}
+          )`,
         ),
       )
       .returning();

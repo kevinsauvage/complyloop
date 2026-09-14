@@ -107,14 +107,23 @@ export function verifiedDescription(finding: Finding): string {
   return finding.resolvedNote ?? "Fix confirmed by automated re-check.";
 }
 
-/** Bulk approve is for runtime guidance only — source findings use patch → PR. */
+/**
+ * Bulk approve covers runtime guidance plus source findings with a
+ * deterministic high-confidence fix — those need no human-authored
+ * value, so one-by-one triage adds nothing. All other source findings still
+ * use patch → PR.
+ */
 export function canBulkApproveRemediation(
   finding: Finding,
   remediationStatus: RemediationStatus,
+  suggestion?: RemediationSuggestion | null,
 ): boolean {
+  if (finding.status !== "open" || remediationStatus !== "suggested") {
+    return false;
+  }
+  if (isDomLocation(finding.location)) return true;
   return (
-    finding.status === "open" &&
-    remediationStatus === "suggested" &&
-    isDomLocation(finding.location)
+    suggestion?.provenance === "deterministic" &&
+    suggestion.confidence === "high"
   );
 }

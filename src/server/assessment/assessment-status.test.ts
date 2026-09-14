@@ -225,6 +225,7 @@ describe("refreshRequirementStatuses (targeted controlIds)", () => {
       "p1",
       {
         runtimeRan: false,
+        filesScanned: 5,
         controls,
       },
       ["c1"],
