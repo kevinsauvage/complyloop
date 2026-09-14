@@ -19,16 +19,16 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@typescript-eslint/parser": "^8.66.0",
+    "@typescript-eslint/parser": "^8.70.0",
     "aria-query": "^5.3.2",
     "axobject-query": "^4.1.0",
     "eslint": "^9",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "fast-glob": "^3.3.3",
-    "html-validate": "^11.12.0",
+    "html-validate": "^11.15.0",
     "linkinator": "^8.1.0",
-    "playwright": "^1.62.1",
-    "ssrf-guard": "^0.6.0",
+    "playwright": "^1.63.0",
+    "ssrf-guard": "^1.0.0",
     "typescript": "^5"
   },
   "peerDependencies": {
