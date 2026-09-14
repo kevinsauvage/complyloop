@@ -4,6 +4,7 @@ import { cache } from "react";
 
 import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import {
+  type Alert,
   type Finding,
   type Remediation,
 } from "@complyloop/analysis-core/contract/entities";
@@ -14,6 +15,7 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/postgres";
+import { getAlertById } from "@complyloop/db/repo/alerts";
 import { getFindingById } from "@complyloop/db/repo/findings";
 import { listMembershipsForOrgs } from "@complyloop/db/repo/orgs";
 import { getProjectById } from "@complyloop/db/repo/projects";
@@ -21,12 +23,15 @@ import { getRemediationByFindingId } from "@complyloop/db/repo/remediations";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 import { loadTenancyDb } from "@complyloop/db/workspace-load";
 
+import type { Permission } from "@/core/rbac";
+
 import { getSession } from "../auth-session";
 import { readActiveOrgCookie, readActiveProjectCookie } from "./active-cookies";
 import { orgsForUser, resolveActiveOrgId } from "./org-queries";
 import {
   type AccessContext,
   accessFromStore,
+  assertProjectPermission,
   isProjectVisible,
   resolveActiveProject,
   visibleProjects,
@@ -142,6 +147,67 @@ async function loadViewerWorkspaceState(): Promise<Workspace> {
 export const getWorkspace = cache(async (): Promise<Workspace> =>
   loadViewerWorkspaceState(),
 );
+
+/**
+ * Lightweight project-permission check for hot endpoints and single-row
+ * actions (e.g. assessment-job polling, alert reads): session + one project
+ * row + that project org's memberships. Avoids the full tenancy load in
+ * {@link getWorkspace} on every request. Actions use this (never raw
+ * `getDrizzle()`) before entering `withProjectLock`.
+ */
+export async function requireProjectAccess(
+  projectId: string,
+  permission: Permission,
+): Promise<Project> {
+  const session = await getSession();
+  const userId = session?.user?.id ?? null;
+  if (!userId) throw new PublicError("Sign in to continue.");
+  const drizzle = await getDrizzle();
+  const project = await getProjectById(drizzle, projectId);
+  if (!project) throw new PublicError("Unknown project.");
+  const memberships = await listMembershipsForOrgs(drizzle, [project.orgId]);
+  assertProjectPermission(
+    project,
+    {
+      userId,
+      githubLogin: session?.user?.login ?? null,
+      organizations: [],
+      memberships,
+    },
+    permission,
+  );
+  return project;
+}
+
+/**
+ * Alert-scoped variant of {@link requireProjectAccess}: resolves the alert's
+ * project and checks the permission against it.
+ */
+export async function requireAlertAccess(
+  alertId: string,
+  permission: Permission,
+): Promise<{ alert: Alert; project: Project }> {
+  const session = await getSession();
+  const userId = session?.user?.id ?? null;
+  if (!userId) throw new PublicError("Sign in to continue.");
+  const drizzle = await getDrizzle();
+  const alert = await getAlertById(drizzle, alertId);
+  if (!alert) throw new PublicError("Unknown alert.");
+  const project = await getProjectById(drizzle, alert.projectId);
+  if (!project) throw new PublicError("Unknown alert.");
+  const memberships = await listMembershipsForOrgs(drizzle, [project.orgId]);
+  assertProjectPermission(
+    project,
+    {
+      userId,
+      githubLogin: session?.user?.login ?? null,
+      organizations: [],
+      memberships,
+    },
+    permission,
+  );
+  return { alert, project };
+}
 
 /**
  * Lightweight project-visibility check for hot endpoints (e.g. assessment-job

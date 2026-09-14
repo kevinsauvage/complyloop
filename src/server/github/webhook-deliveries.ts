@@ -1,35 +1,12 @@
 import "server-only";
 
-import { asc, count, inArray } from "drizzle-orm";
-
 import { getDrizzle } from "@complyloop/db/postgres";
-import { webhookDeliveries } from "@complyloop/db/schema";
+import {
+  claimWebhookDeliveryRow,
+  pruneWebhookDeliveryRows,
+} from "@complyloop/db/repo/webhook-deliveries";
 
 const MAX_DELIVERIES = 2000;
-
-async function prunePostgres(): Promise<void> {
-  const drizzle = await getDrizzle();
-  const [{ total }] = await drizzle
-    .select({ total: count() })
-    .from(webhookDeliveries);
-  if (total <= MAX_DELIVERIES) return;
-
-  const overflow = total - MAX_DELIVERIES;
-  const oldest = await drizzle
-    .select({ deliveryId: webhookDeliveries.deliveryId })
-    .from(webhookDeliveries)
-    .orderBy(asc(webhookDeliveries.processedAt))
-    .limit(overflow);
-  if (oldest.length === 0) return;
-  await drizzle
-    .delete(webhookDeliveries)
-    .where(
-      inArray(
-        webhookDeliveries.deliveryId,
-        oldest.map((row) => row.deliveryId),
-      ),
-    );
-}
 
 /**
  * Atomically claim a GitHub delivery id for processing.
@@ -45,12 +22,12 @@ export async function claimWebhookDelivery(
 
   const processedAt = new Date().toISOString();
   const drizzle = await getDrizzle();
-  const inserted = await drizzle
-    .insert(webhookDeliveries)
-    .values({ deliveryId, processedAt })
-    .onConflictDoNothing()
-    .returning({ deliveryId: webhookDeliveries.deliveryId });
-  if (inserted.length === 0) return false;
-  await prunePostgres();
+  const claimed = await claimWebhookDeliveryRow(
+    drizzle,
+    deliveryId,
+    processedAt,
+  );
+  if (!claimed) return false;
+  await pruneWebhookDeliveryRows(drizzle, MAX_DELIVERIES);
   return true;
 }

@@ -32,6 +32,13 @@ vi.mock("@complyloop/db/repo/evidence", () => ({
     listEvidenceForFinding(...args),
 }));
 
+// Bypass React `cache()` in the reporting loader so per-test mock values
+// apply instead of the first test's memoized result.
+vi.mock("../reporting/evidence-queries", () => ({
+  listEvidenceForFindingScoped: (findingId: unknown) =>
+    listEvidenceForFinding({}, findingId),
+}));
+
 vi.mock("./shared", async () => {
   const actual = await vi.importActual<typeof import("./shared")>("./shared");
   return {

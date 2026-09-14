@@ -61,13 +61,16 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
   Project **compliance** mutations (findings, remediations, requirements,
   evidence) go through `withProjectWrite` / `withFindingWrite` so locking,
   stale-write guards, and evidence appends apply. Tenancy/org/connect
-  mutations go through `withOrgWrite` / `withConnectWrite`. Raw `getDrizzle()`
-  in actions is allowed **only** for reads or lock-scoped single-row touches
-  that cannot violate stale-write/evidence invariants — today exactly:
-  `actions/alerts.ts` (RBAC reads + `withProjectLock`-scoped alert read flags),
-  `actions/org.ts` (org-export reads), `actions/pr.ts` (evidence read for the
-  PR candidate; the state change itself uses `withFindingWrite`). Anything
-  else must use the write helpers. No generic Unit-of-Work framework.
+  mutations go through `withOrgWrite` / `withConnectWrite`. Actions never
+  call `getDrizzle()` (ESLint): single-row alert touches use the
+  `requireAlertAccess` / `requireProjectAccess` read guards
+  (`src/server/workspace/workspace.ts`) plus `withProjectLock`; org export
+  reads via `loadOrgExportData` (`src/server/workspace/orgs.ts`); PR
+  evidence reads via the reporting loader. Connection acquisition lives in
+  `workspace/*`, `project-runtime.ts`, reporting loaders, and job/infra
+  paths; SQL lives in `packages/db/repo/*` (rate-limit buckets, GitHub
+  tokens, webhook deliveries each have a repo module — server files keep
+  only policy/cryptography).
   callback returns a `ProjectWritePayload` (or void); `persistProjectRows`
   upserts it. Org writes return `{ result, insertOrgs, upsertMemberships,
 deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory slice.

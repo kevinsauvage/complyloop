@@ -31,27 +31,6 @@ Violations and friction are listed below, ordered by architectural value.
 
 ## P0 — Critical
 
-- [x] **Collapse assessment orchestration around one pipeline owner**
-  - Done 2026-09-14: new `src/server/assessment/assessment-pipeline.ts` owns narrow `AssessmentPipelineInput` (project + project-scoped rows, never the full `WorkspaceSlice`), `createAssessmentScratch`, `applyAuthoritativeAssessment` (lock + fresh alerts + apply + job-completed evidence), and `recordAssessmentFailureEvidence`. `runAssessment` takes the narrow input with explicit Stage 1–8 sequence; worker is load → run → apply only. `appendEvidence` deliberately stays shared in `workspace/project-rows.ts` (12 non-assessment callers).
-  - Why: changing one business rule (e.g. when a finding resolves) requires touching `assessment.ts` + `assessment-findings.ts` + `assessment-status.ts` + worker apply code.
-  - Where: `src/server/assessment/assessment.ts:166-375` (`runAssessment`), `src/server/assessment/assessment-findings.ts:211-303` (`reconcileControlFindings`), `src/server/assessment/assessment-status.ts:267-411` (`refreshRequirementForControl`, `refreshRequirementStatuses`, `applyRequirementStatusRefresh`), `src/server/assessment/assessment-worker.ts:107-236` (`runClaimedAssessmentJob`).
-  - Current: `runAssessment(db: WorkspaceSlice, …)` takes the whole workspace dump, clones rows via `src/server/workspace/project-rows.ts:25-43`, mutates `ProjectRows` in place across three modules, returns `{ assessment, evidence, findings, remediations, requirements }` for the worker to persist via `applyAssessmentPayload`.
-  - Problem: `WorkspaceSlice` is a god parameter; in-place mutation across module boundaries hides ownership; orchestration (change-detect → scan → merge → reconcile → status-refresh → verify) has no single readable sequence; worker duplicates apply/lock logic (`assessment-worker.ts:147-180` re-locks and re-reads alerts).
-  - Change: keep files, but make `runAssessment` the sole orchestrator with an explicit stage sequence and a narrow input (`{ project, priorAssessment, controls }`, not full `WorkspaceSlice`). Move scratch-row ownership (`cloneProjectRows`, `appendEvidence`, `upsertRequirementsById`) into one `assessment-pipeline` helper owned by `assessment/` instead of `workspace/project-rows.ts`. Worker only does load → `runAssessment` → `applyAssessmentPayload`, no inline status/alert logic.
-  - Boundary: assessment scratch state moves out of `workspace/` into `assessment/`; `workspace/` keeps only tenancy + persisted-slice loading.
-  - Impact: one place to trace an assessment; status/finding rule changes touch one stage.
-  - Risk: medium
-
-- [ ] **Unify the write model entry points; close raw `getDrizzle()` bypasses**
-  - Why: correctness boundary (locks + stale-write guards + evidence append) is bypassable and inconsistently applied.
-  - Where: `src/server/workspace/workspace-write.ts:72-143,146-200,203-212,251-331` (4 helpers), `packages/db/src/repo/apply.ts:180-235` (`persistProjectRows`, `applyAssessmentPayload`), `packages/db/src/workspace-load.ts:98-241` (4 loaders), direct `getDrizzle()` in `src/server/reporting/evidence-queries.ts:20-46`, `src/server/reporting/findings-queries.ts`, `src/server/reporting/report.ts:125-156`, `src/server/github/github-tokens.ts:73-184`, `src/server/rate-limit.ts:25-80`, allow-listed `src/server/actions/alerts.ts:26-92`, `src/server/actions/org.ts:202-257`, `src/server/actions/pr.ts:34-137`.
-  - Current: writes go through `withProjectWrite` / `withFindingWrite` / `withOrgWrite` / `withConnectWrite`, but reads and three allow-listed actions plus reporting/github/rate-limit open Drizzle directly. ESLint allow-list (`eslint.config.mjs:207-233`) codifies the bypass instead of removing it.
-  - Problem: two persistence APIs (helpers vs raw Drizzle); a developer must read `docs/ai/architecture.md` + ESLint comments to know which is legal; stale-write/evidence invariants are convention-only outside the helpers.
-  - Change: keep the 4 helpers as the only write path. Convert allow-listed actions to helpers (`alerts` → `withProjectLock` + repo fn; `org-export` → read-only repo fn; `pr` evidence read → repo fn). Convert reporting/github/rate-limit direct calls to named repo/query functions that accept a `DrizzleDb` passed by the caller (no module-level `getDrizzle()` outside `workspace-write.ts`, `project-runtime.ts`, and job claim paths). Shrink the ESLint allow-list to zero files.
-  - Boundary: `getDrizzle()` moves behind `workspace/` + `assessment-worker`; `packages/db/repo/*` becomes the only SQL surface.
-  - Impact: one answer to "how do I read/write?"; stale-write and evidence guarantees hold everywhere.
-  - Risk: medium
-
 - [ ] **Single-source requirement-status derivation (remove server-side authority re-mapping)**
   - Why: the core business rule (what a requirement status means) is split across three layers; changing authority semantics touches all three.
   - Where: `packages/analysis-core/src/contract/requirement-status.ts:67-113` (`deriveRequirementStatus`, pure), `packages/analysis-core/src/check-authority.ts` + `packages/analysis-core/src/checks/registry.ts`, `src/server/assessment/assessment-status.ts:128-154` (`statusFromFindings`), `src/server/assessment/assessment-status.ts:176-265` (`refreshManualControl`, `applyDerivedStatusChange`, `refreshRequirementForControl`).
@@ -168,7 +147,7 @@ Violations and friction are listed below, ordered by architectural value.
   - Change: add one `src/server/env.ts` (zod-validated, fail-fast) and have all modules import it instead of `process.env`. Group `rate-limit`, `observability`, `redact` under `src/server/infra/` (moves only). Isolate dev-inline drain (`assessment-job-inline.ts`, `e2e-harness.ts`) behind the worker runner, not inside actions.
   - Boundary: edges depend on `env` + `infra`; domain/assessment code never reads `process.env` directly.
   - Impact: misconfiguration surfaces at boot; infra replaceable/moc
-kable in one place.
+    kable in one place.
   - Risk: low
 
 ---

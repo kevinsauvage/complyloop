@@ -202,18 +202,12 @@ const eslintConfig = defineConfig([
     },
   },
   // Write model: actions must use withProjectWrite / withOrgWrite /
-  // withConnectWrite. Raw getDrizzle() is allow-listed only in alerts / org /
-  // pr (and their tests) — docs/ai/architecture.md.
+  // withConnectWrite / withProjectLock (or workspace read guards like
+  // requireProjectAccess) — never raw getDrizzle(). Connection acquisition
+  // lives in workspace/*, project-runtime, reporting loaders, and job/infra
+  // paths; SQL lives in packages/db/repo/* — see docs/ai/architecture.md.
   {
     files: ["src/server/actions/**/*.{ts,tsx}"],
-    ignores: [
-      "src/server/actions/alerts.ts",
-      "src/server/actions/alerts.test.ts",
-      "src/server/actions/org.ts",
-      "src/server/actions/org.test.ts",
-      "src/server/actions/pr.ts",
-      "src/server/actions/pr.test.ts",
-    ],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -224,28 +218,9 @@ const eslintConfig = defineConfig([
               name: "@complyloop/db/postgres",
               importNames: ["getDrizzle"],
               message:
-                "Actions must use withProjectWrite / withOrgWrite / withConnectWrite — raw getDrizzle() is allow-listed only in alerts.ts, org.ts, and pr.ts — see docs/ai/architecture.md.",
+                "Actions must use the workspace write helpers / read guards — raw getDrizzle() lives in workspace/*, reporting loaders, and job/infra paths — see docs/ai/architecture.md.",
             },
           ],
-        },
-      ],
-    },
-  },
-  // Allow-listed raw-drizzle actions still ban entity imports from db/types.
-  {
-    files: [
-      "src/server/actions/alerts.ts",
-      "src/server/actions/alerts.test.ts",
-      "src/server/actions/org.ts",
-      "src/server/actions/org.test.ts",
-      "src/server/actions/pr.ts",
-      "src/server/actions/pr.test.ts",
-    ],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: dbTypesEntityBan,
         },
       ],
     },

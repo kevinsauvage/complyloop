@@ -4,13 +4,6 @@ import { z } from "zod";
 
 import { ORG_ROLES } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { getDrizzle } from "@complyloop/db/postgres";
-import { listAlertsForProjects } from "@complyloop/db/repo/alerts";
-import { listAssessmentsForProjects } from "@complyloop/db/repo/assessments";
-import { listAllEvidenceForProjects } from "@complyloop/db/repo/evidence";
-import { listFindingsForProjects } from "@complyloop/db/repo/findings";
-import { listRemediationsForProjects } from "@complyloop/db/repo/remediations";
-import { listRequirementsForProjects } from "@complyloop/db/repo/requirements";
 import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import {
@@ -39,6 +32,7 @@ import {
   createOrganization,
   deleteOrganization,
   exportOrgData,
+  loadOrgExportData,
 } from "../workspace/orgs";
 import { getWorkspace } from "../workspace/workspace";
 import { withOrgWrite } from "../workspace/workspace-write";
@@ -218,18 +212,9 @@ export async function exportOrgDataAction(
       );
     }
     // The workspace slice is bounded (latest assessment, evidence window);
-    // the export is the audit artifact, so fetch full history directly with
-    // one set-based query per entity type (no per-project N+1).
-    const drizzle = await getDrizzle();
-    const [evidence, assessments, findings, remediations, requirements, alerts] =
-      await Promise.all([
-        listAllEvidenceForProjects(drizzle, projectIds),
-        listAssessmentsForProjects(drizzle, projectIds),
-        listFindingsForProjects(drizzle, projectIds),
-        listRemediationsForProjects(drizzle, projectIds),
-        listRequirementsForProjects(drizzle, projectIds),
-        listAlertsForProjects(drizzle, projectIds),
-      ]);
+    // the export is the audit artifact, so full history loads via the
+    // workspace export loader (one set-based query per entity type).
+    const history = await loadOrgExportData(projectIds);
     const payload = exportOrgData(
       {
         ...emptyWorkspaceSlice(),
@@ -237,12 +222,7 @@ export async function exportOrgDataAction(
         memberships: [...access.memberships],
         // Already org-scoped: repo lists were loaded for these ids.
         projects: orgProjects,
-        findings,
-        remediations,
-        requirements,
-        alerts,
-        assessments,
-        evidence,
+        ...history,
       },
       orgId,
       userId,

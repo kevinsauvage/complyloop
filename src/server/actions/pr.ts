@@ -1,9 +1,7 @@
 "use server";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { getDrizzle } from "@complyloop/db/postgres";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { listEvidenceForFinding } from "@complyloop/db/repo/evidence";
 
 import { parseEntityId } from "@/core/filters";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
@@ -15,6 +13,7 @@ import {
   remediationEvidenceSummary,
 } from "../assessment/remediation-evidence";
 import { preparePullRequest } from "../github/pr";
+import { listEvidenceForFindingScoped } from "../reporting/evidence-queries";
 import { appendEvidence } from "../workspace/project-rows";
 import {
   controlById,
@@ -59,10 +58,7 @@ export async function createPullRequestAction(
       );
     }
 
-    const evidence = await listEvidenceForFinding(
-      await getDrizzle(),
-      findingId,
-    );
+    const evidence = await listEvidenceForFindingScoped(findingId);
     const candidate = patchCandidateFromEvidence([...evidence].reverse());
     if (!candidate) {
       throw new PublicError(

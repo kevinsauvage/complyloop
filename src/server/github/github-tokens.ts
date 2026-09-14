@@ -7,11 +7,13 @@ import {
   randomBytes,
 } from "node:crypto";
 
-import { eq } from "drizzle-orm";
-
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/postgres";
-import { githubTokens } from "@complyloop/db/schema";
+import {
+  deleteGithubTokenRowByUserId,
+  findGithubTokenRowByUserId,
+  upsertGithubTokenRow,
+} from "@complyloop/db/repo/github-tokens";
 
 import { reportError } from "../observability";
 
@@ -87,34 +89,18 @@ export async function storeUserGitHubToken(
     refreshEntry = encryptToken(refreshToken);
   }
 
-  await drizzle
-    .insert(githubTokens)
-    .values({
-      userId,
-      v: entry.v,
-      iv: entry.iv,
-      tag: entry.tag,
-      ciphertext: entry.ciphertext,
-      updatedAt: entry.updatedAt,
-      refreshToken: refreshEntry?.ciphertext ?? null,
-      refreshIv: refreshEntry?.iv ?? null,
-      refreshTag: refreshEntry?.tag ?? null,
-      expiresAt: expiresAt ?? null,
-    })
-    .onConflictDoUpdate({
-      target: githubTokens.userId,
-      set: {
-        v: entry.v,
-        iv: entry.iv,
-        tag: entry.tag,
-        ciphertext: entry.ciphertext,
-        updatedAt: entry.updatedAt,
-        refreshToken: refreshEntry?.ciphertext ?? null,
-        refreshIv: refreshEntry?.iv ?? null,
-        refreshTag: refreshEntry?.tag ?? null,
-        expiresAt: expiresAt ?? null,
-      },
-    });
+  await upsertGithubTokenRow(drizzle, {
+    userId,
+    v: entry.v,
+    iv: entry.iv,
+    tag: entry.tag,
+    ciphertext: entry.ciphertext,
+    updatedAt: entry.updatedAt,
+    refreshToken: refreshEntry?.ciphertext ?? null,
+    refreshIv: refreshEntry?.iv ?? null,
+    refreshTag: refreshEntry?.tag ?? null,
+    expiresAt: expiresAt ?? null,
+  });
 }
 
 export interface StoredGitHubToken {
@@ -133,13 +119,7 @@ export async function getStoredGitHubToken(
 export async function getStoredGitHubTokenWithExpiry(
   userId: string,
 ): Promise<StoredGitHubToken | null> {
-  const drizzle = await getDrizzle();
-  const rows = await drizzle
-    .select()
-    .from(githubTokens)
-    .where(eq(githubTokens.userId, userId))
-    .limit(1);
-  const row = rows[0];
+  const row = await findGithubTokenRowByUserId(await getDrizzle(), userId);
   if (!row) return null;
   try {
     const accessToken = decryptToken({
@@ -179,8 +159,7 @@ export async function getStoredGitHubTokenWithExpiry(
 /** Removes a stored token (e.g. on sign-out). */
 export async function clearStoredGitHubToken(userId: string): Promise<void> {
   if (!userId) return;
-  const drizzle = await getDrizzle();
-  await drizzle.delete(githubTokens).where(eq(githubTokens.userId, userId));
+  await deleteGithubTokenRowByUserId(await getDrizzle(), userId);
 }
 
 export interface RefreshGitHubTokenInput {

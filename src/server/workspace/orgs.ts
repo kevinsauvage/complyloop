@@ -2,7 +2,14 @@ import "server-only";
 
 import type { Organization,OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { getDrizzle } from "@complyloop/db/postgres";
+import { listAlertsForProjects } from "@complyloop/db/repo/alerts";
+import { listAssessmentsForProjects } from "@complyloop/db/repo/assessments";
+import { listAllEvidenceForProjects } from "@complyloop/db/repo/evidence";
+import { listFindingsForProjects } from "@complyloop/db/repo/findings";
 import { nextUniqueSlug, slugifyOrgName } from "@complyloop/db/repo/orgs";
+import { listRemediationsForProjects } from "@complyloop/db/repo/remediations";
+import { listRequirementsForProjects } from "@complyloop/db/repo/requirements";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import {
@@ -141,4 +148,34 @@ export function deleteOrganization(
       (membership) => membership.id,
     ),
   };
+}
+
+/**
+ * Full-history org export rows for the audit artifact. The workspace slice
+ * is bounded (latest assessment, evidence window), so the export fetches
+ * full history directly with one set-based query per entity type (no
+ * per-project N+1). Workspace-owned so actions never open Drizzle directly.
+ */
+export async function loadOrgExportData(projectIds: string[]): Promise<
+  Pick<
+    WorkspaceSlice,
+    | "evidence"
+    | "assessments"
+    | "findings"
+    | "remediations"
+    | "requirements"
+    | "alerts"
+  >
+> {
+  const drizzle = await getDrizzle();
+  const [evidence, assessments, findings, remediations, requirements, alerts] =
+    await Promise.all([
+      listAllEvidenceForProjects(drizzle, projectIds),
+      listAssessmentsForProjects(drizzle, projectIds),
+      listFindingsForProjects(drizzle, projectIds),
+      listRemediationsForProjects(drizzle, projectIds),
+      listRequirementsForProjects(drizzle, projectIds),
+      listAlertsForProjects(drizzle, projectIds),
+    ]);
+  return { evidence, assessments, findings, remediations, requirements, alerts };
 }
