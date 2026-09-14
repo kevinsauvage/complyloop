@@ -1,17 +1,15 @@
 /**
  * Assessment status application layer.
  *
- * Orchestrates contract `deriveRequirementStatus` over project rows (sticky
- * human gates, manual controls, evidence). Does **not** redefine status law —
- * that lives in `@complyloop/analysis-core/contract/requirement-status`.
+ * Orchestrates rows and evidence around the single derivation entry point
+ * `deriveStatusForCheck` (`@complyloop/analysis-core/check-authority`). All
+ * status law — authority classes, sticky human gates, engine gates — lives in
+ * analysis-core; this module never re-maps check ids or redefines derivation.
  */
 import "server-only";
 
 import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
-import {
-  authorityForCheck,
-  isHtmlValidateOwnedCheck,
-} from "@complyloop/analysis-core/check-authority";
+import { deriveStatusForCheck } from "@complyloop/analysis-core/check-authority";
 import {
   type EvidenceRecord,
   type Finding,
@@ -22,10 +20,7 @@ import {
   type Requirement,
   TEMPORARY_EXCEPTION_REASON,
 } from "@complyloop/analysis-core/contract/project-types";
-import {
-  deriveRequirementStatus,
-  isStickyHumanDecision,
-} from "@complyloop/analysis-core/contract/requirement-status";
+import { isStickyHumanDecision } from "@complyloop/analysis-core/contract/requirement-status";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 
@@ -118,39 +113,6 @@ export interface RefreshRequirementStatusesResult {
   /** Created or updated requirements (for payload upsert). */
   requirements: Requirement[];
   evidence: EvidenceRecord[];
-}
-
-/**
- * Delegates all derivation to core (single source of truth). Maps the
- * analysis-layer check id to the framework-agnostic authority class via
- * `check-authority.ts`.
- */
-function statusFromFindings(
-  checkId: string | null,
-  openFindings: ReadonlyArray<Pick<Finding, "kind">>,
-  options: Pick<
-    RefreshRequirementStatusesOptions,
-    | "runtimeRan"
-    | "siteLevelChecksRan"
-    | "htmlValidateRan"
-    | "applicabilityFacts"
-    | "filesScanned"
-  >,
-): RequirementStatus {
-  return deriveRequirementStatus({
-    authority: checkId === null ? "manual" : authorityForCheck(checkId),
-    openFindings,
-    audit: {
-      runtimeRan: options.runtimeRan,
-      siteLevelChecksRan: options.siteLevelChecksRan,
-      htmlValidateRequired:
-        checkId !== null && isHtmlValidateOwnedCheck(checkId),
-      htmlValidateRan: options.htmlValidateRan,
-      applicabilityConfirmed:
-        checkId !== null && Boolean(options.applicabilityFacts?.has(checkId)),
-      filesScanned: options.filesScanned,
-    },
-  });
 }
 
 /** Later id wins — used when merging refresh/clearance results into scratch rows. */
@@ -308,7 +270,7 @@ function refreshRequirementForControl(
   }
 
   const openFindings = openFindingsByControlId.get(control.id) ?? [];
-  const status = statusFromFindings(control.checkId, openFindings, {
+  const status = deriveStatusForCheck(control.checkId, openFindings, {
     runtimeRan,
     siteLevelChecksRan,
     htmlValidateRan,

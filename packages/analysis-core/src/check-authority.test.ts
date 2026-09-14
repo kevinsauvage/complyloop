@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   authorityForCheck,
+  deriveStatusForCheck,
   isCompositionSensitiveCheck,
   isHeuristicCheck,
   isHtmlValidateOwnedCheck,
@@ -145,5 +146,61 @@ describe("check authority", () => {
     expect(isHtmlValidateOwnedCheck("markup-nesting")).toBe(true);
     expect(isHtmlValidateOwnedCheck("css-for-presentation")).toBe(true);
     expect(isHtmlValidateOwnedCheck("img-alt")).toBe(false);
+  });
+});
+
+describe("deriveStatusForCheck", () => {
+  it("treats a null check id as manual (never passes)", () => {
+    expect(deriveStatusForCheck(null, [])).toBe("unable_to_verify");
+    expect(
+      deriveStatusForCheck(null, [], { runtimeRan: true, filesScanned: 10 }),
+    ).toBe("unable_to_verify");
+  });
+
+  it("derives standard checks from findings and scan size", () => {
+    expect(deriveStatusForCheck("img-alt", [], { filesScanned: 5 })).toBe(
+      "passed",
+    );
+    expect(deriveStatusForCheck("img-alt", [], { filesScanned: 0 })).toBe(
+      "unable_to_verify",
+    );
+    expect(
+      deriveStatusForCheck("img-alt", [{ kind: "violation" }], {
+        filesScanned: 5,
+      }),
+    ).toBe("failed");
+    expect(
+      deriveStatusForCheck("img-alt", [{ kind: "warning" }], {
+        filesScanned: 5,
+      }),
+    ).toBe("needs_review");
+  });
+
+  it("gates runtime-only checks on the runtime run", () => {
+    expect(deriveStatusForCheck("video-caption", [])).toBe("unable_to_verify");
+    expect(
+      deriveStatusForCheck("video-caption", [], { runtimeRan: true }),
+    ).toBe("passed");
+  });
+
+  it("holds html-validate-owned checks until html-validate ran", () => {
+    expect(
+      deriveStatusForCheck("markup-nesting", [], { runtimeRan: true }),
+    ).toBe("unable_to_verify");
+    expect(
+      deriveStatusForCheck("markup-nesting", [], {
+        runtimeRan: true,
+        htmlValidateRan: true,
+      }),
+    ).toBe("passed");
+  });
+
+  it("marks applicable checks not_applicable when runtime confirms it", () => {
+    expect(
+      deriveStatusForCheck("video-caption", [], {
+        runtimeRan: true,
+        applicabilityFacts: new Map([["video-caption", "no video on page"]]),
+      }),
+    ).toBe("not_applicable");
   });
 });

@@ -31,7 +31,8 @@ Violations and friction are listed below, ordered by architectural value.
 
 ## P0 — Critical
 
-- [ ] **Single-source requirement-status derivation (remove server-side authority re-mapping)**
+- [x] **Single-source requirement-status derivation (remove server-side authority re-mapping)**
+  - Done 2026-09-14: new pure `deriveStatusForCheck(checkId, openFindings, audit)` (+ `CheckAuditInput`) in `packages/analysis-core/src/check-authority.ts` — owns the full `checkId → { authority, htmlValidateRequired, applicabilityConfirmed }` mapping and delegates to `deriveRequirementStatus`. Server `statusFromFindings` adapter deleted; the single call site calls the core function directly. `assessment-status.ts` is now orchestration only (sticky gates, manual controls, evidence, row merging). Covered by 5 new `deriveStatusForCheck` cases in `check-authority.test.ts`.
   - Why: the core business rule (what a requirement status means) is split across three layers; changing authority semantics touches all three.
   - Where: `packages/analysis-core/src/contract/requirement-status.ts:67-113` (`deriveRequirementStatus`, pure), `packages/analysis-core/src/check-authority.ts` + `packages/analysis-core/src/checks/registry.ts`, `src/server/assessment/assessment-status.ts:128-154` (`statusFromFindings`), `src/server/assessment/assessment-status.ts:176-265` (`refreshManualControl`, `applyDerivedStatusChange`, `refreshRequirementForControl`).
   - Current: contract owns pure derivation; server re-maps `checkId → authority` via `authorityForCheck` + `isHtmlValidateOwnedCheck` and re-implements sticky/manual/regression/evidence side effects around it.

@@ -1,5 +1,10 @@
 import { CHECK_REGISTRY, type CheckRegistration } from "./check-registry.ts";
-import type { CheckAuthority } from "./contract/requirement-status.ts";
+import {
+  type CheckAuthority,
+  type DerivationFinding,
+  deriveRequirementStatus,
+} from "./contract/requirement-status.ts";
+import type { RequirementStatus } from "./contract/statuses.ts";
 
 /**
  * All check-id lists are derived from the single `CHECK_REGISTRY` — adding a
@@ -48,11 +53,51 @@ export const isPackageTwinSourceCheck = (checkId: string): boolean =>
  *    authority but runtime overrides AST when it ran — see
  *    `isCompositionSensitiveCheck`)
  *
- * Consumers: `deriveRequirementStatus` (`contract/requirement-status.ts`) via
- * the adapter in `src/server/assessment-status.ts`.
+ * Consumers: `deriveStatusForCheck` below (the single status entry point;
+ * `src/server/assessment/assessment-status.ts` only orchestrates rows and
+ * evidence around it).
  */
 export function authorityForCheck(checkId: string): CheckAuthority {
   return entryFor(checkId)?.authority ?? "standard";
+}
+
+/** Audit context for {@link deriveStatusForCheck} — mirrors the engines that ran. */
+export interface CheckAuditInput {
+  runtimeRan?: boolean;
+  siteLevelChecksRan?: boolean;
+  htmlValidateRan?: boolean;
+  /** Check ids confirmed not applicable on every audited page (checkId → fact). */
+  applicabilityFacts?: ReadonlyMap<string, string>;
+  /** Number of source files scanned during AST analysis. */
+  filesScanned?: number;
+}
+
+/**
+ * Single source of truth for "what status does this check's requirement get?".
+ * Maps the analysis-layer check id to the framework-agnostic authority class
+ * (`manual` when there is no check) and delegates all derivation to
+ * `deriveRequirementStatus`. Pure — no DB, no filesystem, no catalog I/O
+ * beyond the static registry.
+ */
+export function deriveStatusForCheck(
+  checkId: string | null,
+  openFindings: ReadonlyArray<DerivationFinding>,
+  audit?: CheckAuditInput,
+): RequirementStatus {
+  return deriveRequirementStatus({
+    authority: checkId === null ? "manual" : authorityForCheck(checkId),
+    openFindings,
+    audit: {
+      runtimeRan: audit?.runtimeRan,
+      siteLevelChecksRan: audit?.siteLevelChecksRan,
+      htmlValidateRequired:
+        checkId !== null && isHtmlValidateOwnedCheck(checkId),
+      htmlValidateRan: audit?.htmlValidateRan,
+      applicabilityConfirmed:
+        checkId !== null && Boolean(audit?.applicabilityFacts?.has(checkId)),
+      filesScanned: audit?.filesScanned,
+    },
+  });
 }
 
 /**
