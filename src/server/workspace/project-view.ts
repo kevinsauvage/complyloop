@@ -10,6 +10,8 @@
  */
 import "server-only";
 
+import { cache } from "react";
+
 import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import {
   defaultConnectPreset,
@@ -33,6 +35,8 @@ import type {
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
+import { getDrizzle } from "@complyloop/db/postgres";
+import { countFindingsByStatusForProject } from "@complyloop/db/repo/findings";
 
 import { aiAvailable as isAiAvailable } from "@/ai/ai-call";
 import {
@@ -77,7 +81,6 @@ import {
   listEvidenceForFindingScoped,
   loadEvidencePage,
 } from "@/server/reporting/evidence-queries";
-import { countFindingsByStatus } from "@/server/reporting/findings-queries";
 import { displayControl } from "@/server/reporting/report";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
@@ -114,6 +117,13 @@ export type FindingsView =
       filtersActive: boolean;
       hasAssessment: boolean;
     };
+
+/**
+ * Index-only tab totals, memoized per request like the rest of the loaders.
+ */
+const countFindingsByStatus = cache(async (projectId: string) =>
+  countFindingsByStatusForProject(await getDrizzle(), projectId),
+);
 
 /**
  * Everything the findings list page renders, derived in one place: tab

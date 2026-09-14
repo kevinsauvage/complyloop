@@ -1,4 +1,4 @@
-import type { FrameworkPreset } from "../types.ts";
+import type { FrameworkPreset } from "../registry.ts";
 import { rgaaControls, rgaaFramework } from "./controls";
 
 /**

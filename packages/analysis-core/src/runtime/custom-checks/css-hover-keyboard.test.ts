@@ -5,7 +5,7 @@ import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
+  withProbePage,
 } from "./playwright-page";
 
 registerPlaywrightBrowserTeardown();
@@ -14,7 +14,7 @@ describe("cssHoverKeyboardViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags hover-only menus without a focus equivalent",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><head><style>
           .menu { position: relative; display: inline-block; }
           .menu .panel {
@@ -32,13 +32,12 @@ describe("cssHoverKeyboardViolation", () => {
             <div class="panel">Sous-menu accessible uniquement au survol.</div>
           </div>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await cssHoverKeyboardViolation(page);
         expect(violation?.id).toBe("css-hover-keyboard");
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );

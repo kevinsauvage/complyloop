@@ -5,7 +5,7 @@ import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
+  withProbePage,
 } from "./playwright-page";
 
 registerPlaywrightBrowserTeardown();
@@ -14,7 +14,7 @@ describe("liveRegionUpdatesViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags visible validation feedback outside live regions after invalid submit",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="en"><body>
           <form id="signup">
             <label>Email <input id="email" type="email" required value="not-an-email" /></label>
@@ -29,14 +29,13 @@ describe("liveRegionUpdatesViolation", () => {
             });
           </script>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await liveRegionUpdatesViolation(page);
         expect(violation?.id).toBe("live-region-updates");
         expect(violation?.impact).toBe("moderate");
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -44,7 +43,7 @@ describe("liveRegionUpdatesViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "does not flag marketing copy revealed by an unrelated button click",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="en"><body>
           <button type="button" id="faq">Open FAQ</button>
           <div id="panel" hidden>
@@ -56,13 +55,12 @@ describe("liveRegionUpdatesViolation", () => {
             });
           </script>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await liveRegionUpdatesViolation(page);
         expect(violation).toBeNull();
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );

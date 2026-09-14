@@ -6,7 +6,7 @@ import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
+  withProbePage,
 } from "./playwright-page";
 
 registerPlaywrightBrowserTeardown();
@@ -52,21 +52,20 @@ describe("labelAdjacentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags a programmatic label that is visually far from its field",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <label for="email" style="display:inline-block">Email</label>
           <input id="email" style="position:absolute;left:220px;top:0" />
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await labelAdjacentViolation(page);
         expect(violation?.id).toBe("label-adjacent");
         expect(violation?.nodes.some((n) => n.html.includes('id="email"'))).toBe(
           true,
         );
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -74,18 +73,17 @@ describe("labelAdjacentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when the label sits next to its field",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <label for="email">Email</label>
           <input id="email" />
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await labelAdjacentViolation(page);
         expect(violation).toBeNull();
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );

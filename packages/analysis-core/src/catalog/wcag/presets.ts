@@ -1,6 +1,6 @@
-import { catalogControlIds } from "../catalog-ids.ts";
+import { catalogControlIds } from "../catalog.ts";
+import type { FrameworkPreset } from "../registry.ts";
 import { rgaaControls } from "../rgaa/controls.ts";
-import type { FrameworkPreset } from "../types.ts";
 import { wcagFramework } from "./controls";
 
 /**
@@ -78,7 +78,8 @@ export const wcagPresets: FrameworkPreset[] = [
   {
     id: "preset-wcag-full",
     name: "Full WCAG 2.2",
-    description: "Every catalog control for WCAG (automated and human-reviewed)",
+    description:
+      "Every catalog control for WCAG (automated and human-reviewed)",
     frameworkId: wcagFramework.id,
     controlIds: rgaaControls.map((control) => control.id),
   },

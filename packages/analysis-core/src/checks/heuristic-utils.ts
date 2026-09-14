@@ -27,35 +27,6 @@ export function hasKeyboardHandlers(node: JsxTagNode): boolean {
   return hasAnyAttr(node, [...KEY_HANDLERS]);
 }
 
-const CONTEXT_CHANGE_KEYWORDS = [
-  "push(",
-  "replace(",
-  "navigate(",
-  "window.location",
-  ".submit(",
-  "router.",
-  "href =",
-];
-
-export function handlerTriggersContextChange(
-  node: JsxTagNode,
-  handlerNames: ReadonlyArray<string>,
-): boolean {
-  for (const name of handlerNames) {
-    const attr = getAttribute(node, name);
-    if (!attr || !attr.initializer || !ts.isJsxExpression(attr.initializer)) {
-      continue;
-    }
-    const expression = attr.initializer.expression;
-    if (!expression) continue;
-    const text = expression.getText();
-    if (CONTEXT_CHANGE_KEYWORDS.some((keyword) => text.includes(keyword))) {
-      return true;
-    }
-  }
-  return false;
-}
-
 const MOTION_EVENTS = new Set([
   "deviceorientation",
   "deviceorientationabsolute",

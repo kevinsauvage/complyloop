@@ -47,13 +47,10 @@ export async function runAssessmentAction(
     // Local `next dev` and the Playwright harness run without a dedicated
     // worker: drain inline so the action resolves with the result. Production
     // only enqueues (the worker owns the queue).
-    if (shouldDrainAssessmentJobsInline()) {
-      const message = await drainAssessmentJobsInline();
-      refresh(...COMPLIANCE_LOOP_ROUTES);
-      return message;
-    }
-
+    const message = shouldDrainAssessmentJobsInline()
+      ? await drainAssessmentJobsInline()
+      : "Assessment queued. Results will appear when the worker completes it.";
     refresh(...COMPLIANCE_LOOP_ROUTES);
-    return "Assessment queued. Results will appear when the worker completes it.";
+    return message;
   });
 }

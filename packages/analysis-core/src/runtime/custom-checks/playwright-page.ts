@@ -47,4 +47,21 @@ export function registerPlaywrightBrowserTeardown(): void {
   });
 }
 
+/**
+ * Opens a probe page, runs `fn`, and always closes the context — the
+ * try/finally every browser probe test otherwise repeats.
+ */
+export async function withProbePage<T>(
+  html: string,
+  fn: (page: Page) => Promise<T>,
+  options?: { routable?: boolean },
+): Promise<T> {
+  const { page, close } = await withPlaywrightPage(html, options);
+  try {
+    return await fn(page);
+  } finally {
+    await close();
+  }
+}
+
 export const PLAYWRIGHT_TEST_TIMEOUT_MS = 30_000;

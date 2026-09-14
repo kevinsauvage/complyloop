@@ -2,11 +2,11 @@ import ts from "typescript";
 
 import { isDecorativeOrHidden, isDomHost } from "../../a11y-aria.ts";
 import { isNativeInteractive } from "../../a11y-model.ts";
-import { isPropSpreadingHost } from "../../jsx-primitives.ts";
 import {
   booleanAttributeValue,
   getAttribute,
   hasAnyAttr,
+  isPropSpreadingHost,
   jsxElementOf,
   type JsxTagNode,
   locationOf,

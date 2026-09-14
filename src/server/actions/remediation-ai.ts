@@ -31,7 +31,7 @@ export async function generateAiExplanationAction(
       const control = controlById(finding.controlId);
 
       const explanation = await generateAiExplanation(finding, control, {
-        onError: (error, report) => reportError(error, report),
+        onError: reportError,
       });
       if (!explanation) {
         throw new PublicError(
@@ -75,7 +75,7 @@ export async function generateAiRemediationAction(
       }
 
       const result = await generateAiRemediation(finding, control, {
-        onError: (error, report) => reportError(error, report),
+        onError: reportError,
       });
       if (!result) {
         throw new PublicError(

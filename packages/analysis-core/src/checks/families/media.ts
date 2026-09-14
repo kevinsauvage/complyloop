@@ -1,11 +1,12 @@
 import { isDecorativeOrHidden } from "../../a11y-aria.ts";
-import { hasAriaName, isPropSpreadingHost } from "../../jsx-primitives.ts";
 import {
   attributeRemovalSpan,
   booleanAttributeValue,
   getAttribute,
   hasAnyAttr,
+  hasAriaName,
   hasTextContent,
+  isPropSpreadingHost,
   jsxElementOf,
   type JsxTagNode,
   locationOf,

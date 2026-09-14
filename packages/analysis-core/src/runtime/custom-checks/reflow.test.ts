@@ -4,7 +4,7 @@ import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
+  withProbePage,
 } from "./playwright-page";
 import { isTwoDimensionalLayout } from "./reflow";
 import { REFLOW_VIEWPORT } from "./reflow";
@@ -24,18 +24,41 @@ describe("reflow exemptions", () => {
     expect(isTwoDimensionalLayout("table", null)).toBe(true);
     expect(isTwoDimensionalLayout("div", null)).toBe(false);
   });
+
+  it("exempts data tables, grids, and maps", () => {
+    expect(isTwoDimensionalLayout("table", null)).toBe(true);
+    expect(isTwoDimensionalLayout("div", "grid")).toBe(true);
+    expect(isTwoDimensionalLayout("div", "treegrid")).toBe(true);
+    expect(isTwoDimensionalLayout("map", null)).toBe(true);
+  });
+
+  it("exempts images, diagrams, video, and code blocks", () => {
+    expect(isTwoDimensionalLayout("img", null)).toBe(true);
+    expect(isTwoDimensionalLayout("svg", null)).toBe(true);
+    expect(isTwoDimensionalLayout("canvas", null)).toBe(true);
+    expect(isTwoDimensionalLayout("video", null)).toBe(true);
+    expect(isTwoDimensionalLayout("iframe", null)).toBe(true);
+    expect(isTwoDimensionalLayout("pre", null)).toBe(true);
+    expect(isTwoDimensionalLayout("div", "img")).toBe(true);
+  });
+
+  it("does not exempt ordinary layout containers", () => {
+    expect(isTwoDimensionalLayout("div", null)).toBe(false);
+    expect(isTwoDimensionalLayout("section", "region")).toBe(false);
+    expect(isTwoDimensionalLayout("button", "button")).toBe(false);
+  });
 });
 
 describe("reflowViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags a non-exempt wide container at 320px",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <div id="wide" style="width:800px">Wide content that cannot wrap.</div>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await reflowViolation(page);
         expect(violation?.id).toBe("reflow");
         const node = violation!.nodes[0]!;
@@ -46,9 +69,8 @@ describe("reflowViolation", () => {
           target: ["#wide"],
           html: '<div id="wide" style="width:800px">Wide content that cannot wrap.</div>',
         });
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -56,19 +78,18 @@ describe("reflowViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes a wide data table (2D exception)",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <table id="data">
             <tr><td style="width:400px">A</td><td style="width:400px">B</td></tr>
           </table>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await reflowViolation(page);
         expect(violation).toBeNull();
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -76,18 +97,17 @@ describe("reflowViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes a wide image (2D exception)",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <img id="chart" width="800" height="20" alt="chart"
             src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await reflowViolation(page);
         expect(violation).toBeNull();
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );

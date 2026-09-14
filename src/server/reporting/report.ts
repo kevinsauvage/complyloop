@@ -114,7 +114,7 @@ export function reportInputForProject(
       findingIds.has(remediation.findingId),
     ),
     requirements: requirementsInScope(runtime.requirements, project),
-    evidence: runtime.evidence.filter((row) => row.projectId === project.id),
+    evidence: [...runtime.evidence],
     evidenceTotal: evidenceMeta?.total ?? runtime.evidence.length,
     evidenceTruncated: evidenceMeta?.truncated ?? false,
     exportedAt: new Date().toISOString(),
@@ -137,8 +137,6 @@ export async function loadReportInput(
     new URL(request.url).searchParams.get("view"),
   );
   const [runtime, exported] = await Promise.all([
-    // Evidence comes from the export window below; skip the runtime's own
-    // window read so evidence is fetched exactly once per export.
     getProjectRuntime(project.id, { includeEvidence: false }),
     listEvidenceForExport(await getDrizzle(), project.id),
   ]);

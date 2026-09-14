@@ -86,8 +86,7 @@ export async function runAiFixOnCheckout(
       "The deterministic fix could not be re-located. Re-run the assessment and try again.",
     );
   }
-  const onError: AiCallOnError =
-    options.onError ?? ((error, report) => reportError(error, report));
+  const onError: AiCallOnError = options.onError ?? reportError;
   const propose =
     deterministic !== null
       ? async () => deterministic

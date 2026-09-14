@@ -2,7 +2,7 @@
  * AST orchestration entry (stage 1 of the analysis pipeline): file discovery
  * (`source-files.ts`) → per-file checks (`checks/registry.ts` + jsx-a11y) →
  * `ScanResult`. Engines stay behind this entry — server code never imports
- * `checks/*` internals. Shared AST leaves (`parse.ts`, `jsx-primitives.ts`,
+ * `checks/*` internals. Shared AST leaves (`parse.ts`,
  * `a11y-aria.ts`) are engine-agnostic. See `packages/analysis-core/README.md`.
  */
 import fs from "node:fs";

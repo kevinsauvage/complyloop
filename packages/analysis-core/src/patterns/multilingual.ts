@@ -53,7 +53,6 @@ export const PUZZLE_CAPTCHA =
 export const CAPTCHA_WITH_CHALLENGE =
   /\b(recaptcha|hcaptcha|funcaptcha|imagecaptcha|challenge)\b/i;
 
-export { PUZZLE_HOST_NAMES } from "./captcha-config.ts";
 import { PUZZLE_HOST_NAMES as PUZZLE_HOST_LIST } from "./captcha-config.ts";
 
 export const PUZZLE_HOSTS = new Set<string>([...PUZZLE_HOST_LIST]);

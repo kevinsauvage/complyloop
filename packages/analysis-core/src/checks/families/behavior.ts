@@ -1,10 +1,13 @@
 import ts from "typescript";
 
-import { hasAriaName, isPropSpreadingHost } from "../../jsx-primitives.ts";
 import {
   booleanAttributeValue,
+  collectJsxTexts,
   getAttribute,
+  hasAriaName,
+  hasAttrOnAncestors,
   hasTextContent,
+  isPropSpreadingHost,
   jsxElementOf,
   type JsxTagNode,
   locationOf,
@@ -24,7 +27,6 @@ import {
   styleLocksTextSpacing,
   textContentOf,
 } from "../heuristic-utils.ts";
-import { collectJsxTexts, hasAttrOnAncestors } from "../jsx-text-walk.ts";
 
 function isLiveRegion(node: ts.JsxOpeningElement | ts.JsxSelfClosingElement): boolean {
   const role = getAttribute(node, "role");

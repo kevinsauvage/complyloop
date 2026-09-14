@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import type { FrameworkPresetSummary } from "@complyloop/analysis-core/catalog/types";
+import type { FrameworkPresetSummary } from "@complyloop/analysis-core/catalog/registry";
 
 import { PresetItemBody } from "@/components/requirements/preset-item-body";
 import { StatefulActionForm } from "@/components/stateful-action-form";

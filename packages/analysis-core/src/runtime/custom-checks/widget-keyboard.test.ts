@@ -4,7 +4,7 @@ import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
+  withProbePage,
 } from "./playwright-page";
 import { widgetKeyboardViolations } from "./widget-keyboard";
 import { isKeyboardFocusable, selectorOf } from "./widget-keyboard-utils";
@@ -60,22 +60,21 @@ describe("widgetKeyboardViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags a tablist with no focusable tab",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <div role="tablist">
             <div role="tab" tabindex="-1">One</div>
             <div role="tab" tabindex="-1">Two</div>
           </div>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violations = await widgetKeyboardViolations(page);
         expect(violations.some((v) => v.id === "tabs-keyboard")).toBe(
           true,
         );
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -83,22 +82,21 @@ describe("widgetKeyboardViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes a tablist with a focusable tab",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <div role="tablist">
             <button role="tab" aria-selected="true">One</button>
             <button role="tab" tabindex="-1">Two</button>
           </div>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violations = await widgetKeyboardViolations(page);
         expect(violations.some((v) => v.id === "tabs-keyboard")).toBe(
           false,
         );
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -106,20 +104,19 @@ describe("widgetKeyboardViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags a non-focusable aria-expanded toggle",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <div aria-expanded="false" aria-controls="p" style="display:inline-block;background:#eee;">Toggle</div>
           <div id="p">Panel</div>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violations = await widgetKeyboardViolations(page);
         expect(
           violations.some((v) => v.id === "disclosure-keyboard"),
         ).toBe(true);
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -127,20 +124,19 @@ describe("widgetKeyboardViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes a button aria-expanded toggle",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <button aria-expanded="false" aria-controls="p">Toggle</button>
           <div id="p">Panel</div>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violations = await widgetKeyboardViolations(page);
         expect(
           violations.some((v) => v.id === "disclosure-keyboard"),
         ).toBe(false);
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -148,22 +144,21 @@ describe("widgetKeyboardViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags a non-focusable menu item",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <div role="menu">
             <div role="menuitem">New</div>
             <div role="menuitem">Open</div>
           </div>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violations = await widgetKeyboardViolations(page);
         expect(violations.some((v) => v.id === "menu-keyboard")).toBe(
           true,
         );
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );

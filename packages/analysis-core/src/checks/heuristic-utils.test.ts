@@ -15,7 +15,6 @@ import {
   attributeContextOf,
   classNameTextOf,
   descendantTags,
-  handlerTriggersContextChange,
   hasAdjacentTagMatching,
   hasAdjacentTranscriptLink,
   hasChildTrackKind,
@@ -52,20 +51,7 @@ describe("heuristic-utils", () => {
     expect(classNameTextOf(firstTag(`const A = () => <div />;`))).toBe("");
   });
 
-  it("detects context-changing handlers and motion listeners", () => {
-    expect(
-      handlerTriggersContextChange(
-        firstTag(`const A = () => <button onClick={() => router.push("/next")} />;`),
-        ["onClick"],
-      ),
-    ).toBe(true);
-    expect(
-      handlerTriggersContextChange(
-        firstTag(`const A = () => <button onClick={() => setOpen(true)} />;`),
-        ["onClick"],
-      ),
-    ).toBe(false);
-
+  it("detects motion listeners", () => {
     const motion = parseSource(
       "test.tsx",
       `window.addEventListener("devicemotion", handler);`,

@@ -5,5 +5,10 @@
  * E2E_AUTH_SECRET if you need a custom value (must match webServer AUTH_SECRET).
  */
 export function resolveE2EAuthSecret(): string {
-  return process.env.E2E_AUTH_SECRET?.trim() || "e2e-secret";
+  return resolveSecret("E2E_AUTH_SECRET", "e2e-secret");
+}
+
+/** Trimmed `process.env[name]`, or `fallback` when unset/blank. */
+export function resolveSecret(name: string, fallback: string): string {
+  return process.env[name]?.trim() || fallback;
 }

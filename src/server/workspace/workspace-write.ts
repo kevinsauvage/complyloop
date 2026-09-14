@@ -199,17 +199,8 @@ export async function withFindingWrite(
   });
 }
 
-/** Serializes a single-row project mutation (e.g. mark alert read). */
-export async function withProjectLock<T>(
-  projectId: string,
-  fn: (tx: DrizzleDb) => Promise<T>,
-): Promise<T> {
-  const drizzle = await getDrizzle();
-  return drizzle.transaction(async (tx) => {
-    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
-    return fn(tx);
-  });
-}
+/** Re-exported so existing callers keep importing from here. */
+export { withProjectLock } from "./db";
 
 interface LockedTenancyContext {
   tx: DrizzleDb;

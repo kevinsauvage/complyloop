@@ -1,4 +1,4 @@
-import type { FrameworkPresetSummary } from "@complyloop/analysis-core/catalog/types";
+import type { FrameworkPresetSummary } from "@complyloop/analysis-core/catalog/registry";
 
 import { Badge } from "@/components/ui/badge";
 import { STATUS_TONE_BADGE } from "@/core/display";
@@ -12,7 +12,6 @@ export function PresetItemBody({
   badgeLabel,
 }: {
   preset: FrameworkPresetSummary;
-  /** Badge shown when this preset is the org default. */
   badgeLabel?: string;
 }) {
   return (

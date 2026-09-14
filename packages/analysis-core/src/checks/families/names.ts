@@ -2,10 +2,11 @@ import ts from "typescript";
 
 import { explicitRoles, isDecorativeOrHidden } from "../../a11y-aria.ts";
 import type { CheckId } from "../../check-registry.ts";
-import { hasAriaName, isPropSpreadingHost } from "../../jsx-primitives.ts";
 import {
   getAttribute,
+  hasAriaName,
   hasTextContent,
+  isPropSpreadingHost,
   jsxElementOf,
   type JsxTagNode,
   locationOf,

@@ -1,6 +1,6 @@
 import type { CheckId } from "@complyloop/analysis-core/check-registry";
 
-import type { CheckGuidance } from "../types.ts";
+import type { CheckGuidance } from "../registry.ts";
 
 const guidance: Record<CheckId, CheckGuidance> = {
   "img-alt": {
@@ -85,7 +85,7 @@ const guidance: Record<CheckId, CheckGuidance> = {
     impact:
       "When an error is not linked to its field, screen reader users may not hear why the form failed or which value to fix.",
     howToFix:
-      "Put the error text in an element with an id, set aria-describedby on the invalid field to that id, and keep aria-invalid=\"true\" while the error applies.",
+      'Put the error text in an element with an id, set aria-describedby on the invalid field to that id, and keep aria-invalid="true" while the error applies.',
   },
   "aria-hidden-focusable": {
     impact:
@@ -169,7 +169,7 @@ const guidance: Record<CheckId, CheckGuidance> = {
     impact:
       "Missing or multiple main landmarks make it unclear where the primary content starts for landmark navigation.",
     howToFix:
-      "Wrap the primary content in a single <main> (or role=\"main\") per page.",
+      'Wrap the primary content in a single <main> (or role="main") per page.',
   },
   "nested-interactive": {
     impact:
@@ -211,7 +211,7 @@ const guidance: Record<CheckId, CheckGuidance> = {
     impact:
       "Without header associations, screen reader users cannot trace which row/column a data cell belongs to, so tabular data becomes meaningless.",
     howToFix:
-      "Mark header cells with <th scope=\"col|row\"> or associate cells via headers/id. Avoid presentation-only tables built from <div>s for real data.",
+      'Mark header cells with <th scope="col|row"> or associate cells via headers/id. Avoid presentation-only tables built from <div>s for real data.',
   },
   "page-heading": {
     impact:
@@ -265,13 +265,13 @@ const guidance: Record<CheckId, CheckGuidance> = {
     impact:
       "When two landmarks of the same type share a name, assistive technology users cannot distinguish them in landmark navigation (WCAG 1.3.1).",
     howToFix:
-      "Give each repeated landmark a distinct accessible name, e.g. <nav aria-label=\"Primary\"> and <nav aria-label=\"Footer\">, or use different landmark types.",
+      'Give each repeated landmark a distinct accessible name, e.g. <nav aria-label="Primary"> and <nav aria-label="Footer">, or use different landmark types.',
   },
   "pointer-gesture": {
     impact:
       "When an action only works through a drag/track path, keyboard and switch users cannot perform it at all (WCAG 2.5.1).",
     howToFix:
-      "Add a single-pointer or keyboard equivalent: a button, a native <input type=\"range\">, or an onKeyDown handler that performs the same action.",
+      'Add a single-pointer or keyboard equivalent: a button, a native <input type="range">, or an onKeyDown handler that performs the same action.',
   },
   "pointer-cancellation": {
     impact:
@@ -336,8 +336,7 @@ const guidance: Record<CheckId, CheckGuidance> = {
   "summary-name": {
     impact:
       "An unnamed disclosure control is announced as “summary” with no hint of what it expands (WCAG 4.1.2 / RGAA 7.1).",
-    howToFix:
-      "Put the section name inside <summary>, or add aria-label.",
+    howToFix: "Put the section name inside <summary>, or add aria-label.",
   },
   "frame-keyboard": {
     impact:
@@ -349,9 +348,9 @@ const guidance: Record<CheckId, CheckGuidance> = {
     impact:
       "A paragraph styled as a heading is missing from the document outline that screen reader users navigate by (WCAG 1.3.1 / RGAA 9.1).",
     howToFix:
-      "Replace the styled <p> with the matching h1–h6, or add role=\"heading\" and aria-level if a native heading is impossible.",
+      'Replace the styled <p> with the matching h1–h6, or add role="heading" and aria-level if a native heading is impossible.',
   },
-  "doctype": {
+  doctype: {
     impact:
       "Without a doctype, browsers may use quirks mode and assistive technologies can misread the tree (RGAA 8.1).",
     howToFix:
@@ -361,7 +360,7 @@ const guidance: Record<CheckId, CheckGuidance> = {
     impact:
       "Ungrouped radios are announced as separate questions, so users cannot tell they are alternatives of the same choice (WCAG 1.3.1 / RGAA 11.6).",
     howToFix:
-      "Wrap the group in <fieldset> with a <legend>, or role=\"radiogroup\" / role=\"group\" with aria-label.",
+      'Wrap the group in <fieldset> with a <legend>, or role="radiogroup" / role="group" with aria-label.',
   },
   "autocomplete-purpose": {
     impact:
@@ -425,7 +424,7 @@ const guidance: Record<CheckId, CheckGuidance> = {
   },
   "redundant-role": {
     impact:
-      "Repeating a native implicit role (role=\"button\" on <button>) can confuse some assistive technologies (WCAG 1.3.1 / RGAA 8.9).",
+      'Repeating a native implicit role (role="button" on <button>) can confuse some assistive technologies (WCAG 1.3.1 / RGAA 8.9).',
     howToFix:
       "Remove the redundant role. Keep an explicit role only when the host is a generic element (div/span).",
   },
@@ -613,7 +612,7 @@ const guidance: Record<CheckId, CheckGuidance> = {
     impact:
       "Video without an audio description track may omit visual information for blind users (WCAG 1.2.5 / RGAA 4.5).",
     howToFix:
-      "Add a <track kind=\"descriptions\"> or an equivalent audio-described version when visual content is not in the soundtrack.",
+      'Add a <track kind="descriptions"> or an equivalent audio-described version when visual content is not in the soundtrack.',
   },
   "link-explicit-heuristic": {
     impact:

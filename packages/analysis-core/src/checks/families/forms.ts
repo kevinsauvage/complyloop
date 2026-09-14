@@ -1,11 +1,12 @@
 import ts from "typescript";
 
-import { hasAriaName, isPropSpreadingHost } from "../../jsx-primitives.ts";
 import {
   booleanAttributeValue,
   getAttribute,
+  hasAriaName,
   hasTextContent,
   humanizeFileName,
+  isPropSpreadingHost,
   jsxElementOf,
   type JsxTagNode,
   locationOf,

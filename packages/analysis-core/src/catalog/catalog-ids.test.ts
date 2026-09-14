@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { catalogControlIds } from "./catalog-ids.ts";
+import { catalogControlIds } from "./catalog.ts";
 import { rgaaControls } from "./rgaa/controls.ts";
 
 describe("catalogControlIds", () => {

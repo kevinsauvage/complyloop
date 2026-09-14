@@ -1,10 +1,32 @@
 import type { CheckId } from "@complyloop/analysis-core/check-registry";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
+import type { Explanation } from "../contract/finding-types.ts";
 import { guidanceFor as rgaaGuidanceFor } from "./rgaa/guidance.ts";
 import { rgaaPresets } from "./rgaa/presets.ts";
-import type { CheckGuidance, FrameworkPreset, FrameworkPresetSummary } from "./types";
 import { wcagPresets } from "./wcag/presets.ts";
+
+/** Guidance shown for a check — the impact/how-to-fix subset of an {@link Explanation}. */
+export type CheckGuidance = Pick<Explanation, "impact" | "howToFix">;
+
+export interface FrameworkPreset {
+  id: string;
+  name: string;
+  description: string;
+  frameworkId: string;
+  /** Catalog control ids (`ctl-*`). Unknown ids fail at construction via `catalogControlIds`. */
+  controlIds: readonly string[];
+}
+
+/**
+ * Serializable preset projection for client components: everything a preset
+ * row renders plus the control count, without the full `controlIds` array that
+ * would otherwise ship in the RSC payload.
+ */
+export type FrameworkPresetSummary = Pick<
+  FrameworkPreset,
+  "id" | "name" | "description" | "frameworkId"
+> & { controlCount: number };
 
 const DEFAULT_CONNECT_PRESET_ID = "preset-rgaa-full";
 

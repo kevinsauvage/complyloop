@@ -5,11 +5,12 @@ import type { APIRequestContext } from "@playwright/test";
 import postgres from "postgres";
 
 import { E2E_PROJECT_FULL_NAME } from "./constants";
+import { resolveSecret } from "./env";
 import { resolveE2EDbUrl } from "./helpers";
 
 /** Must match `GITHUB_WEBHOOK_SECRET` injected into the e2e webServer env. */
 export function resolveWebhookSecret(): string {
-  return process.env.GITHUB_WEBHOOK_SECRET?.trim() || "e2e-webhook-secret";
+  return resolveSecret("GITHUB_WEBHOOK_SECRET", "e2e-webhook-secret");
 }
 
 export async function withDb<T>(

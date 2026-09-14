@@ -5,7 +5,7 @@ import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
+  withProbePage,
 } from "./playwright-page";
 
 registerPlaywrightBrowserTeardown();
@@ -14,19 +14,18 @@ describe("hoverContentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "does not flag aria-describedby static hints as hover-only content",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <label for="email">Email</label>
           <input id="email" aria-describedby="hint" />
           <p id="hint">Use your work address.</p>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await hoverContentViolation(page);
         expect(violation).toBeNull();
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -34,7 +33,7 @@ describe("hoverContentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags hover-only supplementary content",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><head><style>
           .tip { position: relative; display: inline-block; }
           .tip .panel {
@@ -51,13 +50,12 @@ describe("hoverContentViolation", () => {
             <span class="panel">Extended help text only on hover.</span>
           </span>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await hoverContentViolation(page);
         expect(violation?.id).toBe("hover-content");
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -65,17 +63,16 @@ describe("hoverContentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when no trigger reveals extra content",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <button type="button">Help</button>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await hoverContentViolation(page);
         expect(violation).toBeNull();
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -83,17 +80,16 @@ describe("hoverContentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when a title tooltip does not inject extra body text",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <button type="button" title="Short native tooltip">Go</button>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await hoverContentViolation(page);
         expect(violation).toBeNull();
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -101,19 +97,18 @@ describe("hoverContentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "skips hidden triggers",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <button type="button" style="visibility:hidden" title="Hidden trigger">
             Hidden
           </button>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await hoverContentViolation(page);
         expect(violation).toBeNull();
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );

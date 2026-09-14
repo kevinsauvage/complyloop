@@ -1,10 +1,11 @@
 import ts from "typescript";
 
 import { isDecorativeOrHidden, isPresentationRole } from "../../a11y-aria.ts";
-import { hasAriaName, isPropSpreadingHost } from "../../jsx-primitives.ts";
 import {
   getAttribute,
+  hasAriaName,
   hasTextContent,
+  isPropSpreadingHost,
   jsxElementOf,
   type JsxTagNode,
   locationOf,

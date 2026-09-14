@@ -5,7 +5,7 @@ import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
+  withProbePage,
 } from "./playwright-page";
 
 registerPlaywrightBrowserTeardown();
@@ -14,7 +14,7 @@ describe("focusCustomViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "focus-visible flags a control whose appearance does not change on focus",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><head><style>
           button:focus, button:focus-visible {
             outline: none;
@@ -23,8 +23,8 @@ describe("focusCustomViolations", () => {
         </style></head><body>
           <button id="go">Go</button>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violations = await focusCustomViolations(page);
         const focusVisible = violations.find((v) => v.id === "focus-visible");
         expect(focusVisible).toBeDefined();
@@ -38,9 +38,8 @@ describe("focusCustomViolations", () => {
           elementLabel: 'button “Go”',
           html: '<button id="go">Go</button>',
         });
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -48,7 +47,7 @@ describe("focusCustomViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "focus-visible accepts a border change as the indicator",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><head><style>
           button {
             outline: none;
@@ -61,15 +60,14 @@ describe("focusCustomViolations", () => {
         </style></head><body>
           <button id="go">Go</button>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violations = await focusCustomViolations(page);
         expect(violations.some((v) => v.id === "focus-visible")).toBe(
           false,
         );
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -77,7 +75,7 @@ describe("focusCustomViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "focus-visible flags a persistent shadow that is not a focus indicator",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><head><style>
           button, button:focus, button:focus-visible {
             outline: none;
@@ -86,15 +84,14 @@ describe("focusCustomViolations", () => {
         </style></head><body>
           <button id="go">Go</button>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violations = await focusCustomViolations(page);
         expect(violations.some((v) => v.id === "focus-visible")).toBe(
           true,
         );
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );

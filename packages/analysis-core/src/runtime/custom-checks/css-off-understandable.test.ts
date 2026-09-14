@@ -5,7 +5,7 @@ import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
+  withProbePage,
 } from "./playwright-page";
 
 registerPlaywrightBrowserTeardown();
@@ -14,7 +14,7 @@ describe("cssOffUnderstandableViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags flex order that scrambles reading order when CSS is disabled",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><head><style>
           .row { display: flex; }
           .a { order: 2; }
@@ -25,13 +25,12 @@ describe("cssOffUnderstandableViolation", () => {
             <p class="b">Deuxième dans le DOM</p>
           </div>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await cssOffUnderstandableViolation(page);
         expect(violation?.id).toBe("css-off-understandable");
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -39,17 +38,16 @@ describe("cssOffUnderstandableViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when essential text remains without CSS",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <p>Contenu principal toujours visible même lorsque les styles sont désactivés.</p>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await cssOffUnderstandableViolation(page);
         expect(violation).toBeNull();
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -57,7 +55,7 @@ describe("cssOffUnderstandableViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "restores stylesheets after the check so later probes see CSS",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><head>
           <style>
             #probe { color: rgb(0, 0, 255); }
@@ -65,8 +63,8 @@ describe("cssOffUnderstandableViolation", () => {
         </head><body>
           <p id="probe">Texte visible avec styles.</p>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         await cssOffUnderstandableViolation(page);
         const color = await page.evaluate(() => {
           const el = document.querySelector("#probe");
@@ -79,9 +77,8 @@ describe("cssOffUnderstandableViolation", () => {
           return style?.disabled ?? false;
         });
         expect(styleDisabled).toBe(false);
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );

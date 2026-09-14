@@ -18,8 +18,6 @@ export const OWNER_STATE = path.join(AUTH_DIR, "owner.json");
 export const VIEWER_STATE = path.join(AUTH_DIR, "viewer.json");
 export const ANON_STATE = path.join(AUTH_DIR, "anon.json");
 
-export { mintSessionCookie, storageState } from "./helpers";
-
 export async function writeAuthStates(): Promise<void> {
   fs.mkdirSync(AUTH_DIR, { recursive: true });
 

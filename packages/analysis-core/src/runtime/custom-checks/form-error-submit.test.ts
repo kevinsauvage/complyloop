@@ -5,7 +5,7 @@ import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
+  withProbePage,
 } from "./playwright-page";
 
 registerPlaywrightBrowserTeardown();
@@ -14,7 +14,7 @@ describe("formErrorSubmitViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags missing aria association after invalid submit",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <form>
             <label for="email">Email</label>
@@ -23,16 +23,15 @@ describe("formErrorSubmitViolation", () => {
             <button type="submit">Envoyer</button>
           </form>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await formErrorSubmitViolation(page);
         expect(violation?.id).toBe("form-error-association");
         expect(violation?.nodes.some((n) => n.html.includes('id="email"'))).toBe(
           true,
         );
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -40,7 +39,7 @@ describe("formErrorSubmitViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when errors are associated",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <form>
             <label for="email">Email</label>
@@ -49,13 +48,12 @@ describe("formErrorSubmitViolation", () => {
             <button type="submit">Envoyer</button>
           </form>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await formErrorSubmitViolation(page);
         expect(violation).toBeNull();
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );

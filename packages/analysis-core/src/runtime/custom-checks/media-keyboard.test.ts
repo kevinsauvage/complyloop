@@ -5,7 +5,7 @@ import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
+  withProbePage,
 } from "./playwright-page";
 
 const TINY_WAV =
@@ -17,12 +17,12 @@ describe("mediaKeyboardViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags media controls that cannot receive keyboard focus",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><body>
           <audio controls tabindex="-1" src="${TINY_WAV}"></audio>
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         await page.waitForFunction(() => {
           const media = document.querySelector("audio");
           return media instanceof HTMLMediaElement && media.readyState >= 1;
@@ -32,9 +32,8 @@ describe("mediaKeyboardViolation", () => {
         const node = violation!.nodes[0]!;
         expect(node.target).toEqual(["audio"]);
         expect(node.html).toMatch(/^<audio /);
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );

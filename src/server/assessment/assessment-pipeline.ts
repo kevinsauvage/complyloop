@@ -38,7 +38,7 @@ import { insertEvidence } from "@complyloop/db/repo/evidence";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { reportWarning } from "../observability";
-import { loadProjectDb } from "../workspace/db";
+import { loadProjectDb, withProjectLock } from "../workspace/db";
 import {
   appendEvidence,
   cloneProjectRows,
@@ -258,12 +258,7 @@ export async function recordAssessmentFailureEvidence(input: {
     if (!project) return;
     const errorMessage =
       error instanceof Error ? error.message : "Assessment job failed.";
-    const drizzle = await getDrizzle();
-    await drizzle.transaction(async (tx) => {
-      await acquireNamedPostgresAdvisoryLock(
-        tx,
-        projectWriteLockKey(projectId),
-      );
+    await withProjectLock(projectId, async (tx) => {
       await insertEvidence(tx, {
         kind: "assessment_job",
         summary: `Assessment job ${job.id} failed after ${job.attempts} attempt(s).`,

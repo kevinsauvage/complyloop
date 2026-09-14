@@ -10,7 +10,7 @@ import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
   registerPlaywrightBrowserTeardown,
-  withPlaywrightPage,
+  withProbePage,
 } from "./playwright-page";
 
 registerPlaywrightBrowserTeardown();
@@ -19,7 +19,7 @@ describe("layoutTableLinearizationViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags layout tables whose visual order diverges from DOM order",
     async () => {
-      const { page, close } = await withPlaywrightPage(`
+      await withProbePage(`
         <!doctype html><html lang="fr"><head><style>
           table { position: relative; width: 240px; height: 80px; border-collapse: collapse; }
           td { position: absolute; width: 110px; height: 30px; }
@@ -30,13 +30,12 @@ describe("layoutTableLinearizationViolation", () => {
         </style></head><body>
           ${LAYOUT_TABLE_IMPLICIT_BODY}
         </body></html>
-      `);
-      try {
+      `,
+        async (page) => {
         const violation = await layoutTableLinearizationViolation(page);
         expect(violation?.id).toBe("layout-table-linearization");
-      } finally {
-        await close();
-      }
+        },
+      );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
@@ -44,15 +43,11 @@ describe("layoutTableLinearizationViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes real data tables with headers",
     async () => {
-      const { page, close } = await withPlaywrightPage(
+      const violation = await withProbePage(
         documentWithBody(LAYOUT_TABLE_DATA_BODY),
+        (page) => layoutTableLinearizationViolation(page),
       );
-      try {
-        const violation = await layoutTableLinearizationViolation(page);
-        expect(violation).toBeNull();
-      } finally {
-        await close();
-      }
+      expect(violation).toBeNull();
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
