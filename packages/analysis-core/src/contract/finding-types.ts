@@ -87,18 +87,11 @@ export function engineFromAnalyzer(
   return meta.engine;
 }
 
-/**
- * Engine for a persisted finding: derived from `analyzerId`, with a fallback
- * to a stored `engine` (legacy rows predate analyzerId) and `"ast"` last.
- */
+/** Engine bucket for a finding, derived from the analyzer that produced it. */
 export function engineFor(finding: {
   analyzerId?: AnalyzerId;
-  engine?: AssessmentEngine | string;
 }): AssessmentEngine {
-  if (finding.analyzerId) return engineFromAnalyzer(finding.analyzerId);
-  const stored = finding.engine;
-  if (stored === "runtime" || stored === "ast") return stored;
-  return "ast";
+  return engineFromAnalyzer(finding.analyzerId);
 }
 
 /** Which analysis engines contributed to an assessment run (derived from runtime scan). */

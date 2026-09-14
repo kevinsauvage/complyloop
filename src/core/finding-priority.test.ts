@@ -117,7 +117,7 @@ describe("clusterFindings", () => {
     const clusters = clusterFindings(
       [
         rootCauseFinding("1", "img-alt", "app/page.tsx"),
-        rootCauseFinding("2", "img-alt", "src/legacy/page.tsx"),
+        rootCauseFinding("2", "img-alt", "src/archive/page.tsx"),
       ],
       rootCauseControls,
     );
@@ -218,7 +218,7 @@ describe("clusterFindings", () => {
     const clusters = clusterFindings(
       [
         rootCauseFinding("1", "img-alt", "src/ui/Button.tsx"),
-        rootCauseFinding("2", "img-alt", "src/legacy/Button.tsx"),
+        rootCauseFinding("2", "img-alt", "src/archive/Button.tsx"),
       ],
       rootCauseControls,
     );

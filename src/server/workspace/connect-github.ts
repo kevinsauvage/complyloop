@@ -64,15 +64,9 @@ export function isConnectedGitHubProject(
   if (!activeOrgId) return false;
   if (project.source !== "github" || project.orgId !== activeOrgId)
     return false;
-  if (project.github?.fullName) {
-    return (
-      normalizeGitHubFullName(project.github.fullName) === normalizedFullName
-    );
-  }
-  // Legacy rows without github meta: fall back to case-insensitive sourceRef.
+  if (!project.github?.fullName) return false;
   return (
-    project.sourceRef?.toLowerCase() ===
-    `https://github.com/${normalizedFullName}`.toLowerCase()
+    normalizeGitHubFullName(project.github.fullName) === normalizedFullName
   );
 }
 

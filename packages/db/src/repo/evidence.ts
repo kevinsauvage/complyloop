@@ -76,16 +76,6 @@ export interface EvidenceFilter {
   actor?: string;
 }
 
-/** A bare kind where callers predate the filter object. */
-function normalizeEvidenceFilter(
-  kindOrFilter?: EvidenceKind | EvidenceFilter,
-): EvidenceFilter {
-  if (!kindOrFilter) return {};
-  return typeof kindOrFilter === "string"
-    ? { kind: kindOrFilter }
-    : kindOrFilter;
-}
-
 /** Escape LIKE wildcards so `q` always matches literally. */
 export function escapeLikeLiteral(value: string): string {
   return value.replace(/[\\%_]/g, (match) => `\\${match}`);
@@ -136,14 +126,12 @@ function evidenceProjectFilter(projectId: string, filter: EvidenceFilter = {}) {
 export async function countEvidenceForProject(
   drizzle: DrizzleDb,
   projectId: string,
-  kindOrFilter?: EvidenceKind | EvidenceFilter,
+  filter?: EvidenceFilter,
 ): Promise<number> {
   const [row] = await drizzle
     .select({ value: count() })
     .from(evidence)
-    .where(
-      evidenceProjectFilter(projectId, normalizeEvidenceFilter(kindOrFilter)),
-    );
+    .where(evidenceProjectFilter(projectId, filter ?? {}));
   return Number(row?.value ?? 0);
 }
 
@@ -170,14 +158,12 @@ export async function listEvidencePageForProject(
   projectId: string,
   page: number,
   pageSize: number = DEFAULT_PAGE_SIZE,
-  kindOrFilter?: EvidenceKind | EvidenceFilter,
+  filter?: EvidenceFilter,
 ): Promise<EvidenceRecord[]> {
   const rows = await drizzle
     .select()
     .from(evidence)
-    .where(
-      evidenceProjectFilter(projectId, normalizeEvidenceFilter(kindOrFilter)),
-    )
+    .where(evidenceProjectFilter(projectId, filter ?? {}))
     .orderBy(desc(evidence.at))
     .limit(pageSize)
     .offset(sqlPageOffset(page, pageSize));

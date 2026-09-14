@@ -63,15 +63,15 @@ export interface Assessment {
  * A persisted finding: observation fields + persistence envelope
  * (id, project, control, assessment, status, lifecycle). `engine` is not
  * stored — it is derived from `analyzerId` via `engineFor` at the UI/filter
- * boundaries. `checkId` is kept loose because persisted rows may predate the
- * check registry (which `RawFinding` keys strictly).
+ * boundaries. `checkId` stays a plain string at the persistence boundary;
+ * the strict registry union lives on `RawFinding`.
  */
 export interface Finding {
   id: string;
   projectId: string;
   controlId: string;
   assessmentId: string;
-  /** Persisted rows may predate the registry — keep the loose string here. */
+  /** Loose string at the persistence boundary; `RawFinding` keys the strict registry union. */
   checkId: string;
   kind: FindingKind;
   severity: Severity;
@@ -100,7 +100,8 @@ export interface Finding {
    * Last-write timestamp for stale-write protection. Set on every upsert by
    * the repo layer; a concurrent write with a newer `updatedAt` wins, so a
    * webhook assessment applying a stale slice cannot revert a human decision.
-   * Optional: legacy rows without it write unconditionally.
+   * Absent until the first write; the stale guard lets writes through when
+   * either side lacks a timestamp (covers inserts).
    */
   updatedAt?: string;
   resolvedNote?: string;
@@ -123,7 +124,7 @@ export interface Remediation {
   approvalAction?: "create_draft_pull_request";
   /**
    * Last-write timestamp for stale-write protection (set on every upsert by the
-   * repo layer, like `Finding.updatedAt`). Optional for legacy rows.
+   * repo layer, like `Finding.updatedAt`). Absent until the first write.
    */
   updatedAt?: string;
 }
