@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { expect, test } from "@playwright/test";
 
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 
 import { E2E_PROJECT_ID } from "./constants";
 import {

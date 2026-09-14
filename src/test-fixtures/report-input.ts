@@ -1,7 +1,7 @@
 import {
   rgaaControls,
   rgaaFramework,
-} from "@complyloop/analysis-core/adapters/rgaa/controls";
+} from "@complyloop/analysis-core/catalog/rgaa/controls";
 import type {
   Finding,
   Remediation,

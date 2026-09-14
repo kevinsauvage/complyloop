@@ -4,6 +4,27 @@ import nextTs from "eslint-config-next/typescript";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
+/** Entity names must not be imported from db/types (contract owns them). */
+const dbTypesEntityBan = [
+            {
+              name: "@complyloop/db/types",
+              importNames: [
+                "Alert",
+                "AlertKind",
+                "Assessment",
+                "AssessmentSnapshot",
+                "EvidenceKind",
+                "EvidenceRecord",
+                "FileChange",
+                "Finding",
+                "Remediation",
+                "RemediationHistoryEntry",
+              ],
+              message:
+                "Import entities from @complyloop/analysis-core/contract/entities — @complyloop/db/types is WorkspaceSlice only.",
+            },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -50,19 +71,20 @@ const eslintConfig = defineConfig([
   // Drizzle, no GitHub, no analysis engines. The shared contract
   // (@complyloop/analysis-core/contract/*) is the exception. Integration is
   // direct — pages/actions call src/server, which calls packages/db and
-  // analysis-core. There is no app-level adapters/registry layer ("adapters"
-  // under analysis-core is catalog packaging: RGAA/WCAG data, not ports).
+  // analysis-core. Compliance catalog lives at analysis-core/src/catalog/
+  // (reference data, not hexagonal ports — no app-level adapters layer).
   {
     files: ["src/core/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": [
         "error",
         {
+          paths: dbTypesEntityBan,
           patterns: [
             {
-              group: ["**/adapters", "**/adapters/**"],
+              group: ["**/catalog", "**/catalog/**"],
               message:
-                "src/core must not import adapters — see docs/ai/architecture.md (module boundaries).",
+                "src/core must not import the compliance catalog — see docs/ai/architecture.md (module boundaries).",
             },
             {
               group: ["**/analysis", "**/analysis/**"],
@@ -98,6 +120,7 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
+          paths: dbTypesEntityBan,
           patterns: [
             {
               group: ["**/finding-act", "**/finding-act/**"],
@@ -119,6 +142,7 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
+          paths: dbTypesEntityBan,
           patterns: [
             {
               group: ["**/server", "**/server/**"],
@@ -131,20 +155,20 @@ const eslintConfig = defineConfig([
     },
   },
   // Persistence, the compliance catalog, and the CI CLI are framework-agnostic
-  // leaves: they must not import app/server/adapters-at-app layers. They may
-  // import the analysis contract and each other. The catalog and db depend on
+  // leaves: they must not import app/server/AI layers. They may import the
+  // analysis contract and each other. The catalog and db depend on
   // analysis-core contract; check depends on analysis-core (bundled at publish).
   {
     files: [
       "packages/db/**/*.{ts,tsx}",
-      "packages/analysis-core/src/adapters/**/*.{ts,tsx}",
+      "packages/analysis-core/src/catalog/**/*.{ts,tsx}",
       "packages/check/**/*.{ts,tsx}",
     ],
     rules: {
-      // packages import analysis-core's contract only (same rule as src/core).
       "no-restricted-imports": [
         "error",
         {
+          paths: dbTypesEntityBan,
           patterns: [
             {
               group: [
@@ -173,6 +197,78 @@ const eslintConfig = defineConfig([
                 "workspace packages must not use the app @ alias — see docs/ai/architecture.md (module boundaries).",
             },
           ],
+        },
+      ],
+    },
+  },
+  // Write model: actions must use withProjectWrite / withOrgWrite /
+  // withConnectWrite. Raw getDrizzle() is allow-listed only in alerts / org /
+  // pr (and their tests) — docs/ai/architecture.md.
+  {
+    files: ["src/server/actions/**/*.{ts,tsx}"],
+    ignores: [
+      "src/server/actions/alerts.ts",
+      "src/server/actions/alerts.test.ts",
+      "src/server/actions/org.ts",
+      "src/server/actions/org.test.ts",
+      "src/server/actions/pr.ts",
+      "src/server/actions/pr.test.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...dbTypesEntityBan,
+            {
+              name: "@complyloop/db/postgres",
+              importNames: ["getDrizzle"],
+              message:
+                "Actions must use withProjectWrite / withOrgWrite / withConnectWrite — raw getDrizzle() is allow-listed only in alerts.ts, org.ts, and pr.ts — see docs/ai/architecture.md.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // Allow-listed raw-drizzle actions still ban entity imports from db/types.
+  {
+    files: [
+      "src/server/actions/alerts.ts",
+      "src/server/actions/alerts.test.ts",
+      "src/server/actions/org.ts",
+      "src/server/actions/org.test.ts",
+      "src/server/actions/pr.ts",
+      "src/server/actions/pr.test.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: dbTypesEntityBan,
+        },
+      ],
+    },
+  },
+  // Catch-all: ban entity imports from db/types everywhere else.
+  // (Specialized blocks above re-declare no-restricted-imports and must include
+  // dbTypesEntityBan themselves — flat config does not merge rule options.)
+  {
+    files: ["**/*.{ts,tsx}"],
+    ignores: [
+      "src/core/**",
+      "src/server/assessment/**",
+      "src/ai/**",
+      "packages/db/**",
+      "packages/analysis-core/src/catalog/**",
+      "packages/check/**",
+      "src/server/actions/**",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: dbTypesEntityBan,
         },
       ],
     },

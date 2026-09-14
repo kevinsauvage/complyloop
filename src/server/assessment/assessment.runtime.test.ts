@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { rgaaControls } from "@complyloop/analysis-core/adapters/rgaa/controls";
+import { rgaaControls } from "@complyloop/analysis-core/catalog/rgaa/controls";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { isDomLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";

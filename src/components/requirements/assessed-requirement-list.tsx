@@ -1,7 +1,7 @@
 import {
   controlDisplayCodes,
   groupControlsByTheme,
-} from "@complyloop/analysis-core/adapters/control-theme";
+} from "@complyloop/analysis-core/catalog/control-theme";
 import type { Control, Project, Requirement } from "@complyloop/analysis-core/contract/project-types";
 
 import { RequirementCard } from "@/components/requirements/requirement-card";

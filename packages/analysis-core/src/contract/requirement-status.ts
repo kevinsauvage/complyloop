@@ -3,7 +3,7 @@ import type { FindingKind, RequirementStatus } from "./statuses.ts";
 /**
  * Which engine "owns" status for this requirement's check. Mirrors the four
  * authority classes in `packages/analysis-core/src/check-authority.ts` (manual = no check).
- * Core stays framework-agnostic: the adapters map check ids to a class.
+ * Core stays framework-agnostic: the catalog maps check ids to a class.
  */
 export type CheckAuthority =
   | "manual"

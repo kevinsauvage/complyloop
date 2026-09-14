@@ -1,4 +1,4 @@
-import type { FrameworkPresetSummary } from "@complyloop/analysis-core/adapters/types";
+import type { FrameworkPresetSummary } from "@complyloop/analysis-core/catalog/types";
 
 import { Badge } from "@/components/ui/badge";
 import { STATUS_TONE_BADGE } from "@/core/display";

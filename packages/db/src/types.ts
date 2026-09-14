@@ -12,26 +12,13 @@ import type {
   Requirement,
 } from "@complyloop/analysis-core/contract/project-types";
 
-// Domain entities live in the contract — re-exported here so persistence
-// mappers and the `WorkspaceSlice` slice keep compiling while app/core/ai import from
-// `@complyloop/analysis-core/contract/entities` directly.
-export type {
-  Alert,
-  AlertKind,
-  Assessment,
-  AssessmentSnapshot,
-  EvidenceKind,
-  EvidenceRecord,
-  FileChange,
-  Finding,
-  Remediation,
-  RemediationHistoryEntry,
-} from "@complyloop/analysis-core/contract/entities";
-
 /**
  * In-memory slice for **writes and assessment** only.
  * Request pages use tenancy Workspace + repo / getProjectRuntime reads.
  * Persist changes via row-level repo functions — never bulk-sync this object.
+ *
+ * Domain entities (Finding, Remediation, …) live in
+ * `@complyloop/analysis-core/contract/entities` — do not re-export them here.
  */
 export interface WorkspaceSlice {
   organizations: Organization[];

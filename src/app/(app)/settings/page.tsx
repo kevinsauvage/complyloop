@@ -5,7 +5,7 @@ import {
   presetById,
   presetSummaries,
   projectDefaultPresetId,
-} from "@complyloop/analysis-core/adapters/registry";
+} from "@complyloop/analysis-core/catalog/registry";
 
 import { CopyButton } from "@/components/copy-button";
 import {

@@ -2,7 +2,7 @@ import "server-only";
 
 import fs from "node:fs";
 
-import { defaultConnectPreset } from "@complyloop/analysis-core/adapters/registry";
+import { defaultConnectPreset } from "@complyloop/analysis-core/catalog/registry";
 import { type EvidenceRecord } from "@complyloop/analysis-core/contract/entities";
 import type {
   Project,

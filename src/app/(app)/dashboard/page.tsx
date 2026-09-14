@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 
 import {

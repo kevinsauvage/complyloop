@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import {
   defaultConnectPreset,
   isValidPresetId,
   presetById,
   projectDefaultPresetId,
-} from "@complyloop/analysis-core/adapters/registry";
+} from "@complyloop/analysis-core/catalog/registry";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 

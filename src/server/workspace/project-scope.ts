@@ -1,7 +1,7 @@
 import "server-only";
 
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
-import { presetById } from "@complyloop/analysis-core/adapters/registry";
+import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
+import { presetById } from "@complyloop/analysis-core/catalog/registry";
 import { type Finding } from "@complyloop/analysis-core/contract/entities";
 import type {
   Control,

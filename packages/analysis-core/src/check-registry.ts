@@ -7,7 +7,7 @@
  * lists. Coverage tests cross-check this registry against the AST
  * implementations (`checks/registry.ts`), the rule maps (`jsx-a11y-map.ts`,
  * `runtime/axe-map.ts`, `runtime/html-validate-map.ts`), the Playwright probes,
- * and the catalog (`packages/analysis-core/src/adapters/rgaa/controls.ts`), so a check can
+ * and the catalog (`packages/analysis-core/src/catalog/rgaa/controls.ts`), so a check can
  * never ship without an engine, a catalog row, or guidance.
  *
  * `CheckId` and `CHECK_IDS` are derived from this array.
@@ -40,7 +40,7 @@ export interface CheckRegistration {
   runtimeOnly?: boolean;
   /** Analyzers that can emit findings for this check. */
   analyzers?: readonly AnalyzerId[];
-  /** Catalog control this check powers (verified 1:1 by the adapters coverage test). */
+  /** Catalog control this check powers (verified 1:1 by the catalog coverage test). */
   catalogControlId: string;
 }
 

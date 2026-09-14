@@ -1,11 +1,11 @@
 import "server-only";
 
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
-import { controlForDisplay } from "@complyloop/analysis-core/adapters/control-theme";
+import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
+import { controlForDisplay } from "@complyloop/analysis-core/catalog/control-theme";
 import {
   presetById,
   projectDefaultPresetId,
-} from "@complyloop/analysis-core/adapters/registry";
+} from "@complyloop/analysis-core/catalog/registry";
 import type {
   Alert,
   Assessment,

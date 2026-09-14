@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 
-import { presetById } from "@complyloop/analysis-core/adapters/registry";
+import { presetById } from "@complyloop/analysis-core/catalog/registry";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 

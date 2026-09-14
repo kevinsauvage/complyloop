@@ -1,6 +1,13 @@
+/**
+ * Assessment status application layer.
+ *
+ * Orchestrates contract `deriveRequirementStatus` over project rows (sticky
+ * human gates, manual controls, evidence). Does **not** redefine status law —
+ * that lives in `@complyloop/analysis-core/contract/requirement-status`.
+ */
 import "server-only";
 
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import {
   authorityForCheck,
   isHtmlValidateOwnedCheck,
@@ -9,12 +16,12 @@ import {
   type EvidenceRecord,
   type Finding,
 } from "@complyloop/analysis-core/contract/entities";
-import type {
-  Control,
-  Project,
-  Requirement,
+import {
+  type Control,
+  type Project,
+  type Requirement,
+  TEMPORARY_EXCEPTION_REASON,
 } from "@complyloop/analysis-core/contract/project-types";
-import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/project-types";
 import {
   deriveRequirementStatus,
   isStickyHumanDecision,
@@ -114,9 +121,9 @@ export interface RefreshRequirementStatusesResult {
 }
 
 /**
- * Delegates all derivation to core (single source of truth). The adapter maps
- * the analysis-layer check id to the framework-agnostic authority class via
- * the authoritative classifier in `check-authority.ts`.
+ * Delegates all derivation to core (single source of truth). Maps the
+ * analysis-layer check id to the framework-agnostic authority class via
+ * `check-authority.ts`.
  */
 function statusFromFindings(
   checkId: string | null,
@@ -160,6 +167,103 @@ export function upsertRequirementsById(
   return [...byId.values()];
 }
 
+type TrackRequirement = (requirement: Requirement) => void;
+
+/**
+ * Manual / custom controls (no checkId) stay `unable_to_verify` unless a sticky
+ * human decision already applies.
+ */
+function refreshManualControl(
+  existing: Requirement | undefined,
+  projectId: string,
+  controlId: string,
+  now: string,
+  track: TrackRequirement,
+): void {
+  if (requirementIsSticky(existing)) {
+    return;
+  }
+  if (!existing) {
+    track({
+      id: crypto.randomUUID(),
+      projectId,
+      controlId,
+      status: "unable_to_verify",
+      determination: "automated",
+      updatedAt: now,
+    });
+    return;
+  }
+  if (existing.status !== "unable_to_verify") {
+    track({
+      ...existing,
+      status: "unable_to_verify",
+      determination: "automated",
+      updatedAt: now,
+    });
+  }
+}
+
+/** Apply a newly derived status; record evidence when the status actually changes. */
+function applyDerivedStatusChange(input: {
+  existing: Requirement;
+  status: RequirementStatus;
+  control: Control;
+  projectId: string;
+  assessmentId: string | undefined;
+  changeContext: string | undefined;
+  applicabilityFacts: ReadonlyMap<string, string> | undefined;
+  now: string;
+  track: TrackRequirement;
+  evidence: EvidenceRecord[];
+}): void {
+  const {
+    existing,
+    status,
+    control,
+    projectId,
+    assessmentId,
+    changeContext,
+    applicabilityFacts,
+    now,
+    track,
+    evidence,
+  } = input;
+  if (existing.status === status) return;
+
+  const regression = existing.status === "passed" && status === "failed";
+  const attribution =
+    regression && changeContext ? ` — ${changeContext}` : "";
+  evidence.push(
+    newEvidenceRecord({
+      kind: "requirement_status_changed",
+      summary: `${control.code} (${control.title}): ${existing.status} → ${status}${regression ? " — compliance regression" : ""}${attribution}`,
+      projectId,
+      controlId: control.id,
+      assessmentId,
+      detail: {
+        from: existing.status,
+        to: status,
+        regression,
+        changeContext: regression ? changeContext : undefined,
+        ...(status === "not_applicable" && control.checkId
+          ? {
+              applicabilityFact:
+                applicabilityFacts?.get(control.checkId) ??
+                "Criterion does not apply on audited pages.",
+            }
+          : {}),
+      },
+    }),
+  );
+  track({
+    ...existing,
+    status,
+    determination: "automated",
+    updatedAt: now,
+  });
+}
+
 function refreshRequirementForControl(
   workingByControlId: Map<string, Requirement>,
   openFindingsByControlId: ReadonlyMap<string, Finding[]>,
@@ -180,35 +284,19 @@ function refreshRequirementForControl(
     now,
   } = options;
 
-  const track = (requirement: Requirement) => {
+  const track: TrackRequirement = (requirement) => {
     workingByControlId.set(requirement.controlId, requirement);
     touchedById.set(requirement.id, requirement);
   };
 
   if (control.checkId === null) {
-    // Manual / custom controls without a check stay unable_to_verify unless
-    // a human pass or exception already sets a different status.
-    const existing = workingByControlId.get(control.id);
-    if (requirementIsSticky(existing)) {
-      return;
-    }
-    if (!existing) {
-      track({
-        id: crypto.randomUUID(),
-        projectId,
-        controlId: control.id,
-        status: "unable_to_verify",
-        determination: "automated",
-        updatedAt: now,
-      });
-    } else if (existing.status !== "unable_to_verify") {
-      track({
-        ...existing,
-        status: "unable_to_verify",
-        determination: "automated",
-        updatedAt: now,
-      });
-    }
+    refreshManualControl(
+      workingByControlId.get(control.id),
+      projectId,
+      control.id,
+      now,
+      track,
+    );
     return;
   }
 
@@ -240,39 +328,18 @@ function refreshRequirementForControl(
     return;
   }
 
-  if (existing.status !== status) {
-    const regression = existing.status === "passed" && status === "failed";
-    const attribution =
-      regression && changeContext ? ` — ${changeContext}` : "";
-    evidence.push(
-      newEvidenceRecord({
-        kind: "requirement_status_changed",
-        summary: `${control.code} (${control.title}): ${existing.status} → ${status}${regression ? " — compliance regression" : ""}${attribution}`,
-        projectId,
-        controlId: control.id,
-        assessmentId,
-        detail: {
-          from: existing.status,
-          to: status,
-          regression,
-          changeContext: regression ? changeContext : undefined,
-          ...(status === "not_applicable" && control.checkId
-            ? {
-                applicabilityFact:
-                  applicabilityFacts?.get(control.checkId) ??
-                  "Criterion does not apply on audited pages.",
-              }
-            : {}),
-        },
-      }),
-    );
-    track({
-      ...existing,
-      status,
-      determination: "automated",
-      updatedAt: now,
-    });
-  }
+  applyDerivedStatusChange({
+    existing,
+    status,
+    control,
+    projectId,
+    assessmentId,
+    changeContext,
+    applicabilityFacts,
+    now,
+    track,
+    evidence,
+  });
 }
 
 function scopedControlsForRefresh(

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { wcagFramework } from "@complyloop/analysis-core/adapters/wcag/controls";
+import { wcagFramework } from "@complyloop/analysis-core/catalog/wcag/controls";
 import type {
   Finding,
   Remediation,

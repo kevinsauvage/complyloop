@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import {
   type Finding,
   type Remediation,

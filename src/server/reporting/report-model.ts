@@ -3,7 +3,7 @@ import "server-only";
 import {
   controlDisplayCodes,
   secondaryReferenceLabel,
-} from "@complyloop/analysis-core/adapters/control-theme";
+} from "@complyloop/analysis-core/catalog/control-theme";
 import type {
   EvidenceRecord,
   Finding,

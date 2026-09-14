@@ -22,20 +22,20 @@ Optional AI library                      src/ai/*    (contract in; onError hook 
 Domain contract + engines                packages/analysis-core/{contract,checks,runtime,scan,…}
                                          contract/entities.ts = Finding, Remediation, Assessment, Evidence, Alert
             ↑
-Persistence                              packages/db (schema, repo/, workspace-load; types.ts = Db slice + re-exports)
+Persistence                              packages/db (schema, repo/, workspace-load; types.ts = WorkspaceSlice only)
 CI edge                                  packages/check
 Auth composition root                    src/auth.ts + src/auth-secret.ts + src/proxy.ts
 ```
 
 ### What is already solid (preserve — do not “simplify” away)
 
-- **Entity ownership fixed:** `Finding` / `Remediation` / `Assessment` / `Evidence*` / `Alert` live in `packages/analysis-core/src/contract/entities.ts`. `packages/db/src/types.ts` mostly holds the in-memory `Db` write slice + re-exports. `src/core` and `src/ai` import contract, not db drivers.
+- **Entity ownership fixed:** `Finding` / `Remediation` / `Assessment` / `Evidence*` / `Alert` live in `packages/analysis-core/src/contract/entities.ts`. `packages/db/src/types.ts` holds only the in-memory `WorkspaceSlice` write slice (no entity re-exports). `src/core` and `src/ai` import contract, not db drivers.
 - **`src/core` split:** `remediation-lifecycle`, `assessment-helpers`, `finding-priority`, `finding-act`, `finding-cluster`, `datetime`, `display`, `filters`, `rbac` — with ESLint blocking `finding-act` from `src/server/assessment/*`.
 - **`src/server` domain folders:** `assessment/`, `github/`, `workspace/`, `reporting/` + `actions/` mutation edge.
 - **AI edge:** `src/ai` does not import `@/server/*`; failures report via injected `onError`.
 - **Write model documented:** `withProjectWrite` / `withOrgWrite` / `withConnectWrite`; raw `getDrizzle()` in actions limited to alerts / org-export reads / PR evidence read (`docs/ai/architecture.md`).
 - **Jobs:** HTTP enqueues → `assessment_jobs` → worker → `runAssessment` → `applyAssessmentPayload`; sticky human decisions; append-only evidence.
-- **Catalog naming called out in docs:** `analysis-core/src/adapters/` = catalog packaging, not hexagonal ports; no phantom `src/adapters/registry.ts`.
+- **Catalog naming:** `analysis-core/src/catalog/` = RGAA/WCAG reference data (renamed from adapters/); no phantom app adapters layer.
 - **Validation/errors:** `PublicError` + `parseForm` / `parseInput` in kernel; `runAction` at the edge.
 
 ---
@@ -74,54 +74,24 @@ No structural correctness/security inversions remain at the level of “domain t
 
 ## P2 — Medium
 
-- [ ] **Finish dropping entity re-exports from `packages/db/types`**
-  - Why: Entities already live in contract; db `types.ts` still re-exports them “for compat.” Most app code already imports contract; remaining db/types imports are for `Db` / `emptyDb`.
-  - Where: `packages/db/src/types.ts`; any stray `import type { Finding } from "@complyloop/db/types"`.
-  - Current: Re-export block + slice interface.
-  - Problem: Two legal import paths for Finding → weak single source of truth.
-  - Change: After slice rename (P1), export **only** the slice helpers from db/types (or `packages/db/src/slice.ts`). Ban entity imports from `@complyloop/db/types` via ESLint.
-  - Boundary: contract = entities; db = SQL + slice.
-  - Impact: Impossible to “accidentally” treat db as domain home again.
+- [x] **Finish dropping entity re-exports from `packages/db/types`**
+  - Done (2026-09-14): `types.ts` exports only `WorkspaceSlice` / `emptyWorkspaceSlice`; ESLint bans entity importNames from `@complyloop/db/types`.
   - Risk: low
 
-- [ ] **Rename `packages/analysis-core/src/adapters/` → `catalog/` when cheap**
-  - Why: Docs already say these are catalog/presets, not ports. The folder name still invites hexagonal cargo-cult (“add a GitHub adapter here”).
-  - Where: `packages/analysis-core/src/adapters/**`; docs/ESLint references.
-  - Current: Works; ESLint forbids core from importing it.
-  - Problem: Vocabulary mismatch only — but it keeps biting agents.
-  - Change: Rename directory + update imports/docs/graft. No behavior change.
-  - Boundary: Catalog = reference data inside analysis-core.
-  - Impact: Cleaner mental model.
-  - Risk: medium (import path churn)
+- [x] **Rename `packages/analysis-core/src/adapters/` → `catalog/` when cheap**
+  - Done (2026-09-14): Physical rename + all `@complyloop/analysis-core/catalog/*` imports, docs, ESLint catalog path updated. No behavior change.
+  - Risk: medium (import path churn — verify typecheck)
 
-- [ ] **Thin `assessment-status.ts` orchestration comments/structure without moving derive logic**
-  - Why: ~372 lines correctly **apply** contract `deriveRequirementStatus` + sticky human gates + evidence. It’s application orchestration, not a second domain. Still dense for newcomers.
-  - Where: `src/server/assessment/assessment-status.ts`.
-  - Current: `statusFromFindings` wraps contract derivation; `refreshRequirementForControl` mutates working maps + evidence.
-  - Problem: Looks like duplicated domain; risk of future “simplify” PRs inlining derive into db triggers or UI.
-  - Change: Keep derive in contract. Optionally extract sticky/manual-control branches into named helpers in the same folder. Add a 5-line module doc: “Orchestrates contract derivation over project rows; does not redefine status law.”
-  - Boundary: Law in contract; apply/refresh in assessment application.
-  - Impact: Protects the good split from well-meaning refactors.
+- [x] **Thin `assessment-status.ts` orchestration comments/structure without moving derive logic**
+  - Done (2026-09-14): Module doc (apply-not-law); extracted `refreshManualControl` / `applyDerivedStatusChange` helpers in-file. Derive stays in contract.
   - Risk: low
 
-- [ ] **Keep raw Drizzle action exceptions on a short allow-list (enforce)**
-  - Why: Docs list `alerts.ts` / `org.ts` / `pr.ts` as the only raw `getDrizzle()` action exceptions. Pattern is good; enforcement is social.
-  - Where: `src/server/actions/{alerts,org,pr}.ts`; `docs/ai/architecture.md`.
-  - Current: Three files; other actions use write helpers / reporting loaders.
-  - Problem: Next action author may copy-paste `getDrizzle()` for a compliance mutation and skip locks/stale-write.
-  - Change: ESLint `no-restricted-imports` on `@complyloop/db/postgres` inside `src/server/actions/**` with an allow-list override for those three files (or a `actions/_raw-db/` escape hatch folder).
-  - Boundary: Actions default to write helpers; raw db is explicit exception.
-  - Impact: Prevents regression of the write model.
+- [x] **Keep raw Drizzle action exceptions on a short allow-list (enforce)**
+  - Done (2026-09-14): ESLint `no-restricted-imports` on `getDrizzle` from `@complyloop/db/postgres` for `src/server/actions/**`, allow-list alerts/org/pr (+ tests).
   - Risk: low
 
-- [ ] **Shrink mega client leaves that concentrate product workflow**
-  - Why: `src/components/github-repo-picker.tsx` (~314) still concentrates search/pagination/connect UX. Architecture is fine (server panel + client picker); file grain hurts change.
-  - Where: `src/components/github-repo-picker.tsx` (and similarly large findings client lists if still growing).
-  - Current: Justified client island for typeahead against `/api/github/repos`.
-  - Problem: Workflow + presentation in one client module → risky edits.
-  - Change: Split list UI vs search-state hook vs connect confirm — still client leaves, no new layer.
-  - Boundary: UI only; connect mutations stay Server Actions.
-  - Impact: Safer connect UX changes.
+- [x] **Shrink mega client leaves that concentrate product workflow**
+  - Done (2026-09-14): Split `github-repo-picker` into `use-github-repo-search`, `use-github-repo-connect`, `github-repo-picker-empty` + thin orchestrator. Server Actions unchanged.
   - Risk: low
 
 ---
@@ -173,7 +143,7 @@ src/core/*                         Shared kernel: rbac, remediation + human-dete
                                    transitions, finding priority/act, filters, display maps
 src/ai/*                           Optional generation (contract in → Result/PublicError out)
 packages/analysis-core/contract    Domain vocabulary + pure status derivation + entities
-packages/analysis-core/{checks,    Analysis engines + catalog/ (today: adapters/)
+packages/analysis-core/{checks,    Analysis engines + catalog/
   runtime,scan,catalog}
 packages/db                        Drizzle schema, repo SQL, locks, WorkspaceSlice
 packages/check                     CI CLI over analysis-core
@@ -212,10 +182,10 @@ A developer should answer quickly:
 3. ~~**Rename `Db` → `WorkspaceSlice`**~~ — done.  
 4. ~~**Split `display.ts` / `filter-params.ts` by vocabulary**~~ — done.  
 5. ~~**Clarify auth composition vs token vault imports**~~ — done (`access-token.ts`).  
-6. **ESLint-ban entity imports from `@complyloop/db/types`** — lock the P0 fix permanently.  
-7. **Rename `adapters/` → `catalog/`** — vocabulary hygiene when cheap.  
-8. **Allow-list raw `getDrizzle()` in actions** — protect the write model mechanically.  
-9. **Document assessment-status as apply-not-law** — prevent “dedupe” regressions.  
+6. ~~**ESLint-ban entity imports from `@complyloop/db/types`**~~ — done.  
+7. ~~**Rename `adapters/` → `catalog/`**~~ — done.  
+8. ~~**Allow-list raw `getDrizzle()` in actions**~~ — done.  
+9. ~~**Document assessment-status as apply-not-law**~~ — done.  
 10. **Do not add Clean/Hex/DI layers** — the current boring spine is the target.
 
 ---

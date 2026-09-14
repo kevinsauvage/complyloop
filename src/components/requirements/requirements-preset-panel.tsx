@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { presetSummaries } from "@complyloop/analysis-core/adapters/registry";
+import { presetSummaries } from "@complyloop/analysis-core/catalog/registry";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

@@ -2,7 +2,7 @@ import "server-only";
 
 import fs from "node:fs";
 
-import { guidanceFor } from "@complyloop/analysis-core/adapters/registry";
+import { guidanceFor } from "@complyloop/analysis-core/catalog/registry";
 import type {
   Finding,
   Remediation,

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { shippedCatalog } from "@complyloop/analysis-core/adapters/catalog";
+import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 
 import { aiAvailable as isAiAvailable } from "@/ai/ai-call";

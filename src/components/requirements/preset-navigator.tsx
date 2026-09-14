@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 
-import type { FrameworkPresetSummary } from "@complyloop/analysis-core/adapters/types";
+import type { FrameworkPresetSummary } from "@complyloop/analysis-core/catalog/types";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
 import { requirementsPageHref } from "@/core/filter-params";

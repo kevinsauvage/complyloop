@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { isPertinenceTwinControl } from "@complyloop/analysis-core/adapters/rgaa/pertinence-twins";
+import { isPertinenceTwinControl } from "@complyloop/analysis-core/catalog/rgaa/pertinence-twins";
 import {
   isHeuristicCheck,
   isRuntimeOnlyCheck,

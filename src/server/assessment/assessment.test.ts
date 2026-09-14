@@ -4,8 +4,8 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import * as registry from "@complyloop/analysis-core/adapters/registry";
-import { rgaaControls, rgaaFramework } from "@complyloop/analysis-core/adapters/rgaa/controls";
+import * as registry from "@complyloop/analysis-core/catalog/registry";
+import { rgaaControls, rgaaFramework } from "@complyloop/analysis-core/catalog/rgaa/controls";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { WorkspaceSlice } from "@complyloop/db/types";
