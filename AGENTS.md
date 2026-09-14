@@ -47,6 +47,7 @@ npm run dev              # Dev server (Turbopack); transpiles analysis-core from
 npm run build            # Production build; transpiles analysis-core from source
 npm run build:core       # Compile packages/analysis-core → dist (publish)
 npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done
+npx vitest run <touched-file>  # Targeted verify during work (fast loop; full gate at the end)
 npm run test:coverage    # Coverage gates (vitest.config.mts)
 npm run test:db          # Postgres persistence integration (needs DATABASE_URL)
 npm run check -- [path]  # Local a11y CI gate
@@ -66,6 +67,27 @@ Module layout (packages, boundaries, data flow): [`docs/ai/architecture.md`](./d
 3. Use canonical statuses with exhaustive `switch` + `never` default ([`domain-model.mdc`](./.cursor/rules/domain-model.mdc)).
 4. Update `docs/ai/architecture.md` when persistence or system shape changes.
 
+## Boundaries — ask first / never touch
+
+- Ask first: `drizzle/` SQL migrations, `src/core/` kernel, `packages/analysis-core/src/contract/`.
+  Reason: evidence append-only, tenant isolation, and the analysis contract break silently when improvised around.
+- Never: edit generated output (`.next/`, `dist/`, `coverage/`); use raw `getDrizzle()` in actions (use `withProjectWrite` / `withOrgWrite`); add `@axe-core/playwright` or `ssrf-guard/node`; let AI set requirement/finding statuses.
+  Reason: each has caused a real break (build rewrites, SSR crash, unverified compliance claims) — silent until production.
+- Multi-file change (>2 files) or architecture decision: output a plan (files / pattern / verification / `[ASSUMPTION]` items) and wait for approval before editing.
+  Reason: wrong assumptions cost seconds in a plan, hours in a PR.
+- High-risk diffs (auth, evidence, status transitions, migrations): get an independent review in a fresh context before merge — never self-approve your own implementation.
+  Reason: the model that wrote the bug cannot reliably spot it by re-reading.
+
+## Model routing
+
+| Task                                              | Use                        | Why                                              |
+| ------------------------------------------------- | -------------------------- | ------------------------------------------------ |
+| Architecture, planning, hard refactors, high-risk review | Strongest reasoning model  | Only tier that holds multi-file constraints reliably |
+| Routine implementation, small scoped edits        | Mid-tier / fast model      | Sufficient under a plan + gates, ~2–3× cheaper   |
+| Terminal scripts, CI/DevOps, bulk summaries       | Cheapest capable model     | Cost dominates; capability floor is reachable    |
+
+Route by task — never run the flagship model for everything. Verify with `npm run verify:gate`, not with a bigger model.
+
 ## Dependency policy
 
 Keep the UI dependency surface from regrowing: do not add a new Radix/`ui/` primitive without 2+ consumers, and keep success/error toasts centralized (`useActionToast` / `action-state.ts`) rather than sprinkling new `sonner` calls.
@@ -83,6 +105,7 @@ Optional accelerator for a 800-file monorepo (not a substitute for reading the c
 - `graft ask "<question>" --source` → ranked code spans for understanding/editing.
 - `graft grep "<literal>"` → exhaustive occurrences (ranked results are top-N only).
 - `graft skeleton <file>` / `graft callers <symbol>` → cheap API surface / blast radius.
+- Source files always win over graph spans — never edit from a span without opening the file.
 - If a span is truncated, open the file at that exact range before editing.
 - If the graph looks stale, run `graft build` (deterministic, no key) before trusting spans.
 <!-- graft:end -->

@@ -12,6 +12,7 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 
 import { hasPreviewUrl } from "./assessment-helpers";
+import { mustGet } from "./display/must-get";
 
 /**
  * Finding prioritization policy: severity order, root-cause clustering,
@@ -33,18 +34,6 @@ export interface FindingCluster {
   occurrenceCount?: number;
   /** Priority score (higher = fix first). */
   priorityScore?: number;
-}
-
-function mustGet<T extends string, V>(
-  record: Record<T, V>,
-  key: string,
-  kind: string,
-): V {
-  const value = record[key as T];
-  if (value === undefined) {
-    throw new Error(`Unhandled ${kind}: ${key}`);
-  }
-  return value;
 }
 
 /** Lower rank sorts first. Used to order findings by urgency. */
