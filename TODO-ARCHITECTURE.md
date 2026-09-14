@@ -31,29 +31,6 @@ Violations and friction are listed below, ordered by architectural value.
 
 ## P0 — Critical
 
-- [x] **Single-source requirement-status derivation (remove server-side authority re-mapping)**
-  - Done 2026-09-14: new pure `deriveStatusForCheck(checkId, openFindings, audit)` (+ `CheckAuditInput`) in `packages/analysis-core/src/check-authority.ts` — owns the full `checkId → { authority, htmlValidateRequired, applicabilityConfirmed }` mapping and delegates to `deriveRequirementStatus`. Server `statusFromFindings` adapter deleted; the single call site calls the core function directly. `assessment-status.ts` is now orchestration only (sticky gates, manual controls, evidence, row merging). Covered by 5 new `deriveStatusForCheck` cases in `check-authority.test.ts`.
-  - Why: the core business rule (what a requirement status means) is split across three layers; changing authority semantics touches all three.
-  - Where: `packages/analysis-core/src/contract/requirement-status.ts:67-113` (`deriveRequirementStatus`, pure), `packages/analysis-core/src/check-authority.ts` + `packages/analysis-core/src/checks/registry.ts`, `src/server/assessment/assessment-status.ts:128-154` (`statusFromFindings`), `src/server/assessment/assessment-status.ts:176-265` (`refreshManualControl`, `applyDerivedStatusChange`, `refreshRequirementForControl`).
-  - Current: contract owns pure derivation; server re-maps `checkId → authority` via `authorityForCheck` + `isHtmlValidateOwnedCheck` and re-implements sticky/manual/regression/evidence side effects around it.
-  - Problem: authority mapping exists in two places (registry/contract vs server adapter); evidence + status mutation + derivation are interleaved in a 439-line module, so unit-testing the rule requires the server harness.
-  - Change: move the full `checkId → { authority, htmlValidateRequired, applicabilityKey }` mapping into `analysis-core` (next to `check-authority.ts`, tested by `check-authority.test.ts`), exposing one `deriveStatusForCheck(checkId, openFindings, audit)` pure function. Shrink `assessment-status.ts` to orchestration only (load control, call pure fn, append evidence on change). No new layer, no interface.
-  - Boundary: derivation logic moves down into `contract`/analysis-core; server keeps only persistence side effects.
-  - Impact: business-rule change touches one pure function + tests; server diffs become mechanical.
-  - Risk: low
-
-- [ ] **Collapse the triple-defined assessment-job contract**
-  - Why: one concept (job queue row) has three sources of truth; a status/trigger change must land in three files despite the comment claiming one.
-  - Where: `packages/analysis-core/src/contract/assessment-jobs.ts:8-20` (status/trigger enums), `src/core/assessment-jobs.ts:9-38` (zod schemas + `AssessmentJob` types), `src/server/assessment/assessment-jobs.ts:42-44,108-374` (persistence + `isAssessmentJobStatus` re-validation), `src/core/assessment-job-guard.ts:30-38` (`parseAssessmentJobsResponse`).
-  - Current: enums in contract, zod + types in `src/core`, row mapping + guards in server, plus a separate response parser. Comment in contract file points at `src/core/boundary.ts` which does not exist.
-  - Problem: duplicated status sets (`ASSESSMENT_JOB_STATUSES` vs zod enum vs `JOB_STATUSES` set); API shape, DB shape, and validation can drift; stale comment misdirects onboarding.
-  - Change: keep enums in `contract/assessment-jobs.ts`. Keep exactly one zod schema + inferred types next to it (either in contract if zod is acceptable there, else one `src/core/assessment-jobs.ts` that imports enums — not both). Delete `assessment-job-guard.ts` in favor of `assessmentJobsResponseSchema.parse`. Server imports, never re-declares.
-  - Boundary: definition moves down to contract; `src/core` and `src/server` consume.
-  - Impact: adding a trigger/status touches one file; API/DB/worker stay in sync.
-  - Risk: low
-
----
-
 ## P1 — High
 
 - [ ] **De-grab-bag `src/core`: separate validation, URL params, and display**

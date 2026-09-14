@@ -36,29 +36,22 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
-const JOB_STATUSES = new Set<string>(ASSESSMENT_JOB_STATUSES);
-const JOB_TRIGGERS = new Set<string>(ASSESSMENT_JOB_TRIGGERS);
-
-function isAssessmentJobStatus(value: string): value is AssessmentJobStatus {
-  return JOB_STATUSES.has(value);
-}
-
-function isAssessmentJobTrigger(value: string): value is AssessmentJobTrigger {
-  return JOB_TRIGGERS.has(value);
-}
-
 function parseJobStatus(value: string): AssessmentJobStatus {
-  if (!isAssessmentJobStatus(value)) {
+  if (
+    !(ASSESSMENT_JOB_STATUSES as ReadonlyArray<string>).includes(value)
+  ) {
     throw new Error(`Unexpected assessment job status: ${value}`);
   }
-  return value;
+  return value as AssessmentJobStatus;
 }
 
 function parseJobTrigger(value: string): AssessmentJobTrigger {
-  if (!isAssessmentJobTrigger(value)) {
+  if (
+    !(ASSESSMENT_JOB_TRIGGERS as ReadonlyArray<string>).includes(value)
+  ) {
     throw new Error(`Unexpected assessment job trigger: ${value}`);
   }
-  return value;
+  return value as AssessmentJobTrigger;
 }
 
 function parseJobPayload(value: unknown): AssessmentJobPayload {

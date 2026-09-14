@@ -32,4 +32,17 @@ describe("parseAssessmentJobsResponse", () => {
       parseAssessmentJobsResponse({ jobs: [{ id: "job-1" }] }),
     ).toThrow();
   });
+
+  it("rejects unknown status/trigger values", () => {
+    expect(() =>
+      parseAssessmentJobsResponse({
+        jobs: [job({ status: "bogus" as AssessmentJob["status"] })],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseAssessmentJobsResponse({
+        jobs: [job({ trigger: "bogus" as AssessmentJob["trigger"] })],
+      }),
+    ).toThrow();
+  });
 });
