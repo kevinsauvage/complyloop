@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { actionWorkspaceMocks, clearProjectWritePayloads, invokeProjectWriteMock, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
+import { actionWorkspaceMocks, clearProjectWritePayloads, mockProjectWrite, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
@@ -44,7 +44,7 @@ afterEach(() => {
 
 describe("updateRuntimeAuditAction", () => {
   it("denies members who cannot connect", async () => {
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspaceFor("member"), fn));
+    mockProjectWrite(workspaceFor("member"));
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
     const form = new FormData();
     form.set("runtimeBaseUrl", "https://app.example");
@@ -58,7 +58,7 @@ describe("updateRuntimeAuditAction", () => {
 
   it("clears runtime settings when the base URL is empty", async () => {
     const workspace = workspaceFor("owner");
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    mockProjectWrite(workspace);
     const form = new FormData();
     form.set("runtimeBaseUrl", "  ");
 
@@ -75,7 +75,7 @@ describe("updateRuntimeAuditAction", () => {
 
   it("normalizes the origin and routes for owners", async () => {
     const workspace = workspaceFor("owner");
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    mockProjectWrite(workspace);
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/path");
     const form = new FormData();
     form.set("runtimeBaseUrl", "https://app.example/path");
@@ -126,7 +126,7 @@ describe("updateRuntimeAuditAction", () => {
 
   it("splits, trims, and prefixes bare routes", async () => {
     const workspace = workspaceFor("owner");
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    mockProjectWrite(workspace);
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
 
     const commaForm = new FormData();
@@ -144,7 +144,7 @@ describe("updateRuntimeAuditAction", () => {
 
   it("stores an empty routes list when the field is blank (scan defaults to /)", async () => {
     const workspace = workspaceFor("owner");
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    mockProjectWrite(workspace);
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
     const form = new FormData();
     form.set("runtimeBaseUrl", "https://app.example");

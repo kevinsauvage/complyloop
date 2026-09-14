@@ -4,7 +4,6 @@ import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
 import type {
   Confidence,
-  DeterminationMethod,
   ExplanationProvenance,
   FindingStatus,
   RemediationStatus,
@@ -17,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   type BadgeVariant,
   confidenceDisplay,
-  determinationDisplay,
   engineDisplay,
   EVIDENCE_TONE_BADGE,
   evidenceDisplay,
@@ -144,21 +142,6 @@ export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
       label={`Confidence: ${confidence}`}
       variant="outline"
       muted
-    />
-  );
-}
-
-export function DeterminationBadge({
-  method,
-}: {
-  method: DeterminationMethod;
-}) {
-  const display = determinationDisplay(method);
-  return (
-    <StatusBadge
-      description={display.description}
-      label={display.label}
-      tone={display.tone}
     />
   );
 }

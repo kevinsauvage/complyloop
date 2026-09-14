@@ -1,9 +1,11 @@
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 
+import { firstParam } from "./params";
+
 export { DEFAULT_PAGE_SIZE };
 
 export function parsePageParam(raw: string | string[] | undefined): number {
-  const value = Array.isArray(raw) ? raw[0] : raw;
+  const value = firstParam(raw);
   const n = Number(value);
   if (!Number.isFinite(n) || n < 1) return 1;
   return Math.floor(n);

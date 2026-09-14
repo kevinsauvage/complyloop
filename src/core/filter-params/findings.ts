@@ -22,6 +22,7 @@ import {
   severityRank,
 } from "../finding-priority";
 import { parsePageParam } from "./pagination";
+import { firstParam } from "./params";
 
 const FINDINGS_TABS = ["open", "resolved", "dismissed", "by_cause"] as const;
 
@@ -51,15 +52,13 @@ const ENGINE_VALUES = ["ast", "runtime"] as const;
 export function parseFindingListParams(
   raw: Record<string, string | string[] | undefined>,
 ): FindingListParams {
-  const q = Array.isArray(raw.q) ? raw.q[0] : raw.q;
-  const severity = Array.isArray(raw.severity) ? raw.severity[0] : raw.severity;
-  const engine = Array.isArray(raw.engine) ? raw.engine[0] : raw.engine;
-  const remediation = Array.isArray(raw.remediation)
-    ? raw.remediation[0]
-    : raw.remediation;
-  const control = Array.isArray(raw.control) ? raw.control[0] : raw.control;
-  const cluster = Array.isArray(raw.cluster) ? raw.cluster[0] : raw.cluster;
-  const tab = Array.isArray(raw.tab) ? raw.tab[0] : raw.tab;
+  const q = firstParam(raw.q);
+  const severity = firstParam(raw.severity);
+  const engine = firstParam(raw.engine);
+  const remediation = firstParam(raw.remediation);
+  const control = firstParam(raw.control);
+  const cluster = firstParam(raw.cluster);
+  const tab = firstParam(raw.tab);
   return {
     q: q?.trim() || undefined,
     severity: (SEVERITIES as readonly string[]).includes(severity ?? "")

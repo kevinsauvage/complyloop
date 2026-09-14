@@ -4,11 +4,12 @@ import {
 } from "@complyloop/analysis-core/contract/statuses";
 
 import { href } from "./href";
+import { firstParam, trimmedQuery } from "./params";
 
 export function parseRequirementStatusParam(
   raw: string | string[] | undefined,
 ): RequirementStatus | undefined {
-  const value = Array.isArray(raw) ? raw[0] : raw;
+  const value = firstParam(raw);
   if (!value) return undefined;
   return (REQUIREMENT_STATUSES as readonly string[]).includes(value)
     ? (value as RequirementStatus)
@@ -19,10 +20,7 @@ export function parseRequirementStatusParam(
 export function parseRequirementsQueryParam(
   raw: string | string[] | undefined,
 ): string | undefined {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  if (!value) return undefined;
-  const trimmed = value.trim().slice(0, 100).trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+  return trimmedQuery(raw);
 }
 
 export function requirementsStatusHref(status?: RequirementStatus): string {
@@ -33,7 +31,7 @@ export function parsePresetIdParam(
   raw: string | string[] | undefined,
   isValidPresetId: (id: string) => boolean,
 ): string | undefined {
-  const value = Array.isArray(raw) ? raw[0] : raw;
+  const value = firstParam(raw);
   if (!value) return undefined;
   return isValidPresetId(value) ? value : undefined;
 }

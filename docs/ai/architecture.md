@@ -57,7 +57,7 @@ App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
   catalog is compile-time data (`shippedCatalog()`). File hashes live in
   `assessment_snapshots` and load only for `runAssessment`. Evidence and
   findings pages load via `src/server/reporting/evidence-queries.ts` and
-  `src/server/reporting/findings-queries.ts`.
+  `src/server/workspace/project-view.ts` (`loadFindingsView`).
 - **Writes (the write model)** — `withProjectWrite` / `withOrgWrite` /
   `withConnectWrite` / `withProjectLock` in `src/server/workspace/workspace-write.ts`.
   Project **compliance** mutations (findings, remediations, requirements,
@@ -204,7 +204,8 @@ pushes are ignored. PR events post a Check Run. Failures become
   (`"use server"`) stay unfenced because clients invoke them.
 - **Reads** — pages compose exactly two cached reads (`getWorkspace` for
   tenancy, `getProjectRuntime` for compliance rows; `loadActiveProjectPage`
-  where caps are needed) plus the reporting loaders (`findings-queries`,
+  where caps are needed) plus the reporting loaders (`loadFindingsView` in
+  `workspace/project-view.ts`,
   `evidence-queries`, `nav-attention`); pages never open Drizzle or import
   `@complyloop/db/repo/*` directly (except the health probe, which is a DB
   check by definition). Single-row guards (`requireProjectAccess`,

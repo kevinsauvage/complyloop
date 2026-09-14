@@ -5,6 +5,7 @@ import type {
 } from "@complyloop/analysis-core/contract/entities";
 
 import { href } from "./href";
+import { firstParam, trimmedQuery } from "./params";
 import { requirementsStatusHref } from "./requirements";
 
 /**
@@ -27,7 +28,7 @@ export const EVIDENCE_KIND_FILTER_ORDER: readonly EvidenceKind[] = [
 export function parseEvidenceKindParam(
   raw: string | string[] | undefined,
 ): EvidenceKind | undefined {
-  const value = Array.isArray(raw) ? raw[0] : raw;
+  const value = firstParam(raw);
   if (!value) return undefined;
   return (EVIDENCE_KIND_FILTER_ORDER as readonly string[]).includes(value)
     ? (value as EvidenceKind)
@@ -38,10 +39,7 @@ export function parseEvidenceKindParam(
 export function parseEvidenceQueryParam(
   raw: string | string[] | undefined,
 ): string | undefined {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  if (!value) return undefined;
-  const trimmed = value.trim().slice(0, 100).trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+  return trimmedQuery(raw);
 }
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -54,7 +52,7 @@ const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 export function parseEvidenceDateParam(
   raw: string | string[] | undefined,
 ): string | undefined {
-  const value = Array.isArray(raw) ? raw[0] : raw;
+  const value = firstParam(raw);
   if (!value || !ISO_DATE_PATTERN.test(value)) return undefined;
   const [year, month, day] = value.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));

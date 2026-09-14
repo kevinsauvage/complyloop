@@ -31,13 +31,23 @@ export function projectWritePayload(): ProjectWritePayload | undefined {
   return capturedPayloads.at(-1);
 }
 
-/** Payloads captured across `invokeProjectWriteMock` calls (cleared per test). */
-export function projectWritePayloads(): ProjectWritePayload[] {
-  return capturedPayloads;
-}
-
 export function clearProjectWritePayloads(): void {
   capturedPayloads.length = 0;
+}
+
+/**
+ * Centralized `withProjectWrite` stub — replaces the copy-pasted
+ * `withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn))`
+ * across action tests.
+ */
+export function mockProjectWrite(workspace: Workspace): void {
+  withProjectWrite.mockImplementation(
+    async (
+      fn: (
+        workspace: Workspace,
+      ) => Promise<ProjectWritePayload | void> | ProjectWritePayload | void,
+    ) => invokeProjectWriteMock(workspace, fn),
+  );
 }
 
 export const actionWorkspaceMocks = {

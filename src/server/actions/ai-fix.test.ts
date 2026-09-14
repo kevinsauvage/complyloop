@@ -2,7 +2,7 @@ import "@/test-fixtures/register-action-workspace-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { actionWorkspaceMocks, invokeProjectWriteMock } from "@/test-fixtures/action-workspace-mocks";
+import { actionWorkspaceMocks, mockProjectWrite } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
@@ -11,7 +11,7 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 import { initialActionState } from "../action-state";
 import { generateAiFixAction } from "./ai-fix";
 
-const { withProjectWrite, getWorkspace } = actionWorkspaceMocks;
+const { getWorkspace } = actionWorkspaceMocks;
 const generatePatchCandidateOnCheckout = vi.hoisted(() => vi.fn());
 const persistPatchCandidate = vi.hoisted(() => vi.fn());
 const assertAiRateLimit = vi.hoisted(() => vi.fn());
@@ -80,7 +80,7 @@ describe("generateAiFixAction", () => {
   it("generates and persists a verified patch in the request", async () => {
     const current = workspace();
     getWorkspace.mockResolvedValue(current);
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(current, fn));
+    mockProjectWrite(current);
     const candidate = {
       description: "Add alt",
       provenance: "ai",
@@ -153,7 +153,7 @@ describe("generateAiFixAction", () => {
       },
     };
     getWorkspace.mockResolvedValue(current);
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(current, fn));
+    mockProjectWrite(current);
     generatePatchCandidateOnCheckout.mockResolvedValue({
       description: "Remove autoFocus",
       provenance: "deterministic",

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
-import { actionWorkspaceMocks, clearProjectWritePayloads, invokeProjectWriteMock, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
+import { actionWorkspaceMocks, clearProjectWritePayloads, mockProjectWrite, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
@@ -130,7 +130,7 @@ describe("createPullRequestAction", () => {
   it("records evidence when a PR is prepared", async () => {
     const workspace = workspaceFor("member");
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    mockProjectWrite(workspace);
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
       prUrl: "https://github.com/acme/shop/pull/1",
@@ -162,7 +162,7 @@ describe("createPullRequestAction", () => {
       status: "suggested",
     };
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    mockProjectWrite(workspace);
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
       prUrl: "https://github.com/acme/shop/pull/1",
@@ -226,9 +226,8 @@ describe("createPullRequestAction", () => {
       title: "fix: alt text",
       message: "Opened pull request.",
     });
-    withProjectWrite
-      .mockRejectedValueOnce(new Error("db write failed"))
-      .mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    withProjectWrite.mockRejectedValueOnce(new Error("db write failed"));
+    mockProjectWrite(workspace);
 
     const first = await createPullRequestAction(
       "f1",

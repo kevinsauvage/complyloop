@@ -8,9 +8,8 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 
 import {
-  actionWorkspaceMocks,
   clearProjectWritePayloads,
-  invokeProjectWriteMock,
+  mockProjectWrite,
   projectWritePayload,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
@@ -18,8 +17,6 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 
 import { initialActionState } from "../action-state";
 import { setDefaultPresetAction } from "./project-preset";
-
-const { withProjectWrite } = actionWorkspaceMocks;
 
 function formWith(presetId: string): FormData {
   const form = new FormData();
@@ -34,9 +31,7 @@ function mockWrite(project: Project, role: OrgMembership["role"] = "admin") {
     findings: [],
     remediations: [],
   });
-  withProjectWrite.mockImplementation(async (fn) =>
-    invokeProjectWriteMock(workspace, fn),
-  );
+  mockProjectWrite(workspace);
   return workspace;
 }
 

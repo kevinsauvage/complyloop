@@ -7,7 +7,7 @@ import type { WorkspaceSlice } from "@complyloop/db/types";
 import {
   actionWorkspaceMocks,
   clearProjectWritePayloads,
-  invokeProjectWriteMock,
+  mockProjectWrite,
   projectWritePayload,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
@@ -22,7 +22,7 @@ import {
   verifyRemediationAction,
 } from "./remediation-verify";
 
-const { withProjectWrite, getWorkspace } = actionWorkspaceMocks;
+const { getWorkspace } = actionWorkspaceMocks;
 const locateViolationInProject = vi.hoisted(() => vi.fn());
 const runtimeViolationStillPresent = vi.hoisted(() => vi.fn());
 const scanRuntime = vi.hoisted(() => vi.fn());
@@ -157,9 +157,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(preview);
-    withProjectWrite.mockImplementation(async (fn) =>
-      invokeProjectWriteMock(locked, fn),
-    );
+    mockProjectWrite(locked);
     runtimeViolationStillPresent.mockResolvedValue(false);
 
     const result = await verifyRemediationAction(
@@ -186,7 +184,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    mockProjectWrite(workspace);
     runtimeViolationStillPresent.mockResolvedValue(false);
 
     const result = await verifyRemediationAction(
@@ -225,7 +223,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    mockProjectWrite(workspace);
     scanRuntime.mockResolvedValue({
       findings: [],
       pagesScanned: 2,
@@ -269,7 +267,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    mockProjectWrite(workspace);
     scanRuntime.mockResolvedValue({
       findings: [],
       pagesScanned: 1,
@@ -301,7 +299,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    mockProjectWrite(workspace);
     runtimeViolationStillPresent.mockResolvedValue(true);
 
     const result = await verifyRemediationAction(
@@ -329,7 +327,7 @@ describe("markRemediationImplementedAction", () => {
         },
       ],
     });
-    withProjectWrite.mockImplementation(async (fn) => invokeProjectWriteMock(workspace, fn));
+    mockProjectWrite(workspace);
     const form = new FormData();
     form.set("note", "Fixed in PR #9");
 
@@ -349,9 +347,7 @@ describe("markRemediationImplementedAction", () => {
         testRemediation({ status: "verified", suggestion: null, history: [] }),
       ],
     });
-    withProjectWrite.mockImplementation(async (fn) =>
-      invokeProjectWriteMock(workspace, fn),
-    );
+    mockProjectWrite(workspace);
 
     const result = await markRemediationImplementedAction(
       "f1",

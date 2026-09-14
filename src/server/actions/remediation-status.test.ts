@@ -5,9 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 import {
-  actionWorkspaceMocks,
   clearProjectWritePayloads,
-  invokeProjectWriteMock,
+  mockProjectWrite,
   projectWritePayload,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
@@ -17,8 +16,6 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 import { initialActionState } from "../action-state";
 import { dismissFindingAction } from "./remediation";
 import { clearRequirementExceptionAction } from "./requirements";
-
-const { withProjectWrite } = actionWorkspaceMocks;
 
 const project = testProject({ orgId: "org-1" });
 const controlId = "ctl-img-alt";
@@ -62,9 +59,7 @@ afterEach(() => {
 describe("targeted writes use the full finding set", () => {
   it("keeps the requirement failed when one of two open findings is dismissed", async () => {
     const workspace = workspaceWithTwoFindings({});
-    withProjectWrite.mockImplementation(async (fn) =>
-      invokeProjectWriteMock(workspace, fn),
-    );
+    mockProjectWrite(workspace);
     const form = new FormData();
     form.set("reason", "false_positive");
     form.set("note", "one occurrence is not real");
@@ -84,9 +79,7 @@ describe("targeted writes use the full finding set", () => {
         at: "2026-01-02T00:00:00.000Z",
       },
     });
-    withProjectWrite.mockImplementation(async (fn) =>
-      invokeProjectWriteMock(workspace, fn),
-    );
+    mockProjectWrite(workspace);
 
     const result = await clearRequirementExceptionAction(
       "req-1",
