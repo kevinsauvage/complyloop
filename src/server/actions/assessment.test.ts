@@ -8,6 +8,7 @@ vi.mock("../assessment/assessment-worker", () => ({
 
 import {
   drainAssessmentJobQueue,
+  drainAssessmentJobsInline,
   shouldDrainAssessmentJobsInline,
 } from "../assessment/assessment-job-inline";
 import { processNextAssessmentJob } from "../assessment/assessment-worker";
@@ -74,5 +75,43 @@ describe("drainAssessmentJobQueue", () => {
     const outcome = await drainAssessmentJobQueue();
 
     expect(outcome).toEqual({ ran: 1, failed: 1, retrying: 1 });
+  });
+});
+
+describe("drainAssessmentJobsInline", () => {
+  it("maps drain outcomes to user copy", async () => {
+    processNext
+      .mockResolvedValueOnce({ kind: "succeeded", jobId: "j1" })
+      .mockResolvedValueOnce({ kind: "idle" });
+    await expect(drainAssessmentJobsInline()).resolves.toBe(
+      "Assessment complete.",
+    );
+
+    processNext
+      .mockResolvedValueOnce({ kind: "failed", jobId: "j1" })
+      .mockResolvedValueOnce({ kind: "retrying", jobId: "j2" })
+      .mockResolvedValueOnce({ kind: "idle" });
+    await expect(drainAssessmentJobsInline()).resolves.toMatch(
+      /1 assessment job failed and .* will retry/,
+    );
+
+    processNext
+      .mockResolvedValueOnce({ kind: "failed", jobId: "j1" })
+      .mockResolvedValueOnce({ kind: "idle" });
+    await expect(drainAssessmentJobsInline()).resolves.toMatch(
+      /failed\. Check the server logs/,
+    );
+
+    processNext
+      .mockResolvedValueOnce({ kind: "retrying", jobId: "j1" })
+      .mockResolvedValueOnce({ kind: "idle" });
+    await expect(drainAssessmentJobsInline()).resolves.toMatch(
+      /will retry automatically/,
+    );
+
+    processNext.mockResolvedValueOnce({ kind: "idle" });
+    await expect(drainAssessmentJobsInline()).resolves.toBe(
+      "No assessment jobs were ready to run.",
+    );
   });
 });

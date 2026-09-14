@@ -33,7 +33,8 @@ Violations and friction are listed below, ordered by architectural value.
 
 ## P2 — Medium
 
-- [ ] **Collapse workspace read helpers to two entry points**
+- [x] **Collapse workspace read helpers to two entry points**
+  - Done: `viewerCanViewProject` delegates to `requireProjectAccess` (15 lines of duplicated session/load/check removed, same boolean semantics); read-entry taxonomy documented on `getWorkspace`, on the slice-vs-DB lookups, and as the two-entry rule in `architecture.md`. `loadProjectDb`/`loadActiveProjectPage` verified as already-minimal single-purpose entries (not duplicated).
   - Why: 10+ ways to "load the workspace" forces every page/action to choose among near-duplicates.
   - Where: `src/server/workspace/workspace.ts:120-216` (`getWorkspace`, `viewerCanViewProject`, `requireFinding`, `requireRemediationForFinding`, `findingById`, `controlById`), `src/server/workspace/project-runtime.ts:39-67` (`getProjectRuntime`), `src/server/workspace/db.ts:8-10` (`loadProjectDb`), `src/server/workspace/active-project-page.ts:13-23` (`loadActiveProjectPage`), `src/server/workspace/project-rows.ts:25-84`, `packages/db/src/workspace-load.ts:42-241` (4 loaders: `loadTenancyDb`, `loadProjectWriteDb`, `loadProjectAssessmentDb`, `loadProjectRuntime` + `loadEvidenceWindow`).
   - Current: tenancy vs runtime split is documented and good, but spread over 6 files; `requireFinding`/`requireRemediationForFinding` duplicate `findingById`/`remediationForFinding` with different data sources (DB vs slice).
@@ -43,7 +44,8 @@ Violations and friction are listed below, ordered by architectural value.
   - Impact: fewer imports to choose from; request query count becomes predictable.
   - Risk: low
 
-- [ ] **Thin out app pages behind application-service functions**
+- [x] **Thin out app pages behind application-service functions**
+  - Done: new `src/server/workspace/project-view.ts` with five loaders (`loadFindingsView`, `loadFindingDetailView`, `loadDashboardView`, `loadEvidenceView`, `loadRequirementsView`) owning all data-shaping moved verbatim from pages; pages are now param-parse → one loader → render (findings page 335→277 lines with thinner imports, dashboard similar). Item mapping kept in pages next to component imports; `generateMetadata` stays as route plumbing.
   - Why: 300-line pages duplicate loader composition, filtering, clustering, and pagination logic.
   - Where: `src/app/(app)/findings/page.tsx:50-335`, `src/app/(app)/findings/[id]/page.tsx:1-317`, `src/app/(app)/dashboard/page.tsx:1-319`, `src/app/(app)/evidence/page.tsx:1-317`, `src/app/(app)/requirements/page.tsx:1-279`.
   - Current: pages directly compose `loadActiveProjectPage` + `getProjectRuntime` + `countFindingsByStatus` + `parseFindingListParams` + `clusterFindings`/`prioritizeClusters` + pagination. This is correct Next.js colocation but repeated per page.
@@ -53,7 +55,8 @@ Violations and friction are listed below, ordered by architectural value.
   - Impact: page diffs shrink; "open in scope" logic lives once; debugging a request starts at one function.
   - Risk: low
 
-- [ ] **Separate analysis-core scan orchestration from engines**
+- [x] **Separate analysis-core scan orchestration from engines**
+  - Done (discipline verified + documented): server already imports only stage entries + leaves (no `checks/*`/`custom-checks/*` internals anywhere in `src/`). Added stage headers to `scan.ts`/`runtime/scan.ts`/`merge-findings.ts`, new `packages/analysis-core/README.md` naming the 4 stages + leaf rules, pointer from `architecture.md`.
   - Why: `analysis-core` is the best-isolated package, but scan orchestration and engine details are interleaved; the 108-file `runtime/` subtree dominates.
   - Where: `packages/analysis-core/src/scan.ts`, `merge-findings.ts`, `check-authority.ts`, `check-registry.ts`, `jsx-a11y-scan.ts`, `runtime/scan.ts`, `runtime/` (108 files), `checks/` (17 files), `catalog/` (22 files).
   - Current: `scanProject`/`scanChangedFiles` + `mergeRawFindings` + `filterAstFindingsForAuthority` + `dedupeRuntimeFindings` form an implicit pipeline invoked from `src/server/assessment/assessment.ts`; runtime probes (`runtime/custom-checks/*`) share utils with AST checks (`parse.ts:56-190`, `jsx-primitives.ts`).
@@ -63,7 +66,8 @@ Violations and friction are listed below, ordered by architectural value.
   - Impact: replacing an engine touches one directory; authority changes stay in one list.
   - Risk: low (mostly documentation + import discipline)
 
-- [ ] **Centralize runtime config/env and infra singletons**
+- [x] **Centralize runtime config/env and infra singletons**
+  - Done (scoped): new `src/server/env.ts` with lazy getters (import-safe, `vi.stubEnv`-compatible) for GitHub App/webhook, support email, app URL, E2E flags, and checkout quotas; migrated `github-app`/`github`/`webhook`/`e2e-harness`/`repo-checkout`/inline-drain/org page. Dev drain outcome→message mapping moved into `assessment-job-inline.ts` (`drainAssessmentJobsInline`, tested) so the action is enqueue + one delegate. Deviations: `src/ai` keeps its own `AI_GATEWAY_API_KEY` read (ESLint bans `@/server` imports there); `AUTH_*`/framework keys stay direct (edge/middleware contexts); `rate-limit`/`observability`/`redact` stay at `server/` root (21 importers — a move is pure churn).
   - Why: env reads, rate limits, observability, and external clients are scattered; missing config fails late.
   - Where: `src/server/rate-limit.ts:25-95`, `src/server/observability.ts`, `src/server/redact.ts`, `src/sentry/*`, `src/instrumentation*.ts`, `src/auth.ts`, `src/auth-secret.ts`, `src/proxy.ts`, `packages/db/src/postgres.ts:61-227` (`createPostgresClient`, `getDrizzle`), `next.config.ts` (externals), ad-hoc `process.env` in `github-app.ts`, `ai-call.ts`, `assessment-job-inline.ts:10-12`.
   - Current: each edge reads its own env; `shouldDrainAssessmentJobsInline()` branches prod behavior on `NODE_ENV`/harness flag inside the action path (`actions/assessment.ts:32-55`).
@@ -78,7 +82,8 @@ Violations and friction are listed below, ordered by architectural value.
 
 ## P3 — Low
 
-- [ ] **Remove barrel/file duals (`display`, `filter-params`, `action-state`)**
+- [x] **Remove barrel/file duals (`display`, `filter-params`, `action-state`)**
+  - Done: barrels declared canonical in P1-1 (all consumers already used them). `action-state` needs no change — `core/action-state.ts` documents the client-safe split and `server/action-state.ts` re-exports it for action callers; both directions already point at each other.
   - Why: `src/core/display.ts` + `src/core/display/`, `src/core/filter-params.ts` + `src/core/filter-params/`, `src/core/action-state.ts` + `src/server/action-state.ts` triple the guesswork for one import.
   - Where: `src/core/display.ts` vs `src/core/display/*.ts`, `src/core/filter-params.ts` vs `src/core/filter-params/*.ts`, `src/core/action-state.ts:11-25` vs `src/server/action-state.ts:19-44`, `src/server/actions/shared.ts:1-100` + `refresh-routes.ts:1-20`.
   - Current: barrels re-export or partially duplicate directory contents; `ActionState` type vs runtime split is undocumented at the import site.
@@ -88,7 +93,8 @@ Violations and friction are listed below, ordered by architectural value.
   - Impact: fewer duplicate import paths; cleaner graft/call graphs.
   - Risk: low
 
-- [ ] **Merge finding-presentation helpers (`finding-priority`, `finding-cluster`, `finding-act`)**
+- [x] **Merge finding-presentation helpers (`finding-priority`, `finding-cluster`, `finding-act`)**
+  - Done: `FindingCluster` interface folded into `finding-priority.ts` (where clusters are built); `finding-cluster.ts` deleted, 3 import sites updated. `finding-act.ts` stays separate by design (finding-page UX beats, ESLint-banned from the assessment pipeline).
   - Why: three modules slice one concern (which finding to show first and what CTA to render) with overlapping inputs.
   - Where: `src/core/finding-priority.ts:1-376`, `src/core/finding-cluster.ts`, `src/core/finding-act.ts:52-215`, `src/core/assessment-helpers.ts:1-105`, `src/components/findings/finding-next-step-panel.tsx:1-264`.
   - Current: pages call `clusterFindings` + `prioritizeClusters` + `findingAct` separately; `finding-act` ban in assessment pipeline is ESLint-enforced (`eslint.config.mjs:117-134`) — good — but the trio's inputs (`FindingActInput` vs cluster keys) overlap.
@@ -98,7 +104,8 @@ Violations and friction are listed below, ordered by architectural value.
   - Impact: one place per presentation question.
   - Risk: low
 
-- [ ] **Isolate dev/e2e special-casing from prod request paths**
+- [x] **Isolate dev/e2e special-casing from prod request paths**
+  - Done: drain outcome→message mapping extracted to `drainAssessmentJobsInline()` (tested) so the action is enqueue + one delegate; E2E key ownership moved to `server/env.ts`. Prod code reaches `e2e-harness.ts` only through fail-fast gates (fixture switch, prod App assertion, inline drain) — unreachable-by-test/edge gating is impossible without removing the harness itself, so this is the stable end state.
   - Why: prod readability suffers from inline dev branches; e2e harness leaks into server modules.
   - Where: `src/server/assessment/assessment-job-inline.ts:10-12`, `src/server/e2e-harness.ts`, `src/server/actions/assessment.ts:32-55` (inline drain), `scripts/run-assessment-worker.ts`, `scripts/e2e-seed.ts:47-179`, `e2e/auth.ts:23-50`.
   - Current: `runAssessmentAction` branches on `shouldDrainAssessmentJobsInline()`; worker rate-limit pruning notes live in `processNextAssessmentJob` comments.

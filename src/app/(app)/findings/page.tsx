@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
-import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 
 import { toFindingListItems } from "@/components/findings/finding-list-items";
 import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
@@ -20,24 +18,11 @@ import {
 } from "@/components/page-primitives";
 import { PaginationNav } from "@/components/pagination-nav";
 import { Button } from "@/components/ui/button";
-import {
-  type FilterFindingsContext,
-  findingListPaginationQuery,
-  findingsListHref,
-  type FindingsTab,
-  hasActiveFindingFilters,
-  orderFindingsForList,
-  pageSliceFromQuery,
-  parseFindingListParams,
-} from "@/core/filter-params";
+import { findingsListHref } from "@/core/filter-params";
 import { reportHref } from "@/core/filter-params";
-import { DEFAULT_PAGE_SIZE,paginateSlice } from "@/core/filter-params";
-import { clusterFindings,prioritizeClusters } from "@/core/finding-priority";
-import { countFindingsByStatus } from "@/server/reporting/findings-queries";
+import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
 import { displayControl } from "@/server/reporting/report";
-import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
-import { getProjectRuntime } from "@/server/workspace/project-runtime";
-import { findingsInScope } from "@/server/workspace/project-scope";
+import { loadFindingsView } from "@/server/workspace/project-view";
 
 import { FindingsStatusNav } from "./_components/status-nav";
 
@@ -52,10 +37,8 @@ export default async function FindingsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const rawParams = await searchParams;
-  const listParams = parseFindingListParams(rawParams);
-  const { project, caps } = await loadActiveProjectPage();
-  if (!project) {
+  const view = await loadFindingsView(await searchParams);
+  if (!view.project) {
     return (
       <NoProjectNotice
         title="Findings"
@@ -65,60 +48,23 @@ export default async function FindingsPage({
     );
   }
 
-  // Never rewrite the requested tab: a shared or bookmarked ?tab=open link
-  // must render the open list (or its empty state), not silently jump to
-  // another status.
-  const activeTab: FindingsTab = listParams.tab;
-  const statusForTab: FindingStatus =
-    activeTab === "by_cause" ? "open" : activeTab;
-
-  // Tab totals come from an index-only count so inherited history never inflates
-  // the payload. Only open findings plus the active status load in full:
-  // dashboard/requirements/finding pages only need open findings, and resolved
-  // or dismissed rows are fetched only when their tab is actually viewed.
-  const statusCounts = await countFindingsByStatus(project.id);
-  const totalFindings =
-    statusCounts.open + statusCounts.resolved + statusCounts.dismissed;
-  const findingStatuses: FindingStatus[] =
-    statusForTab === "open" ? ["open"] : ["open", statusForTab];
-
-  const runtime = await getProjectRuntime(project.id, { findingStatuses });
-  const findings = findingsInScope(runtime.findings, project);
-  const remediationByFindingId = new Map(
-    runtime.remediations.map((remediation) => [
-      remediation.findingId,
-      remediation,
-    ]),
-  );
-  const controls = shippedCatalog().controls;
-  const rawClusters = clusterFindings(findings, controls);
-  const clusters = prioritizeClusters(findings, controls, rawClusters);
-  const filterContext: FilterFindingsContext = {
+  const {
+    project,
+    caps,
+    listParams,
+    activeTab,
+    openSlice,
+    resolvedSlice,
+    dismissedSlice,
+    clusters,
+    findings,
     controls,
-    remediationStatusFor: (findingId) =>
-      remediationByFindingId.get(findingId)?.status,
-    clusterFindingIds: listParams.cluster
-      ? new Set(
-          clusters.find((cluster) => cluster.id === listParams.cluster)
-            ?.findingIds ?? [],
-        )
-      : undefined,
-    clusters: rawClusters,
-  };
-
-  const byStatus = (status: FindingStatus): Finding[] =>
-    orderFindingsForList(findings, status, listParams, filterContext);
-
-  const openSlice = paginateSlice(byStatus("open"), listParams.page);
-  // Inactive history tabs use the SQL count for their badge; their rows load
-  // only when the tab is active, so the slice is intentionally empty.
-  const resolvedSlice = findingStatuses.includes("resolved")
-    ? paginateSlice(byStatus("resolved"), listParams.page)
-    : pageSliceFromQuery<Finding>([], listParams.page, statusCounts.resolved);
-  const dismissedSlice = findingStatuses.includes("dismissed")
-    ? paginateSlice(byStatus("dismissed"), listParams.page)
-    : pageSliceFromQuery<Finding>([], listParams.page, statusCounts.dismissed);
-  const paginationQuery = findingListPaginationQuery(listParams);
+    remediationByFindingId,
+    paginationQuery,
+    filtersActive,
+    hasAssessment,
+    totalFindings,
+  } = view;
 
   const listFor = (sliceFindings: Finding[]) => {
     return toFindingListItems(
@@ -133,10 +79,6 @@ export default async function FindingsPage({
       },
     );
   };
-
-  const hasAssessment = runtime.assessments.some(
-    (assessment) => assessment.projectId === project.id,
-  );
 
   if (totalFindings === 0) {
     return (
@@ -159,8 +101,6 @@ export default async function FindingsPage({
       </>
     );
   }
-
-  const filtersActive = hasActiveFindingFilters(listParams);
 
   function filteredEmptyState(tabLabel: string) {
     return (

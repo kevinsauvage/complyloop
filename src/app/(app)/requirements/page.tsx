@@ -1,15 +1,5 @@
 import type { Metadata } from "next";
 
-import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
-import {
-  defaultConnectPreset,
-  isValidPresetId,
-  presetById,
-  projectDefaultPresetId,
-} from "@complyloop/analysis-core/catalog/registry";
-import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
-
 import {
   EmptyState,
   NoProjectNotice,
@@ -25,31 +15,12 @@ import { RequirementsStatusChips } from "@/components/requirements/requirements-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { countByStatus, toCountMap } from "@/core/assessment-helpers";
-import {
-  paginateSlice,
-  parsePageParam,
-  parsePresetIdParam,
-  parseRequirementsQueryParam,
-} from "@/core/filter-params";
-import { parseRequirementStatusParam } from "@/core/filter-params";
-import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
-import { getProjectRuntime } from "@/server/workspace/project-runtime";
+import { loadRequirementsView } from "@/server/workspace/project-view";
 
 export const metadata: Metadata = {
   title: "Requirements",
   description: "Browse compliance requirements by framework preset and status.",
 };
-
-function controlsForPreset(
-  controls: readonly Control[],
-  presetId: string,
-): Control[] {
-  const preset = presetById(presetId);
-  if (!preset) return [];
-  const ids = new Set(preset.controlIds);
-  return controls.filter((control) => ids.has(control.id));
-}
 
 export default async function RequirementsPage({
   searchParams,
@@ -61,12 +32,8 @@ export default async function RequirementsPage({
     q?: string | string[];
   }>;
 }) {
-  const params = await searchParams;
-  const statusFilter = parseRequirementStatusParam(params.status);
-  const query = parseRequirementsQueryParam(params.q);
-  const urlPresetId = parsePresetIdParam(params.presetId, isValidPresetId);
-  const { project, caps } = await loadActiveProjectPage();
-  if (!project) {
+  const view = await loadRequirementsView(await searchParams);
+  if (!view.project) {
     return (
       <NoProjectNotice
         title="Requirements"
@@ -76,66 +43,24 @@ export default async function RequirementsPage({
     );
   }
 
-  const runtime = await getProjectRuntime(project.id, {
-    findingStatuses: ["open"],
-  });
-  const defaultPresetId = projectDefaultPresetId(project);
-  const selectedPresetId = urlPresetId ?? defaultPresetId;
-  const selectedPreset = presetById(selectedPresetId);
-  const frameworkId =
-    selectedPreset?.frameworkId ?? defaultConnectPreset().frameworkId;
-
-  const requirements = runtime.requirements.filter(
-    (requirement) => requirement.projectId === project.id,
-  );
-  const presetControls = controlsForPreset(
-    shippedCatalog().controls,
+  const {
+    project,
+    caps,
+    statusFilter,
+    query,
+    defaultPresetId,
     selectedPresetId,
-  );
-  const inScopeIds = new Set(presetControls.map((control) => control.id));
-  const assessed = requirements.filter((requirement) =>
-    inScopeIds.has(requirement.controlId),
-  );
-
-  const openFindingCounts = toCountMap(
-    runtime.findings.filter(
-      (finding) =>
-        finding.projectId === project.id && finding.status === "open",
-    ),
-    (finding) => finding.controlId,
-  );
-
-  const statusCounts = countByStatus(assessed, REQUIREMENT_STATUSES);
-
-  const filtered = statusFilter
-    ? assessed.filter((requirement) => requirement.status === statusFilter)
-    : assessed;
-  const filteredControlIds = new Set(
-    filtered.map((requirement) => requirement.controlId),
-  );
-  const statusControls = presetControls.filter((control) =>
-    filteredControlIds.has(control.id),
-  );
-  const needle = query?.toLowerCase();
-  const filteredControls = needle
-    ? statusControls.filter((control) =>
-        `${control.code} ${control.title}`.toLowerCase().includes(needle),
-      )
-    : statusControls;
-
-  const page = paginateSlice(filteredControls, parsePageParam(params.page), 25);
-  const pageControlIds = new Set(page.items.map((control) => control.id));
-  const pageRequirements = filtered.filter((requirement) =>
-    pageControlIds.has(requirement.controlId),
-  );
-  const paginationQuery: Record<string, string> = {};
-  if (statusFilter) paginationQuery.status = statusFilter;
-  if (query) paginationQuery.q = query;
-  if (selectedPresetId !== defaultPresetId) {
-    paginationQuery.presetId = selectedPresetId;
-  }
-
-  const targetLabel = selectedPreset?.name ?? "all catalog controls";
+    frameworkId,
+    assessed,
+    statusCounts,
+    openFindingCounts,
+    filtered,
+    filteredControls,
+    page,
+    pageRequirements,
+    paginationQuery,
+    targetLabel,
+  } = view;
 
   return (
     <>

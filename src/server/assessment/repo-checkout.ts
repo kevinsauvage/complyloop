@@ -13,31 +13,25 @@ import {
   assertE2EFixtureRoot,
   isE2EHarnessEnabled,
 } from "../e2e-harness";
+import { assessmentCheckoutQuota } from "../env";
 import { createAuthedGit, createGit } from "../github/git";
 import {
   githubPublicCloneUrl,
   parseOwnerRepo,
   redactCloneUrl,
 } from "../github/github";
-import { resolveProjectGitHubToken } from "../github/github-access";
-
-function positiveEnv(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (!raw) return fallback;
-  const value = Number(raw);
-  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
-}
+import { getProjectToken } from "../github/github-connector";
 
 function maxCheckoutBytes(): number {
-  return positiveEnv("ASSESSMENT_MAX_CHECKOUT_BYTES", 500 * 1024 * 1024);
+  return assessmentCheckoutQuota().maxBytes;
 }
 
 function maxCheckoutFiles(): number {
-  return positiveEnv("ASSESSMENT_MAX_CHECKOUT_FILES", 50_000);
+  return assessmentCheckoutQuota().maxFiles;
 }
 
 function maxCheckoutScanMs(): number {
-  return positiveEnv("ASSESSMENT_MAX_CHECKOUT_SCAN_MS", 30_000);
+  return assessmentCheckoutQuota().scanTimeoutMs;
 }
 
 /**
@@ -244,7 +238,7 @@ export async function withProjectCheckout<T>(
   if (!fullName) {
     throw new PublicError("Project has no GitHub repository metadata.", "connect");
   }
-  const accessToken = await resolveProjectGitHubToken(project);
+  const accessToken = await getProjectToken(project);
   if (!accessToken) {
     throw new PublicError(
       project.github?.installationId

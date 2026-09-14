@@ -3,15 +3,14 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 
-/**
- * Acknowledgement that a production-mode server is the Playwright harness, not
- * a real deployment. Set ONLY by `playwright.config.ts` on its dedicated
- * `next start` server — never on a real deployment.
- */
-const E2E_PROD_HARNESS = "E2E_PROD_HARNESS";
+import { e2eAuthEnabled, e2eFixtureRoot, e2eProdHarnessAcknowledged } from "./env";
 
 /**
- * True when the Playwright e2e harness env is explicitly enabled.
+ * True when the Playwright e2e harness env is explicitly enabled. Key names
+ * (`E2E_AUTH_ENABLED`, `E2E_PROD_HARNESS`, `E2E_FIXTURE_ROOT`) are owned by
+ * `./env` — `E2E_PROD_HARNESS` is set ONLY by `playwright.config.ts` on its
+ * dedicated `next start` server, never on a real deployment. This module
+ * owns the enablement semantics.
  *
  * Fail-fast: in `NODE_ENV=production` the harness requires `E2E_PROD_HARNESS=1`
  * (which only Playwright sets). Without it we throw instead of silently
@@ -19,10 +18,10 @@ const E2E_PROD_HARNESS = "E2E_PROD_HARNESS";
  * production GitHub App enforcement, and running assessment jobs in-request.
  */
 export function isE2EHarnessEnabled(): boolean {
-  if (process.env.E2E_AUTH_ENABLED !== "1") return false;
+  if (!e2eAuthEnabled()) return false;
   if (
     process.env.NODE_ENV === "production" &&
-    process.env[E2E_PROD_HARNESS] !== "1"
+    !e2eProdHarnessAcknowledged()
   ) {
     throw new Error(
       "E2E_AUTH_ENABLED=1 is set in production without E2E_PROD_HARNESS=1. " +
@@ -43,7 +42,7 @@ export function assertE2EFixtureRoot(): string {
   if (!isE2EHarnessEnabled()) {
     throw new Error("E2E harness is not enabled.");
   }
-  const raw = process.env.E2E_FIXTURE_ROOT?.trim();
+  const raw = e2eFixtureRoot();
   if (!raw) {
     throw new Error(
       "E2E_AUTH_ENABLED=1 requires E2E_FIXTURE_ROOT (absolute path to fixture source).",

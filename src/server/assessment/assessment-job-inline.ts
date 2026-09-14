@@ -29,3 +29,26 @@ export async function drainAssessmentJobQueue(
   }
   return outcome;
 }
+
+/**
+ * Dev/e2e-only inline drain for the assessment action: drains the queue and
+ * maps the outcome to user copy. Production never calls this (the worker
+ * owns the queue); the action branches on `shouldDrainAssessmentJobsInline`
+ * so the prod path stays a plain enqueue.
+ */
+export async function drainAssessmentJobsInline(): Promise<string> {
+  const outcome = await drainAssessmentJobQueue();
+  if (outcome.ran > 0) {
+    return "Assessment complete.";
+  }
+  if (outcome.failed > 0 && outcome.retrying > 0) {
+    return `${outcome.failed} assessment job${outcome.failed === 1 ? "" : "s"} failed and ${outcome.retrying} will retry.`;
+  }
+  if (outcome.failed > 0) {
+    return `${outcome.failed} assessment job${outcome.failed === 1 ? "" : "s"} failed. Check the server logs for details.`;
+  }
+  if (outcome.retrying > 0) {
+    return "Assessment hit an error and will retry automatically.";
+  }
+  return "No assessment jobs were ready to run.";
+}

@@ -12,7 +12,6 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 
 import { hasPreviewUrl } from "./assessment-helpers";
-import type { FindingCluster } from "./finding-cluster";
 
 /**
  * Finding prioritization policy: severity order, root-cause clustering,
@@ -20,6 +19,21 @@ import type { FindingCluster } from "./finding-cluster";
  * domain data — the assessment worker depends on the remediation module,
  * never on this file or the finding-act UX model.
  */
+
+/** Groups findings that share a common technical cause. */
+export interface FindingCluster {
+  id: string;
+  label: string;
+  checkId: string;
+  /** Shared path prefix or file pattern, e.g. "components/" or "ProductCard.tsx". */
+  sharedLocation: string;
+  findingIds: string[];
+  controlIds: string[];
+  /** How many open findings this cluster covers. */
+  occurrenceCount?: number;
+  /** Priority score (higher = fix first). */
+  priorityScore?: number;
+}
 
 function mustGet<T extends string, V>(
   record: Record<T, V>,

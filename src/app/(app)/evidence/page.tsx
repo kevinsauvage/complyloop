@@ -18,20 +18,10 @@ import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/core/datetime";
 import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/display";
 import { evidenceRecordHref } from "@/core/filter-params";
-import {
-  evidenceKindHref,
-  parseEvidenceDateParam,
-  parseEvidenceKindParam,
-  parseEvidenceQueryParam,
-} from "@/core/filter-params";
-import {
-  DEFAULT_PAGE_SIZE,
-  pageSliceFromQuery,
-  parsePageParam,
-} from "@/core/filter-params";
+import { evidenceKindHref } from "@/core/filter-params";
+import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
 import { cn } from "@/lib/utils";
-import { loadEvidencePage } from "@/server/reporting/evidence-queries";
-import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
+import { loadEvidenceView } from "@/server/workspace/project-view";
 
 import { EvidenceExportMenu } from "./_components/evidence-export-menu";
 
@@ -53,16 +43,8 @@ export default async function EvidencePage({
     actor?: string | string[];
   }>;
 }) {
-  const {
-    page: pageRaw,
-    kind: kindRaw,
-    q: qRaw,
-    from: fromRaw,
-    to: toRaw,
-    actor: actorRaw,
-  } = await searchParams;
-  const { project } = await loadActiveProjectPage();
-  if (!project) {
+  const view = await loadEvidenceView(await searchParams);
+  if (!view.project) {
     return (
       <NoProjectNotice
         title="Evidence"
@@ -71,43 +53,22 @@ export default async function EvidencePage({
       />
     );
   }
-  const kindFilter = parseEvidenceKindParam(kindRaw);
-  const query = parseEvidenceQueryParam(qRaw);
-  const from = parseEvidenceDateParam(fromRaw);
-  const to = parseEvidenceDateParam(toRaw);
-  const actor = parseEvidenceQueryParam(actorRaw);
-  const filters = { q: query, from, to, actor };
-  const hasTextOrDateFilter =
-    query !== undefined ||
-    from !== undefined ||
-    to !== undefined ||
-    actor !== undefined;
-  const page = parsePageParam(pageRaw);
-  const { requirements, kindCounts, items, filteredTotal } =
-    await loadEvidencePage(
-      project.id,
-      page,
-      DEFAULT_PAGE_SIZE,
-      { kind: kindFilter, ...filters },
-      hasTextOrDateFilter,
-    );
-  // The unfiltered total is the sum of the per-kind counts; the kind-only
-  // total is one bucket — no extra count(*) scans needed.
-  const totalUnfiltered = [...kindCounts.values()].reduce(
-    (sum, value) => sum + value,
-    0,
-  );
-  const total =
-    filteredTotal ??
-    (kindFilter ? (kindCounts.get(kindFilter) ?? 0) : totalUnfiltered);
-  const slice = pageSliceFromQuery(items, page, total);
-  const paginationQuery: Record<string, string> = {};
-  if (kindFilter) paginationQuery.kind = kindFilter;
-  if (query) paginationQuery.q = query;
-  if (from) paginationQuery.from = from;
-  if (to) paginationQuery.to = to;
-  if (actor) paginationQuery.actor = actor;
-  const filtersActive = kindFilter !== undefined || hasTextOrDateFilter;
+
+  const {
+    kindFilter,
+    query,
+    from,
+    to,
+    actor,
+    filters,
+    requirements,
+    kindCounts,
+    totalUnfiltered,
+    total,
+    slice,
+    paginationQuery,
+    filtersActive,
+  } = view;
 
   return (
     <>

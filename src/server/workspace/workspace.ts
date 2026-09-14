@@ -32,7 +32,6 @@ import {
   type AccessContext,
   accessFromStore,
   assertProjectPermission,
-  isProjectVisible,
   resolveActiveProject,
   visibleProjects,
 } from "./project-visibility";
@@ -142,6 +141,12 @@ async function loadViewerWorkspaceState(): Promise<Workspace> {
 
 /**
  * Tenancy + active project for app pages and layout. Memoized per React request.
+ *
+ * Read-entry rule (see docs/ai/architecture.md): pages compose exactly two
+ * cached reads — {@link getWorkspace} (tenancy only) and `getProjectRuntime`
+ * (compliance rows) — plus `loadActiveProjectPage` where caps are needed.
+ * Single-row guards (`requireProjectAccess`, `requireAlertAccess`) and the
+ * job loader (`loadProjectDb`) are the only other sanctioned reads.
  * Load findings/requirements/etc. with {@link getProjectRuntime}.
  */
 export const getWorkspace = cache(async (): Promise<Workspace> =>
@@ -211,25 +216,18 @@ export async function requireAlertAccess(
 
 /**
  * Lightweight project-visibility check for hot endpoints (e.g. assessment-job
- * polling): session + one project row + that project org's memberships. Avoids
- * the full tenancy load in {@link getWorkspace} on every request.
+ * polling). Same check as {@link requireProjectAccess} with `project.view`,
+ * but boolean instead of throwing — every failure mode is "not visible".
  */
 export async function viewerCanViewProject(
   projectId: string,
 ): Promise<boolean> {
-  const session = await getSession();
-  const userId = session?.user?.id ?? null;
-  if (!userId) return false;
-  const drizzle = await getDrizzle();
-  const project = await getProjectById(drizzle, projectId);
-  if (!project) return false;
-  const memberships = await listMembershipsForOrgs(drizzle, [project.orgId]);
-  return isProjectVisible(project, {
-    userId,
-    githubLogin: session?.user?.login ?? null,
-    organizations: [],
-    memberships,
-  });
+  try {
+    await requireProjectAccess(projectId, "project.view");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function controlById(controlId: string): Control {
@@ -240,7 +238,11 @@ export function controlById(controlId: string): Control {
   return control;
 }
 
-/** Slice lookup used inside {@link withProjectWrite} callbacks. */
+/**
+ * Slice lookups for inside `withProjectWrite` / `withFindingWrite` callbacks
+ * (in-memory rows, already locked). Page/action previews that need a fresh
+ * DB row use `requireFinding` / `requireRemediationForFinding` below instead.
+ */
 export function findingById(db: WorkspaceSlice, findingId: string): Finding {
   const finding = db.findings.find((candidate) => candidate.id === findingId);
   if (!finding) throw new PublicError("Unknown finding.");

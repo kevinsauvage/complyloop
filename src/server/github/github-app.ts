@@ -8,6 +8,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { isProductionRuntime } from "@/auth-secret";
 
 import { isE2EHarnessEnabled } from "../e2e-harness";
+import { githubAppId, githubAppPrivateKey, githubAppSlug } from "../env";
 import {
   createOctokit,
   filterReposByQuery,
@@ -19,10 +20,7 @@ import {
 
 /** True when a GitHub App can mint per-installation tokens. */
 export function isGitHubAppConfigured(): boolean {
-  return Boolean(
-    process.env.GITHUB_APP_ID?.trim() &&
-      process.env.GITHUB_APP_PRIVATE_KEY?.trim(),
-  );
+  return Boolean(githubAppId() && githubAppPrivateKey());
 }
 
 /**
@@ -30,7 +28,7 @@ export function isGitHubAppConfigured(): boolean {
  * Requires `GITHUB_APP_SLUG` (the App's URL slug, not the numeric id).
  */
 export function githubAppInstallUrl(): string | undefined {
-  const slug = process.env.GITHUB_APP_SLUG?.trim();
+  const slug = githubAppSlug();
   if (!slug) return undefined;
   return `https://github.com/apps/${encodeURIComponent(slug)}/installations/new`;
 }
@@ -65,10 +63,8 @@ function appAuthOptions(): {
   appId: number;
   privateKey: string;
 } {
-  const appId = Number(process.env.GITHUB_APP_ID);
-  const privateKey = normalizeGitHubAppPrivateKey(
-    process.env.GITHUB_APP_PRIVATE_KEY ?? "",
-  );
+  const appId = Number(githubAppId());
+  const privateKey = normalizeGitHubAppPrivateKey(githubAppPrivateKey() ?? "");
   if (!Number.isFinite(appId) || !privateKey) {
     throw new Error("GitHub App credentials are incomplete.");
   }

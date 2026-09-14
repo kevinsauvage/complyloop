@@ -4,6 +4,7 @@ import { Octokit } from "@octokit/rest";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
+import { githubApiBaseUrl } from "../env";
 import { redactSecrets } from "../redact";
 import type { GitHubRepoSummary } from "./github-types";
 
@@ -15,9 +16,7 @@ export function createOctokit(accessToken: string): Octokit {
     auth: accessToken,
     userAgent: "ComplyLoop",
     // Test / GitHub Enterprise Server override; defaults to api.github.com.
-    ...(process.env.GITHUB_API_BASE_URL
-      ? { baseUrl: process.env.GITHUB_API_BASE_URL }
-      : {}),
+    ...(githubApiBaseUrl() ? { baseUrl: githubApiBaseUrl() } : {}),
   });
 }
 

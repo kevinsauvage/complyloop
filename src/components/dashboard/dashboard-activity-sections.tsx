@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/card";
 import { formatDateTime } from "@/core/datetime";
 import { evidenceDisplay } from "@/core/display";
-import type { FindingCluster } from "@/core/finding-cluster";
+import type { FindingCluster } from "@/core/finding-priority";
 import { cn } from "@/lib/utils";
 
 function ActivityCard({

@@ -15,7 +15,7 @@ import {
   type Severity,
 } from "@complyloop/analysis-core/contract/statuses";
 
-import type { FindingCluster } from "../finding-cluster";
+import type { FindingCluster } from "../finding-priority";
 import {
   prioritizeFindings,
   SEVERITY_ORDER,

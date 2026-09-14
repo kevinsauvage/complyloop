@@ -32,7 +32,9 @@ publish-only. `@complyloop/check` bundles analysis-core; Playwright stays
 external.
 
 **Connectors:** GitHub only. **State:** Postgres (`DATABASE_URL`). Evidence is
-append-only. Tokens AES-256-GCM at rest. Assessments are durable jobs
+append-only. Tokens AES-256-GCM at rest. Server-owned env keys live in
+`src/server/env.ts` (lazy getters — never module constants); `AUTH_*` stays
+with auth/middleware/token crypto, framework keys stay direct. Assessments are durable jobs
 (`npm run worker` in prod).
 
 ```
@@ -108,6 +110,7 @@ evidence, findings, remediations, requirements }`; the worker persists via
 ## Analysis
 
 Three deterministic engines. AI is separate and never authoritative.
+Stage entries and leaf rules: `packages/analysis-core/README.md`.
 
 **AST** (`checks/` + jsx-a11y) — 75 check ids from source. Safe auto-fixes
 and verified AI patches target AST findings.
@@ -199,10 +202,17 @@ pushes are ignored. PR events post a Check Run. Failures become
   Client-safe shared types live in `*.types.ts` / `@/server/github/github-types`
   and `@complyloop/db/repo/*` (type-only); `src/server/actions/*`
   (`"use server"`) stay unfenced because clients invoke them.
-- **Reads** — pages compose loaders from `@/server/*` (`getWorkspace`,
-  `getProjectRuntime`, `findings-queries`, `evidence-queries`); pages never
-  open Drizzle or import `@complyloop/db/repo/*` directly (except the health
-  probe, which is a DB check by definition).
+- **Reads** — pages compose exactly two cached reads (`getWorkspace` for
+  tenancy, `getProjectRuntime` for compliance rows; `loadActiveProjectPage`
+  where caps are needed) plus the reporting loaders (`findings-queries`,
+  `evidence-queries`, `nav-attention`); pages never open Drizzle or import
+  `@complyloop/db/repo/*` directly (except the health probe, which is a DB
+  check by definition). Single-row guards (`requireProjectAccess`,
+  `requireAlertAccess`) and the job loader (`loadProjectDb`) are the only
+  other sanctioned reads. In-write slice lookups (`findingById`,
+  `remediationForFinding`) are for `with*Write` callbacks only — page
+  previews use the DB-backed `requireFinding` /
+  `requireRemediationForFinding`.
 - **Caching** — authenticated `(app)` pages rely on dynamic-from-usage
   (`getWorkspace` reads `auth()`/`cookies()`; list pages also await
   `searchParams`) plus targeted `revalidatePath` on mutation

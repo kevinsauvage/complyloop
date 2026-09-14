@@ -31,6 +31,8 @@ export const AI_MODEL = "poolside/laguna-s-2.1-free";
 
 /** True when AI gateway credentials are configured. */
 export function aiAvailable(): boolean {
+  // Reads process.env directly (not via `@/server/env`): `src/ai` must stay
+  // importable without `@/server/*` (client-bundle/edge boundary, ESLint).
   return Boolean(process.env.AI_GATEWAY_API_KEY);
 }
 

@@ -24,6 +24,7 @@ import {
   inviteOrgMemberAction,
 } from "@/server/actions/org";
 import { getSession } from "@/server/auth-session";
+import { supportEmail as getSupportEmail } from "@/server/env";
 import { getWorkspace } from "@/server/workspace/workspace";
 
 export const metadata: Metadata = {
@@ -108,7 +109,7 @@ export default async function OrgPage() {
     if (membership.userId) memberCount += 1;
     else pendingInviteCount += 1;
   }
-  const supportEmail = process.env.COMPLYLOOP_SUPPORT_EMAIL?.trim() || null;
+  const supportEmail = getSupportEmail();
 
   return (
     <>

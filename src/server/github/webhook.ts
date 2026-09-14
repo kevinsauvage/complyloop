@@ -7,6 +7,7 @@ import { type DrizzleDb,getDrizzle } from "@complyloop/db/postgres";
 import { findProjectByGithubFullName, getProjectById, updateProject } from "@complyloop/db/repo/projects";
 
 import { enqueueAssessmentJob } from "../assessment/assessment-jobs";
+import { githubWebhookSecret } from "../env";
 import { assertRateLimit } from "../rate-limit";
 
 type PushPayload = EmitterWebhookEvent<"push">["payload"];
@@ -38,7 +39,7 @@ export async function verifyGitHubSignature(
   rawBody: string,
   signatureHeader: string | null,
 ): Promise<boolean> {
-  const secret = process.env.GITHUB_WEBHOOK_SECRET;
+  const secret = githubWebhookSecret();
   if (!secret || !signatureHeader) return false;
   try {
     return await verifyWebhookSignature(secret, rawBody, signatureHeader);

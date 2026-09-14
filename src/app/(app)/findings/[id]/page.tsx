@@ -3,10 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 
-import { aiAvailable as isAiAvailable } from "@/ai/ai-call";
 import {
   BadgeWithDescription,
   FindingStatusBadge,
@@ -33,56 +31,12 @@ import {
   engineDisplay,
   evidenceDisplay,
 } from "@/core/display";
-import {
-  type FilterFindingsContext,
-  findingQueuePosition,
-  findingsListHref,
-  orderedFindingIdsForQueue,
-  parseFindingListParams,
-} from "@/core/filter-params";
-import { findingAct } from "@/core/finding-act";
-import { clusterFindings,prioritizeClusters } from "@/core/finding-priority";
+import { findingsListHref } from "@/core/filter-params";
 import { cn } from "@/lib/utils";
-import { latestPatchState,pullRequestUrlFromEvidence } from "@/server/assessment/ai-fix";
-import { buildDeveloperHandoff } from "@/server/assessment/handoff";
-import { listEvidenceForFindingScoped } from "@/server/reporting/evidence-queries";
 import { displayControl } from "@/server/reporting/report";
-import { projectCapabilities } from "@/server/workspace/project-capabilities";
-import { getProjectRuntime } from "@/server/workspace/project-runtime";
-import { findingsInScope } from "@/server/workspace/project-scope";
+import { loadFindingDetailView } from "@/server/workspace/project-view";
 import { isProjectVisible } from "@/server/workspace/project-visibility";
-import {
-  getWorkspace,
-  requireFinding,
-  requireRemediationForFinding,
-} from "@/server/workspace/workspace";
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const fallback: Metadata = {
-    title: "Finding",
-    description: "Finding detail with remediation state and evidence trail.",
-  };
-  try {
-    const { id } = await params;
-    const finding = await requireFinding(id);
-    const { projects, access } = await getWorkspace();
-    const project = projects.find(
-      (candidate) => candidate.id === finding.projectId,
-    );
-    if (!project || !isProjectVisible(project, access)) return fallback;
-    const control = displayControl(finding.controlId, project);
-    return {
-      title: `${control.code} — ${control.title}`,
-      description: `${control.secondaryCode} · ${control.description}`,
-    };
-  } catch {
-    return fallback;
-  }
-}
+import { getWorkspace, requireFinding } from "@/server/workspace/workspace";
 
 export default async function FindingPage({
   params,
@@ -92,72 +46,23 @@ export default async function FindingPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
-  const listParams = parseFindingListParams(await searchParams);
-  const { access, projects } = await getWorkspace();
-  let finding;
-  try {
-    finding = await requireFinding(id);
-  } catch {
-    notFound();
-  }
-  const project = projects.find(
-    (candidate) => candidate.id === finding.projectId,
-  );
-  if (!project || !isProjectVisible(project, access)) notFound();
+  const view = await loadFindingDetailView(id, await searchParams);
+  if (!view.finding) notFound();
 
-  const statusForTab = listParams.tab === "by_cause" ? "open" : listParams.tab;
-  const [runtime, remediation] = await Promise.all([
-    getProjectRuntime(project.id, { findingStatuses: [statusForTab] }),
-    requireRemediationForFinding(finding.id),
-  ]);
-  const remediationByFindingId = new Map(
-    runtime.remediations.map((row) => [row.findingId, row]),
-  );
-  const caps = projectCapabilities(project, access, project.orgId);
-
-  const control = displayControl(finding.controlId, project);
-  const evidence = await listEvidenceForFindingScoped(finding.id);
-  const chronologicalEvidence = [...evidence].reverse();
-  const aiAvailable = isAiAvailable();
-  const prUrl = pullRequestUrlFromEvidence(chronologicalEvidence);
-  const patchState = latestPatchState(chronologicalEvidence);
-  const githubConnected = Boolean(project.github?.fullName);
-  const act = findingAct({
+  const {
     finding,
+    caps,
     remediation,
-    canRemediate: caps.canRemediate,
+    control,
+    evidence,
     prUrl,
+    patchState,
     aiAvailable,
-    patchReady: patchState.status === "ready",
-    githubConnected,
-  });
-  const handoff = act.showHandoff
-    ? buildDeveloperHandoff(project, control, finding, remediation)
-    : null;
-
-  const scopedFindings = findingsInScope(runtime.findings, project);
-  const controls = shippedCatalog().controls;
-  const rawClusters = clusterFindings(scopedFindings, controls);
-  const clusters = prioritizeClusters(scopedFindings, controls, rawClusters);
-  const queueFilterContext: FilterFindingsContext = {
-    controls,
-    remediationStatusFor: (findingId) =>
-      remediationByFindingId.get(findingId)?.status,
-    clusterFindingIds: listParams.cluster
-      ? new Set(
-          clusters.find((cluster) => cluster.id === listParams.cluster)
-            ?.findingIds ?? [],
-        )
-      : undefined,
-    clusters: rawClusters,
-  };
-
-  const queueIds = orderedFindingIdsForQueue(
-    scopedFindings,
+    act,
+    handoff,
+    queuePosition,
     listParams,
-    queueFilterContext,
-  );
-  const queuePosition = findingQueuePosition(queueIds, finding.id);
+  } = view;
 
   return (
     <>
@@ -314,4 +219,31 @@ export default async function FindingPage({
       </PageContent>
     </>
   );
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const fallback: Metadata = {
+    title: "Finding",
+    description: "Finding detail with remediation state and evidence trail.",
+  };
+  try {
+    const { id } = await params;
+    const finding = await requireFinding(id);
+    const { projects, access } = await getWorkspace();
+    const project = projects.find(
+      (candidate) => candidate.id === finding.projectId,
+    );
+    if (!project || !isProjectVisible(project, access)) return fallback;
+    const control = displayControl(finding.controlId, project);
+    return {
+      title: `${control.code} — ${control.title}`,
+      description: `${control.secondaryCode} · ${control.description}`,
+    };
+  } catch {
+    return fallback;
+  }
 }

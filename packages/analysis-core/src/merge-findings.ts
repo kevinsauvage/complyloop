@@ -1,3 +1,9 @@
+/**
+ * Merge stage (stage 3 of the analysis pipeline): combines AST + runtime raw
+ * findings, drops superseded AST rows when runtime ran, and dedupes
+ * (`dedupeRuntimeFindings`). Pure — authority classes come from
+ * `check-authority.ts`. See `packages/analysis-core/README.md`.
+ */
 import {
   isCompositionSensitiveCheck,
   isPackageTwinSourceCheck,

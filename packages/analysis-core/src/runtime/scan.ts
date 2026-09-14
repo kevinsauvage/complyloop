@@ -1,3 +1,11 @@
+/**
+ * Runtime orchestration entry (stage 2 of the analysis pipeline): SSRF-safe
+ * navigation → axe + custom probes + html-validate + link checks →
+ * `RuntimeScanResult`. Engines stay behind `scanRuntime` (injectable via
+ * `RuntimePageScanner` for tests) — server code never imports
+ * `custom-checks/*` or `site-level/*` internals. See
+ * `packages/analysis-core/README.md`.
+ */
 import { createRequire } from "node:module";
 import path from "node:path";
 

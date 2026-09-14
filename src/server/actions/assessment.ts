@@ -7,7 +7,7 @@ import {
   runAction,
 } from "../action-state";
 import {
-  drainAssessmentJobQueue,
+  drainAssessmentJobsInline,
   shouldDrainAssessmentJobsInline,
 } from "../assessment/assessment-job-inline";
 import { type AssessmentJob,enqueueAssessmentJob } from "../assessment/assessment-jobs";
@@ -44,22 +44,13 @@ export async function runAssessmentAction(
       return payload;
     });
 
+    // Local `next dev` and the Playwright harness run without a dedicated
+    // worker: drain inline so the action resolves with the result. Production
+    // only enqueues (the worker owns the queue).
     if (shouldDrainAssessmentJobsInline()) {
-      const outcome = await drainAssessmentJobQueue();
+      const message = await drainAssessmentJobsInline();
       refresh(...COMPLIANCE_LOOP_ROUTES);
-      if (outcome.ran > 0) {
-        return "Assessment complete.";
-      }
-      if (outcome.failed > 0 && outcome.retrying > 0) {
-        return `${outcome.failed} assessment job${outcome.failed === 1 ? "" : "s"} failed and ${outcome.retrying} will retry.`;
-      }
-      if (outcome.failed > 0) {
-        return `${outcome.failed} assessment job${outcome.failed === 1 ? "" : "s"} failed. Check the server logs for details.`;
-      }
-      if (outcome.retrying > 0) {
-        return "Assessment hit an error and will retry automatically.";
-      }
-      return "No assessment jobs were ready to run.";
+      return message;
     }
 
     refresh(...COMPLIANCE_LOOP_ROUTES);
