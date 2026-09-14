@@ -17,6 +17,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "verify:gate": "sh scripts/verify-gate.sh",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:check-pack": "vitest run --config vitest.smoke.config.mts",

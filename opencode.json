@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    ".cursor/rules/product-context.mdc",
+    ".cursor/rules/domain-model.mdc",
+    ".cursor/rules/code-quality.mdc",
+    ".cursor/rules/server-conventions.mdc",
+    ".cursor/rules/typescript-conventions.mdc",
+    ".cursor/rules/ui-conventions.mdc",
+    ".cursor/rules/ai-features.mdc",
+    ".cursor/rules/analysis-engine.mdc",
+    "docs/ai/architecture.md"
+  ]
+}

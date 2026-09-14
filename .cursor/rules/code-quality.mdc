@@ -8,6 +8,7 @@ alwaysApply: true
 ## Simplicity first
 
 - Do the simplest thing that solves the task well. No premature abstraction, no helpers for one-shot logic, no features "for later".
+- Smallest diff that fits existing patterns: extend the canonical implementation in place; add a new abstraction only with 2+ call sites, a new dependency only with 2+ consumers.
 - Don't add error handling, fallbacks, or validation for scenarios that cannot happen. Validate at system boundaries only (user input, external APIs, AI output).
 - Prefer pure functions in the domain core; push side effects (DB, network, filesystem) to the edges.
 

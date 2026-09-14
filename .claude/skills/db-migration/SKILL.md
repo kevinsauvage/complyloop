@@ -1,7 +1,6 @@
 ---
 name: db-migration
-description: Generate and manage Drizzle ORM database migrations with validation
-disable-model-invocation: true
+description: Add a Drizzle Postgres migration in packages/db with raw SQL. Use when schema changes or indexes/constraints are needed.
 ---
 
 # Database Migration Skill
@@ -12,7 +11,7 @@ Postgres schema for this repo. Pre-launch: one squashed init plus incremental SQ
 
 | Path | Role |
 |------|------|
-| `src/server/db-store/schema.ts` | Drizzle schema (source of truth for types) |
+| `packages/db/src/schema.ts` | Drizzle schema (source of truth for types) |
 | `drizzle/0000_init.sql` | Full initial schema (tenancy, domain, evidence trigger, jobs) |
 | `drizzle/0001_*.sql` | Incremental migrations after squash |
 | `scripts/db-migrate.ts` | Applies `.sql` files in filename order |
@@ -27,10 +26,10 @@ npm run db:reset -- --confirm   # Drop all tables and re-run migrations
 
 ## Adding a migration
 
-1. Edit `schema.ts` if Drizzle types change.
+1. Edit `packages/db/src/schema.ts` if Drizzle types change.
 2. Add `drizzle/000N_<short_name>.sql` with the ALTER/CREATE statements.
-3. Run `npm run db:migrate` locally (or `db:reset --confirm` if you prefer a clean slate).
-4. Record any invariant changes in `docs/ai/architecture.md`.
+3. Run `npm run db:migrate` locally (or `npm run db:reset -- --confirm` for a clean slate; local/pre-launch only).
+4. Run `npm run test:db` when persistence is touched; record invariant changes in `docs/ai/architecture.md`.
 
 Do **not** reference `drizzle/migrations/*.ts` — this project uses raw SQL files, not drizzle-kit migrate output.
 

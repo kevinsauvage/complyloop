@@ -14,3 +14,8 @@ alwaysApply: false
 - Never log or return raw GitHub tokens. Source trees are ephemeral temp clones (`repo-checkout.ts`).
 - Long assessments: durable jobs + worker (`assessment-jobs`, `assessment-worker`), not long-running request handlers.
 - Webhook deliveries are idempotent by `x-github-delivery`.
+
+## Verification loop
+
+- During work: `npx vitest run <touched-file>` (targeted, fast).
+- At gate: `npm run verify:gate` (lint + typecheck + test + build); add `npm run test:db` when persistence changed, `npm run test:e2e` when routes/auth changed.
