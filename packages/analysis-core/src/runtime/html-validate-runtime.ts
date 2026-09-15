@@ -13,7 +13,7 @@
  * (selector + snippet) that looks like every other runtime finding.
  */
 import type { HtmlValidate } from "html-validate";
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 import { htmlValidatePackageVersion } from "../analyzer-versions.ts";
 import { offsetAt as offsetForLineColumn } from "../parse.ts";

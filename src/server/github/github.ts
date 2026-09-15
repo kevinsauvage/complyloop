@@ -105,9 +105,10 @@ export function githubCloneUrl(fullName: string, accessToken: string): string {
 }
 
 /**
- * Token-free clone/push URL. Authenticate via `gitAuthEnv(token)` in the git
- * child env instead — the token must never appear in argv. Prefer this for
- * every new call site; `githubCloneUrl` is retained for existing tests only.
+ * Token-free clone/push URL. Authenticate via `gitBasicAuthHeader(token)`
+ * per request instead — the token must never appear in a URL. Prefer this
+ * for every new call site; `githubCloneUrl` is retained for existing tests
+ * only.
  */
 export function githubPublicCloneUrl(fullName: string): string {
   const { owner, repo } = parseOwnerRepo(fullName);

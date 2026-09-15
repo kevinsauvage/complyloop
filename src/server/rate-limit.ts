@@ -37,7 +37,7 @@ export async function assertRateLimit(
   if (!consumed) throw new RateLimitError();
 }
 
-/** Removes expired windows; the worker loop calls this on a wall-clock cadence (plus once per idle tick inside processNextAssessmentJob). */
+/** Removes expired windows; `runAssessmentJobBatch` calls this once per batch. */
 export async function pruneRateLimitBuckets(
   maxAgeMs = 86_400_000,
 ): Promise<number> {

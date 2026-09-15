@@ -1,6 +1,6 @@
 import fs from "node:fs";
 
-import { type Browser, chromium } from "playwright";
+import { type Browser, chromium } from "playwright-core";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
 import type { RawFinding } from "../types";

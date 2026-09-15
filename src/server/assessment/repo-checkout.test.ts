@@ -6,23 +6,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-const clone = vi.hoisted(() => vi.fn());
-const fetch = vi.hoisted(() => vi.fn());
-const checkout = vi.hoisted(() => vi.fn());
-const createAuthedGitArgs = vi.hoisted(() => [] as unknown[][]);
+const isoClone = vi.hoisted(() => vi.fn());
+const isoFetch = vi.hoisted(() => vi.fn());
+const isoCheckout = vi.hoisted(() => vi.fn());
 
-vi.mock("../github/git", async () => {
-  const actual =
-    await vi.importActual<typeof import("../github/git")>("../github/git");
-  return {
-    ...actual,
-    createGit: () => ({ clone, fetch, checkout }),
-    createAuthedGit: (...args: unknown[]) => {
-      createAuthedGitArgs.push(args);
-      return { clone, fetch, checkout };
-    },
-  };
-});
+vi.mock("isomorphic-git", () => ({
+  default: {
+    clone: (...args: unknown[]) => isoClone(...args),
+    fetch: (...args: unknown[]) => isoFetch(...args),
+    checkout: (...args: unknown[]) => isoCheckout(...args),
+  },
+}));
+
+vi.mock("isomorphic-git/http/node", () => ({
+  default: {},
+}));
 
 import {
   assertCheckoutWithinQuota,
@@ -46,15 +44,18 @@ afterEach(() => {
   else process.env.E2E_AUTH_ENABLED = previousEnabled;
   if (previousRoot === undefined) delete process.env.E2E_FIXTURE_ROOT;
   else process.env.E2E_FIXTURE_ROOT = previousRoot;
-  clone.mockReset();
-  fetch.mockReset();
-  checkout.mockReset();
-  createAuthedGitArgs.splice(0);
+  isoClone.mockReset();
+  isoFetch.mockReset();
+  isoCheckout.mockReset();
 });
 
+function basicAuth(token: string): string {
+  return `Basic ${Buffer.from(`x-access-token:${token}`, "utf8").toString("base64")}`;
+}
+
 describe("cloneShallow", () => {
-  it("delegates to git clone", async () => {
-    clone.mockResolvedValue(undefined);
+  it("delegates to a shallow single-branch clone", async () => {
+    isoClone.mockResolvedValue(undefined);
     const root = path.join(
       os.tmpdir(),
       `complyloop-clone-${Date.now()}`,
@@ -62,14 +63,18 @@ describe("cloneShallow", () => {
     );
     tempDirs.push(path.dirname(root));
     await cloneShallow("https://example.com/r.git", root);
-    expect(clone).toHaveBeenCalledWith("https://example.com/r.git", root, [
-      "--depth",
-      "1",
-    ]);
+    expect(isoClone).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://example.com/r.git",
+        dir: root,
+        depth: 1,
+        singleBranch: true,
+      }),
+    );
   });
 
   it("removes the directory and wraps failures", async () => {
-    clone.mockRejectedValue(new Error("auth failed"));
+    isoClone.mockRejectedValue(new Error("auth failed"));
     const root = path.join(
       os.tmpdir(),
       `complyloop-clone-fail-${Date.now()}`,
@@ -84,7 +89,7 @@ describe("cloneShallow", () => {
 
   it("redacts embedded credentials from clone failure output", async () => {
     const token = "gho_secret_token";
-    clone.mockRejectedValue(
+    isoClone.mockRejectedValue(
       new Error(
         `fatal: unable to access 'https://x-access-token:${token}@github.com/octo/repo.git/': The requested URL returned error: 403`,
       ),
@@ -195,37 +200,69 @@ describe("parseCheckoutRef", () => {
         async () => "unreached",
       ),
     ).rejects.toBeInstanceOf(PublicError);
-    expect(clone).not.toHaveBeenCalled();
+    expect(isoClone).not.toHaveBeenCalled();
   });
 
-  it("withRepoCheckout clones the public URL and authenticates via env, not argv", async () => {
+  it("withRepoCheckout clones the public URL and authenticates via header, not URL", async () => {
     delete process.env.E2E_AUTH_ENABLED;
-    clone.mockResolvedValue(undefined);
-    fetch.mockResolvedValue(undefined);
-    checkout.mockResolvedValue(undefined);
+    isoClone.mockResolvedValue(undefined);
+    isoFetch.mockResolvedValue(undefined);
+    isoCheckout.mockResolvedValue(undefined);
     const sha = "0123456789abcdef0123456789abcdef01234567";
     const result = await withRepoCheckout(
       { fullName: "octo/repo", accessToken: "ghs_secret", ref: sha },
       async () => "done",
     );
     expect(result).toBe("done");
-    expect(clone).toHaveBeenCalledWith(
-      "https://github.com/octo/repo.git",
-      expect.any(String),
-      ["--depth", "1"],
+    expect(isoClone).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://github.com/octo/repo.git",
+        depth: 1,
+        singleBranch: true,
+        headers: { Authorization: basicAuth("ghs_secret") },
+      }),
     );
-    const cloneUrl = clone.mock.calls[0]?.[0] as string;
-    expect(cloneUrl).not.toContain("ghs_secret");
-    expect(cloneUrl).not.toContain("x-access-token");
-    expect(fetch).toHaveBeenCalledWith(["--depth", "1", "origin", sha]);
-    expect(checkout).toHaveBeenCalledWith([sha]);
-    // The token is handed to the authed git factory (child env transport),
-    // never interpolated into the clone URL above.
-    expect(createAuthedGitArgs[0]?.[0]).toBe("ghs_secret");
+    const cloneUrl = isoClone.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(cloneUrl.url as string).not.toContain("ghs_secret");
+    expect(cloneUrl.url as string).not.toContain("x-access-token");
+    expect(isoFetch).toHaveBeenCalledWith(
+      expect.objectContaining({ ref: sha, depth: 1 }),
+    );
+    expect(isoCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({ ref: sha }),
+    );
   });
 
-  it("cloneAuthedShallow delegates to the authed factory with the public URL", async () => {
-    clone.mockResolvedValue(undefined);
+  it("withRepoCheckout maps unknown refs to ref_not_found", async () => {
+    delete process.env.E2E_AUTH_ENABLED;
+    isoClone.mockResolvedValue(undefined);
+    isoFetch.mockRejectedValue(
+      Object.assign(new Error("Could not find gone-branch."), {
+        code: "NotFoundError",
+      }),
+    );
+    await expect(
+      withRepoCheckout(
+        { fullName: "octo/repo", accessToken: "tok", ref: "gone-branch" },
+        async () => "unreached",
+      ),
+    ).rejects.toMatchObject({ code: "ref_not_found" });
+  });
+
+  it("withRepoCheckout rethrows non-ref fetch failures", async () => {
+    delete process.env.E2E_AUTH_ENABLED;
+    isoClone.mockResolvedValue(undefined);
+    isoFetch.mockRejectedValue(new Error("HTTP Error: 401 Unauthorized"));
+    await expect(
+      withRepoCheckout(
+        { fullName: "octo/repo", accessToken: "tok", ref: "main" },
+        async () => "unreached",
+      ),
+    ).rejects.toThrow(/401/);
+  });
+
+  it("cloneAuthedShallow delegates with the token in the auth header", async () => {
+    isoClone.mockResolvedValue(undefined);
     const root = path.join(
       os.tmpdir(),
       `complyloop-authed-${Date.now()}`,
@@ -233,11 +270,13 @@ describe("parseCheckoutRef", () => {
     );
     tempDirs.push(path.dirname(root));
     await cloneAuthedShallow("https://github.com/o/r.git", "tok", root);
-    expect(createAuthedGitArgs[0]?.[0]).toBe("tok");
-    expect(clone).toHaveBeenCalledWith("https://github.com/o/r.git", root, [
-      "--depth",
-      "1",
-    ]);
+    expect(isoClone).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://github.com/o/r.git",
+        dir: root,
+        headers: { Authorization: basicAuth("tok") },
+      }),
+    );
   });
 });
 

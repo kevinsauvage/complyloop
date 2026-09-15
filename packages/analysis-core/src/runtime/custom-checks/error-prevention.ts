@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 import { ERROR_PREVENTION_CONFIRM_DATASET_KEYS } from "../../patterns/error-prevention-criteria.ts";
 import {

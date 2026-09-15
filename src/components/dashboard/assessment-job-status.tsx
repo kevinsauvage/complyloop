@@ -27,8 +27,8 @@ const statusIndicator: Record<AssessmentJob["status"], string> = {
 
 /**
  * A job that has been ready longer than this with no worker picking it up
- * almost certainly means no worker is draining the queue (prod only drains
- * via `npm run worker`; see docs/deploy.md "Workers").
+ * almost certainly means the Cron trigger is not draining the queue (prod
+ * drains via Vercel Cron → `POST /api/internal/jobs/run`; see docs/vercel.md).
  */
 export const WORKER_STALL_MS = 10 * 60_000;
 
@@ -134,9 +134,9 @@ export function AssessmentJobStatus({
             Assessment worker may be stopped.
           </span>{" "}
           Oldest queued job waiting {formatStallAge(stalledAge)} — jobs run only
-          while a worker is active (
-          <code className="font-mono">npm run worker</code>, see Workers in
-          docs/deploy.md).
+          while the Cron trigger is active (Vercel Cron →{" "}
+          <code className="font-mono">/api/internal/jobs/run</code>, see
+          docs/vercel.md).
         </p>
       ) : null}
       <ul className="flex flex-col gap-2" aria-label="Recent assessment jobs">

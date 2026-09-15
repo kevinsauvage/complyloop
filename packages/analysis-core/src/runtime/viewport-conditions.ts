@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 /** Mobile viewport for WCAG 2.5.8 / target-size condition pass. */
 export const MOBILE_VIEWPORT = { width: 320, height: 568 } as const;

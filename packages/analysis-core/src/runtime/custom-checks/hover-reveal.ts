@@ -1,4 +1,4 @@
-import type { Locator, Page } from "playwright";
+import type { Locator, Page } from "playwright-core";
 
 async function bodyTextLength(page: Page): Promise<number> {
   return page.evaluate(() => document.body.innerText.length);

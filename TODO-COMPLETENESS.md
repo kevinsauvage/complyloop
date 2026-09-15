@@ -12,135 +12,64 @@ what is missing before the project is genuinely usable, safe, and deployable.
 
 ## P0 — Critical
 
-### [x] TODO-01: ~~Assessment job lifecycle — cancellation is dead code, manual double-enqueue stacks, stuck jobs have no recourse~~ — DONE (2026-09-15)
-
-**Delivered:**
-- `cancelAssessmentJob` writer (`assessment-jobs.ts`: project-scoped
-  `queued/running → cancelled`) + `cancelAssessmentJobAction` (requires
-  `project.assess`, `assessment_job` evidence with `phase: "cancelled"`,
-  revalidates loop routes) + per-job Cancel button with confirm dialog.
-- Manual dedup: `runAssessmentAction` reuses the active job (check-then-enqueue
-  inside `withProjectWrite`, race-safe via the project advisory lock; skips
-  rate-limit consumption on the dedup path).
-- Lease heartbeat: 5-min `refreshAssessmentJobLease` while a scan runs (no more
-  >30-min double-runs); remote cancel detected → worker returns `cancelled`,
-  skips apply/complete/fail/evidence/Check Run so cancel means "saves nothing".
-- UI: running-age note past the 10-min stall threshold; `cancelled` evidence
-  phase display; inline drain counts + "Assessment cancelled." copy.
-
-**Why:** *(original problem statement, kept for history)*
-The core loop (Assess → Verify → Monitor) wedges when a job stalls or the user
-double-clicks. `cancelled` exists in the contract, DB CHECK, UI copy and e2e
-helpers, but nothing can ever write it — so a user with a stuck `running` job
-waits up to 30 min (lease expiry) with no recourse, and rapid manual re-runs
-pile serial jobs behind the per-project lock.
-
-**Where:**
-`src/server/assessment/assessment-jobs.ts`, `src/server/actions/assessment.ts`,
-`src/server/assessment/assessment-worker.ts`,
-`src/components/dashboard/assessment-job-status.tsx`,
-`src/components/dashboard/assessment-run-form.tsx`
-
-**Current state:**
-- `cancelled` in contract (`packages/analysis-core/src/contract/assessment-jobs.ts:9-15`),
-  DB CHECK (`drizzle/0000_init.sql:228`), UI label (`assessment-job-status.tsx:9-23`),
-  e2e helper (`e2e/webhook-helpers.ts:110`).
-- Retry: 3 attempts, exponential backoff (`assessment-jobs.ts:37-39,362-371`); lease
-  recovery `recoverExpiredLeases` on every claim tick (`:215-251`); serial-per-project
-  claim `FOR UPDATE SKIP LOCKED` (`:253-323`) — all correct.
-- Manual enqueue always `INSERT`s (`assessment-jobs.ts:183-199`); only `trigger==="webhook"`
-  coalesces (`:126-181`). Enqueue passes no `idempotencyKey`/`ref` (`actions/assessment.ts:32-36`).
-- Stall UI is informational only: 10-min `WORKER_STALL_MS` hint
-  (`assessment-job-status.tsx:30-49,91-104`); retry button only for `failed` (`:139-149`)
-  and enqueues a *new* job without cancelling the stuck one.
-
-**Missing / Problem:**
-1. Zero writers of `cancelled` — `grep cancelled` finds no `UPDATE … cancelled`,
-   no `cancelAssessmentAction`, no UI button. Status is unreachable.
-2. No dedup/concurrency guard on manual enqueue; CTA never disables while a
-   `queued/running` job exists (`assessment-run-form.tsx:7-11` shows pending label only).
-3. No job-level timeout/heartbeat: a scan running >30 min expires mid-run and
-   `recoverExpiredLeases` requeues → double-run (stale-write guard only logs,
-   `assessment-jobs.ts:346-351,386-391`).
-
-**Required change:**
-- Add `cancelAssessmentJobAction` (writer setting `queued/running → cancelled`,
-  auth via `withProjectWrite`, evidence row), wire a Cancel button for
-  `queued/running` jobs next to the stall hint.
-- Guard manual enqueue: skip `INSERT` (return existing job) when a `queued/running`
-  job exists for the project, or disable the CTA while active — pick one, not both.
-- Add either a lease heartbeat for long runs or a global job timeout that fails
-  closed instead of double-executing (align with 30-min lease).
-
-**Completion impact:** Very High
-
-**Complexity:** Medium
-
-**Evidence:**
-- `grep cancelled` → contract + CHECK + UI copy + e2e helper only; no writer.
-- `src/server/assessment/assessment-jobs.ts:126-181` (webhook-only coalescing) vs
-  `:183-199` (manual always INSERT); `src/server/actions/assessment.ts:32-36`.
-- `src/components/dashboard/assessment-job-status.tsx:30-49,91-104,139-149`.
-
----
-
-### [x] TODO-02: ~~Publish `@complyloop/check` or stop promising `npx complyloop-check`~~ — REMOVED
-
-**Decision (2026-09-15):** the `@complyloop/check` CI-gate package was removed
-entirely as unneeded complexity — `packages/check/`, `templates/github-actions/`,
-`.github/workflows/complyloop-check.yml`, `vitest.smoke.config.mts`, and all
-wiring (`bin`, `check`/`build:check`/`test:check-pack` scripts, CI steps, Dockerfile
-copies, ESLint/tsconfig/`.gitignore` entries, docs rows) are deleted. No code in
-`src/` imported it. This TODO no longer applies.
-
----
-
-### [ ] TODO-03: Production worker/ops hardening — restart policy, healthcheck, `ops:check` gaps, backup retention
+### [ ] TODO-03: Production ops hardening — cron monitoring, `ops:check` gaps, provider backups
 
 **Why:**
-`docs/deploy.md` + `AGENTS.md` require `npm run worker` in prod, but Compose
-ships a worker that stays down when it crashes, and `ops:check`/`ops:backup`
-don't enforce what the deploy doc promises. A single worker crash silently
-halves the system (web enqueues, nothing drains) with no alert.
+Prod drains via Vercel Cron → `POST /api/internal/jobs/run` (no worker
+process since the Vercel migration). If Cron stops firing or starts failing,
+web enqueues pile up with no alert — the same silent-halving failure the old
+worker restart policy guarded against. `ops:check` doesn't enforce what the
+deploy doc promises, and backups now depend entirely on the Postgres provider.
 
 **Where:**
-`docker-compose.yml:67-83`, `scripts/operations-check.ts`,
-`scripts/backup-postgres.sh`, `scripts/run-assessment-worker.ts`
+`vercel.json`, `src/app/api/internal/jobs/run/route.ts`,
+`scripts/operations-check.ts`, `docs/vercel.md`
 
 **Current state:**
-- Compose `worker` service exists, `WORKER_POLL_MS` default 5000, concurrency 1–8,
-  SIGINT/SIGTERM handled (`run-assessment-worker.ts:9-16,41-42`); HTTP trigger
-  authed constant-time (`worker-auth.ts:10-17`).
+
+- Cron every 2 min (`limit=2`, `maxDuration=300`); route authed constant-time
+  (`worker-auth.ts:10-17`); `WORKER_SECRET` == `CRON_SECRET` so Vercel's
+  automatic Bearer header passes.
 - `ops:check` verifies `DATABASE_URL` + (prod) `AUTH_SECRET,SENTRY_DSN,
-  GITHUB_WEBHOOK_SECRET` + `SELECT 1` + queued count (logged, never fails).
-- `ops:backup` is a single timestamped `pg_dump --format=custom`.
+GITHUB_WEBHOOK_SECRET` + `SELECT 1` + queued count (logged, never fails).
+- Backups are the provider's (Neon/Supabase point-in-time); no app-side dump.
 
 **Missing / Problem:**
-1. Worker service has no `restart:` policy and no `healthcheck` — crash stays down.
-2. `ops:check` doesn't require `AUTH_URL, GITHUB_APP_ID/PRIVATE_KEY, WORKER_SECRET`;
-   queued-depth growth is logged but never fails, so it can't gate deploys/alerts.
-   Compose defaults `SENTRY_DSN` to empty (`docker-compose.yml:50,79`) while
-   `ops:check` requires it in prod — compose prod boots non-compliant.
-3. Backup has no retention prune, no encryption note enforcement, no restore test;
-   deploy doc says "restore once to staging" but nothing verifies it.
+
+1. Nothing alerts when Cron stops draining (queue grows) or when cron
+   invocations return non-2xx — Vercel Cron logs exist but nobody watches them.
+2. `ops:check` doesn't require `AUTH_URL, GITHUB_APP_ID/PRIVATE_KEY,
+   WORKER_SECRET/CRON_SECRET`; queued-depth growth is logged but never fails,
+   so it can't gate deploys/alerts.
+3. Provider backup + restore drill is documented in `docs/vercel.md` but nothing
+   verifies it was ever tested.
 
 **Required change:**
-- `restart: unless-stopped` + `healthcheck` on worker; reconcile `SENTRY_DSN`
-  default vs `ops:check` requirement (fail boot or fail check — one consistent rule).
+
 - Extend `ops:check`: require App/prod vars, fail (non-zero) on queue-depth above a
-  threshold and on `pg_total_relation_size('evidence')` above a threshold
-  (deploy doc already recommends the latter, `deploy.md:125-126`).
-- Backup: retention prune (e.g. keep N daily), documented off-host copy + periodic
-  restore drill; keep `pg_dump` wrapper, don't build a backup platform.
+  threshold and on `pg_total_relation_size('evidence')` above a threshold;
+  run it on a schedule (Vercel Cron second job or CI scheduled workflow) with
+  alerting on failure — this replaces the old worker healthcheck.
+- Document the provider restore drill with a date + owner in `docs/vercel.md`
+  after the first successful staging restore.
 
 **Completion impact:** Very High
 
 **Complexity:** Small
 
 **Evidence:**
-- `docker-compose.yml:67-83` (no restart/healthcheck); `:50,79` (`SENTRY_DSN:-` empty).
-- `scripts/operations-check.ts:16-35`; `scripts/backup-postgres.sh:1-13`;
-  `docs/deploy.md:114-126,155-170`.
+
+- `vercel.json` (cron every 2 min); `route.ts:60-89` (auth + batch);
+  `scripts/operations-check.ts:16-35` (no fail cases).
+
+**Completion impact:** Very High
+
+**Complexity:** Small
+
+**Evidence:**
+
+- `vercel.json` (cron every 2 min); `route.ts` (`maxDuration`, batch auth);
+  `scripts/operations-check.ts:16-35` (no fail cases, App vars unchecked).
 
 ---
 
@@ -163,6 +92,7 @@ repos this is the most common support ticket the product will generate.
 `src/components/connect-project-panel.tsx`, `src/components/use-github-repo-connect.ts`
 
 **Current state:**
+
 - Covered: no-installation / repo-not-on-install errors, missing-token sign-out hint,
   token-unreadable `PublicError`, non-TS-repo guard (`connect-github.ts:32-46`),
   permission gating admin/owner (`rbac.ts:18-32`, `project-capabilities.ts:16-42`).
@@ -176,6 +106,7 @@ generic `octokitErrorMessage(status + slice 300)` or warn-only check-run skip.
 30/50 rows with no "not seeing your repo?" help.
 
 **Required change:**
+
 - Detect classified failure causes (no installation, suspended, repo not found,
   token mint failure) and render a repair banner with the App install URL +
   one-click reconnect/disconnect+connect; distinguish revoked vs expired on the
@@ -186,6 +117,7 @@ generic `octokitErrorMessage(status + slice 300)` or warn-only check-run skip.
 **Complexity:** Medium
 
 **Evidence:**
+
 - `github-access.ts:25-38` (token-or-null); `github.ts:23-41` (generic slice-300);
   `github-connector.ts:91-101` (warn-only skip); `connect.ts:89-93,120-130`.
 
@@ -204,18 +136,21 @@ Org sprawl + phantom invites is exactly what a multi-client agency hits first.
 `src/server/workspace/personal-org.ts:7-17`, `src/components/invite-member-form.tsx`
 
 **Current state:**
+
 - Roles matrix + `ASSIGNABLE_ORG_ROLES` (excludes `owner`), owner-transfer
   explicitly unsupported by design — correct.
 - Invite normalizes strip-`@`/lowercase, upserts existing as role-change,
   claims on next sign-in — implemented.
 
 **Missing / Problem:**
+
 1. No GitHub-username existence check (typo → silent pending invite, no feedback).
 2. No pending-invite expiry/cleanup.
 3. Re-invite of an existing member silently overwrites role ("Invited" toast).
 4. No self-removal/leave path; last-member/orphan guard beyond owner protection missing.
 
 **Required change:**
+
 - Validate login against GitHub API at invite time (or confirm-and-create-pending
   explicitly); add `createdAt`-based expiry + cleanup for unclaimed invites;
   separate "Invite" vs "Change role" copy/paths; add leave action with
@@ -226,64 +161,67 @@ Org sprawl + phantom invites is exactly what a multi-client agency hits first.
 **Complexity:** Medium
 
 **Evidence:**
+
 - `org-membership.ts:60-83` (normalize + upsert-overwrite `:70-73`);
   `org.ts:128-148,150-203`; `personal-org.ts:7-17`.
 
 ---
 
-### [ ] TODO-06: Rate-limit the expensive/unthrottled paths; prune buckets on scheduler-only deploys
+### [ ] TODO-06: Rate-limit the expensive/unthrottled paths
 
 **Why:**
 `assess`/`connect`/`ai`/`webhook` are limited, but the other expensive or abusable
 mutations (runtime Playwright saves, remediation/requirements writes, org
-create/invite spam, full-org export) are not. Scheduler-only deploys (HTTP
-trigger, no `npm run worker`) never prune `rate_limit_buckets` — unbounded growth.
+create/invite spam, full-org export) are not.
 
 **Where:**
 `src/server/rate-limit.ts:48-60`, `src/server/actions/runtime-audit.ts`,
 `src/server/actions/remediation.ts`, `src/server/actions/requirements.ts`,
-`src/server/actions/org.ts:96-250`, `scripts/run-assessment-worker.ts:20-34`
+`src/server/actions/org.ts:96-250`
 
 **Current state:**
+
 - Covered: `connect` 10/m, `assess` 6/m, `ai` 20/m, `webhook:{project}` 60/m,
   `worker-run` 120/m. Export caps `MAX_EXPORT_PROJECTS=50`.
-- Prune runs on worker cadence (10 min) + idle tick.
+- Prune runs once per `runAssessmentJobBatch` (every Cron tick + inline drain) —
+  resolved in the Vercel migration; no deployment topology skips it.
 
 **Missing / Problem:**
 No `assert*` on runtime-audit, remediation, requirements, org create/invite,
-org/project export; health probe unauthenticated + unthrottled per scrape
-(Compose scrapes every 15 s). Prune never runs without the long-lived worker.
+org/project export; health probe unauthenticated + unthrottled per scrape.
 
 **Required change:**
+
 - Add limits to runtime-audit, remediation/requirements, org create/invite, export;
-  throttle or cache health probe; run bucket prune from the HTTP-trigger path
-  (or a cron step) as well as the worker loop.
+  throttle or cache health probe.
 
 **Completion impact:** High
 
 **Complexity:** Small
 
 **Evidence:**
+
 - `rate-limit.ts:48-60` + `webhook.ts:227` vs absence of imports in
   `remediation.ts:212,282`, `requirements.ts:156,218,300`, `org.ts:96-250`,
-  `runtime-audit.ts:12,55`; `run-assessment-worker.ts:20-34`.
+  `runtime-audit.ts:12,55`.
 
 ---
 
-### [ ] TODO-07: Evidence growth observability — wire the size alert the deploy doc already recommends
+### [ ] TODO-07: Evidence growth observability — wire the size alert the deploy doc recommends
 
 **Why:**
 Evidence is append-only by design with "unbounded growth" acknowledged in docs;
 read paths are capped (export 5000, snapshot 100, paged UI) but nothing alerts
-before the table degrades the database. The deploy doc tells operators to alert
+before the table degrades the database. `docs/vercel.md` tells operators to alert
 on `pg_total_relation_size('evidence')` — neither `ops:check` nor `/api/health`
 does.
 
 **Where:**
 `packages/db/src/repo/evidence.ts:27-41`, `scripts/operations-check.ts:30-35`,
-`src/app/api/health/route.ts:15-45`, `docs/deploy.md:106-126`
+`src/app/api/health/route.ts:15-45`, `docs/vercel.md`
 
 **Current state:**
+
 - Append-only enforced (no update/delete helper; DB trigger; proof tests).
   Export truncation surfaced in JSON/Markdown/HTML + `truncated/evidenceTotal`.
 - Pruning correctly declared a superuser-level migration, not app code.
@@ -294,6 +232,7 @@ No evidence-size signal anywhere despite the doc recommendation; no retention
 guidance beyond "keep decision records forever, noise kinds are candidates".
 
 **Required change:**
+
 - Add evidence table size (+ row count) to `ops:check` output with a warn/fail
   threshold; optionally expose on `/api/health`; document which `kind`s are safe
   to prune first (the deploy doc already names candidates — make it actionable).
@@ -303,8 +242,9 @@ guidance beyond "keep decision records forever, noise kinds are candidates".
 **Complexity:** Small
 
 **Evidence:**
+
 - `evidence.ts:27,33` (limits bound reads, not table);
-  `operations-check.ts:30-35`; `health/route.ts:15-45`; `deploy.md:114-126`.
+  `operations-check.ts:30-35`; `health/route.ts:15-45`; `docs/vercel.md` (retention guidance).
 
 ---
 
@@ -323,11 +263,13 @@ already deleted with the ephemeral checkout.
 `src/server/github/pr.ts:183-226`, `src/server/actions/pr.ts:55-77`
 
 **Current state:**
+
 - Check-run failures never fail the job (warn + return) — correct.
 - PR guards (non-source reject, verified-patch required, clean-tree, branch restore,
   force-push rationale, orphan-PR reconcile) — correct and well-handled.
 
 **Missing / Problem:**
+
 1. `runClaimedAssessmentJob` posts the Check Run only on success; worker exception
    propagates before the post → PR gets no `failure`/`neutral` signal.
 2. `!fullName || !token` returns `{branch, prUrl:null}` describing a committed local
@@ -335,6 +277,7 @@ already deleted with the ephemeral checkout.
    was created" for a branch that doesn't exist remotely.
 
 **Required change:**
+
 - Wrap the preview-scan path so worker exceptions post a `failure` (or `neutral`
   with error summary) Check Run before rethrowing.
 - Return/throw explicit "GitHub token unavailable, nothing pushed" instead of the
@@ -345,6 +288,7 @@ already deleted with the ephemeral checkout.
 **Complexity:** Small
 
 **Evidence:**
+
 - `assessment-worker.ts:52-91` (post only on success);
   `pr.ts:183-226` + `actions/pr.ts:75-77`.
 
@@ -364,6 +308,7 @@ following the instructions do the wrong thing.
 `src/components/findings/finding-next-step-panel.tsx:117-188`
 
 **Current state:**
+
 - Verify switch is exhaustive and correct (`remediation-verify.ts:177-229`):
   source throws by design, `dom` re-checks the violation, `site` re-runs
   `scanRuntime` with fail-closed preview-down/0-pages handling. AI guidance +
@@ -375,6 +320,7 @@ Copy only: `finding-act.ts:188` branches source-vs-rest so `site` gets DOM copy;
 rejection names "DOM" only.
 
 **Required change:**
+
 - Branch `site` explicitly in `findingAct`/`runtimeAct` copy, `handoff.ts` steps
   (re-audit, not PR), and the PR rejection message. No logic change.
 
@@ -383,6 +329,7 @@ rejection names "DOM" only.
 **Complexity:** Small
 
 **Evidence:**
+
 - `finding-act.ts:188`, `handoff.ts:65-76`, `pr.ts:104-108`,
   `remediation-verify.ts:193-223` (correct behavior to mirror in copy).
 
@@ -403,17 +350,20 @@ refresh failure collapses revoked vs expired into one "sign out/in again".
 `src/app/(marketing)/login/page.tsx:24-35`
 
 **Current state:**
+
 - Identity-only scopes, `sub = providerAccountId`, server-side AES-256-GCM token
   store, refresh-then-clear-and-null, open-redirect guards in 3 places, OAuth
   error copy for 4 cases — all implemented.
 
 **Missing / Problem:**
+
 1. No explicit `session.maxAge/updateAge` — expiry/rotation policy undocumented.
 2. `assertProductionGitHubAuth()` raw throw on sign-in bypasses login-page copy.
 3. Refresh failure silent `null` → generic reconnect hint; no revoked-vs-expired
    distinction for the repair banner (links TODO-04).
 
 **Required change:**
+
 - Set + document session lifetimes; map prod-config throw to `Configuration`
   login copy; surface revoked vs transient refresh failures distinctly.
 
@@ -422,6 +372,7 @@ refresh failure collapses revoked vs expired into one "sign out/in again".
 **Complexity:** Small
 
 **Evidence:**
+
 - `auth.ts:43-55` (no maxAge), `:88-90` (raw throw),
   `access-token.ts:83-86` (silent null), `login/page.tsx:24-35`.
 
@@ -454,6 +405,7 @@ No save-and-run affordance; `origin`-only normalization undocumented in UI
 clear without confirm; unbounded 3 s poll while worker down; 5-job history cap.
 
 **Required change:**
+
 - Add "Save + run assessment" (or keep save-only but make retroactivity explicit);
   document origin-only in the form; confirm destructive clear; back off polling
   with a max duration; paginate or expand job history.
@@ -463,6 +415,7 @@ clear without confirm; unbounded 3 s poll while worker down; 5-job history cap.
 **Complexity:** Small
 
 **Evidence:**
+
 - `runtime-audit.ts:48-70`; `runtime-audit-form.tsx:22-61`;
   `assessment-job-status-live.tsx:12-16`.
 
@@ -491,7 +444,7 @@ encrypt-with-new path; no rotation runbook.
 
 **Required change:**
 Pick one: (a) introduce dedicated key with fallback + startup warning and key-id
-envelope, or (b) document in `docs/deploy.md` that rotating `AUTH_SECRET`
+  envelope, or (b) document in `docs/vercel.md` that rotating `AUTH_SECRET`
 invalidates sessions AND stored tokens (reconnect required) + startup log when
 fallback is in use. Prefer (a) if a migration is acceptable.
 
@@ -500,6 +453,7 @@ fallback is in use. Prefer (a) if a migration is acceptable.
 **Complexity:** Small (b) / Medium (a)
 
 **Evidence:**
+
 - `github-tokens.ts:29-37,147-156`; `auth.ts` reuses same env var as NextAuth secret.
 
 ---
@@ -530,7 +484,7 @@ after one org is deleted.
 
 **Required change:**
 Document the retention matrix (disconnect vs project delete vs org delete ×
-findings/remediations/evidence/tokens) in `docs/deploy.md` or the org UI;
+findings/remediations/evidence/tokens) in `docs/vercel.md` or the org UI;
 confirm token survival is intended (likely yes — per-user scope) with one line.
 
 **Completion impact:** Medium
@@ -538,6 +492,7 @@ confirm token survival is intended (likely yes — per-user scope) with one line
 **Complexity:** Small (docs + one confirmation test for cascade-keeps-evidence)
 
 **Evidence:**
+
 - `connect-github.ts:201-246` vs `org.ts:286`; `schema.ts:275-289` (tokens FK-less).
 
 ---
@@ -563,6 +518,7 @@ token via child env, ref-injection guard, checkout quota. Sentry scrub present.
 Chromium re-resolve residual is documented and accepted.
 
 **Missing / Problem:**
+
 1. `DATABASE_SSL_INSECURE` honored in prod (docs say dev-only, code allows it).
 2. `GITHUB_API_BASE_URL` → `127.0.0.1` possible outside e2e (operator-controlled,
    but unchecked per request).
@@ -570,6 +526,7 @@ Chromium re-resolve residual is documented and accepted.
    coverage with a unit test.
 
 **Required change:**
+
 - Refuse or warn-loud `DATABASE_SSL_INSECURE` when `NODE_ENV=production`;
   scope/validate `GITHUB_API_BASE_URL` outside e2e; add redaction unit test for
   token + PEM shapes.
@@ -579,6 +536,7 @@ Chromium re-resolve residual is documented and accepted.
 **Complexity:** Small
 
 **Evidence:**
+
 - `postgres.ts:45-50,69-74`; `.env.example:13`; `url-safety.ts:164-179` (accepted
   residual); `redact.ts:6-26`.
 
@@ -597,13 +555,14 @@ as retention.
 `README.md:62`, `docs/ai/architecture.md:115`,
 `src/server/assessment/assessment.ts:240-349`,
 `src/app/(app)/findings/page.tsx:92-96,218-220`,
-`docs/deploy.md:106-126`
+`docs/vercel.md` (retention + bounds guidance)
 
 **Current state:**
 Authority/merge/status-derivation core is tested and correct — this is copy and
 counting only.
 
 **Missing / Problem:**
+
 1. 58 vs 75 mismatch (custom AST vs total check ids — define once).
 2. "Incremental" = snapshot-diff in worker, not webhook-file-list; runtime always
    full; `scanMode/filesScanned` visible only in DB/evidence, not pipeline UI.
@@ -620,6 +579,7 @@ bounds-download-not-table in one place.
 **Complexity:** Small
 
 **Evidence:**
+
 - `README.md:62` vs `architecture.md:115` + `check-registry.ts` (134 `id:` hits);
   `assessment.ts:240-349`; `findings/page.tsx:92-96` vs `:218-220`.
 
@@ -630,14 +590,13 @@ bounds-download-not-table in one place.
 ### [ ] TODO-16: Prod-config consistency polish — Sentry default, `E2E_*` visibility, internal-route coverage
 
 **Why:**
-Leftovers that bite once: Compose defaults `SENTRY_DSN` empty while prod
-requires it; `E2E_*` leak guard only fires when harness code is hit (staging
-with leaked vars silently uses fixtures; health doesn't refuse harness mode);
-`POST /api/internal/jobs/run` auth/rate-limit, `ops:check`, backup/restore, and
+Leftovers that bite once: `E2E_*` leak guard only fires when harness code is hit
+(staging with leaked vars silently uses fixtures; health doesn't refuse harness
+mode); `POST /api/internal/jobs/run` auth/rate-limit, `ops:check`, and
 export-truncation-at-5000 have no test pinning them.
 
 **Where:**
-`docker-compose.yml:50,79`, `src/server/e2e-harness.ts:24-36`,
+`src/server/e2e-harness.ts:24-36`,
 `src/app/api/internal/jobs/run/route.ts:60-89`, `src/app/api/health/route.ts`
 
 **Current state:**
@@ -645,20 +604,21 @@ Prod harness refusal (`E2E_PROD_HARNESS`) + unit pin exist; health liveness +
 queue depth correct; worker auth constant-time correct.
 
 **Missing / Problem:**
-Inconsistent defaults, harness-mode invisibility on health, untested ops paths.
+Harness-mode invisibility on health, untested ops paths.
 
 **Required change:**
-- One consistent Sentry rule; health reports harness mode (or refuses);
-  tests for internal-run auth/limit, `ops:check` fail cases, backup/restore
-  smoke, export truncation boundary.
+
+- Health reports harness mode (or refuses);
+  tests for internal-run auth/limit, `ops:check` fail cases,
+  export truncation boundary.
 
 **Completion impact:** Low
 
 **Complexity:** Small
 
 **Evidence:**
-- `docker-compose.yml:50,79` vs `operations-check.ts:21`;
-  `e2e-harness.ts:24-36`; `internal/jobs/run/route.ts:60-89`.
+
+- `e2e-harness.ts:24-36`; `internal/jobs/run/route.ts:60-89`.
 
 ---
 
@@ -742,3 +702,4 @@ The project can be considered complete when:
 ```
 
 🌱 graft tokens saved across this audit ≈ 31,000 (build refresh + ask packs vs full-file reads).
+```

@@ -20,13 +20,6 @@ jobs:
       - run: npm run test:coverage
       - run: npm run build
 
-  docker-image:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker build -t complyloop:ci .
-      - run: docker run --rm complyloop:ci node -e "import('@complyloop/analysis-core/scan')"
-
   # Static bundle report (.next/diagnostics/analyze) — Next 16 Turbopack
   # analyzer, run with --output so it never opens the interactive server in CI.
   bundle-analysis:

@@ -16,7 +16,9 @@ Full product spec: [`compliance-engineering-product-spec.md`](./docs/compliance-
 
 ```bash
 npm install
-docker compose up -d          # Postgres on localhost:5433
+docker run -d --name complyloop-pg \
+  -e POSTGRES_USER=complyloop -e POSTGRES_PASSWORD=complyloop \
+  -e POSTGRES_DB=complyloop -p 5433:5432 postgres:16-alpine
 cp .env.example .env.local    # set DATABASE_URL, AUTH_*, etc.
 npm run db:migrate
 npm run dev
@@ -26,12 +28,12 @@ Open [http://localhost:3000](http://localhost:3000), sign in with GitHub, connec
 
 | Need                      | Doc                                                    |
 | ------------------------- | ------------------------------------------------------ |
-| Deploy to staging/prod    | [`docs/deploy.md`](./docs/deploy.md)                   |
+| Deploy to staging/prod    | [`docs/vercel.md`](./docs/vercel.md)                   |
 | Architecture              | [`docs/ai/architecture.md`](./docs/ai/architecture.md) |
 | All docs                  | [`docs/README.md`](./docs/README.md)                   |
 | Agent / contributor guide | [`AGENTS.md`](./AGENTS.md)                             |
 
-**Local dev:** assessments run **in-process** during `npm run dev`. **Production:** run `npm run worker` alongside the web app.
+**Local dev:** assessments run **in-process** during `npm run dev`. **Production (Vercel):** Vercel Cron drives `POST /api/internal/jobs/run` — no worker process (see [`docs/vercel.md`](./docs/vercel.md)).
 
 ---
 
@@ -77,7 +79,6 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 | Command                                                       | Purpose                                                                                                  |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `npm run dev`                                                 | Dev server; assessments in-process                                                                       |
-| `npm run worker`                                              | Job worker (**required in production**)                                                                  |
 | `npm run build`                                               | Production build                                                                                         |
 | `npm run lint`                                                | ESLint                                                                                                   |
 | `npm run typecheck`                                           | TypeScript strict                                                                                        |
@@ -86,7 +87,7 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 | `npm run build:core`                                          | Compile `packages/analysis-core` → `dist` (npm publish only)                                             |
 | `npm run db:generate` / `db:reset -- --confirm` / `db:studio` | Drizzle helpers                                                                                          |
 | `npm run test:coverage` / `test:e2e` / `e2e:seed`             | Coverage gate; Playwright e2e                                                                            |
-| `npm run ops:check` / `ops:backup`                            | Prod config sanity; `pg_dump` wrapper                                                                    |
+| `npm run ops:check`                                           | Prod config sanity (DB + required env)                                                                   |
 | `npm run analyze`                                             | Turbopack bundle report                                                                                  |
 
 Definition of done: `npm run lint && npm run typecheck && npm run test && npm run build`
@@ -106,4 +107,4 @@ npm run playwright:install
 npm run test:e2e
 ```
 
-Gated harness (`E2E_AUTH_ENABLED`) — **never** on customer deploys. See [`docs/deploy.md`](./docs/deploy.md).
+Gated harness (`E2E_AUTH_ENABLED`) — **never** on customer deploys. See [`docs/vercel.md`](./docs/vercel.md).

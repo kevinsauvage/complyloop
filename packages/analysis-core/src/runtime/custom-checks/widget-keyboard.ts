@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";

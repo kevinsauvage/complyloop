@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 const GOTO_TIMEOUT_MS = 30_000;
 const POST_DOM_SETTLE_MS = 250;

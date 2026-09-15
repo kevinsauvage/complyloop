@@ -1,5 +1,6 @@
 import "server-only";
 
+import { pruneRateLimitBuckets } from "../rate-limit";
 import {
   type AssessmentWorkerResult,
   processNextAssessmentJob,
@@ -31,16 +32,28 @@ async function runSequential(limit: number): Promise<AssessmentWorkerResult[]> {
 /**
  * Claims and runs ready assessment jobs until the queue is idle or `limit`
  * jobs have been attempted. The single batch loop shared by the scheduler API
- * route, the standalone worker script, and the in-request inline drain.
+ * route (Vercel Cron) and the in-request inline drain (dev/e2e).
  *
  * Pass `concurrency` > 1 to run a bounded in-process pool. Per-project
  * exclusivity is enforced by `claimNextAssessmentJob` (correlated NOT EXISTS
  * plus `FOR UPDATE SKIP LOCKED`), so pool workers can never race the same
  * project — they only add throughput across independent projects.
+ *
+ * Expired rate-limit buckets are pruned once per batch (one cheap DELETE, so
+ * a continuously busy queue cannot grow the table unbounded, and idle ticks
+ * don't write on every poll).
  */
 export async function runAssessmentJobBatch(
   optionsOrLimit: number | AssessmentJobBatchOptions,
 ): Promise<AssessmentWorkerResult[]> {
+  try {
+    await pruneRateLimitBuckets();
+  } catch (error) {
+    console.warn(
+      "Rate-limit bucket prune failed:",
+      error instanceof Error ? error.message : error,
+    );
+  }
   const options =
     typeof optionsOrLimit === "number"
       ? { limit: optionsOrLimit }

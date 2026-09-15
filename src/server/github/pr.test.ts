@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import git from "isomorphic-git";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buttonNameCheck } from "@complyloop/analysis-core/checks/families/names";
@@ -23,8 +24,45 @@ import {
   locateViolationInProject,
   mergeFix,
 } from "../assessment/assessment-findings";
-import { createGit } from "./git";
 import { preparePullRequest } from "./pr";
+
+/**
+ * The only network edge in PR preparation is the push: everything else
+ * (branch, checkout, status, add, commit) runs against the local fixture via
+ * the real pure-JS implementation. Push is mocked per-test (resolve = remote
+ * accepts, reject = remote refuses).
+ */
+const isoPush = vi.hoisted(() => vi.fn());
+
+vi.mock("isomorphic-git", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("isomorphic-git")>();
+  const passthrough = [
+    "init",
+    "add",
+    "commit",
+    "currentBranch",
+    "listBranches",
+    "checkout",
+    "branch",
+    "statusMatrix",
+  ] as const;
+  const mocked: Record<string, (...args: never[]) => unknown> = {
+    push: (...args: never[]) => isoPush(...args),
+  };
+  const real = actual.default as unknown as Record<
+    string,
+    (...args: never[]) => unknown
+  >;
+  for (const name of passthrough) {
+    const fn = real[name];
+    if (typeof fn !== "function") throw new Error(`missing git.${name}`);
+    mocked[name] = (...args: never[]) => fn(...args);
+  }
+  return { ...actual, default: mocked };
+});
+
+isoPush.mockResolvedValue({ ok: true, refs: {} });
 
 const withProjectCheckout = vi.hoisted(() =>
   vi.fn(
@@ -111,12 +149,14 @@ async function initRepo(source: string): Promise<{
   const relative = "Hero.tsx";
   fs.writeFileSync(path.join(root, relative), source);
 
-  const git = createGit({ baseDir: root });
-  await git.init();
-  await git.addConfig("user.email", "test@example.com");
-  await git.addConfig("user.name", "Test");
-  await git.add(["."]);
-  await git.commit("initial");
+  await git.init({ fs, dir: root, defaultBranch: "main" });
+  await git.add({ fs, dir: root, filepath: relative });
+  await git.commit({
+    fs,
+    dir: root,
+    message: "initial",
+    author: { name: "Test", email: "test@example.com" },
+  });
 
   const [raw] = buttonNameCheck.run(parseSource(relative, source));
   if (!raw?.fix) throw new Error("expected button-name fix");
@@ -308,6 +348,13 @@ describe("locateViolationInProject + PR apply", () => {
     );
 
     expect(result.prUrl).toBe("https://github.com/acme/shop/pull/42");
+    expect(isoPush).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ref: expect.stringContaining("complyloop/fix-"),
+        remoteRef: expect.stringContaining("complyloop/fix-"),
+        force: true,
+      }),
+    );
     expect(createPullRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         draft: true,
@@ -322,11 +369,9 @@ describe("locateViolationInProject + PR apply", () => {
       await initRepo(initial);
     finding.fix = null;
     resolveProjectGitHubToken.mockResolvedValue("token");
-    // A remote that can never accept the push: the branch commits locally,
-    // then push + PR creation fail as one user-visible error.
-    githubPublicCloneUrl.mockReturnValue(
-      path.join(os.tmpdir(), "no-such-remote"),
-    );
+    // The branch commits locally, then the remote refuses the push: push +
+    // PR creation fail as one user-visible error.
+    isoPush.mockRejectedValueOnce(new Error("remote: permission denied"));
 
     await expect(
       preparePullRequest(project, control, finding, remediation, {
@@ -429,12 +474,10 @@ describe("locateViolationInProject + PR apply", () => {
 
   it("surfaces GitHub API failures after a successful push", async () => {
     const initial = `export const Hero = () => <button></button>;\n`;
-    const { root, relative, project, control, finding, remediation } =
+    const { relative, project, control, finding, remediation } =
       await initRepo(initial);
     finding.fix = null;
     resolveProjectGitHubToken.mockResolvedValue("token");
-    // Push to the repo itself so only the PR creation fails.
-    githubPublicCloneUrl.mockReturnValue(root);
     createPullRequest.mockRejectedValueOnce(new Error("API down"));
 
     await expect(

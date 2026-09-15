@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 type EmulateMediaOptions = Parameters<Page["emulateMedia"]>[0];
 

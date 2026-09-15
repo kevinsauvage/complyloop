@@ -75,6 +75,14 @@ describe("classifyRuntimeScanError", () => {
     expect(message).not.toContain("ms-playwright");
   });
 
+  it("maps serverless Chromium (@sparticuz/chromium) failures the same way", () => {
+    const message = classifyRuntimeScanError(
+      new Error("sparticuz/chromium: incompatible architecture arm64"),
+    );
+    expect(message).toMatch(/browser/i);
+    expect(message).not.toContain("arm64");
+  });
+
   it("keeps unexpected errors generic and does not leak paths", () => {
     const message = classifyRuntimeScanError(
       new Error("ENOENT /secret/clone/axe.min.js"),

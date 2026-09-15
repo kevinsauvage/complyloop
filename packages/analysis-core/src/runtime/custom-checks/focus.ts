@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 import { type CapturedHit } from "./hit-capture.ts";
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";

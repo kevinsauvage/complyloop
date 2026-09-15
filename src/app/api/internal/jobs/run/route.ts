@@ -12,6 +12,12 @@ import { assertRateLimit, RateLimitError } from "@/server/rate-limit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * Serverless ceiling for one cron batch (Pro: up to 800; Hobby caps at 300).
+ * Batches stay small (`limit` ≤ 10) so a slow clone/scan fits inside it.
+ */
+export const maxDuration = 300;
+
 /** Hashed so the bearer secret is never stored in the rate-limit table. */
 function tokenFingerprint(header: string): string {
   return createHash("sha256").update(header).digest("hex").slice(0, 16);

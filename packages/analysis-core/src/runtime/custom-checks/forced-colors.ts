@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import { FORCED_COLORS_CONTROL_SELECTOR } from "./interactive-control-selectors.ts";

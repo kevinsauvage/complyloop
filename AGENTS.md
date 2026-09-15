@@ -31,9 +31,9 @@ Compliance engineering for **RGAA/WCAG** on React/Next.js/TypeScript — orgs, p
 | ---------- | --------------------------------------------------------------------- |
 | App        | Next.js 16, React 19, TypeScript strict, Tailwind 4, shadcn/ui        |
 | DB         | Postgres + Drizzle (`DATABASE_URL`); evidence insert-only             |
-| Auth       | Auth.js v5 + GitHub OAuth/App; ephemeral clones per job               |
+| Auth       | Auth.js v5 + GitHub OAuth/App; ephemeral checkouts per job           |
 | Analysis   | AST + jsx-a11y + optional Playwright/axe when `runtimeBaseUrl` is set |
-| Jobs       | `npm run worker` (required in prod)                                   |
+| Jobs       | Vercel Cron → `POST /api/internal/jobs/run` (no worker process)      |
 | AI         | Vercel AI SDK, optional; **never sets statuses**                      |
 | Tests      | Vitest + RTL; Playwright e2e (`E2E_AUTH_ENABLED`)                     |
 
@@ -49,7 +49,6 @@ npm run lint && npm run typecheck && npm run test && npm run build  # Definition
 npx vitest run <touched-file>  # Targeted verify during work (fast loop; full gate at the end)
 npm run test:coverage    # Coverage gates (vitest.config.mts)
 npm run test:db          # Postgres persistence integration (needs DATABASE_URL)
-npm run worker           # Assessment worker
 npm run db:migrate       # Apply migrations
 npm run test:e2e         # Playwright (after e2e:seed)
 ```

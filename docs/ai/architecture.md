@@ -33,14 +33,14 @@ publish-only.
 append-only. Tokens AES-256-GCM at rest. Server-owned env keys live in
 `src/server/env.ts` (lazy getters — never module constants); `AUTH_*` stays
 with auth/middleware/token crypto, framework keys stay direct. Assessments are durable jobs
-(`npm run worker` in prod).
+(Vercel Cron → `POST /api/internal/jobs/run`).
 
 ```
-App (enqueue only) → assessment_jobs → Worker (clone → scan → persist)
-                                         ↓
-                         Core + contract → Catalog / Analysis / AI
-                                         ↓
-                                   GitHub clone (ephemeral)
+App (enqueue only) → assessment_jobs → Cron tick (clone → scan → persist)
+                                          ↓
+                          Core + contract → Catalog / Analysis / AI
+                                          ↓
+                          isomorphic-git checkout (ephemeral, no git CLI)
 ```
 
 ## Persistence
@@ -104,9 +104,12 @@ evidence, findings, remediations, requirements }`; the worker persists via
   runs), 3 attempts, serial per project, cancellable (`queued`/`running` →
   `cancelled`, project-scoped; a cancelled mid-run run saves nothing and posts
   no Check Run). Manual re-runs reuse the active job instead of stacking.
-  HTTP only enqueues. Dev/e2e drain in-process.
-- **Clones** — shallow temp checkout per job; deleted after. See
-  [`deploy.md`](../deploy.md).
+  Batches run on Vercel Cron ticks (plus inline drain in dev/e2e); expired
+  rate-limit buckets prune once per batch.
+- **Checkouts** — shallow ephemeral checkout per job via pure-JS git
+  (isomorphic-git, no `git` CLI); deleted after. Serverless Chromium via
+  `@sparticuz/chromium` when `ASSESSMENT_RUNTIME_BROWSER=serverless`, local
+  Playwright browser otherwise. See [`vercel.md`](../vercel.md).
 
 ## Analysis
 

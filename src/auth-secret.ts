@@ -29,14 +29,14 @@ export function resolveAuthSecret(): string {
       isPlaceholderAuthSecret(process.env.AUTH_SECRET)
     ) {
       throw new Error(
-        "AUTH_SECRET is a known placeholder. Set a unique secret (see docs/deploy.md).",
+        "AUTH_SECRET is a known placeholder. Set a unique secret (see docs/vercel.md).",
       );
     }
     return process.env.AUTH_SECRET;
   }
   if (isProductionRuntime()) {
     throw new Error(
-      "AUTH_SECRET is required in production (see docs/deploy.md). Refusing to use the dev-only fallback.",
+      "AUTH_SECRET is required in production (see docs/vercel.md). Refusing to use the dev-only fallback.",
     );
   }
   return DEV_ONLY_AUTH_SECRET;

@@ -34,7 +34,7 @@ function assertProductionGitHubAuth(): void {
   if (!githubOAuthConfigured()) return;
   if (!process.env.AUTH_URL) {
     throw new Error(
-      "AUTH_URL is required in production when GitHub auth is configured (see docs/deploy.md).",
+      "AUTH_URL is required in production when GitHub auth is configured (see docs/vercel.md).",
     );
   }
   assertProductionGitHubApp();

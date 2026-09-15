@@ -154,9 +154,6 @@ export type AssessmentWorkerResult =
 export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
   const job = await claimNextAssessmentJob();
   if (!job) {
-    // Rate-limit pruning runs on a wall-clock cadence in the worker loop
-    // (`scripts/run-assessment-worker.ts`) rather than on every idle poll, so
-    // an idle worker no longer writes to Postgres every few seconds.
     return { kind: "idle" };
   }
   reportInfo("assessment job claimed", {

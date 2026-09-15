@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 import { TARGET_SIZE_ENHANCED_MIN_PX } from "../viewport-conditions.ts";
 import { type CapturedHit } from "./hit-capture.ts";

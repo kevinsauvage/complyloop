@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("playwright", () => ({
+vi.mock("playwright-core", () => ({
   chromium: {
     executablePath: vi.fn(() => {
       throw new Error("browser unavailable");

@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";

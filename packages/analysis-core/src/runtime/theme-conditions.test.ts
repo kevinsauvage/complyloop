@@ -1,6 +1,6 @@
 import fs from "node:fs";
 
-import { type Browser, chromium } from "playwright";
+import { type Browser, chromium } from "playwright-core";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { runThemeSensitiveCustomChecks } from "./custom-checks/index";

@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { capturePageSnapshot } from "./snapshot";

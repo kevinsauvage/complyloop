@@ -4,14 +4,19 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import type { SimpleGit } from "simple-git";
+import git from "isomorphic-git";
+import http from "isomorphic-git/http/node";
 
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { assertE2EFixtureRoot, isE2EHarnessEnabled } from "../e2e-harness";
 import { assessmentCheckoutQuota } from "../env";
-import { createAuthedGit, createGit } from "../github/git";
+import {
+  gitBasicAuthHeader,
+  type GitHttpAuth,
+  noGitHttpAuth,
+} from "../github/git-http";
 import {
   githubPublicCloneUrl,
   parseOwnerRepo,
@@ -88,10 +93,12 @@ export interface RepoCheckoutOptions {
 }
 
 /**
- * Validates an untrusted git ref before it reaches simple-git. A ref starting
- * with `-` would be parsed as a git flag (e.g. `--upload-pack=...`), so only
- * hex SHAs and strict branch/tag names are accepted. Called by
- * `withRepoCheckout`, the single sink for every server checkout path.
+ * Validates an untrusted git ref before it reaches the git layer. Refs feed
+ * isomorphic-git fetch/checkout (no shell, so no flag injection), but strict
+ * validation still guards API misuse: only hex SHAs and strict branch/tag
+ * names are accepted. Called by `withRepoCheckout`, the single sink for every
+ * server checkout path. Note: short (non-40-hex) SHAs cannot be fetched by
+ * hash — use the full SHA or a branch/tag name.
  */
 export function parseCheckoutRef(ref: string): string {
   if (
@@ -118,35 +125,26 @@ export function parseCheckoutRef(ref: string): string {
   throw new PublicError("Invalid checkout ref.", "ref_not_found");
 }
 
-/** Shallow-clones into `rootPath`; removes the directory on clone failure. */
+/**
+ * Shallow-clones a repo into `rootPath` with pure-JS git (no `git` CLI —
+ * serverless runtimes don't ship one); removes the directory on failure.
+ */
 export async function cloneShallow(
   cloneUrl: string,
   rootPath: string,
-): Promise<void> {
-  await cloneWith(createGit(), cloneUrl, rootPath);
-}
-
-/**
- * Authenticated shallow clone for GitHub checkouts. The token travels in the
- * child env (`http.extraHeader`), never in the URL/argv — use this instead of
- * embedding credentials in `cloneUrl`.
- */
-export async function cloneAuthedShallow(
-  publicUrl: string,
-  accessToken: string,
-  rootPath: string,
-): Promise<void> {
-  await cloneWith(createAuthedGit(accessToken), publicUrl, rootPath);
-}
-
-async function cloneWith(
-  git: SimpleGit,
-  cloneUrl: string,
-  rootPath: string,
+  auth: GitHttpAuth = noGitHttpAuth(),
 ): Promise<void> {
   fs.mkdirSync(path.dirname(rootPath), { recursive: true });
   try {
-    await git.clone(cloneUrl, rootPath, ["--depth", "1"]);
+    await git.clone({
+      fs,
+      http,
+      dir: rootPath,
+      url: cloneUrl,
+      singleBranch: true,
+      depth: 1,
+      headers: auth.headers,
+    });
   } catch (error) {
     fs.rmSync(rootPath, { recursive: true, force: true });
     const detail = error instanceof Error ? error.message : "unknown error";
@@ -155,6 +153,32 @@ async function cloneWith(
       "connect",
     );
   }
+}
+
+/**
+ * Authenticated shallow clone for GitHub checkouts. The token travels
+ * per-request in the HTTP `Authorization` header, never in the URL.
+ */
+export async function cloneAuthedShallow(
+  publicUrl: string,
+  accessToken: string,
+  rootPath: string,
+): Promise<void> {
+  await cloneShallow(publicUrl, rootPath, gitBasicAuthHeader(accessToken));
+}
+
+/** Fetch failures that mean "no such ref" (vs network/auth failures). */
+function isRefNotFoundError(error: unknown): boolean {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "NotFoundError"
+  ) {
+    return true;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return /Could not find/i.test(message);
 }
 
 /**
@@ -188,9 +212,9 @@ export async function withRepoCheckout<T>(
 
   const ref =
     options.ref === undefined ? undefined : parseCheckoutRef(options.ref);
-  // Token travels in the child env (http.extraHeader), never in the URL/argv.
   const { fullName, accessToken } = options;
   parseOwnerRepo(fullName);
+  const auth = gitBasicAuthHeader(accessToken);
   const rootPath = fs.mkdtempSync(
     path.join(os.tmpdir(), "complyloop-checkout-"),
   );
@@ -202,18 +226,36 @@ export async function withRepoCheckout<T>(
     );
     if (ref) {
       // Ref fetches can pull more tree than the default shallow clone: fail
-      // fast on quota before fetching instead of after.
+      // fast on quota before fetching instead of after. Full 40-hex SHAs
+      // fetch by hash (verified against GitHub); branch/tag names resolve
+      // server-side as usual.
       await assertCheckoutWithinQuota(rootPath);
-      const git = createAuthedGit(accessToken, { baseDir: rootPath });
       try {
-        await git.fetch(["--depth", "1", "origin", ref]);
+        await git.fetch({
+          fs,
+          http,
+          dir: rootPath,
+          ref,
+          depth: 1,
+          singleBranch: true,
+          tags: false,
+          headers: auth.headers,
+        });
+      } catch (error) {
+        if (!isRefNotFoundError(error)) throw error;
+        throw new PublicError(
+          `Ref not found: ${ref}. The branch or commit may have been deleted.`,
+          "ref_not_found",
+        );
+      }
+      try {
+        await git.checkout({ fs, dir: rootPath, ref });
       } catch {
         throw new PublicError(
           `Ref not found: ${ref}. The branch or commit may have been deleted.`,
           "ref_not_found",
         );
       }
-      await git.checkout([ref]);
     }
     await assertCheckoutWithinQuota(rootPath);
     return await fn(rootPath);

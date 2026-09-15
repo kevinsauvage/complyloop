@@ -1,4 +1,4 @@
-import type { Locator, Page } from "playwright";
+import type { Locator, Page } from "playwright-core";
 
 import {
   BROWSER_HIT_CAPTURE_SRC,

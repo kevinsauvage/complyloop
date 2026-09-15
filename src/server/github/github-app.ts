@@ -50,7 +50,7 @@ export function assertProductionGitHubApp(): void {
   }
   if (!isGitHubAppConfigured()) {
     throw new Error(
-      "GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY are required in production when GitHub auth is configured (see docs/deploy.md).",
+      "GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY are required in production when GitHub auth is configured (see docs/vercel.md).",
     );
   }
 }

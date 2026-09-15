@@ -31,16 +31,15 @@ const nextConfig: NextConfig = {
   // (`use cache` + `<Suspense>` around every uncached/dynamic read). All
   // authenticated routes here are `force-dynamic` today; see the Caching
   // guide before opting in.
-  // Standalone output is for the Docker image only — `next start` warns/fails
-  // when standalone is always on (Playwright e2e uses `npm run start`).
-  ...(process.env.DOCKER_BUILD === "1"
-    ? { output: "standalone" as const }
-    : {}),
   // Runtime analysis engines use dynamic requires Playwright/Node APIs; keep them
   // out of the Turbopack graph (same rationale as disk-loaded axe.min.js).
+  // `isomorphic-git` and `@sparticuz/chromium` are serverless-safe pure-JS /
+  // external-binary paths — same treatment so bundling never touches them.
   serverExternalPackages: [
     "linkinator",
-    "playwright",
+    "playwright-core",
+    "@sparticuz/chromium",
+    "isomorphic-git",
     "axe-core",
     "html-validate",
   ],

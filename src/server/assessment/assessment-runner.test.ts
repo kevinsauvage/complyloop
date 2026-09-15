@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const processNextAssessmentJob = vi.hoisted(() => vi.fn());
+const pruneRateLimitBuckets = vi.hoisted(() => vi.fn());
 
 vi.mock("./assessment-worker", () => ({
   processNextAssessmentJob: (...args: unknown[]) =>
     processNextAssessmentJob(...args),
+}));
+
+vi.mock("../rate-limit", () => ({
+  pruneRateLimitBuckets: (...args: unknown[]) => pruneRateLimitBuckets(...args),
 }));
 
 import { runAssessmentJobBatch } from "./assessment-runner";
@@ -12,6 +17,8 @@ import { runAssessmentJobBatch } from "./assessment-runner";
 describe("runAssessmentJobBatch", () => {
   beforeEach(() => {
     processNextAssessmentJob.mockReset();
+    pruneRateLimitBuckets.mockReset();
+    pruneRateLimitBuckets.mockResolvedValue(0);
   });
 
   it("runs sequentially and stops on the first idle", async () => {
@@ -44,5 +51,17 @@ describe("runAssessmentJobBatch", () => {
 
     expect(processNextAssessmentJob).toHaveBeenCalledTimes(2);
     expect(results.every((result) => result.kind === "idle")).toBe(true);
+  });
+
+  it("prunes rate-limit buckets once per batch and survives prune failure", async () => {
+    processNextAssessmentJob.mockResolvedValue({ kind: "idle" });
+
+    await runAssessmentJobBatch(5);
+
+    expect(pruneRateLimitBuckets).toHaveBeenCalledTimes(1);
+
+    pruneRateLimitBuckets.mockRejectedValueOnce(new Error("db down"));
+    await expect(runAssessmentJobBatch(1)).resolves.toHaveLength(1);
+    expect(processNextAssessmentJob).toHaveBeenCalled();
   });
 });

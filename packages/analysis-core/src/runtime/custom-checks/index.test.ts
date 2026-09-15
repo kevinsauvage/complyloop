@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Page } from "playwright-core";
 import { describe, expect, it, vi } from "vitest";
 
 import type { CustomViolation } from "./types";

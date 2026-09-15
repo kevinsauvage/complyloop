@@ -9,7 +9,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 
-import type { Browser, Page } from "playwright";
+import type { Browser, Page } from "playwright-core";
 
 import { maxRuntimePages } from "../contract/assessment-limits.ts";
 import { PublicError, publicMessage } from "../contract/public-error.ts";
@@ -72,10 +72,34 @@ export type RuntimePageScanner = (
 
 let sharedBrowser: Browser | null = null;
 
+/**
+ * Serverless Chromium (Vercel has no Playwright browser download step):
+ * `@sparticuz/chromium` ships a compatible build with its own executable
+ * path. Set `ASSESSMENT_RUNTIME_BROWSER=serverless` to use it; anything else
+ * (or unset) uses the locally installed Playwright browser
+ * (`npm run playwright:install`). Env is read directly (precedent:
+ * `contract/assessment-limits.ts`) so the engine stays framework-agnostic.
+ */
+function isServerlessBrowserEnabled(): boolean {
+  return process.env.ASSESSMENT_RUNTIME_BROWSER?.trim() === "serverless";
+}
+
 async function getBrowser(): Promise<Browser> {
   if (!sharedBrowser) {
-    const { chromium } = await import("playwright");
-    sharedBrowser = await chromium.launch({ headless: true });
+    if (isServerlessBrowserEnabled()) {
+      const [{ chromium }, sparticuz] = await Promise.all([
+        import("playwright-core"),
+        import("@sparticuz/chromium"),
+      ]);
+      sharedBrowser = await chromium.launch({
+        args: sparticuz.default.args,
+        executablePath: await sparticuz.default.executablePath(),
+        headless: true,
+      });
+    } else {
+      const { chromium } = await import("playwright-core");
+      sharedBrowser = await chromium.launch({ headless: true });
+    }
     process.on("exit", () => {
       sharedBrowser?.close().catch(() => {});
     });
