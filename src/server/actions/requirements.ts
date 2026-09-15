@@ -174,8 +174,7 @@ export async function markRequirementExceptionAction(
           at: new Date().toISOString(),
           expiresAt,
         },
-        nextStatus:
-          reason === "not_applicable" ? "not_applicable" : undefined,
+        nextStatus: reason === "not_applicable" ? "not_applicable" : undefined,
       },
     );
 

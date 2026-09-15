@@ -5,7 +5,12 @@ import { InviteMemberForm } from "@/components/invite-member-form";
 import { OrgAccountOverview } from "@/components/org-account-overview";
 import { OrgDataLifecycle } from "@/components/org-data-lifecycle";
 import { OrgMembersCard } from "@/components/org-members-card";
-import { EmptyState, PageContent, PageHeader, PageSection } from "@/components/page-primitives";
+import {
+  EmptyState,
+  PageContent,
+  PageHeader,
+  PageSection,
+} from "@/components/page-primitives";
 import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -19,10 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { signOutAction } from "@/server/actions/auth";
-import {
-  createOrgAction,
-  inviteOrgMemberAction,
-} from "@/server/actions/org";
+import { createOrgAction, inviteOrgMemberAction } from "@/server/actions/org";
 import { getSession } from "@/server/auth-session";
 import { supportEmail as getSupportEmail } from "@/server/env";
 import { getWorkspace } from "@/server/workspace/workspace";
@@ -95,8 +97,7 @@ export default async function OrgPage() {
     (membership) => membership.orgId === org.id,
   );
   const role = access.memberships.find(
-    (membership) =>
-      membership.orgId === org.id && membership.userId === userId,
+    (membership) => membership.orgId === org.id && membership.userId === userId,
   )?.role;
   const canManage = role === "owner" || role === "admin";
   const owner = members.find((membership) => membership.role === "owner");
@@ -120,9 +121,7 @@ export default async function OrgPage() {
         {canManage ? (
           <Dialog>
             <DialogTrigger asChild>
-              <Button size="sm">
-                Invite member
-              </Button>
+              <Button size="sm">Invite member</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -179,8 +178,10 @@ export default async function OrgPage() {
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground">
                 Owner-only — export and deletion are managed by{" "}
-                {owner?.githubLogin ? `@${owner.githubLogin}` : "the organization owner"}.
-                Contact the owner for data requests.
+                {owner?.githubLogin
+                  ? `@${owner.githubLogin}`
+                  : "the organization owner"}
+                . Contact the owner for data requests.
               </p>
             </CardContent>
           </Card>
@@ -189,7 +190,9 @@ export default async function OrgPage() {
         <PageSection title="New organization">
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">New organization</Button>
+              <Button variant="outline" size="sm">
+                New organization
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>

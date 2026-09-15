@@ -16,8 +16,14 @@ export default function FindingDetailLoading() {
           <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
         </div>
       </div>
-      <div className="surface-panel h-48 animate-pulse rounded-2xl" aria-hidden />
-      <div className="surface-panel h-56 animate-pulse rounded-2xl" aria-hidden />
+      <div
+        className="surface-panel h-48 animate-pulse rounded-2xl"
+        aria-hidden
+      />
+      <div
+        className="surface-panel h-56 animate-pulse rounded-2xl"
+        aria-hidden
+      />
       <p className="text-sm text-muted-foreground">Loading finding…</p>
       <span className="sr-only">Loading…</span>
     </div>

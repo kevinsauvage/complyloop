@@ -36,7 +36,9 @@ describe("AppShell", () => {
 
     const menu = screen.getByRole("button", { name: "Menu" });
     await user.click(menu);
-    expect(screen.getByRole("dialog", { name: "Main navigation" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Main navigation" }),
+    ).toBeInTheDocument();
   });
 
   it("closes the mobile sheet when a server-rendered nav link is clicked", async () => {

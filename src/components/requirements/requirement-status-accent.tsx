@@ -1,6 +1,6 @@
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
-import { requirementStatusDisplay,STATUS_TONE_ACCENT } from "@/core/display";
+import { requirementStatusDisplay, STATUS_TONE_ACCENT } from "@/core/display";
 import { cn } from "@/lib/utils";
 
 export function statusAccentClass(status: RequirementStatus): string {

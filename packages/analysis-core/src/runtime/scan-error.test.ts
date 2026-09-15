@@ -9,9 +9,9 @@ import { TOO_MANY_REDIRECTS_MESSAGE } from "./url-safety";
 
 describe("classifyRuntimeScanError", () => {
   it("passes PublicError messages through", () => {
-    expect(classifyRuntimeScanError(new PublicError("Preview URL is blocked."))).toBe(
-      "Preview URL is blocked.",
-    );
+    expect(
+      classifyRuntimeScanError(new PublicError("Preview URL is blocked.")),
+    ).toBe("Preview URL is blocked.");
   });
 
   it("maps connection refused without leaking filesystem paths", () => {
@@ -26,7 +26,7 @@ describe("classifyRuntimeScanError", () => {
   it("maps connection refused and appends origin+path without query tokens", () => {
     const message = classifyRuntimeScanError(
       new Error(
-        'page.goto: net::ERR_CONNECTION_REFUSED at https://preview.example.com/app?token=secret',
+        "page.goto: net::ERR_CONNECTION_REFUSED at https://preview.example.com/app?token=secret",
       ),
     );
     expect(message).toContain("https://preview.example.com/app");
@@ -36,7 +36,9 @@ describe("classifyRuntimeScanError", () => {
   it("maps DNS failures", () => {
     expect(
       classifyRuntimeScanError(
-        new Error("page.goto: net::ERR_NAME_NOT_RESOLVED at https://missing.example/"),
+        new Error(
+          "page.goto: net::ERR_NAME_NOT_RESOLVED at https://missing.example/",
+        ),
       ),
     ).toMatch(/resolve/i);
   });
@@ -55,7 +57,9 @@ describe("classifyRuntimeScanError", () => {
   it("maps TLS errors", () => {
     expect(
       classifyRuntimeScanError(
-        new Error("page.goto: net::ERR_CERT_AUTHORITY_INVALID at https://bad-cert.example/"),
+        new Error(
+          "page.goto: net::ERR_CERT_AUTHORITY_INVALID at https://bad-cert.example/",
+        ),
       ),
     ).toMatch(/tls|ssl|certificate/i);
   });
@@ -82,7 +86,9 @@ describe("classifyRuntimeScanError", () => {
   it("maps too-many-redirects net errors to the public redirect message", () => {
     expect(
       classifyRuntimeScanError(
-        new Error("page.goto: net::ERR_TOO_MANY_REDIRECTS at https://app.example/"),
+        new Error(
+          "page.goto: net::ERR_TOO_MANY_REDIRECTS at https://app.example/",
+        ),
       ),
     ).toBe(`${TOO_MANY_REDIRECTS_MESSAGE} (https://app.example)`);
   });

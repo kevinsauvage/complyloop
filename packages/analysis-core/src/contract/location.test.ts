@@ -18,12 +18,24 @@ import {
 
 describe("location kind guards", () => {
   it("narrows source, dom, and site locations", () => {
-    const source: SourceLocation = { kind: "source", filePath: "a.tsx", line: 1, column: 1, snippet: "<x/>", span: { start: 0, end: 1 } };
+    const source: SourceLocation = {
+      kind: "source",
+      filePath: "a.tsx",
+      line: 1,
+      column: 1,
+      snippet: "<x/>",
+      span: { start: 0, end: 1 },
+    };
     expect(isSourceLocation(source)).toBe(true);
     expect(isDomLocation(source)).toBe(false);
     expect(isSiteLocation(source)).toBe(false);
 
-    const dom: DomLocation = { kind: "dom", url: "https://e.com/", selector: "a", snippet: "<a/>" };
+    const dom: DomLocation = {
+      kind: "dom",
+      url: "https://e.com/",
+      selector: "a",
+      snippet: "<a/>",
+    };
     expect(isDomLocation(dom)).toBe(true);
 
     const site: SiteLocation = { kind: "site", pages: ["/a"], detail: "d" };
@@ -39,9 +51,9 @@ describe("formatLocationRef", () => {
         url: "https://www.kevin-sauvage.com/a",
         selector: "a",
         snippet: "<a href='/contact'>Contact</a>",
-        elementLabel: 'link “Contact”',
+        elementLabel: "link “Contact”",
       }),
-    ).toBe('/a › link “Contact”');
+    ).toBe("/a › link “Contact”");
   });
 });
 
@@ -53,11 +65,11 @@ describe("domLocationDetails", () => {
         url: "https://example.com/",
         selector: 'a[href="/contact"]',
         snippet: "<a>Contact</a>",
-        elementLabel: 'link “Contact”',
+        elementLabel: "link “Contact”",
         context: "Covered by `header.sticky` at the top-left of the focus ring",
       }),
     ).toEqual([
-      { term: "Element", value: 'link “Contact”' },
+      { term: "Element", value: "link “Contact”" },
       { term: "Page", value: "https://example.com/" },
       { term: "Selector", value: 'a[href="/contact"]' },
       {
@@ -70,11 +82,18 @@ describe("domLocationDetails", () => {
 
 describe("locationSnippet", () => {
   it("uses the detail text for site findings and the snippet otherwise", () => {
-    expect(locationSnippet({ kind: "site", pages: ["/a"], detail: "Ping" })).toBe(
-      "Ping",
-    );
     expect(
-      locationSnippet({ kind: "source", filePath: "a.tsx", line: 1, column: 1, snippet: "<x/>", span: { start: 0, end: 1 } }),
+      locationSnippet({ kind: "site", pages: ["/a"], detail: "Ping" }),
+    ).toBe("Ping");
+    expect(
+      locationSnippet({
+        kind: "source",
+        filePath: "a.tsx",
+        line: 1,
+        column: 1,
+        snippet: "<x/>",
+        span: { start: 0, end: 1 },
+      }),
     ).toBe("<x/>");
   });
 });
@@ -82,14 +101,26 @@ describe("locationSnippet", () => {
 describe("locationPathOrUrl", () => {
   it("returns filePath, url, or joined pages", () => {
     expect(
-      locationPathOrUrl({ kind: "source", filePath: "a.tsx", line: 1, column: 1, snippet: "", span: { start: 0, end: 1 } }),
+      locationPathOrUrl({
+        kind: "source",
+        filePath: "a.tsx",
+        line: 1,
+        column: 1,
+        snippet: "",
+        span: { start: 0, end: 1 },
+      }),
     ).toBe("a.tsx");
     expect(
-      locationPathOrUrl({ kind: "dom", url: "https://e.com/", selector: "a", snippet: "" }),
+      locationPathOrUrl({
+        kind: "dom",
+        url: "https://e.com/",
+        selector: "a",
+        snippet: "",
+      }),
     ).toBe("https://e.com/");
-    expect(locationPathOrUrl({ kind: "site", pages: ["/a", "/b"], detail: "" })).toBe(
-      "/a, /b",
-    );
+    expect(
+      locationPathOrUrl({ kind: "site", pages: ["/a", "/b"], detail: "" }),
+    ).toBe("/a, /b");
   });
 });
 
@@ -99,7 +130,11 @@ describe("formatLocationRef site findings", () => {
       formatLocationRef({ kind: "site", pages: ["/a", "/b"], detail: "Ping" }),
     ).toBe("Site: /a, /b — Ping");
     expect(
-      formatLocationRef({ kind: "site", pages: ["/a", "/b", "/c"], detail: "Ping" }),
+      formatLocationRef({
+        kind: "site",
+        pages: ["/a", "/b", "/c"],
+        detail: "Ping",
+      }),
     ).toBe("Site: 3 pages — Ping");
   });
 });
@@ -107,13 +142,24 @@ describe("formatLocationRef site findings", () => {
 describe("formatLocationRef dom fallbacks", () => {
   it("falls back to url › selector when there is no element label", () => {
     expect(
-      formatLocationRef({ kind: "dom", url: "https://e.com/", selector: "#x", snippet: "" }),
+      formatLocationRef({
+        kind: "dom",
+        url: "https://e.com/",
+        selector: "#x",
+        snippet: "",
+      }),
     ).toBe("https://e.com/ › #x");
   });
 
   it("falls back to the raw url when the url is not parseable", () => {
     expect(
-      formatLocationRef({ kind: "dom", url: "not a url", selector: "#x", snippet: "", elementLabel: "el" }),
+      formatLocationRef({
+        kind: "dom",
+        url: "not a url",
+        selector: "#x",
+        snippet: "",
+        elementLabel: "el",
+      }),
     ).toBe("not a url › el");
   });
 });

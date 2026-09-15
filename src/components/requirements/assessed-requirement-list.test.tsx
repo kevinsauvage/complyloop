@@ -1,17 +1,18 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { rgaaControls, rgaaFramework } from "@complyloop/analysis-core/catalog/rgaa/controls";
+import {
+  rgaaControls,
+  rgaaFramework,
+} from "@complyloop/analysis-core/catalog/rgaa/controls";
 import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 import { AssessedRequirementList } from "./assessed-requirement-list";
 
 vi.mock("./requirement-card", () => ({
-  RequirementCard: ({
-    control,
-  }: {
-    control: { title: string };
-  }) => <article>{control.title}</article>,
+  RequirementCard: ({ control }: { control: { title: string } }) => (
+    <article>{control.title}</article>
+  ),
 }));
 
 afterEach(() => {
@@ -32,7 +33,9 @@ function requirementFor(controlId: string): Requirement {
 describe("AssessedRequirementList", () => {
   it("renders theme headings for in-scope controls", () => {
     const img = rgaaControls.find((control) => control.id === "ctl-img-alt");
-    const form = rgaaControls.find((control) => control.id === "ctl-input-label");
+    const form = rgaaControls.find(
+      (control) => control.id === "ctl-input-label",
+    );
     if (!img || !form) throw new Error("expected controls");
 
     render(

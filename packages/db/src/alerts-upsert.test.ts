@@ -3,7 +3,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { Alert } from "@complyloop/analysis-core/contract/entities";
 
-import { closeDrizzle, type DrizzleDb,getDrizzle } from "./postgres";
+import { closeDrizzle, type DrizzleDb, getDrizzle } from "./postgres";
 import { upsertAlerts } from "./repo/alerts";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Skipped in the default CI quality job. */

@@ -57,20 +57,20 @@ describe("CreatePrForm", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-   it("shows failures inline instead of a toast", async () => {
-     const errorState = {
-       ok: false,
-       message: "Push failed." as string | null,
-       prUrl: null as string | null,
-     };
-     useActionStateMock.mockReturnValue([errorState, vi.fn(), true]);
-     const { rerender } = render(<CreatePrForm findingId="f1" />);
-     useActionStateMock.mockReturnValue([errorState, vi.fn(), false]);
-     rerender(<CreatePrForm findingId="f1" />);
+  it("shows failures inline instead of a toast", async () => {
+    const errorState = {
+      ok: false,
+      message: "Push failed." as string | null,
+      prUrl: null as string | null,
+    };
+    useActionStateMock.mockReturnValue([errorState, vi.fn(), true]);
+    const { rerender } = render(<CreatePrForm findingId="f1" />);
+    useActionStateMock.mockReturnValue([errorState, vi.fn(), false]);
+    rerender(<CreatePrForm findingId="f1" />);
 
-     await waitFor(() => {
-       expect(toastError).not.toHaveBeenCalled();
-       expect(screen.getByRole("alert")).toHaveTextContent("Push failed.");
-     });
-   });
+    await waitFor(() => {
+      expect(toastError).not.toHaveBeenCalled();
+      expect(screen.getByRole("alert")).toHaveTextContent("Push failed.");
+    });
+  });
 });

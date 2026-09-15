@@ -4,8 +4,12 @@ test.describe("project settings", () => {
   test("shows connected project and runtime audit form", async ({ page }) => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "e2e/sample-app" })).toBeVisible();
-    await expect(page.getByText("Runtime audit", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "e2e/sample-app" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Runtime audit", { exact: true }),
+    ).toBeVisible();
     await expect(page.getByLabel(/Preview \/ staging URL/i)).toBeVisible();
     await expect(
       page.getByRole("button", { name: /Save preview settings/i }),

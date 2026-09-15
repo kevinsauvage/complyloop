@@ -16,7 +16,9 @@ describe("axe rule mapping", () => {
     expect(checkIdForAxeRule("video-caption")).toBe("video-caption");
     expect(checkIdForAxeRule("html-has-doctype")).toBe("doctype");
     expect(checkIdForAxeRule("aria-roles")).toBe("aria-role");
-    expect(checkIdForAxeRule("focus-order-semantics")).toBe("focus-order-logical");
+    expect(checkIdForAxeRule("focus-order-semantics")).toBe(
+      "focus-order-logical",
+    );
     expect(checkIdForAxeRule("identical-links-same-purpose")).toBe(
       "identical-links-purpose",
     );
@@ -79,7 +81,7 @@ describe("findingsFromAxePages", () => {
               url: "https://app.example/",
               selector: 'a[href="/x"]',
               snippet: '<a href="/x">Go</a>',
-              elementLabel: 'link “Go”',
+              elementLabel: "link “Go”",
               context:
                 "Covered by `header.sticky` at the top-left of the focus ring",
             },
@@ -91,9 +93,8 @@ describe("findingsFromAxePages", () => {
       },
     ]);
     expect(findings[0]?.location).toMatchObject({
-      elementLabel: 'link “Go”',
-      context:
-        "Covered by `header.sticky` at the top-left of the focus ring",
+      elementLabel: "link “Go”",
+      context: "Covered by `header.sticky` at the top-left of the focus ring",
       selector: 'a[href="/x"]',
     });
   });
@@ -151,7 +152,8 @@ describe("findingsFromAxePages", () => {
             kind: "warning",
             severity: "moderate",
             confidence: "medium",
-            reason: "Provide an audio or non-visual fallback CAPTCHA may lack an accessible alternative",
+            reason:
+              "Provide an audio or non-visual fallback CAPTCHA may lack an accessible alternative",
             location: {
               kind: "dom",
               url: "https://app.example/",

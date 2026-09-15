@@ -10,7 +10,9 @@ import type { WorkspaceSlice } from "@complyloop/db/types";
 import { loadProjectAssessmentDb } from "@complyloop/db/workspace-load";
 
 /** Loads a single project's assessment slice (no snapshots in assessment list). */
-export async function loadProjectDb(projectId: string): Promise<WorkspaceSlice> {
+export async function loadProjectDb(
+  projectId: string,
+): Promise<WorkspaceSlice> {
   return loadProjectAssessmentDb(await getDrizzle(), projectId);
 }
 

@@ -14,21 +14,22 @@ describe("mediaIdentificationViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags nameless canvas, not unlabeled object",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <object data="/x.pdf"></object>
           <canvas id="c"></canvas>
         </body></html>
       `,
         async (page) => {
-        const violation = await mediaIdentificationViolation(page);
-        expect(violation?.id).toBe("media-identification");
-        expect(violation?.nodes.some((n) => n.html.includes("canvas"))).toBe(
-          true,
-        );
-        expect(violation?.nodes.some((n) => n.html.includes("object"))).toBe(
-          false,
-        );
+          const violation = await mediaIdentificationViolation(page);
+          expect(violation?.id).toBe("media-identification");
+          expect(violation?.nodes.some((n) => n.html.includes("canvas"))).toBe(
+            true,
+          );
+          expect(violation?.nodes.some((n) => n.html.includes("object"))).toBe(
+            false,
+          );
         },
       );
     },

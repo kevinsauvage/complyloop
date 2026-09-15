@@ -27,7 +27,11 @@ export function applyFix(text: string, fix: ProposedFix): string {
 }
 
 /** Returns the offending line as it would look after applying the fix. */
-export function previewFixedLine(text: string, fix: ProposedFix, line: number): string {
+export function previewFixedLine(
+  text: string,
+  fix: ProposedFix,
+  line: number,
+): string {
   const fixedText = applyFix(text, fix);
   return (fixedText.split("\n")[line - 1] ?? "").trim();
 }

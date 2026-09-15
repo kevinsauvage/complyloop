@@ -16,9 +16,19 @@ import type { NavAttentionCounts } from "@complyloop/db/repo/nav-attention";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, badgeKey: "unreadAlerts" as const },
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    badgeKey: "unreadAlerts" as const,
+  },
   { href: "/requirements", label: "Requirements", icon: ListChecks },
-  { href: "/findings", label: "Findings", icon: FileSearch, badgeKey: "openFindings" as const },
+  {
+    href: "/findings",
+    label: "Findings",
+    icon: FileSearch,
+    badgeKey: "openFindings" as const,
+  },
   { href: "/evidence", label: "Evidence", icon: ScrollText },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/org", label: "Organization", icon: Building2 },

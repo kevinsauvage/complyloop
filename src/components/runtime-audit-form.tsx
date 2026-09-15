@@ -31,9 +31,9 @@ export function RuntimeAuditForm({
           aria-describedby="runtimeBaseUrl-hint"
         />
         <p id="runtimeBaseUrl-hint" className="text-xs text-muted-foreground">
-          When set, checks that need the live page (contrast, page title,
-          skip link, landmarks, target size) can run, and shared checks use the
-          page as the source of truth. Leave empty for code-only assessment.
+          When set, checks that need the live page (contrast, page title, skip
+          link, landmarks, target size) can run, and shared checks use the page
+          as the source of truth. Leave empty for code-only assessment.
         </p>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -49,10 +49,10 @@ export function RuntimeAuditForm({
         <p id="runtimeRoutes-hint" className="text-xs text-muted-foreground">
           One path per line (e.g. <code className="font-mono">/</code>,{" "}
           <code className="font-mono">/pricing</code>); relative to the Preview
-          URL (runtime audit). A missing leading <code className="font-mono">/</code>{" "}
-          is added automatically. Empty list defaults to auditing{" "}
-          <code className="font-mono">/</code> only. Absolute http(s) URLs are
-          not allowed.
+          URL (runtime audit). A missing leading{" "}
+          <code className="font-mono">/</code> is added automatically. Empty
+          list defaults to auditing <code className="font-mono">/</code> only.
+          Absolute http(s) URLs are not allowed.
         </p>
       </div>
       <p className="text-xs text-muted-foreground">

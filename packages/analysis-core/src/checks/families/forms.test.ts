@@ -30,10 +30,16 @@ function warningsOf(jsx: string) {
 describe("input-label", () => {
   it("flags an input with no label association", () => {
     const findings = inputLabelCheck.run(
-      parseSource("test.tsx", `const A = () => <input type="email" name="work-email" />;`),
+      parseSource(
+        "test.tsx",
+        `const A = () => <input type="email" name="work-email" />;`,
+      ),
     );
     expect(findings).toHaveLength(1);
-    expect(findings[0].fix).toMatchObject({ attribute: "aria-label", value: "Work email" });
+    expect(findings[0].fix).toMatchObject({
+      attribute: "aria-label",
+      value: "Work email",
+    });
   });
 
   it("accepts aria-label, same-file <label htmlFor>, and exempt types", () => {
@@ -44,7 +50,9 @@ describe("input-label", () => {
       <input type="hidden" name="token" />
       <input type="submit" />
     </form>);`;
-    expect(inputLabelCheck.run(parseSource("test.tsx", source))).toHaveLength(0);
+    expect(inputLabelCheck.run(parseSource("test.tsx", source))).toHaveLength(
+      0,
+    );
   });
 
   it("flags unlabeled select and textarea", () => {
@@ -63,8 +71,10 @@ describe("input-label", () => {
 
 describe("form-error-association", () => {
   describe("aria-invalid without aria-describedby (violations)", () => {
-    it("flags aria-invalid=\"true\"", () => {
-      const findings = violationsOf(`const A = () => <input aria-invalid="true" />;`);
+    it('flags aria-invalid="true"', () => {
+      const findings = violationsOf(
+        `const A = () => <input aria-invalid="true" />;`,
+      );
       expect(findings).toHaveLength(1);
       expect(findings[0]).toMatchObject({
         checkId: "form-error-association",
@@ -81,14 +91,16 @@ describe("form-error-association", () => {
     });
 
     it("flags boolean shorthand aria-invalid", () => {
-      expect(violationsOf(`const A = () => <input aria-invalid />;`)).toHaveLength(
-        1,
-      );
+      expect(
+        violationsOf(`const A = () => <input aria-invalid />;`),
+      ).toHaveLength(1);
     });
 
     it("flags dynamic aria-invalid expressions (conservative)", () => {
       expect(
-        violationsOf(`const A = () => <input aria-invalid={!!errors.email} />;`),
+        violationsOf(
+          `const A = () => <input aria-invalid={!!errors.email} />;`,
+        ),
       ).toHaveLength(1);
     });
 
@@ -101,7 +113,7 @@ describe("form-error-association", () => {
       ).toHaveLength(1);
     });
 
-    it("does not flag aria-invalid=\"false\"", () => {
+    it('does not flag aria-invalid="false"', () => {
       expect(
         violationsOf(`const A = () => <input aria-invalid="false" />;`),
       ).toHaveLength(0);
@@ -114,9 +126,9 @@ describe("form-error-association", () => {
     });
 
     it("does not flag controls without aria-invalid", () => {
-      expect(violationsOf(`const A = () => <input name="email" />;`)).toHaveLength(
-        0,
-      );
+      expect(
+        violationsOf(`const A = () => <input name="email" />;`),
+      ).toHaveLength(0);
     });
 
     it("does not flag when aria-describedby is present (even if empty-looking)", () => {
@@ -703,9 +715,9 @@ describe("accessible-auth-enhanced", () => {
         );`,
       ),
     );
-    expect(
-      findings.some((f) => f.checkId === "accessible-auth-enhanced"),
-    ).toBe(true);
+    expect(findings.some((f) => f.checkId === "accessible-auth-enhanced")).toBe(
+      true,
+    );
   });
 
   it("flags French image-challenge captcha near auth fields", () => {
@@ -720,9 +732,9 @@ describe("accessible-auth-enhanced", () => {
         );`,
       ),
     );
-    expect(
-      findings.some((f) => f.checkId === "accessible-auth-enhanced"),
-    ).toBe(true);
+    expect(findings.some((f) => f.checkId === "accessible-auth-enhanced")).toBe(
+      true,
+    );
   });
 
   it("flags PuzzleCaptcha host near auth fields", () => {
@@ -737,9 +749,9 @@ describe("accessible-auth-enhanced", () => {
         );`,
       ),
     );
-    expect(
-      findings.some((f) => f.checkId === "accessible-auth-enhanced"),
-    ).toBe(true);
+    expect(findings.some((f) => f.checkId === "accessible-auth-enhanced")).toBe(
+      true,
+    );
   });
 
   it("flags ReCAPTCHA with size near auth fields", () => {
@@ -754,9 +766,9 @@ describe("accessible-auth-enhanced", () => {
         );`,
       ),
     );
-    expect(
-      findings.some((f) => f.checkId === "accessible-auth-enhanced"),
-    ).toBe(true);
+    expect(findings.some((f) => f.checkId === "accessible-auth-enhanced")).toBe(
+      true,
+    );
   });
 
   it("does not flag ReCAPTCHA without size/challenge near auth", () => {
@@ -808,7 +820,9 @@ describe("captcha-alternative", () => {
     const findings = captchaAlternativeCheck.run(
       parseSource("login.tsx", `const L = () => <ReCAPTCHA sitekey="x" />;`),
     );
-    expect(findings.some((f) => f.checkId === "captcha-alternative")).toBe(true);
+    expect(findings.some((f) => f.checkId === "captcha-alternative")).toBe(
+      true,
+    );
   });
 
   it("accepts captcha with an audio alternative link", () => {
@@ -858,7 +872,7 @@ describe("form-error-association coverage", () => {
   it("collects string literals inside template-expression substitutions", () => {
     const src =
       "const A = () => (<form>\n" +
-      "  <input aria-describedby={`prefix ${\"email-error\"}`} />\n" +
+      '  <input aria-describedby={`prefix ${"email-error"}`} />\n' +
       '  <p id="email-error">Required</p>\n' +
       "</form>);";
     expect(run(src)).toHaveLength(0);
@@ -993,7 +1007,10 @@ describe("autocomplete-purpose coverage", () => {
   it("ignores non-input hosts", () => {
     expect(
       autocompletePurposeCheck.run(
-        parseSource("test.tsx", `const A = () => <select aria-label="Country" />;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <select aria-label="Country" />;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -1190,7 +1207,10 @@ describe("accessible-auth coverage", () => {
   it("ignores non-authentication fields", () => {
     expect(
       accessibleAuthCheck.run(
-        parseSource("test.tsx", `const A = () => <input type="text" aria-label="Name" />;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <input type="text" aria-label="Name" />;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -1226,7 +1246,9 @@ describe("captcha-alternative coverage", () => {
         `const L = () => <ReCAPTCHA sitekey="x"><div>hello</div></ReCAPTCHA>;`,
       ),
     );
-    expect(findings.some((f) => f.checkId === "captcha-alternative")).toBe(true);
+    expect(findings.some((f) => f.checkId === "captcha-alternative")).toBe(
+      true,
+    );
   });
 
   it("accepts a captcha host with a nested audio-challenge button", () => {
@@ -1280,13 +1302,18 @@ describe("captcha-alternative coverage", () => {
         `const L = () => (<div><ReCAPTCHA sitekey="x" /><span>hi</span></div>);`,
       ),
     );
-    expect(findings.some((f) => f.checkId === "captcha-alternative")).toBe(true);
+    expect(findings.some((f) => f.checkId === "captcha-alternative")).toBe(
+      true,
+    );
   });
 
   it("ignores a plain image", () => {
     expect(
       captchaAlternativeCheck.run(
-        parseSource("test.tsx", `const A = () => <img alt="logo" src="logo.png" />;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <img alt="logo" src="logo.png" />;`,
+        ),
       ),
     ).toHaveLength(0);
   });

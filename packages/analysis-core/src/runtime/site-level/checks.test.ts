@@ -33,9 +33,9 @@ describe("runSiteLevelChecks", () => {
       snapshot("https://x.test/a", { navLinks: ["Home::/"] }),
       snapshot("https://x.test/b", { navLinks: ["About::/about"] }),
     ]);
-    expect(findings.some((finding) => finding.checkId === "multiple-ways")).toBe(
-      true,
-    );
+    expect(
+      findings.some((finding) => finding.checkId === "multiple-ways"),
+    ).toBe(true);
   });
 
   it("passes when nav and search exist", () => {
@@ -49,9 +49,9 @@ describe("runSiteLevelChecks", () => {
         searchInputs: [{ type: "search" }],
       }),
     ]);
-    expect(findings.some((finding) => finding.checkId === "multiple-ways")).toBe(
-      false,
-    );
+    expect(
+      findings.some((finding) => finding.checkId === "multiple-ways"),
+    ).toBe(false);
   });
 
   it("warns when navigation signatures differ in order", () => {
@@ -79,9 +79,9 @@ describe("runSiteLevelChecks", () => {
         navLinks: ["Home::/", "About::/about"],
       }),
     ]);
-    expect(findings.some((finding) => finding.checkId === "consistent-nav")).toBe(
-      false,
-    );
+    expect(
+      findings.some((finding) => finding.checkId === "consistent-nav"),
+    ).toBe(false);
   });
 
   it("warns when primary navigation content differs", () => {
@@ -137,9 +137,9 @@ describe("runSiteLevelChecks", () => {
         helpLinks: ["contact::/contact", "help::/help"],
       }),
     ]);
-    expect(findings.some((finding) => finding.checkId === "consistent-help")).toBe(
-      true,
-    );
+    expect(
+      findings.some((finding) => finding.checkId === "consistent-help"),
+    ).toBe(true);
   });
 
   it("flags sitemap missing on some routes", () => {
@@ -173,7 +173,9 @@ describe("runSiteLevelChecks", () => {
 
   it("flags search missing on some routes", () => {
     const findings = runSiteLevelChecks([
-      snapshot("https://x.test/a", { searchSelector: "header>input[type=search]" }),
+      snapshot("https://x.test/a", {
+        searchSelector: "header>input[type=search]",
+      }),
       snapshot("https://x.test/b"),
     ]);
     expect(
@@ -183,8 +185,12 @@ describe("runSiteLevelChecks", () => {
 
   it("flags search in different positions", () => {
     const findings = runSiteLevelChecks([
-      snapshot("https://x.test/a", { searchSelector: "header>input[type=search]" }),
-      snapshot("https://x.test/b", { searchSelector: "nav>input[type=search]" }),
+      snapshot("https://x.test/a", {
+        searchSelector: "header>input[type=search]",
+      }),
+      snapshot("https://x.test/b", {
+        searchSelector: "nav>input[type=search]",
+      }),
     ]);
     expect(
       findings.some((finding) => finding.checkId === "consistent-search"),
@@ -193,7 +199,9 @@ describe("runSiteLevelChecks", () => {
 
   it("flags missing main landmark on some routes", () => {
     const findings = runSiteLevelChecks([
-      snapshot("https://x.test/a", { landmarkRoles: ["banner", "navigation", "main"] }),
+      snapshot("https://x.test/a", {
+        landmarkRoles: ["banner", "navigation", "main"],
+      }),
       snapshot("https://x.test/b", { landmarkRoles: ["banner", "navigation"] }),
     ]);
     expect(

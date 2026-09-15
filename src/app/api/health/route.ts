@@ -30,7 +30,8 @@ export async function GET(): Promise<Response> {
       { status: 200 },
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Database unavailable.";
+    const message =
+      error instanceof Error ? error.message : "Database unavailable.";
     reportWarning(message, { code: "health_database_down" });
     return Response.json(
       {

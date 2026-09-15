@@ -84,7 +84,8 @@ export async function POST(request: Request): Promise<Response> {
   } catch {
     return Response.json(
       {
-        error: "Could not queue the webhook assessment. GitHub may retry this delivery.",
+        error:
+          "Could not queue the webhook assessment. GitHub may retry this delivery.",
         deliveryId,
       },
       { status: 503 },

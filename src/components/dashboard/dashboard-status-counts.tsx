@@ -5,7 +5,7 @@ import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/cont
 
 import { RequirementStatusBadge } from "@/components/badges";
 import { Card, CardContent } from "@/components/ui/card";
-import { requirementStatusDisplay,STATUS_TONE_ACCENT } from "@/core/display";
+import { requirementStatusDisplay, STATUS_TONE_ACCENT } from "@/core/display";
 import { requirementsStatusHref } from "@/core/filter-params";
 import { cn } from "@/lib/utils";
 

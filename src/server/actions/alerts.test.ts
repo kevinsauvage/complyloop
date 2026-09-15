@@ -2,7 +2,10 @@ import "@/test-fixtures/register-action-workspace-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { actionAuthMocks, actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+import {
+  actionAuthMocks,
+  actionWorkspaceMocks,
+} from "@/test-fixtures/action-workspace-mocks";
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 
@@ -30,7 +33,8 @@ vi.mock("@complyloop/db/repo/projects", () => ({
 }));
 
 vi.mock("@complyloop/db/repo/orgs", () => ({
-  listMembershipsForOrgs: (...args: unknown[]) => listMembershipsForOrgs(...args),
+  listMembershipsForOrgs: (...args: unknown[]) =>
+    listMembershipsForOrgs(...args),
 }));
 
 const project = testProject({ orgId: "org-1" });
@@ -84,7 +88,7 @@ describe("markAlertReadAction", () => {
     form.set("alertId", "alert-1");
 
     const result = await markAlertReadAction(initialActionState, form);
-    expect((result.ok ? null : result.message)).toMatch(/Not allowed/);
+    expect(result.ok ? null : result.message).toMatch(/Not allowed/);
     expect(markAlertRead).not.toHaveBeenCalled();
   });
 
@@ -94,7 +98,7 @@ describe("markAlertReadAction", () => {
     const form = new FormData();
     form.set("alertId", "missing");
     const result = await markAlertReadAction(initialActionState, form);
-    expect((result.ok ? null : result.message)).toMatch(/Unknown alert/);
+    expect(result.ok ? null : result.message).toMatch(/Unknown alert/);
   });
 
   it("requires an alert id", async () => {
@@ -103,6 +107,6 @@ describe("markAlertReadAction", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/Unknown alert/);
+    expect(result.ok ? null : result.message).toMatch(/Unknown alert/);
   });
 });

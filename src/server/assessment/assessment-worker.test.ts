@@ -30,8 +30,7 @@ const transaction = vi.hoisted(() => vi.fn());
 vi.mock("./assessment-jobs", () => ({
   claimNextAssessmentJob: (...args: unknown[]) =>
     claimNextAssessmentJob(...args),
-  completeAssessmentJob: (...args: unknown[]) =>
-    completeAssessmentJob(...args),
+  completeAssessmentJob: (...args: unknown[]) => completeAssessmentJob(...args),
   failAssessmentJob: (...args: unknown[]) => failAssessmentJob(...args),
 }));
 
@@ -64,7 +63,8 @@ vi.mock("@complyloop/db/repo/evidence", () => ({
 }));
 
 vi.mock("../workspace/db", async () => {
-  const actual = await vi.importActual<typeof import("../workspace/db")>("../workspace/db");
+  const actual =
+    await vi.importActual<typeof import("../workspace/db")>("../workspace/db");
   return {
     ...actual,
     loadProjectDb: (...args: unknown[]) => loadProjectDb(...args),
@@ -152,7 +152,10 @@ function assessmentRun(
     snapshot: { fileHashes: Record<string, string> };
   },
   slice: Partial<
-    Pick<WorkspaceSlice, "evidence" | "findings" | "remediations" | "requirements">
+    Pick<
+      WorkspaceSlice,
+      "evidence" | "findings" | "remediations" | "requirements"
+    >
   > = {},
 ) {
   return {
@@ -189,10 +192,8 @@ describe("processNextAssessmentJob", () => {
     claimNextAssessmentJob.mockResolvedValue(job());
     loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
-      async (
-        _project: unknown,
-        fn: (rootPath: string) => Promise<unknown>,
-      ) => fn("/tmp/checkout"),
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
     );
     runAssessment.mockResolvedValue(
       assessmentRun({
@@ -246,34 +247,34 @@ describe("processNextAssessmentJob", () => {
     claimNextAssessmentJob.mockResolvedValue(job());
     loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
-      async (
-        _project: unknown,
-        fn: (rootPath: string) => Promise<unknown>,
-      ) => fn("/tmp/checkout"),
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
     );
-    runAssessment.mockImplementation(async (input: {
-      findings: WorkspaceSlice["findings"];
-      remediations: WorkspaceSlice["remediations"];
-      requirements: WorkspaceSlice["requirements"];
-    }) => {
-      input.remediations[0] = {
-        ...input.remediations[0]!,
-        status: "verified",
-      };
-      return assessmentRun(
-        {
-          id: "a1",
-          projectId: "p1",
-          snapshot: { fileHashes: {} },
-        },
-        {
-          findings: input.findings,
-          remediations: input.remediations,
-          requirements: input.requirements,
-          evidence: [],
-        },
-      );
-    });
+    runAssessment.mockImplementation(
+      async (input: {
+        findings: WorkspaceSlice["findings"];
+        remediations: WorkspaceSlice["remediations"];
+        requirements: WorkspaceSlice["requirements"];
+      }) => {
+        input.remediations[0] = {
+          ...input.remediations[0]!,
+          status: "verified",
+        };
+        return assessmentRun(
+          {
+            id: "a1",
+            projectId: "p1",
+            snapshot: { fileHashes: {} },
+          },
+          {
+            findings: input.findings,
+            remediations: input.remediations,
+            requirements: input.requirements,
+            evidence: [],
+          },
+        );
+      },
+    );
     completeAssessmentJob.mockResolvedValue(undefined);
 
     await expect(processNextAssessmentJob()).resolves.toEqual({
@@ -367,10 +368,8 @@ describe("processNextAssessmentJob", () => {
     );
     loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
-      async (
-        _project: unknown,
-        fn: (rootPath: string) => Promise<unknown>,
-      ) => fn("/tmp/checkout"),
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
     );
     runAssessment.mockResolvedValue(
       assessmentRun(
@@ -439,10 +438,8 @@ describe("processNextAssessmentJob", () => {
     );
     loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
-      async (
-        _project: unknown,
-        fn: (rootPath: string) => Promise<unknown>,
-      ) => fn("/tmp/checkout"),
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
     );
     runAssessment.mockResolvedValue(
       assessmentRun(
@@ -518,10 +515,8 @@ describe("processNextAssessmentJob", () => {
     );
     loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
-      async (
-        _project: unknown,
-        fn: (rootPath: string) => Promise<unknown>,
-      ) => fn("/tmp/checkout"),
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
     );
     runAssessment.mockResolvedValue(
       assessmentRun({
@@ -570,10 +565,8 @@ describe("processNextAssessmentJob", () => {
     );
     loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
-      async (
-        _project: unknown,
-        fn: (rootPath: string) => Promise<unknown>,
-      ) => fn("/tmp/checkout"),
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
     );
     runAssessment.mockResolvedValue(
       assessmentRun({
@@ -611,10 +604,8 @@ describe("processNextAssessmentJob", () => {
     );
     loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
-      async (
-        _project: unknown,
-        fn: (rootPath: string) => Promise<unknown>,
-      ) => fn("/tmp/checkout"),
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
     );
     runAssessment.mockResolvedValue(
       assessmentRun({
@@ -649,10 +640,8 @@ describe("processNextAssessmentJob", () => {
     claimNextAssessmentJob.mockResolvedValue(job());
     loadProjectDb.mockResolvedValue(projectDb());
     withProjectCheckout.mockImplementation(
-      async (
-        _project: unknown,
-        fn: (rootPath: string) => Promise<unknown>,
-      ) => fn("/tmp/checkout"),
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
     );
     runAssessment.mockResolvedValue({
       assessment: { id: "a1", projectId: "p1" },
@@ -696,10 +685,8 @@ describe("processNextAssessmentJob", () => {
     );
     loadProjectDb.mockResolvedValue(db);
     withProjectCheckout.mockImplementation(
-      async (
-        _project: unknown,
-        fn: (rootPath: string) => Promise<unknown>,
-      ) => fn("/tmp/checkout"),
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
     );
     runAssessment.mockResolvedValue(
       assessmentRun(

@@ -1,6 +1,9 @@
 import type { Page } from "playwright";
 
-import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
+import {
+  pageEvaluateWithHitCapture,
+  toViolationNodes,
+} from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 
 const FONT_SCALE = "200%";
@@ -52,10 +55,12 @@ export async function resizeTextViolation(
       nodes: toViolationNodes([hit]),
     };
   } finally {
-    await page.evaluate(() => {
-      document.documentElement.style.fontSize = "";
-    }).catch(() => {
-      // Page may be closed or navigating; fontSize restore is best-effort.
-    });
+    await page
+      .evaluate(() => {
+        document.documentElement.style.fontSize = "";
+      })
+      .catch(() => {
+        // Page may be closed or navigating; fontSize restore is best-effort.
+      });
   }
 }

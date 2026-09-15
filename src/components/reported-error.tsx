@@ -17,7 +17,16 @@ export interface ReportedErrorProps {
 }
 
 /** Shared error-boundary body: report once + accessible error card. */
-export function ReportedError({ error, retry, tag, description, title, secondaryHref, secondaryLabel, className }: ReportedErrorProps) {
+export function ReportedError({
+  error,
+  retry,
+  tag,
+  description,
+  title,
+  secondaryHref,
+  secondaryLabel,
+  className,
+}: ReportedErrorProps) {
   useEffect(() => {
     reportClientError(error, tag);
   }, [error, tag]);

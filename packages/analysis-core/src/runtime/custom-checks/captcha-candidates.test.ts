@@ -26,9 +26,9 @@ describe("captcha-candidates", () => {
     `;
     const candidates = collectCaptchaCandidates(document);
     expect(candidates.length).toBeGreaterThanOrEqual(2);
-    expect(
-      candidates.some((el) => el.classList.contains("g-recaptcha")),
-    ).toBe(true);
+    expect(candidates.some((el) => el.classList.contains("g-recaptcha"))).toBe(
+      true,
+    );
     expect(
       candidates.some((el) => el.tagName.toLowerCase() === "puzzlecaptcha"),
     ).toBe(true);
@@ -37,9 +37,9 @@ describe("captcha-candidates", () => {
   it("elementLooksLikeCaptcha matches CAPTCHA_TOKEN on class/html", () => {
     document.body.innerHTML = `<div class="g-recaptcha" data-sitekey="x"></div>`;
     const el = document.querySelector(".g-recaptcha")!;
-    expect(elementLooksLikeCaptcha(el, matchesMultilingual, CAPTCHA_TOKEN)).toBe(
-      true,
-    );
+    expect(
+      elementLooksLikeCaptcha(el, matchesMultilingual, CAPTCHA_TOKEN),
+    ).toBe(true);
   });
 
   it("isObjectRecognitionCaptchaElement aligns with shared signal criteria", () => {

@@ -35,12 +35,13 @@ vi.mock("../observability", () => ({
 }));
 
 vi.mock("../assessment/assessment-status", async () => {
-  const actual = await vi.importActual<typeof import("../assessment/assessment-status")>(
-    "../assessment/assessment-status",
-  );
+  const actual = await vi.importActual<
+    typeof import("../assessment/assessment-status")
+  >("../assessment/assessment-status");
   return {
     ...actual,
-    applyRequirementStatusRefresh: (...args: unknown[]) => applyRequirementStatusRefresh(...args),
+    applyRequirementStatusRefresh: (...args: unknown[]) =>
+      applyRequirementStatusRefresh(...args),
   };
 });
 
@@ -54,11 +55,9 @@ function baseWorkspace(overrides: Partial<WorkspaceSlice> = {}): Workspace {
     userId: "user-1",
     project,
     findings: findings ?? [finding],
-    remediations:
-      remediations ??
-      [
-        testRemediation({ status: "implemented", suggestion: null, history: [] }),
-      ],
+    remediations: remediations ?? [
+      testRemediation({ status: "implemented", suggestion: null, history: [] }),
+    ],
     db: {
       requirements: [],
       alerts: [],
@@ -104,7 +103,9 @@ describe("requirement decision actions", () => {
     );
 
     expect(result.message).toMatch(/Exception recorded/);
-    expect(projectWritePayload()?.requirements?.[0]?.status).toBe("not_applicable");
+    expect(projectWritePayload()?.requirements?.[0]?.status).toBe(
+      "not_applicable",
+    );
     expect(projectWritePayload()?.requirements?.[0]?.exception?.reason).toBe(
       "not_applicable",
     );
@@ -135,9 +136,9 @@ describe("requirement decision actions", () => {
 
     expect(result.message).toBe("Exception recorded.");
     expect(projectWritePayload()?.requirements?.[0]?.status).toBe("failed");
-    expect(projectWritePayload()?.requirements?.[0]?.exception?.expiresAt).toMatch(
-      /^2026-12-31/,
-    );
+    expect(
+      projectWritePayload()?.requirements?.[0]?.exception?.expiresAt,
+    ).toMatch(/^2026-12-31/);
   });
 
   it("requires expiry for temporary exceptions", async () => {
@@ -161,7 +162,7 @@ describe("requirement decision actions", () => {
       initialActionState,
       form,
     );
-    expect((result.ok ? null : result.message)).toMatch(/expiry date/i);
+    expect(result.ok ? null : result.message).toMatch(/expiry date/i);
   });
 
   it("requires a note for exceptions", async () => {
@@ -184,7 +185,7 @@ describe("requirement decision actions", () => {
       initialActionState,
       form,
     );
-    expect((result.ok ? null : result.message)).toMatch(/note is required/i);
+    expect(result.ok ? null : result.message).toMatch(/note is required/i);
   });
 
   it("marks a manual control as human-passed", async () => {
@@ -210,7 +211,9 @@ describe("requirement decision actions", () => {
 
     expect(result.message).toMatch(/Human pass/);
     expect(projectWritePayload()?.requirements?.[0]?.status).toBe("passed");
-    expect(projectWritePayload()?.requirements?.[0]?.humanPass?.note).toMatch(/staging/);
+    expect(projectWritePayload()?.requirements?.[0]?.humanPass?.note).toMatch(
+      /staging/,
+    );
   });
 
   it("rejects human pass on automated controls", async () => {
@@ -233,7 +236,7 @@ describe("requirement decision actions", () => {
       initialActionState,
       form,
     );
-    expect((result.ok ? null : result.message)).toMatch(/Only manual controls/);
+    expect(result.ok ? null : result.message).toMatch(/Only manual controls/);
   });
 
   it("clears a human pass and refreshes status", async () => {
@@ -284,7 +287,7 @@ describe("requirement decision actions", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/no human pass/i);
+    expect(result.ok ? null : result.message).toMatch(/no human pass/i);
   });
 
   it("clears an exception and refreshes status", async () => {
@@ -336,6 +339,6 @@ describe("requirement decision actions", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/no exception/i);
+    expect(result.ok ? null : result.message).toMatch(/no exception/i);
   });
 });

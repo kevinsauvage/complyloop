@@ -10,7 +10,5 @@ export function resolveInside(rootPath: string, relativePath: string): string {
   if (resolved === root || resolved.startsWith(`${root}${path.sep}`)) {
     return resolved;
   }
-  throw new Error(
-    `Path escapes project root: ${relativePath}`,
-  );
+  throw new Error(`Path escapes project root: ${relativePath}`);
 }

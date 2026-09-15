@@ -25,7 +25,10 @@ export interface ScanResult {
  * Resolves `filePath` (relative to `rootPath`) to an absolute path,
  * returning `null` if it escapes `rootPath` or doesn't exist on disk.
  */
-function resolveExistingFile(rootPath: string, filePath: string): string | null {
+function resolveExistingFile(
+  rootPath: string,
+  filePath: string,
+): string | null {
   try {
     const absolute = resolveInside(rootPath, filePath);
     return fs.existsSync(absolute) ? absolute : null;
@@ -72,8 +75,8 @@ export function scanChangedFiles(
     ),
   ].sort();
   const findings = jsxPaths.flatMap((filePath) => scanFile(rootPath, filePath));
-  const existing = jsxPaths.filter((filePath) =>
-    resolveExistingFile(rootPath, filePath) !== null,
+  const existing = jsxPaths.filter(
+    (filePath) => resolveExistingFile(rootPath, filePath) !== null,
   );
   return {
     findings,

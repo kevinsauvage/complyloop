@@ -82,7 +82,8 @@ export async function capturePageSnapshot(
       const type = (input.getAttribute("type") ?? "text").toLowerCase();
       const name = input.getAttribute("name") ?? undefined;
       const role = input.getAttribute("role");
-      const placeholder = input.getAttribute("placeholder")?.toLowerCase() ?? "";
+      const placeholder =
+        input.getAttribute("placeholder")?.toLowerCase() ?? "";
       if (
         type === "search" ||
         role === "searchbox" ||
@@ -110,8 +111,7 @@ export async function capturePageSnapshot(
     const searchControl =
       document.querySelector(
         "input[type='search'], [role='searchbox'], input[name*='search' i], [role='search'] input",
-      ) ??
-      document.querySelector("form[role='search'] input, [role='search']");
+      ) ?? document.querySelector("form[role='search'] input, [role='search']");
     if (searchControl) {
       searchSelector = elementPath(searchControl);
     }
@@ -124,8 +124,11 @@ export async function capturePageSnapshot(
       if (role) landmarkRoles.push(role);
     }
 
-    const formFields: Array<{ name: string; label: string; autoComplete?: string }> =
-      [];
+    const formFields: Array<{
+      name: string;
+      label: string;
+      autoComplete?: string;
+    }> = [];
     for (const field of document.querySelectorAll("input, select, textarea")) {
       const name = field.getAttribute("name");
       if (!name) continue;

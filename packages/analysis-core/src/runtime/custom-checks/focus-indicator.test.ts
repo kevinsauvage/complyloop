@@ -66,7 +66,10 @@ describe("snapshotFocusStyles", () => {
 describe("hasVisibleFocusIndicator", () => {
   it("accepts the user-agent auto outline", () => {
     expect(
-      hasVisibleFocusIndicator(snap({ outlineStyle: "auto", outlineWidth: "1px" }), unfocused),
+      hasVisibleFocusIndicator(
+        snap({ outlineStyle: "auto", outlineWidth: "1px" }),
+        unfocused,
+      ),
     ).toBe(true);
   });
 
@@ -193,7 +196,10 @@ describe("hasVisibleFocusIndicator", () => {
   it("rejects a persistent box-shadow that does not change on focus", () => {
     const shadow = "0 1px 2px rgb(0, 0, 0)";
     expect(
-      hasVisibleFocusIndicator(snap({ boxShadow: shadow }), snap({ boxShadow: shadow })),
+      hasVisibleFocusIndicator(
+        snap({ boxShadow: shadow }),
+        snap({ boxShadow: shadow }),
+      ),
     ).toBe(false);
   });
 

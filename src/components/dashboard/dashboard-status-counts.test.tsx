@@ -40,9 +40,10 @@ describe("DashboardStatusCounts", () => {
       "href",
       "/requirements?status=failed",
     );
-    expect(
-      screen.getByRole("link", { name: /needs review/i }),
-    ).toHaveAttribute("href", "/requirements?status=needs_review");
+    expect(screen.getByRole("link", { name: /needs review/i })).toHaveAttribute(
+      "href",
+      "/requirements?status=needs_review",
+    );
     expect(screen.getByRole("link", { name: /passed/i })).toHaveAttribute(
       "href",
       "/requirements?status=passed",
@@ -57,9 +58,7 @@ describe("DashboardStatusCounts", () => {
 
   it("does not link zero-count tiles", () => {
     renderWithUiProviders(
-      <DashboardStatusCounts
-        counts={countsOf({ failed: 2, passed: 0 })}
-      />,
+      <DashboardStatusCounts counts={countsOf({ failed: 2, passed: 0 })} />,
     );
 
     expect(screen.getByRole("link", { name: /failed/i })).toBeInTheDocument();

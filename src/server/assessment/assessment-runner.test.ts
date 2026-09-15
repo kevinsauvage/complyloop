@@ -22,10 +22,7 @@ describe("runAssessmentJobBatch", () => {
     const results = await runAssessmentJobBatch(5);
 
     expect(processNextAssessmentJob).toHaveBeenCalledTimes(2);
-    expect(results.map((result) => result.kind)).toEqual([
-      "succeeded",
-      "idle",
-    ]);
+    expect(results.map((result) => result.kind)).toEqual(["succeeded", "idle"]);
   });
 
   it("runs a bounded pool without exceeding the limit", async () => {

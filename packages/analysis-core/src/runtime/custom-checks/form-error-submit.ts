@@ -48,7 +48,8 @@ export async function formErrorSubmitViolation(
         if (errMsg) ids.add(errMsg);
         for (const id of ids) {
           const target = document.getElementById(id);
-          if (target && (target.textContent ?? "").trim().length > 0) return true;
+          if (target && (target.textContent ?? "").trim().length > 0)
+            return true;
         }
         return false;
       }

@@ -1,10 +1,7 @@
-import { type NextRequest,NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-import {
-  resolveAuthSecret,
-  sessionCookieIsSecure,
-} from "@/auth-secret";
+import { resolveAuthSecret, sessionCookieIsSecure } from "@/auth-secret";
 
 const PUBLIC_PATHS = new Set(["/", "/login"]);
 
@@ -15,8 +12,8 @@ const PUBLIC_PATHS = new Set(["/", "/login"]);
 function isGitHubAuthConfigured(): boolean {
   return Boolean(
     process.env.AUTH_SECRET &&
-      process.env.AUTH_GITHUB_ID &&
-      process.env.AUTH_GITHUB_SECRET,
+    process.env.AUTH_GITHUB_ID &&
+    process.env.AUTH_GITHUB_SECRET,
   );
 }
 

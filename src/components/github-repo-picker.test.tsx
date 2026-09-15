@@ -59,9 +59,7 @@ describe("GitHubRepoPicker empty state", () => {
   });
 
   it("explains that the slug is missing when there is no install URL", () => {
-    render(
-      <GitHubRepoPicker initialRepos={[]} connectedByFullName={{}} />,
-    );
+    render(<GitHubRepoPicker initialRepos={[]} connectedByFullName={{}} />);
 
     expect(screen.getByText(/GITHUB_APP_SLUG/)).toBeInTheDocument();
     expect(
@@ -88,9 +86,7 @@ describe("GitHubRepoPicker fetchOnMount", () => {
       expect(screen.getByText("acme/alpha")).toBeInTheDocument();
     });
     expect(screen.getByText("acme/beta")).toBeInTheDocument();
-    expect(
-      screen.queryByText(/Loading repositories/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Loading repositories/i)).not.toBeInTheDocument();
   });
 
   it("recovers from the StrictMode mount-abort-remount cycle", async () => {
@@ -109,8 +105,6 @@ describe("GitHubRepoPicker fetchOnMount", () => {
     await waitFor(() => {
       expect(screen.getByText("acme/alpha")).toBeInTheDocument();
     });
-    expect(
-      screen.queryByText(/Loading repositories/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Loading repositories/i)).not.toBeInTheDocument();
   });
 });

@@ -152,7 +152,8 @@ describe("POST /api/github/webhook", () => {
     );
   });
 
-  it("returns a retryable response when queueing throws", async () => {    handleGitHubWebhookEvent.mockRejectedValue(new Error("clone failed"));
+  it("returns a retryable response when queueing throws", async () => {
+    handleGitHubWebhookEvent.mockRejectedValue(new Error("clone failed"));
     const response = await POST(
       webhookRequest('{"ref":"refs/heads/main"}', {
         "x-github-delivery": "del-throw",
@@ -163,7 +164,10 @@ describe("POST /api/github/webhook", () => {
     expect(claimWebhookDelivery).toHaveBeenCalledWith("del-throw");
 
     claimWebhookDelivery.mockResolvedValue(false);
-    handleGitHubWebhookEvent.mockResolvedValue({ handled: true, message: "queued" });
+    handleGitHubWebhookEvent.mockResolvedValue({
+      handled: true,
+      message: "queued",
+    });
     const retry = await POST(
       webhookRequest('{"ref":"refs/heads/main"}', {
         "x-github-delivery": "del-throw",
@@ -191,7 +195,7 @@ describe("POST /api/github/webhook", () => {
           controller.close();
         },
       }),
-      ...( { duplex: "half" } as Record<string, unknown> ),
+      ...({ duplex: "half" } as Record<string, unknown>),
     });
     expect(request.headers.get("content-length")).toBeNull();
 

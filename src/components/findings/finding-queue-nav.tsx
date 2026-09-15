@@ -93,11 +93,7 @@ export function FindingQueueNav({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <p
-        className="sr-only"
-        aria-live="polite"
-        aria-atomic="true"
-      >
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
         {liveMessage}
       </p>
       <p className="text-xs text-muted-foreground">
@@ -105,7 +101,9 @@ export function FindingQueueNav({
         {filteredSuffix}
         <span className="hidden sm:inline">
           {" "}
-          · <kbd className="rounded border border-border px-1 font-mono">j</kbd>{" "}
+          · <kbd className="rounded border border-border px-1 font-mono">
+            j
+          </kbd>{" "}
           next ·{" "}
           <kbd className="rounded border border-border px-1 font-mono">k</kbd>{" "}
           previous
@@ -123,7 +121,12 @@ export function FindingQueueNav({
             </Link>
           </Button>
         ) : (
-          <Button variant="outline" size="sm" disabled title="No previous finding">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            title="No previous finding"
+          >
             <ChevronLeft className="size-4" aria-hidden />
             Previous
           </Button>

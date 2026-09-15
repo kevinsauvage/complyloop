@@ -1,7 +1,11 @@
 import type { Page } from "playwright";
 
 import { type CapturedHit } from "./hit-capture.ts";
-import { locatorEvaluateWithHitCapture,pageEvaluateWithHitCapture,toViolationNodes } from "./hit-capture-evaluate.ts";
+import {
+  locatorEvaluateWithHitCapture,
+  pageEvaluateWithHitCapture,
+  toViolationNodes,
+} from "./hit-capture-evaluate.ts";
 import { measureHoverVsFocusReveal } from "./hover-reveal.ts";
 import type { CustomViolation } from "./types.ts";
 
@@ -10,43 +14,52 @@ const MAX_TRIGGERS = 12;
 export async function cssHoverKeyboardViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const stylesheetHits = await pageEvaluateWithHitCapture(page, (captureHit) => {
-    const hits: CapturedHit[] = [];
-    const visibilityProps = ["display", "visibility", "opacity", "height", "max-height"];
+  const stylesheetHits = await pageEvaluateWithHitCapture(
+    page,
+    (captureHit) => {
+      const hits: CapturedHit[] = [];
+      const visibilityProps = [
+        "display",
+        "visibility",
+        "opacity",
+        "height",
+        "max-height",
+      ];
 
-    for (const sheet of Array.from(document.styleSheets)) {
-      let rules: CSSRuleList;
-      try {
-        rules = sheet.cssRules;
-      } catch {
-        continue;
-      }
-      for (const rule of Array.from(rules)) {
-        if (!(rule instanceof CSSStyleRule)) continue;
-        const selector = rule.selectorText;
-        if (!selector.includes(":hover")) continue;
-        if (selector.includes(":focus")) continue;
-        const revealsContent = visibilityProps.some((prop) => {
-          const value = rule.style.getPropertyValue(prop);
-          return value.length > 0 && value !== "inherit";
-        });
-        if (!revealsContent) continue;
-
-        const baseSelector = selector.split(":")[0]?.trim();
-        if (!baseSelector) continue;
-        let match: Element | null = null;
+      for (const sheet of Array.from(document.styleSheets)) {
+        let rules: CSSRuleList;
         try {
-          match = document.querySelector(baseSelector);
+          rules = sheet.cssRules;
         } catch {
           continue;
         }
-        if (!match) continue;
-        hits.push(captureHit(match));
-        if (hits.length >= 5) return hits;
+        for (const rule of Array.from(rules)) {
+          if (!(rule instanceof CSSStyleRule)) continue;
+          const selector = rule.selectorText;
+          if (!selector.includes(":hover")) continue;
+          if (selector.includes(":focus")) continue;
+          const revealsContent = visibilityProps.some((prop) => {
+            const value = rule.style.getPropertyValue(prop);
+            return value.length > 0 && value !== "inherit";
+          });
+          if (!revealsContent) continue;
+
+          const baseSelector = selector.split(":")[0]?.trim();
+          if (!baseSelector) continue;
+          let match: Element | null = null;
+          try {
+            match = document.querySelector(baseSelector);
+          } catch {
+            continue;
+          }
+          if (!match) continue;
+          hits.push(captureHit(match));
+          if (hits.length >= 5) return hits;
+        }
       }
-    }
-    return hits;
-  });
+      return hits;
+    },
+  );
 
   const interactionHits: CapturedHit[] = [];
   const triggers = page.locator(
@@ -62,8 +75,9 @@ export async function cssHoverKeyboardViolation(
     );
 
     if (hoverLen > beforeLen + 8 && focusLen < hoverLen - 4) {
-      const hit = await locatorEvaluateWithHitCapture(trigger, (captureHit, el) =>
-        captureHit(el),
+      const hit = await locatorEvaluateWithHitCapture(
+        trigger,
+        (captureHit, el) => captureHit(el),
       );
       interactionHits.push(hit);
       if (interactionHits.length >= 3) break;

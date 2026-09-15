@@ -24,7 +24,10 @@ function isPlaceholderAuthSecret(secret: string): boolean {
  */
 export function resolveAuthSecret(): string {
   if (process.env.AUTH_SECRET) {
-    if (isProductionRuntime() && isPlaceholderAuthSecret(process.env.AUTH_SECRET)) {
+    if (
+      isProductionRuntime() &&
+      isPlaceholderAuthSecret(process.env.AUTH_SECRET)
+    ) {
       throw new Error(
         "AUTH_SECRET is a known placeholder. Set a unique secret (see docs/deploy.md).",
       );

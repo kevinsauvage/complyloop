@@ -62,8 +62,6 @@ describe("evidenceFilterConditions", () => {
         actor: "octocat",
       }),
     ).toHaveLength(6);
-    expect(
-      evidenceFilterConditions("p1", { q: "alt" }),
-    ).toHaveLength(2);
+    expect(evidenceFilterConditions("p1", { q: "alt" })).toHaveLength(2);
   });
 });

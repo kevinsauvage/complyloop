@@ -26,7 +26,9 @@ describe("redactCloneUrl", () => {
   it("strips the token from an authenticated clone URL", () => {
     const url = githubCloneUrl("octo/repo", "gho_secret_token");
     expect(url).toContain("gho_secret_token");
-    const redacted = redactCloneUrl(`fatal: unable to access '${url}': auth failed`);
+    const redacted = redactCloneUrl(
+      `fatal: unable to access '${url}': auth failed`,
+    );
     expect(redacted).not.toContain("gho_secret_token");
     expect(redacted).not.toContain("x-access-token:");
     expect(redacted).toContain("https://***@github.com/octo/repo.git");

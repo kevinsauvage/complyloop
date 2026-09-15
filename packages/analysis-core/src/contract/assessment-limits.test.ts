@@ -5,7 +5,8 @@ import { maxRuntimePages } from "./assessment-limits";
 const ORIGINAL: Record<string, string | undefined> = {};
 
 beforeEach(() => {
-  ORIGINAL.ASSESSMENT_MAX_RUNTIME_PAGES = process.env.ASSESSMENT_MAX_RUNTIME_PAGES;
+  ORIGINAL.ASSESSMENT_MAX_RUNTIME_PAGES =
+    process.env.ASSESSMENT_MAX_RUNTIME_PAGES;
   delete process.env.ASSESSMENT_MAX_RUNTIME_PAGES;
 });
 

@@ -63,9 +63,9 @@ describe("parseSource helpers", () => {
     ).toBe(false);
 
     const dynamic = firstTag(`const A = () => <div aria-hidden={flag} />;`);
-    expect(booleanAttributeValue(getAttribute(dynamic.tag, "aria-hidden"))).toBe(
-      null,
-    );
+    expect(
+      booleanAttributeValue(getAttribute(dynamic.tag, "aria-hidden")),
+    ).toBe(null);
   });
 
   it("extends attribute removal spans through leading whitespace", () => {

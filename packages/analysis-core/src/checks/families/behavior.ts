@@ -28,7 +28,9 @@ import {
   textContentOf,
 } from "../heuristic-utils.ts";
 
-function isLiveRegion(node: ts.JsxOpeningElement | ts.JsxSelfClosingElement): boolean {
+function isLiveRegion(
+  node: ts.JsxOpeningElement | ts.JsxSelfClosingElement,
+): boolean {
   const role = getAttribute(node, "role");
   const roleValue = role ? stringValueOf(role)?.toLowerCase() : undefined;
   if (roleValue === "status" || roleValue === "alert") return true;
@@ -81,7 +83,9 @@ function siblingsIncludeLiveRegion(node: JsxTagNode): boolean {
   return false;
 }
 
-function isInvalidField(node: ts.JsxOpeningElement | ts.JsxSelfClosingElement): boolean {
+function isInvalidField(
+  node: ts.JsxOpeningElement | ts.JsxSelfClosingElement,
+): boolean {
   const invalid = getAttribute(node, "aria-invalid");
   if (!invalid) return false;
   const value = booleanAttributeValue(invalid);
@@ -115,8 +119,13 @@ export const statusLiveCheck: AccessibilityCheck = {
     visitJsxTags(source.sourceFile, (node) => {
       if (!isInvalidField(node)) return;
       const describedBy = getAttribute(node, "aria-describedby");
-      const describedValue = describedBy ? stringValueOf(describedBy) : undefined;
-      if (describedValue && describedByIsLive(source.sourceFile, describedValue)) {
+      const describedValue = describedBy
+        ? stringValueOf(describedBy)
+        : undefined;
+      if (
+        describedValue &&
+        describedByIsLive(source.sourceFile, describedValue)
+      ) {
         return;
       }
       const element = jsxElementOf(node);
@@ -133,7 +142,7 @@ export const statusLiveCheck: AccessibilityCheck = {
         severity: "moderate",
         confidence: "low",
         reason:
-          "Invalid field exposes validation feedback without a live region (role=\"status\", role=\"alert\", or aria-live) so screen readers announce the error (WCAG 4.1.3).",
+          'Invalid field exposes validation feedback without a live region (role="status", role="alert", or aria-live) so screen readers announce the error (WCAG 4.1.3).',
         location: locationOf(source, node),
         fix: null,
       });
@@ -143,7 +152,8 @@ export const statusLiveCheck: AccessibilityCheck = {
   },
 };
 
-const NEW_WINDOW_WARNING = /new (window|tab)|nouvelle fen[êe]tre|nouvel onglet/i;
+const NEW_WINDOW_WARNING =
+  /new (window|tab)|nouvelle fen[êe]tre|nouvel onglet/i;
 
 function isEmptyDepsArray(node: ts.Expression | undefined): boolean {
   return (
@@ -175,7 +185,10 @@ function bodyContainsWindowOpen(node: ts.Node): boolean {
 }
 
 function isMountUseEffect(call: ts.CallExpression): boolean {
-  if (!ts.isIdentifier(call.expression) || call.expression.text !== "useEffect") {
+  if (
+    !ts.isIdentifier(call.expression) ||
+    call.expression.text !== "useEffect"
+  ) {
     return false;
   }
   if (call.arguments.length < 2) return false;
@@ -350,12 +363,18 @@ function pageLang(sourceFile: ts.SourceFile): string | undefined {
   return lang;
 }
 
-function needsLangForScript(text: string, pageDefault: string | undefined): boolean {
+function needsLangForScript(
+  text: string,
+  pageDefault: string | undefined,
+): boolean {
   const defaultLang = pageDefault?.split("-")[0] ?? "en";
   if (defaultLang === "fr" || defaultLang === "en" || defaultLang === "de") {
     if (CYRILLIC.test(text) || ARABIC.test(text) || CJK.test(text)) return true;
   }
-  if ((defaultLang === "en" || defaultLang === undefined) && LATIN_EXTENDED.test(text)) {
+  if (
+    (defaultLang === "en" || defaultLang === undefined) &&
+    LATIN_EXTENDED.test(text)
+  ) {
     return true;
   }
   if (defaultLang === "en" && CYRILLIC.test(text)) return true;
@@ -371,7 +390,8 @@ export const langChangeCheck: AccessibilityCheck = {
 
     for (const entry of collectJsxTexts(source.sourceFile, { minLength: 4 })) {
       if (!needsLangForScript(entry.text, defaultLang)) continue;
-      if (hasAttrOnAncestors(entry.node, "lang", { stopAtHtml: true })) continue;
+      if (hasAttrOnAncestors(entry.node, "lang", { stopAtHtml: true }))
+        continue;
       findings.push({
         checkId: "lang-change",
         kind: "warning",
@@ -427,7 +447,7 @@ export const metaViewportCheck: AccessibilityCheck = {
         severity: "serious",
         confidence: "high",
         reason:
-          'Viewport meta disables zoom (user-scalable=no or maximum-scale < 2), which blocks users who need to enlarge text.',
+          "Viewport meta disables zoom (user-scalable=no or maximum-scale < 2), which blocks users who need to enlarge text.",
         location: locationOf(source, node),
         fix: null,
       });
@@ -460,7 +480,9 @@ export const textSpacingCheck: AccessibilityCheck = {
 
 const COLOR_PROPS = new Set(["color", "backgroundColor", "background"]);
 
-function styleSetsOnlyOneSide(node: Parameters<typeof getAttribute>[0]): boolean {
+function styleSetsOnlyOneSide(
+  node: Parameters<typeof getAttribute>[0],
+): boolean {
   const style = getAttribute(node, "style");
   if (!style?.initializer || !ts.isJsxExpression(style.initializer)) {
     return false;
@@ -500,8 +522,7 @@ export const bothColorsCheck: AccessibilityCheck = {
   },
 };
 
-const ASCII_ART_LINE =
-  /^[\s|/\\_\-=+*#@<>[\]().,'"`~:;{}[\]\\]{5,}$/;
+const ASCII_ART_LINE = /^[\s|/\\_\-=+*#@<>[\]().,'"`~:;{}[\]\\]{5,}$/;
 const EMOTICON_ONLY = /^(\s*(:-?\)|:-?\(|;-?\)|:-?D|:\||:-?P|<3|xD)\s*)+$/i;
 
 function isAsciiArtBlock(text: string): boolean {
@@ -522,7 +543,10 @@ function hasAccessibleAlternative(node: JsxTagNode): boolean {
 function jsxHostOf(node: ts.Node): JsxTagNode | undefined {
   let current: ts.Node | undefined = node;
   while (current) {
-    if (ts.isJsxOpeningElement(current) || ts.isJsxSelfClosingElement(current)) {
+    if (
+      ts.isJsxOpeningElement(current) ||
+      ts.isJsxSelfClosingElement(current)
+    ) {
       return current;
     }
     if (ts.isJsxElement(current)) return current.openingElement;

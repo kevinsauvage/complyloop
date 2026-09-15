@@ -45,7 +45,9 @@ export const APPLICABILITY_OBSERVABLE_CHECK_IDS = [
   ...LAYOUT_TABLE_CHECK_IDS,
 ] as const satisfies readonly CheckId[];
 
-const APPLICABILITY_OBSERVABLE = new Set<string>(APPLICABILITY_OBSERVABLE_CHECK_IDS);
+const APPLICABILITY_OBSERVABLE = new Set<string>(
+  APPLICABILITY_OBSERVABLE_CHECK_IDS,
+);
 
 export function isApplicabilityObservableCheck(checkId: string): boolean {
   return APPLICABILITY_OBSERVABLE.has(checkId);
@@ -75,15 +77,12 @@ export async function applicabilityObservationsForPage(
       isLayoutTableSrc,
       probeSrc,
     }) => {
-      const {
-        matchesPattern,
-        collectCandidates,
-        elementLooksLikeCaptcha,
-      } = new Function(`return (${probeSrc})`)()(
-        matchesSrc,
-        collectSrc,
-        matchSrc,
-      );
+      const { matchesPattern, collectCandidates, elementLooksLikeCaptcha } =
+        new Function(`return (${probeSrc})`)()(
+          matchesSrc,
+          collectSrc,
+          matchSrc,
+        );
 
       const isLayoutTable = new Function(`return (${isLayoutTableSrc})`)() as (
         table: HTMLTableElement,
@@ -169,7 +168,9 @@ export async function applicabilityObservationsForPage(
  * A check is site-level not_applicable only when every audited page confirms absence.
  */
 export function aggregateApplicabilityObservations(
-  pages: ReadonlyArray<{ applicabilityObservations?: ApplicabilityObservation[] }>,
+  pages: ReadonlyArray<{
+    applicabilityObservations?: ApplicabilityObservation[];
+  }>,
 ): ReadonlyMap<CheckId, string> {
   if (pages.length === 0) return new Map();
 

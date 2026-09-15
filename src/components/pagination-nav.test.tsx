@@ -10,9 +10,16 @@ afterEach(() => {
 describe("PaginationNav", () => {
   it("renders next/prev when there are multiple pages", () => {
     render(
-      <PaginationNav page={2} totalPages={4} total={100} basePath="/evidence" />,
+      <PaginationNav
+        page={2}
+        totalPages={4}
+        total={100}
+        basePath="/evidence"
+      />,
     );
-    expect(screen.getByRole("navigation", { name: "Pagination" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Pagination" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Previous" })).toHaveAttribute(
       "href",
       "/evidence",
@@ -33,7 +40,9 @@ describe("PaginationNav", () => {
         pageSize={25}
       />,
     );
-    expect(screen.getByRole("navigation", { name: "Pagination" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Pagination" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Page 1" })).toHaveAttribute(
       "href",
       "/evidence",

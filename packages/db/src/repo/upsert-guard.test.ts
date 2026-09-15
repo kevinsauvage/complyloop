@@ -58,11 +58,12 @@ describe("filterStalePayloadWrites", () => {
       { id: "a", updatedAt: "2020-01-01T00:00:00.000Z" },
       { id: "b", updatedAt: "2020-01-01T00:00:00.000Z" },
     ];
-    const fetchDb = vi.fn(async () =>
-      new Map<string, string | undefined>([
-        ["a", "2020-01-02T00:00:00.000Z"],
-        ["b", "2020-01-01T00:00:00.000Z"],
-      ]),
+    const fetchDb = vi.fn(
+      async () =>
+        new Map<string, string | undefined>([
+          ["a", "2020-01-02T00:00:00.000Z"],
+          ["b", "2020-01-01T00:00:00.000Z"],
+        ]),
     );
     const kept = await filterStalePayloadWrites(
       items,

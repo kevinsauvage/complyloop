@@ -64,7 +64,10 @@ export type FindingLocation = SourceLocation | DomLocation | SiteLocation;
 export type AssessmentEngine = "ast" | "runtime";
 
 /** Single source for analyzer → engine bucket + dedupe priority. */
-export const ANALYZER_META: Record<AnalyzerId, { engine: AssessmentEngine; priority: number }> = {
+export const ANALYZER_META: Record<
+  AnalyzerId,
+  { engine: AssessmentEngine; priority: number }
+> = {
   axe: { engine: "runtime", priority: 0 },
   "html-validate": { engine: "runtime", priority: 1 },
   "playwright-custom": { engine: "runtime", priority: 2 },
@@ -102,10 +105,7 @@ export interface AssessmentEngines {
   runtimePagesScanned?: number;
   /** Optional runtime passes that ran (empty when runtime did not run). */
   scanFeatures?: readonly (
-    | "site_level"
-    | "html_validate"
-    | "link_check"
-    | "theme_conditions"
+    "site_level" | "html_validate" | "link_check" | "theme_conditions"
   )[];
   themeConditions?: readonly string[];
   runtimeError?: string;

@@ -73,8 +73,7 @@ export function summarizeAssessmentForCheckRun(input: {
   failedRequirements: number;
   assessmentId: string;
 }): { conclusion: "success" | "failure"; title: string; summary: string } {
-  const failing =
-    input.openViolations > 0 || input.failedRequirements > 0;
+  const failing = input.openViolations > 0 || input.failedRequirements > 0;
   if (!failing) {
     return {
       conclusion: "success",

@@ -10,9 +10,7 @@ import {
   projectDefaultPresetId,
 } from "./registry";
 
-function testProject(
-  partial: Partial<Project> = {},
-): Project {
+function testProject(partial: Partial<Project> = {}): Project {
   return {
     id: "p1",
     name: "test-project",

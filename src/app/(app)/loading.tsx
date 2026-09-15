@@ -16,7 +16,10 @@ export default function AppGroupLoading() {
         <div className="surface-panel hidden h-24 animate-pulse rounded-2xl sm:block" />
         <div className="surface-panel hidden h-24 animate-pulse rounded-2xl lg:block" />
       </div>
-      <div className="surface-panel h-64 animate-pulse rounded-2xl" aria-hidden />
+      <div
+        className="surface-panel h-64 animate-pulse rounded-2xl"
+        aria-hidden
+      />
       <p className="text-sm text-muted-foreground">Loading workspace…</p>
       <span className="sr-only">Loading…</span>
     </div>

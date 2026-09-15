@@ -24,7 +24,8 @@ const e2eEnv: Record<string, string> = {
   E2E_PROD_HARNESS: "1",
   E2E_FIXTURE_ROOT: process.env.E2E_FIXTURE_ROOT ?? fixtureRoot,
   // GitHub webhook HMAC secret — the spec signs deliveries with the same value.
-  GITHUB_WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET ?? "e2e-webhook-secret",
+  GITHUB_WEBHOOK_SECRET:
+    process.env.GITHUB_WEBHOOK_SECRET ?? "e2e-webhook-secret",
   // Point Octokit at a local fixture so PR Check Run posting is exercised end-to-end.
   GITHUB_API_BASE_URL:
     process.env.GITHUB_API_BASE_URL ??
@@ -79,7 +80,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run db:migrate && npm run e2e:seed && npm run build && npm run start",
+    command:
+      "npm run db:migrate && npm run e2e:seed && npm run build && npm run start",
     url: baseURL,
     // Always start a dedicated server so e2e env (harness, DB) cannot leak from
     // an unrelated `next dev` / `next start` already bound to the port.

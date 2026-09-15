@@ -65,7 +65,9 @@ describe("check authority × RGAA catalog", () => {
         audit: {
           runtimeRan: authority !== "standard",
           siteLevelChecksRan: true,
-          htmlValidateRequired: isHtmlValidateOwnedCheck(control.checkId as string),
+          htmlValidateRequired: isHtmlValidateOwnedCheck(
+            control.checkId as string,
+          ),
           htmlValidateRan: true,
           // Standard controls need a real AST scan to pass.
           ...(authority === "standard" ? { filesScanned: 5 } : {}),

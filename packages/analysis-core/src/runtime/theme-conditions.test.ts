@@ -1,6 +1,6 @@
 import fs from "node:fs";
 
-import { type Browser,chromium } from "playwright";
+import { type Browser, chromium } from "playwright";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { runThemeSensitiveCustomChecks } from "./custom-checks/index";
@@ -96,7 +96,9 @@ describe("browser conditions", () => {
   it("maps each condition to the right emulation", () => {
     expect(emulationForCondition("dark")).toEqual({ colorScheme: "dark" });
     expect(emulationForCondition("light")).toEqual({ colorScheme: "light" });
-    expect(emulationForCondition("more-contrast")).toEqual({ contrast: "more" });
+    expect(emulationForCondition("more-contrast")).toEqual({
+      contrast: "more",
+    });
   });
 
   it("labels prefer-contrast meaningfully", () => {

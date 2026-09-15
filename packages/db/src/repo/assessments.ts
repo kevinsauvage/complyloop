@@ -6,7 +6,7 @@ import type {
 } from "@complyloop/analysis-core/contract/entities";
 
 import type { DrizzleDb } from "../postgres.ts";
-import { assessments,assessmentSnapshots } from "../schema.ts";
+import { assessments, assessmentSnapshots } from "../schema.ts";
 import { assessmentFromRow, assessmentToRow } from "./mappers.ts";
 
 export async function insertAssessment(

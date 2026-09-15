@@ -14,14 +14,15 @@ describe("captchaAlternativeViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags captcha without audio fallback",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <div class="g-recaptcha" data-sitekey="x"></div>
         </body></html>
       `,
         async (page) => {
-        const violation = await captchaAlternativeViolation(page);
-        expect(violation?.id).toBe("captcha-alternative");
+          const violation = await captchaAlternativeViolation(page);
+          expect(violation?.id).toBe("captcha-alternative");
         },
       );
     },

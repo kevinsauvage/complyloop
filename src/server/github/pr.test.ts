@@ -19,7 +19,10 @@ import { scanFile } from "@complyloop/analysis-core/scan";
 
 import { testProject } from "@/test-fixtures/project";
 
-import { locateViolationInProject, mergeFix } from "../assessment/assessment-findings";
+import {
+  locateViolationInProject,
+  mergeFix,
+} from "../assessment/assessment-findings";
 import { createGit } from "./git";
 import { preparePullRequest } from "./pr";
 

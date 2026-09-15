@@ -1,4 +1,9 @@
-import { ORG_ROLES, type OrgMembership, type OrgRole, type Project } from "@complyloop/analysis-core/contract/project-types";
+import {
+  ORG_ROLES,
+  type OrgMembership,
+  type OrgRole,
+  type Project,
+} from "@complyloop/analysis-core/contract/project-types";
 
 export type Permission =
   | "project.view"
@@ -26,7 +31,10 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   ],
 };
 
-export function roleHasPermission(role: OrgRole, permission: Permission): boolean {
+export function roleHasPermission(
+  role: OrgRole,
+  permission: Permission,
+): boolean {
   return ROLE_PERMISSIONS[role].includes(permission);
 }
 
@@ -42,8 +50,7 @@ export function canInOrg(
 ): boolean {
   if (!userId) return false;
   const membership = memberships.find(
-    (candidate) =>
-      candidate.orgId === orgId && candidate.userId === userId,
+    (candidate) => candidate.orgId === orgId && candidate.userId === userId,
   );
   if (!membership) return false;
   return roleHasPermission(membership.role, permission);

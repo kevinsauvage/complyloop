@@ -15,7 +15,9 @@ function repoOwner(fullName: string): string {
   return fullName.split("/")[0] ?? fullName;
 }
 
-export function groupReposByOwner(repos: GitHubRepoSummary[]): RepoOwnerGroup[] {
+export function groupReposByOwner(
+  repos: GitHubRepoSummary[],
+): RepoOwnerGroup[] {
   const byOwner = new Map<string, GitHubRepoSummary[]>();
   for (const repo of repos) {
     const owner = repoOwner(repo.fullName);
@@ -83,16 +85,10 @@ export function GitHubRepoList({
                       action={disconnectAction}
                       className="w-full sm:w-auto"
                     >
-                      <input
-                        type="hidden"
-                        name="projectId"
-                        value={projectId}
-                      />
+                      <input type="hidden" name="projectId" value={projectId} />
                       <ConfirmSubmitButton
                         label={
-                          disconnectPending
-                            ? "Disconnecting…"
-                            : "Disconnect"
+                          disconnectPending ? "Disconnecting…" : "Disconnect"
                         }
                         pendingLabel="Disconnecting…"
                         confirmMessage={`Disconnect ${repo.fullName}? Future assessments stop. Past evidence is retained for audit; findings and remediations for this project are removed.`}
@@ -104,10 +100,7 @@ export function GitHubRepoList({
                       />
                     </form>
                   ) : (
-                    <form
-                      action={connectAction}
-                      className="w-full sm:w-auto"
-                    >
+                    <form action={connectAction} className="w-full sm:w-auto">
                       <input
                         type="hidden"
                         name="fullName"

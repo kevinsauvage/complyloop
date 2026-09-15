@@ -14,7 +14,9 @@ afterEach(() => {
   cleanup();
 });
 
-function jobOf(overrides: Partial<AssessmentJob> & { id: string }): AssessmentJob {
+function jobOf(
+  overrides: Partial<AssessmentJob> & { id: string },
+): AssessmentJob {
   const now = new Date().toISOString();
   return {
     projectId: "p1",
@@ -81,7 +83,9 @@ describe("AssessmentJobStatus worker-stall warning", () => {
   });
 
   it("renders nothing when there are no jobs and no poll error", () => {
-    const { container } = renderWithUiProviders(<AssessmentJobStatus jobs={[]} />);
+    const { container } = renderWithUiProviders(
+      <AssessmentJobStatus jobs={[]} />,
+    );
 
     expect(container).toBeEmptyDOMElement();
   });

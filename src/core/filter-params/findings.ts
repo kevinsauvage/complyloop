@@ -84,11 +84,11 @@ export function parseFindingListParams(
 export function hasActiveFindingFilters(params: FindingListFilters): boolean {
   return Boolean(
     params.q ||
-      params.severity ||
-      params.engine ||
-      params.remediation ||
-      params.control ||
-      params.cluster,
+    params.severity ||
+    params.engine ||
+    params.remediation ||
+    params.control ||
+    params.cluster,
   );
 }
 

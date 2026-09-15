@@ -44,14 +44,22 @@ export function FindingsStatusNav({
 }: {
   listParams: FindingListParams;
   activeTab: FindingsTab;
-  totals: { open: number; byCause: number; resolved: number; dismissed: number };
+  totals: {
+    open: number;
+    byCause: number;
+    resolved: number;
+    dismissed: number;
+  };
 }) {
   return (
     <nav
       aria-label="Findings"
       className="surface-panel flex w-full items-center gap-1 overflow-x-auto rounded-xl p-1"
     >
-      <StatusNavLink href={tabHref("open", listParams)} current={activeTab === "open"}>
+      <StatusNavLink
+        href={tabHref("open", listParams)}
+        current={activeTab === "open"}
+      >
         Open ({totals.open})
       </StatusNavLink>
       <StatusNavLink

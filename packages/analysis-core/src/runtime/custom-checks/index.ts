@@ -1,6 +1,9 @@
 import type { Page } from "playwright";
 
-import { HEURISTIC_RUNTIME_DOWNGRADE, isHeuristicCheck } from "../../check-authority.ts";
+import {
+  HEURISTIC_RUNTIME_DOWNGRADE,
+  isHeuristicCheck,
+} from "../../check-authority.ts";
 import type { RawFinding } from "../../types.ts";
 import { htmlSnippet, selectorFromTarget } from "../dom-location.ts";
 import { rawFindingFromDom } from "../raw-finding-from-dom.ts";
@@ -97,10 +100,16 @@ async function runProbe(
 
 /** Condition-neutral probes — safe to run concurrently. */
 const PARALLEL_PROBES: readonly GuardedProbe[] = [
-  { id: "text-spacing-runtime", run: (page) => textSpacingRuntimeViolation(page) },
+  {
+    id: "text-spacing-runtime",
+    run: (page) => textSpacingRuntimeViolation(page),
+  },
   { id: "non-text-contrast", run: (page) => nonTextContrastViolation(page) },
   { id: "label-adjacent", run: (page) => labelAdjacentViolation(page) },
-  { id: "css-disabled-content", run: (page) => cssDisabledContentViolations(page) },
+  {
+    id: "css-disabled-content",
+    run: (page) => cssDisabledContentViolations(page),
+  },
   { id: "media-keyboard", run: (page) => mediaKeyboardViolation(page) },
   { id: "css-hover-keyboard", run: (page) => cssHoverKeyboardViolation(page) },
   {
@@ -108,12 +117,18 @@ const PARALLEL_PROBES: readonly GuardedProbe[] = [
     run: (page) => layoutTableLinearizationViolation(page),
   },
   { id: "error-prevention", run: (page) => errorPreventionViolation(page) },
-  { id: "captcha-alternative", run: (page) => captchaAlternativeViolation(page) },
+  {
+    id: "captcha-alternative",
+    run: (page) => captchaAlternativeViolation(page),
+  },
   {
     id: "accessible-auth-enhanced",
     run: (page) => accessibleAuthEnhancedViolation(page),
   },
-  { id: "media-identification", run: (page) => mediaIdentificationViolation(page) },
+  {
+    id: "media-identification",
+    run: (page) => mediaIdentificationViolation(page),
+  },
   {
     id: "supplementary-content-keyboard",
     run: (page) => supplementaryContentKeyboardViolation(page),
@@ -129,9 +144,15 @@ const INTERACTION_PROBES: readonly GuardedProbe[] = [
   { id: "focus", run: (page) => focusCustomViolations(page) },
   { id: "dialog-focus", run: (page) => dialogFocusViolations(page) },
   { id: "widget-keyboard", run: (page) => widgetKeyboardViolations(page) },
-  { id: "css-off-understandable", run: (page) => cssOffUnderstandableViolation(page) },
+  {
+    id: "css-off-understandable",
+    run: (page) => cssOffUnderstandableViolation(page),
+  },
   { id: "form-error-submit", run: (page) => formErrorSubmitViolation(page) },
-  { id: "live-region-updates", run: (page) => liveRegionUpdatesViolation(page) },
+  {
+    id: "live-region-updates",
+    run: (page) => liveRegionUpdatesViolation(page),
+  },
   { id: "hover-content", run: (page) => hoverContentViolation(page) },
 ];
 
@@ -140,7 +161,10 @@ const VIEWPORT_PROBES: readonly GuardedProbe[] = [
   { id: "reduced-motion", run: (page) => reducedMotionViolation(page) },
   { id: "reflow", run: (page) => reflowViolation(page) },
   { id: "resize-text", run: (page) => resizeTextViolation(page) },
-  { id: "target-size-enhanced", run: (page) => targetSizeEnhancedViolation(page) },
+  {
+    id: "target-size-enhanced",
+    run: (page) => targetSizeEnhancedViolation(page),
+  },
 ];
 
 async function collectCustomViolations(
@@ -189,7 +213,9 @@ export async function runThemeSensitiveCustomChecks(
 ): Promise<CustomChecksResult> {
   const probeFailures: string[] = [];
   const theme: CustomViolation[] = [
-    ...(await runProbe(probeFailures, "focus", () => focusCustomViolations(page))),
+    ...(await runProbe(probeFailures, "focus", () =>
+      focusCustomViolations(page),
+    )),
     ...(await runProbe(probeFailures, "non-text-contrast", () =>
       nonTextContrastViolation(page),
     )),

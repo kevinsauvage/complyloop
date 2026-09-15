@@ -40,8 +40,7 @@ import { locateViolationInProject, mergeFix } from "./assessment-findings";
 import { withProjectCheckout } from "./repo-checkout";
 
 export type PatchUiState =
-  | { status: "idle" }
-  | { status: "ready"; candidate: PatchCandidate };
+  { status: "idle" } | { status: "ready"; candidate: PatchCandidate };
 
 export interface RunAiFixOnCheckoutOptions {
   propose?: GeneratePatchCandidateOptions["propose"];

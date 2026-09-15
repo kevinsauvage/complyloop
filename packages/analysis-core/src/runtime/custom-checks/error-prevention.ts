@@ -8,7 +8,10 @@ import {
   RUNTIME_MATCHES_SRC,
 } from "../../patterns/multilingual.ts";
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
+import {
+  pageEvaluateWithHitCapture,
+  toViolationNodes,
+} from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 
 const RUNTIME_CONFIRM_LABEL = new RegExp(
@@ -21,7 +24,10 @@ export async function errorPreventionViolation(
 ): Promise<CustomViolation | null> {
   const hits = await pageEvaluateWithHitCapture(
     page,
-    (captureHit, { highRiskSource, confirmSource, matchesSrc, datasetKeys }) => {
+    (
+      captureHit,
+      { highRiskSource, confirmSource, matchesSrc, datasetKeys },
+    ) => {
       const highRisk = new RegExp(highRiskSource, "i");
       const confirmLabel = new RegExp(confirmSource, "i");
 

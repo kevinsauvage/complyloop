@@ -140,8 +140,7 @@ function isDisabled(node: JsxTagNode): boolean {
 }
 
 function tabIndexValue(node: JsxTagNode): number | undefined {
-  const attr =
-    getAttribute(node, "tabIndex") ?? getAttribute(node, "tabindex");
+  const attr = getAttribute(node, "tabIndex") ?? getAttribute(node, "tabindex");
   if (!attr) return undefined;
   const text = stringValueOf(attr);
   if (text !== undefined) {
@@ -174,16 +173,13 @@ function isInherentInteractive(
     interactiveRoleConcepts.some((concept) =>
       conceptMatches(concept, tag, attrs),
     ) ||
-    interactiveAxConcepts.some((concept) =>
-      conceptMatches(concept, tag, attrs),
-    )
+    interactiveAxConcepts.some((concept) => conceptMatches(concept, tag, attrs))
   );
 }
 
 function explicitWidgetRole(node: JsxTagNode): boolean {
   return explicitRoles(node).some((role) => widgetRoleNames.has(role));
 }
-
 
 /** Implicit ARIA roles for this host from aria-query element/role tables. */
 export function implicitRoles(node: JsxTagNode): string[] {

@@ -9,7 +9,10 @@ import {
   octokitErrorMessage,
   parseOwnerRepo,
 } from "./github";
-import { createInstallationAccessToken, isGitHubAppConfigured } from "./github-app";
+import {
+  createInstallationAccessToken,
+  isGitHubAppConfigured,
+} from "./github-app";
 import type { GitHubRepoSummary } from "./github-types";
 
 export type { GitHubRepoSummary } from "./github-types";

@@ -33,7 +33,9 @@ const nextConfig: NextConfig = {
   // guide before opting in.
   // Standalone output is for the Docker image only — `next start` warns/fails
   // when standalone is always on (Playwright e2e uses `npm run start`).
-  ...(process.env.DOCKER_BUILD === "1" ? { output: "standalone" as const } : {}),
+  ...(process.env.DOCKER_BUILD === "1"
+    ? { output: "standalone" as const }
+    : {}),
   // Runtime analysis engines use dynamic requires Playwright/Node APIs; keep them
   // out of the Turbopack graph (same rationale as disk-loaded axe.min.js).
   serverExternalPackages: [

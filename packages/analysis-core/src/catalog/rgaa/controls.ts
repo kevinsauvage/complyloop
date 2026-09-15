@@ -1,4 +1,7 @@
-import type { Control, Framework } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Control,
+  Framework,
+} from "@complyloop/analysis-core/contract/project-types";
 
 export const rgaaFramework: Framework = {
   id: "fw-rgaa-4",
@@ -277,8 +280,7 @@ export const rgaaControls: Control[] = [
     code: "RGAA 7.3",
     secondaryCode: "WCAG 2.1.1",
     title: "Menus are operable from the keyboard",
-    description:
-      "Menu items are focusable and operable with the keyboard.",
+    description: "Menu items are focusable and operable with the keyboard.",
     checkId: "menu-keyboard",
     complianceWeight: 1.3,
   },

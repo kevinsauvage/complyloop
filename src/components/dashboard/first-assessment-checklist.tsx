@@ -37,7 +37,11 @@ function StepIndicator({
     >
       {done ? <Check className="size-4" aria-hidden /> : stepNumber}
       <span className="sr-only">
-        {done ? "Completed" : optional ? `Optional step ${stepNumber}` : `Step ${stepNumber}`}
+        {done
+          ? "Completed"
+          : optional
+            ? `Optional step ${stepNumber}`
+            : `Step ${stepNumber}`}
       </span>
     </span>
   );
@@ -162,8 +166,7 @@ export function UnableToVerifyRuntimeHint({
             >
               Check preview URL settings
             </Link>
-            . Live-page checks stay unable to verify until the preview
-            loads.
+            . Live-page checks stay unable to verify until the preview loads.
           </span>
         </p>
         <details className="mt-2">
@@ -192,8 +195,8 @@ export function UnableToVerifyRuntimeHint({
       >
         preview URL
       </Link>{" "}
-      to assess live-page checks (contrast, page title, landmarks, target
-      size, and similar). This is a coverage gap, not a pass.
+      to assess live-page checks (contrast, page title, landmarks, target size,
+      and similar). This is a coverage gap, not a pass.
     </p>
   );
 }

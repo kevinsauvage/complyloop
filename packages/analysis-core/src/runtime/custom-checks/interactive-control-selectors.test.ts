@@ -14,13 +14,19 @@ describe("interactive control selectors", () => {
   it("non-text contrast includes checkable roles and hidden-input exclusion", () => {
     expect(NON_TEXT_CONTRAST_CONTROL_SELECTOR).toContain('[role="checkbox"]');
     expect(NON_TEXT_CONTRAST_CONTROL_SELECTOR).toContain('[role="radio"]');
-    expect(NON_TEXT_CONTRAST_CONTROL_SELECTOR).toContain('input:not([type="hidden"])');
+    expect(NON_TEXT_CONTRAST_CONTROL_SELECTOR).toContain(
+      'input:not([type="hidden"])',
+    );
     expect(NON_TEXT_CONTRAST_CONTROL_SELECTOR).not.toContain('[role="switch"]');
   });
 
   it("enhanced target excludes UA-sized inputs and disabled hosts", () => {
-    expect(ENHANCED_TARGET_CONTROL_SELECTOR).toContain("button:not([disabled])");
-    expect(ENHANCED_TARGET_CONTROL_SELECTOR).toContain('not([type="checkbox"])');
+    expect(ENHANCED_TARGET_CONTROL_SELECTOR).toContain(
+      "button:not([disabled])",
+    );
+    expect(ENHANCED_TARGET_CONTROL_SELECTOR).toContain(
+      'not([type="checkbox"])',
+    );
     expect(ENHANCED_TARGET_CONTROL_SELECTOR).toContain('not([type="radio"])');
     expect(ENHANCED_TARGET_CONTROL_SELECTOR).toContain('not([type="file"])');
     expect(ENHANCED_TARGET_CONTROL_SELECTOR).toContain('not([type="range"])');

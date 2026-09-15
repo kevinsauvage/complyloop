@@ -38,9 +38,7 @@ const control: Control = {
   checkId: "img-alt",
 };
 
-function requirement(
-  overrides: Partial<Requirement> = {},
-): Requirement {
+function requirement(overrides: Partial<Requirement> = {}): Requirement {
   return {
     id: "req-1",
     projectId: "p1",
@@ -79,7 +77,7 @@ describe("RequirementCard", () => {
     });
 
     expect(screen.queryByRole("link", { name: /open finding/i })).toBeNull();
-     expect(screen.getByText(/no open findings/i)).toBeInTheDocument();
+    expect(screen.getByText(/no open findings/i)).toBeInTheDocument();
   });
 
   it("shows See findings as the primary action for failed requirements", () => {
@@ -106,7 +104,8 @@ describe("RequirementCard", () => {
         code: "RGAA 1.3",
         secondaryCode: "WCAG 1.1.1",
         title: "Image text alternatives are pertinent",
-        description: "Each informative image's text alternative describes its purpose.",
+        description:
+          "Each informative image's text alternative describes its purpose.",
         checkId: null,
       },
       requirement: requirement({

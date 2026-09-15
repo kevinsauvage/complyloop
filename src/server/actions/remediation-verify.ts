@@ -58,10 +58,8 @@ const STILL_FAILING_VERIFY_MESSAGE =
   "Still failing — the violation is still detected at this location.";
 
 /** Distinct site-verify failure reasons (preview-down vs 0-pages vs engine-skipped). */
-const PREVIEW_UNREACHABLE_MESSAGE =
-  "Preview unreachable — check preview URL.";
-const NO_PAGES_SCANNED_MESSAGE =
-  "No pages scanned — check preview routes.";
+const PREVIEW_UNREACHABLE_MESSAGE = "Preview unreachable — check preview URL.";
+const NO_PAGES_SCANNED_MESSAGE = "No pages scanned — check preview routes.";
 const SITE_CHECKS_NOT_RUN_MESSAGE = "Site checks did not run.";
 
 const VERIFY_REQUIRES_IMPLEMENTED_MESSAGE =
@@ -253,7 +251,15 @@ export async function verifyRemediationAction(
           recordStillFailing(payload, remediation);
           return payload;
         }
-        return markVerified(db, live, remediation, note, engine, audit, previewFinding);
+        return markVerified(
+          db,
+          live,
+          remediation,
+          note,
+          engine,
+          audit,
+          previewFinding,
+        );
       },
     );
     refresh(...COMPLIANCE_LOOP_ROUTES);

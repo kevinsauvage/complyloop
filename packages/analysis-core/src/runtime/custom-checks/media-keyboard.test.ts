@@ -17,21 +17,22 @@ describe("mediaKeyboardViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags media controls that cannot receive keyboard focus",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <audio controls tabindex="-1" src="${TINY_WAV}"></audio>
         </body></html>
       `,
         async (page) => {
-        await page.waitForFunction(() => {
-          const media = document.querySelector("audio");
-          return media instanceof HTMLMediaElement && media.readyState >= 1;
-        });
-        const violation = await mediaKeyboardViolation(page);
-        expect(violation?.id).toBe("media-keyboard");
-        const node = violation!.nodes[0]!;
-        expect(node.target).toEqual(["audio"]);
-        expect(node.html).toMatch(/^<audio /);
+          await page.waitForFunction(() => {
+            const media = document.querySelector("audio");
+            return media instanceof HTMLMediaElement && media.readyState >= 1;
+          });
+          const violation = await mediaKeyboardViolation(page);
+          expect(violation?.id).toBe("media-keyboard");
+          const node = violation!.nodes[0]!;
+          expect(node.target).toEqual(["audio"]);
+          expect(node.html).toMatch(/^<audio /);
         },
       );
     },

@@ -52,11 +52,7 @@ export const autoplayMediaCheck: AccessibilityCheck = {
         fix: {
           kind: "remove_attribute",
           attribute: autoPlay.name.getText(),
-          span: attributeRemovalSpan(
-            autoPlay,
-            source.sourceFile,
-            source.text,
-          ),
+          span: attributeRemovalSpan(autoPlay, source.sourceFile, source.text),
         },
       });
     });
@@ -103,7 +99,8 @@ export const audioDescriptionTrackCheck = makeVideoDescriptionCheck({
     "<video> has no descriptions track; visual information not in the soundtrack may be missing for blind users (RGAA 4.5).",
 });
 
-const EMBED_HOSTS = /(?:youtube(?:-nocookie)?\.com|youtu\.be|player\.vimeo\.com|vimeo\.com)/i;
+const EMBED_HOSTS =
+  /(?:youtube(?:-nocookie)?\.com|youtu\.be|player\.vimeo\.com|vimeo\.com)/i;
 const EMBED_TAGS = new Set(["YouTube", "Vimeo"]);
 
 function iframeSrcOf(node: JsxTagNode): string {
@@ -278,7 +275,8 @@ export const nontemporalMediaAltCheck: AccessibilityCheck = {
       if (!NON_TEMPORAL_MEDIA_TAGS.has(tag)) return;
       if (isPropSpreadingHost(node)) return;
       if (isDecorativeOrHidden(node)) return;
-      if ((tag === "object" || tag === "embed") && isSkippedTypedMedia(node)) return;
+      if ((tag === "object" || tag === "embed") && isSkippedTypedMedia(node))
+        return;
       if (hasAriaName(node)) return;
       if (tag === "canvas") {
         const element = jsxElementOf(node);
@@ -291,8 +289,7 @@ export const nontemporalMediaAltCheck: AccessibilityCheck = {
         kind: "violation",
         severity: "serious",
         confidence: "medium",
-        reason:
-          `<${tag}> does not expose a text alternative. Add an accessible name or an adjacent link/button alternative.`,
+        reason: `<${tag}> does not expose a text alternative. Add an accessible name or an adjacent link/button alternative.`,
         location: locationOf(source, node),
         fix: null,
       });

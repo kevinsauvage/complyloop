@@ -45,12 +45,13 @@ export function mergeRawFindings(
   runtimeFindings: RawFinding[],
   runtimeRan: boolean,
 ): RawFinding[] {
-  const filteredAst = filterAstFindingsForAuthority(astFindings, runtimeRan).map(
-    (finding) => ({
-      ...finding,
-      analyzerId: finding.analyzerId ?? ("ast" as const),
-    }),
-  );
+  const filteredAst = filterAstFindingsForAuthority(
+    astFindings,
+    runtimeRan,
+  ).map((finding) => ({
+    ...finding,
+    analyzerId: finding.analyzerId ?? ("ast" as const),
+  }));
   return [...filteredAst, ...runtimeFindings];
 }
 
@@ -93,8 +94,12 @@ function contributionKey(entry: AnalyzerContribution): string {
 function contributionFromFinding(finding: RawFinding): AnalyzerContribution {
   return {
     analyzerId: effectiveAnalyzerId(finding),
-    ...(finding.analyzerRuleId ? { analyzerRuleId: finding.analyzerRuleId } : {}),
-    ...(finding.analyzerVersion ? { analyzerVersion: finding.analyzerVersion } : {}),
+    ...(finding.analyzerRuleId
+      ? { analyzerRuleId: finding.analyzerRuleId }
+      : {}),
+    ...(finding.analyzerVersion
+      ? { analyzerVersion: finding.analyzerVersion }
+      : {}),
   };
 }
 
@@ -153,7 +158,9 @@ export function dedupeRuntimeFindings(
     for (let index = 1; index < group.length; index += 1) {
       const candidate = group[index]!;
       const winnerPriority = analyzerPriority(effectiveAnalyzerId(winner));
-      const candidatePriority = analyzerPriority(effectiveAnalyzerId(candidate));
+      const candidatePriority = analyzerPriority(
+        effectiveAnalyzerId(candidate),
+      );
       if (candidatePriority < winnerPriority) {
         winner = {
           ...candidate,

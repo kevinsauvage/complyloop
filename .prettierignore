@@ -1,0 +1,32 @@
+# Dependencies and generated output — never format these.
+node_modules/
+.next/
+out/
+coverage/
+dist/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Regenerable local caches (gitignored).
+graft/
+.opencode/
+design-system/
+
+# Lockfiles are owned by the package manager.
+package-lock.json
+*.tgz
+
+# Test/build artifacts.
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+e2e/.auth/
+
+# Local leftovers and secrets.
+.data/
+*.pem
+.env*
+.vercel/
+.DS_Store

@@ -80,11 +80,11 @@ Module layout (packages, boundaries, data flow): [`docs/ai/architecture.md`](./d
 
 ## Model routing
 
-| Task                                              | Use                        | Why                                              |
-| ------------------------------------------------- | -------------------------- | ------------------------------------------------ |
-| Architecture, planning, hard refactors, high-risk review | Strongest reasoning model  | Only tier that holds multi-file constraints reliably |
-| Routine implementation, small scoped edits        | Mid-tier / fast model      | Sufficient under a plan + gates, ~2–3× cheaper   |
-| Terminal scripts, CI/DevOps, bulk summaries       | Cheapest capable model     | Cost dominates; capability floor is reachable    |
+| Task                                                     | Use                       | Why                                                  |
+| -------------------------------------------------------- | ------------------------- | ---------------------------------------------------- |
+| Architecture, planning, hard refactors, high-risk review | Strongest reasoning model | Only tier that holds multi-file constraints reliably |
+| Routine implementation, small scoped edits               | Mid-tier / fast model     | Sufficient under a plan + gates, ~2–3× cheaper       |
+| Terminal scripts, CI/DevOps, bulk summaries              | Cheapest capable model    | Cost dominates; capability floor is reachable        |
 
 Route by task — never run the flagship model for everything. Verify with `npm run verify:gate`, not with a bigger model.
 
@@ -97,6 +97,7 @@ Keep the UI dependency surface from regrowing: do not add a new Radix/`ui/` prim
 Async data-fetching components (`workspace-context`, `connect-project-panel`, `nav-attention-badges`, `dashboard-pipeline-section`, plus server `app-shell`/`badges`) live alongside client leaves in `src/components/` with no `"use client"` and no `*.server.tsx` rename. Rule: never add `"use client"` above a file importing `@/server/*` — put interactivity in a dedicated client leaf (`mobile-nav-sheet`, `pathname-focus`, `badge-with-description`) and pass server content as slots/children.
 
 <!-- graft:start -->
+
 ## Graft — repo context graph
 
 Optional accelerator for a 800-file monorepo (not a substitute for reading the cited span).
@@ -108,4 +109,5 @@ Optional accelerator for a 800-file monorepo (not a substitute for reading the c
 - Source files always win over graph spans — never edit from a span without opening the file.
 - If a span is truncated, open the file at that exact range before editing.
 - If the graph looks stale, run `graft build` (deterministic, no key) before trusting spans.
+
 <!-- graft:end -->

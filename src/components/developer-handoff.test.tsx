@@ -21,10 +21,14 @@ describe("DeveloperHandoffCard", () => {
       />,
     );
 
-    expect(screen.getByText(/developer handoff \(patch \/ pr\)/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/developer handoff \(patch \/ pr\)/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("Fix img-alt on Hero")).toBeInTheDocument();
     expect(screen.getByText(/no patch available/i)).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /download \.patch/i })).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: /download \.patch/i }),
+    ).toBeNull();
   });
 
   it("offers download when a diff is present", () => {

@@ -346,6 +346,8 @@ describe("createRedirectHopGuard", () => {
     guard.countHop("script");
     guard.countHop("document");
     expect(guard.hops()).toBe(2);
-    expect(() => guard.countHop("document")).toThrow(TOO_MANY_REDIRECTS_MESSAGE);
+    expect(() => guard.countHop("document")).toThrow(
+      TOO_MANY_REDIRECTS_MESSAGE,
+    );
   });
 });

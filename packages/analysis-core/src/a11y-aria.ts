@@ -1,4 +1,4 @@
-import { aria, type ARIARoleDefinition,dom, roles } from "aria-query";
+import { aria, type ARIARoleDefinition, dom, roles } from "aria-query";
 
 import {
   booleanAttributeValue,
@@ -47,10 +47,12 @@ export interface RequiredAriaProp {
 export function requiredAriaProps(role: string): RequiredAriaProp[] {
   const definition = roleDefinitions.get(role);
   if (!definition) return [];
-  return Object.entries(definition.requiredProps).map(([name, defaultValue]) => ({
-    name,
-    defaultValue,
-  }));
+  return Object.entries(definition.requiredProps).map(
+    ([name, defaultValue]) => ({
+      name,
+      defaultValue,
+    }),
+  );
 }
 
 export function isPresentationRole(node: JsxTagNode): boolean {

@@ -108,7 +108,7 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "table-fake-caption": "table-caption",
   "table-duplicate-name": "table-caption",
   "scope-attr-valid": "table-headers",
-  "region": "content-region",
+  region: "content-region",
   "aria-roledescription": "aria-roledescription",
   "presentation-role-conflict": "presentation-role",
   "meta-refresh": "no-auto-refresh",

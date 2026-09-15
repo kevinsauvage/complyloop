@@ -10,7 +10,9 @@ import type { AssessmentJob } from "@/core/assessment-jobs";
 const POLL_MS = 3_000;
 
 function hasActiveJob(jobs: AssessmentJob[]): boolean {
-  return jobs.some((job) => job.status === "queued" || job.status === "running");
+  return jobs.some(
+    (job) => job.status === "queued" || job.status === "running",
+  );
 }
 
 export function AssessmentJobStatusLive({
@@ -41,7 +43,9 @@ export function AssessmentJobStatusLive({
       if (typeof document !== "undefined" && document.hidden) return;
       inFlight = true;
       try {
-        const response = await fetch(`/api/projects/${projectId}/assessment-jobs`);
+        const response = await fetch(
+          `/api/projects/${projectId}/assessment-jobs`,
+        );
         if (cancelled) return;
         if (!response.ok) {
           setPollError("Could not refresh assessment job status.");

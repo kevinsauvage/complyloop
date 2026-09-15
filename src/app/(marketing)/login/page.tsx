@@ -17,7 +17,8 @@ import { getSession } from "@/server/auth-session";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to ComplyLoop with GitHub to access your compliance dashboard.",
+  description:
+    "Sign in to ComplyLoop with GitHub to access your compliance dashboard.",
 };
 
 const AUTH_ERROR_COPY: Record<string, string> = {
@@ -27,16 +28,13 @@ const AUTH_ERROR_COPY: Record<string, string> = {
     "This GitHub account is already linked to another sign-in method. Use the original method or contact your administrator.",
   Verification:
     "The sign-in attempt expired or was already used. Please try again.",
-  Configuration:
-    "Sign-in is misconfigured — contact your administrator.",
+  Configuration: "Sign-in is misconfigured — contact your administrator.",
 };
 
 const FALLBACK_AUTH_ERROR_COPY =
   "Sign-in with GitHub failed. Please try again — if it keeps failing, contact your administrator.";
 
-export default async function LoginPage({
-  searchParams,
-}: PageProps<"/login">) {
+export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const params = await searchParams;
   const callbackUrl =
     typeof params.callbackUrl === "string" &&
@@ -65,7 +63,9 @@ export default async function LoginPage({
 
       <Card className="relative w-full max-w-md border-border/80 bg-card/90 card-sheen backdrop-blur-sm">
         <CardHeader className="text-center">
-          <CardTitle level={1} className="text-2xl">Sign in to ComplyLoop</CardTitle>
+          <CardTitle level={1} className="text-2xl">
+            Sign in to ComplyLoop
+          </CardTitle>
           <CardDescription>
             Connect with GitHub to access your compliance dashboard, connect
             repositories, and run assessments.

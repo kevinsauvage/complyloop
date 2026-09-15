@@ -53,22 +53,23 @@ describe("reflowViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags a non-exempt wide container at 320px",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <div id="wide" style="width:800px">Wide content that cannot wrap.</div>
         </body></html>
       `,
         async (page) => {
-        const violation = await reflowViolation(page);
-        expect(violation?.id).toBe("reflow");
-        const node = violation!.nodes[0]!;
-        expect({
-          target: node.target,
-          html: node.html,
-        }).toEqual({
-          target: ["#wide"],
-          html: '<div id="wide" style="width:800px">Wide content that cannot wrap.</div>',
-        });
+          const violation = await reflowViolation(page);
+          expect(violation?.id).toBe("reflow");
+          const node = violation!.nodes[0]!;
+          expect({
+            target: node.target,
+            html: node.html,
+          }).toEqual({
+            target: ["#wide"],
+            html: '<div id="wide" style="width:800px">Wide content that cannot wrap.</div>',
+          });
         },
       );
     },
@@ -78,7 +79,8 @@ describe("reflowViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes a wide data table (2D exception)",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <table id="data">
             <tr><td style="width:400px">A</td><td style="width:400px">B</td></tr>
@@ -86,8 +88,8 @@ describe("reflowViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await reflowViolation(page);
-        expect(violation).toBeNull();
+          const violation = await reflowViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },
@@ -97,15 +99,16 @@ describe("reflowViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes a wide image (2D exception)",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <img id="chart" width="800" height="20" alt="chart"
             src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">
         </body></html>
       `,
         async (page) => {
-        const violation = await reflowViolation(page);
-        expect(violation).toBeNull();
+          const violation = await reflowViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },

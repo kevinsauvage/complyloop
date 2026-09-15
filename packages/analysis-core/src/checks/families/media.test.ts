@@ -47,7 +47,10 @@ describe("audio-caption", () => {
   it("flags audio without a captions or descriptions track", () => {
     expect(
       audioCaptionCheck.run(
-        parseSource("test.tsx", `const A = () => <audio src="/podcast.mp3" controls />;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <audio src="/podcast.mp3" controls />;`,
+        ),
       ),
     ).toHaveLength(1);
   });
@@ -103,7 +106,10 @@ describe("audio-caption", () => {
 describe("audio-description-or-alt", () => {
   it("warns on video without description track or transcript", () => {
     const findings = audioDescriptionOrAltCheck.run(
-      parseSource("test.tsx", `const A = () => <video src="/talk.mp4" controls />;`),
+      parseSource(
+        "test.tsx",
+        `const A = () => <video src="/talk.mp4" controls />;`,
+      ),
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]?.checkId).toBe("audio-description-or-alt");
@@ -144,7 +150,10 @@ describe("audio-description-or-alt", () => {
 describe("audio-description-track", () => {
   it("warns on video without descriptions track", () => {
     const findings = audioDescriptionTrackCheck.run(
-      parseSource("test.tsx", `const A = () => <video src="/talk.mp4" controls />;`),
+      parseSource(
+        "test.tsx",
+        `const A = () => <video src="/talk.mp4" controls />;`,
+      ),
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]?.kind).toBe("warning");
@@ -169,7 +178,10 @@ describe("audio-description-track", () => {
 describe("video-caption", () => {
   it("flags a video with no captions track", () => {
     const findings = videoCaptionCheck.run(
-      parseSource("test.tsx", `const A = () => <video src="/talk.mp4" controls />;`),
+      parseSource(
+        "test.tsx",
+        `const A = () => <video src="/talk.mp4" controls />;`,
+      ),
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]?.checkId).toBe("video-caption");
@@ -288,7 +300,10 @@ describe("media-controls-present", () => {
   it("accepts native controls", () => {
     expect(
       mediaControlsPresentCheck.run(
-        parseSource("test.tsx", `const A = () => <video src="/x.mp4" controls />;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <video src="/x.mp4" controls />;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -309,7 +324,10 @@ describe("media-keyboard-static", () => {
   it("flags object without keyboard path", () => {
     expect(
       mediaKeyboardStaticCheck.run(
-        parseSource("test.tsx", `const A = () => <object data="/chart.svg" />;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <object data="/chart.svg" />;`,
+        ),
       ),
     ).toHaveLength(1);
   });
@@ -336,7 +354,9 @@ describe("nontemporal-media-alt", () => {
     );
 
     expect(findings).toHaveLength(3);
-    expect(findings.every((finding) => finding.kind === "violation")).toBe(true);
+    expect(findings.every((finding) => finding.kind === "violation")).toBe(
+      true,
+    );
   });
 
   it("accepts aria name, title, and canvas fallback text", () => {
@@ -390,7 +410,10 @@ describe("image-detailed-description", () => {
   it("warns on chart-like images without a long description", () => {
     expect(
       imageDetailedDescriptionCheck.run(
-        parseSource("test.tsx", `const A = () => <img src="/sales-chart.png" alt="Sales" />;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <img src="/sales-chart.png" alt="Sales" />;`,
+        ),
       ),
     ).toHaveLength(1);
   });
@@ -409,7 +432,10 @@ describe("image-detailed-description", () => {
   it("ignores decorative and simple images", () => {
     expect(
       imageDetailedDescriptionCheck.run(
-        parseSource("test.tsx", `const A = () => <img src="/logo.png" alt="" />;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <img src="/logo.png" alt="" />;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -418,7 +444,10 @@ describe("image-detailed-description", () => {
 describe("office-docs-alt-present", () => {
   it("warns on office document link without adjacent alternative", () => {
     const findings = officeDocsAltPresentCheck.run(
-      parseSource("test.tsx", `const A = () => <a href="/guide.pdf">Guide</a>;`),
+      parseSource(
+        "test.tsx",
+        `const A = () => <a href="/guide.pdf">Guide</a>;`,
+      ),
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]?.kind).toBe("warning");

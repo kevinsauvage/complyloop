@@ -31,11 +31,15 @@ describe("scanFile", () => {
       "Hero.tsx": "export const Hero = () => <img src='/x.png' />;",
     });
     const findings = scanFile(root, "Hero.tsx");
-    expect(findings.some((finding) => finding.checkId === "img-alt")).toBe(true);
+    expect(findings.some((finding) => finding.checkId === "img-alt")).toBe(
+      true,
+    );
   });
 
   it("returns no findings when the file is missing or escapes the root", () => {
-    const root = makeTempTree({ "ok.tsx": "export const Ok = () => <p>Hi</p>;" });
+    const root = makeTempTree({
+      "ok.tsx": "export const Ok = () => <p>Hi</p>;",
+    });
     expect(scanFile(root, "missing.tsx")).toEqual([]);
     expect(scanFile(root, "../outside.tsx")).toEqual([]);
   });
@@ -51,9 +55,9 @@ describe("scanProject", () => {
     const result = scanProject(root);
     expect(result.scanMode).toBe("full");
     expect(result.filesScanned).toBe(1);
-    expect(result.findings.some((finding) => finding.checkId === "img-alt")).toBe(
-      true,
-    );
+    expect(
+      result.findings.some((finding) => finding.checkId === "img-alt"),
+    ).toBe(true);
   });
 });
 
@@ -72,8 +76,8 @@ describe("scanChangedFiles", () => {
     ]);
     expect(result.scanMode).toBe("scoped");
     expect(result.filesScanned).toBe(1);
-    expect(result.findings.some((finding) => finding.checkId === "img-alt")).toBe(
-      true,
-    );
+    expect(
+      result.findings.some((finding) => finding.checkId === "img-alt"),
+    ).toBe(true);
   });
 });

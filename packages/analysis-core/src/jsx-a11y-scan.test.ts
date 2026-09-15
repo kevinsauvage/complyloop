@@ -15,7 +15,10 @@ afterEach(() => {
   }
 });
 
-function scanSnippet(source: string, fileName = "a.tsx"): ReturnType<typeof scanFile> {
+function scanSnippet(
+  source: string,
+  fileName = "a.tsx",
+): ReturnType<typeof scanFile> {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "jsx-a11y-"));
   tempDirs.push(root);
   fs.writeFileSync(path.join(root, fileName), source);
@@ -34,8 +37,12 @@ describe("jsx-a11y-map", () => {
 
 describe("jsx-a11y source scan", () => {
   it("flags a missing img alt as img-alt", () => {
-    const findings = scanSnippet(`export const A = () => <img src="/x.png" />;`);
-    const finding = findings.find((candidate) => candidate.checkId === "img-alt");
+    const findings = scanSnippet(
+      `export const A = () => <img src="/x.png" />;`,
+    );
+    const finding = findings.find(
+      (candidate) => candidate.checkId === "img-alt",
+    );
     expect(finding?.fix).toEqual({
       kind: "insert_attribute",
       attribute: "alt",
@@ -83,7 +90,9 @@ describe("jsx-a11y source scan", () => {
     const findings = scanSnippet(
       `export const Hero = () => <Image src="/hero.png" />;`,
     );
-    expect(findings.some((finding) => finding.checkId === "img-alt")).toBe(true);
+    expect(findings.some((finding) => finding.checkId === "img-alt")).toBe(
+      true,
+    );
   });
 
   it("keeps attributes when the flagged tag spans multiple lines", () => {
@@ -96,7 +105,9 @@ describe("jsx-a11y source scan", () => {
         `);`,
       ].join("\n"),
     );
-    const finding = findings.find((candidate) => candidate.checkId === "img-alt");
+    const finding = findings.find(
+      (candidate) => candidate.checkId === "img-alt",
+    );
     const location = finding?.location;
     expect(location?.kind).toBe("source");
     if (location?.kind !== "source") return;
@@ -128,6 +139,8 @@ describe("jsx-a11y source scan", () => {
       `export const Hero = () => <img src="/x.png" />;`,
     );
     const findings = scanFile(root, "src/pages/hero.tsx");
-    expect(findings.some((finding) => finding.checkId === "img-alt")).toBe(true);
+    expect(findings.some((finding) => finding.checkId === "img-alt")).toBe(
+      true,
+    );
   });
 });

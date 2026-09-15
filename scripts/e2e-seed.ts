@@ -121,51 +121,55 @@ async function main(): Promise<void> {
       { fileHashes: { "Bad.tsx": "e2e-seed" } },
     );
 
-    await upsertFindings(tx, [{
-      id: findingId,
-      projectId: E2E_PROJECT_ID,
-      controlId: control.id,
-      assessmentId,
-      checkId: "img-alt",
-      status: "open",
-      kind: "violation",
-      severity: "serious",
-      confidence: "high",
-      reason: "Image is missing an alt attribute.",
-      location: {
-        kind: "source",
-        filePath: "Bad.tsx",
-        line: 5,
-        column: 7,
-        snippet: '<img src="/x.png" />',
-        span: { start: 0, end: 20 },
+    await upsertFindings(tx, [
+      {
+        id: findingId,
+        projectId: E2E_PROJECT_ID,
+        controlId: control.id,
+        assessmentId,
+        checkId: "img-alt",
+        status: "open",
+        kind: "violation",
+        severity: "serious",
+        confidence: "high",
+        reason: "Image is missing an alt attribute.",
+        location: {
+          kind: "source",
+          filePath: "Bad.tsx",
+          line: 5,
+          column: 7,
+          snippet: '<img src="/x.png" />',
+          span: { start: 0, end: 20 },
+        },
+        analyzerId: "ast",
+        fix: {
+          kind: "insert_attribute",
+          attribute: "alt",
+          value: "",
+          editable: true,
+          span: { start: 0, end: 20 },
+        },
+        explanations: [],
+        detectedAt: now,
       },
-      analyzerId: "ast",
-      fix: {
-        kind: "insert_attribute",
-        attribute: "alt",
-        value: "",
-        editable: true,
-        span: { start: 0, end: 20 },
-      },
-      explanations: [],
-      detectedAt: now,
-    }]);
+    ]);
 
-    await upsertRemediations(tx, [{
-      id: "e2e-remediation-img-alt",
-      findingId,
-      status: "suggested",
-      suggestion: {
-        description: "Add a meaningful alt attribute.",
-        proposedSnippet: 'alt=""',
-        provenance: "deterministic",
+    await upsertRemediations(tx, [
+      {
+        id: "e2e-remediation-img-alt",
+        findingId,
+        status: "suggested",
+        suggestion: {
+          description: "Add a meaningful alt attribute.",
+          proposedSnippet: 'alt=""',
+          provenance: "deterministic",
+        },
+        history: [
+          { status: "detected", at: now },
+          { status: "suggested", at: now },
+        ],
       },
-      history: [
-        { status: "detected", at: now },
-        { status: "suggested", at: now },
-      ],
-    }]);
+    ]);
   });
 
   await storeUserGitHubToken(

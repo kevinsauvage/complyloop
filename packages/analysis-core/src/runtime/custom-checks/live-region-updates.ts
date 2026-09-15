@@ -9,8 +9,7 @@ import type { CustomViolation } from "./types.ts";
 import { selectorOf } from "./widget-keyboard-utils.ts";
 
 /** Form-validation feedback — not marketing copy with incidental substrings. */
-const FORM_STATUS_PATTERN_SOURCE =
-  String.raw`\b(error|invalid|incorrect|required|must|missing|failed|warning|alert)\b`;
+const FORM_STATUS_PATTERN_SOURCE = String.raw`\b(error|invalid|incorrect|required|must|missing|failed|warning|alert)\b`;
 
 const IS_INVALID_SOURCE = isInvalidField.toString();
 
@@ -108,7 +107,13 @@ export async function liveRegionUpdatesViolation(
   await page.waitForTimeout(300);
 
   const after = await page.evaluate(
-    ({ beforeKeys, beforeLiveText, patternSource, isInvalidSrc, helperSrc }) => {
+    ({
+      beforeKeys,
+      beforeLiveText,
+      patternSource,
+      isInvalidSrc,
+      helperSrc,
+    }) => {
       const statusPattern = new RegExp(patternSource, "i");
       const isInvalid = new Function(`return (${isInvalidSrc})`)() as (
         el: Element,

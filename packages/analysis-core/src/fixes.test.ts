@@ -18,13 +18,16 @@ describe("applyFix", () => {
       editable: true,
       span: { start, end },
     };
-    expect(applyFix(source, fix)).toContain(`<img src="/team.png" alt="Team photo" />`);
+    expect(applyFix(source, fix)).toContain(
+      `<img src="/team.png" alt="Team photo" />`,
+    );
   });
 
   it("inserts an attribute into a non-self-closing element and passes the re-check", () => {
     const source = `const A = () => <button><svg /></button>;`;
     const [finding] = buttonNameCheck.run(parseSource("a.tsx", source));
-    if (finding.fix?.kind !== "insert_attribute") throw new Error("expected an insert fix");
+    if (finding.fix?.kind !== "insert_attribute")
+      throw new Error("expected an insert fix");
 
     const fixed = applyFix(source, { ...finding.fix, value: "Open menu" });
     expect(fixed).toContain(`<button aria-label="Open menu">`);

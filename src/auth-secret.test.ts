@@ -26,7 +26,11 @@ describe("resolveAuthSecret", () => {
     expect(() => resolveAuthSecret()).toThrow(/AUTH_SECRET is required/);
   });
 
-  it.each(["replace-me", "e2e-secret-change-me", "dev-only-auth-secret-not-for-production"])(
+  it.each([
+    "replace-me",
+    "e2e-secret-change-me",
+    "dev-only-auth-secret-not-for-production",
+  ])(
     "throws in production runtime when AUTH_SECRET is the placeholder %s",
     (placeholder) => {
       vi.stubEnv("AUTH_SECRET", placeholder);

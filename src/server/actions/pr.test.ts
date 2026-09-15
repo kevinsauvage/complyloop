@@ -5,7 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
-import { actionWorkspaceMocks, clearProjectWritePayloads, mockProjectWrite, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
+import {
+  actionWorkspaceMocks,
+  clearProjectWritePayloads,
+  mockProjectWrite,
+  projectWritePayload,
+} from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
@@ -106,25 +111,31 @@ beforeEach(() => {
 describe("createPullRequestAction", () => {
   it("denies viewers", async () => {
     getWorkspace.mockResolvedValue(workspaceFor("viewer"));
-    const result = await createPullRequestAction("f1", {
-      ok: false,
-      message: null,
-      prUrl: null,
-    }, new FormData());
-    expect((result.ok ? null : result.message)).toMatch(/Not allowed/);
+    const result = await createPullRequestAction(
+      "f1",
+      {
+        ok: false,
+        message: null,
+        prUrl: null,
+      },
+      new FormData(),
+    );
+    expect(result.ok ? null : result.message).toMatch(/Not allowed/);
     expect(result.prUrl).toBeNull();
   });
 
   it("returns an error when the project is missing", async () => {
-    getWorkspace.mockResolvedValue(
-      workspaceFor("member", { projects: [] }),
+    getWorkspace.mockResolvedValue(workspaceFor("member", { projects: [] }));
+    const result = await createPullRequestAction(
+      "f1",
+      {
+        ok: false,
+        message: null,
+        prUrl: null,
+      },
+      new FormData(),
     );
-    const result = await createPullRequestAction("f1", {
-      ok: false,
-      message: null,
-      prUrl: null,
-    }, new FormData());
-    expect((result.ok ? null : result.message)).toBe("Unknown project.");
+    expect(result.ok ? null : result.message).toBe("Unknown project.");
   });
 
   it("records evidence when a PR is prepared", async () => {
@@ -138,20 +149,26 @@ describe("createPullRequestAction", () => {
       message: "Opened pull request.",
     });
 
-    const result = await createPullRequestAction("f1", {
-      ok: false,
-      message: null,
-      prUrl: null,
-    }, new FormData());
+    const result = await createPullRequestAction(
+      "f1",
+      {
+        ok: false,
+        message: null,
+        prUrl: null,
+      },
+      new FormData(),
+    );
 
     expect(result).toEqual({
       ok: true,
       message: "Opened pull request.",
       prUrl: "https://github.com/acme/shop/pull/1",
     });
-    expect(projectWritePayload()?.evidence?.some((row) => row.kind === "pull_request_prepared")).toBe(
-      true,
-    );
+    expect(
+      projectWritePayload()?.evidence?.some(
+        (row) => row.kind === "pull_request_prepared",
+      ),
+    ).toBe(true);
     expect(refresh).toHaveBeenCalled();
   });
 
@@ -170,11 +187,15 @@ describe("createPullRequestAction", () => {
       message: "Opened draft pull request.",
     });
 
-    await createPullRequestAction("f1", {
-      ok: false,
-      message: null,
-      prUrl: null,
-    }, new FormData());
+    await createPullRequestAction(
+      "f1",
+      {
+        ok: false,
+        message: null,
+        prUrl: null,
+      },
+      new FormData(),
+    );
 
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("approved");
     expect(projectWritePayload()?.remediations?.[0]?.approvalAction).toBe(
@@ -193,13 +214,19 @@ describe("createPullRequestAction", () => {
       new PublicError("GitHub token unavailable."),
     );
 
-    const result = await createPullRequestAction("f1", {
-      ok: false,
-      message: null,
-      prUrl: null,
-    }, new FormData());
+    const result = await createPullRequestAction(
+      "f1",
+      {
+        ok: false,
+        message: null,
+        prUrl: null,
+      },
+      new FormData(),
+    );
 
-    expect((result.ok ? null : result.message)).toMatch(/GitHub token unavailable/);
+    expect(result.ok ? null : result.message).toMatch(
+      /GitHub token unavailable/,
+    );
     expect(result.prUrl).toBeNull();
   });
 
@@ -213,7 +240,7 @@ describe("createPullRequestAction", () => {
       new FormData(),
     );
 
-    expect((result.ok ? null : result.message)).toMatch(/Generate and review/);
+    expect(result.ok ? null : result.message).toMatch(/Generate and review/);
     expect(preparePullRequest).not.toHaveBeenCalled();
   });
 

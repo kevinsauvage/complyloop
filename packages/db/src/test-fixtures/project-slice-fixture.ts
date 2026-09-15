@@ -9,7 +9,7 @@ import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 import type { DrizzleDb } from "../postgres.ts";
 import { upsertAlerts } from "../repo/alerts.ts";
-import { type ProjectSlice,snapshotProjectSlice } from "../repo/apply.ts";
+import { type ProjectSlice, snapshotProjectSlice } from "../repo/apply.ts";
 import { insertAssessment } from "../repo/assessments.ts";
 import { upsertFindings } from "../repo/findings.ts";
 import { upsertRemediations } from "../repo/remediations.ts";

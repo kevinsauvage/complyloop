@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach,describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { AutoSubmitSelectForm } from "./auto-submit-select-form";
 
@@ -51,9 +51,7 @@ describe("AutoSubmitSelectForm", () => {
     // Arrow-key exploration must not navigate away.
     await user.selectOptions(select, "b");
     expect(submitted).toHaveLength(0);
-    expect(
-      screen.getByRole("button", { name: "Switch" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Switch" }));
     expect(submitted).toHaveLength(1);
@@ -77,9 +75,7 @@ describe("AutoSubmitSelectForm", () => {
 
     const select = screen.getByRole("combobox", { name: "Thing" });
     await user.selectOptions(select, "b");
-    expect(
-      screen.getByRole("button", { name: "Switch" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch" })).toBeInTheDocument();
     await user.selectOptions(select, "a");
     expect(
       screen.queryByRole("button", { name: "Switch" }),

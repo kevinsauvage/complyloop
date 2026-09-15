@@ -15,7 +15,9 @@ const violation = (
 });
 
 const mocks = vi.hoisted(() => ({
-  restorePageAfterMutatingProbes: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  restorePageAfterMutatingProbes: vi
+    .fn<() => Promise<void>>()
+    .mockResolvedValue(undefined),
   textSpacingRuntimeViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   nonTextContrastViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   labelAdjacentViolation: vi.fn<() => Promise<CustomViolation | null>>(),
@@ -23,12 +25,15 @@ const mocks = vi.hoisted(() => ({
   mediaKeyboardViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   cssHoverKeyboardViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   cssOffUnderstandableViolation: vi.fn<() => Promise<CustomViolation | null>>(),
-  layoutTableLinearizationViolation: vi.fn<() => Promise<CustomViolation | null>>(),
+  layoutTableLinearizationViolation:
+    vi.fn<() => Promise<CustomViolation | null>>(),
   errorPreventionViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   captchaAlternativeViolation: vi.fn<() => Promise<CustomViolation | null>>(),
-  accessibleAuthEnhancedViolation: vi.fn<() => Promise<CustomViolation | null>>(),
+  accessibleAuthEnhancedViolation:
+    vi.fn<() => Promise<CustomViolation | null>>(),
   mediaIdentificationViolation: vi.fn<() => Promise<CustomViolation | null>>(),
-  supplementaryContentKeyboardViolation: vi.fn<() => Promise<CustomViolation | null>>(),
+  supplementaryContentKeyboardViolation:
+    vi.fn<() => Promise<CustomViolation | null>>(),
   focusCustomViolations: vi.fn<() => Promise<CustomViolation[]>>(),
   dialogFocusViolations: vi.fn<() => Promise<CustomViolation[]>>(),
   widgetKeyboardViolations: vi.fn<() => Promise<CustomViolation[]>>(),
@@ -82,7 +87,8 @@ vi.mock("./media-identification.js", () => ({
   mediaIdentificationViolation: mocks.mediaIdentificationViolation,
 }));
 vi.mock("./supplementary-content-keyboard.js", () => ({
-  supplementaryContentKeyboardViolation: mocks.supplementaryContentKeyboardViolation,
+  supplementaryContentKeyboardViolation:
+    mocks.supplementaryContentKeyboardViolation,
 }));
 vi.mock("./focus.js", () => ({
   focusCustomViolations: mocks.focusCustomViolations,
@@ -118,10 +124,7 @@ vi.mock("./target-size-enhanced.js", () => ({
   targetSizeEnhancedViolation: mocks.targetSizeEnhancedViolation,
 }));
 
-import {
-  runCustomRuntimeChecks,
-  runThemeSensitiveCustomChecks,
-} from "./index";
+import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./index";
 
 const page = {} as Page;
 
@@ -142,9 +145,7 @@ describe("runCustomRuntimeChecks", () => {
     mocks.accessibleAuthEnhancedViolation.mockResolvedValue(null);
     mocks.mediaIdentificationViolation.mockResolvedValue(null);
     mocks.supplementaryContentKeyboardViolation.mockResolvedValue(null);
-    mocks.focusCustomViolations.mockResolvedValue([
-      violation("focus-visible"),
-    ]);
+    mocks.focusCustomViolations.mockResolvedValue([violation("focus-visible")]);
     mocks.dialogFocusViolations.mockResolvedValue([
       violation("dialog-keyboard"),
     ]);
@@ -171,7 +172,9 @@ describe("runCustomRuntimeChecks", () => {
       "tabs-keyboard",
     ]);
     expect(
-      results.findings.every((result) => result.analyzerId === "playwright-custom"),
+      results.findings.every(
+        (result) => result.analyzerId === "playwright-custom",
+      ),
     ).toBe(true);
     expect(results.probeFailures).toEqual([]);
     expect(mocks.restorePageAfterMutatingProbes).toHaveBeenCalledTimes(1);
@@ -222,9 +225,7 @@ describe("runCustomRuntimeChecks", () => {
 
 describe("runThemeSensitiveCustomChecks", () => {
   it("returns focus and contrast violations for the theme pass", async () => {
-    mocks.focusCustomViolations.mockResolvedValue([
-      violation("focus-visible"),
-    ]);
+    mocks.focusCustomViolations.mockResolvedValue([violation("focus-visible")]);
     mocks.nonTextContrastViolation.mockResolvedValue(
       violation("non-text-contrast"),
     );

@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { actionAuthMocks, actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+import {
+  actionAuthMocks,
+  actionWorkspaceMocks,
+} from "@/test-fixtures/action-workspace-mocks";
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
@@ -37,9 +40,9 @@ vi.mock("../workspace/active-cookies", () => ({
 }));
 
 vi.mock("../workspace/project-visibility", async () => {
-  const actual = await vi.importActual<typeof import("../workspace/project-visibility")>(
-    "../workspace/project-visibility",
-  );
+  const actual = await vi.importActual<
+    typeof import("../workspace/project-visibility")
+  >("../workspace/project-visibility");
   return {
     ...actual,
     setActiveProject: (...args: unknown[]) => setActiveProject(...args),
@@ -74,8 +77,10 @@ vi.mock("../workspace/personal-org", () => ({
 }));
 
 vi.mock("./shared", async () => {
-  const { actionAuthMocks } = await import("@/test-fixtures/action-workspace-mocks");
-  const { PublicError } = await import("@complyloop/analysis-core/contract/public-error");
+  const { actionAuthMocks } =
+    await import("@/test-fixtures/action-workspace-mocks");
+  const { PublicError } =
+    await import("@complyloop/analysis-core/contract/public-error");
   return {
     refresh: () => refresh(),
     requireSignedIn: async (message: string) => {
@@ -170,18 +175,17 @@ describe("connectGitHubRepoAction", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/Select a GitHub repository/);
+    expect(result.ok ? null : result.message).toMatch(
+      /Select a GitHub repository/,
+    );
   });
 
   it("requires a signed-in session", async () => {
     actionAuthMocks.auth.mockResolvedValue(null);
     const form = new FormData();
     form.set("fullName", "acme/shop");
-    const result = await connectGitHubRepoAction(
-      initialActionState,
-      form,
-    );
-    expect((result.ok ? null : result.message)).toMatch(/Sign in with GitHub/);
+    const result = await connectGitHubRepoAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(/Sign in with GitHub/);
   });
 
   it("requires a GitHub access token", async () => {
@@ -191,11 +195,10 @@ describe("connectGitHubRepoAction", () => {
     const form = new FormData();
     form.set("fullName", "acme/shop");
 
-    const result = await connectGitHubRepoAction(
-      initialActionState,
-      form,
+    const result = await connectGitHubRepoAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(
+      /GitHub access token missing/,
     );
-    expect((result.ok ? null : result.message)).toMatch(/GitHub access token missing/);
   });
 
   it("denies viewers who cannot connect projects", async () => {
@@ -213,11 +216,8 @@ describe("connectGitHubRepoAction", () => {
     const form = new FormData();
     form.set("fullName", "acme/shop");
 
-    const result = await connectGitHubRepoAction(
-      initialActionState,
-      form,
-    );
-    expect((result.ok ? null : result.message)).toMatch(/admin or owner/);
+    const result = await connectGitHubRepoAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(/admin or owner/);
   });
 
   it("surfaces already-connected errors", async () => {
@@ -236,11 +236,8 @@ describe("connectGitHubRepoAction", () => {
     const form = new FormData();
     form.set("fullName", "acme/shop");
 
-    const result = await connectGitHubRepoAction(
-      initialActionState,
-      form,
-    );
-    expect((result.ok ? null : result.message)).toMatch(/already connected/);
+    const result = await connectGitHubRepoAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(/already connected/);
   });
 
   it("connects a repository for an owner", async () => {
@@ -263,10 +260,7 @@ describe("connectGitHubRepoAction", () => {
     const form = new FormData();
     form.set("fullName", "  acme/shop  ");
 
-    const result = await connectGitHubRepoAction(
-      initialActionState,
-      form,
-    );
+    const result = await connectGitHubRepoAction(initialActionState, form);
 
     expect(result).toEqual({
       ok: true,
@@ -304,10 +298,7 @@ describe("connectGitHubRepoAction", () => {
     form.set("fullName", "acme/shop");
     form.set("installationId", "42");
 
-    const result = await connectGitHubRepoAction(
-      initialActionState,
-      form,
-    );
+    const result = await connectGitHubRepoAction(initialActionState, form);
 
     expect(result.message).toMatch(/Connected/);
     expect(resolveUserInstallationForRepo).toHaveBeenCalledWith({
@@ -332,18 +323,17 @@ describe("disconnectGitHubRepoAction", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/Select a connected project/);
+    expect(result.ok ? null : result.message).toMatch(
+      /Select a connected project/,
+    );
   });
 
   it("requires a signed-in session", async () => {
     actionAuthMocks.auth.mockResolvedValue(null);
     const form = new FormData();
     form.set("projectId", "p1");
-    const result = await disconnectGitHubRepoAction(
-      initialActionState,
-      form,
-    );
-    expect((result.ok ? null : result.message)).toMatch(/Sign in with GitHub/);
+    const result = await disconnectGitHubRepoAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(/Sign in with GitHub/);
   });
 
   it("disconnects and updates the active project cookie", async () => {
@@ -357,10 +347,7 @@ describe("disconnectGitHubRepoAction", () => {
     const form = new FormData();
     form.set("projectId", "p1");
 
-    const result = await disconnectGitHubRepoAction(
-      initialActionState,
-      form,
-    );
+    const result = await disconnectGitHubRepoAction(initialActionState, form);
 
     expect(result).toEqual({
       ok: true,
@@ -373,15 +360,17 @@ describe("disconnectGitHubRepoAction", () => {
   it("maps connect PublicError from disconnect into form state", async () => {
     actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     withConnectWrite.mockImplementation(async () => {
-      throw new PublicError("Not allowed to disconnect this project.", "connect");
+      throw new PublicError(
+        "Not allowed to disconnect this project.",
+        "connect",
+      );
     });
     const form = new FormData();
     form.set("projectId", "p1");
 
-    const result = await disconnectGitHubRepoAction(
-      initialActionState,
-      form,
+    const result = await disconnectGitHubRepoAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(
+      /Not allowed to disconnect/,
     );
-    expect((result.ok ? null : result.message)).toMatch(/Not allowed to disconnect/);
   });
 });

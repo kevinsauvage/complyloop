@@ -14,7 +14,8 @@ describe("formErrorSubmitViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags missing aria association after invalid submit",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <form>
             <label for="email">Email</label>
@@ -25,11 +26,11 @@ describe("formErrorSubmitViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await formErrorSubmitViolation(page);
-        expect(violation?.id).toBe("form-error-association");
-        expect(violation?.nodes.some((n) => n.html.includes('id="email"'))).toBe(
-          true,
-        );
+          const violation = await formErrorSubmitViolation(page);
+          expect(violation?.id).toBe("form-error-association");
+          expect(
+            violation?.nodes.some((n) => n.html.includes('id="email"')),
+          ).toBe(true);
         },
       );
     },
@@ -39,7 +40,8 @@ describe("formErrorSubmitViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when errors are associated",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <form>
             <label for="email">Email</label>
@@ -50,8 +52,8 @@ describe("formErrorSubmitViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await formErrorSubmitViolation(page);
-        expect(violation).toBeNull();
+          const violation = await formErrorSubmitViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },

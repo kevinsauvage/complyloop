@@ -8,7 +8,10 @@ import { canOnProject, isOrgRole, roleHasPermission } from "./rbac";
 
 const project = testProject({ orgId: "org-1", name: "shop" });
 
-function membership(role: OrgMembership["role"], userId: string): OrgMembership {
+function membership(
+  role: OrgMembership["role"],
+  userId: string,
+): OrgMembership {
   return {
     id: `m-${userId}`,
     orgId: "org-1",
@@ -45,9 +48,7 @@ describe("rbac", () => {
     };
     for (const role of roles) {
       for (const [index, permission] of permissions.entries()) {
-        expect(roleHasPermission(role, permission)).toBe(
-          expected[role][index],
-        );
+        expect(roleHasPermission(role, permission)).toBe(expected[role][index]);
       }
     }
   });

@@ -2,7 +2,11 @@ import type { Page } from "playwright";
 
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 
-function node(sel: string, html: string, failureSummary: string): CustomViolationNode {
+function node(
+  sel: string,
+  html: string,
+  failureSummary: string,
+): CustomViolationNode {
   return { html, target: [sel], elementLabel: sel, failureSummary };
 }
 
@@ -25,17 +29,21 @@ export async function dialogFocusViolations(
 
   const findDialogs = await page.evaluate(() => {
     const sels: string[] = [];
-    document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog').forEach((el) => {
-      const e = el as HTMLElement;
-      const open =
-        e.tagName === "DIALOG"
-          ? (e as unknown as { open: boolean }).open
-          : !e.hidden && e.getAttribute("aria-hidden") !== "true";
-      if (open) {
-        const sel = e.id ? `#${e.id}` : `${e.tagName.toLowerCase()}[role="${e.getAttribute("role") ?? "dialog"}"]`;
-        if (!sels.includes(sel)) sels.push(sel);
-      }
-    });
+    document
+      .querySelectorAll('[role="dialog"], [role="alertdialog"], dialog')
+      .forEach((el) => {
+        const e = el as HTMLElement;
+        const open =
+          e.tagName === "DIALOG"
+            ? (e as unknown as { open: boolean }).open
+            : !e.hidden && e.getAttribute("aria-hidden") !== "true";
+        if (open) {
+          const sel = e.id
+            ? `#${e.id}`
+            : `${e.tagName.toLowerCase()}[role="${e.getAttribute("role") ?? "dialog"}"]`;
+          if (!sels.includes(sel)) sels.push(sel);
+        }
+      });
     return sels;
   });
 
@@ -63,10 +71,15 @@ export async function dialogFocusViolations(
       violations.push({
         id: "dialog-keyboard",
         impact: "serious",
-        description:
-          "Opening the dialog did not move keyboard focus into it.",
+        description: "Opening the dialog did not move keyboard focus into it.",
         help: "When a dialog opens, focus must move into it so keyboard and screen-reader users can operate it (WCAG 2.4.3 / RGAA 7.3).",
-        nodes: [node(sel, `<${sel.slice(1)} role="dialog">`, "Focus is not moved into the dialog on open.")],
+        nodes: [
+          node(
+            sel,
+            `<${sel.slice(1)} role="dialog">`,
+            "Focus is not moved into the dialog on open.",
+          ),
+        ],
       });
     }
 
@@ -80,7 +93,9 @@ export async function dialogFocusViolations(
       if (!inDialog) {
         await page.evaluate((s) => {
           const d = document.querySelector(s);
-          const first = d?.querySelector("input, button, a[href], [tabindex]:not([tabindex='-1'])") as HTMLElement | null;
+          const first = d?.querySelector(
+            "input, button, a[href], [tabindex]:not([tabindex='-1'])",
+          ) as HTMLElement | null;
           first?.focus();
         }, sel);
       }
@@ -99,10 +114,15 @@ export async function dialogFocusViolations(
         violations.push({
           id: "keyboard-trap",
           impact: "critical",
-          description:
-            "Tab focus leaks out of an open modal dialog.",
+          description: "Tab focus leaks out of an open modal dialog.",
           help: "A modal dialog must keep keyboard focus inside it while open (WCAG 2.1.2 / RGAA 12.9).",
-          nodes: [node(sel, `<${sel.slice(1)} role="dialog" aria-modal="true">`, "Tab carried focus outside the modal while it is still open.")],
+          nodes: [
+            node(
+              sel,
+              `<${sel.slice(1)} role="dialog" aria-modal="true">`,
+              "Tab carried focus outside the modal while it is still open.",
+            ),
+          ],
         });
       }
     }
@@ -126,7 +146,13 @@ export async function dialogFocusViolations(
           description:
             "Closing the dialog did not return focus to the trigger.",
           help: "When a dialog closes, focus must return to the element that opened it (WCAG 2.4.3 / RGAA 7.3).",
-          nodes: [node(triggerSel, `<${triggerSel.slice(1)}>`, "Focus was not returned to the dialog's trigger after close.")],
+          nodes: [
+            node(
+              triggerSel,
+              `<${triggerSel.slice(1)}>`,
+              "Focus was not returned to the dialog's trigger after close.",
+            ),
+          ],
         });
       }
     }

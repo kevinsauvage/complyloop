@@ -21,9 +21,7 @@ const project = testProject({ orgId: "org-1" });
 const controlId = "ctl-img-alt";
 
 /** Two open findings under one control; the requirement must reflect both. */
-function workspaceWithTwoFindings(
-  requirement: Partial<Requirement> = {},
-) {
+function workspaceWithTwoFindings(requirement: Partial<Requirement> = {}) {
   const base: Requirement = {
     id: "req-1",
     projectId: project.id,
@@ -37,8 +35,18 @@ function workspaceWithTwoFindings(
     role: "member",
     project,
     findings: [
-      testFinding({ id: "f1", projectId: project.id, controlId, status: "open" }),
-      testFinding({ id: "f2", projectId: project.id, controlId, status: "open" }),
+      testFinding({
+        id: "f1",
+        projectId: project.id,
+        controlId,
+        status: "open",
+      }),
+      testFinding({
+        id: "f2",
+        projectId: project.id,
+        controlId,
+        status: "open",
+      }),
     ],
     remediations: [],
     db: { requirements: [base], alerts: [] },

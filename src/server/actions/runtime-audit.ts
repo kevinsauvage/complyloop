@@ -8,10 +8,7 @@ import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safe
 
 import { parseForm } from "@/core/validate";
 
-import {
-  type ActionState,
-  runAction,
-} from "../action-state";
+import { type ActionState, runAction } from "../action-state";
 import { withProjectWrite } from "../workspace/workspace-write";
 import { refresh, requireOnActive } from "./shared";
 

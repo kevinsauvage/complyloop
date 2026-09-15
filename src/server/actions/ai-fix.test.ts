@@ -2,7 +2,10 @@ import "@/test-fixtures/register-action-workspace-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { actionWorkspaceMocks, mockProjectWrite } from "@/test-fixtures/action-workspace-mocks";
+import {
+  actionWorkspaceMocks,
+  mockProjectWrite,
+} from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
@@ -102,7 +105,7 @@ describe("generateAiFixAction", () => {
       new FormData(),
     );
 
-    expect((result.ok ? null : result.message)).toBeNull();
+    expect(result.ok ? null : result.message).toBeNull();
     expect(result.message).toMatch(/ready for review/i);
     expect(generatePatchCandidateOnCheckout).toHaveBeenCalledWith(
       project,
@@ -138,7 +141,7 @@ describe("generateAiFixAction", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/source findings/);
+    expect(result.ok ? null : result.message).toMatch(/source findings/);
     expect(generatePatchCandidateOnCheckout).not.toHaveBeenCalled();
   });
 
@@ -167,7 +170,7 @@ describe("generateAiFixAction", () => {
       new FormData(),
     );
 
-    expect((result.ok ? null : result.message)).toBeNull();
+    expect(result.ok ? null : result.message).toBeNull();
     expect(assertAiRateLimit).not.toHaveBeenCalled();
   });
 
@@ -181,7 +184,7 @@ describe("generateAiFixAction", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/GitHub repository/);
+    expect(result.ok ? null : result.message).toMatch(/GitHub repository/);
     expect(generatePatchCandidateOnCheckout).not.toHaveBeenCalled();
   });
 });

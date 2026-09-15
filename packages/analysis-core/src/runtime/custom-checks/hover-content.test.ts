@@ -14,7 +14,8 @@ describe("hoverContentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "does not flag aria-describedby static hints as hover-only content",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <label for="email">Email</label>
           <input id="email" aria-describedby="hint" />
@@ -22,8 +23,8 @@ describe("hoverContentViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await hoverContentViolation(page);
-        expect(violation).toBeNull();
+          const violation = await hoverContentViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },
@@ -33,7 +34,8 @@ describe("hoverContentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags hover-only supplementary content",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><style>
           .tip { position: relative; display: inline-block; }
           .tip .panel {
@@ -52,8 +54,8 @@ describe("hoverContentViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await hoverContentViolation(page);
-        expect(violation?.id).toBe("hover-content");
+          const violation = await hoverContentViolation(page);
+          expect(violation?.id).toBe("hover-content");
         },
       );
     },
@@ -63,14 +65,15 @@ describe("hoverContentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when no trigger reveals extra content",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <button type="button">Help</button>
         </body></html>
       `,
         async (page) => {
-        const violation = await hoverContentViolation(page);
-        expect(violation).toBeNull();
+          const violation = await hoverContentViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },
@@ -80,14 +83,15 @@ describe("hoverContentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when a title tooltip does not inject extra body text",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <button type="button" title="Short native tooltip">Go</button>
         </body></html>
       `,
         async (page) => {
-        const violation = await hoverContentViolation(page);
-        expect(violation).toBeNull();
+          const violation = await hoverContentViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },
@@ -97,7 +101,8 @@ describe("hoverContentViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "skips hidden triggers",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <button type="button" style="visibility:hidden" title="Hidden trigger">
             Hidden
@@ -105,8 +110,8 @@ describe("hoverContentViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await hoverContentViolation(page);
-        expect(violation).toBeNull();
+          const violation = await hoverContentViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },

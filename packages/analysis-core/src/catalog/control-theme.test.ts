@@ -25,14 +25,18 @@ describe("secondaryReferenceLabel", () => {
 
 describe("controlDisplayCodes", () => {
   it("keeps RGAA as the primary code when that framework is the target", () => {
-    expect(controlDisplayCodes(controlById("ctl-img-alt"), rgaaFramework.id)).toEqual({
+    expect(
+      controlDisplayCodes(controlById("ctl-img-alt"), rgaaFramework.id),
+    ).toEqual({
       code: "RGAA 1.1",
       secondaryCode: "WCAG 1.1.1",
     });
   });
 
   it("promotes the WCAG reference when WCAG is the assessment target", () => {
-    expect(controlDisplayCodes(controlById("ctl-img-alt"), wcagFramework.id)).toEqual({
+    expect(
+      controlDisplayCodes(controlById("ctl-img-alt"), wcagFramework.id),
+    ).toEqual({
       code: "WCAG 1.1.1",
       secondaryCode: "RGAA 1.1",
     });
@@ -68,7 +72,11 @@ describe("controlForDisplay", () => {
 describe("groupControlsByTheme", () => {
   it("groups RGAA controls by official RGAA themes and omits empty themes", () => {
     const groups = groupControlsByTheme(
-      [controlById("ctl-img-alt"), controlById("ctl-input-label"), controlById("ctl-html-lang")],
+      [
+        controlById("ctl-img-alt"),
+        controlById("ctl-input-label"),
+        controlById("ctl-html-lang"),
+      ],
       rgaaFramework.id,
     );
 
@@ -77,14 +85,24 @@ describe("groupControlsByTheme", () => {
       "Mandatory elements",
       "Forms",
     ]);
-    expect(groups[0]?.controls.map((control) => control.id)).toEqual(["ctl-img-alt"]);
-    expect(groups[1]?.controls.map((control) => control.id)).toEqual(["ctl-html-lang"]);
-    expect(groups[2]?.controls.map((control) => control.id)).toEqual(["ctl-input-label"]);
+    expect(groups[0]?.controls.map((control) => control.id)).toEqual([
+      "ctl-img-alt",
+    ]);
+    expect(groups[1]?.controls.map((control) => control.id)).toEqual([
+      "ctl-html-lang",
+    ]);
+    expect(groups[2]?.controls.map((control) => control.id)).toEqual([
+      "ctl-input-label",
+    ]);
   });
 
   it("groups by WCAG POUR principles when WCAG is the assessment target", () => {
     const groups = groupControlsByTheme(
-      [controlById("ctl-img-alt"), controlById("ctl-input-label"), controlById("ctl-button-name")],
+      [
+        controlById("ctl-img-alt"),
+        controlById("ctl-input-label"),
+        controlById("ctl-button-name"),
+      ],
       wcagFramework.id,
     );
 
@@ -111,11 +129,16 @@ describe("groupControlsByTheme", () => {
     );
     const other = groups.find((group) => group.id === "other");
     expect(other?.label).toBe("Other");
-    expect(other?.controls.map((control) => control.id)).toEqual(["ctl-orphan"]);
+    expect(other?.controls.map((control) => control.id)).toEqual([
+      "ctl-orphan",
+    ]);
   });
 
   it("omits the Other group when every control is categorized", () => {
-    const groups = groupControlsByTheme([controlById("ctl-img-alt")], rgaaFramework.id);
+    const groups = groupControlsByTheme(
+      [controlById("ctl-img-alt")],
+      rgaaFramework.id,
+    );
     expect(groups.some((group) => group.id === "other")).toBe(false);
   });
 });

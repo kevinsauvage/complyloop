@@ -21,7 +21,8 @@ describe("rawFindingFromDom", () => {
     });
 
     expect(finding.location.kind).toBe("dom");
-    if (finding.location.kind !== "dom") throw new Error("expected dom location");
+    if (finding.location.kind !== "dom")
+      throw new Error("expected dom location");
     expect(finding.location.selector).toBe("BUTTON");
     expect(finding.location.snippet).toBe("<button></button>");
     expect(finding.location.elementLabel).toBe("");
@@ -45,7 +46,8 @@ describe("rawFindingFromDom", () => {
       analyzerRuleId: "color-contrast",
     });
     expect(finding.location.kind).toBe("dom");
-    if (finding.location.kind !== "dom") throw new Error("expected dom location");
+    if (finding.location.kind !== "dom")
+      throw new Error("expected dom location");
     expect(finding.location.selector).toBe(".hero p");
     expect(finding.location.snippet).toBe('<p class="hero">Hello</p>');
   });

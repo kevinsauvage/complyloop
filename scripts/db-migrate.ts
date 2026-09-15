@@ -29,9 +29,7 @@ async function applyMigrations(
     // Serialize against any other migration process (replica starts, the
     // deploy step, an overlapping deploy). Session-scoped, so a crashed
     // migrator releases the lock automatically when its connection drops.
-    await sql.unsafe(
-      `SELECT pg_advisory_lock(${MIGRATION_LOCK});`,
-    );
+    await sql.unsafe(`SELECT pg_advisory_lock(${MIGRATION_LOCK});`);
     await sql.unsafe(`
       CREATE TABLE IF NOT EXISTS "_complyloop_migrations" (
         "id" text PRIMARY KEY,
@@ -54,9 +52,11 @@ async function applyMigrations(
       console.log("Applied", file);
     }
   } finally {
-    await sql.unsafe(`SELECT pg_advisory_unlock(${MIGRATION_LOCK});`).catch(() => {
-      // Lock may already be gone if the connection died mid-run.
-    });
+    await sql
+      .unsafe(`SELECT pg_advisory_unlock(${MIGRATION_LOCK});`)
+      .catch(() => {
+        // Lock may already be gone if the connection died mid-run.
+      });
     await sql.end({ timeout: 5 });
   }
 }

@@ -62,8 +62,12 @@ describe("OrgMembersCard", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /revoke invite/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^remove$/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /revoke invite/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^remove$/i }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("combobox", { name: /role for @carol/i }),
     ).toHaveValue("viewer");

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  CHECK_REGISTRY,
-  type CheckRegistration,
-} from "./check-registry.ts";
+import { CHECK_REGISTRY, type CheckRegistration } from "./check-registry.ts";
 import { allChecks } from "./checks/registry.ts";
 import {
   ANALYSIS_ENGINE_VERSION,
@@ -23,9 +20,9 @@ const declared = (id: string): readonly AnalyzerId[] =>
   BY_ID.get(id)?.analyzers ?? [];
 
 const declaredIdsFor = (analyzer: AnalyzerId): string[] =>
-  CHECK_REGISTRY
-    .filter((entry) => declared(entry.id).includes(analyzer))
-    .map((entry) => entry.id);
+  CHECK_REGISTRY.filter((entry) => declared(entry.id).includes(analyzer)).map(
+    (entry) => entry.id,
+  );
 
 describe("check registry", () => {
   it("lists every check id exactly once", () => {
@@ -50,10 +47,9 @@ describe("check registry", () => {
       }
       const declaredIds = declaredIdsFor(analyzer);
       const unexplained = declaredIds.filter((id) => !actual.has(id));
-      expect(
-        unexplained,
-        `${analyzer} declared without an emitter`,
-      ).toEqual([]);
+      expect(unexplained, `${analyzer} declared without an emitter`).toEqual(
+        [],
+      );
     }
   });
 

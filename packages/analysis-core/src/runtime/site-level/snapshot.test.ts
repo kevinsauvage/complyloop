@@ -64,13 +64,21 @@ describe("capturePageSnapshot", () => {
     expect(snapshot.sitemapHref).toBe("/sitemap.xml");
     expect(snapshot.searchSelector).toBeTruthy();
     expect(snapshot.landmarkRoles).toEqual(
-      expect.arrayContaining(["banner", "navigation", "main", "contentinfo", "search"]),
+      expect.arrayContaining([
+        "banner",
+        "navigation",
+        "main",
+        "contentinfo",
+        "search",
+      ]),
     );
     expect(snapshot.formFields).toEqual([
       { name: "q", label: "Search", autoComplete: undefined },
       { name: "email", label: "Email", autoComplete: "email" },
     ]);
-    expect(snapshot.elementIds).toEqual(expect.arrayContaining(["q", "main", "email"]));
+    expect(snapshot.elementIds).toEqual(
+      expect.arrayContaining(["q", "main", "email"]),
+    );
     expect(snapshot.fragmentLinks).toEqual([{ href: "#main", label: "Skip" }]);
   });
 

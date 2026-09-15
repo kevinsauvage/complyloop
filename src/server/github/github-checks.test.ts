@@ -76,9 +76,14 @@ describe("postPullRequestCheckRun", () => {
   it("surfaces API errors", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        Response.json({ message: "Resource not accessible" }, { status: 403 }),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json(
+            { message: "Resource not accessible" },
+            { status: 403 },
+          ),
+        ),
     );
     const result = await postPullRequestCheckRun({
       fullName: "acme/shop",

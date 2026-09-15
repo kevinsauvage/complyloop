@@ -14,7 +14,8 @@ describe("reducedMotionViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags an animation that ignores the preference",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><style>
           @keyframes spin { to { transform: rotate(360deg); } }
           .spinner { width: 20px; height: 20px; animation: spin 1s linear infinite; }
@@ -23,8 +24,8 @@ describe("reducedMotionViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await reducedMotionViolation(page);
-        expect(violation?.id).toBe("reduced-motion");
+          const violation = await reducedMotionViolation(page);
+          expect(violation?.id).toBe("reduced-motion");
         },
       );
     },
@@ -34,7 +35,8 @@ describe("reducedMotionViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when the animation is disabled via the media query",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><style>
           @keyframes spin { to { transform: rotate(360deg); } }
           @media (prefers-reduced-motion: reduce) {
@@ -46,8 +48,8 @@ describe("reducedMotionViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await reducedMotionViolation(page);
-        expect(violation).toBeNull();
+          const violation = await reducedMotionViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },

@@ -14,14 +14,15 @@ describe("supplementaryContentKeyboardViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags title-only tooltips",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <a href="/help" title="Aide détaillée sur cette fonctionnalité">Aide</a>
         </body></html>
       `,
         async (page) => {
-        const violation = await supplementaryContentKeyboardViolation(page);
-        expect(violation?.id).toBe("supplementary-content-keyboard");
+          const violation = await supplementaryContentKeyboardViolation(page);
+          expect(violation?.id).toBe("supplementary-content-keyboard");
         },
       );
     },

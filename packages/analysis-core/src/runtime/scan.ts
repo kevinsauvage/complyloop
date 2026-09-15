@@ -18,7 +18,10 @@ import {
   aggregateApplicabilityObservations,
   applicabilityObservationsForPage,
 } from "./applicability.ts";
-import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./custom-checks/index.ts";
+import {
+  runCustomRuntimeChecks,
+  runThemeSensitiveCustomChecks,
+} from "./custom-checks/index.ts";
 import {
   type AxeViolationLike,
   findingsFromAxePages,
@@ -29,7 +32,10 @@ import {
   siteLevelFindingsFromPages,
 } from "./findings.ts";
 import { htmlValidateFindingsForPage } from "./html-validate-runtime.ts";
-import { gotoForRuntimeAudit, runtimePageMatchesAuditedUrl } from "./runtime-navigation.ts";
+import {
+  gotoForRuntimeAudit,
+  runtimePageMatchesAuditedUrl,
+} from "./runtime-navigation.ts";
 import { classifyRuntimeScanError } from "./scan-error.ts";
 import { brokenLinkFindingsForUrls } from "./site-level/link-check.ts";
 import { capturePageSnapshot } from "./site-level/snapshot.ts";
@@ -87,7 +93,9 @@ export function resolveAxeMinJsPath(): string {
   return require.resolve("axe-core/axe.min.js");
 }
 
-async function axeTargetSizeViolations(page: Page): Promise<AxeViolationLike[]> {
+async function axeTargetSizeViolations(
+  page: Page,
+): Promise<AxeViolationLike[]> {
   const axe = await runAxeOnPage(page, { runOnly: [TARGET_SIZE_AXE_RULE] });
   return axe.violations.filter((v) => v.id === TARGET_SIZE_AXE_RULE);
 }
@@ -162,7 +170,9 @@ function createPlaywrightAxeScanner(options?: {
   lookup?: DnsLookup;
   browserConditions?: ReadonlyArray<BrowserCondition>;
 }): RuntimePageScanner {
-  const lookupOptions = options?.lookup ? { lookup: options.lookup } : undefined;
+  const lookupOptions = options?.lookup
+    ? { lookup: options.lookup }
+    : undefined;
   const conditions = options?.browserConditions ?? [];
 
   return async (urls) => {
@@ -249,34 +259,39 @@ function createPlaywrightAxeScanner(options?: {
           let violations = hasDoctype
             ? [...results.violations]
             : [
-              ...results.violations,
-              {
-                id: "html-has-doctype",
-                impact: "moderate",
-                description:
-                  "The document does not declare a document type.",
-                help: "Each page must have a doctype so browsers parse it in standards mode.",
-                nodes: [
-                  {
-                    html: "<html>",
-                    target: ["html"],
-                  },
-                ],
-              },
-            ];
+                ...results.violations,
+                {
+                  id: "html-has-doctype",
+                  impact: "moderate",
+                  description: "The document does not declare a document type.",
+                  help: "Each page must have a doctype so browsers parse it in standards mode.",
+                  nodes: [
+                    {
+                      html: "<html>",
+                      target: ["html"],
+                    },
+                  ],
+                },
+              ];
 
           const defaultTargetSize = await axeTargetSizeViolations(page);
           violations = [...violations, ...defaultTargetSize];
-          violations = await collectViewportAndPointerViolations(page, violations);
+          violations = await collectViewportAndPointerViolations(
+            page,
+            violations,
+          );
 
-          const { conditionViolations, conditionCustomFindings, conditionProbeFailures } =
-            await collectBrowserConditionFindings(
-              page,
-              url,
-              conditions,
-              violations,
-              customFindings,
-            );
+          const {
+            conditionViolations,
+            conditionCustomFindings,
+            conditionProbeFailures,
+          } = await collectBrowserConditionFindings(
+            page,
+            url,
+            conditions,
+            violations,
+            customFindings,
+          );
 
           pages.push({
             url,
@@ -372,13 +387,13 @@ export async function scanRuntime(
     const linkFindings =
       pages.length > 0
         ? await brokenLinkFindingsForUrls(urls, {
-          lookup: options.lookup,
-          recurse: true,
-          maxUrls: maxRuntimePages(),
-          snapshots: pages
-            .map((page) => page.snapshot)
-            .filter((snapshot) => snapshot !== undefined),
-        })
+            lookup: options.lookup,
+            recurse: true,
+            maxUrls: maxRuntimePages(),
+            snapshots: pages
+              .map((page) => page.snapshot)
+              .filter((snapshot) => snapshot !== undefined),
+          })
         : [];
     const linkCheckRan = pages.length > 0;
     const findings = [
@@ -474,14 +489,22 @@ async function collectBrowserConditionFindings(
         ...conditionSpecificViolations(baseViolations, themeAxe, label),
       );
       conditionCustomFindings.push(
-        ...conditionSpecificFindings(baseCustomFindings, themeCustom.findings, label),
+        ...conditionSpecificFindings(
+          baseCustomFindings,
+          themeCustom.findings,
+          label,
+        ),
       );
       conditionProbeFailures.push(...themeCustom.probeFailures);
     } finally {
       await page.emulateMedia(RESET_EMULATION);
     }
   }
-  return { conditionViolations, conditionCustomFindings, conditionProbeFailures };
+  return {
+    conditionViolations,
+    conditionCustomFindings,
+    conditionProbeFailures,
+  };
 }
 
 /**

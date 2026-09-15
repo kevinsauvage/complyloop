@@ -48,7 +48,8 @@ export async function forcedColorsViolation(
 
           function hasVisibleOutline(style: CSSStyleDeclaration): boolean {
             return (
-              style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0
+              style.outlineStyle !== "none" &&
+              parseFloat(style.outlineWidth) > 0
             );
           }
 

@@ -18,13 +18,12 @@ import {
   resolveActiveOrgId,
   userRoleInOrg,
 } from "./org-queries";
-import {
-  createOrganization,
-  deleteOrganization,
-  exportOrgData,
-} from "./orgs";
+import { createOrganization, deleteOrganization, exportOrgData } from "./orgs";
 
-function applyMembership(db: WorkspaceSlice, membership: OrgMembership): OrgMembership {
+function applyMembership(
+  db: WorkspaceSlice,
+  membership: OrgMembership,
+): OrgMembership {
   const index = db.memberships.findIndex((row) => row.id === membership.id);
   if (index >= 0) {
     db.memberships[index] = membership;
@@ -57,7 +56,11 @@ function seedOwnerOrg(
 }
 
 /** Test fixture: attach userId to invite rows (mirrors DB claimMembershipsForLogin). */
-function claimInvite(db: WorkspaceSlice, userId: string, githubLogin: string): void {
+function claimInvite(
+  db: WorkspaceSlice,
+  userId: string,
+  githubLogin: string,
+): void {
   const login = githubLogin.trim().toLowerCase();
   for (const membership of db.memberships) {
     if (
@@ -75,13 +78,13 @@ describe("orgs", () => {
     const org = seedOwnerOrg(db, "user-a", "alice");
     applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "member"));
 
-    expect(db.memberships.some((m) => m.githubLogin === "bob" && !m.userId)).toBe(
-      true,
-    );
-    claimInvite(db, "user-b", "bob");
     expect(
-      db.memberships.find((m) => m.githubLogin === "bob")?.userId,
-    ).toBe("user-b");
+      db.memberships.some((m) => m.githubLogin === "bob" && !m.userId),
+    ).toBe(true);
+    claimInvite(db, "user-b", "bob");
+    expect(db.memberships.find((m) => m.githubLogin === "bob")?.userId).toBe(
+      "user-b",
+    );
   });
 
   it("normalizes invite GitHub logins to lowercase when storing", () => {
@@ -158,7 +161,9 @@ describe("orgs", () => {
     });
     expect(first.org.slug).toBe("acme");
     expect(second.org.slug).toBe("acme-2");
-    expect([first.membership, second.membership].filter((m) => m.role === "owner")).toHaveLength(2);
+    expect(
+      [first.membership, second.membership].filter((m) => m.role === "owner"),
+    ).toHaveLength(2);
   });
 
   it("changes a member role and rejects owner / invalid promotions", () => {
@@ -277,7 +282,13 @@ describe("orgs", () => {
       db,
       inviteOrgMember(db, org.id, "user-b", "erin", "member"),
     );
-    const updated = changeOrgMemberRole(db, org.id, "user-b", member.id, "viewer");
+    const updated = changeOrgMemberRole(
+      db,
+      org.id,
+      "user-b",
+      member.id,
+      "viewer",
+    );
     expect(updated.role).toBe("viewer");
     expect(member.role).toBe("member");
   });

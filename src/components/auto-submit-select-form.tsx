@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { type ComponentProps,useState } from "react";
+import { type ComponentProps, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { nativeSelectClass } from "@/components/form-classes";

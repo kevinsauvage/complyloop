@@ -24,7 +24,9 @@ describe("button-name", () => {
       <button aria-label="Close dialog"><svg /></button>
       <button>{label}</button>
     </div>);`;
-    expect(buttonNameCheck.run(parseSource("test.tsx", source))).toHaveLength(0);
+    expect(buttonNameCheck.run(parseSource("test.tsx", source))).toHaveLength(
+      0,
+    );
   });
 });
 
@@ -93,14 +95,19 @@ describe("svg-name", () => {
 describe("tab-name", () => {
   it("flags a tab without an accessible name", () => {
     expect(
-      tabNameCheck.run(parseSource("test.tsx", `const A = () => <div role="tab" />;`)),
+      tabNameCheck.run(
+        parseSource("test.tsx", `const A = () => <div role="tab" />;`),
+      ),
     ).toHaveLength(1);
   });
 
   it("accepts a tab with text", () => {
     expect(
       tabNameCheck.run(
-        parseSource("test.tsx", `const A = () => <button role="tab">Profile</button>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <button role="tab">Profile</button>;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -110,7 +117,10 @@ describe("summary-name", () => {
   it("flags an empty summary", () => {
     expect(
       summaryNameCheck.run(
-        parseSource("test.tsx", `const A = () => <details><summary /></details>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <details><summary /></details>;`,
+        ),
       ),
     ).toHaveLength(1);
   });
@@ -131,7 +141,10 @@ describe("dialog-name", () => {
   it("flags a nameless dialog role", () => {
     expect(
       dialogNameCheck.run(
-        parseSource("test.tsx", `const A = () => <div role="dialog"><p>Body</p></div>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <div role="dialog"><p>Body</p></div>;`,
+        ),
       ),
     ).toHaveLength(1);
   });

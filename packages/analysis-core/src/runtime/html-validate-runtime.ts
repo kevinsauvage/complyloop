@@ -19,7 +19,10 @@ import { htmlValidatePackageVersion } from "../analyzer-versions.ts";
 import { offsetAt as offsetForLineColumn } from "../parse.ts";
 import type { RawFinding } from "../types.ts";
 import { htmlSnippet } from "./dom-location.ts";
-import { checkIdForHtmlValidateRule, HTML_VALIDATE_TO_CHECK_RULE_IDS } from "./html-validate-map.ts";
+import {
+  checkIdForHtmlValidateRule,
+  HTML_VALIDATE_TO_CHECK_RULE_IDS,
+} from "./html-validate-map.ts";
 import { rawFindingFromDom } from "./raw-finding-from-dom.ts";
 
 /**
@@ -187,9 +190,9 @@ async function captureSerializedDom(
     source: string;
     voidTags: string[];
   }): SerializeDocumentResult => {
-    const fn = new Function(
-      `return (${arg.source});`,
-    )() as (tags: string[]) => SerializeDocumentResult;
+    const fn = new Function(`return (${arg.source});`)() as (
+      tags: string[],
+    ) => SerializeDocumentResult;
     return fn(arg.voidTags);
   };
   return page.evaluate(runInPage, {
@@ -260,8 +263,7 @@ export async function htmlValidateFindingsFromSerialized(
 ): Promise<RawFinding[]> {
   const validator = await getValidator();
   const report = validator.validateStringSync(serialized.html, url);
-  const messages: HtmlValidateMessage[] =
-    report.results[0]?.messages ?? [];
+  const messages: HtmlValidateMessage[] = report.results[0]?.messages ?? [];
   const findings: RawFinding[] = [];
   const version = htmlValidatePackageVersion();
   const doctypeIncludedInInput = options?.doctypeIncludedInInput ?? false;

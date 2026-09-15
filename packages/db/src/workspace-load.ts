@@ -10,19 +10,14 @@ import {
 } from "./repo/assessments.ts";
 import { WORKSPACE_EVIDENCE_LIMIT } from "./repo/evidence.ts";
 import { listFindingsForProject } from "./repo/findings.ts";
-import {
-  rowToEvidence,
-} from "./repo/mappers.ts";
+import { rowToEvidence } from "./repo/mappers.ts";
 import {
   listMembershipsForOrgs,
   listOrganizationsForUser,
   listOrgIdsForUser,
   provisionPersonalOrg,
 } from "./repo/orgs.ts";
-import {
-  getProjectById,
-  listProjectsForOrgs,
-} from "./repo/projects.ts";
+import { getProjectById, listProjectsForOrgs } from "./repo/projects.ts";
 import { listRemediationsForProject } from "./repo/remediations.ts";
 import { listRequirementsForProject } from "./repo/requirements.ts";
 import { evidence } from "./schema.ts";
@@ -74,17 +69,22 @@ export async function loadProjectRuntime(
     "requirements" | "assessments" | "findings" | "remediations" | "alerts"
   >
 > {
-  const [requirementsList, findingsList, remediationsList, alertsList, assessmentsList] =
-    await Promise.all([
-      listRequirementsForProject(drizzle, projectId),
-      listFindingsForProject(drizzle, projectId, {
-        statuses: options.findingStatuses,
-      }),
-      listRemediationsForProject(drizzle, projectId),
-      listAlertsForProject(drizzle, projectId),
-      // Latest only — the app consumes latestAssessmentFor + "has any".
-      listLatestAssessmentForProject(drizzle, projectId),
-    ]);
+  const [
+    requirementsList,
+    findingsList,
+    remediationsList,
+    alertsList,
+    assessmentsList,
+  ] = await Promise.all([
+    listRequirementsForProject(drizzle, projectId),
+    listFindingsForProject(drizzle, projectId, {
+      statuses: options.findingStatuses,
+    }),
+    listRemediationsForProject(drizzle, projectId),
+    listAlertsForProject(drizzle, projectId),
+    // Latest only — the app consumes latestAssessmentFor + "has any".
+    listLatestAssessmentForProject(drizzle, projectId),
+  ]);
 
   return {
     requirements: requirementsList,
@@ -147,8 +147,10 @@ export async function loadTenancyDb(
   drizzle: DrizzleDb,
   input: Pick<WorkspaceLoadInput, "userId" | "githubLogin" | "activeProjectId">,
 ): Promise<WorkspaceSlice> {
-  const { organizations, memberships, projects } =
-    await loadWorkspaceTenancy(drizzle, input);
+  const { organizations, memberships, projects } = await loadWorkspaceTenancy(
+    drizzle,
+    input,
+  );
   return {
     organizations,
     memberships,

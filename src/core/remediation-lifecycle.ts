@@ -1,4 +1,7 @@
-import type { Finding, Remediation } from "@complyloop/analysis-core/contract/entities";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type { RemediationSuggestion } from "@complyloop/analysis-core/contract/finding-types";
 import { isDomLocation } from "@complyloop/analysis-core/contract/location";
 import type { RemediationStatus } from "@complyloop/analysis-core/contract/statuses";
@@ -98,7 +101,7 @@ export function refreshSuggestion(
 export function hasSafeDeterministicFix(finding: Finding): boolean {
   return Boolean(
     finding.fix &&
-      !(finding.fix.kind === "insert_attribute" && finding.fix.editable),
+    !(finding.fix.kind === "insert_attribute" && finding.fix.editable),
   );
 }
 

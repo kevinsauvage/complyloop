@@ -1,6 +1,17 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lt,
+  lte,
+  sql,
+} from "drizzle-orm";
 
 import {
   ASSESSMENT_JOB_STATUSES,
@@ -8,7 +19,7 @@ import {
   type AssessmentJobStatus,
   type AssessmentJobTrigger,
 } from "@complyloop/analysis-core/contract/assessment-jobs";
-import { type DrizzleDb,getDrizzle } from "@complyloop/db/postgres";
+import { type DrizzleDb, getDrizzle } from "@complyloop/db/postgres";
 import { assessmentJobs } from "@complyloop/db/schema";
 
 import {
@@ -37,18 +48,14 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 function parseJobStatus(value: string): AssessmentJobStatus {
-  if (
-    !(ASSESSMENT_JOB_STATUSES as ReadonlyArray<string>).includes(value)
-  ) {
+  if (!(ASSESSMENT_JOB_STATUSES as ReadonlyArray<string>).includes(value)) {
     throw new Error(`Unexpected assessment job status: ${value}`);
   }
   return value as AssessmentJobStatus;
 }
 
 function parseJobTrigger(value: string): AssessmentJobTrigger {
-  if (
-    !(ASSESSMENT_JOB_TRIGGERS as ReadonlyArray<string>).includes(value)
-  ) {
+  if (!(ASSESSMENT_JOB_TRIGGERS as ReadonlyArray<string>).includes(value)) {
     throw new Error(`Unexpected assessment job trigger: ${value}`);
   }
   return value as AssessmentJobTrigger;
@@ -131,7 +138,8 @@ export async function enqueueAssessmentJob(
       .limit(1);
     if (pending) {
       const pendingPayload = parseJobPayload(pending.payload);
-      const pendingIsPrPreview = pendingPayload.pullRequestHeadSha !== undefined;
+      const pendingIsPrPreview =
+        pendingPayload.pullRequestHeadSha !== undefined;
       const incomingIsPrPreview =
         input.payload?.pullRequestHeadSha !== undefined;
       // Authority boundary: pushes (authoritative, no pullRequestHeadSha) and
@@ -284,7 +292,9 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
         (row as { projectId?: unknown }).projectId,
     );
 
-    const leaseExpiresAt = new Date(Date.now() + DEFAULT_LEASE_MS).toISOString();
+    const leaseExpiresAt = new Date(
+      Date.now() + DEFAULT_LEASE_MS,
+    ).toISOString();
     const [claimed] = await tx
       .update(assessmentJobs)
       .set({
@@ -312,9 +322,7 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
   });
 }
 
-export async function completeAssessmentJob(
-  job: AssessmentJob,
-): Promise<void> {
+export async function completeAssessmentJob(job: AssessmentJob): Promise<void> {
   const drizzle = await getDrizzle();
   const now = new Date().toISOString();
   const result = await drizzle
@@ -349,7 +357,8 @@ export async function failAssessmentJob(
 ): Promise<AssessmentJobStatus> {
   const drizzle = await getDrizzle();
   const now = new Date();
-  const message = error instanceof Error ? error.message : "Assessment job failed.";
+  const message =
+    error instanceof Error ? error.message : "Assessment job failed.";
   const terminal = job.attempts >= job.maxAttempts;
   const status: AssessmentJobStatus = terminal ? "failed" : "queued";
   const delay = RETRY_BASE_MS * 2 ** Math.max(0, job.attempts - 1);

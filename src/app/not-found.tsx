@@ -11,7 +11,8 @@ import {
 
 export const metadata: Metadata = {
   title: "Page not found",
-  description: "The requested page does not exist or you do not have access to it.",
+  description:
+    "The requested page does not exist or you do not have access to it.",
 };
 
 export default function NotFound() {

@@ -15,12 +15,14 @@ export default function TermsPage() {
         description="Terms for early access to ComplyLoop."
       />
       <PageContent>
-        <p className="text-xs text-muted-foreground">Last updated: 2026-09-10</p>
+        <p className="text-xs text-muted-foreground">
+          Last updated: 2026-09-10
+        </p>
         <div className="surface-panel rounded-2xl p-6 text-sm leading-relaxed text-foreground">
           <h2 className="text-lg font-semibold">Using ComplyLoop</h2>
           <p className="mt-2">
-            By using ComplyLoop you agree that the service analyzes source code and
-            compliance artifacts you connect, stores assessment results and
+            By using ComplyLoop you agree that the service analyzes source code
+            and compliance artifacts you connect, stores assessment results and
             evidence, and may create pull requests when you ask it to.
           </p>
           <h2 className="mt-6 text-lg font-semibold">Your responsibilities</h2>
@@ -31,8 +33,8 @@ export default function TermsPage() {
           </p>
           <h2 className="mt-6 text-lg font-semibold">Early access</h2>
           <p className="mt-2">
-            The service is provided as-is during early access. Do not rely on it as
-            the sole source of legal compliance advice.
+            The service is provided as-is during early access. Do not rely on it
+            as the sole source of legal compliance advice.
           </p>
         </div>
       </PageContent>

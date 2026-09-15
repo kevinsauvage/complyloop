@@ -7,7 +7,10 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 import { emptyWorkspaceSlice as emptyDbBase } from "@complyloop/db/types";
 
-import { actionAuthMocks, actionWorkspaceMocks } from "@/test-fixtures/action-workspace-mocks";
+import {
+  actionAuthMocks,
+  actionWorkspaceMocks,
+} from "@/test-fixtures/action-workspace-mocks";
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
@@ -38,7 +41,10 @@ const listRequirementsForProjects = vi.hoisted(() => vi.fn());
 const listAlertsForProjects = vi.hoisted(() => vi.fn());
 
 vi.mock("../workspace/orgs", async () => {
-  const actual = await vi.importActual<typeof import("../workspace/orgs")>("../workspace/orgs");
+  const actual =
+    await vi.importActual<typeof import("../workspace/orgs")>(
+      "../workspace/orgs",
+    );
   return {
     ...actual,
     exportOrgData: (...args: unknown[]) => exportOrgData(...args),
@@ -47,9 +53,9 @@ vi.mock("../workspace/orgs", async () => {
 });
 
 vi.mock("../workspace/org-queries", async () => {
-  const actual = await vi.importActual<typeof import("../workspace/org-queries")>(
-    "../workspace/org-queries",
-  );
+  const actual = await vi.importActual<
+    typeof import("../workspace/org-queries")
+  >("../workspace/org-queries");
   return {
     ...actual,
     resolveActiveOrgId: (...args: unknown[]) => resolveActiveOrgId(...args),
@@ -67,8 +73,10 @@ vi.mock("../workspace/active-cookies", () => ({
 }));
 
 vi.mock("./shared", async () => {
-  const { actionAuthMocks } = await import("@/test-fixtures/action-workspace-mocks");
-  const { PublicError } = await import("@complyloop/analysis-core/contract/public-error");
+  const { actionAuthMocks } =
+    await import("@/test-fixtures/action-workspace-mocks");
+  const { PublicError } =
+    await import("@complyloop/analysis-core/contract/public-error");
   return {
     refresh: () => refresh(),
     requireSignedIn: async (message: string) => {
@@ -103,8 +111,7 @@ vi.mock("@complyloop/db/repo/requirements", () => ({
     listRequirementsForProjects(...args),
 }));
 vi.mock("@complyloop/db/repo/alerts", () => ({
-  listAlertsForProjects: (...args: unknown[]) =>
-    listAlertsForProjects(...args),
+  listAlertsForProjects: (...args: unknown[]) => listAlertsForProjects(...args),
 }));
 
 const org: Organization = {
@@ -126,13 +133,13 @@ async function invokeOrgWrite(
     db: WorkspaceSlice;
     userId: string;
     githubLogin: string | null;
-    organizations: typeof org[];
+    organizations: (typeof org)[];
   },
   fn: (ctx: {
     db: WorkspaceSlice;
     userId: string;
     githubLogin: string | null;
-    organizations: typeof org[];
+    organizations: (typeof org)[];
   }) => Promise<{ result: unknown }> | { result: unknown },
 ): Promise<unknown> {
   const out = await fn(ctx);
@@ -148,7 +155,9 @@ function emptyWorkspaceSlice(memberships = [ownerMembership]): WorkspaceSlice {
   };
 }
 
-function fixtureWorkspace(db: WorkspaceSlice = emptyWorkspaceSlice()): ProjectWriteWorkspace {
+function fixtureWorkspace(
+  db: WorkspaceSlice = emptyWorkspaceSlice(),
+): ProjectWriteWorkspace {
   return testWorkspace({
     role: "owner",
     userId: "user-1",
@@ -179,7 +188,9 @@ beforeEach(() => {
   listAlertsForProjects.mockReset();
   listAlertsForProjects.mockResolvedValue([]);
   deleteOrganization.mockReturnValue({ deleteMembershipIds: ["m-owner"] });
-  actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1", login: "alice" } });
+  actionAuthMocks.auth.mockResolvedValue({
+    user: { id: "user-1", login: "alice" },
+  });
   withOrgWrite.mockImplementation(async (fn) =>
     invokeOrgWrite(
       {
@@ -318,7 +329,7 @@ describe("org lifecycle actions", () => {
     formData.set("orgId", "org-1");
     formData.set("confirm", "nope");
     const result = await deleteOrgAction(initialActionState, formData);
-    expect((result.ok ? null : result.message)).toMatch(/Type DELETE/);
+    expect(result.ok ? null : result.message).toMatch(/Type DELETE/);
     expect(deleteOrganization).not.toHaveBeenCalled();
   });
 
@@ -328,7 +339,7 @@ describe("org lifecycle actions", () => {
     formData.set("orgId", "org-1");
     formData.set("confirm", "DELETE");
     const result = await deleteOrgAction(initialActionState, formData);
-    expect((result.ok ? null : result.message)).toBeNull();
+    expect(result.ok ? null : result.message).toBeNull();
     expect(result.message).toMatch(/Evidence history was retained/);
     expect(deleteOrganization).toHaveBeenCalledWith(
       expect.anything(),
@@ -397,17 +408,14 @@ describe("createOrgAction", () => {
     const form = new FormData();
     form.set("name", "New Co");
     const result = await createOrgAction(initialActionState, form);
-    expect((result.ok ? null : result.message)).toBeNull();
+    expect(result.ok ? null : result.message).toBeNull();
     expect(result.message).toMatch(/Created organization "New Co"/);
     expect(writeActiveOrgCookie).toHaveBeenCalled();
   });
 
   it("requires a name", async () => {
-    const result = await createOrgAction(
-      initialActionState,
-      new FormData(),
-    );
-    expect((result.ok ? null : result.message)).toMatch(/organization name/i);
+    const result = await createOrgAction(initialActionState, new FormData());
+    expect(result.ok ? null : result.message).toMatch(/organization name/i);
   });
 
   it("requires GitHub sign-in", async () => {
@@ -415,7 +423,7 @@ describe("createOrgAction", () => {
     const form = new FormData();
     form.set("name", "No Login");
     const result = await createOrgAction(initialActionState, form);
-    expect((result.ok ? null : result.message)).toMatch(/Sign in with GitHub/);
+    expect(result.ok ? null : result.message).toMatch(/Sign in with GitHub/);
   });
 });
 
@@ -435,7 +443,7 @@ describe("org member management actions", () => {
     form.set("githubLogin", "bob");
     form.set("role", "owner");
     const result = await inviteOrgMemberAction(initialActionState, form);
-    expect((result.ok ? null : result.message)).toMatch(/Choose a role/);
+    expect(result.ok ? null : result.message).toMatch(/Choose a role/);
   });
 
   it("requires a GitHub username to invite", async () => {
@@ -443,7 +451,7 @@ describe("org member management actions", () => {
     form.set("orgId", "org-1");
     form.set("role", "viewer");
     const result = await inviteOrgMemberAction(initialActionState, form);
-    expect((result.ok ? null : result.message)).toMatch(/GitHub username/);
+    expect(result.ok ? null : result.message).toMatch(/GitHub username/);
   });
 
   it("removes a member", async () => {
@@ -523,10 +531,7 @@ describe("org member management actions", () => {
     form.set("orgId", "org-1");
     form.set("membershipId", "m-member");
     form.set("role", "admin");
-    const result = await changeOrgMemberRoleAction(
-      initialActionState,
-      form,
-    );
+    const result = await changeOrgMemberRoleAction(initialActionState, form);
     expect(result.message).toBe("Role updated to admin.");
     expect(member.role).toBe("member");
   });

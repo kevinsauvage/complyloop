@@ -19,7 +19,8 @@ const REDACTIONS: ReadonlyArray<readonly [RegExp, string]> = [
 
 export function redactSecrets(text: string): string {
   return REDACTIONS.reduce(
-    (redacted, [pattern, replacement]) => redacted.replace(pattern, replacement),
+    (redacted, [pattern, replacement]) =>
+      redacted.replace(pattern, replacement),
     text,
   );
 }

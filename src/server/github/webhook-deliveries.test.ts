@@ -69,9 +69,7 @@ describe("webhook delivery idempotency", () => {
   });
 
   it("rejects empty delivery ids", async () => {
-    await expect(claimWebhookDelivery("")).rejects.toThrow(
-      /x-github-delivery/,
-    );
+    await expect(claimWebhookDelivery("")).rejects.toThrow(/x-github-delivery/);
   });
 
   it("prunes oldest rows once the delivery table exceeds the cap", async () => {

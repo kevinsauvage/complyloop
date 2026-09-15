@@ -105,7 +105,10 @@ export function stringValueOf(attr: ts.JsxAttribute): string | undefined {
   return undefined;
 }
 
-export function hasAnyAttr(node: JsxTagNode, names: ReadonlyArray<string>): boolean {
+export function hasAnyAttr(
+  node: JsxTagNode,
+  names: ReadonlyArray<string>,
+): boolean {
   return names.some((name) => getAttribute(node, name) !== undefined);
 }
 
@@ -175,7 +178,10 @@ export function snippetForSpan(
   return text.slice(lineStart, lineEnd).trim();
 }
 
-export function locationOf(source: ParsedSource, node: ts.Node): SourceLocation {
+export function locationOf(
+  source: ParsedSource,
+  node: ts.Node,
+): SourceLocation {
   const start = node.getStart(source.sourceFile);
   const position = source.sourceFile.getLineAndCharacterOfPosition(start);
   const span = spanOf(node, source.sourceFile);
@@ -199,9 +205,7 @@ export function hasTextContent(element: ts.JsxElement): boolean {
     if (ts.isJsxText(child) && child.text.trim().length > 0) return true;
     if (ts.isJsxExpression(child) && child.expression) return true;
     if (ts.isJsxSelfClosingElement(child) || ts.isJsxElement(child)) {
-      const tag = ts.isJsxElement(child)
-        ? child.openingElement
-        : child;
+      const tag = ts.isJsxElement(child) ? child.openingElement : child;
       const name = tag.tagName.getText();
       if (name === "img" || name === "Image") {
         const alt = getAttribute(tag, "alt");
@@ -258,14 +262,18 @@ export function hasAttrOnAncestors(
 ): boolean {
   let current: ts.Node | undefined = node.parent;
   while (current) {
-    if (ts.isJsxOpeningElement(current) || ts.isJsxSelfClosingElement(current)) {
+    if (
+      ts.isJsxOpeningElement(current) ||
+      ts.isJsxSelfClosingElement(current)
+    ) {
       if (options?.stopAtHtml && tagNameOf(current) === "html") return false;
       if (getAttribute(current, attrName) !== undefined) return true;
     } else if (ts.isJsxElement(current)) {
       if (options?.stopAtHtml && tagNameOf(current.openingElement) === "html") {
         return false;
       }
-      if (getAttribute(current.openingElement, attrName) !== undefined) return true;
+      if (getAttribute(current.openingElement, attrName) !== undefined)
+        return true;
     }
     current = current.parent;
   }

@@ -4,10 +4,7 @@ import {
   buildEngineeringReportMarkdown,
 } from "@/server/reporting/report-markdown";
 
-function sanitizeDownloadFilename(
-  raw: string,
-  fallback = "download",
-): string {
+function sanitizeDownloadFilename(raw: string, fallback = "download"): string {
   const cleaned = raw
     .normalize("NFKD")
     .replace(/\.\.+/g, "")

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { Finding, Remediation } from "@complyloop/analysis-core/contract/entities";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 
 import { findingAct, type FindingActInput } from "./finding-act";
 

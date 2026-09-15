@@ -88,7 +88,10 @@ export function parseForm<T>(
 ): T {
   const result = schema.safeParse(formRecord(formData));
   if (!result.success) {
-    throw new PublicError(firstIssueMessage(result.error, fallback), "validation");
+    throw new PublicError(
+      firstIssueMessage(result.error, fallback),
+      "validation",
+    );
   }
   return result.data;
 }
@@ -100,7 +103,10 @@ export function parseInput<T>(
 ): T {
   const result = schema.safeParse(value);
   if (!result.success) {
-    throw new PublicError(firstIssueMessage(result.error, fallback), "validation");
+    throw new PublicError(
+      firstIssueMessage(result.error, fallback),
+      "validation",
+    );
   }
   return result.data;
 }

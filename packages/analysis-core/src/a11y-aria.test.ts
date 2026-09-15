@@ -8,7 +8,7 @@ import {
   nativeSatisfiesRole,
   requiredAriaProps,
 } from "./a11y-aria";
-import { type JsxTagNode,parseSource, visitJsxTags } from "./parse";
+import { type JsxTagNode, parseSource, visitJsxTags } from "./parse";
 
 function firstTag(jsx: string): JsxTagNode {
   const parsed = parseSource("test.tsx", jsx);

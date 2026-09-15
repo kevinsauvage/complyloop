@@ -9,13 +9,13 @@ Postgres schema for this repo. Pre-launch: one squashed init plus incremental SQ
 
 ## Layout
 
-| Path | Role |
-|------|------|
-| `packages/db/src/schema.ts` | Drizzle schema (source of truth for types) |
-| `drizzle/0000_init.sql` | Full initial schema (tenancy, domain, evidence trigger, jobs) |
-| `drizzle/0001_*.sql` | Incremental migrations after squash |
-| `scripts/db-migrate.ts` | Applies `.sql` files in filename order |
-| `scripts/db-reset.ts` | Wipe + re-apply (local/pre-launch only; requires `--confirm`) |
+| Path                        | Role                                                          |
+| --------------------------- | ------------------------------------------------------------- |
+| `packages/db/src/schema.ts` | Drizzle schema (source of truth for types)                    |
+| `drizzle/0000_init.sql`     | Full initial schema (tenancy, domain, evidence trigger, jobs) |
+| `drizzle/0001_*.sql`        | Incremental migrations after squash                           |
+| `scripts/db-migrate.ts`     | Applies `.sql` files in filename order                        |
+| `scripts/db-reset.ts`       | Wipe + re-apply (local/pre-launch only; requires `--confirm`) |
 
 ## Commands
 

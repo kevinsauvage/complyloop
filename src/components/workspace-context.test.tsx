@@ -39,7 +39,12 @@ const workspaceFixture = {
     { id: "org-2", name: "Beta", slug: "beta", createdAt: "" },
   ],
   activeOrgId: "org-1",
-  access: { userId: "u1", githubLogin: "u1", memberships: [], organizations: [] },
+  access: {
+    userId: "u1",
+    githubLogin: "u1",
+    memberships: [],
+    organizations: [],
+  },
 };
 
 vi.mock("@/server/workspace/workspace", () => ({

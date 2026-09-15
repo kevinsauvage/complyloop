@@ -1,4 +1,7 @@
-import type { Control, Framework } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Control,
+  Framework,
+} from "@complyloop/analysis-core/contract/project-types";
 
 import { rgaaControls, rgaaFramework } from "./rgaa/controls.ts";
 import { wcagFramework } from "./wcag/controls.ts";

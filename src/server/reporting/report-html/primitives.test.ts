@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { emptyParagraph, escapeHtml, reportSection, reportShell, statusClass, summaryStat } from "./primitives";
+import {
+  emptyParagraph,
+  escapeHtml,
+  reportSection,
+  reportShell,
+  statusClass,
+  summaryStat,
+} from "./primitives";
 
 describe("escapeHtml", () => {
   it("escapes the five HTML-significant characters", () => {
@@ -30,7 +37,7 @@ describe("statusClass", () => {
 
 describe("emptyParagraph", () => {
   it("renders an escaped empty-state message", () => {
-    expect(emptyParagraph('No "<items>"')).toContain("class=\"empty\"");
+    expect(emptyParagraph('No "<items>"')).toContain('class="empty"');
     expect(emptyParagraph('No "<items>"')).toContain("&lt;items&gt;");
   });
 });

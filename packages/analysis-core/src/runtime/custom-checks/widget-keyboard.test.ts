@@ -60,7 +60,8 @@ describe("widgetKeyboardViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags a tablist with no focusable tab",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <div role="tablist">
             <div role="tab" tabindex="-1">One</div>
@@ -69,10 +70,8 @@ describe("widgetKeyboardViolations", () => {
         </body></html>
       `,
         async (page) => {
-        const violations = await widgetKeyboardViolations(page);
-        expect(violations.some((v) => v.id === "tabs-keyboard")).toBe(
-          true,
-        );
+          const violations = await widgetKeyboardViolations(page);
+          expect(violations.some((v) => v.id === "tabs-keyboard")).toBe(true);
         },
       );
     },
@@ -82,7 +81,8 @@ describe("widgetKeyboardViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes a tablist with a focusable tab",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <div role="tablist">
             <button role="tab" aria-selected="true">One</button>
@@ -91,10 +91,8 @@ describe("widgetKeyboardViolations", () => {
         </body></html>
       `,
         async (page) => {
-        const violations = await widgetKeyboardViolations(page);
-        expect(violations.some((v) => v.id === "tabs-keyboard")).toBe(
-          false,
-        );
+          const violations = await widgetKeyboardViolations(page);
+          expect(violations.some((v) => v.id === "tabs-keyboard")).toBe(false);
         },
       );
     },
@@ -104,17 +102,18 @@ describe("widgetKeyboardViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags a non-focusable aria-expanded toggle",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <div aria-expanded="false" aria-controls="p" style="display:inline-block;background:#eee;">Toggle</div>
           <div id="p">Panel</div>
         </body></html>
       `,
         async (page) => {
-        const violations = await widgetKeyboardViolations(page);
-        expect(
-          violations.some((v) => v.id === "disclosure-keyboard"),
-        ).toBe(true);
+          const violations = await widgetKeyboardViolations(page);
+          expect(violations.some((v) => v.id === "disclosure-keyboard")).toBe(
+            true,
+          );
         },
       );
     },
@@ -124,17 +123,18 @@ describe("widgetKeyboardViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes a button aria-expanded toggle",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <button aria-expanded="false" aria-controls="p">Toggle</button>
           <div id="p">Panel</div>
         </body></html>
       `,
         async (page) => {
-        const violations = await widgetKeyboardViolations(page);
-        expect(
-          violations.some((v) => v.id === "disclosure-keyboard"),
-        ).toBe(false);
+          const violations = await widgetKeyboardViolations(page);
+          expect(violations.some((v) => v.id === "disclosure-keyboard")).toBe(
+            false,
+          );
         },
       );
     },
@@ -144,7 +144,8 @@ describe("widgetKeyboardViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags a non-focusable menu item",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <div role="menu">
             <div role="menuitem">New</div>
@@ -153,10 +154,8 @@ describe("widgetKeyboardViolations", () => {
         </body></html>
       `,
         async (page) => {
-        const violations = await widgetKeyboardViolations(page);
-        expect(violations.some((v) => v.id === "menu-keyboard")).toBe(
-          true,
-        );
+          const violations = await widgetKeyboardViolations(page);
+          expect(violations.some((v) => v.id === "menu-keyboard")).toBe(true);
         },
       );
     },

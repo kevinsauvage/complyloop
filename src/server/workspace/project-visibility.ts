@@ -1,6 +1,10 @@
 import "server-only";
 
-import type { Organization, OrgMembership, Project } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Organization,
+  OrgMembership,
+  Project,
+} from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { canOnProject, type Permission } from "@/core/rbac";
@@ -34,12 +38,7 @@ export function isProjectVisible(
   project: Project,
   ctx: AccessContext,
 ): boolean {
-  return canOnProject(
-    project,
-    ctx.memberships,
-    ctx.userId,
-    "project.view",
-  );
+  return canOnProject(project, ctx.memberships, ctx.userId, "project.view");
 }
 
 export function visibleProjects(

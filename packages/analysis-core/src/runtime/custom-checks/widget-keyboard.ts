@@ -2,10 +2,7 @@ import type { Page } from "playwright";
 
 import { BROWSER_HIT_CAPTURE_SRC, type CapturedHit } from "./hit-capture.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
-import {
-  isKeyboardFocusable,
-  selectorOf,
-} from "./widget-keyboard-utils.ts";
+import { isKeyboardFocusable, selectorOf } from "./widget-keyboard-utils.ts";
 
 /**
  * ARIA widget keyboard reachability (§7 Interaction: tabs, disclosure, menu).
@@ -57,8 +54,7 @@ export async function widgetKeyboardViolations(
     violations.push({
       id: "tabs-keyboard",
       impact: "serious",
-      description:
-        "A tablist has no tab in the keyboard tab order.",
+      description: "A tablist has no tab in the keyboard tab order.",
       help: "At least one tab must be in the keyboard tab order so the widget is reachable (RGAA 7.3 / WCAG 2.1.1). Arrow-key navigation inside the tablist is not verified by this check.",
       nodes: tabNodes,
     });
@@ -77,8 +73,7 @@ export async function widgetKeyboardViolations(
     violations.push({
       id: "disclosure-keyboard",
       impact: "serious",
-      description:
-        "An aria-expanded toggle is not keyboard-activatable.",
+      description: "An aria-expanded toggle is not keyboard-activatable.",
       help: "A control that expands/collapses content must itself be focusable and operable from the keyboard (RGAA 7.3 / WCAG 2.1.1).",
       nodes: disclosureNodes,
     });
@@ -97,8 +92,7 @@ export async function widgetKeyboardViolations(
     violations.push({
       id: "menu-keyboard",
       impact: "serious",
-      description:
-        "Menu items are not reachable with a keyboard.",
+      description: "Menu items are not reachable with a keyboard.",
       help: "Menu items must be focusable so a keyboard user can navigate the menu (RGAA 7.3 / WCAG 2.1.1).",
       nodes: menuNodes,
     });

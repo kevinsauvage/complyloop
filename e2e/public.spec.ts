@@ -27,7 +27,9 @@ test.describe("public pages", () => {
     ).toBeVisible();
   });
 
-  test("unsigned user is redirected from dashboard to login", async ({ page }) => {
+  test("unsigned user is redirected from dashboard to login", async ({
+    page,
+  }) => {
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/login/);
     await expect(

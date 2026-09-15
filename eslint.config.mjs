@@ -6,23 +6,23 @@ import simpleImportSort from "eslint-plugin-simple-import-sort";
 
 /** Entity names must not be imported from db/types (contract owns them). */
 const dbTypesEntityBan = [
-            {
-              name: "@complyloop/db/types",
-              importNames: [
-                "Alert",
-                "AlertKind",
-                "Assessment",
-                "AssessmentSnapshot",
-                "EvidenceKind",
-                "EvidenceRecord",
-                "FileChange",
-                "Finding",
-                "Remediation",
-                "RemediationHistoryEntry",
-              ],
-              message:
-                "Import entities from @complyloop/analysis-core/contract/entities — @complyloop/db/types is WorkspaceSlice only.",
-            },
+  {
+    name: "@complyloop/db/types",
+    importNames: [
+      "Alert",
+      "AlertKind",
+      "Assessment",
+      "AssessmentSnapshot",
+      "EvidenceKind",
+      "EvidenceRecord",
+      "FileChange",
+      "Finding",
+      "Remediation",
+      "RemediationHistoryEntry",
+    ],
+    message:
+      "Import entities from @complyloop/analysis-core/contract/entities — @complyloop/db/types is WorkspaceSlice only.",
+  },
 ];
 
 const eslintConfig = defineConfig([

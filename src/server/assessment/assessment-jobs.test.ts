@@ -43,9 +43,8 @@ vi.mock("../observability", () => ({
 }));
 
 vi.mock("drizzle-orm", async () => {
-  const actual = await vi.importActual<typeof import("drizzle-orm")>(
-    "drizzle-orm",
-  );
+  const actual =
+    await vi.importActual<typeof import("drizzle-orm")>("drizzle-orm");
   return {
     ...actual,
     eq: (_column: unknown, value: unknown): Clause => ({ kind: "eq", value }),
@@ -79,19 +78,25 @@ function flatten(clause: Clause | undefined): Clause[] {
 
 function eqValues(clause: Clause | undefined): unknown[] {
   return flatten(clause)
-    .filter((part): part is Extract<Clause, { kind: "eq" }> => part.kind === "eq")
+    .filter(
+      (part): part is Extract<Clause, { kind: "eq" }> => part.kind === "eq",
+    )
     .map((part) => part.value);
 }
 
 function inValues(clause: Clause | undefined): unknown[] {
   return flatten(clause)
-    .filter((part): part is Extract<Clause, { kind: "in" }> => part.kind === "in")
+    .filter(
+      (part): part is Extract<Clause, { kind: "in" }> => part.kind === "in",
+    )
     .flatMap((part) => part.values);
 }
 
 function lteValues(clause: Clause | undefined): unknown[] {
   return flatten(clause)
-    .filter((part): part is Extract<Clause, { kind: "lte" }> => part.kind === "lte")
+    .filter(
+      (part): part is Extract<Clause, { kind: "lte" }> => part.kind === "lte",
+    )
     .map((part) => part.value);
 }
 
@@ -131,7 +136,8 @@ function createDrizzle() {
             }
             if (eqs.includes(row.idempotencyKey)) return true;
             if (eqs.includes(row.projectId) && eqs.length === 1) return true;
-            if (eqs.includes("running") && row.status === "running") return true;
+            if (eqs.includes("running") && row.status === "running")
+              return true;
             // Webhook-coalescing lookup: project + queued + webhook trigger.
             if (eqs.includes(row.projectId) && eqs.includes("webhook")) {
               return row.status === "queued" && row.trigger === "webhook";
@@ -193,7 +199,13 @@ function createDrizzle() {
             const hasStatus = eqs.includes(row.status);
             const hasLease = eqs.includes(row.leaseExpiresAt);
             const hasStarted = eqs.includes(row.startedAt);
-            if (eqs.length === 2 && hasId && hasStatus && !hasLease && !hasStarted) {
+            if (
+              eqs.length === 2 &&
+              hasId &&
+              hasStatus &&
+              !hasLease &&
+              !hasStarted
+            ) {
               match = true;
               // Atomic per-project claim guard: the real UPDATE carries
               // NOT EXISTS (running same project, different id). Simulate it:
@@ -232,9 +244,7 @@ function createDrizzle() {
               );
               match = bounds.every((part) => {
                 const limit =
-                  typeof part.value === "number"
-                    ? part.value
-                    : row.maxAttempts;
+                  typeof part.value === "number" ? part.value : row.maxAttempts;
                 return part.kind === "lt"
                   ? row.attempts < limit
                   : row.attempts >= limit;
@@ -539,7 +549,8 @@ describe("claimNextAssessmentJob", () => {
     expect(webhook2.id).not.toBe(webhook1.id);
   });
 
-  it("falls back to an empty payload for garbage stored payloads", async () => {    const now = new Date().toISOString();
+  it("falls back to an empty payload for garbage stored payloads", async () => {
+    const now = new Date().toISOString();
     jobs.set("job-garbage", {
       id: "job-garbage",
       projectId: "p1",

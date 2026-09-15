@@ -14,7 +14,16 @@ export function isTwoDimensionalLayout(
   tagName: string,
   role: string | null,
 ): boolean {
-  const tags = ["table", "img", "svg", "canvas", "video", "iframe", "pre", "map"];
+  const tags = [
+    "table",
+    "img",
+    "svg",
+    "canvas",
+    "video",
+    "iframe",
+    "pre",
+    "map",
+  ];
   const roles = ["grid", "treegrid", "img", "application"];
   if (tags.includes(tagName.toLowerCase())) return true;
   return role !== null && roles.includes(role);
@@ -22,19 +31,24 @@ export function isTwoDimensionalLayout(
 
 const TWO_D_LAYOUT_SOURCE = isTwoDimensionalLayout.toString();
 
-export async function reflowViolation(page: Page): Promise<CustomViolation | null> {
+export async function reflowViolation(
+  page: Page,
+): Promise<CustomViolation | null> {
   const original = page.viewportSize();
   try {
     await page.setViewportSize(REFLOW_VIEWPORT);
     const hit = await pageEvaluateWithHitCapture(
       page,
       (captureHit, { twoDSrc }) => {
-        const isTwoD = new Function(`return (${twoDSrc})`)() as typeof isTwoDimensionalLayout;
+        const isTwoD = new Function(
+          `return (${twoDSrc})`,
+        )() as typeof isTwoDimensionalLayout;
 
         function isExempt(el: Element): boolean {
           let current: Element | null = el;
           while (current) {
-            if (isTwoD(current.tagName, current.getAttribute("role"))) return true;
+            if (isTwoD(current.tagName, current.getAttribute("role")))
+              return true;
             if (current instanceof HTMLElement) {
               const style = getComputedStyle(current);
               if (style.overflowX === "auto" || style.overflowX === "scroll") {
@@ -52,12 +66,14 @@ export async function reflowViolation(page: Page): Promise<CustomViolation | nul
           document.body.scrollWidth > document.body.clientWidth + 1;
         if (!overflow) return null;
 
-        const wide = Array.from(document.querySelectorAll("body *")).find((el) => {
-          if (!(el instanceof HTMLElement)) return false;
-          if (isExempt(el)) return false;
-          const rect = el.getBoundingClientRect();
-          return rect.width > root.clientWidth + 1;
-        });
+        const wide = Array.from(document.querySelectorAll("body *")).find(
+          (el) => {
+            if (!(el instanceof HTMLElement)) return false;
+            if (isExempt(el)) return false;
+            const rect = el.getBoundingClientRect();
+            return rect.width > root.clientWidth + 1;
+          },
+        );
 
         if (!wide) return null;
         return captureHit(wide);

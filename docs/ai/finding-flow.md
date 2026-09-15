@@ -7,14 +7,14 @@ Opening a finding answers: **what failed**, **what do I do now** (one
 primary action), **how do we know it's fixed**. Queue nav (`j` / `k`)
 stays. Everything else is secondary.
 
-| Block     | Component                                                    | Purpose                                      |
-| --------- | ------------------------------------------------------------ | -------------------------------------------- |
-| Queue     | `FindingQueueNav`                                            | Prev/next                                    |
-| Header    | `PageHeader`                                                 | Control, severity, confidence, status, engine |
-| Understand| `FindingUnderstandCard`                                      | Why, where, how to fix; AI folded in         |
-| Act       | `FindingNextStepPanel`                                       | Single CTA from `findingAct()`               |
-| History   | `RemediationHistory`                                         | Status timeline                              |
-| Details   | `DeveloperHandoffCard` + evidence trail                      | Handoff when `showHandoff`                   |
+| Block      | Component                               | Purpose                                       |
+| ---------- | --------------------------------------- | --------------------------------------------- |
+| Queue      | `FindingQueueNav`                       | Prev/next                                     |
+| Header     | `PageHeader`                            | Control, severity, confidence, status, engine |
+| Understand | `FindingUnderstandCard`                 | Why, where, how to fix; AI folded in          |
+| Act        | `FindingNextStepPanel`                  | Single CTA from `findingAct()`                |
+| History    | `RemediationHistory`                    | Status timeline                               |
+| Details    | `DeveloperHandoffCard` + evidence trail | Handoff when `showHandoff`                    |
 
 Dismiss lives in a `<details>` inside Act. Runtime "Generate guidance"
 links to `#copy-handoff`.
@@ -41,19 +41,19 @@ Code: `generateAiRemediationAction`, `FindingNextStepPanel`.
 
 ### Act panel (`findingAct`)
 
-| Source state      | Primary action                                              |
-| ----------------- | ----------------------------------------------------------- |
-| Open, no patch    | Generate patch (or **Verify and prepare patch** if deterministic) |
-| Patch ready       | Create draft PR                                             |
-| PR open           | Open draft PR                                               |
-| Verified          | —                                                           |
+| Source state   | Primary action                                                    |
+| -------------- | ----------------------------------------------------------------- |
+| Open, no patch | Generate patch (or **Verify and prepare patch** if deterministic) |
+| Patch ready    | Create draft PR                                                   |
+| PR open        | Open draft PR                                                     |
+| Verified       | —                                                                 |
 
-| Runtime state | Primary action        |
-| ------------- | --------------------- |
-| Open          | Generate guidance     |
-| Suggested     | Approve               |
-| Approved      | Mark implemented      |
-| Implemented   | Verify                |
+| Runtime state | Primary action    |
+| ------------- | ----------------- |
+| Open          | Generate guidance |
+| Suggested     | Approve           |
+| Approved      | Mark implemented  |
+| Implemented   | Verify            |
 
 - `showHandoff` — no PR yet, finding open, suggestion or `finding.fix` exists.
 - `showDismiss` — open finding, can remediate, not verified.

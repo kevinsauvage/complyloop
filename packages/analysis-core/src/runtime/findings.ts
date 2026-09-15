@@ -1,5 +1,8 @@
 import { axeCorePackageVersion } from "../analyzer-versions.ts";
-import { HEURISTIC_RUNTIME_DOWNGRADE, isHeuristicCheck } from "../check-authority.ts";
+import {
+  HEURISTIC_RUNTIME_DOWNGRADE,
+  isHeuristicCheck,
+} from "../check-authority.ts";
 import type { CheckId } from "../check-registry.ts";
 import type { Confidence, Severity } from "../contract/statuses.ts";
 import { dedupeRuntimeFindings } from "../merge-findings.ts";
@@ -94,7 +97,8 @@ function findingsFromAxeHits(
     const checkId = checkIdForAxeRule(violation.id);
     if (!checkId) continue;
     const heuristic = isHeuristicCheck(checkId);
-    const asReview = kind === "warning" || violation.id === "frame-tested" || heuristic;
+    const asReview =
+      kind === "warning" || violation.id === "frame-tested" || heuristic;
     for (const node of violation.nodes) {
       findings.push(
         rawFindingFromDom({
@@ -153,7 +157,9 @@ export function siteLevelFindingsFromPages(
 ): RawFinding[] {
   const snapshots = pages
     .map((page) => page.snapshot)
-    .filter((snapshot): snapshot is RuntimePageSnapshot => snapshot !== undefined);
+    .filter(
+      (snapshot): snapshot is RuntimePageSnapshot => snapshot !== undefined,
+    );
   return runSiteLevelChecks(snapshots);
 }
 

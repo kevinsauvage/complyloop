@@ -12,7 +12,8 @@ const checkout = vi.hoisted(() => vi.fn());
 const createAuthedGitArgs = vi.hoisted(() => [] as unknown[][]);
 
 vi.mock("../github/git", async () => {
-  const actual = await vi.importActual<typeof import("../github/git")>("../github/git");
+  const actual =
+    await vi.importActual<typeof import("../github/git")>("../github/git");
   return {
     ...actual,
     createGit: () => ({ clone, fetch, checkout }),
@@ -23,7 +24,15 @@ vi.mock("../github/git", async () => {
   };
 });
 
-import { assertCheckoutWithinQuota, cloneAuthedShallow, cloneShallow, parseCheckoutRef,withFixtureCheckout, withProjectCheckout, withRepoCheckout } from "./repo-checkout";
+import {
+  assertCheckoutWithinQuota,
+  cloneAuthedShallow,
+  cloneShallow,
+  parseCheckoutRef,
+  withFixtureCheckout,
+  withProjectCheckout,
+  withRepoCheckout,
+} from "./repo-checkout";
 
 const previousEnabled = process.env.E2E_AUTH_ENABLED;
 const previousRoot = process.env.E2E_FIXTURE_ROOT;
@@ -46,7 +55,11 @@ afterEach(() => {
 describe("cloneShallow", () => {
   it("delegates to git clone", async () => {
     clone.mockResolvedValue(undefined);
-    const root = path.join(os.tmpdir(), `complyloop-clone-${Date.now()}`, "repo");
+    const root = path.join(
+      os.tmpdir(),
+      `complyloop-clone-${Date.now()}`,
+      "repo",
+    );
     tempDirs.push(path.dirname(root));
     await cloneShallow("https://example.com/r.git", root);
     expect(clone).toHaveBeenCalledWith("https://example.com/r.git", root, [
@@ -57,11 +70,15 @@ describe("cloneShallow", () => {
 
   it("removes the directory and wraps failures", async () => {
     clone.mockRejectedValue(new Error("auth failed"));
-    const root = path.join(os.tmpdir(), `complyloop-clone-fail-${Date.now()}`, "repo");
-    tempDirs.push(path.dirname(root));
-    await expect(cloneShallow("https://example.com/r.git", root)).rejects.toBeInstanceOf(
-      PublicError,
+    const root = path.join(
+      os.tmpdir(),
+      `complyloop-clone-fail-${Date.now()}`,
+      "repo",
     );
+    tempDirs.push(path.dirname(root));
+    await expect(
+      cloneShallow("https://example.com/r.git", root),
+    ).rejects.toBeInstanceOf(PublicError);
     expect(fs.existsSync(root)).toBe(false);
   });
 
@@ -72,7 +89,11 @@ describe("cloneShallow", () => {
         `fatal: unable to access 'https://x-access-token:${token}@github.com/octo/repo.git/': The requested URL returned error: 403`,
       ),
     );
-    const root = path.join(os.tmpdir(), `complyloop-clone-leak-${Date.now()}`, "repo");
+    const root = path.join(
+      os.tmpdir(),
+      `complyloop-clone-leak-${Date.now()}`,
+      "repo",
+    );
     tempDirs.push(path.dirname(root));
     const error = await cloneShallow("https://example.com/r.git", root).catch(
       (cause: unknown) => cause,
@@ -109,7 +130,10 @@ describe("withFixtureCheckout", () => {
   it("withProjectCheckout uses the fixture when the harness is on", async () => {
     const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-src-"));
     tempDirs.push(fixture);
-    fs.writeFileSync(path.join(fixture, "Bad.tsx"), "export const Bad = () => null;\n");
+    fs.writeFileSync(
+      path.join(fixture, "Bad.tsx"),
+      "export const Bad = () => null;\n",
+    );
     process.env.E2E_AUTH_ENABLED = "1";
     process.env.E2E_FIXTURE_ROOT = fixture;
 
@@ -202,15 +226,18 @@ describe("parseCheckoutRef", () => {
 
   it("cloneAuthedShallow delegates to the authed factory with the public URL", async () => {
     clone.mockResolvedValue(undefined);
-    const root = path.join(os.tmpdir(), `complyloop-authed-${Date.now()}`, "repo");
+    const root = path.join(
+      os.tmpdir(),
+      `complyloop-authed-${Date.now()}`,
+      "repo",
+    );
     tempDirs.push(path.dirname(root));
     await cloneAuthedShallow("https://github.com/o/r.git", "tok", root);
     expect(createAuthedGitArgs[0]?.[0]).toBe("tok");
-    expect(clone).toHaveBeenCalledWith(
-      "https://github.com/o/r.git",
-      root,
-      ["--depth", "1"],
-    );
+    expect(clone).toHaveBeenCalledWith("https://github.com/o/r.git", root, [
+      "--depth",
+      "1",
+    ]);
   });
 });
 
@@ -248,7 +275,10 @@ describe("assertCheckoutWithinQuota", () => {
     fs.writeFileSync(path.join(root, "a", "one.ts"), "1");
     fs.writeFileSync(path.join(root, "a", "b", "two.ts"), "2");
     fs.mkdirSync(path.join(root, ".git", "objects"), { recursive: true });
-    fs.writeFileSync(path.join(root, ".git", "objects", "pack"), "x".repeat(100));
+    fs.writeFileSync(
+      path.join(root, ".git", "objects", "pack"),
+      "x".repeat(100),
+    );
     await expect(assertCheckoutWithinQuota(root)).resolves.toBeUndefined();
 
     fs.writeFileSync(path.join(root, "a", "b", "three.ts"), "3");

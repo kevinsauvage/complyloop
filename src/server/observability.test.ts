@@ -21,13 +21,15 @@ type ConsoleMethod = "error" | "warn" | "info" | "debug";
 /** Raw text written through a console method during `callback`. */
 function captureConsole(method: ConsoleMethod, callback: () => void): string {
   const chunks: string[] = [];
-  const spy = vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
-    chunks.push(
-      args
-        .map((value) => (typeof value === "string" ? value : inspect(value)))
-        .join(" "),
-    );
-  });
+  const spy = vi
+    .spyOn(console, method)
+    .mockImplementation((...args: unknown[]) => {
+      chunks.push(
+        args
+          .map((value) => (typeof value === "string" ? value : inspect(value)))
+          .join(" "),
+      );
+    });
   callback();
   spy.mockRestore();
   return chunks.join("\n");
@@ -85,7 +87,10 @@ describe("observability", () => {
 
   it("reportAppError forwards digest and code", () => {
     const out = captureConsole("error", () =>
-      reportAppError(Object.assign(new Error("boom"), { digest: "d-1" }), "app_error_boundary"),
+      reportAppError(
+        Object.assign(new Error("boom"), { digest: "d-1" }),
+        "app_error_boundary",
+      ),
     );
     expect(out).toContain("app_error_boundary");
     expect(out).toContain("d-1");

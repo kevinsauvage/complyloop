@@ -19,7 +19,8 @@ describe("layoutTableLinearizationViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags layout tables whose visual order diverges from DOM order",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><style>
           table { position: relative; width: 240px; height: 80px; border-collapse: collapse; }
           td { position: absolute; width: 110px; height: 30px; }
@@ -32,8 +33,8 @@ describe("layoutTableLinearizationViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await layoutTableLinearizationViolation(page);
-        expect(violation?.id).toBe("layout-table-linearization");
+          const violation = await layoutTableLinearizationViolation(page);
+          expect(violation?.id).toBe("layout-table-linearization");
         },
       );
     },

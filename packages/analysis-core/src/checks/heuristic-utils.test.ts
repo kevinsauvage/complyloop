@@ -88,7 +88,9 @@ describe("heuristic-utils", () => {
 
     expect(
       styleLocksTextSpacing(
-        firstTag(`const A = () => <p style={{ lineHeight: "1.2 !important" }} />;`),
+        firstTag(
+          `const A = () => <p style={{ lineHeight: "1.2 !important" }} />;`,
+        ),
       ),
     ).toBe(true);
     expect(
@@ -140,7 +142,9 @@ describe("heuristic-utils", () => {
       elements.push(textContentOf(element).trim());
     });
     expect(elements.some((text) => text.includes("A"))).toBe(true);
-    expect(descendantTags(elementFor(parsed, "table")).length).toBeGreaterThan(1);
+    expect(descendantTags(elementFor(parsed, "table")).length).toBeGreaterThan(
+      1,
+    );
   });
 
   it("detects naming hosts and adjacent transcripts", () => {
@@ -154,9 +158,9 @@ describe("heuristic-utils", () => {
     });
     if (!img) throw new Error("expected img");
     expect(isInsideNamingHost(img)).toBe(true);
-    expect(isInsideNamingHost(firstTag(`const A = () => <img alt="" />;`))).toBe(
-      false,
-    );
+    expect(
+      isInsideNamingHost(firstTag(`const A = () => <img alt="" />;`)),
+    ).toBe(false);
 
     const adjacentSource = parseSource(
       "test.tsx",
@@ -246,7 +250,9 @@ describe("heuristic-utils", () => {
     );
     const element = jsxElementOf(video);
     if (!element) throw new Error("expected video element");
-    const trackChild = element.children.find((child) => tagNodeOfJsxChild(child));
+    const trackChild = element.children.find((child) =>
+      tagNodeOfJsxChild(child),
+    );
     expect(trackChild).toBeDefined();
     expect(tagNameOf(tagNodeOfJsxChild(trackChild!)!)).toBe("track");
     expect(tagNodeOfJsxChild(ts.factory.createJsxText("   "))).toBeUndefined();
@@ -255,12 +261,14 @@ describe("heuristic-utils", () => {
   it("assembles attribute context from tag, class, and id", () => {
     expect(
       attributeContextOf(
-        firstTag(`const A = () => <div className="g-recaptcha" id="bot-check" />;`),
+        firstTag(
+          `const A = () => <div className="g-recaptcha" id="bot-check" />;`,
+        ),
       ),
     ).toBe("div g-recaptcha bot-check");
-    expect(attributeContextOf(firstTag(`const A = () => <span class="plain" />;`))).toBe(
-      "span plain ",
-    );
+    expect(
+      attributeContextOf(firstTag(`const A = () => <span class="plain" />;`)),
+    ).toBe("span plain ");
     expect(attributeContextOf(firstTag(`const A = () => <ReCAPTCHA />;`))).toBe(
       "ReCAPTCHA  ",
     );
@@ -270,9 +278,9 @@ describe("heuristic-utils", () => {
     const metadata = firstTag(
       `const A = () => (<video><track kind="metadata" src="/m.vtt" /></video>);`,
     );
-    expect(hasChildTrackKind(metadata, new Set(["captions", "subtitles"]))).toBe(
-      false,
-    );
+    expect(
+      hasChildTrackKind(metadata, new Set(["captions", "subtitles"])),
+    ).toBe(false);
 
     const noKind = firstTag(
       `const A = () => (<video><track src="/m.vtt" /></video>);`,
@@ -439,16 +447,13 @@ describe("heuristic-utils", () => {
       if (!emptyVideo && node.tagName.getText() === "video") emptyVideo = node;
     });
     if (!emptyVideo) throw new Error("expected video");
-    expect(ariaDescribedByPointsToTranscript(emptyVideo, empty.sourceFile)).toBe(
-      false,
-    );
+    expect(
+      ariaDescribedByPointsToTranscript(emptyVideo, empty.sourceFile),
+    ).toBe(false);
   });
 });
 
-function elementFor(
-  parsed: ReturnType<typeof parseSource>,
-  tagName: string,
-) {
+function elementFor(parsed: ReturnType<typeof parseSource>, tagName: string) {
   let found: JsxTagNode | undefined;
   visitJsxTags(parsed.sourceFile, (node) => {
     if (!found && node.tagName.getText() === tagName) found = node;

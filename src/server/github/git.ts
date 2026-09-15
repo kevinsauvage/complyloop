@@ -1,9 +1,6 @@
 import "server-only";
 
-import simpleGit, {
-  type SimpleGit,
-  type SimpleGitOptions,
-} from "simple-git";
+import simpleGit, { type SimpleGit, type SimpleGitOptions } from "simple-git";
 
 /**
  * Env keys simple-git ≥3.36 treats as unsafe when inherited from the process
@@ -40,9 +37,7 @@ export function gitProcessEnv(
 }
 
 /** simple-git instance with a sanitized environment for non-interactive use. */
-export function createGit(
-  options: Partial<SimpleGitOptions> = {},
-): SimpleGit {
+export function createGit(options: Partial<SimpleGitOptions> = {}): SimpleGit {
   return simpleGit(options).env(gitProcessEnv());
 }
 

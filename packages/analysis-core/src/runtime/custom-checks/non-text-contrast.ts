@@ -55,7 +55,11 @@ export async function nonTextContrastViolation(
 
   const locators = page.locator(NON_TEXT_CONTRAST_CONTROL_SELECTOR);
   const hoverCount = Math.min(await locators.count(), MAX_HOVER);
-  for (let index = 0; index < hoverCount && hits.length < MAX_NODES; index += 1) {
+  for (
+    let index = 0;
+    index < hoverCount && hits.length < MAX_NODES;
+    index += 1
+  ) {
     const locator = locators.nth(index);
     if (!(await locator.isVisible())) continue;
     if (await locator.isDisabled()) continue;
@@ -67,13 +71,15 @@ export async function nonTextContrastViolation(
     const hoverHit = await collectHoverHit(locator);
     await page.mouse.move(0, 0);
     if (!hoverHit) continue;
-    if (hits.some(
-      (existing) =>
-        existing.id === hoverHit.id &&
-        existing.role === hoverHit.role &&
-        existing.tagName === hoverHit.tagName &&
-        existing.state === "hover",
-    )) {
+    if (
+      hits.some(
+        (existing) =>
+          existing.id === hoverHit.id &&
+          existing.role === hoverHit.role &&
+          existing.tagName === hoverHit.tagName &&
+          existing.state === "hover",
+      )
+    ) {
       continue;
     }
     hits.push(hoverHit);
@@ -100,7 +106,10 @@ export async function nonTextContrastViolation(
 async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
   return pageEvaluateWithHitCapture(
     page,
-    (captureHit, { parseRgbSrc, luminanceSrc, contrastSrc, controlSelector }) => {
+    (
+      captureHit,
+      { parseRgbSrc, luminanceSrc, contrastSrc, controlSelector },
+    ) => {
       const parseColor = new Function(
         "value",
         `${parseRgbSrc}; return parseRgb(value);`,
@@ -109,16 +118,16 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
         "a",
         "b",
         `${luminanceSrc}; ${contrastSrc}; return contrastRatio(a, b);`,
-      ) as (
-        a: [number, number, number],
-        b: [number, number, number],
-      ) => number;
+      ) as (a: [number, number, number], b: [number, number, number]) => number;
 
       function backgroundRgb(el: Element): [number, number, number] | null {
         let current: Element | null = el;
         while (current) {
           const bg = parseColor(getComputedStyle(current).backgroundColor);
-          if (bg && getComputedStyle(current).backgroundColor !== "rgba(0, 0, 0, 0)") {
+          if (
+            bg &&
+            getComputedStyle(current).backgroundColor !== "rgba(0, 0, 0, 0)"
+          ) {
             return bg;
           }
           current = current.parentElement;
@@ -186,16 +195,16 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
         "a",
         "b",
         `${luminanceSrc}; ${contrastSrc}; return contrastRatio(a, b);`,
-      ) as (
-        a: [number, number, number],
-        b: [number, number, number],
-      ) => number;
+      ) as (a: [number, number, number], b: [number, number, number]) => number;
 
       function backgroundRgb(node: Element): [number, number, number] | null {
         let current: Element | null = node;
         while (current) {
           const bg = parseColor(getComputedStyle(current).backgroundColor);
-          if (bg && getComputedStyle(current).backgroundColor !== "rgba(0, 0, 0, 0)") {
+          if (
+            bg &&
+            getComputedStyle(current).backgroundColor !== "rgba(0, 0, 0, 0)"
+          ) {
             return bg;
           }
           current = current.parentElement;

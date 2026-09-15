@@ -74,23 +74,23 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 
 ## Commands
 
-| Command                      | Purpose                                 |
-| ---------------------------- | --------------------------------------- |
-| `npm run dev`                | Dev server; assessments in-process      |
-| `npm run worker`             | Job worker (**required in production**) |
-| `npm run build`              | Production build                        |
-| `npm run lint`               | ESLint                                  |
-| `npm run typecheck`          | TypeScript strict                       |
-| `npm run test`               | Vitest                                  |
-| `npm run playwright:install` | Chromium for runtime audits             |
-| `npm run check -- [path]`    | Local a11y CI gate                      |
-| `npx complyloop-check`       | Same gate via `@complyloop/check` (not yet on npm — install from `./packages/check` after `build:check`) |
-| `npm run build:core`         | Compile `packages/analysis-core` → `dist` (npm publish only) |
-| `npm run build:check`        | Bundle the `@complyloop/check` CLI      |
-| `npm run db:generate` / `db:reset -- --confirm` / `db:studio` | Drizzle helpers |
-| `npm run test:coverage` / `test:e2e` / `e2e:seed` | Coverage gate; Playwright e2e |
-| `npm run ops:check` / `ops:backup` | Prod config sanity; `pg_dump` wrapper |
-| `npm run analyze`            | Turbopack bundle report                 |
+| Command                                                       | Purpose                                                                                                  |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                                                 | Dev server; assessments in-process                                                                       |
+| `npm run worker`                                              | Job worker (**required in production**)                                                                  |
+| `npm run build`                                               | Production build                                                                                         |
+| `npm run lint`                                                | ESLint                                                                                                   |
+| `npm run typecheck`                                           | TypeScript strict                                                                                        |
+| `npm run test`                                                | Vitest                                                                                                   |
+| `npm run playwright:install`                                  | Chromium for runtime audits                                                                              |
+| `npm run check -- [path]`                                     | Local a11y CI gate                                                                                       |
+| `npx complyloop-check`                                        | Same gate via `@complyloop/check` (not yet on npm — install from `./packages/check` after `build:check`) |
+| `npm run build:core`                                          | Compile `packages/analysis-core` → `dist` (npm publish only)                                             |
+| `npm run build:check`                                         | Bundle the `@complyloop/check` CLI                                                                       |
+| `npm run db:generate` / `db:reset -- --confirm` / `db:studio` | Drizzle helpers                                                                                          |
+| `npm run test:coverage` / `test:e2e` / `e2e:seed`             | Coverage gate; Playwright e2e                                                                            |
+| `npm run ops:check` / `ops:backup`                            | Prod config sanity; `pg_dump` wrapper                                                                    |
+| `npm run analyze`                                             | Turbopack bundle report                                                                                  |
 
 Definition of done: `npm run lint && npm run typecheck && npm run test && npm run build`
 

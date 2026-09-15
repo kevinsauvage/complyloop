@@ -22,13 +22,17 @@ async function main(): Promise<void> {
       required("GITHUB_WEBHOOK_SECRET"),
     );
   }
-  const missing = failures.filter((failure): failure is string => Boolean(failure));
+  const missing = failures.filter((failure): failure is string =>
+    Boolean(failure),
+  );
   if (missing.length > 0) throw new Error(missing.join(" "));
 
   const drizzle = await getDrizzle();
   await drizzle.execute(sql`SELECT 1`);
   const queuedJobs = await queuedAssessmentJobCount();
-  console.info(JSON.stringify({ status: "ok", queuedJobs, at: new Date().toISOString() }));
+  console.info(
+    JSON.stringify({ status: "ok", queuedJobs, at: new Date().toISOString() }),
+  );
 }
 
 main().catch((error: unknown) => {

@@ -31,9 +31,11 @@ export function remediationEvidenceDetail(options: {
   if (options.manual !== undefined) detail.manual = options.manual;
   if (options.note !== undefined) detail.note = options.note;
   if (options.engine !== undefined) detail.engine = options.engine;
-  if (options.approvalAction !== undefined) detail.approvalAction = options.approvalAction;
+  if (options.approvalAction !== undefined)
+    detail.approvalAction = options.approvalAction;
   if (options.fix !== undefined) detail.fix = options.fix;
-  if (options.determination !== undefined) detail.determination = options.determination;
+  if (options.determination !== undefined)
+    detail.determination = options.determination;
   if (options.method !== undefined) detail.method = options.method;
   return Object.keys(detail).length > 0 ? detail : undefined;
 }

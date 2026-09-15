@@ -1,6 +1,9 @@
 import "server-only";
 
-import type { OrgMembership, OrgRole } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  OrgMembership,
+  OrgRole,
+} from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
@@ -14,7 +17,9 @@ import {
 
 function assertCanAssignRole(actorRole: OrgRole, role: OrgRole): void {
   if (role === "owner") {
-    throw new PublicError("Cannot invite another owner; transfer is not supported.");
+    throw new PublicError(
+      "Cannot invite another owner; transfer is not supported.",
+    );
   }
   if (role === "admin" && actorRole !== "owner") {
     throw new PublicError("Only org owners can invite or assign admins.");
@@ -114,7 +119,9 @@ export function changeOrgMemberRole(
   const index = buildOrgMembershipIndex(db.memberships);
   const actorRole = roleInOrg(index, orgId, actorUserId);
   if (actorRole !== "owner" && actorRole !== "admin") {
-    throw new PublicError("Only org owners and admins can change member roles.");
+    throw new PublicError(
+      "Only org owners and admins can change member roles.",
+    );
   }
   assertCanAssignRole(actorRole, role);
   const target = membershipsForOrg(index, orgId).find(

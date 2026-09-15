@@ -70,9 +70,9 @@ describe("uniqueProjectName", () => {
 
 describe("assertAssessableRoot", () => {
   it("rejects missing paths and files", () => {
-    expect(() => assertAssessableRoot("/tmp/does-not-exist-complyloop")).toThrow(
-      /does not exist/,
-    );
+    expect(() =>
+      assertAssessableRoot("/tmp/does-not-exist-complyloop"),
+    ).toThrow(/does not exist/);
     const file = path.join(os.tmpdir(), `complyloop-file-${Date.now()}`);
     fs.writeFileSync(file, "x");
     tempDirs.push(file);

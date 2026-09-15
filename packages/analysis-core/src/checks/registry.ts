@@ -65,7 +65,8 @@ import {
   tableSummaryCheck,
 } from "./families/structure.ts";
 
-export const allChecks: AccessibilityCheck[] = [  buttonNameCheck,
+export const allChecks: AccessibilityCheck[] = [
+  buttonNameCheck,
   headingOrderCheck,
   inputLabelCheck,
   autoplayMediaCheck,

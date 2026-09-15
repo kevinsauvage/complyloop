@@ -14,7 +14,8 @@ describe("focusCustomViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "focus-visible flags a control whose appearance does not change on focus",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><style>
           button:focus, button:focus-visible {
             outline: none;
@@ -25,19 +26,19 @@ describe("focusCustomViolations", () => {
         </body></html>
       `,
         async (page) => {
-        const violations = await focusCustomViolations(page);
-        const focusVisible = violations.find((v) => v.id === "focus-visible");
-        expect(focusVisible).toBeDefined();
-        const node = focusVisible!.nodes[0]!;
-        expect({
-          target: node.target,
-          elementLabel: node.elementLabel,
-          html: node.html,
-        }).toEqual({
-          target: ["#go"],
-          elementLabel: 'button “Go”',
-          html: '<button id="go">Go</button>',
-        });
+          const violations = await focusCustomViolations(page);
+          const focusVisible = violations.find((v) => v.id === "focus-visible");
+          expect(focusVisible).toBeDefined();
+          const node = focusVisible!.nodes[0]!;
+          expect({
+            target: node.target,
+            elementLabel: node.elementLabel,
+            html: node.html,
+          }).toEqual({
+            target: ["#go"],
+            elementLabel: "button “Go”",
+            html: '<button id="go">Go</button>',
+          });
         },
       );
     },
@@ -47,7 +48,8 @@ describe("focusCustomViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "focus-visible accepts a border change as the indicator",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><style>
           button {
             outline: none;
@@ -62,10 +64,8 @@ describe("focusCustomViolations", () => {
         </body></html>
       `,
         async (page) => {
-        const violations = await focusCustomViolations(page);
-        expect(violations.some((v) => v.id === "focus-visible")).toBe(
-          false,
-        );
+          const violations = await focusCustomViolations(page);
+          expect(violations.some((v) => v.id === "focus-visible")).toBe(false);
         },
       );
     },
@@ -75,7 +75,8 @@ describe("focusCustomViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "focus-visible flags a persistent shadow that is not a focus indicator",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><style>
           button, button:focus, button:focus-visible {
             outline: none;
@@ -86,10 +87,8 @@ describe("focusCustomViolations", () => {
         </body></html>
       `,
         async (page) => {
-        const violations = await focusCustomViolations(page);
-        expect(violations.some((v) => v.id === "focus-visible")).toBe(
-          true,
-        );
+          const violations = await focusCustomViolations(page);
+          expect(violations.some((v) => v.id === "focus-visible")).toBe(true);
         },
       );
     },

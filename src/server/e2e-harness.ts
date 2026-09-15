@@ -3,7 +3,11 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 
-import { e2eAuthEnabled, e2eFixtureRoot, e2eProdHarnessAcknowledged } from "./env";
+import {
+  e2eAuthEnabled,
+  e2eFixtureRoot,
+  e2eProdHarnessAcknowledged,
+} from "./env";
 
 /**
  * True when the Playwright e2e harness env is explicitly enabled. Key names
@@ -19,10 +23,7 @@ import { e2eAuthEnabled, e2eFixtureRoot, e2eProdHarnessAcknowledged } from "./en
  */
 export function isE2EHarnessEnabled(): boolean {
   if (!e2eAuthEnabled()) return false;
-  if (
-    process.env.NODE_ENV === "production" &&
-    !e2eProdHarnessAcknowledged()
-  ) {
+  if (process.env.NODE_ENV === "production" && !e2eProdHarnessAcknowledged()) {
     throw new Error(
       "E2E_AUTH_ENABLED=1 is set in production without E2E_PROD_HARNESS=1. " +
         "Unset E2E_AUTH_ENABLED — the harness swaps real GitHub checkouts for a " +

@@ -199,7 +199,9 @@ export async function refreshGitHubToken({
   });
 
   if (!response.ok) {
-    throw new Error(`GitHub token refresh failed with status ${response.status}`);
+    throw new Error(
+      `GitHub token refresh failed with status ${response.status}`,
+    );
   }
 
   const data = (await response.json()) as {

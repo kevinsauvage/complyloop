@@ -6,7 +6,9 @@ import { rgaaPresets } from "./presets";
 
 describe("rgaa presets", () => {
   it("exposes a single catalog target because RGAA has no A/AA/AAA levels", () => {
-    expect(rgaaPresets.map((preset) => preset.id)).toEqual(["preset-rgaa-full"]);
+    expect(rgaaPresets.map((preset) => preset.id)).toEqual([
+      "preset-rgaa-full",
+    ]);
     expect(rgaaPresets).toHaveLength(1);
     const [full] = rgaaPresets;
     expect(full?.frameworkId).toBe(rgaaFramework.id);

@@ -45,7 +45,9 @@ export async function filterStalePayloadWrites<
 }
 
 /** Timestamps now — call before persisting so every write bumps `updatedAt`. */
-export function stampedNow<T extends object>(item: T): T & { updatedAt: string } {
+export function stampedNow<T extends object>(
+  item: T,
+): T & { updatedAt: string } {
   return { ...item, updatedAt: new Date().toISOString() };
 }
 
@@ -55,10 +57,15 @@ export function stampedNow<T extends object>(item: T): T & { updatedAt: string }
  * surviving rows to `write` for the table-specific insert + conflict clause.
  * No-op when there is nothing to write.
  */
-export async function upsertPayloadRows<T extends { id: string; updatedAt?: string }, Row>(
+export async function upsertPayloadRows<
+  T extends { id: string; updatedAt?: string },
+  Row,
+>(
   items: readonly T[],
   loadedUpdatedAtById: ReadonlyMap<string, string> | undefined,
-  fetchDbUpdatedAtById: (ids: readonly string[]) => Promise<ReadonlyMap<string, string | undefined>>,
+  fetchDbUpdatedAtById: (
+    ids: readonly string[],
+  ) => Promise<ReadonlyMap<string, string | undefined>>,
   toRow: (item: T) => Row,
   write: (rows: Row[]) => Promise<void>,
 ): Promise<void> {

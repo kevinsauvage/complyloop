@@ -29,12 +29,14 @@ export function octokitErrorMessage(error: unknown, fallback: string): string {
   ) {
     const status = (error as { status: number }).status;
     const message =
-      "message" in error && typeof (error as { message: unknown }).message === "string"
+      "message" in error &&
+      typeof (error as { message: unknown }).message === "string"
         ? (error as { message: string }).message
         : fallback;
     return `${fallback} (${status}): ${message.slice(0, 300)}`;
   }
-  if (error instanceof Error) return `${fallback}: ${error.message.slice(0, 300)}`;
+  if (error instanceof Error)
+    return `${fallback}: ${error.message.slice(0, 300)}`;
   return fallback;
 }
 
@@ -88,7 +90,10 @@ export function parseOwnerRepo(fullName: string): {
 } {
   const [owner, repo] = fullName.split("/");
   if (!owner || !repo) {
-    throw new PublicError(`Invalid repository full name: ${fullName}`, "connect");
+    throw new PublicError(
+      `Invalid repository full name: ${fullName}`,
+      "connect",
+    );
   }
   return { owner, repo };
 }

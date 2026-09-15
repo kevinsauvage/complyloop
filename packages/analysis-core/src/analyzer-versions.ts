@@ -2,9 +2,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 
-function versionFromPackageJson(
-  pkgJsonPath: string,
-): string | undefined {
+function versionFromPackageJson(pkgJsonPath: string): string | undefined {
   try {
     const version = require(pkgJsonPath).version as string;
     return version.length > 0 ? version : undefined;

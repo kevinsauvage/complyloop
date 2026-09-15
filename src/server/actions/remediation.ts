@@ -148,9 +148,16 @@ function dismissEntriesInWrite(
   const findings: Finding[] = [];
   for (const entry of entries) {
     findings.push(
-      dismissFindingInRows(rows, entry.finding, entry.reason, entry.note, options.at, {
-        bulk: options.bulk,
-      }),
+      dismissFindingInRows(
+        rows,
+        entry.finding,
+        entry.reason,
+        entry.note,
+        options.at,
+        {
+          bulk: options.bulk,
+        },
+      ),
     );
     controlIds.add(entry.finding.controlId);
   }
@@ -170,7 +177,8 @@ function dismissEntriesInWrite(
   };
 }
 
-export async function approveRemediationAction(  findingIdRaw: string,
+export async function approveRemediationAction(
+  findingIdRaw: string,
   _previous: ActionState,
   _formData: FormData,
 ): Promise<ActionState> {

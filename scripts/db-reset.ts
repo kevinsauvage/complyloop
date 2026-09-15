@@ -43,7 +43,9 @@ async function main(): Promise<void> {
 
   console.log("Schema dropped. Applying migrations…");
   await applyPendingMigrations(url);
-  console.log("Database reset complete. Sign out, clear site cookies, sign in again.");
+  console.log(
+    "Database reset complete. Sign out, clear site cookies, sign in again.",
+  );
 }
 
 main().catch((error) => {

@@ -112,7 +112,10 @@ describe("dir-change", () => {
   it("accepts RTL text inside dir=rtl", () => {
     expect(
       dirChangeCheck.run(
-        parseSource("test.tsx", `const A = () => <p dir="rtl">שלום</p><p>Hello</p>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <p dir="rtl">שלום</p><p>Hello</p>;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -177,7 +180,10 @@ describe("meta-viewport", () => {
   it("flags user-scalable=0 and user-scalable=false", () => {
     expect(
       metaViewportCheck.run(
-        parseSource("test.tsx", `const H = () => <meta name="viewport" content="user-scalable=0" />;`),
+        parseSource(
+          "test.tsx",
+          `const H = () => <meta name="viewport" content="user-scalable=0" />;`,
+        ),
       ),
     ).toHaveLength(1);
     expect(
@@ -193,7 +199,10 @@ describe("meta-viewport", () => {
   it("flags maximum-scale below 2", () => {
     expect(
       metaViewportCheck.run(
-        parseSource("test.tsx", `const H = () => <meta name="viewport" content="maximum-scale=1" />;`),
+        parseSource(
+          "test.tsx",
+          `const H = () => <meta name="viewport" content="maximum-scale=1" />;`,
+        ),
       ),
     ).toHaveLength(1);
     expect(
@@ -217,7 +226,10 @@ describe("meta-viewport", () => {
     ).toHaveLength(0);
     expect(
       metaViewportCheck.run(
-        parseSource("test.tsx", `const H = () => <meta name="viewport" content="maximum-scale=2" />;`),
+        parseSource(
+          "test.tsx",
+          `const H = () => <meta name="viewport" content="maximum-scale=2" />;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -225,15 +237,23 @@ describe("meta-viewport", () => {
   it("ignores non-viewport meta, missing content, and dynamic content", () => {
     expect(
       metaViewportCheck.run(
-        parseSource("test.tsx", `const H = () => <meta name="description" content="x" />;`),
+        parseSource(
+          "test.tsx",
+          `const H = () => <meta name="description" content="x" />;`,
+        ),
       ),
     ).toHaveLength(0);
     expect(
-      metaViewportCheck.run(parseSource("test.tsx", `const H = () => <meta name="viewport" />;`)),
+      metaViewportCheck.run(
+        parseSource("test.tsx", `const H = () => <meta name="viewport" />;`),
+      ),
     ).toHaveLength(0);
     expect(
       metaViewportCheck.run(
-        parseSource("test.tsx", `const H = () => <meta name="viewport" content={content} />;`),
+        parseSource(
+          "test.tsx",
+          `const H = () => <meta name="viewport" content={content} />;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -267,7 +287,10 @@ describe("both-colors", () => {
   it("warns when inline style sets color without background", () => {
     expect(
       bothColorsCheck.run(
-        parseSource("test.tsx", `const A = () => <p style={{ color: "red" }}>Hi</p>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <p style={{ color: "red" }}>Hi</p>;`,
+        ),
       ),
     ).toHaveLength(1);
   });
@@ -284,19 +307,12 @@ describe("both-colors", () => {
   });
 });
 
-const ASCII_ART = [
-  "+-----+",
-  "| hi  |",
-  "+-----+",
-].join("\n");
+const ASCII_ART = ["+-----+", "| hi  |", "+-----+"].join("\n");
 
 describe("cryptic-content-alt", () => {
   it("flags ASCII art pre blocks without alternatives", () => {
     const findings = crypticContentAltCheck.run(
-      parseSource(
-        "test.tsx",
-        `const A = () => (<pre>${ASCII_ART}</pre>);`,
-      ),
+      parseSource("test.tsx", `const A = () => (<pre>${ASCII_ART}</pre>);`),
     );
     expect(findings.some((finding) => finding.kind === "violation")).toBe(true);
   });
@@ -324,7 +340,10 @@ describe("cryptic-content-alt", () => {
 describe("link-explicit-heuristic", () => {
   it("warns on vague link text", () => {
     const findings = linkExplicitHeuristicCheck.run(
-      parseSource("test.tsx", `const A = () => <a href="/report">Click here</a>;`),
+      parseSource(
+        "test.tsx",
+        `const A = () => <a href="/report">Click here</a>;`,
+      ),
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]?.kind).toBe("warning");
@@ -332,7 +351,10 @@ describe("link-explicit-heuristic", () => {
 
   it("warns on learn more link text", () => {
     const findings = linkExplicitHeuristicCheck.run(
-      parseSource("test.tsx", `const A = () => <a href="/report">Learn more</a>;`),
+      parseSource(
+        "test.tsx",
+        `const A = () => <a href="/report">Learn more</a>;`,
+      ),
     );
     expect(findings).toHaveLength(1);
   });
@@ -362,20 +384,27 @@ describe("link-explicit-heuristic", () => {
 describe("status-live helpers", () => {
   it("warns on bare Toaster without live region or role", () => {
     expect(
-      statusLiveCheck.run(parseSource("test.tsx", `const A = () => <Toaster />;`)),
+      statusLiveCheck.run(
+        parseSource("test.tsx", `const A = () => <Toaster />;`),
+      ),
     ).toHaveLength(1);
   });
 
   it("warns on bare Sonner without live region or role", () => {
     expect(
-      statusLiveCheck.run(parseSource("test.tsx", `const A = () => <Sonner />;`)),
+      statusLiveCheck.run(
+        parseSource("test.tsx", `const A = () => <Sonner />;`),
+      ),
     ).toHaveLength(1);
   });
 
   it("accepts Toaster with aria-live", () => {
     expect(
       statusLiveCheck.run(
-        parseSource("test.tsx", `const A = () => <Toaster aria-live="polite" />;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <Toaster aria-live="polite" />;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -410,7 +439,8 @@ describe("status-live helpers", () => {
     ).toHaveLength(0);
   });
 
-  it("accepts invalid field described by a live region among several ids", () => {    expect(
+  it("accepts invalid field described by a live region among several ids", () => {
+    expect(
       statusLiveCheck.run(
         parseSource(
           "test.tsx",
@@ -554,7 +584,10 @@ describe("new-window-onload edge cases", () => {
   it("ignores links without target=_blank", () => {
     expect(
       newWindowOnloadCheck.run(
-        parseSource("test.tsx", `const A = () => <a href="/about">About us</a>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <a href="/about">About us</a>;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -563,14 +596,19 @@ describe("new-window-onload edge cases", () => {
 describe("dir-change edge cases", () => {
   it("ignores an LTR-only file", () => {
     expect(
-      dirChangeCheck.run(parseSource("test.tsx", `const A = () => <p>Hello world</p>;`)),
+      dirChangeCheck.run(
+        parseSource("test.tsx", `const A = () => <p>Hello world</p>;`),
+      ),
     ).toHaveLength(0);
   });
 
   it("ignores dir with a non-rtl/ltr value in a mixed file", () => {
     expect(
       dirChangeCheck.run(
-        parseSource("test.tsx", `const A = () => <div dir="auto">Hello שלום</div>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <div dir="auto">Hello שלום</div>;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -642,7 +680,10 @@ describe("lang-change edge cases", () => {
   it("accepts plain English text on an English page", () => {
     expect(
       langChangeCheck.run(
-        parseSource("test.tsx", `const A = () => (<html lang="en"><p>Hello world</p></html>);`),
+        parseSource(
+          "test.tsx",
+          `const A = () => (<html lang="en"><p>Hello world</p></html>);`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -651,7 +692,9 @@ describe("lang-change edge cases", () => {
 describe("meta-viewport edge cases", () => {
   it("ignores non-meta elements", () => {
     expect(
-      metaViewportCheck.run(parseSource("test.tsx", `const H = () => <div />;`)),
+      metaViewportCheck.run(
+        parseSource("test.tsx", `const H = () => <div />;`),
+      ),
     ).toHaveLength(0);
   });
 });
@@ -659,7 +702,9 @@ describe("meta-viewport edge cases", () => {
 describe("both-colors edge cases", () => {
   it("ignores elements without inline style", () => {
     expect(
-      bothColorsCheck.run(parseSource("test.tsx", `const A = () => <p>Hi</p>;`)),
+      bothColorsCheck.run(
+        parseSource("test.tsx", `const A = () => <p>Hi</p>;`),
+      ),
     ).toHaveLength(0);
   });
 
@@ -674,7 +719,10 @@ describe("both-colors edge cases", () => {
   it("warns on spread style with only color", () => {
     expect(
       bothColorsCheck.run(
-        parseSource("test.tsx", `const A = () => <p style={{ ...base, color: "red" }}>Hi</p>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <p style={{ ...base, color: "red" }}>Hi</p>;`,
+        ),
       ),
     ).toHaveLength(1);
   });
@@ -702,20 +750,27 @@ describe("cryptic-content-alt edge cases", () => {
 
   it("ignores emoticon text in a fragment without a host", () => {
     expect(
-      crypticContentAltCheck.run(parseSource("test.tsx", `const A = () => <>:-)</>;`)),
+      crypticContentAltCheck.run(
+        parseSource("test.tsx", `const A = () => <>:-)</>;`),
+      ),
     ).toHaveLength(0);
   });
 
   it("ignores self-closing spans", () => {
     expect(
-      crypticContentAltCheck.run(parseSource("test.tsx", `const A = () => <span />;`)),
+      crypticContentAltCheck.run(
+        parseSource("test.tsx", `const A = () => <span />;`),
+      ),
     ).toHaveLength(0);
   });
 
   it("accepts emoticon spans with an accessible name", () => {
     expect(
       crypticContentAltCheck.run(
-        parseSource("test.tsx", `const A = () => <span aria-label="smile">:-)</span>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <span aria-label="smile">:-)</span>;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -748,7 +803,10 @@ describe("link-explicit-heuristic edge cases", () => {
   it("ignores spreading links even with vague text", () => {
     expect(
       linkExplicitHeuristicCheck.run(
-        parseSource("test.tsx", `const A = () => <a href="/report" {...props}>Click here</a>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <a href="/report" {...props}>Click here</a>;`,
+        ),
       ),
     ).toHaveLength(0);
   });

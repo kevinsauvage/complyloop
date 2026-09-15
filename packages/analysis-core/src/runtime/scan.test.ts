@@ -1,6 +1,6 @@
 import fs from "node:fs";
 
-import { type Browser,chromium } from "playwright";
+import { type Browser, chromium } from "playwright";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
 import type { RawFinding } from "../types";
@@ -159,16 +159,19 @@ describe("runtime engine isolation", () => {
         let htmlValidateFindings: unknown[] = [];
         let pageHtmlValidateRan = false;
         try {
-          htmlValidateFindings = await htmlValidateRuntime.htmlValidateFindingsForPage(
-            page,
-            "https://app.example/",
-          );
+          htmlValidateFindings =
+            await htmlValidateRuntime.htmlValidateFindingsForPage(
+              page,
+              "https://app.example/",
+            );
           pageHtmlValidateRan = true;
         } catch {
           // Non-fatal in scan.ts
         }
 
-        expect(axeResults.violations.some((v) => v.id === "image-alt")).toBe(true);
+        expect(axeResults.violations.some((v) => v.id === "image-alt")).toBe(
+          true,
+        );
         expect(pageHtmlValidateRan).toBe(false);
         expect(htmlValidateFindings).toEqual([]);
       } finally {
@@ -210,7 +213,7 @@ describe("runtimeViolationStillPresent", () => {
       // Literal public IP: passes the SSRF hostname check and skips DNS in tests.
       url: "https://8.8.8.8/checkout",
       selector: "#total",
-      snippet: "<button id=\"total\">Total</button>",
+      snippet: '<button id="total">Total</button>',
     },
   };
 
@@ -257,34 +260,28 @@ describe("runtimeViolationStillPresent", () => {
 
   it("returns false when the violating node is gone from a cleanly loaded page", async () => {
     await expect(
-      runtimeViolationStillPresent(
-        domFinding,
-        async () => [
-          {
-            url: "https://8.8.8.8/checkout",
-            violations: [],
-            customFindings: [],
-            loadedCleanly: true,
-          },
-        ],
-      ),
+      runtimeViolationStillPresent(domFinding, async () => [
+        {
+          url: "https://8.8.8.8/checkout",
+          violations: [],
+          customFindings: [],
+          loadedCleanly: true,
+        },
+      ]),
     ).resolves.toBe(false);
   });
 
   it("fails closed when the loaded URL is not the audited page", async () => {
     await expect(
-      runtimeViolationStillPresent(
-        domFinding,
-        async () => [
-          {
-            url: "https://8.8.8.8/login",
-            violations: [],
-            customFindings: [],
-            loadedCleanly: true,
-            finalUrl: "https://8.8.8.8/login",
-          },
-        ],
-      ),
+      runtimeViolationStillPresent(domFinding, async () => [
+        {
+          url: "https://8.8.8.8/login",
+          violations: [],
+          customFindings: [],
+          loadedCleanly: true,
+          finalUrl: "https://8.8.8.8/login",
+        },
+      ]),
     ).resolves.toBe(true);
   });
 

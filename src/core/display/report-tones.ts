@@ -7,12 +7,7 @@ import { mustGet } from "./must-get";
  */
 
 export type StatusTone =
-  | "passed"
-  | "failed"
-  | "review"
-  | "na"
-  | "unverifiable"
-  | "signal";
+  "passed" | "failed" | "review" | "na" | "unverifiable" | "signal";
 
 export type BadgeVariant = "secondary" | "outline" | undefined;
 

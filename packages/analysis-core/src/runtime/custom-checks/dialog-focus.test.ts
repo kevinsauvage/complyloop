@@ -14,7 +14,8 @@ describe("dialogFocusViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags a modal that does not move focus in",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <button id="open" data-open="d">Open</button>
           <div id="d" role="dialog" aria-modal="true" data-trigger="#open">
@@ -23,11 +24,9 @@ describe("dialogFocusViolations", () => {
         </body></html>
       `,
         async (page) => {
-        await page.focus("#open");
-        const violations = await dialogFocusViolations(page);
-        expect(violations.some((v) => v.id === "dialog-keyboard")).toBe(
-          true,
-        );
+          await page.focus("#open");
+          const violations = await dialogFocusViolations(page);
+          expect(violations.some((v) => v.id === "dialog-keyboard")).toBe(true);
         },
       );
     },

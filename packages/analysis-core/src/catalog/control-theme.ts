@@ -80,7 +80,9 @@ export function groupControlsByTheme(
   for (const control of controls) {
     const { code } = controlDisplayCodes(control, frameworkId);
     const criterion = criterionNumber(code);
-    const theme = catalog.find((candidate) => candidate.criterion === criterion);
+    const theme = catalog.find(
+      (candidate) => candidate.criterion === criterion,
+    );
     if (theme) {
       buckets.get(theme.id)?.push(control);
     } else {

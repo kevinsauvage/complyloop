@@ -33,7 +33,8 @@ export const motionActuationCheck: AccessibilityCheck = {
         kind: "warning",
         severity: "moderate",
         confidence: "low",
-        reason: "Uses a device motion or orientation sensor (deviceorientation/devicemotion). Provide a non-motion alternative (button or keyboard) so users who cannot perform the motion can still act (WCAG 2.5.4).",
+        reason:
+          "Uses a device motion or orientation sensor (deviceorientation/devicemotion). Provide a non-motion alternative (button or keyboard) so users who cannot perform the motion can still act (WCAG 2.5.4).",
         location: locationOf(source, call),
         fix: null,
       });
@@ -52,8 +53,7 @@ const CAROUSEL_TAGS = new Set([
   "Flickity",
 ]);
 const NONE_VALUES = new Set(["none", "unset", "initial", "inherit"]);
-const INFINITE_TAILWIND =
-  /\banimate-(?:spin|pulse|bounce|ping)(?:\b|\[|\/)/i;
+const INFINITE_TAILWIND = /\banimate-(?:spin|pulse|bounce|ping)(?:\b|\[|\/)/i;
 const ENTRANCE_MOTION =
   /\banimate-(?:in|out)\b|\b(?:fade|slide|zoom)-(?:in|out)\b/i;
 const PAUSE_LABEL = /\b(?:pause|stop|hide)\b/i;
@@ -87,7 +87,11 @@ function styleHasInfiniteAnimation(node: JsxTagNode): boolean {
   for (const prop of expression.properties) {
     if (!ts.isPropertyAssignment(prop)) continue;
     const name = prop.name.getText();
-    const text = prop.initializer.getText().replace(/['"`]/g, "").trim().toLowerCase();
+    const text = prop.initializer
+      .getText()
+      .replace(/['"`]/g, "")
+      .trim()
+      .toLowerCase();
 
     if (name === "animation") {
       if (NONE_VALUES.has(text) || text === "none") continue;
@@ -127,8 +131,7 @@ function isCarouselHost(node: JsxTagNode): boolean {
 }
 
 function autoplayState(node: JsxTagNode): "true" | "false" | "unknown" {
-  const attr =
-    getAttribute(node, "autoplay") ?? getAttribute(node, "autoPlay");
+  const attr = getAttribute(node, "autoplay") ?? getAttribute(node, "autoPlay");
   if (!attr) return "unknown";
   const value = booleanAttributeValue(attr);
   if (value === true) return "true";
@@ -209,7 +212,10 @@ function carouselLikelyAutoAdvances(node: JsxTagNode): boolean {
   if (interval) {
     const intervalText = stringValueOf(interval);
     if (intervalText === "0") return false;
-    if (intervalText !== undefined || booleanAttributeValue(interval) !== false) {
+    if (
+      intervalText !== undefined ||
+      booleanAttributeValue(interval) !== false
+    ) {
       return true;
     }
   }
@@ -276,7 +282,9 @@ const REFRESH_KEYWORDS = [
 
 function isTimerCallee(expression: ts.Expression): boolean {
   if (ts.isIdentifier(expression)) {
-    return expression.text === "setTimeout" || expression.text === "setInterval";
+    return (
+      expression.text === "setTimeout" || expression.text === "setInterval"
+    );
   }
   if (ts.isPropertyAccessExpression(expression)) {
     const name = expression.name.text;
@@ -353,7 +361,9 @@ export const draggingCheck: AccessibilityCheck = {
   },
 };
 
-function stringValueIsTrue(attr: NonNullable<ReturnType<typeof getAttribute>>): boolean {
+function stringValueIsTrue(
+  attr: NonNullable<ReturnType<typeof getAttribute>>,
+): boolean {
   const text = attr.initializer?.getText().replace(/['"]/g, "");
   return text === "true";
 }

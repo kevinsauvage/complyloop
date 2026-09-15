@@ -9,18 +9,20 @@ import {
   isPackageTwinSourceCheck,
   isRuntimeOnlyCheck,
 } from "./check-authority";
-import { CHECK_REGISTRY, type CheckId, type CheckRegistration } from "./check-registry";
+import {
+  CHECK_REGISTRY,
+  type CheckId,
+  type CheckRegistration,
+} from "./check-registry";
 
-const RUNTIME_ONLY_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY
-  .filter(
-    (entry: CheckRegistration) =>
-      entry.authority === "runtime_only" || entry.runtimeOnly,
-  )
-  .map((entry: CheckRegistration) => entry.id as CheckId);
+const RUNTIME_ONLY_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY.filter(
+  (entry: CheckRegistration) =>
+    entry.authority === "runtime_only" || entry.runtimeOnly,
+).map((entry: CheckRegistration) => entry.id as CheckId);
 
-const HEURISTIC_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY
-  .filter((entry: CheckRegistration) => entry.authority === "heuristic")
-  .map((entry: CheckRegistration) => entry.id as CheckId);
+const HEURISTIC_CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY.filter(
+  (entry: CheckRegistration) => entry.authority === "heuristic",
+).map((entry: CheckRegistration) => entry.id as CheckId);
 
 const COMPOSITION_SENSITIVE = [
   "input-label",
@@ -36,9 +38,7 @@ const COMPOSITION_SENSITIVE = [
 
 /** Runtime findings for these ids stay open when axe did not run. */
 function keepsRuntimeFindingsOpen(checkId: string): boolean {
-  return (
-    isCompositionSensitiveCheck(checkId) || isRuntimeOnlyCheck(checkId)
-  );
+  return isCompositionSensitiveCheck(checkId) || isRuntimeOnlyCheck(checkId);
 }
 
 describe("check authority", () => {

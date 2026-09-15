@@ -14,7 +14,8 @@ describe("textSpacingRuntimeViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags text clipped when WCAG text-spacing overrides are applied",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><style>
           .clip {
             width: 120px;
@@ -27,8 +28,8 @@ describe("textSpacingRuntimeViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await textSpacingRuntimeViolation(page);
-        expect(violation?.id).toBe("text-spacing-runtime");
+          const violation = await textSpacingRuntimeViolation(page);
+          expect(violation?.id).toBe("text-spacing-runtime");
         },
       );
     },
@@ -38,14 +39,15 @@ describe("textSpacingRuntimeViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when text can expand without clipping",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <p>Texte qui peut s'étendre sans être masqué.</p>
         </body></html>
       `,
         async (page) => {
-        const violation = await textSpacingRuntimeViolation(page);
-        expect(violation).toBeNull();
+          const violation = await textSpacingRuntimeViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },

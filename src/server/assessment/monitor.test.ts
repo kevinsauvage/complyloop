@@ -10,7 +10,10 @@ let rootPath: string;
 
 beforeEach(() => {
   rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "monitor-test-"));
-  fs.writeFileSync(path.join(rootPath, "A.tsx"), "export const A = () => <div />;\n");
+  fs.writeFileSync(
+    path.join(rootPath, "A.tsx"),
+    "export const A = () => <div />;\n",
+  );
 });
 
 afterEach(() => {
@@ -30,7 +33,10 @@ describe("detectChanges", () => {
       path.join(rootPath, "A.tsx"),
       "export const A = () => <img src='/x' />;\n",
     );
-    fs.writeFileSync(path.join(rootPath, "B.tsx"), "export const B = () => null;\n");
+    fs.writeFileSync(
+      path.join(rootPath, "B.tsx"),
+      "export const B = () => null;\n",
+    );
     const { changes } = detectChanges(rootPath, previous);
     const paths = changes.map((change) => change.filePath).sort();
     expect(paths).toEqual(["A.tsx", "B.tsx"]);

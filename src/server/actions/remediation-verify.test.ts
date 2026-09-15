@@ -45,9 +45,9 @@ vi.mock("../observability", () => ({
 }));
 
 vi.mock("../assessment/assessment-findings", async () => {
-  const actual = await vi.importActual<typeof import("../assessment/assessment-findings")>(
-    "../assessment/assessment-findings",
-  );
+  const actual = await vi.importActual<
+    typeof import("../assessment/assessment-findings")
+  >("../assessment/assessment-findings");
   return {
     ...actual,
     buildSuggestion: vi.fn(() => null),
@@ -58,12 +58,13 @@ vi.mock("../assessment/assessment-findings", async () => {
 });
 
 vi.mock("../assessment/assessment-status", async () => {
-  const actual = await vi.importActual<typeof import("../assessment/assessment-status")>(
-    "../assessment/assessment-status",
-  );
+  const actual = await vi.importActual<
+    typeof import("../assessment/assessment-status")
+  >("../assessment/assessment-status");
   return {
     ...actual,
-    applyRequirementStatusRefresh: (...args: unknown[]) => applyRequirementStatusRefresh(...args),
+    applyRequirementStatusRefresh: (...args: unknown[]) =>
+      applyRequirementStatusRefresh(...args),
   };
 });
 
@@ -83,11 +84,9 @@ function baseWorkspace(overrides: Partial<WorkspaceSlice> = {}): Workspace {
     userId: "user-1",
     project,
     findings: findings ?? [finding],
-    remediations:
-      remediations ??
-      [
-        testRemediation({ status: "implemented", suggestion: null, history: [] }),
-      ],
+    remediations: remediations ?? [
+      testRemediation({ status: "implemented", suggestion: null, history: [] }),
+    ],
     db: {
       requirements: [],
       alerts: [],
@@ -112,7 +111,9 @@ describe("verifyRemediationAction", () => {
       new FormData(),
     );
 
-    expect((result.ok ? null : result.message)).toMatch(/draft pull request|re-assess/i);
+    expect(result.ok ? null : result.message).toMatch(
+      /draft pull request|re-assess/i,
+    );
     expect(projectWritePayload()).toBeUndefined();
     expect(locateViolationInProject).not.toHaveBeenCalled();
   });
@@ -131,7 +132,7 @@ describe("verifyRemediationAction", () => {
       new FormData(),
     );
 
-    expect((result.ok ? null : result.message)).toMatch(/implemented/);
+    expect(result.ok ? null : result.message).toMatch(/implemented/);
     expect(projectWritePayload()).toBeUndefined();
   });
 
@@ -147,7 +148,11 @@ describe("verifyRemediationAction", () => {
     const preview = baseWorkspace({
       findings: [domFinding],
       remediations: [
-        testRemediation({ status: "implemented", suggestion: null, history: [] }),
+        testRemediation({
+          status: "implemented",
+          suggestion: null,
+          history: [],
+        }),
       ],
     });
     const locked = baseWorkspace({
@@ -166,7 +171,7 @@ describe("verifyRemediationAction", () => {
       new FormData(),
     );
 
-    expect((result.ok ? null : result.message)).toMatch(/implemented/);
+    expect(result.ok ? null : result.message).toMatch(/implemented/);
     expect(projectWritePayload()).toBeUndefined();
   });
 
@@ -281,8 +286,10 @@ describe("verifyRemediationAction", () => {
     );
 
     expect(result.message).toMatch(/Site checks did not run/i);
-    expect((result.ok ? null : result.message)).toBeNull();
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("implemented");
+    expect(result.ok ? null : result.message).toBeNull();
+    expect(projectWritePayload()?.remediations?.[0]?.status).toBe(
+      "implemented",
+    );
   });
 
   it("reports still-failing when the runtime finding is still on the page", async () => {
@@ -309,8 +316,10 @@ describe("verifyRemediationAction", () => {
     );
 
     expect(result.message).toMatch(/still failing|still detected/i);
-    expect((result.ok ? null : result.message)).toBeNull();
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("implemented");
+    expect(result.ok ? null : result.message).toBeNull();
+    expect(projectWritePayload()?.remediations?.[0]?.status).toBe(
+      "implemented",
+    );
   });
 });
 
@@ -338,7 +347,9 @@ describe("markRemediationImplementedAction", () => {
     );
 
     expect(result.message).toMatch(/implemented/i);
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("implemented");
+    expect(projectWritePayload()?.remediations?.[0]?.status).toBe(
+      "implemented",
+    );
   });
 
   it("rejects a remediation that is not approved", async () => {
@@ -355,7 +366,7 @@ describe("markRemediationImplementedAction", () => {
       new FormData(),
     );
 
-    expect((result.ok ? null : result.message)).toMatch(/approved/);
+    expect(result.ok ? null : result.message).toMatch(/approved/);
     expect(projectWritePayload()).toBeUndefined();
   });
 });

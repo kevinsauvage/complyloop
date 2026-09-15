@@ -62,9 +62,9 @@ describe("resolvePostgresSslOptions", () => {
 
 describe("isDatabaseSslInsecureEnabled", () => {
   it("reads the documented env opt-in", () => {
-    expect(isDatabaseSslInsecureEnabled({ DATABASE_SSL_INSECURE: "true" })).toBe(
-      true,
-    );
+    expect(
+      isDatabaseSslInsecureEnabled({ DATABASE_SSL_INSECURE: "true" }),
+    ).toBe(true);
     expect(isDatabaseSslInsecureEnabled({ DATABASE_SSL_INSECURE: "0" })).toBe(
       false,
     );
@@ -91,7 +91,9 @@ describe("acquireNamedPostgresAdvisoryLock", () => {
 
 describe("withNamedPostgresAdvisoryLock", () => {
   it("runs the callback inside a locked transaction", async () => {
-    const tx = { execute: vi.fn().mockResolvedValue(undefined) } as unknown as DrizzleDb;
+    const tx = {
+      execute: vi.fn().mockResolvedValue(undefined),
+    } as unknown as DrizzleDb;
     const fn = vi.fn().mockResolvedValue("ok");
     const drizzle = {
       transaction: async (callback: (innerTx: DrizzleDb) => Promise<unknown>) =>

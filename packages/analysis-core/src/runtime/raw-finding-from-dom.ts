@@ -47,7 +47,9 @@ export function rawFindingFromDom(input: RawFindingFromDomInput): RawFinding {
       url: input.url,
       selector: jsonbSafe(input.selector),
       snippet: jsonbSafe(input.snippet),
-      elementLabel: input.elementLabel ? jsonbSafe(input.elementLabel) : undefined,
+      elementLabel: input.elementLabel
+        ? jsonbSafe(input.elementLabel)
+        : undefined,
       context: input.context ? jsonbSafe(input.context) : undefined,
     },
     fix: null,

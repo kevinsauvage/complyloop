@@ -35,10 +35,9 @@ vi.mock("@/server/github/access-token", () => ({
 }));
 
 vi.mock("@/server/workspace/workspace", async () => {
-  const actual =
-    await vi.importActual<typeof import("@/server/workspace/workspace")>(
-      "@/server/workspace/workspace",
-    );
+  const actual = await vi.importActual<
+    typeof import("@/server/workspace/workspace")
+  >("@/server/workspace/workspace");
 
   type WriteSlice = {
     db?: { findings: Finding[]; remediations: Remediation[] };

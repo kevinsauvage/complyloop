@@ -2,12 +2,7 @@ import { CodeBlock } from "@/components/code-block";
 import { CopyButton } from "@/components/copy-button";
 import { EmptyState } from "@/components/page-primitives";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DeveloperHandoff } from "@/server/assessment/handoff";
 
 export function DeveloperHandoffCard({
@@ -26,12 +21,15 @@ export function DeveloperHandoffCard({
       <CardHeader className="gap-1">
         <CardTitle level={3}>Developer handoff (patch / PR)</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Copy a unified diff and pull-request body into your normal git workflow.
+          Copy a unified diff and pull-request body into your normal git
+          workflow.
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
-          <p className="min-w-0 flex-1 text-sm font-medium break-all">{handoff.title}</p>
+          <p className="min-w-0 flex-1 text-sm font-medium break-all">
+            {handoff.title}
+          </p>
           <CopyButton label="Copy title" text={handoff.title} />
         </div>
 
@@ -85,7 +83,6 @@ export function DeveloperHandoffCard({
             </div>
           </div>
         </details>
-
       </CardContent>
     </Card>
   );

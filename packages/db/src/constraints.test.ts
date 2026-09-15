@@ -17,27 +17,35 @@ describe.skipIf(!enabled)("tenant database constraints", () => {
     const ids = await insertFixtureGraph(drizzle, suffix);
 
     await expect(
-      unwrapDbError(drizzle.execute(
-        sql`UPDATE findings SET status = 'complete' WHERE id = ${ids.findingId}`,
-      )),
+      unwrapDbError(
+        drizzle.execute(
+          sql`UPDATE findings SET status = 'complete' WHERE id = ${ids.findingId}`,
+        ),
+      ),
     ).rejects.toThrow(/findings_status_check|violates check constraint/i);
 
     await expect(
-      unwrapDbError(drizzle.execute(
-        sql`UPDATE remediations SET status = 'done' WHERE id = ${ids.remediationId}`,
-      )),
+      unwrapDbError(
+        drizzle.execute(
+          sql`UPDATE remediations SET status = 'done' WHERE id = ${ids.remediationId}`,
+        ),
+      ),
     ).rejects.toThrow(/remediations_status_check|violates check constraint/i);
 
     await expect(
-      unwrapDbError(drizzle.execute(
-        sql`UPDATE requirements SET status = 'ok' WHERE id = ${ids.requirementId}`,
-      )),
+      unwrapDbError(
+        drizzle.execute(
+          sql`UPDATE requirements SET status = 'ok' WHERE id = ${ids.requirementId}`,
+        ),
+      ),
     ).rejects.toThrow(/requirements_status_check|violates check constraint/i);
 
     await expect(
-      unwrapDbError(drizzle.execute(
-        sql`UPDATE memberships SET role = 'superadmin' WHERE id = ${ids.membershipId}`,
-      )),
+      unwrapDbError(
+        drizzle.execute(
+          sql`UPDATE memberships SET role = 'superadmin' WHERE id = ${ids.membershipId}`,
+        ),
+      ),
     ).rejects.toThrow(/memberships_role_check|violates check constraint/i);
 
     await cleanupFixtureGraph(drizzle, ids);
@@ -49,7 +57,8 @@ describe.skipIf(!enabled)("tenant database constraints", () => {
     const ids = await insertFixtureGraph(drizzle, suffix);
 
     await expect(
-      unwrapDbError(drizzle.execute(sql`
+      unwrapDbError(
+        drizzle.execute(sql`
         INSERT INTO findings (id, project_id, control_id, assessment_id, status, payload)
         VALUES (
           ${`finding-orphan-${suffix}`},
@@ -59,22 +68,26 @@ describe.skipIf(!enabled)("tenant database constraints", () => {
           'open',
           '{}'::jsonb
         )
-      `)),
+      `),
+      ),
     ).rejects.toThrow(/foreign key|findings_project_id_fk/i);
 
     await expect(
-      unwrapDbError(drizzle.execute(sql`
+      unwrapDbError(
+        drizzle.execute(sql`
         INSERT INTO organizations (id, slug, payload)
         VALUES (
           ${`org-dup-${suffix}`},
           ${ids.orgSlug},
           '{}'::jsonb
         )
-      `)),
+      `),
+      ),
     ).rejects.toThrow(/organizations_slug_uidx|duplicate key/i);
 
     await expect(
-      unwrapDbError(drizzle.execute(sql`
+      unwrapDbError(
+        drizzle.execute(sql`
         INSERT INTO projects (id, name, owner_user_id, org_id, payload)
         VALUES (
           ${`proj-dup-${suffix}`},
@@ -83,7 +96,8 @@ describe.skipIf(!enabled)("tenant database constraints", () => {
           ${ids.orgId},
           ${JSON.stringify({ github: { fullName: `Acme/Fixture-${suffix}` } })}::jsonb
         )
-      `)),
+      `),
+      ),
     ).rejects.toThrow(/projects_org_github_uidx|duplicate key/i);
 
     await cleanupFixtureGraph(drizzle, ids);
@@ -100,7 +114,9 @@ describe.skipIf(!enabled)("tenant database constraints", () => {
       VALUES (${evidenceId}, NOW(), 'project_disconnected', 'kept', ${ids.projectId})
     `);
 
-    await drizzle.execute(sql`DELETE FROM projects WHERE id = ${ids.projectId}`);
+    await drizzle.execute(
+      sql`DELETE FROM projects WHERE id = ${ids.projectId}`,
+    );
 
     const leftover = await drizzle.execute(sql`
       SELECT id FROM evidence WHERE id = ${evidenceId}
@@ -110,7 +126,9 @@ describe.skipIf(!enabled)("tenant database constraints", () => {
     await drizzle.execute(
       sql`DELETE FROM memberships WHERE id = ${ids.membershipId}`,
     );
-    await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${ids.orgId}`);
+    await drizzle.execute(
+      sql`DELETE FROM organizations WHERE id = ${ids.orgId}`,
+    );
   });
 
   it("uses project-scoped indexes for findings, requirements, and evidence", async () => {
@@ -221,19 +239,25 @@ async function cleanupFixtureGraph(
   drizzle: Drizzle,
   ids: FixtureIds,
 ): Promise<void> {
-  await drizzle.execute(sql`DELETE FROM remediations WHERE id = ${ids.remediationId}`);
+  await drizzle.execute(
+    sql`DELETE FROM remediations WHERE id = ${ids.remediationId}`,
+  );
   await drizzle.execute(sql`DELETE FROM findings WHERE id = ${ids.findingId}`);
-  await drizzle.execute(sql`DELETE FROM requirements WHERE id = ${ids.requirementId}`);
-  await drizzle.execute(sql`DELETE FROM assessments WHERE id = ${ids.assessmentId}`);
+  await drizzle.execute(
+    sql`DELETE FROM requirements WHERE id = ${ids.requirementId}`,
+  );
+  await drizzle.execute(
+    sql`DELETE FROM assessments WHERE id = ${ids.assessmentId}`,
+  );
   await drizzle.execute(sql`DELETE FROM projects WHERE id = ${ids.projectId}`);
-  await drizzle.execute(sql`DELETE FROM memberships WHERE id = ${ids.membershipId}`);
+  await drizzle.execute(
+    sql`DELETE FROM memberships WHERE id = ${ids.membershipId}`,
+  );
   await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${ids.orgId}`);
 }
 
 /** postgres.js surfaces DB failures as a generic `Error("Failed query:…")` with the real PostgresError as `cause`. Rethrow the root cause's message so assertions can match constraint/duplicate-key text. */
-async function unwrapDbError(
-  run: Promise<unknown>,
-): Promise<never> {
+async function unwrapDbError(run: Promise<unknown>): Promise<never> {
   try {
     await run;
   } catch (error) {
@@ -275,7 +299,5 @@ async function expectProjectScopedIndex(
   // JSON.stringify puts each EXPLAIN line in its own array element, so match
   // the distinguishing substrings separately instead of one fragile regex.
   expect(text, "plan should be an index scan").toContain("Index Scan using");
-  expect(text, "plan should be scoped by project_id").toContain(
-    "project_id =",
-  );
+  expect(text, "plan should be scoped by project_id").toContain("project_id =");
 }

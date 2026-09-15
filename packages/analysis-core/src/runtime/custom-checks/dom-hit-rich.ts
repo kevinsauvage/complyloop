@@ -115,7 +115,12 @@ export function describeObscurer(
   corner: string,
 ): string | undefined {
   const top = document.elementFromPoint(x, y);
-  if (!top || top === element || element.contains(top) || top.contains(element)) {
+  if (
+    !top ||
+    top === element ||
+    element.contains(top) ||
+    top.contains(element)
+  ) {
     return undefined;
   }
   const tag = top.tagName.toLowerCase();

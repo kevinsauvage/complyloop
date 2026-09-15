@@ -4,7 +4,10 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { ProposedFix, SourceLocation } from "@complyloop/analysis-core/contract/finding-types";
+import type {
+  ProposedFix,
+  SourceLocation,
+} from "@complyloop/analysis-core/contract/finding-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 import { testFinding } from "@/test-fixtures/finding";
@@ -64,28 +67,35 @@ describe("createFinding analyzer evidence", () => {
   it("persists analyzer fields on the finding and evidence detail", () => {
     const rows = emptyRows();
 
-    createFinding(rows, project, "/tmp", "ctl-markup-validity", "assessment-1", {
-      checkId: "markup-nesting",
-      kind: "violation",
-      severity: "moderate",
-      confidence: "medium",
-      reason:
-        "Live DOM serialization (html-validate 11.12.0, not SSR/source HTML): [element-permitted-order] invalid nesting",
-      location: {
-        kind: "dom",
-        url: "https://app.example/",
-        selector: "table",
-        snippet: "<table><td>x</td></table>",
+    createFinding(
+      rows,
+      project,
+      "/tmp",
+      "ctl-markup-validity",
+      "assessment-1",
+      {
+        checkId: "markup-nesting",
+        kind: "violation",
+        severity: "moderate",
+        confidence: "medium",
+        reason:
+          "Live DOM serialization (html-validate 11.12.0, not SSR/source HTML): [element-permitted-order] invalid nesting",
+        location: {
+          kind: "dom",
+          url: "https://app.example/",
+          selector: "table",
+          snippet: "<table><td>x</td></table>",
+        },
+        fix: null,
+        analyzerId: "html-validate",
+        analyzerRuleId: "element-permitted-order",
+        analyzerVersion: "11.12.0",
+        validationInput: "live-dom-serialization",
+        validationRules: ["element-permitted-content", "close-order"],
+        doctypeIncludedInInput: false,
+        contributingAnalyzers: [{ analyzerId: "axe", analyzerRuleId: "list" }],
       },
-      fix: null,
-      analyzerId: "html-validate",
-      analyzerRuleId: "element-permitted-order",
-      analyzerVersion: "11.12.0",
-      validationInput: "live-dom-serialization",
-      validationRules: ["element-permitted-content", "close-order"],
-      doctypeIncludedInInput: false,
-      contributingAnalyzers: [{ analyzerId: "axe", analyzerRuleId: "list" }],
-    });
+    );
 
     expect(rows.findings[0]).toMatchObject({
       analyzerId: "html-validate",
@@ -345,8 +355,20 @@ describe("sameInstance", () => {
   it("matches by snippet when lines differ", () => {
     expect(
       sameInstance(
-        { location: sourceLoc({ filePath: "App.tsx", line: 10, snippet: '<img src="x" />' }) },
-        { location: sourceLoc({ filePath: "App.tsx", line: 99, snippet: '<img src="x" />' }) },
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 10,
+            snippet: '<img src="x" />',
+          }),
+        },
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 99,
+            snippet: '<img src="x" />',
+          }),
+        },
       ),
     ).toBe(true);
   });
@@ -354,8 +376,12 @@ describe("sameInstance", () => {
   it("does not match by line alone when both snippets are present", () => {
     expect(
       sameInstance(
-        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "old" }) },
-        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "new" }) },
+        {
+          location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "old" }),
+        },
+        {
+          location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "new" }),
+        },
       ),
     ).toBe(false);
   });
@@ -363,8 +389,20 @@ describe("sameInstance", () => {
   it("does not match a moved snippet whose text changed", () => {
     expect(
       sameInstance(
-        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: '<img src="x" />' }) },
-        { location: sourceLoc({ filePath: "App.tsx", line: 20, snippet: '<img src="x" alt="moved" />' }) },
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 4,
+            snippet: '<img src="x" />',
+          }),
+        },
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 20,
+            snippet: '<img src="x" alt="moved" />',
+          }),
+        },
       ),
     ).toBe(false);
   });
@@ -388,13 +426,27 @@ describe("sameInstance", () => {
     expect(
       sameInstance(
         { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "" }) },
-        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: '<img src="x" />' }) },
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 4,
+            snippet: '<img src="x" />',
+          }),
+        },
       ),
     ).toBe(true);
     expect(
       sameInstance(
-        { location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "  " }) },
-        { location: sourceLoc({ filePath: "App.tsx", line: 9, snippet: '<img src="x" />' }) },
+        {
+          location: sourceLoc({ filePath: "App.tsx", line: 4, snippet: "  " }),
+        },
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 9,
+            snippet: '<img src="x" />',
+          }),
+        },
       ),
     ).toBe(false);
   });
@@ -439,7 +491,7 @@ describe("sameInstance", () => {
             kind: "dom",
             url: "https://x.test/",
             selector: "#a",
-            snippet: "<span class=\"muted\">Ok</span>",
+            snippet: '<span class="muted">Ok</span>',
           },
         },
         {
@@ -447,7 +499,7 @@ describe("sameInstance", () => {
             kind: "dom",
             url: "https://x.test/",
             selector: "#b",
-            snippet: "<span class=\"muted\">Ok</span>",
+            snippet: '<span class="muted">Ok</span>',
           },
         },
       ),

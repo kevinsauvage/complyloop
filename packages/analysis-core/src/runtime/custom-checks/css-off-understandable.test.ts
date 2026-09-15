@@ -14,7 +14,8 @@ describe("cssOffUnderstandableViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags flex order that scrambles reading order when CSS is disabled",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><style>
           .row { display: flex; }
           .a { order: 2; }
@@ -27,8 +28,8 @@ describe("cssOffUnderstandableViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await cssOffUnderstandableViolation(page);
-        expect(violation?.id).toBe("css-off-understandable");
+          const violation = await cssOffUnderstandableViolation(page);
+          expect(violation?.id).toBe("css-off-understandable");
         },
       );
     },
@@ -38,14 +39,15 @@ describe("cssOffUnderstandableViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when essential text remains without CSS",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <p>Contenu principal toujours visible même lorsque les styles sont désactivés.</p>
         </body></html>
       `,
         async (page) => {
-        const violation = await cssOffUnderstandableViolation(page);
-        expect(violation).toBeNull();
+          const violation = await cssOffUnderstandableViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },
@@ -55,7 +57,8 @@ describe("cssOffUnderstandableViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "restores stylesheets after the check so later probes see CSS",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head>
           <style>
             #probe { color: rgb(0, 0, 255); }
@@ -65,18 +68,18 @@ describe("cssOffUnderstandableViolation", () => {
         </body></html>
       `,
         async (page) => {
-        await cssOffUnderstandableViolation(page);
-        const color = await page.evaluate(() => {
-          const el = document.querySelector("#probe");
-          if (!el) return "";
-          return getComputedStyle(el).color;
-        });
-        expect(color).toBe("rgb(0, 0, 255)");
-        const styleDisabled = await page.evaluate(() => {
-          const style = document.querySelector("style");
-          return style?.disabled ?? false;
-        });
-        expect(styleDisabled).toBe(false);
+          await cssOffUnderstandableViolation(page);
+          const color = await page.evaluate(() => {
+            const el = document.querySelector("#probe");
+            if (!el) return "";
+            return getComputedStyle(el).color;
+          });
+          expect(color).toBe("rgb(0, 0, 255)");
+          const styleDisabled = await page.evaluate(() => {
+            const style = document.querySelector("style");
+            return style?.disabled ?? false;
+          });
+          expect(styleDisabled).toBe(false);
         },
       );
     },

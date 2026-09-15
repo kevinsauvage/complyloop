@@ -26,9 +26,8 @@ vi.mock("@complyloop/db/postgres", () => ({
 }));
 
 vi.mock("drizzle-orm", async () => {
-  const actual = await vi.importActual<typeof import("drizzle-orm")>(
-    "drizzle-orm",
-  );
+  const actual =
+    await vi.importActual<typeof import("drizzle-orm")>("drizzle-orm");
   return {
     ...actual,
     eq: (_column: unknown, value: unknown): Clause => ({ kind: "eq", value }),
@@ -52,9 +51,7 @@ function createDrizzle() {
     }),
     insert: () => ({
       values: (value: BucketRow) => ({
-        onConflictDoUpdate: (options: {
-          set: Partial<BucketRow>;
-        }) => {
+        onConflictDoUpdate: (options: { set: Partial<BucketRow> }) => {
           const existing = buckets.get(value.key);
           if (existing) {
             Object.assign(existing, options.set);
@@ -72,7 +69,12 @@ function createDrizzle() {
             if (clause.kind !== "and") return [];
             const eqClause = clause.clauses.find((c) => c.kind === "eq");
             const ltClause = clause.clauses.find((c) => c.kind === "lt");
-            if (!eqClause || !ltClause || eqClause.kind !== "eq" || ltClause.kind !== "lt") {
+            if (
+              !eqClause ||
+              !ltClause ||
+              eqClause.kind !== "eq" ||
+              ltClause.kind !== "lt"
+            ) {
               return [];
             }
             const row = buckets.get(String(eqClause.value));
@@ -122,11 +124,7 @@ beforeEach(() => {
   // Serialize lock holders so concurrent asserts behave like Postgres advisory locks.
   let chain: Promise<unknown> = Promise.resolve();
   withNamedPostgresAdvisoryLock.mockImplementation(
-    async (
-      _drizzle: unknown,
-      _key: string,
-      fn: (tx: unknown) => unknown,
-    ) => {
+    async (_drizzle: unknown, _key: string, fn: (tx: unknown) => unknown) => {
       const run = chain.then(() => fn(drizzle));
       chain = run.then(
         () => undefined,
@@ -186,9 +184,9 @@ describe("assertRateLimit", () => {
     const rejected = results.filter((r) => r.status === "rejected");
     expect(fulfilled).toHaveLength(1);
     expect(rejected).toHaveLength(1);
-    expect(rejected[0]?.status === "rejected" && rejected[0].reason).toBeInstanceOf(
-      RateLimitError,
-    );
+    expect(
+      rejected[0]?.status === "rejected" && rejected[0].reason,
+    ).toBeInstanceOf(RateLimitError);
     expect(buckets.get("concurrent")?.count).toBe(1);
   });
 });

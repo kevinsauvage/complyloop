@@ -46,7 +46,9 @@ describe("setDefaultPresetAction", () => {
       initialActionState,
       new FormData(),
     );
-    expect((result.ok ? null : result.message)).toMatch(/framework preset is required/);
+    expect(result.ok ? null : result.message).toMatch(
+      /framework preset is required/,
+    );
   });
 
   it("denies viewers", async () => {
@@ -55,7 +57,7 @@ describe("setDefaultPresetAction", () => {
       initialActionState,
       formWith("preset-wcag-aa"),
     );
-    expect((result.ok ? null : result.message)).toMatch(/Not allowed/);
+    expect(result.ok ? null : result.message).toMatch(/Not allowed/);
   });
 
   it("saves the default preset for admins", async () => {
@@ -109,6 +111,8 @@ describe("setDefaultPresetAction", () => {
       initialActionState,
       formWith("nope"),
     );
-    expect((result.ok ? null : result.message)).toMatch(/Unknown framework preset/);
+    expect(result.ok ? null : result.message).toMatch(
+      /Unknown framework preset/,
+    );
   });
 });

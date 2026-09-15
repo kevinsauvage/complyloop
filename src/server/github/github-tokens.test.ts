@@ -72,7 +72,8 @@ describe("storeUserGitHubToken", () => {
 
 describe("getStoredGitHubTokenWithExpiry", () => {
   it("returns decrypted token with refresh and expiry", async () => {
-    const { encryptToken, getStoredGitHubTokenWithExpiry } = await import("./github-tokens");
+    const { encryptToken, getStoredGitHubTokenWithExpiry } =
+      await import("./github-tokens");
     const encrypted = encryptToken("gho_access");
     const encryptedRefresh = encryptToken("gho_refresh");
     getDrizzle.mockResolvedValue({
@@ -104,7 +105,8 @@ describe("getStoredGitHubTokenWithExpiry", () => {
   });
 
   it("reports and throws a reconnect error when the row cannot be decrypted", async () => {
-    const { encryptToken, getStoredGitHubTokenWithExpiry } = await import("./github-tokens");
+    const { encryptToken, getStoredGitHubTokenWithExpiry } =
+      await import("./github-tokens");
     const { reportError } = await import("../observability");
     vi.mocked(reportError).mockClear();
     const encrypted = encryptToken("gho_access");
@@ -133,12 +135,14 @@ describe("getStoredGitHubTokenWithExpiry", () => {
     // Simulate an AUTH_SECRET rotation/mismatch after the row was written.
     process.env.AUTH_SECRET = "a-different-secret";
 
-    await expect(getStoredGitHubTokenWithExpiry("user-1")).rejects.toMatchObject({
-      code: "github_token_unreadable",
-    });
     await expect(
       getStoredGitHubTokenWithExpiry("user-1"),
-    ).rejects.toThrow(/reconnect GitHub/);
+    ).rejects.toMatchObject({
+      code: "github_token_unreadable",
+    });
+    await expect(getStoredGitHubTokenWithExpiry("user-1")).rejects.toThrow(
+      /reconnect GitHub/,
+    );
     expect(reportError).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({

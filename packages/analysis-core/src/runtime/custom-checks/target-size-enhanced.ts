@@ -27,7 +27,10 @@ export async function targetSizeEnhancedViolation(
         if (display !== "inline") return false;
         const parent = el.parentElement;
         if (!parent) return false;
-        return (parent.textContent ?? "").trim().length > (el.textContent ?? "").trim().length;
+        return (
+          (parent.textContent ?? "").trim().length >
+          (el.textContent ?? "").trim().length
+        );
       }
 
       const found: TargetHit[] = [];

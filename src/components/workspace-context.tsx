@@ -56,7 +56,9 @@ export async function WorkspaceContext() {
       <ContextStrip>
         <span className="flex items-center gap-2">
           <Layers className="size-4 text-signal" aria-hidden />
-          <span className="font-medium text-foreground">No project connected</span>
+          <span className="font-medium text-foreground">
+            No project connected
+          </span>
         </span>
         {orgName ? (
           <span className="flex items-center gap-2">
@@ -70,7 +72,7 @@ export async function WorkspaceContext() {
     );
   }
 
-if (!showOrgSwitcher && !showProjectSwitcher) {
+  if (!showOrgSwitcher && !showProjectSwitcher) {
     return (
       <ContextStrip>
         {orgName ? (
@@ -105,7 +107,9 @@ if (!showOrgSwitcher && !showProjectSwitcher) {
           activeProjectId={project.id}
         />
       ) : (
-        <span className="text-sm font-medium text-foreground">{project.name}</span>
+        <span className="text-sm font-medium text-foreground">
+          {project.name}
+        </span>
       )}
       {addProject ? (
         <div className="w-full sm:ml-auto sm:w-auto">{addProject}</div>

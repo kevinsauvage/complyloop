@@ -14,7 +14,10 @@ import {
 } from "./html-validate-runtime";
 
 registerPlaywrightBrowserTeardown();
-import { checkIdForHtmlValidateRule, HTML_VALIDATE_TO_CHECK_RULE_IDS } from "./html-validate-map";
+import {
+  checkIdForHtmlValidateRule,
+  HTML_VALIDATE_TO_CHECK_RULE_IDS,
+} from "./html-validate-map";
 import type { SerializeDocumentResult } from "./html-validate-runtime";
 
 /**
@@ -119,7 +122,10 @@ describe("html-validate rendered pass", () => {
         </body></html>
       `);
       try {
-        const f = await htmlValidateFindingsForPage(page, "https://app.example/page");
+        const f = await htmlValidateFindingsForPage(
+          page,
+          "https://app.example/page",
+        );
         expect(f.every((x) => x.analyzerId === "html-validate")).toBe(true);
         expect(f.every((x) => x.location.kind === "dom")).toBe(true);
         expect(f.some((x) => x.checkId === "landmark-one-main")).toBe(false);
@@ -183,7 +189,9 @@ describe("checkIdForHtmlValidateRule", () => {
     expect(checkIdForHtmlValidateRule("no-deprecated-attr")).toBe(
       "css-for-presentation",
     );
-    expect(checkIdForHtmlValidateRule("deprecated")).toBe("css-for-presentation");
+    expect(checkIdForHtmlValidateRule("deprecated")).toBe(
+      "css-for-presentation",
+    );
     expect(checkIdForHtmlValidateRule("no-dup-attr")).toBe("markup-nesting");
     expect(checkIdForHtmlValidateRule("element-permitted-content")).toBe(
       "markup-nesting",

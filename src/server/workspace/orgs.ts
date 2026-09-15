@@ -1,6 +1,9 @@
 import "server-only";
 
-import type { Organization,OrgMembership } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Organization,
+  OrgMembership,
+} from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { listAlertsForProjects } from "@complyloop/db/repo/alerts";
@@ -139,7 +142,9 @@ export function deleteOrganization(
 ): DeleteOrganizationResult {
   const index = buildOrgMembershipIndex(db.memberships);
   if (roleInOrg(index, orgId, actorUserId) !== "owner") {
-    throw new PublicError("Only the organization owner can delete the organization.");
+    throw new PublicError(
+      "Only the organization owner can delete the organization.",
+    );
   }
   const org = db.organizations.find((candidate) => candidate.id === orgId);
   if (!org) throw new PublicError("Organization not found.");
@@ -156,7 +161,9 @@ export function deleteOrganization(
  * full history directly with one set-based query per entity type (no
  * per-project N+1). Workspace-owned so actions never open Drizzle directly.
  */
-export async function loadOrgExportData(projectIds: string[]): Promise<
+export async function loadOrgExportData(
+  projectIds: string[],
+): Promise<
   Pick<
     WorkspaceSlice,
     | "evidence"
@@ -177,5 +184,12 @@ export async function loadOrgExportData(projectIds: string[]): Promise<
       listRequirementsForProjects(drizzle, projectIds),
       listAlertsForProjects(drizzle, projectIds),
     ]);
-  return { evidence, assessments, findings, remediations, requirements, alerts };
+  return {
+    evidence,
+    assessments,
+    findings,
+    remediations,
+    requirements,
+    alerts,
+  };
 }

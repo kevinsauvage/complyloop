@@ -13,9 +13,9 @@ function datasetKeyFromDataAttr(attr: string): string {
 
 describe("error-prevention confirm dataset keys", () => {
   it("round-trips data-* attribute names to HTMLElement.dataset keys", () => {
-    expect(ERROR_PREVENTION_CONFIRM_DATA_ATTRS.map(datasetKeyFromDataAttr)).toEqual([
-      ...ERROR_PREVENTION_CONFIRM_DATASET_KEYS,
-    ]);
+    expect(
+      ERROR_PREVENTION_CONFIRM_DATA_ATTRS.map(datasetKeyFromDataAttr),
+    ).toEqual([...ERROR_PREVENTION_CONFIRM_DATASET_KEYS]);
     expect(datasetKeyFromDataAttr("data-confirm")).toBe("confirm");
     expect(datasetKeyFromDataAttr("data-review-step")).toBe("reviewStep");
     expect(datasetKeyFromDataAttr("data-confirm-submit")).toBe("confirmSubmit");

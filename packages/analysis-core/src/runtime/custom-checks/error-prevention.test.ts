@@ -14,7 +14,8 @@ describe("errorPreventionViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags French checkout without safeguard",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <form action="/paiement">
             <input name="carte" />
@@ -23,8 +24,8 @@ describe("errorPreventionViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await errorPreventionViolation(page);
-        expect(violation?.id).toBe("error-prevention");
+          const violation = await errorPreventionViolation(page);
+          expect(violation?.id).toBe("error-prevention");
         },
       );
     },
@@ -34,7 +35,8 @@ describe("errorPreventionViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "does not flag a high-risk form with data-review-step",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="en"><body>
           <form action="/checkout" data-review-step="1">
             <input name="card" />
@@ -43,8 +45,8 @@ describe("errorPreventionViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await errorPreventionViolation(page);
-        expect(violation).toBeNull();
+          const violation = await errorPreventionViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },

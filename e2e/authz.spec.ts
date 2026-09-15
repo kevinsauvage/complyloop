@@ -3,7 +3,9 @@ import { expect, test } from "@playwright/test";
 test.describe("viewer authorization", () => {
   test("viewer cannot run assessment", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Run assessment" }),
     ).toHaveCount(0);
@@ -38,9 +40,9 @@ test.describe("viewer authorization", () => {
     await expect(
       page.getByRole("heading", { name: /Organization account/i }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Invite member" })).toHaveCount(
-      0,
-    );
+    await expect(
+      page.getByRole("button", { name: "Invite member" }),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: /Export organization JSON/i }),
     ).toHaveCount(0);

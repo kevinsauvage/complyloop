@@ -1,6 +1,10 @@
 import "server-only";
 
-import type { Organization,OrgMembership, OrgRole } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Organization,
+  OrgMembership,
+  OrgRole,
+} from "@complyloop/analysis-core/contract/project-types";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
 /** In-memory indexes over memberships — build once when a call path looks up more than once. */
@@ -57,9 +61,9 @@ function defaultOrgIdForUser(
   db: Pick<WorkspaceSlice, "memberships">,
   userId: string,
 ): string | undefined {
-  const owned = (buildOrgMembershipIndex(db.memberships).byUserId.get(userId) ?? []).find(
-    (membership) => membership.role === "owner",
-  );
+  const owned = (
+    buildOrgMembershipIndex(db.memberships).byUserId.get(userId) ?? []
+  ).find((membership) => membership.role === "owner");
   return owned?.orgId;
 }
 

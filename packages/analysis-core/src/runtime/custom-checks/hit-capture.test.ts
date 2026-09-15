@@ -5,7 +5,12 @@ import {
   HTML_SNIPPET_TRUNCATE_LENGTH,
   htmlSnippet,
 } from "../dom-location";
-import { BROWSER_HIT_CAPTURE_SRC, captureHit, LOAD_HIT_CAPTURE_SRC,loadHitCapture } from "./hit-capture";
+import {
+  BROWSER_HIT_CAPTURE_SRC,
+  captureHit,
+  LOAD_HIT_CAPTURE_SRC,
+  loadHitCapture,
+} from "./hit-capture";
 
 describe("htmlSnippet truncation constants", () => {
   it("exports the shared 197/200 limits used across engines", () => {
@@ -35,7 +40,9 @@ describe("loadHitCapture", () => {
 
     document.body.innerHTML = '<button id="go">Go</button>';
     const button = document.querySelector("button")!;
-    const { captureHit: browserCapture } = loadHitCapture(BROWSER_HIT_CAPTURE_SRC);
+    const { captureHit: browserCapture } = loadHitCapture(
+      BROWSER_HIT_CAPTURE_SRC,
+    );
     const fromBrowser = browserCapture(button);
     const fromNode = captureHit(button);
 
@@ -52,18 +59,17 @@ describe("captureHit", () => {
     const link = document.querySelector("a")!;
     const capture = captureHit(link);
     expect(capture.accessibleName).toBe("Get in touch");
-    expect(capture.elementLabel).toBe('link “Get in touch”');
+    expect(capture.elementLabel).toBe("link “Get in touch”");
     expect(capture.selector).toBe('a[href="/contact"]');
     expect(capture.html).toContain("Get in touch");
     expect(capture.tagName).toBe("A");
   });
 
   it("uses aria-label when visible text is empty", () => {
-    document.body.innerHTML =
-      '<button aria-label="Open menu"><svg /></button>';
+    document.body.innerHTML = '<button aria-label="Open menu"><svg /></button>';
     const button = document.querySelector("button")!;
     const capture = captureHit(button);
-    expect(capture.elementLabel).toBe('button “Open menu”');
+    expect(capture.elementLabel).toBe("button “Open menu”");
     expect(capture.accessibleName).toBe("Open menu");
   });
 

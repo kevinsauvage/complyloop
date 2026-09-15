@@ -39,14 +39,13 @@ const PATTERNS: RuntimeScanErrorPattern[] = [
   },
   {
     test: (raw) =>
-      /ERR_EMPTY_RESPONSE|ERR_CONNECTION_RESET|ERR_CONNECTION_CLOSED/.test(
-        raw,
-      ),
+      /ERR_EMPTY_RESPONSE|ERR_CONNECTION_RESET|ERR_CONNECTION_CLOSED/.test(raw),
     message:
       "The preview URL closed the connection before the page finished loading.",
   },
   {
-    test: (raw) => /Executable doesn't exist/i.test(raw) || /browserType\.launch/i.test(raw),
+    test: (raw) =>
+      /Executable doesn't exist/i.test(raw) || /browserType\.launch/i.test(raw),
     message: "Could not start the browser used for preview audits.",
   },
 ];

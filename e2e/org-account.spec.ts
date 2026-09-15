@@ -10,10 +10,16 @@ test.describe("organization account", () => {
     await expect(
       page.getByRole("heading", { name: "Account", exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("e2e-workspace", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("e2e-workspace", { exact: true }),
+    ).toBeVisible();
     await expect(page.getByText("@e2e-owner", { exact: true })).toBeVisible();
-    await expect(page.getByText("Early access pilot", { exact: true })).toBeVisible();
-    await expect(page.getByText("Data lifecycle", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Early access pilot", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Data lifecycle", { exact: true }),
+    ).toBeVisible();
   });
 
   test("owner can invite a member by GitHub username", async ({ page }) => {

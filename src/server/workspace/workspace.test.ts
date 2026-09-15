@@ -38,13 +38,12 @@ vi.mock("@complyloop/db/postgres", () => ({
 }));
 vi.mock("@complyloop/db/workspace-load", () => ({
   loadTenancyDb,
-  loadProjectWriteDb: (...args: unknown[]) =>
-    loadProjectWriteDb(...args),
+  loadProjectWriteDb: (...args: unknown[]) => loadProjectWriteDb(...args),
 }));
 vi.mock("@complyloop/db/repo/apply", async () => {
-  const actual = await vi.importActual<typeof import("@complyloop/db/repo/apply")>(
-    "@complyloop/db/repo/apply",
-  );
+  const actual = await vi.importActual<
+    typeof import("@complyloop/db/repo/apply")
+  >("@complyloop/db/repo/apply");
   return {
     ...actual,
     persistProjectRows: (...args: unknown[]) => persistProjectRows(...args),
@@ -286,7 +285,9 @@ describe("withProjectWrite runtime slice", () => {
   it("aborts when the locked load resolves a different project", async () => {
     loadProjectWriteDb.mockResolvedValue({
       ...dbWithFinding(),
-      projects: [structuredClone(testProject({ id: "p2", orgId, ownerUserId: userId }))],
+      projects: [
+        structuredClone(testProject({ id: "p2", orgId, ownerUserId: userId })),
+      ],
     });
 
     await expect(withProjectWrite(async () => ({}))).rejects.toThrow(
@@ -469,20 +470,23 @@ describe("withOrgWrite and withConnectWrite", () => {
 
   it("persists connect inserts, deletes, and evidence", async () => {
     const project = testProject({ id: "p9", orgId, ownerUserId: userId });
-    const result = await withConnectWrite({ activeProjectId: null }, async () => ({
-      result: "connected",
-      insertProjects: [project],
-      deleteProjectIds: ["p-old"],
-      evidence: [
-        {
-          id: "ev1",
-          at: "2026-01-01T00:00:00.000Z",
-          kind: "project_connected",
-          summary: "Connected",
-          projectId: "p9",
-        },
-      ],
-    }));
+    const result = await withConnectWrite(
+      { activeProjectId: null },
+      async () => ({
+        result: "connected",
+        insertProjects: [project],
+        deleteProjectIds: ["p-old"],
+        evidence: [
+          {
+            id: "ev1",
+            at: "2026-01-01T00:00:00.000Z",
+            kind: "project_connected",
+            summary: "Connected",
+            projectId: "p9",
+          },
+        ],
+      }),
+    );
 
     expect(result).toBe("connected");
     expect(deleteProject).toHaveBeenCalledWith(tx, "p-old");

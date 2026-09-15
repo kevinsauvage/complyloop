@@ -84,9 +84,9 @@ describe("findConnectedGitHubProject", () => {
 
   it("matches by active org", () => {
     const project = { ...base, ownerUserId: "user-b" };
-    expect(
-      findConnectedGitHubProject([project], "ACME/SHOP", "org-team"),
-    ).toBe(project);
+    expect(findConnectedGitHubProject([project], "ACME/SHOP", "org-team")).toBe(
+      project,
+    );
   });
 
   it("does not match a different org", () => {
@@ -105,9 +105,9 @@ describe("findConnectedGitHubProject", () => {
 
   it("builds a lowercase fullName map for the picker", () => {
     const project = { ...base, ownerUserId: "user-a", orgId: "org-1" };
-    expect(
-      connectedGitHubProjectsByFullName([project], "org-1"),
-    ).toEqual({ "acme/shop": "gh-1" });
+    expect(connectedGitHubProjectsByFullName([project], "org-1")).toEqual({
+      "acme/shop": "gh-1",
+    });
   });
 });
 

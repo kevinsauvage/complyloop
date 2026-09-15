@@ -7,11 +7,15 @@ import { expect, test } from "@playwright/test";
 test.describe("compliance loops", () => {
   test("assess → record requirement exception → evidence", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: "Run assessment" }).click();
     await expect(
-      page.locator("[data-sonner-toast]").filter({ hasText: /Assessment complete/i }),
+      page
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: /Assessment complete/i }),
     ).toBeVisible({ timeout: 60_000 });
 
     await page
@@ -22,9 +26,11 @@ test.describe("compliance loops", () => {
       page.getByRole("heading", { name: "Requirements" }),
     ).toBeVisible();
 
-    const exceptionTrigger = page.getByRole("button", {
-      name: /Record exception \(N\/A/i,
-    }).first();
+    const exceptionTrigger = page
+      .getByRole("button", {
+        name: /Record exception \(N\/A/i,
+      })
+      .first();
     await expect(exceptionTrigger).toBeVisible({ timeout: 15_000 });
     await exceptionTrigger.click();
 
@@ -62,9 +68,9 @@ test.describe("compliance loops", () => {
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
     await page.getByText("Dismiss this finding").click();
-    await page.getByLabel(/Note \(kept as evidence\)/i).fill(
-      "E2E dismiss: false positive in fixture.",
-    );
+    await page
+      .getByLabel(/Note \(kept as evidence\)/i)
+      .fill("E2E dismiss: false positive in fixture.");
     await page.getByRole("button", { name: "Dismiss finding" }).click();
     const confirm = page.getByRole("alertdialog");
     await expect(
@@ -82,7 +88,9 @@ test.describe("compliance loops", () => {
       .click();
     await expect(page.getByRole("heading", { name: "Evidence" })).toBeVisible();
     await expect(
-      page.getByText(/Finding dismissed|finding_dismissed|false_positive/i).first(),
+      page
+        .getByText(/Finding dismissed|finding_dismissed|false_positive/i)
+        .first(),
     ).toBeVisible();
   });
 

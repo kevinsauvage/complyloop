@@ -68,11 +68,13 @@ export function pushPayload(opts: { after?: string; fullName?: string } = {}) {
   };
 }
 
-export function pullRequestPayload(opts: {
-  action?: "opened" | "synchronize" | "reopened";
-  headSha?: string;
-  fullName?: string;
-} = {}) {
+export function pullRequestPayload(
+  opts: {
+    action?: "opened" | "synchronize" | "reopened";
+    headSha?: string;
+    fullName?: string;
+  } = {},
+) {
   return {
     action: opts.action ?? "opened",
     number: 123,

@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDateTime } from "@/core/datetime";
-import { roleTone,STATUS_TONE_BADGE } from "@/core/display";
+import { roleTone, STATUS_TONE_BADGE } from "@/core/display";
 import { cn } from "@/lib/utils";
 import {
   changeOrgMemberRoleAction,

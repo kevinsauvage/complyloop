@@ -3,7 +3,10 @@ import {
   groupControlsByTheme,
 } from "@complyloop/analysis-core/catalog/control-theme";
 import type { Requirement } from "@complyloop/analysis-core/contract/entities";
-import type { Control, Project } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Control,
+  Project,
+} from "@complyloop/analysis-core/contract/project-types";
 
 import { RequirementCard } from "@/components/requirements/requirement-card";
 
@@ -27,7 +30,11 @@ export function AssessedRequirementList({
   return (
     <div className="flex flex-col gap-8">
       {groups.map((group) => (
-        <section key={group.id} className="flex flex-col gap-3" aria-labelledby={`theme-${group.id}`}>
+        <section
+          key={group.id}
+          className="flex flex-col gap-3"
+          aria-labelledby={`theme-${group.id}`}
+        >
           <h3
             id={`theme-${group.id}`}
             className="text-sm font-medium text-muted-foreground"

@@ -58,9 +58,7 @@ describe("runAssessment with runtime engine", () => {
     fs.rmSync(rootPath, { recursive: true, force: true });
   });
 
-  const publicLookup = async () => [
-    { address: "93.184.216.34", family: 4 },
-  ];
+  const publicLookup = async () => [{ address: "93.184.216.34", family: 4 }];
 
   async function assess(
     options: Omit<Parameters<typeof runAssessment>[1], "rootPath"> & {
@@ -103,15 +101,17 @@ describe("runAssessment with runtime engine", () => {
     expect(assessment.engines?.runtimePagesScanned).toBe(1);
 
     const labelFindings = db.findings.filter(
-      (finding) => finding.checkId === "input-label" && finding.status === "open",
+      (finding) =>
+        finding.checkId === "input-label" && finding.status === "open",
     );
     expect(labelFindings).toHaveLength(1);
     expect(engineFor(labelFindings[0]!)).toBe("runtime");
     expect(isDomLocation(labelFindings[0]!.location)).toBe(true);
     expect(labelFindings[0]?.fix).toBeNull();
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-color-contrast")
-        ?.status,
+      db.requirements.find(
+        (requirement) => requirement.controlId === "ctl-color-contrast",
+      )?.status,
     ).toBe("passed");
   });
 
@@ -141,8 +141,9 @@ describe("runAssessment with runtime engine", () => {
     expect(assessment.engines?.runtime).toBe(false);
     expect(assessment.engines?.runtimeError).toMatch(/connection refused/i);
     expect(
-      db.requirements.find((requirement) => requirement.controlId === "ctl-color-contrast")
-        ?.status,
+      db.requirements.find(
+        (requirement) => requirement.controlId === "ctl-color-contrast",
+      )?.status,
     ).toBe("unable_to_verify");
   });
 

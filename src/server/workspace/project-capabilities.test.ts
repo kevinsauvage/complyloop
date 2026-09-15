@@ -71,9 +71,7 @@ describe("projectCapabilities", () => {
   });
 
   it("lets signed-in owners connect when no project is active", () => {
-    expect(
-      projectCapabilities(null, access("owner"), "org-1"),
-    ).toEqual({
+    expect(projectCapabilities(null, access("owner"), "org-1")).toEqual({
       canView: false,
       canAssess: false,
       canRemediate: false,
@@ -82,9 +80,7 @@ describe("projectCapabilities", () => {
   });
 
   it("denies signed-in viewers from connecting with no project", () => {
-    expect(
-      projectCapabilities(null, access("viewer"), "org-1"),
-    ).toEqual({
+    expect(projectCapabilities(null, access("viewer"), "org-1")).toEqual({
       canView: false,
       canAssess: false,
       canRemediate: false,

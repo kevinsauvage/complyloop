@@ -9,10 +9,7 @@ import type { SimpleGit } from "simple-git";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import {
-  assertE2EFixtureRoot,
-  isE2EHarnessEnabled,
-} from "../e2e-harness";
+import { assertE2EFixtureRoot, isE2EHarnessEnabled } from "../e2e-harness";
 import { assessmentCheckoutQuota } from "../env";
 import { createAuthedGit, createGit } from "../github/git";
 import {
@@ -38,7 +35,9 @@ function maxCheckoutScanMs(): number {
  * Rejects oversized clones before AST parsing or Playwright can consume
  * capacity. Async + time-budgeted so a huge tree cannot block the event loop.
  */
-export async function assertCheckoutWithinQuota(rootPath: string): Promise<void> {
+export async function assertCheckoutWithinQuota(
+  rootPath: string,
+): Promise<void> {
   const byteLimit = maxCheckoutBytes();
   const fileLimit = maxCheckoutFiles();
   const deadline = Date.now() + maxCheckoutScanMs();
@@ -187,11 +186,14 @@ export async function withRepoCheckout<T>(
     return withFixtureCheckout(fn);
   }
 
-  const ref = options.ref === undefined ? undefined : parseCheckoutRef(options.ref);
+  const ref =
+    options.ref === undefined ? undefined : parseCheckoutRef(options.ref);
   // Token travels in the child env (http.extraHeader), never in the URL/argv.
   const { fullName, accessToken } = options;
   parseOwnerRepo(fullName);
-  const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "complyloop-checkout-"));
+  const rootPath = fs.mkdtempSync(
+    path.join(os.tmpdir(), "complyloop-checkout-"),
+  );
   try {
     await cloneAuthedShallow(
       githubPublicCloneUrl(fullName),
@@ -236,7 +238,10 @@ export async function withProjectCheckout<T>(
 
   const fullName = project.github?.fullName;
   if (!fullName) {
-    throw new PublicError("Project has no GitHub repository metadata.", "connect");
+    throw new PublicError(
+      "Project has no GitHub repository metadata.",
+      "connect",
+    );
   }
   const accessToken = await getProjectToken(project);
   if (!accessToken) {

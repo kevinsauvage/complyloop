@@ -5,7 +5,10 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as registry from "@complyloop/analysis-core/catalog/registry";
-import { rgaaControls, rgaaFramework } from "@complyloop/analysis-core/catalog/rgaa/controls";
+import {
+  rgaaControls,
+  rgaaFramework,
+} from "@complyloop/analysis-core/catalog/rgaa/controls";
 import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { WorkspaceSlice } from "@complyloop/db/types";
@@ -54,11 +57,14 @@ afterEach(() => {
 });
 
 function requirementStatus(controlId: string) {
-  return db.requirements.find((requirement) => requirement.controlId === controlId)
-    ?.status;
+  return db.requirements.find(
+    (requirement) => requirement.controlId === controlId,
+  )?.status;
 }
 
-async function assess(options: Parameters<typeof runAssessment>[1] = { rootPath }) {
+async function assess(
+  options: Parameters<typeof runAssessment>[1] = { rootPath },
+) {
   const run = await runAssessment(toPipelineInput(db, project.id), options);
   materializeAssessmentRun(db, run);
   return run;
@@ -248,11 +254,13 @@ describe("runAssessment", () => {
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
     const { assessment: second } = await assess();
-    expect(second.changesSincePrevious?.some((c) => c.filePath === "Hero.tsx")).toBe(
-      true,
-    );
     expect(
-      db.evidence.some((record) => record.kind === "monitoring_changes_detected"),
+      second.changesSincePrevious?.some((c) => c.filePath === "Hero.tsx"),
+    ).toBe(true);
+    expect(
+      db.evidence.some(
+        (record) => record.kind === "monitoring_changes_detected",
+      ),
     ).toBe(true);
   });
 
@@ -473,7 +481,9 @@ describe("runAssessment", () => {
           status: "approved" as const,
           approvalAction: "create_draft_pull_request" as const,
           suggestion: null,
-          history: [{ status: "approved" as const, at: new Date().toISOString() }],
+          history: [
+            { status: "approved" as const, at: new Date().toISOString() },
+          ],
         },
       ],
       requirements: [],
@@ -487,9 +497,7 @@ describe("runAssessment", () => {
 
     expect(rows.remediations[0]?.status).toBe("approved");
     expect(
-      rows.evidence.some(
-        (record) => record.kind === "remediation_verified",
-      ),
+      rows.evidence.some((record) => record.kind === "remediation_verified"),
     ).toBe(false);
   });
 
@@ -507,7 +515,9 @@ describe("runAssessment", () => {
           status: "approved" as const,
           approvalAction: "create_draft_pull_request" as const,
           suggestion: null,
-          history: [{ status: "approved" as const, at: new Date().toISOString() }],
+          history: [
+            { status: "approved" as const, at: new Date().toISOString() },
+          ],
         },
       ],
       requirements: [],
@@ -536,7 +546,9 @@ describe("runAssessment", () => {
           status: "approved" as const,
           approvalAction: "create_draft_pull_request" as const,
           suggestion: null,
-          history: [{ status: "approved" as const, at: new Date().toISOString() }],
+          history: [
+            { status: "approved" as const, at: new Date().toISOString() },
+          ],
         },
       ],
       requirements: [],

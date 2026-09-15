@@ -21,9 +21,9 @@ describe("multilingual patterns", () => {
     expect(matchesMultilingual(/\bconfirmer\b/i, "Confirmer le paiement")).toBe(
       true,
     );
-    expect(
-      matchesMultilingual(CAPTCHA_ALTERNATIVE, "Écouter le captcha"),
-    ).toBe(true);
+    expect(matchesMultilingual(CAPTCHA_ALTERNATIVE, "Écouter le captcha")).toBe(
+      true,
+    );
   });
 
   it("detects French high-risk checkout context", () => {

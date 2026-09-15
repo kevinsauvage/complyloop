@@ -60,7 +60,8 @@ function collectLabelTargets(sourceFile: ts.SourceFile): Set<string> {
 }
 
 function defaultLabelFor(node: JsxTagNode): string {
-  const nameAttr = getAttribute(node, "name") ?? getAttribute(node, "placeholder");
+  const nameAttr =
+    getAttribute(node, "name") ?? getAttribute(node, "placeholder");
   const value = nameAttr ? stringValueOf(nameAttr) : undefined;
   const humanized = value ? humanizeFileName(value) : "";
   return humanized.length > 0 ? humanized : "Describe this field";
@@ -235,7 +236,11 @@ function isInsideGrouping(node: ts.Node): boolean {
       const tag = tagNameOf(host);
       const role = getAttribute(host, "role");
       const roleValue = role ? stringValueOf(role) : undefined;
-      if (tag === "fieldset" || roleValue === "group" || roleValue === "radiogroup") {
+      if (
+        tag === "fieldset" ||
+        roleValue === "group" ||
+        roleValue === "radiogroup"
+      ) {
         return true;
       }
     }
@@ -244,7 +249,9 @@ function isInsideGrouping(node: ts.Node): boolean {
   return false;
 }
 
-function siblingIndex(node: JsxTagNode): { parent: ts.Node; index: number } | null {
+function siblingIndex(
+  node: JsxTagNode,
+): { parent: ts.Node; index: number } | null {
   const self = ts.isJsxOpeningElement(node) ? node.parent : node;
   const parent = self.parent;
   if (!ts.isJsxElement(parent) && !ts.isJsxFragment(parent)) return null;
@@ -254,7 +261,8 @@ function siblingIndex(node: JsxTagNode): { parent: ts.Node; index: number } | nu
 }
 
 function autocompleteToken(node: JsxTagNode): string | undefined {
-  const attr = getAttribute(node, "autocomplete") ?? getAttribute(node, "autoComplete");
+  const attr =
+    getAttribute(node, "autocomplete") ?? getAttribute(node, "autoComplete");
   const value = attr ? stringValueOf(attr) : undefined;
   return value?.trim().toLowerCase();
 }
@@ -278,7 +286,9 @@ export const fieldGroupingCheck: AccessibilityCheck = {
       if (isInsideGrouping(node)) return;
 
       const typeAttr = getAttribute(node, "type");
-      const type = typeAttr ? stringValueOf(typeAttr)?.toLowerCase() : undefined;
+      const type = typeAttr
+        ? stringValueOf(typeAttr)?.toLowerCase()
+        : undefined;
       if (type === "checkbox") {
         const nameAttr = getAttribute(node, "name");
         const name = nameAttr ? stringValueOf(nameAttr) : undefined;
@@ -322,7 +332,9 @@ export const fieldGroupingCheck: AccessibilityCheck = {
     }
 
     for (const inputs of indexedInputs.values()) {
-      const ordered = [...inputs].sort((left, right) => left.index - right.index);
+      const ordered = [...inputs].sort(
+        (left, right) => left.index - right.index,
+      );
       for (let index = 0; index < ordered.length - 1; index += 1) {
         const left = ordered[index];
         const right = ordered[index + 1];
@@ -611,10 +623,7 @@ export const errorPreventionCheck: AccessibilityCheck = {
     for (const formNode of forms) {
       const context = textAroundForm(formNode);
       if (!matchesMultilingual(HIGH_RISK, context)) continue;
-      if (
-        subtreeHasSafeguard(formNode) ||
-        handlerUsesConfirm(formNode)
-      ) {
+      if (subtreeHasSafeguard(formNode) || handlerUsesConfirm(formNode)) {
         continue;
       }
 
@@ -640,7 +649,9 @@ export const errorPreventionCheck: AccessibilityCheck = {
         const name = tagNameOf(tag);
         if (name !== "button") return false;
         const typeAttr = getAttribute(tag, "type");
-        const type = typeAttr ? stringValueOf(typeAttr)?.toLowerCase() : "submit";
+        const type = typeAttr
+          ? stringValueOf(typeAttr)?.toLowerCase()
+          : "submit";
         // Only an absent attribute (HTML default) or an explicit literal counts
         // as submit; a dynamic expression has an unknown type.
         return type === "submit";
@@ -713,10 +724,7 @@ function fieldKey(node: Parameters<typeof getAttribute>[0]): string | null {
   return null;
 }
 
-function hasHiddenCarryover(
-  sourceFile: ts.SourceFile,
-  key: string,
-): boolean {
+function hasHiddenCarryover(sourceFile: ts.SourceFile, key: string): boolean {
   let found = false;
   visitJsxTags(sourceFile, (node) => {
     if (found) return;
@@ -787,7 +795,8 @@ export const accessibleAuthCheck: AccessibilityCheck = {
       if (!isAuthField(node)) return;
 
       const auto =
-        getAttribute(node, "autoComplete") ?? getAttribute(node, "autocomplete");
+        getAttribute(node, "autoComplete") ??
+        getAttribute(node, "autocomplete");
       if (auto) {
         const value = stringValueOf(auto)?.toLowerCase();
         if (value === "off" || value === "false") {
@@ -817,7 +826,8 @@ export const accessibleAuthCheck: AccessibilityCheck = {
         });
       }
 
-      const readOnly = getAttribute(node, "readOnly") ?? getAttribute(node, "readonly");
+      const readOnly =
+        getAttribute(node, "readOnly") ?? getAttribute(node, "readonly");
       if (readOnly && booleanAttributeValue(readOnly)) {
         const autoValue = auto ? stringValueOf(auto)?.toLowerCase() : undefined;
         if (autoValue && AUTH_AUTOCOMPLETE.has(autoValue)) {
@@ -838,7 +848,9 @@ export const accessibleAuthCheck: AccessibilityCheck = {
   },
 };
 
-function isObjectRecognitionCaptcha(node: Parameters<typeof getAttribute>[0]): boolean {
+function isObjectRecognitionCaptcha(
+  node: Parameters<typeof getAttribute>[0],
+): boolean {
   const ariaLabel = getAttribute(node, "aria-label");
   const labelText = ariaLabel ? (stringValueOf(ariaLabel) ?? "") : "";
   const size = getAttribute(node, "size");
@@ -917,7 +929,8 @@ function subtreeHasAlternative(node: JsxTagNode): boolean {
   for (const tag of descendantTags(element)) {
     const tagName = tagNameOf(tag);
     if (tagName === "a" || tagName === "button") {
-      if (matchesMultilingual(CAPTCHA_ALTERNATIVE, controlLabel(tag))) return true;
+      if (matchesMultilingual(CAPTCHA_ALTERNATIVE, controlLabel(tag)))
+        return true;
     }
     if (tagName === "audio") return true;
   }
@@ -943,7 +956,8 @@ function containerHasAlternative(node: JsxTagNode): boolean {
     if (subtreeHasAlternative(tag)) return true;
     const tagName = tagNameOf(tag);
     if (tagName === "a" || tagName === "button") {
-      if (matchesMultilingual(CAPTCHA_ALTERNATIVE, controlLabel(tag))) return true;
+      if (matchesMultilingual(CAPTCHA_ALTERNATIVE, controlLabel(tag)))
+        return true;
     }
   }
 

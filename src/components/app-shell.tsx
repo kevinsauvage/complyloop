@@ -49,9 +49,7 @@ function SidebarBody({
     <div className="flex h-full flex-col gap-6">
       {showBrand ? <BrandMark className="px-3" /> : null}
       <nav aria-label="Main" className="flex-1">
-        {navLinks ?? (
-          <NavLinks navAttention={navAttention} />
-        )}
+        {navLinks ?? <NavLinks navAttention={navAttention} />}
       </nav>
       <div className="mt-auto space-y-3">
         <Separator />
@@ -112,9 +110,15 @@ export function AppShell({
       <PathnameFocus />
       <div className="flex min-h-screen flex-col md:flex-row">
         <header className="panel-frost sticky top-0 z-40 flex items-center justify-between border-b border-border bg-sidebar/70 px-4 py-3 md:hidden">
-          <Link href="/dashboard" className="flex items-center gap-2 text-base font-semibold tracking-tight">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 text-base font-semibold tracking-tight"
+          >
             <span className="flex size-6 items-center justify-center rounded-md bg-signal">
-              <span className="size-1.5 rounded-sm bg-signal-foreground/95" aria-hidden />
+              <span
+                className="size-1.5 rounded-sm bg-signal-foreground/95"
+                aria-hidden
+              />
             </span>
             ComplyLoop
           </Link>
@@ -141,4 +145,3 @@ export function AppShell({
     </>
   );
 }
-

@@ -37,7 +37,9 @@ export async function emulateCoarsePointer<T>(
   try {
     return await run();
   } finally {
-    await session.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+    await session.send("Emulation.setTouchEmulationEnabled", {
+      enabled: false,
+    });
     await session.send("Emulation.clearDeviceMetricsOverride");
     await session.detach();
   }

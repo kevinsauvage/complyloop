@@ -39,9 +39,7 @@ function isJobShape(value: unknown): value is AssessmentJob {
   );
 }
 
-export function parseAssessmentJobsResponse(
-  value: unknown,
-): AssessmentJob[] {
+export function parseAssessmentJobsResponse(value: unknown): AssessmentJob[] {
   if (!isRecord(value) || !Array.isArray(value.jobs)) {
     throw new Error(PARSE_ERROR);
   }

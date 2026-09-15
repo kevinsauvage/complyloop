@@ -255,7 +255,10 @@ function findRemediationForFinding(
   return db.remediations.find((candidate) => candidate.findingId === findingId);
 }
 
-export function remediationForFinding(db: WorkspaceSlice, findingId: string): Remediation {
+export function remediationForFinding(
+  db: WorkspaceSlice,
+  findingId: string,
+): Remediation {
   const remediation = findRemediationForFinding(db, findingId);
   if (!remediation) throw new PublicError("No remediation for that finding.");
   return remediation;

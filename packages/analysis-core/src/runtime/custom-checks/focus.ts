@@ -20,7 +20,9 @@ export interface FocusStyleSnapshot {
   backgroundColor: string;
 }
 
-export function snapshotFocusStyles(style: FocusStyleSnapshot): FocusStyleSnapshot {
+export function snapshotFocusStyles(
+  style: FocusStyleSnapshot,
+): FocusStyleSnapshot {
   return {
     outlineStyle: style.outlineStyle,
     outlineWidth: style.outlineWidth,
@@ -50,9 +52,10 @@ export function hasVisibleFocusIndicator(
 ): boolean {
   function transparent(color: string): boolean {
     if (color === "transparent") return true;
-    const match = /rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+(?:\s*,\s*([\d.]+))?\s*\)/.exec(
-      color,
-    );
+    const match =
+      /rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+(?:\s*,\s*([\d.]+))?\s*\)/.exec(
+        color,
+      );
     if (!match) return false;
     return match[1] !== undefined && Number(match[1]) === 0;
   }
@@ -72,7 +75,10 @@ export function hasVisibleFocusIndicator(
     if (appeared) return true;
   }
 
-  if (focused.boxShadow !== unfocused.boxShadow && focused.boxShadow !== "none") {
+  if (
+    focused.boxShadow !== unfocused.boxShadow &&
+    focused.boxShadow !== "none"
+  ) {
     return true;
   }
 
@@ -109,7 +115,9 @@ export function isSuspectedKeyboardTrap(
 ): boolean {
   const tail = sequence.slice(-tailLength);
   if (tail.includes("modal")) return false;
-  const unique = new Set(tail.filter((key) => key !== "body" && key !== "modal"));
+  const unique = new Set(
+    tail.filter((key) => key !== "body" && key !== "modal"),
+  );
   return unique.size <= maxUniqueFocusables;
 }
 
@@ -160,7 +168,10 @@ export async function focusCustomViolations(
     });
   }
 
-  const obscuredEnhancedNodes = await collectFocusObscuredViolations(page, true);
+  const obscuredEnhancedNodes = await collectFocusObscuredViolations(
+    page,
+    true,
+  );
   if (obscuredEnhancedNodes.length > 0) {
     violations.push({
       id: "focus-not-obscured-enhanced",
@@ -209,7 +220,9 @@ async function collectFocusVisibleViolations(
 
   const unfocusedSnapshots = await page.evaluate(
     ({ snapshotSrc, selector }) => {
-      const snapshot = new Function(`return (${snapshotSrc})`)() as typeof snapshotFocusStyles;
+      const snapshot = new Function(
+        `return (${snapshotSrc})`,
+      )() as typeof snapshotFocusStyles;
       return Array.from(document.querySelectorAll(selector)).map((el) =>
         snapshot(getComputedStyle(el)),
       );
@@ -224,16 +237,10 @@ async function collectFocusVisibleViolations(
     await page.keyboard.press("Tab");
     const hit = await pageEvaluateWithHitCapture(
       page,
-      (
-        captureHit,
-        {
-          snapshotSrc,
-          indicatorSrc,
-          selector,
-          unfocused,
-        },
-      ) => {
-        const snapshot = new Function(`return (${snapshotSrc})`)() as typeof snapshotFocusStyles;
+      (captureHit, { snapshotSrc, indicatorSrc, selector, unfocused }) => {
+        const snapshot = new Function(
+          `return (${snapshotSrc})`,
+        )() as typeof snapshotFocusStyles;
         const indicatorVisible = new Function(
           `return (${indicatorSrc})`,
         )() as typeof hasVisibleFocusIndicator;
@@ -357,7 +364,11 @@ async function collectFocusObscuredViolations(
                 { corner: "top-left", x: rect.left + 1, y: rect.top + 1 },
                 { corner: "top-right", x: rect.right - 1, y: rect.top + 1 },
                 { corner: "bottom-left", x: rect.left + 1, y: rect.bottom - 1 },
-                { corner: "bottom-right", x: rect.right - 1, y: rect.bottom - 1 },
+                {
+                  corner: "bottom-right",
+                  x: rect.right - 1,
+                  y: rect.bottom - 1,
+                },
                 {
                   corner: "center",
                   x: rect.left + rect.width / 2,

@@ -96,12 +96,14 @@ export default function HomePage() {
           </p>
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
             From RGAA requirement to{" "}
-            <span className="text-signal">verified code</span> and audit evidence
+            <span className="text-signal">verified code</span> and audit
+            evidence
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            ComplyLoop turns accessibility obligations into engineering work your
-            team can ship — with deterministic checks, human-approved remediations,
-            and an evidence trail that survives the next client audit.
+            ComplyLoop turns accessibility obligations into engineering work
+            your team can ship — with deterministic checks, human-approved
+            remediations, and an evidence trail that survives the next client
+            audit.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="min-w-44">
@@ -137,7 +139,9 @@ export default function HomePage() {
                   <span className="text-xs font-medium tabular-nums text-muted-foreground">
                     {String(index + 1).padStart(2, "0")}
                   </span>
-                  <span className="mt-1 text-sm font-semibold">{step.label}</span>
+                  <span className="mt-1 text-sm font-semibold">
+                    {step.label}
+                  </span>
                   {index < LOOP_STEPS.length - 1 ? (
                     <span
                       aria-hidden
@@ -181,7 +185,9 @@ export default function HomePage() {
                       <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-signal/12 text-signal">
                         <Icon className="size-4.5" aria-hidden />
                       </div>
-                      <CardTitle level={3} className="text-base">{feature.title}</CardTitle>
+                      <CardTitle level={3} className="text-base">
+                        {feature.title}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <CardDescription className="text-sm leading-relaxed">
@@ -196,7 +202,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="sample" className="scroll-mt-24 border-t border-border/60 bg-muted/20 py-20">
+      <section
+        id="sample"
+        className="scroll-mt-24 border-t border-border/60 bg-muted/20 py-20"
+      >
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
             <div>
@@ -224,7 +233,10 @@ export default function HomePage() {
               </p>
               <ol className="mt-4 flex flex-col gap-2">
                 <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2.5">
-                  <span aria-hidden className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-passed" />
+                  <span
+                    aria-hidden
+                    className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-passed"
+                  />
                   <div className="min-w-0">
                     <p className="text-sm font-medium">Assessment completed</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
@@ -233,7 +245,10 @@ export default function HomePage() {
                   </div>
                 </li>
                 <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2.5">
-                  <span aria-hidden className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-failed" />
+                  <span
+                    aria-hidden
+                    className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-failed"
+                  />
                   <div className="min-w-0">
                     <p className="text-sm font-medium">Finding detected</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
@@ -242,7 +257,10 @@ export default function HomePage() {
                   </div>
                 </li>
                 <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2.5">
-                  <span aria-hidden className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-passed" />
+                  <span
+                    aria-hidden
+                    className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-passed"
+                  />
                   <div className="min-w-0">
                     <p className="text-sm font-medium">Remediation verified</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
@@ -277,8 +295,8 @@ export default function HomePage() {
               </h2>
               <p className="mt-4 text-muted-foreground">
                 We built ComplyLoop the way we expect our customers to build
-                accessible products: with clear semantics, visible decisions, and
-                proof you can show an auditor.
+                accessible products: with clear semantics, visible decisions,
+                and proof you can show an auditor.
               </p>
               <ul className="mt-8 space-y-3">
                 {PRINCIPLES.map((principle) => (
@@ -297,7 +315,9 @@ export default function HomePage() {
             </div>
 
             <div className="rounded-2xl border border-border/80 bg-card/70 p-8 card-sheen">
-              <p className="text-sm font-medium text-signal">For French agencies</p>
+              <p className="text-sm font-medium text-signal">
+                For French agencies
+              </p>
               <p className="mt-3 text-2xl font-semibold tracking-tight">
                 RGAA and WCAG compliance across every client repo — not just the
                 one being audited this quarter.

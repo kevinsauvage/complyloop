@@ -133,8 +133,7 @@ describe("runAiFixOnCheckout", () => {
                     filePath: "Footer.tsx",
                     line: 1,
                     column: 28,
-                    snippet:
-                      "export const Footer = () => <input autoFocus />;",
+                    snippet: "export const Footer = () => <input autoFocus />;",
                     span: {
                       start: source.indexOf("<input"),
                       end: source.indexOf("/>") + 2,

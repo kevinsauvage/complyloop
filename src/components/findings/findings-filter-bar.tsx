@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode,useState } from "react";
+import { type ReactNode, useState } from "react";
 
-import type { RemediationStatus, Severity } from "@complyloop/analysis-core/contract/statuses";
+import type {
+  RemediationStatus,
+  Severity,
+} from "@complyloop/analysis-core/contract/statuses";
 
 import { filterChipClass } from "@/components/filter-chip-list";
 import { nativeSelectClass } from "@/components/form-classes";

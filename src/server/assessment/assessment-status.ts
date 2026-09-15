@@ -194,8 +194,7 @@ function applyDerivedStatusChange(input: {
   if (existing.status === status) return;
 
   const regression = existing.status === "passed" && status === "failed";
-  const attribution =
-    regression && changeContext ? ` — ${changeContext}` : "";
+  const attribution = regression && changeContext ? ` — ${changeContext}` : "";
   evidence.push(
     newEvidenceRecord({
       kind: "requirement_status_changed",

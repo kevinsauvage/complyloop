@@ -14,7 +14,8 @@ describe("accessibleAuthEnhancedViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags puzzle captcha on an authentication page",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><title>Connexion</title></head><body>
           <main>
             <h1>Connexion</h1>
@@ -24,8 +25,8 @@ describe("accessibleAuthEnhancedViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await accessibleAuthEnhancedViolation(page);
-        expect(violation?.id).toBe("accessible-auth-enhanced");
+          const violation = await accessibleAuthEnhancedViolation(page);
+          expect(violation?.id).toBe("accessible-auth-enhanced");
         },
       );
     },
@@ -35,7 +36,8 @@ describe("accessibleAuthEnhancedViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags g-recaptcha with data-size on an authentication page",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="en"><head><title>Sign in</title></head><body>
           <main>
             <h1>Log in</h1>
@@ -45,8 +47,8 @@ describe("accessibleAuthEnhancedViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await accessibleAuthEnhancedViolation(page);
-        expect(violation?.id).toBe("accessible-auth-enhanced");
+          const violation = await accessibleAuthEnhancedViolation(page);
+          expect(violation?.id).toBe("accessible-auth-enhanced");
         },
       );
     },
@@ -56,7 +58,8 @@ describe("accessibleAuthEnhancedViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "does not flag checkbox-style g-recaptcha without size on auth pages",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="en"><head><title>Sign in</title></head><body>
           <main>
             <h1>Log in</h1>
@@ -66,8 +69,8 @@ describe("accessibleAuthEnhancedViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await accessibleAuthEnhancedViolation(page);
-        expect(violation).toBeNull();
+          const violation = await accessibleAuthEnhancedViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },
@@ -77,7 +80,8 @@ describe("accessibleAuthEnhancedViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags puzzlecaptcha host on an authentication page",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="en"><head><title>Sign in</title></head><body>
           <main>
             <h1>Log in</h1>
@@ -87,8 +91,8 @@ describe("accessibleAuthEnhancedViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await accessibleAuthEnhancedViolation(page);
-        expect(violation?.id).toBe("accessible-auth-enhanced");
+          const violation = await accessibleAuthEnhancedViolation(page);
+          expect(violation?.id).toBe("accessible-auth-enhanced");
         },
       );
     },
@@ -98,7 +102,8 @@ describe("accessibleAuthEnhancedViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when auth context has no puzzle captcha",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><title>Connexion</title></head><body>
           <main>
             <h1>Connexion</h1>
@@ -107,8 +112,8 @@ describe("accessibleAuthEnhancedViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await accessibleAuthEnhancedViolation(page);
-        expect(violation).toBeNull();
+          const violation = await accessibleAuthEnhancedViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },

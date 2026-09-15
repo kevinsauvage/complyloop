@@ -6,7 +6,11 @@ import type {
   Remediation,
   Requirement,
 } from "@complyloop/analysis-core/contract/entities";
-import type { Organization, OrgMembership, Project } from "@complyloop/analysis-core/contract/project-types";
+import type {
+  Organization,
+  OrgMembership,
+  Project,
+} from "@complyloop/analysis-core/contract/project-types";
 
 /**
  * In-memory slice for **writes and assessment** only.

@@ -20,7 +20,11 @@ export const CAPTCHA_COMPONENT_HOSTS = [
 ] as const;
 
 /** PascalCase puzzle/image-challenge hosts (AST tag + DOM tag/class/id). */
-export const PUZZLE_HOST_NAMES = ["Captcha", "ImageCaptcha", "PuzzleCaptcha"] as const;
+export const PUZZLE_HOST_NAMES = [
+  "Captcha",
+  "ImageCaptcha",
+  "PuzzleCaptcha",
+] as const;
 
 /** DOM candidate selectors (must match `collectCaptchaCandidates` inline list). */
 export const CAPTCHA_CANDIDATE_SELECTORS = [

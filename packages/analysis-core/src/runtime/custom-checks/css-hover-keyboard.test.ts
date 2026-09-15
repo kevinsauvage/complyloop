@@ -14,7 +14,8 @@ describe("cssHoverKeyboardViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags hover-only menus without a focus equivalent",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><style>
           .menu { position: relative; display: inline-block; }
           .menu .panel {
@@ -34,8 +35,8 @@ describe("cssHoverKeyboardViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await cssHoverKeyboardViolation(page);
-        expect(violation?.id).toBe("css-hover-keyboard");
+          const violation = await cssHoverKeyboardViolation(page);
+          expect(violation?.id).toBe("css-hover-keyboard");
         },
       );
     },

@@ -192,68 +192,70 @@ export function OrgDataLifecycle({
             </summary>
             <div className="mt-3">
               <form id={deleteFormId} action={deleteAction}>
-            <input type="hidden" name="orgId" value={orgId} />
-            <AlertDialog
-              open={deleteConfirmOpen}
-              onOpenChange={(open) => {
-                setDeleteConfirmOpen(open);
-                if (!open) setConfirmText("");
-              }}
-            >
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={deletePending}
+                <input type="hidden" name="orgId" value={orgId} />
+                <AlertDialog
+                  open={deleteConfirmOpen}
+                  onOpenChange={(open) => {
+                    setDeleteConfirmOpen(open);
+                    if (!open) setConfirmText("");
+                  }}
                 >
-                  {deletePending ? "Deleting…" : "Delete organization"}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete {orgName}?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This cannot be undone from the product UI. Type{" "}
-                    <code className="text-xs text-foreground">DELETE</code> to
-                    confirm permanent deletion of projects and mutable records.
-                    Evidence history is retained for audit.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="flex flex-col gap-1.5 py-2">
-                  <Label htmlFor={confirmFieldId}>Confirmation</Label>
-                  <Input
-                    id={confirmFieldId}
-                    form={deleteFormId}
-                    name="confirm"
-                    autoComplete="off"
-                    placeholder="DELETE"
-                    value={confirmText}
-                    onChange={(event) => setConfirmText(event.target.value)}
-                    required
-                  />
-                </div>
-                <AlertDialogFooter>
-                  <AlertDialogCancel type="button" disabled={deletePending}>
-                    Cancel
-                  </AlertDialogCancel>
-                  <Button
-                    type="submit"
-                    form={deleteFormId}
-                    variant="destructive"
-                    disabled={!deleteReady || deletePending}
-                  >
-                    {deletePending ? "Deleting…" : "Delete permanently"}
-                  </Button>
-                </AlertDialogFooter>
-                {!deleteState.ok && deleteState.message && !deletePending ? (
-                  <p role="alert" className="text-sm text-destructive">
-                    {deleteState.message}
-                  </p>
-                ) : null}
-              </AlertDialogContent>
-            </AlertDialog>
-          </form>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={deletePending}
+                    >
+                      {deletePending ? "Deleting…" : "Delete organization"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete {orgName}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This cannot be undone from the product UI. Type{" "}
+                        <code className="text-xs text-foreground">DELETE</code>{" "}
+                        to confirm permanent deletion of projects and mutable
+                        records. Evidence history is retained for audit.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="flex flex-col gap-1.5 py-2">
+                      <Label htmlFor={confirmFieldId}>Confirmation</Label>
+                      <Input
+                        id={confirmFieldId}
+                        form={deleteFormId}
+                        name="confirm"
+                        autoComplete="off"
+                        placeholder="DELETE"
+                        value={confirmText}
+                        onChange={(event) => setConfirmText(event.target.value)}
+                        required
+                      />
+                    </div>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel type="button" disabled={deletePending}>
+                        Cancel
+                      </AlertDialogCancel>
+                      <Button
+                        type="submit"
+                        form={deleteFormId}
+                        variant="destructive"
+                        disabled={!deleteReady || deletePending}
+                      >
+                        {deletePending ? "Deleting…" : "Delete permanently"}
+                      </Button>
+                    </AlertDialogFooter>
+                    {!deleteState.ok &&
+                    deleteState.message &&
+                    !deletePending ? (
+                      <p role="alert" className="text-sm text-destructive">
+                        {deleteState.message}
+                      </p>
+                    ) : null}
+                  </AlertDialogContent>
+                </AlertDialog>
+              </form>
             </div>
           </details>
         </section>

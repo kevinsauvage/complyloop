@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 
-import { expect, type Page,test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const require = createRequire(path.join(process.cwd(), "package.json"));
 const axePath = require.resolve("axe-core/axe.min.js");

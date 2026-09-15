@@ -6,10 +6,7 @@ import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
 import { FocusFilterResults } from "@/components/findings/focus-filter-results";
 import { EmptyState } from "@/components/page-primitives";
 import { PaginationNav } from "@/components/pagination-nav";
-import type {
-  FindingListParams,
-  FindingsTab,
-} from "@/core/filter-params";
+import type { FindingListParams, FindingsTab } from "@/core/filter-params";
 import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
 
 export function FindingsTabPanel({
@@ -57,7 +54,11 @@ export function FindingsTabPanel({
           filteredEmptyState
         ) : (
           <EmptyState
-            title={tab === "resolved" ? "All clear — nothing resolved yet" : "No findings"}
+            title={
+              tab === "resolved"
+                ? "All clear — nothing resolved yet"
+                : "No findings"
+            }
             variant={tab === "resolved" ? "all-clear" : "default"}
             action={emptyAction}
           >

@@ -5,12 +5,7 @@ import {
   ACTIVE_ORG_COOKIE,
   ACTIVE_PROJECT_COOKIE,
 } from "../src/server/workspace/active-cookies";
-import {
-  E2E_ORG_ID,
-  E2E_OWNER,
-  E2E_PROJECT_ID,
-  E2E_VIEWER,
-} from "./constants";
+import { E2E_ORG_ID, E2E_OWNER, E2E_PROJECT_ID, E2E_VIEWER } from "./constants";
 import { mintSessionCookie, storageState } from "./helpers";
 
 const AUTH_DIR = path.join(process.cwd(), "e2e", ".auth");
@@ -30,19 +25,11 @@ export async function writeAuthStates(): Promise<void> {
 
   fs.writeFileSync(
     OWNER_STATE,
-    JSON.stringify(
-      storageState([ownerSession, ...workspaceCookies]),
-      null,
-      2,
-    ),
+    JSON.stringify(storageState([ownerSession, ...workspaceCookies]), null, 2),
   );
   fs.writeFileSync(
     VIEWER_STATE,
-    JSON.stringify(
-      storageState([viewerSession, ...workspaceCookies]),
-      null,
-      2,
-    ),
+    JSON.stringify(storageState([viewerSession, ...workspaceCookies]), null, 2),
   );
   fs.writeFileSync(ANON_STATE, JSON.stringify(storageState([]), null, 2));
 }

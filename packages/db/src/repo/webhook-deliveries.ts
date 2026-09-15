@@ -36,12 +36,10 @@ export async function pruneWebhookDeliveryRows(
     .orderBy(asc(webhookDeliveries.processedAt))
     .limit(overflow);
   if (oldest.length === 0) return;
-  await db
-    .delete(webhookDeliveries)
-    .where(
-      inArray(
-        webhookDeliveries.deliveryId,
-        oldest.map((row) => row.deliveryId),
-      ),
-    );
+  await db.delete(webhookDeliveries).where(
+    inArray(
+      webhookDeliveries.deliveryId,
+      oldest.map((row) => row.deliveryId),
+    ),
+  );
 }

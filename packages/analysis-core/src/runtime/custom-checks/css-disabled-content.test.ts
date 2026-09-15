@@ -14,7 +14,8 @@ describe("cssDisabledContentViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags essential text carried only by pseudo-elements",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><head><style>
           .download::before { content: "Télécharger le rapport"; }
           .download {
@@ -28,10 +29,10 @@ describe("cssDisabledContentViolations", () => {
         </body></html>
       `,
         async (page) => {
-        const violations = await cssDisabledContentViolations(page);
-        expect(violations.some((v) => v.id === "css-disabled-content")).toBe(
-          true,
-        );
+          const violations = await cssDisabledContentViolations(page);
+          expect(violations.some((v) => v.id === "css-disabled-content")).toBe(
+            true,
+          );
         },
       );
     },
@@ -41,7 +42,8 @@ describe("cssDisabledContentViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags headings whose only letters live in pseudo-elements",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="en"><head><style>
           h2.chapter::before { content: "Chapter 1"; }
         </style></head><body>
@@ -49,8 +51,8 @@ describe("cssDisabledContentViolations", () => {
         </body></html>
       `,
         async (page) => {
-        const violations = await cssDisabledContentViolations(page);
-        expect(violations.length).toBeGreaterThan(0);
+          const violations = await cssDisabledContentViolations(page);
+          expect(violations.length).toBeGreaterThan(0);
         },
       );
     },
@@ -60,14 +62,15 @@ describe("cssDisabledContentViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when visible text is in the DOM",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="fr"><body>
           <button>Télécharger</button>
         </body></html>
       `,
         async (page) => {
-        const violations = await cssDisabledContentViolations(page);
-        expect(violations.length).toBe(0);
+          const violations = await cssDisabledContentViolations(page);
+          expect(violations.length).toBe(0);
         },
       );
     },
@@ -77,7 +80,8 @@ describe("cssDisabledContentViolations", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "passes when a CSS chevron decorates a button that already has visible text",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="en"><head><style>
           button.menu::after { content: "›"; }
         </style></head><body>
@@ -85,8 +89,8 @@ describe("cssDisabledContentViolations", () => {
         </body></html>
       `,
         async (page) => {
-        const violations = await cssDisabledContentViolations(page);
-        expect(violations.length).toBe(0);
+          const violations = await cssDisabledContentViolations(page);
+          expect(violations.length).toBe(0);
         },
       );
     },

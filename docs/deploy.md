@@ -17,12 +17,12 @@ Production checklist and reference. **App overview:** [`README.md`](../README.md
 
 ## How it runs
 
-| Concern | Behavior |
-| --- | --- |
-| **State** | Postgres only — no durable repo workspace on disk |
-| **Clones** | Shallow temp checkout per job; deleted after |
-| **Jobs** | Queued in DB; worker leases (30 min), 3 attempts total with backoff, serial per project |
-| **Webhooks** | Acknowledge after enqueue — no long HTTP hold for clone/Playwright |
+| Concern        | Behavior                                                                                                                                                                                                                                                                |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **State**      | Postgres only — no durable repo workspace on disk                                                                                                                                                                                                                       |
+| **Clones**     | Shallow temp checkout per job; deleted after                                                                                                                                                                                                                            |
+| **Jobs**       | Queued in DB; worker leases (30 min), 3 attempts total with backoff, serial per project                                                                                                                                                                                 |
+| **Webhooks**   | Acknowledge after enqueue — no long HTTP hold for clone/Playwright                                                                                                                                                                                                      |
 | **Write lock** | Job claim uses `FOR UPDATE SKIP LOCKED` so workers can dequeue in parallel across projects (still one running assessment per project). Rate limits use per-key named locks. Interactive writes and assessment apply acquire a per-project advisory lock during persist. |
 
 Webhooks never clone. Clone or scan failures happen in the worker and end as `assessment_job_failed` evidence after the last attempt.
@@ -31,29 +31,29 @@ Webhooks never clone. Clone or scan failures happen in the worker and end as `as
 
 ## Environment variables
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | **Yes** | Postgres (Drizzle) |
-| `AUTH_SECRET` | **Yes** (prod) | Sessions + token encryption. Production refuses known placeholders (`replace-me`, `e2e-secret-change-me`). |
-| `AUTH_URL` | **Yes** (prod) | Auth.js public URL |
-| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` | **Yes** (prod) | Repo access via installation tokens |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | **Yes** | App OAuth client |
-| `GITHUB_WEBHOOK_SECRET` | Recommended | Webhook verification |
-| `GITHUB_APP_SLUG` | Recommended | Install link in connect UI |
-| `SENTRY_DSN` | **Yes** (staging/prod) | Error capture |
-| `WORKER_SECRET` | If using HTTP worker trigger | Bearer for `POST /api/internal/jobs/run` |
-| `WORKER_POLL_MS` | No | Worker poll interval (default 5000) |
-| `ASSESSMENT_MAX_CHECKOUT_BYTES` | No | Clone size cap (default 500 MB) |
-| `ASSESSMENT_MAX_CHECKOUT_FILES` | No | Clone file cap (default 50,000) |
-| `ASSESSMENT_MAX_RUNTIME_PAGES` | No | Runtime audit page quota (default 25) |
-| `NEXT_PUBLIC_SENTRY_DSN` | No | Browser Sentry |
-| `SENTRY_TRACES_SAMPLE_RATE` | No | 0–1, default 0.05 in production |
-| `AI_GATEWAY_API_KEY` | No | Enables AI explanations / suggestions / patches (Vercel AI Gateway) |
-| `GITHUB_API_BASE_URL` | No | GitHub REST base override (GHES, or the e2e fixture API) |
-| `COMPLYLOOP_SUPPORT_EMAIL` | No | Support contact shown on the Organization page |
-| `COMPLYLOOP_BACKUP_DIR` | For `ops:backup` | Destination for `scripts/backup-postgres.sh` |
-| `DATABASE_SSL_INSECURE` | Dev only | Skip TLS verify for some hosted Postgres |
-| `E2E_AUTH_ENABLED` / `E2E_FIXTURE_ROOT` / `E2E_AUTH_SECRET` / `E2E_GITHUB_TOKEN` | CI/local e2e only | Playwright harness — never on customer deploys |
+| Variable                                                                         | Required                     | Purpose                                                                                                    |
+| -------------------------------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                                   | **Yes**                      | Postgres (Drizzle)                                                                                         |
+| `AUTH_SECRET`                                                                    | **Yes** (prod)               | Sessions + token encryption. Production refuses known placeholders (`replace-me`, `e2e-secret-change-me`). |
+| `AUTH_URL`                                                                       | **Yes** (prod)               | Auth.js public URL                                                                                         |
+| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`                                       | **Yes** (prod)               | Repo access via installation tokens                                                                        |
+| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`                                          | **Yes**                      | App OAuth client                                                                                           |
+| `GITHUB_WEBHOOK_SECRET`                                                          | Recommended                  | Webhook verification                                                                                       |
+| `GITHUB_APP_SLUG`                                                                | Recommended                  | Install link in connect UI                                                                                 |
+| `SENTRY_DSN`                                                                     | **Yes** (staging/prod)       | Error capture                                                                                              |
+| `WORKER_SECRET`                                                                  | If using HTTP worker trigger | Bearer for `POST /api/internal/jobs/run`                                                                   |
+| `WORKER_POLL_MS`                                                                 | No                           | Worker poll interval (default 5000)                                                                        |
+| `ASSESSMENT_MAX_CHECKOUT_BYTES`                                                  | No                           | Clone size cap (default 500 MB)                                                                            |
+| `ASSESSMENT_MAX_CHECKOUT_FILES`                                                  | No                           | Clone file cap (default 50,000)                                                                            |
+| `ASSESSMENT_MAX_RUNTIME_PAGES`                                                   | No                           | Runtime audit page quota (default 25)                                                                      |
+| `NEXT_PUBLIC_SENTRY_DSN`                                                         | No                           | Browser Sentry                                                                                             |
+| `SENTRY_TRACES_SAMPLE_RATE`                                                      | No                           | 0–1, default 0.05 in production                                                                            |
+| `AI_GATEWAY_API_KEY`                                                             | No                           | Enables AI explanations / suggestions / patches (Vercel AI Gateway)                                        |
+| `GITHUB_API_BASE_URL`                                                            | No                           | GitHub REST base override (GHES, or the e2e fixture API)                                                   |
+| `COMPLYLOOP_SUPPORT_EMAIL`                                                       | No                           | Support contact shown on the Organization page                                                             |
+| `COMPLYLOOP_BACKUP_DIR`                                                          | For `ops:backup`             | Destination for `scripts/backup-postgres.sh`                                                               |
+| `DATABASE_SSL_INSECURE`                                                          | Dev only                     | Skip TLS verify for some hosted Postgres                                                                   |
+| `E2E_AUTH_ENABLED` / `E2E_FIXTURE_ROOT` / `E2E_AUTH_SECRET` / `E2E_GITHUB_TOKEN` | CI/local e2e only            | Playwright harness — never on customer deploys                                                             |
 
 ---
 

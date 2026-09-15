@@ -14,7 +14,8 @@ describe("liveRegionUpdatesViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "flags visible validation feedback outside live regions after invalid submit",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="en"><body>
           <form id="signup">
             <label>Email <input id="email" type="email" required value="not-an-email" /></label>
@@ -31,9 +32,9 @@ describe("liveRegionUpdatesViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await liveRegionUpdatesViolation(page);
-        expect(violation?.id).toBe("live-region-updates");
-        expect(violation?.impact).toBe("moderate");
+          const violation = await liveRegionUpdatesViolation(page);
+          expect(violation?.id).toBe("live-region-updates");
+          expect(violation?.impact).toBe("moderate");
         },
       );
     },
@@ -43,7 +44,8 @@ describe("liveRegionUpdatesViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
     "does not flag marketing copy revealed by an unrelated button click",
     async () => {
-      await withProbePage(`
+      await withProbePage(
+        `
         <!doctype html><html lang="en"><body>
           <button type="button" id="faq">Open FAQ</button>
           <div id="panel" hidden>
@@ -57,8 +59,8 @@ describe("liveRegionUpdatesViolation", () => {
         </body></html>
       `,
         async (page) => {
-        const violation = await liveRegionUpdatesViolation(page);
-        expect(violation).toBeNull();
+          const violation = await liveRegionUpdatesViolation(page);
+          expect(violation).toBeNull();
         },
       );
     },

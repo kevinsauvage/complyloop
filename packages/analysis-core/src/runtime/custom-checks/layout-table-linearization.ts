@@ -1,6 +1,9 @@
 import type { Page } from "playwright";
 
-import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
+import {
+  pageEvaluateWithHitCapture,
+  toViolationNodes,
+} from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 
 /** True when the table is used for layout rather than tabular data. */

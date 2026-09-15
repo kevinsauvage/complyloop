@@ -20,9 +20,9 @@ export default function FindingNotFound() {
         </span>
         <h1 className="text-base font-medium">Finding not found</h1>
         <CardDescription className="max-w-lg text-balance">
-          That finding does not exist, was resolved and pruned, or belongs to
-          a project you cannot access. Return to the list and pick another
-          item from the queue.
+          That finding does not exist, was resolved and pruned, or belongs to a
+          project you cannot access. Return to the list and pick another item
+          from the queue.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap justify-center gap-3">

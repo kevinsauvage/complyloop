@@ -9,7 +9,9 @@ export function Bad() {
       <img src="/x.png" />
       <form action="/paiement">
         <input type="password" autoComplete="current-password" name="card" />
-        <div aria-label="Sélectionnez tous les feux tricolores">Captcha images</div>
+        <div aria-label="Sélectionnez tous les feux tricolores">
+          Captcha images
+        </div>
         <button type="submit">Payer</button>
       </form>
       <ReCAPTCHA sitekey="x" />

@@ -181,7 +181,7 @@ export const pAsHeadingCheck: AccessibilityCheck = {
         severity: "moderate",
         confidence: "low",
         reason:
-          "<p> is styled like a heading. Use an h1–h6 (or role=\"heading\" with aria-level) so the document outline matches the visual hierarchy.",
+          '<p> is styled like a heading. Use an h1–h6 (or role="heading" with aria-level) so the document outline matches the visual hierarchy.',
         location: locationOf(source, node),
         fix: null,
       });
@@ -295,7 +295,9 @@ function hasDataTableMarkup(node: Parameters<typeof tagNameOf>[0]): boolean {
   if (!element) return false;
   return descendantTags(element).some((tag) => {
     if (DATA_TABLE_TAGS.has(tagNameOf(tag))) return true;
-    return DATA_TABLE_ATTRS.some((name) => getAttribute(tag, name) !== undefined);
+    return DATA_TABLE_ATTRS.some(
+      (name) => getAttribute(tag, name) !== undefined,
+    );
   });
 }
 
@@ -315,7 +317,7 @@ export const layoutTableMarkupCheck: AccessibilityCheck = {
         severity: "serious",
         confidence: "high",
         reason:
-          "Layout table (role=\"presentation\") still has header/caption markup, which assistive technologies treat as a data table.",
+          'Layout table (role="presentation") still has header/caption markup, which assistive technologies treat as a data table.',
         location: locationOf(source, node),
         fix: null,
       });
@@ -338,13 +340,12 @@ function hasUnassociatedCaption(element: ts.JsxElement): boolean {
   for (const child of element.children) {
     if (ts.isJsxText(child) && child.text.trim().length > 0) return true;
     if (ts.isJsxExpression(child) && child.expression) return true;
-    const tag: Parameters<typeof tagNameOf>[0] | undefined = ts.isJsxSelfClosingElement(
-      child,
-    )
-      ? child
-      : ts.isJsxElement(child)
-        ? child.openingElement
-        : undefined;
+    const tag: Parameters<typeof tagNameOf>[0] | undefined =
+      ts.isJsxSelfClosingElement(child)
+        ? child
+        : ts.isJsxElement(child)
+          ? child.openingElement
+          : undefined;
     if (!tag) continue;
     const name = tagNameOf(tag);
     if (name === "figcaption" || IMAGE_TAGS.has(name)) continue;

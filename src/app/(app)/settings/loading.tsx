@@ -10,8 +10,14 @@ export default function SettingsLoading() {
         <div className="h-8 w-48 max-w-full animate-pulse rounded-md bg-muted" />
         <div className="h-4 w-80 max-w-full animate-pulse rounded-md bg-muted/70" />
       </div>
-      <div className="surface-panel h-40 animate-pulse rounded-2xl" aria-hidden />
-      <div className="surface-panel h-40 animate-pulse rounded-2xl" aria-hidden />
+      <div
+        className="surface-panel h-40 animate-pulse rounded-2xl"
+        aria-hidden
+      />
+      <div
+        className="surface-panel h-40 animate-pulse rounded-2xl"
+        aria-hidden
+      />
       <p className="text-sm text-muted-foreground">Loading settings…</p>
       <span className="sr-only">Loading…</span>
     </div>

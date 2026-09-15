@@ -21,11 +21,17 @@ test.describe("authenticated routes", () => {
 
   test("sidebar navigates between primary sections", async ({ page }) => {
     await page.goto("/dashboard");
-    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Findings", exact: true }).click();
+    await page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "Findings", exact: true })
+      .click();
     await expect(page).toHaveURL(/\/findings/);
     await expect(page.getByRole("heading", { name: "Findings" })).toBeVisible();
 
-    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Evidence", exact: true }).click();
+    await page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "Evidence", exact: true })
+      .click();
     await expect(page).toHaveURL(/\/evidence/);
     await expect(page.getByRole("heading", { name: "Evidence" })).toBeVisible();
   });

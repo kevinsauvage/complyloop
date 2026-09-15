@@ -12,7 +12,10 @@ import {
   BROWSER_OBJECT_RECOGNITION_CAPTCHA_SRC,
 } from "./captcha-candidates.ts";
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
+import {
+  pageEvaluateWithHitCapture,
+  toViolationNodes,
+} from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 
 export async function accessibleAuthEnhancedViolation(
@@ -41,9 +44,9 @@ export async function accessibleAuthEnhancedViolation(
         text: string,
       ) => boolean;
 
-      const collectCandidates = new Function(
-        `return (${collectSrc})`,
-      )() as (doc?: Document) => Element[];
+      const collectCandidates = new Function(`return (${collectSrc})`)() as (
+        doc?: Document,
+      ) => Element[];
 
       const { isObjectRecognitionCaptchaElement } = new Function(
         `return (${objectRecognitionSrc})`,

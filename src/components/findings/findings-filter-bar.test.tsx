@@ -16,7 +16,9 @@ describe("FindingsFilterBar", () => {
       <FindingsFilterBar params={{ tab: "open", page: 1 }} />,
     );
 
-    expect(screen.getByRole("form", { name: /findings filter/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("form", { name: /findings filter/i }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText(/search/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/severity/i)).toBeInTheDocument();
   });

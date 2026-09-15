@@ -21,7 +21,10 @@ export async function tryConsumeRateLimitSlot(
     .where(eq(rateLimitBuckets.key, key))
     .limit(1);
 
-  if (!existing || now.getTime() - Date.parse(existing.windowStartedAt) >= windowMs) {
+  if (
+    !existing ||
+    now.getTime() - Date.parse(existing.windowStartedAt) >= windowMs
+  ) {
     await tx
       .insert(rateLimitBuckets)
       .values({

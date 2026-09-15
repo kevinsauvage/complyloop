@@ -18,7 +18,10 @@ import {
 describe("heading-order", () => {
   it("flags skipped heading levels", () => {
     const findings = headingOrderCheck.run(
-      parseSource("test.tsx", `const A = () => (<div><h1>Title</h1><h3>Skip</h3></div>);`),
+      parseSource(
+        "test.tsx",
+        `const A = () => (<div><h1>Title</h1><h3>Skip</h3></div>);`,
+      ),
     );
     expect(findings).toHaveLength(1);
     expect(findings[0].checkId).toBe("heading-order");
@@ -36,7 +39,10 @@ describe("list-structure", () => {
 
     expect(
       listStructureCheck.run(
-        parseSource("test.tsx", `const A = () => <ul><div>not an item</div></ul>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <ul><div>not an item</div></ul>;`,
+        ),
       ),
     ).toHaveLength(1);
   });
@@ -52,7 +58,10 @@ describe("list-structure", () => {
 
   it("flags self-closing non-li children inside lists", () => {
     const findings = listStructureCheck.run(
-      parseSource("test.tsx", `const A = () => <ol><img src="/x.png" alt="" /></ol>;`),
+      parseSource(
+        "test.tsx",
+        `const A = () => <ol><img src="/x.png" alt="" /></ol>;`,
+      ),
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]?.reason).toContain("<img>");
@@ -61,7 +70,10 @@ describe("list-structure", () => {
   it("accepts well-formed lists including menu", () => {
     expect(
       listStructureCheck.run(
-        parseSource("test.tsx", `const A = () => <ul><li>One</li><li>Two</li></ul>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <ul><li>One</li><li>Two</li></ul>;`,
+        ),
       ),
     ).toHaveLength(0);
     expect(
@@ -74,7 +86,10 @@ describe("list-structure", () => {
   it("ignores whitespace and expression children that are not elements", () => {
     expect(
       listStructureCheck.run(
-        parseSource("test.tsx", `const A = () => <ul>{items}<li>One</li></ul>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <ul>{items}<li>One</li></ul>;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -94,11 +109,16 @@ describe("p-as-heading", () => {
 
   it("ignores ordinary paragraphs and real headings", () => {
     expect(
-      pAsHeadingCheck.run(parseSource("test.tsx", `const A = () => <p>Hello</p>;`)),
+      pAsHeadingCheck.run(
+        parseSource("test.tsx", `const A = () => <p>Hello</p>;`),
+      ),
     ).toHaveLength(0);
     expect(
       pAsHeadingCheck.run(
-        parseSource("test.tsx", `const A = () => <h1 className="text-4xl">Hello</h1>;`),
+        parseSource(
+          "test.tsx",
+          `const A = () => <h1 className="text-4xl">Hello</h1>;`,
+        ),
       ),
     ).toHaveLength(0);
   });
@@ -215,7 +235,9 @@ describe("table-summary", () => {
         </tbody>
       </table>
     );`;
-    expect(tableSummaryCheck.run(parseSource("test.tsx", source))).toHaveLength(1);
+    expect(tableSummaryCheck.run(parseSource("test.tsx", source))).toHaveLength(
+      1,
+    );
   });
 
   it("accepts aria-describedby on complex tables", () => {
@@ -225,14 +247,18 @@ describe("table-summary", () => {
         <tbody><tr><td>x</td><td>y</td></tr></tbody>
       </table>
     );`;
-    expect(tableSummaryCheck.run(parseSource("test.tsx", source))).toHaveLength(0);
+    expect(tableSummaryCheck.run(parseSource("test.tsx", source))).toHaveLength(
+      0,
+    );
   });
 
   it("ignores simple small tables", () => {
     const source = `const A = () => (
       <table><tr><th>Name</th><td>Ada</td></tr></table>
     );`;
-    expect(tableSummaryCheck.run(parseSource("test.tsx", source))).toHaveLength(0);
+    expect(tableSummaryCheck.run(parseSource("test.tsx", source))).toHaveLength(
+      0,
+    );
   });
 });
 
@@ -341,7 +367,10 @@ describe("blockquote-cite", () => {
 describe("duplicate-id", () => {
   it("flags repeated id values in a file", () => {
     const findings = duplicateIdCheck.run(
-      parseSource("test.tsx", `const A = () => (<div><span id="x" /><button id="x" /></div>);`),
+      parseSource(
+        "test.tsx",
+        `const A = () => (<div><span id="x" /><button id="x" /></div>);`,
+      ),
     );
     expect(findings).toHaveLength(1);
     expect(findings[0].reason).toContain('id="x"');

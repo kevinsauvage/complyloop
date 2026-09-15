@@ -4,7 +4,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { actionWorkspaceMocks, clearProjectWritePayloads, mockProjectWrite, projectWritePayload } from "@/test-fixtures/action-workspace-mocks";
+import {
+  actionWorkspaceMocks,
+  clearProjectWritePayloads,
+  mockProjectWrite,
+  projectWritePayload,
+} from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
@@ -49,11 +54,8 @@ describe("updateRuntimeAuditAction", () => {
     const form = new FormData();
     form.set("runtimeBaseUrl", "https://app.example");
 
-    const result = await updateRuntimeAuditAction(
-      initialActionState,
-      form,
-    );
-    expect((result.ok ? null : result.message)).toMatch(/Not allowed/);
+    const result = await updateRuntimeAuditAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(/Not allowed/);
   });
 
   it("clears runtime settings when the base URL is empty", async () => {
@@ -62,10 +64,7 @@ describe("updateRuntimeAuditAction", () => {
     const form = new FormData();
     form.set("runtimeBaseUrl", "  ");
 
-    const result = await updateRuntimeAuditAction(
-      initialActionState,
-      form,
-    );
+    const result = await updateRuntimeAuditAction(initialActionState, form);
 
     expect(result.message).toMatch(/Runtime audit settings saved/);
     expect(projectWritePayload()?.project?.runtimeBaseUrl).toBeUndefined();
@@ -81,13 +80,12 @@ describe("updateRuntimeAuditAction", () => {
     form.set("runtimeBaseUrl", "https://app.example/path");
     form.set("runtimeRoutes", "home, /about\ncontact");
 
-    const result = await updateRuntimeAuditAction(
-      initialActionState,
-      form,
-    );
+    const result = await updateRuntimeAuditAction(initialActionState, form);
 
     expect(result.message).toMatch(/Runtime audit settings saved/);
-    expect(projectWritePayload()?.project?.runtimeBaseUrl).toBe("https://app.example");
+    expect(projectWritePayload()?.project?.runtimeBaseUrl).toBe(
+      "https://app.example",
+    );
     expect(projectWritePayload()?.project?.runtimeRoutes).toEqual([
       "/home",
       "/about",
@@ -102,11 +100,10 @@ describe("updateRuntimeAuditAction", () => {
     const form = new FormData();
     form.set("runtimeBaseUrl", "http://127.0.0.1");
 
-    const result = await updateRuntimeAuditAction(
-      initialActionState,
-      form,
+    const result = await updateRuntimeAuditAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(
+      /not allowed for runtime audit/,
     );
-    expect((result.ok ? null : result.message)).toMatch(/not allowed for runtime audit/);
     expect(withProjectWrite).not.toHaveBeenCalled();
   });
 
@@ -116,11 +113,10 @@ describe("updateRuntimeAuditAction", () => {
     form.set("runtimeBaseUrl", "https://app.example");
     form.set("runtimeRoutes", "/ok\nhttp://127.0.0.1/admin");
 
-    const result = await updateRuntimeAuditAction(
-      initialActionState,
-      form,
+    const result = await updateRuntimeAuditAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(
+      /must be paths under the Preview/,
     );
-    expect((result.ok ? null : result.message)).toMatch(/must be paths under the Preview/);
     expect(withProjectWrite).not.toHaveBeenCalled();
   });
 
@@ -150,10 +146,7 @@ describe("updateRuntimeAuditAction", () => {
     form.set("runtimeBaseUrl", "https://app.example");
     form.set("runtimeRoutes", "   ");
 
-    const result = await updateRuntimeAuditAction(
-      initialActionState,
-      form,
-    );
+    const result = await updateRuntimeAuditAction(initialActionState, form);
 
     expect(result.message).toMatch(/Runtime audit settings saved/);
     expect(projectWritePayload()?.project?.runtimeRoutes).toEqual([]);

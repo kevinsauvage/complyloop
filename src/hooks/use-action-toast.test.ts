@@ -59,13 +59,22 @@ describe("useActionToast", () => {
     );
 
     rerender({ state: idle, pending: true });
-    rerender({ state: { ok: true, message: "Assessment complete." }, pending: false });
+    rerender({
+      state: { ok: true, message: "Assessment complete." },
+      pending: false,
+    });
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledTimes(1);
     });
 
-    rerender({ state: { ok: true, message: "Assessment complete." }, pending: true });
-    rerender({ state: { ok: true, message: "Assessment complete." }, pending: false });
+    rerender({
+      state: { ok: true, message: "Assessment complete." },
+      pending: true,
+    });
+    rerender({
+      state: { ok: true, message: "Assessment complete." },
+      pending: false,
+    });
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledTimes(2);
     });

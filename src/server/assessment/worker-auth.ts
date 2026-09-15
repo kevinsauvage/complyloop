@@ -12,5 +12,7 @@ export function isWorkerRequestAuthorized(header: string | null): boolean {
   if (!secret || !header?.startsWith("Bearer ")) return false;
   const supplied = Buffer.from(header.slice("Bearer ".length));
   const expected = Buffer.from(secret);
-  return supplied.length === expected.length && timingSafeEqual(supplied, expected);
+  return (
+    supplied.length === expected.length && timingSafeEqual(supplied, expected)
+  );
 }

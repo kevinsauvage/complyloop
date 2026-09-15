@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { implicitRoles, isFocusable } from "./a11y-model";
-import { type JsxTagNode,parseSource, visitJsxTags } from "./parse";
+import { type JsxTagNode, parseSource, visitJsxTags } from "./parse";
 
 function firstTag(jsx: string): JsxTagNode {
   const parsed = parseSource("test.tsx", jsx);
@@ -18,9 +18,9 @@ describe("isFocusable", () => {
     expect(isFocusable(firstTag(`const A = () => <button>x</button>;`))).toBe(
       true,
     );
-    expect(
-      isFocusable(firstTag(`const A = () => <a href="/x">x</a>;`)),
-    ).toBe(true);
+    expect(isFocusable(firstTag(`const A = () => <a href="/x">x</a>;`))).toBe(
+      true,
+    );
     expect(isFocusable(firstTag(`const A = () => <input />;`))).toBe(true);
     expect(isFocusable(firstTag(`const A = () => <select />;`))).toBe(true);
     expect(isFocusable(firstTag(`const A = () => <textarea />;`))).toBe(true);
@@ -38,17 +38,13 @@ describe("isFocusable", () => {
       isFocusable(firstTag(`const A = () => <button disabled>x</button>;`)),
     ).toBe(false);
     expect(
-      isFocusable(
-        firstTag(`const A = () => <input aria-disabled="true" />;`),
-      ),
+      isFocusable(firstTag(`const A = () => <input aria-disabled="true" />;`)),
     ).toBe(false);
   });
 
   it("treats explicit widget roles and contentEditable as focusable", () => {
     expect(
-      isFocusable(
-        firstTag(`const A = () => <div role="button">x</div>;`),
-      ),
+      isFocusable(firstTag(`const A = () => <div role="button">x</div>;`)),
     ).toBe(true);
     expect(
       isFocusable(firstTag(`const A = () => <div contentEditable>x</div>;`)),
@@ -76,14 +72,14 @@ describe("isFocusable", () => {
 
 describe("implicitRoles", () => {
   it("reads implicit roles from aria-query element tables", () => {
-    expect(implicitRoles(firstTag(`const A = () => <button>x</button>;`))).toContain(
-      "button",
-    );
+    expect(
+      implicitRoles(firstTag(`const A = () => <button>x</button>;`)),
+    ).toContain("button");
     expect(
       implicitRoles(firstTag(`const A = () => <a href="/x">x</a>;`)),
     ).toContain("link");
-    expect(implicitRoles(firstTag(`const A = () => <div>x</div>;`))).not.toContain(
-      "button",
-    );
+    expect(
+      implicitRoles(firstTag(`const A = () => <div>x</div>;`)),
+    ).not.toContain("button");
   });
 });

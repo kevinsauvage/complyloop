@@ -1,7 +1,10 @@
 import type { Page } from "playwright";
 
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
+import {
+  pageEvaluateWithHitCapture,
+  toViolationNodes,
+} from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 
 export async function mediaIdentificationViolation(
@@ -15,7 +18,8 @@ export async function mediaIdentificationViolation(
       if (labelledBy) {
         for (const id of labelledBy.split(/\s+/)) {
           const target = document.getElementById(id);
-          if (target && (target.textContent ?? "").trim().length > 0) return true;
+          if (target && (target.textContent ?? "").trim().length > 0)
+            return true;
         }
       }
       if (el instanceof HTMLEmbedElement) {

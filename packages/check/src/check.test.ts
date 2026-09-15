@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { scanProject } from "@complyloop/analysis-core/scan";
 
-import { CHECK_HELP, type CheckIo,runCheck } from "./run-check";
+import { CHECK_HELP, type CheckIo, runCheck } from "./run-check";
 
 const testdataDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -61,7 +61,9 @@ describe("runCheck exit codes", () => {
   });
 
   it("exits 0 on a clean tree", () => {
-    const cleanDir = fs.mkdtempSync(path.join(os.tmpdir(), "complyloop-check-"));
+    const cleanDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "complyloop-check-"),
+    );
     try {
       fs.writeFileSync(
         path.join(cleanDir, "Clean.tsx"),

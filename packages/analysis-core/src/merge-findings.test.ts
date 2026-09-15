@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { dedupeRuntimeFindings, filterAstFindingsForAuthority } from "./merge-findings";
+import {
+  dedupeRuntimeFindings,
+  filterAstFindingsForAuthority,
+} from "./merge-findings";
 import type { RawFinding } from "./types";
 
 describe("filterAstFindingsForAuthority", () => {
@@ -41,9 +44,9 @@ describe("filterAstFindingsForAuthority", () => {
   };
 
   it("keeps composition-sensitive AST findings when runtime did not run", () => {
-    expect(filterAstFindingsForAuthority([astInput, astImg], false)).toHaveLength(
-      2,
-    );
+    expect(
+      filterAstFindingsForAuthority([astInput, astImg], false),
+    ).toHaveLength(2);
   });
 
   it("drops composition-sensitive AST findings when runtime ran", () => {
@@ -52,10 +55,7 @@ describe("filterAstFindingsForAuthority", () => {
       checkId: "fieldset-legend",
       reason: "legend",
     };
-    const filtered = filterAstFindingsForAuthority(
-      [astInput, astLegend],
-      true,
-    );
+    const filtered = filterAstFindingsForAuthority([astInput, astLegend], true);
     expect(filtered.map((finding) => finding.checkId)).toEqual([
       "fieldset-legend",
     ]);
@@ -161,7 +161,12 @@ describe("dedupeRuntimeFindings", () => {
     const snippet = "<button>";
     const deduped = dedupeRuntimeFindings([
       domFinding("focus-visible", "axe", "focus-order-semantics", snippet),
-      domFinding("focus-visible", "playwright-custom", "focus-visible", snippet),
+      domFinding(
+        "focus-visible",
+        "playwright-custom",
+        "focus-visible",
+        snippet,
+      ),
     ]);
     expect(deduped).toHaveLength(1);
     expect(deduped[0]?.analyzerId).toBe("axe");
@@ -176,33 +181,45 @@ describe("dedupeRuntimeFindings", () => {
   it("keeps findings when the same check hits different nodes", () => {
     const deduped = dedupeRuntimeFindings([
       domFinding("duplicate-id", "axe", "duplicate-id", '<span id="a"></span>'),
-      domFinding(
-        "content-region",
-        "axe",
-        "region",
-        '<a href="/help">Help</a>',
-      ),
+      domFinding("content-region", "axe", "region", '<a href="/help">Help</a>'),
     ]);
     expect(deduped).toHaveLength(2);
   });
 
   it("does not collapse distinct nodes that share identical markup", () => {
     const deduped = dedupeRuntimeFindings([
-      domFinding("button-name", "axe", "button-name", "<button>OK</button>", "#btn1"),
-      domFinding("button-name", "axe", "button-name", "<button>OK</button>", "#btn2"),
+      domFinding(
+        "button-name",
+        "axe",
+        "button-name",
+        "<button>OK</button>",
+        "#btn1",
+      ),
+      domFinding(
+        "button-name",
+        "axe",
+        "button-name",
+        "<button>OK</button>",
+        "#btn2",
+      ),
     ]);
     expect(deduped).toHaveLength(2);
     expect(
-      deduped.map(
-        (finding) =>
-          finding.location.kind === "dom" ? finding.location.selector : null,
+      deduped.map((finding) =>
+        finding.location.kind === "dom" ? finding.location.selector : null,
       ),
     ).toEqual(["#btn1", "#btn2"]);
   });
 
   it("falls back to the snippet when selectors are unknown or missing", () => {
     const deduped = dedupeRuntimeFindings([
-      domFinding("button-name", "axe", "button-name", "<button>OK</button>", "(unknown)"),
+      domFinding(
+        "button-name",
+        "axe",
+        "button-name",
+        "<button>OK</button>",
+        "(unknown)",
+      ),
       domFinding(
         "button-name",
         "playwright-custom",
@@ -216,7 +233,12 @@ describe("dedupeRuntimeFindings", () => {
 
   it("does not merge site-level findings with dom findings", () => {
     const deduped = dedupeRuntimeFindings([
-      domFinding("duplicate-id", "axe", "duplicate-id", '<span id="dup"></span>'),
+      domFinding(
+        "duplicate-id",
+        "axe",
+        "duplicate-id",
+        '<span id="dup"></span>',
+      ),
       {
         checkId: "consistent-nav",
         kind: "violation",

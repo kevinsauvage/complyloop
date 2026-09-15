@@ -102,9 +102,10 @@ test.describe("webhook-driven continuous monitoring", () => {
 
       // The webhook-triggered job actually ran a re-assessment.
       await expect
-        .poll(() =>
-          withDb(async (sql) => {
-            const rows = await sql<Array<{ n: number }>>`
+        .poll(
+          () =>
+            withDb(async (sql) => {
+              const rows = await sql<Array<{ n: number }>>`
               SELECT count(*)::int AS n
               FROM evidence
               WHERE project_id = ${E2E_PROJECT_ID}
@@ -112,8 +113,8 @@ test.describe("webhook-driven continuous monitoring", () => {
                 AND detail->>'phase' = 'completed'
                 AND detail->>'trigger' = 'webhook'
             `;
-            return rows[0]?.n ?? 0;
-          }),
+              return rows[0]?.n ?? 0;
+            }),
           { timeout: 30_000 },
         )
         .toBeGreaterThan(0);

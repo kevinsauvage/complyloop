@@ -1,6 +1,9 @@
 import type { Page } from "playwright";
 
-import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
+import {
+  pageEvaluateWithHitCapture,
+  toViolationNodes,
+} from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 
 export async function cssOffUnderstandableViolation(
@@ -11,14 +14,20 @@ export async function cssOffUnderstandableViolation(
       return document.body.innerText.replace(/\s+/g, " ").trim().length;
     }
 
-    const linkSnapshots: Array<{ el: HTMLLinkElement; hadDisabledAttr: boolean }> =
+    const linkSnapshots: Array<{
+      el: HTMLLinkElement;
+      hadDisabledAttr: boolean;
+    }> = [];
+    const styleSnapshots: Array<{ el: HTMLStyleElement; disabled: boolean }> =
       [];
-    const styleSnapshots: Array<{ el: HTMLStyleElement; disabled: boolean }> = [];
 
     function disableStylesheets(): void {
       for (const sheet of document.querySelectorAll('link[rel="stylesheet"]')) {
         const link = sheet as HTMLLinkElement;
-        linkSnapshots.push({ el: link, hadDisabledAttr: link.hasAttribute("disabled") });
+        linkSnapshots.push({
+          el: link,
+          hadDisabledAttr: link.hasAttribute("disabled"),
+        });
         link.setAttribute("disabled", "true");
       }
       for (const style of document.querySelectorAll("style")) {
@@ -48,7 +57,10 @@ export async function cssOffUnderstandableViolation(
         const parent = el.parentElement;
         if (!parent) continue;
         const parentDisplay = getComputedStyle(parent).display;
-        if (!parentDisplay.includes("flex") && !parentDisplay.includes("grid")) {
+        if (
+          !parentDisplay.includes("flex") &&
+          !parentDisplay.includes("grid")
+        ) {
           continue;
         }
         hits.push(el);

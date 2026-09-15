@@ -59,9 +59,7 @@ export function supportEmail(): string | null {
 
 /** Public app URL for sitemaps/absolute links. */
 export function appUrl(): string | undefined {
-  return (
-    trimmed("NEXT_PUBLIC_APP_URL") ?? trimmed("AUTH_URL") ?? undefined
-  );
+  return trimmed("NEXT_PUBLIC_APP_URL") ?? trimmed("AUTH_URL") ?? undefined;
 }
 
 /** Playwright harness master switch (see `e2e-harness.ts`). */

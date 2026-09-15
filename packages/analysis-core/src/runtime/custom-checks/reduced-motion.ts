@@ -30,67 +30,64 @@ export async function reducedMotionViolation(
     { reducedMotion: "reduce" },
     { reducedMotion: null },
     async () => {
-      const nodes = await pageEvaluateWithHitCapture(
-        page,
-        (captureHit) => {
-          const minDurationMs = 250;
-          const maxNodes = 10;
+      const nodes = await pageEvaluateWithHitCapture(page, (captureHit) => {
+        const minDurationMs = 250;
+        const maxNodes = 10;
 
-          function toMs(duration: number | string): number {
-            if (typeof duration === "number") return duration;
-            const num = parseFloat(duration);
-            return /ms$/i.test(duration) ? num : num * 1000;
+        function toMs(duration: number | string): number {
+          if (typeof duration === "number") return duration;
+          const num = parseFloat(duration);
+          return /ms$/i.test(duration) ? num : num * 1000;
+        }
+
+        const found: CustomViolationNode[] = [];
+        const seen = new Set<string>();
+        const getAnimations = (
+          document as unknown as {
+            getAnimations?: () => AnimationLike[];
           }
+        ).getAnimations;
 
-          const found: CustomViolationNode[] = [];
-          const seen = new Set<string>();
-          const getAnimations = (
-            document as unknown as {
-              getAnimations?: () => AnimationLike[];
-            }
-          ).getAnimations;
+        const animations = getAnimations ? getAnimations.call(document) : [];
+        for (const animation of animations) {
+          if (animation.playState !== "running") continue;
+          const effect = animation.effect;
+          const el = effect?.target;
+          if (!(el instanceof HTMLElement)) continue;
+          if (!el.isConnected) continue;
 
-          const animations = getAnimations ? getAnimations.call(document) : [];
-          for (const animation of animations) {
-            if (animation.playState !== "running") continue;
-            const effect = animation.effect;
-            const el = effect?.target;
-            if (!(el instanceof HTMLElement)) continue;
-            if (!el.isConnected) continue;
-
-            let duration = 0;
-            let iterations = 1;
-            if (effect && typeof effect.getTiming === "function") {
-              const timing = effect.getTiming();
-              duration = toMs(timing.duration);
-              iterations =
-                typeof timing.iterations === "number" ? timing.iterations : 1;
-            }
-            const infinite = iterations === Infinity;
-            if (!infinite && duration < minDurationMs) continue;
-
-            const hit = captureHit(el);
-            const key = hit.selector;
-            if (seen.has(key)) continue;
-            seen.add(key);
-
-            found.push({
-              html: hit.html,
-              target: [key],
-              elementLabel:
-                el.getAttribute("aria-label") ??
-                el.getAttribute("title") ??
-                undefined,
-              failureSummary: infinite
-                ? "Infinite animation keeps running under prefers-reduced-motion."
-                : `Animation of ${Math.round(duration)}ms keeps running under prefers-reduced-motion.`,
-            });
-            if (found.length >= maxNodes) break;
+          let duration = 0;
+          let iterations = 1;
+          if (effect && typeof effect.getTiming === "function") {
+            const timing = effect.getTiming();
+            duration = toMs(timing.duration);
+            iterations =
+              typeof timing.iterations === "number" ? timing.iterations : 1;
           }
+          const infinite = iterations === Infinity;
+          if (!infinite && duration < minDurationMs) continue;
 
-          return found;
-        },
-      );
+          const hit = captureHit(el);
+          const key = hit.selector;
+          if (seen.has(key)) continue;
+          seen.add(key);
+
+          found.push({
+            html: hit.html,
+            target: [key],
+            elementLabel:
+              el.getAttribute("aria-label") ??
+              el.getAttribute("title") ??
+              undefined,
+            failureSummary: infinite
+              ? "Infinite animation keeps running under prefers-reduced-motion."
+              : `Animation of ${Math.round(duration)}ms keeps running under prefers-reduced-motion.`,
+          });
+          if (found.length >= maxNodes) break;
+        }
+
+        return found;
+      });
 
       if (nodes.length === 0) return null;
       return {

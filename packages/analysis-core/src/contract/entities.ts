@@ -145,7 +145,8 @@ export type RequirementExceptionReason =
   (typeof REQUIREMENT_EXCEPTION_REASONS)[number];
 
 /** Reason whose exceptions expire automatically after `expiresAt`. */
-export const TEMPORARY_EXCEPTION_REASON: RequirementExceptionReason = "temporary";
+export const TEMPORARY_EXCEPTION_REASON: RequirementExceptionReason =
+  "temporary";
 
 export interface RequirementException {
   reason: RequirementExceptionReason;

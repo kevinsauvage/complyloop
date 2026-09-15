@@ -14,8 +14,13 @@ import { fileURLToPath } from "node:url";
 
 import * as esbuild from "esbuild";
 
-const packageDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const pkg = JSON.parse(readFileSync(path.join(packageDir, "package.json"), "utf8"));
+const packageDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+const pkg = JSON.parse(
+  readFileSync(path.join(packageDir, "package.json"), "utf8"),
+);
 const external = Object.keys(pkg.dependencies ?? {});
 
 await esbuild.build({

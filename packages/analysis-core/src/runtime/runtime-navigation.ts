@@ -57,7 +57,9 @@ export async function gotoForRuntimeAudit(
   await page.waitForTimeout(RUNTIME_POST_DOM_SETTLE_MS);
   const status = response?.status() ?? 0;
   if (status < 200 || status >= 300) {
-    throw new PublicError(`Preview page returned HTTP ${status || "no response"}.`);
+    throw new PublicError(
+      `Preview page returned HTTP ${status || "no response"}.`,
+    );
   }
   if (!runtimePageMatchesAuditedUrl(page.url(), url)) {
     throw new PublicError("Preview page redirected away from the audited URL.");

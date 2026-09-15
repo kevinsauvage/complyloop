@@ -77,7 +77,8 @@ export async function createPostgresClient(
   const client = postgres({
     host,
     port: Number(parsed.port || 5432),
-    database: decodeURIComponent(parsed.pathname.replace(/^\//, "")) || "postgres",
+    database:
+      decodeURIComponent(parsed.pathname.replace(/^\//, "")) || "postgres",
     username: decodeURIComponent(parsed.username),
     password: decodeURIComponent(parsed.password),
     ssl,
@@ -89,9 +90,14 @@ export async function createPostgresClient(
     prepare: false,
     ...(debug
       ? {
-          debug: (_connection: number, query: string, parameters: unknown[]) => {
+          debug: (
+            _connection: number,
+            query: string,
+            parameters: unknown[],
+          ) => {
             // Skip postgres.js internal type/bootstrap queries (pg_type arrays).
-            if (/select .*pg_catalog|posix|--|\bselect 1\b/i.test(query)) return;
+            if (/select .*pg_catalog|posix|--|\bselect 1\b/i.test(query))
+              return;
             console.log(
               `\x1b[90m${new Date().toISOString()}\x1b[0m \x1b[90mDBG\x1b[0m db query\x1b[90m query\x1b[0m=${compactSql(query)} \x1b[90margs\x1b[0m=${compactArgs(parameters).length}`,
             );
@@ -117,14 +123,17 @@ function wrapPostgresConnectError(
 ): Error {
   const message = error instanceof Error ? error.message : String(error);
   const cause =
-    error instanceof Error && "cause" in error
-      ? error.cause
-      : undefined;
+    error instanceof Error && "cause" in error ? error.cause : undefined;
   const causeMessage =
-    cause instanceof Error ? cause.message : typeof cause === "string" ? cause : "";
+    cause instanceof Error
+      ? cause.message
+      : typeof cause === "string"
+        ? cause
+        : "";
   const combined = `${message} ${causeMessage}`;
-  const looksLikeTls =
-    /SELF_SIGNED_CERT|unable to verify|certificate/i.test(combined);
+  const looksLikeTls = /SELF_SIGNED_CERT|unable to verify|certificate/i.test(
+    combined,
+  );
   const looksLikeSlotExhaustion =
     /remaining connection slots|too many connections|maxclientsreached/i.test(
       combined,

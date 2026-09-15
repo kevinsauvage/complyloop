@@ -6,11 +6,7 @@ import type { FindingKind, RequirementStatus } from "./statuses.ts";
  * Core stays framework-agnostic: the catalog maps check ids to a class.
  */
 export type CheckAuthority =
-  | "manual"
-  | "standard"
-  | "runtime_only"
-  | "heuristic"
-  | "site_level";
+  "manual" | "standard" | "runtime_only" | "heuristic" | "site_level";
 
 /** Minimal finding view needed to derive status. */
 export interface DerivationFinding {
@@ -107,8 +103,7 @@ export function deriveRequirementStatus(
       // Undefined means "no AST scan context" (e.g. dismiss/refresh without a
       // scan) — must not default to passed. Only a real scan (>0 files)
       // can pass a standard control.
-      return typeof audit?.filesScanned === "number" &&
-        audit.filesScanned > 0
+      return typeof audit?.filesScanned === "number" && audit.filesScanned > 0
         ? "passed"
         : "unable_to_verify";
     default: {

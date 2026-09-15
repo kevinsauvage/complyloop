@@ -1,11 +1,14 @@
-import { afterEach,describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import * as registry from "@complyloop/analysis-core/catalog/registry";
 import {
   rgaaControls,
   rgaaFramework,
 } from "@complyloop/analysis-core/catalog/rgaa/controls";
-import type { Finding, Requirement } from "@complyloop/analysis-core/contract/entities";
+import type {
+  Finding,
+  Requirement,
+} from "@complyloop/analysis-core/contract/entities";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { emptyWorkspaceSlice } from "@complyloop/db/types";
 

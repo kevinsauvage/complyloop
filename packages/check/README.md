@@ -36,11 +36,11 @@ ComplyLoop check: scanned N file(s) in <path>
 
 Only `FAIL` lines (violations) cause exit code `1`. Warnings are reported but do not fail CI.
 
-| Exit code | Meaning |
-| --- | --- |
-| `0` | No violations (warnings may still be printed) |
-| `1` | At least one violation finding |
-| `2` | Usage or I/O error (path is not a directory) |
+| Exit code | Meaning                                       |
+| --------- | --------------------------------------------- |
+| `0`       | No violations (warnings may still be printed) |
+| `1`       | At least one violation finding                |
+| `2`       | Usage or I/O error (path is not a directory)  |
 
 ## Gate matrix (what CI can and cannot catch)
 

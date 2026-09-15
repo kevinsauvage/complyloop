@@ -47,21 +47,21 @@ export function NavBadgeSkeletons() {
     <div role="status" aria-label="Loading navigation">
       <span className="sr-only">Loading navigation…</span>
       <ul className="flex flex-col gap-1">
-      {SKELETON_ROWS.map((row) => (
-        <li
-          key={row.label}
-          aria-hidden
-          className="flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2"
-        >
-          <span className="size-4 shrink-0 animate-pulse rounded bg-sidebar-accent" />
-          <span className="h-4 min-w-0 flex-1 animate-pulse rounded bg-sidebar-accent" />
-          {row.badge ? (
-            <span className="ml-auto min-w-5 animate-pulse rounded-full bg-sidebar-accent px-1.5 py-0.5 text-center text-xs">
-              &nbsp;
-            </span>
-          ) : null}
-        </li>
-      ))}
+        {SKELETON_ROWS.map((row) => (
+          <li
+            key={row.label}
+            aria-hidden
+            className="flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2"
+          >
+            <span className="size-4 shrink-0 animate-pulse rounded bg-sidebar-accent" />
+            <span className="h-4 min-w-0 flex-1 animate-pulse rounded bg-sidebar-accent" />
+            {row.badge ? (
+              <span className="ml-auto min-w-5 animate-pulse rounded-full bg-sidebar-accent px-1.5 py-0.5 text-center text-xs">
+                &nbsp;
+              </span>
+            ) : null}
+          </li>
+        ))}
       </ul>
     </div>
   );

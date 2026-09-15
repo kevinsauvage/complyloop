@@ -63,7 +63,9 @@ function normalizedNavSignatures(
     .filter((signature) => signature.length > 0);
 }
 
-function inconsistentLabels(snapshots: ReadonlyArray<RuntimePageSnapshot>): string[] {
+function inconsistentLabels(
+  snapshots: ReadonlyArray<RuntimePageSnapshot>,
+): string[] {
   const labelsByKey = new Map<string, Set<string>>();
 
   for (const snapshot of snapshots) {
@@ -86,7 +88,9 @@ function inconsistentLabels(snapshots: ReadonlyArray<RuntimePageSnapshot>): stri
   return mismatches;
 }
 
-function helpSignatures(snapshots: ReadonlyArray<RuntimePageSnapshot>): string[] {
+function helpSignatures(
+  snapshots: ReadonlyArray<RuntimePageSnapshot>,
+): string[] {
   return snapshots
     .map((snapshot) => snapshot.helpLinks.join(">"))
     .filter((signature) => signature.length > 0);
@@ -115,7 +119,9 @@ function checkCrossRouteLandmark(
   snapshots: ReadonlyArray<RuntimePageSnapshot>,
   role: string,
 ): boolean {
-  const present = snapshots.map((snapshot) => snapshot.landmarkRoles.includes(role));
+  const present = snapshots.map((snapshot) =>
+    snapshot.landmarkRoles.includes(role),
+  );
   return present.some(Boolean) && present.some((value) => !value);
 }
 

@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { newEvidenceRecord } from "./repo/mappers";
-import {
-  evidenceToRow,
-  rowToEvidence,
-} from "./repo/mappers";
+import { evidenceToRow, rowToEvidence } from "./repo/mappers";
 import { emptyWorkspaceSlice } from "./types";
 
 describe("emptyWorkspaceSlice evidence append", () => {
@@ -20,16 +17,20 @@ describe("emptyWorkspaceSlice evidence append", () => {
       orgId: "org-test",
       createdAt: "2026-01-01T00:00:00.000Z",
     });
-    db.evidence.push(newEvidenceRecord({
-      kind: "project_connected",
-      summary: "connected",
-      projectId: "p1",
-    }));
-    db.evidence.push(newEvidenceRecord({
-      kind: "assessment_completed",
-      summary: "done",
-      projectId: "p1",
-    }));
+    db.evidence.push(
+      newEvidenceRecord({
+        kind: "project_connected",
+        summary: "connected",
+        projectId: "p1",
+      }),
+    );
+    db.evidence.push(
+      newEvidenceRecord({
+        kind: "assessment_completed",
+        summary: "done",
+        projectId: "p1",
+      }),
+    );
 
     expect(db.projects).toHaveLength(1);
     expect(db.evidence).toHaveLength(2);

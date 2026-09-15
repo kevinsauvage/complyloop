@@ -1,7 +1,10 @@
 import type { Page } from "playwright";
 
 import { type CapturedHit } from "./hit-capture.ts";
-import { pageEvaluateWithHitCapture, toViolationNodes } from "./hit-capture-evaluate.ts";
+import {
+  pageEvaluateWithHitCapture,
+  toViolationNodes,
+} from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 
 /** Maximum pixel gap between associated label and field before review. */
@@ -83,7 +86,9 @@ export async function labelAdjacentViolation(
       for (const field of fields) {
         if (!(field instanceof HTMLElement)) continue;
         if (!field.id) continue;
-        const label = document.querySelector(`label[for="${CSS.escape(field.id)}"]`);
+        const label = document.querySelector(
+          `label[for="${CSS.escape(field.id)}"]`,
+        );
         if (!label) continue;
         if (label.contains(field)) continue;
         if (skipLayout(label, field)) continue;

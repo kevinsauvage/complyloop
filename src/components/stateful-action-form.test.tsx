@@ -53,25 +53,25 @@ describe("StatefulActionForm", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Saved.");
   });
 
-   it("shows errors inline without a toast", async () => {
-     const user = userEvent.setup();
-     const action = vi.fn(async () => ({
-       ok: false,
-       message: "Not allowed.",
-     }));
+  it("shows errors inline without a toast", async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async () => ({
+      ok: false,
+      message: "Not allowed.",
+    }));
 
-     render(
-       <StatefulActionForm
-         action={action}
-         submitLabel="Confirm"
-         variant="default"
-       />,
-     );
+    render(
+      <StatefulActionForm
+        action={action}
+        submitLabel="Confirm"
+        variant="default"
+      />,
+    );
 
-     await user.click(screen.getByRole("button", { name: "Confirm" }));
-     await waitFor(() => {
-       expect(toastError).not.toHaveBeenCalled();
-       expect(screen.getByRole("alert")).toHaveTextContent("Not allowed.");
-     });
-   });
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => {
+      expect(toastError).not.toHaveBeenCalled();
+      expect(screen.getByRole("alert")).toHaveTextContent("Not allowed.");
+    });
+  });
 });

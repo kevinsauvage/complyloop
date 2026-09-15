@@ -6,7 +6,7 @@ import { RoleSelect } from "@/components/role-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type ActionState,initialActionState } from "@/core/action-state";
+import { type ActionState, initialActionState } from "@/core/action-state";
 import { useActionToast } from "@/hooks/use-action-toast";
 
 export function InviteMemberForm({

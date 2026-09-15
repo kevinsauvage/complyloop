@@ -11,7 +11,9 @@ const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const assertRateLimit = vi.hoisted(() => vi.fn());
 
 vi.mock("@complyloop/db/postgres", () => ({
-  getDrizzle: async () => ({ execute: (...args: unknown[]) => drizzleExecute(...args) }),
+  getDrizzle: async () => ({
+    execute: (...args: unknown[]) => drizzleExecute(...args),
+  }),
 }));
 vi.mock("@complyloop/db/repo/projects", () => ({
   findProjectByGithubFullName: (...args: unknown[]) =>
@@ -30,7 +32,9 @@ describe("verifyGitHubSignature", () => {
   it("accepts a valid HMAC SHA-256 signature", async () => {
     process.env.GITHUB_WEBHOOK_SECRET = "test-secret";
     const body = '{"action":"opened"}';
-    const digest = createHmac("sha256", "test-secret").update(body).digest("hex");
+    const digest = createHmac("sha256", "test-secret")
+      .update(body)
+      .digest("hex");
     expect(await verifyGitHubSignature(body, `sha256=${digest}`)).toBe(true);
   });
 
@@ -43,7 +47,9 @@ describe("verifyGitHubSignature", () => {
   it("rejects everything when no webhook secret is configured", async () => {
     delete process.env.GITHUB_WEBHOOK_SECRET;
     const body = '{"action":"opened"}';
-    const digest = createHmac("sha256", "test-secret").update(body).digest("hex");
+    const digest = createHmac("sha256", "test-secret")
+      .update(body)
+      .digest("hex");
     expect(await verifyGitHubSignature(body, `sha256=${digest}`)).toBe(false);
     expect(await verifyGitHubSignature(body, null)).toBe(false);
   });
@@ -122,7 +128,10 @@ describe("handleGitHubWebhookEvent", () => {
 
     expect(enqueueAssessmentJob).toHaveBeenCalledWith(
       expect.objectContaining({
-        payload: expect.objectContaining({ ref: headSha, pullRequestHeadSha: headSha }),
+        payload: expect.objectContaining({
+          ref: headSha,
+          pullRequestHeadSha: headSha,
+        }),
       }),
     );
   });
@@ -282,7 +291,9 @@ describe("handleGitHubWebhookEvent", () => {
   });
 
   it("ignores unsupported events without enqueuing work", async () => {
-    await expect(handleGitHubWebhookEvent("ping", { zen: "ok" })).resolves.toEqual({
+    await expect(
+      handleGitHubWebhookEvent("ping", { zen: "ok" }),
+    ).resolves.toEqual({
       handled: false,
       message: "Ignored event ping",
     });

@@ -275,8 +275,7 @@ export function reconcileControlFindings(
       redetected.location = raw.location;
       if (raw.analyzerId) redetected.analyzerId = raw.analyzerId;
       if (raw.analyzerRuleId) redetected.analyzerRuleId = raw.analyzerRuleId;
-      if (raw.analyzerVersion)
-        redetected.analyzerVersion = raw.analyzerVersion;
+      if (raw.analyzerVersion) redetected.analyzerVersion = raw.analyzerVersion;
       if (raw.contributingAnalyzers?.length) {
         redetected.contributingAnalyzers = raw.contributingAnalyzers;
       }

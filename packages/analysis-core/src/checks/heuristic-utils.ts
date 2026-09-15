@@ -63,7 +63,11 @@ export const CAPTION_KINDS = new Set(["captions", "subtitles"]);
 export const DESCRIPTION_KINDS = new Set(["descriptions"]);
 
 /** Track `kind` values for audio alternative text. */
-export const AUDIO_ALT_KINDS = new Set(["captions", "subtitles", "descriptions"]);
+export const AUDIO_ALT_KINDS = new Set([
+  "captions",
+  "subtitles",
+  "descriptions",
+]);
 
 /** Opening or self-closing tag for a JSX child node, if any. */
 export function tagNodeOfJsxChild(child: ts.Node): JsxTagNode | undefined {
@@ -112,8 +116,7 @@ export function styleLocksTextSpacing(node: JsxTagNode): boolean {
 }
 
 export function classNameTextOf(node: JsxTagNode): string {
-  const attr =
-    getAttribute(node, "className") ?? getAttribute(node, "class");
+  const attr = getAttribute(node, "className") ?? getAttribute(node, "class");
   if (!attr) return "";
   const literal = stringValueOf(attr);
   if (literal !== undefined) return literal;
@@ -309,7 +312,11 @@ export function ariaDescribedByPointsToTranscript(
 ): boolean {
   const describedBy = getAttribute(node, "aria-describedby");
   if (!describedBy) return false;
-  const ids = (stringValueOf(describedBy) ?? describedBy.initializer?.getText() ?? "")
+  const ids = (
+    stringValueOf(describedBy) ??
+    describedBy.initializer?.getText() ??
+    ""
+  )
     .split(/\s+/)
     .map((value) => value.replace(/['"]/g, ""))
     .filter(Boolean);
@@ -329,7 +336,11 @@ export function ariaDescribedByPointsToTranscript(
         while (host && !ts.isJsxElement(host)) {
           host = host.parent;
         }
-        if (host && ts.isJsxElement(host) && TRANSCRIPT_PATTERN.test(textContentOf(host))) {
+        if (
+          host &&
+          ts.isJsxElement(host) &&
+          TRANSCRIPT_PATTERN.test(textContentOf(host))
+        ) {
           found = true;
         }
       }

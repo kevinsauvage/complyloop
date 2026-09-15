@@ -59,7 +59,10 @@ function requestedConcurrency(request: Request): number {
  */
 export async function POST(request: Request): Promise<Response> {
   if (!isWorkerAuthConfigured()) {
-    return Response.json({ error: "WORKER_SECRET is not configured." }, { status: 503 });
+    return Response.json(
+      { error: "WORKER_SECRET is not configured." },
+      { status: 503 },
+    );
   }
   const authorization = request.headers.get("authorization");
   if (!isWorkerRequestAuthorized(authorization)) {

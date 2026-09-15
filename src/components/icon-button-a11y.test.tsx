@@ -7,7 +7,9 @@ vi.mock("next-themes", () => ({
     resolvedTheme: "light",
     setTheme: vi.fn(),
   }),
-  ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
 }));
 
 vi.mock("@/server/actions/auth", () => ({
@@ -39,10 +41,7 @@ describe("icon-button a11y", () => {
 
   it("account avatar trigger exposes an accessible name", () => {
     render(
-      <AuthControls
-        configured
-        user={{ image: null, label: "Ada Lovelace" }}
-      />,
+      <AuthControls configured user={{ image: null, label: "Ada Lovelace" }} />,
     );
     expect(
       screen.getByRole("button", { name: "Account: Ada Lovelace" }),

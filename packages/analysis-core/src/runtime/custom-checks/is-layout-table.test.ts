@@ -5,7 +5,10 @@ import {
   LAYOUT_TABLE_IMPLICIT_BODY,
   LAYOUT_TABLE_PRESENTATION_BODY,
 } from "./layout-table-fixtures";
-import { IS_LAYOUT_TABLE_SRC,isLayoutTable } from "./layout-table-linearization";
+import {
+  IS_LAYOUT_TABLE_SRC,
+  isLayoutTable,
+} from "./layout-table-linearization";
 
 function tableFrom(html: string): HTMLTableElement {
   document.body.innerHTML = html;

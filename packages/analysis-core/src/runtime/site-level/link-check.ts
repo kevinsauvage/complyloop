@@ -1,10 +1,7 @@
 import { maxRuntimePages } from "../../contract/assessment-limits.ts";
 import type { Confidence, Severity } from "../../contract/statuses.ts";
 import type { RawFinding } from "../../types.ts";
-import {
-  assertSafeRuntimeUrl,
-  type DnsLookup,
-} from "../url-safety.ts";
+import { assertSafeRuntimeUrl, type DnsLookup } from "../url-safety.ts";
 import type { RuntimePageSnapshot } from "./types.ts";
 
 const SKIP_LINK_SCHEMES = /^(mailto:|tel:|javascript:|data:)/i;
@@ -21,8 +18,7 @@ function isSameOrigin(base: URL, target: string): boolean {
 function snippetForLink(url: string, displayText?: string): string {
   const label = displayText?.trim();
   if (label) {
-    const text =
-      label.length > 80 ? `${label.slice(0, 77)}…` : label;
+    const text = label.length > 80 ? `${label.slice(0, 77)}…` : label;
     return `<a href="${url}">${text}</a>`;
   }
   return `<a href="${url}">`;
@@ -38,7 +34,8 @@ function brokenLinkFinding(
 ): RawFinding {
   const statusLabel =
     status !== undefined ? `HTTP ${status}` : "unreachable destination";
-  const severity: Severity = status !== undefined && status >= 500 ? "critical" : "serious";
+  const severity: Severity =
+    status !== undefined && status >= 500 ? "critical" : "serious";
   return {
     checkId: "broken-link",
     kind: "violation",
@@ -87,7 +84,10 @@ function fragmentFindingsFromSnapshots(
 
       try {
         const resolved = new URL(link.href, snapshot.url);
-        if (resolved.origin + resolved.pathname !== new URL(snapshot.url).origin + new URL(snapshot.url).pathname) {
+        if (
+          resolved.origin + resolved.pathname !==
+          new URL(snapshot.url).origin + new URL(snapshot.url).pathname
+        ) {
           continue;
         }
       } catch {
@@ -124,7 +124,9 @@ export async function brokenLinkFindingsForUrls(
   urls: ReadonlyArray<string>,
   options?: BrokenLinkCheckOptions,
 ): Promise<RawFinding[]> {
-  const lookupOptions = options?.lookup ? { lookup: options.lookup } : undefined;
+  const lookupOptions = options?.lookup
+    ? { lookup: options.lookup }
+    : undefined;
   const findings: RawFinding[] = [];
   const seen = new Set<string>();
   const maxUrls = options?.maxUrls ?? maxRuntimePages();

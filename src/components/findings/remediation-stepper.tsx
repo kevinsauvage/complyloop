@@ -12,11 +12,7 @@ import { cn } from "@/lib/utils";
  * Verified`) onto the finding: only `Verified` closes the loop. Steps before
  * the current one are done, the current one is marked with `aria-current`.
  */
-export function RemediationStepper({
-  status,
-}: {
-  status: RemediationStatus;
-}) {
+export function RemediationStepper({ status }: { status: RemediationStatus }) {
   const currentIndex = REMEDIATION_STATUSES.indexOf(status);
   const descriptionId = useId();
   const currentDisplay = remediationStatusDisplay(
@@ -82,7 +78,9 @@ export function RemediationStepper({
                 )}
                 {/* Upcoming step labels collapse on mobile — the current step
                     label above always names the position. */}
-                <span className={cn(state === "upcoming" && "hidden sm:inline")}>
+                <span
+                  className={cn(state === "upcoming" && "hidden sm:inline")}
+                >
                   {display.label}
                 </span>
               </span>
