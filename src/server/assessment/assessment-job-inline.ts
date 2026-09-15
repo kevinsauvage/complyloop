@@ -71,9 +71,12 @@ export async function drainAssessmentJobsInline(): Promise<string> {
 }
 
 /**
- * Single scheduling entry point for trigger sites (manual action, webhook).
- * Call it inside `after()` in production; `await` it directly only on the
- * dev/e2e inline path (it returns the user-facing message there).
+ * Single scheduling entry point for the **queued** (webhook) path. Call it
+ * inside `after()` in production; `await` it directly only on the dev/e2e
+ * inline path (it returns the user-facing message there).
+ *
+ * Manual runs do not come through here — `runAssessmentAction` executes the
+ * scan in its own request (direct UX: loader → toast → results).
  *
  * Dev/e2e drains the queue inline and returns the user-facing message;
  * production self-fetches the single-scan worker route

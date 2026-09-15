@@ -108,6 +108,28 @@ export interface EnqueueAssessmentJobInput {
   payload?: AssessmentJobPayload;
 }
 
+/** Row values shared by the queued insert and the immediate-start insert. */
+function newAssessmentJobRow(
+  id: string,
+  input: EnqueueAssessmentJobInput,
+  now: string,
+): typeof assessmentJobs.$inferInsert {
+  return {
+    id,
+    projectId: input.projectId,
+    status: "queued",
+    trigger: input.trigger,
+    requestedByUserId: input.requestedByUserId ?? null,
+    idempotencyKey: input.idempotencyKey ?? null,
+    payload: { ...(input.payload ?? {}) },
+    attempts: 0,
+    maxAttempts: DEFAULT_MAX_ATTEMPTS,
+    availableAt: now,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 /**
  * Enqueues a new assessment. An idempotency key returns the original job when
  * a webhook is delivered more than once or a request is retried.
@@ -189,20 +211,7 @@ export async function enqueueAssessmentJob(
   try {
     const [created] = await drizzle
       .insert(assessmentJobs)
-      .values({
-        id: crypto.randomUUID(),
-        projectId: input.projectId,
-        status: "queued",
-        trigger: input.trigger,
-        requestedByUserId: input.requestedByUserId ?? null,
-        idempotencyKey: input.idempotencyKey ?? null,
-        payload: { ...(input.payload ?? {}) },
-        attempts: 0,
-        maxAttempts: DEFAULT_MAX_ATTEMPTS,
-        availableAt: now,
-        createdAt: now,
-        updatedAt: now,
-      })
+      .values(newAssessmentJobRow(crypto.randomUUID(), input, now))
       .returning();
     if (!created) throw new Error("Could not enqueue assessment job.");
     return jobFromRow(created);
@@ -255,6 +264,34 @@ async function recoverExpiredLeases(tx: DrizzleDb, now: string): Promise<void> {
         gte(assessmentJobs.attempts, assessmentJobs.maxAttempts),
       ),
     );
+}
+
+/**
+ * Inserts a job already `running`, for the direct manual run: the caller
+ * executes the scan in its own request instead of waiting for a worker claim.
+ * `attempts` starts at 1 because this insert *is* the first attempt, so the
+ * lease-recovery path (see `recoverExpiredLeases`) requeues it for a
+ * background retry if the request dies mid-scan. No project exclusivity check:
+ * the caller runs the scan immediately, and a queued/running row must never
+ * block a direct run.
+ */
+export async function startAssessmentJob(
+  input: EnqueueAssessmentJobInput,
+): Promise<AssessmentJob> {
+  const drizzle = await getDrizzle();
+  const now = new Date().toISOString();
+  const [created] = await drizzle
+    .insert(assessmentJobs)
+    .values({
+      ...newAssessmentJobRow(crypto.randomUUID(), input, now),
+      status: "running",
+      attempts: 1,
+      startedAt: now,
+      leaseExpiresAt: new Date(Date.now() + DEFAULT_LEASE_MS).toISOString(),
+    })
+    .returning();
+  if (!created) throw new Error("Could not start assessment job.");
+  return jobFromRow(created);
 }
 
 /** Claims one ready job while ensuring only one assessment runs per project. */

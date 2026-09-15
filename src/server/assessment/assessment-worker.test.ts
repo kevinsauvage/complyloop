@@ -120,7 +120,10 @@ vi.mock("../github/github-checks", () => ({
 }));
 
 import { ASSESSMENT_JOB_HEARTBEAT_MS } from "./assessment-jobs";
-import { processNextAssessmentJob } from "./assessment-worker";
+import {
+  processNextAssessmentJob,
+  settleRunningAssessmentJob,
+} from "./assessment-worker";
 
 const project = testProject({
   id: "p1",
@@ -187,6 +190,52 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+describe("settleRunningAssessmentJob", () => {
+  it("runs an already-running job to completion without claiming", async () => {
+    const db = projectDb();
+    loadProjectDb.mockResolvedValue(db);
+    withProjectCheckout.mockImplementation(
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
+    );
+    runAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
+    completeAssessmentJob.mockResolvedValue(undefined);
+
+    await expect(settleRunningAssessmentJob(job())).resolves.toEqual({
+      kind: "succeeded",
+      jobId: "job-1",
+    });
+    // The direct path supplies the job itself — no claim involved.
+    expect(claimNextAssessmentJob).not.toHaveBeenCalled();
+    expect(completeAssessmentJob).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "job-1" }),
+    );
+  });
+
+  it("reports a terminal failure and records failure evidence", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockRejectedValue(new Error("clone failed"));
+    failAssessmentJob.mockResolvedValue("failed");
+
+    await expect(
+      settleRunningAssessmentJob(job({ attempts: 3 })),
+    ).resolves.toEqual({ kind: "failed", jobId: "job-1" });
+    expect(insertEvidence).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        kind: "assessment_job",
+        detail: expect.objectContaining({ phase: "failed" }),
+      }),
+    );
+  });
 });
 
 describe("processNextAssessmentJob", () => {

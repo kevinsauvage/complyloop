@@ -49,13 +49,16 @@ const nextConfig: NextConfig = {
   // as generic "Runtime scan failed."). 1 KB, so it goes to every route.
   // `@sparticuz/chromium` ships its binaries as non-JS `bin/*.br` assets with
   // the same tracing blind spot (`The input directory
-  // ".../@sparticuz/chromium/bin" does not exist`). 66 MB, so it is scoped to
-  // exactly the one route that launches a browser: trigger sites (dashboard
-  // action, webhook) only enqueue and self-fetch the worker route — scans run
-  // solely in `/api/internal/jobs/run`.
+  // ".../@sparticuz/chromium/bin" does not exist`). 66 MB, so it is included
+  // only where a browser is launched: the worker route (webhook scans via the
+  // GHA sweep) and /dashboard, whose direct manual run scans in the click's
+  // request. A new *trigger* route must execute scans only through the worker
+  // route, or it needs its own entry here — that is the failure this scoping
+  // exists to make loud.
   outputFileTracingIncludes: {
     "/*": ["./node_modules/playwright-core/browsers.json"],
     "/api/internal/jobs/run": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/dashboard": ["./node_modules/@sparticuz/chromium/bin/**/*"],
   },
   transpilePackages: [
     "@complyloop/analysis-core",

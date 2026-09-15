@@ -150,12 +150,20 @@ export type AssessmentWorkerResult =
   | { kind: "failed"; jobId: string }
   | { kind: "cancelled"; jobId: string };
 
-/** Claims and processes a single job; safe to run concurrently on many workers. */
-export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
-  const job = await claimNextAssessmentJob();
-  if (!job) {
-    return { kind: "idle" };
-  }
+export type RunningAssessmentJobResult = Exclude<
+  AssessmentWorkerResult,
+  { kind: "idle" }
+>;
+
+/**
+ * Executes an already-`running` job to a terminal state: run the scan, then
+ * complete, cancel, or fail it. Shared by the claim loop below and the direct
+ * manual run (`actions/assessment.ts`), so a manual run and a worker run have
+ * identical persistence, cancellation, and retry semantics.
+ */
+export async function settleRunningAssessmentJob(
+  job: AssessmentJob,
+): Promise<RunningAssessmentJobResult> {
   reportEvent("assessment job claimed", {
     code: "assessment_job_claimed",
     jobId: job.id,
@@ -207,4 +215,13 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
     });
     return { kind: status === "failed" ? "failed" : "retrying", jobId: job.id };
   }
+}
+
+/** Claims and processes a single job; safe to run concurrently on many workers. */
+export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
+  const job = await claimNextAssessmentJob();
+  if (!job) {
+    return { kind: "idle" };
+  }
+  return settleRunningAssessmentJob(job);
 }

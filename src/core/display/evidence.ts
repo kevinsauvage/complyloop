@@ -54,7 +54,10 @@ const FINDING_EVENT_DISPLAY: Record<string, EvidenceDisplay> = {
 
 /** `assessment_job` evidence refines label + tone together from `detail.phase`. */
 const ASSESSMENT_JOB_PHASE_DISPLAY: Record<string, EvidenceDisplay> = {
+  // `queued` is retained for evidence written before manual runs became
+  // direct (webhook enqueues and historical rows).
   queued: { label: "Assessment queued", tone: "signal" },
+  started: { label: "Assessment started", tone: "signal" },
   completed: { label: "Assessment job completed", tone: "pass" },
   failed: { label: "Assessment job failed", tone: "fail" },
   cancelled: { label: "Assessment job cancelled", tone: "default" },

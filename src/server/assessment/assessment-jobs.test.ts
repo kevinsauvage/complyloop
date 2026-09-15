@@ -308,6 +308,7 @@ import {
   queuedAssessmentJobCount,
   recentAssessmentJobsForProject,
   refreshAssessmentJobLease,
+  startAssessmentJob,
 } from "./assessment-jobs";
 
 beforeEach(() => {
@@ -677,6 +678,48 @@ describe("claimNextAssessmentJob", () => {
       "Stale lease write rejected for assessment job",
       expect.objectContaining({ jobId: job.id }),
     );
+  });
+});
+
+describe("startAssessmentJob", () => {
+  it("inserts a running job with a lease and the first attempt recorded", async () => {
+    const job = await startAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+      requestedByUserId: "user-1",
+    });
+
+    expect(job.status).toBe("running");
+    expect(job.projectId).toBe("p1");
+    expect(job.trigger).toBe("manual");
+    expect(job.requestedByUserId).toBe("user-1");
+    // The insert *is* attempt 1, so lease recovery retries it as attempt 2.
+    expect(job.attempts).toBe(1);
+    expect(job.startedAt).toBeTruthy();
+    expect(job.leaseExpiresAt).toBeTruthy();
+    expect(jobs.size).toBe(1);
+  });
+
+  it("does not use a queued state, so no claim can pick it up", async () => {
+    const job = await startAssessmentJob({ projectId: "p1", trigger: "manual" });
+    // A running row is never `queued`, so the claim query must not see it.
+    expect(await claimNextAssessmentJob()).toBeNull();
+    expect(jobs.get(job.id)?.status).toBe("running");
+  });
+
+  it("starts a second job for the same project instead of being blocked", async () => {
+    const queued = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "webhook",
+    });
+    const direct = await startAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+
+    expect(direct.id).not.toBe(queued.id);
+    expect(jobs.get(direct.id)?.status).toBe("running");
+    expect(jobs.get(queued.id)?.status).toBe("queued");
   });
 });
 

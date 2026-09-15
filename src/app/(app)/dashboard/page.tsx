@@ -31,6 +31,11 @@ export const metadata: Metadata = {
     "Compliance snapshot, pipeline activity, and next actions for the active project.",
 };
 
+// Direct manual runs execute the scan inside this page's action (see
+// `runAssessmentAction`), so the segment — not the worker route — owns the
+// timeout budget for a click.
+export const maxDuration = 300;
+
 export default async function DashboardPage() {
   const view = await loadDashboardView();
   const { visibleProjects } = view;

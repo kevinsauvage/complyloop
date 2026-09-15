@@ -22,10 +22,10 @@ import {
   dismissFindingAction,
 } from "./remediation";
 
-const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
+const startAssessmentJob = vi.hoisted(() => vi.fn());
 const findActiveAssessmentJob = vi.hoisted(() => vi.fn());
 const cancelAssessmentJob = vi.hoisted(() => vi.fn());
-const processNextAssessmentJob = vi.hoisted(() => vi.fn());
+const settleRunningAssessmentJob = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
 const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
 const afterFn = vi.hoisted(() => vi.fn());
@@ -56,15 +56,15 @@ vi.mock("../assessment/assessment", () => ({
 }));
 
 vi.mock("../assessment/assessment-jobs", () => ({
-  enqueueAssessmentJob: (...args: unknown[]) => enqueueAssessmentJob(...args),
+  startAssessmentJob: (...args: unknown[]) => startAssessmentJob(...args),
   findActiveAssessmentJob: (...args: unknown[]) =>
     findActiveAssessmentJob(...args),
   cancelAssessmentJob: (...args: unknown[]) => cancelAssessmentJob(...args),
 }));
 
 vi.mock("../assessment/assessment-worker", () => ({
-  processNextAssessmentJob: (...args: unknown[]) =>
-    processNextAssessmentJob(...args),
+  settleRunningAssessmentJob: (...args: unknown[]) =>
+    settleRunningAssessmentJob(...args),
 }));
 
 vi.mock("../rate-limit", async () => {
@@ -242,15 +242,85 @@ describe("bulkApproveRemediationsAction", () => {
 });
 
 describe("runAssessmentAction", () => {
-  it("queues and drains inline when enabled", async () => {
+  it("runs directly, records the started job, and reports the outcome", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
-    findActiveAssessmentJob.mockResolvedValue(null);
-    enqueueAssessmentJob.mockResolvedValue({ id: "job-1" });
-    processNextAssessmentJob.mockResolvedValue({ kind: "idle" });
+    startAssessmentJob.mockResolvedValue({
+      id: "job-1",
+      attempts: 1,
+      maxAttempts: 3,
+    });
+    settleRunningAssessmentJob.mockResolvedValue({
+      kind: "succeeded",
+      jobId: "job-1",
+    });
     assertAssessRateLimit.mockResolvedValue(undefined);
-    vi.stubEnv("NODE_ENV", "development");
-    vi.stubEnv("E2E_AUTH_ENABLED", "");
+
+    const result = await runAssessmentAction(
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result).toEqual({ ok: true, message: "Assessment complete." });
+    expect(startAssessmentJob).toHaveBeenCalledWith({
+      projectId: "p1",
+      trigger: "manual",
+      requestedByUserId: "user-1",
+    });
+    expect(settleRunningAssessmentJob).toHaveBeenCalledWith({
+      id: "job-1",
+      attempts: 1,
+      maxAttempts: 3,
+    });
+    // No queue hop for manual runs: no after() self-fetch.
+    expect(afterFn).not.toHaveBeenCalled();
+    expect(
+      projectWritePayload()?.evidence?.some(
+        (row) => row.kind === "assessment_job",
+      ),
+    ).toBe(true);
+  });
+
+  it("requires no active-job check so a second click is never deduped away", async () => {
+    const workspace = workspaceFor("member");
+    mockProjectWrite(workspace);
+    // A webhook job left a running row for the same project: a direct manual
+    // run must still proceed (it starts its own job).
+    findActiveAssessmentJob.mockResolvedValue({ id: "job-webhook" });
+    startAssessmentJob.mockResolvedValue({
+      id: "job-2",
+      attempts: 1,
+      maxAttempts: 3,
+    });
+    settleRunningAssessmentJob.mockResolvedValue({
+      kind: "succeeded",
+      jobId: "job-2",
+    });
+    assertAssessRateLimit.mockResolvedValue(undefined);
+
+    const result = await runAssessmentAction(
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result).toEqual({ ok: true, message: "Assessment complete." });
+    expect(findActiveAssessmentJob).not.toHaveBeenCalled();
+    expect(settleRunningAssessmentJob).toHaveBeenCalled();
+  });
+
+  it("maps a retrying outcome to retry copy", async () => {
+    const workspace = workspaceFor("member");
+    mockProjectWrite(workspace);
+    startAssessmentJob.mockResolvedValue({
+      id: "job-3",
+      attempts: 1,
+      maxAttempts: 3,
+    });
+    settleRunningAssessmentJob.mockResolvedValue({
+      kind: "retrying",
+      jobId: "job-3",
+    });
+    assertAssessRateLimit.mockResolvedValue(undefined);
 
     const result = await runAssessmentAction(
       initialActionState,
@@ -259,44 +329,38 @@ describe("runAssessmentAction", () => {
 
     expect(result).toEqual({
       ok: true,
-      message: "No assessment jobs were ready to run.",
+      message: "Assessment hit an error and will retry automatically.",
     });
-    expect(enqueueAssessmentJob).toHaveBeenCalledWith({
-      projectId: "p1",
-      trigger: "manual",
-      requestedByUserId: "user-1",
-    });
-    expect(processNextAssessmentJob).toHaveBeenCalled();
-    expect(
-      projectWritePayload()?.evidence?.some(
-        (row) => row.kind === "assessment_job",
-      ),
-    ).toBe(true);
   });
 
-  it("returns queued message when inline drain is disabled", async () => {
+  it("maps a terminal failure to failure copy", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
-    findActiveAssessmentJob.mockResolvedValue(null);
-    enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
+    startAssessmentJob.mockResolvedValue({
+      id: "job-4",
+      attempts: 3,
+      maxAttempts: 3,
+    });
+    settleRunningAssessmentJob.mockResolvedValue({
+      kind: "failed",
+      jobId: "job-4",
+    });
     assertAssessRateLimit.mockResolvedValue(undefined);
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("E2E_AUTH_ENABLED", "");
 
     const result = await runAssessmentAction(
       initialActionState,
       new FormData(),
     );
 
-    expect(result.message).toMatch(/Assessment queued/);
-    expect(processNextAssessmentJob).not.toHaveBeenCalled();
-    expect(afterFn).toHaveBeenCalledTimes(1);
+    // The run itself resolved (the user's request succeeded); the job is what
+    // failed, so this is honest copy rather than a generic action error.
+    expect(result.ok).toBe(true);
+    expect(result.message).toMatch(/failed/);
   });
 
   it("surfaces rate limit errors", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
-    findActiveAssessmentJob.mockResolvedValue(null);
     assertAssessRateLimit.mockRejectedValue(new RateLimitError());
 
     const result = await runAssessmentAction(
@@ -305,29 +369,7 @@ describe("runAssessmentAction", () => {
     );
 
     expect(result.ok ? null : result.message).toMatch(/Too many requests/);
-    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-  });
-
-  it("skips enqueue when a job is already active", async () => {
-    const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
-    findActiveAssessmentJob.mockResolvedValue({ id: "job-active" });
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("E2E_AUTH_ENABLED", "");
-
-    const result = await runAssessmentAction(
-      initialActionState,
-      new FormData(),
-    );
-
-    expect(result).toEqual({
-      ok: false,
-      message:
-        "An assessment is already queued or running — cancel it below to start over.",
-    });
-    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-    expect(assertAssessRateLimit).not.toHaveBeenCalled();
-    expect(processNextAssessmentJob).not.toHaveBeenCalled();
+    expect(startAssessmentJob).not.toHaveBeenCalled();
   });
 });
 
