@@ -8,14 +8,14 @@ git (isomorphic-git) and preview audits use a serverless Chromium build
 
 ## How it runs
 
-| Concern | Behavior |
-|---|---|
-| **Web/API** | Vercel Fluid functions, `next build` with zero config |
-| **Jobs** | Queued in Postgres; Vercel Cron hits `POST /api/internal/jobs/run?limit=2` every 2 min (`vercel.json`); 3 attempts with backoff, serial per project, 30-min lease renewed by a 5-min heartbeat |
-| **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after |
-| **Browsers** | `@sparticuz/chromium` (pinned) when `ASSESSMENT_RUNTIME_BROWSER=serverless`; locally installed Playwright browser otherwise |
-| **State** | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work) |
-| **Backups** | Postgres provider point-in-time (no app-side dump) |
+| Concern       | Behavior                                                                                                                                                                                       |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                          |
+| **Jobs**      | Queued in Postgres; Vercel Cron hits `POST /api/internal/jobs/run?limit=2` every 2 min (`vercel.json`); 3 attempts with backoff, serial per project, 30-min lease renewed by a 5-min heartbeat |
+| **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                      |
+| **Browsers**  | `@sparticuz/chromium` (pinned) when `ASSESSMENT_RUNTIME_BROWSER=serverless`; locally installed Playwright browser otherwise                                                                    |
+| **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                             |
+| **Backups**   | Postgres provider point-in-time (no app-side dump)                                                                                                                                             |
 
 ## 1. Database
 
@@ -51,24 +51,24 @@ check the Vercel Cron logs.
 
 ## 3. Environment variables (Vercel dashboard)
 
-| Variable | Value |
-|---|---|
-| `DATABASE_URL` | Pooled Postgres URL with `sslmode=require` |
-| `AUTH_SECRET` | `openssl rand -base64 32` (stable — rotation also re-encrypts stored tokens) |
-| `AUTH_URL` | `https://<vercel-app>` (**required** in production) |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub App OAuth client |
-| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` | Installation-token repo access |
-| `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET` | Install link + webhook verification |
-| `WORKER_SECRET` | Same value as `CRON_SECRET` |
-| `CRON_SECRET` | Vercel Cron secret (≥16 chars) |
-| `ASSESSMENT_RUNTIME_BROWSER` | `serverless` (Vercel) — unset locally |
-| `ASSESSMENT_MAX_CHECKOUT_BYTES` | `100000000` (100 MB — `/tmp` caps at ~500 MB) |
-| `ASSESSMENT_MAX_CHECKOUT_FILES` | `10000` |
-| `ASSESSMENT_MAX_RUNTIME_PAGES` | `10` (fewer pages per serverless run) |
-| `SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_DSN`) | Required by `ops:check` in production |
+| Variable                                      | Value                                                                                                               |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                | Pooled Postgres URL with `sslmode=require`                                                                          |
+| `AUTH_SECRET`                                 | `openssl rand -base64 32` (stable — rotation also re-encrypts stored tokens)                                        |
+| `AUTH_URL`                                    | `https://<vercel-app>` (**required** in production)                                                                 |
+| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`       | GitHub App OAuth client                                                                                             |
+| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`    | Installation-token repo access                                                                                      |
+| `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET`   | Install link + webhook verification                                                                                 |
+| `WORKER_SECRET`                               | Same value as `CRON_SECRET`                                                                                         |
+| `CRON_SECRET`                                 | Vercel Cron secret (≥16 chars)                                                                                      |
+| `ASSESSMENT_RUNTIME_BROWSER`                  | `serverless` (Vercel) — unset locally                                                                               |
+| `ASSESSMENT_MAX_CHECKOUT_BYTES`               | `100000000` (100 MB — `/tmp` caps at ~500 MB)                                                                       |
+| `ASSESSMENT_MAX_CHECKOUT_FILES`               | `10000`                                                                                                             |
+| `ASSESSMENT_MAX_RUNTIME_PAGES`                | `10` (fewer pages per serverless run)                                                                               |
+| `SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_DSN`)     | Required by `ops:check` in production                                                                               |
 | `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Private preview gate (Basic Auth on every page; unset = open). Set both on the deployed project until public launch |
-| `COMPLYLOOP_SUPPORT_EMAIL` | Shown on the Organization page |
-| `AI_GATEWAY_API_KEY` | Optional — AI explanations/patches |
+| `COMPLYLOOP_SUPPORT_EMAIL`                    | Shown on the Organization page                                                                                      |
+| `AI_GATEWAY_API_KEY`                          | Optional — AI explanations/patches                                                                                  |
 
 **Never set:** `E2E_*` (the harness swaps real checkouts for fixtures and skips
 prod GitHub enforcement), `DATABASE_SSL_INSECURE`.
@@ -120,8 +120,7 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 - [ ] Create a draft PR from a finding → branch pushed, PR opened
 - [ ] Cancel a queued/running job → status `cancelled`, nothing persisted
 - [ ] `/api/health` returns 200; Sentry receives a test issue
-- [ ] Provider DB backups enabled; restore drilled once to staging (record date
-      + owner here when done: ___)
+- [ ] Provider DB backups enabled; restore drilled once to staging (record date + owner here when done: \_\_\_)
 
 ## Decision log (Vercel migration, 2026-09-15)
 
@@ -143,4 +142,4 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 - **Poolers:** no code change — `prepare: false` was already set.
 - **Not live-verified here** (needs a real deployment): sparticuz launch on
   Vercel infra, isomorphic-git force-push with an installation token, Cron
-  end-to-end. The checklist above covers each.
+  end-to-end. The checklist above covers each.1
