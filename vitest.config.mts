@@ -15,10 +15,7 @@ const unitIncludes = [
   "src/**/*.test.{ts,tsx}",
   "packages/analysis-core/src/**/*.test.{ts,tsx}",
   "packages/db/src/**/*.test.{ts,tsx}",
-  "packages/check/src/**/*.test.{ts,tsx}",
 ];
-
-const smokeTest = "packages/check/src/check-pack.smoke.test.ts";
 
 export default defineConfig({
   plugins: [react()],
@@ -107,7 +104,7 @@ export default defineConfig({
           environment: "node",
           setupFiles: ["./vitest.setup.ts"],
           include: unitIncludes,
-          exclude: [...domIncludes, smokeTest],
+          exclude: [...domIncludes],
         },
       },
       {

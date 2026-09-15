@@ -154,15 +154,14 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Persistence, the compliance catalog, and the CI CLI are framework-agnostic
+  // Persistence and the compliance catalog are framework-agnostic
   // leaves: they must not import app/server/AI layers. They may import the
   // analysis contract and each other. The catalog and db depend on
-  // analysis-core contract; check depends on analysis-core (bundled at publish).
+  // analysis-core contract.
   {
     files: [
       "packages/db/**/*.{ts,tsx}",
       "packages/analysis-core/src/catalog/**/*.{ts,tsx}",
-      "packages/check/**/*.{ts,tsx}",
     ],
     rules: {
       "no-restricted-imports": [
@@ -184,12 +183,12 @@ const eslintConfig = defineConfig([
                 "**/ai/**",
               ],
               message:
-                "packages/db, the analysis-core catalog, and check must not import app/server/adapters/AI layers — see docs/ai/architecture.md (module boundaries).",
+                "packages/db and the analysis-core catalog must not import app/server/adapters/AI layers — see docs/ai/architecture.md (module boundaries).",
             },
             {
               regex: "^(../)*src/",
               message:
-                "packages/db, the analysis-core catalog, and check must not reach outside their package (no ../src) — see docs/ai/architecture.md (module boundaries).",
+                "packages/db and the analysis-core catalog must not reach outside their package (no ../src) — see docs/ai/architecture.md (module boundaries).",
             },
             {
               group: ["@/*"],
@@ -236,7 +235,6 @@ const eslintConfig = defineConfig([
       "src/ai/**",
       "packages/db/**",
       "packages/analysis-core/src/catalog/**",
-      "packages/check/**",
       "src/server/actions/**",
     ],
     rules: {
@@ -249,17 +247,14 @@ const eslintConfig = defineConfig([
     },
   },
   // Override default ignores of eslint-config-next.
-  // `.data/` is local scratch output (gitignored); `packages/check/testdata` and
-  // `e2e/fixtures` have deliberate accessibility violations — do not lint.
-  // `packages/check/dist` is the generated CLI bundle (gitignored).
+  // `.data/` is local scratch output (gitignored); `e2e/fixtures` has
+  // deliberate accessibility violations — do not lint.
   globalIgnores([
     ".next/**",
     "out/**",
     "build/**",
     "coverage/**",
     "next-env.d.ts",
-    "packages/check/testdata/**",
-    "packages/check/dist/**",
     "packages/analysis-core/dist/**",
     "packages/db/dist/**",
     "e2e/fixtures/**",

@@ -27,7 +27,6 @@ node_modules/
 
 # production
 /build
-/packages/check/dist
 *.tgz
 
 # misc

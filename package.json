@@ -5,9 +5,6 @@
   "workspaces": [
     "packages/*"
   ],
-  "bin": {
-    "complyloop-check": "./packages/check/bin.js"
-  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -20,14 +17,11 @@
     "verify:gate": "sh scripts/verify-gate.sh",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:check-pack": "vitest run --config vitest.smoke.config.mts",
     "test:coverage": "vitest run --coverage",
     "test:db": "vitest run packages/db/src/alerts-upsert.test.ts packages/db/src/constraints.test.ts packages/db/src/evidence-append-only.test.ts packages/db/src/persist-project-rows.integration.test.ts src/server/workspace.integration.test.ts",
     "e2e:seed": "tsx scripts/e2e-seed.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "check": "complyloop-check",
-    "build:check": "npm run build --workspace @complyloop/check",
     "playwright:install": "playwright install chromium",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db-migrate.ts",

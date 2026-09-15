@@ -8,7 +8,6 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends git ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-COPY packages/check/package.json ./packages/check/
 COPY packages/analysis-core/package.json ./packages/analysis-core/
 COPY packages/db/package.json ./packages/db/
 RUN npm ci
@@ -19,7 +18,6 @@ RUN npm ci
 FROM node:22-bookworm-slim AS prod-deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-COPY packages/check/package.json ./packages/check/
 COPY packages/analysis-core/package.json ./packages/analysis-core/
 COPY packages/db/package.json ./packages/db/
 RUN npm ci --omit=dev

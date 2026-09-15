@@ -35,7 +35,6 @@ Compliance engineering for **RGAA/WCAG** on React/Next.js/TypeScript — orgs, p
 | Analysis   | AST + jsx-a11y + optional Playwright/axe when `runtimeBaseUrl` is set |
 | Jobs       | `npm run worker` (required in prod)                                   |
 | AI         | Vercel AI SDK, optional; **never sets statuses**                      |
-| CI package | `@complyloop/check` / `npx complyloop-check`                          |
 | Tests      | Vitest + RTL; Playwright e2e (`E2E_AUTH_ENABLED`)                     |
 
 Record new stack decisions here and in `docs/ai/architecture.md`.
@@ -50,7 +49,6 @@ npm run lint && npm run typecheck && npm run test && npm run build  # Definition
 npx vitest run <touched-file>  # Targeted verify during work (fast loop; full gate at the end)
 npm run test:coverage    # Coverage gates (vitest.config.mts)
 npm run test:db          # Postgres persistence integration (needs DATABASE_URL)
-npm run check -- [path]  # Local a11y CI gate
 npm run worker           # Assessment worker
 npm run db:migrate       # Apply migrations
 npm run test:e2e         # Playwright (after e2e:seed)

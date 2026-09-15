@@ -16,7 +16,6 @@
 | AI       | `src/ai/`                              | Explain / remediate — never sets status; takes contract in, returns results / throws `PublicError`, reports failures only via an injected `onError` hook (never imports `@/server`)                                                                                         |
 | Server   | `src/server/`                          | Domain folders (`assessment/`, `github/`, `workspace/`, `reporting/`) + `actions/` mutation edge + shared kernel (`observability`, `rate-limit`, `action-state`)                                                                                                            |
 | App      | `src/app/`                             | Next.js UI + API                                                                                                                                                                                                                                                            |
-| CI       | `packages/check/src/`                  | `npx complyloop-check` (AST only)                                                                                                                                                                                                                                           |
 
 `src/core` must not import the catalog, db, or analysis-core beyond `contract/*`
 (ESLint). Dependency direction: `contract → { db, catalog, app }`.
@@ -28,8 +27,7 @@ finding-page beat model (`src/core/finding-act.ts`) is UI policy and must not
 be imported by `src/server/assessment/` (ESLint).
 
 Workspace packages export `src/*.ts`. Next transpiles them; `dist/` is
-publish-only. `@complyloop/check` bundles analysis-core; Playwright stays
-external.
+publish-only.
 
 **Connectors:** GitHub only. **State:** Postgres (`DATABASE_URL`). Evidence is
 append-only. Tokens AES-256-GCM at rest. Server-owned env keys live in
