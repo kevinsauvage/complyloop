@@ -39,35 +39,39 @@ export async function runAssessmentAction(
     // evidence in the same project write (rate limit + permission checks
     // included). The per-project advisory lock serializes concurrent clicks,
     // so the check-then-enqueue below cannot stack duplicate jobs.
-    let job: AssessmentJob | null = null;
     // Mutable context (not narrowed locals): assigned inside the
-    // `withProjectWrite` closure, read after it resolves.
+    // `withProjectWrite` closure, read after it resolves. Plain `let`
+    // bindings keep their pre-`await` narrowing here, so the enqueued job
+    // also lives on the context object.
     const context: {
       projectId: string | null;
       activeJob: AssessmentJob | null;
-    } = { projectId: null, activeJob: null };
+      job: AssessmentJob | null;
+    } = { projectId: null, activeJob: null, job: null };
     await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.assess");
       context.projectId = workspace.project.id;
       context.activeJob = await findActiveAssessmentJob(workspace.project.id);
       if (context.activeJob) return;
       if (workspace.userId) await assertAssessRateLimit(workspace.userId);
-      job = await enqueueAssessmentJob({
+      const enqueued = await enqueueAssessmentJob({
         projectId: workspace.project.id,
         trigger: "manual",
         requestedByUserId: workspace.userId,
       });
+      context.job = enqueued;
       const payload: ProjectWritePayload = {};
       appendEvidence(payload, {
         kind: "assessment_job",
-        summary: `Assessment job ${job.id} queued for "${workspace.project.name}"`,
+        summary: `Assessment job ${enqueued.id} queued for "${workspace.project.name}"`,
         projectId: workspace.project.id,
-        detail: { phase: "queued", jobId: job.id, trigger: "manual" },
+        detail: { phase: "queued", jobId: enqueued.id, trigger: "manual" },
       });
       return payload;
     });
 
-    if (!job) {
+    const enqueuedJob = context.job;
+    if (!enqueuedJob) {
       refresh(...COMPLIANCE_LOOP_ROUTES);
       reportEvent("assessment run skipped: job already active", {
         code: "assessment_run_deduped",
@@ -92,7 +96,7 @@ export async function runAssessmentAction(
     reportEvent("assessment job enqueued", {
       code: "assessment_job_enqueued",
       projectId: context.projectId,
-      jobId: job.id,
+      jobId: enqueuedJob.id,
       trigger: "manual",
       mode: inline ? "inline" : "queued",
     });
