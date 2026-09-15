@@ -19,10 +19,12 @@ export function AssessmentJobStatusLive({
   projectId,
   initialJobs,
   canRetry,
+  canCancel,
 }: {
   projectId: string;
   initialJobs: AssessmentJob[];
   canRetry: boolean;
+  canCancel: boolean;
 }) {
   const router = useRouter();
   const [jobs, setJobs] = useState(initialJobs);
@@ -92,6 +94,7 @@ export function AssessmentJobStatusLive({
     <AssessmentJobStatus
       jobs={jobs}
       canRetry={canRetry}
+      canCancel={canCancel}
       pollError={pollError}
     />
   );

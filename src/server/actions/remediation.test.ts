@@ -14,7 +14,7 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 
 import { initialActionState } from "../action-state";
 import { RateLimitError } from "../rate-limit";
-import { runAssessmentAction } from "./assessment";
+import { cancelAssessmentJobAction, runAssessmentAction } from "./assessment";
 import {
   approveRemediationAction,
   bulkApproveRemediationsAction,
@@ -23,6 +23,8 @@ import {
 } from "./remediation";
 
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
+const findActiveAssessmentJob = vi.hoisted(() => vi.fn());
+const cancelAssessmentJob = vi.hoisted(() => vi.fn());
 const processNextAssessmentJob = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
 const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
@@ -49,6 +51,9 @@ vi.mock("../assessment/assessment", () => ({
 
 vi.mock("../assessment/assessment-jobs", () => ({
   enqueueAssessmentJob: (...args: unknown[]) => enqueueAssessmentJob(...args),
+  findActiveAssessmentJob: (...args: unknown[]) =>
+    findActiveAssessmentJob(...args),
+  cancelAssessmentJob: (...args: unknown[]) => cancelAssessmentJob(...args),
 }));
 
 vi.mock("../assessment/assessment-worker", () => ({
@@ -234,6 +239,7 @@ describe("runAssessmentAction", () => {
   it("queues and drains inline when enabled", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
+    findActiveAssessmentJob.mockResolvedValue(null);
     enqueueAssessmentJob.mockResolvedValue({ id: "job-1" });
     processNextAssessmentJob.mockResolvedValue({ kind: "idle" });
     assertAssessRateLimit.mockResolvedValue(undefined);
@@ -265,6 +271,7 @@ describe("runAssessmentAction", () => {
   it("returns queued message when inline drain is disabled", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
+    findActiveAssessmentJob.mockResolvedValue(null);
     enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
     assertAssessRateLimit.mockResolvedValue(undefined);
     vi.stubEnv("NODE_ENV", "production");
@@ -282,6 +289,7 @@ describe("runAssessmentAction", () => {
   it("surfaces rate limit errors", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
+    findActiveAssessmentJob.mockResolvedValue(null);
     assertAssessRateLimit.mockRejectedValue(new RateLimitError());
 
     const result = await runAssessmentAction(
@@ -291,6 +299,90 @@ describe("runAssessmentAction", () => {
 
     expect(result.ok ? null : result.message).toMatch(/Too many requests/);
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+
+  it("skips enqueue when a job is already active", async () => {
+    const workspace = workspaceFor("member");
+    mockProjectWrite(workspace);
+    findActiveAssessmentJob.mockResolvedValue({ id: "job-active" });
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
+
+    const result = await runAssessmentAction(
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      message:
+        "An assessment is already queued or running — cancel it below to start over.",
+    });
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+    expect(assertAssessRateLimit).not.toHaveBeenCalled();
+    expect(processNextAssessmentJob).not.toHaveBeenCalled();
+  });
+});
+
+describe("cancelAssessmentJobAction", () => {
+  it("cancels an active job and records evidence", async () => {
+    const workspace = workspaceFor("member");
+    mockProjectWrite(workspace);
+    cancelAssessmentJob.mockResolvedValue({ id: "job-1", trigger: "manual" });
+    const form = new FormData();
+    form.set("jobId", "job-1");
+
+    const result = await cancelAssessmentJobAction(
+      initialActionState,
+      form,
+    );
+
+    expect(result).toEqual({ ok: true, message: "Assessment cancelled." });
+    expect(cancelAssessmentJob).toHaveBeenCalledWith({
+      projectId: "p1",
+      jobId: "job-1",
+    });
+    expect(
+      projectWritePayload()?.evidence?.some(
+        (row) =>
+          row.kind === "assessment_job" &&
+          (row.detail as { phase?: string })?.phase === "cancelled",
+      ),
+    ).toBe(true);
+  });
+
+  it("errors when the job already finished", async () => {
+    const workspace = workspaceFor("member");
+    mockProjectWrite(workspace);
+    cancelAssessmentJob.mockResolvedValue(null);
+    const form = new FormData();
+    form.set("jobId", "job-done");
+
+    const result = await cancelAssessmentJobAction(
+      initialActionState,
+      form,
+    );
+
+    expect(result.ok ? null : result.message).toMatch(/already finished/);
+  });
+
+  it("rejects invalid input and viewers", async () => {
+    mockProjectWrite(workspaceFor("member"));
+    const invalid = await cancelAssessmentJobAction(
+      initialActionState,
+      new FormData(),
+    );
+    expect(invalid.ok).toBe(false);
+
+    mockProjectWrite(workspaceFor("viewer"));
+    const deniedForm = new FormData();
+    deniedForm.set("jobId", "job-1");
+    const denied = await cancelAssessmentJobAction(
+      initialActionState,
+      deniedForm,
+    );
+    expect(denied.ok ? null : denied.message).toMatch(/Not allowed/);
+    expect(cancelAssessmentJob).not.toHaveBeenCalled();
   });
 });
 

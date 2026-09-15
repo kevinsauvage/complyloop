@@ -173,6 +173,12 @@ describe("evidenceDisplay", () => {
     expect(evidenceDisplay("assessment_job", { phase: "queued" }).tone).toBe(
       "signal",
     );
+    expect(evidenceDisplay("assessment_job", { phase: "cancelled" }).tone).toBe(
+      "default",
+    );
+    expect(
+      evidenceDisplay("assessment_job", { phase: "cancelled" }).label,
+    ).toBe("Assessment job cancelled");
   });
 
   it("covers every evidence tone with a dot and badge class", () => {

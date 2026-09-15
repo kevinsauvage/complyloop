@@ -15,17 +15,24 @@ export interface DrainAssessmentJobsResult {
   ran: number;
   failed: number;
   retrying: number;
+  cancelled: number;
 }
 
 /** Claims and runs ready jobs until the queue is idle or `maxJobs` is reached. */
 export async function drainAssessmentJobQueue(
   maxJobs = 20,
 ): Promise<DrainAssessmentJobsResult> {
-  const outcome: DrainAssessmentJobsResult = { ran: 0, failed: 0, retrying: 0 };
+  const outcome: DrainAssessmentJobsResult = {
+    ran: 0,
+    failed: 0,
+    retrying: 0,
+    cancelled: 0,
+  };
   for (const result of await runAssessmentJobBatch(maxJobs)) {
     if (result.kind === "succeeded") outcome.ran += 1;
     else if (result.kind === "failed") outcome.failed += 1;
     else if (result.kind === "retrying") outcome.retrying += 1;
+    else if (result.kind === "cancelled") outcome.cancelled += 1;
   }
   return outcome;
 }
@@ -40,6 +47,9 @@ export async function drainAssessmentJobsInline(): Promise<string> {
   const outcome = await drainAssessmentJobQueue();
   if (outcome.ran > 0) {
     return "Assessment complete.";
+  }
+  if (outcome.cancelled > 0) {
+    return "Assessment cancelled.";
   }
   if (outcome.failed > 0 && outcome.retrying > 0) {
     return `${outcome.failed} assessment job${outcome.failed === 1 ? "" : "s"} failed and ${outcome.retrying} will retry.`;

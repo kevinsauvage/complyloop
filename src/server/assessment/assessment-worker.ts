@@ -3,14 +3,16 @@ import "server-only";
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
 import { postAssessmentCheckRun } from "../github/github-connector";
-import { reportError, reportInfo } from "../observability";
+import { reportError, reportInfo, reportWarning } from "../observability";
 import { loadProjectDb } from "../workspace/db";
 import { type AssessmentRunResult, runAssessment } from "./assessment";
 import {
+  ASSESSMENT_JOB_HEARTBEAT_MS,
   type AssessmentJob,
   claimNextAssessmentJob,
   completeAssessmentJob,
   failAssessmentJob,
+  refreshAssessmentJobLease,
 } from "./assessment-jobs";
 import {
   applyAuthoritativeAssessment,
@@ -33,7 +35,9 @@ function failedRequirementCount(
     .length;
 }
 
-async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
+async function runClaimedAssessmentJob(
+  job: AssessmentJob,
+): Promise<{ cancelled: boolean }> {
   // Pipeline shape: load → run → apply. Status/finding derivation lives in
   // `runAssessment`; persistence (locks, alerts, evidence) lives in
   // `assessment-pipeline.ts`. This function only wires the two together plus
@@ -49,53 +53,102 @@ async function runClaimedAssessmentJob(job: AssessmentJob): Promise<void> {
   // resolve findings, flip statuses, or auto-verify remediations.
   const authoritative = !job.payload.pullRequestHeadSha;
 
-  const result = await withProjectCheckout(
-    project,
-    async (rootPath) => {
-      const run = await runAssessment(pipelineInput, {
-        rootPath,
-        authoritative,
-      });
-      const { assessment } = run;
-      const trigger = job.payload.eventName ?? "manual assessment";
+  // Lease heartbeat: long scans (large clone + Playwright) must never expire
+  // mid-run and get double-executed by lease recovery. A heartbeat that finds
+  // the job gone from `running` means a user cancelled it — flag it so the
+  // caller skips complete/fail/evidence instead of resurrecting the job.
+  let expectedLease = job.leaseExpiresAt;
+  let cancelledRemotely = false;
+  const heartbeat =
+    expectedLease && job.startedAt
+      ? setInterval(() => {
+          void (async () => {
+            try {
+              const renewed = await refreshAssessmentJobLease({
+                id: job.id,
+                leaseExpiresAt: expectedLease as string,
+                startedAt: job.startedAt as string,
+              });
+              if (renewed) {
+                expectedLease = renewed;
+              } else {
+                cancelledRemotely = true;
+                clearInterval(heartbeat ?? undefined);
+              }
+            } catch (error) {
+              reportWarning("Assessment job heartbeat failed", {
+                code: "assessment_job_heartbeat_failed",
+                jobId: job.id,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          })();
+        }, ASSESSMENT_JOB_HEARTBEAT_MS)
+      : null;
+  // Never hold the process (or a test runner) open for the heartbeat alone.
+  if (heartbeat && typeof heartbeat.unref === "function") heartbeat.unref();
 
-      if (authoritative) {
-        await applyAuthoritativeAssessment({
-          project,
-          job,
-          run,
-          loadedSlice,
-          collectAlerts: job.trigger === "webhook",
-          trigger,
+  try {
+    const result = await withProjectCheckout(
+      project,
+      async (rootPath) => {
+        const run = await runAssessment(pipelineInput, {
+          rootPath,
+          authoritative,
         });
-      }
+        const { assessment } = run;
+        const trigger = job.payload.eventName ?? "manual assessment";
 
-      return {
-        project,
-        assessment,
-        openViolations: openViolationCount(run.findings),
-        failedRequirements: failedRequirementCount(run.requirements),
-      };
-    },
-    job.payload.ref,
-  );
+        // A cancel that lands mid-run discards the results: nothing is
+        // persisted and no Check Run is posted, so "cancel" always means
+        // "saves nothing".
+        if (authoritative && !cancelledRemotely) {
+          await applyAuthoritativeAssessment({
+            project,
+            job,
+            run,
+            loadedSlice,
+            collectAlerts: job.trigger === "webhook",
+            trigger,
+          });
+        }
 
-  if (job.trigger !== "webhook" || !job.payload.pullRequestHeadSha) return;
-  await postAssessmentCheckRun({
-    project: result.project,
-    jobId: job.id,
-    headSha: job.payload.pullRequestHeadSha,
-    openViolations: result.openViolations,
-    failedRequirements: result.failedRequirements,
-    assessmentId: result.assessment.id,
-  });
+        return {
+          project,
+          assessment,
+          openViolations: openViolationCount(run.findings),
+          failedRequirements: failedRequirementCount(run.requirements),
+        };
+      },
+      job.payload.ref,
+    );
+
+    if (
+      !cancelledRemotely &&
+      job.trigger === "webhook" &&
+      job.payload.pullRequestHeadSha
+    ) {
+      await postAssessmentCheckRun({
+        project: result.project,
+        jobId: job.id,
+        headSha: job.payload.pullRequestHeadSha,
+        openViolations: result.openViolations,
+        failedRequirements: result.failedRequirements,
+        assessmentId: result.assessment.id,
+      });
+    }
+    return { cancelled: cancelledRemotely };
+  } finally {
+    if (heartbeat) clearInterval(heartbeat);
+  }
 }
 
 export type AssessmentWorkerResult =
   | { kind: "idle" }
   | { kind: "succeeded"; jobId: string }
   | { kind: "retrying"; jobId: string }
-  | { kind: "failed"; jobId: string };
+  | { kind: "failed"; jobId: string }
+  | { kind: "cancelled"; jobId: string };
 
 /** Claims and processes a single job; safe to run concurrently on many workers. */
 export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
@@ -114,7 +167,19 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
     attempts: job.attempts,
   });
   try {
-    await runClaimedAssessmentJob(job);
+    const outcome = await runClaimedAssessmentJob(job);
+    if (outcome.cancelled) {
+      // The user cancelled mid-run: the heartbeat already saw the job leave
+      // `running`. Skip complete/fail/evidence — the complete/fail lease
+      // guards would no-op anyway, and a failure record must not follow a
+      // deliberate cancel.
+      reportInfo("assessment job cancelled", {
+        code: "assessment_job_cancelled",
+        jobId: job.id,
+        projectId: job.projectId,
+      });
+      return { kind: "cancelled", jobId: job.id };
+    }
     await completeAssessmentJob(job);
     reportInfo("assessment job completed", {
       code: "assessment_job_succeeded",

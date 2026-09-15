@@ -164,6 +164,7 @@ export default async function DashboardPage() {
             <DashboardPipelineSection
               projectId={project.id}
               canRetry={caps.canAssess}
+              canCancel={caps.canAssess}
             />
           </Suspense>
 

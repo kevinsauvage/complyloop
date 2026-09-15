@@ -12,9 +12,23 @@ what is missing before the project is genuinely usable, safe, and deployable.
 
 ## P0 — Critical
 
-### [ ] TODO-01: Assessment job lifecycle — cancellation is dead code, manual double-enqueue stacks, stuck jobs have no recourse
+### [x] TODO-01: ~~Assessment job lifecycle — cancellation is dead code, manual double-enqueue stacks, stuck jobs have no recourse~~ — DONE (2026-09-15)
 
-**Why:**
+**Delivered:**
+- `cancelAssessmentJob` writer (`assessment-jobs.ts`: project-scoped
+  `queued/running → cancelled`) + `cancelAssessmentJobAction` (requires
+  `project.assess`, `assessment_job` evidence with `phase: "cancelled"`,
+  revalidates loop routes) + per-job Cancel button with confirm dialog.
+- Manual dedup: `runAssessmentAction` reuses the active job (check-then-enqueue
+  inside `withProjectWrite`, race-safe via the project advisory lock; skips
+  rate-limit consumption on the dedup path).
+- Lease heartbeat: 5-min `refreshAssessmentJobLease` while a scan runs (no more
+  >30-min double-runs); remote cancel detected → worker returns `cancelled`,
+  skips apply/complete/fail/evidence/Check Run so cancel means "saves nothing".
+- UI: running-age note past the 10-min stall threshold; `cancelled` evidence
+  phase display; inline drain counts + "Assessment cancelled." copy.
+
+**Why:** *(original problem statement, kept for history)*
 The core loop (Assess → Verify → Monitor) wedges when a job stalls or the user
 double-clicks. `cancelled` exists in the contract, DB CHECK, UI copy and e2e
 helpers, but nothing can ever write it — so a user with a stuck `running` job
@@ -660,8 +674,10 @@ Inconsistent defaults, harness-mode invisibility on health, untested ops paths.
   (Playwright/axe) + html-validate, merge/dedupe priority, check-authority
   classes, status derivation order, "AI never sets statuses" — enforced in code
   and tested (`check-authority.test.ts`, `catalog-coverage.test.ts`).
-- **Jobs:** 30-min lease, 3 attempts with backoff, serial-per-project
-  `FOR UPDATE SKIP LOCKED`, webhook idempotency (delivery claim + job
+- **Jobs:** 30-min lease (5-min worker heartbeat), 3 attempts with backoff,
+  serial-per-project `FOR UPDATE SKIP LOCKED`, project-scoped cancel
+  (`queued/running → cancelled`, mid-run cancel saves nothing), manual dedup on
+  the active job, webhook idempotency (delivery claim + job
   `idempotencyKey` + unique-violation race cover), default-branch authority vs
   PR-preview separation, failure evidence on terminal failure.
 - **Remediation/verify:** linear `detected→suggested→approved→implemented→verified`,
@@ -680,7 +696,7 @@ Inconsistent defaults, harness-mode invisibility on health, untested ops paths.
 
 ## What is missing
 
-- Job lifecycle control (cancel/dedup/stuck recovery) — P0.
+- ~~Job lifecycle control (cancel/dedup/stuck recovery) — P0~~ — DONE (TODO-01).
 - Prod worker/ops/backup hardening — P0.
 - Disconnect/reconnect repair, invite lifecycle, rate-limit coverage, evidence
   size alerting, PR failure signals, site copy, session edges — P1.
@@ -690,21 +706,19 @@ Inconsistent defaults, harness-mode invisibility on health, untested ops paths.
 
 ## Biggest blockers
 
-1. **Job lifecycle (TODO-01)** — users can wedge their own queue with no recourse.
-2. **Worker/ops fragility (TODO-03)** — one crash stops all assessments silently.
-3. **No repair flow (TODO-04)** — every revoked App / renamed repo becomes a
+1. **Worker/ops fragility (TODO-03)** — one crash stops all assessments silently.
+2. **No repair flow (TODO-04)** — every revoked App / renamed repo becomes a
    generic-error support ticket.
-4. **Invite lifecycle (TODO-05)** — phantom invites + silent role overwrites at
+3. **Invite lifecycle (TODO-05)** — phantom invites + silent role overwrites at
    agency scale.
 
 ## Recommended implementation order
 
-1. TODO-01 (cancel + dedup + stuck UI) — unblocks the core loop.
-2. TODO-03 (worker restart/health + ops:check fail cases) — makes prod safe.
-3. TODO-04 + TODO-05 (repair banner + invite validation) — kills top support tickets.
-4. TODO-06 + TODO-07 (rate limits + evidence alert) — abuse/growth safety.
-5. TODO-08 + TODO-09 + TODO-10 (check-run on exception, site copy, session edges).
-6. TODO-11 … TODO-16 in order (TODO-02 removed).
+1. TODO-03 (worker restart/health + ops:check fail cases) — makes prod safe.
+2. TODO-04 + TODO-05 (repair banner + invite validation) — kills top support tickets.
+3. TODO-06 + TODO-07 (rate limits + evidence alert) — abuse/growth safety.
+4. TODO-08 + TODO-09 + TODO-10 (check-run on exception, site copy, session edges).
+5. TODO-11 … TODO-16 in order (TODO-01/02 done/removed).
 
 ## Definition of Done
 

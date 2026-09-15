@@ -6,9 +6,11 @@ import { recentAssessmentJobsForProject } from "@/server/assessment/assessment-j
 export async function DashboardPipelineSection({
   projectId,
   canRetry,
+  canCancel,
 }: {
   projectId: string;
   canRetry: boolean;
+  canCancel: boolean;
 }) {
   const recentJobs = await recentAssessmentJobsForProject(projectId);
   return (
@@ -18,6 +20,7 @@ export async function DashboardPipelineSection({
         projectId={projectId}
         initialJobs={recentJobs}
         canRetry={canRetry}
+        canCancel={canCancel}
       />
     </PageSection>
   );

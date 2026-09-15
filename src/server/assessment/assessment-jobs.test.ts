@@ -131,10 +131,24 @@ function createDrizzle() {
           const ltes = lteValues(clause);
           const filtered = [...jobs.values()].filter((row) => {
             if (eqs.includes(row.id)) return true;
+            if (eqs.includes(row.idempotencyKey)) return true;
+            // Active-job lookup: project scoped + queued/running statuses.
+            if (
+              eqs.includes(row.projectId) &&
+              eqs.length === 1 &&
+              ins.length > 0
+            ) {
+              return ins.includes(row.status);
+            }
+            // Project-scoped status lookup from another project: no match.
+            // (Must precede the generic status branch below, which is
+            // project-agnostic for the cross-project count query.)
+            if (eqs.length === 1 && ins.length > 0) {
+              return false;
+            }
             if (ins.length > 0) {
               return ins.includes(row.status) || ins.includes(row.id);
             }
-            if (eqs.includes(row.idempotencyKey)) return true;
             if (eqs.includes(row.projectId) && eqs.length === 1) return true;
             if (eqs.includes("running") && row.status === "running")
               return true;
@@ -231,6 +245,15 @@ function createDrizzle() {
             ) {
               match = true;
             } else if (
+              hasId &&
+              eqs.includes(row.projectId) &&
+              (patch as Partial<JobRow>).status === "cancelled"
+            ) {
+              // Cancel: id + project scope with a queued/running membership
+              // check (the real UPDATE carries inArray(status, …), which the
+              // mock drizzle does not thread into `eqs` — re-check it here).
+              match = row.status === "queued" || row.status === "running";
+            } else if (
               hasStatus &&
               eqs.includes("running") &&
               ltes.length > 0 &&
@@ -276,12 +299,15 @@ function createDrizzle() {
 
 import {
   type AssessmentJob,
+  cancelAssessmentJob,
   claimNextAssessmentJob,
   completeAssessmentJob,
   enqueueAssessmentJob,
   failAssessmentJob,
+  findActiveAssessmentJob,
   queuedAssessmentJobCount,
   recentAssessmentJobsForProject,
+  refreshAssessmentJobLease,
 } from "./assessment-jobs";
 
 beforeEach(() => {
@@ -765,5 +791,155 @@ describe("queuedAssessmentJobCount and recentAssessmentJobsForProject", () => {
     }
     const recent = await recentAssessmentJobsForProject("p1", 5);
     expect(recent.map((job) => job.id)).toEqual(ids.slice(-5).reverse());
+  });
+});
+
+describe("findActiveAssessmentJob", () => {
+  it("returns the queued job for the project", async () => {
+    const job = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const active = await findActiveAssessmentJob("p1");
+    expect(active?.id).toBe(job.id);
+    expect(active?.status).toBe("queued");
+  });
+
+  it("returns a running job", async () => {
+    await enqueueAssessmentJob({ projectId: "p1", trigger: "manual" });
+    await claimNextAssessmentJob();
+    const active = await findActiveAssessmentJob("p1");
+    expect(active?.status).toBe("running");
+  });
+
+  it("returns null when only terminal jobs exist", async () => {
+    const job = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const claimed = await claimNextAssessmentJob();
+    if (!claimed) throw new Error("expected claim");
+    await completeAssessmentJob(claimed);
+    expect(await findActiveAssessmentJob("p1")).toBeNull();
+    expect(jobs.get(job.id)?.status).toBe("succeeded");
+  });
+
+  it("ignores other projects", async () => {
+    await enqueueAssessmentJob({ projectId: "p2", trigger: "manual" });
+    expect(await findActiveAssessmentJob("p1")).toBeNull();
+  });
+});
+
+describe("cancelAssessmentJob", () => {
+  it("cancels a queued job", async () => {
+    const job = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const cancelled = await cancelAssessmentJob({
+      projectId: "p1",
+      jobId: job.id,
+    });
+    expect(cancelled?.status).toBe("cancelled");
+    expect(jobs.get(job.id)?.status).toBe("cancelled");
+    expect(jobs.get(job.id)?.completedAt).toBeTruthy();
+    expect(jobs.get(job.id)?.leaseExpiresAt).toBeNull();
+  });
+
+  it("cancels a running job so lease recovery never resurrects it", async () => {
+    const job = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const claimed = await claimNextAssessmentJob();
+    if (!claimed) throw new Error("expected claim");
+    const cancelled = await cancelAssessmentJob({
+      projectId: "p1",
+      jobId: job.id,
+    });
+    expect(cancelled?.status).toBe("cancelled");
+    // A stale complete from the still-running worker must no-op.
+    await completeAssessmentJob(claimed);
+    expect(jobs.get(job.id)?.status).toBe("cancelled");
+    // And the lease reaper skips non-running rows.
+    expect(await claimNextAssessmentJob()).toBeNull();
+    expect(jobs.get(job.id)?.status).toBe("cancelled");
+  });
+
+  it("returns null for terminal jobs, unknown ids, and other projects", async () => {
+    const job = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const claimed = await claimNextAssessmentJob();
+    if (!claimed) throw new Error("expected claim");
+    await completeAssessmentJob(claimed);
+    expect(
+      await cancelAssessmentJob({ projectId: "p1", jobId: job.id }),
+    ).toBeNull();
+
+    const queued = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    expect(
+      await cancelAssessmentJob({ projectId: "p2", jobId: queued.id }),
+    ).toBeNull();
+    expect(
+      await cancelAssessmentJob({ projectId: "p1", jobId: "nope" }),
+    ).toBeNull();
+    expect(jobs.get(queued.id)?.status).toBe("queued");
+  });
+});
+
+describe("refreshAssessmentJobLease", () => {
+  it("extends the lease of a running job", async () => {
+    await enqueueAssessmentJob({ projectId: "p1", trigger: "manual" });
+    const claimed = await claimNextAssessmentJob();
+    if (!claimed?.leaseExpiresAt || !claimed.startedAt) {
+      throw new Error("expected lease");
+    }
+    const renewed = await refreshAssessmentJobLease({
+      id: claimed.id,
+      leaseExpiresAt: claimed.leaseExpiresAt,
+      startedAt: claimed.startedAt,
+    });
+    expect(renewed).toBeTruthy();
+    expect(Date.parse(renewed as string)).toBeGreaterThanOrEqual(
+      Date.parse(claimed.leaseExpiresAt),
+    );
+    expect(jobs.get(claimed.id)?.leaseExpiresAt).toBe(renewed);
+  });
+
+  it("returns null once the job is cancelled", async () => {
+    const job = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const claimed = await claimNextAssessmentJob();
+    if (!claimed?.leaseExpiresAt || !claimed.startedAt) {
+      throw new Error("expected lease");
+    }
+    await cancelAssessmentJob({ projectId: "p1", jobId: job.id });
+    await expect(
+      refreshAssessmentJobLease({
+        id: claimed.id,
+        leaseExpiresAt: claimed.leaseExpiresAt,
+        startedAt: claimed.startedAt,
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("returns null on a lease mismatch (superseded heartbeat)", async () => {
+    await enqueueAssessmentJob({ projectId: "p1", trigger: "manual" });
+    const claimed = await claimNextAssessmentJob();
+    if (!claimed?.startedAt) throw new Error("expected start");
+    await expect(
+      refreshAssessmentJobLease({
+        id: claimed.id,
+        leaseExpiresAt: "2000-01-01T00:00:00.000Z",
+        startedAt: claimed.startedAt,
+      }),
+    ).resolves.toBeNull();
   });
 });

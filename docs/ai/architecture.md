@@ -100,8 +100,11 @@ evidence, findings, remediations, requirements }`; the worker persists via
   No abstract repositories, interfaces-per-table, or DI containers: expensive
   edges are injected explicitly via function params (`runAssessment`
   options), everything else is a direct import.
-- **Jobs** — 30-min lease, 3 attempts, serial per project. HTTP only
-  enqueues. Dev/e2e drain in-process.
+- **Jobs** — 30-min lease (renewed by a 5-min worker heartbeat while a scan
+  runs), 3 attempts, serial per project, cancellable (`queued`/`running` →
+  `cancelled`, project-scoped; a cancelled mid-run run saves nothing and posts
+  no Check Run). Manual re-runs reuse the active job instead of stacking.
+  HTTP only enqueues. Dev/e2e drain in-process.
 - **Clones** — shallow temp checkout per job; deleted after. See
   [`deploy.md`](../deploy.md).
 

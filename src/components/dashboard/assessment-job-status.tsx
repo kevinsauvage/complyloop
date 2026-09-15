@@ -3,7 +3,10 @@ import { RefreshCw } from "lucide-react";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { formatDateTime } from "@/core/datetime";
 import { cn } from "@/lib/utils";
-import { runAssessmentAction } from "@/server/actions/assessment";
+import {
+  cancelAssessmentJobAction,
+  runAssessmentAction,
+} from "@/server/actions/assessment";
 import type { AssessmentJob } from "@/server/assessment/assessment-jobs";
 
 const statusCopy: Record<AssessmentJob["status"], string> = {
@@ -56,13 +59,47 @@ function formatStallAge(ageMs: number): string {
   return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
 }
 
+/**
+ * Age of a running scan past the stall threshold, or null when fresh.
+ * Mirrors `stalledQueueAgeMs`: `now` defaults impurely here (not in render)
+ * so the component stays pure for `react-hooks/purity`.
+ */
+export function longRunningAgeMs(
+  startedAt: string,
+  now: number = Date.now(),
+): number | null {
+  const started = Date.parse(startedAt);
+  if (Number.isNaN(started)) return null;
+  const ageMs = now - started;
+  return ageMs > WORKER_STALL_MS ? ageMs : null;
+}
+
+/**
+ * Explains a long-running scan: the worker holds a renewable lease while it
+ * is alive, so a stuck `Running` past this point likely means a crashed
+ * worker whose job will be retried — or cancel it below to stop it now.
+ */
+function RunningAgeNote({ startedAt }: { startedAt: string }) {
+  const ageMs = longRunningAgeMs(startedAt);
+  if (ageMs === null) return null;
+  return (
+    <p className="basis-full pl-5 text-xs text-muted-foreground" role="status">
+      Running for {formatStallAge(ageMs)} — longer than expected. If the worker
+      crashed, the job is retried automatically when its lease expires;
+      otherwise cancel it to stop the scan.
+    </p>
+  );
+}
+
 export function AssessmentJobStatus({
   jobs,
   canRetry = false,
+  canCancel = false,
   pollError = null,
 }: {
   jobs: AssessmentJob[];
   canRetry?: boolean;
+  canCancel?: boolean;
   pollError?: string | null;
 }) {
   if (jobs.length === 0 && !pollError) return null;
@@ -135,6 +172,25 @@ export function AssessmentJobStatus({
               <p className="basis-full pl-5 text-xs text-destructive">
                 {job.error}
               </p>
+            ) : null}
+            {job.status === "running" && job.startedAt ? (
+              <RunningAgeNote startedAt={job.startedAt} />
+            ) : null}
+            {canCancel &&
+            (job.status === "queued" || job.status === "running") ? (
+              <div className="basis-full pl-5 pt-1">
+                <StatefulActionForm
+                  action={cancelAssessmentJobAction}
+                  submitLabel="Cancel job"
+                  pendingLabel="Cancelling…"
+                  variant="outline"
+                  size="sm"
+                  confirmTitle="Cancel this assessment?"
+                  confirmMessage="The queued job is dropped; a running scan stops at the next checkpoint and saves nothing."
+                >
+                  <input type="hidden" name="jobId" value={job.id} />
+                </StatefulActionForm>
+              </div>
             ) : null}
             {canRetry && job.status === "failed" ? (
               <div className="basis-full pl-5 pt-1">

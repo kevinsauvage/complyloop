@@ -38,6 +38,13 @@ const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_LEASE_MS = 30 * 60_000;
 const RETRY_BASE_MS = 30_000;
 
+/**
+ * How often a running worker extends its lease. Well below the 30-minute
+ * lease so a live scan (clone + Playwright) can never expire mid-run and get
+ * double-executed by `recoverExpiredLeases`.
+ */
+export const ASSESSMENT_JOB_HEARTBEAT_MS = 5 * 60_000;
+
 function isUniqueViolation(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -404,6 +411,100 @@ export async function recentAssessmentJobsForProject(
     .orderBy(desc(assessmentJobs.createdAt))
     .limit(limit);
   return rows.map(jobFromRow);
+}
+
+/**
+ * Oldest still-active (`queued`/`running`) job for a project, or null.
+ * Manual enqueues consult this so rapid re-runs reuse the active job instead
+ * of stacking serial scans behind the per-project lock.
+ */
+export async function findActiveAssessmentJob(
+  projectId: string,
+): Promise<AssessmentJob | null> {
+  const drizzle = await getDrizzle();
+  const [row] = await drizzle
+    .select()
+    .from(assessmentJobs)
+    .where(
+      and(
+        eq(assessmentJobs.projectId, projectId),
+        inArray(assessmentJobs.status, ["queued", "running"]),
+      ),
+    )
+    .orderBy(asc(assessmentJobs.createdAt))
+    .limit(1);
+  return row ? jobFromRow(row) : null;
+}
+
+export interface CancelAssessmentJobInput {
+  projectId: string;
+  jobId: string;
+}
+
+/**
+ * Moves a `queued`/`running` job to `cancelled` (project-scoped — a job from
+ * another project is never touched). Returns the cancelled job, or null when
+ * nothing was cancellable (unknown id, wrong project, already terminal).
+ * A concurrently-running worker's `complete`/`fail` writes no-op via their
+ * lease guards once the status leaves `running`; the heartbeat reports the
+ * cancellation so the worker stops without recording failure evidence.
+ */
+export async function cancelAssessmentJob(
+  input: CancelAssessmentJobInput,
+): Promise<AssessmentJob | null> {
+  const drizzle = await getDrizzle();
+  const now = new Date().toISOString();
+  const [cancelled] = await drizzle
+    .update(assessmentJobs)
+    .set({
+      status: "cancelled",
+      completedAt: now,
+      leaseExpiresAt: null,
+      error: null,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(assessmentJobs.id, input.jobId),
+        eq(assessmentJobs.projectId, input.projectId),
+        inArray(assessmentJobs.status, ["queued", "running"]),
+      ),
+    )
+    .returning();
+  return cancelled ? jobFromRow(cancelled) : null;
+}
+
+export interface RefreshAssessmentJobLeaseInput {
+  id: string;
+  leaseExpiresAt: string;
+  startedAt: string;
+}
+
+/**
+ * Worker heartbeat: extends a `running` job's lease by one full lease period.
+ * Returns the new expiry, or null when the job left `running` (cancelled,
+ * completed, or reaped) — the worker must then stop and neither
+ * complete nor fail it.
+ */
+export async function refreshAssessmentJobLease(
+  input: RefreshAssessmentJobLeaseInput,
+): Promise<string | null> {
+  const drizzle = await getDrizzle();
+  const now = new Date().toISOString();
+  const leaseExpiresAt = new Date(Date.now() + DEFAULT_LEASE_MS).toISOString();
+  const [refreshed] = await drizzle
+    .update(assessmentJobs)
+    .set({ leaseExpiresAt, updatedAt: now })
+    .where(
+      and(
+        eq(assessmentJobs.id, input.id),
+        eq(assessmentJobs.status, "running"),
+        eq(assessmentJobs.leaseExpiresAt, input.leaseExpiresAt),
+        eq(assessmentJobs.startedAt, input.startedAt),
+      ),
+    )
+    .returning({ leaseExpiresAt: assessmentJobs.leaseExpiresAt });
+  return refreshed?.leaseExpiresAt ?? null;
 }
 
 export async function queuedAssessmentJobCount(): Promise<number> {

@@ -57,6 +57,7 @@ const ASSESSMENT_JOB_PHASE_DISPLAY: Record<string, EvidenceDisplay> = {
   queued: { label: "Assessment queued", tone: "signal" },
   completed: { label: "Assessment job completed", tone: "pass" },
   failed: { label: "Assessment job failed", tone: "fail" },
+  cancelled: { label: "Assessment job cancelled", tone: "default" },
 };
 
 /** Label + tone for an evidence record — one lookup, no parallel branches. */

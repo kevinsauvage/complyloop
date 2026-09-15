@@ -53,7 +53,7 @@ describe("drainAssessmentJobQueue", () => {
     const outcome = await drainAssessmentJobQueue();
 
     expect(processNext).toHaveBeenCalledTimes(2);
-    expect(outcome).toEqual({ ran: 1, failed: 0, retrying: 0 });
+    expect(outcome).toEqual({ ran: 1, failed: 0, retrying: 0, cancelled: 0 });
   });
 
   it("respects maxJobs", async () => {
@@ -62,7 +62,7 @@ describe("drainAssessmentJobQueue", () => {
     const outcome = await drainAssessmentJobQueue(3);
 
     expect(processNext).toHaveBeenCalledTimes(3);
-    expect(outcome).toEqual({ ran: 3, failed: 0, retrying: 0 });
+    expect(outcome).toEqual({ ran: 3, failed: 0, retrying: 0, cancelled: 0 });
   });
 
   it("counts failed and retrying jobs so callers can surface honest messages", async () => {
@@ -74,7 +74,17 @@ describe("drainAssessmentJobQueue", () => {
 
     const outcome = await drainAssessmentJobQueue();
 
-    expect(outcome).toEqual({ ran: 1, failed: 1, retrying: 1 });
+    expect(outcome).toEqual({ ran: 1, failed: 1, retrying: 1, cancelled: 0 });
+  });
+
+  it("counts cancelled jobs separately from runs and failures", async () => {
+    processNext
+      .mockResolvedValueOnce({ kind: "cancelled", jobId: "j1" })
+      .mockResolvedValueOnce({ kind: "idle" });
+
+    const outcome = await drainAssessmentJobQueue();
+
+    expect(outcome).toEqual({ ran: 0, failed: 0, retrying: 0, cancelled: 1 });
   });
 });
 
@@ -112,6 +122,15 @@ describe("drainAssessmentJobsInline", () => {
     processNext.mockResolvedValueOnce({ kind: "idle" });
     await expect(drainAssessmentJobsInline()).resolves.toBe(
       "No assessment jobs were ready to run.",
+    );
+  });
+
+  it("maps cancelled jobs to cancel copy", async () => {
+    processNext
+      .mockResolvedValueOnce({ kind: "cancelled", jobId: "j1" })
+      .mockResolvedValueOnce({ kind: "idle" });
+    await expect(drainAssessmentJobsInline()).resolves.toBe(
+      "Assessment cancelled.",
     );
   });
 });

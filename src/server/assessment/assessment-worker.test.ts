@@ -12,6 +12,7 @@ import type { AssessmentJob } from "./assessment-jobs";
 const claimNextAssessmentJob = vi.hoisted(() => vi.fn());
 const completeAssessmentJob = vi.hoisted(() => vi.fn());
 const failAssessmentJob = vi.hoisted(() => vi.fn());
+const refreshAssessmentJobLease = vi.hoisted(() => vi.fn());
 const loadProjectDb = vi.hoisted(() => vi.fn());
 const runAssessment = vi.hoisted(() => vi.fn());
 const withProjectCheckout = vi.hoisted(() => vi.fn());
@@ -27,12 +28,20 @@ const insertEvidence = vi.hoisted(() => vi.fn());
 const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
 
-vi.mock("./assessment-jobs", () => ({
-  claimNextAssessmentJob: (...args: unknown[]) =>
-    claimNextAssessmentJob(...args),
-  completeAssessmentJob: (...args: unknown[]) => completeAssessmentJob(...args),
-  failAssessmentJob: (...args: unknown[]) => failAssessmentJob(...args),
-}));
+vi.mock("./assessment-jobs", async () => {
+  const actual = await vi.importActual<typeof import("./assessment-jobs")>(
+    "./assessment-jobs",
+  );
+  return {
+    ...actual,
+    claimNextAssessmentJob: (...args: unknown[]) =>
+      claimNextAssessmentJob(...args),
+    completeAssessmentJob: (...args: unknown[]) => completeAssessmentJob(...args),
+    failAssessmentJob: (...args: unknown[]) => failAssessmentJob(...args),
+    refreshAssessmentJobLease: (...args: unknown[]) =>
+      refreshAssessmentJobLease(...args),
+  };
+});
 
 vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: async () => ({ transaction }),
@@ -108,6 +117,7 @@ vi.mock("../github/github-checks", () => ({
   }),
 }));
 
+import { ASSESSMENT_JOB_HEARTBEAT_MS } from "./assessment-jobs";
 import { processNextAssessmentJob } from "./assessment-worker";
 
 const project = testProject({
@@ -232,6 +242,51 @@ describe("processNextAssessmentJob", () => {
       expect.objectContaining({ id: "job-1" }),
     );
     expect(pruneRateLimitBuckets).not.toHaveBeenCalled();
+  });
+
+  it("returns cancelled and saves nothing when the job is cancelled mid-run", async () => {
+    vi.useFakeTimers();
+    try {
+      const db = projectDb();
+      claimNextAssessmentJob.mockResolvedValue(job());
+      loadProjectDb.mockResolvedValue(db);
+      withProjectCheckout.mockImplementation(
+        async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+          fn("/tmp/checkout"),
+      );
+      let resolveRun!: (value: unknown) => void;
+      runAssessment.mockReturnValue(
+        new Promise((resolve) => {
+          resolveRun = resolve;
+        }),
+      );
+      // The heartbeat finds the job gone from `running` (user cancelled).
+      refreshAssessmentJobLease.mockResolvedValue(null);
+      completeAssessmentJob.mockResolvedValue(undefined);
+
+      const pending = processNextAssessmentJob();
+      await vi.advanceTimersByTimeAsync(ASSESSMENT_JOB_HEARTBEAT_MS + 1);
+      resolveRun(
+        assessmentRun({
+          id: "a1",
+          projectId: "p1",
+          snapshot: { fileHashes: {} },
+        }),
+      );
+
+      await expect(pending).resolves.toEqual({
+        kind: "cancelled",
+        jobId: "job-1",
+      });
+      // Nothing persisted, nothing finalized, no failure recorded.
+      expect(applyAssessmentPayload).not.toHaveBeenCalled();
+      expect(insertEvidence).not.toHaveBeenCalled();
+      expect(completeAssessmentJob).not.toHaveBeenCalled();
+      expect(failAssessmentJob).not.toHaveBeenCalled();
+      expect(reportError).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("persists remediations after a run whose evidence snapshot is empty", async () => {
