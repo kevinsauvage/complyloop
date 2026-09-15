@@ -450,29 +450,6 @@ export async function recentAssessmentJobsForProject(
   return rows.map(jobFromRow);
 }
 
-/**
- * Oldest still-active (`queued`/`running`) job for a project, or null.
- * Manual enqueues consult this so rapid re-runs reuse the active job instead
- * of stacking serial scans behind the per-project lock.
- */
-export async function findActiveAssessmentJob(
-  projectId: string,
-): Promise<AssessmentJob | null> {
-  const drizzle = await getDrizzle();
-  const [row] = await drizzle
-    .select()
-    .from(assessmentJobs)
-    .where(
-      and(
-        eq(assessmentJobs.projectId, projectId),
-        inArray(assessmentJobs.status, ["queued", "running"]),
-      ),
-    )
-    .orderBy(asc(assessmentJobs.createdAt))
-    .limit(1);
-  return row ? jobFromRow(row) : null;
-}
-
 export interface CancelAssessmentJobInput {
   projectId: string;
   jobId: string;

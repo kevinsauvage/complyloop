@@ -11,7 +11,7 @@ serverless Chromium build (`@sparticuz/chromium`).
 | Concern       | Behavior                                                                                                                                                                                                                  |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                                                     |
-| **Jobs**      | Queued in Postgres; every enqueue self-fetches the single-scan worker route (`POST /api/internal/jobs/run?limit=1`) in `after()`, the GitHub Actions sweep hits `POST /api/internal/jobs/run?limit=10&concurrency=2` every 5 min (`.github/workflows/assessment-sweep.yml`) as the orphan/expired-lease backstop; 3 attempts with backoff, serial per project, 30-min lease renewed by a 5-min heartbeat |
+| **Jobs**      | Manual runs execute directly in the dashboard action (the click scans; loader → toast → results); webhook runs queue in Postgres and self-fetch the worker route (`POST /api/internal/jobs/run?limit=1`) in `after()`. The GitHub Actions sweep hits `POST /api/internal/jobs/run?limit=10&concurrency=2` every 5 min (`.github/workflows/assessment-sweep.yml`) as the orphan/expired-lease backstop; 3 attempts with backoff, serial per project in the queue, 30-min lease renewed by a 5-min heartbeat |
 | **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                                                 |
 | **Browsers**  | `@sparticuz/chromium` (pinned) when `ASSESSMENT_RUNTIME_BROWSER=serverless`; locally installed Playwright browser otherwise                                                                                               |
 | **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                                                        |
@@ -35,12 +35,15 @@ DATABASE_URL="<remote-url>" npm run db:migrate
 
 ## 2. Sweep (the assessment worker)
 
-`/api/internal/jobs/run` is the **only** route that runs scans — trigger
-sites (dashboard action, webhook) only enqueue, then self-fetch
+`/api/internal/jobs/run` runs scans **for the queued (webhook) path**.
+Webhook deliveries only enqueue, then self-fetch
 `POST /api/internal/jobs/run?limit=1` in `after()` so scans start
 immediately (each invocation claims one job; per-project claims serialize
-concurrent tasks). The backstop is the `assessment-sweep` GitHub Actions
-workflow (`.github/workflows/assessment-sweep.yml`, every 5 min,
+concurrent tasks). A **manual** run does not use this route: the dashboard
+action starts its own job (`startAssessmentJob`) and scans in the same
+request, so `/dashboard` also carries the Chromium binaries and
+`maxDuration` (see `next.config.ts`). The backstop is the `assessment-sweep`
+GitHub Actions workflow (`.github/workflows/assessment-sweep.yml`, every 5 min,
 `?limit=10&concurrency=2`): it reclaims jobs left `queued`/`running` by
 failed self-fetches, killed tasks, or expired leases via the route's
 lease-recovery path. There is no Vercel Cron — Hobby plans only allow daily

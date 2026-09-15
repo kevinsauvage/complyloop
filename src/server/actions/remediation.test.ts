@@ -23,7 +23,6 @@ import {
 } from "./remediation";
 
 const startAssessmentJob = vi.hoisted(() => vi.fn());
-const findActiveAssessmentJob = vi.hoisted(() => vi.fn());
 const cancelAssessmentJob = vi.hoisted(() => vi.fn());
 const settleRunningAssessmentJob = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
@@ -57,8 +56,6 @@ vi.mock("../assessment/assessment", () => ({
 
 vi.mock("../assessment/assessment-jobs", () => ({
   startAssessmentJob: (...args: unknown[]) => startAssessmentJob(...args),
-  findActiveAssessmentJob: (...args: unknown[]) =>
-    findActiveAssessmentJob(...args),
   cancelAssessmentJob: (...args: unknown[]) => cancelAssessmentJob(...args),
 }));
 
@@ -284,9 +281,8 @@ describe("runAssessmentAction", () => {
   it("requires no active-job check so a second click is never deduped away", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
-    // A webhook job left a running row for the same project: a direct manual
-    // run must still proceed (it starts its own job).
-    findActiveAssessmentJob.mockResolvedValue({ id: "job-webhook" });
+    // Manually clicking while another run is active must still start a run:
+    // the action no longer consults the active-job loader at all.
     startAssessmentJob.mockResolvedValue({
       id: "job-2",
       attempts: 1,
@@ -304,7 +300,6 @@ describe("runAssessmentAction", () => {
     );
 
     expect(result).toEqual({ ok: true, message: "Assessment complete." });
-    expect(findActiveAssessmentJob).not.toHaveBeenCalled();
     expect(settleRunningAssessmentJob).toHaveBeenCalled();
   });
 

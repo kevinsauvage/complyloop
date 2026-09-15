@@ -46,7 +46,8 @@ export function StatefulActionForm({
    * Refresh server components after a successful submit. Opt-in: most forms
    * already land on fresh data via `revalidatePath`, but `useActionState`
    * views do not re-render from revalidation alone — flows that must show
-   * the mutation immediately (e.g. the queued assessment job) set this.
+   * the mutation immediately (e.g. a completed direct assessment run) set
+   * this.
    */
   refreshOnSuccess?: boolean;
 }) {
