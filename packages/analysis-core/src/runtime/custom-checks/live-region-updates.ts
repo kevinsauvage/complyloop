@@ -62,7 +62,7 @@ const COLLECT_STATUS_HITS_SRC = collectFormStatusHits.toString();
 
 const BROWSER_LIVE_REGION_SRC = `(function liveRegionSource() {
   const hit = (${BROWSER_HIT_CAPTURE_SRC});
-  ${COLLECT_STATUS_HITS_SRC}
+  const collectFormStatusHits = (${COLLECT_STATUS_HITS_SRC});
   return { captureHit: hit.captureHit, collectFormStatusHits };
 })()`;
 

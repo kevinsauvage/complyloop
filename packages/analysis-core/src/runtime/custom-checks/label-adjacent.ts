@@ -46,7 +46,7 @@ export async function labelAdjacentViolation(
       const gapBetween = new Function(
         "a",
         "b",
-        `${gapFnSource}; return gapBetweenRects(a, b);`,
+        `const gapBetweenRects = (${gapFnSource}); return gapBetweenRects(a, b);`,
       ) as (a: DOMRect, b: DOMRect) => number;
 
       function skipLayout(label: Element, field: Element): boolean {

@@ -112,12 +112,12 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
     ) => {
       const parseColor = new Function(
         "value",
-        `${parseRgbSrc}; return parseRgb(value);`,
+        `const parseRgb = (${parseRgbSrc}); return parseRgb(value);`,
       ) as (value: string) => [number, number, number] | null;
       const contrast = new Function(
         "a",
         "b",
-        `${luminanceSrc}; ${contrastSrc}; return contrastRatio(a, b);`,
+        `const relativeLuminance = (${luminanceSrc}); const contrastRatio = (${contrastSrc}); return contrastRatio(a, b);`,
       ) as (a: [number, number, number], b: [number, number, number]) => number;
 
       function backgroundRgb(el: Element): [number, number, number] | null {
@@ -189,12 +189,12 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
     (captureHit, el, { parseRgbSrc, luminanceSrc, contrastSrc }) => {
       const parseColor = new Function(
         "value",
-        `${parseRgbSrc}; return parseRgb(value);`,
+        `const parseRgb = (${parseRgbSrc}); return parseRgb(value);`,
       ) as (value: string) => [number, number, number] | null;
       const contrast = new Function(
         "a",
         "b",
-        `${luminanceSrc}; ${contrastSrc}; return contrastRatio(a, b);`,
+        `const relativeLuminance = (${luminanceSrc}); const contrastRatio = (${contrastSrc}); return contrastRatio(a, b);`,
       ) as (a: [number, number, number], b: [number, number, number]) => number;
 
       function backgroundRgb(node: Element): [number, number, number] | null {

@@ -7,7 +7,7 @@ import { isKeyboardFocusable } from "./widget-keyboard-utils.ts";
 
 const BROWSER_HELPERS = `(function helperSource() {
   const hit = (${BROWSER_HIT_CAPTURE_SRC});
-  ${isKeyboardFocusable.toString()}
+  const isKeyboardFocusable = (${isKeyboardFocusable.toString()});
   return { captureHit: hit.captureHit, isKeyboardFocusable };
 })()`;
 
