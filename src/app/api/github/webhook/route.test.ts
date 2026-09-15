@@ -221,6 +221,8 @@ describe("POST /api/github/webhook", () => {
       eventName: "push",
     });
   });
+
+  it("rejects oversized bodies without a content-length header", async () => {
     // Stream bodies carry no content-length (chunked transfer), which used to
     // bypass the size limit entirely.
     const big = `{"data":"${"x".repeat(5 * 1024 * 1024)}"}`;
