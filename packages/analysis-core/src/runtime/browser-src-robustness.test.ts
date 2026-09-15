@@ -21,7 +21,6 @@ import {
   escapeAttr,
   roleLabel,
 } from "./custom-checks/dom-hit-rich";
-import { htmlSnippet } from "./dom-location";
 import {
   BROWSER_HIT_CAPTURE_SRC,
   LOAD_HIT_CAPTURE_SRC,
@@ -40,6 +39,7 @@ import {
 import {
   selectorRef,
 } from "./custom-checks/widget-keyboard-utils";
+import { htmlSnippet } from "./dom-location";
 
 type AnyFn = (...args: never[]) => unknown;
 
