@@ -106,7 +106,7 @@ evidence, findings, remediations, requirements }`; the worker persists via
   no Check Run). Manual re-runs reuse the active job instead of stacking.
    Every enqueue (manual action, webhook) self-fetches the single-scan worker
    route (`POST /api/internal/jobs/run?limit=1`) in `after()` so scans start
-   immediately; the GitHub Actions sweep (every 15 min) is the backstop for
+   immediately; the GitHub Actions sweep (every 5 min) is the backstop for
    failed fetches, killed tasks, and expired leases. Dev/e2e
    drain the full queue inline. Expired
   rate-limit buckets prune once per batch.

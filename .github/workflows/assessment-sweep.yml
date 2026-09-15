@@ -12,7 +12,9 @@ name: assessment-sweep
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    # Every 5 min — the shortest interval GitHub Actions supports for
+    # scheduled workflows.
+    - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
 concurrency:
