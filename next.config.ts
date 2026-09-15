@@ -43,6 +43,14 @@ const nextConfig: NextConfig = {
     "axe-core",
     "html-validate",
   ],
+  // `playwright-core` reads its `browsers.json` registry at load time, but
+  // file tracing only follows JS imports — on Vercel the JSON never made it
+  // into the function bundle (`Cannot find module .../browsers.json`, surfaced
+  // as generic "Runtime scan failed."). Scans run in `after()` continuations
+  // of page, webhook, and cron routes, so the include targets all routes.
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/playwright-core/browsers.json"],
+  },
   transpilePackages: [
     "@complyloop/analysis-core",
     "@complyloop/analysis-core/contract",
