@@ -97,6 +97,17 @@ async function getBrowser(): Promise<Browser> {
         headless: true,
       });
     } else {
+      // Fail fast with an operator-actionable error: without the serverless
+      // flag the local Playwright browser path (`~/.cache/ms-playwright`)
+      // does not exist on Vercel, and the resulting "Executable doesn't
+      // exist" launch error misleads. `PublicError` passes classification
+      // through unchanged, so this exact message reaches the UI + evidence.
+      // Vercel-only: dev/CI/e2e legitimately use the local browser.
+      if (process.env.VERCEL === "1") {
+        throw new PublicError(
+          "Preview audits need ASSESSMENT_RUNTIME_BROWSER=serverless on Vercel — the local Playwright browser is not installed in serverless functions. Set it on the Vercel project and redeploy.",
+        );
+      }
       const { chromium } = await import("playwright-core");
       sharedBrowser = await chromium.launch({ headless: true });
     }
