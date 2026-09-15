@@ -1,11 +1,7 @@
 import { after } from "next/server";
 import { z } from "zod";
 
-import {
-  drainAssessmentJobQueue,
-  drainSingleAssessmentJobOpportunistically,
-  shouldDrainAssessmentJobsInline,
-} from "@/server/assessment/assessment-job-inline";
+import { scheduleAssessmentDrain } from "@/server/assessment/assessment-job-inline";
 import {
   handleGitHubWebhookEvent,
   isWebhookConfigured,
@@ -118,16 +114,14 @@ export async function POST(request: Request): Promise<Response> {
       { status: 503 },
     );
   }
-  // Dev/e2e drains the whole queue inline; production schedules an
-  // opportunistic single-job drain per delivery so pushes start scanning
-  // immediately. Each task claims one job (serial-per-project), and the daily
-  // Cron sweep is the backstop for killed tasks and expired leases.
+  // Every handled delivery schedules a drain of the single-scan worker
+  // route in `after()`: dev/e2e drains the queue inline, production
+  // self-fetches `POST /api/internal/jobs/run?limit=1` so pushes start
+  // scanning immediately. Each invocation claims one job
+  // (serial-per-project); the scheduled sweep is the backstop for failed
+  // fetches, killed tasks, and expired leases.
   if (result.handled) {
-    if (shouldDrainAssessmentJobsInline()) {
-      after(() => drainAssessmentJobQueue());
-    } else {
-      after(() => drainSingleAssessmentJobOpportunistically());
-    }
+    after(() => scheduleAssessmentDrain());
   }
   return Response.json(
     { ...result, duplicate: !firstDelivery, deliveryId },

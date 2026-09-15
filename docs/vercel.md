@@ -1,17 +1,17 @@
 # Deploying ComplyLoop on Vercel
 
-Single topology: the Next.js app (web + API) runs on Vercel; Vercel Cron
-drives assessments; Postgres runs on Neon or Supabase. There is no worker
-process, no Docker image, and no `git` CLI anywhere — checkouts use pure-JS
-git (isomorphic-git) and preview audits use a serverless Chromium build
-(`@sparticuz/chromium`).
+Single topology: the Next.js app (web + API) runs on Vercel; a GitHub Actions
+scheduled workflow sweeps assessments; Postgres runs on Neon or Supabase.
+There is no worker process, no Docker image, and no `git` CLI anywhere —
+checkouts use pure-JS git (isomorphic-git) and preview audits use a
+serverless Chromium build (`@sparticuz/chromium`).
 
 ## How it runs
 
 | Concern       | Behavior                                                                                                                                                                                                                  |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                                                     |
-| **Jobs**      | Queued in Postgres; every enqueue schedules an opportunistic single-job `after()` drain (limit 1, serial per project), Vercel Cron hits `POST /api/internal/jobs/run?limit=10&concurrency=2` once daily (`vercel.json`, Hobby limit) as the orphan/expired-lease backstop; 3 attempts with backoff, serial per project, 30-min lease renewed by a 5-min heartbeat |
+| **Jobs**      | Queued in Postgres; every enqueue self-fetches the single-scan worker route (`POST /api/internal/jobs/run?limit=1`) in `after()`, the GitHub Actions sweep hits `POST /api/internal/jobs/run?limit=10&concurrency=2` every 15 min (`.github/workflows/assessment-sweep.yml`) as the orphan/expired-lease backstop; 3 attempts with backoff, serial per project, 30-min lease renewed by a 5-min heartbeat |
 | **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                                                 |
 | **Browsers**  | `@sparticuz/chromium` (pinned) when `ASSESSMENT_RUNTIME_BROWSER=serverless`; locally installed Playwright browser otherwise                                                                                               |
 | **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                                                        |
@@ -33,30 +33,34 @@ and on every schema change:
 DATABASE_URL="<remote-url>" npm run db:migrate
 ```
 
-## 2. Cron (the assessment worker)
+## 2. Sweep (the assessment worker)
 
-`vercel.json` (committed) schedules `POST
-/api/internal/jobs/run?limit=10&concurrency=2` once daily (`0 2 * * *`) —
-Hobby plans only allow daily Vercel Cron. It is the backstop, not the primary
-drain: every manual run and every handled webhook schedules an opportunistic
-single-job `after()` drain so scans start immediately (each task claims one
-job; per-project claims serialize concurrent tasks). When you move to Pro,
-switch the schedule back to `*/2 * * * *` with `limit=2` for a tighter sweep.
+`/api/internal/jobs/run` is the **only** route that runs scans — trigger
+sites (dashboard action, webhook) only enqueue, then self-fetch
+`POST /api/internal/jobs/run?limit=1` in `after()` so scans start
+immediately (each invocation claims one job; per-project claims serialize
+concurrent tasks). The backstop is the `assessment-sweep` GitHub Actions
+workflow (`.github/workflows/assessment-sweep.yml`, every 15 min,
+`?limit=10&concurrency=2`): it reclaims jobs left `queued`/`running` by
+failed self-fetches, killed tasks, or expired leases via the route's
+lease-recovery path. There is no Vercel Cron — Hobby plans only allow daily
+schedules, which left orphans stranded up to ~24h. `workflow_dispatch` on the
+workflow doubles as an operator drain button.
 
-Authentication: Vercel Cron automatically sends
-`Authorization: Bearer <CRON_SECRET>`; the route compares it constant-time
-against `WORKER_SECRET` (`worker-auth.ts`) — so **set `WORKER_SECRET` to the
-same value as `CRON_SECRET`** (≥16 chars, production only).
+Authentication: both the self-fetch and the sweep send
+`Authorization: Bearer <WORKER_SECRET>`; the route compares it constant-time
+(`worker-auth.ts`). Set a single `WORKER_SECRET` (≥16 chars, production
+only) — no `CRON_SECRET` coupling.
 
 The route runs with `maxDuration = 300` (Hobby caps at 300; Pro up to 800).
-The daily batch uses `limit=10&concurrency=2` to drain more per run; on Pro
-drop back to small batches (`limit=2`) so a slow clone/scan fits. Expired rate-limit
+The sweep uses `limit=10&concurrency=2` to drain backlogs in a few ticks; on
+Pro drop back to small batches (`limit=2`) so a slow clone/scan fits. Expired rate-limit
 buckets prune once per batch (`runAssessmentJobBatch`).
 
-If the queue ever grows instead of draining, both the opportunistic drain and
-Cron stopped firing or started failing — alert on `assessmentJobs` queue depth
+If the queue ever grows instead of draining, both the self-fetch drain and
+the sweep stopped firing or started failing — alert on `assessmentJobs` queue depth
 (see `ops:check` below) and check the Vercel function logs (filter `[event]`
-for `assessment_opportunistic_drain_failed`) plus the Vercel Cron logs.
+for `assessment_opportunistic_drain_failed`) plus the Actions run logs.
 
 ## 3. Environment variables (Vercel dashboard)
 
@@ -68,8 +72,7 @@ for `assessment_opportunistic_drain_failed`) plus the Vercel Cron logs.
 | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`       | GitHub App OAuth client                                                                                             |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`    | Installation-token repo access                                                                                      |
 | `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET`   | Install link + webhook verification                                                                                 |
-| `WORKER_SECRET`                               | Same value as `CRON_SECRET`                                                                                         |
-| `CRON_SECRET`                                 | Vercel Cron secret (≥16 chars)                                                                                      |
+| `WORKER_SECRET`                               | Bearer for the worker route (self-fetch + sweep secret, ≥16 chars)                                                              |
 | `ASSESSMENT_RUNTIME_BROWSER`                  | `serverless` (Vercel) — unset locally                                                                               |
 | `ASSESSMENT_MAX_CHECKOUT_BYTES`               | `100000000` (100 MB — `/tmp` caps at ~500 MB)                                                                       |
 | `ASSESSMENT_MAX_CHECKOUT_FILES`               | `10000`                                                                                                             |
@@ -105,10 +108,10 @@ without it every runtime scan fails with `Cannot find module
   Use it as the Vercel/dead-man check. A job stuck in `queued` with no
   worker activity shows up here as a growing `assessmentJobs` count.
 - Lifecycle events (`[event] assessment job enqueued/claimed/completed`,
-  `worker_batch_started/finished`, `worker_unauthorized`) log to stdout in
-  production — filter Vercel logs for `[event]` to trace a stuck job from
-  enqueue to claim. A `worker_unauthorized` line means `CRON_SECRET` ≠
-  `WORKER_SECRET`, so Cron ticks never drain the queue.
+   `worker_batch_started/finished`, `worker_unauthorized`) log to stdout in
+   production — filter Vercel logs for `[event]` to trace a stuck job from
+   enqueue to claim. A `worker_unauthorized` line means the sweep/self-fetch
+   bearer ≠ `WORKER_SECRET`, so ticks never drain the queue.
 - `npm run ops:check` (from any machine with `DATABASE_URL`) verifies DB +
   prod env + queue depth. Run it on a schedule with failure alerting — it is
   the replacement for the old worker healthcheck.
@@ -128,9 +131,9 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 ## Pre-launch checklist
 
 - [ ] Remote Postgres reachable; `db:migrate` applied from local machine
-- [ ] All env vars set, `WORKER_SECRET` == `CRON_SECRET`, no placeholders
+- [ ] All env vars set, `WORKER_SECRET` (≥16 chars) configured, no placeholders
 - [ ] Basic Auth credentials set (private preview); remove them at public launch
-- [ ] Cron job created and firing (Vercel dashboard → Cron, daily)
+- [ ] Sweep workflow firing every 15 min (Actions tab) + `WORKER_SECRET` repo secret set
 - [ ] Sign in → connect a repo → run assessment → results appear
 - [ ] Assessment of a real repo exercises the isomorphic-git clone path
 - [ ] Preview audit works with `ASSESSMENT_RUNTIME_BROWSER=serverless`

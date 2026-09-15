@@ -77,8 +77,9 @@ export async function POST(request: Request): Promise<Response> {
   const authorization = request.headers.get("authorization");
   if (!isWorkerRequestAuthorized(authorization)) {
     // Never log the header value itself — its presence shape is enough to
-    // distinguish a missing secret from a mismatched one (e.g. Vercel
-    // CRON_SECRET !== WORKER_SECRET, the classic silent-drain failure).
+    // distinguish a missing secret from a mismatched one (e.g. the sweep's
+    // WORKER_SECRET secret drifting from the production env var, the classic
+    // silent-drain failure).
     reportWarning("unauthorized assessment worker call", {
       code: "worker_unauthorized",
       hasAuthorizationHeader: authorization !== null,

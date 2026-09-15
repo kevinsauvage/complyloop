@@ -10,8 +10,7 @@ import { entityIdSchema, parseForm } from "@/core/validate";
 
 import { type ActionState, runAction } from "../action-state";
 import {
-  drainAssessmentJobsInline,
-  drainSingleAssessmentJobOpportunistically,
+  scheduleAssessmentDrain,
   shouldDrainAssessmentJobsInline,
 } from "../assessment/assessment-job-inline";
 import {
@@ -89,17 +88,18 @@ export async function runAssessmentAction(
     }
 
     // Local `next dev` and the Playwright harness run without a dedicated
-    // worker: drain inline so the action resolves with the result. Production
-    // enqueues and schedules an opportunistic single-job drain in `after()`
-    // so the scan starts immediately; the daily Cron sweep is only the
-    // backstop for killed tasks and expired leases.
+    // worker: the scheduler drains inline so the action resolves with the
+    // result. Production enqueues and self-fetches the single-scan worker
+    // route in `after()` so the scan starts immediately; the scheduled sweep
+    // is only the backstop for failed fetches, killed tasks, expired leases.
     const inline = shouldDrainAssessmentJobsInline();
     if (!inline) {
-      after(() => drainSingleAssessmentJobOpportunistically());
+      after(() => scheduleAssessmentDrain());
     }
-    const message = inline
-      ? await drainAssessmentJobsInline()
-      : "Assessment queued — scan running, results should appear shortly.";
+    const inlineMessage = inline ? await scheduleAssessmentDrain() : undefined;
+    const message =
+      inlineMessage ??
+      "Assessment queued — scan running, results should appear shortly.";
     reportEvent("assessment job enqueued", {
       code: "assessment_job_enqueued",
       projectId: context.projectId,

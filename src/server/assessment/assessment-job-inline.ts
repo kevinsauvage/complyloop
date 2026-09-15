@@ -1,8 +1,7 @@
 import "server-only";
 
 import { isE2EHarnessEnabled } from "../e2e-harness";
-import { reportEvent, reportWarning } from "../observability";
-import { runAssessmentJobBatch } from "./assessment-runner";
+import { reportWarning } from "../observability";
 
 /**
  * Process jobs in-process when a dedicated worker is not expected —
@@ -19,10 +18,17 @@ export interface DrainAssessmentJobsResult {
   cancelled: number;
 }
 
-/** Claims and runs ready jobs until the queue is idle or `maxJobs` is reached. */
+/**
+ * Claims and runs ready jobs until the queue is idle or `maxJobs` is reached.
+ *
+ * The runner is dynamically imported so trigger sites (which only import
+ * `scheduleAssessmentDrain` below) never statically reach the scan stack —
+ * only `/api/internal/jobs/run` and the dev/e2e inline path execute it.
+ */
 export async function drainAssessmentJobQueue(
   maxJobs = 20,
 ): Promise<DrainAssessmentJobsResult> {
+  const { runAssessmentJobBatch } = await import("./assessment-runner");
   const outcome: DrainAssessmentJobsResult = {
     ran: 0,
     failed: 0,
@@ -39,10 +45,10 @@ export async function drainAssessmentJobQueue(
 }
 
 /**
- * Dev/e2e-only inline drain for the assessment action: drains the queue and
- * maps the outcome to user copy. Production uses the opportunistic
- * single-job drain below (`after()`), not this; the action branches on
- * `shouldDrainAssessmentJobsInline` so the dev path stays synchronous.
+ * Dev/e2e-only inline drain for `scheduleAssessmentDrain`: drains the queue
+ * and maps the outcome to user copy. Production self-fetches the worker
+ * route instead; the caller branches on `shouldDrainAssessmentJobsInline`
+ * (inside the scheduler) so the dev path stays synchronous.
  */
 export async function drainAssessmentJobsInline(): Promise<string> {
   const outcome = await drainAssessmentJobQueue();
@@ -65,25 +71,44 @@ export async function drainAssessmentJobsInline(): Promise<string> {
 }
 
 /**
- * Opportunistic prod drain for `after()` continuations (manual action +
- * webhook route). Claims and runs a single job, then returns: each enqueue
- * schedules its own task, so one invocation never hogs the queue and
- * concurrent tasks for the same project serialize on the claim
- * (`FOR UPDATE SKIP LOCKED` + serial-per-project guard).
+ * Single scheduling entry point for trigger sites (manual action, webhook).
+ * Call it inside `after()` in production; `await` it directly only on the
+ * dev/e2e inline path (it returns the user-facing message there).
  *
- * Never throws — a killed task or a scan that exceeds the serverless budget
- * leaves the job `queued`/`running` and the daily Cron sweep retries it via
- * lease recovery.
+ * Dev/e2e drains the queue inline and returns the user-facing message;
+ * production self-fetches the single-scan worker route
+ * (`POST /api/internal/jobs/run?limit=1`) and returns `undefined`, so the
+ * caller falls back to the "queued" copy.
+ *
+ * Never throws — a failed self-fetch or a killed task leaves the job
+ * `queued`/`running` and the scheduled sweep reclaims it via lease recovery.
  */
-export async function drainSingleAssessmentJobOpportunistically(): Promise<void> {
+export async function scheduleAssessmentDrain(): Promise<string | undefined> {
+  if (shouldDrainAssessmentJobsInline()) {
+    return drainAssessmentJobsInline();
+  }
+  await triggerWorkerSelfFetch();
+  return undefined;
+}
+
+/** Self-fetch of our own worker endpoint; logs and swallows every failure. */
+async function triggerWorkerSelfFetch(): Promise<void> {
   try {
-    const [result] = await runAssessmentJobBatch({ limit: 1 });
-    reportEvent("opportunistic assessment drain finished", {
-      code: "assessment_opportunistic_drain_finished",
-      kind: result?.kind ?? "idle",
-      jobId:
-        result && "jobId" in result ? (result.jobId as string) : undefined,
+    const baseUrl = process.env.AUTH_URL?.trim().replace(/\/+$/, "");
+    if (!baseUrl) {
+      throw new Error("AUTH_URL is not configured.");
+    }
+    const secret = process.env.WORKER_SECRET?.trim();
+    if (!secret) {
+      throw new Error("WORKER_SECRET is not configured.");
+    }
+    const response = await fetch(`${baseUrl}/api/internal/jobs/run?limit=1`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${secret}` },
     });
+    if (!response.ok) {
+      throw new Error(`worker drain responded ${response.status}.`);
+    }
   } catch (error) {
     reportWarning("opportunistic assessment drain failed", {
       code: "assessment_opportunistic_drain_failed",

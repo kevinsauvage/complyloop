@@ -13,9 +13,7 @@ vi.mock("next/server", () => ({
 }));
 
 vi.mock("@/server/assessment/assessment-job-inline", () => ({
-  drainAssessmentJobQueue: vi.fn(),
-  drainSingleAssessmentJobOpportunistically: vi.fn(),
-  shouldDrainAssessmentJobsInline: () => false,
+  scheduleAssessmentDrain: vi.fn(),
 }));
 
 vi.mock("@/server/github/webhook", () => ({

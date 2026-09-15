@@ -33,10 +33,10 @@ publish-only.
 append-only. Tokens AES-256-GCM at rest. Server-owned env keys live in
 `src/server/env.ts` (lazy getters — never module constants); `AUTH_*` stays
 with auth/middleware/token crypto, framework keys stay direct. Assessments are durable jobs
-(Vercel Cron → `POST /api/internal/jobs/run`).
+(self-fetch + GitHub Actions sweep → `POST /api/internal/jobs/run`).
 
 ```
-App (enqueue + after() single-job drain) → assessment_jobs → Cron sweep (orphans/expired leases)
+App (enqueue + after() worker self-fetch) → assessment_jobs → GHA sweep (orphans/expired leases)
                                            ↓ (clone → scan → persist)
                            Core + contract → Catalog / Analysis / AI
                                            ↓
@@ -104,10 +104,11 @@ evidence, findings, remediations, requirements }`; the worker persists via
   runs), 3 attempts, serial per project, cancellable (`queued`/`running` →
   `cancelled`, project-scoped; a cancelled mid-run run saves nothing and posts
   no Check Run). Manual re-runs reuse the active job instead of stacking.
-  Every enqueue (manual action, webhook) schedules an opportunistic
-  single-job drain in `after()` so scans start immediately; the daily Vercel
-  Cron tick is the backstop for killed tasks and expired leases. Dev/e2e
-  drain the full queue inline. Expired
+   Every enqueue (manual action, webhook) self-fetches the single-scan worker
+   route (`POST /api/internal/jobs/run?limit=1`) in `after()` so scans start
+   immediately; the GitHub Actions sweep (every 15 min) is the backstop for
+   failed fetches, killed tasks, and expired leases. Dev/e2e
+   drain the full queue inline. Expired
   rate-limit buckets prune once per batch.
 - **Checkouts** — shallow ephemeral checkout per job via pure-JS git
   (isomorphic-git, no `git` CLI); deleted after. Serverless Chromium via

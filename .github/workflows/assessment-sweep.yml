@@ -1,0 +1,39 @@
+# Backstop sweep for the assessment queue (replaces Vercel Cron, which Hobby
+# plans limit to a daily schedule). Every enqueue already self-fetches the
+# single-scan worker route in `after()`; this workflow reclaims jobs left
+# `queued`/`running` by failed fetches, killed tasks, or expired leases via
+# the route's lease-recovery path. `workflow_dispatch` doubles as an operator
+# drain button.
+#
+# Required: `WORKER_SECRET` repository secret (same value as the production
+# `WORKER_SECRET` env var). Production URL: `PROD_URL` repository variable,
+# falling back to `AUTH_URL` when set.
+name: assessment-sweep
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: assessment-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Drain assessment queue
+        run: |
+          BASE_URL="${PROD_URL:-$AUTH_URL}"
+          if [ -z "$BASE_URL" ]; then
+            echo "PROD_URL (or AUTH_URL) is not configured." >&2
+            exit 1
+          fi
+          curl --fail-with-body --connect-timeout 15 --max-time 280 \
+            -X POST "$BASE_URL/api/internal/jobs/run?limit=10&concurrency=2" \
+            -H "Authorization: Bearer $WORKER_SECRET"
+        env:
+          PROD_URL: ${{ vars.PROD_URL }}
+          AUTH_URL: ${{ vars.AUTH_URL }}
+          WORKER_SECRET: ${{ secrets.WORKER_SECRET }}

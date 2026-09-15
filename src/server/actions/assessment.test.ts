@@ -1,24 +1,36 @@
 import "@/test-fixtures/register-action-workspace-mock";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../assessment/assessment-worker", () => ({
   processNextAssessmentJob: vi.fn(),
 }));
 
+vi.mock("../observability", () => ({
+  reportEvent: vi.fn(),
+  reportWarning: vi.fn(),
+}));
+
 import {
   drainAssessmentJobQueue,
   drainAssessmentJobsInline,
-  drainSingleAssessmentJobOpportunistically,
+  scheduleAssessmentDrain,
   shouldDrainAssessmentJobsInline,
 } from "../assessment/assessment-job-inline";
 import { processNextAssessmentJob } from "../assessment/assessment-worker";
 
 const processNext = vi.mocked(processNextAssessmentJob);
 
+beforeEach(() => {
+  vi.stubEnv("AUTH_URL", "https://app.example.com");
+  vi.stubEnv("WORKER_SECRET", "test-worker-secret");
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200 }));
+});
+
 afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 describe("shouldDrainAssessmentJobsInline", () => {
@@ -136,17 +148,66 @@ describe("drainAssessmentJobsInline", () => {
   });
 });
 
-describe("drainSingleAssessmentJobOpportunistically", () => {
-  it("claims a single job and never throws on worker failure", async () => {
-    processNext.mockResolvedValueOnce({ kind: "succeeded", jobId: "j1" });
-    await expect(
-      drainSingleAssessmentJobOpportunistically(),
-    ).resolves.toBeUndefined();
-    expect(processNext).toHaveBeenCalledTimes(1);
+describe("scheduleAssessmentDrain", () => {
+  it("drains inline in development and returns the user copy", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
+    processNext
+      .mockResolvedValueOnce({ kind: "succeeded", jobId: "j1" })
+      .mockResolvedValueOnce({ kind: "idle" });
 
-    processNext.mockRejectedValueOnce(new Error("db down"));
-    await expect(
-      drainSingleAssessmentJobOpportunistically(),
-    ).resolves.toBeUndefined();
+    await expect(scheduleAssessmentDrain()).resolves.toBe(
+      "Assessment complete.",
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("self-fetches the worker route in production and returns undefined", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
+
+    await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
+    expect(processNext).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(
+      "https://app.example.com/api/internal/jobs/run?limit=1",
+      {
+        method: "POST",
+        headers: { authorization: "Bearer test-worker-secret" },
+      },
+    );
+  });
+
+  it("never throws when the self-fetch fails", async () => {
+    const { reportWarning } = await import("../observability");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
+    vi.mocked(fetch).mockRejectedValueOnce(new Error("network down"));
+
+    await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
+    expect(reportWarning).toHaveBeenCalledWith(
+      "opportunistic assessment drain failed",
+      expect.objectContaining({
+        code: "assessment_opportunistic_drain_failed",
+      }),
+    );
+  });
+
+  it("never throws when the worker route responds with an error", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response("error", { status: 503 }),
+    );
+
+    await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
+  });
+
+  it("never throws when AUTH_URL or WORKER_SECRET is missing", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
+    vi.stubEnv("AUTH_URL", "");
+
+    await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
