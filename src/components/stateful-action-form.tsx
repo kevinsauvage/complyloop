@@ -1,7 +1,8 @@
 "use client";
 
 import type { VariantProps } from "class-variance-authority";
-import { type ReactNode, useActionState, useId } from "react";
+import { useRouter } from "next/navigation";
+import { type ReactNode, useActionState, useEffect, useId, useRef } from "react";
 
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { buttonVariants } from "@/components/ui/button";
@@ -25,6 +26,7 @@ export function StatefulActionForm({
   confirmTitle,
   retryLabel,
   disabled = false,
+  refreshOnSuccess = false,
 }: {
   action: (previous: ActionState, formData: FormData) => Promise<ActionState>;
   submitLabel: string;
@@ -40,10 +42,29 @@ export function StatefulActionForm({
   retryLabel?: string;
   /** Disables the submit button (state already satisfied). */
   disabled?: boolean;
+  /**
+   * Refresh server components after a successful submit. Opt-in: most forms
+   * already land on fresh data via `revalidatePath`, but `useActionState`
+   * views do not re-render from revalidation alone — flows that must show
+   * the mutation immediately (e.g. the queued assessment job) set this.
+   */
+  refreshOnSuccess?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formId = useId();
+  const router = useRouter();
   useActionToast(state, pending);
+  const refreshedFor = useRef<string | null>(null);
+
+  // `revalidatePath` in the action invalidates the cache but never re-renders
+  // this view: without an explicit refresh the user stares at stale data
+  // (e.g. the first-assessment checklist with no sign of the queued job).
+  useEffect(() => {
+    if (!refreshOnSuccess || pending || !state.ok || !state.message) return;
+    if (refreshedFor.current === state.message) return;
+    refreshedFor.current = state.message;
+    router.refresh();
+  }, [refreshOnSuccess, pending, state.ok, state.message, router]);
 
   const showRetry =
     !state.ok && Boolean(state.message) && !pending && Boolean(retryLabel);

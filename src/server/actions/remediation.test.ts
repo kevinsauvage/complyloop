@@ -42,6 +42,7 @@ vi.mock("../observability", () => ({
   reportWarning: vi.fn(),
   reportDebug: vi.fn(),
   reportInfo: vi.fn(),
+  reportEvent: vi.fn(),
   reportAppError: vi.fn(),
 }));
 
@@ -314,7 +315,7 @@ describe("runAssessmentAction", () => {
     );
 
     expect(result).toEqual({
-      ok: true,
+      ok: false,
       message:
         "An assessment is already queued or running — cancel it below to start over.",
     });

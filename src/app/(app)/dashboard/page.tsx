@@ -115,6 +115,20 @@ export default async function DashboardPage() {
         />
       ) : null}
 
+      {/* The pipeline stays visible before the first assessment completes so
+          a queued/running first job is never invisible: without this the page
+          looks stuck on the checklist while the worker is working. Empty job
+          history renders nothing (see AssessmentJobStatus). */}
+      {showFirstRun ? (
+        <Suspense fallback={<DashboardPipelineSkeleton />}>
+          <DashboardPipelineSection
+            projectId={project.id}
+            canRetry={caps.canAssess}
+            canCancel={caps.canAssess}
+          />
+        </Suspense>
+      ) : null}
+
       {latestAssessment ? (
         <>
           {nextAction ? (

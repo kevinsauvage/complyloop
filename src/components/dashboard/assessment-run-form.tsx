@@ -8,6 +8,7 @@ export function AssessmentRunForm() {
       action={runAssessmentAction}
       submitLabel="Run assessment"
       pendingLabel="Assessing…"
+      refreshOnSuccess
     />
   );
 }

@@ -94,7 +94,13 @@ failures surface as "Could not start the browser used for preview audits."
 ## 5. Monitoring
 
 - `GET /api/health` → `200` with queue depth, `503` when Postgres is down.
-  Use it as the Vercel/dead-man check.
+  Use it as the Vercel/dead-man check. A job stuck in `queued` with no
+  worker activity shows up here as a growing `assessmentJobs` count.
+- Lifecycle events (`[event] assessment job enqueued/claimed/completed`,
+  `worker_batch_started/finished`, `worker_unauthorized`) log to stdout in
+  production — filter Vercel logs for `[event]` to trace a stuck job from
+  enqueue to claim. A `worker_unauthorized` line means `CRON_SECRET` ≠
+  `WORKER_SECRET`, so Cron ticks never drain the queue.
 - `npm run ops:check` (from any machine with `DATABASE_URL`) verifies DB +
   prod env + queue depth. Run it on a schedule with failure alerting — it is
   the replacement for the old worker healthcheck.

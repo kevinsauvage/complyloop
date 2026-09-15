@@ -18,6 +18,7 @@ import {
   enqueueAssessmentJob,
   findActiveAssessmentJob,
 } from "../assessment/assessment-jobs";
+import { reportEvent } from "../observability";
 import { assertAssessRateLimit } from "../rate-limit";
 import { appendEvidence } from "../workspace/project-rows";
 import { withProjectWrite } from "../workspace/workspace-write";
@@ -39,10 +40,17 @@ export async function runAssessmentAction(
     // included). The per-project advisory lock serializes concurrent clicks,
     // so the check-then-enqueue below cannot stack duplicate jobs.
     let job: AssessmentJob | null = null;
+    // Mutable context (not narrowed locals): assigned inside the
+    // `withProjectWrite` closure, read after it resolves.
+    const context: {
+      projectId: string | null;
+      activeJob: AssessmentJob | null;
+    } = { projectId: null, activeJob: null };
     await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.assess");
-      const active = await findActiveAssessmentJob(workspace.project.id);
-      if (active) return;
+      context.projectId = workspace.project.id;
+      context.activeJob = await findActiveAssessmentJob(workspace.project.id);
+      if (context.activeJob) return;
       if (workspace.userId) await assertAssessRateLimit(workspace.userId);
       job = await enqueueAssessmentJob({
         projectId: workspace.project.id,
@@ -61,15 +69,33 @@ export async function runAssessmentAction(
 
     if (!job) {
       refresh(...COMPLIANCE_LOOP_ROUTES);
-      return "An assessment is already queued or running — cancel it below to start over.";
+      reportEvent("assessment run skipped: job already active", {
+        code: "assessment_run_deduped",
+        projectId: context.projectId,
+        jobId: context.activeJob?.id,
+        jobStatus: context.activeJob?.status,
+      });
+      // Not a success: surface inline (role=alert, no success toast) so a
+      // second click is never mistaken for a new run.
+      throw new PublicError(
+        "An assessment is already queued or running — cancel it below to start over.",
+      );
     }
 
     // Local `next dev` and the Playwright harness run without a dedicated
     // worker: drain inline so the action resolves with the result. Production
     // only enqueues (the worker owns the queue).
-    const message = shouldDrainAssessmentJobsInline()
+    const inline = shouldDrainAssessmentJobsInline();
+    const message = inline
       ? await drainAssessmentJobsInline()
       : "Assessment queued. Results will appear when the worker completes it.";
+    reportEvent("assessment job enqueued", {
+      code: "assessment_job_enqueued",
+      projectId: context.projectId,
+      jobId: job.id,
+      trigger: "manual",
+      mode: inline ? "inline" : "queued",
+    });
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return message;
   });

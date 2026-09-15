@@ -3,7 +3,7 @@ import "server-only";
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
 import { postAssessmentCheckRun } from "../github/github-connector";
-import { reportError, reportInfo, reportWarning } from "../observability";
+import { reportError, reportEvent, reportWarning } from "../observability";
 import { loadProjectDb } from "../workspace/db";
 import { type AssessmentRunResult, runAssessment } from "./assessment";
 import {
@@ -156,7 +156,7 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
   if (!job) {
     return { kind: "idle" };
   }
-  reportInfo("assessment job claimed", {
+  reportEvent("assessment job claimed", {
     code: "assessment_job_claimed",
     jobId: job.id,
     projectId: job.projectId,
@@ -170,7 +170,7 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
       // `running`. Skip complete/fail/evidence — the complete/fail lease
       // guards would no-op anyway, and a failure record must not follow a
       // deliberate cancel.
-      reportInfo("assessment job cancelled", {
+      reportEvent("assessment job cancelled", {
         code: "assessment_job_cancelled",
         jobId: job.id,
         projectId: job.projectId,
@@ -178,7 +178,7 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
       return { kind: "cancelled", jobId: job.id };
     }
     await completeAssessmentJob(job);
-    reportInfo("assessment job completed", {
+    reportEvent("assessment job completed", {
       code: "assessment_job_succeeded",
       jobId: job.id,
       projectId: job.projectId,
