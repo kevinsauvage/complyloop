@@ -12,6 +12,7 @@ import {
   verifyGitHubSignature,
 } from "@/server/github/webhook";
 import { claimWebhookDelivery } from "@/server/github/webhook-deliveries";
+import { reportError } from "@/server/observability";
 
 export const runtime = "nodejs";
 
@@ -78,11 +79,36 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const firstDelivery = await claimWebhookDelivery(deliveryId);
+  let firstDelivery: boolean;
+  try {
+    firstDelivery = await claimWebhookDelivery(deliveryId);
+  } catch (error) {
+    // Delivery-claim write failed (DB down): GitHub retries on 503.
+    reportError(error, {
+      code: "github_webhook_claim_failed",
+      deliveryId,
+      eventName,
+    });
+    return Response.json(
+      {
+        error:
+          "Could not record the webhook delivery. GitHub may retry this delivery.",
+        deliveryId,
+      },
+      { status: 503 },
+    );
+  }
   let result: Awaited<ReturnType<typeof handleGitHubWebhookEvent>>;
   try {
     result = await handleGitHubWebhookEvent(eventName, payload, deliveryId);
-  } catch {
+  } catch (error) {
+    // GitHub retries on 503 — but without this log the queueing failure is
+    // invisible in Sentry and easy to miss in function logs.
+    reportError(error, {
+      code: "github_webhook_queue_failed",
+      deliveryId,
+      eventName,
+    });
     return Response.json(
       {
         error:

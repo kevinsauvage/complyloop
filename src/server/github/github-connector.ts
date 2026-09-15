@@ -87,34 +87,47 @@ export async function postAssessmentCheckRun(input: {
   assessmentId: string;
 }): Promise<void> {
   const { project, jobId, headSha } = input;
-  const token = await resolveProjectGitHubToken(project);
-  if (!token || !project.github?.fullName) {
+  try {
+    const token = await resolveProjectGitHubToken(project);
+    if (!token || !project.github?.fullName) {
+      reportWarning(
+        "Could not post pull-request check: GitHub token unavailable.",
+        {
+          code: "github_token_missing",
+          projectId: project.id,
+          jobId,
+        },
+      );
+      return;
+    }
+    const posted = await postPullRequestCheckRun({
+      fullName: project.github.fullName,
+      headSha,
+      token,
+      ...summarizeAssessmentForCheckRun({
+        openViolations: input.openViolations,
+        failedRequirements: input.failedRequirements,
+        assessmentId: input.assessmentId,
+      }),
+    });
+    if (!posted.ok) {
+      reportWarning("Pull-request Check Run could not be posted.", {
+        code: "github_check_run_failed",
+        projectId: project.id,
+        jobId,
+        error: posted.error,
+      });
+    }
+  } catch (error) {
+    // Token resolution throws (PublicError) — a missing check must never fail
+    // an otherwise successful assessment job.
     reportWarning(
-      "Could not post pull-request check: GitHub token unavailable.",
+      error instanceof Error ? error.message : "Check Run post failed.",
       {
-        code: "github_token_missing",
+        code: "github_check_run_failed",
         projectId: project.id,
         jobId,
       },
     );
-    return;
-  }
-  const posted = await postPullRequestCheckRun({
-    fullName: project.github.fullName,
-    headSha,
-    token,
-    ...summarizeAssessmentForCheckRun({
-      openViolations: input.openViolations,
-      failedRequirements: input.failedRequirements,
-      assessmentId: input.assessmentId,
-    }),
-  });
-  if (!posted.ok) {
-    reportWarning("Pull-request Check Run could not be posted.", {
-      code: "github_check_run_failed",
-      projectId: project.id,
-      jobId,
-      error: posted.error,
-    });
   }
 }

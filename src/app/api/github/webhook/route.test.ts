@@ -29,6 +29,10 @@ vi.mock("@/server/github/webhook-deliveries", () => ({
   claimWebhookDelivery: (...args: unknown[]) => claimWebhookDelivery(...args),
 }));
 
+vi.mock("@/server/observability", () => ({
+  reportError: vi.fn(),
+}));
+
 function webhookRequest(
   body: string,
   headers: Record<string, string> = {},
@@ -166,6 +170,7 @@ describe("POST /api/github/webhook", () => {
   });
 
   it("returns a retryable response when queueing throws", async () => {
+    const { reportError } = await import("@/server/observability");
     handleGitHubWebhookEvent.mockRejectedValue(new Error("clone failed"));
     const response = await POST(
       webhookRequest('{"ref":"refs/heads/main"}', {
@@ -175,6 +180,11 @@ describe("POST /api/github/webhook", () => {
     );
     expect(response.status).toBe(503);
     expect(claimWebhookDelivery).toHaveBeenCalledWith("del-throw");
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), {
+      code: "github_webhook_queue_failed",
+      deliveryId: "del-throw",
+      eventName: "push",
+    });
 
     claimWebhookDelivery.mockResolvedValue(false);
     handleGitHubWebhookEvent.mockResolvedValue({
@@ -191,7 +201,26 @@ describe("POST /api/github/webhook", () => {
     await expect(retry.json()).resolves.toMatchObject({ duplicate: true });
   });
 
-  it("rejects oversized bodies without a content-length header", async () => {
+  it("returns a retryable response when claiming the delivery throws", async () => {
+    const { reportError } = await import("@/server/observability");
+    claimWebhookDelivery.mockRejectedValueOnce(new Error("db down"));
+    const response = await POST(
+      webhookRequest('{"ref":"refs/heads/main"}', {
+        "x-github-delivery": "del-claim-throw",
+        "x-github-event": "push",
+      }),
+    );
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      deliveryId: "del-claim-throw",
+    });
+    expect(handleGitHubWebhookEvent).not.toHaveBeenCalled();
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), {
+      code: "github_webhook_claim_failed",
+      deliveryId: "del-claim-throw",
+      eventName: "push",
+    });
+  });
     // Stream bodies carry no content-length (chunked transfer), which used to
     // bypass the size limit entirely.
     const big = `{"data":"${"x".repeat(5 * 1024 * 1024)}"}`;

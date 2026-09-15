@@ -1,5 +1,6 @@
 import "server-only";
 
+import { reportWarning } from "../observability";
 import { pruneRateLimitBuckets } from "../rate-limit";
 import {
   type AssessmentWorkerResult,
@@ -49,10 +50,10 @@ export async function runAssessmentJobBatch(
   try {
     await pruneRateLimitBuckets();
   } catch (error) {
-    console.warn(
-      "Rate-limit bucket prune failed:",
-      error instanceof Error ? error.message : error,
-    );
+    reportWarning("Rate-limit bucket prune failed.", {
+      code: "rate_limit_prune_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
   const options =
     typeof optionsOrLimit === "number"

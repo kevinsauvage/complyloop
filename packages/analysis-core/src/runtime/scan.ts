@@ -563,9 +563,15 @@ export async function runtimeViolationStillPresent(
   try {
     await assertSafeRuntimeUrl(url);
     pages = await scanner([url]);
-  } catch {
+  } catch (error) {
     // Unreachable / blocked / scan failure: we cannot prove the fix, so the
     // violation is treated as still present (fail closed — never verified).
+    // Log it: verify runs from a user click with no job record, so this warn
+    // is the only trace when re-verification keeps failing.
+    const raw = error instanceof Error ? error.message : String(error);
+    console.warn(
+      `[warning] runtime re-verify failed (fail closed): ${raw.replace(/\?[^\s"'<>]*/g, "")}`,
+    );
     return true;
   }
   // A page that rendered nothing also cannot be verified clean.

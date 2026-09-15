@@ -7,7 +7,7 @@ import {
   isWorkerAuthConfigured,
   isWorkerRequestAuthorized,
 } from "@/server/assessment/worker-auth";
-import { reportEvent, reportWarning } from "@/server/observability";
+import { reportError, reportEvent, reportWarning } from "@/server/observability";
 import { assertRateLimit, RateLimitError } from "@/server/rate-limit";
 
 export const runtime = "nodejs";
@@ -109,7 +109,22 @@ export async function POST(request: Request): Promise<Response> {
     limit,
     concurrency,
   });
-  const results = await runAssessmentJobBatch({ limit, concurrency });
+  let results: Awaited<ReturnType<typeof runAssessmentJobBatch>>;
+  try {
+    results = await runAssessmentJobBatch({ limit, concurrency });
+  } catch (error) {
+    // Batch-level crash (claim transaction, lease recovery): per-job failures
+    // never reach here, so this is always infra — Sentry + 500, not silence.
+    reportError(error, {
+      code: "worker_batch_failed",
+      limit,
+      concurrency,
+    });
+    return Response.json(
+      { error: "Assessment batch failed." },
+      { status: 500 },
+    );
+  }
   const byKind: Record<string, number> = {};
   for (const result of results) {
     byKind[result.kind] = (byKind[result.kind] ?? 0) + 1;
