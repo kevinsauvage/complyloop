@@ -14,6 +14,15 @@ const PATTERNS: RuntimeScanErrorPattern[] = [
     message: TOO_MANY_REDIRECTS_MESSAGE,
   },
   {
+    // Vercel file tracing omits sparticuz's non-JS `bin/` assets unless
+    // `outputFileTracingIncludes` covers the scanning route (see
+    // next.config.ts). Actionable on purpose: the fix is in the bundle, not
+    // the preview URL. Must precede the generic sparticuz pattern below.
+    test: (raw) => /@sparticuz\/chromium\/bin/.test(raw),
+    message:
+      "The serverless browser package is incomplete in this deployment (missing @sparticuz/chromium binaries). The deploy needs outputFileTracingIncludes for the scanning route — redeploy after fixing the bundle, not the preview URL.",
+  },
+  {
     test: (raw) => /ERR_CONNECTION_REFUSED/.test(raw),
     message:
       "Could not connect to the preview URL (connection refused). Confirm it is up and publicly reachable.",

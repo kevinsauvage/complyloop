@@ -46,10 +46,20 @@ const nextConfig: NextConfig = {
   // `playwright-core` reads its `browsers.json` registry at load time, but
   // file tracing only follows JS imports — on Vercel the JSON never made it
   // into the function bundle (`Cannot find module .../browsers.json`, surfaced
-  // as generic "Runtime scan failed."). Scans run in `after()` continuations
-  // of page, webhook, and cron routes, so the include targets all routes.
+  // as generic "Runtime scan failed."). 1 KB, so it goes to every route.
+  // `@sparticuz/chromium` ships its binaries as non-JS `bin/*.br` assets with
+  // the same tracing blind spot (`The input directory
+  // ".../@sparticuz/chromium/bin" does not exist`). 66 MB, so it is scoped to
+  // exactly the routes that launch a browser: scans run in `after()`
+  // continuations of the invoking route — the Cron batch, the webhook drain,
+  // and the two pages whose Server Actions scan (`/dashboard` runs
+  // assessments, `/findings/*` re-verifies findings).
   outputFileTracingIncludes: {
     "/*": ["./node_modules/playwright-core/browsers.json"],
+    "/api/internal/jobs/run": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/api/github/webhook": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/dashboard": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/findings/*": ["./node_modules/@sparticuz/chromium/bin/**/*"],
   },
   transpilePackages: [
     "@complyloop/analysis-core",

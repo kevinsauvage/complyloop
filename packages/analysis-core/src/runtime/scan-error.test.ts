@@ -83,6 +83,17 @@ describe("classifyRuntimeScanError", () => {
     expect(message).not.toContain("arm64");
   });
 
+  it("maps missing sparticuz binaries to the bundling fix, not the preview URL", () => {
+    const message = classifyRuntimeScanError(
+      new Error(
+        'The input directory "/var/task/node_modules/@sparticuz/chromium/bin" does not exist. See: https://github.com/Sparticuz/chromium#bundler-configuration',
+      ),
+    );
+    expect(message).toMatch(/outputFileTracingIncludes/);
+    expect(message).not.toContain("/var/task");
+    expect(message).not.toBe(RUNTIME_SCAN_FAILED_MESSAGE);
+  });
+
   it("keeps unexpected errors generic and does not leak paths", () => {
     const message = classifyRuntimeScanError(
       new Error("ENOENT /secret/clone/axe.min.js"),
