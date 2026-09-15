@@ -11,7 +11,7 @@ git (isomorphic-git) and preview audits use a serverless Chromium build
 | Concern       | Behavior                                                                                                                                                                                       |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                          |
-| **Jobs**      | Queued in Postgres; Vercel Cron hits `POST /api/internal/jobs/run?limit=2` every 2 min (`vercel.json`); 3 attempts with backoff, serial per project, 30-min lease renewed by a 5-min heartbeat |
+| **Jobs**      | Queued in Postgres; Vercel Cron hits `POST /api/internal/jobs/run?limit=10&concurrency=2` once daily (`vercel.json`, Hobby limit); 3 attempts with backoff, serial per project, 30-min lease renewed by a 5-min heartbeat |
 | **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                      |
 | **Browsers**  | `@sparticuz/chromium` (pinned) when `ASSESSMENT_RUNTIME_BROWSER=serverless`; locally installed Playwright browser otherwise                                                                    |
 | **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                             |
@@ -35,14 +35,19 @@ DATABASE_URL="<remote-url>" npm run db:migrate
 
 ## 2. Cron (the assessment worker)
 
-`vercel.json` (committed) schedules `POST /api/internal/jobs/run?limit=2`
-every 2 minutes. Authentication: Vercel Cron automatically sends
+`vercel.json` (committed) schedules `POST
+/api/internal/jobs/run?limit=10&concurrency=2` once daily (`0 2 * * *`) —
+Hobby plans only allow daily Vercel Cron. When you move to Pro, switch the
+schedule back to `*/2 * * * *` with `limit=2` for continuous draining.
+
+Authentication: Vercel Cron automatically sends
 `Authorization: Bearer <CRON_SECRET>`; the route compares it constant-time
 against `WORKER_SECRET` (`worker-auth.ts`) — so **set `WORKER_SECRET` to the
 same value as `CRON_SECRET`** (≥16 chars, production only).
 
 The route runs with `maxDuration = 300` (Hobby caps at 300; Pro up to 800).
-Batches stay small (`limit=2`) so a slow clone/scan fits. Expired rate-limit
+The daily batch uses `limit=10&concurrency=2` to drain more per run; on Pro
+drop back to small batches (`limit=2`) so a slow clone/scan fits. Expired rate-limit
 buckets prune once per batch (`runAssessmentJobBatch`).
 
 If the queue ever grows instead of draining, Cron stopped firing or started
@@ -111,7 +116,7 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 - [ ] Remote Postgres reachable; `db:migrate` applied from local machine
 - [ ] All env vars set, `WORKER_SECRET` == `CRON_SECRET`, no placeholders
 - [ ] Basic Auth credentials set (private preview); remove them at public launch
-- [ ] Cron job created and firing (Vercel dashboard → Cron)
+- [ ] Cron job created and firing (Vercel dashboard → Cron, daily)
 - [ ] Sign in → connect a repo → run assessment → results appear
 - [ ] Assessment of a real repo exercises the isomorphic-git clone path
 - [ ] Preview audit works with `ASSESSMENT_RUNTIME_BROWSER=serverless`
