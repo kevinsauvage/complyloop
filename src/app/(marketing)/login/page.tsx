@@ -34,7 +34,14 @@ const AUTH_ERROR_COPY: Record<string, string> = {
 const FALLBACK_AUTH_ERROR_COPY =
   "Sign-in with GitHub failed. Please try again — if it keeps failing, contact your administrator.";
 
-export default async function LoginPage({ searchParams }: PageProps<"/login">) {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    callbackUrl?: string | string[];
+    error?: string | string[];
+  }>;
+}) {
   const params = await searchParams;
   const callbackUrl =
     typeof params.callbackUrl === "string" &&
