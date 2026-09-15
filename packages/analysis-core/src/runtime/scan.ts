@@ -144,13 +144,34 @@ async function axeTargetSizeViolations(
   return axe.violations.filter((v) => v.id === TARGET_SIZE_AXE_RULE);
 }
 
-async function ensureAxeOnPage(page: Page): Promise<void> {
-  const present = await page.evaluate(
+async function axePresentOnPage(page: Page): Promise<boolean> {
+  return page.evaluate(
     () =>
       typeof (window as { axe?: { run?: unknown } }).axe?.run === "function",
   );
-  if (present) return;
-  await page.addScriptTag({ path: resolveAxeMinJsPath() });
+}
+
+async function ensureAxeOnPage(page: Page): Promise<void> {
+  if (await axePresentOnPage(page)) return;
+  // Playwright races addScriptTag against *any* page CSP console error
+  // (`_raceWithCSPError`): a third-party beacon blocked by the page's own CSP
+  // (e.g. a misconfigured analytics endpoint) can reject this call even
+  // though our script appended fine. A failed injection is therefore
+  // verified, never trusted: if axe landed, the throw was page noise.
+  // Bounded (axe double-append is idempotent); a genuinely blocked injection
+  // (script-src without inline allowance) fails every presence check and
+  // surfaces as an operator-actionable PublicError below.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await page.addScriptTag({ path: resolveAxeMinJsPath() });
+    } catch {
+      // Fall through to the presence check.
+    }
+    if (await axePresentOnPage(page)) return;
+  }
+  throw new PublicError(
+    "The preview page blocks audit script injection (Content Security Policy). Relax script-src for the preview deployment, then re-run the assessment.",
+  );
 }
 
 /**

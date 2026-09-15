@@ -105,6 +105,29 @@ describe("classifyRuntimeScanError", () => {
     expect(message).not.toBe(RUNTIME_SCAN_FAILED_MESSAGE);
   });
 
+  it("maps a blocked third-party beacon to the CSP fix with host hint", () => {
+    const message = classifyRuntimeScanError(
+      new Error(
+        "page.addScriptTag: Connecting to 'https://tracker.example.com/api/send?token=secret' violates the following Content Security Policy directive: \"connect-src 'self' https://tracker.example.com\". The action has been blocked.",
+      ),
+    );
+    expect(message).toMatch(/Content Security Policy/);
+    expect(message).toContain("https://tracker.example.com/api/send");
+    expect(message).not.toContain("token=secret");
+    expect(message).not.toBe(RUNTIME_SCAN_FAILED_MESSAGE);
+  });
+
+  it("maps an inline-script refusal to the CSP fix without a host", () => {
+    const message = classifyRuntimeScanError(
+      new Error(
+        "page.addScriptTag: Refused to execute inline script because it violates the following Content Security Policy directive: \"script-src 'self'\". Either the 'unsafe-inline' keyword or a hash is required to enable inline execution.",
+      ),
+    );
+    expect(message).toMatch(/Content Security Policy/);
+    expect(message).not.toContain("unsafe-inline");
+    expect(message).not.toBe(RUNTIME_SCAN_FAILED_MESSAGE);
+  });
+
   it("keeps unexpected errors generic and does not leak paths", () => {
     const message = classifyRuntimeScanError(
       new Error("ENOENT /secret/clone/axe.min.js"),

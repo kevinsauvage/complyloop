@@ -34,6 +34,18 @@ const PATTERNS: RuntimeScanErrorPattern[] = [
       "The accessibility engine is incomplete in this deployment (missing axe-core bundle). The deploy needs outputFileTracingIncludes for axe-core/axe.min.js — redeploy after fixing the bundle, not the preview URL.",
   },
   {
+    // Playwright surfaces page CSP console errors through failed audit calls
+    // (`_raceWithCSPError` on addScriptTag/addStyleTag), and a restrictive
+    // script-src can genuinely block audit injection. Either way the fix is
+    // the preview deployment's policy, not the scanner: allowlist the named
+    // host (the classifier appends it) or relax the policy, then re-run.
+    // Retry-verify in `ensureAxeOnPage` already absorbs third-party beacon
+    // noise, so a surviving CSP error means injection truly failed.
+    test: (raw) => /Content[- ]Security[- ]Policy/i.test(raw),
+    message:
+      "The preview page's Content Security Policy blocked the audit scripts. Allowlist the named host or relax the policy on the preview deployment, then re-run the assessment.",
+  },
+  {
     test: (raw) => /ERR_CONNECTION_REFUSED/.test(raw),
     message:
       "Could not connect to the preview URL (connection refused). Confirm it is up and publicly reachable.",

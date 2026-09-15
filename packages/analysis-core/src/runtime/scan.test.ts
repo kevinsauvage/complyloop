@@ -1,6 +1,6 @@
 import fs from "node:fs";
 
-import { type Browser, chromium } from "playwright-core";
+import { type Browser, chromium, type Page } from "playwright-core";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
 import type { RawFinding } from "../types";
@@ -54,6 +54,84 @@ describe("runAxeOnPage", () => {
       expect(first.violations.some((v) => v.id === "image-alt")).toBe(true);
       expect(second.violations.some((v) => v.id === "image-alt")).toBe(true);
       expect(third.violations.length).toBeGreaterThan(0);
+    },
+    30_000,
+  );
+
+  it("continues when injection throws but axe landed (CSP race noise)", async () => {
+    // Models Playwright's `_raceWithCSPError`: a third-party beacon blocked
+    // by the page's own CSP rejects addScriptTag even though the script
+    // appended fine. The presence re-check distinguishes noise from failure.
+    // Present-check calls pass a single arg; the axe.run call passes two.
+    let presentCalls = 0;
+    let injections = 0;
+    const page = {
+      evaluate: async (...args: unknown[]) => {
+        if (args.length === 1) {
+          presentCalls++;
+          return presentCalls >= 2;
+        }
+        return { violations: [], incomplete: [] };
+      },
+      addScriptTag: async () => {
+        injections++;
+        throw new Error(
+          "page.addScriptTag: Connecting to 'https://tracker.example.com/api/send' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
+        );
+      },
+    } as unknown as Page;
+    const result = await runAxeOnPage(page);
+    expect(result.violations).toEqual([]);
+    expect(injections).toBe(1);
+  });
+
+  it("fails closed with a CSP message when injection never lands", async () => {
+    let injections = 0;
+    const page = {
+      evaluate: async (...args: unknown[]) => {
+        if (args.length === 1) return false;
+        return { violations: [], incomplete: [] };
+      },
+      addScriptTag: async () => {
+        injections++;
+        throw new Error(
+          "page.addScriptTag: Refused to execute inline script because it violates the following Content Security Policy directive: \"script-src 'self'\".",
+        );
+      },
+    } as unknown as Page;
+    await expect(runAxeOnPage(page)).rejects.toThrow(
+      /Content Security Policy/,
+    );
+    expect(injections).toBe(3);
+  });
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "survives third-party CSP beacon noise during axe injection",
+    async () => {
+      if (!browser) browser = await chromium.launch({ headless: true });
+      const context = await browser.newContext();
+      try {
+        const page = await context.newPage();
+        // The page beacons cross-origin on an interval; connect-src blocks
+        // every beacon, so CSP console errors race axe injection — the exact
+        // production incident. Inline scripts stay allowed, so injection
+        // genuinely lands and the scan must proceed either way the race goes.
+        await page.route("https://noisy.example/**", async (route) => {
+          await route.fulfill({
+            status: 200,
+            contentType: "text/html",
+            body: `<!doctype html><html lang="en"><head><title>t</title><meta http-equiv="Content-Security-Policy" content="connect-src 'self'"></head><body><img src="x"><script>setInterval(() => { fetch("https://tracker.example/beacon").catch(() => {}); }, 10);</script></body></html>`,
+          });
+        });
+        await page.route("https://tracker.example/**", async (route) => {
+          await route.fulfill({ status: 204, body: "" });
+        });
+        await page.goto("https://noisy.example/");
+        const result = await runAxeOnPage(page);
+        expect(result.violations.some((v) => v.id === "image-alt")).toBe(true);
+      } finally {
+        await context.close();
+      }
     },
     30_000,
   );
