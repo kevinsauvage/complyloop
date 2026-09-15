@@ -8,14 +8,14 @@ git (isomorphic-git) and preview audits use a serverless Chromium build
 
 ## How it runs
 
-| Concern       | Behavior                                                                                                                                                                                       |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                          |
+| Concern       | Behavior                                                                                                                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                                                     |
 | **Jobs**      | Queued in Postgres; Vercel Cron hits `POST /api/internal/jobs/run?limit=10&concurrency=2` once daily (`vercel.json`, Hobby limit); 3 attempts with backoff, serial per project, 30-min lease renewed by a 5-min heartbeat |
-| **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                      |
-| **Browsers**  | `@sparticuz/chromium` (pinned) when `ASSESSMENT_RUNTIME_BROWSER=serverless`; locally installed Playwright browser otherwise                                                                    |
-| **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                             |
-| **Backups**   | Postgres provider point-in-time (no app-side dump)                                                                                                                                             |
+| **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                                                 |
+| **Browsers**  | `@sparticuz/chromium` (pinned) when `ASSESSMENT_RUNTIME_BROWSER=serverless`; locally installed Playwright browser otherwise                                                                                               |
+| **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                                                        |
+| **Backups**   | Postgres provider point-in-time (no app-side dump)                                                                                                                                                                        |
 
 ## 1. Database
 
@@ -147,4 +147,4 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 - **Poolers:** no code change — `prepare: false` was already set.
 - **Not live-verified here** (needs a real deployment): sparticuz launch on
   Vercel infra, isomorphic-git force-push with an installation token, Cron
-  end-to-end. The checklist above covers each.
+  end-to-end. The checklist above covers each.2
