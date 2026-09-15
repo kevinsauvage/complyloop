@@ -142,4 +142,4 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 - **Poolers:** no code change — `prepare: false` was already set.
 - **Not live-verified here** (needs a real deployment): sparticuz launch on
   Vercel infra, isomorphic-git force-push with an installation token, Cron
-  end-to-end. The checklist above covers each.1
+  end-to-end. The checklist above covers each.
