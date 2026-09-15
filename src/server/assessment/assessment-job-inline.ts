@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isE2EHarnessEnabled } from "../e2e-harness";
+import { reportEvent, reportWarning } from "../observability";
 import { runAssessmentJobBatch } from "./assessment-runner";
 
 /**
@@ -39,9 +40,9 @@ export async function drainAssessmentJobQueue(
 
 /**
  * Dev/e2e-only inline drain for the assessment action: drains the queue and
- * maps the outcome to user copy. Production never calls this (the worker
- * owns the queue); the action branches on `shouldDrainAssessmentJobsInline`
- * so the prod path stays a plain enqueue.
+ * maps the outcome to user copy. Production uses the opportunistic
+ * single-job drain below (`after()`), not this; the action branches on
+ * `shouldDrainAssessmentJobsInline` so the dev path stays synchronous.
  */
 export async function drainAssessmentJobsInline(): Promise<string> {
   const outcome = await drainAssessmentJobQueue();
@@ -61,4 +62,32 @@ export async function drainAssessmentJobsInline(): Promise<string> {
     return "Assessment hit an error and will retry automatically.";
   }
   return "No assessment jobs were ready to run.";
+}
+
+/**
+ * Opportunistic prod drain for `after()` continuations (manual action +
+ * webhook route). Claims and runs a single job, then returns: each enqueue
+ * schedules its own task, so one invocation never hogs the queue and
+ * concurrent tasks for the same project serialize on the claim
+ * (`FOR UPDATE SKIP LOCKED` + serial-per-project guard).
+ *
+ * Never throws — a killed task or a scan that exceeds the serverless budget
+ * leaves the job `queued`/`running` and the daily Cron sweep retries it via
+ * lease recovery.
+ */
+export async function drainSingleAssessmentJobOpportunistically(): Promise<void> {
+  try {
+    const [result] = await runAssessmentJobBatch({ limit: 1 });
+    reportEvent("opportunistic assessment drain finished", {
+      code: "assessment_opportunistic_drain_finished",
+      kind: result?.kind ?? "idle",
+      jobId:
+        result && "jobId" in result ? (result.jobId as string) : undefined,
+    });
+  } catch (error) {
+    reportWarning("opportunistic assessment drain failed", {
+      code: "assessment_opportunistic_drain_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }

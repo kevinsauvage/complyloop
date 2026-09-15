@@ -6,6 +6,17 @@ const isWebhookConfigured = vi.hoisted(() => vi.fn());
 const verifyGitHubSignature = vi.hoisted(() => vi.fn());
 const handleGitHubWebhookEvent = vi.hoisted(() => vi.fn());
 const claimWebhookDelivery = vi.hoisted(() => vi.fn());
+const afterFn = vi.hoisted(() => vi.fn());
+
+vi.mock("next/server", () => ({
+  after: (...args: unknown[]) => afterFn(...args),
+}));
+
+vi.mock("@/server/assessment/assessment-job-inline", () => ({
+  drainAssessmentJobQueue: vi.fn(),
+  drainSingleAssessmentJobOpportunistically: vi.fn(),
+  shouldDrainAssessmentJobsInline: () => false,
+}));
 
 vi.mock("@/server/github/webhook", () => ({
   isWebhookConfigured: () => isWebhookConfigured(),
@@ -37,6 +48,7 @@ beforeEach(() => {
   verifyGitHubSignature.mockReset();
   handleGitHubWebhookEvent.mockReset();
   claimWebhookDelivery.mockReset();
+  afterFn.mockReset();
   isWebhookConfigured.mockReturnValue(true);
   verifyGitHubSignature.mockResolvedValue(true);
   claimWebhookDelivery.mockResolvedValue(true);
@@ -110,6 +122,7 @@ describe("POST /api/github/webhook", () => {
       handled: true,
       deliveryId: "del-ok",
     });
+    expect(afterFn).toHaveBeenCalledTimes(1);
   });
 
   it("returns 202 when the event is acknowledged but not handled", async () => {

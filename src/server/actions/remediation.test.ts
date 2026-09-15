@@ -28,6 +28,11 @@ const cancelAssessmentJob = vi.hoisted(() => vi.fn());
 const processNextAssessmentJob = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
 const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
+const afterFn = vi.hoisted(() => vi.fn());
+
+vi.mock("next/server", () => ({
+  after: (...args: unknown[]) => afterFn(...args),
+}));
 
 vi.mock("@/ai/explainer", () => ({
   generateAiExplanation: vi.fn(),
@@ -285,6 +290,7 @@ describe("runAssessmentAction", () => {
 
     expect(result.message).toMatch(/Assessment queued/);
     expect(processNextAssessmentJob).not.toHaveBeenCalled();
+    expect(afterFn).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces rate limit errors", async () => {

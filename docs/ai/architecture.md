@@ -36,11 +36,11 @@ with auth/middleware/token crypto, framework keys stay direct. Assessments are d
 (Vercel Cron → `POST /api/internal/jobs/run`).
 
 ```
-App (enqueue only) → assessment_jobs → Cron tick (clone → scan → persist)
-                                          ↓
-                          Core + contract → Catalog / Analysis / AI
-                                          ↓
-                          isomorphic-git checkout (ephemeral, no git CLI)
+App (enqueue + after() single-job drain) → assessment_jobs → Cron sweep (orphans/expired leases)
+                                           ↓ (clone → scan → persist)
+                           Core + contract → Catalog / Analysis / AI
+                                           ↓
+                           isomorphic-git checkout (ephemeral, no git CLI)
 ```
 
 ## Persistence
@@ -104,7 +104,10 @@ evidence, findings, remediations, requirements }`; the worker persists via
   runs), 3 attempts, serial per project, cancellable (`queued`/`running` →
   `cancelled`, project-scoped; a cancelled mid-run run saves nothing and posts
   no Check Run). Manual re-runs reuse the active job instead of stacking.
-  Batches run on Vercel Cron ticks (plus inline drain in dev/e2e); expired
+  Every enqueue (manual action, webhook) schedules an opportunistic
+  single-job drain in `after()` so scans start immediately; the daily Vercel
+  Cron tick is the backstop for killed tasks and expired leases. Dev/e2e
+  drain the full queue inline. Expired
   rate-limit buckets prune once per batch.
 - **Checkouts** — shallow ephemeral checkout per job via pure-JS git
   (isomorphic-git, no `git` CLI); deleted after. Serverless Chromium via

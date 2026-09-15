@@ -27,8 +27,9 @@ const statusIndicator: Record<AssessmentJob["status"], string> = {
 
 /**
  * A job that has been ready longer than this with no worker picking it up
- * almost certainly means the Cron trigger is not draining the queue (prod
- * drains via Vercel Cron → `POST /api/internal/jobs/run`; see docs/vercel.md).
+ * almost certainly means both the opportunistic drain and the Cron backstop
+ * are failing (prod drains via `after()` on enqueue, with Vercel Cron →
+ * `POST /api/internal/jobs/run` as the orphan sweep; see docs/vercel.md).
  */
 export const WORKER_STALL_MS = 10 * 60_000;
 
@@ -118,7 +119,7 @@ export function AssessmentJobStatus({
             <p className="text-xs text-destructive">{pollError}</p>
           ) : hasQueued ? (
             <p className="text-xs text-muted-foreground">
-              Queued — results should appear shortly.
+              Queued — scan running, results should appear shortly.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">Recent job history</p>
@@ -133,8 +134,8 @@ export function AssessmentJobStatus({
           <span className="font-medium text-foreground">
             Assessment worker may be stopped.
           </span>{" "}
-          Oldest queued job waiting {formatStallAge(stalledAge)} — jobs run only
-          while the Cron trigger is active (Vercel Cron →{" "}
+          Oldest queued job waiting {formatStallAge(stalledAge)} — scans start
+          on enqueue with the nightly Cron sweep as backstop (Vercel Cron →{" "}
           <code className="font-mono">/api/internal/jobs/run</code>, see
           docs/vercel.md).
         </p>

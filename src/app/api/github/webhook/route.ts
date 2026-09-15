@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import {
   drainAssessmentJobQueue,
+  drainSingleAssessmentJobOpportunistically,
   shouldDrainAssessmentJobsInline,
 } from "@/server/assessment/assessment-job-inline";
 import {
@@ -91,8 +92,16 @@ export async function POST(request: Request): Promise<Response> {
       { status: 503 },
     );
   }
-  if (result.handled && shouldDrainAssessmentJobsInline()) {
-    after(() => drainAssessmentJobQueue());
+  // Dev/e2e drains the whole queue inline; production schedules an
+  // opportunistic single-job drain per delivery so pushes start scanning
+  // immediately. Each task claims one job (serial-per-project), and the daily
+  // Cron sweep is the backstop for killed tasks and expired leases.
+  if (result.handled) {
+    if (shouldDrainAssessmentJobsInline()) {
+      after(() => drainAssessmentJobQueue());
+    } else {
+      after(() => drainSingleAssessmentJobOpportunistically());
+    }
   }
   return Response.json(
     { ...result, duplicate: !firstDelivery, deliveryId },

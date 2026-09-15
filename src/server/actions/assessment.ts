@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
@@ -10,6 +11,7 @@ import { entityIdSchema, parseForm } from "@/core/validate";
 import { type ActionState, runAction } from "../action-state";
 import {
   drainAssessmentJobsInline,
+  drainSingleAssessmentJobOpportunistically,
   shouldDrainAssessmentJobsInline,
 } from "../assessment/assessment-job-inline";
 import {
@@ -88,17 +90,22 @@ export async function runAssessmentAction(
 
     // Local `next dev` and the Playwright harness run without a dedicated
     // worker: drain inline so the action resolves with the result. Production
-    // only enqueues (the worker owns the queue).
+    // enqueues and schedules an opportunistic single-job drain in `after()`
+    // so the scan starts immediately; the daily Cron sweep is only the
+    // backstop for killed tasks and expired leases.
     const inline = shouldDrainAssessmentJobsInline();
+    if (!inline) {
+      after(() => drainSingleAssessmentJobOpportunistically());
+    }
     const message = inline
       ? await drainAssessmentJobsInline()
-      : "Assessment queued. Results will appear when the worker completes it.";
+      : "Assessment queued — scan running, results should appear shortly.";
     reportEvent("assessment job enqueued", {
       code: "assessment_job_enqueued",
       projectId: context.projectId,
       jobId: enqueuedJob.id,
       trigger: "manual",
-      mode: inline ? "inline" : "queued",
+      mode: inline ? "inline" : "opportunistic",
     });
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return message;

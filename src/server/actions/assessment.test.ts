@@ -9,6 +9,7 @@ vi.mock("../assessment/assessment-worker", () => ({
 import {
   drainAssessmentJobQueue,
   drainAssessmentJobsInline,
+  drainSingleAssessmentJobOpportunistically,
   shouldDrainAssessmentJobsInline,
 } from "../assessment/assessment-job-inline";
 import { processNextAssessmentJob } from "../assessment/assessment-worker";
@@ -132,5 +133,20 @@ describe("drainAssessmentJobsInline", () => {
     await expect(drainAssessmentJobsInline()).resolves.toBe(
       "Assessment cancelled.",
     );
+  });
+});
+
+describe("drainSingleAssessmentJobOpportunistically", () => {
+  it("claims a single job and never throws on worker failure", async () => {
+    processNext.mockResolvedValueOnce({ kind: "succeeded", jobId: "j1" });
+    await expect(
+      drainSingleAssessmentJobOpportunistically(),
+    ).resolves.toBeUndefined();
+    expect(processNext).toHaveBeenCalledTimes(1);
+
+    processNext.mockRejectedValueOnce(new Error("db down"));
+    await expect(
+      drainSingleAssessmentJobOpportunistically(),
+    ).resolves.toBeUndefined();
   });
 });

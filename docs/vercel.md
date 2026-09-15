@@ -11,7 +11,7 @@ git (isomorphic-git) and preview audits use a serverless Chromium build
 | Concern       | Behavior                                                                                                                                                                                                                  |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                                                     |
-| **Jobs**      | Queued in Postgres; Vercel Cron hits `POST /api/internal/jobs/run?limit=10&concurrency=2` once daily (`vercel.json`, Hobby limit); 3 attempts with backoff, serial per project, 30-min lease renewed by a 5-min heartbeat |
+| **Jobs**      | Queued in Postgres; every enqueue schedules an opportunistic single-job `after()` drain (limit 1, serial per project), Vercel Cron hits `POST /api/internal/jobs/run?limit=10&concurrency=2` once daily (`vercel.json`, Hobby limit) as the orphan/expired-lease backstop; 3 attempts with backoff, serial per project, 30-min lease renewed by a 5-min heartbeat |
 | **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                                                 |
 | **Browsers**  | `@sparticuz/chromium` (pinned) when `ASSESSMENT_RUNTIME_BROWSER=serverless`; locally installed Playwright browser otherwise                                                                                               |
 | **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                                                        |
@@ -37,8 +37,11 @@ DATABASE_URL="<remote-url>" npm run db:migrate
 
 `vercel.json` (committed) schedules `POST
 /api/internal/jobs/run?limit=10&concurrency=2` once daily (`0 2 * * *`) —
-Hobby plans only allow daily Vercel Cron. When you move to Pro, switch the
-schedule back to `*/2 * * * *` with `limit=2` for continuous draining.
+Hobby plans only allow daily Vercel Cron. It is the backstop, not the primary
+drain: every manual run and every handled webhook schedules an opportunistic
+single-job `after()` drain so scans start immediately (each task claims one
+job; per-project claims serialize concurrent tasks). When you move to Pro,
+switch the schedule back to `*/2 * * * *` with `limit=2` for a tighter sweep.
 
 Authentication: Vercel Cron automatically sends
 `Authorization: Bearer <CRON_SECRET>`; the route compares it constant-time
@@ -50,9 +53,10 @@ The daily batch uses `limit=10&concurrency=2` to drain more per run; on Pro
 drop back to small batches (`limit=2`) so a slow clone/scan fits. Expired rate-limit
 buckets prune once per batch (`runAssessmentJobBatch`).
 
-If the queue ever grows instead of draining, Cron stopped firing or started
-failing — alert on `assessmentJobs` queue depth (see `ops:check` below) and
-check the Vercel Cron logs.
+If the queue ever grows instead of draining, both the opportunistic drain and
+Cron stopped firing or started failing — alert on `assessmentJobs` queue depth
+(see `ops:check` below) and check the Vercel function logs (filter `[event]`
+for `assessment_opportunistic_drain_failed`) plus the Vercel Cron logs.
 
 ## 3. Environment variables (Vercel dashboard)
 
