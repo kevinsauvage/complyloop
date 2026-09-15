@@ -56,7 +56,10 @@ const nextConfig: NextConfig = {
   // route, or it needs its own entry here — that is the failure this scoping
   // exists to make loud.
   outputFileTracingIncludes: {
-    "/*": ["./node_modules/playwright-core/browsers.json"],
+    "/*": [
+      "./node_modules/playwright-core/browsers.json",
+      "./node_modules/axe-core/axe.min.js",
+    ],
     "/api/internal/jobs/run": ["./node_modules/@sparticuz/chromium/bin/**/*"],
     "/dashboard": ["./node_modules/@sparticuz/chromium/bin/**/*"],
   },

@@ -23,6 +23,17 @@ const PATTERNS: RuntimeScanErrorPattern[] = [
       "The serverless browser package is incomplete in this deployment (missing @sparticuz/chromium binaries). The deploy needs outputFileTracingIncludes for the scanning route — redeploy after fixing the bundle, not the preview URL.",
   },
   {
+    // `resolveAxeMinJsPath` loads `axe-core/axe.min.js` from disk via
+    // `require.resolve` (the `source` string breaks under Next/webpack), so
+    // file tracing omits it unless `outputFileTracingIncludes` covers it
+    // (see next.config.ts). Actionable on purpose: the fix is in the bundle,
+    // not the preview URL. Must precede the generic fallback below; matches
+    // only module-resolution failures, never raw filesystem paths.
+    test: (raw) => /Cannot find module ['"]axe-core\//.test(raw),
+    message:
+      "The accessibility engine is incomplete in this deployment (missing axe-core bundle). The deploy needs outputFileTracingIncludes for axe-core/axe.min.js — redeploy after fixing the bundle, not the preview URL.",
+  },
+  {
     test: (raw) => /ERR_CONNECTION_REFUSED/.test(raw),
     message:
       "Could not connect to the preview URL (connection refused). Confirm it is up and publicly reachable.",
