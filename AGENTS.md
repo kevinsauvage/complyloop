@@ -49,7 +49,7 @@ npm run lint && npm run typecheck && npm run test && npm run build  # Definition
 npx vitest run <touched-file>  # Targeted verify during work (fast loop; full gate at the end)
 npm run test:coverage    # Coverage gates (vitest.config.mts)
 npm run test:db          # Postgres persistence integration (needs DATABASE_URL)
-npm run db:migrate       # Apply migrations
+npm run db:migrate       # Apply migrations (tsx runs with --conditions=react-server so server-only imports resolve; keep the flag on every tsx script)
 npm run test:e2e         # Playwright (after e2e:seed)
 ```
 

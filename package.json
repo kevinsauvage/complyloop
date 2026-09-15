@@ -19,16 +19,16 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:db": "vitest run packages/db/src/alerts-upsert.test.ts packages/db/src/constraints.test.ts packages/db/src/evidence-append-only.test.ts packages/db/src/persist-project-rows.integration.test.ts src/server/workspace.integration.test.ts",
-    "e2e:seed": "tsx scripts/e2e-seed.ts",
+    "e2e:seed": "tsx --conditions=react-server scripts/e2e-seed.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "playwright:install": "playwright install chromium",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx scripts/db-migrate.ts",
-    "db:reset": "tsx scripts/db-reset.ts",
-    "db:ensure-owner": "tsx scripts/ensure-org-owner.ts",
+    "db:migrate": "tsx --conditions=react-server scripts/db-migrate.ts",
+    "db:reset": "tsx --conditions=react-server scripts/db-reset.ts",
+    "db:ensure-owner": "tsx --conditions=react-server scripts/ensure-org-owner.ts",
     "db:studio": "drizzle-kit studio",
-    "ops:check": "tsx scripts/operations-check.ts"
+    "ops:check": "tsx --conditions=react-server scripts/operations-check.ts"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.3.1",
