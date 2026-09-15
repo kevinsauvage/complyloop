@@ -2,8 +2,10 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
-export const ACTIVE_ORG_COOKIE = "complyloop_active_org";
-export const ACTIVE_PROJECT_COOKIE = "complyloop_active_project";
+import {
+  ACTIVE_ORG_COOKIE,
+  ACTIVE_PROJECT_COOKIE,
+} from "./active-cookie-names";
 
 const cookieOptions = {
   httpOnly: true,
