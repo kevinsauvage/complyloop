@@ -91,11 +91,20 @@ async function getBrowser(): Promise<Browser> {
         import("playwright-core"),
         import("@sparticuz/chromium"),
       ]);
-      sharedBrowser = await chromium.launch({
-        args: sparticuz.default.args,
-        executablePath: await sparticuz.default.executablePath(),
-        headless: true,
-      });
+      try {
+        sharedBrowser = await chromium.launch({
+          args: sparticuz.default.args,
+          executablePath: await sparticuz.default.executablePath(),
+          headless: true,
+        });
+      } catch (error) {
+        // Prefix the raw launch failure so classifyRuntimeScanError can map it
+        // to an actionable message instead of the generic fallback. The raw
+        // error (missing binary, unsupported arch, fs issue) is the only clue
+        // the function logs get; keep its text stripped of filesystem paths.
+        const raw = error instanceof Error ? error.message : String(error);
+        throw new Error(`sparticuz-launch: ${raw.replace(/\/[^\s"'<>]*\//g, "/")}`);
+      }
     } else {
       // Fail fast with an operator-actionable error: without the serverless
       // flag the local Playwright browser path (`~/.cache/ms-playwright`)
@@ -455,8 +464,16 @@ export async function scanRuntime(
     // not fail the job — so without this warn the root error never reaches
     // function logs or Sentry. Query strings are stripped (preview tokens).
     const raw = error instanceof Error ? error.message : String(error);
+    // Stage the raw serverless markers the classifier cannot map (launch vs
+    // navigation vs axe injection), so the next generic failure names where
+    // the scan died instead of collapsing to "Runtime scan failed.".
+    const stage = /sparticuz-launch|browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/.test(
+      raw,
+    )
+      ? raw.match(/sparticuz-launch|browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/)?.[0]
+      : "unknown";
     console.warn(
-      `[warning] runtime scan failed (${error instanceof Error ? error.name : "unknown"}): ${raw.replace(/\?[^\s"'<>]*/g, "")}`,
+      `[warning] runtime scan failed (${error instanceof Error ? error.name : "unknown"}, stage ${stage}): ${raw.replace(/\?[^\s"'<>]*/g, "")}`,
     );
     return {
       findings: [],

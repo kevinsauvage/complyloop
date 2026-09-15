@@ -94,6 +94,17 @@ describe("classifyRuntimeScanError", () => {
     expect(message).not.toBe(RUNTIME_SCAN_FAILED_MESSAGE);
   });
 
+  it("maps a sparticuz launch failure via the diagnostic prefix", () => {
+    const message = classifyRuntimeScanError(
+      new Error(
+        "sparticuz-launch: Error: Failed to launch: /node_modules/@sparticuz/chromium/bin/chromium.br: No such file or directory",
+      ),
+    );
+    expect(message).toMatch(/browser/i);
+    expect(message).not.toContain("/node_modules");
+    expect(message).not.toBe(RUNTIME_SCAN_FAILED_MESSAGE);
+  });
+
   it("keeps unexpected errors generic and does not leak paths", () => {
     const message = classifyRuntimeScanError(
       new Error("ENOENT /secret/clone/axe.min.js"),

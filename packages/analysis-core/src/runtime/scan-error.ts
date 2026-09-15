@@ -65,7 +65,7 @@ const PATTERNS: RuntimeScanErrorPattern[] = [
   },
   {
     test: (raw) =>
-      /Executable doesn't exist/i.test(raw) ||
+      /sparticuz-launch|Executable doesn't exist/i.test(raw) ||
       /browserType\.launch/i.test(raw) ||
       /sparticuz/i.test(raw),
     message: "Could not start the browser used for preview audits.",
