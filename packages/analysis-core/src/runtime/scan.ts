@@ -439,6 +439,14 @@ export async function scanRuntime(
       probeFailures,
     };
   } catch (error) {
+    // This is the only place the unclassified cause is visible: callers only
+    // receive the user-safe classification, and a failed runtime sub-scan does
+    // not fail the job — so without this warn the root error never reaches
+    // function logs or Sentry. Query strings are stripped (preview tokens).
+    const raw = error instanceof Error ? error.message : String(error);
+    console.warn(
+      `[warning] runtime scan failed (${error instanceof Error ? error.name : "unknown"}): ${raw.replace(/\?[^\s"'<>]*/g, "")}`,
+    );
     return {
       findings: [],
       pagesScanned: 0,

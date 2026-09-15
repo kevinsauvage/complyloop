@@ -351,6 +351,24 @@ export async function runAssessment(
     runtimeConfigured &&
     runtimeResult.error === undefined &&
     runtimeResult.pagesScanned > 0;
+  if (runtimeConfigured && !runtimeRan) {
+    // A failed runtime sub-scan does not fail the job, so without this the
+    // classified cause only lands in evidence — invisible in Vercel logs and
+    // Sentry. Origin only, never the full URL (preview tokens).
+    let previewOrigin: string | undefined;
+    try {
+      previewOrigin = new URL(project.runtimeBaseUrl as string).origin;
+    } catch {
+      previewOrigin = undefined;
+    }
+    reportWarning("runtime scan did not run", {
+      code: "assessment_runtime_skipped",
+      projectId,
+      error: runtimeResult.error ?? "no pages",
+      pagesScanned: runtimeResult.pagesScanned,
+      previewOrigin,
+    });
+  }
 
   const engines = buildAssessmentEngines(
     runtimeConfigured,
