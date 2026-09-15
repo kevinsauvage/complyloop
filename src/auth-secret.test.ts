@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { resolveAuthSecret, sessionCookieIsSecure } from "./auth-secret";
+import {
+  resolveAuthSecret,
+  sessionCookieIsSecure,
+} from "./auth-secret";
 
 afterEach(() => {
   vi.unstubAllEnvs();

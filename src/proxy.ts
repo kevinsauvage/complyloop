@@ -1,7 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-import { resolveAuthSecret, sessionCookieIsSecure } from "@/auth-secret";
+import {
+  resolveAuthSecret,
+  sessionCookieIsSecure,
+} from "@/auth-secret";
 
 const PUBLIC_PATHS = new Set(["/", "/login"]);
 
@@ -45,11 +48,67 @@ function toSafeCallbackUrl(value: string | null): string {
   return "/dashboard";
 }
 
+function basicAuthCredentials(): {
+  username: string;
+  password: string;
+} | null {
+  const username = process.env.BASIC_AUTH_USERNAME?.trim();
+  const password = process.env.BASIC_AUTH_PASSWORD ?? "";
+  if (!username || !password) return null;
+  return { username, password };
+}
+
+/** Constant-time comparison without node:crypto (unavailable on edge). */
+function timingSafeEqualString(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let index = 0; index < a.length; index += 1) {
+    diff |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  }
+  return diff === 0;
+}
+
+function isBasicAuthSatisfied(
+  header: string | null,
+  expected: { username: string; password: string },
+): boolean {
+  if (!header?.startsWith("Basic ")) return false;
+  let decoded: string;
+  try {
+    decoded = atob(header.slice("Basic ".length).trim());
+  } catch {
+    return false;
+  }
+  const separator = decoded.indexOf(":");
+  if (separator < 0) return false;
+  return (
+    timingSafeEqualString(decoded.slice(0, separator), expected.username) &&
+    timingSafeEqualString(decoded.slice(separator + 1), expected.password)
+  );
+}
+
 export async function proxy(req: NextRequest) {
   if (!isGitHubAuthConfigured()) return;
 
   const { pathname, search } = req.nextUrl;
   if (pathname.startsWith("/api/")) return;
+
+  // Private-preview gate: HTTP Basic Auth on every page. API routes above
+  // keep their own auth (webhook secret, cron Bearer, session cookies), and
+  // browsers cache the Basic credential per origin so in-app fetch calls
+  // reuse it. Unset credentials = gate open (local dev).
+  const basicAuth = basicAuthCredentials();
+  if (
+    basicAuth &&
+    !isBasicAuthSatisfied(req.headers.get("authorization"), basicAuth)
+  ) {
+    return new NextResponse("Authentication required.", {
+      status: 401,
+      headers: {
+        "WWW-Authenticate": 'Basic realm="ComplyLoop", charset="UTF-8"',
+      },
+    });
+  }
 
   const token = await getToken({
     req,

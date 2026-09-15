@@ -66,6 +66,7 @@ check the Vercel Cron logs.
 | `ASSESSMENT_MAX_CHECKOUT_FILES` | `10000` |
 | `ASSESSMENT_MAX_RUNTIME_PAGES` | `10` (fewer pages per serverless run) |
 | `SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_DSN`) | Required by `ops:check` in production |
+| `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Private preview gate (Basic Auth on every page; unset = open). Set both on the deployed project until public launch |
 | `COMPLYLOOP_SUPPORT_EMAIL` | Shown on the Organization page |
 | `AI_GATEWAY_API_KEY` | Optional — AI explanations/patches |
 
@@ -109,6 +110,7 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 
 - [ ] Remote Postgres reachable; `db:migrate` applied from local machine
 - [ ] All env vars set, `WORKER_SECRET` == `CRON_SECRET`, no placeholders
+- [ ] Basic Auth credentials set (private preview); remove them at public launch
 - [ ] Cron job created and firing (Vercel dashboard → Cron)
 - [ ] Sign in → connect a repo → run assessment → results appear
 - [ ] Assessment of a real repo exercises the isomorphic-git clone path
