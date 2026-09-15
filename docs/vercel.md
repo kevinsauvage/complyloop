@@ -93,7 +93,11 @@ exact (`149.0.0` — that package versions by Chromium major and may break at
 any release, so upgrades are deliberate). The launch site is
 `getBrowser()` in `packages/analysis-core/src/runtime/scan.ts`; launch
 failures surface as "Could not start the browser used for preview audits."
-(`scan-error.ts`), same as a missing local browser.
+(`scan-error.ts`), same as a missing local browser. `playwright-core` reads
+its `browsers.json` registry at load, which file tracing omits by default —
+`next.config.ts` force-includes it for all routes (`outputFileTracingIncludes`;
+without it every runtime scan fails with `Cannot find module
+.../browsers.json`).
 
 ## 5. Monitoring
 
