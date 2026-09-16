@@ -243,6 +243,17 @@ function createPlaywrightAxeScanner(options?: {
   return async (urls) => {
     const browser = await getBrowser();
     const context = await browser.newContext();
+    // Per-stage wall-clock attribution for production slowness (see the
+    // `[timing]` line before `return pages`): accumulates across pages.
+    const stageMs: Record<string, number> = {};
+    async function timed<T>(label: string, fn: () => Promise<T>): Promise<T> {
+      const start = Date.now();
+      try {
+        return await fn();
+      } finally {
+        stageMs[label] = (stageMs[label] ?? 0) + Date.now() - start;
+      }
+    };
     // Cache DNS per host for this scan: the interceptor runs for every
     // subresource, while the pre-navigation/rebinding checks below keep using
     // the uncached lookup on purpose.
@@ -301,11 +312,14 @@ function createPlaywrightAxeScanner(options?: {
           if (blockedReason) {
             throw new PublicError(blockedReason);
           }
-          const results = await runAxeOnPage(page);
-          const customChecks = await runCustomRuntimeChecks(page, url);
+          const results = await timed("axe", () => runAxeOnPage(page));
+          const customChecks = await timed("custom", () =>
+            runCustomRuntimeChecks(page, url),
+          );
           const customFindings = customChecks.findings;
           // Rendered pass: validate the generated DOM. Serialize on
           // the open page (no extra browser cost) and validate in-process.
+          const otherStart = Date.now();
           const snapshot = await capturePageSnapshot(page, url);
           const applicabilityObservations =
             await applicabilityObservationsForPage(page, url);
@@ -346,17 +360,25 @@ function createPlaywrightAxeScanner(options?: {
             violations,
           );
 
+          const conditionsBefore = stageMs.conditions ?? 0;
           const {
             conditionViolations,
             conditionCustomFindings,
             conditionProbeFailures,
-          } = await collectBrowserConditionFindings(
-            page,
-            url,
-            conditions,
-            violations,
-            customFindings,
+          } = await timed("conditions", () =>
+            collectBrowserConditionFindings(
+              page,
+              url,
+              conditions,
+              violations,
+              customFindings,
+            ),
           );
+          // Snapshot/validate/viewport work around the conditions pass above.
+          stageMs.other =
+            (stageMs.other ?? 0) +
+            (Date.now() - otherStart) -
+            ((stageMs.conditions ?? 0) - conditionsBefore);
 
           pages.push({
             url,
@@ -381,6 +403,9 @@ function createPlaywrightAxeScanner(options?: {
     } finally {
       await context.close();
     }
+    console.info(
+      `[timing] runtime pages scanned=${pages.length} axe=${stageMs.axe ?? 0}ms custom=${stageMs.custom ?? 0}ms conditions=${stageMs.conditions ?? 0}ms other=${stageMs.other ?? 0}ms`,
+    );
     return pages;
   };
 }
@@ -446,9 +471,12 @@ export async function scanRuntime(
       browserConditions: options.browserConditions,
     });
   try {
+    const scanStart = Date.now();
     const pages = await scanner(urls);
+    const pagesMs = Date.now() - scanStart;
     const siteLevelChecksRan = pages.length >= 2;
     const htmlValidateRan = pages.some((page) => page.htmlValidateRan === true);
+    const linkStart = Date.now();
     const linkFindings =
       pages.length > 0
         ? await brokenLinkFindingsForUrls(urls, {
@@ -460,6 +488,7 @@ export async function scanRuntime(
               .filter((snapshot) => snapshot !== undefined),
           })
         : [];
+    const linkcheckMs = Date.now() - linkStart;
     const linkCheckRan = pages.length > 0;
     const findings = [
       ...findingsFromAxePages(pages),
@@ -470,6 +499,9 @@ export async function scanRuntime(
     const probeFailures = [
       ...new Set(pages.flatMap((page) => page.probeFailures ?? [])),
     ];
+    console.info(
+      `[timing] runtime scan pages=${pages.length} pagesMs=${pagesMs} linkcheckMs=${linkcheckMs} totalMs=${Date.now() - scanStart}`,
+    );
     return {
       findings,
       pagesScanned: pages.length,

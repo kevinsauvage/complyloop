@@ -89,13 +89,22 @@ async function runClaimedAssessmentJob(
   if (heartbeat && typeof heartbeat.unref === "function") heartbeat.unref();
 
   try {
+    // Wall-clock attribution: clone/quota/cleanup (checkout) vs scan vs
+    // apply, so production slowness lands on a stage instead of a guess.
+    // checkoutMs is derived (total − scan − apply) to avoid hooks inside
+    // the checkout helper; the in-scan split lives on the run's evidence.
+    const checkoutStart = Date.now();
+    let scanMs = 0;
+    let applyMs = 0;
     const result = await withProjectCheckout(
       project,
       async (rootPath) => {
+        const scanStart = Date.now();
         const run = await runAssessment(pipelineInput, {
           rootPath,
           authoritative,
         });
+        scanMs = Date.now() - scanStart;
         const { assessment } = run;
         const trigger = job.payload.eventName ?? "manual assessment";
 
@@ -103,6 +112,7 @@ async function runClaimedAssessmentJob(
         // persisted and no Check Run is posted, so "cancel" always means
         // "saves nothing".
         if (authoritative && !cancelledRemotely) {
+          const applyStart = Date.now();
           await applyAuthoritativeAssessment({
             project,
             job,
@@ -111,6 +121,7 @@ async function runClaimedAssessmentJob(
             collectAlerts: job.trigger === "webhook",
             trigger,
           });
+          applyMs = Date.now() - applyStart;
         }
 
         return {
@@ -122,6 +133,16 @@ async function runClaimedAssessmentJob(
       },
       job.payload.ref,
     );
+    const totalMs = Date.now() - checkoutStart;
+    reportEvent("assessment stage timings", {
+      code: "assessment_stage_timing",
+      projectId: project.id,
+      jobId: job.id,
+      checkoutMs: Math.max(totalMs - scanMs - applyMs, 0),
+      scanMs,
+      applyMs,
+      totalMs,
+    });
 
     if (
       !cancelledRemotely &&

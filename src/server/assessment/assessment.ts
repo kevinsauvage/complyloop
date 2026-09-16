@@ -3,7 +3,6 @@ import "server-only";
 import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
 import {
   type Assessment,
-  type AssessmentSnapshot,
   type EvidenceRecord,
   type FileChange,
   type Finding,
@@ -27,7 +26,7 @@ import type { RawFinding } from "@complyloop/analysis-core/types";
 import { countByStatus, latestAssessmentFor } from "@/core/assessment-helpers";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
 
-import { reportWarning } from "../observability";
+import { reportEvent, reportWarning } from "../observability";
 import {
   assertAssessableCatalog,
   requirementsInScope,
@@ -117,6 +116,8 @@ export interface AssessmentRunResult {
   findings: Finding[];
   remediations: Remediation[];
   requirements: Requirement[];
+  /** Wall-clock ms per pipeline stage (changedetection/ast/runtime/reconcile). */
+  stageMs: Record<string, number>;
 }
 
 /** Re-scan scope proof for draft-PR auto-verification. */
@@ -237,6 +238,18 @@ export async function runAssessment(
 
   const startedAt = new Date().toISOString();
 
+  // Wall-clock ms per stage, persisted on the completion evidence (detail
+  // `stageMs`) so production slowness is attributable without guessing.
+  const stageMs: Record<string, number> = {};
+  async function timed<T>(label: string, fn: () => Promise<T> | T): Promise<T> {
+    const start = Date.now();
+    try {
+      return await fn();
+    } finally {
+      stageMs[label] = Date.now() - start;
+    }
+  }
+
   // — Stage 2: change detection (snapshot + changed files). —
   const previous = latestAssessmentFor(input.assessments, projectId);
   const scoped = assertAssessableCatalog(project, options.controls);
@@ -255,16 +268,16 @@ export async function runAssessment(
     previous.snapshot.gitHead === head &&
     previous.snapshot.controlScopeKey === snapshotKey;
 
-  let snapshot: AssessmentSnapshot;
-  let changes: FileChange[];
-  if (sourcesUnchanged && previous?.snapshot) {
-    snapshot = { ...previous.snapshot };
-    changes = [];
-  } else {
+  const { snapshot, changes } = await timed("changedetection", () => {
+    if (sourcesUnchanged && previous?.snapshot) {
+      return {
+        snapshot: { ...previous.snapshot },
+        changes: [] as FileChange[],
+      };
+    }
     const detected = detectChanges(rootPath, previous?.snapshot);
-    snapshot = detected.snapshot;
-    changes = detected.changes;
-  }
+    return { snapshot: detected.snapshot, changes: detected.changes };
+  });
   snapshot.controlScopeKey = snapshotKey;
   const changeContext =
     changes.length > 0 ? summarizeChanges(changes) : undefined;
@@ -309,27 +322,33 @@ export async function runAssessment(
   const useScoped =
     Boolean(previous?.snapshot) && changedJsx.length > 0 && !forceFullScan;
 
-  let astFindings: RawFinding[] = [];
-  let filesScanned: number;
-  let scanMode: "full" | "scoped";
   // — Stage 3: AST scan (full / scoped / reuse when sources unchanged). —
-  if (sourcesUnchanged) {
-    // Sources, scope, and engine set are identical to the last run: keep the
-    // existing AST findings and skip the full-tree scan. Runtime checks still
-    // run and reconcile their own findings below.
-    filesScanned = previous?.filesScanned ?? 0;
-    scanMode = "scoped";
-  } else if (useScoped) {
-    const scopedScan = scanChangedFiles(rootPath, changedJsx);
-    astFindings = scopedScan.findings;
-    filesScanned = scopedScan.filesScanned;
-    scanMode = scopedScan.scanMode;
-  } else {
+  const { astFindings, filesScanned, scanMode } = await timed("ast", () => {
+    if (sourcesUnchanged) {
+      // Sources, scope, and engine set are identical to the last run: keep the
+      // existing AST findings and skip the full-tree scan. Runtime checks still
+      // run and reconcile their own findings below.
+      return {
+        astFindings: [] as RawFinding[],
+        filesScanned: previous?.filesScanned ?? 0,
+        scanMode: "scoped" as const,
+      };
+    }
+    if (useScoped) {
+      const scopedScan = scanChangedFiles(rootPath, changedJsx);
+      return {
+        astFindings: scopedScan.findings,
+        filesScanned: scopedScan.filesScanned,
+        scanMode: scopedScan.scanMode,
+      };
+    }
     const fullScan = scanProject(rootPath);
-    astFindings = fullScan.findings;
-    filesScanned = fullScan.filesScanned;
-    scanMode = fullScan.scanMode;
-  }
+    return {
+      astFindings: fullScan.findings,
+      filesScanned: fullScan.filesScanned,
+      scanMode: fullScan.scanMode,
+    };
+  });
   const scopedFileSet = sourcesUnchanged
     ? new Set<string>()
     : useScoped
@@ -338,15 +357,17 @@ export async function runAssessment(
 
   // — Stage 4: runtime scan (only when a preview URL is configured). —
   const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
-  const runtimeResult = runtimeConfigured
-    ? await scanRuntime({
-        runtimeBaseUrl: project.runtimeBaseUrl,
-        runtimeRoutes: project.runtimeRoutes,
-        browserConditions: DEFAULT_THEME_CONDITIONS,
-        scanner: options.runtimeScanner,
-        lookup: options.runtimeLookup,
-      })
-    : { findings: [], pagesScanned: 0 };
+  const runtimeResult = await timed("runtime", () =>
+    runtimeConfigured
+      ? scanRuntime({
+          runtimeBaseUrl: project.runtimeBaseUrl,
+          runtimeRoutes: project.runtimeRoutes,
+          browserConditions: DEFAULT_THEME_CONDITIONS,
+          scanner: options.runtimeScanner,
+          lookup: options.runtimeLookup,
+        })
+      : Promise.resolve({ findings: [], pagesScanned: 0 }),
+  );
   const runtimeRan =
     runtimeConfigured &&
     runtimeResult.error === undefined &&
@@ -377,60 +398,59 @@ export async function runAssessment(
   );
 
   // — Stage 5: merge AST + runtime findings (dedupe, authority). —
-  const rawFindings = mergeRawFindings(
-    astFindings,
-    runtimeResult.findings,
-    runtimeRan,
-  );
-
-  const assessmentId = crypto.randomUUID();
-  // Shared for the whole run: many new findings share a source file, so the
-  // suggestion builder should read each file once (see buildSuggestion).
-  const fileTextCache = new Map<string, string>();
-
   // — Stage 6: reconcile per-control findings (match / create / resolve). —
-  for (const control of scoped) {
-    if (control.checkId === null) continue;
-    reconcileControlFindings({
-      rows,
-      project,
-      control,
-      assessmentId,
-      rootPath,
-      rawForControl: rawFindings.filter(
-        (raw) => raw.checkId === control.checkId,
-      ),
-      scopedFileSet,
-      runtimeRan,
-      fileTextCache,
-      // A preview scan (PR head / feature branch) must not derive the
-      // persistent compliance decision: never auto-verify an approved
-      // remediation off a branch the project's state does not reflect.
-      onFindingResolved:
-        options.authoritative === false
-          ? () => {}
-          : (finding) =>
-              verifyDraftPrRemediation(rows, finding, assessmentId, {
-                scopedFileSet,
-                sourcesUnchanged,
-              }),
-    });
-  }
-
   // — Stage 7: refresh requirement statuses + summarize. —
-  applyRequirementStatusRefresh(rows, project, {
-    assessmentId,
-    changeContext,
-    runtimeRan,
-    siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
-    htmlValidateRan: runtimeResult.htmlValidateRan,
-    applicabilityFacts: runtimeResult.applicabilityFacts,
-    filesScanned,
-    controls: options.controls,
+  // Timed together: all three are in-memory row work with no I/O boundary.
+  const assessmentId = crypto.randomUUID();
+  const summary = await timed("reconcile", () => {
+    const rawFindings = mergeRawFindings(
+      astFindings,
+      runtimeResult.findings,
+      runtimeRan,
+    );
+    // Shared for the whole run: many new findings share a source file, so the
+    // suggestion builder should read each file once (see buildSuggestion).
+    const fileTextCache = new Map<string, string>();
+    for (const control of scoped) {
+      if (control.checkId === null) continue;
+      reconcileControlFindings({
+        rows,
+        project,
+        control,
+        assessmentId,
+        rootPath,
+        rawForControl: rawFindings.filter(
+          (raw) => raw.checkId === control.checkId,
+        ),
+        scopedFileSet,
+        runtimeRan,
+        fileTextCache,
+        // A preview scan (PR head / feature branch) must not derive the
+        // persistent compliance decision: never auto-verify an approved
+        // remediation off a branch the project's state does not reflect.
+        onFindingResolved:
+          options.authoritative === false
+            ? () => {}
+            : (finding) =>
+                verifyDraftPrRemediation(rows, finding, assessmentId, {
+                  scopedFileSet,
+                  sourcesUnchanged,
+                }),
+      });
+    }
+    applyRequirementStatusRefresh(rows, project, {
+      assessmentId,
+      changeContext,
+      runtimeRan,
+      siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
+      htmlValidateRan: runtimeResult.htmlValidateRan,
+      applicabilityFacts: runtimeResult.applicabilityFacts,
+      filesScanned,
+      controls: options.controls,
+    });
+    const scopedRequirements = requirementsInScope(rows.requirements, project);
+    return countByStatus(scopedRequirements, REQUIREMENT_STATUSES);
   });
-
-  const scopedRequirements = requirementsInScope(rows.requirements, project);
-  const summary = countByStatus(scopedRequirements, REQUIREMENT_STATUSES);
 
   // — Stage 8: build the assessment record + completion evidence. —
   const assessment: Assessment = {
@@ -462,8 +482,17 @@ export async function runAssessment(
       filesScanned,
       scanMode,
       engines,
+      stageMs,
+      totalMs: Date.now() - Date.parse(startedAt),
       changedFiles: changes.map((change) => change.filePath),
     },
+  });
+
+  reportEvent("assessment stage timings", {
+    code: "assessment_stage_timing",
+    projectId,
+    assessmentId,
+    ...stageMs,
   });
 
   return {
@@ -472,5 +501,6 @@ export async function runAssessment(
     findings: rows.findings,
     remediations: rows.remediations,
     requirements: rows.requirements,
+    stageMs,
   };
 }

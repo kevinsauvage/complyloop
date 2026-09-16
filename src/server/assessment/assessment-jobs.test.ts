@@ -720,6 +720,34 @@ describe("startAssessmentJob", () => {
     expect(jobs.get(direct.id)?.status).toBe("running");
     expect(jobs.get(queued.id)?.status).toBe("queued");
   });
+
+  it("requeues expired leases so a killed direct run recovers", async () => {
+    const stale = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const row = jobs.get(stale.id);
+    if (!row) throw new Error("expected row");
+    row.status = "running";
+    row.leaseExpiresAt = new Date(Date.now() - 60_000).toISOString();
+    row.attempts = 1;
+
+    const live = await enqueueAssessmentJob({
+      projectId: "p2",
+      trigger: "manual",
+    });
+    const liveRow = jobs.get(live.id);
+    if (!liveRow) throw new Error("expected live row");
+    liveRow.status = "running";
+    liveRow.leaseExpiresAt = new Date(Date.now() + 60_000).toISOString();
+
+    await startAssessmentJob({ projectId: "p3", trigger: "manual" });
+
+    // Expired lease requeued for a background retry…
+    expect(jobs.get(stale.id)?.status).toBe("queued");
+    // …while a live lease is untouched.
+    expect(jobs.get(live.id)?.status).toBe("running");
+  });
 });
 
 describe("completeAssessmentJob", () => {

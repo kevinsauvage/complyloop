@@ -355,6 +355,23 @@ describe("runAssessment", () => {
     ).toBe("Verified on staging footer");
   });
 
+  it("records per-stage timings on the run and completion evidence", async () => {
+    const run = await assess();
+
+    for (const stage of ["changedetection", "ast", "runtime", "reconcile"]) {
+      expect(typeof run.stageMs[stage]).toBe("number");
+      expect(run.stageMs[stage]).toBeGreaterThanOrEqual(0);
+    }
+    const completed = db.evidence.find(
+      (record) => record.kind === "assessment_completed",
+    );
+    const detail = completed?.detail as
+      | { stageMs?: Record<string, number>; totalMs?: unknown }
+      | undefined;
+    expect(detail?.stageMs).toEqual(run.stageMs);
+    expect(typeof detail?.totalMs).toBe("number");
+  });
+
   it("scoped re-scan does not resolve findings outside changed files", async () => {
     // Narrow the catalog to non-structural checks so the second run stays
     // scoped (structural checks in scope force a full-tree scan).

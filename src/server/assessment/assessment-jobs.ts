@@ -280,6 +280,11 @@ export async function startAssessmentJob(
 ): Promise<AssessmentJob> {
   const drizzle = await getDrizzle();
   const now = new Date().toISOString();
+  // Reap expired leases even when the scheduled sweep is silent: a killed
+  // direct run otherwise strands its `running` row forever (only expired
+  // leases are touched — live workers hold valid ones — same safety as the
+  // claim-tick recovery).
+  await drizzle.transaction((tx) => recoverExpiredLeases(tx, now));
   const [created] = await drizzle
     .insert(assessmentJobs)
     .values({
