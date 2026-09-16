@@ -406,11 +406,17 @@ function createPlaywrightAxeScanner(options?: {
             ],
           });
         } finally {
+          // Close markers: teardown is the only untimed await in the page
+          // loop — if a run stalls here, these lines name it.
+          console.info("[progress] runtime page close started");
           await page.close();
+          console.info("[progress] runtime page close finished");
         }
       }
     } finally {
+      console.info("[progress] runtime context close started");
       await context.close();
+      console.info("[progress] runtime context close finished");
     }
     console.info(
       `[timing] runtime pages scanned=${pages.length} axe=${stageMs.axe ?? 0}ms custom=${stageMs.custom ?? 0}ms conditions=${stageMs.conditions ?? 0}ms other=${stageMs.other ?? 0}ms`,
