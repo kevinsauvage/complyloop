@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
@@ -6,11 +6,24 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { aiCall, type AiErrorReport } from "./ai-call";
 
+const NoObjectGeneratedError = vi.hoisted(
+  () =>
+    class extends Error {
+      constructor(message = "No object generated") {
+        super(message);
+        this.name = "AI_NoObjectGeneratedError";
+      }
+    },
+);
+
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
+  generateText: vi.fn(),
+  NoObjectGeneratedError,
 }));
 
 const generate = vi.mocked(generateObject);
+const generateFallback = vi.mocked(generateText);
 const schema = z.object({ value: z.string() });
 
 function errorHook() {
@@ -25,6 +38,7 @@ function errorHook() {
 
 afterEach(() => {
   generate.mockReset();
+  generateFallback.mockReset();
 });
 
 describe("aiCall", () => {
@@ -119,5 +133,59 @@ describe("aiCall", () => {
         code: "ai_test",
       }),
     ).rejects.toThrow(new PublicError("AI patch generation failed"));
+    // Generic gateway errors never trigger the text fallback.
+    expect(generateFallback).not.toHaveBeenCalled();
+  });
+
+  it("retries via text + parse when the model lacks structured-output support", async () => {
+    generate.mockRejectedValue(new NoObjectGeneratedError());
+    generateFallback.mockResolvedValue({
+      text: '```json\n{"value": "ok"}\n```',
+    } as never);
+
+    await expect(
+      aiCall({ schema, available: true, prompt: "hi", code: "ai_test" }),
+    ).resolves.toEqual({ value: "ok" });
+    expect(generateFallback).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(generateFallback).mock.calls[0]?.[0]).toMatchObject({
+      prompt: expect.stringContaining(
+        "The object must have exactly these keys: value.",
+      ),
+    });
+  });
+
+  it("reports and returns null when the text fallback is not valid JSON", async () => {
+    generate.mockRejectedValue(new NoObjectGeneratedError());
+    generateFallback.mockResolvedValue({ text: "not json at all" } as never);
+    const hook = errorHook();
+
+    await expect(
+      aiCall({
+        schema,
+        available: true,
+        prompt: "hi",
+        code: "ai_test",
+        onError: hook.onError,
+      }),
+    ).resolves.toBeNull();
+    expect(hook.calls).toHaveLength(1);
+    expect(hook.calls[0]?.report).toMatchObject({ code: "ai_test" });
+  });
+
+  it("reports and returns null when the text fallback fails the schema", async () => {
+    generate.mockRejectedValue(new NoObjectGeneratedError());
+    generateFallback.mockResolvedValue({ text: '{"other": 1}' } as never);
+    const hook = errorHook();
+
+    await expect(
+      aiCall({
+        schema,
+        available: true,
+        prompt: "hi",
+        code: "ai_test",
+        onError: hook.onError,
+      }),
+    ).resolves.toBeNull();
+    expect(hook.calls).toHaveLength(1);
   });
 });

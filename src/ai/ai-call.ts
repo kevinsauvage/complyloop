@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { generateObject, generateText, NoObjectGeneratedError } from "ai";
 import { z } from "zod";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
@@ -84,11 +84,14 @@ interface AiCallInput<TSchema extends z.ZodType> {
 }
 
 /**
- * Shared AI gateway shell: availability check + structured `generateObject`.
- * Returns `null` when AI is disabled or the call fails unless
- * `throwIfUnavailable` is set. Callers always keep a deterministic baseline
- * (AI never sets status), and failures surface through `onError` so the
- * server boundary owns observability.
+ * Shared AI gateway shell: availability check + structured `generateObject`,
+ * with a `generateText` + parse fallback for models without structured-output
+ * support (the gateway reports `responseFormat` unsupported for those —
+ * `generateObject` then fails with `NoObjectGeneratedError` even though the
+ * model can emit JSON as text). Returns `null` when AI is disabled or the
+ * call fails unless `throwIfUnavailable` is set. Callers always keep a
+ * deterministic baseline (AI never sets status), and failures surface through
+ * `onError` so the server boundary owns observability.
  */
 export async function aiCall<TSchema extends z.ZodType>(
   input: AiCallInput<TSchema>,
@@ -102,19 +105,12 @@ export async function aiCall<TSchema extends z.ZodType>(
     }
     return null;
   }
-  try {
-    const { object } = await generateObject({
-      model: AI_MODEL,
-      schema: input.schema,
-      prompt: Array.isArray(input.prompt)
-        ? input.prompt.join("\n")
-        : input.prompt,
-    });
-    return object as z.infer<TSchema>;
-  } catch (error) {
-    input.onError?.(error, {
+  const prompt =
+    Array.isArray(input.prompt) ? input.prompt.join("\n") : input.prompt;
+  const fail = (failure: unknown): null => {
+    input.onError?.(failure, {
       code: input.code,
-      detail: error instanceof Error ? error.message : String(error),
+      detail: failure instanceof Error ? failure.message : String(failure),
       ...input.detail,
     });
     if (input.throwIfUnavailable) {
@@ -123,5 +119,72 @@ export async function aiCall<TSchema extends z.ZodType>(
       );
     }
     return null;
+  };
+  try {
+    const { object } = await generateObject({
+      model: AI_MODEL,
+      schema: input.schema,
+      prompt,
+    });
+    return object as z.infer<TSchema>;
+  } catch (error) {
+    if (!isNoObjectGeneratedError(error)) return fail(error);
+    try {
+      return await generateTextFallback(input, prompt);
+    } catch (fallbackError) {
+      return fail(fallbackError);
+    }
   }
+}
+
+/** True for the SDK's structured-output parse failure (incl. name match). */
+function isNoObjectGeneratedError(error: unknown): boolean {
+  if (error instanceof NoObjectGeneratedError) return true;
+  return error instanceof Error && error.name === "AI_NoObjectGeneratedError";
+}
+
+/** Required top-level keys for the JSON-only fallback prompt. */
+function schemaKeys(schema: z.ZodType): string[] {
+  if (schema instanceof z.ZodObject) return Object.keys(schema.shape);
+  return [];
+}
+
+/** Parses model text output, tolerating fences and surrounding prose. */
+function extractJson(text: string): unknown {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const raw = (fenced?.[1] ?? text).trim();
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end <= start) return JSON.parse(raw);
+  return JSON.parse(raw.slice(start, end + 1));
+}
+
+/**
+ * Single retry for models that cannot do structured output: ask for JSON-only
+ * text, then parse + zod-validate exactly like the structured path. Throws
+ * when the text is not valid JSON or fails the schema, so the caller reports
+ * it through the same `onError` channel.
+ */
+async function generateTextFallback<TSchema extends z.ZodType>(
+  input: AiCallInput<TSchema>,
+  prompt: string,
+): Promise<z.infer<TSchema>> {
+  const keys = schemaKeys(input.schema);
+  const { text } = await generateText({
+    model: AI_MODEL,
+    prompt: [
+      prompt,
+      "Respond with ONLY a JSON object (no prose, no code fences).",
+      ...(keys.length > 0
+        ? [`The object must have exactly these keys: ${keys.join(", ")}.`]
+        : []),
+    ].join("\n"),
+  });
+  const parsed = input.schema.safeParse(extractJson(text));
+  if (!parsed.success) {
+    throw new Error(
+      `AI response did not match the expected shape: ${parsed.error.message}`,
+    );
+  }
+  return parsed.data as z.infer<TSchema>;
 }

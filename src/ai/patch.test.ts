@@ -9,6 +9,13 @@ import { proposeFixEdits } from "./patch";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
+  generateText: vi.fn(),
+  NoObjectGeneratedError: class extends Error {
+    constructor(message = "No object generated") {
+      super(message);
+      this.name = "AI_NoObjectGeneratedError";
+    }
+  },
 }));
 
 const generate = vi.mocked(generateObject);

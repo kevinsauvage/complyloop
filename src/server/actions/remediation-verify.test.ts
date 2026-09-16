@@ -2,6 +2,7 @@ import "@/test-fixtures/register-action-workspace-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SITE_VERIFY_TIMEOUT_MS } from "@complyloop/analysis-core/contract/assessment-limits";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import {
@@ -19,7 +20,6 @@ import { initialActionState } from "../action-state";
 import type { Workspace } from "../workspace/workspace";
 import {
   markRemediationImplementedAction,
-  SITE_VERIFY_TIMEOUT_MS,
   verifyRemediationAction,
 } from "./remediation-verify";
 

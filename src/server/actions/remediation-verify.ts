@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { CheckAuditInput } from "@complyloop/analysis-core/check-authority";
 import type { CheckId } from "@complyloop/analysis-core/check-registry";
+import { SITE_VERIFY_TIMEOUT_MS } from "@complyloop/analysis-core/contract/assessment-limits";
 import {
   type Finding,
   type Remediation,
@@ -67,9 +68,6 @@ const VERIFY_REQUIRES_IMPLEMENTED_MESSAGE =
 
 const IMPLEMENT_REQUIRES_APPROVED_MESSAGE =
   "Marking implemented requires status approved.";
-
-/** Wall-clock budget for an interactive site re-audit (see below). */
-export const SITE_VERIFY_TIMEOUT_MS = 120_000;
 
 const SITE_VERIFY_TIMEOUT_MESSAGE =
   "Verification timed out — the preview may be slow. Try again.";
