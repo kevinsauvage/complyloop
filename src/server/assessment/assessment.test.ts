@@ -4,6 +4,8 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import git from "isomorphic-git";
+
 import * as registry from "@complyloop/analysis-core/catalog/registry";
 import {
   rgaaControls,
@@ -113,6 +115,24 @@ describe("runAssessment", () => {
     expect(db.findings).toHaveLength(1);
     expect(db.findings[0].id).toBe(originalId);
     expect(db.findings[0].status).toBe("open");
+  });
+
+  it("labels an unchanged-commit re-run as reused instead of scoped", async () => {
+    await git.init({ fs, dir: rootPath });
+    await git.add({ fs, dir: rootPath, filepath: "Hero.tsx" });
+    await git.commit({
+      fs,
+      dir: rootPath,
+      author: { name: "test", email: "test@example.com" },
+      message: "init",
+    });
+
+    const first = await assess();
+    expect(first.assessment.scanMode).toBe("full");
+    const second = await assess();
+    expect(second.assessment.scanMode).toBe("reused");
+    expect(second.filesScanned).toBe(first.filesScanned);
+    expect(db.findings).toHaveLength(1);
   });
 
   it("resolves findings that disappear and detects regressions when they return", async () => {

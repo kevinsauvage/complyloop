@@ -8,6 +8,11 @@ import type { RequirementStatus } from "@complyloop/analysis-core/contract/statu
 /**
  * Apply a human determination override while enforcing mutual exclusion of
  * `humanPass` and `exception` (exactly one may be set).
+ *
+ * Write side of sticky human decisions — the read side (whether automation
+ * may overwrite) is `isStickyHumanDecision` in
+ * `@complyloop/analysis-core/contract/requirement-status.ts`. Keep the two
+ * aligned: this module decides what gets stored, that one decides what sticks.
  */
 export type HumanDeterminationOverride =
   | {

@@ -8,6 +8,7 @@ import {
   isHtmlValidateOwnedCheck,
   isPackageTwinSourceCheck,
   isRuntimeOnlyCheck,
+  requiresFullTreeScan,
 } from "./check-authority";
 import {
   CHECK_REGISTRY,
@@ -49,6 +50,26 @@ describe("check authority", () => {
     }
     expect(isCompositionSensitiveCheck("img-alt")).toBe(false);
     expect(isCompositionSensitiveCheck("color-contrast")).toBe(false);
+  });
+
+  it("requires a full-tree scan for exactly the cross-file checks", () => {
+    // Derived from the registry (not a hardcopy): the scoped-scan guard in
+    // `runAssessment` must force a full tree for these and only these.
+    const crossFile = CHECK_REGISTRY.filter(
+      (entry: CheckRegistration) => entry.crossFile === true,
+    ).map((entry: CheckRegistration) => entry.id);
+    expect(crossFile.sort()).toEqual([
+      "duplicate-id",
+      "heading-order",
+      "list-structure",
+    ]);
+    for (const checkId of crossFile) {
+      expect(requiresFullTreeScan(checkId)).toBe(true);
+    }
+    expect(requiresFullTreeScan("img-alt")).toBe(false);
+    // Composition-sensitive but file-local: runtime wins the merge, yet a
+    // scoped re-scan can still confirm or clear it.
+    expect(requiresFullTreeScan("input-label")).toBe(false);
   });
 
   it("keeps runtime findings open for every runtime-only id", () => {

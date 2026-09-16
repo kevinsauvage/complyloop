@@ -3,6 +3,7 @@ import "server-only";
 import fs from "node:fs";
 
 import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
+import { requiresFullTreeScan } from "@complyloop/analysis-core/check-authority";
 import {
   type Assessment,
   type EvidenceRecord,
@@ -55,18 +56,6 @@ interface RuntimeScanEngineInput {
   linkCheckRan?: boolean;
   error?: string;
 }
-
-/**
- * AST checks whose verdict can depend on files beyond the one scanned
- * (document order, cross-node structure, id uniqueness). A scoped re-scan of
- * only changed files cannot confirm or clear these — any run assessing them
- * (or any run that deleted a file) must scan the full tree.
- */
-const STRUCTURAL_CHECK_IDS: ReadonlySet<string> = new Set([
-  "heading-order",
-  "list-structure",
-  "duplicate-id",
-]);
 
 function buildAssessmentEngines(
   runtimeConfigured: boolean,
@@ -398,14 +387,14 @@ export async function runAssessment(
     /\.(tsx|jsx)$/i.test(filePath),
   );
   const hasDeletion = deletedFiles.length > 0;
-  const hasStructuralChecks = scoped.some(
-    (control) =>
-      control.checkId !== null && STRUCTURAL_CHECK_IDS.has(control.checkId),
-  );
-  // Structural verdicts can shift with any cross-file change and deletions
+  // Cross-file verdicts can shift with any cross-file change and deletions
   // invalidate per-file assumptions outright — both force a full-tree scan
   // with an unbounded resolve scope instead of a scoped re-scan.
-  const forceFullScan = hasDeletion || hasStructuralChecks;
+  const hasCrossFileChecks = scoped.some(
+    (control) =>
+      control.checkId !== null && requiresFullTreeScan(control.checkId),
+  );
+  const forceFullScan = hasDeletion || hasCrossFileChecks;
   const useScoped =
     Boolean(previous?.snapshot) && changedJsx.length > 0 && !forceFullScan;
 
@@ -414,11 +403,13 @@ export async function runAssessment(
     if (sourcesUnchanged) {
       // Sources, scope, and engine set are identical to the last run: keep the
       // existing AST findings and skip the full-tree scan. Runtime checks still
-      // run and reconcile their own findings below.
+      // run and reconcile their own findings below. `filesScanned` carries the
+      // previous count (not 0): standard-authority status derivation requires
+      // a real scan behind the reused findings.
       return {
         astFindings: [] as RawFinding[],
         filesScanned: previous?.filesScanned ?? 0,
-        scanMode: "scoped" as const,
+        scanMode: "reused" as const,
       };
     }
     if (useScoped) {

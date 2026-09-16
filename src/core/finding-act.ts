@@ -11,7 +11,9 @@ import {
 
 /**
  * Finding-page UX beat model: maps finding + remediation state to a single
- * call-to-action. UI policy — the assessment worker and batch paths must
+ * call-to-action. UI policy — a pure view over `remediation-lifecycle.ts`
+ * (which owns all transitions), never a second state machine: it persists
+ * nothing and advances nothing. The assessment worker and batch paths must
  * never import this module (enforced by ESLint on `src/server/assessment*`).
  */
 

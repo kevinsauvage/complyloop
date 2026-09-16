@@ -27,6 +27,14 @@ export interface CheckRegistration {
   authority: Exclude<CheckAuthority, "manual">;
   /** AST unreliable for this rule — runtime overrides source when it ran. */
   compositionSensitive?: boolean;
+  /**
+   * Verdict can depend on files beyond the one scanned (document order,
+   * cross-node structure, id uniqueness): a scoped re-scan of only changed
+   * files cannot confirm or clear these, so any run assessing them must scan
+   * the full tree. Strictly narrower than `compositionSensitive` (which also
+   * covers runtime-merge authority) — see `requiresFullTreeScan`.
+   */
+  crossFile?: boolean;
   /** Only html-validate emits this at runtime; status requires it ran. */
   htmlValidateOwned?: boolean;
   /** Source findings duplicate axe / html-validate / jsx-a11y on the rendered page. */
@@ -92,6 +100,7 @@ export const CHECK_REGISTRY = [
     id: "heading-order",
     authority: "standard",
     compositionSensitive: true,
+    crossFile: true,
     analyzers: ["ast", "axe"],
     catalogControlId: "ctl-heading-order",
   },
@@ -119,6 +128,7 @@ export const CHECK_REGISTRY = [
     id: "duplicate-id",
     authority: "standard",
     compositionSensitive: true,
+    crossFile: true,
     analyzers: ["ast", "axe"],
     catalogControlId: "ctl-duplicate-id",
   },
@@ -206,6 +216,7 @@ export const CHECK_REGISTRY = [
     id: "list-structure",
     authority: "standard",
     packageTwinSource: true,
+    crossFile: true,
     analyzers: ["ast", "axe"],
     catalogControlId: "ctl-list-structure",
   },

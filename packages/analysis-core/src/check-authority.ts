@@ -25,6 +25,16 @@ export const isHtmlValidateOwnedCheck = (checkId: string): boolean =>
 export const isCompositionSensitiveCheck = (checkId: string): boolean =>
   Boolean(entryFor(checkId)?.compositionSensitive);
 
+/**
+ * Checks whose verdict can depend on files beyond the one scanned: a scoped
+ * re-scan of only changed files cannot confirm or clear these, so any run
+ * assessing them must scan the full tree. Deliberately narrower than
+ * `isCompositionSensitiveCheck` (runtime-merge authority); the two sets
+ * evolve independently.
+ */
+export const requiresFullTreeScan = (checkId: string): boolean =>
+  Boolean(entryFor(checkId)?.crossFile);
+
 export const isRuntimeOnlyCheck = (checkId: string): boolean => {
   const entry = entryFor(checkId);
   return Boolean(

@@ -54,6 +54,8 @@ export async function generateAiFixAction(
       await assertAiRateLimit(preview.userId);
     }
     const control = controlById(finding.controlId);
+    // Checkout + AI + re-verify run outside any write lock (see P2-8 /
+    // remediation-verify.ts); the write below only persists the candidate.
     const candidate = await generatePatchCandidateOnCheckout(
       project,
       finding,

@@ -40,6 +40,10 @@ export interface DeriveRequirementStatusInput {
 /**
  * Human exceptions and human passes stick until explicitly cleared: a new
  * assessment must not overwrite a human's compliance decision.
+ *
+ * Read side of sticky human decisions — the write side (storing/clearing
+ * overrides) is `setRequirementHumanDetermination` /
+ * `clearRequirementHumanDetermination` in `src/core/requirement-human-determination.ts`.
  */
 export function isStickyHumanDecision(
   input: Pick<

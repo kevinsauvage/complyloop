@@ -49,10 +49,22 @@ export interface Assessment {
   startedAt: string;
   completedAt: string;
   filesScanned: number;
-  /** Whether this run scanned the full tree or only changed JSX files. */
-  scanMode?: "full" | "scoped";
+  /**
+   * Whether this run scanned the full tree, only changed JSX files, or reused
+   * prior findings without scanning (`reused` — same commit + control scope +
+   * engine set). Display/telemetry only: no status logic branches on it.
+   * `filesScanned` still carries the previous count on `reused` runs because
+   * standard-authority derivation requires a real scan behind the findings.
+   */
+  scanMode?: "full" | "scoped" | "reused";
   /** Which engines ran (AST always; runtime when a preview URL is configured). */
   engines?: AssessmentEngines;
+  /**
+   * Point-in-time requirement counts at completion (for the completion
+   * evidence + reports). The dashboard and all live UI derive counts from
+   * current requirements instead — never read this for display, or the two
+   * disagree after any human edit. No live reader exists today by design.
+   */
   summary: Record<RequirementStatus, number>;
   snapshot?: AssessmentSnapshot;
   /** Files that changed since the previous assessment, when detectable. */
