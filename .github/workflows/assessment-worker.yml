@@ -57,6 +57,10 @@ jobs:
           key: playwright-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install chromium --with-deps
       - name: Drain assessment queue
+        # A healthy batch takes minutes; a hung browser/teardown must fail
+        # fast instead of burning to the job timeout (lease recovery
+        # requeues whatever was claimed).
+        timeout-minutes: 25
         run: npm run worker:drain
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

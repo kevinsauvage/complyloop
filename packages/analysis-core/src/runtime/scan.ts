@@ -113,6 +113,38 @@ async function closeTeardown(
 }
 
 /**
+ * Worker-script teardown: close the cached browser so a long-lived process
+ * can exit. Serverless never needs this (the container dies with the
+ * invocation); the GitHub Actions executor hangs on the browser child
+ * process after the batch summary prints without it. Bounded like
+ * page/context teardown, never throws.
+ */
+export async function closeRuntimeBrowser(): Promise<void> {
+  const browser = sharedBrowser;
+  sharedBrowser = null;
+  sharedBrowserTainted = false;
+  if (!browser) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      browser.close(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("browser close timed out")),
+          TEARDOWN_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } catch {
+    console.warn(
+      "[warning] runtime browser close timed out; continuing to exit.",
+    );
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
  * Serverless Chromium (Vercel has no Playwright browser download step):
  * `@sparticuz/chromium` ships a compatible build with its own executable
  * path. Set `ASSESSMENT_RUNTIME_BROWSER=serverless` to use it; anything else

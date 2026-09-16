@@ -9,8 +9,15 @@
  * Sentry by the worker itself; this script exits non-zero only when the
  * batch itself crashes (DB down, missing env) so the workflow run reflects
  * infra health, not assessment outcomes.
+ *
+ * Always tears down (browser + DB pool) and exits explicitly: without this
+ * the process survives the batch on open handles and the workflow hangs
+ * until the job timeout.
  */
-import { runAssessmentJobBatch } from "../src/server/assessment/assessment-runner";
+import {
+  closeAssessmentWorker,
+  runAssessmentJobBatch,
+} from "../src/server/assessment/assessment-runner";
 import { loadLocalEnv } from "./env";
 
 loadLocalEnv();
@@ -50,7 +57,15 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch((error: unknown) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+async function shutdown(code: number): Promise<never> {
+  await closeAssessmentWorker();
+  process.exit(code);
+}
+
+main().then(
+  () => shutdown(0),
+  async (error: unknown) => {
+    console.error(error);
+    await shutdown(1);
+  },
+);
