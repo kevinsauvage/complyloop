@@ -1,5 +1,8 @@
 import "server-only";
 
+import { closeRuntimeBrowser } from "@complyloop/analysis-core/runtime/scan";
+import { closeDrizzle } from "@complyloop/db/postgres";
+
 import { reportWarning } from "../observability";
 import { pruneRateLimitBuckets } from "../rate-limit";
 import {
@@ -83,4 +86,30 @@ export async function runAssessmentJobBatch(
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
   return results;
+}
+
+/**
+ * Long-lived executor teardown (GitHub Actions drain script): close the
+ * cached browser and the DB pool so the process can exit after the batch
+ * summary prints. Serverless invocations never call this — the container
+ * dies with the request. Best-effort and never throws; the caller still
+ * exits with its own code.
+ */
+export async function closeAssessmentWorker(): Promise<void> {
+  try {
+    await closeRuntimeBrowser();
+  } catch (error) {
+    reportWarning("Assessment worker browser close failed.", {
+      code: "assessment_worker_teardown_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  try {
+    await closeDrizzle();
+  } catch (error) {
+    reportWarning("Assessment worker DB close failed.", {
+      code: "assessment_worker_teardown_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
