@@ -29,6 +29,7 @@
     "db:ensure-owner": "tsx --conditions=react-server scripts/ensure-org-owner.ts",
     "db:studio": "drizzle-kit studio",
     "ops:check": "tsx --conditions=react-server scripts/operations-check.ts",
+    "postinstall": "node scripts/postinstall-ssrf-guard.mjs",
     "worker:drain": "tsx --conditions=react-server scripts/assessment-worker-drain.ts"
   },
   "dependencies": {
