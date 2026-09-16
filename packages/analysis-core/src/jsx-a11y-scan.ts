@@ -1,8 +1,6 @@
-import { createRequire } from "node:module";
-import path from "node:path";
-
 import tsParser from "@typescript-eslint/parser";
 import { Linter } from "eslint";
+import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
 
 import type { CheckId } from "./check-registry.ts";
 import type { ProposedFix } from "./contract/finding-types.ts";
@@ -21,12 +19,11 @@ import {
 } from "./parse.ts";
 import type { RawFinding } from "./types.ts";
 
-const require = createRequire(
-  typeof import.meta.url === "string" && import.meta.url.length > 0
-    ? import.meta.url
-    : path.join(process.cwd(), "package.json"),
-);
-const jsxA11y = require("eslint-plugin-jsx-a11y") as NonNullable<
+// Static import (not createRequire): bundlers and Vercel file tracing only
+// follow static imports, so a dynamic require silently drops the plugin
+// from serverless bundles (MODULE_NOT_FOUND in production). Interop is
+// identical: the plugin is plain CJS, so the default import is module.exports.
+const jsxA11y = jsxA11yPlugin as NonNullable<
   Linter.Config["plugins"]
 >[string];
 
