@@ -68,6 +68,66 @@ const VERIFY_REQUIRES_IMPLEMENTED_MESSAGE =
 const IMPLEMENT_REQUIRES_APPROVED_MESSAGE =
   "Marking implemented requires status approved.";
 
+/** Wall-clock budget for an interactive site re-audit (see below). */
+export const SITE_VERIFY_TIMEOUT_MS = 120_000;
+
+const SITE_VERIFY_TIMEOUT_MESSAGE =
+  "Verification timed out — the preview may be slow. Try again.";
+
+class SiteVerifyTimeoutError extends Error {
+  constructor() {
+    super("Site verify scan timed out.");
+    this.name = "SiteVerifyTimeoutError";
+  }
+}
+
+/**
+ * Re-audits only the finding's own pages instead of the project's full route
+ * set: the verdict below only reads this finding's instance, and a full
+ * multi-route scan (browser + link crawl) inside an interactive request races
+ * the function ceiling. Finding pages are absolute snapshot URLs, which the
+ * runtime joins unchanged; route-style fixtures join against the base URL.
+ * Bounded by `SITE_VERIFY_TIMEOUT_MS` — on expiry the shared browser keeps
+ * settling in the background while the caller fails closed with a timeout
+ * message instead of hanging the request.
+ */
+async function scanSiteFindingForVerify(input: {
+  runtimeBaseUrl?: string;
+  runtimeRoutes?: string[];
+  findingPages: string[];
+}): Promise<Awaited<ReturnType<typeof scanRuntime>>> {
+  const routes =
+    input.findingPages.length > 0
+      ? input.findingPages
+      : (input.runtimeRoutes ?? []);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      scanRuntime({
+        runtimeBaseUrl: input.runtimeBaseUrl,
+        runtimeRoutes: routes,
+      }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new SiteVerifyTimeoutError()),
+          SITE_VERIFY_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } catch (error) {
+    if (error instanceof SiteVerifyTimeoutError) {
+      return {
+        findings: [],
+        pagesScanned: 0,
+        error: SITE_VERIFY_TIMEOUT_MESSAGE,
+      };
+    }
+    throw error;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 function recordStillFailing(
   payload: ProjectWritePayload,
   remediation: Remediation,
@@ -178,7 +238,7 @@ export async function verifyRemediationAction(
       case "source":
         // No on-demand source re-check here on purpose. Source
         // findings are verified by merging the draft pull request and
-        // re-assessing (see verifyDraftPrRemediation in assessment.ts).
+        // re-assessing (see verifyRemediationOnResolve in assessment.ts).
         throw new PublicError(SOURCE_VERIFY_MESSAGE);
       case "dom": {
         present = await runtimeViolationStillPresent({
@@ -192,12 +252,15 @@ export async function verifyRemediationAction(
       }
       case "site": {
         const project = previewProject;
-        const result = await scanRuntime({
+        const result = await scanSiteFindingForVerify({
           runtimeBaseUrl: project.runtimeBaseUrl,
           runtimeRoutes: project.runtimeRoutes,
+          findingPages: location.pages,
         });
-        const previewUnreachable = Boolean(result.error);
+        const verifyTimedOut = result.error === SITE_VERIFY_TIMEOUT_MESSAGE;
+        const previewUnreachable = !verifyTimedOut && Boolean(result.error);
         present =
+          verifyTimedOut ||
           previewUnreachable ||
           result.pagesScanned === 0 ||
           result.siteLevelChecksRan !== true ||
@@ -209,9 +272,12 @@ export async function verifyRemediationAction(
           siteLevelChecksRan: result.siteLevelChecksRan,
           htmlValidateRan: result.htmlValidateRan,
         };
-        // Distinguish preview-down vs 0-pages vs engine-skipped so the
-        // engineer knows whether to fix the preview URL/routes or the code.
-        if (previewUnreachable) {
+        // Distinguish timeout vs preview-down vs 0-pages vs engine-skipped so
+        // the engineer knows whether to retry, fix the preview URL/routes, or
+        // fix the code.
+        if (verifyTimedOut) {
+          stillFailingMessage = SITE_VERIFY_TIMEOUT_MESSAGE;
+        } else if (previewUnreachable) {
           stillFailingMessage = PREVIEW_UNREACHABLE_MESSAGE;
         } else if (result.pagesScanned === 0) {
           stillFailingMessage = NO_PAGES_SCANNED_MESSAGE;

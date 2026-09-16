@@ -244,6 +244,62 @@ describe("reconcileControlFindings", () => {
     ).toHaveLength(1);
   });
 
+  it("does not rewrite assessmentId when an open finding matches", () => {
+    const open = testFinding({
+      id: "f-open",
+      projectId: project.id,
+      controlId: "ctl-img-alt",
+      assessmentId: "a0",
+      status: "open",
+      location: sourceLoc({
+        filePath: "Hero.tsx",
+        line: 1,
+        snippet: '<img src="/hero.png" />',
+      }),
+    });
+    const rows = emptyRows();
+    rows.findings.push(open);
+    const raw = {
+      checkId: "img-alt" as const,
+      kind: "violation" as const,
+      severity: "serious" as const,
+      confidence: "high" as const,
+      reason: "Missing alt",
+      location: sourceLoc({
+        filePath: "Hero.tsx",
+        line: 1,
+        snippet: '<img src="/hero.png" />',
+      }),
+      fix: null,
+    };
+
+    reconcileControlFindings({
+      rows,
+      project,
+      control: {
+        id: "ctl-img-alt",
+        frameworkId: "rgaa",
+        code: "RGAA 1.1",
+        secondaryCode: "WCAG 1.1.1",
+        title: "Images",
+        description: "Images have text alternatives",
+        checkId: "img-alt",
+      },
+      assessmentId: "a1",
+      rootPath: "/tmp",
+      rawForControl: [raw],
+      scopedFileSet: null,
+      runtimeRan: false,
+      onFindingResolved: () => {},
+    });
+
+    // Still matched and open — but assessmentId stays write-once so steady
+    // runs are true no-ops for the persistence layer.
+    expect(open.status).toBe("open");
+    expect(open.assessmentId).toBe("a0");
+    expect(rows.findings).toHaveLength(1);
+  });
+
   it("collapses duplicate DOM raw hits onto one open finding in a single pass", () => {
     const rows = emptyRows();
     const raw = {
@@ -456,6 +512,48 @@ describe("sameInstance", () => {
       sameInstance(
         { location: sourceLoc({ filePath: "A.tsx", line: 1, snippet: "x" }) },
         { location: sourceLoc({ filePath: "B.tsx", line: 1, snippet: "x" }) },
+      ),
+    ).toBe(false);
+  });
+
+  it("matches across formatting-only changes (reflow, indentation, CRLF)", () => {
+    expect(
+      sameInstance(
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 4,
+            snippet: '<img src="x" />',
+          }),
+        },
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 20,
+            snippet: '<img\r\n    src="x"\r\n  />',
+          }),
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it("stays case-sensitive on normalized snippets", () => {
+    expect(
+      sameInstance(
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 4,
+            snippet: '<img src="x" />',
+          }),
+        },
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 4,
+            snippet: '<IMG src="x" />',
+          }),
+        },
       ),
     ).toBe(false);
   });

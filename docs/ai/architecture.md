@@ -35,8 +35,9 @@ append-only. Tokens AES-256-GCM at rest. Server-owned env keys live in
 with auth/middleware/token crypto, framework keys stay direct. Manual and
 webhook assessments are durable jobs: enqueue → `repository_dispatch` kicks
 the GitHub Actions `assessment-worker` (Playwright Chromium, same family as
-local dev) → 15-min schedule backstop → `POST /api/internal/jobs/run`
-(Vercel fallback only); dev/e2e drains inline.
+local dev) → 15-min schedule backstop for failed dispatches, killed tasks,
+and expired leases. `POST /api/internal/jobs/run` stays for schedulers that
+call it directly; dev/e2e drains inline.
 
 ```
 Manual run (dashboard action enqueues + after() dispatch) → assessment-worker (GH) → claim → scan → persist
@@ -116,8 +117,7 @@ evidence, findings, remediations, requirements }`; the worker persists via
     refused — claims are serial per project.
   - **Webhook (queued)** — enqueue then `after()` dispatch of the GH
     worker; its 15-min schedule is the backstop for failed dispatches,
-    killed tasks, and expired leases (Vercel worker-route self-fetch
-    remains as a degraded fallback). Dev/e2e drain the queue inline.
+    killed tasks, and expired leases. Dev/e2e drain the queue inline.
   Expired rate-limit buckets prune once per batch.
 - **Checkouts** — shallow ephemeral checkout per job via pure-JS git
   (isomorphic-git, no `git` CLI); deleted after. Serverless Chromium via
@@ -186,13 +186,13 @@ Assessments always use the project's `defaultPresetId`. Requirements page
 ## Key flows
 
 **Assessment:** manual runs enqueue in the dashboard action and kick the GH
-   worker via dispatch (fallback: Vercel worker route); webhook runs go
+   worker via dispatch (backstop: 15-min schedule); webhook runs go
    enqueue → dispatch, 15-min schedule backstop (see
    180|Jobs). Either way the worker
    clones + scans → `detectChanges` (depth-1
 clone: author is HEAD) → AST → optional Playwright → merge → re-derive
-statuses → `verifyDraftPrRemediation` (uses `approvalAction` on the
-remediation, not historical evidence). Only a **default-branch** scan (or a
+statuses → `verifyRemediationOnResolve` (uses the run's re-scan proof, not
+historical evidence). Only a **default-branch** scan (or a
 manual assessment) is authoritative: it persists findings/statuses and may
 auto-verify. A **pull-request head** scan is a preview — it runs the same
 analysis to post a Check Run but never resolves findings, flips statuses, or

@@ -37,10 +37,10 @@ import { appendEvidence, type ProjectRows } from "../workspace/project-rows";
  * state survives re-assessment and dismissals stick.
  *
  * Source identity is snippet-first: when both sides carry a snippet, only
- * snippet equality matches (line numbers drift with unrelated edits, so a
- * line-only match would refresh a stale row instead of resolving it and
- * creating the new instance). Line equality is only a fallback when at least
- * one side has no snippet to compare.
+ * (whitespace-normalized) snippet equality matches (line numbers drift with
+ * unrelated edits, so a line-only match would refresh a stale row instead of
+ * resolving it and creating the new instance). Line equality is only a
+ * fallback when at least one side has no snippet to compare.
  *
  * DOM identity is the node selector (same as runtime dedupe): many contrast /
  * name failures share identical markup snippets, so snippet-only matching
@@ -56,7 +56,10 @@ export function sameInstance(
   if (isSourceLocation(left) && isSourceLocation(right)) {
     if (left.filePath !== right.filePath) return false;
     if (hasSnippet(left.snippet) && hasSnippet(right.snippet)) {
-      return left.snippet === right.snippet;
+      return (
+        normalizeSourceSnippet(left.snippet) ===
+        normalizeSourceSnippet(right.snippet)
+      );
     }
     return left.line === right.line;
   }
@@ -88,6 +91,18 @@ function usableDomSelector(selector: string): string {
 /** A snippet counts for identity only when it carries non-blank content. */
 function hasSnippet(snippet: string): boolean {
   return snippet.trim().length > 0;
+}
+
+/**
+ * Source identity key: collapses all whitespace runs (indentation, line
+ * breaks, CRLF) so formatting-only changes — Prettier reflows, moved lines —
+ * do not churn findings and orphan remediation state. Case- and
+ * content-sensitive otherwise: unlike the DOM `normalizeSnippetKey`, JSX
+ * source cannot lowercase. Two violations that differ only by whitespace in
+ * the same file and check intentionally share an instance.
+ */
+export function normalizeSourceSnippet(snippet: string): string {
+  return snippet.replace(/\s+/g, " ").trim();
 }
 
 /** Carries a human-edited fix value over to the freshly scanned fix. */
@@ -127,7 +142,10 @@ export function locateViolationInProject(
       hasSnippet(location.snippet) &&
       hasSnippet(candidate.location.snippet)
     ) {
-      return candidate.location.snippet === location.snippet;
+      return (
+        normalizeSourceSnippet(candidate.location.snippet) ===
+        normalizeSourceSnippet(location.snippet)
+      );
     }
     return candidate.location.line === location.line;
   });
@@ -294,7 +312,10 @@ export function reconcileControlFindings(
     const existing = matchPool.find((finding) => sameInstance(finding, raw));
     if (existing) {
       matchedIds.add(existing.id);
-      existing.assessmentId = assessmentId;
+      // `assessmentId` stays write-once (creation / re-detection assessment):
+      // bumping it on every match would rewrite every open finding each run
+      // and defeat the no-op upsert optimization. Liveness across runs is
+      // proven by resolves + per-run evidence, not by this id.
       existing.fix = mergeFix(existing.fix, raw.fix);
       existing.location = raw.location;
       if (raw.analyzerId) existing.analyzerId = raw.analyzerId;

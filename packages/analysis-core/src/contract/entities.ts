@@ -70,6 +70,10 @@ export interface Finding {
   id: string;
   projectId: string;
   controlId: string;
+  /** Assessment that created (or re-detected) this finding. Write-once: still
+   * matching in a later run must not bump this id (that would rewrite every
+   * open finding each assessment). Liveness is proven by resolves + per-run
+   * evidence, not by this id. */
   assessmentId: string;
   /** Loose string at the persistence boundary; `RawFinding` keys the strict registry union. */
   checkId: string;

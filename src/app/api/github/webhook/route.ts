@@ -114,13 +114,13 @@ export async function POST(request: Request): Promise<Response> {
       { status: 503 },
     );
   }
-  // Every handled delivery schedules a drain of the single-scan worker
-  // route in `after()`: dev/e2e drains the queue inline, production
-  // self-fetches `POST /api/internal/jobs/run?limit=1` so pushes start
-  // scanning immediately. Each invocation claims one job
-  // (serial-per-project); the scheduled sweep is the backstop for failed
-  // fetches, killed tasks, and expired leases. Manual runs share this queued
-  // path — the dashboard action enqueues and drains the same way.
+  // Every handled delivery schedules a drain in `after()`: dev/e2e drains
+  // the queue inline, production kicks the GitHub Actions executor so pushes
+  // start scanning immediately. Each invocation claims one job
+  // (serial-per-project); the executor's 15-minute schedule is the backstop
+  // for failed dispatches, killed tasks, and expired leases. Manual runs
+  // share this queued path — the dashboard action enqueues and drains the
+  // same way.
   if (result.handled) {
     after(() => scheduleAssessmentDrain());
   }

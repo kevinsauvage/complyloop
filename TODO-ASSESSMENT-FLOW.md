@@ -128,7 +128,7 @@ Draft-PR merge → reassess → verify loop still works for real fixes. False ve
 
 ## P1 — High
 
-### [ ] P1-1 — Matched findings rewrite `assessmentId` every run, defeating the no-op upsert optimization
+### [x] P1-1 (implemented) — Matched findings rewrite `assessmentId` every run, defeating the no-op upsert optimization
 
 **Why:**
 Every assessment rewrites **every open finding row** even when nothing changed, churning `updatedAt` on the whole findings table per run, defeating `changedSinceLoaded`, inflating write volume (N upserts per push for N open findings), and making `updatedAt` useless as a "last real change" signal for the stale-write guards.
@@ -157,7 +157,7 @@ Finding identity, matching, resolution, dismissal, and status derivation never r
 
 ---
 
-### [ ] P1-2 — Remove the Vercel self-fetch degraded fallback; it reintroduces the failure mode the queue was built to escape
+### [x] P1-2 (implemented) — Remove the Vercel self-fetch degraded fallback; it reintroduces the failure mode the queue was built to escape
 
 **Why:**
 Three drain paths (GH dispatch → self-fetch → 15-min schedule, plus inline dev drain) for one queue. The middle path runs the scan on Vercel serverless — the exact environment whose 300s ceiling and `@sparticuz/chromium` divergence motivated the durable queue + GH executor. Keeping it means every dispatch outage silently produces the worst-quality scans (timeouts → stranded `running` rows → lease recovery), instead of cleanly waiting for the schedule backstop minutes later.
@@ -186,7 +186,7 @@ No job is ever lost: failed dispatch leaves the job `queued`, and the schedule +
 
 ---
 
-### [ ] P1-3 — Site-level verify runs a full runtime scan inside a Server Action (no queue, lease, or timeout)
+### [x] P1-3 (implemented) — Site-level verify runs a full runtime scan inside a Server Action (no queue, lease, or timeout)
 
 **Why:**
 "Verify fix" on a `site` finding calls `scanRuntime` (full multi-route browser audit) synchronously inside the user-facing Server Action request. On Vercel this races the function ceiling; on failure modes (preview down, 0 pages) it burns a browser launch to produce an error string. It is the only place besides the queue that runs the heavy browser stack interactively.
@@ -215,7 +215,7 @@ Verdict logic (`sameInstance` + `markVerified` + scoped status refresh) is untou
 
 ---
 
-### [ ] P1-4 — Non-draft-PR remediations can never auto-verify: resolved findings leave remediations stuck at `approved`
+### [x] P1-4 (implemented) — Non-draft-PR remediations can never auto-verify: resolved findings leave remediations stuck at `approved`
 
 **Why:**
 `verifyDraftPrRemediation` returns early unless `remediation.approvalAction === "create_draft_pull_request"`. Every other approval path (bulk approve of runtime guidance, manual approve + direct push to default branch, approve + external fix) resolves the finding on reassessment but leaves the remediation at `approved`/`implemented` forever — the loop never closes without manual bookkeeping, and requirement/finding say "fixed" while remediation says "approved".
@@ -244,7 +244,7 @@ Status machine unchanged; sticky human decisions and requirement derivation unto
 
 ---
 
-### [ ] P1-5 — Source finding identity uses raw snippet equality: any reformat churns findings and orphans remediation state
+### [x] P1-5 (implemented) — Source finding identity uses raw snippet equality: any reformat churns findings and orphans remediation state
 
 **Why:**
 `sameInstance` matches source findings by exact `snippet` string equality. A Prettier run, line-ending change, or unrelated edit that shifts the snippet text resolves the old finding and mints a new one (new id → new remediation row at `detected`, prior approval/evidence orphaned to the resolved row, `finding` detected/resolved evidence pair per churned finding). One format commit can reset the remediation state of an entire project.
@@ -273,7 +273,7 @@ Matching, resolution, dismissal re-open, and auto-verify scope logic all flow th
 
 ---
 
-### [ ] P1-6 — `sourcesUnchanged` fast path can never fire without a `git` binary (all Vercel-fallback scans pay full cost)
+### [x] P1-6 (implemented) — `sourcesUnchanged` fast path can never fire without a `git` binary (all Vercel-fallback scans pay full cost)
 
 **Why:**
 The skip-scan optimization requires `readRepoHead` (shells out to `git rev-parse`) on both sides — but `repo-checkout.ts` documents "no `git` CLI — serverless runtimes don't ship one". On any runtime without git, `head` is `undefined`, `sourcesUnchanged` is false by construction, and every run pays: full SHA-256 re-hash of the tree (`captureSnapshot`), full AST scan, and (via P1-1) full finding rewrites.

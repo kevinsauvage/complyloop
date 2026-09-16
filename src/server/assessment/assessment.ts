@@ -123,8 +123,8 @@ export interface AssessmentRunResult {
   stageMs: Record<string, number>;
 }
 
-/** Re-scan scope proof for draft-PR auto-verification. */
-export interface DraftPrVerifyScope {
+/** Re-scan scope proof for auto-verification on resolve. */
+export interface ResolveVerifyScope {
   /**
    * Files this run re-scanned (`null` after a full-tree scan). A resolve only
    * counts as fix-confirmed when the finding's file is among them.
@@ -146,20 +146,34 @@ function fileExistsInCheckout(rootPath: string, filePath: string): boolean {
   }
 }
 
-/** Exported for unit tests of the re-scan scope guard. */
-export function verifyDraftPrRemediation(
+/**
+ * Auto-verifies a remediation whose finding resolved with positive proof (see
+ * below). Exported for unit tests of the re-scan scope guard.
+ *
+ * Applies to any `approved` or `implemented` remediation regardless of how it
+ * was approved (draft PR, bulk approve, manual approve): the proof strength
+ * is identical — the violation is gone from a re-scanned file with no
+ * same-file sibling — so only PR-flow approvals verifying would leave every
+ * other approval stuck short of `verified` forever.
+ */
+export function verifyRemediationOnResolve(
   rows: ProjectRows,
   finding: Finding,
   assessmentId: string,
-  scope: DraftPrVerifyScope,
+  scope: ResolveVerifyScope,
 ): void {
   if (!isSourceLocation(finding.location)) return;
   const remediationIndex = rows.remediations.findIndex(
     (candidate) => candidate.findingId === finding.id,
   );
   const remediation = rows.remediations[remediationIndex];
-  if (!remediation || remediation.status !== "approved") return;
-  if (remediation.approvalAction !== "create_draft_pull_request") return;
+  if (
+    !remediation ||
+    (remediation.status !== "approved" &&
+      remediation.status !== "implemented")
+  ) {
+    return;
+  }
 
   // A reconcile resolve is only a confirmed fix when the finding's location
   // was actually re-scanned this run: full scans re-check the whole tree,
@@ -167,7 +181,7 @@ export function verifyDraftPrRemediation(
   // come from an identity mismatch — skip auto-verify instead of advancing.
   if (scope.sourcesUnchanged) {
     reportWarning(
-      "Skipping draft-PR auto-verify: sources unchanged, finding was not re-scanned",
+      "Skipping auto-verify: sources unchanged, finding was not re-scanned",
       {
         code: "draft_pr_verify_scope_unproven",
         projectId: finding.projectId,
@@ -182,7 +196,7 @@ export function verifyDraftPrRemediation(
     !scope.scopedFileSet.has(finding.location.filePath)
   ) {
     reportWarning(
-      "Skipping draft-PR auto-verify: finding file outside the re-scanned scope",
+      "Skipping auto-verify: finding file outside the re-scanned scope",
       {
         code: "draft_pr_verify_scope_unproven",
         projectId: finding.projectId,
@@ -197,14 +211,16 @@ export function verifyDraftPrRemediation(
   // Positive proof, not just absence. A resolve alone cannot verify: the file
   // may have been deleted/renamed (resolves everything it contained) or the
   // code may have changed shape (e.g. reformat — the violation persists under
-  // a new snippet next to the resolve). Both fail closed below.
+  // a new snippet next to the resolve). Both fail closed below. Note
+  // `assessmentId` is write-once, so the sibling check below marks exactly
+  // the rows created or re-detected in this run — not merely matched ones.
   const filePath = finding.location.filePath;
   const exists = scope.fileExists
     ? scope.fileExists(filePath)
     : fileExistsInCheckout(scope.rootPath, filePath);
   if (!exists) {
     reportWarning(
-      "Skipping draft-PR auto-verify: finding file no longer exists",
+      "Skipping auto-verify: finding file no longer exists",
       {
         code: "draft_pr_verify_scope_unproven",
         projectId: finding.projectId,
@@ -226,7 +242,7 @@ export function verifyDraftPrRemediation(
   );
   if (siblingPersists) {
     reportWarning(
-      "Skipping draft-PR auto-verify: same-file violation persists after re-scan",
+      "Skipping auto-verify: same-file violation persists after re-scan",
       {
         code: "draft_pr_verify_scope_unproven",
         projectId: finding.projectId,
@@ -238,11 +254,17 @@ export function verifyDraftPrRemediation(
     return;
   }
 
-  const implemented = advanceRemediation(
-    remediation,
-    "implemented",
-    "No longer detected by deterministic reassessment after draft PR approval",
-  );
+  // `approved` advances through `implemented` (the fix landed outside the
+  // tracked PR flow — the resolve with proof above is the implementation
+  // evidence); `implemented` advances straight to `verified`.
+  const wasApproved = remediation.status === "approved";
+  const implemented = wasApproved
+    ? advanceRemediation(
+        remediation,
+        "implemented",
+        "No longer detected by deterministic reassessment after approval",
+      )
+    : remediation;
   const verified = advanceRemediation(
     implemented,
     "verified",
@@ -253,15 +275,17 @@ export function verifyDraftPrRemediation(
     determination: "automated",
     method: "deterministic_reassessment",
   });
-  appendEvidence(rows, {
-    kind: "remediation_implemented",
-    summary: remediationEvidenceSummary("implemented", finding),
-    projectId: finding.projectId,
-    controlId: finding.controlId,
-    findingId: finding.id,
-    assessmentId,
-    detail,
-  });
+  if (wasApproved) {
+    appendEvidence(rows, {
+      kind: "remediation_implemented",
+      summary: remediationEvidenceSummary("implemented", finding),
+      projectId: finding.projectId,
+      controlId: finding.controlId,
+      findingId: finding.id,
+      assessmentId,
+      detail,
+    });
+  }
   appendEvidence(rows, {
     kind: "remediation_verified",
     summary: remediationEvidenceSummary("verified", finding),
@@ -324,21 +348,21 @@ export async function runAssessment(
     .map((control) => control.id)
     .sort()
     .join(",")}`;
-  const head = readRepoHead(rootPath);
+  const head = await readRepoHead(rootPath);
   const sourcesUnchanged =
     previous?.snapshot?.gitHead !== undefined &&
     head !== undefined &&
     previous.snapshot.gitHead === head &&
     previous.snapshot.controlScopeKey === snapshotKey;
 
-  const { snapshot, changes } = await timed("changedetection", () => {
+  const { snapshot, changes } = await timed("changedetection", async () => {
     if (sourcesUnchanged && previous?.snapshot) {
       return {
         snapshot: { ...previous.snapshot },
         changes: [] as FileChange[],
       };
     }
-    const detected = detectChanges(rootPath, previous?.snapshot);
+    const detected = await detectChanges(rootPath, previous?.snapshot);
     return { snapshot: detected.snapshot, changes: detected.changes };
   });
   snapshot.controlScopeKey = snapshotKey;
@@ -495,7 +519,7 @@ export async function runAssessment(
           options.authoritative === false
             ? () => {}
             : (finding) =>
-                verifyDraftPrRemediation(rows, finding, assessmentId, {
+                verifyRemediationOnResolve(rows, finding, assessmentId, {
                   scopedFileSet,
                   sourcesUnchanged,
                   rootPath,

@@ -16,7 +16,7 @@ import type { WorkspaceSlice } from "@complyloop/db/types";
 import { testFinding } from "@/test-fixtures/finding";
 import { materializeAssessmentRun } from "@/test-fixtures/materialize-assessment-run";
 
-import { runAssessment, verifyDraftPrRemediation } from "./assessment";
+import { runAssessment, verifyRemediationOnResolve } from "./assessment";
 import type { ProjectRows } from "./assessment-pipeline";
 import { toPipelineInput } from "./assessment-pipeline";
 
@@ -507,7 +507,7 @@ describe("runAssessment", () => {
       evidence: [],
     };
 
-    verifyDraftPrRemediation(rows, finding, "a1", {
+    verifyRemediationOnResolve(rows, finding, "a1", {
       scopedFileSet: new Set(["Other.tsx"]),
       sourcesUnchanged: false,
       rootPath: "test-root",
@@ -543,7 +543,7 @@ describe("runAssessment", () => {
       evidence: [],
     };
 
-    verifyDraftPrRemediation(rows, finding, "a1", {
+    verifyRemediationOnResolve(rows, finding, "a1", {
       scopedFileSet: null,
       sourcesUnchanged: false,
       rootPath: "test-root",
@@ -575,7 +575,7 @@ describe("runAssessment", () => {
       evidence: [],
     };
 
-    verifyDraftPrRemediation(rows, finding, "a1", {
+    verifyRemediationOnResolve(rows, finding, "a1", {
       scopedFileSet: null,
       sourcesUnchanged: true,
       rootPath: "test-root",
@@ -610,7 +610,7 @@ describe("runAssessment", () => {
 
     // No fileExists seam: the temp checkout only contains Hero.tsx, so the
     // default existence check proves App.tsx is gone.
-    verifyDraftPrRemediation(rows, finding, "a1", {
+    verifyRemediationOnResolve(rows, finding, "a1", {
       scopedFileSet: null,
       sourcesUnchanged: false,
       rootPath,
@@ -653,7 +653,7 @@ describe("runAssessment", () => {
       evidence: [],
     };
 
-    verifyDraftPrRemediation(rows, finding, "a1", {
+    verifyRemediationOnResolve(rows, finding, "a1", {
       scopedFileSet: null,
       sourcesUnchanged: false,
       rootPath: "test-root",
@@ -666,8 +666,7 @@ describe("runAssessment", () => {
     ).toBe(false);
   });
 
-  it("auto-verifies when the only same-run sibling is in another file", () => {
-    const finding = testFinding({
+  it("auto-verifies when the only same-run sibling is in another file", () => {    const finding = testFinding({
       projectId: project.id,
       assessmentId: "a0",
     });
@@ -698,7 +697,7 @@ describe("runAssessment", () => {
       evidence: [],
     };
 
-    verifyDraftPrRemediation(rows, finding, "a1", {
+    verifyRemediationOnResolve(rows, finding, "a1", {
       scopedFileSet: null,
       sourcesUnchanged: false,
       rootPath: "test-root",
@@ -706,5 +705,122 @@ describe("runAssessment", () => {
     });
 
     expect(rows.remediations[0]?.status).toBe("verified");
+  });
+
+  it("auto-verifies an approved remediation without a draft-PR approval action", () => {
+    const finding = testFinding({
+      projectId: project.id,
+      assessmentId: "a0",
+    });
+    const rows: ProjectRows = {
+      findings: [finding],
+      remediations: [
+        {
+          id: "r1",
+          findingId: finding.id,
+          status: "approved" as const,
+          suggestion: null,
+          history: [
+            { status: "approved" as const, at: new Date().toISOString() },
+          ],
+        },
+      ],
+      requirements: [],
+      evidence: [],
+    };
+
+    verifyRemediationOnResolve(rows, finding, "a1", {
+      scopedFileSet: null,
+      sourcesUnchanged: false,
+      rootPath: "test-root",
+      fileExists: () => true,
+    });
+
+    // Approved advances through implemented to verified, with both evidence
+    // rows — the proof strength is identical regardless of approval path.
+    expect(rows.remediations[0]?.status).toBe("verified");
+    expect(
+      rows.evidence.some(
+        (record) => record.kind === "remediation_implemented",
+      ),
+    ).toBe(true);
+    expect(
+      rows.evidence.some((record) => record.kind === "remediation_verified"),
+    ).toBe(true);
+  });
+
+  it("auto-verifies an implemented remediation with only the verified evidence", () => {
+    const finding = testFinding({
+      projectId: project.id,
+      assessmentId: "a0",
+    });
+    const rows: ProjectRows = {
+      findings: [finding],
+      remediations: [
+        {
+          id: "r1",
+          findingId: finding.id,
+          status: "implemented" as const,
+          suggestion: null,
+          history: [
+            { status: "implemented" as const, at: new Date().toISOString() },
+          ],
+        },
+      ],
+      requirements: [],
+      evidence: [],
+    };
+
+    verifyRemediationOnResolve(rows, finding, "a1", {
+      scopedFileSet: null,
+      sourcesUnchanged: false,
+      rootPath: "test-root",
+      fileExists: () => true,
+    });
+
+    expect(rows.remediations[0]?.status).toBe("verified");
+    expect(
+      rows.evidence.some(
+        (record) => record.kind === "remediation_implemented",
+      ),
+    ).toBe(false);
+    expect(
+      rows.evidence.some((record) => record.kind === "remediation_verified"),
+    ).toBe(true);
+  });
+
+  it("does not auto-verify a remediation still at the suggestion stage", () => {
+    const finding = testFinding({
+      projectId: project.id,
+      assessmentId: "a0",
+    });
+    const rows: ProjectRows = {
+      findings: [finding],
+      remediations: [
+        {
+          id: "r1",
+          findingId: finding.id,
+          status: "suggested" as const,
+          suggestion: null,
+          history: [
+            { status: "suggested" as const, at: new Date().toISOString() },
+          ],
+        },
+      ],
+      requirements: [],
+      evidence: [],
+    };
+
+    verifyRemediationOnResolve(rows, finding, "a1", {
+      scopedFileSet: null,
+      sourcesUnchanged: false,
+      rootPath: "test-root",
+      fileExists: () => true,
+    });
+
+    expect(rows.remediations[0]?.status).toBe("suggested");
+    expect(
+      rows.evidence.some((record) => record.kind === "remediation_verified"),
+    ).toBe(false);
   });
 });

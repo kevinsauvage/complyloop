@@ -19,6 +19,7 @@ import { initialActionState } from "../action-state";
 import type { Workspace } from "../workspace/workspace";
 import {
   markRemediationImplementedAction,
+  SITE_VERIFY_TIMEOUT_MS,
   verifyRemediationAction,
 } from "./remediation-verify";
 
@@ -246,6 +247,11 @@ describe("verifyRemediationAction", () => {
       message: "Fix verified by automated re-check.",
     });
     expect(locateViolationInProject).not.toHaveBeenCalled();
+    // Only the finding's own pages are re-audited, not the project's full
+    // route set.
+    expect(scanRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({ runtimeRoutes: ["/", "/about"] }),
+    );
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
     expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
       expect.any(Object),
@@ -290,6 +296,44 @@ describe("verifyRemediationAction", () => {
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe(
       "implemented",
     );
+  });
+
+  it("fails closed with a timeout message when the site re-audit hangs", async () => {
+    const workspace = baseWorkspace({
+      findings: [
+        testFinding({
+          checkId: "consistent-nav",
+          location: {
+            kind: "site",
+            pages: ["/", "/about"],
+            detail: "Navigation differs across pages",
+          },
+        }),
+      ],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+    mockProjectWrite(workspace);
+    scanRuntime.mockReturnValue(new Promise(() => {}));
+
+    vi.useFakeTimers();
+    try {
+      const pending = verifyRemediationAction(
+        "f1",
+        initialActionState,
+        new FormData(),
+      );
+      await vi.advanceTimersByTimeAsync(SITE_VERIFY_TIMEOUT_MS + 1);
+      const result = await pending;
+
+      expect(result.message).toMatch(/timed out/i);
+      expect(scanRuntime).toHaveBeenCalledTimes(1);
+      // Fail closed: recorded as still-failing, never verified.
+      expect(projectWritePayload()?.remediations?.[0]?.status).toBe(
+        "implemented",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("reports still-failing when the runtime finding is still on the page", async () => {

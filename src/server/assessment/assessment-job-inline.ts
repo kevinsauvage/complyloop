@@ -1,7 +1,6 @@
 import "server-only";
 
 import { isE2EHarnessEnabled } from "../e2e-harness";
-import { reportWarning } from "../observability";
 import { dispatchAssessmentWorker } from "./assessment-job-dispatch";
 
 /**
@@ -83,47 +82,18 @@ export async function drainAssessmentJobsInline(): Promise<string> {
  *
  * Dev/e2e drains the queue inline and returns the user-facing message;
  * production kicks the GitHub Actions executor (`repository_dispatch`) and
- * returns `undefined`, so the caller falls back to the "queued" copy. When
- * the dispatch is unconfigured or rejected, production falls back to
- * self-fetching the single-scan worker route
- * (`POST /api/internal/jobs/run?limit=1`) — same scan, Vercel browser stack,
- * kept only as a degraded path until the GH executor is proven.
+ * returns `undefined`, so the caller falls back to the "queued" copy. A
+ * dispatch that is unconfigured or rejected leaves the job `queued` — the
+ * executor's 15-minute schedule reclaims it via lease recovery, so there is
+ * no second executor path to maintain.
  *
- * Never throws — a failed dispatch/self-fetch or a killed task leaves the
- * job `queued`/`running` and the scheduled worker reclaim it via lease
- * recovery.
+ * Never throws — a failed dispatch leaves the job `queued`/`running` and the
+ * scheduled worker reclaims it via lease recovery.
  */
 export async function scheduleAssessmentDrain(): Promise<string | undefined> {
   if (shouldDrainAssessmentJobsInline()) {
     return drainAssessmentJobsInline();
   }
-  if (await dispatchAssessmentWorker()) return undefined;
-  await triggerWorkerSelfFetch();
+  await dispatchAssessmentWorker();
   return undefined;
-}
-
-/** Self-fetch of our own worker endpoint; logs and swallows every failure. */
-async function triggerWorkerSelfFetch(): Promise<void> {
-  try {
-    const baseUrl = process.env.AUTH_URL?.trim().replace(/\/+$/, "");
-    if (!baseUrl) {
-      throw new Error("AUTH_URL is not configured.");
-    }
-    const secret = process.env.WORKER_SECRET?.trim();
-    if (!secret) {
-      throw new Error("WORKER_SECRET is not configured.");
-    }
-    const response = await fetch(`${baseUrl}/api/internal/jobs/run?limit=1`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${secret}` },
-    });
-    if (!response.ok) {
-      throw new Error(`worker drain responded ${response.status}.`);
-    }
-  } catch (error) {
-    reportWarning("opportunistic assessment drain failed", {
-      code: "assessment_opportunistic_drain_failed",
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
 }

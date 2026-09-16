@@ -180,53 +180,16 @@ describe("scheduleAssessmentDrain", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("falls back to the worker-route self-fetch when the dispatch fails", async () => {
+  it("leaves the job queued for the schedule backstop when the dispatch fails", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("E2E_AUTH_ENABLED", "");
     dispatchAssessmentWorker.mockResolvedValue(false);
 
     await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
+    expect(dispatchAssessmentWorker).toHaveBeenCalledTimes(1);
     expect(processNext).not.toHaveBeenCalled();
-    expect(fetch).toHaveBeenCalledWith(
-      "https://app.example.com/api/internal/jobs/run?limit=1",
-      {
-        method: "POST",
-        headers: { authorization: "Bearer test-worker-secret" },
-      },
-    );
-  });
-
-  it("never throws when the self-fetch fails", async () => {
-    const { reportWarning } = await import("../observability");
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("E2E_AUTH_ENABLED", "");
-    vi.mocked(fetch).mockRejectedValueOnce(new Error("network down"));
-
-    await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
-    expect(reportWarning).toHaveBeenCalledWith(
-      "opportunistic assessment drain failed",
-      expect.objectContaining({
-        code: "assessment_opportunistic_drain_failed",
-      }),
-    );
-  });
-
-  it("never throws when the worker route responds with an error", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("E2E_AUTH_ENABLED", "");
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response("error", { status: 503 }),
-    );
-
-    await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
-  });
-
-  it("never throws when AUTH_URL or WORKER_SECRET is missing", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("E2E_AUTH_ENABLED", "");
-    vi.stubEnv("AUTH_URL", "");
-
-    await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
+    // No second executor: no self-fetch of the worker route. The executor's
+    // 15-minute schedule reclaims the queued job via lease recovery.
     expect(fetch).not.toHaveBeenCalled();
   });
 });
