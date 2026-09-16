@@ -188,7 +188,7 @@ Assessments always use the project's `defaultPresetId`. Requirements page
 **Assessment:** manual runs enqueue in the dashboard action and kick the GH
    worker via dispatch (backstop: 15-min schedule); webhook runs go
    enqueue → dispatch, 15-min schedule backstop (see
-   180|Jobs). Either way the worker
+   Jobs above). Either way the worker
    clones + scans → `detectChanges` (depth-1
 clone: author is HEAD) → AST → optional Playwright → merge → re-derive
 statuses → `verifyRemediationOnResolve` (uses the run's re-scan proof, not

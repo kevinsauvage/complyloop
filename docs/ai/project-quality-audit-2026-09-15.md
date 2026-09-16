@@ -1,5 +1,9 @@
 # Project Quality & Improvement Audit
 
+> **Point-in-time audit (2026-09-15)** — scores, graft staleness notes, and
+> file refs describe the repo that day. Still useful for the refactor roadmap;
+> verify each TODO against current source before implementing.
+
 > **Update 2026-09-15 (after `graft build`):** the plain (non-LLM) rebuild was run.
 > Verified: per-file wiring cards are now current (`families/*` cards exist with
 > accurate symbols; no cards remain for deleted `packages/adapters/`,

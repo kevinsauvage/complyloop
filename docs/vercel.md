@@ -100,12 +100,14 @@ and `assessment_opportunistic_drain_failed`) plus the Actions run logs.
 | Variable                                      | Value                                                                                                               |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`                                | Pooled Postgres URL with `sslmode=require`                                                                          |
-| `AUTH_SECRET`                                 | `openssl rand -base64 32` (stable — rotation also re-encrypts stored tokens)                                        |
+| `AUTH_SECRET`                                 | `openssl rand -base64 32` (stable — rotation invalidates sessions AND stored GitHub tokens, reconnect required; see TODO-12) |
 | `AUTH_URL`                                    | `https://<vercel-app>` (**required** in production)                                                                 |
 | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`       | GitHub App OAuth client                                                                                             |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`    | Installation-token repo access                                                                                      |
 | `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET`   | Install link + webhook verification                                                                                 |
 | `WORKER_SECRET`                               | Bearer for the worker-route fallback (self-fetch secret, ≥16 chars)                                                             |
+| `GH_WORKER_DISPATCH_TOKEN`                    | Fine-grained PAT (Actions write on the app repo) so the app can fire `repository_dispatch`; target repo from `APP_REPO_FULL_NAME` or Vercel's `VERCEL_GIT_REPO_OWNER` / `VERCEL_GIT_REPO_SLUG` |
+| `APP_REPO_FULL_NAME`                          | `owner/repo` of the app repo (dispatch target fallback)                                                                         |
 | `ASSESSMENT_RUNTIME_BROWSER`                  | `serverless` (Vercel) — unset locally                                                                               |
 | `ASSESSMENT_MAX_CHECKOUT_BYTES`               | `100000000` (100 MB — `/tmp` caps at ~500 MB)                                                                       |
 | `ASSESSMENT_MAX_CHECKOUT_FILES`               | `10000`                                                                                                             |
@@ -181,7 +183,7 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 
 ## Decision log (Vercel migration, 2026-09-15)
 
-- **Deleted:** `scripts/run-assessment-worker.ts` (Cron owns draining),
+- **Deleted:** `scripts/run-assessment-worker.ts` (the GitHub Actions `assessment-worker` workflow owns draining),
   `Dockerfile` / `docker-compose.yml` / `.dockerignore`, `docs/deploy.md`,
   `scripts/backup-postgres.sh`, `src/server/github/git.ts` (+ tests),
   `simple-git` and `playwright` library deps, `worker`/`ops:backup` scripts,
@@ -198,5 +200,5 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
   `@playwright/test` for local dev/e2e).
 - **Poolers:** no code change — `prepare: false` was already set.
 - **Not live-verified here** (needs a real deployment): sparticuz launch on
-  Vercel infra, isomorphic-git force-push with an installation token, Cron
+  Vercel infra, isomorphic-git force-push with an installation token, worker
   end-to-end. The checklist above covers each.2

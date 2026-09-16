@@ -45,11 +45,15 @@ Record new stack decisions here and in `docs/ai/architecture.md`.
 npm run dev              # Dev server (Turbopack); transpiles analysis-core from source
 npm run build            # Production build; transpiles analysis-core from source
 npm run build:core       # Compile packages/analysis-core → dist (publish)
-npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done
+npm run verify:gate      # Full gate: lint + typecheck + test + build + bundle check (definition of done)
+npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done (same as verify:gate)
 npx vitest run <touched-file>  # Targeted verify during work (fast loop; full gate at the end)
 npm run test:coverage    # Coverage gates (vitest.config.mts)
 npm run test:db          # Postgres persistence integration (needs DATABASE_URL)
 npm run db:migrate       # Apply migrations (tsx runs with --conditions=react-server so server-only imports resolve; keep the flag on every tsx script)
+npm run worker:drain     # Run queued assessment jobs locally (builds + runs executor)
+npm run ops:check        # Prod config sanity (DB + required env + queue depth)
+npm run playwright:install  # Chromium for runtime audits + e2e
 npm run test:e2e         # Playwright (after e2e:seed)
 ```
 
@@ -99,6 +103,7 @@ Async data-fetching components (`workspace-context`, `connect-project-panel`, `n
 
 Optional accelerator for a 800-file monorepo (not a substitute for reading the cited span).
 `graft/INDEX.md` lists concept nodes with exact `file:line` spans.
+`graft/` is gitignored local cache — run `graft build` after checkout or when spans look stale.
 
 - `graft ask "<question>" --source` → ranked code spans for understanding/editing.
 - `graft grep "<literal>"` → exhaustive occurrences (ranked results are top-N only).

@@ -1,5 +1,11 @@
 # Assessment Flow Audit — Simplify, Improve, Strengthen
 
+> **Status (2026-09-16): triaged against current code — all open items
+> confirmed still applicable, refs refreshed.** Production drains via the
+> GitHub Actions `assessment-worker` (dispatch on enqueue + 15-min schedule;
+> P1-2 self-fetch deletion has landed). Verify refs again before implementing;
+> see `docs/vercel.md` for current topology.
+
 ---
 
 ## P0 — Critical
@@ -12,13 +18,13 @@
 Queue → run spans `assessment-runner.ts` (batch loop + teardown), `assessment-job-inline.ts` (drain + schedule + self-fetch), `assessment-job-dispatch.ts` (dispatch), `assessment-worker.ts` (claim→run→settle), and `api/internal/jobs/run/route.ts` (batch parsing). A new developer must read five files to answer "how does a job run". After P1-2 (delete self-fetch), runner + inline are thin wrappers around each other.
 
 **Where:**
-`src/server/assessment/assessment-runner.ts`, `assessment-job-inline.ts`, `assessment-job-dispatch.ts`, `assessment-worker.ts`, `src/app/api/internal/jobs/run/route.ts`, `scripts/assessment-worker-drain.ts`, `scripts/build-worker.mjs`.
+`src/server/assessment/assessment-runner.ts` (`runAssessmentJobBatch` L50–89), `assessment-job-inline.ts` (`drainAssessmentJobQueue` L28–45, `scheduleAssessmentDrain` L93–99), `assessment-job-dispatch.ts` (`dispatchAssessmentWorker` L42–69), `assessment-worker.ts` (`processNextAssessmentJob` L279–284 → `settleRunningAssessmentJob` L214–276 → `runClaimedAssessmentJob` L42), `src/app/api/internal/jobs/run/route.ts` (schemas L27–43), `scripts/assessment-worker-drain.ts` (defaults L43–44), `scripts/build-worker.mjs` (bundle + `__name` tripwire), `.github/workflows/assessment-worker.yml` (inputs L31–37, schedule backstop L27–29).
 
-**Current flow:**
-Route parses `limit`/`concurrency` → `runAssessmentJobBatch` (prune + sequential/pool) → `processNextAssessmentJob` (claim) → `settleRunningAssessmentJob` → `runClaimedAssessmentJob`. Inline path: `scheduleAssessmentDrain` → `drainAssessmentJobsInline` → `drainAssessmentJobQueue` (dynamic import of runner!) → `runAssessmentJobBatch`. The dynamic import exists only to keep trigger sites from statically reaching the scan stack.
+**Current flow (verified 2026-09-16):**
+Route parses `limit`/`concurrency` (`route.ts:27-43` schemas, `:45-60` parse, `:106-115` batch call) → `runAssessmentJobBatch` (prune + sequential/pool, `assessment-runner.ts:50-89`, pool calls `processNextAssessmentJob` at `:76`) → `processNextAssessmentJob` (claim, `assessment-worker.ts:279-284`) → `settleRunningAssessmentJob` (`:214-276`) → `runClaimedAssessmentJob` (`:42`, still private). Inline path: `scheduleAssessmentDrain` (`assessment-job-inline.ts:93-99`, now two-branch: inline vs dispatch — P1-2 self-fetch deleted) → `drainAssessmentJobsInline` (`:53-71`) → `drainAssessmentJobQueue` (`:28-45`, dynamic `import("./assessment-runner")` at `:31`) → `runAssessmentJobBatch`. The dynamic import exists only to keep trigger sites from statically reaching the scan stack.
 
 **Problem:**
-Two batch loops (`runAssessmentJobBatch` vs `drainAssessmentJobQueue` wrapper counting by kind), two drain entry points, dynamic import dance, three default limits (20 inline / 10 route / 10 GH workflow), and a bespoke esbuild worker bundle — for claim → run → settle.
+Two batch loops (`runAssessmentJobBatch` vs `drainAssessmentJobQueue` wrapper counting by kind), two drain entry points, dynamic import dance, three disagreeing default limits (20 inline / 1 route-default capped at 10 / 10+2 GH workflow + `assessment-worker-drain.ts:43-44` fallbacks), and a bespoke esbuild worker bundle — for claim → run → settle.
 
 **Proposed simplification:**
 One `assessment-scheduler.ts`: `scheduleAssessmentDrain()` (inline-or-dispatch decision), `drainQueue({limit, concurrency})` (single batch loop returning counts), re-exported worker-result types. Keep `assessment-worker.ts` (claim→run→settle) and `assessment-jobs.ts` (SQL) as-is — they have real cohesion. Unify the limit default in one constant consumed by the route, inline path, and workflow docs. Keep the dynamic-import boundary but document it once. Evaluate deleting `build-worker.mjs` (run the drain via `tsx` like `db:migrate` does — one fewer build artifact).
@@ -30,8 +36,8 @@ No queue, claim, lease, retry, or scan semantics change. Pure module-boundary mo
 
 **Complexity:** Medium.
 
-**Evidence:**
-`assessment-job-inline.ts:29-46` (`drainAssessmentJobQueue` wraps `runAssessmentJobBatch` to recount by kind); `:96-103` (three-branch scheduler); `assessment-runner.ts:50-89` (second loop with pool); route `:27-60` (separate limit/concurrency schemas); workflow `:33-36` (third copy of defaults).
+**Evidence (verified 2026-09-16):**
+`assessment-job-inline.ts:28-45` (`drainAssessmentJobQueue` wraps `runAssessmentJobBatch` to recount by kind); `:93-99` (two-branch scheduler — inline vs dispatch; P1-2 self-fetch deleted); `assessment-job-inline.ts:48-52` (stale "Production self-fetches" comment — fix with this item); `assessment-runner.ts:50-89` (pool loop); `route.ts:27-43` (limit default 1/cap 10, concurrency default 1/cap 4); `assessment-worker.yml:31-37` + `assessment-worker-drain.ts:43-44` (GH-side 10/2 defaults).
 
 ---
 
@@ -69,8 +75,8 @@ Payload-only, best-effort writes; claim/lease/complete logic untouched; stale pa
 **Why:**
 Per assessment run, per control: two full-array `.filter` passes over all findings (`openFindings`, `dismissedFindings`), plus `rawFindings.filter(checkId)` per control in `assessment.ts:426-428` (O(C×R)). The status-refresh module already solved this exact problem with `openFindingsByControlId` ("O(controls × findings) → O(findings + controls)", `assessment-status.ts:349-357`). Reconcile is the hotter loop (it also mutates + writes evidence) and still does the naive thing.
 
-**Where:**
-`src/server/assessment/assessment-findings.ts` L244–255, `src/server/assessment/assessment.ts` L419–431 (`rawForControl` filter per control).
+**Where (verified 2026-09-16):**
+`src/server/assessment/assessment-findings.ts` L262–273, `src/server/assessment/assessment.ts` L514–524 (`rawForControl` filter per control).
 
 **Proposed simplification:**
 Build `openByControl`, `dismissedByControl`, and `rawByCheckId` maps once per run (same shape as the status module's map) and pass them into `reconcileControlFindings`. Mechanical change; keep the per-control function signature otherwise.
@@ -82,8 +88,8 @@ Pure in-memory iteration-order change; matching/resolution/evidence semantics un
 
 **Complexity:** Small.
 
-**Evidence:**
-`assessment-findings.ts:244-255` (two `.filter` per control); `assessment.ts:426-428` (third per-control filter); `assessment-status.ts:349-357` (in-repo precedent for the indexed version).
+**Evidence (verified 2026-09-16):**
+`assessment-findings.ts:262-267` (`openFindings` full-array `.filter` per control); `:268-273` (`dismissedFindings` second `.filter` per control); `assessment.ts:522-524` (third per-control filter `rawFindings.filter(checkId)` at the `reconcileControlFindings` call site `:516`); `assessment-status.ts:349-357` (indexed precedent, still the only indexed path — reconcile does not use it).
 
 ---
 
@@ -92,8 +98,8 @@ Pure in-memory iteration-order change; matching/resolution/evidence semantics un
 **Why:**
 Per assessment: quota walk(s) (`assertCheckoutWithinQuota`, twice when a ref is given — pre-fetch + post), `captureSnapshot` hash walk, `listSourceFiles` inside the scan, and per-file reads in the scan + suggestion builder. Worse, the walks disagree on scope: snapshot enumerates `"script"` files, the AST scan enumerates `"jsx"` files (`monitor.ts:33` vs `scan.ts:53`), and quota walks everything except `.git`. Three enumerations, three extension policies, one tree.
 
-**Where:**
-`src/server/assessment/repo-checkout.ts` (`assertCheckoutWithinQuota` L43–86, called L234 + L262), `src/server/assessment/monitor.ts` (`captureSnapshot` L31–38), `packages/analysis-core/src/scan.ts` (`scanProject` L52–62), `packages/analysis-core/src/source-files.ts` (two scope flags).
+**Where (verified 2026-09-16):**
+`src/server/assessment/repo-checkout.ts` (`assertCheckoutWithinQuota` L43–86, called L234 + L262), `src/server/assessment/monitor.ts` (`captureSnapshot` L37–46, scope flag L41), `packages/analysis-core/src/scan.ts` (`scanProject` L52–62, scope flag L53), `packages/analysis-core/src/source-files.ts` (scope flags L7–14).
 
 **Proposed simplification:**
 (a) Unify on one `listSourceFiles` scope for snapshot + scan (snapshot hashes a superset the scan never reads — align them and document why if the superset is intentional for change detection); (b) fold the quota check into the snapshot walk (bytes/files counted while hashing — one walk instead of two/three). Keep `buildSuggestion`'s `fileTextCache` (already correct).
@@ -105,8 +111,8 @@ Change-detection semantics preserved (same hashes, same paths); quota enforced a
 
 **Complexity:** Medium (touches checkout/snapshot contract — snapshot format must stay backward-compatible for `detectChanges` diffing).
 
-**Evidence:**
-`repo-checkout.ts:234` + `:262` (double quota walk for ref checkouts); `monitor.ts:33` (`listSourceFiles(rootPath, "script")`); `scan.ts:53` (`listSourceFiles(rootPath, "jsx")`).
+**Evidence (verified 2026-09-16):**
+`repo-checkout.ts:234` + `:262` (double quota walk for ref checkouts); `monitor.ts:41` (`listSourceFiles(rootPath, "script")`); `scan.ts:53` (`listSourceFiles(rootPath, "jsx")`); `source-files.ts:9-14` (`jsx` vs `script` glob sets still distinct). Only mitigation since writing: shared fast-glob ignore semantics (`source-files.ts:30-41`).
 
 ---
 
@@ -115,11 +121,11 @@ Change-detection semantics preserved (same hashes, same paths); quota enforced a
 **Why:**
 Every remediation transition writes **two** records: a `history` entry appended to the remediation payload _and_ an evidence row (`remediation_approved/_implemented/_verified`, plus `ai_remediation_suggested`). They carry the same `(status, at, note)` triple in different shapes, both persisted, both migrated forever. Evidence is already the append-only audit trail and is already queried per finding (`evidence_finding_at_idx`).
 
-**Where:**
-`packages/analysis-core/src/contract/entities.ts` (`RemediationHistoryEntry` L111–115, `Remediation.history`), `src/core/remediation-lifecycle.ts` (`appendRemediationHistory`), `src/server/assessment/remediation-evidence.ts`, finding-history UI (`remediation-history.tsx`).
+**Where (verified 2026-09-16):**
+`packages/analysis-core/src/contract/entities.ts` (`RemediationHistoryEntry` L127–131, `Remediation.history` L138), `src/core/remediation-lifecycle.ts` (`appendRemediationHistory` L50–63), `src/server/assessment/remediation-evidence.ts` (summary/detail helpers L7–41), finding-history UI (`src/components/findings/remediation-history.tsx:18` — sole production `.history` reader).
 
-**Current flow:**
-`advanceRemediation` appends history **and** every caller separately appends evidence with the same note (e.g. `assessment.ts:206-214`, `remediation.ts` approve path, `remediation-verify.ts`).
+**Current flow (verified 2026-09-16):**
+`advanceRemediation` (`remediation-lifecycle.ts:36-47`) delegates to `appendRemediationHistory`, and `refreshSuggestion` also appends (`:70-99`) — while every caller separately appends evidence with the same note (e.g. `assessment.ts:258-294`, `remediation.ts` approve path, `remediation-verify.ts`).
 
 **Problem:**
 Dual-write of the same fact; the two can diverge (a transition that forgets evidence, or evidence without history — e.g. AI explanation writes neither consistently). Readers must know which source to trust per event type.
@@ -134,8 +140,8 @@ Evidence rows already exist for every transition written through the current cod
 
 **Complexity:** Medium (UI history component re-point + backfill-free coexistence).
 
-**Evidence:**
-`entities.ts:117-130` (Remediation shape); `remediation-lifecycle.ts:49-63`; `remediation-evidence.ts` (parallel record); `schema.ts:263-271` (finding-scoped evidence index already supports the query).
+**Evidence (verified 2026-09-16):**
+`entities.ts:127-138` (history shape); `remediation-lifecycle.ts:36-47` (advance delegates to append), `:50-63`, `:70-99` (`refreshSuggestion` also appends); dual-write sites `remediation.ts:75-89`, `pr.ts:83-101`, `remediation-verify.ts:177+184-191` and `:360-371`, `assessment.ts:258-294`, `remediation-ai.ts:148-171`; `schema.ts:262-272` (`evidence_finding_at_idx` already supports the query). Status/approval/verify logic reads `status`, never `history` — the "verify this" caveat checks out in favor of the simplification (sole production `.history` reader is `remediation-history.tsx:18`).
 
 ---
 
@@ -144,8 +150,8 @@ Evidence rows already exist for every transition written through the current cod
 **Why:**
 AI outputs are persisted onto the finding/remediation rows with no link to the scan that produced them. When reassessment updates `location`/`fix` (match path L299–305) or resolves + re-creates the finding (P1-5 churn), the stored AI suggestion still describes the old snippet — and nothing marks it stale. Engineers can approve a suggestion for code that no longer exists.
 
-**Where:**
-`src/server/actions/remediation-ai.ts` (suggestion persisted L100–109, explanation pushed L41–42), `src/server/assessment/assessment-findings.ts` (match path refreshes `location`/`fix` L296–305 without touching `suggestion`/`explanations`), `packages/analysis-core/src/contract/finding-types.ts` (`RemediationSuggestion` has `generatedAt`, no scan/commit ref).
+**Where (verified 2026-09-16):**
+`src/server/actions/remediation-ai.ts` (explanation append L55–62, suggestion persist L148–171), `src/server/assessment/assessment-findings.ts` (re-detected L286–311, match L312–326), `packages/analysis-core/src/contract/finding-types.ts` (`Explanation` L139–148, `RemediationSuggestion` L171–179), plus `src/server/assessment/ai-fix.ts:224-233` (second un-stamped `refreshSuggestion` persist).
 
 **Proposed simplification:**
 Stamp AI artifacts with the producing context (`assessmentId` + `snapshot.gitHead` already available at call time) and surface "suggestion predates latest scan" in the UI when the finding's `assessmentId`/location moved on; refresh-or-discard on re-detect (re-detected path L268–292 is the natural invalidation point — drop AI artifacts there with evidence, since the code changed under them). Also cap `explanations[]` growth (e.g. keep latest AI + deterministic baseline) — today every click appends forever and each append rewrites the whole finding row (bumps `updatedAt`, fights the stale guard).
@@ -157,31 +163,31 @@ No AI, status, or verification logic changes. Stale suggestions become visible i
 
 **Complexity:** Small–Medium.
 
-**Evidence:**
-`remediation-ai.ts:100-123` (persist with no scan ref); `assessment-findings.ts:294-306` (location/fix refreshed, suggestion untouched); `finding-types.ts:171-179` (no provenance-of-scan fields).
+**Evidence (verified 2026-09-16):**
+`remediation-ai.ts:59` (unbounded explanations append); `:150-171` (persist + evidence `detail` with no scan/commit ref); `assessment-findings.ts:288-299` (re-detect refreshes location/fix/analyzers, suggestion/explanations untouched) and `:319-326` (match path, same; `assessmentId` deliberately write-once per `:315-318` comment); `finding-types.ts:171-179` (no provenance-of-scan fields); no invalidation path exists anywhere (grep `stale*suggestion|invalidat|predates` — no hits).
 
 ---
 
-### [ ] P2-9 — Axe crash fails the whole scan while every other engine failure is contained
+### [ ] P2-9 — Axe crash fails the whole runtime sub-scan while every other engine failure is contained
 
 **Why:**
-Engine containment is inconsistent: throwing custom probes are recorded on `probeFailures` and the pass continues; html-validate failures are non-fatal; but "an axe crash still fails the scan" (architecture doc). One flaky page (axe OOM/timeout on a large DOM) fails the job → 3 retries of full scans → terminal failure evidence — for a defect in _one sub-engine on one page_.
+Engine containment is inconsistent: throwing custom probes are recorded on `probeFailures` and the pass continues; html-validate failures are non-fatal; but an axe throw escapes the per-page loop and the whole-scan catch discards already-collected pages (`findings: [], pagesScanned: 0`). Blast-radius note (verified 2026-09-16): at the *job* level this no longer fails anything — `assessment.ts` degrades to `unable_to_verify` and continues — so the loss is the runtime sub-scan's findings, not the job. One flaky page (axe OOM/timeout on a large DOM) still wipes the other pages' results.
 
-**Where:**
-`packages/analysis-core/src/runtime/scan.ts` (orchestration; `classifyRuntimeScanError` in `scan-error.ts`), `docs/ai/architecture.md` L141–143 (documents the inconsistency).
+**Where (verified 2026-09-16):**
+`packages/analysis-core/src/runtime/scan.ts` (page loop L374–492; unguarded axe call L401; html-validate guard L417–422; whole-scan catch L610–632), `scan-error.ts` (`classifyRuntimeScanError` L105–119), `docs/ai/architecture.md` L141–143 (documents the inconsistency), `src/server/assessment/assessment.ts` L471–498 (runtimeRan gate + non-fatal handling).
 
 **Proposed simplification:**
-Contain axe per page like custom probes: on axe crash, record the page + error on the run (extend the existing `probeFailures`-style record / `runtimeError` on `AssessmentEngines`), continue other pages, and let authority gates do their job (`runtimeRan` requires `pagesScanned > 0`, `assessment.ts:375-378` — a total axe outage still yields `runtimeRan=false` → `unable_to_verify`, never false `passed`). Only fail the job when _zero_ pages produce results across all engines.
+Contain axe per page like custom probes: on axe crash, record the page + error on the run (extend the existing `probeFailures`-style record / `runtimeError` on `AssessmentEngines`), continue other pages, and let authority gates do their job (`runtimeRan` requires `pagesScanned > 0`, `assessment.ts:471-474` — a total axe outage still yields `runtimeRan=false` → `unable_to_verify`, never false `passed`). Only fail the job when _zero_ pages produce results across all engines. (Failing closed on total outage is already the behavior — this change only preserves partial results.)
 
 **Why this is safe:**
-Status law already handles partial runtime data faithfully (authority gates degrade to `unable_to_verify`). Failing closed on total outage is preserved; partial outages become visible-but-degraded instead of job-fatal.
+Status law already handles partial runtime data faithfully (authority gates degrade to `unable_to_verify`). Partial outages become visible-but-degraded instead of wiping sibling pages' findings.
 
-**Impact:** Medium (fewer spurious job failures/retries on large sites)
+**Impact:** Medium (fewer lost runtime findings on large sites)
 
 **Complexity:** Medium (touch runtime orchestration + tests; verify `runtimeViolationStillPresent` single-page path still fails loudly — it should, it's a user-facing verdict).
 
-**Evidence:**
-`architecture.md:141-143` ("a throwing custom probe … continues. html-validate failures are non-fatal. An axe crash still fails the scan."); `assessment.ts:375-378` (`runtimeRan` gate already fail-safe); `runtime/scan.ts` + `scan-error.ts` (per-page error classification exists — reuse it).
+**Evidence (verified 2026-09-16):**
+`scan.ts:401` (axe throw escapes page loop — only a `finally` teardown at `:485-491`) vs `:417-422` (html-validate contained) vs `custom-checks/index.ts:93-117` (`runProbe` contained to `probeFailures`); `scan.ts:627-631` (catch discards pages → `findings: [], pagesScanned: 0`); `architecture.md:141-143` ("a throwing custom probe … continues. html-validate failures are non-fatal. An axe crash still fails the scan."); `assessment.ts:471-474` (`runtimeRan` gate already fail-safe) + `:475-492` (failed sub-scan warns, job continues — blast radius is the sub-scan, not the job).
 
 ---
 
@@ -190,8 +196,8 @@ Status law already handles partial runtime data faithfully (authority gates degr
 **Why:**
 Two schema-level sharp edges: (a) `upsertRequirements` conflicts on `(projectId, controlId)` but `SET id = excluded.id` — every concurrent writer mints a fresh UUID and _replaces_ the row id, so stable requirement identity doesn't exist across writers (any external reference, log, or future FK to requirement id dangles). (b) `findings.assessmentId → assessments ON DELETE CASCADE`: deleting an assessment row deletes findings (project reset/disconnect paths must be audited for data loss beyond intent).
 
-**Where:**
-`packages/db/src/repo/requirements.ts` L33–68 (conflict target + `id: sql\`excluded.id\``), `packages/db/src/schema.ts` L181–206 (findings FK cascade), reset/disconnect actions (`project_reset` evidence kind — find the deleter).
+**Where (verified 2026-09-16 — refs confirmed current):**
+`packages/db/src/repo/requirements.ts` L33–68 (conflict target + `id: sql\`excluded.id\`` at L61), `packages/db/src/schema.ts` L181–206 (findings FK cascade L189–191), reset/disconnect actions (`project_reset` evidence kind — find the deleter).
 
 **Proposed simplification:**
 (a) Stop overwriting `id` on conflict — keep the existing row id (`SET` payload/status only; fall back to deterministic ids `projectId:controlId`-derived if writers need convergence without a read). (b) Audit the reset/disconnect delete path; if assessment deletion is used for retention/reset, either scope the cascade deliberately (document) or null the FK. Both are verify-first, change-second.
@@ -205,7 +211,7 @@ Requirement identity is `(project, control)` everywhere in code (unique index al
 
 **Complexity:** Small–Medium.
 
-**Evidence:**
-`requirements.ts:55-67` (comment explains convergence, but `id: sql\`excluded.id\``also swaps identity);`schema.ts:189-191` (`assessment_id … references … onDelete: cascade`).
+**Evidence (verified 2026-09-16):**
+`requirements.ts:61` (`id: sql\`excluded.id\`` still swaps identity); `schema.ts:189-191` (cascade intact); `assessment-status.ts:150` + `:282` (new requirements still `crypto.randomUUID()` — no deterministic-id change since the 2026-09-16 note below); `mappers.ts:56-62` (payload id passed through).
 
 ---
