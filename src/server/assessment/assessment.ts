@@ -2,8 +2,8 @@ import "server-only";
 
 import fs from "node:fs";
 
-import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
 import { requiresFullTreeScan } from "@complyloop/analysis-core/check-authority";
+import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
 import {
   type Assessment,
   type EvidenceRecord,

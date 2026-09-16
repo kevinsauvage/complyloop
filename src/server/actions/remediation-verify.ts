@@ -37,15 +37,15 @@ import {
   upsertFindingInRows,
 } from "../workspace/project-rows";
 import {
-  getWorkspace,
   remediationForFinding,
   requireFinding,
+  requireProjectAccess,
   requireRemediationForFinding,
 } from "../workspace/workspace";
 import { withFindingWrite } from "../workspace/workspace-write";
 import { runFindingAction } from "./define-action";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, replaceRemediation, requireFindingContext } from "./shared";
+import { refresh, replaceRemediation } from "./shared";
 
 const markImplementedInput = z.object({
   note: optionalNoteSchema,
@@ -213,11 +213,12 @@ export async function verifyRemediationAction(
   void formData;
   return runAction(async () => {
     const findingId = parseEntityId(findingIdRaw);
-    const preview = await getWorkspace();
+    // Light preview reads (single finding + remediation rows, one project row
+    // + its memberships) instead of the full tenancy load: the verdict below
+    // runs outside the lock, and the live rows are re-validated inside it.
     const finding = await requireFinding(findingId);
-    const { project: previewProject } = requireFindingContext(
-      preview,
-      finding,
+    const previewProject = await requireProjectAccess(
+      finding.projectId,
       "project.remediate",
     );
     const previewRemediation = await requireRemediationForFinding(findingId);

@@ -13,15 +13,16 @@ import {
   generatePatchCandidateOnCheckout,
   persistPatchCandidate,
 } from "../assessment/ai-fix";
+import { getSession } from "../auth-session";
 import { assertAiRateLimit } from "../rate-limit";
 import {
   controlById,
-  getWorkspace,
   requireFinding,
+  requireProjectAccess,
 } from "../workspace/workspace";
 import { withFindingWrite } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, requireFindingContext } from "./shared";
+import { refresh } from "./shared";
 
 export async function generateAiFixAction(
   findingIdRaw: string,
@@ -32,11 +33,11 @@ export async function generateAiFixAction(
   void _formData;
   return runAction(async () => {
     const findingId = parseEntityId(findingIdRaw);
-    const preview = await getWorkspace();
+    // Light preview reads (single finding row + project guard) instead of the
+    // full tenancy load: checkout + AI run outside the write lock below.
     const finding = await requireFinding(findingId);
-    const { project } = requireFindingContext(
-      preview,
-      finding,
+    const project = await requireProjectAccess(
+      finding.projectId,
       "project.remediate",
     );
     assertSourceLocatedFinding(finding);
@@ -50,8 +51,9 @@ export async function generateAiFixAction(
         "Connect a GitHub repository before generating a patch.",
       );
     }
-    if (!hasSafeDeterministicFix(finding) && preview.userId) {
-      await assertAiRateLimit(preview.userId);
+    if (!hasSafeDeterministicFix(finding)) {
+      const sessionUserId = (await getSession())?.user?.id;
+      if (sessionUserId) await assertAiRateLimit(sessionUserId);
     }
     const control = controlById(finding.controlId);
     // Checkout + AI + re-verify run outside any write lock (see P2-8 /

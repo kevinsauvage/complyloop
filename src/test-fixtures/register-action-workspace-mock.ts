@@ -17,6 +17,7 @@ import type {
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { requireOnFindingProject } from "@/server/actions/shared";
+import type { Permission } from "@/core/rbac";
 import type { ProjectWriteWorkspace } from "@/server/workspace/workspace";
 
 vi.mock("next/cache", () => ({
@@ -64,6 +65,22 @@ vi.mock("@/server/workspace/workspace", async () => {
       if (!remediation)
         throw new PublicError("No remediation for that finding.");
       return remediation;
+    },
+    requireProjectAccess: async (projectId: string, permission: Permission) => {
+      const workspace =
+        (await actionWorkspaceMocks.getWorkspace()) as WriteSlice & {
+          projects: Array<{ id: string }>;
+        };
+      const project = workspace.projects.find(
+        (row) => row.id === projectId,
+      );
+      if (!project) throw new PublicError("Unknown project.");
+      requireOnFindingProject(
+        workspace as Parameters<typeof requireOnFindingProject>[0],
+        { projectId } as Finding,
+        permission,
+      );
+      return project;
     },
   };
 });

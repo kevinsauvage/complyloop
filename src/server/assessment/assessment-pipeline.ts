@@ -253,22 +253,30 @@ export async function applyAuthoritativeAssessment(input: {
         trigger: job.trigger,
         alerts: alerts.length,
         leaseExpiresAt: job.leaseExpiresAt,
+        // Which pushed SHAs this run absorbed without scanning individually
+        // (webhook coalescing) — answers "was commit X assessed?".
+        ...(job.payload.supersededRefs?.length
+          ? { supersededRefs: job.payload.supersededRefs }
+          : {}),
       },
     });
   });
 }
 
 /**
- * Records terminal job-failure evidence under the project write lock so it
- * serializes with concurrent assessment applies. Never masks the original
- * job failure — reports bookkeeping errors as warnings instead.
+ * Records job-failure evidence under the project write lock so it serializes
+ * with concurrent assessment applies — for terminal failures and for retries
+ * (a Pipeline showing "retrying" otherwise has no durable record of why).
+ * Never masks the original job failure — reports bookkeeping errors as
+ * warnings instead.
  */
 export async function recordAssessmentFailureEvidence(input: {
   projectId: string;
   job: AssessmentJob;
   error: unknown;
+  phase: "failed" | "retrying";
 }): Promise<void> {
-  const { projectId, job, error } = input;
+  const { projectId, job, error, phase } = input;
   try {
     const db = await loadProjectDb(projectId);
     const project = db.projects.find((candidate) => candidate.id === projectId);
@@ -278,10 +286,13 @@ export async function recordAssessmentFailureEvidence(input: {
     await withProjectLock(projectId, async (tx) => {
       await insertEvidence(tx, {
         kind: "assessment_job",
-        summary: `Assessment job ${job.id} failed after ${job.attempts} attempt(s).`,
+        summary:
+          phase === "failed"
+            ? `Assessment job ${job.id} failed after ${job.attempts} attempt(s).`
+            : `Assessment job ${job.id} failed attempt ${job.attempts}; retrying.`,
         projectId: project.id,
         detail: {
-          phase: "failed",
+          phase,
           jobId: job.id,
           attempts: job.attempts,
           error: errorMessage,

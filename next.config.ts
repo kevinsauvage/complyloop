@@ -1,4 +1,6 @@
-import { withSentryConfig } from "@sentry/nextjs";
+// `@sentry/nextjs/config` is the non-deprecated entry point; the root export
+// warns and stops working in @sentry/nextjs v11.
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 /**

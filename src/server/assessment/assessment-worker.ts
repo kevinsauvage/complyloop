@@ -240,16 +240,15 @@ export async function settleRunningAssessmentJob(
     return { kind: "succeeded", jobId: job.id };
   } catch (error) {
     const status = await failAssessmentJob(effectiveJob, error);
-    if (status === "failed") {
-      // Failure evidence serializes with concurrent applies via the project
-      // write lock (see assessment-pipeline.ts). Bookkeeping never masks
-      // the original job failure.
-      await recordAssessmentFailureEvidence({
-        projectId: effectiveJob.projectId,
-        job: effectiveJob,
-        error,
-      });
-    }
+    // Failure evidence serializes with concurrent applies via the project
+    // write lock (see assessment-pipeline.ts). Bookkeeping never masks
+    // the original job failure.
+    await recordAssessmentFailureEvidence({
+      projectId: effectiveJob.projectId,
+      job: effectiveJob,
+      error,
+      phase: status === "failed" ? "failed" : "retrying",
+    });
     reportError(error, {
       code:
         status === "failed"

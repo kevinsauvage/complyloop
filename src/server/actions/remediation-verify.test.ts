@@ -78,10 +78,13 @@ vi.mock("@complyloop/analysis-core/runtime/scan", () => ({
 const project = testProject({ orgId: "org-1" });
 const finding = testFinding();
 
-function baseWorkspace(overrides: Partial<WorkspaceSlice> = {}): Workspace {
+function baseWorkspace(
+  overrides: Partial<WorkspaceSlice> = {},
+  role: "member" | "viewer" = "member",
+): Workspace {
   const { findings, remediations, ...rest } = overrides;
   return testWorkspace({
-    role: "member",
+    role,
     userId: "user-1",
     project,
     findings: findings ?? [finding],
@@ -102,6 +105,23 @@ afterEach(() => {
 });
 
 describe("verifyRemediationAction", () => {
+  it("denies viewers before running any re-audit", async () => {
+    const viewer = baseWorkspace({}, "viewer");
+    viewer.access.memberships = [];
+    getWorkspace.mockResolvedValue(viewer);
+
+    const result = await verifyRemediationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.ok ? null : result.message).toMatch(/Not allowed/);
+    expect(scanRuntime).not.toHaveBeenCalled();
+    expect(runtimeViolationStillPresent).not.toHaveBeenCalled();
+    expect(projectWritePayload()).toBeUndefined();
+  });
+
   it("refuses to verify a source finding by applying a local patch", async () => {
     const workspace = baseWorkspace();
     getWorkspace.mockResolvedValue(workspace);

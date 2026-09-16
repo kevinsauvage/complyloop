@@ -323,6 +323,59 @@ describe("settleRunningAssessmentJob", () => {
     }
   });
 
+  it("records retrying evidence when the job will retry", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockRejectedValue(new Error("clone failed"));
+    failAssessmentJob.mockResolvedValue("queued");
+
+    await expect(settleRunningAssessmentJob(job())).resolves.toEqual({
+      kind: "retrying",
+      jobId: "job-1",
+    });
+    expect(insertEvidence).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        kind: "assessment_job",
+        detail: expect.objectContaining({ phase: "retrying" }),
+      }),
+    );
+  });
+
+  it("records superseded SHAs on the completion evidence", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockImplementation(
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
+    );
+    runAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
+    completeAssessmentJob.mockResolvedValue(undefined);
+
+    await expect(
+      settleRunningAssessmentJob(
+        job({
+          trigger: "webhook",
+          payload: { ref: "abc123", supersededRefs: ["def456"] },
+        }),
+      ),
+    ).resolves.toEqual({ kind: "succeeded", jobId: "job-1" });
+    expect(insertEvidence).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        kind: "assessment_job",
+        detail: expect.objectContaining({
+          phase: "completed",
+          supersededRefs: ["def456"],
+        }),
+      }),
+    );
+  });
+
   it("discards the run when the job is cancelled mid-apply", async () => {
     loadProjectDb.mockResolvedValue(projectDb());
     withProjectCheckout.mockImplementation(

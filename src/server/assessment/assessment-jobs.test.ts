@@ -156,6 +156,19 @@ function createDrizzle() {
             if (eqs.includes(row.projectId) && eqs.includes("webhook")) {
               return row.status === "queued" && row.trigger === "webhook";
             }
+            // Manual-coalescing lookup: project + queued + manual trigger.
+            if (eqs.includes(row.projectId) && eqs.includes("manual")) {
+              return row.status === "queued" && row.trigger === "manual";
+            }
+            // Cross-project rows never match a project-scoped coalescing
+            // lookup (the trigger branches above already returned for
+            // same-project rows).
+            if (
+              eqs.includes("queued") &&
+              (eqs.includes("webhook") || eqs.includes("manual"))
+            ) {
+              return false;
+            }
             if (eqs.includes("queued") && row.status === "queued") {
               if (ltes.length === 0) return true;
               return row.availableAt <= String(ltes[0]);
@@ -548,7 +561,7 @@ describe("claimNextAssessmentJob", () => {
     expect(jobs.get(queued.id)?.status).toBe("queued");
   });
 
-  it("does not coalesce manual jobs or running webhook jobs", async () => {
+  it("coalesces a second manual enqueue into the pending manual job", async () => {
     const manual1 = await enqueueAssessmentJob({
       projectId: "p1",
       trigger: "manual",
@@ -557,8 +570,17 @@ describe("claimNextAssessmentJob", () => {
       projectId: "p1",
       trigger: "manual",
     });
-    expect(manual2.id).not.toBe(manual1.id);
+    // Double-submit: one scan, not two stacked full scans.
+    expect(manual2.id).toBe(manual1.id);
 
+    const otherProject = await enqueueAssessmentJob({
+      projectId: "p2",
+      trigger: "manual",
+    });
+    expect(otherProject.id).not.toBe(manual1.id);
+  });
+
+  it("does not coalesce running webhook jobs", async () => {
     const webhook1 = await enqueueAssessmentJob({
       projectId: "p9",
       trigger: "webhook",
@@ -807,18 +829,24 @@ describe("queuedAssessmentJobCount and recentAssessmentJobsForProject", () => {
   });
 
   it("lists the newest jobs when more than the limit exist", async () => {
+    const seed = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const template = jobs.get(seed.id);
+    if (!template) throw new Error("expected job");
+    // Same-project manual enqueues coalesce by design, so history depth for
+    // the ordering query is seeded row-by-row (the query — not enqueue
+    // multiplicity — is the system under test).
     const ids: string[] = [];
     for (let i = 0; i < 7; i += 1) {
-      const job = await enqueueAssessmentJob({
-        projectId: "p1",
-        trigger: "manual",
-        idempotencyKey: `recent-${i}`,
+      const id = i === 0 ? seed.id : `job-recent-${i}`;
+      jobs.set(id, {
+        ...template,
+        id,
+        createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString(),
       });
-      const row = jobs.get(job.id);
-      if (row) {
-        row.createdAt = new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString();
-      }
-      ids.push(job.id);
+      ids.push(id);
     }
     const recent = await recentAssessmentJobsForProject("p1", 5);
     expect(recent.map((job) => job.id)).toEqual(ids.slice(-5).reverse());

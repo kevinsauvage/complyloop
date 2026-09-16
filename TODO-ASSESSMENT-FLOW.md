@@ -460,7 +460,7 @@ No AI, status, or verification logic changes. Stale suggestions become visible i
 
 ---
 
-### [ ] P2-7 — `STRUCTURAL_CHECK_IDS` is a hardcoded parallel list duplicating registry metadata
+### [x] P2-7 (implemented) — `STRUCTURAL_CHECK_IDS` is a hardcoded parallel list duplicating registry metadata
 
 **Why:**
 `assessment.ts:62-66` hardcodes `heading-order / list-structure / duplicate-id` with a comment explaining *why* they force full scans — while `check-authority.ts` already exposes `isCompositionSensitiveCheck` over the single `CHECK_REGISTRY`, and `merge-findings.ts` already consumes it for the same concept. Adding a composition-sensitive check means updating two lists in two packages (the exact failure mode the registry refactor eliminated — see `check-authority.ts:9-13`).
@@ -483,7 +483,7 @@ Behavior identical today (verify the three ids are exactly the composition-sensi
 
 ---
 
-### [ ] P2-8 — Double DB loads around every finding write (preview loads + locked reload)
+### [x] P2-8 (implemented) — Double DB loads around every finding write (preview loads + locked reload)
 
 **Why:**
 `verifyRemediationAction` performs `getWorkspace()` + `requireFinding` + `requireRemediationForFinding` (3 reads, one a full tenancy load) *before* `withFindingWrite`, which then re-loads everything under the lock (`getFindingById` + `loadProjectWriteDb`). The pre-lock loads exist only to compute `present` from preview data — but they load far more than the scan needs (full workspace for a control lookup + one finding).
@@ -529,7 +529,7 @@ Status law already handles partial runtime data faithfully (authority gates degr
 
 ---
 
-### [ ] P2-10 — Manual double-submit can double-enqueue (active-job check races the enqueue, on a separate connection)
+### [x] P2-10 (implemented) — Manual double-submit can double-enqueue (active-job check races the enqueue, on a separate connection)
 
 **Why:**
 `runAssessmentAction` checks `activeAssessmentJobForProject` then `enqueueAssessmentJob` — but the check runs on its own `getDrizzle()` connection (`assessment-jobs.ts:432-453`), outside the `withProjectWrite` transaction/lock that wraps the enqueue. Two simultaneous clicks can both see "no active job" and enqueue twice. Harmless today (serial claim runs both scans back-to-back) but wasteful and confusing ("already running" copy exists precisely to prevent this).
@@ -563,6 +563,8 @@ Two schema-level sharp edges: (a) `upsertRequirements` conflicts on `(projectId,
 **Proposed simplification:**
 (a) Stop overwriting `id` on conflict — keep the existing row id (`SET` payload/status only; fall back to deterministic ids `projectId:controlId`-derived if writers need convergence without a read). (b) Audit the reset/disconnect delete path; if assessment deletion is used for retention/reset, either scope the cascade deliberately (document) or null the FK. Both are verify-first, change-second.
 
+> Investigated 2026-09-16, deferred: dropping `id` from the conflict `SET` alone is unsafe — the row would keep its old id while the payload carries the loser's new id, and the stale-write guard (keyed by payload id) would then miss the row and always write through. The correct fix is deterministic ids per `(project, control)`, which is a bigger change touching id generation in assessment-status refresh + requirements actions. No external reader of `requirement.id` exists (identity is `(project, control)` everywhere; no FKs), so current behavior is convergent albeit ugly — revisit together with a deterministic-id decision.
+
 **Why this is safe:**
 Requirement identity is `(project, control)` everywhere in code (unique index already enforces it); id stability only *adds* guarantees. Findings cascade behavior becomes explicit instead of incidental.
 
@@ -575,7 +577,7 @@ Requirement identity is `(project, control)` everywhere in code (unique index al
 
 ---
 
-### [ ] P2-12 — Assessment `summary` is persisted derived state with an unverified second reader
+### [x] P2-12 (implemented) — Assessment `summary` is persisted derived state with an unverified second reader
 
 **Why:**
 `Assessment.summary` (counts by requirement status at completion) duplicates what `dashboard-status-counts` presumably computes live. If both exist, they can disagree the moment a human edits a requirement post-assessment — and there is no documented rule for which the UI trusts.
@@ -600,7 +602,7 @@ Read-path-only change; assessment completion and requirement derivation untouche
 
 ## P3 — Low
 
-### [ ] P3-1 — Three definitions of the job contract (contract const, core zod schema, zod-free guard)
+### [x] P3-1 (implemented) — Three definitions of the job contract (contract const, core zod schema, zod-free guard)
 
 **Why:**
 `packages/analysis-core/.../assessment-jobs.ts` (status/trigger consts), `src/core/assessment-jobs.ts` (zod payload schema + inferred types), `src/core/assessment-job-guard.ts` (zod-free client copy). The status single-source comment is honored, but the *payload* shape lives in two places (zod + guard) with no test pinning them together.
@@ -616,7 +618,7 @@ Keep the split (server zod vs client-safe guard is justified), but add one cross
 
 ---
 
-### [ ] P3-2 — Retry attempts are invisible (no evidence until terminal failure)
+### [x] P3-2 (implemented) — Retry attempts are invisible (no evidence until terminal failure)
 
 **Why:**
 `recordAssessmentFailureEvidence` runs only when `failAssessmentJob` returns `failed`. Attempts 1–2 vanish into logs. For a user watching a Pipeline that says "retrying", there is no durable record of *why*.
@@ -632,7 +634,7 @@ Write a compact `assessment_job` evidence row with `phase: "retrying"` + attempt
 
 ---
 
-### [ ] P3-3 — Coalesced (superseded) SHAs leave no audit trace
+### [x] P3-3 (implemented) — Coalesced (superseded) SHAs leave no audit trace
 
 **Why:**
 Webhook coalescing (`assessment-jobs.ts:155-210`) tracks `supersededRefs` on the job payload but nothing records which SHAs were scanned vs skipped. An engineer asking "was commit X assessed?" gets silence for every superseded push.
@@ -648,7 +650,7 @@ Include `supersededRefs` in the `assessment_completed` evidence detail (one line
 
 ---
 
-### [ ] P3-4 — `scanMode: "scoped"` mislabels the sources-unchanged no-scan path
+### [x] P3-4 (implemented) — `scanMode: "scoped"` mislabels the sources-unchanged no-scan path
 
 **Why:**
 When commit + scope + engine signature are unchanged, the AST scan is skipped but `scanMode` is reported as `"scoped"` with `filesScanned` copied from the previous run (`assessment.ts:330-339, 356-360`). Evidence, engines metadata, and any consumer of `scanMode` cannot distinguish "re-scanned changed files" from "scanned nothing".
@@ -664,7 +666,7 @@ Add `"reused"` (or `"skipped"`) to the `scanMode` union + `Assessment` entity, u
 
 ---
 
-### [ ] P3-5 — `ai-fix` action confirmed correct (heavy work outside the lock); document the pattern at the call site
+### [x] P3-5 (implemented) — `ai-fix` action confirmed correct (heavy work outside the lock); document the pattern at the call site
 
 **Why:**
 `src/server/assessment/ai-fix.ts` imports `withProjectCheckout` (ephemeral clone) and the AI patch stack (`proposeFixEdits`, `verified-fix.ts`) — the same hazards as P0-2 (network in tx) and P1-3 (minutes-long interactive work) if invoked inside a write lock. **Verified: it is not.** `generateAiFixAction` runs the full clone + AI proposal + ComplyLoop re-scan (`generatePatchCandidateOnCheckout`, `actions/ai-fix.ts:59-62`) *before* entering `withFindingWrite`; the write callback only persists the candidate (`persistPatchCandidate`, `:66-70`). This is the correct shape — the template P0-2 asks the AI explanation/remediation actions to copy.
@@ -680,7 +682,7 @@ Close as "correct as-is". Optional: add a one-line comment at `generatePatchCand
 
 ---
 
-### [ ] P3-6 — Confirm the two sticky-decision definitions and the two finding-progress models agree
+### [x] P3-6 (implemented) — Confirm the two sticky-decision definitions and the two finding-progress models agree
 
 **Why:**
 Two possible duplications were spotted but not fully traced: (a) `isStickyHumanDecision` (`contract/requirement-status.ts:44-54`) vs `src/core/requirement-human-determination.ts` (unread) — if both encode "human decision blocks automation", they can drift. (b) `src/core/finding-act.ts` (finding-page "beats") vs `remediation-lifecycle.ts` (server status machine) — the next-step panel (`finding-next-step-panel`) must derive from one of them, not blend both (the codebase already forbids server import of `finding-act.ts` — good — but client/server status *wording* can still diverge).

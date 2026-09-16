@@ -2,9 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import git from "isomorphic-git";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as registry from "@complyloop/analysis-core/catalog/registry";
 import {
@@ -131,7 +130,7 @@ describe("runAssessment", () => {
     expect(first.assessment.scanMode).toBe("full");
     const second = await assess();
     expect(second.assessment.scanMode).toBe("reused");
-    expect(second.filesScanned).toBe(first.filesScanned);
+    expect(second.assessment.filesScanned).toBe(first.assessment.filesScanned);
     expect(db.findings).toHaveLength(1);
   });
 

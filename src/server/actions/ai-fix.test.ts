@@ -3,6 +3,7 @@ import "@/test-fixtures/register-action-workspace-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  actionAuthMocks,
   actionWorkspaceMocks,
   mockProjectWrite,
 } from "@/test-fixtures/action-workspace-mocks";
@@ -77,6 +78,7 @@ function workspace() {
 
 afterEach(() => {
   vi.clearAllMocks();
+  actionAuthMocks.auth.mockReset();
 });
 
 describe("generateAiFixAction", () => {
@@ -98,6 +100,10 @@ describe("generateAiFixAction", () => {
     };
     generatePatchCandidateOnCheckout.mockResolvedValue(candidate);
     assertAiRateLimit.mockResolvedValue(undefined);
+    // Session-backed rate-limit identity (replaces the old workspace userId).
+    actionAuthMocks.auth.mockResolvedValue({
+      user: { id: "user-1", login: "user-1" },
+    });
 
     const result = await generateAiFixAction(
       "f1",

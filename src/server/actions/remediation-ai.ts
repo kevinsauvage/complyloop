@@ -10,19 +10,20 @@ import { refreshSuggestion } from "@/core/remediation-lifecycle";
 import { parseEntityId } from "@/core/validate";
 
 import { type ActionState, runAction } from "../action-state";
+import { getSession } from "../auth-session";
 import { reportError } from "../observability";
 import { assertAiRateLimit } from "../rate-limit";
 import { appendEvidence } from "../workspace/project-rows";
 import {
   controlById,
-  getWorkspace,
   remediationForFinding,
   requireFinding,
+  requireProjectAccess,
   requireRemediationForFinding,
 } from "../workspace/workspace";
 import { withFindingWrite } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, replaceRemediation, requireFindingContext } from "./shared";
+import { refresh, replaceRemediation } from "./shared";
 
 export async function generateAiExplanationAction(
   findingIdRaw: string,
@@ -35,11 +36,12 @@ export async function generateAiExplanationAction(
     const findingId = parseEntityId(findingIdRaw);
     // The AI call runs BEFORE the write below takes the project lock: holding
     // a lock + open transaction across LLM latency would block every other
-    // writer for this project.
-    const preview = await getWorkspace();
+    // writer for this project. Preview reads are single-row (finding) + the
+    // light project guard — no tenancy load.
     const previewFinding = await requireFinding(findingId);
-    requireFindingContext(preview, previewFinding, "project.view");
-    if (preview.userId) await assertAiRateLimit(preview.userId);
+    await requireProjectAccess(previewFinding.projectId, "project.view");
+    const sessionUserId = (await getSession())?.user?.id;
+    if (sessionUserId) await assertAiRateLimit(sessionUserId);
     const control = controlById(previewFinding.controlId);
 
     const explanation = await generateAiExplanation(previewFinding, control, {
@@ -74,11 +76,12 @@ export async function generateAiRemediationAction(
     const findingId = parseEntityId(findingIdRaw);
     // The AI call runs BEFORE the write below takes the project lock: holding
     // a lock + open transaction across LLM latency would block every other
-    // writer for this project.
-    const preview = await getWorkspace();
+    // writer for this project. Preview reads are single-row (finding,
+    // remediation) + the light project guard — no tenancy load.
     const previewFinding = await requireFinding(findingId);
-    requireFindingContext(preview, previewFinding, "project.remediate");
-    if (preview.userId) await assertAiRateLimit(preview.userId);
+    await requireProjectAccess(previewFinding.projectId, "project.remediate");
+    const sessionUserId = (await getSession())?.user?.id;
+    if (sessionUserId) await assertAiRateLimit(sessionUserId);
     const control = controlById(previewFinding.controlId);
     const previewRemediation = await requireRemediationForFinding(findingId);
 

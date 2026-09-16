@@ -222,6 +222,41 @@ export async function enqueueAssessmentJob(
       }
     }
   }
+  if (input.trigger === "manual") {
+    // Double-submit coalescing: two concurrent clicks can both pass the
+    // active-job check in the dashboard action (separate connections) and
+    // reach this insert. A second row would stack a redundant full scan
+    // behind the first via the serial-per-project claim — return the pending
+    // manual job instead. Running jobs are untouched (the action refuses
+    // those with an "already running" message); terminal rows never match.
+    const [pendingManual] = await drizzle
+      .select()
+      .from(assessmentJobs)
+      .where(
+        and(
+          eq(assessmentJobs.projectId, input.projectId),
+          eq(assessmentJobs.status, "queued"),
+          eq(assessmentJobs.trigger, "manual"),
+        ),
+      )
+      .orderBy(asc(assessmentJobs.createdAt))
+      .limit(1);
+    if (pendingManual) {
+      const [updated] = await drizzle
+        .update(assessmentJobs)
+        .set({ availableAt: now, updatedAt: now })
+        .where(
+          and(
+            eq(assessmentJobs.id, pendingManual.id),
+            eq(assessmentJobs.status, "queued"),
+          ),
+        )
+        .returning();
+      // Empty when a worker claimed the row concurrently — fall through and
+      // insert so the request is not silently dropped.
+      if (updated) return jobFromRow(updated);
+    }
+  }
   try {
     const [created] = await drizzle
       .insert(assessmentJobs)

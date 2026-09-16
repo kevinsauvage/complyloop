@@ -17,14 +17,14 @@ import { listEvidenceForFindingScoped } from "../reporting/evidence-queries";
 import { appendEvidence } from "../workspace/project-rows";
 import {
   controlById,
-  getWorkspace,
   remediationForFinding,
   requireFinding,
+  requireProjectAccess,
   requireRemediationForFinding,
 } from "../workspace/workspace";
 import { withFindingWrite } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, replaceRemediation, requireFindingContext } from "./shared";
+import { refresh, replaceRemediation } from "./shared";
 
 export type CreatePrFormState = ActionState & {
   prUrl: string | null;
@@ -40,18 +40,15 @@ export async function createPullRequestAction(
   let prUrl: string | null = null;
   const state = await runAction(async () => {
     const findingId = parseEntityId(findingIdRaw);
-    const preview = await getWorkspace();
+    // Light preview reads (single finding/remediation rows + project guard)
+    // instead of the full tenancy load: PR creation runs outside the write.
     const finding = await requireFinding(findingId);
-    const { project } = requireFindingContext(
-      preview,
-      finding,
+    const project = await requireProjectAccess(
+      finding.projectId,
       "project.remediate",
     );
     const control = controlById(finding.controlId);
     const remediation = await requireRemediationForFinding(findingId);
-    if (!project) {
-      throw new PublicError("Unknown project.");
-    }
     if (!project.github?.fullName) {
       throw new PublicError(
         "Connect a GitHub repository before creating a draft pull request.",

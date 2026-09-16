@@ -97,6 +97,9 @@ describe("generateAiExplanationAction", () => {
       new FormData(),
     );
     expect(result.ok ? null : result.message).toMatch(/Not allowed/);
+    // Denied in the preview: no AI call, no write.
+    expect(generateAiExplanation).not.toHaveBeenCalled();
+    expect(actionWorkspaceMocks.withProjectWrite).not.toHaveBeenCalled();
   });
 
   it("adds an explanation when the model returns one", async () => {
