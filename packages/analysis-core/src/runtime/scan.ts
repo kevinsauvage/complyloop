@@ -73,6 +73,45 @@ export type RuntimePageScanner = (
 let sharedBrowser: Browser | null = null;
 
 /**
+ * Set when teardown timed out: the cached browser may hold a leaked context,
+ * so the next scan launches fresh instead of reusing it. The leak is
+ * container-lifetime-bounded (serverless discards the whole process).
+ */
+let sharedBrowserTainted = false;
+
+/**
+ * Teardown must never sink a scan whose findings are already collected:
+ * `page.close()` / `context.close()` have waited minutes on pages with open
+ * connections. Bound the wait, warn, and continue with what was collected.
+ */
+const TEARDOWN_TIMEOUT_MS = 15_000;
+
+async function closeTeardown(
+  label: "page" | "context",
+  closing: Promise<void>,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      closing,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} close timed out`)),
+          TEARDOWN_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } catch {
+    sharedBrowserTainted = true;
+    console.warn(
+      `[warning] runtime ${label} close timed out; continuing with collected findings.`,
+    );
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
  * Serverless Chromium (Vercel has no Playwright browser download step):
  * `@sparticuz/chromium` ships a compatible build with its own executable
  * path. Set `ASSESSMENT_RUNTIME_BROWSER=serverless` to use it; anything else
@@ -85,6 +124,12 @@ function isServerlessBrowserEnabled(): boolean {
 }
 
 async function getBrowser(): Promise<Browser> {
+  if (sharedBrowserTainted) {
+    // A previous teardown timed out and may have leaked a context — do not
+    // reuse this browser. No close attempt: close is what hung last time.
+    sharedBrowser = null;
+    sharedBrowserTainted = false;
+  }
   if (!sharedBrowser) {
     // Cold-start marker: sparticuz extracts ~100MB to /tmp on first launch.
     console.info(
@@ -409,13 +454,13 @@ function createPlaywrightAxeScanner(options?: {
           // Close markers: teardown is the only untimed await in the page
           // loop — if a run stalls here, these lines name it.
           console.info("[progress] runtime page close started");
-          await page.close();
+          await closeTeardown("page", page.close());
           console.info("[progress] runtime page close finished");
         }
       }
     } finally {
       console.info("[progress] runtime context close started");
-      await context.close();
+      await closeTeardown("context", context.close());
       console.info("[progress] runtime context close finished");
     }
     console.info(
