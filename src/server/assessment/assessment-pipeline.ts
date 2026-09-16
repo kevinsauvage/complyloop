@@ -14,6 +14,8 @@
  */
 import "server-only";
 
+import { eq } from "drizzle-orm";
+
 import type {
   Alert,
   Assessment,
@@ -35,6 +37,7 @@ import {
   snapshotProjectSlice,
 } from "@complyloop/db/repo/apply";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
+import { assessmentJobs } from "@complyloop/db/schema";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { reportWarning } from "../observability";
@@ -45,7 +48,10 @@ import {
   type ProjectRows,
 } from "../workspace/project-rows";
 import type { AssessmentRunResult } from "./assessment";
-import type { AssessmentJob } from "./assessment-jobs";
+import {
+  type AssessmentJob,
+  AssessmentJobCancelledError,
+} from "./assessment-jobs";
 import {
   clearExpiredExceptions,
   upsertRequirementsById,
@@ -200,6 +206,17 @@ export async function applyAuthoritativeAssessment(input: {
   const drizzle = await getDrizzle();
   await drizzle.transaction(async (tx) => {
     await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(project.id));
+    // Cancel-safety: a cancel landing after the worker's pre-apply check must
+    // still discard the run. Re-check the job status inside the transaction
+    // (under the project lock) so the check and the writes are atomic —
+    // throwing here rolls everything back and the worker reports `cancelled`.
+    const [jobRow] = await tx
+      .select({ status: assessmentJobs.status })
+      .from(assessmentJobs)
+      .where(eq(assessmentJobs.id, job.id));
+    if (!jobRow || jobRow.status !== "running") {
+      throw new AssessmentJobCancelledError(job.id);
+    }
     // Read alerts inside the apply transaction (under the project write
     // lock): the pre-scan slice above may be minutes stale, and matching
     // against it could refresh an alert the user just read or mint

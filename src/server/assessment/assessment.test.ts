@@ -510,6 +510,8 @@ describe("runAssessment", () => {
     verifyDraftPrRemediation(rows, finding, "a1", {
       scopedFileSet: new Set(["Other.tsx"]),
       sourcesUnchanged: false,
+      rootPath: "test-root",
+      fileExists: () => true,
     });
 
     expect(rows.remediations[0]?.status).toBe("approved");
@@ -544,13 +546,14 @@ describe("runAssessment", () => {
     verifyDraftPrRemediation(rows, finding, "a1", {
       scopedFileSet: null,
       sourcesUnchanged: false,
+      rootPath: "test-root",
+      fileExists: () => true,
     });
 
     expect(rows.remediations[0]?.status).toBe("verified");
   });
 
-  it("does not auto-verify a draft-PR remediation when sources were reused without a scan", () => {
-    const finding = testFinding({
+  it("does not auto-verify a draft-PR remediation when sources were reused without a scan", () => {    const finding = testFinding({
       projectId: project.id,
       assessmentId: "a0",
     });
@@ -575,8 +578,133 @@ describe("runAssessment", () => {
     verifyDraftPrRemediation(rows, finding, "a1", {
       scopedFileSet: null,
       sourcesUnchanged: true,
+      rootPath: "test-root",
+      fileExists: () => true,
     });
 
     expect(rows.remediations[0]?.status).toBe("approved");
+  });
+
+  it("does not auto-verify a draft-PR remediation when the finding file was deleted", () => {
+    const finding = testFinding({
+      projectId: project.id,
+      assessmentId: "a0",
+    });
+    const rows: ProjectRows = {
+      findings: [finding],
+      remediations: [
+        {
+          id: "r1",
+          findingId: finding.id,
+          status: "approved" as const,
+          approvalAction: "create_draft_pull_request" as const,
+          suggestion: null,
+          history: [
+            { status: "approved" as const, at: new Date().toISOString() },
+          ],
+        },
+      ],
+      requirements: [],
+      evidence: [],
+    };
+
+    // No fileExists seam: the temp checkout only contains Hero.tsx, so the
+    // default existence check proves App.tsx is gone.
+    verifyDraftPrRemediation(rows, finding, "a1", {
+      scopedFileSet: null,
+      sourcesUnchanged: false,
+      rootPath,
+    });
+
+    expect(rows.remediations[0]?.status).toBe("approved");
+    expect(
+      rows.evidence.some((record) => record.kind === "remediation_verified"),
+    ).toBe(false);
+  });
+
+  it("does not auto-verify when a same-file violation persists in the same run", () => {
+    const finding = testFinding({
+      projectId: project.id,
+      assessmentId: "a0",
+    });
+    // Same control + same file, still open in this assessment (e.g. the code
+    // changed shape instead of being fixed): no positive proof of a fix.
+    const sibling = testFinding({
+      id: "f2",
+      projectId: project.id,
+      assessmentId: "a1",
+      status: "open" as const,
+    });
+    const rows: ProjectRows = {
+      findings: [finding, sibling],
+      remediations: [
+        {
+          id: "r1",
+          findingId: finding.id,
+          status: "approved" as const,
+          approvalAction: "create_draft_pull_request" as const,
+          suggestion: null,
+          history: [
+            { status: "approved" as const, at: new Date().toISOString() },
+          ],
+        },
+      ],
+      requirements: [],
+      evidence: [],
+    };
+
+    verifyDraftPrRemediation(rows, finding, "a1", {
+      scopedFileSet: null,
+      sourcesUnchanged: false,
+      rootPath: "test-root",
+      fileExists: () => true,
+    });
+
+    expect(rows.remediations[0]?.status).toBe("approved");
+    expect(
+      rows.evidence.some((record) => record.kind === "remediation_verified"),
+    ).toBe(false);
+  });
+
+  it("auto-verifies when the only same-run sibling is in another file", () => {
+    const finding = testFinding({
+      projectId: project.id,
+      assessmentId: "a0",
+    });
+    const sibling = testFinding({
+      id: "f2",
+      projectId: project.id,
+      assessmentId: "a1",
+      status: "open" as const,
+    });
+    if (isSourceLocation(sibling.location)) {
+      sibling.location.filePath = "Other.tsx";
+    }
+    const rows: ProjectRows = {
+      findings: [finding, sibling],
+      remediations: [
+        {
+          id: "r1",
+          findingId: finding.id,
+          status: "approved" as const,
+          approvalAction: "create_draft_pull_request" as const,
+          suggestion: null,
+          history: [
+            { status: "approved" as const, at: new Date().toISOString() },
+          ],
+        },
+      ],
+      requirements: [],
+      evidence: [],
+    };
+
+    verifyDraftPrRemediation(rows, finding, "a1", {
+      scopedFileSet: null,
+      sourcesUnchanged: false,
+      rootPath: "test-root",
+      fileExists: () => true,
+    });
+
+    expect(rows.remediations[0]?.status).toBe("verified");
   });
 });

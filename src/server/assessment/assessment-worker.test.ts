@@ -183,10 +183,23 @@ function assessmentRun(
 }
 
 beforeEach(() => {
-  transaction.mockImplementation(async (fn: (tx: object) => unknown) => fn({}));
+  transaction.mockImplementation(async (fn: (tx: object) => unknown) =>
+    fn(stubTx("running")),
+  );
   acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
   listAlertsForProject.mockResolvedValue([]);
 });
+
+/** Minimal tx stub: the apply re-checks the job status inside the transaction. */
+function stubTx(jobStatus: string) {
+  return {
+    select: () => ({
+      from: () => ({
+        where: async () => [{ status: jobStatus }],
+      }),
+    }),
+  };
+}
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -235,6 +248,109 @@ describe("settleRunningAssessmentJob", () => {
         detail: expect.objectContaining({ phase: "failed" }),
       }),
     );
+  });
+
+  it("completes with the renewed lease after a heartbeat renewal", async () => {
+    vi.useFakeTimers();
+    try {
+      loadProjectDb.mockResolvedValue(projectDb());
+      withProjectCheckout.mockImplementation(
+        async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+          fn("/tmp/checkout"),
+      );
+      let resolveRun!: (value: unknown) => void;
+      runAssessment.mockReturnValue(
+        new Promise((resolve) => {
+          resolveRun = resolve;
+        }),
+      );
+      const renewedLease = "2026-01-01T02:00:00.000Z";
+      refreshAssessmentJobLease.mockResolvedValue(renewedLease);
+      completeAssessmentJob.mockResolvedValue(undefined);
+
+      const pending = settleRunningAssessmentJob(job());
+      await vi.advanceTimersByTimeAsync(ASSESSMENT_JOB_HEARTBEAT_MS + 1);
+      resolveRun(
+        assessmentRun({
+          id: "a1",
+          projectId: "p1",
+          snapshot: { fileHashes: {} },
+        }),
+      );
+
+      await expect(pending).resolves.toEqual({
+        kind: "succeeded",
+        jobId: "job-1",
+      });
+      // The claim-time lease would no-op the guarded complete and the job
+      // would be re-run by lease recovery — the renewed lease must win.
+      expect(completeAssessmentJob).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "job-1", leaseExpiresAt: renewedLease }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fails with the renewed lease when the run throws after a renewal", async () => {
+    vi.useFakeTimers();
+    try {
+      loadProjectDb.mockResolvedValue(projectDb());
+      const renewedLease = "2026-01-01T02:00:00.000Z";
+      refreshAssessmentJobLease.mockResolvedValue(renewedLease);
+      let rejectCheckout!: (reason: unknown) => void;
+      withProjectCheckout.mockReturnValue(
+        new Promise((_resolve, reject) => {
+          rejectCheckout = reject;
+        }),
+      );
+      failAssessmentJob.mockResolvedValue("failed");
+
+      const pending = settleRunningAssessmentJob(job({ attempts: 3 }));
+      await vi.advanceTimersByTimeAsync(ASSESSMENT_JOB_HEARTBEAT_MS + 1);
+      rejectCheckout(new Error("clone failed"));
+
+      await expect(pending).resolves.toEqual({
+        kind: "failed",
+        jobId: "job-1",
+      });
+      expect(failAssessmentJob).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "job-1", leaseExpiresAt: renewedLease }),
+        expect.any(Error),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("discards the run when the job is cancelled mid-apply", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockImplementation(
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
+    );
+    runAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
+    // The apply-time re-check sees the job already left `running`: the
+    // transaction rolls back and the worker reports cancellation.
+    transaction.mockImplementationOnce(async (fn: (tx: object) => unknown) =>
+      fn(stubTx("cancelled")),
+    );
+
+    await expect(settleRunningAssessmentJob(job())).resolves.toEqual({
+      kind: "cancelled",
+      jobId: "job-1",
+    });
+    expect(applyAssessmentPayload).not.toHaveBeenCalled();
+    expect(insertEvidence).not.toHaveBeenCalled();
+    expect(completeAssessmentJob).not.toHaveBeenCalled();
+    expect(failAssessmentJob).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
   });
 });
 

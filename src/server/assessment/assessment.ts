@@ -1,5 +1,7 @@
 import "server-only";
 
+import fs from "node:fs";
+
 import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
 import {
   type Assessment,
@@ -22,6 +24,7 @@ import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/them
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
 import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
 import type { RawFinding } from "@complyloop/analysis-core/types";
+import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 
 import { countByStatus, latestAssessmentFor } from "@/core/assessment-helpers";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
@@ -129,6 +132,18 @@ export interface DraftPrVerifyScope {
   scopedFileSet: Set<string> | null;
   /** True when sources were reused without any scan — nothing was re-checked. */
   sourcesUnchanged: boolean;
+  /** Checkout the run scanned — backs the deletion proof below. */
+  rootPath: string;
+  /** Test seam for the checkout existence check. */
+  fileExists?: (filePath: string) => boolean;
+}
+
+function fileExistsInCheckout(rootPath: string, filePath: string): boolean {
+  try {
+    return fs.existsSync(resolveInside(rootPath, filePath));
+  } catch {
+    return false;
+  }
 }
 
 /** Exported for unit tests of the re-scan scope guard. */
@@ -174,6 +189,50 @@ export function verifyDraftPrRemediation(
         findingId: finding.id,
         assessmentId,
         filePath: finding.location.filePath,
+      },
+    );
+    return;
+  }
+
+  // Positive proof, not just absence. A resolve alone cannot verify: the file
+  // may have been deleted/renamed (resolves everything it contained) or the
+  // code may have changed shape (e.g. reformat — the violation persists under
+  // a new snippet next to the resolve). Both fail closed below.
+  const filePath = finding.location.filePath;
+  const exists = scope.fileExists
+    ? scope.fileExists(filePath)
+    : fileExistsInCheckout(scope.rootPath, filePath);
+  if (!exists) {
+    reportWarning(
+      "Skipping draft-PR auto-verify: finding file no longer exists",
+      {
+        code: "draft_pr_verify_scope_unproven",
+        projectId: finding.projectId,
+        findingId: finding.id,
+        assessmentId,
+        filePath,
+      },
+    );
+    return;
+  }
+  const siblingPersists = rows.findings.some(
+    (candidate) =>
+      candidate.id !== finding.id &&
+      candidate.controlId === finding.controlId &&
+      candidate.status === "open" &&
+      candidate.assessmentId === assessmentId &&
+      isSourceLocation(candidate.location) &&
+      candidate.location.filePath === filePath,
+  );
+  if (siblingPersists) {
+    reportWarning(
+      "Skipping draft-PR auto-verify: same-file violation persists after re-scan",
+      {
+        code: "draft_pr_verify_scope_unproven",
+        projectId: finding.projectId,
+        findingId: finding.id,
+        assessmentId,
+        filePath,
       },
     );
     return;
@@ -439,6 +498,7 @@ export async function runAssessment(
                 verifyDraftPrRemediation(rows, finding, assessmentId, {
                   scopedFileSet,
                   sourcesUnchanged,
+                  rootPath,
                 }),
       });
     }

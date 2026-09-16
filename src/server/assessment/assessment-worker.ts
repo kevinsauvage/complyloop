@@ -9,6 +9,7 @@ import { type AssessmentRunResult, runAssessment } from "./assessment";
 import {
   ASSESSMENT_JOB_HEARTBEAT_MS,
   type AssessmentJob,
+  AssessmentJobCancelledError,
   claimNextAssessmentJob,
   completeAssessmentJob,
   failAssessmentJob,
@@ -37,6 +38,7 @@ function failedRequirementCount(
 
 async function runClaimedAssessmentJob(
   job: AssessmentJob,
+  onLeaseRenewed?: (leaseExpiresAt: string) => void,
 ): Promise<{ cancelled: boolean }> {
   // Pipeline shape: load → run → apply. Status/finding derivation lives in
   // `runAssessment`; persistence (locks, alerts, evidence) lives in
@@ -71,6 +73,7 @@ async function runClaimedAssessmentJob(
               });
               if (renewed) {
                 expectedLease = renewed;
+                onLeaseRenewed?.(renewed);
               } else {
                 cancelledRemotely = true;
                 clearInterval(heartbeat ?? undefined);
@@ -96,6 +99,7 @@ async function runClaimedAssessmentJob(
     const checkoutStart = Date.now();
     let scanMs = 0;
     let applyMs = 0;
+    let applyCancelled = false;
     const result = await withProjectCheckout(
       project,
       async (rootPath) => {
@@ -113,15 +117,24 @@ async function runClaimedAssessmentJob(
         // "saves nothing".
         if (authoritative && !cancelledRemotely) {
           const applyStart = Date.now();
-          await applyAuthoritativeAssessment({
-            project,
-            job,
-            run,
-            loadedSlice,
-            collectAlerts: job.trigger === "webhook",
-            trigger,
-          });
-          applyMs = Date.now() - applyStart;
+          try {
+            await applyAuthoritativeAssessment({
+              project,
+              job,
+              run,
+              loadedSlice,
+              collectAlerts: job.trigger === "webhook",
+              trigger,
+            });
+          } catch (error) {
+            if (!(error instanceof AssessmentJobCancelledError)) throw error;
+            // The cancel landed mid-apply: the apply transaction rolled back,
+            // so the contract above still holds. Stop without Check Run output.
+            applyCancelled = true;
+            return null;
+          } finally {
+            applyMs = Date.now() - applyStart;
+          }
         }
 
         return {
@@ -133,6 +146,9 @@ async function runClaimedAssessmentJob(
       },
       job.payload.ref,
     );
+    if (result === null || applyCancelled) {
+      return { cancelled: true };
+    }
     const totalMs = Date.now() - checkoutStart;
     reportEvent("assessment stage timings", {
       code: "assessment_stage_timing",
@@ -192,8 +208,17 @@ export async function settleRunningAssessmentJob(
     trigger: job.trigger,
     attempts: job.attempts,
   });
+  // The completion/failure guards below match on the claim-time
+  // (startedAt, leaseExpiresAt) pair, so they must see the *current* lease:
+  // every heartbeat renewal reports through `onLeaseRenewed` and settle
+  // completes/fails with that value. Completing with the stale claim-time
+  // lease would no-op on any scan longer than one heartbeat interval and
+  // the job would be re-run by lease recovery.
+  let effectiveJob = job;
   try {
-    const outcome = await runClaimedAssessmentJob(job);
+    const outcome = await runClaimedAssessmentJob(job, (leaseExpiresAt) => {
+      effectiveJob = { ...job, leaseExpiresAt };
+    });
     if (outcome.cancelled) {
       // The user cancelled mid-run: the heartbeat already saw the job leave
       // `running`. Skip complete/fail/evidence — the complete/fail lease
@@ -206,7 +231,7 @@ export async function settleRunningAssessmentJob(
       });
       return { kind: "cancelled", jobId: job.id };
     }
-    await completeAssessmentJob(job);
+    await completeAssessmentJob(effectiveJob);
     reportEvent("assessment job completed", {
       code: "assessment_job_succeeded",
       jobId: job.id,
@@ -214,14 +239,14 @@ export async function settleRunningAssessmentJob(
     });
     return { kind: "succeeded", jobId: job.id };
   } catch (error) {
-    const status = await failAssessmentJob(job, error);
+    const status = await failAssessmentJob(effectiveJob, error);
     if (status === "failed") {
       // Failure evidence serializes with concurrent applies via the project
       // write lock (see assessment-pipeline.ts). Bookkeeping never masks
       // the original job failure.
       await recordAssessmentFailureEvidence({
-        projectId: job.projectId,
-        job,
+        projectId: effectiveJob.projectId,
+        job: effectiveJob,
         error,
       });
     }

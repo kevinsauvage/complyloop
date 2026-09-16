@@ -10,7 +10,7 @@ All file references are repo-relative. Line numbers are from the audited revisio
 
 ## P0 — Critical
 
-### [ ] P0-1 — Heartbeat lease renewal breaks `complete`/`fail` guards: scans >5 min never complete and get re-run
+### [x] P0-1 (implemented) — Heartbeat lease renewal breaks `complete`/`fail` guards: scans >5 min never complete and get re-run
 
 **Why:**
 Any assessment whose scan lasts longer than one heartbeat interval silently fails to reach a terminal job state. The worker then runs the full scan again (duplicate assessment records, duplicate evidence, wasted browser/clone work), and the job eventually goes through lease-recovery instead of a clean complete.
@@ -39,7 +39,7 @@ Claim, serial-per-project exclusion, cancellation, and recovery semantics are un
 
 ---
 
-### [ ] P0-2 — AI network calls run inside the project write lock + DB transaction
+### [x] P0-2 (implemented) — AI network calls run inside the project write lock + DB transaction
 
 **Why:**
 Every AI explanation / AI remediation click holds the per-project Postgres advisory lock **and an open transaction** for the duration of an LLM call (seconds to timeout). During that window all other writes for the project (including assessment applies and other users' actions) block behind the lock, and the idle transaction risks statement/idle-in-transaction timeouts and connection-pool exhaustion.
@@ -68,7 +68,7 @@ Persistence, permission checks, stale-write guards, and evidence behavior are un
 
 ---
 
-### [ ] P0-3 — Cancel-during-apply race persists results despite "cancel saves nothing"
+### [x] P0-3 (implemented) — Cancel-during-apply race persists results despite "cancel saves nothing"
 
 **Why:**
 The documented cancel contract ("A cancel that lands mid-run discards the results: nothing is persisted", `assessment-worker.ts:111-113`) is not enforced atomically. A cancel landing **during** `applyAuthoritativeAssessment` still persists the full assessment; the job then stays `cancelled` while its results are live — the exact state the contract says cannot exist.
@@ -97,7 +97,7 @@ Authoritative applies, alerts, evidence, and locks are unchanged. The only new b
 
 ---
 
-### [ ] P0-4 — Draft-PR auto-verify marks `verified` on absence, not on proof of fix
+### [x] P0-4 (implemented) — Draft-PR auto-verify marks `verified` on absence, not on proof of fix
 
 **Why:**
 `verifyDraftPrRemediation` advances `approved → implemented → verified` whenever a finding **resolves** (is absent) in a run whose scope merely *included the file*. Absence after a scoped re-scan is weak proof: snippet-identity mismatch (formatting drift, line-ending change, Prettier), registry/check changes, or merge-authority filtering can all resolve a finding without any fix being applied — and the scope guard cannot distinguish "fixed" from "no longer matched".

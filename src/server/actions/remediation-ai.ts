@@ -7,14 +7,22 @@ import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
 import { refreshSuggestion } from "@/core/remediation-lifecycle";
+import { parseEntityId } from "@/core/validate";
 
-import type { ActionState } from "../action-state";
+import { type ActionState, runAction } from "../action-state";
 import { reportError } from "../observability";
 import { assertAiRateLimit } from "../rate-limit";
 import { appendEvidence } from "../workspace/project-rows";
-import { controlById, remediationForFinding } from "../workspace/workspace";
-import { runFindingAction } from "./define-action";
-import { replaceRemediation } from "./shared";
+import {
+  controlById,
+  getWorkspace,
+  remediationForFinding,
+  requireFinding,
+  requireRemediationForFinding,
+} from "../workspace/workspace";
+import { withFindingWrite } from "../workspace/workspace-write";
+import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
+import { refresh, replaceRemediation, requireFindingContext } from "./shared";
 
 export async function generateAiExplanationAction(
   findingIdRaw: string,
@@ -23,26 +31,36 @@ export async function generateAiExplanationAction(
 ): Promise<ActionState> {
   void _previous;
   void _formData;
-  return runFindingAction(
-    findingIdRaw,
-    "project.view",
-    async ({ workspace, finding }) => {
-      if (workspace.userId) await assertAiRateLimit(workspace.userId);
-      const control = controlById(finding.controlId);
+  return runAction(async () => {
+    const findingId = parseEntityId(findingIdRaw);
+    // The AI call runs BEFORE the write below takes the project lock: holding
+    // a lock + open transaction across LLM latency would block every other
+    // writer for this project.
+    const preview = await getWorkspace();
+    const previewFinding = await requireFinding(findingId);
+    requireFindingContext(preview, previewFinding, "project.view");
+    if (preview.userId) await assertAiRateLimit(preview.userId);
+    const control = controlById(previewFinding.controlId);
 
-      const explanation = await generateAiExplanation(finding, control, {
-        onError: reportError,
-      });
-      if (!explanation) {
-        throw new PublicError(
-          "AI explanation unavailable. Check AI credentials or try again.",
-        );
-      }
-      finding.explanations.push(explanation);
-      return { findings: [finding] };
-    },
-    "AI explanation added.",
-  );
+    const explanation = await generateAiExplanation(previewFinding, control, {
+      onError: reportError,
+    });
+    if (!explanation) {
+      throw new PublicError(
+        "AI explanation unavailable. Check AI credentials or try again.",
+      );
+    }
+    await withFindingWrite(findingId, "project.view", async ({ finding }) => {
+      // Persist onto the live row — the preview above may be stale.
+      return {
+        findings: [
+          { ...finding, explanations: [...finding.explanations, explanation] },
+        ],
+      };
+    });
+    refresh(...COMPLIANCE_LOOP_ROUTES);
+    return "AI explanation added.";
+  });
 }
 
 export async function generateAiRemediationAction(
@@ -52,77 +70,106 @@ export async function generateAiRemediationAction(
 ): Promise<ActionState> {
   void _previous;
   void _formData;
-  return runFindingAction(
-    findingIdRaw,
-    "project.remediate",
-    async ({ db, finding, workspace }) => {
-      if (workspace.userId) await assertAiRateLimit(workspace.userId);
-      const control = controlById(finding.controlId);
-      const remediation = remediationForFinding(db, finding.id);
+  return runAction(async () => {
+    const findingId = parseEntityId(findingIdRaw);
+    // The AI call runs BEFORE the write below takes the project lock: holding
+    // a lock + open transaction across LLM latency would block every other
+    // writer for this project.
+    const preview = await getWorkspace();
+    const previewFinding = await requireFinding(findingId);
+    requireFindingContext(preview, previewFinding, "project.remediate");
+    if (preview.userId) await assertAiRateLimit(preview.userId);
+    const control = controlById(previewFinding.controlId);
+    const previewRemediation = await requireRemediationForFinding(findingId);
 
-      if (finding.status !== "open") {
-        throw new PublicError(
-          "AI remediation is only available for open findings.",
-        );
-      }
-      if (
-        remediation.status !== "detected" &&
-        remediation.status !== "suggested"
-      ) {
-        throw new PublicError(
-          "AI remediation can only refine suggestions before approval.",
-        );
-      }
-
-      const result = await generateAiRemediation(finding, control, {
-        onError: reportError,
-      });
-      if (!result) {
-        throw new PublicError(
-          "AI remediation unavailable. Check AI credentials or try again.",
-        );
-      }
-
-      const payload: ProjectWritePayload = {};
-      if (
-        result.attributeValue &&
-        finding.fix?.kind === "insert_attribute" &&
-        finding.fix.editable
-      ) {
-        payload.findings = [
-          {
-            ...finding,
-            fix: { ...finding.fix, value: result.attributeValue },
-          },
-        ];
-      }
-
-      replaceRemediation(
-        payload,
-        refreshSuggestion(
-          remediation,
-          result.suggestion,
-          remediation.status === "detected"
-            ? `AI suggestion: ${result.suggestion.description}`
-            : `AI suggestion refreshed: ${result.suggestion.description}`,
-        ),
+    if (previewFinding.status !== "open") {
+      throw new PublicError(
+        "AI remediation is only available for open findings.",
       );
+    }
+    if (
+      previewRemediation.status !== "detected" &&
+      previewRemediation.status !== "suggested"
+    ) {
+      throw new PublicError(
+        "AI remediation can only refine suggestions before approval.",
+      );
+    }
 
-      appendEvidence(payload, {
-        kind: "ai_remediation_suggested",
-        summary: `AI remediation suggested for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
-        projectId: finding.projectId,
-        controlId: finding.controlId,
-        findingId: finding.id,
-        detail: {
-          provenance: "ai",
-          model: result.suggestion.model,
-          confidence: result.suggestion.confidence,
-          description: result.suggestion.description,
-        },
-      });
-      return payload;
-    },
-    "AI remediation suggestion saved.",
-  );
+    const result = await generateAiRemediation(previewFinding, control, {
+      onError: reportError,
+    });
+    if (!result) {
+      throw new PublicError(
+        "AI remediation unavailable. Check AI credentials or try again.",
+      );
+    }
+
+    await withFindingWrite(
+      findingId,
+      "project.remediate",
+      async ({ db, finding }) => {
+        // The suggestion verdict was computed from preview data outside the
+        // lock. Re-validate the live row before trusting it: the finding must
+        // still be open with a pre-approval remediation, otherwise the stale
+        // verdict must not decide the write.
+        if (finding.status !== "open") {
+          throw new PublicError(
+            "AI remediation is only available for open findings.",
+          );
+        }
+        const remediation = remediationForFinding(db, findingId);
+        if (
+          remediation.status !== "detected" &&
+          remediation.status !== "suggested"
+        ) {
+          throw new PublicError(
+            "AI remediation can only refine suggestions before approval.",
+          );
+        }
+
+        const payload: ProjectWritePayload = {};
+        if (
+          result.attributeValue &&
+          finding.fix?.kind === "insert_attribute" &&
+          finding.fix.editable
+        ) {
+          payload.findings = [
+            {
+              ...finding,
+              fix: { ...finding.fix, value: result.attributeValue },
+            },
+          ];
+        }
+
+        replaceRemediation(
+          payload,
+          refreshSuggestion(
+            remediation,
+            result.suggestion,
+            remediation.status === "detected"
+              ? `AI suggestion: ${result.suggestion.description}`
+              : `AI suggestion refreshed: ${result.suggestion.description}`,
+          ),
+        );
+
+        appendEvidence(payload, {
+          kind: "ai_remediation_suggested",
+          summary: `AI remediation suggested for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+          projectId: finding.projectId,
+          controlId: finding.controlId,
+          findingId: finding.id,
+          detail: {
+            provenance: "ai",
+            model: result.suggestion.model,
+            confidence: result.suggestion.confidence,
+            description: result.suggestion.description,
+          },
+        });
+        return payload;
+      },
+    );
+    refresh(...COMPLIANCE_LOOP_ROUTES);
+    return "AI remediation suggestion saved.";
+  });
 }

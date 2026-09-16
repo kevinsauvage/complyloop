@@ -32,6 +32,20 @@ import { reportWarning } from "../observability";
 
 export type { AssessmentJob };
 
+/**
+ * Thrown when an apply-time re-check finds the job is no longer `running`
+ * (the user cancelled mid-run). The surrounding transaction rolls back, so
+ * the worker must report cancellation — never failure.
+ */
+export class AssessmentJobCancelledError extends Error {
+  readonly jobId: string;
+  constructor(jobId: string) {
+    super(`Assessment job ${jobId} is no longer running.`);
+    this.name = "AssessmentJobCancelledError";
+    this.jobId = jobId;
+  }
+}
+
 type AssessmentJobRow = typeof assessmentJobs.$inferSelect;
 
 const DEFAULT_MAX_ATTEMPTS = 3;
