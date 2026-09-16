@@ -83,18 +83,36 @@ interface GuardedProbe {
   run: (page: Page) => Promise<ProbeResult>;
 }
 
+/**
+ * Upper bound per probe (P2-5 containment): a probe that hangs — a page that
+ * never settles an evaluate — is recorded in `probeFailures` instead of
+ * stalling the whole runtime pass until the function is killed.
+ */
+const PROBE_TIMEOUT_MS = 60_000;
+
 async function runProbe(
   failures: string[],
   probeId: string,
   probe: () => Promise<ProbeResult>,
 ): Promise<CustomViolation[]> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const result = await probe();
+    const result = await Promise.race([
+      probe(),
+      new Promise<ProbeResult>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`probe timed out: ${probeId}`)),
+          PROBE_TIMEOUT_MS,
+        );
+      }),
+    ]);
     if (result == null) return [];
     return Array.isArray(result) ? result : [result];
   } catch {
     failures.push(probeId);
     return [];
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
   }
 }
 
@@ -171,8 +189,19 @@ async function collectCustomViolations(
   page: Page,
 ): Promise<{ violations: CustomViolation[]; probeFailures: string[] }> {
   const probeFailures: string[] = [];
-  const run = (probe: GuardedProbe): Promise<CustomViolation[]> =>
-    runProbe(probeFailures, probe.id, () => probe.run(page));
+  const run = async (probe: GuardedProbe): Promise<CustomViolation[]> => {
+    // Per-probe markers: the last started-but-unfinished probe names the
+    // stall when a run dies mid-pass.
+    console.info(`[progress] runtime probe ${probe.id} started`);
+    const start = Date.now();
+    try {
+      return await runProbe(probeFailures, probe.id, () => probe.run(page));
+    } finally {
+      console.info(
+        `[progress] runtime probe ${probe.id} finished ms=${Date.now() - start}`,
+      );
+    }
+  };
 
   const optional = await Promise.all(PARALLEL_PROBES.map(run));
 
