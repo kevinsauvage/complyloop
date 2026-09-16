@@ -11,6 +11,24 @@ import { useActionToast } from "@/hooks/use-action-toast";
 
 const initialState: ActionState = initialActionState;
 
+/**
+ * Isolated so `useRouter()` (which requires App Router context) is only
+ * called when `refreshOnSuccess` is actually requested. Otherwise every
+ * consumer — and every test rendering one — would need router context.
+ */
+function RefreshOnSuccess({ message }: { message: string }) {
+  const router = useRouter();
+  const refreshedFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (refreshedFor.current === message) return;
+    refreshedFor.current = message;
+    router.refresh();
+  }, [message, router]);
+
+  return null;
+}
+
 type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
 type ButtonSize = VariantProps<typeof buttonVariants>["size"];
 
@@ -53,19 +71,13 @@ export function StatefulActionForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formId = useId();
-  const router = useRouter();
   useActionToast(state, pending);
-  const refreshedFor = useRef<string | null>(null);
 
   // `revalidatePath` in the action invalidates the cache but never re-renders
   // this view: without an explicit refresh the user stares at stale data
   // (e.g. the first-assessment checklist with no sign of the queued job).
-  useEffect(() => {
-    if (!refreshOnSuccess || pending || !state.ok || !state.message) return;
-    if (refreshedFor.current === state.message) return;
-    refreshedFor.current = state.message;
-    router.refresh();
-  }, [refreshOnSuccess, pending, state.ok, state.message, router]);
+  const shouldRefresh =
+    refreshOnSuccess && !pending && state.ok && Boolean(state.message);
 
   const showRetry =
     !state.ok && Boolean(state.message) && !pending && Boolean(retryLabel);
@@ -74,6 +86,7 @@ export function StatefulActionForm({
   return (
     <form id={formId} action={formAction} className={className}>
       {children}
+      {shouldRefresh ? <RefreshOnSuccess message={state.message ?? ""} /> : null}
       <div className="flex flex-col gap-2">
         <ConfirmSubmitButton
           label={showRetry ? (retryLabel ?? submitLabel) : submitLabel}
