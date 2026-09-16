@@ -21,7 +21,11 @@ import {
 } from "./parse.ts";
 import type { RawFinding } from "./types.ts";
 
-const require = createRequire(path.join(process.cwd(), "package.json"));
+const require = createRequire(
+  typeof import.meta.url === "string" && import.meta.url.length > 0
+    ? import.meta.url
+    : path.join(process.cwd(), "package.json"),
+);
 const jsxA11y = require("eslint-plugin-jsx-a11y") as NonNullable<
   Linter.Config["plugins"]
 >[string];
