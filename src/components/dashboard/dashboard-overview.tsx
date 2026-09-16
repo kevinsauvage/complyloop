@@ -92,7 +92,7 @@ export function DashboardOverview({
   actions,
 }: {
   title: string;
-  description?: string;
+  description?: ReactNode;
   repoLabel?: string;
   stats: DashboardQuickStat[];
   meta?: ReactNode;

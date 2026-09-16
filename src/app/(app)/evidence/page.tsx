@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { EvidenceKindBadge } from "@/components/badges";
 import { EvidenceKindChips } from "@/components/evidence/evidence-kind-chips";
+import { FormattedDateTime } from "@/components/formatted-datetime";
 import {
   EmptyState,
   NoProjectNotice,
@@ -15,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatDateTime } from "@/core/datetime";
 import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/display";
 import { evidenceRecordHref } from "@/core/filter-params";
 import { evidenceKindHref } from "@/core/filter-params";
@@ -227,12 +227,10 @@ export default async function EvidencePage({
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <EvidenceKindBadge kind={record.kind} />
-                            <time
-                              dateTime={record.at}
+                            <FormattedDateTime
+                              iso={record.at}
                               className="text-xs text-muted-foreground whitespace-nowrap"
-                            >
-                              {formatDateTime(record.at)}
-                            </time>
+                            />
                             <span className="text-xs text-muted-foreground">
                               · {record.actor ?? "System"}
                             </span>

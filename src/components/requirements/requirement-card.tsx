@@ -12,10 +12,10 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 
 import { RequirementStatusBadge } from "@/components/badges";
+import { FormattedDateTime } from "@/components/formatted-datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { formatDateTime } from "@/core/datetime";
 import { determinationDisplay, requirementStatusDisplay } from "@/core/display";
 import { findingsListHref } from "@/core/filter-params";
 import {
@@ -113,7 +113,7 @@ export function RequirementCard({
           ) : (
             <>No open findings</>
           )}{" "}
-          · updated {formatDateTime(requirement.updatedAt)}
+          · updated <FormattedDateTime iso={requirement.updatedAt} />
         </p>
       </CardHeader>
 

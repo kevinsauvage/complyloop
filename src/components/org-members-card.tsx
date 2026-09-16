@@ -1,5 +1,6 @@
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 
+import { FormattedDateTime } from "@/components/formatted-datetime";
 import { RoleSelect } from "@/components/role-select";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDateTime } from "@/core/datetime";
 import { roleTone, STATUS_TONE_BADGE } from "@/core/display";
 import { cn } from "@/lib/utils";
 import {
@@ -86,7 +86,7 @@ export function OrgMembersCard({
                 )}
               </TableCell>
               <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground sm:table-cell">
-                {formatDateTime(membership.createdAt)}
+                <FormattedDateTime iso={membership.createdAt} />
               </TableCell>
               {canManage ? (
                 <TableCell className="pr-4">

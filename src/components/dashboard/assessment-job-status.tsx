@@ -1,8 +1,8 @@
 import { RefreshCw } from "lucide-react";
 
+import { FormattedDateTime } from "@/components/formatted-datetime";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import type { AssessmentJobStage } from "@/core/assessment-jobs";
-import { formatDateTime } from "@/core/datetime";
 import { cn } from "@/lib/utils";
 import {
   cancelAssessmentJobAction,
@@ -96,10 +96,14 @@ function RunningAgeNote({ startedAt }: { startedAt: string }) {
   const ageMs = longRunningAgeMs(startedAt);
   if (ageMs === null) return null;
   return (
-    <p className="basis-full pl-5 text-xs text-muted-foreground" role="status">
-      Running for {formatStallAge(ageMs)} — longer than expected. If the
-      request was interrupted, the job is retried automatically when its lease
-      expires; otherwise cancel it to stop the scan.
+    <p
+      className="basis-full pl-5 text-xs text-muted-foreground"
+      role="status"
+      suppressHydrationWarning
+    >
+      Running for {formatStallAge(ageMs)} — longer than expected. If the request
+      was interrupted, the job is retried automatically when its lease expires;
+      otherwise cancel it to stop the scan.
     </p>
   );
 }
@@ -143,14 +147,15 @@ export function AssessmentJobStatus({
         <p
           className="mb-3 rounded-lg border border-signal/30 bg-signal/5 px-3 py-2 text-xs text-muted-foreground"
           role="status"
+          suppressHydrationWarning
         >
           <span className="font-medium text-foreground">
             Assessment worker may be stopped.
           </span>{" "}
-            Oldest queued job waiting {formatStallAge(stalledAge)} — scans
-            are drained by the assessment-worker workflow (
-            <code className="font-mono">repository_dispatch</code> + 15-min
-            schedule, see docs/vercel.md).
+          Oldest queued job waiting {formatStallAge(stalledAge)} — scans are
+          drained by the assessment-worker workflow (
+          <code className="font-mono">repository_dispatch</code> + 15-min
+          schedule, see docs/vercel.md).
         </p>
       ) : null}
       <ul className="flex flex-col gap-2" aria-label="Recent assessment jobs">
@@ -179,12 +184,10 @@ export function AssessmentJobStatus({
                 </span>
               </span>
             </span>
-            <time
+            <FormattedDateTime
+              iso={job.createdAt}
               className="font-mono text-xs text-muted-foreground"
-              dateTime={job.createdAt}
-            >
-              {formatDateTime(job.createdAt)}
-            </time>
+            />
             {job.error ? (
               <p className="basis-full pl-5 text-xs text-destructive">
                 {job.error}

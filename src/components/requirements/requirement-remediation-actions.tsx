@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
+import { FormattedDateTime } from "@/components/formatted-datetime";
 import { ReasonNoteFields } from "@/components/reason-note-fields";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -17,7 +18,6 @@ import {
 } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDateTime } from "@/core/datetime";
 import { cn } from "@/lib/utils";
 import {
   clearRequirementExceptionAction,
@@ -58,8 +58,8 @@ export function RequirementRemediationActions({
           <AlertDescription className="text-muted-foreground">
             {requirement.humanPass.note}
             <span className="mt-1 block text-xs text-muted-foreground">
-              Set {formatDateTime(requirement.humanPass.at)} — sticky until
-              cleared (assessments will not overwrite).
+              Set <FormattedDateTime iso={requirement.humanPass.at} /> — sticky
+              until cleared (assessments will not overwrite).
             </span>
             {canRemediate ? (
               <span className="mt-2 block">
@@ -88,10 +88,18 @@ export function RequirementRemediationActions({
           <AlertDescription className="text-muted-foreground">
             {requirement.exception.note}
             <span className="mt-1 block text-xs text-muted-foreground">
-              Set {formatDateTime(requirement.exception.at)}
-              {requirement.exception.expiresAt
-                ? ` — expires ${formatDateTime(requirement.exception.expiresAt)}`
-                : " — sticky until cleared (assessments will not overwrite)"}
+              Set <FormattedDateTime iso={requirement.exception.at} />
+              {requirement.exception.expiresAt ? (
+                <>
+                  {" "}
+                  — expires{" "}
+                  <FormattedDateTime
+                    iso={requirement.exception.expiresAt}
+                  />
+                </>
+              ) : (
+                " — sticky until cleared (assessments will not overwrite)"
+              )}
               .
             </span>
             {canRemediate ? (

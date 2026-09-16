@@ -17,6 +17,7 @@ import { FindingNextStepPanel } from "@/components/findings/finding-next-step-pa
 import { FindingQueueNav } from "@/components/findings/finding-queue-nav";
 import { FindingUnderstandCard } from "@/components/findings/finding-understand-card";
 import { RemediationHistory } from "@/components/findings/remediation-history";
+import { FormattedDateTime } from "@/components/formatted-datetime";
 import {
   EmptyState,
   PageContent,
@@ -25,7 +26,6 @@ import {
 } from "@/components/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDateTime } from "@/core/datetime";
 import {
   confidenceDisplay,
   engineDisplay,
@@ -169,12 +169,10 @@ export default async function FindingPage({
                           Latest
                         </span>
                       ) : null}
-                      <time
-                        dateTime={record.at}
+                      <FormattedDateTime
+                        iso={record.at}
                         className="text-xs text-muted-foreground"
-                      >
-                        {formatDateTime(record.at)}
-                      </time>
+                      />
                     </div>
                     <p className="mt-1.5 text-sm text-muted-foreground">
                       {record.summary}
@@ -198,12 +196,10 @@ export default async function FindingPage({
                           <Badge variant="secondary">
                             {evidenceDisplay(record.kind, record.detail).label}
                           </Badge>
-                          <time
-                            dateTime={record.at}
+                          <FormattedDateTime
+                            iso={record.at}
                             className="text-xs text-muted-foreground"
-                          >
-                            {formatDateTime(record.at)}
-                          </time>
+                          />
                         </div>
                         <p className="mt-1.5 text-sm text-muted-foreground">
                           {record.summary}

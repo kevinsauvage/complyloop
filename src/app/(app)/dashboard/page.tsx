@@ -18,8 +18,9 @@ import {
   FirstAssessmentChecklist,
   UnableToVerifyRuntimeHint,
 } from "@/components/dashboard/first-assessment-checklist";
-import { projectDescription } from "@/components/dashboard/project-description";
+import { projectSourceBit } from "@/components/dashboard/project-description";
 import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
+import { FormattedDateTime } from "@/components/formatted-datetime";
 import { PageActionLink, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { displayControl } from "@/server/reporting/report";
@@ -87,7 +88,17 @@ export default async function DashboardPage() {
       <DashboardOverview
         title={project.name}
         repoLabel={project.github?.fullName ?? project.sourceRef ?? undefined}
-        description={projectDescription(project, latestAssessment)}
+        description={
+          latestAssessment ? (
+            <>
+              {projectSourceBit(project)} · assessed{" "}
+              <FormattedDateTime iso={latestAssessment.completedAt} /> ·{" "}
+              {latestAssessment.filesScanned} files
+            </>
+          ) : (
+            `${projectSourceBit(project)} · not assessed yet`
+          )
+        }
         stats={quickStats}
         meta={
           latestAssessment ? (

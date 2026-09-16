@@ -24,7 +24,7 @@ export function PageHeader({
   variant = "panel",
 }: {
   title: string;
-  description?: string;
+  description?: ReactNode;
   /** Optional meta row rendered above the title (e.g. repo label, badges). */
   eyebrow?: ReactNode;
   children?: ReactNode;

@@ -4,9 +4,9 @@ import Link from "next/link";
 import type { Alert as AlertRecord } from "@complyloop/analysis-core/contract/entities";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
+import { FormattedDateTime } from "@/components/formatted-datetime";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { formatDateTime } from "@/core/datetime";
 import {
   markAlertReadAction,
   markAllAlertsReadAction,
@@ -167,12 +167,10 @@ export function DashboardAlertsCard({
                     </p>
                   ) : null}
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <time
+                    <FormattedDateTime
+                      iso={alert.at}
                       className="text-xs text-muted-foreground"
-                      dateTime={alert.at}
-                    >
-                      {formatDateTime(alert.at)}
-                    </time>
+                    />
                     <StatefulActionForm
                       action={markAlertReadAction}
                       submitLabel="Mark as read"

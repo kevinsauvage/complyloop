@@ -1,8 +1,8 @@
 import type { Remediation } from "@complyloop/analysis-core/contract/entities";
 
 import { RemediationStatusBadge } from "@/components/badges";
+import { FormattedDateTime } from "@/components/formatted-datetime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDateTime } from "@/core/datetime";
 import { cn } from "@/lib/utils";
 
 /**
@@ -60,12 +60,10 @@ export function RemediationHistory({
                       Latest
                     </span>
                   ) : null}
-                  <time
-                    dateTime={entry.at}
+                  <FormattedDateTime
+                    iso={entry.at}
                     className="text-xs text-muted-foreground"
-                  >
-                    {formatDateTime(entry.at)}
-                  </time>
+                  />
                 </div>
                 {entry.note ? (
                   <p className="mt-1.5 text-sm text-muted-foreground">

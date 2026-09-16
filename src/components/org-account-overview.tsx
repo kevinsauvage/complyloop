@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { OrgRole } from "@complyloop/analysis-core/contract/project-types";
 
+import { FormattedDateTime } from "@/components/formatted-datetime";
 import { MetaTile } from "@/components/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,7 +11,6 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
-import { formatDateTime } from "@/core/datetime";
 import { roleTone, STATUS_TONE_BADGE } from "@/core/display";
 import { cn } from "@/lib/utils";
 
@@ -118,7 +118,9 @@ export function OrgAccountOverview({
           ) : null}
         </MetaTile>
         <MetaTile label="Workspace age">
-          <p className="text-foreground">Created {formatDateTime(createdAt)}</p>
+          <p className="text-foreground">
+            Created <FormattedDateTime iso={createdAt} />
+          </p>
         </MetaTile>
 
         <div className="sm:col-span-2 rounded-lg border border-signal/20 bg-signal/5 px-4 py-3 text-sm">

@@ -16,6 +16,7 @@ import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
 import { SeverityBadge } from "@/components/badges";
+import { FormattedDateTime } from "@/components/formatted-datetime";
 import { PageActionLink } from "@/components/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,7 +26,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatDateTime } from "@/core/datetime";
 import { evidenceDisplay } from "@/core/display";
 import type { FindingCluster } from "@/core/finding-priority";
 import { cn } from "@/lib/utils";
@@ -136,7 +136,7 @@ export function DashboardActivitySections({
               >
                 {record.summary}
                 <span className="ml-2 text-xs text-muted-foreground">
-                  {formatDateTime(record.at)}
+                  <FormattedDateTime iso={record.at} />
                 </span>
               </li>
             ))}
@@ -299,7 +299,7 @@ export function DashboardActivitySections({
                   </span>
                   <span className="mt-1 block">{record.summary}</span>
                   <span className="mt-1 block text-xs">
-                    {formatDateTime(record.at)}
+                    <FormattedDateTime iso={record.at} />
                   </span>
                 </li>
               );

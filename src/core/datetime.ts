@@ -1,7 +1,11 @@
 /**
  * Date/time formatters. `formatDateTime` is local-time-only for interactive
- * UI; `formatDateTimeWithZone` appends the UTC offset for compliance
- * artifacts (reports, exports) so a printed instant is unambiguous.
+ * UI — never render it as a bare text node in SSR: server (UTC) and browser
+ * (viewer TZ) strings differ and throw React hydration error #418. Use
+ * `<FormattedDateTime>` instead, which wraps it in a `time` with
+ * `suppressHydrationWarning`. `formatDateTimeWithZone` appends the UTC offset
+ * for compliance artifacts (reports, exports) so a printed instant is
+ * unambiguous.
  */
 
 export function formatDateTime(iso: string): string {
