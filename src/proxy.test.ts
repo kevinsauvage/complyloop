@@ -81,6 +81,14 @@ describe("proxy basic auth gate", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("leaves the Sentry tunnel untouched (no gate, no login redirect)", async () => {
+    baseEnv();
+    getToken.mockResolvedValue(null);
+    await expect(proxy(request("/monitoring"))).resolves.toBeUndefined();
+    // Even with missing basic-auth credentials the envelope must pass through.
+    await expect(proxy(request("/monitoring", "Bearer token"))).resolves.toBeUndefined();
+  });
+
   it("leaves the gate open when credentials are unset (local dev)", async () => {
     baseEnv();
     vi.stubEnv("BASIC_AUTH_USERNAME", "");

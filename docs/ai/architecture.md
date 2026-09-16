@@ -32,15 +32,19 @@ publish-only.
 **Connectors:** GitHub only. **State:** Postgres (`DATABASE_URL`). Evidence is
 append-only. Tokens AES-256-GCM at rest. Server-owned env keys live in
 `src/server/env.ts` (lazy getters — never module constants); `AUTH_*` stays
-with auth/middleware/token crypto, framework keys stay direct. Assessments are durable jobs
-(Vercel Cron → `POST /api/internal/jobs/run`).
+with auth/middleware/token crypto, framework keys stay direct. Manual and
+webhook assessments are durable jobs: enqueue → `repository_dispatch` kicks
+the GitHub Actions `assessment-worker` (Playwright Chromium, same family as
+local dev) → 15-min schedule backstop → `POST /api/internal/jobs/run`
+(Vercel fallback only); dev/e2e drains inline.
 
 ```
-App (enqueue only) → assessment_jobs → Cron tick (clone → scan → persist)
-                                          ↓
-                          Core + contract → Catalog / Analysis / AI
-                                          ↓
-                          isomorphic-git checkout (ephemeral, no git CLI)
+Manual run (dashboard action enqueues + after() dispatch) → assessment-worker (GH) → claim → scan → persist
+Webhook (enqueue + after() dispatch) → assessment-worker (GH); 15-min schedule covers orphans/expired leases
+                                           ↓ (clone → scan → persist)
+                           Core + contract → Catalog / Analysis / AI
+                                           ↓
+                           isomorphic-git checkout (ephemeral, no git CLI)
 ```
 
 ## Persistence
@@ -100,12 +104,21 @@ evidence, findings, remediations, requirements }`; the worker persists via
   No abstract repositories, interfaces-per-table, or DI containers: expensive
   edges are injected explicitly via function params (`runAssessment`
   options), everything else is a direct import.
-- **Jobs** — 30-min lease (renewed by a 5-min worker heartbeat while a scan
-  runs), 3 attempts, serial per project, cancellable (`queued`/`running` →
+- **Jobs** — 30-min lease (renewed by a 5-min heartbeat while a scan runs),
+  3 attempts, serial per project, cancellable (`queued`/`running` →
   `cancelled`, project-scoped; a cancelled mid-run run saves nothing and posts
-  no Check Run). Manual re-runs reuse the active job instead of stacking.
-  Batches run on Vercel Cron ticks (plus inline drain in dev/e2e); expired
-  rate-limit buckets prune once per batch.
+  no Check Run).
+  Two triggers, one queued topology, one job model:
+  - **Manual** — `runAssessmentAction` enqueues (`queued`, `attempts: 0`)
+    and schedules the drain in `after()`; the click resolves fast with
+    "queued" copy and progress lives in the Pipeline section (polls every
+    3s, refreshes on completion). A second click while a job is active is
+    refused — claims are serial per project.
+  - **Webhook (queued)** — enqueue then `after()` self-fetch of
+    `POST /api/internal/jobs/run?limit=1`; the GitHub Actions sweep (every
+    5 min) is the backstop for failed fetches, killed tasks, and expired
+    leases. Dev/e2e drain the queue inline.
+  Expired rate-limit buckets prune once per batch.
 - **Checkouts** — shallow ephemeral checkout per job via pure-JS git
   (isomorphic-git, no `git` CLI); deleted after. Serverless Chromium via
   `@sparticuz/chromium` when `ASSESSMENT_RUNTIME_BROWSER=serverless`, local
@@ -172,7 +185,11 @@ Assessments always use the project's `defaultPresetId`. Requirements page
 
 ## Key flows
 
-**Assessment:** enqueue → worker clones + scans → `detectChanges` (depth-1
+**Assessment:** manual runs enqueue in the dashboard action and kick the GH
+   worker via dispatch (fallback: Vercel worker route); webhook runs go
+   enqueue → dispatch, 15-min schedule backstop (see
+   180|Jobs). Either way the worker
+   clones + scans → `detectChanges` (depth-1
 clone: author is HEAD) → AST → optional Playwright → merge → re-derive
 statuses → `verifyDraftPrRemediation` (uses `approvalAction` on the
 remediation, not historical evidence). Only a **default-branch** scan (or a

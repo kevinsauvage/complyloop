@@ -66,14 +66,20 @@ export async function reflowViolation(
           document.body.scrollWidth > document.body.clientWidth + 1;
         if (!overflow) return null;
 
-        const wide = Array.from(document.querySelectorAll("body *")).find(
-          (el) => {
-            if (!(el instanceof HTMLElement)) return false;
-            if (isExempt(el)) return false;
-            const rect = el.getBoundingClientRect();
-            return rect.width > root.clientWidth + 1;
-          },
-        );
+        // Candidate-first: rect reads share one layout, while the exemption
+        // walk calls getComputedStyle per ancestor (forced style recalc each
+        // time). Only ancestors of over-wide elements pay for that walk —
+        // same first-wide-non-exempt result, far fewer style reads.
+        const limit = root.clientWidth + 1;
+        let wide: HTMLElement | null = null;
+        for (const el of Array.from(document.querySelectorAll("body *"))) {
+          if (!(el instanceof HTMLElement)) continue;
+          if (el.getBoundingClientRect().width <= limit) continue;
+          if (!isExempt(el)) {
+            wide = el;
+            break;
+          }
+        }
 
         if (!wide) return null;
         return captureHit(wide);

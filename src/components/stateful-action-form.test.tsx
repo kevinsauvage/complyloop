@@ -16,10 +16,17 @@ vi.mock("sonner", () => ({
   },
 }));
 
+const routerRefresh = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: (...args: unknown[]) => routerRefresh(...args) }),
+}));
+
 afterEach(() => {
   cleanup();
   toastSuccess.mockClear();
   toastError.mockClear();
+  routerRefresh.mockClear();
 });
 
 describe("StatefulActionForm", () => {
@@ -72,6 +79,40 @@ describe("StatefulActionForm", () => {
     await waitFor(() => {
       expect(toastError).not.toHaveBeenCalled();
       expect(screen.getByRole("alert")).toHaveTextContent("Not allowed.");
+    });
+    expect(routerRefresh).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the route after success only when refreshOnSuccess is set", async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async () => ({ ok: true, message: "Queued." }));
+
+    const { unmount } = render(
+      <StatefulActionForm
+        action={action}
+        submitLabel="Run"
+        variant="default"
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Run" }));
+    await waitFor(() => {
+      expect(toastSuccess).toHaveBeenCalled();
+    });
+    expect(routerRefresh).not.toHaveBeenCalled();
+    unmount();
+
+    toastSuccess.mockClear();
+    render(
+      <StatefulActionForm
+        action={action}
+        submitLabel="Run again"
+        variant="default"
+        refreshOnSuccess
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Run again" }));
+    await waitFor(() => {
+      expect(routerRefresh).toHaveBeenCalledTimes(1);
     });
   });
 });

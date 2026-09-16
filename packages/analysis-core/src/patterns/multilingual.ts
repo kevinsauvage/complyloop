@@ -26,8 +26,12 @@ export function matchesMultilingual(pattern: RegExp, text: string): boolean {
  * Body for `new Function("pattern", "text", RUNTIME_MATCHES_SRC)` inside
  * `page.evaluate`. Assembles foldAccents + matchesMultilingual once so runtime
  * checks do not each re-stringify the pair.
+ *
+ * Assigned (`const name = (<src>);`), never bare statements: the production
+ * bundler may inline `.toString()` values as anonymous `function(...){...}`
+ * expressions, which are a SyntaxError in statement position.
  */
-export const RUNTIME_MATCHES_SRC = `${foldAccents.toString()}; ${matchesMultilingual.toString()}; return matchesMultilingual(pattern, text);`;
+export const RUNTIME_MATCHES_SRC = `const foldAccents = (${foldAccents.toString()}); const matchesMultilingual = (${matchesMultilingual.toString()}); return matchesMultilingual(pattern, text);`;
 
 export const HIGH_RISK =
   /\b(checkout|payment|pay|purchase|order|donat|transfer|withdraw|subscribe|contract|legal|terms|financial|invoice|billing|exam|quiz|test submission|submit application|delete account|cancel subscription|paiement|payer|achat|commande|don\b|virement|retrait|abonnement|souscri|contrat|juridique|l[eéEÉ]gal|conditions|financier|facture|facturation|examen|concours|candidature|supprimer|r[eéEÉ]silier|pago|pagar|compra|pedido|contrato|factura|zahlung|bezahlen|kauf|bestellung|vertrag|rechnung)\b/i;

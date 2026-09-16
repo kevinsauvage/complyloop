@@ -173,6 +173,9 @@ describe("evidenceDisplay", () => {
     expect(evidenceDisplay("assessment_job", { phase: "queued" }).tone).toBe(
       "signal",
     );
+    expect(evidenceDisplay("assessment_job", { phase: "started" }).label).toBe(
+      "Assessment started",
+    );
     expect(evidenceDisplay("assessment_job", { phase: "cancelled" }).tone).toBe(
       "default",
     );

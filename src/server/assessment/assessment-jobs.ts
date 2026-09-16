@@ -108,6 +108,28 @@ export interface EnqueueAssessmentJobInput {
   payload?: AssessmentJobPayload;
 }
 
+/** Row values shared by the queued insert and the immediate-start insert. */
+function newAssessmentJobRow(
+  id: string,
+  input: EnqueueAssessmentJobInput,
+  now: string,
+): typeof assessmentJobs.$inferInsert {
+  return {
+    id,
+    projectId: input.projectId,
+    status: "queued",
+    trigger: input.trigger,
+    requestedByUserId: input.requestedByUserId ?? null,
+    idempotencyKey: input.idempotencyKey ?? null,
+    payload: { ...(input.payload ?? {}) },
+    attempts: 0,
+    maxAttempts: DEFAULT_MAX_ATTEMPTS,
+    availableAt: now,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 /**
  * Enqueues a new assessment. An idempotency key returns the original job when
  * a webhook is delivered more than once or a request is retried.
@@ -189,20 +211,7 @@ export async function enqueueAssessmentJob(
   try {
     const [created] = await drizzle
       .insert(assessmentJobs)
-      .values({
-        id: crypto.randomUUID(),
-        projectId: input.projectId,
-        status: "queued",
-        trigger: input.trigger,
-        requestedByUserId: input.requestedByUserId ?? null,
-        idempotencyKey: input.idempotencyKey ?? null,
-        payload: { ...(input.payload ?? {}) },
-        attempts: 0,
-        maxAttempts: DEFAULT_MAX_ATTEMPTS,
-        availableAt: now,
-        createdAt: now,
-        updatedAt: now,
-      })
+      .values(newAssessmentJobRow(crypto.randomUUID(), input, now))
       .returning();
     if (!created) throw new Error("Could not enqueue assessment job.");
     return jobFromRow(created);
@@ -415,14 +424,16 @@ export async function recentAssessmentJobsForProject(
 
 /**
  * Oldest still-active (`queued`/`running`) job for a project, or null.
- * Manual enqueues consult this so rapid re-runs reuse the active job instead
- * of stacking serial scans behind the per-project lock.
+ * The dashboard action uses this to refuse a second manual run while one is
+ * already in flight, and the Run button uses it to disable itself — the
+ * serial-per-project claim would otherwise stack full scans behind each
+ * other with no visible explanation.
  */
-export async function findActiveAssessmentJob(
+export async function activeAssessmentJobForProject(
   projectId: string,
 ): Promise<AssessmentJob | null> {
   const drizzle = await getDrizzle();
-  const [row] = await drizzle
+  const rows = await drizzle
     .select()
     .from(assessmentJobs)
     .where(
@@ -431,9 +442,14 @@ export async function findActiveAssessmentJob(
         inArray(assessmentJobs.status, ["queued", "running"]),
       ),
     )
-    .orderBy(asc(assessmentJobs.createdAt))
-    .limit(1);
-  return row ? jobFromRow(row) : null;
+    .limit(25);
+  // Oldest-first in JS (not ORDER BY): one row is all the caller needs and
+  // this stays deterministic regardless of index order.
+  let oldest: (typeof rows)[number] | null = null;
+  for (const row of rows) {
+    if (!oldest || row.createdAt < oldest.createdAt) oldest = row;
+  }
+  return oldest ? jobFromRow(oldest) : null;
 }
 
 export interface CancelAssessmentJobInput {

@@ -58,3 +58,6 @@ next-env.d.ts
 
 # design system
 design-system/
+
+# Sentry Config File
+.env.sentry-build-plugin

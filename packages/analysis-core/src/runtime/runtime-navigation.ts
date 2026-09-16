@@ -50,7 +50,15 @@ export async function gotoForRuntimeAudit(
   });
   // Portfolio/marketing pages often mount with opacity-0 + CSS fade-ins. Without
   // freezing motion, axe sees a different set of contrast nodes every run.
-  await page.addStyleTag({ content: RUNTIME_AUDIT_MOTION_FREEZE_CSS });
+  // Best-effort: addStyleTag shares Playwright's CSP-error race with
+  // addScriptTag, so page script noise can reject it — and a restrictive
+  // style-src can block it outright. Either failure only costs determinism,
+  // never evidence, so it must not fail the scan.
+  try {
+    await page.addStyleTag({ content: RUNTIME_AUDIT_MOTION_FREEZE_CSS });
+  } catch {
+    // Motion not frozen; axe still runs on the live tree.
+  }
   await page.evaluate(async () => {
     if (document.fonts?.ready) await document.fonts.ready;
   });

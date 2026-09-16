@@ -28,7 +28,7 @@ export function collectCaptchaCandidates(doc: Document = document): Element[] {
 }
 
 /** Text blob matched against {@link CAPTCHA_TOKEN} for applicability + alternative checks. */
-function captchaCandidateMatchText(el: Element): string {
+export function captchaCandidateMatchText(el: Element): string {
   return `${el.outerHTML} ${el.getAttribute("src") ?? ""} ${el.getAttribute("class") ?? ""} ${el.getAttribute("id") ?? ""}`;
 }
 
@@ -147,8 +147,8 @@ export const BROWSER_COLLECT_CAPTCHA_SRC = collectCaptchaCandidates.toString();
  * → `{ captchaCandidateMatchText, elementLooksLikeCaptcha }`
  */
 export const BROWSER_CAPTCHA_MATCH_SRC = `(function captchaMatchSource() {
-  ${captchaCandidateMatchText.toString()}
-  ${elementLooksLikeCaptcha.toString()}
+  const captchaCandidateMatchText = (${captchaCandidateMatchText.toString()});
+  const elementLooksLikeCaptcha = (${elementLooksLikeCaptcha.toString()});
   return {
     captchaCandidateMatchText: captchaCandidateMatchText,
     elementLooksLikeCaptcha: elementLooksLikeCaptcha
@@ -161,6 +161,6 @@ export const BROWSER_CAPTCHA_MATCH_SRC = `(function captchaMatchSource() {
  * → `{ isObjectRecognitionCaptchaElement }`
  */
 export const BROWSER_OBJECT_RECOGNITION_CAPTCHA_SRC = `(function objectRecognitionCaptchaSource() {
-  ${isObjectRecognitionCaptchaElement.toString()}
+  const isObjectRecognitionCaptchaElement = (${isObjectRecognitionCaptchaElement.toString()});
   return { isObjectRecognitionCaptchaElement: isObjectRecognitionCaptchaElement };
 })()`;

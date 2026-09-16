@@ -73,6 +73,45 @@ export type RuntimePageScanner = (
 let sharedBrowser: Browser | null = null;
 
 /**
+ * Set when teardown timed out: the cached browser may hold a leaked context,
+ * so the next scan launches fresh instead of reusing it. The leak is
+ * container-lifetime-bounded (serverless discards the whole process).
+ */
+let sharedBrowserTainted = false;
+
+/**
+ * Teardown must never sink a scan whose findings are already collected:
+ * `page.close()` / `context.close()` have waited minutes on pages with open
+ * connections. Bound the wait, warn, and continue with what was collected.
+ */
+const TEARDOWN_TIMEOUT_MS = 15_000;
+
+async function closeTeardown(
+  label: "page" | "context",
+  closing: Promise<void>,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      closing,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} close timed out`)),
+          TEARDOWN_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } catch {
+    sharedBrowserTainted = true;
+    console.warn(
+      `[warning] runtime ${label} close timed out; continuing with collected findings.`,
+    );
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
  * Serverless Chromium (Vercel has no Playwright browser download step):
  * `@sparticuz/chromium` ships a compatible build with its own executable
  * path. Set `ASSESSMENT_RUNTIME_BROWSER=serverless` to use it; anything else
@@ -85,18 +124,48 @@ function isServerlessBrowserEnabled(): boolean {
 }
 
 async function getBrowser(): Promise<Browser> {
+  if (sharedBrowserTainted) {
+    // A previous teardown timed out and may have leaked a context — do not
+    // reuse this browser. No close attempt: close is what hung last time.
+    sharedBrowser = null;
+    sharedBrowserTainted = false;
+  }
   if (!sharedBrowser) {
+    // Cold-start marker: sparticuz extracts ~100MB to /tmp on first launch.
+    console.info(
+      `[progress] runtime browser launch started serverless=${isServerlessBrowserEnabled()}`,
+    );
     if (isServerlessBrowserEnabled()) {
       const [{ chromium }, sparticuz] = await Promise.all([
         import("playwright-core"),
         import("@sparticuz/chromium"),
       ]);
-      sharedBrowser = await chromium.launch({
-        args: sparticuz.default.args,
-        executablePath: await sparticuz.default.executablePath(),
-        headless: true,
-      });
+      try {
+        sharedBrowser = await chromium.launch({
+          args: sparticuz.default.args,
+          executablePath: await sparticuz.default.executablePath(),
+          headless: true,
+        });
+      } catch (error) {
+        // Prefix the raw launch failure so classifyRuntimeScanError can map it
+        // to an actionable message instead of the generic fallback. The raw
+        // error (missing binary, unsupported arch, fs issue) is the only clue
+        // the function logs get; keep its text stripped of filesystem paths.
+        const raw = error instanceof Error ? error.message : String(error);
+        throw new Error(`sparticuz-launch: ${raw.replace(/\/[^\s"'<>]*\//g, "/")}`);
+      }
     } else {
+      // Fail fast with an operator-actionable error: without the serverless
+      // flag the local Playwright browser path (`~/.cache/ms-playwright`)
+      // does not exist on Vercel, and the resulting "Executable doesn't
+      // exist" launch error misleads. `PublicError` passes classification
+      // through unchanged, so this exact message reaches the UI + evidence.
+      // Vercel-only: dev/CI/e2e legitimately use the local browser.
+      if (process.env.VERCEL === "1") {
+        throw new PublicError(
+          "Preview audits need ASSESSMENT_RUNTIME_BROWSER=serverless on Vercel — the local Playwright browser is not installed in serverless functions. Set it on the Vercel project and redeploy.",
+        );
+      }
       const { chromium } = await import("playwright-core");
       sharedBrowser = await chromium.launch({ headless: true });
     }
@@ -124,13 +193,34 @@ async function axeTargetSizeViolations(
   return axe.violations.filter((v) => v.id === TARGET_SIZE_AXE_RULE);
 }
 
-async function ensureAxeOnPage(page: Page): Promise<void> {
-  const present = await page.evaluate(
+async function axePresentOnPage(page: Page): Promise<boolean> {
+  return page.evaluate(
     () =>
       typeof (window as { axe?: { run?: unknown } }).axe?.run === "function",
   );
-  if (present) return;
-  await page.addScriptTag({ path: resolveAxeMinJsPath() });
+}
+
+async function ensureAxeOnPage(page: Page): Promise<void> {
+  if (await axePresentOnPage(page)) return;
+  // Playwright races addScriptTag against *any* page CSP console error
+  // (`_raceWithCSPError`): a third-party beacon blocked by the page's own CSP
+  // (e.g. a misconfigured analytics endpoint) can reject this call even
+  // though our script appended fine. A failed injection is therefore
+  // verified, never trusted: if axe landed, the throw was page noise.
+  // Bounded (axe double-append is idempotent); a genuinely blocked injection
+  // (script-src without inline allowance) fails every presence check and
+  // surfaces as an operator-actionable PublicError below.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await page.addScriptTag({ path: resolveAxeMinJsPath() });
+    } catch {
+      // Fall through to the presence check.
+    }
+    if (await axePresentOnPage(page)) return;
+  }
+  throw new PublicError(
+    "The preview page blocks audit script injection (Content Security Policy). Relax script-src for the preview deployment, then re-run the assessment.",
+  );
 }
 
 /**
@@ -202,6 +292,17 @@ function createPlaywrightAxeScanner(options?: {
   return async (urls) => {
     const browser = await getBrowser();
     const context = await browser.newContext();
+    // Per-stage wall-clock attribution for production slowness (see the
+    // `[timing]` line before `return pages`): accumulates across pages.
+    const stageMs: Record<string, number> = {};
+    async function timed<T>(label: string, fn: () => Promise<T>): Promise<T> {
+      const start = Date.now();
+      try {
+        return await fn();
+      } finally {
+        stageMs[label] = (stageMs[label] ?? 0) + Date.now() - start;
+      }
+    };
     // Cache DNS per host for this scan: the interceptor runs for every
     // subresource, while the pre-navigation/rebinding checks below keep using
     // the uncached lookup on purpose.
@@ -238,7 +339,12 @@ function createPlaywrightAxeScanner(options?: {
     });
 
     try {
-      for (const url of urls) {
+      for (const [index, url] of urls.entries()) {
+        // Per-page marker with the query stripped (preview tokens): the last
+        // line before a timeout names the hanging page.
+        console.info(
+          `[progress] runtime page ${index + 1}/${urls.length} started ${url.replace(/\?[^\s"'<>]*/g, "")}`,
+        );
         blockedReason = null;
         hopGuard = createRedirectHopGuard();
         // Re-check near navigation (narrows the DNS rebinding window).
@@ -260,11 +366,14 @@ function createPlaywrightAxeScanner(options?: {
           if (blockedReason) {
             throw new PublicError(blockedReason);
           }
-          const results = await runAxeOnPage(page);
-          const customChecks = await runCustomRuntimeChecks(page, url);
+          const results = await timed("axe", () => runAxeOnPage(page));
+          const customChecks = await timed("custom", () =>
+            runCustomRuntimeChecks(page, url),
+          );
           const customFindings = customChecks.findings;
           // Rendered pass: validate the generated DOM. Serialize on
           // the open page (no extra browser cost) and validate in-process.
+          const otherStart = Date.now();
           const snapshot = await capturePageSnapshot(page, url);
           const applicabilityObservations =
             await applicabilityObservationsForPage(page, url);
@@ -305,17 +414,25 @@ function createPlaywrightAxeScanner(options?: {
             violations,
           );
 
+          const conditionsBefore = stageMs.conditions ?? 0;
           const {
             conditionViolations,
             conditionCustomFindings,
             conditionProbeFailures,
-          } = await collectBrowserConditionFindings(
-            page,
-            url,
-            conditions,
-            violations,
-            customFindings,
+          } = await timed("conditions", () =>
+            collectBrowserConditionFindings(
+              page,
+              url,
+              conditions,
+              violations,
+              customFindings,
+            ),
           );
+          // Snapshot/validate/viewport work around the conditions pass above.
+          stageMs.other =
+            (stageMs.other ?? 0) +
+            (Date.now() - otherStart) -
+            ((stageMs.conditions ?? 0) - conditionsBefore);
 
           pages.push({
             url,
@@ -334,12 +451,21 @@ function createPlaywrightAxeScanner(options?: {
             ],
           });
         } finally {
-          await page.close();
+          // Close markers: teardown is the only untimed await in the page
+          // loop — if a run stalls here, these lines name it.
+          console.info("[progress] runtime page close started");
+          await closeTeardown("page", page.close());
+          console.info("[progress] runtime page close finished");
         }
       }
     } finally {
-      await context.close();
+      console.info("[progress] runtime context close started");
+      await closeTeardown("context", context.close());
+      console.info("[progress] runtime context close finished");
     }
+    console.info(
+      `[timing] runtime pages scanned=${pages.length} axe=${stageMs.axe ?? 0}ms custom=${stageMs.custom ?? 0}ms conditions=${stageMs.conditions ?? 0}ms other=${stageMs.other ?? 0}ms`,
+    );
     return pages;
   };
 }
@@ -405,9 +531,16 @@ export async function scanRuntime(
       browserConditions: options.browserConditions,
     });
   try {
+    const scanStart = Date.now();
     const pages = await scanner(urls);
+    const pagesMs = Date.now() - scanStart;
     const siteLevelChecksRan = pages.length >= 2;
     const htmlValidateRan = pages.some((page) => page.htmlValidateRan === true);
+    const linkStart = Date.now();
+    // The crawl resolves only when fully done, so log its start budget here.
+    console.info(
+      `[progress] runtime link check started urls=${urls.length} quota=${maxRuntimePages()}`,
+    );
     const linkFindings =
       pages.length > 0
         ? await brokenLinkFindingsForUrls(urls, {
@@ -419,6 +552,7 @@ export async function scanRuntime(
               .filter((snapshot) => snapshot !== undefined),
           })
         : [];
+    const linkcheckMs = Date.now() - linkStart;
     const linkCheckRan = pages.length > 0;
     const findings = [
       ...findingsFromAxePages(pages),
@@ -429,6 +563,9 @@ export async function scanRuntime(
     const probeFailures = [
       ...new Set(pages.flatMap((page) => page.probeFailures ?? [])),
     ];
+    console.info(
+      `[timing] runtime scan pages=${pages.length} pagesMs=${pagesMs} linkcheckMs=${linkcheckMs} totalMs=${Date.now() - scanStart}`,
+    );
     return {
       findings,
       pagesScanned: pages.length,
@@ -439,6 +576,22 @@ export async function scanRuntime(
       probeFailures,
     };
   } catch (error) {
+    // This is the only place the unclassified cause is visible: callers only
+    // receive the user-safe classification, and a failed runtime sub-scan does
+    // not fail the job — so without this warn the root error never reaches
+    // function logs or Sentry. Query strings are stripped (preview tokens).
+    const raw = error instanceof Error ? error.message : String(error);
+    // Stage the raw serverless markers the classifier cannot map (launch vs
+    // navigation vs axe injection), so the next generic failure names where
+    // the scan died instead of collapsing to "Runtime scan failed.".
+    const stage = /sparticuz-launch|browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/.test(
+      raw,
+    )
+      ? raw.match(/sparticuz-launch|browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/)?.[0]
+      : "unknown";
+    console.warn(
+      `[warning] runtime scan failed (${error instanceof Error ? error.name : "unknown"}, stage ${stage}): ${raw.replace(/\?[^\s"'<>]*/g, "")}`,
+    );
     return {
       findings: [],
       pagesScanned: 0,
@@ -555,9 +708,15 @@ export async function runtimeViolationStillPresent(
   try {
     await assertSafeRuntimeUrl(url);
     pages = await scanner([url]);
-  } catch {
+  } catch (error) {
     // Unreachable / blocked / scan failure: we cannot prove the fix, so the
     // violation is treated as still present (fail closed — never verified).
+    // Log it: verify runs from a user click with no job record, so this warn
+    // is the only trace when re-verification keeps failing.
+    const raw = error instanceof Error ? error.message : String(error);
+    console.warn(
+      `[warning] runtime re-verify failed (fail closed): ${raw.replace(/\?[^\s"'<>]*/g, "")}`,
+    );
     return true;
   }
   // A page that rendered nothing also cannot be verified clean.

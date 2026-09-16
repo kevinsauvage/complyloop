@@ -1,21 +1,21 @@
 # Deploying ComplyLoop on Vercel
 
-Single topology: the Next.js app (web + API) runs on Vercel; Vercel Cron
-drives assessments; Postgres runs on Neon or Supabase. There is no worker
-process, no Docker image, and no `git` CLI anywhere — checkouts use pure-JS
-git (isomorphic-git) and preview audits use a serverless Chromium build
-(`@sparticuz/chromium`).
+Single topology: the Next.js app (web + API) runs on Vercel; assessments
+execute on GitHub Actions runners (same Playwright Chromium family as local
+dev — no serverless browser drift); Postgres runs on Neon or Supabase.
+There is no worker process to operate, no Docker image, and no `git` CLI
+anywhere — checkouts use pure-JS git (isomorphic-git).
 
 ## How it runs
 
-| Concern | Behavior |
-|---|---|
-| **Web/API** | Vercel Fluid functions, `next build` with zero config |
-| **Jobs** | Queued in Postgres; Vercel Cron hits `POST /api/internal/jobs/run?limit=2` every 2 min (`vercel.json`); 3 attempts with backoff, serial per project, 30-min lease renewed by a 5-min heartbeat |
-| **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after |
-| **Browsers** | `@sparticuz/chromium` (pinned) when `ASSESSMENT_RUNTIME_BROWSER=serverless`; locally installed Playwright browser otherwise |
-| **State** | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work) |
-| **Backups** | Postgres provider point-in-time (no app-side dump) |
+| Concern       | Behavior                                                                                                                                                                                                                                                                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                                                                                                                                                                                              |
+| **Jobs**      | Manual and webhook runs enqueue in Postgres (`enqueueAssessmentJob`). Trigger sites schedule a drain in `after()`: the GitHub Actions `assessment-worker` workflow (`.github/workflows/assessment-worker.yml`) executes the batch with Playwright Chromium — immediately via `repository_dispatch` (`assessment-drain`), every 15 min on schedule as the orphan/expired-lease backstop, or manually via `workflow_dispatch`. Unconfigured/failed dispatch falls back to self-fetching the single-scan worker route (`POST /api/internal/jobs/run?limit=1`, Vercel browser stack, degraded path). Serial per project in the queue, 3 attempts with backoff, 30-min lease renewed by a 5-min heartbeat |
+| **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                                                                                                                                                                                          |
+| **Browsers**  | Playwright Chromium (`npx playwright install chromium`, lockfile-pinned so CI matches local dev); `@sparticuz/chromium` behind `ASSESSMENT_RUNTIME_BROWSER=serverless` remains only for the degraded Vercel worker-route path                                                                                                                                          |
+| **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                                                                                                                                                                                                 |
+| **Backups**   | Postgres provider point-in-time (no app-side dump)                                                                                                                                                                                                                                                                                                                 |
 
 ## 1. Database
 
@@ -33,42 +33,78 @@ and on every schema change:
 DATABASE_URL="<remote-url>" npm run db:migrate
 ```
 
-## 2. Cron (the assessment worker)
+## 2. Worker (GitHub Actions executor)
 
-`vercel.json` (committed) schedules `POST /api/internal/jobs/run?limit=2`
-every 2 minutes. Authentication: Vercel Cron automatically sends
-`Authorization: Bearer <CRON_SECRET>`; the route compares it constant-time
-against `WORKER_SECRET` (`worker-auth.ts`) — so **set `WORKER_SECRET` to the
-same value as `CRON_SECRET`** (≥16 chars, production only).
+`npm run worker:drain` (`tsx --conditions=react-server
+scripts/assessment-worker-drain.ts`) claims and runs queued jobs until idle
+or `ASSESSMENT_WORKER_LIMIT` attempts (`ASSESSMENT_WORKER_CONCURRENCY`
+bounds the in-process pool; per-project claims serialize concurrent jobs).
+It exits non-zero only when the batch itself crashes (DB down, missing env)
+— per-job failures and retries are recorded in Postgres, so the workflow run
+reflects infra health, not assessment outcomes.
+
+Triggers (`assessment-worker.yml`): `repository_dispatch` (`assessment-drain`,
+fired from the app in `after()` on every enqueue so scans start immediately),
+schedule every 15 min (orphan/expired-lease backstop), `workflow_dispatch`
+(operator drain button, with `limit`/`concurrency` inputs). One runner drains
+the whole batch; `concurrency: group: assessment-worker,
+cancel-in-progress: false` keeps ticks serial. Job `timeout-minutes: 60`
+caps a hung runner so it cannot burn the free-minutes budget (Free private:
+2,000 Linux min/mo).
+
+The dispatch needs a fine-grained PAT with Actions write on the app repo:
+`GH_WORKER_DISPATCH_TOKEN` on Vercel; the target repo resolves from
+`APP_REPO_FULL_NAME` (`owner/repo`) or Vercel's `VERCEL_GIT_REPO_OWNER` /
+`VERCEL_GIT_REPO_SLUG`. The worker itself needs repo secrets `DATABASE_URL`
+(pooled Postgres) plus `COMPLYLOOP_APP_ID` / `COMPLYLOOP_APP_PRIVATE_KEY`
+— same values as Vercel's `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`
+(the `GITHUB_` prefix is reserved in Actions, so the workflow maps them).
+When the token is missing or GitHub rejects the
+event, the app falls back to self-fetching the single-scan worker route
+(`POST /api/internal/jobs/run?limit=1`, `WORKER_SECRET` Bearer) — same scan
+on the Vercel browser stack, kept only as a degraded path (verdicts may
+diverge per stack; a warning with code `assessment_worker_dispatch_failed`
+marks those runs in the logs).
+
+The old curl sweep (`assessment-sweep.yml`, retired) hit the Vercel route
+every 5 min; restore it from git history if the GH executor ever needs a
+Vercel-side backstop again. There is no Vercel Cron — Hobby plans only allow
+daily schedules.
+
+Authentication for the Vercel route: the self-fetch sends
+`Authorization: Bearer <WORKER_SECRET>`; the route compares it constant-time
+(`worker-auth.ts`). Set a single `WORKER_SECRET` (≥16 chars, production
+only) — no `CRON_SECRET` coupling.
 
 The route runs with `maxDuration = 300` (Hobby caps at 300; Pro up to 800).
-Batches stay small (`limit=2`) so a slow clone/scan fits. Expired rate-limit
+The sweep uses `limit=10&concurrency=2` to drain backlogs in a few ticks; on
+Pro drop back to small batches (`limit=2`) so a slow clone/scan fits. Expired rate-limit
 buckets prune once per batch (`runAssessmentJobBatch`).
 
-If the queue ever grows instead of draining, Cron stopped firing or started
-failing — alert on `assessmentJobs` queue depth (see `ops:check` below) and
-check the Vercel Cron logs.
+If the queue ever grows instead of draining, both the self-fetch drain and
+the sweep stopped firing or started failing — alert on `assessmentJobs` queue depth
+(see `ops:check` below) and check the Vercel function logs (filter `[event]`
+for `assessment_opportunistic_drain_failed`) plus the Actions run logs.
 
 ## 3. Environment variables (Vercel dashboard)
 
-| Variable | Value |
-|---|---|
-| `DATABASE_URL` | Pooled Postgres URL with `sslmode=require` |
-| `AUTH_SECRET` | `openssl rand -base64 32` (stable — rotation also re-encrypts stored tokens) |
-| `AUTH_URL` | `https://<vercel-app>` (**required** in production) |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub App OAuth client |
-| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` | Installation-token repo access |
-| `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET` | Install link + webhook verification |
-| `WORKER_SECRET` | Same value as `CRON_SECRET` |
-| `CRON_SECRET` | Vercel Cron secret (≥16 chars) |
-| `ASSESSMENT_RUNTIME_BROWSER` | `serverless` (Vercel) — unset locally |
-| `ASSESSMENT_MAX_CHECKOUT_BYTES` | `100000000` (100 MB — `/tmp` caps at ~500 MB) |
-| `ASSESSMENT_MAX_CHECKOUT_FILES` | `10000` |
-| `ASSESSMENT_MAX_RUNTIME_PAGES` | `10` (fewer pages per serverless run) |
-| `SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_DSN`) | Required by `ops:check` in production |
+| Variable                                      | Value                                                                                                               |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                | Pooled Postgres URL with `sslmode=require`                                                                          |
+| `AUTH_SECRET`                                 | `openssl rand -base64 32` (stable — rotation also re-encrypts stored tokens)                                        |
+| `AUTH_URL`                                    | `https://<vercel-app>` (**required** in production)                                                                 |
+| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`       | GitHub App OAuth client                                                                                             |
+| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`    | Installation-token repo access                                                                                      |
+| `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET`   | Install link + webhook verification                                                                                 |
+| `WORKER_SECRET`                               | Bearer for the worker route (self-fetch + sweep secret, ≥16 chars)                                                              |
+| `ASSESSMENT_RUNTIME_BROWSER`                  | `serverless` (Vercel) — unset locally                                                                               |
+| `ASSESSMENT_MAX_CHECKOUT_BYTES`               | `100000000` (100 MB — `/tmp` caps at ~500 MB)                                                                       |
+| `ASSESSMENT_MAX_CHECKOUT_FILES`               | `10000`                                                                                                             |
+| `ASSESSMENT_MAX_RUNTIME_PAGES`                | `10` (fewer pages per serverless run)                                                                               |
+| `SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_DSN`)     | Required by `ops:check` in production                                                                               |
 | `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Private preview gate (Basic Auth on every page; unset = open). Set both on the deployed project until public launch |
-| `COMPLYLOOP_SUPPORT_EMAIL` | Shown on the Organization page |
-| `AI_GATEWAY_API_KEY` | Optional — AI explanations/patches |
+| `COMPLYLOOP_SUPPORT_EMAIL`                    | Shown on the Organization page                                                                                      |
+| `AI_GATEWAY_API_KEY`                          | Optional — AI explanations/patches                                                                                  |
 
 **Never set:** `E2E_*` (the harness swaps real checkouts for fixtures and skips
 prod GitHub enforcement), `DATABASE_SSL_INSECURE`.
@@ -80,16 +116,27 @@ GitHub App settings: callback
 ## 4. Runtime audits on Vercel
 
 Set `ASSESSMENT_RUNTIME_BROWSER=serverless`. `@sparticuz/chromium` is pinned
-exact (`149.0.0` — that package versions by Chromium major and may break at
+exact (`153.0.0`, matching the local Playwright Chromium major — that
+package versions by Chromium major and may break at
 any release, so upgrades are deliberate). The launch site is
 `getBrowser()` in `packages/analysis-core/src/runtime/scan.ts`; launch
 failures surface as "Could not start the browser used for preview audits."
-(`scan-error.ts`), same as a missing local browser.
+(`scan-error.ts`), same as a missing local browser. `playwright-core` reads
+its `browsers.json` registry at load, which file tracing omits by default —
+`next.config.ts` force-includes it for all routes (`outputFileTracingIncludes`;
+without it every runtime scan fails with `Cannot find module
+.../browsers.json`).
 
 ## 5. Monitoring
 
 - `GET /api/health` → `200` with queue depth, `503` when Postgres is down.
-  Use it as the Vercel/dead-man check.
+  Use it as the Vercel/dead-man check. A job stuck in `queued` with no
+  worker activity shows up here as a growing `assessmentJobs` count.
+- Lifecycle events (`[event] assessment job enqueued/claimed/completed`,
+   `worker_batch_started/finished`, `worker_unauthorized`) log to stdout in
+   production — filter Vercel logs for `[event]` to trace a stuck job from
+   enqueue to claim. A `worker_unauthorized` line means the sweep/self-fetch
+   bearer ≠ `WORKER_SECRET`, so ticks never drain the queue.
 - `npm run ops:check` (from any machine with `DATABASE_URL`) verifies DB +
   prod env + queue depth. Run it on a schedule with failure alerting — it is
   the replacement for the old worker healthcheck.
@@ -109,9 +156,9 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 ## Pre-launch checklist
 
 - [ ] Remote Postgres reachable; `db:migrate` applied from local machine
-- [ ] All env vars set, `WORKER_SECRET` == `CRON_SECRET`, no placeholders
+- [ ] All env vars set, `WORKER_SECRET` (≥16 chars) configured, no placeholders
 - [ ] Basic Auth credentials set (private preview); remove them at public launch
-- [ ] Cron job created and firing (Vercel dashboard → Cron)
+- [ ] Worker workflow firing (Actions tab: dispatch on enqueue + every-15-min schedule) + `DATABASE_URL` / `COMPLYLOOP_APP_ID` / `COMPLYLOOP_APP_PRIVATE_KEY` repo secrets set + `GH_WORKER_DISPATCH_TOKEN` on Vercel
 - [ ] Sign in → connect a repo → run assessment → results appear
 - [ ] Assessment of a real repo exercises the isomorphic-git clone path
 - [ ] Preview audit works with `ASSESSMENT_RUNTIME_BROWSER=serverless`
@@ -120,8 +167,7 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 - [ ] Create a draft PR from a finding → branch pushed, PR opened
 - [ ] Cancel a queued/running job → status `cancelled`, nothing persisted
 - [ ] `/api/health` returns 200; Sentry receives a test issue
-- [ ] Provider DB backups enabled; restore drilled once to staging (record date
-      + owner here when done: ___)
+- [ ] Provider DB backups enabled; restore drilled once to staging (record date + owner here when done: \_\_\_)
 
 ## Decision log (Vercel migration, 2026-09-15)
 
@@ -143,4 +189,4 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 - **Poolers:** no code change — `prepare: false` was already set.
 - **Not live-verified here** (needs a real deployment): sparticuz launch on
   Vercel infra, isomorphic-git force-push with an installation token, Cron
-  end-to-end. The checklist above covers each.
+  end-to-end. The checklist above covers each.2

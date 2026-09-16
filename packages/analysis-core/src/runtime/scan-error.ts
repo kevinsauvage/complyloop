@@ -14,6 +14,38 @@ const PATTERNS: RuntimeScanErrorPattern[] = [
     message: TOO_MANY_REDIRECTS_MESSAGE,
   },
   {
+    // Vercel file tracing omits sparticuz's non-JS `bin/` assets unless
+    // `outputFileTracingIncludes` covers the scanning route (see
+    // next.config.ts). Actionable on purpose: the fix is in the bundle, not
+    // the preview URL. Must precede the generic sparticuz pattern below.
+    test: (raw) => /@sparticuz\/chromium\/bin/.test(raw),
+    message:
+      "The serverless browser package is incomplete in this deployment (missing @sparticuz/chromium binaries). The deploy needs outputFileTracingIncludes for the scanning route — redeploy after fixing the bundle, not the preview URL.",
+  },
+  {
+    // `resolveAxeMinJsPath` loads `axe-core/axe.min.js` from disk via
+    // `require.resolve` (the `source` string breaks under Next/webpack), so
+    // file tracing omits it unless `outputFileTracingIncludes` covers it
+    // (see next.config.ts). Actionable on purpose: the fix is in the bundle,
+    // not the preview URL. Must precede the generic fallback below; matches
+    // only module-resolution failures, never raw filesystem paths.
+    test: (raw) => /Cannot find module ['"]axe-core\//.test(raw),
+    message:
+      "The accessibility engine is incomplete in this deployment (missing axe-core bundle). The deploy needs outputFileTracingIncludes for axe-core/axe.min.js — redeploy after fixing the bundle, not the preview URL.",
+  },
+  {
+    // Playwright surfaces page CSP console errors through failed audit calls
+    // (`_raceWithCSPError` on addScriptTag/addStyleTag), and a restrictive
+    // script-src can genuinely block audit injection. Either way the fix is
+    // the preview deployment's policy, not the scanner: allowlist the named
+    // host (the classifier appends it) or relax the policy, then re-run.
+    // Retry-verify in `ensureAxeOnPage` already absorbs third-party beacon
+    // noise, so a surviving CSP error means injection truly failed.
+    test: (raw) => /Content[- ]Security[- ]Policy/i.test(raw),
+    message:
+      "The preview page's Content Security Policy blocked the audit scripts. Allowlist the named host or relax the policy on the preview deployment, then re-run the assessment.",
+  },
+  {
     test: (raw) => /ERR_CONNECTION_REFUSED/.test(raw),
     message:
       "Could not connect to the preview URL (connection refused). Confirm it is up and publicly reachable.",
@@ -45,7 +77,7 @@ const PATTERNS: RuntimeScanErrorPattern[] = [
   },
   {
     test: (raw) =>
-      /Executable doesn't exist/i.test(raw) ||
+      /sparticuz-launch|Executable doesn't exist/i.test(raw) ||
       /browserType\.launch/i.test(raw) ||
       /sparticuz/i.test(raw),
     message: "Could not start the browser used for preview audits.",

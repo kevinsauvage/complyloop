@@ -6,15 +6,20 @@ import {
   toViolationNodes,
 } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
+import { isVisuallyHiddenByDesign } from "./visually-hidden.ts";
 
 const SPACING_STYLE_ID = "complyloop-text-spacing-test";
+const IS_HIDDEN_SOURCE = isVisuallyHiddenByDesign.toString();
 
 export async function textSpacingRuntimeViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const nodes = await pageEvaluateWithHitCapture(
-    page,
-    (captureHit, { styleId }) => {
+    const nodes = await pageEvaluateWithHitCapture(
+      page,
+      (captureHit, { styleId, hiddenSrc }) => {
+        const isHidden = new Function(
+          `return (${hiddenSrc})`,
+        )() as typeof isVisuallyHiddenByDesign;
       const existing = document.getElementById(styleId);
       existing?.remove();
 
@@ -39,6 +44,9 @@ export async function textSpacingRuntimeViolation(
 
       for (const el of candidates) {
         if (!(el instanceof HTMLElement)) continue;
+        // Skip links and other sr-only content clip by design; flagging
+        // their 1px box as "clipped text" is noise, not a violation.
+        if (isHidden(el)) continue;
         const computed = getComputedStyle(el);
         if (computed.display === "none" || computed.visibility === "hidden")
           continue;
@@ -60,8 +68,8 @@ export async function textSpacingRuntimeViolation(
       document.getElementById(styleId)?.remove();
       return violations;
     },
-    { styleId: SPACING_STYLE_ID },
-  );
+      { styleId: SPACING_STYLE_ID, hiddenSrc: IS_HIDDEN_SOURCE },
+    );
 
   if (nodes.length === 0) return null;
   return {

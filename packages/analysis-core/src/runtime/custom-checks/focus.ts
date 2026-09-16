@@ -127,71 +127,73 @@ const HAS_VISIBLE_FOCUS_INDICATOR_SOURCE = hasVisibleFocusIndicator.toString();
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/**
+ * Single shared Tab traversal for every focus check on the page.
+ *
+ * The collectors below used to walk up to MAX_TAB_STEPS each (plus a fifth
+ * walk for trap detection) — ~400 sequential Tab + evaluate round trips per
+ * page, each paying full price on throttled serverless CPU. One walk
+ * evaluates every predicate per stop instead: same per-stop coverage and
+ * step cap, roughly a quarter of the round trips.
+ */
 export async function focusCustomViolations(
   page: Page,
 ): Promise<CustomViolation[]> {
   const violations: CustomViolation[] = [];
 
-  const focusVisibleNodes = await collectFocusVisibleViolations(page);
-  if (focusVisibleNodes.length > 0) {
+  const collected = await collectFocusWalkViolations(page);
+  if (collected.visible.length > 0) {
     violations.push({
       id: "focus-visible",
       impact: "serious",
       description:
         "Focused element has no visible change from its unfocused appearance (outline, ring, border, or background).",
       help: "Keyboard users must see which control has focus (WCAG 2.4.7).",
-      nodes: focusVisibleNodes,
+      nodes: collected.visible,
     });
   }
 
-  const trapNode = await detectKeyboardTrap(page);
-  if (trapNode) {
+  if (collected.trap) {
     violations.push({
       id: "keyboard-trap",
       impact: "critical",
       description:
         "Keyboard focus appears trapped in a small set of elements and cannot reach the rest of the page.",
       help: "Users must be able to Tab away from every widget except intentional modal dialogs (WCAG 2.1.2).",
-      nodes: [trapNode],
+      nodes: [collected.trap],
     });
   }
 
-  const obscuredNodes = await collectFocusObscuredViolations(page, false);
-  if (obscuredNodes.length > 0) {
+  if (collected.obscured.length > 0) {
     violations.push({
       id: "focus-not-obscured",
       impact: "serious",
       description:
         "Focused control is covered by another element (sticky header, banner, or overlay).",
       help: "Focused controls must not be fully hidden by other content (WCAG 2.4.11).",
-      nodes: obscuredNodes,
+      nodes: collected.obscured,
     });
   }
 
-  const obscuredEnhancedNodes = await collectFocusObscuredViolations(
-    page,
-    true,
-  );
-  if (obscuredEnhancedNodes.length > 0) {
+  if (collected.obscuredEnhanced.length > 0) {
     violations.push({
       id: "focus-not-obscured-enhanced",
       impact: "serious",
       description:
         "Any part of the focused control is covered by other content.",
       help: "No part of the focused control may be hidden (WCAG 2.4.12).",
-      nodes: obscuredEnhancedNodes,
+      nodes: collected.obscuredEnhanced,
     });
   }
 
-  const appearanceNodes = await collectFocusAppearanceViolations(page);
-  if (appearanceNodes.length > 0) {
+  if (collected.appearance.length > 0) {
     violations.push({
       id: "focus-appearance",
       impact: "moderate",
       description:
         "Focus indicator is too thin to meet minimum size requirements.",
       help: "Focus indicators need sufficient area and contrast (WCAG 2.4.13).",
-      nodes: appearanceNodes,
+      nodes: collected.appearance,
     });
   }
 
@@ -207,11 +209,57 @@ function toViolationNode(capture: CapturedHit): CustomViolationNode {
   };
 }
 
-async function collectFocusVisibleViolations(
-  page: Page,
-): Promise<CustomViolationNode[]> {
-  const nodes: CustomViolationNode[] = [];
-  const seen = new Set<string>();
+interface FocusStopHit {
+  key: string;
+  capture: CapturedHit;
+}
+
+interface FocusStopResult {
+  sequenceKey: string;
+  visible: FocusStopHit | null;
+  obscured: FocusStopHit | null;
+  obscuredEnhanced: FocusStopHit | null;
+  appearance: FocusStopHit | null;
+}
+
+/** Records a first-seen hit; returns true when it is new. */
+function takeFocusHit(
+  hit: FocusStopHit | null,
+  seen: Set<string>,
+  nodes: CustomViolationNode[],
+): boolean {
+  if (!hit || seen.has(hit.key)) return false;
+  seen.add(hit.key);
+  nodes.push(toViolationNode(hit.capture));
+  return true;
+}
+
+/**
+ * One Tab traversal feeding every focus check: per stop a single evaluate
+ * computes the visible/obscured/appearance predicates for the focused
+ * element and the trap-analysis sequence key. Predicates are verbatim copies
+ * of the former per-collector bodies — only the traversal is shared.
+ */
+async function collectFocusWalkViolations(page: Page): Promise<{
+  visible: CustomViolationNode[];
+  trap: CustomViolationNode | null;
+  obscured: CustomViolationNode[];
+  obscuredEnhanced: CustomViolationNode[];
+  appearance: CustomViolationNode[];
+}> {
+  const visible: CustomViolationNode[] = [];
+  const obscured: CustomViolationNode[] = [];
+  const obscuredEnhanced: CustomViolationNode[] = [];
+  const appearance: CustomViolationNode[] = [];
+  const seenVisible = new Set<string>();
+  const seenObscured = new Set<string>();
+  const seenObscuredEnhanced = new Set<string>();
+  const seenAppearance = new Set<string>();
+  const sequence: string[] = [];
+
+  const focusableCount = await page.evaluate((selector) => {
+    return document.querySelectorAll(selector).length;
+  }, FOCUSABLE_SELECTOR);
 
   await page.evaluate(() => {
     const el = document.activeElement;
@@ -233,9 +281,9 @@ async function collectFocusVisibleViolations(
     },
   );
 
-  for (let step = 0; step < MAX_TAB_STEPS; step++) {
+  for (let stop = 0; stop < MAX_TAB_STEPS; stop++) {
     await page.keyboard.press("Tab");
-    const hit = await pageEvaluateWithHitCapture(
+    const result: FocusStopResult = await pageEvaluateWithHitCapture(
       page,
       (captureHit, { snapshotSrc, indicatorSrc, selector, unfocused }) => {
         const snapshot = new Function(
@@ -245,119 +293,37 @@ async function collectFocusVisibleViolations(
           `return (${indicatorSrc})`,
         )() as typeof hasVisibleFocusIndicator;
 
-        const el = document.activeElement;
-        if (
-          !el ||
-          el === document.body ||
-          el === document.documentElement ||
-          !(el instanceof HTMLElement)
-        ) {
-          return null;
+        function sequenceKey(): string {
+          const active = document.activeElement;
+          if (!active || active === document.body) return "body";
+          if (
+            active.closest('[aria-modal="true"]') !== null ||
+            active.closest("dialog[open]") !== null
+          ) {
+            return "modal";
+          }
+          const html = active as HTMLElement;
+          if (html.id) return `#${html.id}`;
+          return `${html.tagName.toLowerCase()}:${html.className}`;
         }
-        if (!el.matches(":focus-visible")) return null;
 
-        const focusables = Array.from(document.querySelectorAll(selector));
-        const index = focusables.indexOf(el);
-        const rest = unfocused[index];
-        if (!rest) return null;
-        const focused = snapshot(getComputedStyle(el));
-        if (indicatorVisible(focused, rest)) return null;
-
-        const capture = captureHit(el);
-        return { key: capture.selector, capture };
-      },
-      {
-        snapshotSrc: SNAPSHOT_FOCUS_STYLES_SOURCE,
-        indicatorSrc: HAS_VISIBLE_FOCUS_INDICATOR_SOURCE,
-        selector: FOCUSABLE_SELECTOR,
-        unfocused: unfocusedSnapshots,
-      },
-    );
-    if (!hit || seen.has(hit.key)) {
-      if (step > 5 && seen.size > 0) break;
-      continue;
-    }
-    seen.add(hit.key);
-    nodes.push(toViolationNode(hit.capture));
-  }
-
-  return nodes;
-}
-
-async function detectKeyboardTrap(
-  page: Page,
-): Promise<CustomViolationNode | null> {
-  const focusableCount = await page.evaluate((selector) => {
-    return document.querySelectorAll(selector).length;
-  }, FOCUSABLE_SELECTOR);
-  if (focusableCount < 3) return null;
-
-  const sequence: string[] = [];
-  const maxSteps = Math.min(focusableCount * 2 + 5, MAX_TAB_STEPS);
-  for (let step = 0; step < maxSteps; step++) {
-    await page.keyboard.press("Tab");
-    const key = await page.evaluate(() => {
-      function isIntentionalModalTrap(el: Element | null): boolean {
-        if (!el) return false;
-        return (
-          el.closest('[aria-modal="true"]') !== null ||
-          el.closest("dialog[open]") !== null
-        );
-      }
-
-      const el = document.activeElement;
-      if (!el || el === document.body) return "body";
-      if (isIntentionalModalTrap(el)) return "modal";
-      const html = el as HTMLElement;
-      if (html.id) return `#${html.id}`;
-      return `${html.tagName.toLowerCase()}:${html.className}`;
-    });
-    sequence.push(key);
-  }
-
-  if (!isSuspectedKeyboardTrap(sequence)) return null;
-
-  const trap = await pageEvaluateWithHitCapture(page, (captureHit) => {
-    function isIntentionalModalTrap(el: Element | null): boolean {
-      if (!el) return false;
-      return (
-        el.closest('[aria-modal="true"]') !== null ||
-        el.closest("dialog[open]") !== null
-      );
-    }
-
-    const el = document.activeElement;
-    if (!el || el === document.body || isIntentionalModalTrap(el)) return null;
-    if (!(el instanceof HTMLElement)) return null;
-    return captureHit(el);
-  });
-
-  return trap ? toViolationNode(trap) : null;
-}
-
-async function collectFocusObscuredViolations(
-  page: Page,
-  enhanced: boolean,
-): Promise<CustomViolationNode[]> {
-  const nodes: CustomViolationNode[] = [];
-  const seen = new Set<string>();
-
-  for (let step = 0; step < MAX_TAB_STEPS; step++) {
-    await page.keyboard.press("Tab");
-    const hit = await pageEvaluateWithHitCapture(
-      page,
-      (captureHit, { enhancedMode }) => {
-        function pointObscured(el: Element, x: number, y: number): boolean {
+        function pointObscured(
+          target: Element,
+          x: number,
+          y: number,
+        ): boolean {
           const top = document.elementFromPoint(x, y);
           if (!top) return false;
-          return top !== el && !el.contains(top) && !top.contains(el);
+          return (
+            top !== target && !target.contains(top) && !top.contains(target)
+          );
         }
 
         function firstObscuredCorner(
-          el: Element,
+          target: Element,
           strict: boolean,
         ): { x: number; y: number; corner: string } | undefined {
-          const rect = el.getBoundingClientRect();
+          const rect = target.getBoundingClientRect();
           if (rect.width === 0 || rect.height === 0) return undefined;
           const corners = strict
             ? [
@@ -383,9 +349,29 @@ async function collectFocusObscuredViolations(
                 },
               ];
           return corners.find((corner) =>
-            pointObscured(el, corner.x, corner.y),
+            pointObscured(target, corner.x, corner.y),
           );
         }
+
+        function indicatorTooSmall(target: Element): boolean {
+          const style = getComputedStyle(target);
+          const outlineWidth = parseFloat(style.outlineWidth) || 0;
+          if (outlineWidth >= 2) return false;
+          const shadow = style.boxShadow;
+          if (!shadow || shadow === "none") return true;
+          const match = /(\d+(?:\.\d+)?)px/.exec(shadow);
+          if (!match) return true;
+          return parseFloat(match[1] ?? "0") < 2;
+        }
+
+        const key = sequenceKey();
+        const none = {
+          sequenceKey: key,
+          visible: null,
+          obscured: null,
+          obscuredEnhanced: null,
+          appearance: null,
+        };
 
         const el = document.activeElement;
         if (
@@ -394,68 +380,100 @@ async function collectFocusObscuredViolations(
           el === document.documentElement ||
           !(el instanceof HTMLElement)
         ) {
-          return null;
+          return none;
         }
-        if (!el.matches(":focus-visible")) return null;
-        const obscuredAt = firstObscuredCorner(el, enhancedMode);
-        if (!obscuredAt) return null;
-        const capture = captureHit(el, { obscuredAt });
-        return { key: capture.selector, capture };
+        if (!el.matches(":focus-visible")) return none;
+
+        let visibleHit: FocusStopHit | null = null;
+        const focusables = Array.from(document.querySelectorAll(selector));
+        const rest = unfocused[focusables.indexOf(el)];
+        if (rest) {
+          const focused = snapshot(getComputedStyle(el));
+          if (!indicatorVisible(focused, rest)) {
+            const capture = captureHit(el);
+            visibleHit = { key: capture.selector, capture };
+          }
+        }
+
+        let obscuredHit: FocusStopHit | null = null;
+        const obscuredAt = firstObscuredCorner(el, false);
+        if (obscuredAt) {
+          const capture = captureHit(el, { obscuredAt });
+          obscuredHit = { key: capture.selector, capture };
+        }
+
+        let obscuredEnhancedHit: FocusStopHit | null = null;
+        const obscuredAtStrict = firstObscuredCorner(el, true);
+        if (obscuredAtStrict) {
+          const capture = captureHit(el, { obscuredAt: obscuredAtStrict });
+          obscuredEnhancedHit = { key: capture.selector, capture };
+        }
+
+        let appearanceHit: FocusStopHit | null = null;
+        if (indicatorTooSmall(el)) {
+          const capture = captureHit(el);
+          appearanceHit = { key: capture.selector, capture };
+        }
+
+        return {
+          sequenceKey: key,
+          visible: visibleHit,
+          obscured: obscuredHit,
+          obscuredEnhanced: obscuredEnhancedHit,
+          appearance: appearanceHit,
+        };
       },
-      { enhancedMode: enhanced },
+      {
+        snapshotSrc: SNAPSHOT_FOCUS_STYLES_SOURCE,
+        indicatorSrc: HAS_VISIBLE_FOCUS_INDICATOR_SOURCE,
+        selector: FOCUSABLE_SELECTOR,
+        unfocused: unfocusedSnapshots,
+      },
     );
-    if (!hit || seen.has(hit.key)) {
-      if (step > 5 && seen.size > 0) break;
-      continue;
+    sequence.push(result.sequenceKey);
+    let fresh = false;
+    fresh = takeFocusHit(result.visible, seenVisible, visible) || fresh;
+    fresh = takeFocusHit(result.obscured, seenObscured, obscured) || fresh;
+    fresh =
+      takeFocusHit(
+        result.obscuredEnhanced,
+        seenObscuredEnhanced,
+        obscuredEnhanced,
+      ) || fresh;
+    fresh =
+      takeFocusHit(result.appearance, seenAppearance, appearance) || fresh;
+    if (
+      stop > 5 &&
+      !fresh &&
+      seenVisible.size +
+        seenObscured.size +
+        seenObscuredEnhanced.size +
+        seenAppearance.size >
+        0
+    ) {
+      break;
     }
-    seen.add(hit.key);
-    nodes.push(toViolationNode(hit.capture));
   }
 
-  return nodes;
-}
-
-async function collectFocusAppearanceViolations(
-  page: Page,
-): Promise<CustomViolationNode[]> {
-  const nodes: CustomViolationNode[] = [];
-  const seen = new Set<string>();
-
-  for (let step = 0; step < MAX_TAB_STEPS; step++) {
-    await page.keyboard.press("Tab");
-    const hit = await pageEvaluateWithHitCapture(page, (captureHit) => {
-      function focusIndicatorTooSmall(el: Element): boolean {
-        const style = getComputedStyle(el);
-        const outlineWidth = parseFloat(style.outlineWidth) || 0;
-        if (outlineWidth >= 2) return false;
-        const shadow = style.boxShadow;
-        if (!shadow || shadow === "none") return true;
-        const match = /(\d+(?:\.\d+)?)px/.exec(shadow);
-        if (!match) return true;
-        return parseFloat(match[1] ?? "0") < 2;
+  let trap: CustomViolationNode | null = null;
+  if (focusableCount >= 3 && isSuspectedKeyboardTrap(sequence)) {
+    const trapHit = await pageEvaluateWithHitCapture(page, (captureHit) => {
+      function isIntentionalModalTrap(el: Element | null): boolean {
+        if (!el) return false;
+        return (
+          el.closest('[aria-modal="true"]') !== null ||
+          el.closest("dialog[open]") !== null
+        );
       }
 
       const el = document.activeElement;
-      if (
-        !el ||
-        el === document.body ||
-        el === document.documentElement ||
-        !(el instanceof HTMLElement)
-      ) {
+      if (!el || el === document.body || isIntentionalModalTrap(el))
         return null;
-      }
-      if (!el.matches(":focus-visible")) return null;
-      if (!focusIndicatorTooSmall(el)) return null;
-      const capture = captureHit(el);
-      return { key: capture.selector, capture };
+      if (!(el instanceof HTMLElement)) return null;
+      return captureHit(el);
     });
-    if (!hit || seen.has(hit.key)) {
-      if (step > 5 && seen.size > 0) break;
-      continue;
-    }
-    seen.add(hit.key);
-    nodes.push(toViolationNode(hit.capture));
+    trap = trapHit ? toViolationNode(trapHit) : null;
   }
 
-  return nodes;
+  return { visible, trap, obscured, obscuredEnhanced, appearance };
 }

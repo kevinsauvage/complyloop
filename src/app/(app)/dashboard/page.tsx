@@ -31,6 +31,11 @@ export const metadata: Metadata = {
     "Compliance snapshot, pipeline activity, and next actions for the active project.",
 };
 
+// Manual runs only enqueue (see `runAssessmentAction`): the click resolves
+// fast and the scan drains through the worker queue, so this segment needs
+// no extended timeout — the worker route (`/api/internal/jobs/run`) owns
+// its own `maxDuration` budget instead.
+
 export default async function DashboardPage() {
   const view = await loadDashboardView();
   const { visibleProjects } = view;
@@ -54,7 +59,7 @@ export default async function DashboardPage() {
 
   const { caps } = view;
   const assessAction = caps.canAssess ? (
-    <AssessmentRunForm />
+    <AssessmentRunForm projectId={view.project.id} />
   ) : (
     <PermissionNotice>
       View-only role — you can browse results but not run assessments.
@@ -113,6 +118,20 @@ export default async function DashboardPage() {
           canAssess={caps.canAssess}
           canConnect={caps.canConnect}
         />
+      ) : null}
+
+      {/* The pipeline stays visible before the first assessment completes so
+          a queued/running first job is never invisible: without this the page
+          looks stuck on the checklist while the worker is working. Empty job
+          history renders nothing (see AssessmentJobStatus). */}
+      {showFirstRun ? (
+        <Suspense fallback={<DashboardPipelineSkeleton />}>
+          <DashboardPipelineSection
+            projectId={project.id}
+            canRetry={caps.canAssess}
+            canCancel={caps.canAssess}
+          />
+        </Suspense>
       ) : null}
 
       {latestAssessment ? (

@@ -95,6 +95,16 @@ export function reportInfo(message: string, context?: ReportContext): void {
   console.info(`[info] ${message}`, context ?? "");
 }
 
+/**
+ * Lifecycle event, visible in production logs (Vercel captures stdout).
+ * Console-only — never sent to Sentry — for high-volume happy paths the
+ * on-call needs in prod logs: enqueue/claim/complete, connect, worker
+ * batches. Secrets are redacted; never pass tokens or headers here.
+ */
+export function reportEvent(message: string, context?: ReportContext): void {
+  console.info(`[event] ${redactSecrets(message)}`, context ?? "");
+}
+
 /** Verbose dev-only logging. Silenced entirely in production. */
 export function reportDebug(message: string, context?: ReportContext): void {
   if (isProduction()) return;

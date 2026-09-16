@@ -3,7 +3,7 @@ import "server-only";
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
 import { postAssessmentCheckRun } from "../github/github-connector";
-import { reportError, reportInfo, reportWarning } from "../observability";
+import { reportError, reportEvent, reportWarning } from "../observability";
 import { loadProjectDb } from "../workspace/db";
 import { type AssessmentRunResult, runAssessment } from "./assessment";
 import {
@@ -89,13 +89,22 @@ async function runClaimedAssessmentJob(
   if (heartbeat && typeof heartbeat.unref === "function") heartbeat.unref();
 
   try {
+    // Wall-clock attribution: clone/quota/cleanup (checkout) vs scan vs
+    // apply, so production slowness lands on a stage instead of a guess.
+    // checkoutMs is derived (total − scan − apply) to avoid hooks inside
+    // the checkout helper; the in-scan split lives on the run's evidence.
+    const checkoutStart = Date.now();
+    let scanMs = 0;
+    let applyMs = 0;
     const result = await withProjectCheckout(
       project,
       async (rootPath) => {
+        const scanStart = Date.now();
         const run = await runAssessment(pipelineInput, {
           rootPath,
           authoritative,
         });
+        scanMs = Date.now() - scanStart;
         const { assessment } = run;
         const trigger = job.payload.eventName ?? "manual assessment";
 
@@ -103,6 +112,7 @@ async function runClaimedAssessmentJob(
         // persisted and no Check Run is posted, so "cancel" always means
         // "saves nothing".
         if (authoritative && !cancelledRemotely) {
+          const applyStart = Date.now();
           await applyAuthoritativeAssessment({
             project,
             job,
@@ -111,6 +121,7 @@ async function runClaimedAssessmentJob(
             collectAlerts: job.trigger === "webhook",
             trigger,
           });
+          applyMs = Date.now() - applyStart;
         }
 
         return {
@@ -122,6 +133,16 @@ async function runClaimedAssessmentJob(
       },
       job.payload.ref,
     );
+    const totalMs = Date.now() - checkoutStart;
+    reportEvent("assessment stage timings", {
+      code: "assessment_stage_timing",
+      projectId: project.id,
+      jobId: job.id,
+      checkoutMs: Math.max(totalMs - scanMs - applyMs, 0),
+      scanMs,
+      applyMs,
+      totalMs,
+    });
 
     if (
       !cancelledRemotely &&
@@ -150,13 +171,21 @@ export type AssessmentWorkerResult =
   | { kind: "failed"; jobId: string }
   | { kind: "cancelled"; jobId: string };
 
-/** Claims and processes a single job; safe to run concurrently on many workers. */
-export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
-  const job = await claimNextAssessmentJob();
-  if (!job) {
-    return { kind: "idle" };
-  }
-  reportInfo("assessment job claimed", {
+export type RunningAssessmentJobResult = Exclude<
+  AssessmentWorkerResult,
+  { kind: "idle" }
+>;
+
+/**
+ * Executes an already-`running` job to a terminal state: run the scan, then
+ * complete, cancel, or fail it. Shared by the claim loop below, so worker
+ * runs have identical persistence, cancellation, and retry semantics no
+ * matter which trigger enqueued the job.
+ */
+export async function settleRunningAssessmentJob(
+  job: AssessmentJob,
+): Promise<RunningAssessmentJobResult> {
+  reportEvent("assessment job claimed", {
     code: "assessment_job_claimed",
     jobId: job.id,
     projectId: job.projectId,
@@ -170,7 +199,7 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
       // `running`. Skip complete/fail/evidence — the complete/fail lease
       // guards would no-op anyway, and a failure record must not follow a
       // deliberate cancel.
-      reportInfo("assessment job cancelled", {
+      reportEvent("assessment job cancelled", {
         code: "assessment_job_cancelled",
         jobId: job.id,
         projectId: job.projectId,
@@ -178,7 +207,7 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
       return { kind: "cancelled", jobId: job.id };
     }
     await completeAssessmentJob(job);
-    reportInfo("assessment job completed", {
+    reportEvent("assessment job completed", {
       code: "assessment_job_succeeded",
       jobId: job.id,
       projectId: job.projectId,
@@ -207,4 +236,13 @@ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult
     });
     return { kind: status === "failed" ? "failed" : "retrying", jobId: job.id };
   }
+}
+
+/** Claims and processes a single job; safe to run concurrently on many workers. */
+export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
+  const job = await claimNextAssessmentJob();
+  if (!job) {
+    return { kind: "idle" };
+  }
+  return settleRunningAssessmentJob(job);
 }

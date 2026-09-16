@@ -214,6 +214,8 @@ export async function withRepoCheckout<T>(
     options.ref === undefined ? undefined : parseCheckoutRef(options.ref);
   const { fullName, accessToken } = options;
   parseOwnerRepo(fullName);
+  // Start marker so a stall inside clone/fetch is visible in function logs.
+  console.info(`[progress] checkout started repo=${fullName} ref=${ref ?? "default"}`);
   const auth = gitBasicAuthHeader(accessToken);
   const rootPath = fs.mkdtempSync(
     path.join(os.tmpdir(), "complyloop-checkout-"),

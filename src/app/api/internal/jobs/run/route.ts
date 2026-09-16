@@ -7,6 +7,7 @@ import {
   isWorkerAuthConfigured,
   isWorkerRequestAuthorized,
 } from "@/server/assessment/worker-auth";
+import { reportError, reportEvent, reportWarning } from "@/server/observability";
 import { assertRateLimit, RateLimitError } from "@/server/rate-limit";
 
 export const runtime = "nodejs";
@@ -65,6 +66,9 @@ function requestedConcurrency(request: Request): number {
  */
 export async function POST(request: Request): Promise<Response> {
   if (!isWorkerAuthConfigured()) {
+    reportWarning("assessment worker called without WORKER_SECRET", {
+      code: "worker_secret_missing",
+    });
     return Response.json(
       { error: "WORKER_SECRET is not configured." },
       { status: 503 },
@@ -72,6 +76,14 @@ export async function POST(request: Request): Promise<Response> {
   }
   const authorization = request.headers.get("authorization");
   if (!isWorkerRequestAuthorized(authorization)) {
+    // Never log the header value itself — its presence shape is enough to
+    // distinguish a missing secret from a mismatched one (e.g. the sweep's
+    // WORKER_SECRET secret drifting from the production env var, the classic
+    // silent-drain failure).
+    reportWarning("unauthorized assessment worker call", {
+      code: "worker_unauthorized",
+      hasAuthorizationHeader: authorization !== null,
+    });
     return Response.json({ error: "Unauthorized." }, { status: 401 });
   }
 
@@ -83,14 +95,46 @@ export async function POST(request: Request): Promise<Response> {
     );
   } catch (error) {
     if (error instanceof RateLimitError) {
+      reportWarning("assessment worker rate limited", {
+        code: "worker_rate_limited",
+      });
       return Response.json({ error: error.message }, { status: 429 });
     }
     throw error;
   }
 
-  const results = await runAssessmentJobBatch({
-    limit: requestedBatchSize(request),
-    concurrency: requestedConcurrency(request),
+  const limit = requestedBatchSize(request);
+  const concurrency = requestedConcurrency(request);
+  reportEvent("assessment worker batch started", {
+    code: "worker_batch_started",
+    limit,
+    concurrency,
+  });
+  let results: Awaited<ReturnType<typeof runAssessmentJobBatch>>;
+  try {
+    results = await runAssessmentJobBatch({ limit, concurrency });
+  } catch (error) {
+    // Batch-level crash (claim transaction, lease recovery): per-job failures
+    // never reach here, so this is always infra — Sentry + 500, not silence.
+    reportError(error, {
+      code: "worker_batch_failed",
+      limit,
+      concurrency,
+    });
+    return Response.json(
+      { error: "Assessment batch failed." },
+      { status: 500 },
+    );
+  }
+  const byKind: Record<string, number> = {};
+  for (const result of results) {
+    byKind[result.kind] = (byKind[result.kind] ?? 0) + 1;
+  }
+  reportEvent("assessment worker batch finished", {
+    code: "worker_batch_finished",
+    limit,
+    concurrency,
+    ...byKind,
   });
   return Response.json({ results });
 }

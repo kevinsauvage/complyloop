@@ -95,15 +95,21 @@ export const LOAD_HIT_CAPTURE_SRC = loadHitCapture.toString();
  * to `__vite_ssr_import_*__` bindings that do not exist in the page. Only
  * stringify leaf helpers that close over nothing (`htmlSnippet`, `selectorRef`,
  * and the helpers in `dom-hit-rich.ts`).
+ *
+ * Each helper is assigned (`const name = (<src>);`), never embedded as a bare
+ * statement: the production bundler inlines cross-module `.toString()` values
+ * as *anonymous* `function(...){...}` expressions, which are a SyntaxError
+ * ("Function statements require a function name") in statement position but
+ * valid as an assigned expression. This shape also survives arrow output.
  */
 export const BROWSER_HIT_CAPTURE_SRC = `(function hitCaptureSource() {
-  ${htmlSnippet.toString()}
-  ${selectorRef.toString()}
-  ${escapeAttr.toString()}
-  ${roleLabel.toString()}
-  ${accessibleNameOf.toString()}
-  ${buildCssSelector.toString()}
-  ${describeObscurer.toString()}
+  const htmlSnippet = (${htmlSnippet.toString()});
+  const selectorRef = (${selectorRef.toString()});
+  const escapeAttr = (${escapeAttr.toString()});
+  const roleLabel = (${roleLabel.toString()});
+  const accessibleNameOf = (${accessibleNameOf.toString()});
+  const buildCssSelector = (${buildCssSelector.toString()});
+  const describeObscurer = (${describeObscurer.toString()});
   function captureHit(el, options) {
     var ref = selectorRef(el);
     var selector = buildCssSelector(el);

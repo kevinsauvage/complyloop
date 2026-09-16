@@ -298,13 +298,13 @@ function createDrizzle() {
 }
 
 import {
+  activeAssessmentJobForProject,
   type AssessmentJob,
   cancelAssessmentJob,
   claimNextAssessmentJob,
   completeAssessmentJob,
   enqueueAssessmentJob,
   failAssessmentJob,
-  findActiveAssessmentJob,
   queuedAssessmentJobCount,
   recentAssessmentJobsForProject,
   refreshAssessmentJobLease,
@@ -680,6 +680,37 @@ describe("claimNextAssessmentJob", () => {
   });
 });
 
+describe("activeAssessmentJobForProject", () => {
+  it("returns null when no job is active", async () => {
+    await expect(activeAssessmentJobForProject("p1")).resolves.toBeNull();
+  });
+
+  it("returns the oldest active job and ignores terminal ones", async () => {
+    await enqueueAssessmentJob({ projectId: "p1", trigger: "manual" });
+    const second = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "webhook",
+    });
+    const done = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const claimed = await claimNextAssessmentJob();
+    if (!claimed) throw new Error("expected a claim");
+    await completeAssessmentJob(claimed);
+
+    const active = await activeAssessmentJobForProject("p1");
+    expect(active?.id).toBe(second.id);
+    expect(active?.status).toBe("queued");
+    expect(done.id).not.toBe(active?.id);
+  });
+
+  it("is scoped to the project", async () => {
+    await enqueueAssessmentJob({ projectId: "p1", trigger: "manual" });
+    await expect(activeAssessmentJobForProject("p2")).resolves.toBeNull();
+  });
+});
+
 describe("completeAssessmentJob", () => {
   it("marks a running job as succeeded", async () => {
     const job = await enqueueAssessmentJob({
@@ -791,42 +822,6 @@ describe("queuedAssessmentJobCount and recentAssessmentJobsForProject", () => {
     }
     const recent = await recentAssessmentJobsForProject("p1", 5);
     expect(recent.map((job) => job.id)).toEqual(ids.slice(-5).reverse());
-  });
-});
-
-describe("findActiveAssessmentJob", () => {
-  it("returns the queued job for the project", async () => {
-    const job = await enqueueAssessmentJob({
-      projectId: "p1",
-      trigger: "manual",
-    });
-    const active = await findActiveAssessmentJob("p1");
-    expect(active?.id).toBe(job.id);
-    expect(active?.status).toBe("queued");
-  });
-
-  it("returns a running job", async () => {
-    await enqueueAssessmentJob({ projectId: "p1", trigger: "manual" });
-    await claimNextAssessmentJob();
-    const active = await findActiveAssessmentJob("p1");
-    expect(active?.status).toBe("running");
-  });
-
-  it("returns null when only terminal jobs exist", async () => {
-    const job = await enqueueAssessmentJob({
-      projectId: "p1",
-      trigger: "manual",
-    });
-    const claimed = await claimNextAssessmentJob();
-    if (!claimed) throw new Error("expected claim");
-    await completeAssessmentJob(claimed);
-    expect(await findActiveAssessmentJob("p1")).toBeNull();
-    expect(jobs.get(job.id)?.status).toBe("succeeded");
-  });
-
-  it("ignores other projects", async () => {
-    await enqueueAssessmentJob({ projectId: "p2", trigger: "manual" });
-    expect(await findActiveAssessmentJob("p1")).toBeNull();
   });
 });
 

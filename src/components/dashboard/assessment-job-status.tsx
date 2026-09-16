@@ -27,8 +27,10 @@ const statusIndicator: Record<AssessmentJob["status"], string> = {
 
 /**
  * A job that has been ready longer than this with no worker picking it up
- * almost certainly means the Cron trigger is not draining the queue (prod
- * drains via Vercel Cron → `POST /api/internal/jobs/run`; see docs/vercel.md).
+ * almost certainly means the queue backstop is failing. Manual and webhook
+ * runs both queue (the dashboard action only enqueues); the GitHub Actions
+ * `assessment-worker` drains via dispatch with its 15-min schedule as the
+ * orphan backstop (see docs/vercel.md).
  */
 export const WORKER_STALL_MS = 10 * 60_000;
 
@@ -84,9 +86,9 @@ function RunningAgeNote({ startedAt }: { startedAt: string }) {
   if (ageMs === null) return null;
   return (
     <p className="basis-full pl-5 text-xs text-muted-foreground" role="status">
-      Running for {formatStallAge(ageMs)} — longer than expected. If the worker
-      crashed, the job is retried automatically when its lease expires;
-      otherwise cancel it to stop the scan.
+      Running for {formatStallAge(ageMs)} — longer than expected. If the
+      request was interrupted, the job is retried automatically when its lease
+      expires; otherwise cancel it to stop the scan.
     </p>
   );
 }
@@ -118,7 +120,8 @@ export function AssessmentJobStatus({
             <p className="text-xs text-destructive">{pollError}</p>
           ) : hasQueued ? (
             <p className="text-xs text-muted-foreground">
-              Queued — results should appear shortly.
+              Queued — the assessment worker picks it up automatically. This
+              page updates when the scan finishes.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">Recent job history</p>
@@ -133,10 +136,10 @@ export function AssessmentJobStatus({
           <span className="font-medium text-foreground">
             Assessment worker may be stopped.
           </span>{" "}
-          Oldest queued job waiting {formatStallAge(stalledAge)} — jobs run only
-          while the Cron trigger is active (Vercel Cron →{" "}
-          <code className="font-mono">/api/internal/jobs/run</code>, see
-          docs/vercel.md).
+            Oldest queued job waiting {formatStallAge(stalledAge)} — scans
+            are drained by the assessment-worker workflow (
+            <code className="font-mono">repository_dispatch</code> + 15-min
+            schedule, see docs/vercel.md).
         </p>
       ) : null}
       <ul className="flex flex-col gap-2" aria-label="Recent assessment jobs">

@@ -6,6 +6,19 @@ import type { RuntimePageSnapshot } from "./types.ts";
 
 const SKIP_LINK_SCHEMES = /^(mailto:|tel:|javascript:|data:)/i;
 
+/**
+ * Per-request ceiling for the crawl. Linkinator only aborts a hanging request
+ * when `timeout` is set — without it one slow preview page stalls the whole
+ * scan until the serverless function is killed.
+ */
+const LINK_REQUEST_TIMEOUT_MS = 15_000;
+
+/**
+ * Bounded fetch pool. Linkinator defaults to 100 concurrent requests, which
+ * bursts a small preview deployment and skews its response times.
+ */
+const LINK_CHECK_CONCURRENCY = 10;
+
 function isSameOrigin(base: URL, target: string): boolean {
   try {
     const resolved = new URL(target, base.href);
@@ -130,7 +143,11 @@ export async function brokenLinkFindingsForUrls(
   const findings: RawFinding[] = [];
   const seen = new Set<string>();
   const maxUrls = options?.maxUrls ?? maxRuntimePages();
-  let crawledPages = 0;
+  // Crawl-wide budget: `linksToSkip` decides every URL before it is queued,
+  // so counting accepted URLs here is what actually caps a recursive crawl.
+  // (The old per-seed counter never incremented mid-crawl, letting one seed
+  // page pull the entire same-origin site with no timeout.)
+  let acceptedUrls = 0;
   const { check, LinkState } = await import("linkinator");
 
   if (options?.snapshots && options.snapshots.length > 0) {
@@ -138,26 +155,36 @@ export async function brokenLinkFindingsForUrls(
   }
 
   for (const pageUrl of urls) {
-    if (crawledPages >= maxUrls) break;
-    crawledPages += 1;
+    if (acceptedUrls >= maxUrls) break;
+    acceptedUrls += 1;
 
     await assertSafeRuntimeUrl(pageUrl, lookupOptions);
     const pageOrigin = new URL(pageUrl);
+    // Seed marker with the query stripped: the crawl resolves only at the
+    // end, so this names the seed when the check itself is the stall.
+    console.info(
+      `[progress] link crawl started seed=${pageUrl.replace(/\?[^\s"'<>]*/g, "")} quota=${maxUrls}`,
+    );
 
     const result = await check({
       path: pageUrl,
       recurse: options?.recurse ?? false,
+      timeout: LINK_REQUEST_TIMEOUT_MS,
+      concurrency: LINK_CHECK_CONCURRENCY,
       linksToSkip: async (linkUrl) => {
         if (SKIP_LINK_SCHEMES.test(linkUrl.trim())) return true;
         if (linkUrl.trim().startsWith("#")) return true;
+        // Quota reached mid-crawl: skip everything else. Approximate by
+        // design (in-flight requests finish), never unbounded.
+        if (acceptedUrls >= maxUrls) return true;
         try {
           const resolved = new URL(linkUrl, pageOrigin.href);
           if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
             return true;
           }
           if (!isSameOrigin(pageOrigin, resolved.href)) return true;
-          if (options?.recurse && crawledPages >= maxUrls) return true;
           await assertSafeRuntimeUrl(resolved.href, lookupOptions);
+          acceptedUrls += 1;
           return false;
         } catch {
           return true;

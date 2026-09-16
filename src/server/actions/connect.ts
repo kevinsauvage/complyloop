@@ -13,6 +13,7 @@ import {
   resolveUserInstallationForRepo,
 } from "../github/github-app";
 import { fetchRepo } from "../github/github-connector";
+import { reportEvent } from "../observability";
 import { assertConnectRateLimit } from "../rate-limit";
 import {
   clearActiveProjectCookie,
@@ -146,6 +147,12 @@ export async function connectGitHubRepoAction(
     );
 
     await writeActiveProjectCookie(connectedProjectId);
+    reportEvent("github repository connected", {
+      code: "github_repo_connected",
+      projectId: connectedProjectId,
+      fullName: repo.fullName,
+      userId,
+    });
     refresh();
     return `Connected ${repo.fullName}.`;
   });

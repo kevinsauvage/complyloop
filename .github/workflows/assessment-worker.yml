@@ -1,0 +1,66 @@
+# Assessment executor (replaces Vercel serverless scans).
+#
+# Triggered immediately by `repository_dispatch` (`assessment-drain`, fired
+# from the app when a manual/webhook assessment enqueues), every 15 min as
+# the orphan/expired-lease backstop, or manually. Claims and runs queued jobs
+# with a Playwright Chromium install — the same browser family as local dev,
+# so verdicts no longer diverge per stack like the `@sparticuz/chromium`
+# serverless builds did.
+#
+# Required repository secrets: `DATABASE_URL` (pooled Postgres),
+# `COMPLYLOOP_APP_ID` + `COMPLYLOOP_APP_PRIVATE_KEY` (repo checkout +
+# Check Runs — same values as the Vercel `GITHUB_APP_ID` /
+# `GITHUB_APP_PRIVATE_KEY` production env vars; the `GITHUB_` prefix is
+# reserved in Actions, so the workflow maps them onto the names the
+# drain script reads).
+# `workflow_dispatch` doubles as an operator drain button.
+name: assessment-worker
+
+on:
+  repository_dispatch:
+    types: [assessment-drain]
+  schedule:
+    # Backstop only — the dispatch above starts scans immediately.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Max jobs to attempt in this batch
+        default: "10"
+      concurrency:
+        description: Max jobs to run concurrently in this process
+        default: "2"
+
+concurrency:
+  group: assessment-worker
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    # A full batch (10 scans incl. browser work) must never hang a runner
+    # into the 6h default and burn the free-minutes budget.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          # Lockfile hash pins the exact Playwright version, so the cached
+          # browser always matches the runner code — same build as local dev.
+          key: playwright-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright install chromium --with-deps
+      - name: Drain assessment queue
+        run: npm run worker:drain
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GITHUB_APP_ID: ${{ secrets.COMPLYLOOP_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.COMPLYLOOP_APP_PRIVATE_KEY }}
+          ASSESSMENT_WORKER_LIMIT: ${{ inputs.limit || '10' }}
+          ASSESSMENT_WORKER_CONCURRENCY: ${{ inputs.concurrency || '2' }}

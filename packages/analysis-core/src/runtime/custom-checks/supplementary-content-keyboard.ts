@@ -7,14 +7,14 @@ import { isKeyboardFocusable } from "./widget-keyboard-utils.ts";
 
 const BROWSER_HELPERS = `(function helperSource() {
   const hit = (${BROWSER_HIT_CAPTURE_SRC});
-  ${isKeyboardFocusable.toString()}
+  const isKeyboardFocusable = (${isKeyboardFocusable.toString()});
   return { captureHit: hit.captureHit, isKeyboardFocusable };
 })()`;
 
 export async function supplementaryContentKeyboardViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const nodes = await page.evaluate((helperSrc) => {
+  const result = await page.evaluate((helperSrc) => {
     const { captureHit, isKeyboardFocusable } = new Function(
       `return (${helperSrc})`,
     )() as {
@@ -24,7 +24,19 @@ export async function supplementaryContentKeyboardViolation(
 
     const violations: CapturedHit[] = [];
 
-    for (const el of document.querySelectorAll("[title]")) {
+    // Diagnostic counts: a pure-markup predicate must see the same DOM on
+    // every stack, so the counts below distinguish "different DOM" from
+    // "different verdict" when runs disagree.
+    const titled = Array.from(document.querySelectorAll("[title]"));
+    let focusableTitled = 0;
+    for (const cand of titled) {
+      if (!isKeyboardFocusable(cand)) continue;
+      if ((cand.getAttribute("title") ?? "").trim().length < 4) continue;
+      focusableTitled++;
+    }
+
+    let capped = false;
+    for (const el of titled) {
       if (!isKeyboardFocusable(el)) continue;
       const title = (el.getAttribute("title") ?? "").trim();
       if (title.length < 4) continue;
@@ -32,30 +44,43 @@ export async function supplementaryContentKeyboardViolation(
       if (el.hasAttribute("aria-expanded")) continue;
 
       violations.push(captureHit(el));
-      if (violations.length >= 5) return violations;
+      if (violations.length >= 5) {
+        capped = true;
+        break;
+      }
     }
 
-    for (const el of document.querySelectorAll("[aria-haspopup='true']")) {
-      if (!isKeyboardFocusable(el)) continue;
-      if (el.getAttribute("aria-expanded") === "true") continue;
-      const controls = el.getAttribute("aria-controls");
-      if (!controls) continue;
-      const panel = document.getElementById(controls);
-      if (!panel) continue;
-      const style = getComputedStyle(panel);
-      const hidden =
-        style.display === "none" ||
-        style.visibility === "hidden" ||
-        style.opacity === "0";
-      if (!hidden) continue;
+    if (!capped) {
+      for (const el of document.querySelectorAll("[aria-haspopup='true']")) {
+        if (!isKeyboardFocusable(el)) continue;
+        if (el.getAttribute("aria-expanded") === "true") continue;
+        const controls = el.getAttribute("aria-controls");
+        if (!controls) continue;
+        const panel = document.getElementById(controls);
+        if (!panel) continue;
+        const style = getComputedStyle(panel);
+        const hidden =
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.opacity === "0";
+        if (!hidden) continue;
 
-      violations.push(captureHit(el));
-      if (violations.length >= 5) return violations;
+        violations.push(captureHit(el));
+        if (violations.length >= 5) break;
+      }
     }
 
-    return violations;
+    return {
+      violations,
+      titleCount: titled.length,
+      focusableTitled,
+    };
   }, BROWSER_HELPERS);
 
+  console.info(
+    `[diag] supplementary titles=${result.titleCount} focusable-long=${result.focusableTitled}`,
+  );
+  const nodes = result.violations;
   if (nodes.length === 0) return null;
 
   return {

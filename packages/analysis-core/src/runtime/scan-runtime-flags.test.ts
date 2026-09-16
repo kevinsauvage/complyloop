@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { scanRuntime } from "./scan";
 import type { DnsLookup } from "./url-safety";
@@ -39,5 +39,41 @@ describe("scanRuntime engine flags", () => {
     expect(result.pagesScanned).toBe(2);
     expect(result.htmlValidateRan).toBe(true);
     expect(result.findings.some((f) => f.checkId === "input-label")).toBe(true);
+  });
+
+  describe("serverless browser guard", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("fails fast on Vercel without ASSESSMENT_RUNTIME_BROWSER=serverless", async () => {
+      vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("ASSESSMENT_RUNTIME_BROWSER", "");
+      const result = await scanRuntime({
+        runtimeBaseUrl: "https://preview.example.com",
+        runtimeRoutes: ["/"],
+        lookup: publicLookup,
+      });
+      expect(result.pagesScanned).toBe(0);
+      expect(result.error).toMatch(/ASSESSMENT_RUNTIME_BROWSER=serverless/);
+    });
+
+    it("classifies a sparticuz launch failure, not the generic fallback", async () => {
+      vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("ASSESSMENT_RUNTIME_BROWSER", "serverless");
+      const result = await scanRuntime({
+        runtimeBaseUrl: "https://preview.example.com",
+        runtimeRoutes: ["/"],
+        lookup: publicLookup,
+        scanner: async () => {
+          throw new Error(
+            "sparticuz-launch: Error: Failed to launch: /node_modules/@sparticuz/chromium/bin/chromium.br: No such file or directory",
+          );
+        },
+      });
+      expect(result.pagesScanned).toBe(0);
+      expect(result.error).not.toBe("Runtime scan failed.");
+      expect(result.error).toMatch(/browser/i);
+    });
   });
 });

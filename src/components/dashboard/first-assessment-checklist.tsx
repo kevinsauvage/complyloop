@@ -59,7 +59,7 @@ export function FirstAssessmentChecklist({
   const previewDone = Boolean(project.runtimeBaseUrl?.trim());
 
   const assessAction = canAssess ? (
-    <AssessmentRunForm />
+    <AssessmentRunForm projectId={project.id} />
   ) : (
     <PermissionNotice>
       View-only role — you can browse results but not run assessments.
@@ -129,7 +129,9 @@ export function FirstAssessmentChecklist({
             <div className="min-w-0 flex-1 space-y-2">
               <p className="text-sm font-medium">Run assessment</p>
               <p className="text-sm text-muted-foreground">
-                Scan the connected repository for compliance gaps.
+                Scan the connected repository for compliance gaps. The run
+                queues and the worker picks it up — progress appears in the
+                Pipeline below.
                 {previewDone
                   ? " Code and live-page checks will both run."
                   : " Code checks run now; add a preview URL above to unlock live-page checks."}

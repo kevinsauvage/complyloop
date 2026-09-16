@@ -92,6 +92,10 @@ export async function proxy(req: NextRequest) {
 
   const { pathname, search } = req.nextUrl;
   if (pathname.startsWith("/api/")) return;
+  // Sentry browser-tunnel route (tunnelRoute: "/monitoring" in next.config.ts)
+  // must never be gated or redirected — otherwise client error envelopes are
+  // dropped for logged-out visitors and ad-blocker circumvention breaks.
+  if (pathname === "/monitoring" || pathname.startsWith("/monitoring/")) return;
 
   // Private-preview gate: HTTP Basic Auth on every page. API routes above
   // keep their own auth (webhook secret, cron Bearer, session cookies), and
@@ -142,5 +146,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|monitoring|.*\\..*).*)"],
 };
