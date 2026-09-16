@@ -35,6 +35,22 @@ const NEW_REGRESS_CONTENT = `export function NewRegress() {
 }
 `;
 
+/**
+ * Merged fix for the violation above. The file must stay present with the
+ * violation corrected: auto-verify is fail-closed and skips when the finding
+ * file no longer exists (deletion resolves but never verifies), so simulating
+ * the merge as a deletion can never produce a `verified` remediation.
+ */
+const FIXED_REGRESS_CONTENT = `export function NewRegress() {
+  return (
+    <section>
+      <h1>New section</h1>
+      <p>Body copy</p>
+    </section>
+  );
+}
+`;
+
 const emptyHeadingControlId = shippedCatalog().controls.find(
   (control) => control.checkId === "empty-heading",
 )?.id;
@@ -163,8 +179,8 @@ test.describe("webhook-driven continuous monitoring", () => {
       expect(approved).toBeGreaterThan(0);
 
       // 3. The draft PR merges — on GitHub that is a push to the monitored
-      //    branch with the fix applied.
-      fs.rmSync(fixturePath, { force: true });
+      //    branch with the fix applied (file corrected in place, not deleted).
+      fs.writeFileSync(fixturePath, FIXED_REGRESS_CONTENT);
       const merge = await deliverWebhook({
         request,
         eventName: "push",

@@ -20,7 +20,9 @@ test.describe("compliance core loop", () => {
       .getByRole("link", { name: /Findings/ })
       .first()
       .click();
-    await expect(page.getByRole("heading", { name: "Findings" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Findings", exact: true }),
+    ).toBeVisible();
 
     const findingLink = page
       .getByRole("link", {

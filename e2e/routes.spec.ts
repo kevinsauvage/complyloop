@@ -30,7 +30,9 @@ test.describe("authenticated routes", () => {
       .first()
       .click();
     await expect(page).toHaveURL(/\/findings/);
-    await expect(page.getByRole("heading", { name: "Findings" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Findings", exact: true }),
+    ).toBeVisible();
 
     await page
       .getByRole("navigation", { name: "Main" })

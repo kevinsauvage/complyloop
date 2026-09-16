@@ -24,12 +24,16 @@ test.describe("compliance loops", () => {
       .first()
       .click();
     await expect(
-      page.getByRole("heading", { name: "Requirements" }),
+      page.getByRole("heading", { name: "Requirements", exact: true }),
     ).toBeVisible();
 
+    // Exception entry is a collapsible per requirement: the trigger is named
+    // exactly "Record exception" (the old "(N/A…)" suffix is gone; the reason
+    // select inside defaults to "Not applicable").
     const exceptionTrigger = page
       .getByRole("button", {
-        name: /Record exception \(N\/A/i,
+        name: "Record exception",
+        exact: true,
       })
       .first();
     await expect(exceptionTrigger).toBeVisible({ timeout: 15_000 });
@@ -39,9 +43,11 @@ test.describe("compliance loops", () => {
     await expect(note).toBeVisible();
     await note.fill("E2E exception: marketing microsite out of scope.");
 
-    await page
+    // Scope the submit to the opened form: the trigger above shares the
+    // exact accessible name, so an unscoped click would re-collapse it.
+    const exceptionForm = page.locator("form").filter({ has: note }).first();
+    await exceptionForm
       .getByRole("button", { name: "Record exception", exact: true })
-      .first()
       .click();
 
     // Success toast is ephemeral after `refresh()`; assert durable exception UI.

@@ -56,10 +56,12 @@ test.describe("organization account", () => {
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/complyloop-.*\.json/);
 
+    // Success is toast-only (Sonner toasts carry no role="status"; the
+    // inline status element was removed when export moved to announceResult).
     await expect(
-      page.getByRole("status").filter({
-        hasText: /Exported E2E Workspace data as JSON/i,
-      }),
+      page
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: /Exported E2E Workspace data as JSON/i }),
     ).toBeVisible();
   });
 
