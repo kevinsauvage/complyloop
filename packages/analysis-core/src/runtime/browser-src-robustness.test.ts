@@ -5,6 +5,7 @@ import {
   matchesMultilingual,
   RUNTIME_MATCHES_SRC,
 } from "../patterns/multilingual";
+import { parseCssColor } from "./css-color";
 import {
   BROWSER_CAPTCHA_MATCH_SRC,
   BROWSER_COLLECT_CAPTCHA_SRC,
@@ -176,6 +177,19 @@ describe("browser source survives bundler anonymization", () => {
       `const contrastRatio = (${anonymizeHelper(contrastRatio.toString())}); return contrastRatio(a, b);`;
     expect(() => new Function("value", parseBody)).not.toThrow();
     expect(() => new Function("a", "b", ratioBody)).not.toThrow();
+  });
+
+  it("css color parser body parses as a function body", () => {
+    // Mirrors the `new Function` bodies in non-text-contrast.ts and
+    // forced-colors.ts. The parser nests all helpers so the serialized
+    // source is complete (no module-scope dangling references).
+    const body =
+      `const parseCssColor = (${anonymizeHelper(parseCssColor.toString())}); return parseCssColor(value);`;
+    expect(() => new Function("value", body)).not.toThrow();
+    // Self-containment: the serialized source must not reference imports.
+    expect(anonymizeHelper(parseCssColor.toString())).not.toMatch(
+      /__vite_ssr_import__|__vite_ssr_dynamic_import__|require\(/,
+    );
   });
 
   it("label gap body parses as a function body", () => {

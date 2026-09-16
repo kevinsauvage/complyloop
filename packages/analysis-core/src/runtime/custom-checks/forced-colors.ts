@@ -1,9 +1,12 @@
 import type { Page } from "playwright-core";
 
+import { parseCssColor } from "../css-color.ts";
 import { pageEvaluateWithHitCapture } from "./hit-capture-evaluate.ts";
 import { FORCED_COLORS_CONTROL_SELECTOR } from "./interactive-control-selectors.ts";
 import type { CustomViolation, CustomViolationNode } from "./types.ts";
 import { withEmulatedMedia } from "./with-emulated-media.ts";
+
+const PARSE_COLOR_SRC = parseCssColor.toString();
 
 /**
  * Windows High Contrast / forced-colors mode strips decorative boundaries.
@@ -18,26 +21,18 @@ export async function forcedColorsViolation(
     { forcedColors: "active" },
     { forcedColors: "none" },
     async () => {
-      const nodes = await pageEvaluateWithHitCapture(
+      const result = await pageEvaluateWithHitCapture(
         page,
-        (captureHit, { interactiveSelector }) => {
+        (captureHit, { interactiveSelector, parseColorSrc }) => {
+          const parseColor = new Function(
+            "value",
+            `const parseCssColor = (${parseColorSrc}); return parseCssColor(value);`,
+          ) as typeof parseCssColor;
           const maxNodes = 10;
 
           function isVisible(el: HTMLElement): boolean {
             const rect = el.getBoundingClientRect();
             return rect.width > 0 && rect.height > 0;
-          }
-
-          function isTransparent(color: string): boolean {
-            if (color === "transparent" || color === "") return true;
-            const rgba = color.match(
-              /^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(?:,\s*([\d.]+)\s*)?\)$/,
-            );
-            if (rgba) {
-              const alpha = rgba[1];
-              return alpha !== undefined && parseFloat(alpha) === 0;
-            }
-            return false;
           }
 
           function hasVisibleBorder(style: CSSStyleDeclaration): boolean {
@@ -53,12 +48,46 @@ export async function forcedColorsViolation(
             );
           }
 
+          /**
+           * Graphical content (icons, images, media) renders visibly under
+           * forced colors via currentColor/system remapping, so an
+           * icon-only control with no text still has a visible boundary.
+           * Opacity/display/visibility-hidden graphics do not count.
+           */
+          function hasVisibleGraphics(target: Element): boolean {
+            const self =
+              target instanceof Element &&
+              /^(svg|img|canvas|video)$/i.test(target.tagName)
+                ? [target]
+                : [];
+            const all = [
+              ...self,
+              ...Array.from(
+                target.querySelectorAll("svg,img,canvas,video"),
+              ),
+            ];
+            return all.some((node) => {
+              const rect = node.getBoundingClientRect();
+              if (rect.width <= 0 || rect.height <= 0) return false;
+              const nodeStyle = getComputedStyle(node);
+              if (
+                nodeStyle.display === "none" ||
+                nodeStyle.visibility === "hidden"
+              ) {
+                return false;
+              }
+              const opacity = Number.parseFloat(nodeStyle.opacity);
+              return Number.isNaN(opacity) || opacity > 0;
+            });
+          }
+
           const found: CustomViolationNode[] = [];
           const seen = new Set<string>();
 
-          for (const el of Array.from(
+          const controls = Array.from(
             document.querySelectorAll<HTMLElement>(interactiveSelector),
-          )) {
+          );
+          for (const el of controls) {
             if (!el.isConnected) continue;
             if (!isVisible(el)) continue;
 
@@ -67,7 +96,10 @@ export async function forcedColorsViolation(
 
             const hasVisibleText = Boolean((el.textContent ?? "").trim());
             if (hasVisibleText) continue;
-            if (!isTransparent(style.backgroundColor)) continue;
+            if (hasVisibleGraphics(el)) continue;
+
+            const bg = parseColor(style.backgroundColor);
+            if (!bg || bg.alpha !== 0) continue;
 
             const hit = captureHit(el);
             const key = hit.selector;
@@ -87,11 +119,27 @@ export async function forcedColorsViolation(
             if (found.length >= maxNodes) break;
           }
 
-          return found;
+          return {
+            nodes: found,
+            controlCount: controls.length,
+            forcedActive:
+              typeof matchMedia === "function" &&
+              matchMedia("(forced-colors: active)").matches,
+          };
         },
-        { interactiveSelector: FORCED_COLORS_CONTROL_SELECTOR },
+        {
+          interactiveSelector: FORCED_COLORS_CONTROL_SELECTOR,
+          parseColorSrc: PARSE_COLOR_SRC,
+        },
       );
 
+      // Diagnostic: whether the emulation actually applied decides the
+      // verdict (unapplied emulation measures normal-mode colors), so the
+      // value is logged with every run.
+      console.info(
+        `[diag] forced-colors emulated=${result.forcedActive} controls=${result.controlCount}`,
+      );
+      const nodes = result.nodes;
       if (nodes.length === 0) return null;
       return {
         id: "forced-colors",

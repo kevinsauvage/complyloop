@@ -1,5 +1,6 @@
 import type { Locator, Page } from "playwright-core";
 
+import { parseCssColor } from "../css-color.ts";
 import { type CapturedHit } from "./hit-capture.ts";
 import {
   locatorEvaluateWithHitCapture,
@@ -43,7 +44,7 @@ interface ContrastHit extends CapturedHit {
 }
 
 const MATH_PAYLOAD = {
-  parseRgbSrc: parseRgb.toString(),
+  parseColorSrc: parseCssColor.toString(),
   luminanceSrc: relativeLuminance.toString(),
   contrastSrc: contrastRatio.toString(),
 };
@@ -51,7 +52,18 @@ const MATH_PAYLOAD = {
 export async function nonTextContrastViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-  const hits: ContrastHit[] = await collectCurrentHits(page);
+  const {
+    violations: initial,
+    controlCount,
+    borderSample,
+  } = await collectCurrentHits(page);
+  // Serialization sample: border colors serialize per Chromium build
+  // (legacy rgb() vs lab()/color()), which used to decide silently whether
+  // an element was measurable at all.
+  console.info(
+    `[diag] non-text-contrast controls=${controlCount} borderSample=${borderSample}`,
+  );
+  const hits: ContrastHit[] = [...initial];
 
   const locators = page.locator(NON_TEXT_CONTRAST_CONTROL_SELECTOR);
   const hoverCount = Math.min(await locators.count(), MAX_HOVER);
@@ -103,17 +115,21 @@ export async function nonTextContrastViolation(
   };
 }
 
-async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
+async function collectCurrentHits(page: Page): Promise<{
+  violations: ContrastHit[];
+  controlCount: number;
+  borderSample: string;
+}> {
   return pageEvaluateWithHitCapture(
     page,
     (
       captureHit,
-      { parseRgbSrc, luminanceSrc, contrastSrc, controlSelector },
+      { parseColorSrc, luminanceSrc, contrastSrc, controlSelector },
     ) => {
       const parseColor = new Function(
         "value",
-        `const parseRgb = (${parseRgbSrc}); return parseRgb(value);`,
-      ) as (value: string) => [number, number, number] | null;
+        `const parseCssColor = (${parseColorSrc}); return parseCssColor(value);`,
+      ) as typeof parseCssColor;
       const contrast = new Function(
         "a",
         "b",
@@ -123,16 +139,16 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
       function backgroundRgb(el: Element): [number, number, number] | null {
         let current: Element | null = el;
         while (current) {
-          const bg = parseColor(getComputedStyle(current).backgroundColor);
-          if (
-            bg &&
-            getComputedStyle(current).backgroundColor !== "rgba(0, 0, 0, 0)"
-          ) {
-            return bg;
-          }
+          const parsed = parseColor(
+            getComputedStyle(current).backgroundColor,
+          );
+          if (parsed && parsed.alpha > 0) return parsed.rgb;
           current = current.parentElement;
         }
-        return parseColor(getComputedStyle(document.body).backgroundColor);
+        const bodyParsed = parseColor(
+          getComputedStyle(document.body).backgroundColor,
+        );
+        return bodyParsed && bodyParsed.alpha > 0 ? bodyParsed.rgb : null;
       }
 
       function isDisabled(el: Element): boolean {
@@ -157,15 +173,26 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
       }
 
       const violations: ContrastHit[] = [];
-      for (const el of document.querySelectorAll(controlSelector)) {
+      const controls = Array.from(document.querySelectorAll(controlSelector));
+      const first = controls[0];
+      const borderSample =
+        first instanceof HTMLElement
+          ? getComputedStyle(first).borderTopColor
+          : "";
+      for (const el of controls) {
         if (!(el instanceof HTMLElement)) continue;
         if (isDisabled(el)) continue;
         const style = getComputedStyle(el);
         const borderWidth = parseFloat(style.borderTopWidth);
         if (borderWidth <= 0) continue;
-        const border = parseColor(style.borderTopColor);
+        const parsedBorder = parseColor(style.borderTopColor);
+        // Fully transparent borders are placeholders, not chrome: there is
+        // no visible boundary whose contrast could fail. Unparsable
+        // serializations are skipped rather than measured as garbage.
+        if (!parsedBorder || parsedBorder.alpha === 0) continue;
+        const border = parsedBorder.rgb;
         const bg = backgroundRgb(el);
-        if (!border || !bg) continue;
+        if (!bg) continue;
         const ratio = contrast(border, bg);
         if (ratio >= 3) continue;
 
@@ -177,7 +204,7 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
         });
         if (violations.length >= 5) break;
       }
-      return violations;
+      return { violations, controlCount: controls.length, borderSample };
     },
     { ...MATH_PAYLOAD, controlSelector: NON_TEXT_CONTRAST_CONTROL_SELECTOR },
   );
@@ -186,11 +213,11 @@ async function collectCurrentHits(page: Page): Promise<ContrastHit[]> {
 async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
   return locatorEvaluateWithHitCapture(
     locator,
-    (captureHit, el, { parseRgbSrc, luminanceSrc, contrastSrc }) => {
+    (captureHit, el, { parseColorSrc, luminanceSrc, contrastSrc }) => {
       const parseColor = new Function(
         "value",
-        `const parseRgb = (${parseRgbSrc}); return parseRgb(value);`,
-      ) as (value: string) => [number, number, number] | null;
+        `const parseCssColor = (${parseColorSrc}); return parseCssColor(value);`,
+      ) as typeof parseCssColor;
       const contrast = new Function(
         "a",
         "b",
@@ -200,24 +227,26 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
       function backgroundRgb(node: Element): [number, number, number] | null {
         let current: Element | null = node;
         while (current) {
-          const bg = parseColor(getComputedStyle(current).backgroundColor);
-          if (
-            bg &&
-            getComputedStyle(current).backgroundColor !== "rgba(0, 0, 0, 0)"
-          ) {
-            return bg;
-          }
+          const parsed = parseColor(
+            getComputedStyle(current).backgroundColor,
+          );
+          if (parsed && parsed.alpha > 0) return parsed.rgb;
           current = current.parentElement;
         }
-        return parseColor(getComputedStyle(document.body).backgroundColor);
+        const bodyParsed = parseColor(
+          getComputedStyle(document.body).backgroundColor,
+        );
+        return bodyParsed && bodyParsed.alpha > 0 ? bodyParsed.rgb : null;
       }
 
       const style = getComputedStyle(el);
       const borderWidth = parseFloat(style.borderTopWidth);
       if (borderWidth <= 0) return null;
-      const border = parseColor(style.borderTopColor);
+      const parsedBorder = parseColor(style.borderTopColor);
+      if (!parsedBorder || parsedBorder.alpha === 0) return null;
+      const border = parsedBorder.rgb;
       const bg = backgroundRgb(el);
-      if (!border || !bg) return null;
+      if (!bg) return null;
       const ratio = contrast(border, bg);
       if (ratio >= 3) return null;
       const captured = captureHit(el);

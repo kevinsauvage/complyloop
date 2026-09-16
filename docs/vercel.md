@@ -95,7 +95,8 @@ GitHub App settings: callback
 ## 4. Runtime audits on Vercel
 
 Set `ASSESSMENT_RUNTIME_BROWSER=serverless`. `@sparticuz/chromium` is pinned
-exact (`149.0.0` — that package versions by Chromium major and may break at
+exact (`153.0.0`, matching the local Playwright Chromium major — that
+package versions by Chromium major and may break at
 any release, so upgrades are deliberate). The launch site is
 `getBrowser()` in `packages/analysis-core/src/runtime/scan.ts`; launch
 failures surface as "Could not start the browser used for preview audits."
