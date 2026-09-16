@@ -15,11 +15,13 @@ what is missing before the project is genuinely usable, safe, and deployable.
 ### [ ] TODO-03: Production ops hardening — cron monitoring, `ops:check` gaps, provider backups
 
 **Why:**
-Prod drains via Vercel Cron → `POST /api/internal/jobs/run` (no worker
-process since the Vercel migration). If Cron stops firing or starts failing,
-web enqueues pile up with no alert — the same silent-halving failure the old
-worker restart policy guarded against. `ops:check` doesn't enforce what the
-deploy doc promises, and backups now depend entirely on the Postgres provider.
+Prod drains via the GitHub Actions `assessment-worker` (dispatch on enqueue
++ 15-min schedule backstop; Vercel worker-route self-fetch as degraded
+fallback — no Vercel Cron since the Actions migration). If the dispatch and
+the schedule both stop firing or start failing, web enqueues pile up with no
+alert — the same silent-halving failure the old worker restart policy
+guarded against. `ops:check` doesn't enforce what the deploy doc promises,
+and backups now depend entirely on the Postgres provider.
 
 **Where:**
 `vercel.json`, `src/app/api/internal/jobs/run/route.ts`,
@@ -27,9 +29,10 @@ deploy doc promises, and backups now depend entirely on the Postgres provider.
 
 **Current state:**
 
-- Cron every 2 min (`limit=2`, `maxDuration=300`); route authed constant-time
-  (`worker-auth.ts:10-17`); `WORKER_SECRET` == `CRON_SECRET` so Vercel's
-  automatic Bearer header passes.
+- GH worker (dispatch + 15-min schedule, `limit=10&concurrency=2` on
+  `workflow_dispatch`); Vercel route `maxDuration=300`. Route authed
+  constant-time (`worker-auth.ts`); single `WORKER_SECRET` (no `CRON_SECRET`
+  coupling — Vercel Cron is removed).
 - `ops:check` verifies `DATABASE_URL` + (prod) `AUTH_SECRET,SENTRY_DSN,
 GITHUB_WEBHOOK_SECRET` + `SELECT 1` + queued count (logged, never fails).
 - Backups are the provider's (Neon/Supabase point-in-time); no app-side dump.

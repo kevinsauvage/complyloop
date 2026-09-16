@@ -5,6 +5,13 @@ import { reportWarning } from "../observability";
 /** `repository_dispatch` type the `assessment-worker` workflow listens for. */
 export const ASSESSMENT_DRAIN_EVENT_TYPE = "assessment-drain";
 
+/**
+ * Upper bound for the kick itself: it runs inside `after()`, where a hung
+ * socket would hold the task past any useful window (the 15-min schedule
+ * backstop covers whatever this misses).
+ */
+const DISPATCH_TIMEOUT_MS = 15_000;
+
 function appRepo(): { owner: string; repo: string } | null {
   const full = process.env.APP_REPO_FULL_NAME?.trim();
   if (full) {
@@ -47,6 +54,7 @@ export async function dispatchAssessmentWorker(): Promise<boolean> {
           "X-GitHub-Api-Version": "2022-11-28",
         },
         body: JSON.stringify({ event_type: ASSESSMENT_DRAIN_EVENT_TYPE }),
+        signal: AbortSignal.timeout(DISPATCH_TIMEOUT_MS),
       },
     );
     if (response.status === 204) return true;

@@ -16,6 +16,11 @@
 # `workflow_dispatch` doubles as an operator drain button.
 name: assessment-worker
 
+# Least privilege: the runner only reads code. DB/GitHub access uses
+# repository secrets, never the auto-issued token.
+permissions:
+  contents: read
+
 on:
   repository_dispatch:
     types: [assessment-drain]

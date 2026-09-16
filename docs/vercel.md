@@ -85,14 +85,15 @@ Authentication for the Vercel route: the self-fetch sends
 only) — no `CRON_SECRET` coupling.
 
 The route runs with `maxDuration = 300` (Hobby caps at 300; Pro up to 800).
-The sweep uses `limit=10&concurrency=2` to drain backlogs in a few ticks; on
-Pro drop back to small batches (`limit=2`) so a slow clone/scan fits. Expired rate-limit
+The GH worker drains with `limit=10&concurrency=2` (inputs on
+`workflow_dispatch`) to clear backlogs in a few ticks. Expired rate-limit
 buckets prune once per batch (`runAssessmentJobBatch`).
 
-If the queue ever grows instead of draining, both the self-fetch drain and
-the sweep stopped firing or started failing — alert on `assessmentJobs` queue depth
-(see `ops:check` below) and check the Vercel function logs (filter `[event]`
-for `assessment_opportunistic_drain_failed`) plus the Actions run logs.
+If the queue ever grows instead of draining, both the dispatch and the
+15-min schedule stopped firing or started failing — alert on
+`assessmentJobs` queue depth (see `ops:check` below) and check the Vercel
+function logs (filter `[event]` for `assessment_worker_dispatch_failed`
+and `assessment_opportunistic_drain_failed`) plus the Actions run logs.
 
 ## 3. Environment variables (Vercel dashboard)
 
@@ -104,7 +105,7 @@ for `assessment_opportunistic_drain_failed`) plus the Actions run logs.
 | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`       | GitHub App OAuth client                                                                                             |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`    | Installation-token repo access                                                                                      |
 | `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET`   | Install link + webhook verification                                                                                 |
-| `WORKER_SECRET`                               | Bearer for the worker route (self-fetch + sweep secret, ≥16 chars)                                                              |
+| `WORKER_SECRET`                               | Bearer for the worker-route fallback (self-fetch secret, ≥16 chars)                                                             |
 | `ASSESSMENT_RUNTIME_BROWSER`                  | `serverless` (Vercel) — unset locally                                                                               |
 | `ASSESSMENT_MAX_CHECKOUT_BYTES`               | `100000000` (100 MB — `/tmp` caps at ~500 MB)                                                                       |
 | `ASSESSMENT_MAX_CHECKOUT_FILES`               | `10000`                                                                                                             |
@@ -143,8 +144,9 @@ without it every runtime scan fails with `Cannot find module
 - Lifecycle events (`[event] assessment job enqueued/claimed/completed`,
    `worker_batch_started/finished`, `worker_unauthorized`) log to stdout in
    production — filter Vercel logs for `[event]` to trace a stuck job from
-   enqueue to claim. A `worker_unauthorized` line means the sweep/self-fetch
-   bearer ≠ `WORKER_SECRET`, so ticks never drain the queue.
+   enqueue to claim. A `worker_unauthorized` line means the fallback
+   self-fetch bearer ≠ `WORKER_SECRET`, so fallback ticks never drain the
+   queue (the GH worker is unaffected — it needs no bearer).
 - `npm run ops:check` (from any machine with `DATABASE_URL`) verifies DB +
   prod env + queue depth. Run it on a schedule with failure alerting — it is
   the replacement for the old worker healthcheck.

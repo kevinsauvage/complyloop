@@ -91,4 +91,13 @@ describe("dispatchAssessmentWorker", () => {
       expect(JSON.stringify(call)).not.toContain("gh-pat");
     }
   });
+
+  it("bounds the kick with a timeout signal", async () => {
+    await expect(dispatchAssessmentWorker()).resolves.toBe(true);
+    const [, init] = vi.mocked(fetch).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
 });
