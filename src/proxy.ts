@@ -88,14 +88,27 @@ function isBasicAuthSatisfied(
 }
 
 export async function proxy(req: NextRequest) {
+  const { pathname, search } = req.nextUrl;
+  // Sentry browser-tunnel route (tunnelRoute: "/monitoring" in next.config.ts).
+  // The tunnel is a Next rewrite that forwards the request — headers included —
+  // to Sentry ingest. If the private-preview Basic credential cached by the
+  // browser is attached, Sentry reads `authorization` as DSN auth and rejects
+  // the envelope with 400 `invalid project key`
+  // (getsentry/sentry-javascript#8341). Strip it here — never gate or redirect
+  // the tunnel. This branch runs before everything else so it also applies
+  // when GitHub auth is unconfigured.
+  if (pathname === "/monitoring" || pathname.startsWith("/monitoring/")) {
+    if (req.headers.has("authorization")) {
+      const headers = new Headers(req.headers);
+      headers.delete("authorization");
+      return NextResponse.next({ request: { headers } });
+    }
+    return;
+  }
+
   if (!isGitHubAuthConfigured()) return;
 
-  const { pathname, search } = req.nextUrl;
   if (pathname.startsWith("/api/")) return;
-  // Sentry browser-tunnel route (tunnelRoute: "/monitoring" in next.config.ts)
-  // must never be gated or redirected — otherwise client error envelopes are
-  // dropped for logged-out visitors and ad-blocker circumvention breaks.
-  if (pathname === "/monitoring" || pathname.startsWith("/monitoring/")) return;
 
   // Private-preview gate: HTTP Basic Auth on every page. API routes above
   // keep their own auth (webhook secret, cron Bearer, session cookies), and
@@ -146,5 +159,9 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|monitoring|.*\\..*).*)"],
+  // The Sentry tunnel (/monitoring) must match so the branch above can strip
+  // the cached Basic credential before the rewrite forwards to ingest —
+  // excluding it would pass `authorization` through and Sentry would 400 with
+  // `invalid project key`. Static assets and files with extensions stay out.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };

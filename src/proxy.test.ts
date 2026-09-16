@@ -85,8 +85,19 @@ describe("proxy basic auth gate", () => {
     baseEnv();
     getToken.mockResolvedValue(null);
     await expect(proxy(request("/monitoring"))).resolves.toBeUndefined();
-    // Even with missing basic-auth credentials the envelope must pass through.
-    await expect(proxy(request("/monitoring", "Bearer token"))).resolves.toBeUndefined();
+  });
+
+  it("strips the cached Basic credential from the Sentry tunnel so ingest accepts the envelope", async () => {
+    baseEnv();
+    getToken.mockResolvedValue(null);
+    // getsentry/sentry-javascript#8341: the rewrite forwards headers to
+    // Sentry ingest, which reads `authorization` as DSN auth and 400s with
+    // `invalid project key`. The tunnel must never be gated — just cleaned.
+    const tunneled = await proxy(
+      request("/monitoring", basicAuthHeader("preview", "s3cret")),
+    );
+    expect(tunneled?.status).toBe(200);
+    expect(tunneled?.headers.get("authorization")).toBeNull();
   });
 
   it("leaves the gate open when credentials are unset (local dev)", async () => {
