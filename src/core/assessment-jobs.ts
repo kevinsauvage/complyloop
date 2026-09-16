@@ -5,12 +5,33 @@ import {
   ASSESSMENT_JOB_TRIGGERS,
 } from "@complyloop/analysis-core/contract/assessment-jobs";
 
+/**
+ * Worker progress vocabulary: the pipeline stage a running job is in. Written
+ * best-effort onto the job payload (see `updateAssessmentJobStage`) and
+ * rendered by the Pipeline section — the status column stays the source of
+ * truth, this is only the "what is it doing" hint.
+ */
+export const ASSESSMENT_JOB_STAGES = [
+  "checkout",
+  "changedetection",
+  "ast",
+  "runtime",
+  "reconcile",
+  "apply",
+] as const;
+
+export const assessmentJobStageSchema = z.enum(ASSESSMENT_JOB_STAGES);
+
+export type AssessmentJobStage = z.infer<typeof assessmentJobStageSchema>;
+
 /** API / client shape for one assessment job — single source for type + zod. */
 export const assessmentJobPayloadSchema = z.object({
   ref: z.string().optional(),
   eventName: z.enum(["push", "pull_request"]).optional(),
   pullRequestHeadSha: z.string().optional(),
   supersededRefs: z.array(z.string()).optional(),
+  stage: assessmentJobStageSchema.optional(),
+  stageStartedAt: z.string().optional(),
 });
 
 export const assessmentJobSchema = z.object({

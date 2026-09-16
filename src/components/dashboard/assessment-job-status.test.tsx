@@ -92,6 +92,42 @@ describe("AssessmentJobStatus worker-stall warning", () => {
   });
 });
 
+describe("AssessmentJobStatus stage progress", () => {
+  it("shows the pipeline stage for a running job", () => {
+    renderWithUiProviders(
+      <AssessmentJobStatus
+        jobs={[
+          jobOf({
+            id: "j1",
+            status: "running",
+            startedAt: minutesAgo(1),
+            payload: { stage: "ast" },
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText(/Scanning source/)).toBeInTheDocument();
+  });
+
+  it("hides the stage for terminal jobs", () => {
+    renderWithUiProviders(
+      <AssessmentJobStatus
+        jobs={[
+          jobOf({
+            id: "j1",
+            status: "succeeded",
+            payload: { stage: "apply" },
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.queryByText(/Saving results/)).toBeNull();
+    expect(screen.getByText(/Completed/)).toBeInTheDocument();
+  });
+});
+
 describe("AssessmentJobStatus cancel", () => {
   it("renders a cancel form for queued and running jobs when allowed", () => {
     const { container } = renderWithUiProviders(

@@ -116,8 +116,18 @@ describe("runAssessment", () => {
     expect(db.findings[0].status).toBe("open");
   });
 
-  it("labels an unchanged-commit re-run as reused instead of scoped", async () => {
-    await git.init({ fs, dir: rootPath });
+  it("reports pipeline stages through onStage in order", async () => {
+    const stages: string[] = [];
+    await assess({
+      rootPath,
+      onStage: (stage) => {
+        stages.push(stage);
+      },
+    });
+    expect(stages).toEqual(["changedetection", "ast", "runtime", "reconcile"]);
+  });
+
+  it("labels an unchanged-commit re-run as reused instead of scoped", async () => {    await git.init({ fs, dir: rootPath });
     await git.add({ fs, dir: rootPath, filepath: "Hero.tsx" });
     await git.commit({
       fs,

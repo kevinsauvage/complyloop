@@ -2,6 +2,8 @@ import "server-only";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
+import type { AssessmentJobStage } from "@/core/assessment-jobs";
+
 import { postAssessmentCheckRun } from "../github/github-connector";
 import { reportError, reportEvent, reportWarning } from "../observability";
 import { loadProjectDb } from "../workspace/db";
@@ -14,6 +16,7 @@ import {
   completeAssessmentJob,
   failAssessmentJob,
   refreshAssessmentJobLease,
+  updateAssessmentJobStage,
 } from "./assessment-jobs";
 import {
   applyAuthoritativeAssessment,
@@ -92,21 +95,30 @@ async function runClaimedAssessmentJob(
   if (heartbeat && typeof heartbeat.unref === "function") heartbeat.unref();
 
   try {
-    // Wall-clock attribution: clone/quota/cleanup (checkout) vs scan vs
-    // apply, so production slowness lands on a stage instead of a guess.
-    // checkoutMs is derived (total − scan − apply) to avoid hooks inside
-    // the checkout helper; the in-scan split lives on the run's evidence.
+    // Wall-clock attribution: clone/quota/fetch (checkout) vs scan vs apply,
+    // so production slowness lands on a stage instead of a guess. checkoutMs
+    // is measured at the checkout-callback boundary (no hooks inside the
+    // checkout helper); the in-scan split lives on the run's evidence.
+    // Each boundary also stamps the job payload stage (best effort) so the
+    // Pipeline UI and crash forensics can see what the run was doing.
+    const reportStage = (stage: AssessmentJobStage): void => {
+      void updateAssessmentJobStage(job.id, stage);
+    };
     const checkoutStart = Date.now();
+    let checkoutMs = 0;
     let scanMs = 0;
     let applyMs = 0;
     let applyCancelled = false;
+    reportStage("checkout");
     const result = await withProjectCheckout(
       project,
       async (rootPath) => {
+        checkoutMs = Date.now() - checkoutStart;
         const scanStart = Date.now();
         const run = await runAssessment(pipelineInput, {
           rootPath,
           authoritative,
+          onStage: reportStage,
         });
         scanMs = Date.now() - scanStart;
         const { assessment } = run;
@@ -117,6 +129,7 @@ async function runClaimedAssessmentJob(
         // "saves nothing".
         if (authoritative && !cancelledRemotely) {
           const applyStart = Date.now();
+          reportStage("apply");
           try {
             await applyAuthoritativeAssessment({
               project,
@@ -154,7 +167,7 @@ async function runClaimedAssessmentJob(
       code: "assessment_stage_timing",
       projectId: project.id,
       jobId: job.id,
-      checkoutMs: Math.max(totalMs - scanMs - applyMs, 0),
+      checkoutMs,
       scanMs,
       applyMs,
       totalMs,

@@ -321,6 +321,7 @@ import {
   queuedAssessmentJobCount,
   recentAssessmentJobsForProject,
   refreshAssessmentJobLease,
+  updateAssessmentJobStage,
 } from "./assessment-jobs";
 
 beforeEach(() => {
@@ -850,6 +851,40 @@ describe("queuedAssessmentJobCount and recentAssessmentJobsForProject", () => {
     }
     const recent = await recentAssessmentJobsForProject("p1", 5);
     expect(recent.map((job) => job.id)).toEqual(ids.slice(-5).reverse());
+  });
+});
+
+describe("updateAssessmentJobStage", () => {
+  it("stamps the stage on a running job", async () => {
+    const queued = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const row = jobs.get(queued.id);
+    if (!row) throw new Error("expected job");
+    row.status = "running";
+
+    await expect(updateAssessmentJobStage(queued.id, "ast")).resolves.toBe(
+      true,
+    );
+    expect(jobs.get(queued.id)?.payload).toMatchObject({ stage: "ast" });
+    expect(typeof jobs.get(queued.id)?.payload.stageStartedAt).toBe("string");
+  });
+
+  it("refuses to touch terminal jobs and unknown ids", async () => {
+    const queued = await enqueueAssessmentJob({
+      projectId: "p1",
+      trigger: "manual",
+    });
+    const row = jobs.get(queued.id);
+    if (!row) throw new Error("expected job");
+    row.status = "failed";
+
+    await expect(updateAssessmentJobStage(queued.id, "ast")).resolves.toBe(
+      false,
+    );
+    expect(jobs.get(queued.id)?.payload).not.toHaveProperty("stage");
+    await expect(updateAssessmentJobStage("nope", "ast")).resolves.toBe(false);
   });
 });
 

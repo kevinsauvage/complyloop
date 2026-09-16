@@ -26,6 +26,7 @@ import {
   type AssessmentJob,
   type AssessmentJobPayload,
   assessmentJobPayloadSchema,
+  type AssessmentJobStage,
 } from "@/core/assessment-jobs";
 
 import { reportWarning } from "../observability";
@@ -572,8 +573,54 @@ export async function refreshAssessmentJobLease(
   return refreshed?.leaseExpiresAt ?? null;
 }
 
-export async function queuedAssessmentJobCount(): Promise<number> {
-  const drizzle = await getDrizzle();
+/**
+ * Best-effort worker progress update: stamps the job payload's current
+ * pipeline stage (+ when it started). Fire-and-forget from the worker — never
+ * throws, never touches non-`running` jobs (so a stale write can neither
+ * resurrect a terminal job nor fight a cancel), and never blocks the run. A
+ * missed update only costs UI freshness: the status column stays the source
+ * of truth, and the last stage doubles as the crash marker (a killed worker
+ * leaves its final stage behind instead of silence).
+ */
+export async function updateAssessmentJobStage(
+  jobId: string,
+  stage: AssessmentJobStage,
+): Promise<boolean> {
+  try {
+    const drizzle = await getDrizzle();
+    const [row] = await drizzle
+      .select({ payload: assessmentJobs.payload })
+      .from(assessmentJobs)
+      .where(eq(assessmentJobs.id, jobId))
+      .limit(1);
+    if (!row) return false;
+    const [updated] = await drizzle
+      .update(assessmentJobs)
+      .set({
+        payload: {
+          ...parseJobPayload(row.payload),
+          stage,
+          stageStartedAt: new Date().toISOString(),
+        },
+        updatedAt: new Date().toISOString(),
+      })
+      .where(
+        and(eq(assessmentJobs.id, jobId), eq(assessmentJobs.status, "running")),
+      )
+      .returning({ id: assessmentJobs.id });
+    return updated !== undefined;
+  } catch (error) {
+    reportWarning("Assessment job stage update failed", {
+      code: "assessment_job_stage_update_failed",
+      jobId,
+      stage,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+export async function queuedAssessmentJobCount(): Promise<number> {  const drizzle = await getDrizzle();
   const [row] = await drizzle
     .select({ value: count() })
     .from(assessmentJobs)

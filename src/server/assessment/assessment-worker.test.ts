@@ -13,6 +13,7 @@ const claimNextAssessmentJob = vi.hoisted(() => vi.fn());
 const completeAssessmentJob = vi.hoisted(() => vi.fn());
 const failAssessmentJob = vi.hoisted(() => vi.fn());
 const refreshAssessmentJobLease = vi.hoisted(() => vi.fn());
+const updateAssessmentJobStage = vi.hoisted(() => vi.fn());
 const loadProjectDb = vi.hoisted(() => vi.fn());
 const runAssessment = vi.hoisted(() => vi.fn());
 const withProjectCheckout = vi.hoisted(() => vi.fn());
@@ -41,6 +42,8 @@ vi.mock("./assessment-jobs", async () => {
     failAssessmentJob: (...args: unknown[]) => failAssessmentJob(...args),
     refreshAssessmentJobLease: (...args: unknown[]) =>
       refreshAssessmentJobLease(...args),
+    updateAssessmentJobStage: (...args: unknown[]) =>
+      updateAssessmentJobStage(...args),
   };
 });
 
@@ -231,6 +234,32 @@ describe("settleRunningAssessmentJob", () => {
     expect(completeAssessmentJob).toHaveBeenCalledWith(
       expect.objectContaining({ id: "job-1" }),
     );
+  });
+
+  it("stamps checkout and apply stages on the job payload", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockImplementation(
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
+    );
+    runAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
+    completeAssessmentJob.mockResolvedValue(undefined);
+    updateAssessmentJobStage.mockResolvedValue(true);
+
+    await expect(settleRunningAssessmentJob(job())).resolves.toEqual({
+      kind: "succeeded",
+      jobId: "job-1",
+    });
+    // In-scan stages (changedetection/ast/…) ride runAssessment's onStage hook
+    // (covered in assessment.test.ts); the worker owns checkout + apply.
+    expect(updateAssessmentJobStage).toHaveBeenCalledWith("job-1", "checkout");
+    expect(updateAssessmentJobStage).toHaveBeenCalledWith("job-1", "apply");
   });
 
   it("reports a terminal failure and records failure evidence", async () => {
@@ -445,6 +474,7 @@ describe("processNextAssessmentJob", () => {
       {
         rootPath: "/tmp/checkout",
         authoritative: true,
+        onStage: expect.any(Function),
       },
     );
     expect(applyAssessmentPayload).toHaveBeenCalled();
@@ -563,6 +593,7 @@ describe("processNextAssessmentJob", () => {
       {
         rootPath: "/tmp/checkout",
         authoritative: true,
+        onStage: expect.any(Function),
       },
     );
     expect(applyAssessmentPayload).toHaveBeenCalledWith(
@@ -817,6 +848,7 @@ describe("processNextAssessmentJob", () => {
       {
         rootPath: "/tmp/checkout",
         authoritative: false,
+        onStage: expect.any(Function),
       },
     );
     expect(applyAssessmentPayload).not.toHaveBeenCalled();
@@ -863,6 +895,7 @@ describe("processNextAssessmentJob", () => {
       {
         rootPath: "/tmp/checkout",
         authoritative: true,
+        onStage: expect.any(Function),
       },
     );
     expect(applyAssessmentPayload).toHaveBeenCalled();

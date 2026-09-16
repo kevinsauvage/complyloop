@@ -28,6 +28,7 @@ import type { RawFinding } from "@complyloop/analysis-core/types";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 
 import { countByStatus, latestAssessmentFor } from "@/core/assessment-helpers";
+import type { AssessmentJobStage } from "@/core/assessment-jobs";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
 
 import { reportEvent, reportWarning } from "../observability";
@@ -100,6 +101,13 @@ export interface RunAssessmentOptions {
   authoritative?: boolean;
   /** Test override; production uses the shipped catalog. */
   controls?: readonly Control[];
+  /**
+   * Stage hook for worker progress reporting. Called synchronously at each
+   * pipeline stage boundary with the stage the run is entering — the worker
+   * passes a fire-and-forget job-payload writer. Must never throw: a progress
+   * callback failure must not fail the assessment (guarded at the call site).
+   */
+  onStage?: (stage: AssessmentJobStage) => void;
 }
 
 export interface AssessmentRunResult {
@@ -313,12 +321,26 @@ export async function runAssessment(
   // Wall-clock ms per stage, persisted on the completion evidence (detail
   // `stageMs`) so production slowness is attributable without guessing.
   const stageMs: Record<string, number> = {};
-  async function timed<T>(label: string, fn: () => Promise<T> | T): Promise<T> {
+  async function timed<T>(
+    label: AssessmentJobStage,
+    fn: () => Promise<T> | T,
+  ): Promise<T> {
     const start = Date.now();
     // Start-of-stage marker: completion timings are reported at the end, so a
-    // killed function (Vercel timeout) leaves nothing — the last progress
-    // line names the stall instead.
+    // killed function (Vercel timeout) leaves nothing in evidence — the last
+    // progress line names the stall instead. The job payload stage (best
+    // effort, never failing) is what survives a crash for the UI.
     console.info(`[progress] assessment stage ${label} started`);
+    try {
+      options.onStage?.(label);
+    } catch (error) {
+      reportWarning("Assessment stage hook failed", {
+        code: "assessment_stage_hook_failed",
+        projectId,
+        stage: label,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     try {
       return await fn();
     } finally {

@@ -1,6 +1,7 @@
 import { RefreshCw } from "lucide-react";
 
 import { StatefulActionForm } from "@/components/stateful-action-form";
+import type { AssessmentJobStage } from "@/core/assessment-jobs";
 import { formatDateTime } from "@/core/datetime";
 import { cn } from "@/lib/utils";
 import {
@@ -23,6 +24,16 @@ const statusIndicator: Record<AssessmentJob["status"], string> = {
   succeeded: "bg-status-passed",
   failed: "bg-status-failed",
   cancelled: "bg-muted-foreground/40",
+};
+
+/** Human copy for the running-job pipeline stage (see `updateAssessmentJobStage`). */
+const stageCopy: Record<AssessmentJobStage, string> = {
+  checkout: "Checking out repository",
+  changedetection: "Detecting changes",
+  ast: "Scanning source",
+  runtime: "Auditing preview",
+  reconcile: "Updating findings",
+  apply: "Saving results",
 };
 
 /**
@@ -162,6 +173,9 @@ export function AssessmentJobStatus({
                   {" · "}
                   {job.trigger === "webhook" ? "Webhook" : "Manual"} assessment
                   {job.attempts > 1 ? ` · attempt ${job.attempts}` : ""}
+                  {job.status === "running" && job.payload.stage
+                    ? ` · ${stageCopy[job.payload.stage]}`
+                    : ""}
                 </span>
               </span>
             </span>
