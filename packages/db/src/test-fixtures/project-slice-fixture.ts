@@ -46,9 +46,18 @@ export async function insertProjectSliceFixture(
   const userId = `user-slice-${suffix}`;
   const githubLogin = `login-slice-${suffix}`;
 
+  // Tenancy loaders (`listOrganizationsForUser`, `listMembershipsForOrgs`)
+  // read the contract entity back out of the `payload` column (see
+  // `organizationToRow` / `membershipToRow`), so fixtures must store full
+  // entity payloads — `'{}'` rows resolve to no orgs / no access.
   await drizzle.execute(sql`
     INSERT INTO organizations (id, slug, payload)
-    VALUES (${orgId}, ${`slug-slice-${suffix}`}, '{}'::jsonb)
+    VALUES (${orgId}, ${`slug-slice-${suffix}`}, ${JSON.stringify({
+      id: orgId,
+      name: `slice-org-${suffix}`,
+      slug: `slug-slice-${suffix}`,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    })}::jsonb)
   `);
   await drizzle.execute(sql`
     INSERT INTO memberships (id, org_id, user_id, github_login, role, payload)
@@ -58,7 +67,14 @@ export async function insertProjectSliceFixture(
       ${userId},
       ${githubLogin},
       'owner',
-      '{}'::jsonb
+      ${JSON.stringify({
+        id: `mem-slice-${suffix}`,
+        orgId,
+        role: "owner",
+        userId,
+        githubLogin,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      })}::jsonb
     )
   `);
   await drizzle.execute(sql`
